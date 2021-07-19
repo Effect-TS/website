@@ -2,4 +2,4 @@
 
 ## Best Practices
 
-- If possible don't use `any` or `unknown` in the error type channel.
+- never use `any` or `unknown` in the error type channel, the error is either typed `MyError` or it's an unknown exception (a defect, to be raised via `die`).
