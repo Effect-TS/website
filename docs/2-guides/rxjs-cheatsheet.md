@@ -119,46 +119,36 @@ export const fromObservable =
 **fromStream**
 ```ts
 import { Cause as C, Effect as T, pipe, Stream as S } from '@effect-ts/core';
-import { Subject } from 'rxjs';
+import { Observable, Subscriber, TeardownLogic } from 'rxjs';
 
-export function runObservable_<E, A1, A2>(
-  f: T.Effect<T.DefaultEnv, E, A2>,
-  sub = new Subject<A1>(),
-) {
-  pipe(f, T.runPromiseExit, (p) =>
-    p.then((exit) => {
-      switch (exit._tag) {
-        case 'Failure': {
-          if (!C.interruptedOnly(exit.cause)) {
-            sub.error(
-              C.pretty(exit.cause),
-            );
-          }
-          break;
-        }
-        case 'Success': {
-          sub.complete();
-          break;
-        }
-      }
-    }),
-  );
+export function fromStream<E, A>(s: S.Stream<unknown, E, A>) {
+  return new Observable(
+    (subscriber: Subscriber<A>): TeardownLogic =>
+      pipe(
+        s,
+        S.forEach((v) => T.succeedWith(() => subscriber.next(v))),
+        (f) => {
+          const context = pipe(
+            f,
+            T.tapCause((cause) => {
+              if (C.interruptedOnly(cause)) {
+                subscriber.complete();
+              } else {
+                subscriber.error(C.pretty(cause));
+                subscriber.complete();
+              }
 
-  return sub.asObservable();
-}
+              return T.unit;
+            }),
+            T.runFiber,
+          );
 
-export const runObservable =
-  <A1>(sub = new Subject<A1>()) =>
-    <E, A2>(s: T.Effect<T.DefaultEnv, E, A2>) =>
-      runObservable_(s, sub);
-
-export function fromStream<E, A>(s: S.Stream<T.DefaultEnv, E, A>) {
-  const sub = new Subject<A>();
-
-  return pipe(
-    s,
-    S.forEach((v) => T.succeedWith(() => sub.next(v))),
-    runObservable(sub),
+          return {
+            unsubscribe: () =>
+              pipe(context.fiberId, context.interruptAs, T.run),
+          };
+        },
+      ),
   );
 }
 ```
