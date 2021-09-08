@@ -152,7 +152,7 @@ export const runObservable =
     <E, A2>(s: T.Effect<T.DefaultEnv, E, A2>) =>
       runObservable_(s, sub);
 
-export function fromStream<E, A>(s: S.Stream<unknown, E, A>) {
+export function fromStream<E, A>(s: S.Stream<T.DefaultEnv, E, A>) {
   const sub = new Subject<A>();
 
   return pipe(
