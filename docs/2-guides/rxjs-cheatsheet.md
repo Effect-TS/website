@@ -115,3 +115,50 @@ export const fromObservable =
     <A>(o: Observable<A>) =>
       fromObservable_(o, bufferType, bufferSize);
 ```
+
+**fromStream**
+```ts
+import { Cause as C, Effect as T, pipe, Stream as S } from '@effect-ts/core';
+import { Subject } from 'rxjs';
+
+export function runObservable_<E, A1, A2>(
+  f: T.Effect<T.DefaultEnv, E, A2>,
+  sub = new Subject<A1>(),
+) {
+  pipe(f, T.runPromiseExit, (p) =>
+    p.then((exit) => {
+      switch (exit._tag) {
+        case 'Failure': {
+          if (!C.interruptedOnly(exit.cause)) {
+            sub.error(
+              C.pretty(exit.cause),
+            );
+          }
+          break;
+        }
+        case 'Success': {
+          sub.complete();
+          break;
+        }
+      }
+    }),
+  );
+
+  return sub.asObservable();
+}
+
+export const runObservable =
+  <A1>(sub = new Subject<A1>()) =>
+    <E, A2>(s: T.Effect<T.DefaultEnv, E, A2>) =>
+      runObservable_(s, sub);
+
+export function fromStream<E, A>(s: S.Stream<unknown, E, A>) {
+  const sub = new Subject<A>();
+
+  return pipe(
+    s,
+    S.forEach((v) => T.succeedWith(() => sub.next(v))),
+    runObservable(sub),
+  );
+}
+```
