@@ -1,6 +1,6 @@
 ## Comparing Effect with PureScript
 
-### Pros / Cons Effect
+### Effect
 
 #### Pros
 - Large non-EffectTS ecosystem which can be easily wrapped
@@ -17,7 +17,7 @@
 - there is a lot of hardcore FP talent in ZIO and a good degree in effect, FP does NOT mean TypeClasses over a HM type-system it mean programming with pure functions
 - Fast compilers like SWC or ESBuild don't support plugins so features like the fluent api or execution tracing can't be used
 
-### Pros / Cons PureScript
+### PureScript
 
 #### Pros
 - Syntax and Currying
