@@ -27,32 +27,34 @@ export const startWith =
 ```ts
 import { Observable } from 'rxjs';
 import {
-  Chunk as C,
-  Effect as T,
-  Exit as E,
-  Managed as M,
-  Option as O,
-  Queue as Q,
-  Stream as S,
+  Cause,
+  Chunk,
+  Effect,
+  Exit,
+  Managed,
+  Option,
+  pipe,
+  Queue,
+  Stream,
 } from '@effect-ts/core';
 import { materialize } from 'rxjs/operators';
 
 type QueueTypes = 'sliding' | 'dropping' | 'bounded' | 'unbounded';
 
-function makeQueue<A>(
+function getQueue<A>(
   type: QueueTypes,
   buffer: number,
-): T.UIO<Q.Queue<A>> {
+): Effect.UIO<Queue.Queue<A>> {
   switch (type) {
     case 'bounded':
-      return Q.makeBounded<A>(buffer);
+      return Queue.makeBounded<A>(buffer);
     case 'dropping':
-      return Q.makeDropping<A>(buffer);
+      return Queue.makeDropping<A>(buffer);
     case 'sliding':
-      return Q.makeSliding<A>(buffer);
+      return Queue.makeSliding<A>(buffer);
     case 'unbounded':
     default:
-      return Q.makeUnbounded<A>();
+      return Queue.makeUnbounded<A>();
   }
 }
 
@@ -61,37 +63,37 @@ export const fromObservable_ = <A>(
   bufferType: QueueTypes = 'bounded',
   bufferSize = 16,
 ) =>
-  S.unwrapManaged(
-    M.gen(function* (_) {
+  Stream.unwrapManaged(
+    Managed.gen(function* (_) {
       // you need a queue to hold the values
       const queue = yield* _(
-        makeQueue<E.Exit<O.Option<never>, C.Chunk<A>>>(
+        getQueue<Exit.Exit<Option.Option<never>, Chunk.Chunk<A>>>(
           bufferType,
           bufferSize,
         ),
       );
 
       // subscription
-      yield* _(
-        M.makeExit_(
-          T.succeedWith(() =>
+      const sub = yield* _(
+        Managed.makeExit_(
+          Effect.succeedWith(() =>
             o.pipe(materialize()).subscribe((notification) => {
               switch (notification.kind) {
                 case 'C': {
-                  T.runFiber(Q.offer_(queue, E.fail(O.none)));
+                  Effect.runFiber(Queue.offer_(queue, Exit.fail(Option.none)));
                   break;
                 }
                 case 'E': {
-                  T.runFiber(
-                    Q.offer_(queue, E.die(notification.error)),
+                  Effect.runFiber(
+                    Queue.offer_(queue, Exit.die(notification.error)),
                   );
                   break;
                 }
                 case 'N': {
-                  T.runFiber(
-                    Q.offer_(
+                  Effect.runFiber(
+                    Queue.offer_(
                       queue,
-                      E.succeed(C.single(notification.value as A)),
+                      Exit.succeed(Chunk.single(notification.value as A)),
                     ),
                   );
                   break;
@@ -99,55 +101,78 @@ export const fromObservable_ = <A>(
               }
             }),
           ),
-          (sub) => T.succeedWith(() => sub.unsubscribe()),
+          (sub) => Effect.succeedWith(() => sub.unsubscribe()),
         ),
       );
 
       // stream is produced by pulling the queue
-      return S.repeatEffectChunkOption(
-        T.chain_(Q.take(queue), T.done),
+      return pipe(
+        queue,
+        Queue.take,
+        Effect.onExit((e) =>
+          Effect.succeedWith(() => {
+            if (e._tag === 'Failure' && !Cause.interruptedOnly(e.cause)) {
+              console.error(Cause.pretty(e.cause));
+            }
+          }),
+        ),
+        Effect.onInterrupt(() => Effect.succeedWith(() => sub.unsubscribe())),
+        Effect.chain(Effect.done),
+        Stream.repeatEffectChunkOption,
       );
     }),
   );
 
 export const fromObservable =
   (bufferType: QueueTypes = 'bounded', bufferSize = 16) =>
-    <A>(o: Observable<A>) =>
-      fromObservable_(o, bufferType, bufferSize);
+  <A>(o: Observable<A>) =>
+    fromObservable_(o, bufferType, bufferSize);
 ```
 
 **fromStream**
 ```ts
-import { Cause as C, Effect as T, pipe, Stream as S } from '@effect-ts/core';
+import { Cause, Effect, Fiber, pipe, Stream } from '@effect-ts/core';
 import { Observable, Subscriber, TeardownLogic } from 'rxjs';
 
-export function fromStream<E, A>(s: S.Stream<unknown, E, A>) {
+export function runSubscriber_<E, A1, A2>(
+  f: Effect.Effect<Effect.DefaultEnv, E, A2>,
+  sub: Subscriber<A1>,
+): TeardownLogic {
+  const context = pipe(
+    f,
+    Effect.tapCause((cause) => {
+      if (Cause.interruptedOnly(cause)) {
+        sub.complete();
+      } else {
+        sub.error(Cause.pretty(cause));
+        sub.complete();
+      }
+
+      return Effect.unit;
+    }),
+    Effect.runFiber,
+  );
+
+  return {
+    unsubscribe: () => {
+      Fiber.interruptAs(context.fiberId);
+      sub.complete();
+    },
+  };
+}
+
+export const runSubscriber =
+  <A1>(sub: Subscriber<A1>) =>
+  <E, A2>(s: Effect.Effect<Effect.DefaultEnv, E, A2>) =>
+    runSubscriber_(s, sub);
+
+export function fromStream<E, A>(s: Stream.Stream<unknown, E, A>) {
   return new Observable(
     (subscriber: Subscriber<A>): TeardownLogic =>
       pipe(
         s,
-        S.forEach((v) => T.succeedWith(() => subscriber.next(v))),
-        (f) => {
-          const context = pipe(
-            f,
-            T.tapCause((cause) => {
-              if (C.interruptedOnly(cause)) {
-                subscriber.complete();
-              } else {
-                subscriber.error(C.pretty(cause));
-                subscriber.complete();
-              }
-
-              return T.unit;
-            }),
-            T.runFiber,
-          );
-
-          return {
-            unsubscribe: () =>
-              pipe(context.fiberId, context.interruptAs, T.run),
-          };
-        },
+        Stream.forEach((v) => Effect.succeedWith(() => subscriber.next(v))),
+        runSubscriber(subscriber),
       ),
   );
 }
