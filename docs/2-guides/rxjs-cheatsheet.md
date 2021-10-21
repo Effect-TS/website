@@ -141,12 +141,11 @@ export function runSubscriber_<E, A1, A2>(
   const context = pipe(
     f,
     Effect.tapCause((cause) => {
-      if (Cause.interruptedOnly(cause)) {
-        sub.complete();
-      } else {
+      if (!Cause.interruptedOnly(cause)) {
         sub.error(Cause.pretty(cause));
-        sub.complete();
       }
+      
+      sub.complete();
 
       return Effect.unit;
     }),
