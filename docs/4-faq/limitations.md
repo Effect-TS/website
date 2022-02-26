@@ -1,4 +1,4 @@
-# Limitations
+# FAQ: Limitations
 
 This document lists known limitations for Effect and possible workarounds.
 

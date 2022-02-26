@@ -1,1 +1,1 @@
-# How to do X
+# FAQ: How to do X

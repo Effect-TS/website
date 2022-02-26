@@ -1,4 +1,4 @@
-# Effect vs x
+# FAQ: Effect vs x
 
 ## Comparing Effect with PureScript
 
