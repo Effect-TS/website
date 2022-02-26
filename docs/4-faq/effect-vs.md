@@ -1,3 +1,5 @@
+# Effect vs x
+
 ## Comparing Effect with PureScript
 
 The following pro/con lists are based on [this Discord chat](https://discord.com/channels/795981131316985866/890531386413428766/890551328923844708).

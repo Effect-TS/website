@@ -1,3 +1,5 @@
+# FAQ: API Style
+
 Effect-TS exposes for almost every module 3 types of APIs, namely:
 
 1) A pipeable api, to be used like:

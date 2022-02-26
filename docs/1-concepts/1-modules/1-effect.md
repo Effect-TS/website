@@ -1,4 +1,4 @@
-## The Effect Module
+# The Effect Module
 
 In the first 2 parts of the series we have looked at the overall module structure of `@effect-ts/core` and discussed the general aspects of how modules are organised.
 
