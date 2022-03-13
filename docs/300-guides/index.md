@@ -1,3 +1,3 @@
 ---
-title: Guides Overview
+title: Guides
 ---

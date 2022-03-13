@@ -1,1 +1,0 @@
-# FAQ: How to do X

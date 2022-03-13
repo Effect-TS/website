@@ -10,14 +10,14 @@ function isExternalUrl(link: string): boolean {
 }
 
 const navLinks: Array<{ label: string; url: string }> = [
-  { label: 'Quickstart', url: '/docs/getting-started' },
-  { label: 'Docs', url: '/docs' },
-  { label: 'Examples', url: 'https://github.com/contentlayerdev/contentlayer/tree/main/examples' },
+  { label: 'Quickstart', url: '/docs/getting-started/quick-start' },
+  // { label: 'Docs', url: '/docs' },
+  // { label: 'Examples', url: 'https://github.com/contentlayerdev/contentlayer/tree/main/examples' },
 ]
 
 const iconLinks: Array<{ name: IconName; url: string }> = [
-  { name: 'discord', url: 'https://discord.gg/rytFErsARm' },
-  { name: 'github', url: 'https://github.com/contentlayerdev/contentlayer' },
+  { name: 'discord', url: 'https://discord.gg/RVZKYxWfAJ' },
+  { name: 'github', url: 'https://github.com/effect-ts/core' },
 ]
 
 export const Header = () => {
@@ -53,7 +53,7 @@ export const Header = () => {
           {iconLinks.map((link, idx) => (
             <Link href={link.url} key={idx}>
               <a
-                className="p-2 text-current inline-block w-10 dark:text-gray-300 dark:hover:text-gray-100"
+                className="inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100"
                 target={isExternalUrl(link.url) ? '_blank' : undefined}
               >
                 <Icon name={link.name} />
