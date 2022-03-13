@@ -9,7 +9,6 @@ import { defineStaticProps, toParams } from '../../utils/next'
 
 export const getStaticPaths = async () => {
   const paths = allDocs.map((_) => _.pathSegments.map((_: PathSegment) => _.pathName).join('/')).map(toParams)
-  console.log(JSON.stringify(paths))
 
   return { paths, fallback: 'blocking' }
 }
