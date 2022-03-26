@@ -6,7 +6,7 @@ import type * as types from 'contentlayer/generated'
 import { Header } from './Header'
 
 export const Layout: FC<{
-  doc: types.Doc | types.Page
+  doc: types.Doc
 }> = ({ doc, children, ...props }) => {
   return (
     <>
