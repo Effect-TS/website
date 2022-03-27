@@ -25,3 +25,9 @@ T.suspend(() => (x ? T.fail(A) : T.fail(B)))
 ```
 
 [Related TypeScript issue](https://github.com/microsoft/TypeScript/issues/40665).
+
+
+### Type-inference gotchas
+
+- Special case when using `void` in output type (TODO elaborate @mikearnaldi)
+
