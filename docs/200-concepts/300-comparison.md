@@ -44,3 +44,7 @@ The following pro/con lists are based on [this Discord chat](https://discord.com
 - Lack of good backend libraries and general lack of community interest to support backend (most PureScripters want Haskell for the frontend not another Haskell for the backend)
 - Sometimes writing stack-safe code or high performant, intentionally mutable code is hard
 - When depending on NPM dependencies (which you usually do), you need two package managers
+
+### fp-ts
+
+Effect is a library which leverages ideas from purely functional programming, and is at its core a port of the ZIO programming framework from Scala. Effect provides its users with a fully functional effect system, which handles asynchronous and concurrent workflows with ease and provides stack-safety out of the box.
