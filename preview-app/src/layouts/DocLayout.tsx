@@ -43,11 +43,11 @@ export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot; childrenTree: TreeN
             top: HEADER_HEIGHT,
           }}
         >
-          <div className="h-full p-4 overflow-y-auto border-r border-gray-100 dark:border-gray-800">
+          <div className="overflow-y-auto p-4 h-full border-r border-gray-100 dark:border-gray-800">
             <Tree tree={tree} level={0} activeUrlPath={router.asPath} />
           </div>
         </aside>
-        <div className="flex-1 max-w-3xl px-12 py-8 markdown" style={{ marginLeft: SIDEBAR_WIDTH }}>
+        <div className="flex-1 px-12 py-8 max-w-3xl markdown" style={{ marginLeft: SIDEBAR_WIDTH }}>
           <h1>
             {doc.title}{' '}
             {doc.label && (
@@ -56,7 +56,7 @@ export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot; childrenTree: TreeN
               </span>
             )}
           </h1>
-          {MDXContent && <MDXContent components={mdxComponents} />}
+          {MDXContent !== null && <MDXContent components={mdxComponents} />}
           {doc.show_child_cards && <ChildCards tree={childrenTree} />}
         </div>
       </div>
@@ -102,7 +102,7 @@ const ChildTreeItem: FC<{ item: TreeNode }> = ({ item }) => {
 
 const ChildCards: FC<{ tree: TreeNode[] }> = ({ tree }) => {
   return (
-    <div className="grid md:grid-cols-2 gap-4 mt-12">
+    <div className="grid gap-4 mt-12 md:grid-cols-2">
       {tree.map((item, idx) => (
         <ChildTreeItem key={idx} {...{ item }} />
       ))}
