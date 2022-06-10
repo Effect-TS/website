@@ -10,7 +10,7 @@ function isExternalUrl(link: string): boolean {
 }
 
 const navLinks: Array<{ label: string; url: string }> = [
-  { label: 'Quickstart', url: '/docs/getting-started/quick-start' },
+  // { label: 'Quickstart', url: '/docs/getting-started/quick-start' },
   // { label: 'Docs', url: '/docs' },
   // { label: 'Examples', url: 'https://github.com/contentlayerdev/contentlayer/tree/main/examples' },
 ]
