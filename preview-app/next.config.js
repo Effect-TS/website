@@ -6,12 +6,12 @@ module.exports = withContentlayer({
       {
         source: '/',
         destination: '/docs',
-        permanent: true,
+        permanent: false,
       },
       {
         source: '/docs',
-        destination: '/docs/getting-started',
-        permanent: true,
+        destination: '/docs/what-is-effect',
+        permanent: false,
       },
     ]
   },
