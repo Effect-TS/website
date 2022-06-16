@@ -14,7 +14,7 @@ An `Effect` program is usually comprised of a pure main function, a set of modul
 
 Roughly:
 
-```ts
+```ts twoslash
 import * as Effect from "@effect/core/io/Effect";
 import * as Exit from "@effect/core/io/Exit";
 
@@ -31,7 +31,7 @@ Effect.unsafeRunAsyncWith(main, (exit) => {
 
 With `Effect` you can raise errors by using the `fail` function, `Errors` are well typed and `Effect` will accumulate the errors your program may enocounter in its second type parameter:
 
-```ts
+```ts twoslash
 import * as Effect from "@effect/core/io/Effect";
 import * as Exit from "@effect/core/io/Exit";
 import { pipe } from "@tsplus/stdlib/data/Function";
@@ -43,7 +43,7 @@ export class InvalidRand {
 
 const main = pipe(
     Effect.succeed(() => Math.random()),
-    Effect.flatMap((n) => n > 0.5 ? Effect.fail(new InvalidRand(n)) : Effect.succeed(() => n))
+    Effect.flatMap((n) => n > 0.5 ? Effect.fail(() => new InvalidRand(n)) : Effect.succeed(() => n))
 );
 ```
 
