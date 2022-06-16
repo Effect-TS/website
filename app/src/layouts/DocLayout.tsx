@@ -46,12 +46,14 @@ export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot, childrenTree: TreeN
             <Tree tree={tree} level={0} activeUrlPath={router.asPath} />
           </div>
         </aside>
-        <div className="flex-1 px-12 py-8 max-w-5xl markdown" style={{ marginLeft: `max(calc(50% - 32rem), ${SIDEBAR_WIDTH}px)` }}>
-          <h1>
-            {doc.title}
-          </h1>
-          {MDXContent !== null && <MDXContent components={mdxComponents} />}
-          {doc.show_child_cards && <ChildCards tree={childrenTree} />}
+        <div style={{ marginLeft: `max(calc(50% - 32rem), ${SIDEBAR_WIDTH}px)`, overflow: "auto" }}>
+          <div className="flex-1 px-12 py-8 max-w-5xl markdown">
+            <h1>
+              {doc.title}
+            </h1>
+            {MDXContent !== null && <MDXContent components={mdxComponents} />}
+            {doc.show_child_cards && <ChildCards tree={childrenTree} />}
+          </div>
         </div>
       </div>
     </Layout>

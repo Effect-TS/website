@@ -43,7 +43,11 @@ export class InvalidRand {
 
 const main = pipe(
     Effect.succeed(() => Math.random()),
-    Effect.flatMap((n) => n > 0.5 ? Effect.fail(() => new InvalidRand(n)) : Effect.succeed(() => n))
+    Effect.flatMap((n) => 
+      n > 0.5 
+        ? Effect.fail(() => new InvalidRand(n)) 
+        : Effect.succeed(() => n)
+    )
 );
 ```
 
@@ -51,7 +55,7 @@ const main = pipe(
 
 Async functions can be naturally used in `Effect` by leveraging the `tryCatchPromise` constructor:
 
-```ts
+```ts twoslash
 import * as Effect from "@effect/core/io/Effect";
 
 export class FetchError {
@@ -59,7 +63,10 @@ export class FetchError {
   constructor(readonly error: unknown) {}
 }
 
-export const request = (input: RequestInfo, init?: RequestInit | undefined) =>
+export const request = (
+  input: RequestInfo, 
+  init?: RequestInit | undefined
+) =>
   Effect.tryCatchPromise(
     () => fetch(input, init),
     (error) => new FetchError(error)
@@ -70,22 +77,28 @@ export const request = (input: RequestInfo, init?: RequestInit | undefined) =>
 
 When working with async operations that require interruption using `Effect.tryCatchPromise` is no longer an option and we need to use the lower level `asyncInterrupt`
 
-```ts
+```ts twoslash
 import * as Effect from "@effect/core/io/Effect";
+import * as Either from "@tsplus/stdlib/data/Either";
 
 export class FetchError {
   readonly _tag = "FetchError";
   constructor(readonly error: unknown) {}
 }
 
-export const request = (input: RequestInfo, init?: RequestInit | undefined) =>
+export const request = (
+  input: RequestInfo, 
+  init?: RequestInit | undefined
+) =>
   Effect.asyncInterrupt<never, FetchError, Response>((resume) => {
     const controller = new AbortController();
-    fetch(input, { ...(init ?? {}), signal: controller.signal }).then((response) => {
-      resume(Effect.succeed(() => response));
-    }).catch((error) => {
-      resume(Effect.fail(() => new FetchError(error)));
-    });
+    fetch(input, { ...(init ?? {}), signal: controller.signal })
+      .then((response) => {
+        resume(Effect.succeed(() => response));
+      })
+      .catch((error) => {
+        resume(Effect.fail(() => new FetchError(error)));
+      });
     return Either.left(Effect.succeed(() => {
       controller.abort();
     }));
@@ -109,11 +122,13 @@ export class FetchError {
 export const request = (input: RequestInfo, init?: RequestInit | undefined) =>
   Effect.asyncInterrupt<never, FetchError, Response>((resume) => {
     const controller = new AbortController();
-    fetch(input, { ...(init ?? {}), signal: controller.signal }).then((response) => {
-      resume(Effect.succeed(() => response));
-    }).catch((error) => {
-      resume(Effect.fail(() => new FetchError(error)));
-    });
+    fetch(input, { ...(init ?? {}), signal: controller.signal })
+      .then((response) => {
+        resume(Effect.succeed(() => response));
+      })
+      .catch((error) => {
+        resume(Effect.fail(() => new FetchError(error)));
+      });
     return Either.left(Effect.succeed(() => {
       controller.abort();
     }));
