@@ -109,7 +109,7 @@ export const request = (
 
 Putting together all we've seen so far we can create a minimal wrapper module for `fetch` as follows:
 
-```ts
+```ts twoslash
 import * as Effect from "@effect/core/io/Effect";
 import * as Either from "@tsplus/stdlib/data/Either";
 import { pipe } from "@tsplus/stdlib/data/Function";
@@ -150,15 +150,58 @@ export const jsonBody = (input: Response) =>
 
 Once we have a module we can freely use it in our program to define progressively higher level modules
 
-```ts
+```ts twoslash
+// @filename: http.ts
+import * as Effect from "@effect/core/io/Effect";
+import * as Either from "@tsplus/stdlib/data/Either";
+import { pipe } from "@tsplus/stdlib/data/Function";
+
+export class FetchError {
+  readonly _tag = "FetchError";
+  constructor(readonly error: unknown) {}
+}
+
+export const request = (input: RequestInfo, init?: RequestInit | undefined) =>
+  Effect.asyncInterrupt<never, FetchError, Response>((resume) => {
+    const controller = new AbortController();
+    fetch(input, { ...(init ?? {}), signal: controller.signal })
+      .then((response) => {
+        resume(Effect.succeed(() => response));
+      })
+      .catch((error) => {
+        resume(Effect.fail(() => new FetchError(error)));
+      });
+    return Either.left(Effect.succeed(() => {
+      controller.abort();
+    }));
+  });
+
+export class JsonBodyError {
+  readonly _tag = "JsonBodyError";
+  constructor(readonly error: unknown) {}
+}
+
+export const jsonBody = (input: Response) =>
+  Effect.tryCatchPromise(
+    (): Promise<unknown> => input.json(),
+    (error) => new JsonBodyError(error)
+  );
+// @filename: index.ts
+// ---cut---
 import * as Effect from "@effect/core/io/Effect";
 import { pipe } from "@tsplus/stdlib/data/Function";
-import * as Http from "./http";
+import * as Http from "./http.js";
+
+export class Todo {
+  readonly _tag = "Todo";
+  constructor(readonly value: unknown) {}
+}
 
 export const getTodo = (id: number) =>
   pipe(
     Http.request(`https://jsonplaceholder.typicode.com/todos/${id}`),
-    Effect.flatMap(Http.jsonBody)
+    Effect.flatMap(Http.jsonBody),
+    Effect.map((value) => new Todo(value))
   );
 
 export const getTodos = (ids: number[]) =>
@@ -173,16 +216,61 @@ export const getTodos = (ids: number[]) =>
 Sometimes you may want to carry those modules in context to achieve testability and effect tracking:
 
 
-```ts
+```ts twoslash
+// @filename: http.ts
 import * as Effect from "@effect/core/io/Effect";
+import * as Either from "@tsplus/stdlib/data/Either";
+import { pipe } from "@tsplus/stdlib/data/Function";
+
+export class FetchError {
+  readonly _tag = "FetchError";
+  constructor(readonly error: unknown) {}
+}
+
+export const request = (input: RequestInfo, init?: RequestInit | undefined) =>
+  Effect.asyncInterrupt<never, FetchError, Response>((resume) => {
+    const controller = new AbortController();
+    fetch(input, { ...(init ?? {}), signal: controller.signal })
+      .then((response) => {
+        resume(Effect.succeed(() => response));
+      })
+      .catch((error) => {
+        resume(Effect.fail(() => new FetchError(error)));
+      });
+    return Either.left(Effect.succeed(() => {
+      controller.abort();
+    }));
+  });
+
+export class JsonBodyError {
+  readonly _tag = "JsonBodyError";
+  constructor(readonly error: unknown) {}
+}
+
+export const jsonBody = (input: Response) =>
+  Effect.tryCatchPromise(
+    (): Promise<unknown> => input.json(),
+    (error) => new JsonBodyError(error)
+  );
+// @filename: index.ts
+// ---cut---
+import * as Effect from "@effect/core/io/Effect";
+import * as Layer from "@effect/core/io/Layer";
 import * as Chunk from "@tsplus/stdlib/collections/Chunk";
 import { pipe } from "@tsplus/stdlib/data/Function";
 import { Tag } from "@tsplus/stdlib/service/Tag";
-import * as Http from "./http";
+import * as Http from "./http.js";
+
+export class Todo {
+  readonly _tag = "Todo";
+  constructor(readonly value: unknown) {}
+}
 
 export interface TodoRepo {
-  readonly getTodo: (id: number) => Effect.Effect<never, Http.FetchError | Http.JsonBodyError, unknown>
-  readonly getTodos: (ids: number[]) => Effect.Effect<never, Http.FetchError | Http.JsonBodyError, Chunk.Chunk<unknown>>
+  readonly getTodo: (id: number) => 
+    Effect.Effect<never, Http.FetchError | Http.JsonBodyError, Todo>
+  readonly getTodos: (ids: number[]) => 
+    Effect.Effect<never, Http.FetchError | Http.JsonBodyError, Chunk.Chunk<Todo>>
 }
 
 export const TodoRepo = Tag<TodoRepo>()
@@ -204,7 +292,8 @@ export const LiveTodoRepo = Layer.fromEffect(TodoRepo, () =>
       const getTodo = (id: number) =>
         pipe(
           Http.request(`https://jsonplaceholder.typicode.com/todos/${id}`),
-          Effect.flatMap(Http.jsonBody)
+          Effect.flatMap(Http.jsonBody),
+          Effect.map((value) => new Todo(value))
         );
 
     const getTodos = (ids: number[]) =>
@@ -230,16 +319,59 @@ export const main = pipe(
 
 `Effect` programs can also fail for non predictable reasons, or generaly reasons that don't provide us with a natural meaning of recovering, for example in the case above we may say that the `Http.FetchError | Http.JsonBodyError` error is an implementaion detail of the `TodoRepo` service so we wouldn't like it to get leaked to the API consumer but internally in the `TodoRepo` implementation we may use them to refine retry logic. For those situation `orDie` is what you are looking for:
 
-```ts
+```ts twoslash
+// @filename: http.ts
 import * as Effect from "@effect/core/io/Effect";
+import * as Either from "@tsplus/stdlib/data/Either";
+import { pipe } from "@tsplus/stdlib/data/Function";
+
+export class FetchError {
+  readonly _tag = "FetchError";
+  constructor(readonly error: unknown) {}
+}
+
+export const request = (input: RequestInfo, init?: RequestInit | undefined) =>
+  Effect.asyncInterrupt<never, FetchError, Response>((resume) => {
+    const controller = new AbortController();
+    fetch(input, { ...(init ?? {}), signal: controller.signal })
+      .then((response) => {
+        resume(Effect.succeed(() => response));
+      })
+      .catch((error) => {
+        resume(Effect.fail(() => new FetchError(error)));
+      });
+    return Either.left(Effect.succeed(() => {
+      controller.abort();
+    }));
+  });
+
+export class JsonBodyError {
+  readonly _tag = "JsonBodyError";
+  constructor(readonly error: unknown) {}
+}
+
+export const jsonBody = (input: Response) =>
+  Effect.tryCatchPromise(
+    (): Promise<unknown> => input.json(),
+    (error) => new JsonBodyError(error)
+  );
+// @filename: index.ts
+// ---cut---
+import * as Effect from "@effect/core/io/Effect";
+import * as Layer from "@effect/core/io/Layer";
 import * as Chunk from "@tsplus/stdlib/collections/Chunk";
 import { pipe } from "@tsplus/stdlib/data/Function";
 import { Tag } from "@tsplus/stdlib/service/Tag";
-import * as Http from "./http";
+import * as Http from "./http.js";
+
+export class Todo {
+  readonly _tag = "Todo";
+  constructor(readonly value: unknown) {}
+}
 
 export interface TodoRepo {
-  readonly getTodo: (id: number) => Effect.Effect<never, never, unknown>
-  readonly getTodos: (ids: number[]) => Effect.Effect<never, never, Chunk.Chunk<unknown>>
+  readonly getTodo: (id: number) => Effect.Effect<never, never, Todo>
+  readonly getTodos: (ids: number[]) => Effect.Effect<never, never, Chunk.Chunk<Todo>>
 }
 
 export const TodoRepo = Tag<TodoRepo>()
@@ -262,16 +394,14 @@ export const LiveTodoRepo = Layer.fromEffect(TodoRepo, () =>
         pipe(
           Http.request(`https://jsonplaceholder.typicode.com/todos/${id}`),
           Effect.flatMap(Http.jsonBody),
+          Effect.map((value) => new Todo(value)),
           Effect.orDie
         );
 
     const getTodos = (ids: number[]) =>
-      pipe(
-        Effect.forEachPar(
-          () => ids,
-          (id) => getTodo(id)
-        ),
-        Effect.orDie
+      Effect.forEachPar(
+        () => ids,
+        (id) => getTodo(id)
       );
 
     return {
