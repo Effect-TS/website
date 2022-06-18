@@ -12,12 +12,33 @@ import { Layout } from '../components/Layout'
 import { Player } from '../components/Player'
 import { TreeNode, TreeRoot } from '../utils/tree'
 
+const Code: FC = ({ children }) => {
+  if (Array.isArray(children) && children.every((c) => c.props.className === 'line')) {
+    const lines = children.length
+    const len = `${lines}`.length
+    return (
+      <code>
+        {children.map((line, i) => {
+          return (
+            <div key={`line-${i}`} style={{ display: 'flex' }}>
+              <span style={{ width: `${len}em`, color: 'rgb(203, 213, 225)' }}>{i + 1}</span>
+              {line}
+            </div>
+          )
+        })}
+      </code>
+    )
+  }
+  return <code>{children}</code>
+}
+
 const mdxComponents = {
   Callout,
   Card,
   Image,
   Link,
   Player,
+  code: Code,
 }
 
 export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>; childrenTree: TreeNode<types.Doc>[] }> = ({
