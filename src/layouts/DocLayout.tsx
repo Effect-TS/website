@@ -31,7 +31,7 @@ export const Playground: FC<{ project: string; file?: string }> = ({ project, fi
   }, [ref, project, vm, file])
 
   return (
-    <div className="mt-8 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-900">
+    <div className="overflow-hidden w-auto rounded-lg bg-gray-900 dark:bg-gray-900">
       <div className="h-[700px] w-full" ref={ref} />
     </div>
   )
@@ -93,7 +93,7 @@ export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>; children
             <Tree tree={tree} level={0} activeUrlPath={router.asPath} />
           </div>
         </aside>
-        <div style={{ marginLeft: `max(calc(50% - 32rem), ${SIDEBAR_WIDTH}px)`, overflow: 'auto' }}>
+        <div style={{ marginLeft: `max(calc(50% - 32rem), ${SIDEBAR_WIDTH}px)`, width: '100%', overflow: 'auto' }}>
           <div className="flex-1 px-12 py-8 max-w-7xl markdown">
             <h1>{doc.title}</h1>
             {MDXContent !== null && <MDXContent components={mdxComponents} />}
