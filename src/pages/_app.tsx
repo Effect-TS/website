@@ -14,6 +14,9 @@ const script = `
     document.documentElement.classList.add('light');
     document.documentElement.classList.remove('dark');
   };
+  const listeners = {
+    current: []
+  };
   const setColorMode = (bind) => {
     const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
     if (localStorage && localStorage.theme) {
@@ -33,8 +36,12 @@ const script = `
     if (bind) {
       themeMedia.onchange = () => setColorMode(false);
     }
+    listeners.current.forEach((listener) => {
+      listener();
+    });
   };
   setColorMode(true);
+  window.colorModeListeners = listeners;
   window.setColorMode = () => setColorMode(false);
 })();
 `

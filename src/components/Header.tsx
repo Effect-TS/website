@@ -70,6 +70,19 @@ export const Header = () => {
 
 const ColorModePicker: React.FC = () => {
   const [isClosed, setIsClosed] = React.useState('closed')
+  const [colorScheme, setColorScheme] = React.useState('system')
+  React.useEffect(() => {
+    const listener = () => {
+      const scheme = localStorage.getItem('theme')
+      if (scheme) {
+        setColorScheme(() => scheme)
+      }
+    }
+    window.colorModeListeners.current.push(listener)
+    return () => {
+      window.colorModeListeners.current = window.colorModeListeners.current.filter((l) => l !== listener)
+    }
+  }, [])
   return (
     <div className="group relative dropdown inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100">
       <a
@@ -85,10 +98,10 @@ const ColorModePicker: React.FC = () => {
       <div
         className={classnames('group-hover:block dropdown-menu absolute h-auto', isClosed === 'closed' ? 'hidden' : '')}
       >
-        <ul className="top-0 w-24 mt-2 -ml-14 shadow px-6 py-6 bg-white dark:bg-gray-950">
+        <ul className="top-0 w-auto mt-2 -ml-14 shadow px-6 py-6 bg-white dark:bg-gray-950">
           <li className="py-1">
             <button
-              className="block font-bold text-base"
+              className={classnames('block font-bold text-base', colorScheme === 'dark' ? 'underline' : '')}
               onClick={() => {
                 localStorage.setItem('theme', 'dark')
                 window.setColorMode()
@@ -99,7 +112,7 @@ const ColorModePicker: React.FC = () => {
           </li>
           <li className="py-1">
             <button
-              className="block font-bold text-base"
+              className={classnames('block font-bold text-base', colorScheme === 'light' ? 'underline' : '')}
               onClick={() => {
                 localStorage.setItem('theme', 'light')
                 window.setColorMode()
@@ -110,7 +123,7 @@ const ColorModePicker: React.FC = () => {
           </li>
           <li className="py-1">
             <button
-              className="block font-bold text-base"
+              className={classnames('block font-bold text-base', colorScheme === 'system' ? 'underline' : '')}
               onClick={() => {
                 localStorage.setItem('theme', 'system')
                 window.setColorMode()
