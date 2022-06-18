@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-
+import classnames from 'classnames'
 import { Icon, IconName } from '../components/Icon'
 import { Label } from '../components/Label'
+import React from 'react'
 
 function isExternalUrl(link: string): boolean {
   return !link.startsWith('/')
@@ -26,7 +27,9 @@ export const Header = () => {
     <header className="fixed z-10 flex justify-between w-full px-6 items-center bg-white border-b border-gray-100 dark:bg-gray-950 dark:border-gray-800 bg-opacity-90 backdrop-filter backdrop-blur-sm h-[60px]">
       <div className="flex items-center space-x-2.5">
         <Link href="/">
-          <a className="font-extrabold no-underline text-gray-950 dark:text-white">Effect</a>
+          <a className="font-extrabold no-underline text-gray-950 dark:text-white" tabIndex={1}>
+            Effect
+          </a>
         </Link>
         <Label text="Alpha" theme="primary" />
       </div>
@@ -50,14 +53,13 @@ export const Header = () => {
 
         <div className="flex">
           {iconLinks.map((link, idx) => (
-            <Link href={link.url} key={idx}>
-              <a
-                className="inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100"
-                target={isExternalUrl(link.url) ? '_blank' : undefined}
-              >
-                <Icon name={link.name} />
-              </a>
-            </Link>
+            <div key={idx} className="inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100">
+              <Link href={link.url}>
+                <a target={isExternalUrl(link.url) ? '_blank' : undefined} tabIndex={2}>
+                  <Icon name={link.name} />
+                </a>
+              </Link>
+            </div>
           ))}
           <ColorModePicker />
         </div>
@@ -66,45 +68,62 @@ export const Header = () => {
   )
 }
 
-const ColorModePicker: React.FC = () => (
-  <div className="group relative dropdown inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100">
-    <Icon name={'color-mode'} />
-    <div className="group-hover:block dropdown-menu absolute hidden h-auto">
-      <ul className="top-0 w-24 mt-2 -ml-14 shadow px-6 py-6 bg-white dark:bg-gray-950">
-        <li className="py-1">
-          <button
-            className="block font-bold text-base"
-            onClick={() => {
-              localStorage.setItem('theme', 'dark')
-              window.setColorMode()
-            }}
-          >
-            Dark
-          </button>
-        </li>
-        <li className="py-1">
-          <button
-            className="block font-bold text-base"
-            onClick={() => {
-              localStorage.setItem('theme', 'light')
-              window.setColorMode()
-            }}
-          >
-            Light
-          </button>
-        </li>
-        <li className="py-1">
-          <button
-            className="block font-bold text-base"
-            onClick={() => {
-              localStorage.setItem('theme', 'system')
-              window.setColorMode()
-            }}
-          >
-            System
-          </button>
-        </li>
-      </ul>
+const ColorModePicker: React.FC = () => {
+  const [isClosed, setIsClosed] = React.useState('closed')
+  return (
+    <div className="group relative dropdown inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100">
+      <a
+        tabIndex={2}
+        href=""
+        onClick={(e) => {
+          e.preventDefault()
+          setIsClosed((closed) => (closed === 'closed' ? 'opened' : 'closed'))
+        }}
+      >
+        <Icon name={'color-mode'} />
+      </a>
+      <div
+        className={classnames('group-hover:block dropdown-menu absolute h-auto', isClosed === 'closed' ? 'hidden' : '')}
+      >
+        <ul className="top-0 w-24 mt-2 -ml-14 shadow px-6 py-6 bg-white dark:bg-gray-950">
+          <li className="py-1">
+            <button
+              className="block font-bold text-base"
+              onClick={() => {
+                localStorage.setItem('theme', 'dark')
+                window.setColorMode()
+              }}
+            >
+              Dark
+            </button>
+          </li>
+          <li className="py-1">
+            <button
+              className="block font-bold text-base"
+              onClick={() => {
+                localStorage.setItem('theme', 'light')
+                window.setColorMode()
+              }}
+            >
+              Light
+            </button>
+          </li>
+          <li className="py-1">
+            <button
+              className="block font-bold text-base"
+              onClick={() => {
+                localStorage.setItem('theme', 'system')
+                window.setColorMode()
+              }}
+              onBlur={() => {
+                setIsClosed(() => 'closed')
+              }}
+            >
+              System
+            </button>
+          </li>
+        </ul>
+      </div>
     </div>
-  </div>
-)
+  )
+}
