@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import classNames from 'classnames'
 
 import { Icon, IconName } from '../components/Icon'
 import { Label } from '../components/Label'
@@ -60,21 +59,52 @@ export const Header = () => {
               </a>
             </Link>
           ))}
-          <button
-            className="inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100"
-            onClick={() => {
-              if (document.documentElement.classList.contains('dark')) {
-                localStorage.setItem('theme', 'light')
-              } else {
-                localStorage.setItem('theme', 'dark')
-              }
-              window.setColorMode()
-            }}
-          >
-            <Icon name={'color-mode'} />
-          </button>
+          <ColorModePicker />
         </div>
       </nav>
     </header>
   )
 }
+
+const ColorModePicker: React.FC = () => (
+  <div className="group relative dropdown inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100">
+    <Icon name={'color-mode'} />
+    <div className="group-hover:block dropdown-menu absolute hidden h-auto">
+      <ul className="top-0 w-48 -ml-12 shadow px-6 py-8 bg-white dark:bg-gray-950">
+        <li className="py-1">
+          <button
+            className="block font-bold text-base"
+            onClick={() => {
+              localStorage.setItem('theme', 'dark')
+              window.setColorMode()
+            }}
+          >
+            Dark
+          </button>
+        </li>
+        <li className="py-1">
+          <button
+            className="block font-bold text-base"
+            onClick={() => {
+              localStorage.setItem('theme', 'light')
+              window.setColorMode()
+            }}
+          >
+            Light
+          </button>
+        </li>
+        <li className="py-1">
+          <button
+            className="block font-bold text-base"
+            onClick={() => {
+              localStorage.setItem('theme', 'system')
+              window.setColorMode()
+            }}
+          >
+            System
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+)
