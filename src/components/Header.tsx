@@ -70,7 +70,7 @@ const ColorModePicker: React.FC = () => (
   <div className="group relative dropdown inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100">
     <Icon name={'color-mode'} />
     <div className="group-hover:block dropdown-menu absolute hidden h-auto">
-      <ul className="top-0 w-48 -ml-12 shadow px-6 py-8 bg-white dark:bg-gray-950">
+      <ul className="top-0 w-24 mt-2 -ml-14 shadow px-6 py-6 bg-white dark:bg-gray-950">
         <li className="py-1">
           <button
             className="block font-bold text-base"
