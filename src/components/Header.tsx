@@ -4,7 +4,7 @@ import classnames from 'classnames'
 import { Icon, IconName } from '../components/Icon'
 import { Label } from '../components/Label'
 import React from 'react'
-
+import useMouseLeave from 'use-mouse-leave'
 function isExternalUrl(link: string): boolean {
   return !link.startsWith('/')
 }
@@ -71,6 +71,8 @@ export const Header = () => {
 const ColorModePicker: React.FC = () => {
   const [isClosed, setIsClosed] = React.useState('closed')
   const [colorScheme, setColorScheme] = React.useState('system')
+  const [mouseLeft, ref] = useMouseLeave()
+
   React.useEffect(() => {
     const listener = () => {
       const scheme = localStorage.getItem('theme')
@@ -85,8 +87,18 @@ const ColorModePicker: React.FC = () => {
       window.colorModeListeners.current = window.colorModeListeners.current.filter((l) => l !== listener)
     }
   }, [])
+
+  React.useEffect(() => {
+    if (mouseLeft) {
+      setIsClosed(() => 'closed')
+    }
+  }, [mouseLeft])
+
   return (
-    <div className="group relative dropdown inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100">
+    <div
+      ref={ref}
+      className="group relative dropdown inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100"
+    >
       <a
         tabIndex={2}
         href=""
