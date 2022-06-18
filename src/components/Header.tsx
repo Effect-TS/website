@@ -76,6 +76,8 @@ const ColorModePicker: React.FC = () => {
       const scheme = localStorage.getItem('theme')
       if (scheme) {
         setColorScheme(() => scheme)
+      } else {
+        setColorScheme(() => 'system')
       }
     }
     window.colorModeListeners.current.push(listener)
