@@ -25,7 +25,7 @@ export const getStaticProps = defineStaticProps(async (context) => {
       redirect: { destination: '/', statusCode: 301 },
     }
   }
-  
+
   const tree = buildTreeNode(allDocs)
   const childrenTree = buildTreeNode(
     allDocs,

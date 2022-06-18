@@ -24,16 +24,21 @@ const script = `
     }
   }
 })();
-`;
+`
 
 function MyApp({ Component, pageProps }: AppProps) {
-  return <>
-    <Head>
-      <script dangerouslySetInnerHTML={{
-        "__html": script
-      }}></script>
-    </Head>
-    <Component {...pageProps} /></>
+  return (
+    <>
+      <Head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: script,
+          }}
+        ></script>
+      </Head>
+      <Component {...pageProps} />
+    </>
+  )
 }
 
 export default MyApp

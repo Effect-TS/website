@@ -20,7 +20,7 @@ const mdxComponents = {
   Player
 }
 
-export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot, childrenTree: TreeNode[] }> = ({
+export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>, childrenTree: TreeNode<types.Doc>[] }> = ({
   doc,
   tree,
   childrenTree
@@ -60,7 +60,7 @@ export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot, childrenTree: TreeN
   )
 }
 
-const Tree: FC<{ tree: TreeRoot; level: number; activeUrlPath: string }> = ({ tree, level, activeUrlPath }) => (
+const Tree: FC<{ tree: TreeRoot<types.Doc>; level: number; activeUrlPath: string }> = ({ tree, level, activeUrlPath }) => (
   <div style={{ paddingLeft: level * 12 }} className="mb-2 space-y-1">
     {tree.map((treeNode, index) => (
       <React.Fragment key={`${treeNode.urlPath}-${index}`}>
@@ -84,7 +84,7 @@ const Tree: FC<{ tree: TreeRoot; level: number; activeUrlPath: string }> = ({ tr
   </div>
 )
 
-const ChildTreeItem: FC<{ item: TreeNode }> = ({ item }) => {
+const ChildTreeItem: FC<{ item: TreeNode<types.Doc> }> = ({ item }) => {
   return (
     <Card
       title={item.title}
@@ -95,7 +95,7 @@ const ChildTreeItem: FC<{ item: TreeNode }> = ({ item }) => {
   )
 }
 
-const ChildCards: FC<{ tree: TreeNode[] }> = ({ tree }) => {
+const ChildCards: FC<{ tree: TreeNode<types.Doc>[] }> = ({ tree }) => {
   return (
     <div className="grid gap-4 mt-12 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
       {tree.map((item, idx) => (
