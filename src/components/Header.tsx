@@ -60,6 +60,19 @@ export const Header = () => {
               </a>
             </Link>
           ))}
+          <button
+            className="inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100"
+            onClick={() => {
+              if (document.documentElement.classList.contains('dark')) {
+                localStorage.setItem('theme', 'light')
+              } else {
+                localStorage.setItem('theme', 'dark')
+              }
+              window.setColorMode()
+            }}
+          >
+            <Icon name={'color-mode'} />
+          </button>
         </div>
       </nav>
     </header>

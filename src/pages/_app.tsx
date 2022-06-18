@@ -6,33 +6,36 @@ import '../styles/globals.css'
 
 const script = `
 (() => {
-  if (localStorage && localStorage.theme) {
-    if (localStorage.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    }
-  } else {
-    const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
-    if (themeMedia.matches) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    }
-    themeMedia.onchange = (event) => {
-      if (event.matches) {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
+  const setDark = () => {
+    document.documentElement.classList.add('dark');
+    document.documentElement.classList.remove('light');
+  };
+  const setLight = () => {
+    document.documentElement.classList.add('light');
+    document.documentElement.classList.remove('dark');
+  };
+  const setColorMode = (bind) => {
+    if (localStorage && localStorage.theme) {
+      if (localStorage.theme === 'dark') {
+        setDark();
+        return;
+      } else if (localStorage.theme === 'light') {
+        setLight();
+        return;
       }
     }
-  }
+    const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+    if (themeMedia.matches) {
+      setDark();
+    } else {
+      setLight();
+    }
+    if (bind) {
+      themeMedia.onchange = () => setColorMode(false);
+    }
+  };
+  setColorMode(true);
+  window.setColorMode = () => setColorMode(false);
 })();
 `
 

@@ -10,26 +10,26 @@ import { Callout } from '../components/Callout'
 import { Card } from '../components/Card'
 import { Layout } from '../components/Layout'
 import { Player } from '../components/Player'
-import { TreeNode, TreeRoot } from "../utils/tree"
+import { TreeNode, TreeRoot } from '../utils/tree'
 
 const mdxComponents = {
   Callout,
   Card,
   Image,
   Link,
-  Player
+  Player,
 }
 
-export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>, childrenTree: TreeNode<types.Doc>[] }> = ({
+export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>; childrenTree: TreeNode<types.Doc>[] }> = ({
   doc,
   tree,
-  childrenTree
+  childrenTree,
 }) => {
   const router = useRouter()
   const SIDEBAR_WIDTH = 320
   const HEADER_HEIGHT = 60
 
-  const MDXContent = doc?.body?.code ? useMDXComponent(doc.body.code) : null
+  const MDXContent = useMDXComponent(doc.body.code!)
 
   return (
     <Layout doc={doc}>
@@ -46,11 +46,9 @@ export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>, children
             <Tree tree={tree} level={0} activeUrlPath={router.asPath} />
           </div>
         </aside>
-        <div style={{ marginLeft: `max(calc(50% - 32rem), ${SIDEBAR_WIDTH}px)`, overflow: "auto" }}>
+        <div style={{ marginLeft: `max(calc(50% - 32rem), ${SIDEBAR_WIDTH}px)`, overflow: 'auto' }}>
           <div className="flex-1 px-12 py-8 max-w-5xl markdown">
-            <h1>
-              {doc.title}
-            </h1>
+            <h1>{doc.title}</h1>
             {MDXContent !== null && <MDXContent components={mdxComponents} />}
             {doc.show_child_cards && <ChildCards tree={childrenTree} />}
           </div>
@@ -60,7 +58,11 @@ export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>, children
   )
 }
 
-const Tree: FC<{ tree: TreeRoot<types.Doc>; level: number; activeUrlPath: string }> = ({ tree, level, activeUrlPath }) => (
+const Tree: FC<{ tree: TreeRoot<types.Doc>; level: number; activeUrlPath: string }> = ({
+  tree,
+  level,
+  activeUrlPath,
+}) => (
   <div style={{ paddingLeft: level * 12 }} className="mb-2 space-y-1">
     {tree.map((treeNode, index) => (
       <React.Fragment key={`${treeNode.urlPath}-${index}`}>
