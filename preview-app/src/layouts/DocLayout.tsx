@@ -10,7 +10,7 @@ import { Callout } from '../components/Callout'
 import { Card } from '../components/Card'
 import { Layout } from '../components/Layout'
 import { Player } from '../components/Player'
-import { TreeNode, TreeRoot } from '../pages/docs/[[...slug]]'
+import { TreeNode, TreeRoot } from "../utils/tree"
 
 const mdxComponents = {
   Callout,

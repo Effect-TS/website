@@ -56,6 +56,6 @@ export default makeSource({
   mdx: {
     rehypePlugins: [highlight, [rehypeRaw, { passThrough: nodeTypes }]],
     // @ts-expect-error
-    remarkPlugins: [[remarkShikiTwoslash.default, { themes: ["dark-plus", "light-plus"] }]]
+    remarkPlugins: [[remarkShikiTwoslash.default, { themes: ["github-dark", "github-light"] }]]
   },
 })

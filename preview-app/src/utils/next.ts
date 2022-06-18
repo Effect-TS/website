@@ -1,4 +1,5 @@
-import type { GetServerSideProps, GetStaticPaths, GetStaticProps } from 'next'
+import type { GetServerSideProps, GetStaticPaths, GetStaticProps, PreviewData, GetStaticPropsContext, GetStaticPropsResult } from 'next'
+import { ParsedUrlQuery } from 'querystring'
 
 /** Needed in combination with `InferGetServerSidePropsType` */
 export function defineServerSideProps<Fn extends GetServerSideProps>(fn: Fn): Fn {
@@ -6,7 +7,11 @@ export function defineServerSideProps<Fn extends GetServerSideProps>(fn: Fn): Fn
 }
 
 /** Needed in combination with `InferGetStaticPropsType` */
-export function defineStaticProps<Fn extends GetStaticProps>(fn: Fn): Fn {
+export function defineStaticProps<
+  P extends GetStaticPropsResult<any>,
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  D extends PreviewData = PreviewData
+>(fn: (context: GetStaticPropsContext<Q, D>) => Promise<P> | P): GetStaticProps<Extract<P, { props: any }>["props"], Q, D> {
   return fn
 }
 
