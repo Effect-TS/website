@@ -1,3 +1,4 @@
+import stackblitz, { type VM } from '@stackblitz/sdk'
 import classnames from 'classnames'
 import type * as types from 'contentlayer/generated'
 import { useMDXComponent } from 'next-contentlayer/hooks'
@@ -5,12 +6,36 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import type { FC } from 'react'
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Callout } from '../components/Callout'
 import { Card } from '../components/Card'
 import { Layout } from '../components/Layout'
 import { Player } from '../components/Player'
 import { TreeNode, TreeRoot } from '../utils/tree'
+
+export const Playground: FC<{ project: string; file?: string }> = ({ project, file }) => {
+  const ref = useRef<HTMLDivElement>(null)
+  const [vm, setVm] = useState<VM | undefined>(undefined)
+
+  useEffect(() => {
+    if (ref.current && vm === undefined) {
+      stackblitz
+        .embedGithubProject(ref.current, `effect-ts/docs/tree/code-examples/${project}`, {
+          height: 700,
+          view: 'editor',
+          showSidebar: true,
+          openFile: file ?? 'README.md',
+        })
+        .then((_) => setVm(_))
+    }
+  }, [ref, project, vm, file])
+
+  return (
+    <div className="mt-8 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-900">
+      <div className="h-[700px] w-full" ref={ref} />
+    </div>
+  )
+}
 
 const Code: FC = ({ children }) => {
   if (Array.isArray(children) && children.every((c) => c.props.className === 'line')) {
@@ -39,6 +64,7 @@ const mdxComponents = {
   Link,
   Player,
   code: Code,
+  Playground,
 }
 
 export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>; childrenTree: TreeNode<types.Doc>[] }> = ({
@@ -68,7 +94,7 @@ export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>; children
           </div>
         </aside>
         <div style={{ marginLeft: `max(calc(50% - 32rem), ${SIDEBAR_WIDTH}px)`, overflow: 'auto' }}>
-          <div className="flex-1 px-12 py-8 max-w-5xl markdown">
+          <div className="flex-1 px-12 py-8 max-w-7xl markdown">
             <h1>{doc.title}</h1>
             {MDXContent !== null && <MDXContent components={mdxComponents} />}
             {doc.show_child_cards && <ChildCards tree={childrenTree} />}
