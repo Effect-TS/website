@@ -26,7 +26,7 @@ When looking into Effect you'll find a rich set of modules to deal with much mor
 - `Schedule`: Time-based Scheduling Policies
 - `Stream`: Pull Based Effectful Streams (like an Effect that can produce 0 - infinite values)
 - `Deferred`: Like a Promise of an Effect that may be fulfilled at a later point
-- `STM`: Transactional Data Structures & Coordination 
+- `STM`: Transactional Data Structures & Coordination
 - `Semaphore`: Concurrency Control
 - `Clock`: System Clock & Time Utilities
 - `Random`: Deterministic Seeded Random Utilities
