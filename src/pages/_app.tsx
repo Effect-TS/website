@@ -15,20 +15,20 @@ const script = `
     document.documentElement.classList.remove('dark');
   };
   const setColorMode = (bind) => {
+    const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
     if (localStorage && localStorage.theme) {
       if (localStorage.theme === 'dark') {
         setDark();
-        return;
       } else if (localStorage.theme === 'light') {
         setLight();
-        return;
       }
     }
-    const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
-    if (themeMedia.matches) {
-      setDark();
-    } else {
-      setLight();
+    if (!localStorage || localStorage.theme === "system") {
+      if (themeMedia.matches) {
+        setDark();
+      } else {
+        setLight();
+      }
     }
     if (bind) {
       themeMedia.onchange = () => setColorMode(false);
