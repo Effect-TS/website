@@ -23,7 +23,7 @@ const script = `
         setLight();
       }
     }
-    if (!localStorage || localStorage.theme === "system") {
+    if (!localStorage || !localStorage.theme || localStorage.theme === "system") {
       if (themeMedia.matches) {
         setDark();
       } else {
