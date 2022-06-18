@@ -27,7 +27,7 @@ export const Header = () => {
     <header className="fixed z-10 flex justify-between w-full px-6 items-center bg-white border-b border-gray-100 dark:bg-gray-950 dark:border-gray-800 bg-opacity-90 backdrop-filter backdrop-blur-sm h-[60px]">
       <div className="flex items-center space-x-2.5">
         <Link href="/">
-          <a className="font-extrabold no-underline text-gray-950 dark:text-white w-24" tabIndex={1}>
+          <a className="text-current dark:text-gray-300 dark:hover:text-gray-100 w-24" tabIndex={1}>
             <Icon name={'effect-full'} />
           </a>
         </Link>
