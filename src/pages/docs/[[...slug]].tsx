@@ -2,8 +2,6 @@ import type { InferGetStaticPropsType } from 'next'
 import { useLiveReload } from 'next-contentlayer/hooks'
 import type { FC } from 'react'
 import { allDocs } from 'contentlayer/generated'
-import { Doc } from 'contentlayer/generated'
-
 import { DocLayout } from '../../layouts/DocLayout'
 import { defineStaticProps, toParams } from '../../utils/next'
 import { PathSegment, buildTreeNode } from '../../utils/tree'
