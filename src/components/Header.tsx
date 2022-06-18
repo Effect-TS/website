@@ -27,7 +27,7 @@ export const Header = () => {
     <header className="fixed z-10 flex justify-between w-full px-6 items-center bg-white border-b border-gray-100 dark:bg-gray-950 dark:border-gray-800 bg-opacity-90 backdrop-filter backdrop-blur-sm h-[60px]">
       <div className="flex items-center space-x-2.5">
         <Link href="/">
-          <a className="text-current dark:text-gray-300 dark:hover:text-gray-100 w-24" tabIndex={1}>
+          <a className="text-current hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100 w-24" tabIndex={1}>
             <Icon name={'effect-full'} />
           </a>
         </Link>
@@ -53,7 +53,10 @@ export const Header = () => {
 
         <div className="flex">
           {iconLinks.map((link, idx) => (
-            <div key={idx} className="inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100">
+            <div
+              key={idx}
+              className="inline-block p-2 w-10 text-current hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100"
+            >
               <Link href={link.url}>
                 <a target={isExternalUrl(link.url) ? '_blank' : undefined} tabIndex={2}>
                   <Icon name={link.name} />
@@ -97,7 +100,7 @@ const ColorModePicker: React.FC = () => {
   return (
     <div
       ref={ref}
-      className="group relative dropdown inline-block p-2 w-10 text-current dark:text-gray-300 dark:hover:text-gray-100"
+      className="group relative dropdown inline-block p-2 w-10 text-current hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100"
     >
       <a
         tabIndex={2}
@@ -115,7 +118,10 @@ const ColorModePicker: React.FC = () => {
         <ul className="top-0 w-auto mt-2 -ml-14 shadow px-6 py-6 bg-white dark:bg-gray-950">
           <li className="py-1">
             <button
-              className={classnames('block font-bold text-base', colorScheme === 'dark' ? 'underline' : '')}
+              className={classnames(
+                'block text-base font-bold text-current hover:text-gray-600 dark:hover:text-gray-300',
+                colorScheme === 'dark' ? 'underline' : '',
+              )}
               onClick={() => {
                 localStorage.setItem('theme', 'dark')
                 window.setColorMode()
@@ -126,7 +132,10 @@ const ColorModePicker: React.FC = () => {
           </li>
           <li className="py-1">
             <button
-              className={classnames('block font-bold text-base', colorScheme === 'light' ? 'underline' : '')}
+              className={classnames(
+                'block text-base font-bold text-current hover:text-gray-600 dark:hover:text-gray-300',
+                colorScheme === 'light' ? 'underline' : '',
+              )}
               onClick={() => {
                 localStorage.setItem('theme', 'light')
                 window.setColorMode()
@@ -137,7 +146,10 @@ const ColorModePicker: React.FC = () => {
           </li>
           <li className="py-1">
             <button
-              className={classnames('block font-bold text-base', colorScheme === 'system' ? 'underline' : '')}
+              className={classnames(
+                'block text-base font-bold text-current hover:text-gray-600 dark:hover:text-gray-300',
+                colorScheme === 'system' ? 'underline' : '',
+              )}
               onClick={() => {
                 localStorage.setItem('theme', 'system')
                 window.setColorMode()
