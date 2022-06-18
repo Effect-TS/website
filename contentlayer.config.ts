@@ -1,6 +1,6 @@
 import { defineDocumentType, makeSource } from 'contentlayer/source-files'
 import highlight from 'rehype-highlight'
-import remarkShikiTwoslash from "remark-shiki-twoslash"
+import remarkShikiTwoslash from 'remark-shiki-twoslash'
 import rehypeRaw from 'rehype-raw'
 import { nodeTypes } from '@mdx-js/mdx'
 
@@ -21,16 +21,16 @@ export const Doc = defineDocumentType(() => ({
     nav_title: {
       type: 'string',
       description: 'Override the title for display in nav',
-      required: false
+      required: false,
     },
     label: {
       type: 'string',
-      required: false
+      required: false,
     },
     excerpt: {
       type: 'string',
-      required: false
-    }
+      required: false,
+    },
   },
   computedFields: {
     pathSegments: {
@@ -51,11 +51,11 @@ export const Doc = defineDocumentType(() => ({
 }))
 
 export default makeSource({
-  contentDirPath: '../docs',
+  contentDirPath: './docs',
   documentTypes: [Doc],
   mdx: {
     rehypePlugins: [highlight, [rehypeRaw, { passThrough: nodeTypes }]],
     // @ts-expect-error
-    remarkPlugins: [[remarkShikiTwoslash.default, { themes: ["dark-plus", "light-plus"] }]]
+    remarkPlugins: [[remarkShikiTwoslash.default, { themes: ['github-dark', 'github-light'] }]],
   },
 })

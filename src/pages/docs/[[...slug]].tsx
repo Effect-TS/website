@@ -6,6 +6,7 @@ import { Doc } from 'contentlayer/generated'
 
 import { DocLayout } from '../../layouts/DocLayout'
 import { defineStaticProps, toParams } from '../../utils/next'
+import { PathSegment, buildTreeNode } from '../../utils/tree'
 
 export const getStaticPaths = async () => {
   const paths = allDocs.map((_) => _.pathSegments.map((_: PathSegment) => _.pathName).join('/')).map(toParams)
@@ -22,15 +23,15 @@ export const getStaticProps = defineStaticProps(async (context) => {
   if (doc === undefined) {
     return {
       redirect: { destination: '/', statusCode: 301 },
-    } as never
+    }
   }
 
-  const tree = buildTree(allDocs)
-  const childrenTree = buildTree(
+  const tree = buildTreeNode(allDocs)
+  const childrenTree = buildTreeNode(
     allDocs,
     doc.pathSegments.map((_: PathSegment) => _.pathName),
   )
-  
+
   return { props: { doc, tree, childrenTree } }
 })
 
@@ -41,39 +42,3 @@ const Page: FC<InferGetStaticPropsType<typeof getStaticProps>> = ({ doc, tree, c
 }
 
 export default Page
-
-export type TreeRoot = TreeNode[]
-
-export type TreeNode = {
-  title: string
-  urlPath: string
-  label?: string
-  excerpt?: string
-  nav_title?: string
-  children: TreeNode[]
-}
-
-type PathSegment = { order: number; pathName: string }
-
-const buildTree = (docs: Doc[], parentPathNames: string[] = []): TreeNode[] => {
-  const level = parentPathNames.length
-
-  return docs
-    .filter(
-      (_) =>
-        _.pathSegments.length === level + 1 &&
-        _.pathSegments
-          .map((_: PathSegment) => _.pathName)
-          .join('/')
-          .startsWith(parentPathNames.join('/')),
-    )
-    .sort((a, b) => a.pathSegments[level].order - b.pathSegments[level].order)
-    .map<TreeNode>((doc) => ({
-      title: doc.title,
-      urlPath: '/docs/' + doc.pathSegments.map((_: PathSegment) => _.pathName).join('/'),
-      children: buildTree(
-        docs,
-        doc.pathSegments.map((_: PathSegment) => _.pathName),
-      ),
-    }))
-}
