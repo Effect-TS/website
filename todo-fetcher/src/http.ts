@@ -17,7 +17,7 @@ export class JsonBodyError {
   constructor(readonly error: unknown) {}
 }
 
-export const HttpRequestCount = pipe(
+export const httpRequestCount = pipe(
   Metrics.counter("HttpRequest"),
   Metrics.fromConst(() => 1)
 );
@@ -25,7 +25,7 @@ export const HttpRequestCount = pipe(
 export interface HttpService
   extends Effect.Effect.Success<typeof makeHttpService> {}
 
-export const HttpService = Service.Tag<HttpService>();
+export const httpService = Service.Tag<HttpService>();
 
 export const makeHttpService = Effect.succeed(() => {
   const request = (input: RequestInfo, init?: RequestInit) =>
@@ -45,7 +45,7 @@ export const makeHttpService = Effect.succeed(() => {
           })
         );
       }),
-      HttpRequestCount
+      httpRequestCount
     );
 
   const jsonBody = (input: Response) =>
@@ -68,4 +68,4 @@ export const makeHttpService = Effect.succeed(() => {
   };
 });
 
-export const HttpServiceLive = Effect.toLayer(HttpService)(makeHttpService);
+export const httpServiceContext = Effect.toLayer(httpService)(makeHttpService);

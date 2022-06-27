@@ -1,13 +1,13 @@
 import * as Effect from "@effect/core/io/Effect";
 import * as Layer from "@effect/core/io/Layer";
 import { pipe } from "@tsplus/stdlib/data/Function";
-import { HttpServiceLive } from "./http.js";
-import { LoggerService, LoggerServiceLive } from "./logger.js";
-import { TodoRepo, TodoRepoLive } from "./todos.js";
+import { httpServiceContext } from "./http.js";
+import { loggerService, loggerServiceContext } from "./logger.js";
+import { todoRepo, todoRepoContext } from "./todos.js";
 
-const App = Effect.gen(function* ($) {
-  const { getTodosBetween } = yield* $(TodoRepo);
-  const { log } = yield* $(LoggerService);
+const app = Effect.gen(function* ($) {
+  const { getTodosBetween } = yield* $(todoRepo);
+  const { log } = yield* $(loggerService);
 
   const todos = yield* $(getTodosBetween(1, 10));
 
@@ -16,10 +16,10 @@ const App = Effect.gen(function* ($) {
   }
 });
 
-const Context = pipe(
-  HttpServiceLive,
-  Layer.andTo(TodoRepoLive),
-  Layer.and(() => LoggerServiceLive)
+const context = pipe(
+  httpServiceContext,
+  Layer.andTo(todoRepoContext),
+  Layer.and(() => loggerServiceContext)
 );
 
-pipe(App, Effect.provideSomeLayer(Context), Effect.unsafeRunPromise);
+pipe(app, Effect.provideSomeLayer(context), Effect.unsafeRunPromise);

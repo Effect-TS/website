@@ -4,7 +4,7 @@ import { Service } from "@tsplus/stdlib/service/Service";
 export interface LoggerService
   extends Effect.Effect.Success<typeof makeLoggerService> {}
 
-export const LoggerService = Service.Tag<LoggerService>();
+export const loggerService = Service.Tag<LoggerService>();
 
 export const makeLoggerService = Effect.succeed(() => {
   const log = (message: string) => Effect.succeed(() => console.log(message));
@@ -12,5 +12,5 @@ export const makeLoggerService = Effect.succeed(() => {
   return { log };
 });
 
-export const LoggerServiceLive =
-  Effect.toLayer(LoggerService)(makeLoggerService);
+export const loggerServiceContext =
+  Effect.toLayer(loggerService)(makeLoggerService);

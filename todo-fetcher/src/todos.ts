@@ -3,7 +3,7 @@ import * as Schedule from "@effect/core/io/Schedule";
 import * as Chunk from "@tsplus/stdlib/collections/Chunk";
 import { pipe } from "@tsplus/stdlib/data/Function";
 import { Tag } from "@tsplus/stdlib/service/Tag";
-import { HttpService } from "./http.js";
+import { httpService } from "./http.js";
 
 export class Todo {
   readonly _tag = "Todo";
@@ -13,10 +13,10 @@ export class Todo {
 export interface TodoRepo
   extends Effect.Effect.Success<typeof makeTodoRepoLive> {}
 
-export const TodoRepo = Tag<TodoRepo>();
+export const todoRepo = Tag<TodoRepo>();
 
 export const makeTodoRepoLive = Effect.gen(function* ($) {
-  const Http = yield* $(HttpService);
+  const Http = yield* $(httpService);
 
   const getTodo = (id: number) =>
     pipe(
@@ -44,4 +44,4 @@ export const makeTodoRepoLive = Effect.gen(function* ($) {
   };
 });
 
-export const TodoRepoLive = Effect.toLayer(TodoRepo)(makeTodoRepoLive);
+export const todoRepoContext = Effect.toLayer(todoRepo)(makeTodoRepoLive);
