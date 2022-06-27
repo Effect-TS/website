@@ -16,10 +16,10 @@ const App = Effect.gen(function* ($) {
   }
 });
 
-const AppContextLive = pipe(
+const Context = pipe(
   HttpServiceLive,
   Layer.andTo(TodoRepoLive),
   Layer.and(() => LoggerServiceLive)
 );
 
-pipe(App, Effect.provideSomeLayer(AppContextLive), Effect.unsafeRunPromise);
+pipe(App, Effect.provideSomeLayer(Context), Effect.unsafeRunPromise);
