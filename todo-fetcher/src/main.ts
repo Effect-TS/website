@@ -1,14 +1,13 @@
 import * as Effect from "@effect/core/io/Effect";
 import * as Layer from "@effect/core/io/Layer";
-import { LazyArg, pipe } from "@tsplus/stdlib/data/Function";
+import { pipe } from "@tsplus/stdlib/data/Function";
 import { HttpServiceLive } from "./http.js";
+import { LoggerService, LoggerServiceLive } from "./logger.js";
 import { TodoRepo, TodoRepoLive } from "./todos.js";
 
-const log = (message: LazyArg<string>) =>
-  Effect.succeed(() => console.log(message()));
-
-const main = Effect.gen(function* ($) {
+const App = Effect.gen(function* ($) {
   const { getTodosBetween } = yield* $(TodoRepo);
+  const { log } = yield* $(LoggerService);
 
   const todos = yield* $(getTodosBetween(1, 10));
 
@@ -17,6 +16,10 @@ const main = Effect.gen(function* ($) {
   }
 });
 
-const env = pipe(HttpServiceLive, Layer.andTo(TodoRepoLive));
+const AppContextLive = pipe(
+  HttpServiceLive,
+  Layer.andTo(TodoRepoLive),
+  Layer.and(() => LoggerServiceLive)
+);
 
-pipe(main, Effect.provideSomeLayer(env), Effect.unsafeRunPromise);
+pipe(App, Effect.provideSomeLayer(AppContextLive), Effect.unsafeRunPromise);
