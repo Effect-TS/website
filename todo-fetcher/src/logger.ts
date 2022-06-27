@@ -1,5 +1,4 @@
 import * as Effect from "@effect/core/io/Effect";
-import { LazyArg } from "@tsplus/stdlib/data/Function";
 import { Service } from "@tsplus/stdlib/service/Service";
 
 export interface LoggerService
@@ -8,12 +7,9 @@ export interface LoggerService
 export const LoggerService = Service.Tag<LoggerService>();
 
 export const makeLoggerService = Effect.succeed(() => {
-  const log = (message: LazyArg<string>) =>
-    Effect.succeed(() => console.log(message()));
+  const log = (message: string) => Effect.succeed(() => console.log(message));
 
-  return {
-    log,
-  };
+  return { log };
 });
 
 export const LoggerServiceLive =

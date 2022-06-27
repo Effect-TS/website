@@ -12,7 +12,7 @@ const App = Effect.gen(function* ($) {
   const todos = yield* $(getTodosBetween(1, 10));
 
   for (const todo of todos) {
-    yield* $(log(() => `Todo: ${JSON.stringify(todo)}`));
+    yield* $(log(`Todo: ${JSON.stringify(todo)}`));
   }
 });
 
