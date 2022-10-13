@@ -38,7 +38,7 @@ export const Playground: FC<{ project: string; file?: string }> = ({ project, fi
 }
 
 const Code: FC = ({ children }) => {
-  if (Array.isArray(children) && children.every((c) => c.props.className === 'line')) {
+  if (Array.isArray(children) && children.every((c) => c && c.props && c.props.className === 'line')) {
     const lines = children.length
     const len = `${lines}`.length
     return (

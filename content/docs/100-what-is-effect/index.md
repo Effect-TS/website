@@ -25,7 +25,7 @@ When such function is invoked like `greet("Michael")` the message `hello Michael
 <br />
 Whenever any state external to the function scope is mutated (in this case the console state) a function is said to contain side effects.
 <br />
-Another way of looking at the same issue is through the lenses of referential transparency, a pure function (a function that doesn't contain side effects) has the property of respecting evaluation substitution, that means if I have something like `f(g(x), g(x))` it is safe to refactor to `const y = g(x); f(y, y);` functions with side effects violate this property, for eameple the following two programs yield different outputs:
+Another way of looking at the same issue is through the lenses of referential transparency, a pure function (a function that doesn't contain side effects) has the property of respecting evaluation substitution, that means if I have something like `f(g(x), g(x))` it is safe to refactor to `const y = g(x); f(y, y);` functions with side effects violate this property, for exameple the following two programs yield different outputs:
 
 ```ts twoslash
 const greet = (name: string) => {
@@ -100,3 +100,18 @@ E.unsafeRunPromise(program)
     console.log('Execution Failed')
   })
 ```
+
+<br />
+
+## The Effect Type
+
+The `Effect` type contains 3 type parameters, the full type looks like `Effect<Services, Errors, Success>` and they respectively indicate:
+
+<br />
+- `Services`: the list of requirements that your program needs
+- `Errors`: the list of errors that your program may encounter
+- `Success`: the value that your program returns
+
+<br />
+
+As we will see in the next chapters those type parameters are leveraged by `Effect` to provide the best possible developer experience when dealing with dependency injection and error handling for your everyday usage.
