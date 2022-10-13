@@ -4,7 +4,7 @@ title: What is Effect
 
 Pretty much everything interesting that a computer can do is interacting with the outside world.
 <br />
-Interacting with the outside world is unpredictable, we call programs thst interact with the outside world effectful.
+Interacting with the outside world is unpredictable, we call programs that interact with the outside world effectful.
 <br />
 Effect is a library that gives predictability to such programs by empowering you with a set of composable building blocks to model the patterns that you'll need on a daily basis.
 <br />
