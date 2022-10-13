@@ -84,7 +84,7 @@ When executed the result of `program1` and the one of `program2` will be exactly
 
 ## Executing Effects
 
-Effects can execute in various ways, the simplest is the execution to a `Promise<Value>` that may be used for interop purposes.
+`Effect` can execute programs in various ways, the simplest one is the execution to a `Promise<Value>` that may be used for interop purposes.
 
 ```ts twoslash
 import * as E from '@effect/core/io/Effect'
