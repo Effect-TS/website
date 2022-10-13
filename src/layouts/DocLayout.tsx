@@ -57,6 +57,13 @@ const Code: FC = ({ children }) => {
   return <code>{children}</code>
 }
 
+export const H2: FC = ({ children }) => (
+  <>
+    <h2 className="text-xl">{children}</h2>
+    <br></br>
+  </>
+)
+
 const mdxComponents = {
   Callout,
   Card,
@@ -65,6 +72,7 @@ const mdxComponents = {
   Player,
   code: Code,
   Playground,
+  h2: H2,
 }
 
 export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>; childrenTree: TreeNode<types.Doc>[] }> = ({
@@ -95,7 +103,8 @@ export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>; children
         </aside>
         <div style={{ marginLeft: `max(calc(50% - 32rem), ${SIDEBAR_WIDTH}px)`, width: '100%', overflow: 'auto' }}>
           <div className="flex-1 px-12 py-8 max-w-7xl markdown">
-            <h1>{doc.title}</h1>
+            <h1 className="text-2xl">{doc.title}</h1>
+            <br></br>
             {MDXContent !== null && <MDXContent components={mdxComponents} />}
             {doc.show_child_cards && <ChildCards tree={childrenTree} />}
           </div>

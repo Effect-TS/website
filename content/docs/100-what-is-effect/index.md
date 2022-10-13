@@ -2,33 +2,101 @@
 title: What is Effect
 ---
 
-`Effect` brings together years of learnings and research on productive, safe, and concurrent programming, it is a TypeScript library modelled after `ZIO` in `Scala` and it aims to make it simple to develop complex things while not making it hard to build simple things.
+Pretty much everything interesting that a computer can do is interacting with the outside world.
+<br />
+Interacting with the outside world is unpredictable, we call programs thst interact with the outside world effectful.
+<br />
+Effect is a library that gives predictability to such programs by empowering you with a set of composable building blocks to model the patterns that you'll need on a daily basis.
+<br />
 
-The core engine of `Effect` is a `Fiber`-based runtime, you may have heard of Fibers before, for example the new React uses Fibers to improve rendering behaviour.
+## Recognising Side Effects
 
-The Effect data-type, that serves as a backbone for all the modules of `@effect/core`, has 3 type parameters, the first representing the `Context` available to your program (think of it like the React context), the second representing the `Errors` that your program may encounter while executing and finally the third one representing the `Result` of running the task in case of success.
+When writing programs in `TypeScript` we are used to code that looks like:
 
-## What's in the Box?
+```ts twoslash
+function greet(name: string) {
+  const greeting = `hello ${name}`
+  console.log(greeting)
+  return greeting
+}
+```
 
-When looking into Effect you'll find a rich set of modules to deal with much more than what we've seen, just in `@effect/core` you'll find:
+When such function is invoked like `greet("Michael")` the message `hello Michael` is printed out in the console.
+<br />
+Whenever any state external to the function scope is mutated (in this case the console state) a function is said to contain side effects.
+<br />
+Another way of looking at the same issue is through the lenses of referential transparency, a pure function (a function that doesn't contain side effects) has the property of respecting evaluation substitution, that means if I have something like `f(g(x), g(x))` it is safe to refactor to `const y = g(x); f(y, y);` functions with side effects violate this property, for eameple the following two programs yield different outputs:
 
-- `Effect`: Generic Program Definition
-- `Cause`: Representing potentially multiple failure causes of different kinds
-- `Scope`: Safe Resource Management to model things like database connections
-- `Fiber`: Low Level Concurrency Primitives
-- `Queue`: Work-Stealing Concurrent & Backpressured Queues
-- `Hub`: Like a Pub/Sub for Effects
-- `Layer`: Context Construction
-- `Metrics`: Prometheus Compatible Metrics
-- `Tracing`: OpenTelemetry Compatible Tracing
-- `Logger`: Multi-Level & Abstract Logger
-- `Ref`: Mutable Reference to immutable State with potentially Syncronized access and updates
-- `Schedule`: Time-based Scheduling Policies
-- `Stream`: Pull Based Effectful Streams (like an Effect that can produce 0 - infinite values)
-- `Deferred`: Like a Promise of an Effect that may be fulfilled at a later point
-- `STM`: Transactional Data Structures & Coordination
-- `Semaphore`: Concurrency Control
-- `Clock`: System Clock & Time Utilities
-- `Random`: Deterministic Seeded Random Utilities
-- `Runtime`: Runtime Configuration and Runner
-- `Supervisor`: Fiber Monitoring
+```ts twoslash
+function program1() {
+  console.log(`length: ${combine(greet('Michael'), greet('Michael'))}`)
+}
+function program2() {
+  const x = greet('Michael')
+  console.log(`length: ${combine(x, x)}`)
+}
+function greet(name: string) {
+  const greeting = `hello ${name}`
+  console.log(greeting)
+  return greeting
+}
+function combine(a: string, b: string) {
+  return a + b
+}
+```
+
+Namely `program1` will print twice the message `hello Michael` and `program2` will print only once.
+<br />
+
+Code that contains side effects is hard to maintain, it can't be safely refactored and it's fundamentally hard to write in a safe and fast manner.
+<br />
+
+## Programming with Effect
+
+Turning side effects into effects allows you to deal with such programs in a fully safe manner, let's start by writing the same program with `Effect`.
+
+```ts twoslash
+import * as E from '@effect/core/io/Effect'
+import { pipe } from '@tsplus/stdlib/data/Function'
+
+const greet = (name: string) =>
+  pipe(
+    E.succeed(`hello ${name}`),
+    E.tap((greeting) => E.logInfo(greeting)),
+  )
+
+const combine = (a: E.Effect<never, never, string>, b: E.Effect<never, never, string>) =>
+  pipe(
+    a,
+    E.zipWith(b, (a, b) => a + b),
+  )
+
+const program1 = E.suspendSucceed(() => combine(greet('Michael'), greet('Michael')))
+
+const program2 = E.suspendSucceed(() => {
+  const name = greet('Michael')
+  return combine(name, name)
+})
+```
+
+When executed the result of `program1` and the one of `program2` will be exactly the same, namely twice the message `hello Michael` will be printed out in the console.
+<br />
+
+## Executing Effects
+
+Effects can execute in various ways, the simplest is the execution to a `Promise<Value>` that may be used for interop purposes.
+
+```ts twoslash
+import * as E from '@effect/core/io/Effect'
+import { pipe } from '@tsplus/stdlib/data/Function'
+
+const program = pipe(E.logInfo('Hello'), E.zipRight(E.logInfo('World')))
+
+E.unsafeRunPromise(program)
+  .then(() => {
+    console.log('Execution Completed')
+  })
+  .catch(() => {
+    console.log('Execution Failed')
+  })
+```
