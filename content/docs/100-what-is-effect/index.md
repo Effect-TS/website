@@ -14,7 +14,7 @@ Effect is a library that gives predictability to such programs by empowering you
 When writing programs in `TypeScript` we are used to code that looks like:
 
 ```ts twoslash
-function greet(name: string) {
+const greet = (name: string) => {
   const greeting = `hello ${name}`
   console.log(greeting)
   return greeting
@@ -28,20 +28,19 @@ Whenever any state external to the function scope is mutated (in this case the c
 Another way of looking at the same issue is through the lenses of referential transparency, a pure function (a function that doesn't contain side effects) has the property of respecting evaluation substitution, that means if I have something like `f(g(x), g(x))` it is safe to refactor to `const y = g(x); f(y, y);` functions with side effects violate this property, for eameple the following two programs yield different outputs:
 
 ```ts twoslash
-function program1() {
-  console.log(`length: ${combine(greet('Michael'), greet('Michael'))}`)
-}
-function program2() {
-  const x = greet('Michael')
-  console.log(`length: ${combine(x, x)}`)
-}
-function greet(name: string) {
+const greet = (name: string) => {
   const greeting = `hello ${name}`
   console.log(greeting)
   return greeting
 }
-function combine(a: string, b: string) {
-  return a + b
+// ---cut---
+const program1 = () => {
+  console.log(`length: ${greet('Michael') + greet('Michael')}`)
+}
+
+const program2 = () => {
+  const x = greet('Michael')
+  console.log(`length: ${x + x}`)
 }
 ```
 
@@ -65,21 +64,22 @@ const greet = (name: string) =>
     E.tap((greeting) => E.logInfo(greeting)),
   )
 
-const combine = (a: E.Effect<never, never, string>, b: E.Effect<never, never, string>) =>
-  pipe(
-    a,
-    E.zipWith(b, (a, b) => a + b),
-  )
+const program1 = pipe(
+  greet('Michael'),
+  E.zipWith(greet('Michael'), (x, y) => x + y),
+  E.tap((message) => E.logInfo(`length: ${message}`)),
+)
 
-const program1 = E.suspendSucceed(() => combine(greet('Michael'), greet('Michael')))
+const greetMichael = greet('Michael')
 
-const program2 = E.suspendSucceed(() => {
-  const name = greet('Michael')
-  return combine(name, name)
-})
+const program2 = pipe(
+  greetMichael,
+  E.zipWith(greetMichael, (x, y) => x + y),
+  E.flatMap((message) => E.logInfo(`length: ${message}`)),
+)
 ```
 
-When executed the result of `program1` and the one of `program2` will be exactly the same, namely twice the message `hello Michael` will be printed out in the console.
+When executed the result of `program1` and the one of `program2` will be exactly the same, namely twice the message `hello Michael` will be printed out in the console followed by a message containing the length of the concatenated strings.
 <br />
 
 ## Executing Effects
