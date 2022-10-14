@@ -2,6 +2,16 @@
 
 Reference Documentation for the module '@effect/core/io/FiberScope'
 
+A `FiberScope` represents the scope of a fiber lifetime. The scope of a
+fiber can be retrieved using `Effect.descriptor`, and when forking fibers,
+you can specify a custom scope to fork them on by using the `forkIn`.
+
+```ts
+export type FiberScope = Global | Local;
+```
+
+## Methods
+
 ### globalScope
 
 The global scope. Anything forked onto the global scope is not supervised,

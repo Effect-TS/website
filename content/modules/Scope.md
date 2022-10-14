@@ -2,6 +2,19 @@
 
 Reference Documentation for the module '@effect/core/io/Scope'
 
+A `Scope` is the foundation of safe, composable resource management in ZIO. A
+scope has two fundamental operators, `addFinalizer`, which adds a finalizer
+to the scope, and `close`, which closes a scope and runs all finalizers that
+have been added to the scope.
+
+```ts
+export interface Scope {
+    readonly [ScopeSym]: ScopeSym;
+}
+```
+
+## Methods
+
 ### addFinalizer
 
 Adds a finalizer to this scope. The finalizer is guaranteed to be run when

@@ -2,6 +2,14 @@
 
 Reference Documentation for the module '@effect/core/io/FiberId'
 
+```ts
+export interface FiberId extends Equals {
+    readonly [FiberIdSym]: FiberIdSym;
+}
+```
+
+## Methods
+
 ### combine
 
 Combine two `FiberId`s.

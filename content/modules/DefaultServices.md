@@ -2,6 +2,8 @@
 
 Reference Documentation for the module '@effect/core/io/DefaultServices'
 
+## Methods
+
 ### currentServices
 
 The default services.

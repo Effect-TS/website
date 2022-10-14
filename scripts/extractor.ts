@@ -30,7 +30,38 @@ for (const statement of source?.statements) {
             text += doc.text + '\n\n'
           }
         }
+        for (const s of source.statements) {
+          if (ts.isTypeAliasDeclaration(s) && s.name.text === nameSymbol.name) {
+            const type = checker.getTypeAtLocation(s.name)
+            const symbol: ts.Symbol | undefined =
+              type.symbol ??
+              (type.aliasSymbol && ts.isTypeReferenceNode(s.type)
+                ? checker.getSymbolAtLocation(s.type.typeName)
+                : undefined)
+            if (symbol) {
+              const declaration = symbol
+                .getDeclarations()
+                ?.find(
+                  (d) => ts.isInterfaceDeclaration(d) || ts.isTypeAliasDeclaration(d) || ts.isClassDeclaration(d),
+                ) as (ts.Declaration & { name: ts.Identifier }) | undefined
+              if (declaration) {
+                const docs = checker.getSymbolAtLocation(declaration.name)?.getDocumentationComment(checker) ?? []
+                for (const doc of docs) {
+                  if (doc.kind === 'text') {
+                    text += doc.text + '\n\n'
+                  }
+                }
+                text += '```ts\n'
+                text += declaration.getText()
+                text += '\n```\n\n'
+              }
+            }
+          }
+        }
       }
+
+      text += `## Methods\n\n`
+
       for (const prop of checker
         .getTypeAtLocation(specifier)
         .getProperties()

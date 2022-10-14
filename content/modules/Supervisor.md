@@ -2,6 +2,41 @@
 
 Reference Documentation for the module '@effect/core/io/Supervisor'
 
+A `Supervisor<A>` is allowed to supervise the launching and termination of
+fibers, producing some visible value of type `A` from the supervision.
+
+```ts
+export declare abstract class Supervisor<T> {
+    readonly [SupervisorURI]: {
+        _T: (_: never) => T;
+    };
+    /**
+     * Returns an effect that succeeds with the value produced by this supervisor.
+     * This value may change over time, reflecting what the supervisor produces as
+     * it supervises fibers.
+     */
+    abstract get value(): Effect<never, never, T>;
+    abstract onStart<R, E, A>(environment: Env<R>, effect: Effect<R, E, A>, parent: Maybe<FiberRuntime<any, any>>, fiber: FiberRuntime<E, A>): void;
+    abstract onEnd<E, A>(value: Exit<E, A>, fiber: FiberRuntime<E, A>): void;
+    abstract onEffect<E, A>(fiber: FiberRuntime<E, A>, effect: Effect<any, any, any>): void;
+    abstract onSuspend<E, A>(fiber: FiberRuntime<E, A>): void;
+    abstract onResume<E, A>(fiber: FiberRuntime<E, A>): void;
+    /**
+     * Maps this supervisor to another one, which has the same effect, but whose
+     * value has been transformed by the specified function.
+     */
+    map<B>(f: (a: T) => B): Supervisor<B>;
+    /**
+     * Returns a new supervisor that performs the function of this supervisor, and
+     * the function of the specified supervisor, producing a tuple of the outputs
+     * produced by both supervisors.
+     */
+    zip<B>(right: Supervisor<B>): Supervisor<readonly [T, B]>;
+}
+```
+
+## Methods
+
 ### applyPatch
 
 Applies an update to the supervisor to produce a new supervisor.

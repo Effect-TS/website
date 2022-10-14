@@ -2,6 +2,14 @@
 
 Reference Documentation for the module '@effect/core/io/RuntimeFlags'
 
+```ts
+export type RuntimeFlags = number & {
+    readonly RuntimeFlags: unique symbol;
+};
+```
+
+## Methods
+
 ### cooperativeYielding
 
 ```ts

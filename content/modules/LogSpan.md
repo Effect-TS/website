@@ -2,6 +2,15 @@
 
 Reference Documentation for the module '@effect/core/io/LogSpan'
 
+```ts
+export interface LogSpan {
+    readonly label: string;
+    readonly startTime: number;
+}
+```
+
+## Methods
+
 ### apply
 
 ```ts

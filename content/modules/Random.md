@@ -2,6 +2,20 @@
 
 Reference Documentation for the module '@effect/core/io/Random'
 
+```ts
+export interface Random {
+    readonly [RandomSym]: RandomSym;
+    readonly next: Effect<never, never, number>;
+    readonly nextBoolean: Effect<never, never, boolean>;
+    readonly nextInt: Effect<never, never, number>;
+    readonly nextRange: (low: number, high: number) => Effect<never, never, number>;
+    readonly nextIntBetween: (low: number, high: number) => Effect<never, never, number>;
+    readonly shuffle: <A>(collection: Collection<A>) => Effect<never, never, Collection<A>>;
+}
+```
+
+## Methods
+
 ### defaultRandom
 
 ```ts

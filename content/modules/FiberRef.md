@@ -2,6 +2,21 @@
 
 Reference Documentation for the module '@effect/core/io/FiberRef'
 
+A `FiberRef` is Effect-TS's equivalent of Java's `ThreadLocal`. The value of a
+`FiberRef` is automatically propagated to child fibers when they are forked
+and merged back in to the value of the parent fiber after they are joined.
+
+By default the value of the child fiber will replace the value of the parent
+fiber on join but you can specify your own logic for how values should be
+merged.
+
+```ts
+export interface FiberRef<Value> extends FiberRef.WithPatch<Value, any> {
+}
+```
+
+## Methods
+
 ### currentEnvironment
 
 ```ts

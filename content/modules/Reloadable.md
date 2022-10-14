@@ -2,6 +2,29 @@
 
 Reference Documentation for the module '@effect/core/io/Reloadable'
 
+A `Reloadable` is an implementation of some service that can be dynamically
+reloaded, or swapped out for another implementation on-the-fly.
+
+```ts
+export interface Reloadable<Service> {
+    readonly [ReloadableURI]: {
+        _Service: (_: never) => Service;
+    };
+    readonly scopedRef: ScopedRef<Service>;
+    readonly reload: Effect<never, unknown, void>;
+    /**
+     * Retrieves the current version of the reloadable service.
+     */
+    get get(): Effect<never, never, Service>;
+    /**
+     * Forks the reload of the service in the background, ignoring any errors.
+     */
+    get reloadFork(): Effect<never, never, void>;
+}
+```
+
+## Methods
+
 ### auto
 
 Makes a new reloadable service from a layer that describes the construction

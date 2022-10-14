@@ -28,7 +28,7 @@ import * as ME from '@effect/core/io/Metrics'
 import * as RND from '@effect/core/io/Random'
 
 const Effect: Omit<typeof E, never> = E
-const Metrics: Omit<typeof ME, never> = ME
+const Metric: Omit<typeof ME, never> = ME
 const Random: Omit<typeof RND, never> = RND
 const Queue: Omit<typeof Q, `unsafeCreate` | `createQueue` | `${string}Strategy`> = Q
 const Ref: Omit<typeof R, never> = R
@@ -55,6 +55,33 @@ const Layer: Omit<typeof L, never> = L
 const LogLevel: Omit<typeof LL, never> = LL
 const LogSpan: Omit<typeof LS, never> = LS
 const Logger: Omit<typeof LG, never> = LG
+
+export type Hub<A> = HB.Hub<A>
+export type Effect<R, E, A> = E.Effect<R, E, A>
+export type Queue<A> = Q.Queue<A>
+export type Ref<A> = R.Ref<A>
+export type Cause<A> = C.Cause<A>
+export type Exit<E, A> = EX.Exit<E, A>
+export type Clock = CL.Clock
+export type Cached<E, A> = CA.Cached<E, A>
+export type Reloadable<A> = RL.Reloadable<A>
+export type Fiber<E, A> = FB.Fiber<E, A>
+export type Deferred<E, A> = D.Deferred<E, A>
+export type FiberId = FID.FiberId
+export type FiberRef<A> = FRE.FiberRef<A>
+export type FiberScope = FSCO.FiberScope
+export type Layer<R, E, A> = L.Layer<R, E, A>
+export type Logger<M, O> = LG.Logger<M, O>
+export type LogLevel = LL.LogLevel
+export type LogSpan = LS.LogSpan
+export type Random = RND.Random
+export type Runtime<A> = RN.Runtime<A>
+export type RuntimeFlags = RF.RuntimeFlags
+export type Scope = SCO.Scope
+export type Supervisor<A> = SUP.Supervisor<A>
+export type Schedule<S, E, I, O> = SCH.Schedule<S, E, I, O>
+export type ScopedRef<A> = SCR.ScopedRef<A>
+export type Metric<Type, In, Out> = ME.Metric<Type, In, Out>
 
 export {
   /**
@@ -164,7 +191,7 @@ export {
   /**
    * Reference Documentation for the module '@effect/core/io/Metrics'
    */
-  Metrics,
+  Metric,
   /**
    * Reference Documentation for the module '@effect/core/io/Random'
    */

@@ -2,6 +2,15 @@
 
 Reference Documentation for the module '@effect/core/io/Cause'
 
+```ts
+export interface Cause<E> extends Equals {
+    readonly [CauseSym]: CauseSym;
+    readonly [_E]: () => E;
+}
+```
+
+## Methods
+
 ### as
 
 Maps the error value of this cause to the specified constant value.

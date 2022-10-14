@@ -2,6 +2,39 @@
 
 Reference Documentation for the module '@effect/core/io/Effect'
 
+An`Effect<R, E, A>` value is an immutable value that lazily describes a
+workflow or job. The workflow requires some environment `R`, and may fail
+with an error of type `E`, or succeed with a value of type `A`.
+
+These lazy workflows, referred to as _effects_, can be informally thought of
+as functions in the form:
+
+```typescript
+(environment: R) => Either<E, A>
+```
+
+Effects model resourceful interaction with the outside world, including
+synchronous, asynchronous, concurrent, and parallel interaction.
+
+Effects use a fiber-based concurrency model, with built-in support for
+scheduling, fine-grained interruption, structured concurrency, and high
+scalability.
+
+To run an effect, you need a `Runtime`, which is capable of executing
+effects.
+
+```ts
+export interface Effect<R, E, A> {
+    readonly [EffectURI]: {
+        _R: (_: never) => R;
+        _E: (_: never) => E;
+        _A: (_: never) => A;
+    };
+}
+```
+
+## Methods
+
 ### absolve
 
 Submerges the error case of an `Either` into the `Effect`. The inverse

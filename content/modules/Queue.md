@@ -2,6 +2,16 @@
 
 Reference Documentation for the module '@effect/core/io/Queue'
 
+A `Queue` is a lightweight, asynchronous queue into which values can be
+enqueued and of which elements can be dequeued.
+
+```ts
+export interface Queue<A> extends Enqueue<A>, Dequeue<A> {
+}
+```
+
+## Methods
+
 ### bounded
 
 Makes a new bounded queue. When the capacity of the queue is reached, any

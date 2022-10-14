@@ -2,6 +2,12 @@
 
 Reference Documentation for the module '@effect/core/io/Exit'
 
+```ts
+export type Exit<E, A> = Success<A> | Failure<E>;
+```
+
+## Methods
+
 ### ap
 
 Applicative's ap.

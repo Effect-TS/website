@@ -2,6 +2,34 @@
 
 Reference Documentation for the module '@effect/core/io/Hub'
 
+A `Hub<A>` is an asynchronous message hub into which publishers can publish
+messages of type `A` and subscribers can subscribe to take messages of type
+`A`.
+
+```ts
+export interface Hub<A> extends Enqueue<A> {
+    get [HubSym](): HubSym;
+    /**
+     * Publishes a message to the hub, returning whether the message was published
+     * to the hub.
+     */
+    publish(this: this, a: A): Effect<never, never, boolean>;
+    /**
+     * Publishes all of the specified messages to the hub, returning whether they
+     * were published to the hub.
+     */
+    publishAll(this: this, as: Collection<A>): Effect<never, never, boolean>;
+    /**
+     * Subscribes to receive messages from the hub. The resulting subscription can
+     * be evaluated multiple times within the scope to take a message from the hub
+     * each time.
+     */
+    get subscribe(): Effect<Scope, never, Dequeue<A>>;
+}
+```
+
+## Methods
+
 ### backPressureStrategy
 
 ```ts
