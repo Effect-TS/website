@@ -83,6 +83,15 @@ export type Schedule<S, E, I, O> = SCH.Schedule<S, E, I, O>
 export type ScopedRef<A> = SCR.ScopedRef<A>
 export type Metric<Type, In, Out> = ME.Metric<Type, In, Out>
 
+//
+// Simulated Modules
+//
+
+const Enqueue = {}
+export type Enqueue<A> = Q.Enqueue<A>
+const Dequeue = {}
+export type Dequeue<A> = Q.Dequeue<A>
+
 export {
   /**
    * Reference Documentation for the module '@effect/core/io/Effect'
@@ -196,4 +205,12 @@ export {
    * Reference Documentation for the module '@effect/core/io/Random'
    */
   Random,
+  /**
+   * Reference Documentation for the module Enqueue in '@effect/core/io/Queue'
+   */
+  Enqueue,
+  /**
+   * Reference Documentation for the module Dequeue in '@effect/core/io/Queue'
+   */
+  Dequeue,
 }
