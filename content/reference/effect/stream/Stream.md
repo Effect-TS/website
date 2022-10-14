@@ -70,9 +70,6 @@ Any sink can be used here, but see `Sink.foldWeightedEffect` and
 `Sink.foldUntilEffect` for sinks that cover the common usecases.
 
 ```ts
-/**
- * @param sink   Used for the aggregation
- */
 export declare const aggregate: <R, E, A, R2, E2, A2, B>(sink: Sink<R2, E | E2, A | A2, A2, B>) => (self: Stream<R, E, A>) => Stream<R | R2, E | E2, B>;
 ```
 
@@ -81,10 +78,6 @@ export declare const aggregate: <R, E, A, R2, E2, A2, B>(sink: Sink<R2, E | E2, 
 Like `aggregateWithinEither`, but only returns the `Right` results.
 
 ```ts
-/**
- * @param sink   Used for the aggregation
- * @param schedule   Used for signalling for when to stop the aggregation
- */
 export declare const aggregateWithin: <A, R2, E2, A2, S, R3, B, C>(sink: Sink<R2, E2, A | A2, A2, B>, schedule: Schedule<S, R3, Maybe<B>, C>) => <R, E>(self: Stream<R, E, A>) => Stream<R2 | R3 | R, E2 | E, B>;
 ```
 
@@ -102,10 +95,6 @@ Aggregated elements will be fed into the schedule to determine the delays
 between pulls.
 
 ```ts
-/**
- * @param sink   Used for the aggregation
- * @param schedule   Used for signalling for when to stop the aggregation
- */
 export declare const aggregateWithinEither: <A, R2, E2, A2, S, R3, B, C>(sink: Sink<R2, E2, A | A2, A2, B>, schedule: Schedule<S, R3, Maybe<B>, C>) => <R, E>(self: Stream<R, E, A>) => Stream<R2 | R3 | R, E2 | E, Either<C, B>>;
 ```
 
@@ -749,9 +738,6 @@ Returns a stream whose failures and successes have been lifted into an
 exposed as part of the `Either` success case.
 
 ```ts
-/**
- * @note The stream will end as soon as the first error occurs.
- */
 export declare const either: <R, E, A>(self: Stream<R, E, A>) => Stream<R, never, Either<E, A>>;
 ```
 
@@ -1141,9 +1127,6 @@ export declare const fromEffectMaybe: <R, E, A>(effect: Effect<R, Maybe<E>, A>) 
 Creates a stream from a subscription to a hub.
 
 ```ts
-/**
- * @param maxChunkSize   Maximum number of queued elements to put in one chunk in the stream.
- */
 export declare const fromHub: <A>(hub: Hub<A>, maxChunkSize?: number) => Stream<never, never, A>;
 ```
 
@@ -1154,9 +1137,6 @@ effect. The scoped effect describes subscribing to receive messages from
 the hub while the stream describes taking messages from the hub.
 
 ```ts
-/**
- * @param maxChunkSize   Maximum number of queued elements to put in one chunk in the stream.
- */
 export declare const fromHubScoped: <A>(hub: Hub<A>, maxChunkSize?: number) => Effect<Scope, never, Stream<never, never, A>>;
 ```
 
@@ -1169,9 +1149,6 @@ the hub while the stream describes taking messages from the hub.
 The hub will be shut down once the stream is closed.
 
 ```ts
-/**
- * @param maxChunkSize   Maximum number of queued elements to put in one chunk in the stream.
- */
 export declare const fromHubScopedWithShutdown: <A>(hub: Hub<A>, maxChunkSize?: number) => Effect<Scope, never, Stream<never, never, A>>;
 ```
 
@@ -1182,9 +1159,6 @@ Creates a stream from a subscription to a hub.
 The hub will be shut down once the stream is closed.
 
 ```ts
-/**
- * @param maxChunkSize   Maximum number of queued elements to put in one chunk in the stream.
- */
 export declare const fromHubWithShutdown: <A>(hub: Hub<A>, maxChunkSize?: number) => Stream<never, never, A>;
 ```
 
@@ -1199,9 +1173,6 @@ export declare const fromPull: <R, E, A>(effect: Effect<Scope | R, never, Effect
 Creates a stream from a `Queue` of values.
 
 ```ts
-/**
- * @param maxChunkSize   Maximum number of queued elements to put in one chunk in the stream.
- */
 export declare const fromQueue: <A>(queue: Dequeue<A>, maxChunkSize?: number) => Stream<never, never, A>;
 ```
 
@@ -1211,9 +1182,6 @@ Creates a stream from a `Queue` of values. The queue will be shutdown once
 the stream is closed.
 
 ```ts
-/**
- * @param maxChunkSize   Maximum number of queued elements to put in one chunk in the stream.
- */
 export declare const fromQueueWithShutdown: <A>(queue: Dequeue<A>, maxChunkSize?: number) => Stream<never, never, A>;
 ```
 
@@ -1274,9 +1242,6 @@ export declare const groupByKey: <A, K>(f: (a: A) => K, buffer?: number) => <R, 
 Partitions the stream with specified chunkSize
 
 ```ts
-/**
- * @param chunkSize   The size of the chunks to emit.
- */
 export declare const grouped: (chunkSize: number) => <R, E, A>(self: Stream<R, E, A>) => Stream<R, E, Chunk<A>>;
 ```
 
@@ -1634,10 +1599,6 @@ executing up to `n` invocations of `f` concurrently. Transformed elements
 will be emitted in the original order.
 
 ```ts
-/**
- * @note This combinator destroys the chunking structure. It's recommended to use
-rechunk afterwards.
- */
 export declare const mapEffectPar: <A, R1, E1, B>(n: number, f: (a: A) => Effect<R1, E1, B>) => <R, E>(self: Stream<R, E, A>) => Stream<R1 | R, E1 | E, B>;
 ```
 
@@ -2190,9 +2151,6 @@ The schedule is reset as soon as the first element passes through the
 stream again.
 
 ```ts
-/**
- * @param schedule   Schedule receiving as input the errors of the stream.
- */
 export declare const retry: <E, S, R2, Z>(schedule: Schedule<S, R2, E, Z>) => <R, A>(self: Stream<R, E, A>) => Stream<R2 | R, E, A>;
 ```
 
@@ -2306,9 +2264,6 @@ that represents the scope of the stream. Stops the fold early when the
 condition is not fulfilled.
 
 ```ts
-/**
- * @param cont   A function which defines the early termination condition.
- */
 export declare const runFoldWhileScoped: <S, A>(s: S, cont: Predicate<S>, f: (s: S, a: A) => S) => <R, E>(self: Stream<R, E, A>) => Effect<Scope | R, E, S>;
 ```
 
@@ -2319,9 +2274,6 @@ value that represents the scope of the stream. Stops the fold early when
 the condition is not fulfilled.
 
 ```ts
-/**
- * @param cont   A function which defines the early termination condition.
- */
 export declare const runFoldWhileScopedEffect: <S, A, R2, E2>(s: S, cont: Predicate<S>, f: (s: S, a: A) => Effect<R2, E2, S>) => <R, E>(self: Stream<R, E, A>) => Effect<Scope | R2 | R, E2 | E, S>;
 ```
 

@@ -96,18 +96,6 @@ for (const filePath of paths) {
               }
             }
             text += '```ts\n'
-            const tags = prop
-              .getJsDocTags(checker)
-              .filter((t) => t.text != null)
-              .map((t) => ({ name: t.name, text: t.text!.map((p) => p.text).join(' ') }))
-              .filter((t) => t.name !== 'tsplus' && t.name !== 'example' && t.name !== 'see')
-            if (tags.length > 0) {
-              text += '/**\n'
-              for (const tag of tags) {
-                text += ' * @' + tag.name + ' ' + tag.text + '\n'
-              }
-              text += ' */\n'
-            }
             text += `export declare const ${prop.getName()}: ${typeStr};`
             text += '\n```\n\n'
             methods.push(text)
