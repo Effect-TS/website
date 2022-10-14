@@ -48,7 +48,19 @@ for (const statement of source?.statements) {
               text += doc.text + '\n\n'
             }
           }
-          text += '```ts\n' + `export declare const ${prop.getName()}: ${typeStr};` + '\n```\n\n'
+          text += '```ts\n'
+          const tags = prop.getJsDocTags(checker)
+          if (tags.length > 0) {
+            text += '/**\n'
+            for (const tag of tags) {
+              if (tag.text) {
+                text += ' * @' + tag.name + ' ' + tag.text.map((p) => p.text).join(' ') + '\n'
+              }
+            }
+            text += ' */\n'
+          }
+          text += `export declare const ${prop.getName()}: ${typeStr};`
+          text += '\n```\n\n'
         }
       }
 

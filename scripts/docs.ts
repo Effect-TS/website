@@ -3,7 +3,7 @@ import * as Q from '@effect/core/io/Queue'
 import * as R from '@effect/core/io/Ref'
 
 const Effect: Omit<typeof E, never> = E
-const Queue: Omit<typeof Q, `unsafeCreate` | `${string}Strategy`> = Q
+const Queue: Omit<typeof Q, `unsafeCreate` | `createQueue` | `${string}Strategy`> = Q
 const Ref: Omit<typeof R, never> = R
 
 export {

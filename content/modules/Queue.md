@@ -13,6 +13,10 @@ better performance by utilising an optimised version of the underlying
 `RingBuffer`.
 
 ```ts
+/**
+ * @tsplus static effect/core/io/Queue.Ops bounded
+ * @tsplus location "@effect/core/io/Queue/external/bounded"
+ */
 export declare const bounded: <A>(requestedCapacity: number) => Effect<never, never, Queue<A>>;
 ```
 
@@ -21,13 +25,11 @@ export declare const bounded: <A>(requestedCapacity: number) => Effect<never, ne
 Creates a new `Queue` using the provided `Strategy`.
 
 ```ts
+/**
+ * @tsplus static effect/core/io/Queue.Ops create
+ * @tsplus location "@effect/core/io/Queue/external/create"
+ */
 export declare const create: <A>(queue: MutableQueue<A>, strategy: Strategy<A>) => Effect<never, never, Queue<A>>;
-```
-
-### createQueue
-
-```ts
-export declare const createQueue: <A>(queue: MutableQueue<A>, strategy: Strategy<A>) => Effect<never, never, Queue<A>>;
 ```
 
 ### dropping
@@ -40,6 +42,10 @@ better performance by utilising an optimised version of the underlying
 `RingBuffer`.
 
 ```ts
+/**
+ * @tsplus static effect/core/io/Queue.Ops dropping
+ * @tsplus location "@effect/core/io/Queue/operations/dropping"
+ */
 export declare const dropping: <A>(requestedCapacity: number) => Effect<never, never, Queue<A>>;
 ```
 
@@ -54,6 +60,10 @@ better performance by utilising an optimised version of the underlying
 `RingBuffer`.
 
 ```ts
+/**
+ * @tsplus static effect/core/io/Queue.Ops sliding
+ * @tsplus location "@effect/core/io/Queue/operations/sliding"
+ */
 export declare const sliding: <A>(requestedCapacity: number) => Effect<never, never, Queue<A>>;
 ```
 
@@ -62,6 +72,10 @@ export declare const sliding: <A>(requestedCapacity: number) => Effect<never, ne
 Makes a new unbounded queue.
 
 ```ts
+/**
+ * @tsplus static effect/core/io/Queue.Ops unbounded
+ * @tsplus location "@effect/core/io/Queue/operations/unbounded"
+ */
 export declare const unbounded: <A>() => Effect<never, never, Queue<A>>;
 ```
 
