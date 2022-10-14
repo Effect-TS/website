@@ -60,13 +60,14 @@ for (const statement of source?.statements) {
         }
       }
 
-      text += `## Methods\n\n`
+      const methods: string[] = []
 
       for (const prop of checker
         .getTypeAtLocation(specifier)
         .getProperties()
         .sort((a, b) => (a === b ? 0 : a.getName() > b.getName() ? 1 : -1))) {
         if (!prop.getName().match(exclude)) {
+          let text = ''
           const type = checker.getTypeOfSymbolAtLocation(prop, statement)
           const typeStr = checker.typeToString(
             type,
@@ -94,6 +95,14 @@ for (const statement of source?.statements) {
           }
           text += `export declare const ${prop.getName()}: ${typeStr};`
           text += '\n```\n\n'
+          methods.push(text)
+        }
+      }
+
+      if (methods.length > 0) {
+        text += `## Methods\n\n`
+        for (const m of methods) {
+          text += m
         }
       }
 

@@ -47,5 +47,3 @@ export declare class Runtime<R> {
 }
 ```
 
-## Methods
-
