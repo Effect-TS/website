@@ -41,10 +41,6 @@ Submerges the error case of an `Either` into the `Effect`. The inverse
 operation of `either`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops absolve
- * @tsplus getter effect/core/io/Effect absolve
- */
 export declare const absolve: <R, E, A>(self: Effect<R, E, Either<E, A>>) => Effect<R, E, A>;
 ```
 
@@ -54,9 +50,6 @@ Attempts to convert defects into a failure, throwing away all information
 about the cause of the failure.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect absorb
- */
 export declare const absorb: <R, E, A>(self: Effect<R, E, A>) => Effect<R, unknown, A>;
 ```
 
@@ -66,10 +59,6 @@ Attempts to convert defects into a failure, throwing away all information
 about the cause of the failure.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects absorbWith
- * @tsplus pipeable effect/core/io/Effect absorbWith
- */
 export declare const absorbWith: <E>(f: (e: E) => unknown) => <R, A>(self: Effect<R, E, A>) => Effect<R, unknown, A>;
 ```
 
@@ -95,10 +84,6 @@ what finalization, if any, needs to be performed (e.g. by examining in
 memory state).
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops acquireReleaseInterruptible
- * @tsplus fluent effect/core/io/Effect acquireReleaseInterruptible
- */
 export declare const acquireReleaseInterruptible: <R, E, A, R2, X>(acquire: Effect<R, E, A>, release: Effect<R2, never, X>) => Effect<Scope | R | R2, E, A>;
 ```
 
@@ -109,10 +94,6 @@ A more powerful variant of `acquireReleaseInterruptible` that allows the
 is closed.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops acquireReleaseInterruptibleExit
- * @tsplus fluent effect/core/io/Effect acquireReleaseInterruptibleExit
- */
 export declare const acquireReleaseInterruptibleExit: <R, E, A, R2, X>(acquire: Effect<R, E, A>, release: (exit: Exit<unknown, unknown>) => Effect<R2, never, X>) => Effect<Scope | R | R2, E, A>;
 ```
 
@@ -128,10 +109,6 @@ A less powerful variant of `acquireUseRelease` where the resource acquired
 by this effect is not needed.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops acquireUseReleaseDiscard
- * @tsplus fluent effect/core/io/Effect acquireUseReleaseDiscard
- */
 export declare const acquireUseReleaseDiscard: <R, E, A, R2, E2, A2, R3, X>(acquire: Effect<R, E, A>, use: Effect<R2, E2, A2>, release: Effect<R3, never, X>) => Effect<R | R2 | R3, E | E2, A2>;
 ```
 
@@ -146,10 +123,6 @@ export declare const acquireUseReleaseExit: <R, E, A, R2, E2, A2, R3, X>(acquire
 Executes the release effect only if there was an error.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops acquireUseReleaseOnError
- * @tsplus fluent effect/core/io/Effect acquireUseReleaseOnError
- */
 export declare const acquireUseReleaseOnError: <R, E, A, R2, E2, A2, R3, X>(acquire: Effect<R, E, A>, use: (a: A) => Effect<R2, E2, A2>, release: (a: A) => Effect<R3, never, X>) => Effect<R | R2 | R3, E | E2, A2>;
 ```
 
@@ -159,9 +132,6 @@ Adds a finalizer to the scope of this workflow. The finalizer is guaranteed
 to be run when the scope is closed.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops addFinalizer
- */
 export declare const addFinalizer: <R, X>(finalizer: Effect<R, never, X>) => Effect<Scope | R, never, void>;
 ```
 
@@ -177,9 +147,6 @@ Makes an explicit check to see if the fiber has been interrupted, and if
 so, performs self-interruption
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops allowInterrupt
- */
 export declare const allowInterrupt: Effect<never, never, void>;
 ```
 
@@ -188,10 +155,6 @@ export declare const allowInterrupt: Effect<never, never, void>;
 Maps the success value of this effect to the specified constant value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects as
- * @tsplus pipeable effect/core/io/Effect as
- */
 export declare const as: <B>(value: B) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, B>;
 ```
 
@@ -200,9 +163,6 @@ export declare const as: <B>(value: B) => <R, E, A>(self: Effect<R, E, A>) => Ef
 Maps the success value of this effect to a left value.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect asLeft
- */
 export declare const asLeft: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, Either<A, never>>;
 ```
 
@@ -211,9 +171,6 @@ export declare const asLeft: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, Ei
 Maps the error value of this effect to a left value.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect asLeftError
- */
 export declare const asLeftError: <R, E, A>(self: Effect<R, E, A>) => Effect<R, Either<E, never>, A>;
 ```
 
@@ -222,9 +179,6 @@ export declare const asLeftError: <R, E, A>(self: Effect<R, E, A>) => Effect<R, 
 Maps the success value of this effect to a right value.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect asRight
- */
 export declare const asRight: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, Either<never, A>>;
 ```
 
@@ -233,9 +187,6 @@ export declare const asRight: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, E
 Maps the error value of this effect to a right value.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect asRightError
- */
 export declare const asRightError: <R, E, A>(self: Effect<R, E, A>) => Effect<R, Either<never, E>, A>;
 ```
 
@@ -244,9 +195,6 @@ export declare const asRightError: <R, E, A>(self: Effect<R, E, A>) => Effect<R,
 Maps the success value of this effect to an optional value.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect asSome
- */
 export declare const asSome: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, Maybe<A>>;
 ```
 
@@ -255,9 +203,6 @@ export declare const asSome: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, Ma
 Maps the error value of this effect to an optional value.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect asSomeError
- */
 export declare const asSomeError: <R, E, A>(self: Effect<R, E, A>) => Effect<R, Maybe<E>, A>;
 ```
 
@@ -266,9 +211,6 @@ export declare const asSomeError: <R, E, A>(self: Effect<R, E, A>) => Effect<R, 
 Ignores the result of the effect replacing it with a void
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect unit
- */
 export declare const asUnit: <R, E, X>(self: Effect<R, E, X>) => Effect<R, E, void>;
 ```
 
@@ -290,9 +232,6 @@ The list of fibers, that may complete the async callback, is used to
 provide better diagnostics.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops asyncBlockingOn
- */
 export declare const asyncBlockingOn: <R, E, A>(register: (callback: (_: Effect<R, E, A>) => void) => void, blockingOn: FiberId) => Effect<R, E, A>;
 ```
 
@@ -302,9 +241,6 @@ Imports an asynchronous effect into a pure `Effect` value. This formulation
 is necessary when the effect is itself expressed in terms of an `Effect`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops asyncEffect
- */
 export declare const asyncEffect: <R, E, A, R2, E2, X>(register: (callback: (_: Effect<R, E, A>) => void) => Effect<R2, E2, X>) => Effect<R | R2, E | E2, A>;
 ```
 
@@ -330,9 +266,6 @@ function `Effect<R, E, A> => any` must not be called. Otherwise the callback
 function must be called at most once.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops asyncMaybe
- */
 export declare const asyncMaybe: <R, E, A>(register: (callback: (_: Effect<R, E, A>) => void) => Maybe<Effect<R, E, A>>) => Effect<R, E, A>;
 ```
 
@@ -349,9 +282,6 @@ The list of fibers, that may complete the async callback, is used to
 provide better diagnostics.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops asyncMaybeBlockingOn
- */
 export declare const asyncMaybeBlockingOn: <R, E, A>(register: (callback: (_: Effect<R, E, A>) => void) => Maybe<Effect<R, E, A>>, blockingOn: FiberId) => Effect<R, E, A>;
 ```
 
@@ -361,9 +291,6 @@ Imports a synchronous side-effect into a pure `Effect` value, translating any
 thrown exceptions into typed failed effects creating with `Effect.fail`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops attempt
- */
 export declare const attempt: <A>(f: LazyArg<A>) => Effect<never, unknown, A>;
 ```
 
@@ -373,9 +300,6 @@ Returns a new effect that will not succeed with its value before first
 waiting for the end of all child fibers forked by the effect.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect awaitAllChildren
- */
 export declare const awaitAllChildren: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -384,10 +308,6 @@ export declare const awaitAllChildren: <R, E, A>(self: Effect<R, E, A>) => Effec
 Binds an effectful value in a `do` scope
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects bind
- * @tsplus pipeable effect/core/io/Effect bind
- */
 export declare const bind: <N extends string, K, R2, E2, A>(tag: Exclude<N, keyof K>, f: (_: K) => Effect<R2, E2, A>) => <R, E>(self: Effect<R, E, K>) => Effect<R2 | R, E2 | E, MergeRecord<K, { [k in N]: A; }>>;
 ```
 
@@ -396,10 +316,6 @@ export declare const bind: <N extends string, K, R2, E2, A>(tag: Exclude<N, keyo
 Like bind for values
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects bindValue
- * @tsplus pipeable effect/core/io/Effect bindValue
- */
 export declare const bindValue: <N extends string, K, A>(tag: Exclude<N, keyof K>, f: (_: K) => A) => <R, E>(self: Effect<R, E, K>) => Effect<R, E, MergeRecord<K, { [k in N]: A; }>>;
 ```
 
@@ -409,10 +325,6 @@ Returns an effect that, if evaluated, will return the cached result of this
 effect. Cached results will expire after `timeToLive` duration.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects cached
- * @tsplus pipeable effect/core/io/Effect cached
- */
 export declare const cached: (timeToLive: Duration) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, Effect<never, E, A>>;
 ```
 
@@ -424,10 +336,6 @@ addition, returns an effect that can be used to invalidate the current
 cached value before the `timeToLive` duration expires.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects cachedInvalidate
- * @tsplus pipeable effect/core/io/Effect cachedInvalidate
- */
 export declare const cachedInvalidate: (timeToLive: Duration) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, readonly [Effect<never, E, A>, Effect<never, never, void>]>;
 ```
 
@@ -442,10 +350,6 @@ export declare const catch: <N extends keyof E, K extends E[N] & string, E, R1, 
 Recovers from all errors.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects catchAll
- * @tsplus pipeable effect/core/io/Effect catchAll
- */
 export declare const catchAll: <E, R2, E2, A2>(f: (e: E) => Effect<R2, E2, A2>) => <R, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2, A2 | A>;
 ```
 
@@ -457,10 +361,6 @@ See `absorb`, `sandbox`, `mapErrorCause` for other functions that can
 recover from defects.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects catchAllCause
- * @tsplus pipeable effect/core/io/Effect catchAllCause
- */
 export declare const catchAllCause: <E, R2, E2, A2>(f: (cause: Cause<E>) => Effect<R2, E2, A2>) => <R, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2, A2 | A>;
 ```
 
@@ -474,10 +374,6 @@ system, to transmit information on a defect for diagnostic or explanatory
 purposes.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects catchAllDefect
- * @tsplus pipeable effect/core/io/Effect catchAllDefect
- */
 export declare const catchAllDefect: <R2, E2, A2>(f: (defect: unknown) => Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A2 | A>;
 ```
 
@@ -486,10 +382,6 @@ export declare const catchAllDefect: <R2, E2, A2>(f: (defect: unknown) => Effect
 Recovers from some or all of the error cases.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects catchSome
- * @tsplus pipeable effect/core/io/Effect catchSome
- */
 export declare const catchSome: <E, R2, E2, A2>(f: (e: E) => Maybe<Effect<R2, E2, A2>>) => <R, A>(self: Effect<R, E, A>) => Effect<R2 | R, E | E2, A2 | A>;
 ```
 
@@ -498,10 +390,6 @@ export declare const catchSome: <E, R2, E2, A2>(f: (e: E) => Maybe<Effect<R2, E2
 Recovers from some or all of the error cases with provided cause.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects catchSomeCause
- * @tsplus pipeable effect/core/io/Effect catchSomeCause
- */
 export declare const catchSomeCause: <E, R2, E2, A2>(f: (_: Cause<E>) => Maybe<Effect<R2, E2, A2>>) => <R, A>(self: Effect<R, E, A>) => Effect<R2 | R, E | E2, A2 | A>;
 ```
 
@@ -515,10 +403,6 @@ system, to transmit information on a defect for diagnostic or explanatory
 purposes.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects catchSomeDefect
- * @tsplus pipeable effect/core/io/Effect catchSomeDefect
- */
 export declare const catchSomeDefect: <R2, E2, A2>(pf: (_: unknown) => Maybe<Effect<R2, E2, A2>>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A2 | A>;
 ```
 
@@ -527,10 +411,6 @@ export declare const catchSomeDefect: <R2, E2, A2>(pf: (_: unknown) => Maybe<Eff
 Recovers from specified error.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects catchTag
- * @tsplus pipeable effect/core/io/Effect catchTag
- */
 export declare const catchTag: <K extends E["_tag"] & string, E extends { _tag: string; }, R1, E1, A1>(k: K, f: (e: Extract<E, { _tag: K; }>) => Effect<R1, E1, A1>) => <R, A>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | Exclude<E, { _tag: K; }>, A1 | A>;
 ```
 
@@ -540,9 +420,6 @@ Returns an effect that succeeds with the cause of failure of this effect,
 or `Cause.empty` if the effect did succeed.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect cause
- */
 export declare const cause: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, Cause<E>>;
 ```
 
@@ -557,9 +434,6 @@ export declare const checkInterruptible: <R, E, A>(f: (interruptStatus: Interrup
 Retreives the `Clock` service from the environment.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops clock
- */
 export declare const clock: Effect<never, never, Clock>;
 ```
 
@@ -569,9 +443,6 @@ Retreives the `Clock` service from the environment and uses it to run the
 specified effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops clockWith
- */
 export declare const clockWith: <R, E, A>(f: (clock: Clock) => Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -581,9 +452,6 @@ Evaluate each effect in the structure from left to right, collecting the
 the successful values and discarding the empty cases. For a parallel version, see `collectPar`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops collect
- */
 export declare const collect: <A, R, E, B>(as: Collection<A>, f: (a: A) => Effect<R, Maybe<E>, B>) => Effect<R, E, Chunk<B>>;
 ```
 
@@ -647,9 +515,6 @@ Collects the first element of the `Collection<A?` for which the effectual
 function `f` returns `Some`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops collectFirst
- */
 export declare const collectFirst: <R, E, A, B>(as: Collection<A>, f: (a: A) => Effect<R, E, Maybe<B>>) => Effect<R, E, Maybe<B>>;
 ```
 
@@ -659,9 +524,6 @@ Evaluate each effect in the structure in parallel, collecting the
 the successful values and discarding the empty cases.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops collectPar
- */
 export declare const collectPar: <A, R, E, B>(as: Collection<A>, f: (a: A) => Effect<R, Maybe<E>, B>) => Effect<R, E, Chunk<B>>;
 ```
 
@@ -671,9 +533,6 @@ Transforms all elements of the chunk for as long as the specified partial
 function is defined.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops collectWhile
- */
 export declare const collectWhile: <A, R, E, B>(self: Collection<A>, f: (a: A) => Maybe<Effect<R, E, B>>) => Effect<R, E, Chunk<B>>;
 ```
 
@@ -685,9 +544,6 @@ true, and the given `E` as error otherwise
 For effectful conditionals, see `ifEffect`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops cond
- */
 export declare const cond: <E, A>(predicate: LazyArg<boolean>, result: LazyArg<A>, error: LazyArg<E>) => Effect<never, E, A>;
 ```
 
@@ -697,10 +553,6 @@ Fail with `e` if the supplied `PartialFunction` does not match, otherwise
 succeed with the returned value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects continueOrFail
- * @tsplus pipeable effect/core/io/Effect continueOrFail
- */
 export declare const continueOrFail: <E1, A, A2>(e: E1, pf: (a: A) => Maybe<A2>) => <R, E>(self: Effect<R, E, A>) => Effect<R, E1 | E, A2>;
 ```
 
@@ -710,10 +562,6 @@ Fail with `e` if the supplied `PartialFunction` does not match, otherwise
 continue with the returned value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects continueOrFailEffect
- * @tsplus pipeable effect/core/io/Effect continueOrFailEffect
- */
 export declare const continueOrFailEffect: <E1, A, R2, E2, A2>(e: E1, pf: (a: A) => Maybe<Effect<R2, E2, A2>>) => <R, E>(self: Effect<R, E, A>) => Effect<R2 | R, E1 | E2 | E, A2>;
 ```
 
@@ -741,37 +589,24 @@ Returns an effect that is delayed from this effect by the specified
 `Duration`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects delay
- * @tsplus pipeable effect/core/io/Effect delay
- */
 export declare const delay: (duration: Duration) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
 ### deriveAccess
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops deriveAccess
- */
 export declare const deriveAccess: <T>(S: Tag<T>) => <Gens extends keyof T = never>(generics: Gens[]) => DerivedAccess<T, Gens>;
 ```
 
 ### deriveAccessEffect
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops deriveAccessEffect
- */
 export declare const deriveAccessEffect: <T>(S: Tag<T>) => <Gens extends keyof T = never>(generics: Gens[]) => DerivedAccessM<T, Gens>;
 ```
 
 ### deriveLifted
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops deriveLifted
- */
 export declare const deriveLifted: <T>(S: Tag<T>) => <Fns extends { [k in keyof T]: T[k] extends (...args: infer ARGS) => Effect<infer R, infer E, infer A> ? ((...args: ARGS) => Effect<R, E, A>) extends T[k] ? k : never : never; }[keyof T] = never, Cns extends { [k in keyof T]: T[k] extends Effect<any, any, any> ? k : never; }[keyof T] = never, Values extends keyof T = never>(functions: Fns[], effects: Cns[], values: Values[]) => DerivedLifted<T, Fns, Cns, Values>;
 ```
 
@@ -780,9 +615,6 @@ export declare const deriveLifted: <T>(S: Tag<T>) => <Fns extends { [k in keyof 
 Returns information about the current fiber, such as its identity.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops descriptor
- */
 export declare const descriptor: Effect<never, never, Descriptor>;
 ```
 
@@ -792,9 +624,6 @@ Constructs an effect based on information about the current fiber, such as
 its identity.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops descriptorWith
- */
 export declare const descriptorWith: <R, E, A>(f: (descriptor: Descriptor) => Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -805,9 +634,6 @@ be used for terminating a fiber because a defect has been detected in the
 code.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops die
- */
 export declare const die: (defect: unknown) => Effect<never, never, never>;
 ```
 
@@ -818,9 +644,6 @@ text message. This method can be used for terminating a fiber because a
 defect has been detected in the code.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops dieMessage
- */
 export declare const dieMessage: (message: string) => Effect<never, never, never>;
 ```
 
@@ -831,9 +654,6 @@ be used for terminating a fiber because a defect has been detected in the
 code.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops dieSync
- */
 export declare const dieSync: <A>(f: LazyArg<A>) => Effect<never, never, never>;
 ```
 
@@ -848,9 +668,6 @@ export declare const disconnect: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E
 Returns an effect from a `Exit` value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops done
- */
 export declare const done: <E, A>(exit: Exit<E, A>) => Effect<never, E, A>;
 ```
 
@@ -859,9 +676,6 @@ export declare const done: <E, A>(exit: Exit<E, A>) => Effect<never, E, A>;
 Drops all elements so long as the predicate returns true.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops dropWhile
- */
 export declare const dropWhile: <R, E, A>(self: Collection<A>, f: (a: A) => Effect<R, E, boolean>) => Effect<R, E, Chunk<A>>;
 ```
 
@@ -877,9 +691,6 @@ The error parameter of the returned `Effect` is `never`, since it is
 guaranteed the effect does not model failure.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect either
- */
 export declare const either: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, Either<E, A>>;
 ```
 
@@ -896,10 +707,6 @@ should generally not be used for releasing resources. For higher-level
 logic built on `ensuring`, see `acquireReleaseWith`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects ensuring
- * @tsplus pipeable effect/core/io/Effect ensuring
- */
 export declare const ensuring: <R1, X>(finalizer: Effect<R1, never, X>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R1 | R, E, A>;
 ```
 
@@ -910,10 +717,6 @@ guaranteeing the specified callback will be invoked, whether or not this
 effect succeeds.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects ensuringChild
- * @tsplus pipeable effect/core/io/Effect ensuringChild
- */
 export declare const ensuringChild: <R2, X>(f: (_: Fiber<any, Chunk<unknown>>) => Effect<R2, never, X>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E, A>;
 ```
 
@@ -923,10 +726,6 @@ Acts on the children of this fiber, guaranteeing the specified callback
 will be invoked, whether or not this effect succeeds.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects ensuringChildren
- * @tsplus pipeable effect/core/io/Effect ensuringChildren
- */
 export declare const ensuringChildren: <R1, X>(children: (_: Chunk<Runtime<any, any>>) => Effect<R1, never, X>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R1 | R, E, A>;
 ```
 
@@ -941,9 +740,6 @@ export declare const environment: <R>() => Effect<R, never, Env<R>>;
 Accesses the environment of the effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops environmentWith
- */
 export declare const environmentWith: <R, A>(f: (env: Env<R>) => A) => Effect<R, never, A>;
 ```
 
@@ -952,9 +748,6 @@ export declare const environmentWith: <R, A>(f: (env: Env<R>) => A) => Effect<R,
 Effectually accesses the environment of the effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops environmentWithEffect
- */
 export declare const environmentWithEffect: <R, R0, E, A>(f: (env: Env<R0>) => Effect<R, E, A>) => Effect<R | R0, E, A>;
 ```
 
@@ -964,9 +757,6 @@ Returns an effect that ignores errors and runs repeatedly until it
 eventually succeeds.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect eventually
- */
 export declare const eventually: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, A>;
 ```
 
@@ -976,9 +766,6 @@ Determines whether any element of the `Collection<A>` satisfies the effectual
 predicate `f`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops exists
- */
 export declare const exists: <R, E, A>(as: Collection<A>, f: (a: A) => Effect<R, E, boolean>) => Effect<R, E, boolean>;
 ```
 
@@ -988,9 +775,6 @@ Returns an effect that semantically runs the effect on a fiber, producing
 an `Exit` for the completion value of the fiber.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect exit
- */
 export declare const exit: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, Exit<E, A>>;
 ```
 
@@ -1000,9 +784,6 @@ Returns an effect that models failure with the specified error. The moral
 equivalent of `throw` for pure code.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops fail
- */
 export declare const fail: <E>(error: E) => Effect<never, E, never>;
 ```
 
@@ -1011,9 +792,6 @@ export declare const fail: <E>(error: E) => Effect<never, E, never>;
 Returns an effect that models failure with the specified `Cause`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops failCause
- */
 export declare const failCause: <E>(cause: Cause<E>) => Effect<never, E, never>;
 ```
 
@@ -1022,9 +800,6 @@ export declare const failCause: <E>(cause: Cause<E>) => Effect<never, E, never>;
 Returns an effect that models failure with the specified `Cause`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops failCauseSync
- */
 export declare const failCauseSync: <E>(cause: LazyArg<Cause<E>>) => Effect<never, E, never>;
 ```
 
@@ -1034,9 +809,6 @@ Returns an effect that models failure with the specified error. The moral
 equivalent of `throw` for pure code.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops failSync
- */
 export declare const failSync: <E>(error: LazyArg<E>) => Effect<never, E, never>;
 ```
 
@@ -1046,18 +818,12 @@ Returns the `FiberId` of the fiber executing the effect that calls this
 method.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops fiberId
- */
 export declare const fiberId: Effect<never, never, FiberId>;
 ```
 
 ### fiberIdWith
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops fiberIdWith
- */
 export declare const fiberIdWith: <R, E, A>(f: (descriptor: RuntimeFiberId) => Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -1066,9 +832,6 @@ export declare const fiberIdWith: <R, E, A>(f: (descriptor: RuntimeFiberId) => E
 Filters the collection using the specified effectual predicate.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops filter
- */
 export declare const filter: <A, R, E>(as: Collection<A>, f: (a: A) => Effect<R, E, boolean>) => Effect<R, E, Chunk<A>>;
 ```
 
@@ -1078,9 +841,6 @@ Filters the collection using the specified effectual predicate, removing
 all elements that satisfy the predicate.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops filterNot
- */
 export declare const filterNot: <A, R, E>(as: Collection<A>, f: (a: A) => Effect<R, E, boolean>) => Effect<R, E, Chunk<A>>;
 ```
 
@@ -1090,9 +850,6 @@ Filters the collection in parallel using the specified effectual predicate.
 See `filterNot` for a sequential version of it.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops filterNotPar
- */
 export declare const filterNotPar: <A, R, E>(as: Collection<A>, f: (a: A) => Effect<R, E, boolean>) => Effect<R, E, Chunk<A>>;
 ```
 
@@ -1101,10 +858,6 @@ export declare const filterNotPar: <A, R, E>(as: Collection<A>, f: (a: A) => Eff
 Dies with specified defect if the predicate fails.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects filterOrDie
- * @tsplus pipeable effect/core/io/Effect filterOrDie
- */
 export declare const filterOrDie: { <A, B extends A>(f: Refinement<A, B>, defect: LazyArg<unknown>): <R, E>(self: Effect<R, E, A>) => Effect<R, E, A>; <A>(f: Predicate<A>, defect: LazyArg<unknown>): <R, E>(self: Effect<R, E, A>) => Effect<R, E, A>; };
 ```
 
@@ -1113,10 +866,6 @@ export declare const filterOrDie: { <A, B extends A>(f: Refinement<A, B>, defect
 Dies with specified defect if the predicate fails.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects filterOrDieMessage
- * @tsplus pipeable effect/core/io/Effect filterOrDieMessage
- */
 export declare const filterOrDieMessage: { <A, B extends A>(f: Refinement<A, B>, message: string): <R, E>(self: Effect<R, E, A>) => Effect<R, E, A>; <A>(f: Predicate<A>, message: string): <R, E>(self: Effect<R, E, A>) => Effect<R, E, A>; };
 ```
 
@@ -1125,10 +874,6 @@ export declare const filterOrDieMessage: { <A, B extends A>(f: Refinement<A, B>,
 Applies `f` if the predicate fails.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects filterOrElse
- * @tsplus pipeable effect/core/io/Effect filterOrElse
- */
 export declare const filterOrElse: { <A, B extends A, R1, E1, A1>(f: Refinement<A, B>, effect: LazyArg<Effect<R1, E1, A1>>): <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, B | A1>; <A, R1, E1, A1>(f: Predicate<A>, effect: LazyArg<Effect<R1, E1, A1>>): <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, A | A1>; };
 ```
 
@@ -1137,10 +882,6 @@ export declare const filterOrElse: { <A, B extends A, R1, E1, A1>(f: Refinement<
 Applies `f` if the predicate fails.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects filterOrElseWith
- * @tsplus pipeable effect/core/io/Effect filterOrElseWith
- */
 export declare const filterOrElseWith: { <A, B extends A, R1, E1, A1>(f: Refinement<A, B>, orElse: (a: A) => Effect<R1, E1, A1>): <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, B | A1>; <A, R1, E1, A1>(f: Predicate<A>, orElse: (a: A) => Effect<R1, E1, A1>): <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, A | A1>; };
 ```
 
@@ -1149,10 +890,6 @@ export declare const filterOrElseWith: { <A, B extends A, R1, E1, A1>(f: Refinem
 Fails with `e` if the predicate fails.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects filterOrFail
- * @tsplus pipeable effect/core/io/Effect filterOrFail
- */
 export declare const filterOrFail: { <E1, A, B extends A>(f: Refinement<A, B>, error: LazyArg<E1>): <R, E>(self: Effect<R, E, A>) => Effect<R, E1 | E, B>; <E1, A>(f: Predicate<A>, error: LazyArg<E1>): <R, E>(self: Effect<R, E, A>) => Effect<R, E1 | E, A>; };
 ```
 
@@ -1162,9 +899,6 @@ Filters the collection in parallel using the specified effectual predicate.
 See `filter` for a sequential version of it.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops filterPar
- */
 export declare const filterPar: <A, R, E>(as: Collection<A>, f: (a: A) => Effect<R, E, boolean>) => Effect<R, E, Chunk<A>>;
 ```
 
@@ -1173,9 +907,6 @@ export declare const filterPar: <A, R, E>(as: Collection<A>, f: (a: A) => Effect
 Returns the first element that satisfies the effectful predicate.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops find
- */
 export declare const find: <R, E, A>(self: Collection<A>, f: (a: A) => Effect<R, E, boolean>) => Effect<R, E, Maybe<A>>;
 ```
 
@@ -1185,9 +916,6 @@ Returns an effect that runs this effect and in case of failure, runs each
 of the specified effects in order until one of them succeeds.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops firstSuccessOf
- */
 export declare const firstSuccessOf: <R, E, A>(effects: Collection<Effect<R, E, A>>) => Effect<R, E, A>;
 ```
 
@@ -1198,10 +926,6 @@ passing of its value to the specified continuation function `k`, followed
 by the effect that it returns.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects flatMap
- * @tsplus pipeable effect/core/io/Effect flatMap
- */
 export declare const flatMap: <A, R1, E1, B>(f: (a: A) => Effect<R1, E1, B>) => <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, B>;
 ```
 
@@ -1213,10 +937,6 @@ inner effect, yielding the value of the inner effect.
 This method can be used to "flatten" nested effects.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops flatten
- * @tsplus getter effect/core/io/Effect flatten
- */
 export declare const flatten: <R, E, R1, E1, A>(self: Effect<R, E, Effect<R1, E1, A>>) => Effect<R | R1, E | E1, A>;
 ```
 
@@ -1225,10 +945,6 @@ export declare const flatten: <R, E, R1, E1, A>(self: Effect<R, E, Effect<R1, E1
 Unwraps the optional error, defaulting to the provided value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects flattenErrorMaybe
- * @tsplus pipeable effect/core/io/Effect flattenErrorMaybe
- */
 export declare const flattenErrorMaybe: <E1>(def: E1) => <R, E, A>(self: Effect<R, Maybe<E>, A>) => Effect<R, E1 | E, A>;
 ```
 
@@ -1238,9 +954,6 @@ Returns an effect that swaps the error/success cases. This allows you to
 use all methods on the error channel, possibly before flipping back.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect flip
- */
 export declare const flip: <R, E, A>(self: Effect<R, E, A>) => Effect<R, A, E>;
 ```
 
@@ -1250,10 +963,6 @@ Swaps the error/value parameters, applies the function `f` and flips the
 parameters back
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects flipWith
- * @tsplus pipeable effect/core/io/Effect flipWith
- */
 export declare const flipWith: <R, A, E, R2, A2, E2>(f: (self: Effect<R, A, E>) => Effect<R2, A2, E2>) => (self: Effect<R, E, A>) => Effect<R2, E2, A2>;
 ```
 
@@ -1264,10 +973,6 @@ does not fail, but succeeds with the value returned by the left or right
 function passed to `fold`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects fold
- * @tsplus pipeable effect/core/io/Effect fold
- */
 export declare const fold: <E, A, A2, A3>(failure: (e: E) => A2, success: (a: A) => A3) => <R>(self: Effect<R, E, A>) => Effect<R, never, A2 | A3>;
 ```
 
@@ -1277,10 +982,6 @@ A more powerful version of `fold` that allows recovering from any kind of
 failure except interruptions.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects foldCause
- * @tsplus pipeable effect/core/io/Effect foldCause
- */
 export declare const foldCause: <E, A, A2, A3>(failure: (cause: Cause<E>) => A2, success: (a: A) => A3) => <R>(self: Effect<R, E, A>) => Effect<R, never, A2 | A3>;
 ```
 
@@ -1290,10 +991,6 @@ A more powerful version of `foldEffect` that allows recovering from any kind
 of failure except interruptions.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects foldCauseEffect
- * @tsplus pipeable effect/core/io/Effect foldCauseEffect
- */
 export declare const foldCauseEffect: <E, A, R2, E2, A2, R3, E3, A3>(failure: (cause: Cause<E>) => Effect<R2, E2, A2>, success: (a: A) => Effect<R3, E3, A3>) => <R>(self: Effect<R, E, A>) => Effect<R2 | R3 | R, E2 | E3, A2 | A3>;
 ```
 
@@ -1310,10 +1007,6 @@ The error parameter of the returned `IO` may be chosen arbitrarily, since
 it will depend on the `IO`s returned by the given continuations.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects foldEffect
- * @tsplus pipeable effect/core/io/Effect foldEffect
- */
 export declare const foldEffect: <E, A, R2, E2, A2, R3, E3, A3>(failure: (e: E) => Effect<R2, E2, A2>, success: (a: A) => Effect<R3, E3, A3>) => <R>(self: Effect<R, E, A>) => Effect<R2 | R3 | R, E2 | E3, A2 | A3>;
 ```
 
@@ -1323,9 +1016,6 @@ Determines whether all elements of the `Collection<A>` satisfies the effectual
 predicate `f`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops forAll
- */
 export declare const forAll: <R, E, A>(as: Collection<A>, f: (a: A) => Effect<R, E, boolean>) => Effect<R, E, boolean>;
 ```
 
@@ -1347,10 +1037,6 @@ Returns a new effect that will pass the success value of this effect to the
 provided callback. If this effect fails, then the failure will be ignored.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects forEachEffect
- * @tsplus pipeable effect/core/io/Effect forEachEffect
- */
 export declare const forEachEffect: <A, R1, E1, B>(f: (a: A) => Effect<R1, E1, B>) => <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E1, Maybe<B>>;
 ```
 
@@ -1366,9 +1052,6 @@ Applies the function `f` if the argument is non-empty and returns the
 results in a new `Maybe<B>`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops forEachMaybe
- */
 export declare const forEachMaybe: <R, E, A, B>(maybe: Maybe<A>, f: (a: A) => Effect<R, E, B>) => Effect<R, E, Maybe<B>>;
 ```
 
@@ -1401,9 +1084,6 @@ export declare const forEachWithIndex: <A, R, E, B>(as: Collection<A>, f: (a: A,
 Repeats this effect forever (until the first error).
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect forever
- */
 export declare const forever: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, never>;
 ```
 
@@ -1419,9 +1099,6 @@ Returns an effect that forks all of the specified values, and returns a
 composite fiber that produces a list of their results, in order.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops forkAll
- */
 export declare const forkAll: <R, E, A>(effects: Collection<Effect<R, E, A>>) => Effect<R, never, Fiber<E, Chunk<A>>>;
 ```
 
@@ -1432,9 +1109,6 @@ composite fiber that produces unit. This version is faster than `forkAll`
 in cases where the results of the forked fibers are not needed.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops forkAllDiscard
- */
 export declare const forkAllDiscard: <R, E, A>(effects: Collection<Effect<R, E, A>>) => Effect<R, never, void>;
 ```
 
@@ -1450,10 +1124,6 @@ Forks the effect in the specified scope. The fiber will be interrupted
 when the scope is closed.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects forkIn
- * @tsplus pipeable effect/core/io/Effect forkIn
- */
 export declare const forkIn: (scope: Scope) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, Runtime<E, A>>;
 ```
 
@@ -1462,9 +1132,6 @@ export declare const forkIn: (scope: Scope) => <R, E, A>(self: Effect<R, E, A>) 
 Forks the fiber in a `Scope`, interrupting it when the scope is closed.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect forkScoped
- */
 export declare const forkScoped: <R, E, A>(self: Effect<R, E, A>) => Effect<Scope | R, never, Runtime<E, A>>;
 ```
 
@@ -1473,10 +1140,6 @@ export declare const forkScoped: <R, E, A>(self: Effect<R, E, A>) => Effect<Scop
 Like fork but handles an error with the provided handler.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects forkWithErrorHandler
- * @tsplus pipeable effect/core/io/Effect forkWithErrorHandler
- */
 export declare const forkWithErrorHandler: <E, X>(handler: (e: E) => Effect<never, never, X>) => <R, A>(self: Effect<R, E, A>) => Effect<R, never, Runtime<E, A>>;
 ```
 
@@ -1485,9 +1148,6 @@ export declare const forkWithErrorHandler: <E, X>(handler: (e: E) => Effect<neve
 Lifts an `Either` into an `Effect` value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops fromEither
- */
 export declare const fromEither: <E, A>(either: Either<E, A>) => Effect<never, E, A>;
 ```
 
@@ -1496,9 +1156,6 @@ export declare const fromEither: <E, A>(either: Either<E, A>) => Effect<never, E
 Lifts an `Either` into an `Effect` value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops fromEitherCause
- */
 export declare const fromEitherCause: <E, A>(either: Either<Cause<E>, A>) => Effect<never, E, A>;
 ```
 
@@ -1508,9 +1165,6 @@ Creates an `Effect` value that represents the exit value of the specified
 fiber.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops fromFiber
- */
 export declare const fromFiber: <E, A>(fiber: Fiber<E, A>) => Effect<never, E, A>;
 ```
 
@@ -1520,9 +1174,6 @@ Creates an `Effect` value that represents the exit value of the specified
 fiber.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops fromFiberEffect
- */
 export declare const fromFiberEffect: <R, E, A>(fiber: Effect<R, E, Fiber<E, A>>) => Effect<R, E, A>;
 ```
 
@@ -1532,27 +1183,18 @@ Lifts an `Maybe` into an `Effect` but preserves the error as an option in
 the error channel, making it easier to compose in some scenarios.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops fromMaybe
- */
 export declare const fromMaybe: <A>(option: Maybe<A>) => Effect<never, Maybe<never>, A>;
 ```
 
 ### gen
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops gen
- */
 export declare const gen: <Eff extends GenEffect<any, any, any>, AEff>(f: (i: Adapter) => Generator<Eff, AEff, any>) => Effect<[Eff] extends [{ [_GenR]: () => infer R; }] ? R : never, [Eff] extends [{ [_GenE]: () => infer E; }] ? E : never, AEff>;
 ```
 
 ### genScoped
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops genWithManaged
- */
 export declare const genScoped: <Eff extends GenEffect<any, any, any>, AEff>(f: (i: AdapterWithScope) => Generator<Eff, AEff, any>) => Effect<[Eff] extends [{ [_GenR]: () => infer R; }] ? R : never, [Eff] extends [{ [_GenE]: () => infer E; }] ? E : never, AEff>;
 ```
 
@@ -1562,9 +1204,6 @@ Returns a collection of all `FiberRef` values for the fiber running this
 effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops getFiberRefs
- */
 export declare const getFiberRefs: Effect<never, never, FiberRefs>;
 ```
 
@@ -1574,9 +1213,6 @@ Lifts an `Maybe` into an `Effect`, if the option is not defined it fails
 with `NoSuchElementException`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops getOrFail
- */
 export declare const getOrFail: <A>(option: Maybe<A>) => Effect<never, NoSuchElement, A>;
 ```
 
@@ -1586,9 +1222,6 @@ Lifts an `Maybe` into a `IO`, if the option is not defined it fails with
 `void`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops getOrFailDiscard
- */
 export declare const getOrFailDiscard: <A>(option: Maybe<A>) => Effect<never, void, A>;
 ```
 
@@ -1598,9 +1231,6 @@ Lifts an `Maybe` into an `Effect`. If the option is not defined, fail with
 the specified `e` value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops getOrFailWith
- */
 export declare const getOrFailWith: <E, A>(option: Maybe<A>, e: LazyArg<E>) => Effect<never, E, A>;
 ```
 
@@ -1610,9 +1240,6 @@ Returns a successful effect with the head of the collection if the collection
 is non-empty, or fails with the error `None` if the collection is empty.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect head
- */
 export declare const head: <R, E, A>(self: Effect<R, E, Collection<A>>) => Effect<R, Maybe<E>, A>;
 ```
 
@@ -1621,9 +1248,6 @@ export declare const head: <R, E, A>(self: Effect<R, E, Collection<A>>) => Effec
 Runs `onTrue` if the result of `self` is `true` and `onFalse` otherwise.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops ifEffect
- */
 export declare const ifEffect: <R, R1, R2, E, E1, E2, A, A1>(b: Effect<R, E, boolean>, onTrue: Effect<R1, E1, A>, onFalse: Effect<R2, E2, A1>) => Effect<R | R1 | R2, E | E1 | E2, A | A1>;
 ```
 
@@ -1632,9 +1256,6 @@ export declare const ifEffect: <R, R1, R2, E, E1, E2, A, A1>(b: Effect<R, E, boo
 Returns a new effect that ignores the success or failure of this effect.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect ignore
- */
 export declare const ignore: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, void>;
 ```
 
@@ -1645,9 +1266,6 @@ but which also logs failures at the Debug level, just in case the failure
 turns out to be important.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect ignoreLogged
- */
 export declare const ignoreLogged: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, void>;
 ```
 
@@ -1656,9 +1274,6 @@ export declare const ignoreLogged: <R, E, A>(self: Effect<R, E, A>) => Effect<R,
 Inherits values from all [[FiberRef]] instances into current fiber.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops inheritFiberRefs
- */
 export declare const inheritFiberRefs: (childFiberRefs: FiberRefs) => Effect<never, never, void>;
 ```
 
@@ -1674,9 +1289,6 @@ Returns a new effect that will not succeed with its value before first
 interrupting all child fibers forked by the effect.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect interruptAllChildren
- */
 export declare const interruptAllChildren: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -1715,9 +1327,6 @@ export declare const intoDeferred: <E, A>(deferred: Deferred<E, A>) => <R>(self:
 Returns whether this effect is a failure.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect isFailure
- */
 export declare const isFailure: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, boolean>;
 ```
 
@@ -1726,9 +1335,6 @@ export declare const isFailure: <R, E, A>(self: Effect<R, E, A>) => Effect<R, ne
 Returns whether this effect is a success.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect isSuccess
- */
 export declare const isSuccess: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, boolean>;
 ```
 
@@ -1747,9 +1353,6 @@ return s
 ```
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops iterate
- */
 export declare const iterate: <Z>(initial: Z, cont: (z: Z) => boolean) => <R, E>(body: (z: Z) => Effect<R, E, Z>) => Effect<R, E, Z>;
 ```
 
@@ -1759,9 +1362,6 @@ export declare const iterate: <Z>(initial: Z, cont: (z: Z) => boolean) => <R, E>
 possibility that the value is a `Right` to the error channel.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect left
- */
 export declare const left: <R, E, A, B>(self: Effect<R, E, Either<A, B>>) => Effect<R, Either<E, B>, A>;
 ```
 
@@ -1771,10 +1371,6 @@ Performs the specified operation while "zoomed in" on the `Left` case of an
 `Either`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects leftWith
- * @tsplus pipeable effect/core/io/Effect leftWith
- */
 export declare const leftWith: <R, E, B, A, R1, E1, B1, A1>(f: (effect: Effect<R, Either<E, B>, A>) => Effect<R1, Either<E1, B1>, A1>) => (self: Effect<R, E, Either<A, B>>) => Effect<R | R1, E | E1, Either<A1, B1>>;
 ```
 
@@ -1783,9 +1379,6 @@ export declare const leftWith: <R, E, B, A, R1, E1, B1, A1>(f: (effect: Effect<R
 Logs the specified message at the current log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops log
- */
 export declare const log: (message: string) => Effect<never, never, void>;
 ```
 
@@ -1794,9 +1387,6 @@ export declare const log: (message: string) => Effect<never, never, void>;
 Annotates each log in this effect with the specified log annotation.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logAnnotate
- */
 export declare const logAnnotate: (key: string, value: string) => <R, E, A>(effect: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -1805,9 +1395,6 @@ export declare const logAnnotate: (key: string, value: string) => <R, E, A>(effe
 Retrieves the log annotations associated with the current scope.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logAnnotations
- */
 export declare const logAnnotations: () => Effect<never, never, ImmutableMap<string, string>>;
 ```
 
@@ -1816,9 +1403,6 @@ export declare const logAnnotations: () => Effect<never, never, ImmutableMap<str
 Logs the specified message at the debug log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logDebug
- */
 export declare const logDebug: (message: string) => Effect<never, never, void>;
 ```
 
@@ -1827,9 +1411,6 @@ export declare const logDebug: (message: string) => Effect<never, never, void>;
 Logs the specified cause at the debug log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logDebugCause
- */
 export declare const logDebugCause: <E>(cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -1838,9 +1419,6 @@ export declare const logDebugCause: <E>(cause: Cause<E>) => Effect<never, never,
 Logs the specified message and cause at the debug log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logDebugCauseMessage
- */
 export declare const logDebugCauseMessage: <E>(message: string, cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -1849,9 +1427,6 @@ export declare const logDebugCauseMessage: <E>(message: string, cause: Cause<E>)
 Logs the specified message at the error log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logError
- */
 export declare const logError: (message: string) => Effect<never, never, void>;
 ```
 
@@ -1860,9 +1435,6 @@ export declare const logError: (message: string) => Effect<never, never, void>;
 Logs the specified cause at the error log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logErrorCause
- */
 export declare const logErrorCause: <E>(cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -1871,9 +1443,6 @@ export declare const logErrorCause: <E>(cause: Cause<E>) => Effect<never, never,
 Logs the specified message and cause at the error log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logErrorCauseMessage
- */
 export declare const logErrorCauseMessage: <E>(message: string, cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -1882,9 +1451,6 @@ export declare const logErrorCauseMessage: <E>(message: string, cause: Cause<E>)
 Logs the specified message at the fatal log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logFatal
- */
 export declare const logFatal: (message: string) => Effect<never, never, void>;
 ```
 
@@ -1893,9 +1459,6 @@ export declare const logFatal: (message: string) => Effect<never, never, void>;
 Logs the specified cause at the fatal log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logFatalCause
- */
 export declare const logFatalCause: <E>(cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -1904,9 +1467,6 @@ export declare const logFatalCause: <E>(cause: Cause<E>) => Effect<never, never,
 Logs the specified message and cause at the fatal log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logFatalCauseMessage
- */
 export declare const logFatalCauseMessage: <E>(message: string, cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -1915,9 +1475,6 @@ export declare const logFatalCauseMessage: <E>(message: string, cause: Cause<E>)
 Logs the specified message at the informational log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logInfo
- */
 export declare const logInfo: (message: string) => Effect<never, never, void>;
 ```
 
@@ -1926,9 +1483,6 @@ export declare const logInfo: (message: string) => Effect<never, never, void>;
 Logs the specified cause at the informational log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logInfoCause
- */
 export declare const logInfoCause: <E>(cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -1937,9 +1491,6 @@ export declare const logInfoCause: <E>(cause: Cause<E>) => Effect<never, never, 
 Logs the specified message and cause at the informational log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logInfoCauseMessage
- */
 export declare const logInfoCauseMessage: <E>(message: string, cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -1948,9 +1499,6 @@ export declare const logInfoCauseMessage: <E>(message: string, cause: Cause<E>) 
 Adjusts the label for the current logging span.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logSpan
- */
 export declare const logSpan: (label: string) => <R, E, A>(effect: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -1959,9 +1507,6 @@ export declare const logSpan: (label: string) => <R, E, A>(effect: Effect<R, E, 
 Logs the specified message at the trace log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logTrace
- */
 export declare const logTrace: (message: string) => Effect<never, never, void>;
 ```
 
@@ -1970,9 +1515,6 @@ export declare const logTrace: (message: string) => Effect<never, never, void>;
 Logs the specified cause at the trace log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logTraceCause
- */
 export declare const logTraceCause: <E>(cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -1981,9 +1523,6 @@ export declare const logTraceCause: <E>(cause: Cause<E>) => Effect<never, never,
 Logs the specified message and cause at the trace log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logTraceCauseMessage
- */
 export declare const logTraceCauseMessage: <E>(message: string, cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -1992,9 +1531,6 @@ export declare const logTraceCauseMessage: <E>(message: string, cause: Cause<E>)
 Logs the specified message at the warning log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logWarning
- */
 export declare const logWarning: (message: string) => Effect<never, never, void>;
 ```
 
@@ -2003,9 +1539,6 @@ export declare const logWarning: (message: string) => Effect<never, never, void>
 Logs the specified cause at the warning log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logWarningCause
- */
 export declare const logWarningCause: <E>(cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -2014,9 +1547,6 @@ export declare const logWarningCause: <E>(cause: Cause<E>) => Effect<never, neve
 Logs the specified message and cause at the warning log level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops logWarningCauseMessage
- */
 export declare const logWarningCauseMessage: <E>(message: string, cause: Cause<E>) => Effect<never, never, void>;
 ```
 
@@ -2038,9 +1568,6 @@ A.reverse(as)
 ```
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops loop
- */
 export declare const loop: <Z>(initial: Z, cont: (z: Z) => boolean, inc: (z: Z) => Z) => <R, E, A>(body: (z: Z) => Effect<R, E, A>) => Effect<R, E, Chunk<A>>;
 ```
 
@@ -2059,9 +1586,6 @@ while (cont(s)) {
 ```
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops loopDiscard
- */
 export declare const loopDiscard: <Z>(initial: Z, cont: (z: Z) => boolean, inc: (z: Z) => Z) => <R, E, X>(body: (z: Z) => Effect<R, E, X>) => Effect<R, E, void>;
 ```
 
@@ -2070,10 +1594,6 @@ export declare const loopDiscard: <Z>(initial: Z, cont: (z: Z) => boolean, inc: 
 Returns an effect whose success is mapped by the specified `f` function.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects map
- * @tsplus pipeable effect/core/io/Effect map
- */
 export declare const map: <A, B>(f: (a: A) => B) => <R, E>(self: Effect<R, E, A>) => Effect<R, E, B>;
 ```
 
@@ -2083,9 +1603,6 @@ Statefully and effectfully maps over the elements of this chunk to produce
 new elements.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops mapAccum
- */
 export declare const mapAccum: <A, B, R, E, S>(self: Collection<A>, s: S, f: (s: S, a: A) => Effect<R, E, readonly [S, B]>) => Effect<R, E, readonly [S, Chunk<B>]>;
 ```
 
@@ -2095,10 +1612,6 @@ Returns an effect whose failure and success channels have been mapped by
 the specified pair of functions, `f` and `g`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects mapBoth
- * @tsplus pipeable effect/core/io/Effect mapBoth
- */
 export declare const mapBoth: <E, A, E2, A2>(f: (e: E) => E2, g: (a: A) => A2) => <R>(self: Effect<R, E, A>) => Effect<R, E2, A2>;
 ```
 
@@ -2108,10 +1621,6 @@ Returns an effect with its error channel mapped using the specified
 function. This can be used to lift a "smaller" error into a "larger" error.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects mapError
- * @tsplus pipeable effect/core/io/Effect mapError
- */
 export declare const mapError: <E, E2>(f: (e: E) => E2) => <R, A>(self: Effect<R, E, A>) => Effect<R, E2, A>;
 ```
 
@@ -2125,10 +1634,6 @@ See `absorb`, `sandbox`, `catchAllCause` for other functions for dealing
 with defects.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects mapErrorCause
- * @tsplus pipeable effect/core/io/Effect mapErrorCause
- */
 export declare const mapErrorCause: <E, E2>(f: (cause: Cause<E>) => Cause<E2>) => <R, A>(self: Effect<R, E, A>) => Effect<R, E2, A>;
 ```
 
@@ -2138,10 +1643,6 @@ Returns an effect whose success is mapped by the specified side effecting
 `f` function, translating any thrown exceptions into typed failed effects.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects mapTryCatch
- * @tsplus pipeable effect/core/io/Effect mapTryCatch
- */
 export declare const mapTryCatch: <A, B, E1>(f: (a: A) => B, onThrow: (u: unknown) => E1) => <R, E>(self: Effect<R, E, A>) => Effect<R, E1 | E, B>;
 ```
 
@@ -2151,9 +1652,6 @@ Returns an effect that, if evaluated, will return the lazily computed
 result of this effect.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect memoize
- */
 export declare const memoize: <R, E, A>(self: Effect<R, E, A>) => Effect<never, never, Effect<R, E, A>>;
 ```
 
@@ -2162,9 +1660,6 @@ export declare const memoize: <R, E, A>(self: Effect<R, E, A>) => Effect<never, 
 Returns a memoized version of the specified effectual function.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops memoize
- */
 export declare const memoizeF: <R, E, A, B>(f: (a: A) => Effect<R, E, B>) => Effect<never, never, (a: A) => Effect<R, E, B>>;
 ```
 
@@ -2174,9 +1669,6 @@ Returns a new effect where the error channel has been merged into the
 success channel to their common combined type.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect merge
- */
 export declare const merge: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, E | A>;
 ```
 
@@ -2186,9 +1678,6 @@ Merges an `Collection<Effect<R, E, A>>` to a single `Effect<R, E, B>`, working
 sequentially.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops mergeAll
- */
 export declare const mergeAll: <R, E, A, B>(as: Collection<Effect<R, E, A>>, zero: B, f: (b: B, a: A) => B) => Effect<R, E, B>;
 ```
 
@@ -2205,9 +1694,6 @@ It's unsafe to execute side effects inside `f`, as `f` may be executed
 more than once for some of `in` elements during effect execution.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops mergeAllPar
- */
 export declare const mergeAllPar: <R, E, A, B>(as: Collection<Effect<R, E, A>>, zero: B, f: (b: B, a: A) => B) => Effect<R, E, B>;
 ```
 
@@ -2216,9 +1702,6 @@ export declare const mergeAllPar: <R, E, A, B>(as: Collection<Effect<R, E, A>>, 
 Returns a new effect where boolean value of this effect is negated.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect negate
- */
 export declare const negate: <R, E>(self: Effect<R, E, boolean>) => Effect<R, E, boolean>;
 ```
 
@@ -2228,9 +1711,6 @@ Returns a effect that will never produce anything. The moral equivalent of
 `while(true) {}`, only without the wasted CPU cycles.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops never
- */
 export declare const never: Effect<never, never, never>;
 ```
 
@@ -2239,9 +1719,6 @@ export declare const never: Effect<never, never, never>;
 Requires the option produced by this value to be `None`.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect none
- */
 export declare const none: <R, E, A>(self: Effect<R, E, Maybe<A>>) => Effect<R, Maybe<E>, void>;
 ```
 
@@ -2251,9 +1728,6 @@ Lifts an `Maybe` into a `IO`. If the option is empty it succeeds with
 `undefined`. If the option is defined it fails with the content.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops noneOrFail
- */
 export declare const noneOrFail: <E>(option: Maybe<E>) => Effect<never, E, void>;
 ```
 
@@ -2264,29 +1738,18 @@ Lifts an `Maybe` into a `IO`. If the option is empty it succeeds with
 the specified function.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops noneOrFailWith
- */
 export declare const noneOrFailWith: <E, A>(option: Maybe<A>, f: (a: A) => E) => Effect<never, E, void>;
 ```
 
 ### onDone
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects onDone
- * @tsplus pipeable effect/core/io/Effect onDone
- */
 export declare const onDone: <E, A, R1, X1, R2, X2>(error: (e: E) => Effect<R1, never, X1>, success: (a: A) => Effect<R2, never, X2>) => <R>(self: Effect<R, E, A>) => Effect<R1 | R2 | R, never, void>;
 ```
 
 ### onDoneCause
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects onDoneCause
- * @tsplus pipeable effect/core/io/Effect onDoneCause
- */
 export declare const onDoneCause: <E, A, R1, X1, R2, X2>(error: (e: Cause<E>) => Effect<R1, never, X1>, success: (a: A) => Effect<R2, never, X2>) => <R>(self: Effect<R, E, A>) => Effect<R1 | R2 | R, never, void>;
 ```
 
@@ -2296,10 +1759,6 @@ Runs the specified effect if this effect fails, providing the error to the
 effect if it exists. The provided effect will not be interrupted.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects onError
- * @tsplus pipeable effect/core/io/Effect onError
- */
 export declare const onError: <E, R2, X>(cleanup: (cause: Cause<E>) => Effect<R2, never, X>) => <R, A>(self: Effect<R, E, A>) => Effect<R2 | R, E, A>;
 ```
 
@@ -2309,10 +1768,6 @@ Ensures that a cleanup functions runs, whether this effect succeeds, fails,
 or is interrupted.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects onExit
- * @tsplus pipeable effect/core/io/Effect onExit
- */
 export declare const onExit: <E, A, R2, X>(cleanup: (exit: Exit<E, A>) => Effect<R2, never, X>) => <R>(self: Effect<R, E, A>) => Effect<R2 | R, E, A>;
 ```
 
@@ -2323,9 +1778,6 @@ passes the effect input `R` along unmodified as the second element
 of the tuple.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect onFirst
- */
 export declare const onFirst: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, readonly [A, Env<R>]>;
 ```
 
@@ -2348,9 +1800,6 @@ passes the effect input `R` along unmodified as the first element
 of the tuple.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect onSecond
- */
 export declare const onSecond: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, readonly [Env<R>, A]>;
 ```
 
@@ -2360,10 +1809,6 @@ Runs the specified effect if this effect is terminated, either because of a
 defect or because of interruption.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects onTermination
- * @tsplus pipeable effect/core/io/Effect onTermination
- */
 export declare const onTermination: <R2, X>(cleanup: (cause: Cause<never>) => Effect<R2, never, X>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E, A>;
 ```
 
@@ -2373,9 +1818,6 @@ Returns an effect that will be executed at most once, even if it is
 evaluated multiple times.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect once
- */
 export declare const once: <R, E, A>(self: Effect<R, E, A>) => Effect<never, never, Effect<R, E, void>>;
 ```
 
@@ -2385,9 +1827,6 @@ Executes this effect, skipping the error but returning optionally the
 success.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect option
- */
 export declare const option: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, Maybe<A>>;
 ```
 
@@ -2397,9 +1836,6 @@ Translates effect failure into death of the fiber, making all failures
 unchecked and not a part of the type of the effect.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect orDie
- */
 export declare const orDie: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, A>;
 ```
 
@@ -2408,9 +1844,6 @@ export declare const orDie: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never,
 Converts all failures to unchecked exceptions.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect orDieKeep
- */
 export declare const orDieKeep: <R, E, A>(self: Effect<R, E, A>) => Effect<R, never, A>;
 ```
 
@@ -2420,10 +1853,6 @@ Keeps none of the errors, and terminates the fiber with them, using the
 specified function to convert the `E` into a `Throwable`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects orDieWith
- * @tsplus pipeable effect/core/io/Effect orDieWith
- */
 export declare const orDieWith: <E>(f: (e: E) => unknown) => <R, A>(self: Effect<R, E, A>) => Effect<R, never, A>;
 ```
 
@@ -2433,11 +1862,6 @@ Executes this effect and returns its value, if it succeeds, but otherwise
 executes the specified effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects orElse
- * @tsplus pipeable effect/core/io/Effect orElse
- * @tsplus pipeable-operator effect/core/io/Effect |
- */
 export declare const orElse: <R2, E2, A2>(that: LazyArg<Effect<R2, E2, A2>>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2, A2 | A>;
 ```
 
@@ -2447,10 +1871,6 @@ Returns an effect that will produce the value of this effect, unless it
 fails, in which case, it will produce the value of the specified effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects orElseEither
- * @tsplus pipeable effect/core/io/Effect orElseEither
- */
 export declare const orElseEither: <R2, E2, A2>(that: LazyArg<Effect<R2, E2, A2>>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2, Either<A, A2>>;
 ```
 
@@ -2460,10 +1880,6 @@ Executes this effect and returns its value, if it succeeds, but otherwise
 fails with the specified error.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects orElseFail
- * @tsplus pipeable effect/core/io/Effect orElseFail
- */
 export declare const orElseFail: <E2>(e: LazyArg<E2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E2, A>;
 ```
 
@@ -2474,10 +1890,6 @@ fails with the `None` value, in which case it will produce the value of
 the specified effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects orElseOptional
- * @tsplus pipeable effect/core/io/Effect orElseOptional
- */
 export declare const orElseOptional: <R, E, A, R2, E2, A2>(that: LazyArg<Effect<R2, Maybe<E2>, A2>>) => (self: Effect<R, Maybe<E>, A>) => Effect<R | R2, Maybe<E | E2>, A | A2>;
 ```
 
@@ -2487,10 +1899,6 @@ Executes this effect and returns its value, if it succeeds, but
 otherwise succeeds with the specified value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects orElseSucceed
- * @tsplus pipeable effect/core/io/Effect orElseSucceed
- */
 export declare const orElseSucceed: <A2>(a: LazyArg<A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, A2 | A>;
 ```
 
@@ -2499,19 +1907,12 @@ export declare const orElseSucceed: <A2>(a: LazyArg<A2>) => <R, E, A>(self: Effe
 Exposes all parallel errors in a single call.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect parallelErrors
- */
 export declare const parallelErrors: <R, E, A>(self: Effect<R, E, A>) => Effect<R, Chunk<E>, A>;
 ```
 
 ### parallelFinalizers
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect parallelFinalizers
- * @tsplus static effect/core/io/Effect.Ops parallelFinalizers
- */
 export declare const parallelFinalizers: <R, E, A>(self: Effect<R, E, A>) => Effect<Scope | R, E, A>;
 ```
 
@@ -2521,9 +1922,6 @@ Retrieves the maximum number of fibers for parallel operators or `None` if
 it is unbounded.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops parallelism
- */
 export declare const parallelism: () => Effect<never, never, Maybe<number>>;
 ```
 
@@ -2533,9 +1931,6 @@ Retrieves the current maximum number of fibers for parallel operators and
 uses it to run the specified effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops parallelismWith
- */
 export declare const parallelismWith: <R, E, A>(f: (parallelism: Maybe<number>) => Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -2545,9 +1940,6 @@ Feeds elements of type `A` to a function `f` that returns an effect.
 Collects all successes and failures in a tupled fashion.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops partition
- */
 export declare const partition: <R, E, A, B>(as: Collection<A>, f: (a: A) => Effect<R, E, B>) => Effect<R, never, readonly [Chunk<E>, Chunk<B>]>;
 ```
 
@@ -2558,21 +1950,12 @@ Collects all successes and failures in parallel and returns the result as a
 tuple.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops partitionPar
- */
 export declare const partitionPar: <R, E, A, B>(as: Collection<A>, f: (a: A) => Effect<R, E, B>) => Effect<R, never, readonly [Chunk<E>, Chunk<B>]>;
 ```
 
 ### pipeEffect
 
 ```ts
-/**
- * @tsplus operator effect/core/io/Effect /
- * @tsplus fluent effect/core/io/Effect apply
- * @tsplus fluent effect/core/io/Effect meteredWith
- * @tsplus macro pipe
- */
 export declare const pipeEffect: <A, B>(a: A, f: (a: A) => B) => B;
 ```
 
@@ -2581,9 +1964,6 @@ export declare const pipeEffect: <A, B>(a: A, f: (a: A) => B) => B;
 Like `tryPromise` but produces a defect in case of errors.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops promise
- */
 export declare const promise: <A>(promise: LazyArg<Promise<A>>) => Effect<never, never, A>;
 ```
 
@@ -2598,10 +1978,6 @@ export declare const provideEnvironment: <R>(environment: Env<R>) => <E, A>(self
 Provides a layer to the effect, which translates it to another level.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects provideLayer
- * @tsplus pipeable effect/core/io/Effect provideLayer
- */
 export declare const provideLayer: <R, E, A>(layer: Layer<R, E, A>) => <E1, A1>(self: Effect<A, E1, A1>) => Effect<R, E | E1, A1>;
 ```
 
@@ -2611,10 +1987,6 @@ Provides the effect with the single service it requires. If the effect
 requires more than one service use `provideEnvironment` instead.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects provideService
- * @tsplus pipeable effect/core/io/Effect provideService
- */
 export declare const provideService: <T>(tag: Tag<T>, resource: T) => <R, E, A>(self: Effect<R, E, A>) => Effect<Exclude<R, T>, E, A>;
 ```
 
@@ -2624,10 +1996,6 @@ Provides the effect with the single service it requires. If the effect
 requires more than one service use `provideEnvironment` instead.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects provideServiceEffect
- * @tsplus pipeable effect/core/io/Effect provideServiceEffect
- */
 export declare const provideServiceEffect: <T, R1, E1>(tag: Tag<T>, effect: Effect<R1, E1, T>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R1 | Exclude<R, T>, E1 | E, A>;
 ```
 
@@ -2637,10 +2005,6 @@ Provides some of the environment required to run this effect,
 leaving the remainder `R0`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects provideSomeEnvironment
- * @tsplus pipeable effect/core/io/Effect provideSomeEnvironment
- */
 export declare const provideSomeEnvironment: <R0, R>(f: (r0: Env<R0>) => Env<R>) => <E, A>(self: Effect<R, E, A>) => Effect<R0, E, A>;
 ```
 
@@ -2650,10 +2014,6 @@ Splits the environment into two parts, providing one part using the
 specified layer and leaving the remainder `R0`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects provideSomeLayer
- * @tsplus pipeable effect/core/io/Effect provideSomeLayer
- */
 export declare const provideSomeLayer: <R1, E1, A1>(layer: Layer<R1, E1, A1>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R1 | Exclude<R, A1>, E1 | E, A>;
 ```
 
@@ -2671,10 +2031,6 @@ desired, you can use [[Effect#raceWith]], which will not disconnect or
 interrupt losers.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects race
- * @tsplus pipeable effect/core/io/Effect race
- */
 export declare const race: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A2 | A>;
 ```
 
@@ -2685,10 +2041,6 @@ yielding the value of the first effect to succeed with a value. Losers of
 the race will be interrupted immediately
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects raceAll
- * @tsplus pipeable effect/core/io/Effect raceAll
- */
 export declare const raceAll: <R1, E1, A1>(effects: Collection<Effect<R1, E1, A1>>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, A1 | A>;
 ```
 
@@ -2700,10 +2052,6 @@ succeeds, the other will be interrupted. If neither succeeds, then the
 effect will fail with some error.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects raceAwait
- * @tsplus pipeable effect/core/io/Effect raceAwait
- */
 export declare const raceAwait: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A2 | A>;
 ```
 
@@ -2717,10 +2065,6 @@ WARNING: The raced effect will safely interrupt the "loser", but will not
 resume until the loser has been cleanly terminated.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects raceEither
- * @tsplus pipeable effect/core/io/Effect raceEither
- */
 export declare const raceEither: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, Either<A, A2>>;
 ```
 
@@ -2733,10 +2077,6 @@ with the fibers. It can be considered a low-level building block for
 higher-level operators like `race`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects raceFibersWith
- * @tsplus pipeable effect/core/io/Effect raceFibersWith
- */
 export declare const raceFibersWith: <E, A, R1, E1, A1, R2, E2, A2, R3, E3, A3>(that: Effect<R1, E1, A1>, selfWins: (winner: Fiber<E, A>, loser: Fiber<E1, A1>) => Effect<R2, E2, A2>, thatWins: (winner: Fiber<E1, A1>, loser: Fiber<E, A>) => Effect<R3, E3, A3>) => <R>(self: Effect<R, E, A>) => Effect<R1 | R2 | R3 | R, E2 | E3, A2 | A3>;
 ```
 
@@ -2754,10 +2094,6 @@ interrupt signal, allowing a fast return, with interruption performed
 in the background.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects raceFirst
- * @tsplus pipeable effect/core/io/Effect raceFirst
- */
 export declare const raceFirst: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A2 | A>;
 ```
 
@@ -2767,10 +2103,6 @@ Returns an effect that races this effect with the specified effect, calling
 the specified finisher as soon as one result or the other has been computed.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects raceWith
- * @tsplus pipeable effect/core/io/Effect raceWith
- */
 export declare const raceWith: <E, A, R1, E1, A1, R2, E2, A2, R3, E3, A3>(that: Effect<R1, E1, A1>, leftDone: (exit: Exit<E, A>, fiber: Fiber<E1, A1>) => Effect<R2, E2, A2>, rightDone: (exit: Exit<E1, A1>, fiber: Fiber<E, A>) => Effect<R3, E3, A3>) => <R>(self: Effect<R, E, A>) => Effect<R1 | R2 | R3 | R, E2 | E3, A2 | A3>;
 ```
 
@@ -2779,9 +2111,6 @@ export declare const raceWith: <E, A, R1, E1, A1, R2, E2, A2, R3, E3, A3>(that: 
 Retreives the `Random` service from the environment.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops random
- */
 export declare const random: Effect<never, never, Random>;
 ```
 
@@ -2791,9 +2120,6 @@ Retreives the `Random` service from the environment and uses it to run the
 specified workflow.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops randomWith
- */
 export declare const randomWith: <R, E, A>(f: (random: Random) => Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -2802,9 +2128,6 @@ export declare const randomWith: <R, E, A>(f: (random: Random) => Effect<R, E, A
 Folds an `Collection<A>` using an effectual function f, working sequentially from left to right.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops reduce
- */
 export declare const reduce: <A, Z, R, E>(as: Collection<A>, z: Z, f: (z: Z, a: A) => Effect<R, E, Z>) => Effect<R, E, Z>;
 ```
 
@@ -2814,9 +2137,6 @@ Reduces an `Collection<Effect<R, E, A>>` to a single `Effect<R, E, A>`, working
 sequentially.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops reduceAll
- */
 export declare const reduceAll: <R, E, A>(a: Effect<R, E, A>, as: Collection<Effect<R, E, A>>, f: (acc: A, a: A) => A) => Effect<R, E, A>;
 ```
 
@@ -2826,9 +2146,6 @@ Reduces an `Collection<Effect<R, E, A>>` to a single `Effect<R, E, A>`, working
 in parallel.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops reduceAllPar
- */
 export declare const reduceAllPar: <R, E, A>(a: Effect<R, E, A>, as: Collection<Effect<R, E, A>>, f: (acc: A, a: A) => A) => Effect<R, E, A>;
 ```
 
@@ -2837,9 +2154,6 @@ export declare const reduceAllPar: <R, E, A>(a: Effect<R, E, A>, as: Collection<
 Folds an `Collection<A>` using an effectual function f, working sequentially from left to right.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops reduceRight
- */
 export declare const reduceRight_: <A, Z, R, E>(as: Collection<A>, z: Z, f: (a: A, z: Z) => Effect<R, E, Z>) => Effect<R, E, Z>;
 ```
 
@@ -2849,9 +2163,6 @@ Folds over the elements in this chunk from the left.
 Stops the fold early when the condition is not fulfilled.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops reduceWhile
- */
 export declare const reduceWhile: <A, R, E, S>(self: Collection<A>, s: S, p: Predicate<S>, f: (s: S, a: A) => Effect<R, E, S>) => Effect<R, E, S>;
 ```
 
@@ -2860,10 +2171,6 @@ export declare const reduceWhile: <A, R, E, S>(self: Collection<A>, s: S, p: Pre
 Keeps some of the errors, and terminates the fiber with the rest
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects refineOrDie
- * @tsplus pipeable effect/core/io/Effect refineOrDie
- */
 export declare const refineOrDie: <E, E1>(pf: (e: E) => Maybe<E1>) => <R, A>(self: Effect<R, E, A>) => Effect<R, E1, A>;
 ```
 
@@ -2873,10 +2180,6 @@ Keeps some of the errors, and terminates the fiber with the rest, using
 the specified function to convert the `E` into a `Throwable`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects refineOrDieWith
- * @tsplus pipeable effect/core/io/Effect refineOrDieWith
- */
 export declare const refineOrDieWith: <E, E1>(pf: (e: E) => Maybe<E1>, f: (e: E) => unknown) => <R, A>(self: Effect<R, E, A>) => Effect<R, E1, A>;
 ```
 
@@ -2886,10 +2189,6 @@ Fail with the returned value if the `PartialFunction` matches, otherwise
 continue with our held value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects reject
- * @tsplus pipeable effect/core/io/Effect reject
- */
 export declare const reject: <A, E1>(pf: (a: A) => Maybe<E1>) => <R, E>(self: Effect<R, E, A>) => Effect<R, E1 | E, A>;
 ```
 
@@ -2900,10 +2199,6 @@ translating the successful match into a failure, otherwise continue with
 our held value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects rejectEffect
- * @tsplus pipeable effect/core/io/Effect rejectEffect
- */
 export declare const rejectEffect: <A, R1, E1>(pf: (a: A) => Maybe<Effect<R1, E1, E1>>) => <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, A>;
 ```
 
@@ -2916,10 +2211,6 @@ that executes `io`, and then if that succeeds, executes `io` an additional
 time.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects repeat
- * @tsplus pipeable effect/core/io/Effect repeat
- */
 export declare const repeat: <S, R1, A, B>(schedule: Schedule<S, R1, A, B>) => <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E, B>;
 ```
 
@@ -2931,10 +2222,6 @@ so that `io.repeatN(1)` yields an effect that executes `io`, and then if
 that succeeds, executes `io` an additional time.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects repeatN
- * @tsplus pipeable effect/core/io/Effect repeatN
- */
 export declare const repeatN: (n: number) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -2949,10 +2236,6 @@ Scheduled recurrences are in addition to the first execution, so that
 that succeeds, executes `io` an additional time.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects repeatOrElse
- * @tsplus pipeable effect/core/io/Effect repeatOrElse
- */
 export declare const repeatOrElse: <S, R1, A, B, E, R2, E2>(schedule: Schedule<S, R1, A, B>, orElse: (e: E, option: Maybe<B>) => Effect<R2, E2, B>) => <R>(self: Effect<R, E, A>) => Effect<R1 | R2 | R, E2, B>;
 ```
 
@@ -2967,10 +2250,6 @@ Scheduled recurrences are in addition to the first execution, so that
 that succeeds, executes `io` an additional time.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects repeatOrElseEither
- * @tsplus pipeable effect/core/io/Effect repeatOrElseEither
- */
 export declare const repeatOrElseEither: <S, R1, A, B, E, R2, E2, C>(schedule: Schedule<S, R1, A, B>, orElse: (e: E, option: Maybe<B>) => Effect<R2, E2, C>) => <R>(self: Effect<R, E, A>) => Effect<R1 | R2 | R, E2, Either<C, B>>;
 ```
 
@@ -2980,10 +2259,6 @@ Repeats this effect until its value satisfies the specified predicate or
 until the first failure.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects repeatUntil
- * @tsplus pipeable effect/core/io/Effect repeatUntil
- */
 export declare const repeatUntil: <A>(p: Predicate<A>) => <R, E>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -2993,10 +2268,6 @@ Repeats this effect until its value satisfies the specified effectful
 predicate or until the first failure.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects repeatUntilEffect
- * @tsplus pipeable effect/core/io/Effect repeatUntilEffect
- */
 export declare const repeatUntilEffect: <A, R1>(f: (a: A) => Effect<R1, never, boolean>) => <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E, A>;
 ```
 
@@ -3006,10 +2277,6 @@ Repeats this effect until its value is equal to the specified value or
 until the first failure.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects repeatUntilEquals
- * @tsplus pipeable effect/core/io/Effect repeatUntilEquals
- */
 export declare const repeatUntilEquals: <A>(E: Equivalence<A>, a: A) => <R, E>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -3019,10 +2286,6 @@ Repeats this effect while its value satisfies the specified effectful
 predicate or until the first failure.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects repeatWhile
- * @tsplus pipeable effect/core/io/Effect repeatWhile
- */
 export declare const repeatWhile: <A>(f: Predicate<A>) => <R, E>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -3032,10 +2295,6 @@ Repeats this effect while its value satisfies the specified effectful
 predicate or until the first failure.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects repeatWhileEffect
- * @tsplus pipeable effect/core/io/Effect repeatWhileEffect
- */
 export declare const repeatWhileEffect: <R1, A>(f: (a: A) => Effect<R1, never, boolean>) => <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E, A>;
 ```
 
@@ -3045,10 +2304,6 @@ Repeats this effect for as long as its value is equal to the specified
 value or until the first failure.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects repeatWhileEquals
- * @tsplus pipeable effect/core/io/Effect repeatWhileEquals
- */
 export declare const repeatWhileEquals: <A>(E: Equivalence<A>, a: A) => <R, E>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -3057,10 +2312,6 @@ export declare const repeatWhileEquals: <A>(E: Equivalence<A>, a: A) => <R, E>(s
 Replicates the given effect `n` times.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects replicate
- * @tsplus pipeable effect/core/io/Effect replicate
- */
 export declare const replicate: (n: number) => <R, E, A>(self: Effect<R, E, A>) => Chunk<Effect<R, E, A>>;
 ```
 
@@ -3070,10 +2321,6 @@ Performs this effect the specified number of times and collects the
 results.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects replicateEffect
- * @tsplus pipeable effect/core/io/Effect replicateEffect
- */
 export declare const replicateEffect: (n: number) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, Chunk<A>>;
 ```
 
@@ -3083,10 +2330,6 @@ Performs this effect the specified number of times, discarding the
 results.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects replicateEffectDiscard
- * @tsplus pipeable effect/core/io/Effect replicateEffectDiscard
- */
 export declare const replicateEffectDiscard: (n: number) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, void>;
 ```
 
@@ -3095,9 +2338,6 @@ export declare const replicateEffectDiscard: (n: number) => <R, E, A>(self: Effe
 Unearth the unchecked failure of the effect (opposite of `orDie`).
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect resurrect
- */
 export declare const resurrect: <R, E, A>(self: Effect<R, E, A>) => Effect<R, unknown, A>;
 ```
 
@@ -3109,10 +2349,6 @@ for example), so that that `io.retry(Schedule.once)` means "execute `io`
 and in case of failure, try again once".
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects retry
- * @tsplus pipeable effect/core/io/Effect retry
- */
 export declare const retry: <S, R1, E, B>(policy: Schedule<S, R1, E, B>) => <R, A>(self: Effect<R, E, A>) => Effect<R1 | R, E, A>;
 ```
 
@@ -3121,10 +2357,6 @@ export declare const retry: <S, R1, E, B>(policy: Schedule<S, R1, E, B>) => <R, 
 Retries this effect the specified number of times.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects retryN
- * @tsplus pipeable effect/core/io/Effect retryN
- */
 export declare const retryN: (n: number) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -3135,10 +2367,6 @@ value produced by the schedule together with the last error are passed to
 the recovery function.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects retryOrElse
- * @tsplus pipeable effect/core/io/Effect retryOrElse
- */
 export declare const retryOrElse: <S, R1, E extends E3, A1, R2, E2, A2, E3>(policy: Schedule<S, R1, E3, A1>, orElse: (e: E, out: A1) => Effect<R2, E2, A2>) => <R, A>(self: Effect<R, E, A>) => Effect<R1 | R2 | R, E | E2, A2 | A>;
 ```
 
@@ -3149,10 +2377,6 @@ value produced by the schedule together with the last error are passed to
 the recovery function.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects retryOrElseEither
- * @tsplus pipeable effect/core/io/Effect retryOrElseEither
- */
 export declare const retryOrElseEither: <S, R1, E extends E3, A1, R2, E2, A2, E3>(policy: Schedule<S, R1, E3, A1>, orElse: (e: E, out: A1) => Effect<R2, E2, A2>) => <R, A>(self: Effect<R, E, A>) => Effect<R1 | R2 | R, E | E2, Either<A2, A>>;
 ```
 
@@ -3161,10 +2385,6 @@ export declare const retryOrElseEither: <S, R1, E extends E3, A1, R2, E2, A2, E3
 Retries this effect until its error satisfies the specified predicate.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects retryUntil
- * @tsplus pipeable effect/core/io/Effect retryUntil
- */
 export declare const retryUntil: <E>(f: Predicate<E>) => <R, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -3174,10 +2394,6 @@ Retries this effect until its error satisfies the specified effectful
 predicate.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects retryUntilEffect
- * @tsplus pipeable effect/core/io/Effect retryUntilEffect
- */
 export declare const retryUntilEffect: <R1, E>(f: (e: E) => Effect<R1, never, boolean>) => <R, A>(self: Effect<R, E, A>) => Effect<R1 | R, E, A>;
 ```
 
@@ -3186,10 +2402,6 @@ export declare const retryUntilEffect: <R1, E>(f: (e: E) => Effect<R1, never, bo
 Retries this effect until its error is equal to the specified error.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects retryUntilEquals
- * @tsplus pipeable effect/core/io/Effect retryUntilEquals
- */
 export declare const retryUntilEquals: <E>(E: Equivalence<E>, e: E) => <R, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -3198,10 +2410,6 @@ export declare const retryUntilEquals: <E>(E: Equivalence<E>, e: E) => <R, A>(se
 Retries this effect while its error satisfies the specified predicate.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects retryWhile
- * @tsplus pipeable effect/core/io/Effect retryWhile
- */
 export declare const retryWhile: <E>(f: Predicate<E>) => <R, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -3211,10 +2419,6 @@ Retries this effect while its error satisfies the specified effectful
 predicate.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects retryWhileEffect
- * @tsplus pipeable effect/core/io/Effect retryWhileEffect
- */
 export declare const retryWhileEffect: <R1, E>(f: (e: E) => Effect<R1, never, boolean>) => <R, A>(self: Effect<R, E, A>) => Effect<R1 | R, E, A>;
 ```
 
@@ -3224,10 +2428,6 @@ Retries this effect for as long as its error is equal to the specified
 error.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects retryWhileEquals
- * @tsplus pipeable effect/core/io/Effect retryWhileEquals
- */
 export declare const retryWhileEquals: <E>(E: Equivalence<E>, e: E) => <R, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -3237,9 +2437,6 @@ export declare const retryWhileEquals: <E>(E: Equivalence<E>, e: E) => <R, A>(se
 possibility that the value is a `Left` to the error channel.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect right
- */
 export declare const right: <R, E, A, B>(self: Effect<R, E, Either<A, B>>) => Effect<R, Either<A, E>, B>;
 ```
 
@@ -3249,9 +2446,6 @@ Performs the specified operation while "zoomed in" on the `Right` case of an
 `Either`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects rightWith
- */
 export declare const rightWith: <R, E, A, A1, B, B1, R1, E1>(f: (effect: Effect<R, Either<A, E>, B>) => Effect<R1, Either<A1, E1>, B1>) => (self: Effect<R, E, Either<A, B>>) => Effect<R | R1, E | E1, Either<A1, B1>>;
 ```
 
@@ -3262,9 +2456,6 @@ Returns an effect that accesses the runtime, which can be used to
 that must call back into Effect code.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops runtime
- */
 export declare const runtime: <R>() => Effect<R, never, Runtime<R>>;
 ```
 
@@ -3273,9 +2464,6 @@ export declare const runtime: <R>() => Effect<R, never, Runtime<R>>;
 Exposes the full cause of failure of this effect.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect sandbox
- */
 export declare const sandbox: <R, E, A>(self: Effect<R, E, A>) => Effect<R, Cause<E>, A>;
 ```
 
@@ -3287,10 +2475,6 @@ See `scheduleFrom` for a variant that allows the schedule's decision to
 depend on the result of this effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects schedule
- * @tsplus pipeable effect/core/io/Effect schedule
- */
 export declare const schedule: <S, R1, A1>(schedule: Schedule<S, R1, any, A1>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R1 | R, E, A1>;
 ```
 
@@ -3300,10 +2484,6 @@ Runs this effect according to the specified schedule in a new fiber
 attached to the current scope.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects scheduleForked
- * @tsplus pipeable effect/core/io/Effect scheduleForked
- */
 export declare const scheduleForked: <S, R1, A1>(schedule: Schedule<S, R1, unknown, A1>) => <R, E, A>(self: Effect<R, E, A>) => Effect<Scope | R1 | R, E, Runtime<unknown, A1>>;
 ```
 
@@ -3315,10 +2495,6 @@ See `scheduleFrom` for a variant that allows the schedule's decision to
 depend on the result of this effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects scheduleFrom
- * @tsplus pipeable effect/core/io/Effect scheduleFrom
- */
 export declare const scheduleFrom: <S, R1, A, A1>(a: A, schedule: Schedule<S, R1, A, A1>) => <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E, A1>;
 ```
 
@@ -3333,9 +2509,6 @@ export declare const scope: Effect<Scope, never, Scope>;
 Accesses the current scope and uses it to perform the specified effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops scopeWith
- */
 export declare const scopeWith: <R, E, A>(f: (scope: Scope) => Effect<R, E, A>) => Effect<Scope | R, E, A>;
 ```
 
@@ -3346,10 +2519,6 @@ ensuring that their finalizers are run as soon as this workflow completes
 execution, whether by success, failure, or interruption.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops scoped
- * @tsplus getter effect/core/io/Effect scoped
- */
 export declare const scoped: <R, E, A>(effect: Effect<R, E, A>) => Effect<Exclude<R, Scope>, E, A>;
 ```
 
@@ -3367,9 +2536,6 @@ Especially useful for creating "accessor" methods on services' companion
 objects.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops serviceWith
- */
 export declare const serviceWith: <T, A>(tag: Tag<T>, f: (a: T) => A) => Effect<T, never, A>;
 ```
 
@@ -3385,9 +2551,6 @@ Sets the `FiberRef` values for the fiber running this effect to the values
 in the specified collection of `FiberRef` values.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops setFiberRefs
- */
 export declare const setFiberRefs: (fiberRefs: FiberRefs) => Effect<never, never, void>;
 ```
 
@@ -3397,9 +2560,6 @@ Returns an effect that suspends for the specified duration. This method is
 asynchronous, and does not actually block the fiber executing the effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops sleep
- */
 export declare const sleep: (duration: Duration) => Effect<never, never, void>;
 ```
 
@@ -3408,9 +2568,6 @@ export declare const sleep: (duration: Duration) => Effect<never, never, void>;
 Converts an option on values into an option on errors.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect some
- */
 export declare const some: <R, E, A>(self: Effect<R, E, Maybe<A>>) => Effect<R, Maybe<E>, A>;
 ```
 
@@ -3419,10 +2576,6 @@ export declare const some: <R, E, A>(self: Effect<R, E, Maybe<A>>) => Effect<R, 
 Extracts the optional value, or returns the given 'orElse'.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspect someOrElse
- * @tsplus pipeable effect/core/io/Effect someOrElse
- */
 export declare const someOrElse: <B>(orElse: LazyArg<B>) => <R, E, A>(self: Effect<R, E, Maybe<A>>) => Effect<R, E, B | A>;
 ```
 
@@ -3431,10 +2584,6 @@ export declare const someOrElse: <B>(orElse: LazyArg<B>) => <R, E, A>(self: Effe
 Extracts the optional value, or executes the effect 'orElse'.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects someOrElseEffect
- * @tsplus pipeable effect/core/io/Effect someOrElseEffect
- */
 export declare const someOrElseEffect: <R2, E2, B>(orElse: LazyArg<Effect<R2, E2, B>>) => <R, E, A>(self: Effect<R, E, Maybe<A>>) => Effect<R2 | R, E2 | E, B | A>;
 ```
 
@@ -3443,10 +2592,6 @@ export declare const someOrElseEffect: <R2, E2, B>(orElse: LazyArg<Effect<R2, E2
 Extracts the optional value, or fails with the given error 'e'.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects someOrFail
- * @tsplus pipeable effect/core/io/Effect someOrFail
- */
 export declare const someOrFail: <E2>(orFail: LazyArg<E2>) => <R, E, A>(self: Effect<R, E, Maybe<A>>) => Effect<R, E2 | E, A>;
 ```
 
@@ -3455,9 +2600,6 @@ export declare const someOrFail: <E2>(orFail: LazyArg<E2>) => <R, E, A>(self: Ef
 Extracts the optional value, or fails with a `NoSuchElement` exception.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect someOrFailException
- */
 export declare const someOrFailException: <R, E, A>(self: Effect<R, E, Maybe<A>>) => Effect<R, NoSuchElement | E, A>;
 ```
 
@@ -3467,10 +2609,6 @@ Perfoms the specified operation while "zoomed in" on the `Some` case of an
 `Maybe`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects someWith
- * @tsplus pipeable effect/core/io/Effect someWith
- */
 export declare const someWith: <R, E, A, R1, E1, A1>(f: (effect: Effect<R, Maybe<E>, A>) => Effect<R1, Maybe<E1>, A1>) => (self: Effect<R, E, Maybe<A>>) => Effect<R | R1, E | E1, Maybe<A1>>;
 ```
 
@@ -3479,9 +2617,6 @@ export declare const someWith: <R, E, A, R1, E1, A1>(f: (effect: Effect<R, Maybe
 Applicative structure.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops struct
- */
 export declare const struct: <NER extends Record<string, Effect<any, any, any>>>(r: Record<string, Effect<any, any, any>> | EnforceNonEmptyRecord<NER>) => Effect<[NER[keyof NER]] extends [{ [EffectURI]: { _R: (_: never) => infer R; }; }] ? R : never, [NER[keyof NER]] extends [{ [EffectURI]: { _E: (_: never) => infer E; }; }] ? E : never, { [K in keyof NER]: [NER[K]] extends [{ [EffectURI]: { _A: (_: never) => infer A; }; }] ? A : never; }>;
 ```
 
@@ -3490,9 +2625,6 @@ export declare const struct: <NER extends Record<string, Effect<any, any, any>>>
 Applicative structure processed in parallel.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops structPar
- */
 export declare const structPar: <NER extends Record<string, Effect<any, any, any>>>(r: Record<string, Effect<any, any, any>> | EnforceNonEmptyRecord<NER>) => Effect<[NER[keyof NER]] extends [{ [EffectURI]: { _R: (_: never) => infer R; }; }] ? R : never, [NER[keyof NER]] extends [{ [EffectURI]: { _E: (_: never) => infer E; }; }] ? E : never, { [K in keyof NER]: [NER[K]] extends [{ [EffectURI]: { _A: (_: never) => infer A; }; }] ? A : never; }>;
 ```
 
@@ -3501,9 +2633,6 @@ export declare const structPar: <NER extends Record<string, Effect<any, any, any
 Returns an effect that models success with the specified value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops succeed
- */
 export declare const succeed: <A>(value: A) => Effect<never, never, A>;
 ```
 
@@ -3512,9 +2641,6 @@ export declare const succeed: <A>(value: A) => Effect<never, never, A>;
 Returns an effect with the value on the left part.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops left
- */
 export declare const succeedLeft: <A>(value: A) => Effect<never, never, Either<A, never>>;
 ```
 
@@ -3523,9 +2649,6 @@ export declare const succeedLeft: <A>(value: A) => Effect<never, never, Either<A
 Returns an effect with the empty value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops none
- */
 export declare const succeedNone: Effect<never, never, Maybe<never>>;
 ```
 
@@ -3534,9 +2657,6 @@ export declare const succeedNone: Effect<never, never, Maybe<never>>;
 Returns an effect with the value on the right part.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops right
- */
 export declare const succeedRight: <A>(value: A) => Effect<never, never, Either<never, A>>;
 ```
 
@@ -3545,9 +2665,6 @@ export declare const succeedRight: <A>(value: A) => Effect<never, never, Either<
 Returns an effect with the optional value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops some
- */
 export declare const succeedSome: <A>(value: A) => Effect<never, never, Maybe<A>>;
 ```
 
@@ -3558,10 +2675,6 @@ then combining the values to produce a summary, together with the result of
 execution.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects summarized
- * @tsplus pipeable effect/core/io/Effect summarized
- */
 export declare const summarized: <R2, E2, B, C>(summary: Effect<R2, E2, B>, f: (start: B, end: B) => C) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, readonly [C, A]>;
 ```
 
@@ -3571,10 +2684,6 @@ Returns an effect with the behavior of this one, but where all child fibers
 forked in the effect are reported to the specified supervisor.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects supervised
- * @tsplus pipeable effect/core/io/Effect supervised
- */
 export declare const supervised: <X>(supervisor: Supervisor<X>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -3585,9 +2694,6 @@ effects. When no environment is required (i.e., when `R == unknown`) it is
 conceptually equivalent to `flatten(succeed(io))`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops suspend
- */
 export declare const suspend: <R, E, A>(f: LazyArg<Effect<R, E, A>>) => Effect<R, unknown, A>;
 ```
 
@@ -3600,9 +2706,6 @@ required (i.e., when `R == unknown`) it is conceptually equivalent to
 exceptions, do not use this method, use `suspend`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops suspendSucceed
- */
 export declare const suspendSucceed: <R, E, A>(effect: LazyArg<Effect<R, E, A>>) => Effect<R, E, A>;
 ```
 
@@ -3612,10 +2715,6 @@ Returns an effect that models success with the specified synchronous
 side-effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops __call
- * @tsplus static effect/core/io/Effect.Ops sync
- */
 export declare const sync: <A>(f: LazyArg<A>) => Effect<never, never, A>;
 ```
 
@@ -3624,9 +2723,6 @@ export declare const sync: <A>(f: LazyArg<A>) => Effect<never, never, A>;
 Takes all elements so long as the effectual predicate returns true.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops takeWhile
- */
 export declare const takeWhileEffect: <R, E, A>(self: Collection<A>, f: (a: A) => Effect<R, E, boolean>) => Effect<R, E, Chunk<A>>;
 ```
 
@@ -3635,10 +2731,6 @@ export declare const takeWhileEffect: <R, E, A>(self: Collection<A>, f: (a: A) =
 Returns an effect that effectfully "peeks" at the success of this effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects tap
- * @tsplus pipeable effect/core/io/Effect tap
- */
 export declare const tap: <A, R2, E2, X>(f: (a: A) => Effect<R2, E2, X>) => <R, E>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A>;
 ```
 
@@ -3648,10 +2740,6 @@ Returns an effect that effectfully "peeks" at the failure or success of
 this effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects tapBoth
- * @tsplus pipeable effect/core/io/Effect tapBoth
- */
 export declare const tapBoth: <E, A, R2, E2, X, R3, E3, X1>(f: (e: E) => Effect<R2, E2, X>, g: (a: A) => Effect<R3, E3, X1>) => <R>(self: Effect<R, E, A>) => Effect<R2 | R3 | R, E | E2 | E3, A>;
 ```
 
@@ -3660,10 +2748,6 @@ export declare const tapBoth: <E, A, R2, E2, X, R3, E3, X1>(f: (e: E) => Effect<
 Returns an effect that effectually "peeks" at the defect of this effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects tapDefect
- * @tsplus pipeable effect/core/io/Effect tapDefect
- */
 export declare const tapDefect: <R2, E2, X>(f: (cause: Cause<never>) => Effect<R2, E2, X>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A>;
 ```
 
@@ -3672,10 +2756,6 @@ export declare const tapDefect: <R2, E2, X>(f: (cause: Cause<never>) => Effect<R
 Returns an effect that effectfully "peeks" at the result of this effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects tapEither
- * @tsplus pipeable effect/core/io/Effect tapEither
- */
 export declare const tapEither: <E, A, R2, E2, X>(f: (either: Either<E, A>) => Effect<R2, E2, X>) => <R>(self: Effect<R, E, A>) => Effect<R2 | R, E | E2, A>;
 ```
 
@@ -3684,10 +2764,6 @@ export declare const tapEither: <E, A, R2, E2, X>(f: (either: Either<E, A>) => E
 Returns an effect that effectfully "peeks" at the failure of this effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects tapError
- * @tsplus pipeable effect/core/io/Effect tapError
- */
 export declare const tapError: <E, R2, E2, X>(f: (e: E) => Effect<R2, E2, X>) => <R, A>(self: Effect<R, E, A>) => Effect<R2 | R, E | E2, A>;
 ```
 
@@ -3697,10 +2773,6 @@ Returns an effect that effectually "peeks" at the cause of the failure of
 this effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects tapErrorCause
- * @tsplus pipeable effect/core/io/Effect tapErrorCause
- */
 export declare const tapErrorCause: <E, R2, E2, X>(f: (cause: Cause<E>) => Effect<R2, E2, X>) => <R, A>(self: Effect<R, E, A>) => Effect<R2 | R, E | E2, A>;
 ```
 
@@ -3711,10 +2783,6 @@ If the partial function isn't defined at the input, the result is
 equivalent to the original effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects tapSome
- * @tsplus pipeable effect/core/io/Effect tapSome
- */
 export declare const tapSome: <A, R1, E1, X>(pf: (a: A) => Maybe<Effect<R1, E1, X>>) => <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, A>;
 ```
 
@@ -3723,9 +2791,6 @@ export declare const tapSome: <A, R1, E1, X>(pf: (a: A) => Maybe<Effect<R1, E1, 
 Returns a new effect that executes this one and times the execution.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect timed
- */
 export declare const timed: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, readonly [Duration, A]>;
 ```
 
@@ -3734,10 +2799,6 @@ export declare const timed: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, rea
 A more powerful variation of `timed` that allows specifying the clock.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects timedWith
- * @tsplus pipeable effect/core/io/Effect timedWith
- */
 export declare const timedWith: <R1, E1>(milliseconds: Effect<R1, E1, number>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, readonly [Duration, A]>;
 ```
 
@@ -3759,10 +2820,6 @@ timeout, resulting in earliest possible return, before an underlying effect
 has been successfully interrupted.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects timeout
- * @tsplus pipeable effect/core/io/Effect timeout
- */
 export declare const timeout: (duration: Duration) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, Maybe<A>>;
 ```
 
@@ -3772,10 +2829,6 @@ The same as `timeout`, but instead of producing a `None` in the event of
 timeout, it will produce the specified error.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects timeoutFail
- * @tsplus pipeable effect/core/io/Effect timeoutFail
- */
 export declare const timeoutFail: <E1>(e: LazyArg<E1>, duration: Duration) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E1 | E, A>;
 ```
 
@@ -3785,10 +2838,6 @@ The same as `timeout`, but instead of producing a `None` in the event of
 timeout, it will produce the specified failure.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects timeoutFailCause
- * @tsplus pipeable effect/core/io/Effect timeoutFailCause
- */
 export declare const timeoutFailCause: <E1>(cause: LazyArg<Cause<E1>>, duration: Duration) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E1 | E, A>;
 ```
 
@@ -3803,10 +2852,6 @@ If the timeout elapses without producing a value, the running effect will
 be safely interrupted.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects timeoutTo
- * @tsplus pipeable effect/core/io/Effect timeoutTo
- */
 export declare const timeoutTo: <A, B, B1>(def: B1, f: (a: A) => B, duration: Duration) => <R, E>(self: Effect<R, E, A>) => Effect<R, E, B | B1>;
 ```
 
@@ -3815,10 +2860,6 @@ export declare const timeoutTo: <A, B, B1>(def: B1, f: (a: A) => B, duration: Du
 Constructs a layer from this effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects toLayer
- * @tsplus pipeable effect/core/io/Effect toLayer
- */
 export declare const toLayer: <A>(tag: Tag<A>) => <R, E>(self: Effect<R, E, A>) => Layer<R, E, A>;
 ```
 
@@ -3832,9 +2873,6 @@ This can be used to "graft" deep grandchildren onto a higher-level scope,
 effectively extending their lifespans into the parent scope.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops transplant
- */
 export declare const transplant: <R, E, A>(f: (grafter: Grafter) => Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -3844,9 +2882,6 @@ Imports a synchronous side-effect into a pure value, translating any
 thrown exceptions into typed failed effects.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops tryCatch
- */
 export declare const tryCatch: <E, A>(attempt: LazyArg<A>, onThrow: (u: unknown) => E) => Effect<never, E, A>;
 ```
 
@@ -3856,9 +2891,6 @@ Create an `Effect` that when executed will construct `promise` and wait for
 its result, errors will be handled using `onReject`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops tryCatchPromise
- */
 export declare const tryCatchPromise: <E, A>(promise: LazyArg<Promise<A>>, onReject: (reason: unknown) => E) => Effect<never, E, A>;
 ```
 
@@ -3868,10 +2900,6 @@ Executed `that` in case `self` fails with a `Cause` that doesn't contain
 defects, executes `success` in case of successes
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects tryOrElse
- * @tsplus pipeable effect/core/io/Effect tryOrElse
- */
 export declare const tryOrElse: <R2, E2, A2, A, R3, E3, A3>(that: LazyArg<Effect<R2, E2, A2>>, success: (a: A) => Effect<R3, E3, A3>) => <R, E>(self: Effect<R, E, A>) => Effect<R2 | R3 | R, E2 | E3, A2 | A3>;
 ```
 
@@ -3881,9 +2909,6 @@ Create an `Effect` that when executed will construct `promise` and wait for
 its result, errors will produce failure as `unknown`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops tryPromise
- */
 export declare const tryPromise: <A>(promise: LazyArg<Promise<A>>) => Effect<never, unknown, A>;
 ```
 
@@ -3892,9 +2917,6 @@ export declare const tryPromise: <A>(promise: LazyArg<Promise<A>>) => Effect<nev
 Like `forEach` + `identity` with a tuple type.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops tuple
- */
 export declare const tuple: <T extends NonEmptyArrayEffect>(...t: T & { 0: Effect<any, any, any>; }) => Effect<[T[number]] extends [{ [EffectURI]: { _R: (_: never) => infer R; }; }] ? R : never, [T[number]] extends [{ [EffectURI]: { _E: (_: never) => infer E; }; }] ? E : never, TupleA<T>>;
 ```
 
@@ -3903,9 +2925,6 @@ export declare const tuple: <T extends NonEmptyArrayEffect>(...t: T & { 0: Effec
 Like tuple but parallel, same as `forEachPar` + `identity` with a tuple type.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops tuplePar
- */
 export declare const tuplePar: <T extends NonEmptyArrayEffect>(...t: T & { 0: Effect<any, any, any>; }) => Effect<[T[number]] extends [{ [EffectURI]: { _R: (_: never) => infer R; }; }] ? R : never, [T[number]] extends [{ [EffectURI]: { _E: (_: never) => infer E; }; }] ? E : never, TupleA<T>>;
 ```
 
@@ -3918,9 +2937,6 @@ succeeds with unit, depending on whether the cause is empty.
 This operation is the opposite of `cause`.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect uncause
- */
 export declare const uncause: <R, E>(self: Effect<R, never, Cause<E>>) => Effect<R, E, void>;
 ```
 
@@ -3930,18 +2946,12 @@ Constructs a `Chunk` by repeatedly applying the effectual function `f` as
 long as it returns `Some`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops unfold
- */
 export declare const unfold: <A, R, E, S>(s: S, f: (s: S) => Effect<R, E, Maybe<readonly [A, S]>>) => Effect<R, E, Chunk<A>>;
 ```
 
 ### unifyEffect
 
 ```ts
-/**
- * @tsplus unify effect/core/io/Effect
- */
 export declare const unifyEffect: <X extends Effect<any, any, any>>(self: X) => Effect<[X] extends [{ readonly [EffectURI]: { _R: (_: never) => infer R; }; }] ? R : never, [X] extends [{ readonly [EffectURI]: { _E: (_: never) => infer E; }; }] ? E : never, [X] extends [{ readonly [EffectURI]: { _A: (_: never) => infer A; }; }] ? A : never>;
 ```
 
@@ -3962,9 +2972,6 @@ export declare const uninterruptibleMask: <R, E, A>(f: (statusRestore: Interrupt
 An effect that succeeds with a unit value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops unit
- */
 export declare const unit: Effect<never, never, void>;
 ```
 
@@ -3973,9 +2980,6 @@ export declare const unit: Effect<never, never, void>;
 An effect that succeeds with a unit value.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops unitTraced
- */
 export declare const unitTraced: () => Effect<never, never, void>;
 ```
 
@@ -3985,9 +2989,6 @@ Converts a `Effect<R, Either<E, B>, A>` into a `Effect<R, E, Either<A, B>>`.
 The inverse of `left`.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect unleft
- */
 export declare const unleft: <R, E, B, A>(self: Effect<R, Either<E, B>, A>) => Effect<R, E, Either<A, B>>;
 ```
 
@@ -3996,10 +2997,6 @@ export declare const unleft: <R, E, B, A>(self: Effect<R, Either<E, B>, A>) => E
 The moral equivalent of `if (!p) exp`
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects unless
- * @tsplus pipeable effect/core/io/Effect unless
- */
 export declare const unless: (predicate: LazyArg<boolean>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, Maybe<A>>;
 ```
 
@@ -4008,10 +3005,6 @@ export declare const unless: (predicate: LazyArg<boolean>) => <R, E, A>(self: Ef
 The moral equivalent of `if (!p) exp` when `p` has side-effects.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects unlessEffect
- * @tsplus pipeable effect/core/io/Effect unlessEffect
- */
 export declare const unlessEffect: <R2, E2>(predicate: Effect<R2, E2, boolean>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, Maybe<A>>;
 ```
 
@@ -4020,10 +3013,6 @@ export declare const unlessEffect: <R2, E2>(predicate: Effect<R2, E2, boolean>) 
 Takes some fiber failures and converts them into errors.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects unrefine
- * @tsplus pipeable effect/core/io/Effect unrefine
- */
 export declare const unrefine: <E1>(pf: (u: unknown) => Maybe<E1>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E1 | E, A>;
 ```
 
@@ -4033,10 +3022,6 @@ Takes some fiber failures and converts them into errors, using the
 specified function to convert the `E` into an `E1 | E2`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects unrefineWith
- * @tsplus pipeable effect/core/io/Effect unrefineWith
- */
 export declare const unrefineWith: <E, E1, E2>(pf: (u: unknown) => Maybe<E1>, f: (e: E) => E2) => <R, A>(self: Effect<R, E, A>) => Effect<R, E1 | E2, A>;
 ```
 
@@ -4046,79 +3031,48 @@ Converts a `Effect<R, Either<B, E>, A>` into a `Effect<R, E, Either<B, A>>`.
 The inverse of `right`.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect unright
- */
 export declare const unright: <R, B, E, A>(self: Effect<R, Either<B, E>, A>) => Effect<R, E, Either<B, A>>;
 ```
 
 ### unsafeRunAsync
 
 ```ts
-/**
- * @tsplus fluent effect/core/io/Effect unsafeRunAsync
- * @tsplus static effect/core/io/Effect.Aspects unsafeRunAsync
- */
 export declare const unsafeRunAsync: <E, A>(effect: Effect<never, E, A>) => void;
 ```
 
 ### unsafeRunAsyncWith
 
 ```ts
-/**
- * @tsplus fluent effect/core/io/Effect unsafeRunAsyncWith
- * @tsplus static effect/core/io/Effect.Aspects unsafeRunAsyncWith
- */
 export declare const unsafeRunAsyncWith: <E, A>(effect: Effect<never, E, A>, k: (exit: Exit<E, A>) => void) => void;
 ```
 
 ### unsafeRunPromise
 
 ```ts
-/**
- * @tsplus fluent effect/core/io/Effect unsafeRunPromise
- * @tsplus static effect/core/io/Effect.Aspects unsafeRunPromise
- */
 export declare const unsafeRunPromise: <E, A>(effect: Effect<never, E, A>) => Promise<A>;
 ```
 
 ### unsafeRunPromiseExit
 
 ```ts
-/**
- * @tsplus fluent effect/core/io/Effect unsafeRunPromiseExit
- * @tsplus static effect/core/io/Effect.Aspects unsafeRunPromiseExit
- */
 export declare const unsafeRunPromiseExit: <E, A>(effect: Effect<never, E, A>) => Promise<Exit<E, A>>;
 ```
 
 ### unsafeRunSync
 
 ```ts
-/**
- * @tsplus fluent effect/core/io/Effect unsafeRunSync
- * @tsplus static effect/core/io/Effect.Aspects unsafeRunSync
- */
 export declare const unsafeRunSync: <E, A>(effect: Effect<never, E, A>) => A;
 ```
 
 ### unsafeRunSyncExit
 
 ```ts
-/**
- * @tsplus fluent effect/core/io/Effect unsafeRunSyncExit
- * @tsplus static effect/core/io/Effect.Aspects unsafeRunSyncExit
- */
 export declare const unsafeRunSyncExit: <E, A>(effect: Effect<never, E, A>) => Exit<E, A>;
 ```
 
 ### unsafeRunWith
 
 ```ts
-/**
- * @tsplus fluent effect/core/io/Effect unsafeRunWith
- * @tsplus static effect/core/io/Effect.Aspects unsafeRunWith
- */
 export declare const unsafeRunWith: <E, A>(effect: Effect<never, E, A>, k: (exit: Exit<E, A>) => void) => (fiberId: FiberId) => (_: (exit: Exit<E, A>) => void) => void;
 ```
 
@@ -4130,9 +3084,6 @@ Terminates with exceptions on the `Left` side of the `Either` error, if it
 exists. Otherwise extracts the contained `Effect< R, E, A>`
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect unsandbox
- */
 export declare const unsandbox: <R, E, A>(self: Effect<R, Cause<E>, A>) => Effect<R, E, A>;
 ```
 
@@ -4141,9 +3092,6 @@ export declare const unsandbox: <R, E, A>(self: Effect<R, Cause<E>, A>) => Effec
 Converts an option on errors into an option on values.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect unsome
- */
 export declare const unsome: <R, E, A>(self: Effect<R, Maybe<E>, A>) => Effect<R, E, Maybe<A>>;
 ```
 
@@ -4153,9 +3101,6 @@ Updates the `FiberRef` values for the fiber running this effect using the
 specified function.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops updateFiberRefs
- */
 export declare const updateFiberRefs: (f: (fiberId: RuntimeFiberId, fiberRefs: FiberRefs) => FiberRefs) => Effect<never, never, void>;
 ```
 
@@ -4165,9 +3110,6 @@ Updates the runtime flags. This may have a performance impact. For a
 higher-performance variant, see `ZIO#withRuntimeFlags`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops updateRuntimeFlags
- */
 export declare const updateRuntimeFlags: (patch: RuntimeFlagsPatch) => Effect<never, never, void>;
 ```
 
@@ -4176,10 +3118,6 @@ export declare const updateRuntimeFlags: (patch: RuntimeFlagsPatch) => Effect<ne
 Updates the service with the required service entry.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects updateService
- * @tsplus pipeable effect/core/io/Effect updateService
- */
 export declare const updateService: <T, T1 extends T>(tag: Tag<T>, f: (_: T) => T1) => <R, E, A>(self: Effect<R, E, A>) => Effect<T | R, E, A>;
 ```
 
@@ -4192,9 +3130,6 @@ This combinator is lossy meaning that if there are errors all successes
 will be lost. To retain all information please use `partition`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops validate
- */
 export declare const validate: <R, E, A, B>(as: Collection<A>, f: (a: A) => Effect<R, E, B>) => Effect<R, Chunk<E>, Chunk<B>>;
 ```
 
@@ -4204,9 +3139,6 @@ Feeds elements of type `A` to `f` and accumulates all errors, discarding
 the successes.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops validateDiscard
- */
 export declare const validateDiscard: <R, E, A, X>(as: Collection<A>, f: (a: A) => Effect<R, E, X>) => Effect<R, Chunk<E>, void>;
 ```
 
@@ -4216,9 +3148,6 @@ Feeds elements of type `A` to `f` until it succeeds. Returns first success
 or the accumulation of all errors.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops validateFirst
- */
 export declare const validateFirst: <R, E, A, B>(as: Collection<A>, f: (a: A) => Effect<R, E, B>) => Effect<R, Chunk<E>, B>;
 ```
 
@@ -4228,9 +3157,6 @@ Feeds elements of type `A` to `f` until it succeeds. Returns first success
 or the accumulation of all errors.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops validateFirstPar
- */
 export declare const validateFirstPar: <R, E, A, B>(as: Collection<A>, f: (a: A) => Effect<R, E, B>) => Effect<R, Chunk<E>, B>;
 ```
 
@@ -4240,10 +3166,6 @@ Sequentially zips the this result with the specified result. Combines both
 `Cause<E1>` when both effects fail.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects validate
- * @tsplus pipeable effect/core/io/Effect validate
- */
 export declare const validateNow: <R1, E1, B>(that: Effect<R1, E1, B>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, readonly [A, B]>;
 ```
 
@@ -4256,9 +3178,6 @@ This combinator is lossy meaning that if there are errors all successes
 will be lost. To retain all information please use [[partitionPar]].
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops validatePar
- */
 export declare const validatePar: <R, E, A, B>(as: Collection<A>, f: (a: A) => Effect<R, E, B>) => Effect<R, Chunk<E>, Chunk<B>>;
 ```
 
@@ -4268,9 +3187,6 @@ Feeds elements of type `A` to `f` in parallel and accumulates all errors,
 discarding the successes.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops validateParDiscard
- */
 export declare const validateParDiscard: <R, E, A, X>(as: Collection<A>, f: (a: A) => Effect<R, E, X>) => Effect<R, Chunk<E>, void>;
 ```
 
@@ -4280,10 +3196,6 @@ Returns an effect that executes both this effect and the specified effect,
 in parallel. Combines both Cause<E1>` when both effects fail.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects validatePar
- * @tsplus pipeable effect/core/io/Effect validatePar
- */
 export declare const validateParNow: <R1, E1, B>(that: Effect<R1, E1, B>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, readonly [A, B]>;
 ```
 
@@ -4293,10 +3205,6 @@ Sequentially zips this effect with the specified effect using the specified
 combiner function. Combines the causes in case both effect fail.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects validateWith
- * @tsplus pipeable effect/core/io/Effect validateWith
- */
 export declare const validateWith: <A, R1, E1, B, C>(that: Effect<R1, E1, B>, f: (a: A, b: B) => C) => <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, C>;
 ```
 
@@ -4307,10 +3215,6 @@ in parallel, combining their results with the specified `f` function. If
 both sides fail, then the cause will be combined.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects validateWithPar
- * @tsplus pipeable effect/core/io/Effect validateWithPar
- */
 export declare const validateWithPar: <A, R1, E1, B, C>(that: Effect<R1, E1, B>, f: (a: A, b: B) => C) => <R, E>(self: Effect<R, E, A>) => Effect<R1 | R, E1 | E, C>;
 ```
 
@@ -4319,9 +3223,6 @@ export declare const validateWithPar: <A, R1, E1, B, C>(that: Effect<R1, E1, B>,
 The moral equivalent of `if (p) exp`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops when
- */
 export declare const when: <R, E, A>(predicate: LazyArg<boolean>, effect: Effect<R, E, A>) => Effect<R, E, Maybe<A>>;
 ```
 
@@ -4331,9 +3232,6 @@ Runs an effect when the supplied partial function matches for the given
 value, otherwise does nothing.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops whenCase
- */
 export declare const whenCase: <R, E, A, B>(a: LazyArg<A>, pf: (a: A) => Maybe<Effect<R, E, B>>) => Effect<R, E, Maybe<B>>;
 ```
 
@@ -4343,9 +3241,6 @@ Runs an effect when the supplied partial function matches for the given
 value, otherwise does nothing.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops whenCaseEffect
- */
 export declare const whenCaseEffect: <R, E, A, R1, E1, B>(effect: Effect<R, E, A>, pf: (a: A) => Maybe<Effect<R1, E1, B>>) => Effect<R | R1, E | E1, Maybe<B>>;
 ```
 
@@ -4354,9 +3249,6 @@ export declare const whenCaseEffect: <R, E, A, R1, E1, B>(effect: Effect<R, E, A
 The moral equivalent of `if (p) exp` when `p` has side-effects.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops whenEffect
- */
 export declare const whenEffect: <R, E, R1, E1, A>(predicate: Effect<R, E, boolean>, effect: Effect<R1, E1, A>) => Effect<R | R1, E | E1, Maybe<A>>;
 ```
 
@@ -4369,9 +3261,6 @@ See [[Effect.iterate]] for a user-friendly version of this operator that is
 compatible with purely functional code.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops whileLoop
- */
 export declare const whileLoop: <R, E, A>(check: LazyArg<boolean>, body: LazyArg<Effect<R, E, A>>, process: (a: A) => void) => Effect<R, E, A>;
 ```
 
@@ -4381,9 +3270,6 @@ Locally installs a supervisor and an effect that succeeds with all the
 children that have been forked in the returned effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops withChildren
- */
 export declare const withChildren: <R, E, A>(get: (children: Effect<never, never, Chunk<Runtime<any, any>>>) => Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -4393,9 +3279,6 @@ Executes the specified workflow with the specified implementation of the
 clock service.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops withClock
- */
 export declare const withClock: <C extends Clock>(clock: C) => <R, E, A>(effect: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -4405,9 +3288,6 @@ Sets the implementation of the clock service to the specified value and
 restores it to its original value when the scope is closed.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops withClockScoped
- */
 export declare const withClockScoped: <A extends Clock>(clock: A) => Effect<Scope, never, void>;
 ```
 
@@ -4416,9 +3296,6 @@ export declare const withClockScoped: <A extends Clock>(clock: A) => Effect<Scop
 Access the fiber runtime that is currently running this fiber.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops withFiberRuntime
- */
 export declare const withFiberRuntime: <R, E, A>(onState: (fiber: FiberRuntime<E, A>, status: Running) => Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -4429,10 +3306,6 @@ specified finalizer to the current scope. This effect will be run
 uninterruptibly and the finalizer will be run when the scope is closed.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects withFinalizer
- * @tsplus pipeable effect/core/io/Effect withFinalizer
- */
 export declare const withFinalizer: <R2, X>(finalizer: Effect<R2, never, X>) => <R, E, A>(self: Effect<R, E, A>) => Effect<Scope | R2 | R, E, A>;
 ```
 
@@ -4442,10 +3315,6 @@ A more powerful variant of `withFinalizer` that allows the finalizer to
 depend on the `Exit` value that the scope is closed with.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects withFinalizerExit
- * @tsplus pipeable effect/core/io/Effect withFinalizerExit
- */
 export declare const withFinalizerExit: <R2, X>(finalizer: (exit: Exit<unknown, unknown>) => Effect<R2, never, X>) => <R, E, A>(self: Effect<R, E, A>) => Effect<Scope | R2 | R, E, A>;
 ```
 
@@ -4455,10 +3324,6 @@ Runs the specified effect with the specified maximum number of fibers for
 parallel operators.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects withParallelism
- * @tsplus pipeable effect/core/io/Effect withParallelism
- */
 export declare const withParallelism: (n: number) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -4468,9 +3333,6 @@ Runs the specified effect with an unbounded maximum number of fibers for
 parallel operators.
 
 ```ts
-/**
- * @tsplus getter effect/core/io/Effect withParallelismUnbounded
- */
 export declare const withParallelismUnbounded: <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -4480,9 +3342,6 @@ Returns a new Effect that will update the runtime flags according to
 the specified patch within the scope of this Effect.
 
 ```ts
-/**
- * @tsplus pipeable effect/core/io/Effect withRuntimeFlags
- */
 export declare const withRuntimeFlags: (update: RuntimeFlagsPatch) => <R, E, A>(self: Effect<R, E, A>) => Effect<R, E, A>;
 ```
 
@@ -4493,9 +3352,6 @@ stack. Manual use of this method can improve fairness, at the cost of
 overhead.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Ops yieldNow
- */
 export declare const yieldNow: Effect<never, never, void>;
 ```
 
@@ -4504,11 +3360,6 @@ export declare const yieldNow: Effect<never, never, void>;
 Sequentially zips this effect with the specified effect
 
 ```ts
-/**
- * @tsplus pipeable-operator effect/core/io/Effect +
- * @tsplus static effect/core/io/Effect.Aspects zip
- * @tsplus pipeable effect/core/io/Effect zip
- */
 export declare const zip: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, readonly [A, A2]>;
 ```
 
@@ -4517,10 +3368,6 @@ export declare const zip: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(se
 Sequentially zips this effect with the specified effect
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects zipFlatten
- * @tsplus pipeable effect/core/io/Effect zipFlatten
- */
 export declare const zipFlatten: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A extends readonly any[]>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, readonly [...A, A2]>;
 ```
 
@@ -4529,10 +3376,6 @@ export declare const zipFlatten: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E
 Sequentially zips this effect with the specified effect
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects zipFlattenPar
- * @tsplus pipeable effect/core/io/Effect zipFlattenPar
- */
 export declare const zipFlattenPar: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A extends readonly any[]>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, readonly [...A, A2]>;
 ```
 
@@ -4542,11 +3385,6 @@ Sequences the specified effect after this effect, but ignores the value
 produced by the effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects zipLeft
- * @tsplus pipeable effect/core/io/Effect zipLeft
- * @tsplus pipeable-operator effect/core/io/Effect <
- */
 export declare const zipLeft: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A>;
 ```
 
@@ -4555,11 +3393,6 @@ export declare const zipLeft: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A
 Zips this effect and that effect in parallel.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects zipPar
- * @tsplus pipeable effect/core/io/Effect zipPar
- * @tsplus pipeable-operator effect/core/io/Effect &
- */
 export declare const zipPar: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, readonly [A, A2]>;
 ```
 
@@ -4570,10 +3403,6 @@ in parallel, this effect result returned. If either side fails, then the
 other side will be interrupted.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects zipParLeft
- * @tsplus pipeable effect/core/io/Effect zipParLeft
- */
 export declare const zipParLeft: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A>;
 ```
 
@@ -4584,10 +3413,6 @@ in parallel, returning result of provided effect. If either side fails,
 then the other side will be interrupted.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects zipParRight
- * @tsplus pipeable effect/core/io/Effect zipParRight
- */
 export declare const zipParRight: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A2>;
 ```
 
@@ -4596,11 +3421,6 @@ export declare const zipParRight: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, 
 A variant of `flatMap` that ignores the value produced by this effect.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects zipRight
- * @tsplus pipeable effect/core/io/Effect zipRight
- * @tsplus pipeable-operator effect/core/io/Effect >
- */
 export declare const zipRight: <R2, E2, A2>(that: Effect<R2, E2, A2>) => <R, E, A>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, A2>;
 ```
 
@@ -4610,10 +3430,6 @@ Sequentially zips this effect with the specified effect using the
 specified combiner function.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects zipWith
- * @tsplus pipeable effect/core/io/Effect zipWith
- */
 export declare const zipWith: <R2, E2, A2, A, B>(that: Effect<R2, E2, A2>, f: (a: A, b: A2) => B) => <R, E>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, B>;
 ```
 
@@ -4623,10 +3439,6 @@ Sequentially zips this effect with the specified effect using the
 specified combiner function.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Effect.Aspects zipWithPar
- * @tsplus pipeable effect/core/io/Effect zipWithPar
- */
 export declare const zipWithPar: <R2, E2, A2, A, B>(that: Effect<R2, E2, A2>, f: (a: A, b: A2) => B) => <R, E>(self: Effect<R, E, A>) => Effect<R2 | R, E2 | E, B>;
 ```
 

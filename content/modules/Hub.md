@@ -33,9 +33,6 @@ export interface Hub<A> extends Enqueue<A> {
 ### backPressureStrategy
 
 ```ts
-/**
- * @tsplus static effect/core/io/Hub/Strategy.Ops BackPressure
- */
 export declare const backPressureStrategy: <A>() => Strategy<A>;
 ```
 
@@ -48,9 +45,6 @@ pressure to publishers if the hub is at capacity.
 For best performance use capacities that are powers of two.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Hub.Ops bounded
- */
 export declare const bounded: <A>(requestedCapacity: number) => Effect<never, never, Hub<A>>;
 ```
 
@@ -62,18 +56,12 @@ messages if the hub is at capacity.
 For best performance use capacities that are powers of two.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Hub.Ops dropping
- */
 export declare const dropping: <A>(requestedCapacity: number) => Effect<never, never, Hub<A>>;
 ```
 
 ### droppingStrategy
 
 ```ts
-/**
- * @tsplus static effect/core/io/Hub/Strategy.Ops Dropping
- */
 export declare const droppingStrategy: <A>() => Strategy<A>;
 ```
 
@@ -85,18 +73,12 @@ messages and drop old messages if the hub is at capacity.
 For best performance use capacities that are powers of two.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Hub.Ops sliding
- */
 export declare const sliding: <A>(requestedCapacity: number) => Effect<never, never, Hub<A>>;
 ```
 
 ### slidingStrategy
 
 ```ts
-/**
- * @tsplus static effect/core/io/Hub/Strategy.Ops Sliding
- */
 export declare const slidingStrategy: <A>() => Strategy<A>;
 ```
 
@@ -105,9 +87,6 @@ export declare const slidingStrategy: <A>() => Strategy<A>;
 Creates an unbounded hub.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Hub.Ops unbounded
- */
 export declare const unbounded: <A>() => Effect<never, never, Hub<A>>;
 ```
 

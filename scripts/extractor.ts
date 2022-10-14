@@ -85,7 +85,7 @@ for (const statement of source?.statements) {
             .getJsDocTags(checker)
             .filter((t) => t.text != null)
             .map((t) => ({ name: t.name, text: t.text!.map((p) => p.text).join(' ') }))
-            .filter((t) => !(t.name === 'tsplus' && t.text.startsWith('location')))
+            .filter((t) => t.name !== 'tsplus')
           if (tags.length > 0) {
             text += '/**\n'
             for (const tag of tags) {

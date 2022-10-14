@@ -22,9 +22,6 @@ export interface Deferred<E, A> extends DeferredInternal<E, A> {
 Makes a new `Deferred` to be completed by the fiber creating the `Deferred`.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Deferred.Ops make
- */
 export declare const make: <E, A>() => Effect<never, never, Deferred<E, A>>;
 ```
 
@@ -33,9 +30,6 @@ export declare const make: <E, A>() => Effect<never, never, Deferred<E, A>>;
 Makes a new `Deferred` to be completed by the fiber with the specified id.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Deferred.Ops makeAs
- */
 export declare const makeAs: <E, A>(fiberId: FiberId) => Effect<never, never, Deferred<E, A>>;
 ```
 

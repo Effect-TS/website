@@ -34,9 +34,6 @@ retry policies to the acquisition effect before passing it to this
 constructor.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Cached.Ops auto
- */
 export declare const auto: <R, Error, Resource, State, Env, In, Out>(acquire: Effect<R, Error, Resource>, policy: Schedule<State, Env, In, Out>) => Effect<Scope | R | Env, never, Cached<Error, Resource>>;
 ```
 
@@ -49,9 +46,6 @@ retry policies to the acquisition effect before passing it to this
 constructor.
 
 ```ts
-/**
- * @tsplus static effect/core/io/Cached.Ops manual
- */
 export declare const manual: <R, Error, Resource>(acquire: Effect<R, Error, Resource>) => Effect<Scope | R, never, Cached<Error, Resource>>;
 ```
 
