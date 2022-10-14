@@ -49,13 +49,15 @@ for (const statement of source?.statements) {
             }
           }
           text += '```ts\n'
-          const tags = prop.getJsDocTags(checker)
+          const tags = prop
+            .getJsDocTags(checker)
+            .filter((t) => t.text != null)
+            .map((t) => ({ name: t.name, text: t.text!.map((p) => p.text).join(' ') }))
+            .filter((t) => !(t.name === 'tsplus' && t.text.startsWith('location')))
           if (tags.length > 0) {
             text += '/**\n'
             for (const tag of tags) {
-              if (tag.text) {
-                text += ' * @' + tag.name + ' ' + tag.text.map((p) => p.text).join(' ') + '\n'
-              }
+              text += ' * @' + tag.name + ' ' + tag.text + '\n'
             }
             text += ' */\n'
           }
