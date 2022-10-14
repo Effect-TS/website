@@ -3,7 +3,11 @@ import * as fs from 'node:fs'
 import { execSync } from 'node:child_process'
 import * as path from 'node:path'
 
-const paths = [path.join(__dirname, './effect/io.ts'), path.join(__dirname, './fp-ts/core.ts')]
+const paths = [
+  path.join(__dirname, './effect/io.ts'),
+  path.join(__dirname, './fp-ts/core.ts'),
+  path.join(__dirname, './fp-ts/data.ts'),
+]
 
 execSync(`rm -rf ${path.join(__dirname, `../content/reference`)}`)
 execSync(`mkdir -p ${path.join(__dirname, `../content/reference`)}`)

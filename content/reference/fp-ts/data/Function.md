@@ -1,6 +1,6 @@
 ## Function
 
-Reference Documentation for the module '@fp-ts/core/Function'
+Reference Documentation for the module '@fp-ts/data/Function'
 
 ## Methods
 
