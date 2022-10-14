@@ -30,8 +30,18 @@ for (const statement of source?.statements) {
             text += doc.text + '\n\n'
           }
         }
+        const models: string[] = []
+        for (const tag of nameSymbol.getJsDocTags(checker)) {
+          if (tag.name === 'model') {
+            const text = tag.text?.map((s) => s.text).join(' ')
+            if (text) {
+              models.push(text)
+            }
+          }
+        }
+
         for (const s of source.statements) {
-          if (ts.isTypeAliasDeclaration(s) && s.name.text === nameSymbol.name) {
+          if (ts.isTypeAliasDeclaration(s) && (s.name.text === nameSymbol.name || models.includes(s.name.text))) {
             const type = checker.getTypeAtLocation(s.name)
             const symbol: ts.Symbol | undefined =
               type.symbol ??

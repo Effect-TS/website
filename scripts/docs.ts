@@ -58,7 +58,13 @@ const Logger: Omit<typeof LG, never> = LG
 
 export type Hub<A> = HB.Hub<A>
 export type Effect<R, E, A> = E.Effect<R, E, A>
+
+/**
+ * @model Enqueue
+ * @model Dequeue
+ */
 export type Queue<A> = Q.Queue<A>
+
 export type Ref<A> = R.Ref<A>
 export type Cause<A> = C.Cause<A>
 export type Exit<E, A> = EX.Exit<E, A>
@@ -87,9 +93,7 @@ export type Metric<Type, In, Out> = ME.Metric<Type, In, Out>
 // Simulated Modules
 //
 
-const Enqueue = {}
 export type Enqueue<A> = Q.Enqueue<A>
-const Dequeue = {}
 export type Dequeue<A> = Q.Dequeue<A>
 
 export {
@@ -205,12 +209,4 @@ export {
    * Reference Documentation for the module '@effect/core/io/Random'
    */
   Random,
-  /**
-   * Reference Documentation for the module Enqueue in '@effect/core/io/Queue'
-   */
-  Enqueue,
-  /**
-   * Reference Documentation for the module Dequeue in '@effect/core/io/Queue'
-   */
-  Dequeue,
 }
