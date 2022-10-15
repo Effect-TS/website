@@ -2,7 +2,7 @@
 
 Reference Documentation for the module '@effect/io/DefaultServices'
 
-## Methods
+## General API
 
 ### currentServices
 

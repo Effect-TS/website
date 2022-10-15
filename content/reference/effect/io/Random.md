@@ -14,7 +14,7 @@ export interface Random {
 }
 ```
 
-## Methods
+## General API
 
 ### defaultRandom
 

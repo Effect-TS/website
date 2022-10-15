@@ -2,7 +2,7 @@
 
 Reference Documentation for the module '@fp-ts/data/ReadonlyArray'
 
-## Constructors
+## General API
 
 ### append
 
@@ -56,7 +56,7 @@ export declare const replicate: <A>(a: A) => (n: number) => readonly A[];
 
 Added in: 3.0.0
 
-## Conversions
+## General API
 
 ### fromIterable
 
@@ -92,7 +92,7 @@ export declare const fromResult: <A>(fa: Result<unknown, A>) => readonly A[];
 
 Added in: 3.0.0
 
-## Do notation
+## General API
 
 ### bind
 
@@ -128,7 +128,7 @@ export declare const let: <N extends string, A extends object, B>(name: Exclude<
 
 Added in: 3.0.0
 
-## Error handling
+## General API
 
 ### firstSuccessOf
 
@@ -140,7 +140,7 @@ export declare const firstSuccessOf: <A>(collection: Iterable<readonly A[]>) => 
 
 Added in: 3.0.0
 
-## Filtering
+## General API
 
 ### compact
 
@@ -238,7 +238,7 @@ export declare const traversePartitionMap: <F extends TypeLambda>(F: Applicative
 
 Added in: 3.0.0
 
-## Folding
+## General API
 
 ### foldMap
 
@@ -296,7 +296,7 @@ export declare const reduceWithIndex: <B, A>(b: B, f: (i: number, b: B, a: A) =>
 
 Added in: 3.0.0
 
-## Instances
+## General API
 
 ### getEq
 
@@ -375,7 +375,7 @@ export declare const getUnionSemigroup: <A>(E: Eq<A>) => Semigroup<readonly A[]>
 
 Added in: 3.0.0
 
-## Lifting
+## General API
 
 ### lift2
 
@@ -429,7 +429,7 @@ export declare const liftResult: <A extends readonly unknown[], E, B>(f: (...a: 
 
 Added in: 3.0.0
 
-## Mapping
+## General API
 
 ### as
 
@@ -469,7 +469,134 @@ export declare const unit: (self: readonly unknown[]) => readonly void[];
 
 Added in: 3.0.0
 
-## Methods
+## General API
+
+### match
+
+```ts
+export declare const match: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (as: readonly [A, ...A[]]) => C) => (as: readonly A[]) => B | C;
+```
+
+Added in: 3.0.0
+
+### matchLeft
+
+Break a `ReadonlyArray` into its first element and remaining elements.
+
+```ts
+export declare const matchLeft: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (head: A, tail: readonly A[]) => C) => (as: readonly A[]) => B | C;
+```
+
+Added in: 3.0.0
+
+### matchRight
+
+Break a `ReadonlyArray` into its initial elements and the last element.
+
+```ts
+export declare const matchRight: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (init: readonly A[], last: A) => C) => (as: readonly A[]) => B | C;
+```
+
+Added in: 3.0.0
+
+## General API
+
+### isNonEmpty
+
+Test whether a `ReadonlyArray` is non empty narrowing down the type to `NonEmptyReadonlyArray<A>`
+
+```ts
+export declare const isNonEmpty: <A>(as: readonly A[]) => as is readonly [A, ...A[]];
+```
+
+Added in: 3.0.0
+
+## General API
+
+### flatMap
+
+```ts
+export declare const flatMap: <A, B>(f: (a: A) => readonly B[]) => (self: readonly A[]) => readonly B[];
+```
+
+Added in: 3.0.0
+
+### flatMapNullable
+
+```ts
+export declare const flatMapNullable: <A, B>(f: (a: A) => B) => (ma: readonly A[]) => readonly NonNullable<B>[];
+```
+
+Added in: 3.0.0
+
+### zipLeft
+
+Sequences the specified effect after this effect, but ignores the value
+produced by the effect.
+
+```ts
+export declare const zipLeft: (that: readonly unknown[]) => <A>(self: readonly A[]) => readonly A[];
+```
+
+Added in: 3.0.0
+
+### zipRight
+
+A variant of `flatMap` that ignores the value produced by this effect.
+
+```ts
+export declare const zipRight: <A>(that: readonly A[]) => (self: readonly unknown[]) => readonly A[];
+```
+
+Added in: 3.0.0
+
+## General API
+
+### sequence
+
+```ts
+export declare const sequence: <F extends TypeLambda>(F: Applicative<F>) => <S, R, O, E, A>(fas: readonly Kind<F, S, R, O, E, A>[]) => Kind<F, S, R, O, E, readonly A[]>;
+```
+
+Added in: 3.0.0
+
+### traverse
+
+```ts
+export declare const traverse: <F extends TypeLambda>(Applicative: Applicative<F>) => <A, S, R, O, E, B>(f: (a: A) => Kind<F, S, R, O, E, B>) => (self: readonly A[]) => Kind<F, S, R, O, E, readonly B[]>;
+```
+
+Added in: 3.0.0
+
+### traverseWithIndex
+
+```ts
+export declare const traverseWithIndex: <F extends TypeLambda>(Applicative: Applicative<F>) => <A, S, R, O, E, B>(f: (i: number, a: A) => Kind<F, S, R, O, E, B>) => (self: readonly A[]) => Kind<F, S, R, O, E, readonly B[]>;
+```
+
+Added in: 3.0.0
+
+## General API
+
+### tupled
+
+```ts
+export declare const tupled: <A>(self: readonly A[]) => readonly (readonly [A])[];
+```
+
+Added in: 3.0.0
+
+### zipFlatten
+
+Sequentially zips this effect with the specified effect.
+
+```ts
+export declare const zipFlatten: <B>(fb: readonly B[]) => <A extends readonly unknown[]>(self: readonly A[]) => readonly (readonly [...A, B])[];
+```
+
+Added in: 3.0.0
+
+## General API
 
 ### ap
 
@@ -1125,133 +1252,6 @@ input `ReadonlyArray` is short, excess elements of the longer `ReadonlyArray` ar
 
 ```ts
 export declare const zipWith: <B, A, C>(fb: readonly B[], f: (a: A, b: B) => C) => (fa: readonly A[]) => readonly C[];
-```
-
-Added in: 3.0.0
-
-## Pattern matching
-
-### match
-
-```ts
-export declare const match: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (as: readonly [A, ...A[]]) => C) => (as: readonly A[]) => B | C;
-```
-
-Added in: 3.0.0
-
-### matchLeft
-
-Break a `ReadonlyArray` into its first element and remaining elements.
-
-```ts
-export declare const matchLeft: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (head: A, tail: readonly A[]) => C) => (as: readonly A[]) => B | C;
-```
-
-Added in: 3.0.0
-
-### matchRight
-
-Break a `ReadonlyArray` into its initial elements and the last element.
-
-```ts
-export declare const matchRight: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (init: readonly A[], last: A) => C) => (as: readonly A[]) => B | C;
-```
-
-Added in: 3.0.0
-
-## Refinements
-
-### isNonEmpty
-
-Test whether a `ReadonlyArray` is non empty narrowing down the type to `NonEmptyReadonlyArray<A>`
-
-```ts
-export declare const isNonEmpty: <A>(as: readonly A[]) => as is readonly [A, ...A[]];
-```
-
-Added in: 3.0.0
-
-## Sequencing
-
-### flatMap
-
-```ts
-export declare const flatMap: <A, B>(f: (a: A) => readonly B[]) => (self: readonly A[]) => readonly B[];
-```
-
-Added in: 3.0.0
-
-### flatMapNullable
-
-```ts
-export declare const flatMapNullable: <A, B>(f: (a: A) => B) => (ma: readonly A[]) => readonly NonNullable<B>[];
-```
-
-Added in: 3.0.0
-
-### zipLeft
-
-Sequences the specified effect after this effect, but ignores the value
-produced by the effect.
-
-```ts
-export declare const zipLeft: (that: readonly unknown[]) => <A>(self: readonly A[]) => readonly A[];
-```
-
-Added in: 3.0.0
-
-### zipRight
-
-A variant of `flatMap` that ignores the value produced by this effect.
-
-```ts
-export declare const zipRight: <A>(that: readonly A[]) => (self: readonly unknown[]) => readonly A[];
-```
-
-Added in: 3.0.0
-
-## Traversing
-
-### sequence
-
-```ts
-export declare const sequence: <F extends TypeLambda>(F: Applicative<F>) => <S, R, O, E, A>(fas: readonly Kind<F, S, R, O, E, A>[]) => Kind<F, S, R, O, E, readonly A[]>;
-```
-
-Added in: 3.0.0
-
-### traverse
-
-```ts
-export declare const traverse: <F extends TypeLambda>(Applicative: Applicative<F>) => <A, S, R, O, E, B>(f: (a: A) => Kind<F, S, R, O, E, B>) => (self: readonly A[]) => Kind<F, S, R, O, E, readonly B[]>;
-```
-
-Added in: 3.0.0
-
-### traverseWithIndex
-
-```ts
-export declare const traverseWithIndex: <F extends TypeLambda>(Applicative: Applicative<F>) => <A, S, R, O, E, B>(f: (i: number, a: A) => Kind<F, S, R, O, E, B>) => (self: readonly A[]) => Kind<F, S, R, O, E, readonly B[]>;
-```
-
-Added in: 3.0.0
-
-## Tuple sequencing
-
-### tupled
-
-```ts
-export declare const tupled: <A>(self: readonly A[]) => readonly (readonly [A])[];
-```
-
-Added in: 3.0.0
-
-### zipFlatten
-
-Sequentially zips this effect with the specified effect.
-
-```ts
-export declare const zipFlatten: <B>(fb: readonly B[]) => <A extends readonly unknown[]>(self: readonly A[]) => readonly (readonly [...A, B])[];
 ```
 
 Added in: 3.0.0

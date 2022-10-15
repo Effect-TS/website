@@ -20,6 +20,7 @@ const program = ts.createProgram({
 
 const checker = program.getTypeChecker()
 const exclude = /^[A-Z]\w+$|^_\w+$/
+const defaultCategory = 'General API'
 
 for (const filePath of paths) {
   const source = program.getSourceFile(filePath)!
@@ -106,9 +107,10 @@ for (const filePath of paths) {
               }
             }
             if (typeof category === 'undefined') {
-              category = 'methods'
+              category = defaultCategory
+            } else {
+              category = category.charAt(0).toUpperCase() + category.slice(1)
             }
-            category = category.charAt(0).toUpperCase() + category.slice(1)
             text += '```ts\n'
             text += `export declare const ${prop.getName()}: ${typeStr};`
             text += '\n```\n\n'
@@ -122,12 +124,22 @@ for (const filePath of paths) {
           }
         }
 
+        const general = methods[defaultCategory] ?? []
+        delete methods[defaultCategory]
+
         if (Object.keys(methods).length > 0) {
           for (const category of Object.keys(methods).sort()) {
-            text += `## ${category}\n\n`
+            text += `## ${defaultCategory}\n\n`
             for (const line of methods[category]) {
               text += line
             }
+          }
+        }
+
+        if (general.length > 0) {
+          text += `## General API\n\n`
+          for (const line of general) {
+            text += line
           }
         }
 

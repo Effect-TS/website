@@ -18,7 +18,7 @@ export interface Fiber<E, A> {
 }
 ```
 
-## Methods
+## General API
 
 ### as
 

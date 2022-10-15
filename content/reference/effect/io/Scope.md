@@ -13,7 +13,7 @@ export interface Scope {
 }
 ```
 
-## Methods
+## General API
 
 ### addFinalizer
 

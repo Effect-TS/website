@@ -17,7 +17,7 @@ export interface GroupBy<R, E, K, V, A> {
 }
 ```
 
-## Methods
+## General API
 
 ### filter
 

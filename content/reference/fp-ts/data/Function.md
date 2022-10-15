@@ -2,7 +2,7 @@
 
 Reference Documentation for the module '@fp-ts/data/Function'
 
-## Constructors
+## General API
 
 ### id
 
@@ -12,7 +12,7 @@ export declare const id: <A>() => Endomorphism<A>;
 
 Added in: 3.0.0
 
-## Instances
+## General API
 
 ### getMonoid
 
@@ -34,7 +34,7 @@ export declare const getSemigroup: <S>(S: Semigroup<S>) => <A>() => Semigroup<(a
 
 Added in: 3.0.0
 
-## Methods
+## General API
 
 ### absurd
 

@@ -6,7 +6,7 @@ Reference Documentation for the module '@fp-ts/data/Result'
 export declare type Result<E, A> = Failure<E> | Success<A>;
 ```
 
-## Constructors
+## General API
 
 ### fail
 
@@ -30,7 +30,7 @@ export declare const succeed: <A>(a: A) => Result<never, A>;
 
 Added in: 3.0.0
 
-## Conversions
+## General API
 
 ### fromNullable
 
@@ -103,7 +103,7 @@ export declare const toUnion: <E, A>(fa: Result<E, A>) => E | A;
 
 Added in: 3.0.0
 
-## Do notation
+## General API
 
 ### bind
 
@@ -139,7 +139,7 @@ export declare const let: <N extends string, A extends object, B>(name: Exclude<
 
 Added in: 3.0.0
 
-## Error handling
+## General API
 
 ### catchAll
 
@@ -234,7 +234,7 @@ export declare const tapError: <E1, E2>(onError: (e: E1) => Result<E2, unknown>)
 
 Added in: 3.0.0
 
-## Filtering
+## General API
 
 ### compact
 
@@ -300,7 +300,7 @@ export declare const traversePartitionMap: <F extends TypeLambda>(Applicative: A
 
 Added in: 3.0.0
 
-## Folding
+## General API
 
 ### foldMap
 
@@ -326,7 +326,7 @@ export declare const reduceRight: <B, A>(b: B, f: (a: A, b: B) => B) => <E>(self
 
 Added in: 3.0.0
 
-## Instances
+## General API
 
 ### getCompactable
 
@@ -379,7 +379,7 @@ export declare const getTraversableFilterable: <E>(onEmpty: E) => TraversableFil
 
 Added in: 3.0.0
 
-## Interop
+## General API
 
 ### fromThrowable
 
@@ -401,7 +401,7 @@ export declare const liftThrowable: <A extends readonly unknown[], B, E>(f: (...
 
 Added in: 3.0.0
 
-## Lifting
+## General API
 
 ### lift2
 
@@ -447,7 +447,7 @@ export declare const liftPredicate: { <C extends A, B extends A, E, A = C>(refin
 
 Added in: 3.0.0
 
-## Mapping
+## General API
 
 ### as
 
@@ -498,7 +498,199 @@ export declare const unit: <E>(self: Result<E, unknown>) => Result<E, void>;
 
 Added in: 3.0.0
 
-## Methods
+## General API
+
+### match
+
+Takes two functions and an `Result` value, if the value is a `Failure` the inner value is applied to the first function,
+if the value is a `Success` the inner value is applied to the second function.
+
+```ts
+export declare const match: <E, B, A, C = B>(onError: (e: E) => B, onSuccess: (a: A) => C) => (self: Result<E, A>) => B | C;
+```
+
+Added in: 3.0.0
+
+## General API
+
+### isFailure
+
+Returns `true` if the either is an instance of `Failure`, `false` otherwise.
+
+```ts
+export declare const isFailure: <E, A>(self: Result<E, A>) => self is Failure<E>;
+```
+
+Added in: 3.0.0
+
+### isSuccess
+
+Returns `true` if the either is an instance of `Success`, `false` otherwise.
+
+```ts
+export declare const isSuccess: <E, A>(self: Result<E, A>) => self is Success<A>;
+```
+
+Added in: 3.0.0
+
+## General API
+
+### flatMap
+
+```ts
+export declare const flatMap: <A, E2, B>(f: (a: A) => Result<E2, B>) => <E1>(self: Result<E1, A>) => Result<E2 | E1, B>;
+```
+
+Added in: 3.0.0
+
+### flatMapNullable
+
+```ts
+export declare const flatMapNullable: <A, B, E2>(f: (a: A) => B, onNullable: E2) => <E1>(self: Result<E1, A>) => Result<E2 | E1, NonNullable<B>>;
+```
+
+Added in: 3.0.0
+
+### flatMapOption
+
+```ts
+export declare const flatMapOption: <A, B, E2>(f: (a: A) => Option<B>, onNone: E2) => <E1>(self: Result<E1, A>) => Result<E2 | E1, B>;
+```
+
+Added in: 3.0.0
+
+### flatten
+
+The `flatten` function is the conventional monad join operator. It is used to remove one level of monadic structure, projecting its bound argument into the outer level.
+
+```ts
+export declare const flatten: <E1, E2, A>(mma: Result<E1, Result<E2, A>>) => Result<E1 | E2, A>;
+```
+
+Added in: 3.0.0
+
+### zipLeft
+
+Sequences the specified effect after this effect, but ignores the value
+produced by the effect.
+
+```ts
+export declare const zipLeft: <E2>(that: Result<E2, unknown>) => <E1, A>(self: Result<E1, A>) => Result<E2 | E1, A>;
+```
+
+Added in: 3.0.0
+
+### zipRight
+
+A variant of `flatMap` that ignores the value produced by this effect.
+
+```ts
+export declare const zipRight: <E2, A>(that: Result<E2, A>) => <E1>(self: Result<E1, unknown>) => Result<E2 | E1, A>;
+```
+
+Added in: 3.0.0
+
+## General API
+
+### sequence
+
+```ts
+export declare const sequence: <F extends TypeLambda>(F: Applicative<F>) => <E, FS, FR, FO, FE, A>(fa: Result<E, Kind<F, FS, FR, FO, FE, A>>) => Kind<F, FS, FR, FO, FE, Result<E, A>>;
+```
+
+Added in: 3.0.0
+
+### sequenceReadonlyArray
+
+Equivalent to `ReadonlyArray#sequence(Applicative)`.
+
+```ts
+export declare const sequenceReadonlyArray: <E, A>(arr: readonly Result<E, A>[]) => Result<E, readonly A[]>;
+```
+
+Added in: 3.0.0
+
+### traverse
+
+Map each element of a structure to an action, evaluate these actions from left to right, and collect the results.
+
+```ts
+export declare const traverse: <F extends TypeLambda>(F: Applicative<F>) => <A, FS, FR, FO, FE, B>(f: (a: A) => Kind<F, FS, FR, FO, FE, B>) => <E>(ta: Result<E, A>) => Kind<F, FS, FR, FO, FE, Result<E, B>>;
+```
+
+Added in: 3.0.0
+
+### traverseNonEmptyReadonlyArray
+
+Equivalent to `NonEmptyReadonlyArray#traverse(Apply)`.
+
+```ts
+export declare const traverseNonEmptyReadonlyArray: <A, E, B>(f: (a: A) => Result<E, B>) => (as: readonly [A, ...A[]]) => Result<E, readonly [B, ...B[]]>;
+```
+
+Added in: 3.0.0
+
+### traverseNonEmptyReadonlyArrayWithIndex
+
+Equivalent to `NonEmptyReadonlyArray#traverseWithIndex(Apply)`.
+
+```ts
+export declare const traverseNonEmptyReadonlyArrayWithIndex: <A, E, B>(f: (index: number, a: A) => Result<E, B>) => (as: readonly [A, ...A[]]) => Result<E, readonly [B, ...B[]]>;
+```
+
+Added in: 3.0.0
+
+### traverseReadonlyArray
+
+Equivalent to `ReadonlyArray#traverse(Applicative)`.
+
+```ts
+export declare const traverseReadonlyArray: <A, E, B>(f: (a: A) => Result<E, B>) => (as: readonly A[]) => Result<E, readonly B[]>;
+```
+
+Added in: 3.0.0
+
+### traverseReadonlyArrayWithIndex
+
+Equivalent to `ReadonlyArray#traverseWithIndex(Applicative)`.
+
+```ts
+export declare const traverseReadonlyArrayWithIndex: <A, E, B>(f: (index: number, a: A) => Result<E, B>) => (as: readonly A[]) => Result<E, readonly B[]>;
+```
+
+Added in: 3.0.0
+
+## General API
+
+### tupled
+
+```ts
+export declare const tupled: <E, A>(self: Result<E, A>) => Result<E, readonly [A]>;
+```
+
+Added in: 3.0.0
+
+### zipFlatten
+
+Sequentially zips this effect with the specified effect.
+
+```ts
+export declare const zipFlatten: <E2, B>(fb: Result<E2, B>) => <E1, A extends readonly unknown[]>(self: Result<E1, A>) => Result<E2 | E1, readonly [...A, B]>;
+```
+
+Added in: 3.0.0
+
+### zipWith
+
+Sequentially zips this effect with the specified effect using the specified combiner function.
+
+```ts
+export declare const zipWith: <E2, B, A, C>(that: Result<E2, B>, f: (a: A, b: B) => C) => <E1>(self: Result<E1, A>) => Result<E2 | E1, C>;
+```
+
+Added in: 3.0.0
+
+## General API
 
 ### ap
 
@@ -574,198 +766,6 @@ Returns an effect that effectfully "peeks" at the success of this effect.
 
 ```ts
 export declare const tap: <A, E2>(f: (a: A) => Result<E2, unknown>) => <E1>(self: Result<E1, A>) => Result<E2 | E1, A>;
-```
-
-Added in: 3.0.0
-
-## Pattern matching
-
-### match
-
-Takes two functions and an `Result` value, if the value is a `Failure` the inner value is applied to the first function,
-if the value is a `Success` the inner value is applied to the second function.
-
-```ts
-export declare const match: <E, B, A, C = B>(onError: (e: E) => B, onSuccess: (a: A) => C) => (self: Result<E, A>) => B | C;
-```
-
-Added in: 3.0.0
-
-## Refinements
-
-### isFailure
-
-Returns `true` if the either is an instance of `Failure`, `false` otherwise.
-
-```ts
-export declare const isFailure: <E, A>(self: Result<E, A>) => self is Failure<E>;
-```
-
-Added in: 3.0.0
-
-### isSuccess
-
-Returns `true` if the either is an instance of `Success`, `false` otherwise.
-
-```ts
-export declare const isSuccess: <E, A>(self: Result<E, A>) => self is Success<A>;
-```
-
-Added in: 3.0.0
-
-## Sequencing
-
-### flatMap
-
-```ts
-export declare const flatMap: <A, E2, B>(f: (a: A) => Result<E2, B>) => <E1>(self: Result<E1, A>) => Result<E2 | E1, B>;
-```
-
-Added in: 3.0.0
-
-### flatMapNullable
-
-```ts
-export declare const flatMapNullable: <A, B, E2>(f: (a: A) => B, onNullable: E2) => <E1>(self: Result<E1, A>) => Result<E2 | E1, NonNullable<B>>;
-```
-
-Added in: 3.0.0
-
-### flatMapOption
-
-```ts
-export declare const flatMapOption: <A, B, E2>(f: (a: A) => Option<B>, onNone: E2) => <E1>(self: Result<E1, A>) => Result<E2 | E1, B>;
-```
-
-Added in: 3.0.0
-
-### flatten
-
-The `flatten` function is the conventional monad join operator. It is used to remove one level of monadic structure, projecting its bound argument into the outer level.
-
-```ts
-export declare const flatten: <E1, E2, A>(mma: Result<E1, Result<E2, A>>) => Result<E1 | E2, A>;
-```
-
-Added in: 3.0.0
-
-### zipLeft
-
-Sequences the specified effect after this effect, but ignores the value
-produced by the effect.
-
-```ts
-export declare const zipLeft: <E2>(that: Result<E2, unknown>) => <E1, A>(self: Result<E1, A>) => Result<E2 | E1, A>;
-```
-
-Added in: 3.0.0
-
-### zipRight
-
-A variant of `flatMap` that ignores the value produced by this effect.
-
-```ts
-export declare const zipRight: <E2, A>(that: Result<E2, A>) => <E1>(self: Result<E1, unknown>) => Result<E2 | E1, A>;
-```
-
-Added in: 3.0.0
-
-## Traversing
-
-### sequence
-
-```ts
-export declare const sequence: <F extends TypeLambda>(F: Applicative<F>) => <E, FS, FR, FO, FE, A>(fa: Result<E, Kind<F, FS, FR, FO, FE, A>>) => Kind<F, FS, FR, FO, FE, Result<E, A>>;
-```
-
-Added in: 3.0.0
-
-### sequenceReadonlyArray
-
-Equivalent to `ReadonlyArray#sequence(Applicative)`.
-
-```ts
-export declare const sequenceReadonlyArray: <E, A>(arr: readonly Result<E, A>[]) => Result<E, readonly A[]>;
-```
-
-Added in: 3.0.0
-
-### traverse
-
-Map each element of a structure to an action, evaluate these actions from left to right, and collect the results.
-
-```ts
-export declare const traverse: <F extends TypeLambda>(F: Applicative<F>) => <A, FS, FR, FO, FE, B>(f: (a: A) => Kind<F, FS, FR, FO, FE, B>) => <E>(ta: Result<E, A>) => Kind<F, FS, FR, FO, FE, Result<E, B>>;
-```
-
-Added in: 3.0.0
-
-### traverseNonEmptyReadonlyArray
-
-Equivalent to `NonEmptyReadonlyArray#traverse(Apply)`.
-
-```ts
-export declare const traverseNonEmptyReadonlyArray: <A, E, B>(f: (a: A) => Result<E, B>) => (as: readonly [A, ...A[]]) => Result<E, readonly [B, ...B[]]>;
-```
-
-Added in: 3.0.0
-
-### traverseNonEmptyReadonlyArrayWithIndex
-
-Equivalent to `NonEmptyReadonlyArray#traverseWithIndex(Apply)`.
-
-```ts
-export declare const traverseNonEmptyReadonlyArrayWithIndex: <A, E, B>(f: (index: number, a: A) => Result<E, B>) => (as: readonly [A, ...A[]]) => Result<E, readonly [B, ...B[]]>;
-```
-
-Added in: 3.0.0
-
-### traverseReadonlyArray
-
-Equivalent to `ReadonlyArray#traverse(Applicative)`.
-
-```ts
-export declare const traverseReadonlyArray: <A, E, B>(f: (a: A) => Result<E, B>) => (as: readonly A[]) => Result<E, readonly B[]>;
-```
-
-Added in: 3.0.0
-
-### traverseReadonlyArrayWithIndex
-
-Equivalent to `ReadonlyArray#traverseWithIndex(Applicative)`.
-
-```ts
-export declare const traverseReadonlyArrayWithIndex: <A, E, B>(f: (index: number, a: A) => Result<E, B>) => (as: readonly A[]) => Result<E, readonly B[]>;
-```
-
-Added in: 3.0.0
-
-## Tuple sequencing
-
-### tupled
-
-```ts
-export declare const tupled: <E, A>(self: Result<E, A>) => Result<E, readonly [A]>;
-```
-
-Added in: 3.0.0
-
-### zipFlatten
-
-Sequentially zips this effect with the specified effect.
-
-```ts
-export declare const zipFlatten: <E2, B>(fb: Result<E2, B>) => <E1, A extends readonly unknown[]>(self: Result<E1, A>) => Result<E2 | E1, readonly [...A, B]>;
-```
-
-Added in: 3.0.0
-
-### zipWith
-
-Sequentially zips this effect with the specified effect using the specified combiner function.
-
-```ts
-export declare const zipWith: <E2, B, A, C>(that: Result<E2, B>, f: (a: A, b: B) => C) => <E1>(self: Result<E1, A>) => Result<E2 | E1, C>;
 ```
 
 Added in: 3.0.0

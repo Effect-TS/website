@@ -8,7 +8,7 @@ export interface FiberId extends Equals {
 }
 ```
 
-## Methods
+## General API
 
 ### combine
 

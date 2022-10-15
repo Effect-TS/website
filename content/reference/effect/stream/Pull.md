@@ -33,7 +33,7 @@ export interface Effect<R, E, A> {
 }
 ```
 
-## Methods
+## General API
 
 ### emit
 

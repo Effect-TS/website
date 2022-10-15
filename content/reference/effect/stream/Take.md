@@ -14,7 +14,7 @@ export interface Take<E, A> extends Equals {
 }
 ```
 
-## Methods
+## General API
 
 ### chunk
 

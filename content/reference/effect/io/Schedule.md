@@ -37,7 +37,7 @@ export interface Schedule<State, Env, In, Out> {
 }
 ```
 
-## Methods
+## General API
 
 ### addDelay
 
