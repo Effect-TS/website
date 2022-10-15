@@ -378,12 +378,6 @@ initial state.
 export declare const foldLeftEffect: <R, E, In, S>(z: S, f: (s: S, input: In) => Effect<R, E, S>) => Sink<R, E, In, In, S>;
 ```
 
-### foldSink_
-
-```ts
-export declare const foldSink_: <R1, R2, E, E1, E2, In, In1 extends In, In2 extends In, L, L1 extends L, L2 extends L, Z, Z1, Z2>(failure: (err: E) => Sink<R1, E1, In1, L1, Z1>, success: (z: Z) => Sink<R2, E2, In2, L2, Z2>) => <R>(self: Sink<R, E, In, L, Z>) => Sink<R1 | R2 | R, E1 | E2, In1 & In2, L1 | L2, Z1 | Z2>;
-```
-
 ### foldUntil
 
 Creates a sink that folds elements of type `In` into a structure of type

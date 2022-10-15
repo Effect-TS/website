@@ -154,16 +154,6 @@ Makes a new `TMap` that is initialized with specified values.
 export declare const make: <K, V>(...data: (readonly [K, V])[]) => USTM<TMap<K, V>>;
 ```
 
-### merge_
-
-If the key `k` is not already associated with a value, stores the provided
-value, otherwise merge the existing value with the new one using function
-`f` and store the result
-
-```ts
-export declare const merge_: <K, V>(k: K, v: V, f: (values: readonly [V, V]) => V) => (self: TMap<K, V>) => STM<never, never, V>;
-```
-
 ### put
 
 Stores new binding into the map.

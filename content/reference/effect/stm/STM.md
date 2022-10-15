@@ -966,14 +966,6 @@ sequentially.
 export declare const reduceAll: <R, E, A>(a: STM<R, E, A>, as: Collection<STM<R, E, A>>, f: (acc: A, a: A) => A) => STM<R, E, A>;
 ```
 
-### reduceRight_
-
-Folds an `Collection<A>` using an effectual function f, working sequentially from left to right.
-
-```ts
-export declare const reduceRight_: <A, Z, R, E>(as: Collection<A>, z: Z, f: (a: A, z: Z) => STM<R, E, Z>) => STM<R, E, Z>;
-```
-
 ### refineOrDie
 
 Keeps some of the errors, and terminates the fiber with the rest
@@ -1318,14 +1310,6 @@ Ignores the result of the transactional effect replacing it with `undefined`.
 
 ```ts
 export declare const unit: <R, E, X>(self: STM<R, E, X>) => STM<R, E, void>;
-```
-
-### unit_
-
-Returns an `STM` effect that succeeds with `undefined`.
-
-```ts
-export declare const unit_: USTM<void>;
 ```
 
 ### unleft

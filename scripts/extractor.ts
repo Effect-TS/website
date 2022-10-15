@@ -20,7 +20,7 @@ const program = ts.createProgram({
 })
 
 const checker = program.getTypeChecker()
-const exclude = /^[A-Z]\w+$|^_\w+$/
+const exclude = /^[A-Z]\w+$|^_\w+$|^\w+_$/
 const defaultCategory = 'General API'
 
 for (const filePath of paths) {

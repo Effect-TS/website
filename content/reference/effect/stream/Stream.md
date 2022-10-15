@@ -2940,12 +2940,6 @@ Updates a service in the environment of this stream.
 export declare const updateService: <T, T1 extends T>(tag: Tag<T>, f: (service: T) => T1) => <R, E, A>(self: Stream<R, E, A>) => Stream<T | R, E, A>;
 ```
 
-### usASCIIDecode_
-
-```ts
-export declare const usASCIIDecode_: <R, E>(self: Stream<R, E, number>) => Stream<R, E, string>;
-```
-
 ### utf8Decode
 
 ```ts

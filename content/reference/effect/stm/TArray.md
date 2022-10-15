@@ -169,15 +169,6 @@ occur.
 export declare const indexOf: <A>(equivalence: Equivalence<A>, value: A) => (self: TArray<A>) => STM<never, never, number>;
 ```
 
-### indexOfFrom_
-
-Get the first index of a specific value in the array, starting at a
-specific index, or -1 if it does not occur.
-
-```ts
-export declare const indexOfFrom_: <A>(equivalence: Equivalence<A>, value: A, from: number) => (self: TArray<A>) => STM<never, never, number>;
-```
-
 ### indexWhere
 
 Get the index of the first entry in the array matching a predicate.
@@ -258,14 +249,6 @@ Makes a new `TArray` that is initialized with specified values.
 
 ```ts
 export declare const make: <ARGS extends any[]>(...data: ARGS) => STM<never, never, TArray<ARGS[number]>>;
-```
-
-### maxMaybe_
-
-Atomically compute the greatest element in the array, if it exists.
-
-```ts
-export declare const maxMaybe_: <A>(ord: Ord<A>) => (self: TArray<A>) => STM<never, never, Maybe<A>>;
 ```
 
 ### minMaybe

@@ -18,12 +18,6 @@ export interface TDeferred<E, A> {
 export declare const await: <E, A>(self: TDeferred<E, A>) => STM<never, E, A>;
 ```
 
-### await_
-
-```ts
-export declare const await_: <E, A>(self: TDeferred<E, A>) => STM<never, E, A>;
-```
-
 ### done
 
 ```ts

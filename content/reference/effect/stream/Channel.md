@@ -57,12 +57,6 @@ export declare const acquireUseReleaseExit: <Env, InErr, InElem, InDone, OutErr,
 export declare const acquireUseReleaseOut: <Env, OutErr, Acquired, Z>(acquire: Effect<Env, OutErr, Acquired>, release: (a: Acquired) => Effect<Env, never, Z>) => Channel<Env, unknown, unknown, unknown, OutErr, Acquired, void>;
 ```
 
-### acquireUseReleaseOutExit_
-
-```ts
-export declare const acquireUseReleaseOutExit_: <R, R2, E, Z>(self: Effect<R, E, Z>, release: (z: Z, e: Exit<unknown, unknown>) => Effect<R2, never, unknown>) => Channel<R | R2, unknown, unknown, unknown, E, Z, void>;
-```
-
 ### as
 
 Returns a new channel that is the same as this one, except the terminal
@@ -569,17 +563,6 @@ export declare const mergeOut: (n: number) => <Env_1, Env1, InErr, InErr1, InEle
 export declare const mergeOutWith: <OutDone1>(n: number, f: (o1: OutDone1, o2: OutDone1) => OutDone1) => <Env_1, Env1, InErr, InErr1, InElem, InElem1, InDone, InDone1, OutErr, OutErr1, OutElem1>(self: Channel<Env_1, InErr, InElem, InDone, OutErr, Channel<Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone1>, OutDone1>) => Channel<Env_1 | Env1, InErr & InErr1, InElem & InElem1, InDone & InDone1, OutErr | OutErr1, OutElem1, OutDone1>;
 ```
 
-### mergeWith_
-
-Returns a new channel, which is the merge of this channel and the specified
-channel, where the behavior of the returned channel on left or right early
-termination is decided by the specified `leftDone` and `rightDone` merge
-decisions.
-
-```ts
-export declare const mergeWith_: <Env1, InErr1, InElem1, InDone1, OutErr, OutErr1, OutErr2, OutErr3, OutElem1, OutDone, OutDone1, OutDone2, OutDone3>(that: Channel<Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone1>, leftDone: (ex: Exit<OutErr, OutDone>) => MergeDecision<Env1, OutErr1, OutDone1, OutErr2, OutDone2>, rightDone: (ex: Exit<OutErr1, OutDone1>) => MergeDecision<Env1, OutErr, OutDone, OutErr3, OutDone3>) => <Env_1, InErr, InElem, InDone, OutElem>(self: Channel<Env_1, InErr, InElem, InDone, OutErr, OutElem, OutDone>) => Channel<Env1 | Env_1, InErr & InErr1, InElem & InElem1, InDone & InDone1, OutErr2 | OutErr3, OutElem1 | OutElem, OutDone2 | OutDone3>;
-```
-
 ### never
 
 ```ts
@@ -840,14 +823,6 @@ export declare const unifyChannel: <X extends Channel<any, any, any, any, any, a
 
 ```ts
 export declare const unit: Channel<never, unknown, unknown, unknown, never, never, void>;
-```
-
-### unit_
-
-Ignores the result of the effect replacing it with a void
-
-```ts
-export declare const unit_: <Env, InErr, InElem, InDone, OutErr, OutElem, OutDone>(self: Channel<Env, InErr, InElem, InDone, OutErr, OutElem, OutDone>) => Channel<Env, InErr, InElem, InDone, OutErr, OutElem, void>;
 ```
 
 ### unwrap

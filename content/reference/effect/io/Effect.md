@@ -2149,14 +2149,6 @@ in parallel.
 export declare const reduceAllPar: <R, E, A>(a: Effect<R, E, A>, as: Collection<Effect<R, E, A>>, f: (acc: A, a: A) => A) => Effect<R, E, A>;
 ```
 
-### reduceRight_
-
-Folds an `Collection<A>` using an effectual function f, working sequentially from left to right.
-
-```ts
-export declare const reduceRight_: <A, Z, R, E>(as: Collection<A>, z: Z, f: (a: A, z: Z) => Effect<R, E, Z>) => Effect<R, E, Z>;
-```
-
 ### reduceWhile
 
 Folds over the elements in this chunk from the left.
