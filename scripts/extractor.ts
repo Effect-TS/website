@@ -7,6 +7,7 @@ const paths = [
   path.join(__dirname, './effect/io.ts'),
   path.join(__dirname, './effect/stream.ts'),
   path.join(__dirname, './effect/stm.ts'),
+  path.join(__dirname, './effect/printer.ts'),
   path.join(__dirname, './fp-ts/core.ts'),
   path.join(__dirname, './fp-ts/data.ts'),
 ]
