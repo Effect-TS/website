@@ -40,7 +40,7 @@ for (const filePath of paths) {
           const models: string[] = []
           for (const tag of nameSymbol.getJsDocTags(checker)) {
             if (tag.name === 'model') {
-              const text = tag.text?.map((s) => s.text).join(' ')
+              const text = tag.text?.map((s) => s.text).join('\n')
               if (text) {
                 models.push(text)
               }
