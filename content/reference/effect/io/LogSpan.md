@@ -9,7 +9,7 @@ export interface LogSpan {
 }
 ```
 
-## Method
+## Methods
 
 ### apply
 

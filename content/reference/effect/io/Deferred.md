@@ -15,7 +15,7 @@ export interface Deferred<E, A> extends DeferredInternal<E, A> {
 }
 ```
 
-## Method
+## Methods
 
 ### make
 

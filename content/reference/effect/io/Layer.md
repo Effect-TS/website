@@ -27,7 +27,7 @@ export interface Layer<RIn, E, ROut> {
 }
 ```
 
-## Method
+## Methods
 
 ### build
 

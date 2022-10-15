@@ -19,7 +19,7 @@ export interface SubscriptionRef<A> extends Ref.Synchronized<A> {
 }
 ```
 
-## Method
+## Methods
 
 ### make
 

@@ -106,7 +106,7 @@ for (const filePath of paths) {
               }
             }
             if (typeof category === 'undefined') {
-              category = 'method'
+              category = 'methods'
             }
             category = category.charAt(0).toUpperCase() + category.slice(1)
             text += '```ts\n'

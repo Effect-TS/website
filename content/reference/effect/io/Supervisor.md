@@ -35,7 +35,7 @@ export declare abstract class Supervisor<T> {
 }
 ```
 
-## Method
+## Methods
 
 ### applyPatch
 

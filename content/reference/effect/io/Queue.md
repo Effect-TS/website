@@ -78,7 +78,7 @@ export interface Dequeue<A> extends CommonQueue {
 }
 ```
 
-## Method
+## Methods
 
 ### bounded
 

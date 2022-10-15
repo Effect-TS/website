@@ -8,7 +8,7 @@ export type RuntimeFlags = number & {
 };
 ```
 
-## Method
+## Methods
 
 ### cooperativeYielding
 

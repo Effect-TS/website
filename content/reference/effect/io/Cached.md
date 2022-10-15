@@ -23,7 +23,7 @@ export interface Cached<Error, Resource> {
 }
 ```
 
-## Method
+## Methods
 
 ### auto
 

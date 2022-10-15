@@ -498,7 +498,7 @@ export declare const unit: <E>(self: Result<E, unknown>) => Result<E, void>;
 
 Added in: 3.0.0
 
-## Method
+## Methods
 
 ### ap
 

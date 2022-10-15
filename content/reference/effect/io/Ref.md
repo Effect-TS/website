@@ -91,7 +91,7 @@ export interface Ref<A> {
 }
 ```
 
-## Method
+## Methods
 
 ### makeRef
 

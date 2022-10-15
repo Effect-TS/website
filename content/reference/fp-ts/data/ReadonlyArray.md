@@ -469,7 +469,7 @@ export declare const unit: (self: readonly unknown[]) => readonly void[];
 
 Added in: 3.0.0
 
-## Method
+## Methods
 
 ### ap
 

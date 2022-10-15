@@ -12,7 +12,7 @@ export interface Clock {
 }
 ```
 
-## Method
+## Methods
 
 ### currentTime
 

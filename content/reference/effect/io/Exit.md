@@ -6,7 +6,7 @@ Reference Documentation for the module '@effect/io/Exit'
 export type Exit<E, A> = Success<A> | Failure<E>;
 ```
 
-## Method
+## Methods
 
 ### ap
 

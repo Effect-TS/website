@@ -28,7 +28,7 @@ export interface Metric<Type, In, Out> {
 }
 ```
 
-## Method
+## Methods
 
 ### contramap
 
