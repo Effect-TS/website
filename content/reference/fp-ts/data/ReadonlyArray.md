@@ -2,7 +2,7 @@
 
 Reference Documentation for the module '@fp-ts/data/ReadonlyArray'
 
-## General API
+## Constructors
 
 ### append
 
@@ -56,7 +56,7 @@ export declare const replicate: <A>(a: A) => (n: number) => readonly A[];
 
 Added in: 3.0.0
 
-## General API
+## Conversions
 
 ### fromIterable
 
@@ -92,7 +92,7 @@ export declare const fromResult: <A>(fa: Result<unknown, A>) => readonly A[];
 
 Added in: 3.0.0
 
-## General API
+## Do notation
 
 ### bind
 
@@ -128,7 +128,7 @@ export declare const let: <N extends string, A extends object, B>(name: Exclude<
 
 Added in: 3.0.0
 
-## General API
+## Error handling
 
 ### firstSuccessOf
 
@@ -140,7 +140,7 @@ export declare const firstSuccessOf: <A>(collection: Iterable<readonly A[]>) => 
 
 Added in: 3.0.0
 
-## General API
+## Filtering
 
 ### compact
 
@@ -238,7 +238,7 @@ export declare const traversePartitionMap: <F extends TypeLambda>(F: Applicative
 
 Added in: 3.0.0
 
-## General API
+## Folding
 
 ### foldMap
 
@@ -296,7 +296,7 @@ export declare const reduceWithIndex: <B, A>(b: B, f: (i: number, b: B, a: A) =>
 
 Added in: 3.0.0
 
-## General API
+## Instances
 
 ### getEq
 
@@ -375,7 +375,7 @@ export declare const getUnionSemigroup: <A>(E: Eq<A>) => Semigroup<readonly A[]>
 
 Added in: 3.0.0
 
-## General API
+## Lifting
 
 ### lift2
 
@@ -429,7 +429,7 @@ export declare const liftResult: <A extends readonly unknown[], E, B>(f: (...a: 
 
 Added in: 3.0.0
 
-## General API
+## Mapping
 
 ### as
 
@@ -469,7 +469,7 @@ export declare const unit: (self: readonly unknown[]) => readonly void[];
 
 Added in: 3.0.0
 
-## General API
+## Pattern matching
 
 ### match
 
@@ -499,7 +499,7 @@ export declare const matchRight: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: 
 
 Added in: 3.0.0
 
-## General API
+## Refinements
 
 ### isNonEmpty
 
@@ -511,7 +511,7 @@ export declare const isNonEmpty: <A>(as: readonly A[]) => as is readonly [A, ...
 
 Added in: 3.0.0
 
-## General API
+## Sequencing
 
 ### flatMap
 
@@ -550,7 +550,7 @@ export declare const zipRight: <A>(that: readonly A[]) => (self: readonly unknow
 
 Added in: 3.0.0
 
-## General API
+## Traversing
 
 ### sequence
 
@@ -576,7 +576,7 @@ export declare const traverseWithIndex: <F extends TypeLambda>(Applicative: Appl
 
 Added in: 3.0.0
 
-## General API
+## Tuple sequencing
 
 ### tupled
 

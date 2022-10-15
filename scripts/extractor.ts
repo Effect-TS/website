@@ -129,7 +129,7 @@ for (const filePath of paths) {
 
         if (Object.keys(methods).length > 0) {
           for (const category of Object.keys(methods).sort()) {
-            text += `## ${defaultCategory}\n\n`
+            text += `## ${category}\n\n`
             for (const line of methods[category]) {
               text += line
             }
@@ -137,7 +137,7 @@ for (const filePath of paths) {
         }
 
         if (general.length > 0) {
-          text += `## General API\n\n`
+          text += `## ${defaultCategory}\n\n`
           for (const line of general) {
             text += line
           }

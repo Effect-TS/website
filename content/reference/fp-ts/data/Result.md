@@ -6,7 +6,7 @@ Reference Documentation for the module '@fp-ts/data/Result'
 export declare type Result<E, A> = Failure<E> | Success<A>;
 ```
 
-## General API
+## Constructors
 
 ### fail
 
@@ -30,7 +30,7 @@ export declare const succeed: <A>(a: A) => Result<never, A>;
 
 Added in: 3.0.0
 
-## General API
+## Conversions
 
 ### fromNullable
 
@@ -103,7 +103,7 @@ export declare const toUnion: <E, A>(fa: Result<E, A>) => E | A;
 
 Added in: 3.0.0
 
-## General API
+## Do notation
 
 ### bind
 
@@ -139,7 +139,7 @@ export declare const let: <N extends string, A extends object, B>(name: Exclude<
 
 Added in: 3.0.0
 
-## General API
+## Error handling
 
 ### catchAll
 
@@ -234,7 +234,7 @@ export declare const tapError: <E1, E2>(onError: (e: E1) => Result<E2, unknown>)
 
 Added in: 3.0.0
 
-## General API
+## Filtering
 
 ### compact
 
@@ -300,7 +300,7 @@ export declare const traversePartitionMap: <F extends TypeLambda>(Applicative: A
 
 Added in: 3.0.0
 
-## General API
+## Folding
 
 ### foldMap
 
@@ -326,7 +326,7 @@ export declare const reduceRight: <B, A>(b: B, f: (a: A, b: B) => B) => <E>(self
 
 Added in: 3.0.0
 
-## General API
+## Instances
 
 ### getCompactable
 
@@ -379,7 +379,7 @@ export declare const getTraversableFilterable: <E>(onEmpty: E) => TraversableFil
 
 Added in: 3.0.0
 
-## General API
+## Interop
 
 ### fromThrowable
 
@@ -401,7 +401,7 @@ export declare const liftThrowable: <A extends readonly unknown[], B, E>(f: (...
 
 Added in: 3.0.0
 
-## General API
+## Lifting
 
 ### lift2
 
@@ -447,7 +447,7 @@ export declare const liftPredicate: { <C extends A, B extends A, E, A = C>(refin
 
 Added in: 3.0.0
 
-## General API
+## Mapping
 
 ### as
 
@@ -498,7 +498,7 @@ export declare const unit: <E>(self: Result<E, unknown>) => Result<E, void>;
 
 Added in: 3.0.0
 
-## General API
+## Pattern matching
 
 ### match
 
@@ -511,7 +511,7 @@ export declare const match: <E, B, A, C = B>(onError: (e: E) => B, onSuccess: (a
 
 Added in: 3.0.0
 
-## General API
+## Refinements
 
 ### isFailure
 
@@ -533,7 +533,7 @@ export declare const isSuccess: <E, A>(self: Result<E, A>) => self is Success<A>
 
 Added in: 3.0.0
 
-## General API
+## Sequencing
 
 ### flatMap
 
@@ -590,7 +590,7 @@ export declare const zipRight: <E2, A>(that: Result<E2, A>) => <E1>(self: Result
 
 Added in: 3.0.0
 
-## General API
+## Traversing
 
 ### sequence
 
@@ -660,7 +660,7 @@ export declare const traverseReadonlyArrayWithIndex: <A, E, B>(f: (index: number
 
 Added in: 3.0.0
 
-## General API
+## Tuple sequencing
 
 ### tupled
 

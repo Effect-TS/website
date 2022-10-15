@@ -2,7 +2,7 @@
 
 Reference Documentation for the module '@fp-ts/data/Function'
 
-## General API
+## Constructors
 
 ### id
 
@@ -12,7 +12,7 @@ export declare const id: <A>() => Endomorphism<A>;
 
 Added in: 3.0.0
 
-## General API
+## Instances
 
 ### getMonoid
 
