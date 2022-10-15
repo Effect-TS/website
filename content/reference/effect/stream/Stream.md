@@ -27,7 +27,7 @@ export interface Stream<R, E, A> {
 }
 ```
 
-## Methods
+## Method
 
 ### absolve
 

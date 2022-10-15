@@ -9,7 +9,7 @@ export interface Cause<E> extends Equals {
 }
 ```
 
-## Methods
+## Method
 
 ### as
 

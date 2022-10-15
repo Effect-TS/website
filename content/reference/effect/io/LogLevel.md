@@ -11,7 +11,7 @@ verbosity of log output.
 export type LogLevel = All | Fatal | Error | Warning | Info | Debug | Trace | None;
 ```
 
-## Methods
+## Method
 
 ### greaterThan
 

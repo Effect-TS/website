@@ -37,7 +37,7 @@ export interface Channel<Env, InErr, InElem, InDone, OutErr, OutElem, OutDone> {
 }
 ```
 
-## Methods
+## Method
 
 ### acquireUseRelease
 

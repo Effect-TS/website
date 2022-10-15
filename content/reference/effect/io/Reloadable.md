@@ -23,7 +23,7 @@ export interface Reloadable<Service> {
 }
 ```
 
-## Methods
+## Method
 
 ### auto
 

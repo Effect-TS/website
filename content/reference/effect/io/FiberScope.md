@@ -10,7 +10,7 @@ you can specify a custom scope to fork them on by using the `forkIn`.
 export type FiberScope = Global | Local;
 ```
 
-## Methods
+## Method
 
 ### globalScope
 

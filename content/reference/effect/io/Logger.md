@@ -8,7 +8,7 @@ export interface Logger<Message, Output> {
 }
 ```
 
-## Methods
+## Method
 
 ### consoleLogger
 

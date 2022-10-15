@@ -34,7 +34,7 @@ export declare const getSemigroup: <S>(S: Semigroup<S>) => <A>() => Semigroup<(a
 
 Added in: 3.0.0
 
-## Methods
+## Method
 
 ### absurd
 

@@ -13,7 +13,7 @@ export interface Sink<R, E, In, L, Z> {
 }
 ```
 
-## Methods
+## Method
 
 ### as
 

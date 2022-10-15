@@ -15,7 +15,7 @@ export interface FiberRef<Value> extends FiberRef.WithPatch<Value, any> {
 }
 ```
 
-## Methods
+## Method
 
 ### currentEnvironment
 

@@ -34,7 +34,7 @@ export interface ScopedRef<A> {
 }
 ```
 
-## Methods
+## Method
 
 ### fromAcquire
 

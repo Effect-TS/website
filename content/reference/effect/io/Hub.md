@@ -28,7 +28,7 @@ export interface Hub<A> extends Enqueue<A> {
 }
 ```
 
-## Methods
+## Method
 
 ### backPressureStrategy
 
