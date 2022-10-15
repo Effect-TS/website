@@ -75,7 +75,7 @@ for (const filePath of paths) {
           }
         }
 
-        const methods: string[] = []
+        const methods: Record<string, string[]> = {}
 
         for (const prop of checker
           .getTypeAtLocation(specifier)
@@ -95,17 +95,39 @@ for (const filePath of paths) {
                 text += doc.text + '\n\n'
               }
             }
+            let category: string | undefined = undefined
+            let since: string | undefined = undefined
+            for (const tag of prop.getJsDocTags(checker)) {
+              if (tag.name === 'category' && tag.text && tag.text.length === 1) {
+                category = tag.text.map((p) => p.text)[0]
+              }
+              if (tag.name === 'since' && tag.text && tag.text.length === 1) {
+                since = tag.text.map((p) => p.text)[0]
+              }
+            }
+            if (typeof category === 'undefined') {
+              category = 'methods'
+            }
+            category = category.charAt(0).toUpperCase() + category.slice(1)
             text += '```ts\n'
             text += `export declare const ${prop.getName()}: ${typeStr};`
             text += '\n```\n\n'
-            methods.push(text)
+            if (since) {
+              text += `Added in: ${since}\n\n`
+            }
+            if (!(category in methods)) {
+              methods[category] = []
+            }
+            methods[category].push(text)
           }
         }
 
-        if (methods.length > 0) {
-          text += `## Methods\n\n`
-          for (const m of methods) {
-            text += m
+        if (Object.keys(methods).length > 0) {
+          for (const category of Object.keys(methods).sort()) {
+            text += `## ${category}\n\n`
+            for (const line of methods[category]) {
+              text += line
+            }
           }
         }
 

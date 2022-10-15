@@ -2,13 +2,7 @@
 
 Reference Documentation for the module '@fp-ts/data/ReadonlyArray'
 
-## Methods
-
-### ap
-
-```ts
-export declare const ap: <A>(fa: readonly A[]) => <B>(self: readonly ((a: A) => B)[]) => readonly B[];
-```
+## Constructors
 
 ### append
 
@@ -18,19 +12,95 @@ Append an element to the end of a `ReadonlyArray`, creating a new `NonEmptyReado
 export declare const append: <B>(end: B) => <A>(init: readonly A[]) => readonly [B | A, ...(B | A)[]];
 ```
 
-### as
+Added in: 3.0.0
 
-Maps the success value of this effect to the specified constant value.
+### makeBy
+
+Return a `ReadonlyArray` of length `n` with element `i` initialized with `f(i)`.
+
+**Note**. `n` is normalized to a non negative integer.
 
 ```ts
-export declare const as: <B>(b: B) => (self: readonly unknown[]) => readonly B[];
+export declare const makeBy: <A>(f: (i: number) => A) => (n: number) => readonly A[];
 ```
+
+Added in: 3.0.0
+
+### of
+
+```ts
+export declare const of: <A>(a: A) => readonly A[];
+```
+
+Added in: 3.0.0
+
+### prepend
+
+Prepend an element to the front of a `ReadonlyArray`, creating a new `NonEmptyReadonlyArray`.
+
+```ts
+export declare const prepend: <B>(head: B) => <A>(tail: readonly A[]) => readonly [B | A, ...(B | A)[]];
+```
+
+Added in: 3.0.0
+
+### replicate
+
+Create a `ReadonlyArray` containing a value repeated the specified number of times.
+
+**Note**. `n` is normalized to a non negative integer.
+
+```ts
+export declare const replicate: <A>(a: A) => (n: number) => readonly A[];
+```
+
+Added in: 3.0.0
+
+## Conversions
+
+### fromIterable
+
+```ts
+export declare const fromIterable: <A>(collection: Iterable<A>) => readonly A[];
+```
+
+Added in: 3.0.0
+
+### fromNullable
+
+```ts
+export declare const fromNullable: <A>(a: A) => readonly NonNullable<A>[];
+```
+
+Added in: 3.0.0
+
+### fromOption
+
+```ts
+export declare const fromOption: <A>(fa: Option<A>) => readonly A[];
+```
+
+Added in: 3.0.0
+
+### fromResult
+
+Converts an `Result` to a `ReadonlyArray`.
+
+```ts
+export declare const fromResult: <A>(fa: Result<unknown, A>) => readonly A[];
+```
+
+Added in: 3.0.0
+
+## Do notation
 
 ### bind
 
 ```ts
 export declare const bind: <N extends string, A extends object, B>(name: Exclude<N, keyof A>, f: (a: A) => readonly B[]) => (self: readonly A[]) => readonly { readonly [K in N | keyof A]: K extends keyof A ? A[K] : B; }[];
 ```
+
+Added in: 3.0.0
 
 ### bindRight
 
@@ -40,11 +110,374 @@ A variant of `bind` that sequentially ignores the scope.
 export declare const bindRight: <N extends string, A extends object, B>(name: Exclude<N, keyof A>, fb: readonly B[]) => (self: readonly A[]) => readonly { readonly [K in N | keyof A]: K extends keyof A ? A[K] : B; }[];
 ```
 
+Added in: 3.0.0
+
 ### bindTo
 
 ```ts
 export declare const bindTo: <N extends string>(name: N) => <A>(self: readonly A[]) => readonly { readonly [K in N]: A; }[];
 ```
+
+Added in: 3.0.0
+
+### let
+
+```ts
+export declare const let: <N extends string, A extends object, B>(name: Exclude<N, keyof A>, f: (a: A) => B) => (self: readonly A[]) => readonly { readonly [K in N | keyof A]: K extends keyof A ? A[K] : B; }[];
+```
+
+Added in: 3.0.0
+
+## Error handling
+
+### firstSuccessOf
+
+Returns an effect that runs each of the specified effects in order until one of them succeeds.
+
+```ts
+export declare const firstSuccessOf: <A>(collection: Iterable<readonly A[]>) => readonly A[];
+```
+
+Added in: 3.0.0
+
+## Filtering
+
+### compact
+
+```ts
+export declare const compact: <A>(foa: readonly Option<A>[]) => readonly A[];
+```
+
+Added in: 3.0.0
+
+### filter
+
+```ts
+export declare const filter: { <C extends A, B extends A, A = C>(refinement: Refinement<A, B>): (fc: readonly C[]) => readonly B[]; <B extends A, A = B>(predicate: Predicate<A>): (fb: readonly B[]) => readonly B[]; };
+```
+
+Added in: 3.0.0
+
+### filterMap
+
+```ts
+export declare const filterMap: <A, B>(f: (a: A) => Option<B>) => (self: Iterable<A>) => readonly B[];
+```
+
+Added in: 3.0.0
+
+### filterMapWithIndex
+
+```ts
+export declare const filterMapWithIndex: <A, B>(f: (i: number, a: A) => Option<B>) => (self: Iterable<A>) => readonly B[];
+```
+
+Added in: 3.0.0
+
+### filterWithIndex
+
+```ts
+export declare const filterWithIndex: { <C extends A, B extends A, A = C>(refinement: (i: number, a: A) => a is B): (fc: readonly C[]) => readonly B[]; <B extends A, A = B>(predicate: (i: number, a: A) => boolean): (fb: readonly B[]) => readonly B[]; };
+```
+
+Added in: 3.0.0
+
+### partition
+
+```ts
+export declare const partition: { <C extends A, B extends A, A = C>(refinement: Refinement<A, B>): (fc: readonly C[]) => readonly [readonly C[], readonly B[]]; <B extends A, A = B>(predicate: Predicate<A>): (fb: readonly B[]) => readonly [readonly B[], readonly B[]]; };
+```
+
+Added in: 3.0.0
+
+### partitionMap
+
+```ts
+export declare const partitionMap: <A, B, C>(f: (a: A) => Result<B, C>) => (fa: readonly A[]) => readonly [readonly B[], readonly C[]];
+```
+
+Added in: 3.0.0
+
+### partitionMapWithIndex
+
+```ts
+export declare const partitionMapWithIndex: <A, B, C>(f: (i: number, a: A) => Result<B, C>) => (fa: readonly A[]) => readonly [readonly B[], readonly C[]];
+```
+
+Added in: 3.0.0
+
+### partitionWithIndex
+
+```ts
+export declare const partitionWithIndex: { <C extends A, B extends A, A = C>(refinement: (i: number, a: A) => a is B): (fb: readonly C[]) => readonly [readonly C[], readonly B[]]; <B extends A, A = B>(predicate: (i: number, a: A) => boolean): (fb: readonly B[]) => readonly [readonly B[], readonly B[]]; };
+```
+
+Added in: 3.0.0
+
+### separate
+
+```ts
+export declare const separate: <A, B>(fe: readonly Result<A, B>[]) => readonly [readonly A[], readonly B[]];
+```
+
+Added in: 3.0.0
+
+### traverseFilterMap
+
+```ts
+export declare const traverseFilterMap: <F extends TypeLambda>(F: Applicative<F>) => <A, S, R, O, E, B>(f: (a: A) => Kind<F, S, R, O, E, Option<B>>) => (ta: readonly A[]) => Kind<F, S, R, O, E, readonly B[]>;
+```
+
+Added in: 3.0.0
+
+### traversePartitionMap
+
+```ts
+export declare const traversePartitionMap: <F extends TypeLambda>(F: Applicative<F>) => <A, S, R, O, E, B, C>(f: (a: A) => Kind<F, S, R, O, E, Result<B, C>>) => (wa: readonly A[]) => Kind<F, S, R, O, E, readonly [readonly B[], readonly C[]]>;
+```
+
+Added in: 3.0.0
+
+## Folding
+
+### foldMap
+
+```ts
+export declare const foldMap: <M>(Monoid: Monoid<M>) => <A>(f: (a: A) => M) => (self: readonly A[]) => M;
+```
+
+Added in: 3.0.0
+
+### foldMapWithIndex
+
+```ts
+export declare const foldMapWithIndex: <M>(Monoid: Monoid<M>) => <A>(f: (i: number, a: A) => M) => (self: readonly A[]) => M;
+```
+
+Added in: 3.0.0
+
+### reduce
+
+```ts
+export declare const reduce: <B, A>(b: B, f: (b: B, a: A) => B) => (self: readonly A[]) => B;
+```
+
+Added in: 3.0.0
+
+### reduceKind
+
+```ts
+export declare const reduceKind: <F extends TypeLambda>(Flattenable: Flattenable<F>) => <S, R, O, E, B, A>(fb: Kind<F, S, R, O, E, B>, f: (b: B, a: A) => Kind<F, S, R, O, E, B>) => (self: readonly A[]) => Kind<F, S, R, O, E, B>;
+```
+
+Added in: 3.0.0
+
+### reduceRight
+
+```ts
+export declare const reduceRight: <B, A>(b: B, f: (a: A, b: B) => B) => (self: readonly A[]) => B;
+```
+
+Added in: 3.0.0
+
+### reduceRightWithIndex
+
+```ts
+export declare const reduceRightWithIndex: <B, A>(b: B, f: (i: number, a: A, b: B) => B) => (self: readonly A[]) => B;
+```
+
+Added in: 3.0.0
+
+### reduceWithIndex
+
+```ts
+export declare const reduceWithIndex: <B, A>(b: B, f: (i: number, b: B, a: A) => B) => (self: readonly A[]) => B;
+```
+
+Added in: 3.0.0
+
+## Instances
+
+### getEq
+
+Derives an `Eq` over the `ReadonlyArray` of a given element type from the `Eq` of that type. The derived `Eq` defines two
+`ReadonlyArray`s as equal if all elements of both `ReadonlyArray`s are compared equal pairwise with the given `E`. In case of `ReadonlyArray`s of
+different lengths, the result is non equality.
+
+```ts
+export declare const getEq: <A>(E: Eq<A>) => Eq<readonly A[]>;
+```
+
+Added in: 3.0.0
+
+### getIntersectionSemigroup
+
+```ts
+export declare const getIntersectionSemigroup: <A>(E: Eq<A>) => Semigroup<readonly A[]>;
+```
+
+Added in: 3.0.0
+
+### getMonoid
+
+Returns a `Monoid` for `ReadonlyArray<A>`.
+
+```ts
+export declare const getMonoid: <A>() => Monoid<readonly A[]>;
+```
+
+Added in: 3.0.0
+
+### getOrd
+
+Derives an `Ord` over the `ReadonlyArray` of a given element type from the `Ord` of that type. The ordering between two such
+`ReadonlyArray`s is equal to: the first non equal comparison of each `ReadonlyArray`s elements taken pairwise in increasing order, in
+case of equality over all the pairwise elements; the longest `ReadonlyArray` is considered the greatest, if both `ReadonlyArray`s have
+the same length, the result is equality.
+
+```ts
+export declare const getOrd: <A>(O: Ord<A>) => Ord<readonly A[]>;
+```
+
+Added in: 3.0.0
+
+### getSemigroup
+
+Returns a `Semigroup` for `ReadonlyArray<A>`.
+
+```ts
+export declare const getSemigroup: <A>() => Semigroup<readonly A[]>;
+```
+
+Added in: 3.0.0
+
+### getShow
+
+```ts
+export declare const getShow: <A>(S: Show<A>) => Show<readonly A[]>;
+```
+
+Added in: 3.0.0
+
+### getUnionMonoid
+
+```ts
+export declare const getUnionMonoid: <A>(E: Eq<A>) => Monoid<readonly A[]>;
+```
+
+Added in: 3.0.0
+
+### getUnionSemigroup
+
+```ts
+export declare const getUnionSemigroup: <A>(E: Eq<A>) => Semigroup<readonly A[]>;
+```
+
+Added in: 3.0.0
+
+## Lifting
+
+### lift2
+
+Lifts a binary function into `ReadonlyArray`.
+
+```ts
+export declare const lift2: <A, B, C>(f: (a: A, b: B) => C) => (fa: readonly A[], fb: readonly B[]) => readonly C[];
+```
+
+Added in: 3.0.0
+
+### lift3
+
+Lifts a ternary function into `ReadonlyArray`.
+
+```ts
+export declare const lift3: <A, B, C, D>(f: (a: A, b: B, c: C) => D) => (fa: readonly A[], fb: readonly B[], fc: readonly C[]) => readonly D[];
+```
+
+Added in: 3.0.0
+
+### liftNullable
+
+```ts
+export declare const liftNullable: <A extends readonly unknown[], B>(f: (...a: A) => B) => (...a: A) => readonly NonNullable<B>[];
+```
+
+Added in: 3.0.0
+
+### liftOption
+
+```ts
+export declare const liftOption: <A extends readonly unknown[], B>(f: (...a: A) => Option<B>) => (...a: A) => readonly B[];
+```
+
+Added in: 3.0.0
+
+### liftPredicate
+
+```ts
+export declare const liftPredicate: { <C extends A, B extends A, A = C>(refinement: Refinement<A, B>): (c: C) => readonly B[]; <B extends A, A = B>(predicate: Predicate<A>): (b: B) => readonly B[]; };
+```
+
+Added in: 3.0.0
+
+### liftResult
+
+```ts
+export declare const liftResult: <A extends readonly unknown[], E, B>(f: (...a: A) => Result<E, B>) => (...a: A) => readonly B[];
+```
+
+Added in: 3.0.0
+
+## Mapping
+
+### as
+
+Maps the success value of this effect to the specified constant value.
+
+```ts
+export declare const as: <B>(b: B) => (self: readonly unknown[]) => readonly B[];
+```
+
+Added in: 3.0.0
+
+### flap
+
+```ts
+export declare const flap: <A>(a: A) => <B>(fab: readonly ((a: A) => B)[]) => readonly B[];
+```
+
+Added in: 3.0.0
+
+### map
+
+Returns an effect whose success is mapped by the specified `f` function.
+
+```ts
+export declare const map: <A, B>(f: (a: A) => B) => (fa: readonly A[]) => readonly B[];
+```
+
+Added in: 3.0.0
+
+### unit
+
+Returns the effect resulting from mapping the success of this effect to unit.
+
+```ts
+export declare const unit: (self: readonly unknown[]) => readonly void[];
+```
+
+Added in: 3.0.0
+
+## Methods
+
+### ap
+
+```ts
+export declare const ap: <A>(fa: readonly A[]) => <B>(self: readonly ((a: A) => B)[]) => readonly B[];
+```
+
+Added in: 3.0.0
 
 ### chop
 
@@ -55,6 +488,8 @@ value and the rest of the `ReadonlyArray`.
 ```ts
 export declare const chop: <A, B>(f: (as: readonly [A, ...A[]]) => readonly [B, readonly A[]]) => (as: readonly A[]) => readonly B[];
 ```
+
+Added in: 3.0.0
 
 ### chunksOf
 
@@ -72,11 +507,7 @@ whenever `n` evenly divides the length of `as`.
 export declare const chunksOf: (n: number) => <A>(as: readonly A[]) => readonly (readonly [A, ...A[]])[];
 ```
 
-### compact
-
-```ts
-export declare const compact: <A>(foa: readonly Option<A>[]) => readonly A[];
-```
+Added in: 3.0.0
 
 ### composeKleisli
 
@@ -84,11 +515,15 @@ export declare const compact: <A>(foa: readonly Option<A>[]) => readonly A[];
 export declare const composeKleisli: <B, C>(bfc: (b: B) => readonly C[]) => <A>(afb: (a: A) => readonly B[]) => (a: A) => readonly C[];
 ```
 
+Added in: 3.0.0
+
 ### concat
 
 ```ts
 export declare const concat: <B>(that: readonly B[]) => <A>(self: readonly A[]) => readonly (B | A)[];
 ```
+
+Added in: 3.0.0
 
 ### deleteAt
 
@@ -98,6 +533,8 @@ Delete the element at the specified index, creating a new `ReadonlyArray`, or re
 export declare const deleteAt: (i: number) => <A>(as: readonly A[]) => Option<readonly A[]>;
 ```
 
+Added in: 3.0.0
+
 ### difference
 
 Creates a `ReadonlyArray` of values not included in the other given `ReadonlyArray` using a `Eq` for equality
@@ -106,6 +543,8 @@ comparisons. The order and references of result values are determined by the fir
 ```ts
 export declare const difference: <A>(Eq: Eq<A>) => (that: readonly A[]) => (self: readonly A[]) => readonly A[];
 ```
+
+Added in: 3.0.0
 
 ### dropLeft
 
@@ -117,6 +556,8 @@ Drop a max number of elements from the start of an `ReadonlyArray`, creating a n
 export declare const dropLeft: (n: number) => <A>(as: readonly A[]) => readonly A[];
 ```
 
+Added in: 3.0.0
+
 ### dropLeftWhile
 
 Remove the longest initial subarray for which all element satisfy the specified predicate, creating a new `ReadonlyArray`.
@@ -124,6 +565,8 @@ Remove the longest initial subarray for which all element satisfy the specified 
 ```ts
 export declare const dropLeftWhile: { <A, B extends A>(refinement: Refinement<A, B>): (as: readonly A[]) => readonly B[]; <A>(predicate: Predicate<A>): <B extends A>(bs: readonly B[]) => readonly B[]; <A>(predicate: Predicate<A>): (as: readonly A[]) => readonly A[]; };
 ```
+
+Added in: 3.0.0
 
 ### dropRight
 
@@ -135,11 +578,15 @@ Drop a max number of elements from the end of an `ReadonlyArray`, creating a new
 export declare const dropRight: (n: number) => <A>(as: readonly A[]) => readonly A[];
 ```
 
+Added in: 3.0.0
+
 ### duplicate
 
 ```ts
 export declare const duplicate: <A>(wa: readonly A[]) => readonly (readonly A[])[];
 ```
+
+Added in: 3.0.0
 
 ### elem
 
@@ -149,11 +596,15 @@ Tests whether a value is a member of a `ReadonlyArray`.
 export declare const elem: <A>(E: Eq<A>) => (a: A) => (as: readonly A[]) => boolean;
 ```
 
+Added in: 3.0.0
+
 ### empty
 
 ```ts
 export declare const empty: readonly never[];
 ```
+
+Added in: 3.0.0
 
 ### every
 
@@ -163,6 +614,8 @@ Check if a predicate holds true for every `ReadonlyArray` member.
 export declare const every: { <A, B extends A>(refinement: Refinement<A, B>): Refinement<readonly A[], readonly B[]>; <A>(predicate: Predicate<A>): Predicate<readonly A[]>; };
 ```
 
+Added in: 3.0.0
+
 ### exists
 
 Alias of [`some`](#some)
@@ -171,11 +624,15 @@ Alias of [`some`](#some)
 export declare const exists: <A>(predicate: Predicate<A>) => (as: readonly A[]) => as is readonly [A, ...A[]];
 ```
 
+Added in: 3.0.0
+
 ### extend
 
 ```ts
 export declare const extend: <A, B>(f: (wa: readonly A[]) => B) => (wa: readonly A[]) => readonly B[];
 ```
+
+Added in: 3.0.0
 
 ### failures
 
@@ -185,29 +642,7 @@ Extracts from a `ReadonlyArray` of `Result` all the `Failure` elements. All the 
 export declare const failures: <E, A>(as: readonly Result<E, A>[]) => readonly E[];
 ```
 
-### filter
-
-```ts
-export declare const filter: { <C extends A, B extends A, A = C>(refinement: Refinement<A, B>): (fc: readonly C[]) => readonly B[]; <B extends A, A = B>(predicate: Predicate<A>): (fb: readonly B[]) => readonly B[]; };
-```
-
-### filterMap
-
-```ts
-export declare const filterMap: <A, B>(f: (a: A) => Option<B>) => (self: Iterable<A>) => readonly B[];
-```
-
-### filterMapWithIndex
-
-```ts
-export declare const filterMapWithIndex: <A, B>(f: (i: number, a: A) => Option<B>) => (self: Iterable<A>) => readonly B[];
-```
-
-### filterWithIndex
-
-```ts
-export declare const filterWithIndex: { <C extends A, B extends A, A = C>(refinement: (i: number, a: A) => a is B): (fc: readonly C[]) => readonly B[]; <B extends A, A = B>(predicate: (i: number, a: A) => boolean): (fb: readonly B[]) => readonly B[]; };
-```
+Added in: 3.0.0
 
 ### findFirst
 
@@ -217,6 +652,8 @@ Find the first element which satisfies a predicate (or a refinement) function
 export declare const findFirst: { <A, B extends A>(refinement: Refinement<A, B>): (as: readonly A[]) => Option<B>; <A>(predicate: Predicate<A>): <B extends A>(bs: readonly B[]) => Option<B>; <A>(predicate: Predicate<A>): (as: readonly A[]) => Option<A>; };
 ```
 
+Added in: 3.0.0
+
 ### findFirstMap
 
 Find the first element returned by an option based selector function
@@ -224,6 +661,8 @@ Find the first element returned by an option based selector function
 ```ts
 export declare const findFirstMap: <A, B>(f: (a: A) => Option<B>) => (as: readonly A[]) => Option<B>;
 ```
+
+Added in: 3.0.0
 
 ### findIndex
 
@@ -233,6 +672,8 @@ Find the first index for which a predicate holds
 export declare const findIndex: <A>(predicate: Predicate<A>) => (as: readonly A[]) => Option<number>;
 ```
 
+Added in: 3.0.0
+
 ### findLast
 
 Find the last element which satisfies a predicate function
@@ -240,6 +681,8 @@ Find the last element which satisfies a predicate function
 ```ts
 export declare const findLast: { <A, B extends A>(refinement: Refinement<A, B>): (as: readonly A[]) => Option<B>; <A>(predicate: Predicate<A>): <B extends A>(bs: readonly B[]) => Option<B>; <A>(predicate: Predicate<A>): (as: readonly A[]) => Option<A>; };
 ```
+
+Added in: 3.0.0
 
 ### findLastIndex
 
@@ -249,6 +692,8 @@ Returns the index of the last element of the list which matches the predicate
 export declare const findLastIndex: <A>(predicate: Predicate<A>) => (as: readonly A[]) => Option<number>;
 ```
 
+Added in: 3.0.0
+
 ### findLastMap
 
 Find the last element returned by an option based selector function
@@ -257,37 +702,15 @@ Find the last element returned by an option based selector function
 export declare const findLastMap: <A, B>(f: (a: A) => Option<B>) => (as: readonly A[]) => Option<B>;
 ```
 
-### firstSuccessOf
-
-Returns an effect that runs each of the specified effects in order until one of them succeeds.
-
-```ts
-export declare const firstSuccessOf: <A>(collection: Iterable<readonly A[]>) => readonly A[];
-```
-
-### flap
-
-```ts
-export declare const flap: <A>(a: A) => <B>(fab: readonly ((a: A) => B)[]) => readonly B[];
-```
-
-### flatMap
-
-```ts
-export declare const flatMap: <A, B>(f: (a: A) => readonly B[]) => (self: readonly A[]) => readonly B[];
-```
-
-### flatMapNullable
-
-```ts
-export declare const flatMapNullable: <A, B>(f: (a: A) => B) => (ma: readonly A[]) => readonly NonNullable<B>[];
-```
+Added in: 3.0.0
 
 ### flatMapWithIndex
 
 ```ts
 export declare const flatMapWithIndex: <A, B>(f: (i: number, a: A) => readonly B[]) => (as: readonly A[]) => readonly B[];
 ```
+
+Added in: 3.0.0
 
 ### flatten
 
@@ -297,104 +720,7 @@ Removes one level of nesting
 export declare const flatten: <A>(mma: readonly (readonly A[])[]) => readonly A[];
 ```
 
-### foldMap
-
-```ts
-export declare const foldMap: <M>(Monoid: Monoid<M>) => <A>(f: (a: A) => M) => (self: readonly A[]) => M;
-```
-
-### foldMapWithIndex
-
-```ts
-export declare const foldMapWithIndex: <M>(Monoid: Monoid<M>) => <A>(f: (i: number, a: A) => M) => (self: readonly A[]) => M;
-```
-
-### fromIterable
-
-```ts
-export declare const fromIterable: <A>(collection: Iterable<A>) => readonly A[];
-```
-
-### fromNullable
-
-```ts
-export declare const fromNullable: <A>(a: A) => readonly NonNullable<A>[];
-```
-
-### fromOption
-
-```ts
-export declare const fromOption: <A>(fa: Option<A>) => readonly A[];
-```
-
-### fromResult
-
-Converts an `Result` to a `ReadonlyArray`.
-
-```ts
-export declare const fromResult: <A>(fa: Result<unknown, A>) => readonly A[];
-```
-
-### getEq
-
-Derives an `Eq` over the `ReadonlyArray` of a given element type from the `Eq` of that type. The derived `Eq` defines two
-`ReadonlyArray`s as equal if all elements of both `ReadonlyArray`s are compared equal pairwise with the given `E`. In case of `ReadonlyArray`s of
-different lengths, the result is non equality.
-
-```ts
-export declare const getEq: <A>(E: Eq<A>) => Eq<readonly A[]>;
-```
-
-### getIntersectionSemigroup
-
-```ts
-export declare const getIntersectionSemigroup: <A>(E: Eq<A>) => Semigroup<readonly A[]>;
-```
-
-### getMonoid
-
-Returns a `Monoid` for `ReadonlyArray<A>`.
-
-```ts
-export declare const getMonoid: <A>() => Monoid<readonly A[]>;
-```
-
-### getOrd
-
-Derives an `Ord` over the `ReadonlyArray` of a given element type from the `Ord` of that type. The ordering between two such
-`ReadonlyArray`s is equal to: the first non equal comparison of each `ReadonlyArray`s elements taken pairwise in increasing order, in
-case of equality over all the pairwise elements; the longest `ReadonlyArray` is considered the greatest, if both `ReadonlyArray`s have
-the same length, the result is equality.
-
-```ts
-export declare const getOrd: <A>(O: Ord<A>) => Ord<readonly A[]>;
-```
-
-### getSemigroup
-
-Returns a `Semigroup` for `ReadonlyArray<A>`.
-
-```ts
-export declare const getSemigroup: <A>() => Semigroup<readonly A[]>;
-```
-
-### getShow
-
-```ts
-export declare const getShow: <A>(S: Show<A>) => Show<readonly A[]>;
-```
-
-### getUnionMonoid
-
-```ts
-export declare const getUnionMonoid: <A>(E: Eq<A>) => Monoid<readonly A[]>;
-```
-
-### getUnionSemigroup
-
-```ts
-export declare const getUnionSemigroup: <A>(E: Eq<A>) => Semigroup<readonly A[]>;
-```
+Added in: 3.0.0
 
 ### head
 
@@ -404,11 +730,15 @@ Get the first element of a `ReadonlyArray`, or `None` if the `ReadonlyArray` is 
 export declare const head: <A>(self: readonly A[]) => Option<A>;
 ```
 
+Added in: 3.0.0
+
 ### idKleisli
 
 ```ts
 export declare const idKleisli: <A>() => (a: A) => readonly A[];
 ```
+
+Added in: 3.0.0
 
 ### init
 
@@ -418,6 +748,8 @@ Get all but the last element of a `ReadonlyArray`, creating a new `ReadonlyArray
 export declare const init: <A>(as: readonly A[]) => Option<readonly A[]>;
 ```
 
+Added in: 3.0.0
+
 ### insertAt
 
 Insert an element at the specified index, creating a new `ReadonlyArray`, or returning `None` if the index is out of bounds.
@@ -425,6 +757,8 @@ Insert an element at the specified index, creating a new `ReadonlyArray`, or ret
 ```ts
 export declare const insertAt: <A>(i: number, a: A) => (as: readonly A[]) => Option<readonly [A, ...A[]]>;
 ```
+
+Added in: 3.0.0
 
 ### intercalate
 
@@ -435,6 +769,8 @@ using the specified separator.
 export declare const intercalate: <A>(M: Monoid<A>) => (middle: A) => (as: readonly A[]) => A;
 ```
 
+Added in: 3.0.0
+
 ### intersection
 
 Creates a `ReadonlyArray` of unique values that are included in all given `ReadonlyArray`s using a `Eq` for equality
@@ -444,6 +780,8 @@ comparisons. The order and references of result values are determined by the fir
 export declare const intersection: <A>(E: Eq<A>) => (that: readonly A[]) => (self: readonly A[]) => readonly A[];
 ```
 
+Added in: 3.0.0
+
 ### intersperse
 
 Places an element in between members of a `ReadonlyArray`
@@ -451,6 +789,8 @@ Places an element in between members of a `ReadonlyArray`
 ```ts
 export declare const intersperse: <A>(middle: A) => (as: readonly A[]) => readonly A[];
 ```
+
+Added in: 3.0.0
 
 ### isEmpty
 
@@ -460,13 +800,7 @@ Test whether a `ReadonlyArray` is empty.
 export declare const isEmpty: <A>(as: readonly A[]) => as is readonly [];
 ```
 
-### isNonEmpty
-
-Test whether a `ReadonlyArray` is non empty narrowing down the type to `NonEmptyReadonlyArray<A>`
-
-```ts
-export declare const isNonEmpty: <A>(as: readonly A[]) => as is readonly [A, ...A[]];
-```
+Added in: 3.0.0
 
 ### isOutOfBound
 
@@ -476,6 +810,8 @@ Test whether a `ReadonlyArray` contains a particular index
 export declare const isOutOfBound: <A>(i: number, as: readonly A[]) => boolean;
 ```
 
+Added in: 3.0.0
+
 ### last
 
 Get the last element in a `ReadonlyArray`, or `None` if the `ReadonlyArray` is empty.
@@ -484,51 +820,7 @@ Get the last element in a `ReadonlyArray`, or `None` if the `ReadonlyArray` is e
 export declare const last: <A>(as: readonly A[]) => Option<A>;
 ```
 
-### let
-
-```ts
-export declare const let: <N extends string, A extends object, B>(name: Exclude<N, keyof A>, f: (a: A) => B) => (self: readonly A[]) => readonly { readonly [K in N | keyof A]: K extends keyof A ? A[K] : B; }[];
-```
-
-### lift2
-
-Lifts a binary function into `ReadonlyArray`.
-
-```ts
-export declare const lift2: <A, B, C>(f: (a: A, b: B) => C) => (fa: readonly A[], fb: readonly B[]) => readonly C[];
-```
-
-### lift3
-
-Lifts a ternary function into `ReadonlyArray`.
-
-```ts
-export declare const lift3: <A, B, C, D>(f: (a: A, b: B, c: C) => D) => (fa: readonly A[], fb: readonly B[], fc: readonly C[]) => readonly D[];
-```
-
-### liftNullable
-
-```ts
-export declare const liftNullable: <A extends readonly unknown[], B>(f: (...a: A) => B) => (...a: A) => readonly NonNullable<B>[];
-```
-
-### liftOption
-
-```ts
-export declare const liftOption: <A extends readonly unknown[], B>(f: (...a: A) => Option<B>) => (...a: A) => readonly B[];
-```
-
-### liftPredicate
-
-```ts
-export declare const liftPredicate: { <C extends A, B extends A, A = C>(refinement: Refinement<A, B>): (c: C) => readonly B[]; <B extends A, A = B>(predicate: Predicate<A>): (b: B) => readonly B[]; };
-```
-
-### liftResult
-
-```ts
-export declare const liftResult: <A extends readonly unknown[], E, B>(f: (...a: A) => Result<E, B>) => (...a: A) => readonly B[];
-```
+Added in: 3.0.0
 
 ### lookup
 
@@ -538,23 +830,7 @@ This function provides a safe way to read a value at a particular index from a `
 export declare const lookup: (i: number) => <A>(as: readonly A[]) => Option<A>;
 ```
 
-### makeBy
-
-Return a `ReadonlyArray` of length `n` with element `i` initialized with `f(i)`.
-
-**Note**. `n` is normalized to a non negative integer.
-
-```ts
-export declare const makeBy: <A>(f: (i: number) => A) => (n: number) => readonly A[];
-```
-
-### map
-
-Returns an effect whose success is mapped by the specified `f` function.
-
-```ts
-export declare const map: <A, B>(f: (a: A) => B) => (fa: readonly A[]) => readonly B[];
-```
+Added in: 3.0.0
 
 ### mapWithIndex
 
@@ -562,27 +838,7 @@ export declare const map: <A, B>(f: (a: A) => B) => (fa: readonly A[]) => readon
 export declare const mapWithIndex: <A, B>(f: (i: number, a: A) => B) => (fa: readonly A[]) => readonly B[];
 ```
 
-### match
-
-```ts
-export declare const match: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (as: readonly [A, ...A[]]) => C) => (as: readonly A[]) => B | C;
-```
-
-### matchLeft
-
-Break a `ReadonlyArray` into its first element and remaining elements.
-
-```ts
-export declare const matchLeft: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (head: A, tail: readonly A[]) => C) => (as: readonly A[]) => B | C;
-```
-
-### matchRight
-
-Break a `ReadonlyArray` into its initial elements and the last element.
-
-```ts
-export declare const matchRight: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (init: readonly A[], last: A) => C) => (as: readonly A[]) => B | C;
-```
+Added in: 3.0.0
 
 ### modifyAt
 
@@ -593,11 +849,7 @@ of bounds.
 export declare const modifyAt: <A>(i: number, f: Endomorphism<A>) => (as: readonly A[]) => Option<readonly A[]>;
 ```
 
-### of
-
-```ts
-export declare const of: <A>(a: A) => readonly A[];
-```
+Added in: 3.0.0
 
 ### orElse
 
@@ -610,37 +862,7 @@ In case of `ReadonlyArray` concatenates the inputs into a single array.
 export declare const orElse: <B>(that: readonly B[]) => <A>(self: readonly A[]) => readonly (B | A)[];
 ```
 
-### partition
-
-```ts
-export declare const partition: { <C extends A, B extends A, A = C>(refinement: Refinement<A, B>): (fc: readonly C[]) => readonly [readonly C[], readonly B[]]; <B extends A, A = B>(predicate: Predicate<A>): (fb: readonly B[]) => readonly [readonly B[], readonly B[]]; };
-```
-
-### partitionMap
-
-```ts
-export declare const partitionMap: <A, B, C>(f: (a: A) => Result<B, C>) => (fa: readonly A[]) => readonly [readonly B[], readonly C[]];
-```
-
-### partitionMapWithIndex
-
-```ts
-export declare const partitionMapWithIndex: <A, B, C>(f: (i: number, a: A) => Result<B, C>) => (fa: readonly A[]) => readonly [readonly B[], readonly C[]];
-```
-
-### partitionWithIndex
-
-```ts
-export declare const partitionWithIndex: { <C extends A, B extends A, A = C>(refinement: (i: number, a: A) => a is B): (fb: readonly C[]) => readonly [readonly C[], readonly B[]]; <B extends A, A = B>(predicate: (i: number, a: A) => boolean): (fb: readonly B[]) => readonly [readonly B[], readonly B[]]; };
-```
-
-### prepend
-
-Prepend an element to the front of a `ReadonlyArray`, creating a new `NonEmptyReadonlyArray`.
-
-```ts
-export declare const prepend: <B>(head: B) => <A>(tail: readonly A[]) => readonly [B | A, ...(B | A)[]];
-```
+Added in: 3.0.0
 
 ### prependAll
 
@@ -650,45 +872,7 @@ Prepend an element to every member of a `ReadonlyArray`
 export declare const prependAll: <A>(middle: A) => (as: readonly A[]) => readonly A[];
 ```
 
-### reduce
-
-```ts
-export declare const reduce: <B, A>(b: B, f: (b: B, a: A) => B) => (self: readonly A[]) => B;
-```
-
-### reduceKind
-
-```ts
-export declare const reduceKind: <F extends TypeLambda>(Flattenable: Flattenable<F>) => <S, R, O, E, B, A>(fb: Kind<F, S, R, O, E, B>, f: (b: B, a: A) => Kind<F, S, R, O, E, B>) => (self: readonly A[]) => Kind<F, S, R, O, E, B>;
-```
-
-### reduceRight
-
-```ts
-export declare const reduceRight: <B, A>(b: B, f: (a: A, b: B) => B) => (self: readonly A[]) => B;
-```
-
-### reduceRightWithIndex
-
-```ts
-export declare const reduceRightWithIndex: <B, A>(b: B, f: (i: number, a: A, b: B) => B) => (self: readonly A[]) => B;
-```
-
-### reduceWithIndex
-
-```ts
-export declare const reduceWithIndex: <B, A>(b: B, f: (i: number, b: B, a: A) => B) => (self: readonly A[]) => B;
-```
-
-### replicate
-
-Create a `ReadonlyArray` containing a value repeated the specified number of times.
-
-**Note**. `n` is normalized to a non negative integer.
-
-```ts
-export declare const replicate: <A>(a: A) => (n: number) => readonly A[];
-```
+Added in: 3.0.0
 
 ### reverse
 
@@ -698,6 +882,8 @@ Reverse a `ReadonlyArray`, creating a new `ReadonlyArray`.
 export declare const reverse: <A>(as: readonly A[]) => readonly A[];
 ```
 
+Added in: 3.0.0
+
 ### rotate
 
 Rotate a `ReadonlyArray` by `n` steps.
@@ -705,6 +891,8 @@ Rotate a `ReadonlyArray` by `n` steps.
 ```ts
 export declare const rotate: (n: number) => <A>(as: readonly A[]) => readonly A[];
 ```
+
+Added in: 3.0.0
 
 ### scanLeft
 
@@ -714,6 +902,8 @@ Fold a `ReadonlyArray` from the left, keeping all intermediate results instead o
 export declare const scanLeft: <B, A>(b: B, f: (b: B, a: A) => B) => (as: readonly A[]) => readonly [B, ...B[]];
 ```
 
+Added in: 3.0.0
+
 ### scanRight
 
 Fold a `ReadonlyArray` from the right, keeping all intermediate results instead of only the final result.
@@ -722,17 +912,7 @@ Fold a `ReadonlyArray` from the right, keeping all intermediate results instead 
 export declare const scanRight: <B, A>(b: B, f: (a: A, b: B) => B) => (as: readonly A[]) => readonly [B, ...B[]];
 ```
 
-### separate
-
-```ts
-export declare const separate: <A, B>(fe: readonly Result<A, B>[]) => readonly [readonly A[], readonly B[]];
-```
-
-### sequence
-
-```ts
-export declare const sequence: <F extends TypeLambda>(F: Applicative<F>) => <S, R, O, E, A>(fas: readonly Kind<F, S, R, O, E, A>[]) => Kind<F, S, R, O, E, readonly A[]>;
-```
+Added in: 3.0.0
 
 ### size
 
@@ -742,6 +922,8 @@ Calculate the number of elements in a `ReadonlyArray`.
 export declare const size: <A>(as: readonly A[]) => number;
 ```
 
+Added in: 3.0.0
+
 ### some
 
 Check if a predicate holds true for any `ReadonlyArray` member.
@@ -749,6 +931,8 @@ Check if a predicate holds true for any `ReadonlyArray` member.
 ```ts
 export declare const some: <A>(predicate: Predicate<A>) => (as: readonly A[]) => as is readonly [A, ...A[]];
 ```
+
+Added in: 3.0.0
 
 ### sort
 
@@ -758,6 +942,8 @@ Sort the elements of a `ReadonlyArray` in increasing order, creating a new `Read
 export declare const sort: <B>(O: Ord<B>) => <A extends B>(as: readonly A[]) => readonly A[];
 ```
 
+Added in: 3.0.0
+
 ### sortBy
 
 Sort the elements of a `ReadonlyArray` in increasing order, where elements are compared using first `ords[0]`, then `ords[1]`,
@@ -766,6 +952,8 @@ etc...
 ```ts
 export declare const sortBy: <B>(ords: readonly Ord<B>[]) => <A extends B>(as: readonly A[]) => readonly A[];
 ```
+
+Added in: 3.0.0
 
 ### spanLeft
 
@@ -777,6 +965,8 @@ Split a `ReadonlyArray` into two parts:
 export declare const spanLeft: { <A, B extends A>(refinement: Refinement<A, B>): (as: readonly A[]) => readonly [init: readonly B[], rest: readonly A[]]; <A>(predicate: Predicate<A>): <B extends A>(bs: readonly B[]) => readonly [init: readonly B[], rest: readonly B[]]; <A>(predicate: Predicate<A>): (as: readonly A[]) => readonly [init: readonly A[], rest: readonly A[]]; };
 ```
 
+Added in: 3.0.0
+
 ### splitAt
 
 Splits a `ReadonlyArray` into two pieces, the first piece has max `n` elements.
@@ -784,6 +974,8 @@ Splits a `ReadonlyArray` into two pieces, the first piece has max `n` elements.
 ```ts
 export declare const splitAt: (n: number) => <A>(as: readonly A[]) => readonly [readonly A[], readonly A[]];
 ```
+
+Added in: 3.0.0
 
 ### successes
 
@@ -793,6 +985,8 @@ Extracts from a `ReadonlyArray` of `Result`s all the `Success` elements.
 export declare const successes: <E, A>(as: readonly Result<E, A>[]) => readonly A[];
 ```
 
+Added in: 3.0.0
+
 ### tail
 
 Get all but the first element of a `ReadonlyArray`, creating a new `ReadonlyArray`, or `None` if the `ReadonlyArray` is empty.
@@ -800,6 +994,8 @@ Get all but the first element of a `ReadonlyArray`, creating a new `ReadonlyArra
 ```ts
 export declare const tail: <A>(as: readonly A[]) => Option<readonly A[]>;
 ```
+
+Added in: 3.0.0
 
 ### takeLeft
 
@@ -811,6 +1007,8 @@ Keep only a max number of elements from the start of an `ReadonlyArray`, creatin
 export declare const takeLeft: (n: number) => <A>(as: readonly A[]) => readonly A[];
 ```
 
+Added in: 3.0.0
+
 ### takeLeftWhile
 
 Calculate the longest initial subarray for which all element satisfy the specified predicate, creating a new `ReadonlyArray`.
@@ -818,6 +1016,8 @@ Calculate the longest initial subarray for which all element satisfy the specifi
 ```ts
 export declare const takeLeftWhile: { <A, B extends A>(refinement: Refinement<A, B>): (as: readonly A[]) => readonly B[]; <A>(predicate: Predicate<A>): <B extends A>(bs: readonly B[]) => readonly B[]; <A>(predicate: Predicate<A>): (as: readonly A[]) => readonly A[]; };
 ```
+
+Added in: 3.0.0
 
 ### takeRight
 
@@ -829,6 +1029,8 @@ Keep only a max number of elements from the end of an `ReadonlyArray`, creating 
 export declare const takeRight: (n: number) => <A>(as: readonly A[]) => readonly A[];
 ```
 
+Added in: 3.0.0
+
 ### tap
 
 Returns an effect that effectfully "peeks" at the success of this effect.
@@ -837,11 +1039,7 @@ Returns an effect that effectfully "peeks" at the success of this effect.
 export declare const tap: <A>(f: (a: A) => readonly unknown[]) => (self: readonly A[]) => readonly A[];
 ```
 
-### traverse
-
-```ts
-export declare const traverse: <F extends TypeLambda>(Applicative: Applicative<F>) => <A, S, R, O, E, B>(f: (a: A) => Kind<F, S, R, O, E, B>) => (self: readonly A[]) => Kind<F, S, R, O, E, readonly B[]>;
-```
+Added in: 3.0.0
 
 ### traverseFilter
 
@@ -851,11 +1049,7 @@ Filter values inside a context.
 export declare const traverseFilter: <F extends TypeLambda>(F: Applicative<F>) => <B extends A, S, R, O, E, A = B>(predicate: (a: A) => Kind<F, S, R, O, E, boolean>) => (self: readonly B[]) => Kind<F, S, R, O, E, readonly B[]>;
 ```
 
-### traverseFilterMap
-
-```ts
-export declare const traverseFilterMap: <F extends TypeLambda>(F: Applicative<F>) => <A, S, R, O, E, B>(f: (a: A) => Kind<F, S, R, O, E, Option<B>>) => (ta: readonly A[]) => Kind<F, S, R, O, E, readonly B[]>;
-```
+Added in: 3.0.0
 
 ### traversePartition
 
@@ -863,29 +1057,15 @@ export declare const traverseFilterMap: <F extends TypeLambda>(F: Applicative<F>
 export declare const traversePartition: <F extends TypeLambda>(ApplicativeF: Applicative<F>) => <B extends A, S, R, O, E, A = B>(predicate: (a: A) => Kind<F, S, R, O, E, boolean>) => (self: readonly B[]) => Kind<F, S, R, O, E, readonly [readonly B[], readonly B[]]>;
 ```
 
-### traversePartitionMap
-
-```ts
-export declare const traversePartitionMap: <F extends TypeLambda>(F: Applicative<F>) => <A, S, R, O, E, B, C>(f: (a: A) => Kind<F, S, R, O, E, Result<B, C>>) => (wa: readonly A[]) => Kind<F, S, R, O, E, readonly [readonly B[], readonly C[]]>;
-```
-
-### traverseWithIndex
-
-```ts
-export declare const traverseWithIndex: <F extends TypeLambda>(Applicative: Applicative<F>) => <A, S, R, O, E, B>(f: (i: number, a: A) => Kind<F, S, R, O, E, B>) => (self: readonly A[]) => Kind<F, S, R, O, E, readonly B[]>;
-```
-
-### tupled
-
-```ts
-export declare const tupled: <A>(self: readonly A[]) => readonly (readonly [A])[];
-```
+Added in: 3.0.0
 
 ### unfold
 
 ```ts
 export declare const unfold: <B, A>(b: B, f: (b: B) => Option<readonly [A, B]>) => readonly A[];
 ```
+
+Added in: 3.0.0
 
 ### union
 
@@ -895,6 +1075,8 @@ Creates a `ReadonlyArray` of unique values, in order, from all given `ReadonlyAr
 export declare const union: <A>(E: Eq<A>) => (that: readonly A[]) => (self: readonly A[]) => readonly A[];
 ```
 
+Added in: 3.0.0
+
 ### uniq
 
 Remove duplicates from a `ReadonlyArray`, keeping the first occurrence of an element.
@@ -903,13 +1085,7 @@ Remove duplicates from a `ReadonlyArray`, keeping the first occurrence of an ele
 export declare const uniq: <A>(E: Eq<A>) => (self: readonly A[]) => readonly A[];
 ```
 
-### unit
-
-Returns the effect resulting from mapping the success of this effect to unit.
-
-```ts
-export declare const unit: (self: readonly unknown[]) => readonly void[];
-```
+Added in: 3.0.0
 
 ### unzip
 
@@ -919,6 +1095,8 @@ This function is the inverse of `zip`. Takes a `ReadonlyArray` of pairs and retu
 export declare const unzip: <A, B>(as: readonly (readonly [A, B])[]) => readonly [readonly A[], readonly B[]];
 ```
 
+Added in: 3.0.0
+
 ### updateAt
 
 Change the element at the specified index, creating a new `ReadonlyArray`, or returning `None` if the index is out of bounds.
@@ -926,6 +1104,8 @@ Change the element at the specified index, creating a new `ReadonlyArray`, or re
 ```ts
 export declare const updateAt: <A>(i: number, a: A) => (as: readonly A[]) => Option<readonly A[]>;
 ```
+
+Added in: 3.0.0
 
 ### zip
 
@@ -936,13 +1116,78 @@ longer `ReadonlyArray` are discarded.
 export declare const zip: <B>(bs: readonly B[]) => <A>(as: readonly A[]) => readonly (readonly [A, B])[];
 ```
 
-### zipFlatten
+Added in: 3.0.0
 
-Sequentially zips this effect with the specified effect.
+### zipWith
+
+Apply a function to pairs of elements at the same index in two `ReadonlyArray`s, collecting the results in a new `ReadonlyArray`. If one
+input `ReadonlyArray` is short, excess elements of the longer `ReadonlyArray` are discarded.
 
 ```ts
-export declare const zipFlatten: <B>(fb: readonly B[]) => <A extends readonly unknown[]>(self: readonly A[]) => readonly (readonly [...A, B])[];
+export declare const zipWith: <B, A, C>(fb: readonly B[], f: (a: A, b: B) => C) => (fa: readonly A[]) => readonly C[];
 ```
+
+Added in: 3.0.0
+
+## Pattern matching
+
+### match
+
+```ts
+export declare const match: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (as: readonly [A, ...A[]]) => C) => (as: readonly A[]) => B | C;
+```
+
+Added in: 3.0.0
+
+### matchLeft
+
+Break a `ReadonlyArray` into its first element and remaining elements.
+
+```ts
+export declare const matchLeft: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (head: A, tail: readonly A[]) => C) => (as: readonly A[]) => B | C;
+```
+
+Added in: 3.0.0
+
+### matchRight
+
+Break a `ReadonlyArray` into its initial elements and the last element.
+
+```ts
+export declare const matchRight: <B, A, C = B>(onEmpty: LazyArg<B>, onNonEmpty: (init: readonly A[], last: A) => C) => (as: readonly A[]) => B | C;
+```
+
+Added in: 3.0.0
+
+## Refinements
+
+### isNonEmpty
+
+Test whether a `ReadonlyArray` is non empty narrowing down the type to `NonEmptyReadonlyArray<A>`
+
+```ts
+export declare const isNonEmpty: <A>(as: readonly A[]) => as is readonly [A, ...A[]];
+```
+
+Added in: 3.0.0
+
+## Sequencing
+
+### flatMap
+
+```ts
+export declare const flatMap: <A, B>(f: (a: A) => readonly B[]) => (self: readonly A[]) => readonly B[];
+```
+
+Added in: 3.0.0
+
+### flatMapNullable
+
+```ts
+export declare const flatMapNullable: <A, B>(f: (a: A) => B) => (ma: readonly A[]) => readonly NonNullable<B>[];
+```
+
+Added in: 3.0.0
 
 ### zipLeft
 
@@ -953,6 +1198,8 @@ produced by the effect.
 export declare const zipLeft: (that: readonly unknown[]) => <A>(self: readonly A[]) => readonly A[];
 ```
 
+Added in: 3.0.0
+
 ### zipRight
 
 A variant of `flatMap` that ignores the value produced by this effect.
@@ -961,12 +1208,51 @@ A variant of `flatMap` that ignores the value produced by this effect.
 export declare const zipRight: <A>(that: readonly A[]) => (self: readonly unknown[]) => readonly A[];
 ```
 
-### zipWith
+Added in: 3.0.0
 
-Apply a function to pairs of elements at the same index in two `ReadonlyArray`s, collecting the results in a new `ReadonlyArray`. If one
-input `ReadonlyArray` is short, excess elements of the longer `ReadonlyArray` are discarded.
+## Traversing
+
+### sequence
 
 ```ts
-export declare const zipWith: <B, A, C>(fb: readonly B[], f: (a: A, b: B) => C) => (fa: readonly A[]) => readonly C[];
+export declare const sequence: <F extends TypeLambda>(F: Applicative<F>) => <S, R, O, E, A>(fas: readonly Kind<F, S, R, O, E, A>[]) => Kind<F, S, R, O, E, readonly A[]>;
 ```
+
+Added in: 3.0.0
+
+### traverse
+
+```ts
+export declare const traverse: <F extends TypeLambda>(Applicative: Applicative<F>) => <A, S, R, O, E, B>(f: (a: A) => Kind<F, S, R, O, E, B>) => (self: readonly A[]) => Kind<F, S, R, O, E, readonly B[]>;
+```
+
+Added in: 3.0.0
+
+### traverseWithIndex
+
+```ts
+export declare const traverseWithIndex: <F extends TypeLambda>(Applicative: Applicative<F>) => <A, S, R, O, E, B>(f: (i: number, a: A) => Kind<F, S, R, O, E, B>) => (self: readonly A[]) => Kind<F, S, R, O, E, readonly B[]>;
+```
+
+Added in: 3.0.0
+
+## Tuple sequencing
+
+### tupled
+
+```ts
+export declare const tupled: <A>(self: readonly A[]) => readonly (readonly [A])[];
+```
+
+Added in: 3.0.0
+
+### zipFlatten
+
+Sequentially zips this effect with the specified effect.
+
+```ts
+export declare const zipFlatten: <B>(fb: readonly B[]) => <A extends readonly unknown[]>(self: readonly A[]) => readonly (readonly [...A, B])[];
+```
+
+Added in: 3.0.0
 
