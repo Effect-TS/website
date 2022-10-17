@@ -52,10 +52,10 @@ for (const filePath of paths) {
             if (ts.isTypeAliasDeclaration(s) && (s.name.text === nameSymbol.name || models.includes(s.name.text))) {
               const type = checker.getTypeAtLocation(s.name)
               const symbol: ts.Symbol | undefined =
-                type.symbol ??
                 (type.aliasSymbol && ts.isTypeReferenceNode(s.type)
                   ? checker.getSymbolAtLocation(s.type.typeName)
-                  : undefined)
+                  : undefined) ?? type.symbol
+
               if (symbol) {
                 const declaration = symbol
                   .getDeclarations()
