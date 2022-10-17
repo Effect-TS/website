@@ -21,7 +21,7 @@ export declare type Kind<F extends TypeLambda, InOut1, In1, Out3, Out2, Out1> = 
     readonly Out3: Out3;
     readonly Out2: Out2;
     readonly Out1: Out1;
-})['type'] : {
+})["type"] : {
     readonly F: F;
     readonly InOut1: (_: InOut1) => InOut1;
     readonly In1: (_: In1) => void;

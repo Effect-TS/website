@@ -1,6 +1,6 @@
-import * as R from '@fp-ts/core/Result'
-import * as RA from '@fp-ts/core/ReadonlyArray'
-import * as F from '@fp-ts/core/Function'
+import * as R from '@fp-ts/data/Result'
+import * as RA from '@fp-ts/data/ReadonlyArray'
+import * as F from '@fp-ts/data/Function'
 
 const Function: Omit<typeof F, never> = F
 const Result: Omit<typeof R, never> = R

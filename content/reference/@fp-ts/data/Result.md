@@ -17,7 +17,7 @@ structure.
 export declare const fail: <E>(e: E) => Result<E, never>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### succeed
 
@@ -28,7 +28,7 @@ of this structure.
 export declare const succeed: <A>(a: A) => Result<never, A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Conversions
 
@@ -41,7 +41,7 @@ the provided default as a `Failure`.
 export declare const fromNullable: <E>(onNullable: E) => <A>(a: A) => Result<E, NonNullable<A>>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### fromOption
 
@@ -49,7 +49,7 @@ Added in: 3.0.0
 export declare const fromOption: <E>(onNone: E) => <A>(fa: Option<A>) => Result<E, A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### getFailure
 
@@ -59,7 +59,7 @@ Converts a `Result` to an `Option` discarding the success.
 export declare const getFailure: <E, A>(self: Result<E, A>) => Option<E>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### getSuccess
 
@@ -69,7 +69,7 @@ Converts a `Result` to an `Option` discarding the error.
 export declare const getSuccess: <E, A>(self: Result<E, A>) => Option<A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### toNull
 
@@ -77,7 +77,7 @@ Added in: 3.0.0
 export declare const toNull: <E, A>(self: Result<E, A>) => A;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### toReadonlyArray
 
@@ -85,7 +85,7 @@ Added in: 3.0.0
 export declare const toReadonlyArray: <E, A>(self: Result<E, A>) => readonly A[];
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### toUndefined
 
@@ -93,7 +93,7 @@ Added in: 3.0.0
 export declare const toUndefined: <E, A>(self: Result<E, A>) => A;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### toUnion
 
@@ -101,7 +101,7 @@ Added in: 3.0.0
 export declare const toUnion: <E, A>(fa: Result<E, A>) => E | A;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Do notation
 
@@ -111,7 +111,7 @@ Added in: 3.0.0
 export declare const bind: <N extends string, A extends object, E2, B>(name: Exclude<N, keyof A>, f: (a: A) => Result<E2, B>) => <E1>(self: Result<E1, A>) => Result<E2 | E1, { readonly [K in N | keyof A]: K extends keyof A ? A[K] : B; }>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### bindRight
 
@@ -121,7 +121,7 @@ A variant of `bind` that sequentially ignores the scope.
 export declare const bindRight: <N extends string, A extends object, E2, B>(name: Exclude<N, keyof A>, fb: Result<E2, B>) => <E1>(self: Result<E1, A>) => Result<E2 | E1, { readonly [K in N | keyof A]: K extends keyof A ? A[K] : B; }>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### bindTo
 
@@ -129,7 +129,7 @@ Added in: 3.0.0
 export declare const bindTo: <N extends string>(name: N) => <E, A>(self: Result<E, A>) => Result<E, { readonly [K in N]: A; }>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### let
 
@@ -137,7 +137,7 @@ Added in: 3.0.0
 export declare const let: <N extends string, A extends object, B>(name: Exclude<N, keyof A>, f: (a: A) => B) => <E>(self: Result<E, A>) => Result<E, { readonly [K in N | keyof A]: K extends keyof A ? A[K] : B; }>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Error handling
 
@@ -149,17 +149,7 @@ Recovers from all errors.
 export declare const catchAll: <E1, E2, B>(onError: (e: E1) => Result<E2, B>) => <A>(self: Result<E1, A>) => Result<E2, B | A>;
 ```
 
-Added in: 3.0.0
-
-### firstSuccessOf
-
-Returns an effect that runs each of the specified effects in order until one of them succeeds.
-
-```ts
-export declare const firstSuccessOf: <E, A>(startWith: Result<E, A>) => (collection: Iterable<Result<E, A>>) => Result<E, A>;
-```
-
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### getOrElse
 
@@ -169,18 +159,7 @@ Returns the wrapped value if it's a `Success` or a default value if is a `Failur
 export declare const getOrElse: <B>(onError: B) => <A>(self: Result<unknown, A>) => B | A;
 ```
 
-Added in: 3.0.0
-
-### getValidatedAlt
-
-The default [`Alt`](#semigroupkind) instance returns the last error, if you want to
-get all errors you need to provide a way to combine them via a `Semigroup`.
-
-```ts
-export declare const getValidatedAlt: <E>(Semigroup: Semigroup<E>) => Alt<ValidatedT<ResultTypeLambda, E>>;
-```
-
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### getValidatedApplicative
 
@@ -188,10 +167,10 @@ The default [`Applicative`](#applicative) instance returns the first error, if y
 get all errors you need to provide a way to combine them via a `Semigroup`.
 
 ```ts
-export declare const getValidatedApplicative: <E>(Semigroup: Semigroup<E>) => Applicative<ValidatedT<ResultTypeLambda, E>>;
+export declare const getValidatedApplicative: <E>(Semigroup: Semigroup<E>) => Monoidal<ValidatedT<ResultTypeLambda, E>>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### mapError
 
@@ -202,7 +181,7 @@ function. This can be used to lift a "smaller" error into a "larger" error.
 export declare const mapError: <E, G>(f: (e: E) => G) => <A>(self: Result<E, A>) => Result<G, A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### orElse
 
@@ -222,7 +201,7 @@ In case of `Result` returns the left-most non-`Failure` value (or the right-most
 export declare const orElse: <E2, B>(that: Result<E2, B>) => <E1, A>(self: Result<E1, A>) => Result<E2, B | A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### tapError
 
@@ -232,7 +211,7 @@ Returns an effect that effectfully "peeks" at the failure of this effect.
 export declare const tapError: <E1, E2>(onError: (e: E1) => Result<E2, unknown>) => <A>(self: Result<E1, A>) => Result<E1 | E2, A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Filtering
 
@@ -242,7 +221,7 @@ Added in: 3.0.0
 export declare const compact: <E>(onNone: E) => <A>(self: Result<E, Option<A>>) => Result<E, A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### filter
 
@@ -250,7 +229,7 @@ Added in: 3.0.0
 export declare const filter: { <C extends A, B extends A, E2, A = C>(refinement: Refinement<A, B>, onFalse: E2): <E1>(self: Result<E1, C>) => Result<E2 | E1, B>; <B extends A, E2, A = B>(predicate: Predicate<A>, onFalse: E2): <E1>(self: Result<E1, B>) => Result<E2 | E1, B>; };
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### filterMap
 
@@ -258,7 +237,7 @@ Added in: 3.0.0
 export declare const filterMap: <A, B, E>(f: (a: A) => Option<B>, onNone: E) => (self: Result<E, A>) => Result<E, B>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### partition
 
@@ -266,7 +245,7 @@ Added in: 3.0.0
 export declare const partition: { <C extends A, B extends A, E, A = C>(refinement: Refinement<A, B>, onFalse: E): (self: Result<E, C>) => readonly [Result<E, C>, Result<E, B>]; <B extends A, E, A = B>(predicate: Predicate<A>, onFalse: E): (self: Result<E, B>) => readonly [Result<E, B>, Result<E, B>]; };
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### partitionMap
 
@@ -274,7 +253,7 @@ Added in: 3.0.0
 export declare const partitionMap: <A, B, C, E>(f: (a: A) => Result<B, C>, onEmpty: E) => (self: Result<E, A>) => readonly [Result<E, B>, Result<E, C>];
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### separate
 
@@ -282,23 +261,23 @@ Added in: 3.0.0
 export declare const separate: <E>(onEmpty: E) => <A, B>(self: Result<E, Result<A, B>>) => readonly [Result<E, A>, Result<E, B>];
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### traverseFilterMap
 
 ```ts
-export declare const traverseFilterMap: <F extends TypeLambda>(Applicative: Applicative<F>) => <A, S, R, O, FE, B, E>(f: (a: A) => Kind<F, S, R, O, FE, Option<B>>, onNone: E) => (self: Result<E, A>) => Kind<F, S, R, O, FE, Result<E, B>>;
+export declare const traverseFilterMap: <F extends TypeLambda>(Applicative: Monoidal<F>) => <A, S, R, O, FE, B, E>(f: (a: A) => Kind<F, S, R, O, FE, Option<B>>, onNone: E) => (self: Result<E, A>) => Kind<F, S, R, O, FE, Result<E, B>>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### traversePartitionMap
 
 ```ts
-export declare const traversePartitionMap: <F extends TypeLambda>(Applicative: Applicative<F>) => <A, S, R, O, FE, B, C, E>(f: (a: A) => Kind<F, S, R, O, FE, Result<B, C>>, onNone: E) => (self: Result<E, A>) => Kind<F, S, R, O, FE, readonly [Result<E, B>, Result<E, C>]>;
+export declare const traversePartitionMap: <F extends TypeLambda>(Applicative: Monoidal<F>) => <A, S, R, O, FE, B, C, E>(f: (a: A) => Kind<F, S, R, O, FE, Result<B, C>>, onNone: E) => (self: Result<E, A>) => Kind<F, S, R, O, FE, readonly [Result<E, B>, Result<E, C>]>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Folding
 
@@ -308,7 +287,7 @@ Added in: 3.0.0
 export declare const foldMap: <M>(Monoid: Monoid<M>) => <A>(f: (a: A) => M) => <E>(self: Result<E, A>) => M;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### reduce
 
@@ -316,7 +295,7 @@ Added in: 3.0.0
 export declare const reduce: <B, A>(b: B, f: (b: B, a: A) => B) => <E>(self: Result<E, A>) => B;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### reduceRight
 
@@ -324,7 +303,7 @@ Added in: 3.0.0
 export declare const reduceRight: <B, A>(b: B, f: (a: A, b: B) => B) => <E>(self: Result<E, A>) => B;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Instances
 
@@ -334,15 +313,7 @@ Added in: 3.0.0
 export declare const getCompactable: <E>(onNone: E) => Compactable<ValidatedT<ResultTypeLambda, E>>;
 ```
 
-Added in: 3.0.0
-
-### getEq
-
-```ts
-export declare const getEq: <E, A>(EE: Eq<E>, EA: Eq<A>) => Eq<Result<E, A>>;
-```
-
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### getFilterable
 
@@ -350,7 +321,7 @@ Added in: 3.0.0
 export declare const getFilterable: <E>(onEmpty: E) => Filterable<ValidatedT<ResultTypeLambda, E>>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### getSemigroup
 
@@ -358,18 +329,10 @@ Semigroup returning the left-most non-`Failure` value. If both operands are `Suc
 combined using the provided `Semigroup`.
 
 ```ts
-export declare const getSemigroup: <A, E>(S: Semigroup<A>) => Semigroup<Result<E, A>>;
+export declare const getSemigroup: <A>(Semigroup: Semigroup<A>) => <E>() => Semigroup<Result<E, A>>;
 ```
 
-Added in: 3.0.0
-
-### getShow
-
-```ts
-export declare const getShow: <E, A>(SE: Show<E>, SA: Show<A>) => Show<Result<E, A>>;
-```
-
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### getTraversableFilterable
 
@@ -377,7 +340,7 @@ Added in: 3.0.0
 export declare const getTraversableFilterable: <E>(onEmpty: E) => TraversableFilterable<ValidatedT<ResultTypeLambda, E>>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Interop
 
@@ -389,7 +352,7 @@ Constructs a new `Result` from a function that might throw.
 export declare const fromThrowable: <A, E>(f: () => A, onThrow: (error: unknown) => E) => Result<E, A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### liftThrowable
 
@@ -399,7 +362,7 @@ Lifts a function that may throw to one returning a `Result`.
 export declare const liftThrowable: <A extends readonly unknown[], B, E>(f: (...a: A) => B, onThrow: (error: unknown) => E) => (...a: A) => Result<E, B>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Lifting
 
@@ -411,7 +374,7 @@ Lifts a binary function into `Result`.
 export declare const lift2: <A, B, C>(f: (a: A, b: B) => C) => <E1, E2>(fa: Result<E1, A>, fb: Result<E2, B>) => Result<E1 | E2, C>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### lift3
 
@@ -421,7 +384,7 @@ Lifts a ternary function into `Result`.
 export declare const lift3: <A, B, C, D>(f: (a: A, b: B, c: C) => D) => <E1, E2, E3>(fa: Result<E1, A>, fb: Result<E2, B>, fc: Result<E3, C>) => Result<E1 | E2 | E3, D>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### liftNullable
 
@@ -429,7 +392,7 @@ Added in: 3.0.0
 export declare const liftNullable: <A extends readonly unknown[], B, E>(f: (...a: A) => B, onNullable: E) => (...a: A) => Result<E, NonNullable<B>>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### liftOption
 
@@ -437,7 +400,7 @@ Added in: 3.0.0
 export declare const liftOption: <A extends readonly unknown[], B, E>(f: (...a: A) => Option<B>, onNone: E) => (...a: A) => Result<E, B>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### liftPredicate
 
@@ -445,7 +408,7 @@ Added in: 3.0.0
 export declare const liftPredicate: { <C extends A, B extends A, E, A = C>(refinement: Refinement<A, B>, onFalse: E): (c: C) => Result<E, B>; <B extends A, E, A = B>(predicate: Predicate<A>, onFalse: E): (b: B) => Result<E, B>; };
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Mapping
 
@@ -457,7 +420,7 @@ Maps the success value of this effect to the specified constant value.
 export declare const as: <B>(b: B) => <E>(self: Result<E, unknown>) => Result<E, B>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### flap
 
@@ -465,7 +428,7 @@ Added in: 3.0.0
 export declare const flap: <A>(a: A) => <E, B>(fab: Result<E, (a: A) => B>) => Result<E, B>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### map
 
@@ -475,7 +438,7 @@ Returns an effect whose success is mapped by the specified `f` function.
 export declare const map: <A, B>(f: (a: A) => B) => <E>(fa: Result<E, A>) => Result<E, B>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### mapBoth
 
@@ -486,7 +449,7 @@ the specified pair of functions, `f` and `g`.
 export declare const mapBoth: <E, G, A, B>(f: (e: E) => G, g: (a: A) => B) => (self: Result<E, A>) => Result<G, B>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### unit
 
@@ -496,7 +459,7 @@ Returns the effect resulting from mapping the success of this effect to unit.
 export declare const unit: <E>(self: Result<E, unknown>) => Result<E, void>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Pattern matching
 
@@ -509,7 +472,7 @@ if the value is a `Success` the inner value is applied to the second function.
 export declare const match: <E, B, A, C = B>(onError: (e: E) => B, onSuccess: (a: A) => C) => (self: Result<E, A>) => B | C;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Refinements
 
@@ -521,7 +484,7 @@ Returns `true` if the either is an instance of `Failure`, `false` otherwise.
 export declare const isFailure: <E, A>(self: Result<E, A>) => self is Failure<E>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### isSuccess
 
@@ -531,7 +494,7 @@ Returns `true` if the either is an instance of `Success`, `false` otherwise.
 export declare const isSuccess: <E, A>(self: Result<E, A>) => self is Success<A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Sequencing
 
@@ -541,7 +504,7 @@ Added in: 3.0.0
 export declare const flatMap: <A, E2, B>(f: (a: A) => Result<E2, B>) => <E1>(self: Result<E1, A>) => Result<E2 | E1, B>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### flatMapNullable
 
@@ -549,7 +512,7 @@ Added in: 3.0.0
 export declare const flatMapNullable: <A, B, E2>(f: (a: A) => B, onNullable: E2) => <E1>(self: Result<E1, A>) => Result<E2 | E1, NonNullable<B>>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### flatMapOption
 
@@ -557,7 +520,7 @@ Added in: 3.0.0
 export declare const flatMapOption: <A, B, E2>(f: (a: A) => Option<B>, onNone: E2) => <E1>(self: Result<E1, A>) => Result<E2 | E1, B>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### flatten
 
@@ -567,7 +530,7 @@ The `flatten` function is the conventional monad join operator. It is used to re
 export declare const flatten: <E1, E2, A>(mma: Result<E1, Result<E2, A>>) => Result<E1 | E2, A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### zipLeft
 
@@ -578,7 +541,7 @@ produced by the effect.
 export declare const zipLeft: <E2>(that: Result<E2, unknown>) => <E1, A>(self: Result<E1, A>) => Result<E2 | E1, A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### zipRight
 
@@ -588,17 +551,17 @@ A variant of `flatMap` that ignores the value produced by this effect.
 export declare const zipRight: <E2, A>(that: Result<E2, A>) => <E1>(self: Result<E1, unknown>) => Result<E2 | E1, A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Traversing
 
 ### sequence
 
 ```ts
-export declare const sequence: <F extends TypeLambda>(F: Applicative<F>) => <E, FS, FR, FO, FE, A>(fa: Result<E, Kind<F, FS, FR, FO, FE, A>>) => Kind<F, FS, FR, FO, FE, Result<E, A>>;
+export declare const sequence: <F extends TypeLambda>(F: Monoidal<F>) => <E, FS, FR, FO, FE, A>(fa: Result<E, Kind<F, FS, FR, FO, FE, A>>) => Kind<F, FS, FR, FO, FE, Result<E, A>>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### sequenceReadonlyArray
 
@@ -608,17 +571,17 @@ Equivalent to `ReadonlyArray#sequence(Applicative)`.
 export declare const sequenceReadonlyArray: <E, A>(arr: readonly Result<E, A>[]) => Result<E, readonly A[]>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### traverse
 
 Map each element of a structure to an action, evaluate these actions from left to right, and collect the results.
 
 ```ts
-export declare const traverse: <F extends TypeLambda>(F: Applicative<F>) => <A, FS, FR, FO, FE, B>(f: (a: A) => Kind<F, FS, FR, FO, FE, B>) => <E>(ta: Result<E, A>) => Kind<F, FS, FR, FO, FE, Result<E, B>>;
+export declare const traverse: <F extends TypeLambda>(F: Monoidal<F>) => <A, FS, FR, FO, FE, B>(f: (a: A) => Kind<F, FS, FR, FO, FE, B>) => <E>(ta: Result<E, A>) => Kind<F, FS, FR, FO, FE, Result<E, B>>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### traverseNonEmptyReadonlyArray
 
@@ -628,7 +591,7 @@ Equivalent to `NonEmptyReadonlyArray#traverse(Apply)`.
 export declare const traverseNonEmptyReadonlyArray: <A, E, B>(f: (a: A) => Result<E, B>) => (as: readonly [A, ...A[]]) => Result<E, readonly [B, ...B[]]>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### traverseNonEmptyReadonlyArrayWithIndex
 
@@ -638,7 +601,7 @@ Equivalent to `NonEmptyReadonlyArray#traverseWithIndex(Apply)`.
 export declare const traverseNonEmptyReadonlyArrayWithIndex: <A, E, B>(f: (index: number, a: A) => Result<E, B>) => (as: readonly [A, ...A[]]) => Result<E, readonly [B, ...B[]]>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### traverseReadonlyArray
 
@@ -648,7 +611,7 @@ Equivalent to `ReadonlyArray#traverse(Applicative)`.
 export declare const traverseReadonlyArray: <A, E, B>(f: (a: A) => Result<E, B>) => (as: readonly A[]) => Result<E, readonly B[]>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### traverseReadonlyArrayWithIndex
 
@@ -658,7 +621,7 @@ Equivalent to `ReadonlyArray#traverseWithIndex(Applicative)`.
 export declare const traverseReadonlyArrayWithIndex: <A, E, B>(f: (index: number, a: A) => Result<E, B>) => (as: readonly A[]) => Result<E, readonly B[]>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## Tuple sequencing
 
@@ -668,7 +631,7 @@ Added in: 3.0.0
 export declare const tupled: <E, A>(self: Result<E, A>) => Result<E, readonly [A]>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### zipFlatten
 
@@ -678,7 +641,7 @@ Sequentially zips this effect with the specified effect.
 export declare const zipFlatten: <E2, B>(fb: Result<E2, B>) => <E1, A extends readonly unknown[]>(self: Result<E1, A>) => Result<E2 | E1, readonly [...A, B]>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### zipWith
 
@@ -688,7 +651,7 @@ Sequentially zips this effect with the specified effect using the specified comb
 export declare const zipWith: <E2, B, A, C>(that: Result<E2, B>, f: (a: A, b: B) => C) => <E1>(self: Result<E1, A>) => Result<E2 | E1, C>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ## General API
 
@@ -698,15 +661,7 @@ Added in: 3.0.0
 export declare const ap: <E2, A>(fa: Result<E2, A>) => <E1, B>(fab: Result<E1, (a: A) => B>) => Result<E2 | E1, B>;
 ```
 
-Added in: 3.0.0
-
-### composeKleisli
-
-```ts
-export declare const composeKleisli: <B, E2, C>(bfc: (b: B) => Result<E2, C>) => <A, E1>(afb: (a: A) => Result<E1, B>) => (a: A) => Result<E2 | E1, C>;
-```
-
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### duplicate
 
@@ -714,17 +669,17 @@ Added in: 3.0.0
 export declare const duplicate: <E, A>(ma: Result<E, A>) => Result<E, Result<E, A>>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### elem
 
 Tests whether a value is a member of a `Result`.
 
 ```ts
-export declare const elem: <A>(E: Eq<A>) => (a: A) => <E>(ma: Result<E, A>) => boolean;
+export declare const elem: <B>(a: B) => <A, E>(ma: Result<E, A>) => boolean;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### exists
 
@@ -734,7 +689,7 @@ Returns `false` if `Failure` or returns the result of the application of the giv
 export declare const exists: <A>(predicate: Predicate<A>) => (ma: Result<unknown, A>) => boolean;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### extend
 
@@ -742,15 +697,7 @@ Added in: 3.0.0
 export declare const extend: <E, A, B>(f: (wa: Result<E, A>) => B) => (wa: Result<E, A>) => Result<E, B>;
 ```
 
-Added in: 3.0.0
-
-### idKleisli
-
-```ts
-export declare const idKleisli: <A>() => (a: A) => Result<never, A>;
-```
-
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### reverse
 
@@ -758,7 +705,7 @@ Added in: 3.0.0
 export declare const reverse: <E, A>(ma: Result<E, A>) => Result<A, E>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
 ### tap
 
@@ -768,5 +715,5 @@ Returns an effect that effectfully "peeks" at the success of this effect.
 export declare const tap: <A, E2>(f: (a: A) => Result<E2, unknown>) => <E1>(self: Result<E1, A>) => Result<E2 | E1, A>;
 ```
 
-Added in: 3.0.0
+Added in: 1.0.0
 
