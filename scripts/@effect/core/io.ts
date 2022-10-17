@@ -88,6 +88,7 @@ export type Supervisor<A> = SUP.Supervisor<A>
 export type Schedule<S, E, I, O> = SCH.Schedule<S, E, I, O>
 export type ScopedRef<A> = SCR.ScopedRef<A>
 export type Metric<Type, In, Out> = ME.Metric<Type, In, Out>
+export type InterruptStatus = IS.InterruptStatus
 
 //
 // Simulated Modules
