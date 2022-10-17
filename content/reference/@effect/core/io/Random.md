@@ -1,7 +1,5 @@
 ## Random
 
-Reference Documentation for the module '@effect/io/Random'
-
 ```ts
 export interface Random {
     readonly [RandomSym]: RandomSym;

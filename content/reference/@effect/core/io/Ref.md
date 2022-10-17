@@ -1,7 +1,5 @@
 ## Ref
 
-Reference Documentation for the module '@effect/io/Ref'
-
 A `Ref` is a purely functional description of a mutable reference. The
 fundamental operations of a `Ref` are `set` and `get`. `set` sets the
 reference to a new value. `get` gets the current value of the reference.

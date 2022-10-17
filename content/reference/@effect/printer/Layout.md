@@ -1,7 +1,5 @@
 ## Layout
 
-Reference Documentation for the module '@effect/printer/Layout'
-
 ```ts
 export interface Layout<A> {
     (options: Layout.Options): DocStream<A>;

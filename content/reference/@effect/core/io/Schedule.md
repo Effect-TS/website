@@ -1,7 +1,5 @@
 ## Schedule
 
-Reference Documentation for the module '@effect/io/Schedule'
-
 A `Schedule<Env, In, Out>` defines a recurring schedule, which consumes
 values of type `In`, and which returns values of type `Out`.
 

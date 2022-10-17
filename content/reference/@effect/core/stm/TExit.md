@@ -1,7 +1,5 @@
 ## TExit
 
-Reference Documentation for the module '@effect/stm/TExit'
-
 ```ts
 export type TExit<A, B> = Fail<A> | Die | Interrupt | Succeed<B> | Retry;
 ```

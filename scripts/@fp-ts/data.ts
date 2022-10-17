@@ -8,17 +8,4 @@ const ReadonlyArray: Omit<typeof RA, never> = RA
 
 export type Result<E, A> = R.Result<E, A>
 
-export {
-  /**
-   * Reference Documentation for the module '@fp-ts/data/Function'
-   */
-  Function,
-  /**
-   * Reference Documentation for the module '@fp-ts/data/Result'
-   */
-  Result,
-  /**
-   * Reference Documentation for the module '@fp-ts/data/ReadonlyArray'
-   */
-  ReadonlyArray,
-}
+export { Function, Result, ReadonlyArray }

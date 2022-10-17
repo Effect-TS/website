@@ -1,7 +1,5 @@
 ## Layer
 
-Reference Documentation for the module '@effect/io/Layer'
-
 A `Layer<RIn, E, ROut>` describes how to build one or more services in your
 application. Services can be injected into effects via `Effect.provide`.
 Effects can require services via `Effect.service`.

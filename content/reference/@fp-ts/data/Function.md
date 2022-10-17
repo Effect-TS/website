@@ -1,7 +1,5 @@
 ## Function
 
-Reference Documentation for the module '@fp-ts/data/Function'
-
 ## Constructors
 
 ### id

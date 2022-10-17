@@ -1,7 +1,5 @@
 ## InterruptStatus
 
-Reference Documentation for the module '@effect/io/InterruptStatus'
-
 ## General API
 
 ### fromBoolean

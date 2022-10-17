@@ -1,7 +1,5 @@
 ## Channel
 
-Reference Documentation for the module '@effect/stream/Channel'
-
 A `Channel` is a nexus of I/O operations, which supports both reading and
 writing. A channel may read values of type `InElem` and write values of type
 `OutElem`. When the channel finishes, it yields a value of type `OutDone`. A

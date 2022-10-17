@@ -1,7 +1,5 @@
 ## SortedByKey
 
-Reference Documentation for the module '@effect/stream/SortedByKey'
-
 Provides extension methods for streams that are sorted by distinct keys.
 
 ```ts

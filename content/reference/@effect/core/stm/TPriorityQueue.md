@@ -1,7 +1,5 @@
 ## TPriorityQueue
 
-Reference Documentation for the module '@effect/stm/TPriorityQueue'
-
 A `TPriorityQueue` contains values of type `A` that an `Ordering` is defined
 on. Unlike a `TQueue`, `take` returns the highest priority value (the value
 that is first in the specified ordering) as opposed to the first value

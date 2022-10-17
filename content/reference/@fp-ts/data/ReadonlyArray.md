@@ -1,7 +1,5 @@
 ## ReadonlyArray
 
-Reference Documentation for the module '@fp-ts/data/ReadonlyArray'
-
 ## Constructors
 
 ### append

@@ -1,7 +1,5 @@
 ## FiberId
 
-Reference Documentation for the module '@effect/io/FiberId'
-
 ```ts
 export interface FiberId extends Equals {
     readonly [FiberIdSym]: FiberIdSym;

@@ -1,7 +1,5 @@
 ## LogSpan
 
-Reference Documentation for the module '@effect/io/LogSpan'
-
 ```ts
 export interface LogSpan {
     readonly label: string;

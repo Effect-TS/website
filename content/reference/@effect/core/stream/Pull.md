@@ -1,7 +1,5 @@
 ## Pull
 
-Reference Documentation for the module '@effect/stream/Pull'
-
 ```ts
 export type Pull<R, E, A> = Effect<R, Maybe<E>, Chunk<A>>;
 ```

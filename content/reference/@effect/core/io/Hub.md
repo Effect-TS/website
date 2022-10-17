@@ -1,7 +1,5 @@
 ## Hub
 
-Reference Documentation for the module '@effect/io/Hub'
-
 A `Hub<A>` is an asynchronous message hub into which publishers can publish
 messages of type `A` and subscribers can subscribe to take messages of type
 `A`.

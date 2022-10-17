@@ -1,7 +1,5 @@
 ## Cause
 
-Reference Documentation for the module '@effect/io/Cause'
-
 ```ts
 export interface Cause<E> extends Equals {
     readonly [CauseSym]: CauseSym;

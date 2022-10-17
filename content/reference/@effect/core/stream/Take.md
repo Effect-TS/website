@@ -1,7 +1,5 @@
 ## Take
 
-Reference Documentation for the module '@effect/stream/Take'
-
 A `Take<E, A>` represents a single `take` from a queue modeling a stream of
 values. A `Take` may be a failure cause `Cause<E>`, an chunk value `A` or an
 end-of-stream marker.

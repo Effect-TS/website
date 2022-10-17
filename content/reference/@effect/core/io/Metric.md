@@ -1,7 +1,5 @@
 ## Metric
 
-Reference Documentation for the module '@effect/io/Metric'
-
 A `Metric<Type, In, Out>` represents a concurrent metric which accepts
 updates of type `In` and are aggregated to a stateful value of type `Out`.
 

@@ -1,7 +1,5 @@
 ## TDeferred
 
-Reference Documentation for the module '@effect/stm/TDeferred'
-
 ```ts
 export interface TDeferred<E, A> {
     readonly [TDeferredSym]: TDeferredSym;

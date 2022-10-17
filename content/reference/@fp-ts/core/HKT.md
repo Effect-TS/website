@@ -1,7 +1,5 @@
 ## HKT
 
-Reference Documentation for the module '@fp-ts/core/HKT'
-
 ```ts
 export interface TypeLambda {
     readonly InOut1: unknown;

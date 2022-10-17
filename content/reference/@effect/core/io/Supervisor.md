@@ -1,7 +1,5 @@
 ## Supervisor
 
-Reference Documentation for the module '@effect/io/Supervisor'
-
 A `Supervisor<A>` is allowed to supervise the launching and termination of
 fibers, producing some visible value of type `A` from the supervision.
 

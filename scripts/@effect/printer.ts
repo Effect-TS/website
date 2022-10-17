@@ -24,37 +24,4 @@ export type Layout<A> = _Layout.Layout<A>
 export type Optimize<A> = _Optimize.Optimize<A>
 export type PageWidth = _PageWidth.PageWidth
 
-export {
-  /**
-   * Reference Documentation for the module '@effect/printer/Doc'
-   */
-  Doc,
-  /**
-   * Reference Documentation for the module '@effect/printer/DocStream'
-   */
-  DocStream,
-  /**
-   * Reference Documentation for the module '@effect/printer/DocTree'
-   */
-  DocTree,
-  /**
-   * Reference Documentation for the module '@effect/printer/Flatten'
-   */
-  Flatten,
-  /**
-   * Reference Documentation for the module '@effect/printer/Layout'
-   */
-  Layout,
-  /**
-   * Reference Documentation for the module '@effect/printer/Optimize'
-   */
-  Optimize,
-  /**
-   * Reference Documentation for the module '@effect/printer/PageWidth'
-   */
-  PageWidth,
-  /**
-   * Reference Documentation for the module '@effect/printer/Render'
-   */
-  Render,
-}
+export { Doc, DocStream, DocTree, Flatten, Layout, Optimize, PageWidth, Render }

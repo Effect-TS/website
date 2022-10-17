@@ -1,7 +1,5 @@
 ## Sink
 
-Reference Documentation for the module '@effect/stream/Sink'
-
 ```ts
 export interface Sink<R, E, In, L, Z> {
     readonly [SinkSym]: SinkSym;

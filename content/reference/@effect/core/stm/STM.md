@@ -1,7 +1,5 @@
 ## STM
 
-Reference Documentation for the module '@effect/stm/STM'
-
 `STM<R, E, A>` represents an effect that can be performed transactionally,
  resulting in a failure `E` or a value `A` that may require an environment
  `R` to execute.

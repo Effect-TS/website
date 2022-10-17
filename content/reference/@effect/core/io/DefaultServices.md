@@ -1,7 +1,5 @@
 ## DefaultServices
 
-Reference Documentation for the module '@effect/io/DefaultServices'
-
 ## General API
 
 ### currentServices

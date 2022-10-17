@@ -1,7 +1,5 @@
 ## Deferred
 
-Reference Documentation for the module '@effect/io/Deferred'
-
 A `Deferred` represents an asynchronous variable that can be set exactly
 once, with the ability for an arbitrary number of fibers to suspend (by
 calling `await`) and automatically resume when the variable is set.

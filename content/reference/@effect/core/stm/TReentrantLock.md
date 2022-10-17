@@ -1,7 +1,5 @@
 ## TReentrantLock
 
-Reference Documentation for the module '@effect/stm/TReentrantLock'
-
 A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
 concurrently acquire read locks. Only one writer is allowed to acquire a
 write lock at any given time. Read locks may be upgraded into write locks. A

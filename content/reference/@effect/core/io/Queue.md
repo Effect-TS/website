@@ -1,7 +1,5 @@
 ## Queue
 
-Reference Documentation for the module '@effect/io/Queue'
-
 A `Queue` is a lightweight, asynchronous queue into which values can be
 enqueued and of which elements can be dequeued.
 

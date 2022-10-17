@@ -1,7 +1,5 @@
 ## Doc
 
-Reference Documentation for the module '@effect/printer/Doc'
-
 The abstract data type `Doc` represents prettified documents that have been
 annotated with data of type `A`.
 

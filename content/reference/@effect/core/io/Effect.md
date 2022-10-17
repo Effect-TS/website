@@ -1,7 +1,5 @@
 ## Effect
 
-Reference Documentation for the module '@effect/io/Effect'
-
 An`Effect<R, E, A>` value is an immutable value that lazily describes a
 workflow or job. The workflow requires some environment `R`, and may fail
 with an error of type `E`, or succeed with a value of type `A`.

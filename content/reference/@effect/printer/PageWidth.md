@@ -1,7 +1,5 @@
 ## PageWidth
 
-Reference Documentation for the module '@effect/printer/PageWidth'
-
 Represents the maximum number of characters that fit onto a single line in a
 document. The layout algorithms will try to avoid exceeding the set character
 limit by inserting line breaks where appropriate (e.g., via `softLine`).

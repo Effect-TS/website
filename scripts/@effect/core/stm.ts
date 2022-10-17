@@ -41,56 +41,17 @@ export type TSemaphore = _TSemaphore.TSemaphore
 export type TSet<A> = _TSet.TSet<A>
 
 export {
-  /**
-   * Reference Documentation for the module '@effect/stm/STM'
-   */
   STM,
-  /**
-   * Reference Documentation for the module '@effect/stm/TArray'
-   */
   TArray,
-  /**
-   * Reference Documentation for the module '@effect/stm/TDeferred'
-   */
   TDeferred,
-  /**
-   * Reference Documentation for the module '@effect/stm/TExit'
-   */
   TExit,
-  /**
-   * Reference Documentation for the module '@effect/stm/THub'
-   */
   THub,
-  /**
-   * Reference Documentation for the module '@effect/stm/TMap'
-   */
   TMap,
-  /**
-   * Reference Documentation for the module '@effect/stm/TPriorityQueue'
-   */
   TPriorityQueue,
-  /**
-   * Reference Documentation for the module '@effect/stm/TQueue'
-   */
   TQueue,
-  /**
-   * Reference Documentation for the module '@effect/stm/TRandom'
-   */
   TRandom,
-  /**
-   * Reference Documentation for the module '@effect/stm/TReentrantLock'
-   */
   TReentrantLock,
-  /**
-   * Reference Documentation for the module '@effect/stm/TRef'
-   */
   TRef,
-  /**
-   * Reference Documentation for the module '@effect/stm/TSemaphore'
-   */
   TSemaphore,
-  /**
-   * Reference Documentation for the module '@effect/stm/TSet'
-   */
   TSet,
 }

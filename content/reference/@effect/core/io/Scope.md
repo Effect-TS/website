@@ -1,7 +1,5 @@
 ## Scope
 
-Reference Documentation for the module '@effect/io/Scope'
-
 A `Scope` is the foundation of safe, composable resource management in ZIO. A
 scope has two fundamental operators, `addFinalizer`, which adds a finalizer
 to the scope, and `close`, which closes a scope and runs all finalizers that

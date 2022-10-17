@@ -1,7 +1,5 @@
 ## TSet
 
-Reference Documentation for the module '@effect/stm/TSet'
-
 Transactional set implemented on top of TMap.
 
 ```ts

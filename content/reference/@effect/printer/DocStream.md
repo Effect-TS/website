@@ -1,7 +1,5 @@
 ## DocStream
 
-Reference Documentation for the module '@effect/printer/DocStream'
-
 Represents a document that has been laid out and can be processed used by the
 rendering algorithms.
 

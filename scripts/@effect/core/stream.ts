@@ -33,37 +33,4 @@ export type SortedByKey<R, E, K, A> = SBK.SortedByKey<R, E, K, A>
 export type Pull<R, E, A> = P.Pull<R, E, A>
 export type GroupBy<R, E, K, V, A> = GB.GroupBy<R, E, K, V, A>
 
-export {
-  /**
-   * Reference Documentation for the module '@effect/stream/Stream'
-   */
-  Stream,
-  /**
-   * Reference Documentation for the module '@effect/stream/Sink'
-   */
-  Sink,
-  /**
-   * Reference Documentation for the module '@effect/stream/Channel'
-   */
-  Channel,
-  /**
-   * Reference Documentation for the module '@effect/stream/GroupBy'
-   */
-  GroupBy,
-  /**
-   * Reference Documentation for the module '@effect/stream/Pull'
-   */
-  Pull,
-  /**
-   * Reference Documentation for the module '@effect/stream/SortedByKey'
-   */
-  SortedByKey,
-  /**
-   * Reference Documentation for the module '@effect/stream/SubscriptionRef'
-   */
-  SubscriptionRef,
-  /**
-   * Reference Documentation for the module '@effect/stream/Take'
-   */
-  Take,
-}
+export { Stream, Sink, Channel, GroupBy, Pull, SortedByKey, SubscriptionRef, Take }

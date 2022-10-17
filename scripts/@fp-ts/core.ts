@@ -8,8 +8,6 @@ export type TypeClass<F extends H.TypeLambda> = H.TypeClass<F>
 
 export {
   /**
-   * Reference Documentation for the module '@fp-ts/core/HKT'
-   *
    * @model TypeLambda
    * @model Kind
    * @model TypeClass

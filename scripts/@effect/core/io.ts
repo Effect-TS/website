@@ -97,116 +97,32 @@ export type Enqueue<A> = Q.Enqueue<A>
 export type Dequeue<A> = Q.Dequeue<A>
 
 export {
-  /**
-   * Reference Documentation for the module '@effect/io/Effect'
-   */
   Effect,
-  /**
-   * Reference Documentation for the module '@effect/io/Queue'
-   */
   Queue,
-  /**
-   * Reference Documentation for the module '@effect/io/Ref'
-   */
   Ref,
-  /**
-   * Reference Documentation for the module '@effect/io/Cause'
-   */
   Cause,
-  /**
-   * Reference Documentation for the module '@effect/io/Deferred'
-   */
   Deferred,
-  /**
-   * Reference Documentation for the module '@effect/io/Clock'
-   */
   Clock,
-  /**
-   * Reference Documentation for the module '@effect/io/Cached'
-   */
   Cached,
-  /**
-   * Reference Documentation for the module '@effect/io/Reloadable'
-   */
   Reloadable,
-  /**
-   * Reference Documentation for the module '@effect/io/Runtime'
-   */
   Runtime,
-  /**
-   * Reference Documentation for the module '@effect/io/RuntimeFlags'
-   */
   RuntimeFlags,
-  /**
-   * Reference Documentation for the module '@effect/io/Schedule'
-   */
   Schedule,
-  /**
-   * Reference Documentation for the module '@effect/io/Scope'
-   */
   Scope,
-  /**
-   * Reference Documentation for the module '@effect/io/ScopedRef'
-   */
   ScopedRef,
-  /**
-   * Reference Documentation for the module '@effect/io/Supervisor'
-   */
   Supervisor,
-  /**
-   * Reference Documentation for the module '@effect/io/DefaultServices'
-   */
   DefaultServices,
-  /**
-   * Reference Documentation for the module '@effect/io/Exit'
-   */
   Exit,
-  /**
-   * Reference Documentation for the module '@effect/io/Fiber'
-   */
   Fiber,
-  /**
-   * Reference Documentation for the module '@effect/io/FiberId'
-   */
   FiberId,
-  /**
-   * Reference Documentation for the module '@effect/io/FiberRef'
-   */
   FiberRef,
-  /**
-   * Reference Documentation for the module '@effect/io/FiberScope'
-   */
   FiberScope,
-  /**
-   * Reference Documentation for the module '@effect/io/Hub'
-   */
   Hub,
-  /**
-   * Reference Documentation for the module '@effect/io/InterruptStatus'
-   */
   InterruptStatus,
-  /**
-   * Reference Documentation for the module '@effect/io/Layer'
-   */
   Layer,
-  /**
-   * Reference Documentation for the module '@effect/io/LogLevel'
-   */
   LogLevel,
-  /**
-   * Reference Documentation for the module '@effect/io/LogSpan'
-   */
   LogSpan,
-  /**
-   * Reference Documentation for the module '@effect/io/Logger'
-   */
   Logger,
-  /**
-   * Reference Documentation for the module '@effect/io/Metric'
-   */
   Metric,
-  /**
-   * Reference Documentation for the module '@effect/io/Random'
-   */
   Random,
 }

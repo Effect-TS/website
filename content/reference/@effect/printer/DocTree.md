@@ -1,7 +1,5 @@
 ## DocTree
 
-Reference Documentation for the module '@effect/printer/DocTree'
-
 Represents a document that has been laid out into a tree-like structure.
 
 A `DocStream` is a linked list of different annotated cons cells (i.e.

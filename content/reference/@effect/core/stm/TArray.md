@@ -1,7 +1,5 @@
 ## TArray
 
-Reference Documentation for the module '@effect/stm/TArray'
-
 ```ts
 export interface TArray<A> {
     readonly [TArraySym]: TArraySym;

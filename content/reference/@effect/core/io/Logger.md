@@ -1,7 +1,5 @@
 ## Logger
 
-Reference Documentation for the module '@effect/io/Logger'
-
 ```ts
 export interface Logger<Message, Output> {
     readonly apply: (fiberId: FiberId, logLevel: LogLevel, message: Message, cause: Cause<unknown>, context: FiberRefs, spans: List<LogSpan>, annotations: ImmutableMap<string, string>) => Output;

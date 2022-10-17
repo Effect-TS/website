@@ -1,7 +1,5 @@
 ## TRandom
 
-Reference Documentation for the module '@effect/stm/TRandom'
-
 ```ts
 export interface TRandom {
     readonly [TRandomSym]: TRandomSym;

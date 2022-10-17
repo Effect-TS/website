@@ -1,7 +1,5 @@
 ## Clock
 
-Reference Documentation for the module '@effect/io/Clock'
-
 ```ts
 export interface Clock {
     readonly [ClockSym]: ClockSym;

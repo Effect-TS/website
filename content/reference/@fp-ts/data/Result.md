@@ -1,7 +1,5 @@
 ## Result
 
-Reference Documentation for the module '@fp-ts/data/Result'
-
 ```ts
 export declare type Result<E, A> = Failure<E> | Success<A>;
 ```

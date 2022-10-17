@@ -1,7 +1,5 @@
 ## TMap
 
-Reference Documentation for the module '@effect/stm/TMap'
-
 Transactional map implemented on top of TRef and TArray. Resolves
 conflicts via chaining.
 

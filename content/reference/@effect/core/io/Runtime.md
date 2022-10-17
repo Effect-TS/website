@@ -1,7 +1,5 @@
 ## Runtime
 
-Reference Documentation for the module '@effect/io/Runtime'
-
 ```ts
 export declare class Runtime<R> {
     readonly environment: Env<R>;

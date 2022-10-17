@@ -1,7 +1,5 @@
 ## Exit
 
-Reference Documentation for the module '@effect/io/Exit'
-
 ```ts
 export type Exit<E, A> = Success<A> | Failure<E>;
 ```

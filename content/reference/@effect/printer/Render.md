@@ -1,7 +1,5 @@
 ## Render
 
-Reference Documentation for the module '@effect/printer/Render'
-
 ## General API
 
 ### render

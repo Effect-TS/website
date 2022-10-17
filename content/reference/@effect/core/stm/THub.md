@@ -1,7 +1,5 @@
 ## THub
 
-Reference Documentation for the module '@effect/stm/THub'
-
 A `THub` is a transactional message hub. Publishers can publish messages to
 the hub and subscribers can subscribe to take messages from the hub.
 

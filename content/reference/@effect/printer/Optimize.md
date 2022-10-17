@@ -1,7 +1,5 @@
 ## Optimize
 
-Reference Documentation for the module '@effect/printer/Optimize'
-
 Represents optimization of a given document tree through fusion of redundant
 document nodes.
 

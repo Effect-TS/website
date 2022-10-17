@@ -1,7 +1,5 @@
 ## TQueue
 
-Reference Documentation for the module '@effect/stm/TQueue'
-
 A `TQueue` is a transactional queue. Offerors can offer values to the queue
 and takers can take values from the queue.
 

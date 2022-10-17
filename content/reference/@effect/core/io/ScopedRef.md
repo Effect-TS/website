@@ -1,7 +1,5 @@
 ## ScopedRef
 
-Reference Documentation for the module '@effect/io/ScopedRef'
-
 A `ScopedRef` is a reference whose value is associated with resources,
 which must be released properly. You can both get the current value of any
 `ScopedRef`, as well as set it to a new value (which may require new

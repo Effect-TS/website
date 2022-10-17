@@ -1,7 +1,5 @@
 ## TSemaphore
 
-Reference Documentation for the module '@effect/stm/TSemaphore'
-
 A `TSemaphore` is a semaphore that can be composed transactionally. Because
 of the extremely high performance of Effect's implementation of software
 transactional memory `TSemaphore` can support both controlling access to some

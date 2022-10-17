@@ -1,7 +1,5 @@
 ## TRef
 
-Reference Documentation for the module '@effect/stm/TRef'
-
 A `TRef` is a purely functional description of a mutable reference that can
 be modified as part of a transactional effect. The fundamental operations of
 a `TRef` are `set` and `get`. `set` transactionally sets the reference to a
