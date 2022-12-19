@@ -1,4 +1,4 @@
-import { defineDocumentType, makeSource } from 'contentlayer/source-files'
+import { makeSource } from 'contentlayer/source-files'
 import highlight from 'rehype-highlight'
 import remarkShikiTwoslash from 'remark-shiki-twoslash'
 import rehypeRaw from 'rehype-raw'

@@ -10,19 +10,19 @@ If you are coming to Effect from ZIO, there are a few differences to be aware of
 In Effect, we represent the environment required to run an `Effect` workflow as a union of services:
 
 ```ts twoslash
-import type { Effect } from "@effect/core/io/Effect"
+import { Effect } from 'effect'
 
-//                    v--------v---- `R` is a union of Console | Logger
-type Http = Effect<Console | Logger, IOError | HttpError, Response>
+//                        v--------v---- `R` is a union of Console | Logger
+type Http = Effect.Effect<Console | Logger, IOError | HttpError, Response>
 
 type Response = Record<string, string>
 
 interface IOError {
-  readonly _tag: "IOError"
+  readonly _tag: 'IOError'
 }
 
 interface HttpError {
-  readonly _tag: "HttpError"
+  readonly _tag: 'HttpError'
 }
 
 interface Console {
@@ -58,7 +58,7 @@ interface B {
 }
 
 const ab: A & B = {
-  prop: ""
+  prop: '',
 }
 ```
 
@@ -80,7 +80,7 @@ interface B {
 }
 
 const ab: A | B = {
-  prop: ""
+  prop: '',
 }
 ```
 

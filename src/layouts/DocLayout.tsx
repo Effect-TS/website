@@ -38,19 +38,39 @@ export const Playground: FC<{ project: string; file?: string }> = ({ project, fi
 }
 
 const Code: FC = ({ children }) => {
-  if (Array.isArray(children) && children.every((c) => c && c.props && c.props.className === 'line')) {
+  if (Array.isArray(children)) {
     const lines = children.length
     const len = `${lines}`.length
+    let skip = 0
     return (
       <code>
         {children.map((line, i) => {
+          if (line.props.className === 'line') {
+            return (
+              <div key={`line-${i}`} style={{ display: 'flex' }}>
+                <span style={{ width: `${len}em`, color: 'rgb(203, 213, 225)' }}>{i + 1 - skip}</span>
+                {line}
+              </div>
+            )
+          }
+          skip++
           return (
             <div key={`line-${i}`} style={{ display: 'flex' }}>
-              <span style={{ width: `${len}em`, color: 'rgb(203, 213, 225)' }}>{i + 1}</span>
               {line}
             </div>
           )
         })}
+      </code>
+    )
+  }
+  if (typeof children === 'object') {
+    return (
+      <code>
+        {' '}
+        <div key={`line-1`} style={{ display: 'flex' }}>
+          <span style={{ width: `1em`, color: 'rgb(203, 213, 225)' }}>{1}</span>
+          {children}
+        </div>
       </code>
     )
   }
