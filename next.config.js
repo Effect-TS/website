@@ -10,7 +10,7 @@ module.exports = withContentlayer({
       },
       {
         source: '/docs',
-        destination: '/docs/what-is-effect',
+        destination: '/docs/welcome',
         permanent: false,
       },
     ]
