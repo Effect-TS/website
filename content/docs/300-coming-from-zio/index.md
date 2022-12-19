@@ -37,7 +37,7 @@ interface Logger {
 This may be confusing to folks coming from ZIO, where the environment is represented as an intersection of services:
 
 ```scala
-type Http = ZIO[Console with Logger, IOError with HttpError, Response]
+type Http = ZIO[Console with Logger, IOError, Response]
 ```
 
 ### Rationale
