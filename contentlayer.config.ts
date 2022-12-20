@@ -10,7 +10,17 @@ export default makeSource({
   documentTypes: Object.values(DT),
   mdx: {
     rehypePlugins: [highlight, [rehypeRaw, { passThrough: nodeTypes }]],
-    // @ts-expect-error
-    remarkPlugins: [[remarkShikiTwoslash.default, { themes: ['github-dark', 'github-light'] }]],
+    remarkPlugins: [
+      [
+        // @ts-expect-error
+        remarkShikiTwoslash.default,
+        {
+          themes: ['github-dark', 'github-light'],
+          defaultCompilerOptions: {
+            types: ["node"],
+          },
+        },
+      ],
+    ],
   },
 })
