@@ -102,11 +102,13 @@ export const DocLayout: FC<{ doc: types.Doc; tree: TreeRoot<types.Doc>; children
           </div>
         </aside>
         <div style={{ marginLeft: `max(calc(50% - 32rem), ${SIDEBAR_WIDTH}px)`, width: '100%', overflow: 'auto' }}>
-          <div className="flex-1 px-12 py-8 max-w-7xl markdown">
+          <div className="flex-1 px-12 py-8 max-w-7xl">
+          <div className="markdown">
             <h1 className="text-2xl">{doc.title}</h1>
             <br></br>
             {MDXContent !== null && <MDXContent components={mdxComponents} />}
             {doc.show_child_cards && <ChildCards tree={childrenTree} />}
+          </div>
           </div>
         </div>
       </div>
