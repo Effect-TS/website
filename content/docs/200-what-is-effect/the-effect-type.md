@@ -16,7 +16,9 @@ which have the following meaning:
 
 - `Success`: Represents the type of the value that an `Effect` can succeed with when executed
 
-(Add callout to explain `R`, `E`, `A`, i.e. - "In Effect, you will often see these type parameters abbreviated as...")
+<Callout>
+Throughout the Effect ecosystem, you will often see `Effect`'s type parameters abbreviated as `R`, `E`, and `A` respectively. This is just shorthand for `R`equirements, `E`rror, and the success value of type `A`.
+</Callout>
 
 
 
