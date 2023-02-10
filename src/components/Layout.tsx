@@ -5,9 +5,11 @@ import type * as types from 'contentlayer/generated'
 
 import { Header } from './Header'
 
-export const Layout: FC<{
-  doc: types.Doc
-}> = ({ doc, children }) => {
+export const Layout: React.FC<
+  React.PropsWithChildren<{
+    doc: types.Doc
+  }>
+> = ({ doc, children }) => {
   return (
     <>
       <Helmet>

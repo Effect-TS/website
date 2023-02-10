@@ -1,13 +1,18 @@
 ---
-title: Welcome
+title: Welcome to the Effect Documentation!
 ---
 
-Effect is a powerful TypeScript library designed to help developers easily create complex, synchronous and asynchronous programs. With a focus on fibers and functional effects, Effect makes it easy to implement features like async cancellation and safe resource management.
+Effect is a powerful TypeScript library designed to help developers easily create complex, synchronous, and asynchronous programs. One of the key features that sets Effect apart is how it leverages [structured concurrency](https://en.wikipedia.org/wiki/Structured_concurrency) to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
 
-At the heart of Effect is the `Effect<Context, Error, Success>` type, which represents a program that requires a specific `Context`, may fail for a typed `Error` or, in the case of success, returns a `Success` value. This powerful type forms the foundation for a vast set of modules that can be used to model the needs of any type of application.
+Some of the key features of Effect include:
 
-One of the key benefits of Effect is its rich ecosystem, which includes a wide range of modules that make it easy to implement common functionality. Whether you're building a web application, a mobile app, or a backend system, Effect has the tools you need to get the job done.
+  - **Concurrency**: Achieve highly-scalable, ultra low-latency applications through Effect's fiber-based concurrency model
+  - **Composability**: Construct highly maintainable, readable, and flexible software through the use of small, reusable building blocks
+  - **Resource Safety**: Safely manage acquisition and release of resources, even when your program fails
+  - **Type Safety**: Leverage the TypeScript type system to the fullest with Effect's focus on type inference and type safety
+  - **Asynchronicity**: Write code that looks the same, whether it is synchronous or asynchronous
+  - **Observability**: With full tracing capabilities, you can easily debug and monitor the execution of your Effect program
 
-Despite its comprehensive nature, Effect is fully tree-shakeable and ESM compliant, meaning that only the modules and functions you actually use will be included in your bundled code. This ensures that you can use Effect without worrying about bloating your application with unnecessary code.
+We've worked hard to create comprehensive and approachable documentation that will guide you through various aspects of using Effect. We hope that you will find what you are looking for here - but if you don't, reach out to us on [Discord](http://discord.com/invite/6SeZmURfTk) or [Twitter](https://twitter.com/EffectTS_)!
 
-Overall, Effect is a versatile and powerful tool that makes it easy to build complex, asynchronous programs in TypeScript. Whether you're a seasoned developer or just starting out, Effect has something to offer you.
+So, let's get started! Browse the table of contents, or jump directly to the section that interests you the most.

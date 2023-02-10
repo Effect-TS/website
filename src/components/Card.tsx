@@ -35,8 +35,8 @@ export const Card: FC<{
       )}
       {children && <div className="text-sm">{children}</div>}
       {link?.label && link?.url && (
-        <Link href={link.url}>
-          <a className="inline-block mt-4">{link.label}</a>
+        <Link href={link.url} className="inline-block mt-4">
+          {link.label}
         </Link>
       )}
     </div>
