@@ -1,18 +1,19 @@
-import { FC } from 'react'
+import * as React from 'react'
 import Markdown from 'markdown-to-jsx'
 import Link from 'next/link'
 
 import { Icon, IconName } from './Icon'
 import { Label } from './Label'
 
-export const Card: FC<{
-  title: string
-  icon?: IconName | null
-  label?: string | null
-  subtitle?: string | null
-  children?: React.ReactChildren | null
-  link?: { label: string; url: string }
-}> = ({ title, icon, label, subtitle, children, link }) => {
+export const Card: React.FC<
+  React.PropsWithChildren<{
+    title: string
+    icon?: IconName | null
+    label?: string | null
+    subtitle?: string | null
+    link?: { label: string; url: string }
+  }>
+> = ({ title, icon, label, subtitle, children, link }) => {
   return (
     <div className="border p-4 rounded-md border-gray-500">
       <h2 className="m-0 mb-2 text-xl flex items-center">

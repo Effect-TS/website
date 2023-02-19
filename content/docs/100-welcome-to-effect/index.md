@@ -1,10 +1,12 @@
 ---
-title: Welcome to the Effect Documentation!
+title: Welcome to Effect
 ---
 
-Effect is a powerful TypeScript library designed to help developers easily create complex, synchronous, and asynchronous programs. One of the key features that sets Effect apart is how it leverages [structured concurrency](https://en.wikipedia.org/wiki/Structured_concurrency) to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+Effect is a powerful TypeScript library designed to help developers easily create complex, synchronous, and asynchronous programs.
 
-Some of the key features of Effect include:
+One of the key features that sets Effect apart is how it leverages [structured concurrency](https://en.wikipedia.org/wiki/Structured_concurrency) to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+Other notable features of Effect include:
 
   - **Concurrency**: Achieve highly-scalable, ultra low-latency applications through Effect's fiber-based concurrency model
   - **Composability**: Construct highly maintainable, readable, and flexible software through the use of small, reusable building blocks
