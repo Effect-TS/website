@@ -9,19 +9,19 @@ If you are coming to Effect from ZIO, there are a few differences to be aware of
 In Effect, we represent the environment required to run an `Effect` workflow as a union of services:
 
 ```ts twoslash
-import { Effect } from 'effect'
+import { Effect } from "@effect/io/Effect"
 
-//                        v--------v---- `R` is a union of Console | Logger
-type Http = Effect.Effect<Console | Logger, IOError | HttpError, Response>
+//                 v---------v---- `R` is a union of Console | Logger
+type Http = Effect<Console | Logger, IOError | HttpError, Response>
 
 type Response = Record<string, string>
 
 interface IOError {
-  readonly _tag: 'IOError'
+  readonly _tag: "IOError"
 }
 
 interface HttpError {
-  readonly _tag: 'HttpError'
+  readonly _tag: "HttpError"
 }
 
 interface Console {
@@ -54,11 +54,11 @@ interface B {
 }
 
 const ab: A & B = {
-  prop: '',
+  prop: "",
 }
 ```
 
-In previous versions of Effect, intersections were used for representing an environment with multiple services. The problem with using intersections (i.e. `A & B`) is that there could be multiple services in the environment with that have functions and properties named in the same way. To remedy this, we wrapped services in the `Has` type (similar to ZIO 1.0), so you would have `Has<A> & Has<B>` in your environment.
+In previous versions of Effect, intersections were used for representing an environment with multiple services. The problem with using intersections (i.e. `A & B`) is that there could be multiple services in the environment that have functions and properties named in the same way. To remedy this, we wrapped services in the `Has` type (similar to ZIO 1.0), so you would have `Has<A> & Has<B>` in your environment.
 
 In ZIO 2.0, the _contravariant_ `R` type parameter of the `ZIO` type (representing the environment) became fully phantom, thus allowing for removal of the `Has` type. This significantly improved the clarity of type signatures as well as removing another "stumbling block" for new users.
 
@@ -76,7 +76,7 @@ interface B {
 }
 
 const ab: A | B = {
-  prop: '',
+  prop: "",
 }
 ```
 

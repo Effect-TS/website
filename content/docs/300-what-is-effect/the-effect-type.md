@@ -31,7 +31,7 @@ which have the following meaning:
 Throughout the Effect ecosystem, you will often see `Effect`'s type parameters abbreviated as `R`, `E`, and `A` respectively. This is just shorthand for `R`equirements, `E`rror, and the success value of type `A`.
 </Callout>
 
-
+You can think of each of these type parameters as separate "channels" within the `Effect` data type. Your program can interact with each of these "channels" during its execution.
 
 
 
