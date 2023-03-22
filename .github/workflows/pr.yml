@@ -1,0 +1,29 @@
+name: PR Flow
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: test-image:latest
