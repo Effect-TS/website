@@ -9,7 +9,7 @@ WORKDIR /usr/app
 COPY ./package*.json .
 
 # Install dependencies
-RUN pnpm install --prod
+RUN npm i -g pnpm && pnpm install --prod
 
 # # Copy all files
 # COPY ./ ./
