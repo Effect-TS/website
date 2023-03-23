@@ -1,5 +1,5 @@
 # Base on offical Node.js Alpine image
-FROM registry.docker.hub.com/node:alpine:16.19
+FROM registry.hub.docker.com/node:alpine:16.19
 
 # Set working directory
 WORKDIR /usr/app
