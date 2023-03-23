@@ -1,5 +1,5 @@
 # Base on offical Node.js Alpine image
-FROM index.docker.io/node:alpine:16.19
+FROM node:16.19-alpine
 
 # Set working directory
 WORKDIR /usr/app
