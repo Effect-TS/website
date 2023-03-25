@@ -127,14 +127,14 @@ export const DocLayout: React.FC<{
         </aside>
         <div style={{ marginLeft: `max(calc(50% - 32rem), ${SIDEBAR_WIDTH}px)`, width: '100%', overflow: 'auto' }}>
           <div className="flex-1 px-12 py-8 max-w-7xl">
-          <div className="markdown">
-            <h1 className="text-2xl">{doc.title}</h1>
-            <br></br>
-            <div className="docs prose prose-slate prose-violet mx-auto mb-4 w-full max-w-3xl shrink p-4 pb-8 prose-headings:font-semibold prose-a:font-normal prose-code:font-normal prose-code:before:content-none prose-code:after:content-none prose-hr:border-gray-200 dark:prose-invert dark:prose-a:text-violet-400 dark:prose-hr:border-gray-800 md:mb-8 md:px-8 lg:mx-0 lg:max-w-full lg:px-16">
-              {MDXContent !== null && <MDXContent components={mdxComponents} />}
+            <div className="markdown">
+              <h1 className="text-2xl">{doc.title}</h1>
+              <br></br>
+              <div className="docs prose prose-slate prose-violet mx-auto mb-4 w-full max-w-3xl shrink p-4 pb-8 prose-headings:font-semibold prose-a:font-normal prose-code:font-normal prose-code:before:content-none prose-code:after:content-none prose-hr:border-gray-200 dark:prose-invert dark:prose-a:text-violet-400 dark:prose-hr:border-gray-800 md:mb-8 md:px-8 lg:mx-0 lg:max-w-full lg:px-16">
+                {MDXContent !== null && <MDXContent components={mdxComponents} />}
+              </div>
+              {/* {doc.show_child_cards && <ChildCards tree={childrenTree} />} */}
             </div>
-            {/* {doc.show_child_cards && <ChildCards tree={childrenTree} />} */}
-          </div>
           </div>
         </div>
       </div>

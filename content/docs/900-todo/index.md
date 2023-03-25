@@ -1,3 +1,6 @@
+---
+title: TODO
+---
 
 Just like in the prior case when creating Effects from Promises it is very common to want the ability of interrupting work, for such cases you can use the `asyncInterrupt` variant that allows for control of the interruption., we will be creating an Effect that sleeps for a period of time before returning, wrapping the `setTimeout` API.
 
