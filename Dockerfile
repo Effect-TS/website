@@ -11,12 +11,9 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+COPY package.json pnpm-lock.yaml* ./
 
-RUN [[ -f yarn.lock ]] && yarn --frozen-lockfile || \
-    [[ -f package-lock.json ]] && npm ci || \
-    [[ -f pnpm-lock.yaml ]] && npm i -g pnpm && pnpm i --frozen-lockfile || \
-    echo "Lockfile not found." && exit 1
+RUN npm i -g pnpm && pnpm i --prod --frozen-lockfile
 
 # Rebuild the source code only when needed
 FROM base AS builder
