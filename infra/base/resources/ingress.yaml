@@ -9,6 +9,16 @@ metadata:
     cert-manager.io/issuer-group: cert-manager.k8s.cloudflare.com
 spec:
   rules:
+    - host: effect.website
+      http:
+        paths:
+         - pathType: Prefix
+           path: /
+           backend:
+              service:
+                name: effect-website
+                port:
+                  number: 80
     - host: '*.effect.website'
       http:
         paths:
