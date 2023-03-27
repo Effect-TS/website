@@ -18,23 +18,19 @@
     ];
 
     # Import nixpkgs' package set for each system.
-    nixpkgsFor = forAllSystems (system:
-      import nixpkgs {
-        inherit system;
-      });
+    pkgsFor = system: nixpkgs.legacyPackages.${system};
   in {
-    formatter = forAllSystems (system: nixpkgsFor.${system}.alejandra);
+    formatter = forAllSystems (
+      system: let
+        pkgs = pkgsFor system;
+      in
+        pkgs.alejandra
+    );
 
-    devShells = forAllSystems (system: {
-      default = nixpkgsFor.${system}.mkShell {
-        buildInputs = with nixpkgsFor.${system}; [
-          nodejs-16_x
-          nodePackages.pnpm
-        ];
-        shellHook = ''
-          pnpm install
-        '';
-      };
+    devShells = forAllSystems (system: let
+      pkgs = pkgsFor system;
+    in {
+      default = pkgs.callPackage "${self}/shell.nix" {inherit pkgs;};
     });
   };
 }
