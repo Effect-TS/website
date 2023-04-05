@@ -18,20 +18,19 @@ in
         NIX_CONFIG = "extra-experimental-features = nix-command flakes repl-flake";
 
         buildInputs = [
-          git
-          nix
-          nil
+          age
           alejandra
-          deploy-rs
+          git
           home-manager
           kubectl
-          # https://discourse.nixos.org/t/how-to-run-nixos-rebuild-target-host-from-darwin/9488/3
-          nixos-rebuild
-          age
-          sops
-          ssh-to-age
+          nix
+          nil
           nodejs-16_x
           nodePackages.pnpm
+          pre-commit
+          python310Packages.pre-commit-hooks
+          sops
+          ssh-to-age
         ];
 
         KUSTOMIZE_PLUGIN_HOME = pkgs.buildEnv {

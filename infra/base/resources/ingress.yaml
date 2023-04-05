@@ -1,3 +1,4 @@
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -12,9 +13,9 @@ spec:
     - host: effect.website
       http:
         paths:
-         - pathType: Prefix
-           path: /
-           backend:
+          - pathType: Prefix
+            path: /
+            backend:
               service:
                 name: effect-website
                 port:
@@ -22,9 +23,9 @@ spec:
     - host: '*.effect.website'
       http:
         paths:
-         - pathType: Prefix
-           path: /
-           backend:
+          - pathType: Prefix
+            path: /
+            backend:
               service:
                 name: effect-website
                 port:
@@ -37,3 +38,4 @@ spec:
         - '*.effect.website'
       # cert-manager will create this secret
       secretName: effect-website-tls
+...
