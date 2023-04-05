@@ -2,14 +2,20 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: effect-website
+  labels:
+    app: effect-website
+    variant: prod
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: effect-website
-  strategy:
-    type: RollingUpdate
+      variant: prod
   template:
+    metadata:
+      labels:
+        app: effect-website
+        variant: prod
     spec:
       dnsPolicy: ClusterFirst
       imagePullSecrets:
