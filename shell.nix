@@ -44,4 +44,8 @@ in
           '';
           pathsToLink = ["/lib"];
         };
+
+        shellHook = ''
+          pre-commit install
+        '';
       }
