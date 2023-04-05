@@ -1,0 +1,41 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: effect-website
+  annotations:
+    # Reference the Origin CA Issuer you created above, which must be in the same namespace.
+    cert-manager.io/issuer: effect-website-issuer
+    cert-manager.io/issuer-kind: OriginIssuer
+    cert-manager.io/issuer-group: cert-manager.k8s.cloudflare.com
+spec:
+  rules:
+    - host: effect.website
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: effect-website
+                port:
+                  number: 80
+    - host: '*.effect.website'
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: effect-website
+                port:
+                  number: 80
+  tls:
+    # Specifying a host in the TLS section will tell cert-manager what DNS SANs
+    # should be on the created certificate
+    - hosts:
+        - effect.website
+        - '*.effect.website'
+      # cert-manager will create this secret
+      secretName: effect-website-tls
+...

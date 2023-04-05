@@ -1,0 +1,39 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: effect-website
+  labels:
+    app: effect-website
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: effect-website
+  template:
+    metadata:
+      labels:
+        app: effect-website
+    spec:
+      dnsPolicy: ClusterFirst
+      imagePullSecrets:
+        - name: ghcr-registry-credentials
+      restartPolicy: Always
+      containers:
+        - name: effect-website
+          image: ghcr.io/effect-ts/website:pr-11
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 2
+              memory: 2Gi
+            limits:
+              cpu: 4
+              memory: 4Gi
+          env:
+            - name: REACT_APP_ENVIRONMENT
+              value: PROD
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+...
