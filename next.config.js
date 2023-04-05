@@ -1,18 +1,11 @@
-const { withContentlayer } = require('next-contentlayer')
+const withNextra = require("nextra")({
+  theme: "nextra-theme-docs",
+  themeConfig: "./theme.config.jsx",
+});
 
-module.exports = withContentlayer({
-  async redirects() {
-    return [
-      {
-        source: '/',
-        destination: '/docs',
-        permanent: false,
-      },
-      {
-        source: '/docs',
-        destination: '/docs/what-is-effect',
-        permanent: false,
-      },
-    ]
-  },
-})
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+};
+
+module.exports = withNextra(nextConfig);
