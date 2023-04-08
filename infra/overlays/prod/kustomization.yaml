@@ -2,15 +2,16 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-generators:
-  - ./generators/secrets-generator.yaml
+namespace: effect-website
 
 resources:
   - ../../base
-
-namespace: effect-website
+  - ./resources/deployment.yaml
+  - ./resources/ingress.yaml
+  - ./resources/origin-issuer.yaml
+  - ./resources/secrets.yaml
+  - ./resources/service.yaml
 
 commonLabels:
   app: effect-website
   variant: prod
-...
