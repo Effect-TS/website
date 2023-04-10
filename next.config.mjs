@@ -11,10 +11,10 @@ const withNextra = nextra({
     remarkPlugins: [[
       remarkShikiTwoslash.default,
       {
-        theme: "dark-plus",
         defaultCompilerOptions: {
           types: ['node'],
         },
+        themes: ["dark-plus", "light-plus"],
       }]],
   }
 });
