@@ -23,6 +23,12 @@ const withNextra = nextra({
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  redirects: () => [
+    {
+      source: "/docs",
+      destination: "/docs/getting-started",
+      permanent: true,
+    },
 };
 
 export default withNextra(nextConfig);
