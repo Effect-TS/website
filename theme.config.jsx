@@ -55,7 +55,7 @@ export default {
       <span>
         MIT {new Date().getFullYear()} ©{" "}
         <a href="https://www.effect.website" target="_blank">
-          Effect
+          Effectful Technologies Inc
         </a>
         .
       </span>
