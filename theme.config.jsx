@@ -48,7 +48,7 @@ export default {
     link: "https://github.com/Effect-TS/effect",
   },
   chat: {
-    link: "https://discord.gg/RVZKYxWfAJ",
+    link: "https://discord.gg/effect-ts",
   },
   footer: {
     text: (
