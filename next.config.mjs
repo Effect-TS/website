@@ -29,6 +29,7 @@ const nextConfig = {
       destination: "/docs/getting-started",
       permanent: true,
     },
+  ]
 };
 
 export default withNextra(nextConfig);
