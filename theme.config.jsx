@@ -48,14 +48,14 @@ export default {
     link: "https://github.com/Effect-TS/effect",
   },
   chat: {
-    link: "https://discord.gg/RVZKYxWfAJ",
+    link: "https://discord.gg/effect-ts",
   },
   footer: {
     text: (
       <span>
         MIT {new Date().getFullYear()} ©{" "}
         <a href="https://www.effect.website" target="_blank">
-          Effect
+          Effectful Technologies Inc
         </a>
         .
       </span>
