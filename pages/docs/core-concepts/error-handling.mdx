@@ -1,0 +1,164 @@
+import { Callout } from 'nextra-theme-docs'
+
+# Error Handling
+
+Just like any other program, Effect programs may fail for expected or unexpected reasons. The difference between a non-Effect program and an Effect program is in the detail provided to you when your program fails. Effect attempts to preserve as much information as possible about what caused your program to fail to produce a detailed, comprehensive, and human readable failure message.
+
+In this section, you will learn:
+
+  - The possible ways an Effect program can fail
+  - How Effect represents the cause of an error
+  - The tools Effect provides for robust and comprehensive error management
+
+## Possible Causes for Failure
+
+In an Effect program, there are three possible ways for a program to fail:
+
+  1. Expected Errors
+  2. Unexpected Errors
+  3. Interruption
+
+### Expected Errors
+
+Expected errors, also known as _failures_, _typed errors_ or _recoverable errors_, are errors that the developer expects to happen as part of normal program execution. These errors are similar in spirit to checked exceptions and should be part of a program's domain and control flow. Expected errors are also tracked at the type level by the `Effect` data type in the `Error` channel.
+
+To indicate that our program can fail for some expected reason, we can use the `Effect.fail` constructor:
+
+```ts twoslash
+import * as Effect from "@effect/io/Effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+const canFail = Effect.fail(new HttpError())
+//    ^?
+```
+
+<Callout type="info">
+We use a class to represent the `HttpError` type above simply to gain access to both the error type and a free constructor. However, you can use whatever you like to model your error types.
+</Callout>
+
+Something to note about the example above is that we added a `_tag` field to our error. Adding a discriminant (i.e. the `_tag` field in the example above) can be useful to allow for discrimination between errors during error handling. It also helps prevent TypeScript from unifying types. Effect also comes with several combinators to allow for handling tagged errors seamlessly.
+
+### Handling Expected Errors
+
+Let's use the following simple program to demonstrate how one could use Effect to handle expected errors.
+
+```twoslash include errors
+import * as Data from "@effect/data/Data"
+import * as Effect from "@effect/io/Effect"
+import * as Random from "@effect/io/Random"
+import { pipe } from "@effect/data/Function"
+
+interface FooError extends Data.Case {
+  readonly _tag: "FooError"
+}
+
+const FooError = Data.tagged<FooError>("FooError")
+
+interface BarError extends Data.Case {
+  readonly _tag: "BarError"
+}
+
+const BarError = Data.tagged<BarError>("BarError")
+
+const flakyFoo = pipe(
+  Random.next(),
+  Effect.flatMap((n) =>
+    n > 0.5
+      ? Effect.succeed("yay!")
+      : Effect.fail(FooError())
+  )
+)
+
+const flakyBar = pipe(
+  Random.next(),
+  Effect.flatMap((n) =>
+    n > 0.5
+      ? Effect.succeed("yay!")
+      : Effect.fail(BarError())
+  )
+)
+// - 1
+const program = pipe(flakyFoo, Effect.zipRight(flakyBar))
+//    ^?
+// - 2
+```
+
+```ts twoslash
+// @include: errors-2
+```
+
+<Callout type="info">
+To demonstrate that you can model errors in any way that you like, we use the `Data` module from `@effect/data` in the example above instead of classes.
+</Callout>
+
+Inspecting `program` in the example above, we can see that we can fail with either a `FooError` or a `BarError`, which is reflected in the error channel of Effect as `FooError | BarError`.
+
+Let's say we have some piece of code in which we only want to handle `FooError`.
+
+Given that `FooError` has a `_tag` field, we can use the built-in `catchTag` method from Effect to handle `FooError` specifically:
+
+```ts twoslash
+// @include: errors-1
+// ---cut---
+const program = pipe(
+//    ^?
+  flakyFoo,
+  Effect.zipRight(flakyBar),
+  Effect.catchTag("FooError", (fooError) =>
+    Effect.succeed(`Recovering from ${fooError._tag}`)
+  )
+)
+```
+
+We can see the type in the error channel of our `program` in the example above has changed to only show `BarError`, reflecting the fact that `FooError` has been handled.
+
+If we also wanted to handle `BarError`, it would be as simple as adding another `catchTag`.
+
+```ts twoslash
+// @include: errors-1
+// ---cut---
+const program = pipe(
+//    ^?
+  flakyFoo,
+  Effect.zipRight(flakyBar),
+  Effect.catchTag("FooError", (fooError) =>
+    Effect.succeed(`Recovering from ${fooError._tag}`)
+  ),
+  Effect.catchTag("BarError", (barError) =>
+    Effect.succeed(`Recovering from ${barError._tag}`)
+  )
+)
+```
+
+We could optionally also use the `Effect.catchTags` combinator to handle all errors at once:
+
+```ts twoslash
+// @include: errors-1
+// ---cut---
+const program = pipe(
+//    ^?
+  flakyFoo,
+  Effect.zipRight(flakyBar),
+  Effect.catchTags({
+    FooError: (fooError) => Effect.succeed(`Recovering from ${fooError._tag}`),
+    BarError: (barError) => Effect.succeed(`Recovering from ${barError._tag}`)
+  })
+)
+```
+
+### Unexpected Errors
+
+Unexpected errors, also known as _defects_, _untyped errors_ or _unrecoverable errors_, are errors that the developer does not expect to happen as part of normal program execution. These errors are similar in spirit to unchecked exceptions and are not part of a program's domain or control flow.
+
+Because these errors are not expected to happen, Effect does not track them at the type level. However, the Effect runtime does keep track of these errors (see [Representing Errors with Cause](#representing-errors-with-cause) below) and provides several methods which facilitate recovering from unexpected errors.
+
+### Interruption
+
+Interruption errors are caused by interrupting execution of a running fiber. For a more comprehensive overview of Effect's fiber runtime and interruption model, please see the documentation on Effect's [Fiber Runtime](../advanced-concepts/fiber-runtime.mdx).
+
+## Representing Errors with Cause
+
+TODO
