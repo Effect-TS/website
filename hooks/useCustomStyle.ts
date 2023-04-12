@@ -88,31 +88,40 @@ export function useCustomStyle() {
       }
       
 
-      
-  useEffect(() => {
 
-    window.addEventListener("click", (e) => {
+  function modify( e: Event) {
+    const screenWidth = globalThis.window.outerWidth;
+    const mainElement = document.querySelector('main')!
+    const padding = getSidePadding(mainElement)
+    const allowedContentFullWidth = screenWidth - padding 
+    
+    const currentElement = e.target as (HTMLElement | null)
+    if( currentElement == null || !isMobile(screenWidth)) return
+    
+    const currentScroll = getCurrentScroll(currentElement)
+    if(currentScroll == null) return
+    
+    const contentWidth = getPseudoElementWidth(currentElement, ':before');          
+    const elementScrrenXPos = currentElement.getBoundingClientRect().x
+    const elementStaticXPos = currentElement.offsetLeft
+    
+    const cssOverrideElement = getCssOverrideElement()
+    cssOverrideElement          
+    ? overridePosition({twoslashOverrideElement: cssOverrideElement  ,   elementScrrenXPos,  contentWidth, elementStaticXPos, allowedContentFullWidth}) 
+    : createNewStyleElement({  elementScrrenXPos,  contentWidth, elementStaticXPos, allowedContentFullWidth})                      
+  }      
+
+  useEffect(() => {
+    
+      window.addEventListener("touch", (e) => { 
           e.preventDefault()
-          const screenWidth = globalThis.window.outerWidth;
-          const mainElement = document.querySelector('main')!
-          const padding = getSidePadding(mainElement)
-          const allowedContentFullWidth = screenWidth - padding 
-          
-          const currentElement = e.target as (HTMLElement | null)
-          if( currentElement == null || !isMobile(screenWidth)) return
-          
-          const currentScroll = getCurrentScroll(currentElement)
-          if(currentScroll == null) return
-          
-          const contentWidth = getPseudoElementWidth(currentElement, ':before');          
-          const elementScrrenXPos = currentElement.getBoundingClientRect().x
-          const elementStaticXPos = currentElement.offsetLeft
-          
-          const cssOverrideElement = getCssOverrideElement()
-          cssOverrideElement          
-          ? overridePosition({twoslashOverrideElement: cssOverrideElement  ,   elementScrrenXPos,  contentWidth, elementStaticXPos, allowedContentFullWidth}) 
-          : createNewStyleElement({  elementScrrenXPos,  contentWidth, elementStaticXPos, allowedContentFullWidth})                      
-    })
+          modify(e as Event)
+      })
+      
+      window.addEventListener("click", (e) => {
+            e.preventDefault()
+            modify(e as Event)
+      })
   }, []);
 
 }
