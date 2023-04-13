@@ -25,7 +25,7 @@ export default function TwoslashPatchPortal() {
                 {elementScrrenXPos && padding &&
                 (elementScrrenXPos + contentWidth > allowedContentFullWidth
                 ? `pre.twoslash data-lsp:hover::before {
-                    left: ${allowedContentFullWidth - contentWidth - padding }px !important;
+                    left: ${allowedContentFullWidth - contentWidth - (padding * 2) }px !important;
                 }`
                 : `
                 pre.twoslash data-lsp:hover::before {
