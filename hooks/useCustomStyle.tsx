@@ -16,6 +16,7 @@ function getPseudoElementWidth(currentElement: HTMLElement, pseudoName : string)
 
     const computedStyle = getComputedStyle(currentElement, pseudoName);
 
+    // dynamically create element because of computing content width dynamically
     const customCssElement = document.createElement('div');
     customCssElement.style.position = 'absolute';
     customCssElement.style.visibility = 'hidden';
