@@ -132,7 +132,7 @@ export function useCustomStyle() {
           window.removeEventListener("click", touchAndClickListener)
       }
   }, [isMounted]);
-
+ 
 
   return {
     isMounted ,
