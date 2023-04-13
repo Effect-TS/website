@@ -90,7 +90,6 @@ export function useCustomStyle() {
               
       const currentElement = e.target as (HTMLElement | null)
       if( currentElement == null || !isMobile()) {
-          console.log('it is not mobile');                    
           return
       }
       const currentScroll = getCurrentScroll(currentElement)
@@ -119,7 +118,6 @@ export function useCustomStyle() {
 
   const touchAndClickListener = (e : Event) => {
       e.preventDefault()
-      console.log('touched');                
       rePositionTwoSlashBox(e) 
   }
 
