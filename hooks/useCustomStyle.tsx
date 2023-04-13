@@ -58,7 +58,8 @@ function changeTwoSlashXPos( currentElement : HTMLElement , currentScroll : numb
     const screenWidth = globalThis.window.outerWidth;
     const mainElement = document.querySelector('main')!
     const padding = getPadding(mainElement)
-    const allowedContentFullWidth = screenWidth - padding
+    // const allowedContentFullWidth = screenWidth - padding
+    const allowedContentFullWidth = screenWidth
 
     const contentWidth = getPseudoElementWidth(currentElement, ':before');
     const elementScrrenXPos = currentElement.getBoundingClientRect().x

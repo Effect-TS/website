@@ -14,6 +14,11 @@ export default function TwoslashPatchPortal() {
         padding
     } = useCustomStyle() 
     
+    console.log({contentWidth});
+    console.log({allowedContentFullWidth});
+    console.log('contentWidth/allowedContentFullWidth');
+    console.log(contentWidth!/allowedContentFullWidth!);
+    
     return  <>
         {isMounted &&
         elementStaticXPos && 
@@ -23,14 +28,17 @@ export default function TwoslashPatchPortal() {
         createPortal(
             <style>
                 {elementScrrenXPos && padding &&
-                (elementScrrenXPos + contentWidth > allowedContentFullWidth
+                (contentWidth >= allowedContentFullWidth
+                ? `pre.twoslash data-lsp:hover::before {
+                    left: 0px !important;
+                   }`
+                : elementScrrenXPos + contentWidth > allowedContentFullWidth
                 ? `pre.twoslash data-lsp:hover::before {
                     left: ${allowedContentFullWidth - contentWidth - (padding * 2) }px !important;
-                }`
-                : `
-                pre.twoslash data-lsp:hover::before {
+                   }`
+                :`pre.twoslash data-lsp:hover::before {
                     left: ${elementScrrenXPos}px !important;
-                `)
+                  }`)
                 }
             </style>
         , document.body)}        
