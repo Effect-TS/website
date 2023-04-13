@@ -67,10 +67,10 @@ function changeTwoSlashXPos( currentElement : HTMLElement , currentScroll : numb
     const elementScrrenXPosRatio = elementScrrenXPos / allowedContentFullWidth
 
     return {
-        elementStaticXPos, 
+        elementStaticXPos,
         elementScrrenXPos,
-        contentWidth, 
-        allowedContentFullWidth, 
+        contentWidth,
+        allowedContentFullWidth,
         elementScrrenXPosRatio,
         padding
     }
@@ -80,15 +80,15 @@ export function useCustomStyle() {
 
   const [isMounted, setIsMounted] = useState(false);
   const [elementStaticXPos, setElementStaticXPos]             = useState<number>();
-  const [allowedContentFullWidth, setAllowedContentFullWidth] = useState<number>();   
-  const [elementScrrenXPosRatio, setElementScrrenXPosRatio] =   useState<number>();     
-  const [contentWidth, setContentWidth] =                       useState<number>(); 
-  const [elementScrrenXPos, setElementScrrenXPos] =             useState<number>();   
-  const [padding, setPadding] =                                 useState<number>();   
+  const [allowedContentFullWidth, setAllowedContentFullWidth] = useState<number>();
+  const [elementScrrenXPosRatio, setElementScrrenXPosRatio] =   useState<number>();
+  const [contentWidth, setContentWidth] =                       useState<number>();
+  const [elementScrrenXPos, setElementScrrenXPos] =             useState<number>();
+  const [padding, setPadding] =                                 useState<number>();
   const screenWidth = globalThis?.window?.outerWidth;
-  
+
   function rePositionTwoSlashBox(e:Event) {
-              
+
       const currentElement = e.target as (HTMLElement | null)
       if( currentElement == null || !isMobile()) {
           return
@@ -97,10 +97,10 @@ export function useCustomStyle() {
       if(currentScroll == null) return
 
 
-      const { elementStaticXPos, 
+      const { elementStaticXPos,
               elementScrrenXPos,
-              contentWidth, 
-              allowedContentFullWidth, 
+              contentWidth,
+              allowedContentFullWidth,
               elementScrrenXPosRatio,
               padding} =  changeTwoSlashXPos(currentElement, currentScroll)
 
@@ -115,11 +115,11 @@ export function useCustomStyle() {
   useEffect(() => {
       setIsMounted(true);
       return () => setIsMounted(false);
-  },[]) 
+  },[])
 
   const touchAndClickListener = (e : Event) => {
       e.preventDefault()
-      rePositionTwoSlashBox(e) 
+      rePositionTwoSlashBox(e)
   }
 
   useEffect(() => {
@@ -133,7 +133,7 @@ export function useCustomStyle() {
           window.removeEventListener("click", touchAndClickListener)
       }
   }, [isMounted]);
- 
+
 
   return {
     isMounted ,

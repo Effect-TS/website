@@ -4,10 +4,10 @@ index 1e8c0ff..dcbf5b3 100644
 +++ b/hooks/useCustomStyle.ts
 @@ -1,116 +1,116 @@
  import { useEffect } from "react";
- 
+
 -export function useCustomStyle() {
 +const getCssOverrideElement = () => document.querySelector('.twoslash-override');
- 
+
 -    const getCssOverrideElement = () => document.querySelector('.twoslash-override');
 -
 -    const isMobile = (screenWidth: number): boolean => screenWidth < 500
@@ -79,7 +79,7 @@ index 1e8c0ff..dcbf5b3 100644
 -              : ``
 -      }
 +const isMobile = (screenWidth: number): boolean => screenWidth < 500
- 
+
 -      function overridePosition({twoslashOverrideElement, elementScrrenXPos,  contentWidth, elementStaticXPos, allowedContentFullWidth}
 -                              : {twoslashOverrideElement : Element ,  elementScrrenXPos : number,  contentWidth:number, elementStaticXPos :number, allowedContentFullWidth :number}) {
 -        twoslashOverrideElement.innerHTML = getOverridenCss({elementScrrenXPos, contentWidth, elementStaticXPos, allowedContentFullWidth})
@@ -87,7 +87,7 @@ index 1e8c0ff..dcbf5b3 100644
 +function getSidePadding(mainElement: HTMLElement) {
 +  return Number(getComputedStyle(mainElement).paddingLeft.replace(/[^0-9]/g, "")) * 2;
 +}
- 
+
 +function getPseudoElementWidth(currentElement: HTMLElement, pseudoName : string) {
 +    const computedStyle = getComputedStyle(currentElement, pseudoName);
 +
@@ -122,7 +122,7 @@ index 1e8c0ff..dcbf5b3 100644
 +    customCssElement.remove();
 +    return rect.width;
 +  }
- 
+
 -      function createNewStyleElement({elementScrrenXPos, contentWidth, elementStaticXPos, allowedContentFullWidth }
 -                                    :{elementScrrenXPos : number, contentWidth:number, elementStaticXPos :number, allowedContentFullWidth :number}) {
 -            const newStyleElement = document.createElement('style');
@@ -130,15 +130,15 @@ index 1e8c0ff..dcbf5b3 100644
 -            newStyleElement.innerHTML = getOverridenCss({ elementScrrenXPos, contentWidth, elementStaticXPos, allowedContentFullWidth})
 -            document.head.appendChild(newStyleElement);
 -      }
- 
+
 +  function getCurrentScroll(currentElement : HTMLElement) {
 +    const containerElement = currentElement.closest('.code-container')!
 +    return containerElement?.scrollLeft
 +  }
- 
+
 +  function getOverridenCss({elementScrrenXPos, contentWidth, elementStaticXPos, allowedContentFullWidth}
 +                        : {elementScrrenXPos :number,  contentWidth:number, elementStaticXPos :number, allowedContentFullWidth :number}) {
- 
+
 -  function modify( e: Event) {
      const screenWidth = globalThis.window.outerWidth;
 -    const mainElement = document.querySelector('main')!
@@ -164,18 +164,18 @@ index 1e8c0ff..dcbf5b3 100644
 +                `)
 +          : ``
 +  }
- 
+
 -    const currentScroll = getCurrentScroll(currentElement)
 -    if(currentScroll == null) return
 +  function overridePosition({twoslashOverrideElement, elementScrrenXPos,  contentWidth, elementStaticXPos, allowedContentFullWidth}
 +                          : {twoslashOverrideElement : Element ,  elementScrrenXPos : number,  contentWidth:number, elementStaticXPos :number, allowedContentFullWidth :number}) {
 +    twoslashOverrideElement.innerHTML = getOverridenCss({elementScrrenXPos, contentWidth, elementStaticXPos, allowedContentFullWidth})
 +  }
- 
+
 -    const contentWidth = getPseudoElementWidth(currentElement, ':before');
 -    const elementScrrenXPos = currentElement.getBoundingClientRect().x
 -    const elementStaticXPos = currentElement.offsetLeft
- 
+
 -    const cssOverrideElement = getCssOverrideElement()
 -    cssOverrideElement
 -    ? overridePosition({twoslashOverrideElement: cssOverrideElement  ,   elementScrrenXPos,  contentWidth, elementStaticXPos, allowedContentFullWidth})
@@ -187,7 +187,7 @@ index 1e8c0ff..dcbf5b3 100644
 +        newStyleElement.innerHTML = getOverridenCss({ elementScrrenXPos, contentWidth, elementStaticXPos, allowedContentFullWidth})
 +        document.head.appendChild(newStyleElement);
    }
- 
+
 +
 +
 +function modify( e: Event) {
@@ -215,5 +215,5 @@ index 1e8c0ff..dcbf5b3 100644
 +export function useCustomStyle() {
 +
    useEffect(() => {
- 
+
        window.addEventListener("touch", (e) => {

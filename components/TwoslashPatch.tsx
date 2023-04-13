@@ -6,25 +6,25 @@ export default function TwoslashPatchPortal() {
 
     const {
         isMounted,
-        elementStaticXPos, 
+        elementStaticXPos,
         elementScrrenXPos,
-        contentWidth, 
-        allowedContentFullWidth, 
+        contentWidth,
+        allowedContentFullWidth,
         elementScrrenXPosRatio,
         padding
-    } = useCustomStyle() 
-    
+    } = useCustomStyle()
+
     console.log({contentWidth});
     console.log({allowedContentFullWidth});
     console.log('contentWidth/allowedContentFullWidth');
     console.log(contentWidth!/allowedContentFullWidth!);
-    
+
     return  <>
         {isMounted &&
-        elementStaticXPos && 
-        contentWidth && 
+        elementStaticXPos &&
+        contentWidth &&
         allowedContentFullWidth &&
-        elementScrrenXPosRatio && 
+        elementScrrenXPosRatio &&
         createPortal(
             <style>
                 {elementScrrenXPos && padding &&
@@ -41,6 +41,6 @@ export default function TwoslashPatchPortal() {
                   }`)
                 }
             </style>
-        , document.body)}        
-    </>  
+        , document.body)}
+    </>
 }
