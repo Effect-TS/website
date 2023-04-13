@@ -1,18 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-const getCssOverrideElement = () => document.querySelector('.twoslash-override');
+function isMobile() {
+  const userAgent = navigator.userAgent || navigator.vendor ;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+}
 
-// const isMobile = globalThis.navigator.userAgentData.mobile
-const isMobile = () => /iPhone|Android/i.test(globalThis.navigator.userAgent);
+// const isMobile = () => /iPhone|Android/i.test(globalThis.navigator.userAgent);
 
-// (screenWidth: number): boolean => screenWidth < 500
-
-function getSidePadding(mainElement: HTMLElement) {
-  return Number(getComputedStyle(mainElement).paddingLeft.replace(/[^0-9]/g, "")) * 2;
+function getPadding(mainElement: HTMLElement) {
+  return Number(getComputedStyle(mainElement).paddingLeft.replace(/[^0-9]/g, "")) ;
 }
 
 function getPseudoElementWidth(currentElement: HTMLElement, pseudoName : string) {
+
     const computedStyle = getComputedStyle(currentElement, pseudoName);
 
     const customCssElement = document.createElement('div');
@@ -45,98 +46,103 @@ function getPseudoElementWidth(currentElement: HTMLElement, pseudoName : string)
     const rect = customCssElement.getBoundingClientRect();
     customCssElement.remove();
     return rect.width;
-  }
+}
 
-
-  function getCurrentScroll(currentElement : HTMLElement) {
+function getCurrentScroll(currentElement : HTMLElement) {
     const containerElement = currentElement.closest('.code-container')!
     return containerElement?.scrollLeft
-  }
+}
 
-  function getOverridenCss({elementScrrenXPos, contentWidth, elementStaticXPos, allowedContentFullWidth}
-                        : {elementScrrenXPos :number,  contentWidth:number, elementStaticXPos :number, allowedContentFullWidth :number}) {
+function changeTwoSlashXPos( currentElement : HTMLElement , currentScroll : number) {
 
     const screenWidth = globalThis.window.outerWidth;
+    const mainElement = document.querySelector('main')!
+    const padding = getPadding(mainElement)
+    const allowedContentFullWidth = screenWidth - padding
+
+    const contentWidth = getPseudoElementWidth(currentElement, ':before');
+    const elementScrrenXPos = currentElement.getBoundingClientRect().x
+    const elementStaticXPos = currentElement.offsetLeft
     const elementScrrenXPosRatio = elementScrrenXPos / allowedContentFullWidth
 
-    return elementStaticXPos + contentWidth > allowedContentFullWidth
-           ?  (elementScrrenXPosRatio < 0.5
-                ? `
-                    pre.twoslash data-lsp:hover::before {
-                        left: ${screenWidth/8}px !important;
-                    }
-                    `
-                :
-                `
-                    pre.twoslash data-lsp:hover::before {
-                        left: ${screenWidth/4}px !important;
-                    }
-                `)
-          : ``
-  }
-
-  function overridePosition({twoslashOverrideElement, elementScrrenXPos,  contentWidth, elementStaticXPos, allowedContentFullWidth}
-                          : {twoslashOverrideElement : Element ,  elementScrrenXPos : number,  contentWidth:number, elementStaticXPos :number, allowedContentFullWidth :number}) {
-    twoslashOverrideElement.innerHTML = getOverridenCss({elementScrrenXPos, contentWidth, elementStaticXPos, allowedContentFullWidth})
-  }
-
-
-  function createNewStyleElement({elementScrrenXPos, contentWidth, elementStaticXPos, allowedContentFullWidth }
-                                :{elementScrrenXPos : number, contentWidth:number, elementStaticXPos :number, allowedContentFullWidth :number}) {
-        const newStyleElement = document.createElement('style');
-        newStyleElement.classList.add('twoslash-override')
-        newStyleElement.innerHTML = getOverridenCss({ elementScrrenXPos, contentWidth, elementStaticXPos, allowedContentFullWidth})
-        document.head.appendChild(newStyleElement);
-  }
-
-
-
-function changeTwoSlashXPos( e: Event) {
-  const screenWidth = globalThis.window.outerWidth;
-  const mainElement = document.querySelector('main')!
-  const padding = getSidePadding(mainElement)
-  const allowedContentFullWidth = screenWidth - padding
-
-  const currentElement = e.target as (HTMLElement | null)
-  // if( currentElement == null || !isMobile(screenWidth)) return
-  if( currentElement == null || !isMobile()) return
-
-  const currentScroll = getCurrentScroll(currentElement)
-  if(currentScroll == null) return
-
-  const contentWidth = getPseudoElementWidth(currentElement, ':before');
-  const elementScrrenXPos = currentElement.getBoundingClientRect().x
-  const elementStaticXPos = currentElement.offsetLeft
-
-  const cssOverrideElement = getCssOverrideElement()
-  cssOverrideElement
-  ? overridePosition({twoslashOverrideElement: cssOverrideElement  ,   elementScrrenXPos,  contentWidth, elementStaticXPos, allowedContentFullWidth})
-  : createNewStyleElement({  elementScrrenXPos,  contentWidth, elementStaticXPos, allowedContentFullWidth})
+    return {
+        elementStaticXPos, 
+        elementScrrenXPos,
+        contentWidth, 
+        allowedContentFullWidth, 
+        elementScrrenXPosRatio,
+        padding
+    }
 }
 
 export function useCustomStyle() {
 
+  const [isMounted, setIsMounted] = useState(false);
+  const [elementStaticXPos, setElementStaticXPos]             = useState<number>();
+  const [allowedContentFullWidth, setAllowedContentFullWidth] = useState<number>();   
+  const [elementScrrenXPosRatio, setElementScrrenXPosRatio] =   useState<number>();     
+  const [contentWidth, setContentWidth] =                       useState<number>(); 
+  const [elementScrrenXPos, setElementScrrenXPos] =             useState<number>();   
+  const [padding, setPadding] =                                 useState<number>();   
+  const screenWidth = globalThis?.window?.outerWidth;
+  
+  function rePositionTwoSlashBox(e:Event) {
+              
+      const currentElement = e.target as (HTMLElement | null)
+      if( currentElement == null || !isMobile()) {
+          console.log('it is not mobile');                    
+          return
+      }
+      const currentScroll = getCurrentScroll(currentElement)
+      if(currentScroll == null) return
+
+
+      const { elementStaticXPos, 
+              elementScrrenXPos,
+              contentWidth, 
+              allowedContentFullWidth, 
+              elementScrrenXPosRatio,
+              padding} =  changeTwoSlashXPos(currentElement, currentScroll)
+
+              setElementScrrenXPos(elementScrrenXPos)
+              setElementStaticXPos(elementStaticXPos)
+              setAllowedContentFullWidth(allowedContentFullWidth)
+              setElementScrrenXPosRatio(elementScrrenXPosRatio)
+              setContentWidth(contentWidth)
+              setPadding(padding)
+  }
+
   useEffect(() => {
+      setIsMounted(true);
+      return () => setIsMounted(false);
+  },[]) 
 
-      window.addEventListener("touch", (e) => {
-          e.preventDefault()
-          changeTwoSlashXPos(e as Event)
-      })
+  const touchAndClickListener = (e : Event) => {
+      e.preventDefault()
+      console.log('touched');                
+      rePositionTwoSlashBox(e) 
+  }
 
-      window.addEventListener("click", (e) => {
-            e.preventDefault()
-            changeTwoSlashXPos(e as Event)
-      })
-  }, []);
+  useEffect(() => {
+      if(isMounted ) {
+          window.addEventListener("touch", touchAndClickListener)
+          window.addEventListener("click", touchAndClickListener)
+      }
+
+      return () => {
+          window.removeEventListener("touch", touchAndClickListener)
+          window.removeEventListener("click", touchAndClickListener)
+      }
+  }, [isMounted]);
+
+
+  return {
+    isMounted ,
+    elementStaticXPos ,
+    elementScrrenXPos,
+    contentWidth ,
+    padding,
+    allowedContentFullWidth ,
+    elementScrrenXPosRatio  ,
+  }
 }
-
-// export function TwoslashPatch() {
-//   // const [...] = useState(...)
-
-//   useEffect(() => {
-//     // ... // same touch mechanism, but this time it manipulates the state
-//   },[]) // most likely only state setters will be needed, which are anchored and don't require referencing in the deps array
-
-//   return createPortal(<div />, document.body)
-// }
-
