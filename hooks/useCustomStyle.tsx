@@ -5,13 +5,13 @@ function isMobile() {
 }
 
 function getOneSidePadding(mainElement: HTMLElement) {
-  return Number(getComputedStyle(mainElement).paddingLeft.replace(/[^0-9]/g, "")) ;
+
+    return Number(getComputedStyle(mainElement).paddingLeft.replace("px", "")) ;
 }
 
 function getPseudoElementWidth(currentElement: HTMLElement, pseudoName : string) {
 
-    const computedStyle = getComputedStyle(currentElement, pseudoName);
-    return Number(computedStyle.width.replace('px', ''))
+    return Number(getComputedStyle(currentElement, pseudoName).width.replace('px', ''))
 }
 
 function isInCodeContainer(currentElement : HTMLElement) {
