@@ -1,116 +1,96 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 
 function isMobile() {
-  const userAgent = navigator.userAgent || navigator.vendor ;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+    return globalThis.matchMedia("(max-width: 767px)").matches
 }
 
-// const isMobile = () => /iPhone|Android/i.test(globalThis.navigator.userAgent);
-
-function getPadding(mainElement: HTMLElement) {
+function getOneSidePadding(mainElement: HTMLElement) {
   return Number(getComputedStyle(mainElement).paddingLeft.replace(/[^0-9]/g, "")) ;
 }
 
 function getPseudoElementWidth(currentElement: HTMLElement, pseudoName : string) {
 
     const computedStyle = getComputedStyle(currentElement, pseudoName);
-
-    // dynamically create element because of computing content width dynamically
-    const customCssElement = document.createElement('div');
-    customCssElement.style.position = 'absolute';
-    customCssElement.style.visibility = 'hidden';
-    customCssElement.style.pointerEvents = 'none';
-    customCssElement.className = 'invisible-div';
-    const stylesToCopy = [
-      'content',
-      'position',
-      'transform',
-      'display',
-      'position',
-      'width',
-      'height',
-      'border',
-      'text-align',
-      'padding',
-      'border-radius',
-      'font-family',
-      'white-space',
-      'margin',
-    ];
-
-    stylesToCopy.forEach(style => customCssElement.style[style as any] = computedStyle.getPropertyValue(style));
-
-    customCssElement.textContent = customCssElement.style.content.replace(/['"]+/g, '');
-    currentElement.appendChild(customCssElement);
-
-    const rect = customCssElement.getBoundingClientRect();
-    customCssElement.remove();
-    return rect.width;
+    return Number(computedStyle.width.replace('px', ''))
 }
 
-function getCurrentScroll(currentElement : HTMLElement) {
+function isInCodeContainer(currentElement : HTMLElement) {
     const containerElement = currentElement.closest('.code-container')!
     return containerElement?.scrollLeft
 }
 
-function changeTwoSlashXPos( currentElement : HTMLElement , currentScroll : number) {
+function getValuesForCSSLeft( currentElement : HTMLElement) {
 
     const screenWidth = globalThis.window.outerWidth;
     const mainElement = document.querySelector('main')!
-    const padding = getPadding(mainElement)
-    // const allowedContentFullWidth = screenWidth - padding
-    const allowedContentFullWidth = screenWidth
+    const mainLeftPadding = getOneSidePadding(mainElement)
 
-    const contentWidth = getPseudoElementWidth(currentElement, ':before');
-    const elementScrrenXPos = currentElement.getBoundingClientRect().x
-    const elementStaticXPos = currentElement.offsetLeft
-    const elementScrrenXPosRatio = elementScrrenXPos / allowedContentFullWidth
+    const allowedContentFullWidth = screenWidth - (mainLeftPadding * 2)
+
+    const elementXPos = currentElement.getBoundingClientRect().x - mainLeftPadding
+    const elementXPosRatio = elementXPos / allowedContentFullWidth
 
     return {
-        elementStaticXPos,
-        elementScrrenXPos,
-        contentWidth,
+        elementXPos,
         allowedContentFullWidth,
-        elementScrrenXPosRatio,
-        padding
+        elementXPosRatio,
     }
+}
+
+function computeTwoSlashOverrideStyle({isMounted,
+                                        contentWidth,
+                                        allowedContentFullWidth,
+                                        elementXPos,
+                                      } :
+                                      {isMounted: boolean,
+                                      contentWidth: number ,
+                                      allowedContentFullWidth: number ,
+                                      elementXPos: number ,
+                                      }) {
+
+    return  isMounted
+            ?(
+                contentWidth >= allowedContentFullWidth
+                ? `pre.twoslash data-lsp:hover::before {
+                left: 0px !important;
+                }`
+                : elementXPos + contentWidth >= allowedContentFullWidth
+                ? `pre.twoslash data-lsp:hover::before {
+                left: ${allowedContentFullWidth - contentWidth}px !important;
+                }`
+                : `pre.twoslash data-lsp:hover::before {
+                left: ${elementXPos}px !important;
+                }`
+            )
+            : "";
 }
 
 export function useCustomStyle() {
 
   const [isMounted, setIsMounted] = useState(false);
-  const [elementStaticXPos, setElementStaticXPos]             = useState<number>();
-  const [allowedContentFullWidth, setAllowedContentFullWidth] = useState<number>();
-  const [elementScrrenXPosRatio, setElementScrrenXPosRatio] =   useState<number>();
-  const [contentWidth, setContentWidth] =                       useState<number>();
-  const [elementScrrenXPos, setElementScrrenXPos] =             useState<number>();
-  const [padding, setPadding] =                                 useState<number>();
-  const screenWidth = globalThis?.window?.outerWidth;
+  const [currentStyle, setCurrentStyle] = useState("");
 
   function rePositionTwoSlashBox(e:Event) {
 
-      const currentElement = e.target as (HTMLElement | null)
-      if( currentElement == null || !isMobile()) {
-          return
-      }
-      const currentScroll = getCurrentScroll(currentElement)
-      if(currentScroll == null) return
+    const currentElement = e.target as (HTMLElement | null)
+    if( currentElement == null || !isMobile()) return
+    if(isInCodeContainer(currentElement) == null) return
 
+    const {
+            elementXPos,
+            allowedContentFullWidth,
+        } =  getValuesForCSSLeft(currentElement)
 
-      const { elementStaticXPos,
-              elementScrrenXPos,
-              contentWidth,
-              allowedContentFullWidth,
-              elementScrrenXPosRatio,
-              padding} =  changeTwoSlashXPos(currentElement, currentScroll)
+    const contentWidth = getPseudoElementWidth(currentElement, ':before');
 
-              setElementScrrenXPos(elementScrrenXPos)
-              setElementStaticXPos(elementStaticXPos)
-              setAllowedContentFullWidth(allowedContentFullWidth)
-              setElementScrrenXPosRatio(elementScrrenXPosRatio)
-              setContentWidth(contentWidth)
-              setPadding(padding)
+    setCurrentStyle(
+        computeTwoSlashOverrideStyle({
+            isMounted,
+            contentWidth,
+            allowedContentFullWidth,
+            elementXPos,
+        })
+    )
   }
 
   useEffect(() => {
@@ -135,14 +115,8 @@ export function useCustomStyle() {
       }
   }, [isMounted]);
 
-
   return {
+    currentStyle,
     isMounted ,
-    elementStaticXPos ,
-    elementScrrenXPos,
-    contentWidth ,
-    padding,
-    allowedContentFullWidth ,
-    elementScrrenXPosRatio  ,
   }
 }
