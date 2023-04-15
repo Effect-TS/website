@@ -107,7 +107,10 @@ When using the utilities we defined it is very normal to end up with code that l
 // @include: model-1
 // @include: classic-1
 // ---cut---
-const program = Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
+const program = Effect.flatMap(
+  getTodos,
+  Effect.forEachParDiscard(notifyOwner)
+)
 ```
 
 Here we used the `Effect.forEachParDiscard` to repeat an `Effect` for every `Todo` and the `Effect` repeated
@@ -290,7 +293,10 @@ But now the following program:
 // @include: resolvers-1
 // @include: queries-1
 // ---cut---
-const program = Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
+const program = Effect.flatMap(
+  getTodos,
+  Effect.forEachParDiscard(notifyOwner)
+)
 ```
 
 Will only require 3 queries to be executed to our APIs instead of `1 + 2n` where `n` is the number of todos.
@@ -306,7 +312,10 @@ Batching can be locally disabled using the `Effect.withRequestBatching("off")` u
 // @include: queries-1
 // ---cut---
 const program = Effect.withRequestBatching("off")(
-  Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
+  Effect.flatMap(
+    getTodos,
+    Effect.forEachParDiscard(notifyOwner)
+  )
 )
 ```
 
@@ -417,7 +426,10 @@ We recently introduced a new key primitive in the fiber that enables an executio
 // @include: caches-1
 // @include: queries-1
 // ---cut---
-const program = Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
+const program = Effect.flatMap(
+  getTodos,
+  Effect.forEachParDiscard(notifyOwner)
+)
 
 const nextStep = Effect.flatMapStep(program, (step) => {
   switch (step._tag) {
@@ -425,7 +437,10 @@ const nextStep = Effect.flatMapStep(program, (step) => {
     case "Blocked": {
       const requests = step.i0
       const continuation = step.i1
-      return Effect.flatMap(shipRequestsToBeExecutedAndWait(requests), () => continuation)
+      return Effect.flatMap(
+        shipRequestsToBeExecutedAndWait(requests),
+        () => continuation
+      )
     }
     // the program completed
     case "Success":
