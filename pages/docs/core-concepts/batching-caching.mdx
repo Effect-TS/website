@@ -461,3 +461,97 @@ const shipRequestsToBeExecutedAndWait = <R, E, A>(
 By using the functions provided by the `@effect/io/RequestBlock` module one can combine requests from multiple blocked
 effects and by using the function `Effect.blocked(requests, continuation)` one can express an effect that is blocked
 on `requests` that should continue with `continuation`.
+
+## Manipulating the Request Cache
+
+Some caches may be short lived and only locally provided to effects for the purpose of deduplication
+but some other ones can be long lived and last as long as your program survives, the request cache is implemented as we mentioned
+before by using the `@effect/io/Cache` module that allows for caching generic effect returning functions.
+
+In fact the `Request.Cache<R>` type is nothing more than an alias to `Cache.ConsumerCache<R, never, Deferred<unknown, unknown>>` and
+it is used internally by `Effect` to deduplicate requests.
+
+When caches are managed, like in this case, one may not want to expose to the consumer the full power of the cache, namely the creation
+of new entries is usually a delicate process that only the cache owner should manage but operating on keys with operations to invalidate
+existing entries, getting stats, etc are all valid to share, this is why the `ConsumerCache<R, E, A>` type is exposed.
+
+Let's explore how we would for example get statistics about the `UserCache` that we priorly defined and how we would invalidate some
+entries manually.
+
+```ts twoslash
+// @noErrors
+// @include: model-1
+// @include: requests-1
+// @include: resolvers-1
+// @include: caches-1
+// @include: queries-1
+// ---cut---
+const operateOnCache = Effect.gen(function* ($) {
+  const cache = yield* $(GetUserByIdCache)
+  const stats = yield* $(cache.cacheStats())
+
+  yield* $(Effect.log(`GetUserByIdCache hits: ${stats.hits}`))
+  yield* $(Effect.log(`GetUserByIdCache misses: ${stats.misses}`))
+  yield* $(Effect.log(`GetUserByIdCache size: ${stats.size}`))
+
+  const keys = yield* $(cache.keys())
+
+  for (const key of keys) {
+    if (key.id % 2 === 0) {
+      yield* $(cache.invalidate(key))
+    }
+  }
+})
+```
+
+## Using Cache Directly
+
+There are many cases where you have functions `(key: Key) => Effect<R, E, A>` that you would like to cache
+and not necessarily every case is a good fit for the request model, for example cases like non batchable API
+calls or intensive work.
+
+Let's see how we would go about using cache:
+
+```ts twoslash
+// @noErrors
+import * as Effect from "@effect/io/Effect"
+import * as Cache from "@effect/io/Cache"
+import * as Duration from "@effect/data/Duration"
+
+declare const intensiveWork: (key: string) => Effect.Effect<never, never, string>
+
+const program = Effect.gen(function* ($) {
+  const cache = yield* $(Cache.make(Number.MAX_SAFE_INTEGER, Duration.infinity, intensiveWork))
+
+  const a0 = yield* $(cache.get("key0"))
+  const b0 = yield* $(cache.get("key1"))
+  const a1 = yield* $(cache.get("key0"))
+  const b1 = yield* $(cache.get("key1"))
+
+  if(a0 === a1 && b0 === b1) {
+    yield* $(Effect.log("I'll always end up here...."))
+  }
+})
+```
+
+<Callout type="info">
+In order for the cache to correctly compare two `Key` values if you are not using primitives you should use types that implement
+the `@effect/data/Equal` interface.
+</Callout>
+
+There are many more methods available in the `Cache` module as a next step you should check out the reference docs.
+
+## Reference Docs
+
+Following the reference docs for each of the mentioned modules:
+
+- [https://effect-ts.github.io/io/modules/Effect.ts.html](https://effect-ts.github.io/io/modules/Effect.ts.html)
+- [https://effect-ts.github.io/io/modules/Request.ts.html](https://effect-ts.github.io/io/modules/Request.ts.html)
+- [https://effect-ts.github.io/io/modules/RequestResolver.ts.html](https://effect-ts.github.io/io/modules/RequestResolver.ts.html)
+- [https://effect-ts.github.io/io/modules/Cache.ts.html](https://effect-ts.github.io/io/modules/Cache.ts.html)
+- [https://effect-ts.github.io/io/modules/Schedule.ts.html](https://effect-ts.github.io/io/modules/Schedule.ts.html)
+- [https://effect-ts.github.io/io/modules/Layer.ts.html](https://effect-ts.github.io/io/modules/Layer.ts.html)
+- [https://effect-ts.github.io/data/modules/Data.ts.html](https://effect-ts.github.io/data/modules/Data.ts.html)
+- [https://effect-ts.github.io/data/modules/Equal.ts.html](https://effect-ts.github.io/data/modules/Equal.ts.html)
+- [https://effect-ts.github.io/data/modules/Duration.ts.html](https://effect-ts.github.io/data/modules/Duration.ts.html)
+- [https://effect-ts.github.io/data/modules/Function.ts.html](https://effect-ts.github.io/data/modules/Function.ts.html)
