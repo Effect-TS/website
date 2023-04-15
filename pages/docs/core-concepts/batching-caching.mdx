@@ -1,0 +1,463 @@
+import { Callout } from 'nextra-theme-docs'
+
+# Batching & Caching
+
+Before we dig into the Effect's solution to batching and caching let's start with a description of the problem.
+
+It is very common in apps to depend on a number of external data sources like:
+- HTTP APIs
+- Databases
+- FileSystems
+- etc
+
+## Model Definition
+
+Let's start with a fairly minimal model description:
+
+```twoslash include model
+import * as Effect from "@effect/io/Effect"
+
+interface User {
+  readonly _tag: "User"
+  readonly id: number
+  readonly name: string
+  readonly email: string
+}
+
+class GetUserError {
+  readonly _tag = "GetUserError"
+}
+
+interface Todo {
+  readonly _tag: "Todo"
+  readonly id: number
+  readonly message: string
+  readonly ownerId: number
+}
+
+class GetTodosError {
+  readonly _tag = "GetTodosError"
+}
+
+class SendEmailError {
+  readonly _tag = "SendEmailError"
+}
+// - 1
+```
+
+```twoslash include classic
+const getTodos = Effect.tryCatchPromise(
+  () => fetch("https://api.example.demo/todos").then(_ => _.json() as Promise<Todo[]>),
+  () => new GetTodosError()
+)
+
+const getUserById = (id: number) => Effect.tryCatchPromise(
+  () => fetch(`https://api.example.demo/getUserById?id=${id}`).then(_ => _.json() as Promise<User>),
+  () => new GetUserError()
+)
+
+const sendEmail = (address: string, text: string) => Effect.tryCatchPromise(
+  () => fetch("https://api.example.demo/sendEmail", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ address, text }),
+  }).then(_ => _.json() as Promise<void>),
+  () => new SendEmailError()
+)
+
+const sendEmailToUser = (id: number, message: string) => Effect.flatMap(
+  getUserById(id),
+  (user) => sendEmail(user.email, message)
+)
+
+const notifyOwner = (todo: Todo) => Effect.flatMap(
+  getUserById(todo.ownerId),
+  (user) => sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
+)
+// - 1
+```
+
+```ts twoslash
+// @include: model-1
+```
+
+<Callout type="info">
+In a real world scenario we may want to use a more precise types instead of directly using primitives for identifiers, check `@effect/data/Brand` and we may want to include more information in the errors.
+</Callout>
+
+## Classic Approach
+
+Given such model we usually write up API calling functions (or Database, or whatever) like the following:
+
+```ts twoslash
+// @include: model-1
+// ---cut---
+// @include: classic-1
+```
+
+<Callout type="info">
+In a real world scenario we may not want to trust our APIs to actually return the expected data, for doing this properly you can use `@effect/schema` or similar alternatives such as `zod`.
+</Callout>
+
+When using the utilities we defined it is very normal to end up with code that looks like the following:
+
+```ts twoslash
+// @include: model-1
+// @include: classic-1
+// ---cut---
+const program = Effect.flatMap(
+  getTodos,
+  Effect.forEachParDiscard(notifyOwner)
+)
+```
+
+Here we used the `Effect.forEachParDiscard` to repeat an `Effect` for every `Todo` and the `Effect` repeated
+first fetches the `User` who owns the todo and then sends an email.
+
+We like writing code this way because it is **very expressive** and very easy to read, but is it **efficient**?
+
+This code will execute tons of individual API calls, most likely many todos will have the same owner and most likely
+our APIs also provide batched alternatives where for example you can request in one call as many users as you would like to.
+
+So what can we do? rewrite all our code to use a different form of API? should we really do that?
+
+Well **not anymore.**
+
+## Declaring Requests
+
+Let's rewrite our example to be as efficient as humanly possible to imagine, we'll start by writing a model for the requests that our data sources support:
+
+```twoslash include requests
+import * as Request from "@effect/io/Request"
+
+interface GetTodos extends Request.Request<GetTodosError, Todo[]> {
+  readonly _tag: "GetTodos"
+}
+const GetTodos = Request.tagged<GetTodos>("GetTodos")
+
+interface GetUserById extends Request.Request<GetUserError, User> {
+  readonly _tag: "GetUserById"
+  readonly id: number
+}
+const GetUserById = Request.tagged<GetUserById>("GetUserById")
+
+interface SendEmail extends Request.Request<SendEmailError, void> {
+  readonly _tag: "SendEmail"
+  readonly address: string
+  readonly text: string
+}
+const SendEmail = Request.tagged<SendEmail>("SendEmail")
+
+type ApiRequest = GetTodos | GetUserById | SendEmail
+// - 1
+```
+
+```ts twoslash
+// @include: model-1
+// ---cut---
+// @include: requests-1
+```
+
+<Callout type="info">
+We are using `@effect/data/Data` behind the scenes and given that requests will be compared using `@effect/data/Equal` for caching it is important to make sure they are compared by value, keep it in mind if you nest objects / arrays in your model (you should use Data.struct / Data.case / Data.tuple / etc).
+</Callout>
+
+## Declaring Request Resolvers
+
+Now that we have our requests defined it is time to tell `Effect` how to resolve those requests, that's where we would use a `RequestResolver`.
+
+Here we will define a single resolver per query, there is no right or wrong answer in how granular your resolvers should be
+but usually the split factor is based on what API calls can be batched or not.
+
+```twoslash include resolvers
+import * as RequestResolver from "@effect/io/RequestResolver"
+import { pipe } from "@effect/data/Function"
+
+// we assume we cannot batch GetTodos, we create a normal resolver
+const resolveGetTodos = RequestResolver.fromFunctionEffect((request: GetTodos) =>
+  Effect.tryCatchPromise(
+    () => fetch("https://api.example.demo/todos").then((_) => _.json()) as Promise<Todo[]>,
+    () => new GetTodosError()
+  )
+)
+
+// we assume we can batch GetUserById, we create a batched resolver
+const resolveGetUserById = RequestResolver.makeBatched((requests: GetUserById[]) =>
+  pipe(
+    Effect.tryCatchPromise(
+      () => fetch("https://api.example.demo/getUserByIdBatch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) }),
+      }).then((_) => _.json()) as Promise<User[]>,
+      () => new GetUserError()
+    ),
+    Effect.flatMap((users) => Effect.forEachWithIndex(requests, (request, index) =>
+      Request.completeEffect(request, Effect.succeed(users[index]))
+    )),
+    Effect.catchAll((error) => Effect.forEach(requests, (request) =>
+      Request.completeEffect(request, Effect.fail(error))
+    ))
+  )
+)
+
+// we assume we can batch SendEmail, we create a batched resolver
+const resolveSendEmail = RequestResolver.makeBatched((requests: SendEmail[]) =>
+  pipe(
+    Effect.tryCatchPromise(
+      () => fetch("https://api.example.demo/sendEmailBatch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ emails: requests.map(({ address, text }) => ({ address, text })) }),
+      }).then((_) => _.json()),
+      () => new SendEmailError()
+    ),
+    Effect.flatMap(() => Effect.forEach(requests, (request) =>
+      Request.completeEffect(request, Effect.unit())
+    )),
+    Effect.catchAll((error) => Effect.forEach(requests, (request) =>
+      Request.completeEffect(request, Effect.fail(error))
+    ))
+  )
+)
+// - 1
+```
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// ---cut---
+// @include: resolvers-1
+```
+
+<Callout type="info">
+Resolvers can also access context like any other `Effect` and there are many different ways of creating resolvers, you may want to check the reference documentation of the `@effect/io/RequestResolver` module next.
+</Callout>
+
+## Defining Queries
+
+At this point we are ready to plug the pieces together! Let's do just that:
+
+```twoslash include queries
+const getTodos = Effect.request(
+  //    ^?
+  GetTodos({}),
+  resolveGetTodos
+)
+
+const getUserById = (id: number) => Effect.request(
+  //    ^?
+  GetUserById({ id }),
+  resolveGetUserById
+)
+
+const sendEmail = (address: string, text: string) => Effect.request(
+  //    ^?
+  SendEmail({ address, text }),
+  resolveSendEmail
+)
+
+const sendEmailToUser = (id: number, message: string) => Effect.flatMap(
+  getUserById(id),
+  (user) => sendEmail(user.email, message)
+)
+
+const notifyOwner = (todo: Todo) => Effect.flatMap(
+  getUserById(todo.ownerId),
+  (user) => sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
+)
+// - 1
+```
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// @include: resolvers-1
+// ---cut---
+// @include: queries-1
+```
+
+It looks like we are back at the beginning, same exact types and same exact composition.
+
+But now the following program:
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// @include: resolvers-1
+// @include: queries-1
+// ---cut---
+const program = Effect.flatMap(
+  getTodos,
+  Effect.forEachParDiscard(notifyOwner)
+)
+```
+
+Will only require **3** queries to be executed to our APIs instead of **1 + 2n** where **n** is the number of todos.
+
+## Controlling Batching
+
+Batching can be locally disabled using the `Effect.withRequestBatching("off")` utility in the following way:
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// @include: resolvers-1
+// @include: queries-1
+// ---cut---
+const program = Effect.withRequestBatching("off")(
+  Effect.flatMap(
+    getTodos,
+    Effect.forEachParDiscard(notifyOwner)
+  )
+)
+```
+
+## Request Caching
+
+Up to this point we optimized how requests are executed but there is still a catch, we are not doing any caching.
+
+This leads to request duplication...
+
+Fortunately we also have a primitive for caching in `Effect` and we use that to automatically cache requests.
+
+Let's define a cache for the GetUserById to deduplicate the getUserCalls, we will assume an user doesn't change for 10 minutes.
+
+```twoslash include caches
+import * as Context from "@effect/data/Context"
+import * as Layer from "@effect/io/Layer"
+import { minutes } from "@effect/data/Duration"
+
+interface GetUserByIdCache {
+  readonly _: unique symbol
+}
+
+const GetUserByIdCache = Context.Tag<GetUserByIdCache, Request.Cache<GetUserById>>()
+
+const GetUserByIdCacheLive = Layer.effect(
+  GetUserByIdCache,
+  Request.makeCache(10_000, minutes(10))
+)
+// - 1
+```
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// ---cut---
+// @include: caches-1
+```
+
+This way we created a cache that can handle up to 10_000 requests of type `GetUserById` each valid for a maximum of 10 minutes.
+
+We now have to wire it up in our `getUserById` function:
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// @include: resolvers-1
+// @include: caches-1
+// ---cut---
+const getUserById = (id: number) => Effect.request(
+  //    ^?
+  GetUserById({ id }),
+  resolveGetUserById,
+  GetUserByIdCache
+)
+```
+
+As we can observe from the type we are now required to provide the `GetUserByIdCache` service to any program that uses the `getUserById` query.
+
+If we instead wanted to only cache requests if a cache is provided we can use the `Effect.serviceOption` helper and do the following:
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// @include: resolvers-1
+// @include: caches-1
+// ---cut---
+const getUserById = (id: number) => Effect.request(
+  //    ^?
+  GetUserById({ id }),
+  resolveGetUserById,
+  Effect.serviceOption(GetUserByIdCache)
+)
+```
+
+And as you can see now we are no longer forced to provide a cache.
+
+## Final Program
+
+Assuming you've wired everything up correctly the following program:
+
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// @include: resolvers-1
+// @include: caches-1
+// @include: queries-1
+// ---cut---
+import * as Schedule from "@effect/io/Schedule"
+
+const main = Effect.provideSomeLayer(GetUserByIdCacheLive)(
+  Effect.repeat(Schedule.fixed(minutes(1)))(
+    Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
+  )
+)
+```
+
+Should never execute twice the same `GetUserById` within a span of `10` minutes (assuming less than 10k users) while also making sure emails are sent in batches.
+
+## How is this possible?
+
+We recently introduced a new key primitive in the fiber that enables an execution to paused when it sees the program requires a request, in the process of pausing the fiber will reify its stack into a continuation that can be externally performed.
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// @include: resolvers-1
+// @include: caches-1
+// @include: queries-1
+// ---cut---
+const program = Effect.flatMap(
+  getTodos,
+  Effect.forEachParDiscard(notifyOwner)
+)
+
+const nextStep = Effect.flatMapStep(program, (step) => {
+  switch (step._tag) {
+    // the program is blocked on a number of requests
+    case "Blocked": {
+      const requests = step.i0
+      const continuation = step.i1
+      return Effect.flatMap(
+        shipRequestsToBeExecutedAndWait(requests),
+        () => continuation
+      )
+    }
+    // the program completed
+    case "Success":
+    case "Failure": {
+      return step
+    }
+  }
+})
+
+const shipRequestsToBeExecutedAndWait = <R, E, A>(
+  requests: Effect.Blocked<R, E, A>["i0"]
+): Effect.Effect<R, E, void> => {
+  // go on mars and come back
+  return Effect.unit()
+}
+```
+
+By using the functions provided by the `@effect/io/RequestBlock` module one can combine requests from multiple blocked
+effects and by using the function `Effect.blocked(requests, continuation)` one can express an effect that is blocked
+on `requests` that should continue with `continuation`.
