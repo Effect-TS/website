@@ -338,7 +338,10 @@ interface GetUserByIdCache {
   readonly _: unique symbol
 }
 
-const GetUserByIdCache = Context.Tag<GetUserByIdCache, Request.Cache<GetUserById>>()
+const GetUserByIdCache = Context.Tag<GetUserByIdCache, Request.Cache<GetUserById>>(
+  // this is not strictly needed but makes sure the tag is the same if module is reloaded
+  Symbol.for("@app/services/GetUserByIdCache")
+)
 
 const GetUserByIdCacheLive = Layer.effect(
   GetUserByIdCache,
