@@ -45,7 +45,7 @@ export default {
     </div>
   ),
   project: {
-    link: "https://github.com/Effect-TS/effect",
+    link: "https://github.com/Effect-TS",
   },
   chat: {
     link: "https://discord.gg/effect-ts",
