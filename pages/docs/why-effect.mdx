@@ -26,7 +26,7 @@ Often, we will do the "easiest" thing and just wrap the function in a `try/catch
 
 While Effect is a vast ecosystem of many different tools, if it had to be reduced down to just one unique idea, it would be the following:
 
-Effect's major unique insight is that we can use the type system to track _errors_ and _"dependencies"_ (more on this later), not only _success_ values as shown in the divide example above.
+Effect's major unique insight is that we can use the type system to track _errors_ and _"context"_ (more on this later), not only _success_ values as shown in the divide example above.
 
 Here's the same divide function from above, but with the Effect pattern:
 
@@ -41,11 +41,11 @@ function divide(a: number, b: number): Effect.Effect<never, Error, number> {
 }
 ```
 
-Notice how looking at the type signature tells you exactly what dependencies the function needs (`never`, as in, no dependencies), what error(s) it can throw (`Error`), and what success value(s) it returns (`number`). This function no longer throws an exception, and you can cleanly pass on the error to the caller of this function.
+Notice how looking at the type signature tells you exactly what context the function needs (`never`, as in, no context required), what error(s) it can throw (`Error`), and what success value(s) it returns (`number`). This function no longer throws an exception, and you can cleanly pass on the error to the caller of this function.
 
 Errors now become values, just like your success values. Effect gives us many functions to make managing errors and success values ergonomic.
 
-Additionally, tracking dependencies in your types allows you to write modules separate from your implementation detail. For example, your core domain logic (e.g. creating a user account) can depend on some external API (e.g. sending an account invite email), and you can write that API as an interface/service (e.g. email service). When you write tests, you can easily swap out the API for a mock implementation (e.g. mock email service) and test your core logic without having to worry about the implementation details of the API, and without changing any of your core logic. Don't worry if this doesn't make sense yet. It's one of Effect's most powerful concepts that you will learn more about as you go through the [Core Concepts](../core-concepts/effect).
+Additionally, tracking context allows you to provide additional information to your functions without having to pass in everything as an argument. For example, you can swap out implementations of live external services with mocks during your tests without changing any core business logic. There are many other use cases for context as well.
 
 ## Effect's Ecosystem
 
