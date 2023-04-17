@@ -175,7 +175,7 @@ import * as RequestResolver from "@effect/io/RequestResolver"
 import { pipe } from "@effect/data/Function"
 
 // we assume we cannot batch GetTodos, we create a normal resolver
-const resolveGetTodos = RequestResolver.fromFunctionEffect((request: GetTodos) =>
+const resolveGetTodos = RequestResolver.fromFunctionEffect<GetTodos>()((request) =>
   Effect.tryCatchPromise(
     () => fetch("https://api.example.demo/todos").then((_) => _.json()) as Promise<Todo[]>,
     () => new GetTodosError()
@@ -183,7 +183,7 @@ const resolveGetTodos = RequestResolver.fromFunctionEffect((request: GetTodos) =
 )
 
 // we assume we can batch GetUserById, we create a batched resolver
-const resolveGetUserById = RequestResolver.makeBatched((requests: GetUserById[]) =>
+const resolveGetUserById = RequestResolver.makeBatched<GetUserById>()((requests) =>
   pipe(
     Effect.tryCatchPromise(
       () => fetch("https://api.example.demo/getUserByIdBatch", {
@@ -205,7 +205,7 @@ const resolveGetUserById = RequestResolver.makeBatched((requests: GetUserById[])
 )
 
 // we assume we can batch SendEmail, we create a batched resolver
-const resolveSendEmail = RequestResolver.makeBatched((requests: SendEmail[]) =>
+const resolveSendEmail = RequestResolver.makeBatched<SendEmail>()((requests) =>
   pipe(
     Effect.tryCatchPromise(
       () => fetch("https://api.example.demo/sendEmailBatch", {
