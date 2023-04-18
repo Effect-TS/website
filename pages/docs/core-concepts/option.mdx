@@ -1,4 +1,4 @@
-# The `Option` data type
+# The `Option` Data Type
 
 The `Option` data type represents an optional value: every `Option` is either `Some` and contains a value, or `None`, and does not. `Option` types are very common in functional programming, as they have a number of uses:
 
@@ -44,7 +44,7 @@ The `_tag` field is used to distinguish between the two variants, `None` and `So
 
 The `Option` data type can be used to handle the presence or absence of a value in a safe and predictable manner. The `Option` data type has two constructors `some` and `none` that can be used to create a new instance of `Option` holding either a `Some` value or a `None` value, respectively.
 
-### Constructing a `Some` value
+### Constructing a `Some` Value
 
 The `some` constructor takes a value of type `A` and returns an instance of `Option<A>` that holds that value:
 
@@ -54,7 +54,7 @@ import { Option, some } from "@effect/data/Option";
 const value: Option<number> = some(1); // an Option holding the number 1
 ```
 
-### Constructing a `None` value
+### Constructing a `None` Value
 
 The `none` constructor returns an instance of `Option<never`> representing the absence of a value:
 
@@ -249,7 +249,7 @@ console.log(O.toArray(O.none())); // []
 
 In this example, `none()` is passed as the argument to `toArray`, which returns an empty array.
 
-## Modeling optional properties
+## Modeling Optional Properties
 
 Here is an example of a `User` model where the `email` field is of type `Option<string>`. This means that the value of the `email` field may or may not be present and will be of type `string` when it is present.
 
@@ -314,7 +314,7 @@ const failure: Option<number> = pipe(
 
 As you can see, even though we started with a `None` value, we can still operate on our `Option`. No errors are thrown or shown to the user, unless we do it intentionally. When the `Option` is `None, the mapping doesn't even occur, and the `None` value representing the absence of value is returned unchanged.
 
-## Handling failing computations
+## Handling Failing Computations
 
 In software development, there are times when a function can "fail" to produce a result, either because of invalid inputs, lack of data, or other reasons. The `Option` data type helps us to handle these cases in a clean and functional way.
 
@@ -507,11 +507,11 @@ It is important to note that `inspectSome` and `inspectNone` should only be used
 | `inspectSome` | `Option<A>`, `A => void`  | `Option<A>`          | callback called if it is a `Some<A>` |
 | `inspectNone` | `Option<A>`, `() => void` | `Option<A>`          | callback called if it is a `None`    |
 
-## Pattern matching
+## Pattern Matching
 
 We have seen how easy and convenient it is to build pipelines involving the `Option` data type, leaving it to handle any errors that may occur at any step. However, at some point, you will be interested in manually handling the error to understand the overall result obtained from the pipeline and decide what to do accordingly.
 
-### Getting the value from an `Option`
+### Getting the Value from an `Option`
 
 To extract the value from an `Option`, you can use the `getOrThrow` function, which retrieves the value wrapped in an `Option`, or throws an error if the `Option` you are querying is a `None`.
 
@@ -541,7 +541,7 @@ if (isSome(option)) {
 // Output: Option has a value: 1
 ```
 
-### Pattern matching with `Option`
+### Pattern Matching with `Option`
 
 An alternative way to handle the cases of an `Option` being `None` or `Some` is by using the `match` function. The `match` function allows you to provide different actions for each case of the `Option` value.
 
@@ -568,7 +568,7 @@ console.log(output); // Output: Option has a value: 1
 
 Using `match` instead of `isSome` or `isNone` can be more expressive and provide a clear way to handle both cases of an `Option`. Additionally, if you have complex logic to handle both cases, using `match` can make your code easier to read and maintain.
 
-### Other functions for extracting values from an `Option`
+### Other Functions for Extracting Values from an `Option`
 
 To make working with code that does not use `Option` more convenient, there are specializations of `match` called `getOrNull` and `getOrUndefined`, which allow you to retrieve the value of an `Option` or `null` or `undefined`, respectively.
 
@@ -657,7 +657,7 @@ const first = O.firstSomeOf(arr); // some(2)
 
 When using the `Option` data type, you may need to interact with code that uses `undefined` or `null` to indicate optional values. The `Option` data type provides several APIs to make this task easier.
 
-### Converting a Nullable Value to an Option
+### Converting a Nullable Value to an `Option`
 
 You can create an `Option` from a nullable value using the `fromNullable` API.
 
@@ -688,7 +688,7 @@ console.log(parseOption("not a number")); // none()
 
 ```
 
-### Converting an Option to a Nullable Value
+### Converting an `Option` to a Nullable Value
 
 If you have a value of type `Option` and want to convert it to a nullable value, you have two options:
 
@@ -716,7 +716,7 @@ console.log(O.getOrUndefined(O.none())); // undefined
 | `getOrNull`       | `Option<A>`                                        | `A \| null`                          |
 | `getOrUndefined`  | `Option<A>`                                        | `A \| undefined`                     |
 
-## Combining two or more `Option`s
+## Combining Two or More `Option`s
 
 The `zipWith` function allows you to combine two `Option`s using a provided function. The resulting value is a new `Option` that holds the combined value of both original `Option`s.
 
@@ -774,7 +774,7 @@ console.log(combine); // none()
 | `appendElement` | `Option<[A, B, ...]>`, `Option<C>`      | `Option<[A, B, ..., C]>`      |
 | `ap`            | `Option<(a: A) => B>`, `Option<A>`      | `Option<B>`                   |
 
-### Algebraic operations with `Option`s
+### Algebraic Operations with `Option`s
 
 In addition to `zipWith`, a series of algebraic operations such as sums, products, subtractions, and divisions are exported to make it easier to work with `Option`s.
 
