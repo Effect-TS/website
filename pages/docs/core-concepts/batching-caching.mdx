@@ -170,7 +170,7 @@ type ApiRequest = GetTodos | GetUserById | SendEmail
 We are using `@effect/data/Data` behind the scenes and given that requests will be compared using `@effect/data/Equal` for caching it is important to make sure they are compared by value. If you nest objects / arrays in your model, you should use Data.struct / Data.case / Data.tuple / etc.
 </Callout>
 
-## Declaring Request Resolvers
+## Declaring Resolvers
 
 Now that we have our requests defined it is time to tell `Effect` how to resolve those requests. That's where we would use a `RequestResolver`.
 
@@ -180,95 +180,56 @@ but usually you will split up your resolvers based on which API calls can be bat
 ```twoslash include resolvers
 import * as RequestResolver from "@effect/io/RequestResolver"
 
-interface GetTodosResolver {
-  readonly _: unique symbol
-}
-
-const GetTodosResolver = Context.Tag<GetTodosResolver, RequestResolver.RequestResolver<GetTodos>>(
-  Symbol.for("@app/services/GetTodosResolver")
+// we assume we cannot batch GetTodos, we create a normal resolver
+const GetTodosResolver = RequestResolver.fromFunctionEffect((request: GetTodos) =>
+  Effect.tryCatchPromise(
+    () => fetch("https://api.example.demo/todos").then((_) => _.json()) as Promise<Todo[]>,
+    () => new GetTodosError()
+  )
 )
 
-const GetTodosResolverLive = Layer.resolver(
-  GetTodosResolver,
-  // we assume we cannot batch GetTodos, we create a normal resolver
-  RequestResolver.fromFunctionEffect((request: GetTodos) =>
+// we assume we can batch GetUserById, we create a batched resolver
+const GetUserByIdResolver = RequestResolver.makeBatched((requests: GetUserById[]) =>
+  pipe(
     Effect.tryCatchPromise(
-      () => fetch("https://api.example.demo/todos").then((_) => _.json()) as Promise<Todo[]>,
-      () => new GetTodosError()
-    )
+      () => fetch("https://api.example.demo/getUserByIdBatch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) }),
+      }).then((_) => _.json()) as Promise<User[]>,
+      () => new GetUserError()
+    ),
+    Effect.flatMap((users) => Effect.forEachWithIndex(requests, (request, index) =>
+      Request.completeEffect(request, Effect.succeed(users[index]))
+    )),
+    Effect.catchAll((error) => Effect.forEach(requests, (request) =>
+      Request.completeEffect(request, Effect.fail(error))
+    ))
   )
-)
-
-interface GetUserByIdResolver {
-  readonly _: unique symbol
-}
-
-const GetUserByIdResolver = Context.Tag<GetUserByIdResolver, RequestResolver.RequestResolver<GetUserById>>(
-  Symbol.for("@app/services/GetUserByIdResolver")
-)
-
-const GetUserByIdResolverLive = Layer.resolver(
-  GetUserByIdResolver,
-  // we assume we can batch GetUserById, we create a batched resolver
-  RequestResolver.makeBatched((requests: GetUserById[]) =>
-    pipe(
-      Effect.tryCatchPromise(
-        () => fetch("https://api.example.demo/getUserByIdBatch", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) }),
-        }).then((_) => _.json()) as Promise<User[]>,
-        () => new GetUserError()
-      ),
-      Effect.flatMap((users) => Effect.forEachWithIndex(requests, (request, index) =>
-        Request.completeEffect(request, Effect.succeed(users[index]))
-      )),
-      Effect.catchAll((error) => Effect.forEach(requests, (request) =>
-        Request.completeEffect(request, Effect.fail(error))
-      ))
-    )
-  )
-)
-
-interface SendEmailResolver {
-  readonly _: unique symbol
-}
-
-const SendEmailResolver = Context.Tag<SendEmailResolver, RequestResolver.RequestResolver<SendEmail>>(
-  Symbol.for("@app/services/SendEmailResolver")
 )
 
 // we assume we can batch SendEmail, we create a batched resolver
-const SendEmailResolverLive = Layer.resolver(
-  SendEmailResolver,
-  RequestResolver.makeBatched((requests: SendEmail[]) =>
-    pipe(
-      Effect.tryCatchPromise(
-        () => fetch("https://api.example.demo/sendEmailBatch", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ emails: requests.map(({ address, text }) => ({ address, text })) }),
-        }).then((_) => _.json()),
-        () => new SendEmailError()
-      ),
-      Effect.flatMap(() => Effect.forEach(requests, (request) =>
-        Request.completeEffect(request, Effect.unit())
-      )),
-      Effect.catchAll((error) => Effect.forEach(requests, (request) =>
-        Request.completeEffect(request, Effect.fail(error))
-      ))
-    )
+const SendEmailResolver = RequestResolver.makeBatched((requests: SendEmail[]) =>
+  pipe(
+    Effect.tryCatchPromise(
+      () => fetch("https://api.example.demo/sendEmailBatch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ emails: requests.map(({ address, text }) => ({ address, text })) }),
+      }).then((_) => _.json()),
+      () => new SendEmailError()
+    ),
+    Effect.flatMap(() => Effect.forEach(requests, (request) =>
+      Request.completeEffect(request, Effect.unit())
+    )),
+    Effect.catchAll((error) => Effect.forEach(requests, (request) =>
+      Request.completeEffect(request, Effect.fail(error))
+    ))
   )
-)
-
-const ResolversLive = Layer.mergeAll(
-  GetTodosResolverLive,
-  GetUserByIdResolverLive,
-  SendEmailResolverLive
 )
 // - 1
 ```
@@ -284,7 +245,6 @@ const ResolversLive = Layer.mergeAll(
 <Callout type="info">
 Resolvers can also access context like any other `Effect` and there are many different ways of creating resolvers. You may want to check the reference documentation of the `@effect/io/RequestResolver` module next.
 </Callout>
-
 
 ## Defining Queries
 
@@ -346,6 +306,122 @@ const program = Effect.flatMap(
 ```
 
 Will only require **3** queries to be executed to our APIs instead of **1 + 2n** where **n** is the number of todos.
+
+## Resolvers with Context
+
+There may be cases where you want to access some context as part of the request resolver, in order for requests to be
+batchable the resolver they reference has to be the same so it is important to avoid over providing context to a
+resolver because having even two slightly different services makes the resolvers incompatible leading to no batching.
+
+To avoid easy mistakes we decided to force the context of the resolver passed to `Effect.request` to `never` so that
+you always have to specify how context is accessed.
+
+Let's see how we would do it:
+
+```twoslash include resolvers-new
+import * as RequestResolver from "@effect/io/RequestResolver"
+
+interface HttpService {
+  fetch: typeof fetch
+}
+
+const HttpService = Context.Tag<HttpService>(
+  Symbol.for("@app/services/HttpService")
+)
+
+const HttpServiceLive = Layer.sync(HttpService, () => ({ fetch }))
+
+const GetTodosResolver = pipe(
+  // we create a normal resolver like we did before
+  RequestResolver.fromFunctionEffect((request: GetTodos) =>
+    Effect.flatMap(HttpService, (http) => Effect.tryCatchPromise(
+      () => http.fetch("https://api.example.demo/todos").then((_) => _.json()) as Promise<Todo[]>,
+      () => new GetTodosError()
+    ))
+  ),
+  // we list the tags that the resolver can access
+  RequestResolver.contextFromServices(HttpService)
+)
+// - 1
+```
+
+```ts twoslash
+// @include: model-1
+// @include: imports-1
+// @include: requests-1
+// ---cut---
+// @include: resolvers-new-1
+```
+
+We can see now that the type of `GetTodosResolver` is no longer a `RequestResolver` but instead it is
+`Effect.Effect<HttpService, never, RequestResolver.RequestResolver<GetTodos, never>>` which is an `Effect`
+that access the `HttpService` and returns a composed resolver that has the minimal context ready to use.
+
+Once we have such `Effect` we can directly use it in our request definition:
+
+```ts twoslash
+// @include: model-1
+// @include: imports-1
+// @include: requests-1
+// @include: resolvers-new-1
+// ---cut---
+const getTodos = Effect.request(
+  //    ^?
+  GetTodos({}),
+  GetTodosResolver
+)
+```
+
+We can see that the `Effect` correctly requires `HttpService` to be provided.
+
+Alternatively you can create RequestResolvers as part of layers direcly accessing or closing over context from construction.
+
+For example:
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// @include: imports-1
+// @include: resolvers-1
+// ---cut---
+interface HttpService {
+  fetch: typeof fetch
+}
+
+const HttpService = Context.Tag<HttpService>(
+  Symbol.for("@app/services/HttpService")
+)
+
+const HttpServiceLive = Layer.sync(HttpService, () => ({ fetch }))
+
+interface TodosService {
+  getTodos: Effect.Effect<never, GetTodosError, Todo[]>
+}
+
+const TodosService = Context.Tag<TodosService>(
+  Symbol.for("@app/services/TodosService")
+)
+
+const TodosServiceLive = Layer.effect(
+  TodosService,
+  Effect.gen(function* ($) {
+    const http = yield* $(HttpService)
+    const resolver = RequestResolver.fromFunctionEffect((request: GetTodos) =>
+      Effect.tryCatchPromise(
+        () => http.fetch("https://api.example.demo/todos").then((_) => _.json()) as Promise<Todo[]>,
+        () => new GetTodosError()
+      )
+    )
+    return {
+      getTodos: Effect.request(GetTodos({}), resolver)
+    }
+  })
+)
+const getTodos = Effect.flatMap(TodosService, (_) => _.getTodos)
+//    ^?
+```
+
+This way is probably the best for most of the cases given that layers are the natural primitive where to wire services together.
 
 ## Controlling Batching
 
@@ -460,7 +536,7 @@ const main = pipe(
   getTodos,
   Effect.flatMap(Effect.forEachParDiscard(notifyOwner)),
   Effect.repeat(Schedule.fixed(minutes(1))),
-  Effect.provideSomeLayer(Layer.mergeAll(GetUserByIdCacheLive, ResolversLive))
+  Effect.provideSomeLayer(GetUserByIdCacheLive)
 )
 ```
 
@@ -514,7 +590,7 @@ By using the functions provided by the `@effect/io/RequestBlock` module, you can
 effects. By using the function `Effect.blocked(requests, continuation)`, you can express an effect that is blocked
 on `requests` that should continue with `continuation`.
 
-## Manipulating the Request Cache
+## Using the Request Cache
 
 Some caches may be short lived and only locally provided to effects for the purpose of deduplication
 but some other ones can be long lived and last as long as your program survives. The request cache is implemented by using the `@effect/io/Cache` module that allows for caching generic effect returning functions.
