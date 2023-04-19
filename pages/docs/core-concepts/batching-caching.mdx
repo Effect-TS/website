@@ -1,5 +1,12 @@
 import { Callout } from 'nextra-theme-docs'
 
+```twoslash include imports
+import * as Context from "@effect/data/Context"
+import * as Layer from "@effect/io/Layer"
+import { pipe } from "@effect/data/Function"
+// - 1
+```
+
 # Batching & Caching
 
 Before we dig into the Effect's solution to batching and caching let's start with a description of the problem.
@@ -172,64 +179,103 @@ but usually you will split up your resolvers based on which API calls can be bat
 
 ```twoslash include resolvers
 import * as RequestResolver from "@effect/io/RequestResolver"
-import { pipe } from "@effect/data/Function"
 
-// we assume we cannot batch GetTodos, we create a normal resolver
-const resolveGetTodos = RequestResolver.fromFunctionEffect<GetTodos>()((request) =>
-  Effect.tryCatchPromise(
-    () => fetch("https://api.example.demo/todos").then((_) => _.json()) as Promise<Todo[]>,
-    () => new GetTodosError()
+interface GetTodosResolver {
+  readonly _: unique symbol
+}
+
+const GetTodosResolver = Context.Tag<GetTodosResolver, RequestResolver.RequestResolver<GetTodos>>(
+  Symbol.for("@app/services/GetTodosResolver")
+)
+
+const GetTodosResolverLive = Layer.resolver(
+  GetTodosResolver,
+  // we assume we cannot batch GetTodos, we create a normal resolver
+  RequestResolver.fromFunctionEffect((request: GetTodos) =>
+    Effect.tryCatchPromise(
+      () => fetch("https://api.example.demo/todos").then((_) => _.json()) as Promise<Todo[]>,
+      () => new GetTodosError()
+    )
   )
 )
 
-// we assume we can batch GetUserById, we create a batched resolver
-const resolveGetUserById = RequestResolver.makeBatched<GetUserById>()((requests) =>
-  pipe(
-    Effect.tryCatchPromise(
-      () => fetch("https://api.example.demo/getUserByIdBatch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) }),
-      }).then((_) => _.json()) as Promise<User[]>,
-      () => new GetUserError()
-    ),
-    Effect.flatMap((users) => Effect.forEachWithIndex(requests, (request, index) =>
-      Request.completeEffect(request, Effect.succeed(users[index]))
-    )),
-    Effect.catchAll((error) => Effect.forEach(requests, (request) =>
-      Request.completeEffect(request, Effect.fail(error))
-    ))
+interface GetUserByIdResolver {
+  readonly _: unique symbol
+}
+
+const GetUserByIdResolver = Context.Tag<GetUserByIdResolver, RequestResolver.RequestResolver<GetUserById>>(
+  Symbol.for("@app/services/GetUserByIdResolver")
+)
+
+const GetUserByIdResolverLive = Layer.resolver(
+  GetUserByIdResolver,
+  // we assume we can batch GetUserById, we create a batched resolver
+  RequestResolver.makeBatched((requests: GetUserById[]) =>
+    pipe(
+      Effect.tryCatchPromise(
+        () => fetch("https://api.example.demo/getUserByIdBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) }),
+        }).then((_) => _.json()) as Promise<User[]>,
+        () => new GetUserError()
+      ),
+      Effect.flatMap((users) => Effect.forEachWithIndex(requests, (request, index) =>
+        Request.completeEffect(request, Effect.succeed(users[index]))
+      )),
+      Effect.catchAll((error) => Effect.forEach(requests, (request) =>
+        Request.completeEffect(request, Effect.fail(error))
+      ))
+    )
   )
+)
+
+interface SendEmailResolver {
+  readonly _: unique symbol
+}
+
+const SendEmailResolver = Context.Tag<SendEmailResolver, RequestResolver.RequestResolver<SendEmail>>(
+  Symbol.for("@app/services/SendEmailResolver")
 )
 
 // we assume we can batch SendEmail, we create a batched resolver
-const resolveSendEmail = RequestResolver.makeBatched<SendEmail>()((requests) =>
-  pipe(
-    Effect.tryCatchPromise(
-      () => fetch("https://api.example.demo/sendEmailBatch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ emails: requests.map(({ address, text }) => ({ address, text })) }),
-      }).then((_) => _.json()),
-      () => new SendEmailError()
-    ),
-    Effect.flatMap(() => Effect.forEach(requests, (request) =>
-      Request.completeEffect(request, Effect.unit())
-    )),
-    Effect.catchAll((error) => Effect.forEach(requests, (request) =>
-      Request.completeEffect(request, Effect.fail(error))
-    ))
+const SendEmailResolverLive = Layer.resolver(
+  SendEmailResolver,
+  RequestResolver.makeBatched((requests: SendEmail[]) =>
+    pipe(
+      Effect.tryCatchPromise(
+        () => fetch("https://api.example.demo/sendEmailBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ emails: requests.map(({ address, text }) => ({ address, text })) }),
+        }).then((_) => _.json()),
+        () => new SendEmailError()
+      ),
+      Effect.flatMap(() => Effect.forEach(requests, (request) =>
+        Request.completeEffect(request, Effect.unit())
+      )),
+      Effect.catchAll((error) => Effect.forEach(requests, (request) =>
+        Request.completeEffect(request, Effect.fail(error))
+      ))
+    )
   )
+)
+
+const ResolversLive = Layer.mergeAll(
+  GetTodosResolverLive,
+  GetUserByIdResolverLive,
+  SendEmailResolverLive
 )
 // - 1
 ```
 
 ```ts twoslash
 // @include: model-1
+// @include: imports-1
 // @include: requests-1
 // ---cut---
 // @include: resolvers-1
@@ -239,6 +285,7 @@ const resolveSendEmail = RequestResolver.makeBatched<SendEmail>()((requests) =>
 Resolvers can also access context like any other `Effect` and there are many different ways of creating resolvers. You may want to check the reference documentation of the `@effect/io/RequestResolver` module next.
 </Callout>
 
+
 ## Defining Queries
 
 At this point we are ready to plug the pieces together! Let's do just that:
@@ -247,19 +294,17 @@ At this point we are ready to plug the pieces together! Let's do just that:
 const getTodos = Effect.request(
   //    ^?
   GetTodos({}),
-  resolveGetTodos
+  GetTodosResolver
 )
 
 const getUserById = (id: number) => Effect.request(
-  //    ^?
   GetUserById({ id }),
-  resolveGetUserById
+  GetUserByIdResolver
 )
 
 const sendEmail = (address: string, text: string) => Effect.request(
-  //    ^?
   SendEmail({ address, text }),
-  resolveSendEmail
+  SendEmailResolver
 )
 
 const sendEmailToUser = (id: number, message: string) => Effect.flatMap(
@@ -277,6 +322,7 @@ const notifyOwner = (todo: Todo) => Effect.flatMap(
 ```ts twoslash
 // @include: model-1
 // @include: requests-1
+// @include: imports-1
 // @include: resolvers-1
 // ---cut---
 // @include: queries-1
@@ -289,6 +335,7 @@ But now the following program:
 ```ts twoslash
 // @include: model-1
 // @include: requests-1
+// @include: imports-1
 // @include: resolvers-1
 // @include: queries-1
 // ---cut---
@@ -307,6 +354,7 @@ Batching can be locally disabled using the `Effect.withRequestBatching("off")` u
 ```ts twoslash
 // @include: model-1
 // @include: requests-1
+// @include: imports-1
 // @include: resolvers-1
 // @include: queries-1
 // ---cut---
@@ -329,8 +377,6 @@ Fortunately we also have a primitive for caching in `Effect` and we use that to 
 Let's define a cache for the GetUserById to deduplicate the getUserCalls. We will assume a user doesn't change for 10 minutes.
 
 ```twoslash include caches
-import * as Context from "@effect/data/Context"
-import * as Layer from "@effect/io/Layer"
 import { minutes } from "@effect/data/Duration"
 
 interface GetUserByIdCache {
@@ -338,7 +384,6 @@ interface GetUserByIdCache {
 }
 
 const GetUserByIdCache = Context.Tag<GetUserByIdCache, Request.Cache<GetUserById>>(
-  // this is not strictly needed but makes sure the tag is the same if module is reloaded
   Symbol.for("@app/services/GetUserByIdCache")
 )
 
@@ -351,6 +396,7 @@ const GetUserByIdCacheLive = Layer.effect(
 
 ```ts twoslash
 // @include: model-1
+// @include: imports-1
 // @include: requests-1
 // ---cut---
 // @include: caches-1
@@ -362,14 +408,14 @@ We now have to wire it up in our `getUserById` function:
 
 ```ts twoslash
 // @include: model-1
+// @include: imports-1
 // @include: requests-1
 // @include: resolvers-1
 // @include: caches-1
 // ---cut---
 const getUserById = (id: number) => Effect.request(
-  //    ^?
   GetUserById({ id }),
-  resolveGetUserById,
+  GetUserByIdResolver,
   GetUserByIdCache
 )
 ```
@@ -380,19 +426,20 @@ If we instead wanted to only cache requests if a cache is provided we can use th
 
 ```ts twoslash
 // @include: model-1
+// @include: imports-1
 // @include: requests-1
 // @include: resolvers-1
 // @include: caches-1
 // ---cut---
 const getUserById = (id: number) => Effect.request(
-  //    ^?
   GetUserById({ id }),
-  resolveGetUserById,
+  GetUserByIdResolver,
   Effect.serviceOption(GetUserByIdCache)
 )
 ```
 
 And as you can see now we are no longer forced to provide a cache.
+
 
 ## Final Program
 
@@ -402,16 +449,18 @@ Assuming you've wired everything up correctly the following program:
 ```ts twoslash
 // @include: model-1
 // @include: requests-1
+// @include: imports-1
 // @include: resolvers-1
 // @include: caches-1
 // @include: queries-1
 // ---cut---
 import * as Schedule from "@effect/io/Schedule"
 
-const main = Effect.provideSomeLayer(GetUserByIdCacheLive)(
-  Effect.repeat(Schedule.fixed(minutes(1)))(
-    Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
-  )
+const main = pipe(
+  getTodos,
+  Effect.flatMap(Effect.forEachParDiscard(notifyOwner)),
+  Effect.repeat(Schedule.fixed(minutes(1))),
+  Effect.provideSomeLayer(Layer.mergeAll(GetUserByIdCacheLive, ResolversLive))
 )
 ```
 
@@ -423,6 +472,7 @@ We recently introduced a new key primitive in the fiber that enables an executio
 
 ```ts twoslash
 // @include: model-1
+// @include: imports-1
 // @include: requests-1
 // @include: resolvers-1
 // @include: caches-1
@@ -480,7 +530,7 @@ Let's explore how we would get statistics about the `UserCache` that we defined 
 entries manually.
 
 ```ts twoslash
-// @noErrors
+// @include: imports-1
 // @include: model-1
 // @include: requests-1
 // @include: resolvers-1
@@ -514,7 +564,6 @@ calls or intensive work.
 Let's see how we would go about using cache:
 
 ```ts twoslash
-// @noErrors
 import * as Effect from "@effect/io/Effect"
 import * as Cache from "@effect/io/Cache"
 import * as Duration from "@effect/data/Duration"
