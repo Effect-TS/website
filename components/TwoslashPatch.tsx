@@ -4,13 +4,19 @@ import {useCustomStyle} from '@/hooks/useCustomStyle'
 
 export default function TwoslashPatchPortal() {
 
+  const [isClientReady, setIsClientReady] = useState(false);
+
+    useEffect(() => {
+        setIsClientReady(true);    
+      },[])
+
     const {
-        isMounted,
+        // isClientReady,
         currentStyle
     } = useCustomStyle()
 
     return  <>
-        {isMounted &&
+        {isClientReady &&
         createPortal(
             <style>
                 {currentStyle}
