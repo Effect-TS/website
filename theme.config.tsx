@@ -1,8 +1,9 @@
 import { useRouter } from "next/router";
 import { EffectLogo } from "./components/EffectLogo";
+import { DocsThemeConfig } from "nextra-theme-docs";
 
 // eslint-disable-next-line import/no-anonymous-default-export
-export default {
+const config: DocsThemeConfig = {
   docsRepositoryBase: "https://github.com/Effect-TS/website/blob/main",
   useNextSeoProps() {
     const { asPath } = useRouter();
@@ -62,3 +63,5 @@ export default {
     ),
   },
 };
+
+export default config;
