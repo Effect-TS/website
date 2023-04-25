@@ -133,7 +133,7 @@ export const readTodos = Effect.async<never, NodeJS.ErrnoException, Buffer>(
 );
 ```
 
-Something to note in the above example is that we were actually forced to manually annotate the types when calling `Effect.async`. Unfortunately, TypeScript is not capable of inferring the type parameters for a callback based on what is returned inside the body of the callback. This limitation of TypeScript is the one minor drawback of using callback-based APIs. However, it will validate that the types you passed in match what is being returned.
+Something to note in the above example is that we were actually forced to manually annotate the types when calling `Effect.async`. Unfortunately, TypeScript is not capable of inferring the type parameters for a callback based on what is returned inside the body of the callback. This limitation of TypeScript is the one minor drawback of using callback-based APIs. Annotating the types of `Effect.async` will ensure that the values provided to `resume` match the expected types.
 
 Another thing to note is that we probably don't want to have to call the `Effect.async` constructor everywhere that we use callback-based APIs. Therefore, it is a very common pattern to define helpers which wrap external APIs into an Effect-based API.
 
@@ -160,46 +160,4 @@ export const readTodos = readFile("todos.txt");
 //           ^?
 ```
 
-## Running Effects
-
 What makes all of the above particularly powerful is that we can seamlessly mix synchronous and asynchronous code. When working within the Effect world, everything becomes an Effect.
-
-To run an `Effect`, we can use the variety of `run` functions available on the `Effect` module:
-
-```ts twoslash
-import * as Effect from "@effect/io/Effect";
-
-// sync variant
-export const programSync = Effect.runSync(Effect.succeed("Hello, World!"));
-//           ^?
-
-// promise variant
-export const programPromise = Effect.runPromise(
-  //           ^?
-  Effect.succeed("Hello, World!")
-);
-
-// promise Either variant
-export const programPromiseEither = Effect.runPromiseEither(
-  //           ^?
-  Effect.succeed("Hello, World!")
-);
-
-// callback variant
-export const programCallback = Effect.runCallback(
-  //           ^?
-  Effect.succeed("Hello, World!"),
-  (exit) => console.log("I'm done!")
-);
-```
-
-<Callout type="info">
-  `runSync` should only be used if your Effect doesn't perform any asynchronous
-  tasks. If you're not sure, you can try using it, and it will crash at runtime
-  with a noticeable error if you should be using one of the other run methods
-  instead.
-</Callout>
-
-There's several more `run` functions available on the `Effect` module, but these are the some common ones you may use.
-
-The ideal way to work with Effects is to have as much of your program as an Effect as possible. You should try to use the `run` functions as close to the "edge" of your program as possible. This will allow you to have the most flexibility in how you run your program and build up very sophisticated Effects.
