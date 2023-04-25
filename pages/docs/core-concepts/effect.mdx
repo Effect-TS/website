@@ -120,8 +120,8 @@ import * as Effect from "@effect/io/Effect"
 import * as NodeFS from "node:fs"
 
 export const readTodos = Effect.async<never, NodeJS.ErrnoException, Buffer>(
+  //           ^?
   (resume) => {
-    //           ^?
     NodeFS.readFile("todos.txt", (error, data) => {
       if (error) {
         resume(Effect.fail(error))
