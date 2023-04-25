@@ -1,8 +1,8 @@
-import { nodeTypes } from "@mdx-js/mdx";
-import nextra from "nextra";
-import rehypeRaw from "rehype-raw";
-import remarkShikiTwoslash from "remark-shiki-twoslash";
-import { remarkMermaid } from "remark-mermaid-nextra";
+import { nodeTypes } from "@mdx-js/mdx"
+import nextra from "nextra"
+import rehypeRaw from "rehype-raw"
+import remarkShikiTwoslash from "remark-shiki-twoslash"
+import { remarkMermaid } from "remark-mermaid-nextra"
 
 const withNextra = nextra({
   theme: "nextra-theme-docs",
@@ -22,7 +22,7 @@ const withNextra = nextra({
       ],
     ],
   },
-});
+})
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -35,6 +35,6 @@ const nextConfig = {
       permanent: true,
     },
   ],
-};
+}
 
-export default withNextra(nextConfig);
+export default withNextra(nextConfig)

@@ -1,16 +1,16 @@
-import { useRouter } from "next/router";
-import { EffectLogo } from "./components/EffectLogo";
-import { DocsThemeConfig } from "nextra-theme-docs";
+import { useRouter } from "next/router"
+import { EffectLogo } from "./components/EffectLogo"
+import { DocsThemeConfig } from "nextra-theme-docs"
 
 // eslint-disable-next-line import/no-anonymous-default-export
 const config: DocsThemeConfig = {
   docsRepositoryBase: "https://github.com/Effect-TS/website/blob/main",
   useNextSeoProps() {
-    const { asPath } = useRouter();
+    const { asPath } = useRouter()
     if (asPath !== "/") {
       return {
         titleTemplate: "%s – Effect",
-      };
+      }
     }
   },
   head: (
@@ -62,6 +62,6 @@ const config: DocsThemeConfig = {
       </span>
     ),
   },
-};
+}
 
-export default config;
+export default config
