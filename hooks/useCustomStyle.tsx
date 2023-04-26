@@ -82,8 +82,11 @@ export function useCustomStyle() {
 
   useEffect(() => {
     const touchAndClickListener = (e: Event) => {
-      e.preventDefault();
-      rePositionTwoSlashBox(e);
+      const currentElement = e.target as HTMLElement | null;
+      if (currentElement && currentElement.tagName === "data-lsp") {
+        e.preventDefault();
+        rePositionTwoSlashBox(e);
+      }
     };
 
     window.addEventListener("touch", touchAndClickListener);
