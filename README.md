@@ -7,12 +7,12 @@ First, run the development server:
 ```bash
 pnpm dev
 ```
+
 ## Contributing?
 
 Please make sure to run the `pnpm run lint`, or `pnpm run lint --fix` to auto fix any formatting issues.
 
 Note: If your markdown contains a mermaid snippet, please place a `{/* prettier-ignore */}` comment on top of the snippet - otherwise, your formatting might not look correct.
-
 
 ## Additional Notes
 
