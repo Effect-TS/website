@@ -41,4 +41,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 
 Please make sure to run the `lint` command in package.json, or `lint:fix` to auto fix any formatting issues.
 
-Note: If your markdown contains a mermaid snippet, please place a {/\* prettier-ignore \*/} comment on top of the snippet - otherwise, your formatting might not look correct.
+Note: If your markdown contains a mermaid snippet, please place a `{/* prettier-ignore */}` comment on top of the snippet - otherwise, your formatting might not look correct.
