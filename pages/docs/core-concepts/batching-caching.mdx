@@ -4,6 +4,7 @@ import { Callout } from 'nextra-theme-docs'
 import * as Context from "@effect/data/Context"
 import * as Layer from "@effect/io/Layer"
 import { pipe } from "@effect/data/Function"
+import { seconds, minutes } from "@effect/data/Duration"
 // - 1
 ```
 
@@ -450,84 +451,29 @@ This leads to request duplication...
 
 Fortunately we also have a primitive for caching in `Effect` and we use that to automatically cache requests.
 
-Let's define a cache for the GetUserById to deduplicate the getUserCalls. We will assume a user doesn't change for 10 minutes.
-
-```twoslash include caches
-import { minutes } from "@effect/data/Duration"
-
-interface GetUserByIdCache {
-  readonly _: unique symbol
-}
-
-const GetUserByIdCache = Context.Tag<GetUserByIdCache, Request.Cache<GetUserById>>(
-  Symbol.for("@app/services/GetUserByIdCache")
-)
-
-const GetUserByIdCacheLive = Layer.effect(
-  GetUserByIdCache,
-  Request.makeCache(10_000, minutes(10))
-)
-// - 1
-```
-
-```ts twoslash
-// @include: model-1
-// @include: imports-1
-// @include: requests-1
-// ---cut---
-// @include: caches-1
-```
-
-We created a cache that can handle up to 10_000 requests of type `GetUserById` with each request valid for a maximum of 10 minutes.
-
-We now have to wire it up in our `getUserById` function:
-
 ```ts twoslash
 // @include: model-1
 // @include: imports-1
 // @include: requests-1
 // @include: resolvers-1
-// @include: caches-1
 // ---cut---
-const getUserById = (id: number) => Effect.request(
-  GetUserById({ id }),
-  GetUserByIdResolver,
-  GetUserByIdCache
+const getUserById = (id: number) => Effect.withRequestCaching("on")(
+  Effect.request(
+    GetUserById({ id }),
+    GetUserByIdResolver
+  )
 )
 ```
-
-As we can observe from the type we are now required to provide the `GetUserByIdCache` service to any program that uses the `getUserById` query.
-
-If we instead wanted to only cache requests if a cache is provided we can use the `Effect.serviceOption` helper and do the following:
-
-```ts twoslash
-// @include: model-1
-// @include: imports-1
-// @include: requests-1
-// @include: resolvers-1
-// @include: caches-1
-// ---cut---
-const getUserById = (id: number) => Effect.request(
-  GetUserById({ id }),
-  GetUserByIdResolver,
-  Effect.serviceOption(GetUserByIdCache)
-)
-```
-
-And as you can see now we are no longer forced to provide a cache.
-
 
 ## Final Program
 
 Assuming you've wired everything up correctly the following program:
 
-
 ```ts twoslash
 // @include: model-1
 // @include: requests-1
 // @include: imports-1
 // @include: resolvers-1
-// @include: caches-1
 // @include: queries-1
 // ---cut---
 import * as Schedule from "@effect/io/Schedule"
@@ -535,12 +481,41 @@ import * as Schedule from "@effect/io/Schedule"
 const main = pipe(
   getTodos,
   Effect.flatMap(Effect.forEachParDiscard(notifyOwner)),
-  Effect.repeat(Schedule.fixed(minutes(1))),
-  Effect.provideSomeLayer(GetUserByIdCacheLive)
+  Effect.repeat(Schedule.fixed(seconds(10)))
 )
 ```
 
-This should never execute the same `GetUserById` twice within a span of `10` minutes (assuming less than 10k users) while also making sure emails are sent in batches.
+should never execute the same `GetUserById` twice within a span of `1` minute (assuming less than 65k users) while also making sure emails are sent in batches.
+
+## The Request Cache
+
+There may be cases where you want to localize a cache (use a cache only for a part of your program)
+or maybe you want a global cache with a different setup, or a mix of both.
+
+To cover those scenarios you'd create a custom cache like the following:
+
+```ts twoslash
+// @include: model-1
+// @include: requests-1
+// @include: imports-1
+// @include: resolvers-1
+// @include: queries-1
+// ---cut---
+import * as Schedule from "@effect/io/Schedule"
+
+const main = pipe(
+  getTodos,
+  Effect.flatMap(Effect.forEachParDiscard(notifyOwner)),
+  Effect.repeat(Schedule.fixed(seconds(10))),
+  Effect.provideSomeLayer(
+    Effect.setRequestCache(Request.makeCache(256, minutes(60)))
+  )
+)
+```
+
+Alternatively you can also directly construct a cache with `Request.makeCache(256, minutes(60))` and then use
+`Effect.withRequestCache(myCache)(program)` on a program to make sure the requests generated from that program uses
+the custom cache (when enabled with `Effect.withRequestCaching("on")`)
 
 ## How is this possible?
 
@@ -551,7 +526,6 @@ We recently introduced a new key primitive in the fiber that enables an executio
 // @include: imports-1
 // @include: requests-1
 // @include: resolvers-1
-// @include: caches-1
 // @include: queries-1
 // ---cut---
 const program = Effect.flatMap(
@@ -590,46 +564,6 @@ By using the functions provided by the `@effect/io/RequestBlock` module, you can
 effects. By using the function `Effect.blocked(requests, continuation)`, you can express an effect that is blocked
 on `requests` that should continue with `continuation`.
 
-## Using the Request Cache
-
-Some caches may be short lived and only locally provided to effects for the purpose of deduplication
-but some other ones can be long lived and last as long as your program survives. The request cache is implemented by using the `@effect/io/Cache` module that allows for caching generic effect returning functions.
-
-In fact, the `Request.Cache<R>` type is nothing more than an alias to `Cache.ConsumerCache<R, never, Deferred<unknown, unknown>>` and
-is used internally by `Effect` to deduplicate requests.
-
-When caches are managed, like in this case, you may not want to expose to the consumer the full power of the cache. The creation
-of new entries is usually a delicate process that only the cache owner should manage but operating on keys with operations to invalidate
-existing entries, getting stats, etc. are all valid to share, which is why the `ConsumerCache<R, E, A>` type is exposed.
-
-Let's explore how we would get statistics about the `UserCache` that we defined prior and how we would invalidate some
-entries manually.
-
-```ts twoslash
-// @include: imports-1
-// @include: model-1
-// @include: requests-1
-// @include: resolvers-1
-// @include: caches-1
-// @include: queries-1
-// ---cut---
-const operateOnCache = Effect.gen(function* ($) {
-  const cache = yield* $(GetUserByIdCache)
-  const stats = yield* $(cache.cacheStats())
-
-  yield* $(Effect.log(`GetUserByIdCache hits: ${stats.hits}`))
-  yield* $(Effect.log(`GetUserByIdCache misses: ${stats.misses}`))
-  yield* $(Effect.log(`GetUserByIdCache size: ${stats.size}`))
-
-  const keys = yield* $(cache.keys())
-
-  for (const key of keys) {
-    if (key.id % 2 === 0) {
-      yield* $(cache.invalidate(key))
-    }
-  }
-})
-```
 
 ## Using Cache Directly
 
