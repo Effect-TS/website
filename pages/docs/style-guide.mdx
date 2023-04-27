@@ -1,4 +1,4 @@
-import { Callout } from "nextra-theme-docs";
+import { Callout } from "nextra-theme-docs"
 
 # Style Guide
 
@@ -49,16 +49,16 @@ The pipe function is a common way to organize Effectful code. It is a function t
 The pipe function is defined in the Effect library, and is available in the Effect namespace.
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import * as Effect from "@effect/io/Effect";
-import * as Random from "@effect/io/Random";
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Random from "@effect/io/Random"
 
 const example = pipe(
   Random.next(),
   Effect.flatMap((n) =>
     n > 0.5 ? Effect.succeed("yay!") : Effect.fail("oh no!")
   )
-);
+)
 ```
 
 Here, Random.next() is getting piped as an argument to `Effect.flatMap`.
@@ -76,17 +76,17 @@ Here, Random.next() is getting piped as an argument to `Effect.flatMap`.
 Effect has a unique imperative API to solve for the problem of lots of nested callbacks when using functions like `pipe`. Instead of writing the code above, here's what it would look like if you were to write the same thing with the generator API.
 
 ```ts twoslash
-import * as Effect from "@effect/io/Effect";
-import * as Random from "@effect/io/Random";
+import * as Effect from "@effect/io/Effect"
+import * as Random from "@effect/io/Random"
 
 const example = Effect.gen(function* ($) {
-  const n = yield* $(Random.next());
+  const n = yield* $(Random.next())
   if (n > 0.5) {
-    return yield* $(Effect.succeed("yay!"));
+    return yield* $(Effect.succeed("yay!"))
   } else {
-    return yield* $(Effect.fail("oh no!"));
+    return yield* $(Effect.fail("oh no!"))
   }
-});
+})
 ```
 
 Note all the asterisks and dollar signs. The `*` is used to denote a generator, and the `$` function which is passed in as an argument to `Effect.gen` must follow `yield*` if you are yielding an Effect.
@@ -110,24 +110,27 @@ To avoid nested pipes and generators, Effect has a `Do` function which can be us
 Here's what a slightly more complex version of the above example would look like if you were to use the `Do` function.
 
 ```ts twoslash
-import * as Effect from "@effect/io/Effect";
-import * as Random from "@effect/io/Random";
-import { pipe } from "@effect/data/Function";
+import * as Effect from "@effect/io/Effect"
+import * as Random from "@effect/io/Random"
+import { pipe } from "@effect/data/Function"
 
 const example = pipe(
   Effect.Do(),
   Effect.let("randomValue", () => 3),
-  Effect.bind("randomNumber", ({randomValue}) => randomValue > 2 ? Random.next() : Random.next()),
+  Effect.bind("randomNumber", ({ randomValue }) =>
+    randomValue > 2 ? Random.next() : Random.next()
+  ),
   Effect.map(({ randomNumber, randomValue }) =>
     randomNumber > 0.5 && randomValue > 1
       ? Effect.succeed("yay!")
       : Effect.fail("oh no!")
   )
-);
+)
 ```
 
 <Callout type="info">
-  Using `Effect.let` is similar to saving a variable to a value, while `Effect.bind` will unwrap an Effect similar to `Effect.flatMap`.
+  Using `Effect.let` is similar to saving a variable to a value, while
+  `Effect.bind` will unwrap an Effect similar to `Effect.flatMap`.
 </Callout>
 
 The strings passed to `bind` become keys in an object, and the values being the result on the right. When using these functions, notice how each successive function is passed the previous result, similar to if you had set a variable in the generator example above.
