@@ -1,4 +1,4 @@
-import { Callout } from 'nextra-theme-docs'
+import { Callout } from "nextra-theme-docs"
 
 # Error Handling
 
@@ -6,17 +6,17 @@ Just like any other program, Effect programs may fail for expected or unexpected
 
 In this section, you will learn:
 
-  - The possible ways an Effect program can fail
-  - How Effect represents the cause of an error
-  - The tools Effect provides for robust and comprehensive error management
+- The possible ways an Effect program can fail
+- How Effect represents the cause of an error
+- The tools Effect provides for robust and comprehensive error management
 
 ## Possible Causes for Failure
 
 In an Effect program, there are three possible ways for a program to fail:
 
-  1. Expected Errors
-  2. Unexpected Errors
-  3. Interruption
+1. Expected Errors
+2. Unexpected Errors
+3. Interruption
 
 ### Expected Errors
 
@@ -36,7 +36,9 @@ const canFail = Effect.fail(new HttpError())
 ```
 
 <Callout type="info">
-We use a class to represent the `HttpError` type above simply to gain access to both the error type and a free constructor. However, you can use whatever you like to model your error types.
+  We use a class to represent the `HttpError` type above simply to gain access
+  to both the error type and a free constructor. However, you can use whatever
+  you like to model your error types.
 </Callout>
 
 Something to note about the example above is that we added a `_tag` field to our error. Adding a discriminant (i.e. the `_tag` field in the example above) can be useful to allow for discrimination between errors during error handling. It also helps prevent TypeScript from unifying types. Effect also comes with several combinators to allow for handling tagged errors seamlessly.
@@ -91,7 +93,8 @@ const program = pipe(flakyFoo, Effect.zipRight(flakyBar))
 ```
 
 <Callout type="info">
-To demonstrate that you can model errors in any way that you like, we use the `Data` module from `@effect/data` in the example above instead of classes.
+  To demonstrate that you can model errors in any way that you like, we use the
+  `Data` module from `@effect/data` in the example above instead of classes.
 </Callout>
 
 Inspecting `program` in the example above, we can see that we can fail with either a `FooError` or a `BarError`, which is reflected in the error channel of Effect as `FooError | BarError`.
@@ -104,7 +107,7 @@ Given that `FooError` has a `_tag` field, we can use the built-in `catchTag` met
 // @include: errors-1
 // ---cut---
 const program = pipe(
-//    ^?
+  //    ^?
   flakyFoo,
   Effect.zipRight(flakyBar),
   Effect.catchTag("FooError", (fooError) =>
@@ -121,7 +124,7 @@ If we also wanted to handle `BarError`, it would be as simple as adding another 
 // @include: errors-1
 // ---cut---
 const program = pipe(
-//    ^?
+  //    ^?
   flakyFoo,
   Effect.zipRight(flakyBar),
   Effect.catchTag("FooError", (fooError) =>
@@ -139,12 +142,12 @@ We could optionally also use the `Effect.catchTags` combinator to handle all err
 // @include: errors-1
 // ---cut---
 const program = pipe(
-//    ^?
+  //    ^?
   flakyFoo,
   Effect.zipRight(flakyBar),
   Effect.catchTags({
     FooError: (fooError) => Effect.succeed(`Recovering from ${fooError._tag}`),
-    BarError: (barError) => Effect.succeed(`Recovering from ${barError._tag}`)
+    BarError: (barError) => Effect.succeed(`Recovering from ${barError._tag}`),
   })
 )
 ```
