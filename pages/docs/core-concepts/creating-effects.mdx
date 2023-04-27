@@ -133,7 +133,7 @@ export const readTodos = Effect.async<never, NodeJS.ErrnoException, Buffer>(
 )
 ```
 
-Something to note in the above example is that we were actually forced to manually annotate the types when calling `Effect.async`. Unfortunately, TypeScript is not capable of inferring the type parameters for a callback based on what is returned inside the body of the callback. This limitation of TypeScript is the one minor drawback of using callback-based APIs.
+Something to note in the above example is that we were actually forced to manually annotate the types when calling `Effect.async`. Unfortunately, TypeScript is not capable of inferring the type parameters for a callback based on what is returned inside the body of the callback. This limitation of TypeScript is the one minor drawback of using callback-based APIs. Annotating the types of `Effect.async` will ensure that the values provided to `resume` match the expected types.
 
 Another thing to note is that we probably don't want to have to call the `Effect.async` constructor everywhere that we use callback-based APIs. Therefore, it is a very common pattern to define helpers which wrap external APIs into an Effect-based API.
 
@@ -159,3 +159,5 @@ export const readFile = (
 export const readTodos = readFile("todos.txt")
 //           ^?
 ```
+
+What makes all of the above particularly powerful is that we can seamlessly mix synchronous and asynchronous code. When working within the Effect world, everything becomes an Effect.
