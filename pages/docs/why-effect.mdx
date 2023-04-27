@@ -11,11 +11,12 @@ In "typical" TypeScript, without Effect, we write code that assumes that a funct
 ```ts twoslash
 function divide(a: number, b: number): number {
   if (b === 0) {
-    throw new Error("Cannot divide by zero");
+    throw new Error("Cannot divide by zero")
   }
-  return a / b;
+  return a / b
 }
 ```
+
 Based on the types, we have no idea that this function can throw an exception. We can only find out by reading the code. This may not seem like much of a problem when you only have one function in your codebase, but when you have hundreds or thousands, it really starts to add up. It's easy to forget that a function can throw an exception, and it's easy to forget to handle that exception.
 
 Often, we will do the "easiest" thing and just wrap the function in a `try/catch` block. This is a good first step to prevent your program from crashing, but it doesn't make it any easier to manage or understand our complex application/library. We can do better.
@@ -31,13 +32,13 @@ Effect's major unique insight is that we can use the type system to track _error
 Here's the same divide function from above, but with the Effect pattern:
 
 ```ts twoslash
-import * as Effect from "@effect/io/Effect";
+import * as Effect from "@effect/io/Effect"
 
 function divide(a: number, b: number): Effect.Effect<never, Error, number> {
   if (b === 0) {
-    return Effect.fail(new Error("Cannot divide by zero"));
+    return Effect.fail(new Error("Cannot divide by zero"))
   }
-  return Effect.succeed(a / b);
+  return Effect.succeed(a / b)
 }
 ```
 
