@@ -1,4 +1,4 @@
-import { Callout } from "nextra-theme-docs";
+import { Callout } from "nextra-theme-docs"
 
 # Services
 
@@ -59,7 +59,7 @@ export const serviceExample = pipe(
   CustomRandom,
   Effect.map((randomService) => randomService.next()),
   Effect.flatMap((randomNumber) => Effect.logInfo(`${randomNumber}`))
-);
+)
 ```
 
 Here, we can map over the `CustomRandom` Tag as if it is an Effect. Notice how we can use the `next` method after mapping over the Tag. Then, we are logging the random number.
@@ -76,9 +76,9 @@ export const serviceExample = pipe(
   CustomRandom,
   Effect.map((randomService) => randomService.next()),
   Effect.flatMap((randomNumber) => Effect.logInfo(`${randomNumber}`))
-);
+)
 
-Effect.runPromise(serviceExample);
+Effect.runPromise(serviceExample)
 ```
 
 This way, we can guarantee that the Effect has the required context before it is executed.
@@ -96,7 +96,7 @@ const provideServiceExample = pipe(
   //    ^?
   serviceExample,
   Effect.provideService(CustomRandom, { next: Math.random })
-);
+)
 ```
 
 Here, we called `serviceExample` from above and provide it with an implementation of `CustomRandom`. We can see that the `R` type parameter of `provideServiceExample` is `never`. This means that the Effect has no context left that is required to be provided.
@@ -109,22 +109,22 @@ If we have multiple services that can be combined together into a single context
 // @include: service-interface-2
 // ---cut---
 export interface AnswerToLife {
-  readonly getAnswerToLife: () => number;
+  readonly getAnswerToLife: () => number
 }
 
-export const AnswerToLife = Context.Tag<AnswerToLife>();
+export const AnswerToLife = Context.Tag<AnswerToLife>()
 
 const context = pipe(
   //    ^?
   Context.empty(),
   Context.add(CustomRandom, { next: Math.random }),
   Context.add(AnswerToLife, { getAnswerToLife: () => 42 })
-);
+)
 
 export const provideContextExample = pipe(
   serviceExample,
   Effect.provideContext(context)
-);
+)
 ```
 
 Here, we've created another interface so our context can combine multiple service implementations together.
@@ -138,7 +138,7 @@ Sometimes, we may want to access a service implementation only if it is availabl
 ```ts twoslash
 // @include: service-interface-1
 // ---cut---
-import * as Option from "@effect/data/Option";
+import * as Option from "@effect/data/Option"
 
 const optionalServiceExample = pipe(
   //    ^?
@@ -153,7 +153,7 @@ const optionalServiceExample = pipe(
     )
   ),
   Effect.flatMap((randomNumber) => Effect.logInfo(`${randomNumber}`))
-);
+)
 ```
 
 You can see how the `R` type parameter of `optionalServiceExample` is `never`, even though we're working with a service. This lets you access something from a context only if it is actually provided before this Effect is executed.
