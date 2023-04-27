@@ -22,19 +22,19 @@ Here is the complete definition of the `Option` data type:
 // Represents the absence of a value
 export type None = {
   // Discriminating field used to identify the variant
-  readonly _tag: "None";
-};
+  readonly _tag: "None"
+}
 
 // Represents the presence of a value
 export type Some<A> = {
   // Discriminatory field used to identify the variant
-  readonly _tag: "Some";
+  readonly _tag: "Some"
   // The actual value
-  readonly value: A;
-};
+  readonly value: A
+}
 
 // Define the `Option` data type as the union of `None` and `Some`
-export type Option<A> = None | Some<A>;
+export type Option<A> = None | Some<A>
 ```
 
 The type parameter `A` is used to specify the type of the `value` that the `Option` holds.
@@ -49,9 +49,9 @@ The `Option` data type can be used to handle the presence or absence of a value 
 The `some` constructor takes a value of type `A` and returns an instance of `Option<A>` that holds that value:
 
 ```ts twoslash
-import { Option, some } from "@effect/data/Option";
+import { Option, some } from "@effect/data/Option"
 
-const value: Option<number> = some(1); // an Option holding the number 1
+const value: Option<number> = some(1) // an Option holding the number 1
 ```
 
 ### Constructing a `None` Value
@@ -59,31 +59,29 @@ const value: Option<number> = some(1); // an Option holding the number 1
 The `none` constructor returns an instance of `Option<never`> representing the absence of a value:
 
 ```ts twoslash
-import { Option, none } from "@effect/data/Option";
+import { Option, none } from "@effect/data/Option"
 
-const empty: Option<never> = none(); // an Option holding no value
+const empty: Option<never> = none() // an Option holding no value
 ```
 
 By default, `none` returns an instance of `Option<never>`, which can be assigned to any `Option<A>` regardless of the type `A`:
 
 ```ts twoslash
-import { Option, none } from "@effect/data/Option";
+import { Option, none } from "@effect/data/Option"
 
-const optionNumber: Option<number> = none();
-const optionString: Option<string> = none();
-const optionBoolean: Option<boolean> = none();
-
+const optionNumber: Option<number> = none()
+const optionString: Option<string> = none()
+const optionBoolean: Option<boolean> = none()
 ```
 
 However, if you prefer, you can specify the desired type at the call site by explicitly indicating the type `A` you're interested in. In this case, you won't need to provide type annotations:
 
 ```ts twoslash
-import { Option, none } from "@effect/data/Option";
+import { Option, none } from "@effect/data/Option"
 
-const optionNumber = none<number>();
-const optionString = none<string>();
-const optionBoolean = none<boolean>();
-
+const optionNumber = none<number>()
+const optionString = none<string>()
+const optionBoolean = none<boolean>()
 ```
 
 Here's a quick reference guide for the two constructors:
@@ -107,13 +105,13 @@ The following table provides a quick reference for the various conversion functi
 | -------------- | --------------------------------- | -------------------- |
 | `fromEither`   | `Either<E, A>`                    | `Option<A>`          |
 | `toEither`     | `Option<A>`, `onNone: LazyArg<E>` | `Either<E, A>`       |
-| `getRight`     | `Either<E, A>`                    | `Option<A>` *        |
+| `getRight`     | `Either<E, A>`                    | `Option<A>` \*       |
 | `getLeft`      | `Either<E, A>`                    | `Option<E>`          |
 | `toRefinement` | `A => Option<B>`                  | `Refinement<A, B>`   |
 | `fromIterable` | `Iterable<A>`                     | `Option<A>`          |
 | `toArray`      | `Option<A>`                       | `Array<A>`           |
 
-* alias of `fromEither`
+- alias of `fromEither`
 
 ### fromEither
 
@@ -122,12 +120,11 @@ The `fromEither` function takes in an `Either<E, A>` value and returns an `Optio
 Example:
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
-import * as E from "@effect/data/Either";
+import * as O from "@effect/data/Option"
+import * as E from "@effect/data/Either"
 
-console.log(O.fromEither(E.right(1))); // some(1)
-console.log(O.fromEither(E.left("error message"))); // none()
-
+console.log(O.fromEither(E.right(1))) // some(1)
+console.log(O.fromEither(E.left("error message"))) // none()
 ```
 
 In this example, `fromEither` is used to convert the `Either` value `E.right(1)` to an `Option<number>`. The result is `some(1)`, which indicates that the input `Either` was of type `Right` and contained the value `1`.
@@ -143,13 +140,13 @@ The `LazyArg<E>` value is a lazy (or "deferred") argument that is only executed 
 Here's an example of how to use toEither:
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import * as O from "@effect/data/Option";
-import * as E from "@effect/data/Either";
+import { pipe } from "@effect/data/Function"
+import * as O from "@effect/data/Option"
+import * as E from "@effect/data/Either"
 
-const onNone = () => "error";
-console.log(pipe(O.some(1), O.toEither(onNone))); // right(1)
-console.log(pipe(O.none(), O.toEither(onNone))); // left("error")
+const onNone = () => "error"
+console.log(pipe(O.some(1), O.toEither(onNone))) // right(1)
+console.log(pipe(O.none(), O.toEither(onNone))) // left("error")
 ```
 
 ### getRight
@@ -161,11 +158,11 @@ The `getRight` function is an alias for `fromEither`, and is used to convert an 
 The `getLeft` function is a utility function that is used to extract the `Left` value from an `Either<E, A>` value. The function takes in a single argument - an `Either<E, A>` value and returns an `Option<E>` value.
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
-import * as E from "@effect/data/Either";
+import * as O from "@effect/data/Option"
+import * as E from "@effect/data/Either"
 
-console.log(O.getLeft(E.right("ok"))); // none()
-console.log(O.getLeft(E.left("error"))); // some("error")
+console.log(O.getLeft(E.right("ok"))) // none()
+console.log(O.getLeft(E.left("error"))) // some("error")
 ```
 
 Note that the `Option<E>` value returned by the `getLeft` function will be `Some(value)` if the input `Either<E, A>` value is a `Left` value, and `None` if the input `Either<E, A>` value is a `Right` value.
@@ -180,17 +177,17 @@ The `toRefinement` ensures that a type guard definition is type-safe.
 Here is an example of using `toRefinement` to create a type guard for positive numbers:
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
 // This function checks if a given number is positive
 const parsePositive = (n: number): O.Option<number> =>
-  n > 0 ? O.some(n) : O.none();
+  n > 0 ? O.some(n) : O.none()
 
 // convert the `parsePositive` function into a type guard
-const isPositive = O.toRefinement(parsePositive);
+const isPositive = O.toRefinement(parsePositive)
 
-console.log(isPositive(1)); // true
-console.log(isPositive(-1)); // false
+console.log(isPositive(1)) // true
+console.log(isPositive(-1)) // false
 ```
 
 In this example, `parsePositive` is a function that takes in a number and returns an `Option<number>`. If the number is positive, it returns `some(n)`, where `n` is the positive number. If the number is not positive, it returns `none()`.
@@ -206,17 +203,17 @@ If the iterable is not empty (i.e., it has at least one item), `fromIterable` re
 Here are two examples to demonstrate the usage of `fromIterable`:
 
 ```ts twoslash
-import { fromIterable, some, none } from "@effect/data/Option";
+import { fromIterable, some, none } from "@effect/data/Option"
 
-console.log(fromIterable([1, 2, 3])); // some(1)
+console.log(fromIterable([1, 2, 3])) // some(1)
 ```
 
 In this example, `fromIterable` is passed an array with three values. Since the array is not empty, `fromIterable` returns the first value, `1`, wrapped in a `Some` value.
 
 ```ts twoslash
-import { fromIterable } from "@effect/data/Option";
+import { fromIterable } from "@effect/data/Option"
 
-console.log(fromIterable([])); // none()
+console.log(fromIterable([])) // none()
 ```
 
 In this example, `fromIterable` is passed an empty array. Since the array is empty, `fromIterable` returns `None`.
@@ -232,19 +229,17 @@ If the input is a `None` value, an empty array is returned.
 Here are two examples of how `toArray` can be used:
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
-console.log(O.toArray(O.some(1))); // [1]
-
+console.log(O.toArray(O.some(1))) // [1]
 ```
 
 In this example, `some(1)` is passed as the argument to `toArray`, which returns an array with the value `1`.
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
-console.log(O.toArray(O.none())); // []
-
+console.log(O.toArray(O.none())) // []
 ```
 
 In this example, `none()` is passed as the argument to `toArray`, which returns an empty array.
@@ -254,12 +249,12 @@ In this example, `none()` is passed as the argument to `toArray`, which returns 
 Here is an example of a `User` model where the `email` field is of type `Option<string>`. This means that the value of the `email` field may or may not be present and will be of type `string` when it is present.
 
 ```ts twoslash
-import { Option, some, none } from "@effect/data/Option";
+import { Option, some, none } from "@effect/data/Option"
 
 interface User {
-  id: number;
-  username: string;
-  email: Option<string>;
+  id: number
+  username: string
+  email: Option<string>
 }
 
 // case with email
@@ -267,14 +262,14 @@ const user1: User = {
   id: 1,
   username: "john_doe",
   email: some("john.doe@example.com"),
-};
+}
 
 // case without email
 const user2: User = {
   id: 2,
   username: "jane_doe",
   email: none(),
-};
+}
 ```
 
 It's important to note that the optionality only concerns the **value** of the `email` field, while the key `"email"` will always be present in the object.
@@ -286,14 +281,14 @@ Once you have an instance of `Option`, you can use the various functions provide
 The `map` function can be used to transform the `Some` values:
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import { Option, some, map } from "@effect/data/Option";
+import { pipe } from "@effect/data/Function"
+import { Option, some, map } from "@effect/data/Option"
 
 const success: Option<number> = pipe(
   some(1),
   // maps the value inside the Option, adding 1, resulting in some(2)
   map((x) => x + 1)
-);
+)
 ```
 
 As you can see you can transform the result of your computation without unwrapping and wrapping the underlying value of `Option`.
@@ -302,14 +297,14 @@ This allows for a safe and convenient way of transforming optional values.
 What is also convenient about `Option` is how the absence of value (i.e. a `None`) is handled. See the example below:
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import { Option, none, map } from "@effect/data/Option";
+import { pipe } from "@effect/data/Function"
+import { Option, none, map } from "@effect/data/Option"
 
 const failure: Option<number> = pipe(
   none(),
   // tries to map the value inside the `Some`, but it does not exist, resulting in `None`
   map((x) => x + 1)
-);
+)
 ```
 
 As you can see, even though we started with a `None` value, we can still operate on our `Option`. No errors are thrown or shown to the user, unless we do it intentionally. When the `Option` is `None, the mapping doesn't even occur, and the `None` value representing the absence of value is returned unchanged.
@@ -322,11 +317,11 @@ Here's an example of a function `parseNumber` that takes a `string` as input and
 
 ```ts twoslash
 function parseNumber(s: string): number | null {
-  const n = parseFloat(s);
+  const n = parseFloat(s)
   if (isNaN(n)) {
-    return null;
+    return null
   }
-  return n;
+  return n
 }
 ```
 
@@ -338,15 +333,15 @@ A better way to handle these types of computations is to use the `Option` data t
 Here's how the `parseNumber` function would look using the `Option` data type:
 
 ```ts twoslash
-import { Option, none, some } from "@effect/data/Option";
+import { Option, none, some } from "@effect/data/Option"
 
 function parseNumber(s: string): Option<number> {
-  const n = parseFloat(s);
-  return isNaN(n) ? none() : some(n);
+  const n = parseFloat(s)
+  return isNaN(n) ? none() : some(n)
 }
 
-console.log(parseNumber("2")); // some(2)
-console.log(parseNumber("Not a number")); // none()
+console.log(parseNumber("2")) // some(2)
+console.log(parseNumber("Not a number")) // none()
 ```
 
 Now, let's say we have a pipeline of computations that already involves the `Option` data type and we want to add a call to the `parseNumber` function. We might run into an issue with the following code:
@@ -356,7 +351,7 @@ const result = pipe(
   some("2"),
   map((s) => parseNumber(s)),
   map((n) => n * 2) // type-checker error!
-);
+)
 ```
 
 The code above generates a type-checker error. This happens because the second `map` function expects the input `n` to be of type `number`, but `n` is of type `Option<number>`.
@@ -372,19 +367,19 @@ const result = pipe(
 To solve this issue, we need to use the `flatMap` function instead of the `map` function when adding a computation that returns an `Option` to our pipeline:
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import { Option, some, none, flatMap, map } from "@effect/data/Option";
+import { pipe } from "@effect/data/Function"
+import { Option, some, none, flatMap, map } from "@effect/data/Option"
 
 function parseNumber(s: string): Option<number> {
-  const n = parseFloat(s);
-  return isNaN(n) ? none() : some(n);
+  const n = parseFloat(s)
+  return isNaN(n) ? none() : some(n)
 }
 
 const result = pipe(
   some("2"),
   flatMap((s) => parseNumber(s)),
   map((n) => n * 2) // ok! now `n` has type `number`
-);
+)
 ```
 
 Let's summarize the two cases in a table:
@@ -401,12 +396,12 @@ The `flatMap` function works similarly to the `map` function, but with the added
 **Example 1: Successful Path with Valid Input**
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import { Option, some, none, flatMap, map } from "@effect/data/Option";
+import { pipe } from "@effect/data/Function"
+import { Option, some, none, flatMap, map } from "@effect/data/Option"
 
 function parseNumber(s: string): Option<number> {
-  const n = parseFloat(s);
-  return isNaN(n) ? none() : some(n);
+  const n = parseFloat(s)
+  return isNaN(n) ? none() : some(n)
 }
 
 const success: Option<number> = pipe(
@@ -414,7 +409,7 @@ const success: Option<number> = pipe(
   flatMap((s) => parseNumber(s)), // parse the input to number
   map((x) => x * 2), // double the parsed number
   map((x) => x - 3) // subtract 3
-); // some(1)
+) // some(1)
 ```
 
 In this example, the `pipe` function is used to chain together a series of computations, starting with a string value of `"2"`. This value is first passed to the `flatMap` function which applies the `parseNumber` function to parse the input string to a number. If the parsing is successful, the resulting number is then passed to the `map` function which doubles it. Finally, the resulting value is passed to another `map` function which subtracts `3` from it. The final output of the pipeline is the `Option` value of `some(1)`.
@@ -422,12 +417,12 @@ In this example, the `pipe` function is used to chain together a series of compu
 **Example 2: Error Path with Invalid Input**
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import { Option, some, none, flatMap, map } from "@effect/data/Option";
+import { pipe } from "@effect/data/Function"
+import { Option, some, none, flatMap, map } from "@effect/data/Option"
 
 function parseNumber(s: string): Option<number> {
-  const n = parseFloat(s);
-  return isNaN(n) ? none() : some(n);
+  const n = parseFloat(s)
+  return isNaN(n) ? none() : some(n)
 }
 
 const failure: Option<number> = pipe(
@@ -435,7 +430,7 @@ const failure: Option<number> = pipe(
   flatMap((s) => parseNumber(s)), // parse the input to number
   map((x) => x * 2), // This will not be executed because parseNumber will return None
   map((x) => x - 3) // This will not be executed
-); // none()
+) // none()
 ```
 
 In this example, the input to the pipeline is the string value of `"Not a number"`. When this value is passed to the `flatMap` function which applies the `parseNumber` function, it will return `None` as the string cannot be parsed to a number. This means that the following `map `functions will not be executed and the final output of the pipeline will be `None`.
@@ -443,12 +438,12 @@ In this example, the input to the pipeline is the string value of `"Not a number
 **Example 3: Error Path Starting with None**
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import { Option, some, none, flatMap, map } from "@effect/data/Option";
+import { pipe } from "@effect/data/Function"
+import { Option, some, none, flatMap, map } from "@effect/data/Option"
 
 function parseNumber(s: string): Option<number> {
-  const n = parseFloat(s);
-  return isNaN(n) ? none() : some(n);
+  const n = parseFloat(s)
+  return isNaN(n) ? none() : some(n)
 }
 
 const noneStart: Option<number> = pipe(
@@ -456,8 +451,7 @@ const noneStart: Option<number> = pipe(
   flatMap((s) => parseNumber(s)), // This will not be executed because it starts with None
   map((x) => x * 2), // This will not be executed
   map((x) => x - 3) // This will not be executed
-); // none()
-
+) // none()
 ```
 
 In this example, we start the pipeline with the `None` value, which represents an absent or empty value. This means that the `flatMap` step will not be executed and any subsequent steps in the pipeline will not be executed either.
@@ -477,12 +471,12 @@ The `inspectNone` function returns the original `Option<A>` value, but if it is 
 Here is an example of how you can use `inspectSome` and `inspectNone` to debug a pipeline:
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import * as O from "@effect/data/Option";
+import { pipe } from "@effect/data/Function"
+import * as O from "@effect/data/Option"
 
 function parseNumber(s: string): O.Option<number> {
-  const n = parseFloat(s);
-  return isNaN(n) ? O.none() : O.some(n);
+  const n = parseFloat(s)
+  return isNaN(n) ? O.none() : O.some(n)
 }
 
 const failure: O.Option<number> = pipe(
@@ -492,10 +486,9 @@ const failure: O.Option<number> = pipe(
   O.inspectNone(() => console.error("none")), // log an error if the parseNumber function returns None
   O.map((x) => x * 2), // double the number if it is a Some
   O.map((x) => x - 3) // subtract 3 from the number if it is a Some
-);
+)
 // logs "Not a number" to the console
 // logs "none" to the console (because the parseNumber function returns None)
-
 ```
 
 It is important to note that `inspectSome` and `inspectNone` should only be used for debugging purposes, and it is not recommended to use them for performing side effects or encoding business logic.
@@ -518,25 +511,24 @@ To extract the value from an `Option`, you can use the `getOrThrow` function, wh
 Here's an example of how you can use `getOrThrow`:
 
 ```ts twoslash
-import { getOrThrow, some, none } from "@effect/data/Option";
+import { getOrThrow, some, none } from "@effect/data/Option"
 
-console.log(getOrThrow(some(10))); // 10
-console.log(getOrThrow(none())); // throws new Error("getOrThrow called on a None")
-
+console.log(getOrThrow(some(10))) // 10
+console.log(getOrThrow(none())) // throws new Error("getOrThrow called on a None")
 ```
 
 However, using `getOrThrow` can lead to exceptions being thrown in your code, which can lead to unexpected behavior and crashes. To avoid this, you can use the `isSome` and `isNone` guards:
 
 ```ts twoslash
-import { some, isSome } from "@effect/data/Option";
+import { some, isSome } from "@effect/data/Option"
 
-const option = some(1);
+const option = some(1)
 
 // Use the `isSome` function to check if the `option` is an instance of `Some`
 if (isSome(option)) {
-  console.log(`Option has a value: ${option.value}`);
+  console.log(`Option has a value: ${option.value}`)
 } else {
-  console.log(`Option is empty.`);
+  console.log(`Option is empty.`)
 }
 // Output: Option has a value: 1
 ```
@@ -546,10 +538,10 @@ if (isSome(option)) {
 An alternative way to handle the cases of an `Option` being `None` or `Some` is by using the `match` function. The `match` function allows you to provide different actions for each case of the `Option` value.
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import { some, match } from "@effect/data/Option";
+import { pipe } from "@effect/data/Function"
+import { some, match } from "@effect/data/Option"
 
-const option = some(1);
+const option = some(1)
 
 /**
  * Use the `match` function to conditionally return a string based on whether the `Option` is `None` or `Some`.
@@ -560,10 +552,9 @@ const output = match(
   option,
   () => `Option is empty.`,
   (value) => `Option has a value: ${value}`
-);
+)
 
-console.log(output); // Output: Option has a value: 1
-
+console.log(output) // Output: Option has a value: 1
 ```
 
 Using `match` instead of `isSome` or `isNone` can be more expressive and provide a clear way to handle both cases of an `Option`. Additionally, if you have complex logic to handle both cases, using `match` can make your code easier to read and maintain.
@@ -575,24 +566,22 @@ To make working with code that does not use `Option` more convenient, there are 
 Here's an example of how you can use `getOrNull` and `getOrUndefined`:
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
-O.getOrNull(O.some(5)); // 5
-O.getOrNull(O.none()); // null
+O.getOrNull(O.some(5)) // 5
+O.getOrNull(O.none()) // null
 
-O.getOrUndefined(O.some(5)); // 5
-O.getOrUndefined(O.none()); // undefined
-
+O.getOrUndefined(O.some(5)) // 5
+O.getOrUndefined(O.none()) // undefined
 ```
 
 `getOrElse` allows you to specify a default value that should be returned if the `Option` is `None`. Here's an example of how you can use `getOrElse`:
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
-O.getOrElse(O.some(5), () => 0); // 5
-O.getOrElse(O.none(), () => 0); // 0
-
+O.getOrElse(O.some(5), () => 0) // 5
+O.getOrElse(O.none(), () => 0) // 0
 ```
 
 Sometimes, when a computation returns `None`, you may want to continue with another computation that returns an `Option`. In this case, you can use the `orElse` function. This is useful for implementing retry logic, for example, where you want to attempt a computation multiple times until you either succeed or exhaust all possible attempts.
@@ -600,13 +589,13 @@ Sometimes, when a computation returns `None`, you may want to continue with anot
 Here's an example:
 
 ```ts twoslash
-import { pipe } from "@effect/data/Function";
-import * as O from "@effect/data/Option";
+import { pipe } from "@effect/data/Function"
+import * as O from "@effect/data/Option"
 
 const tryToConnect = (): O.Option<string> => {
   // Imagine we have a function that returns an `Option` of connection status
-  return Math.random() < 0.5 ? O.some("Connected successfully") : O.none();
-};
+  return Math.random() < 0.5 ? O.some("Connected successfully") : O.none()
+}
 
 const retryConnect = (attemptsLeft: number): O.Option<string> =>
   pipe(
@@ -614,15 +603,13 @@ const retryConnect = (attemptsLeft: number): O.Option<string> =>
     O.orElse(() => {
       // If it fails, check if we still have attempts left
       if (attemptsLeft > 0) {
-        return retryConnect(attemptsLeft - 1); // If we do, try again with one less attempt
+        return retryConnect(attemptsLeft - 1) // If we do, try again with one less attempt
       }
-      return O.none(); // If we don't, return none
+      return O.none() // If we don't, return none
     })
-  );
+  )
 
-const result = retryConnect(3); // Try to connect three times
-
-
+const result = retryConnect(3) // Try to connect three times
 ```
 
 In this example, the function `tryToConnect` returns an `Option` representing the connection status. We use `orElse` to implement retry logic by attempting the connection again if the first attempt fails (returns `None`) and we still have attempts left. If all attempts fail, `retryConnect` returns `None`.
@@ -632,12 +619,11 @@ The `firstSomeOf` function is used to retrieve the first value that is present w
 Here is an example of how you can use `firstSomeOf`:
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
-const arr = [O.none(), O.some(2), O.none(), O.some(3)];
+const arr = [O.none(), O.some(2), O.none(), O.some(3)]
 
-const first = O.firstSomeOf(arr); // some(2)
-
+const first = O.firstSomeOf(arr) // some(2)
 ```
 
 **Cheat sheet** (pattern matching)
@@ -662,30 +648,28 @@ When using the `Option` data type, you may need to interact with code that uses 
 You can create an `Option` from a nullable value using the `fromNullable` API.
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
-console.log(O.fromNullable(null)); // none()
-console.log(O.fromNullable(undefined)); // none()
-console.log(O.fromNullable(1)); // some(1)
-
+console.log(O.fromNullable(null)) // none()
+console.log(O.fromNullable(undefined)) // none()
+console.log(O.fromNullable(1)) // some(1)
 ```
 
 You can also modify a function that returns a nullable value to a function that returns an `Option` using the `liftNullable` API. This process is known as "lifting."
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
 const parse = (s: string): number | undefined => {
-  const n = parseFloat(s);
-  return isNaN(n) ? undefined : n;
-};
+  const n = parseFloat(s)
+  return isNaN(n) ? undefined : n
+}
 
 // const parseOption: (s: string) => Option<number>
-const parseOption = O.liftNullable(parse);
+const parseOption = O.liftNullable(parse)
 
-console.log(parseOption("1")); // some(1)
-console.log(parseOption("not a number")); // none()
-
+console.log(parseOption("1")) // some(1)
+console.log(parseOption("not a number")) // none()
 ```
 
 ### Converting an `Option` to a Nullable Value
@@ -696,14 +680,13 @@ If you have a value of type `Option` and want to convert it to a nullable value,
 - Convert `None` to `undefined` using the `getOrUndefined` API
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
-console.log(O.getOrNull(O.some(1))); // 1
-console.log(O.getOrNull(O.none())); // null
+console.log(O.getOrNull(O.some(1))) // 1
+console.log(O.getOrNull(O.none())) // null
 
-console.log(O.getOrUndefined(O.some(1))); // 1
-console.log(O.getOrUndefined(O.none())); // undefined
-
+console.log(O.getOrUndefined(O.some(1))) // 1
+console.log(O.getOrUndefined(O.none())) // undefined
 ```
 
 **Cheat sheet** (interop - nullable)
@@ -723,24 +706,22 @@ The `zipWith` function allows you to combine two `Option`s using a provided func
 Let's consider the following example where we have two `Option`s that hold values of two different types, `string` and `number`:
 
 ```ts twoslash
-import { Option, some } from "@effect/data/Option";
+import { Option, some } from "@effect/data/Option"
 
-const name: Option<string> = some("John");
-const age: Option<number> = some(25);
-
+const name: Option<string> = some("John")
+const age: Option<number> = some(25)
 ```
 
 If we want to combine these two `Option`s into a single `Option` that holds an object with properties `name` and `age`, we can use the `zipWith` function:
 
 ```ts twoslash
-import { zipWith, some } from "@effect/data/Option";
+import { zipWith, some } from "@effect/data/Option"
 
-const name = some("John");
-const age = some(25);
+const name = some("John")
+const age = some(25)
 
-const combine = zipWith(name, age, (n, a) => ({ name: n, age: a }));
-console.log(combine); // some({ name: 'John', age: 25 })
-
+const combine = zipWith(name, age, (n, a) => ({ name: n, age: a }))
+console.log(combine) // some({ name: 'John', age: 25 })
 ```
 
 The `zipWith` function takes three arguments:
@@ -754,13 +735,12 @@ It's important to note that if either of the two `Option`s is `None`, the result
 For example:
 
 ```ts twoslash
-import { Option, zipWith, some, none } from "@effect/data/Option";
+import { Option, zipWith, some, none } from "@effect/data/Option"
 
-const name: Option<string> = none();
-const age: Option<number> = some(25);
-const combine = zipWith(name, age, (n, a) => ({ name: n, age: a }));
-console.log(combine); // none()
-
+const name: Option<string> = none()
+const age: Option<number> = some(25)
+const combine = zipWith(name, age, (n, a) => ({ name: n, age: a }))
+console.log(combine) // none()
 ```
 
 **Cheat sheet** (combining)
@@ -781,42 +761,39 @@ In addition to `zipWith`, a series of algebraic operations such as sums, product
 For example, consider the following `Option`s holding numbers:
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
-const num1 = O.some(3);
-const num2 = O.some(4);
-const num3 = O.none();
-
+const num1 = O.some(3)
+const num2 = O.some(4)
+const num3 = O.none()
 ```
 
 Summing two `Some` values will result in a `Some` with the sum of the values:
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
-const num1 = O.some(3);
-const num2 = O.some(4);
-const num3 = O.none();
+const num1 = O.some(3)
+const num2 = O.some(4)
+const num3 = O.none()
 
 // Summing two `Some` values will result in a `Some` with the sum of the values
-const sumOfSome = O.sum(num1, num2);
-console.log(sumOfSome); // some(7)
-
+const sumOfSome = O.sum(num1, num2)
+console.log(sumOfSome) // some(7)
 ```
 
 Summing a `Some` and a `None` will result in a `None`:
 
 ```ts twoslash
-import * as O from "@effect/data/Option";
+import * as O from "@effect/data/Option"
 
-const num1 = O.some(3);
-const num2 = O.some(4);
-const num3 = O.none();
+const num1 = O.some(3)
+const num2 = O.some(4)
+const num3 = O.none()
 
 // Summing a `Some` and a `None` will result in a `None`
-const sumOfSomeAndNone = O.sum(num1, num3);
-console.log(sumOfSomeAndNone); // none()
-
+const sumOfSomeAndNone = O.sum(num1, num3)
+console.log(sumOfSomeAndNone) // none()
 ```
 
 **Cheat sheet** (algebraic operations)
