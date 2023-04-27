@@ -90,7 +90,7 @@ const example = Effect.gen(function* ($) {
 })
 ```
 
-Note all the asterisks and dollar signs. The `*` is used to denote a generator, and the `$` function which is passed in as an argument to `Effect.gen` must follow `yield*` if you are yielding an Effect.
+Note the `yield*`, which is used to yield the next value from the generator. Additionally, one can also observe the `$` argument passed to `Effect.gen`, which is just a function that serves as an "adapter" that allows TypeScript to track our Effect types. When yielding an Effect, you must pass the Effect you would like to `yield*` to the adapter function to ensure that TypeScript can properly infer the types.
 
 This way, you can write in a more imperative style rather than having to use `pipe` and `flatMap`.
 
