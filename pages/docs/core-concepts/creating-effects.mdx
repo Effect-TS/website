@@ -1,8 +1,4 @@
-<<<<<<< HEAD:pages/docs/core-concepts/creating-effects.mdx
-import { Callout } from "nextra-theme-docs";
-=======
 import { Callout } from "nextra-theme-docs"
->>>>>>> f781d56f1b6c1fa35bd7319ba328a0db9650f448:pages/docs/core-concepts/effect.mdx
 
 # Effect
 
@@ -11,7 +7,7 @@ The `Effect` data type was designed to be a completely type-safe representation 
 Conceptually, we can begin to build a mental model of the `Effect` data type by thinking of it as a function that takes some `Context` as input and when executed can either fail with some `Error` or succeed with some `Value`.
 
 ```ts
-declare const Effect: (context: Context) => Either<Error, Value>;
+declare const Effect: (context: Context) => Either<Error, Value>
 ```
 
 <Callout type="info">
@@ -50,9 +46,9 @@ In the sections below, we walk through some of the more common use cases.
 To create an `Effect` from a value, you can use the `succeed` constructor:
 
 ```ts twoslash
-import * as Effect from "@effect/io/Effect";
+import * as Effect from "@effect/io/Effect"
 
-export const fromValue = Effect.succeed("Hello, World!");
+export const fromValue = Effect.succeed("Hello, World!")
 //           ^?
 ```
 
@@ -78,19 +74,13 @@ Somtimes you may want to construct an `Effect` from a "thunk". This can be parti
 To create an `Effect` from a "thunk", we can use the `sync` constructor:
 
 ```ts twoslash
-import * as Effect from "@effect/io/Effect";
+import * as Effect from "@effect/io/Effect"
 
 export const logHelloWorld = Effect.sync(() => {
   //           ^?
-<<<<<<< HEAD:pages/docs/core-concepts/creating-effects.mdx
-  console.log("Hello, World!");
-  return 42;
-});
-=======
   console.log("Hello, World!")
   return 42
 })
->>>>>>> f781d56f1b6c1fa35bd7319ba328a0db9650f448:pages/docs/core-concepts/effect.mdx
 ```
 
 In the above example, we use `Effect.sync` to defer our side-effecting call to the `console` object until our program is actually executed.
@@ -102,12 +92,12 @@ We can also observe that the value that will be returned when this program is ex
 When dealing with _asynchronous_ side effects that return a `Promise` you can use the `promise` function.
 
 ```ts twoslash
-import * as Effect from "@effect/io/Effect";
+import * as Effect from "@effect/io/Effect"
 
 export const fetchFirstTodo = Effect.promise(() =>
   //           ^?
   fetch("https://jsonplaceholder.typicode.com/todos/1")
-);
+)
 ```
 
 Once again inspecting the return type we can see that it is `Effect<never, never, Response>`.
@@ -126,23 +116,10 @@ Sometimes you have to deal with APIs that do not support `async/await` or `Promi
 As an example, we can demonstrate wrapping `readFile` from the NodeJS `fs` module with Effect:
 
 ```ts twoslash
-import * as Effect from "@effect/io/Effect";
-import * as NodeFS from "node:fs";
+import * as Effect from "@effect/io/Effect"
+import * as NodeFS from "node:fs"
 
 export const readTodos = Effect.async<never, NodeJS.ErrnoException, Buffer>(
-<<<<<<< HEAD:pages/docs/core-concepts/creating-effects.mdx
-  //              ^?
-  (resume) => {
-    NodeFS.readFile("todos.txt", (error, data) => {
-      if (error) {
-        resume(Effect.fail(error));
-      } else {
-        resume(Effect.succeed(data));
-      }
-    });
-  }
-);
-=======
   //           ^?
   (resume) => {
     NodeFS.readFile("todos.txt", (error, data) => {
@@ -154,7 +131,6 @@ export const readTodos = Effect.async<never, NodeJS.ErrnoException, Buffer>(
     })
   }
 )
->>>>>>> f781d56f1b6c1fa35bd7319ba328a0db9650f448:pages/docs/core-concepts/effect.mdx
 ```
 
 Something to note in the above example is that we were actually forced to manually annotate the types when calling `Effect.async`. Unfortunately, TypeScript is not capable of inferring the type parameters for a callback based on what is returned inside the body of the callback. This limitation of TypeScript is the one minor drawback of using callback-based APIs. Annotating the types of `Effect.async` will ensure that the values provided to `resume` match the expected types.
@@ -164,8 +140,8 @@ Another thing to note is that we probably don't want to have to call the `Effect
 For example, we can refactor the previous code into:
 
 ```ts twoslash
-import * as Effect from "@effect/io/Effect";
-import * as NodeFS from "node:fs";
+import * as Effect from "@effect/io/Effect"
+import * as NodeFS from "node:fs"
 
 export const readFile = (
   path: string
@@ -173,14 +149,14 @@ export const readFile = (
   Effect.async((resume) => {
     NodeFS.readFile(path, (error, data) => {
       if (error) {
-        resume(Effect.fail(error));
+        resume(Effect.fail(error))
       } else {
-        resume(Effect.succeed(data));
+        resume(Effect.succeed(data))
       }
-    });
-  });
+    })
+  })
 
-export const readTodos = readFile("todos.txt");
+export const readTodos = readFile("todos.txt")
 //           ^?
 ```
 
