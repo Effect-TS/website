@@ -25,13 +25,13 @@ Expected errors, also known as _failures_, _typed errors_ or _recoverable errors
 To indicate that our program can fail for some expected reason, we can use the `Effect.fail` constructor:
 
 ```ts twoslash
-import * as Effect from "@effect/io/Effect";
+import * as Effect from "@effect/io/Effect"
 
 class HttpError {
-  readonly _tag = "HttpError";
+  readonly _tag = "HttpError"
 }
 
-const canFail = Effect.fail(new HttpError());
+const canFail = Effect.fail(new HttpError())
 //    ^?
 ```
 
@@ -115,7 +115,7 @@ const program = pipe(
   Effect.catchTag("FooError", (fooError) =>
     Effect.succeed(`Recovering from ${fooError._tag}`)
   )
-);
+)
 ```
 
 We can see the type in the error channel of our `program` in the example above has changed to only show `BarError`, reflecting the fact that `FooError` has been handled.
@@ -135,7 +135,7 @@ const program = pipe(
   Effect.catchTag("BarError", (barError) =>
     Effect.succeed(`Recovering from ${barError._tag}`)
   )
-);
+)
 ```
 
 We could optionally also use the `Effect.catchTags` combinator to handle all errors at once:
@@ -151,7 +151,7 @@ const program = pipe(
     FooError: (fooError) => Effect.succeed(`Recovering from ${fooError._tag}`),
     BarError: (barError) => Effect.succeed(`Recovering from ${barError._tag}`),
   })
-);
+)
 ```
 
 #### Mapping over the error channel
@@ -170,12 +170,12 @@ const program = pipe(
   Effect.zipRight(flakyBar),
   Effect.mapError((error) => {
     if (error._tag === "FooError") {
-      return new Error("Something went wrong with Foo");
+      return new Error("Something went wrong with Foo")
     } else {
-      return new Error("Something went wrong with Bar");
+      return new Error("Something went wrong with Bar")
     }
   })
-);
+)
 ```
 
 `Effect.mapError` is similar to `Effect.map`, except instead of operating on the success channel, it operates on the error channel.
@@ -185,29 +185,29 @@ const program = pipe(
 If you are using Effect with a Promise-based API, you can use the `Effect.promise` constructor to convert a Promise into an Effect. If the Promise rejects, the resulting Effect will be a defect (unexpected error). Alternatively, some other options are `Effect.tryPromise` or `Effect.tryCatchPromise`. `Effect.tryPromise` will result in a recoverable error with type `unknown` in the error channel, while `Effect.tryCatchPromise` allows you to turn a rejected Promise into a recoverable error with an error type of your choosing.
 
 ```ts twoslash
-import * as Effect from "@effect/io/Effect";
-import * as Data from "@effect/data/Data";
+import * as Effect from "@effect/io/Effect"
+import * as Data from "@effect/data/Data"
 
 interface SomeError extends Data.Case {
-  readonly _tag: "SomeError";
-  error: unknown;
+  readonly _tag: "SomeError"
+  error: unknown
 }
 
-const SomeError = Data.tagged<SomeError>("SomeError");
+const SomeError = Data.tagged<SomeError>("SomeError")
 
-const promise = Promise.resolve(new Error("oh no!"));
+const promise = Promise.resolve(new Error("oh no!"))
 
-const effectPromise = Effect.promise(() => promise);
+const effectPromise = Effect.promise(() => promise)
 //    ^?
 
-const effectTryPromise = Effect.tryPromise(() => promise);
+const effectTryPromise = Effect.tryPromise(() => promise)
 //    ^?
 
 const effectTryCatchPromise = Effect.tryCatchPromise(
   //    ^?
   () => promise,
   (error) => SomeError({ error })
-);
+)
 ```
 
 ### Unexpected Errors
