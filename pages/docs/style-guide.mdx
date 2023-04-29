@@ -38,13 +38,15 @@ Nested callbacks are a common problem in JavaScript, and are often handled by us
 
 This section will cover the three common ways to organize Effectful code:
 
-1. Using the pipeable API
-2. Using Generators
-3. Using the `Do` simulation
+[1. Using pipe](#using-pipe)
 
-### 1. Using the pipeable API
+[2. Using generators](#using-generators)
 
-The pipe function is a common way to organize Effectful code. It is a function that takes a value and a list of functions, and applies the functions to the value in order.
+[3. Using the `Do` simulation](#using-the-do-simulation)
+
+### Using pipe
+
+The pipe function is a common way to organize Effectful code. It is a function that takes a value and a series of functions, and applies the functions to the value in order.
 
 The pipe function is defined in the Effect library, and is available in the Effect namespace.
 
@@ -56,9 +58,7 @@ import * as Random from "@effect/io/Random"
 const example = pipe(
   Random.next(),
   Effect.flatMap((n) =>
-    n > 0.5 
-      ? Effect.succeed("yay!") 
-      : Effect.fail("oh no!")
+    n > 0.5 ? Effect.succeed("yay!") : Effect.fail("oh no!")
   )
 )
 ```
@@ -67,12 +67,15 @@ Here, Random.next() is getting piped as an argument to `Effect.flatMap`.
 
 <Callout>
   Many functions in Effect have `dual` APIs, which means that you can either
-  call it `data-first` or `data-last`. Here, you can see how `Effect.flatMap`
-  is _after_ the call to `Random.next()` in the `pipe`, so `Random.next()` is passed in last (i.e. `data-last`). Similarly, you can
-  also call `Effect.flatMap(Random.next(), (n) => ...)` directly without `pipe` with `Random.next()` as the first argument (i.e. `data-first`) get the same result.
+  call it `data-first` or `data-last`. Here, you can see how `Effect.flatMap` is
+  _after_ the call to `Random.next()` in the `pipe`, so `Random.next()` is
+  passed in last (i.e. `data-last`). Similarly, you can also call
+  `Effect.flatMap(Random.next(), (n) => ...)` directly without `pipe` with
+  `Random.next()` as the first argument (i.e. `data-first`) and get the same
+  result.
 </Callout>
 
-### 2. Using Generators
+### Using generators
 
 Effect has a unique imperative API to solve for the problem of lots of nested callbacks when using functions like `pipe`. Instead of writing the code above, here's what it would look like if you were to write the same thing with the generator API.
 
@@ -95,11 +98,31 @@ Note the `yield*`, which is used to yield the next value from the generator. Add
 This way, you can write in a more imperative style rather than having to use `pipe` and `flatMap`.
 
 <Callout type="info">
-  The `$` argument can actually also be used as a `pipe`. For example, you could
-  pipe `Random.next()` into something else before yielding.
+  The dollar sign is just an argument name convention and is not a special
+  symbol in Effect. You are free to name it whatever you want (e.g. using an
+  underscore, etc.). The current convention is to use `$` as the argument name.
 </Callout>
 
-### 3. Using the `Do` Simulation
+#### Using the adapter argument as a pipe
+
+One thing to note is that the `$` argument also can be used as a pipe function. In the following example, `Random.next()` is piped into `Effect.either`.
+
+```ts twoslash
+import * as Effect from "@effect/io/Effect"
+import * as Random from "@effect/io/Random"
+import * as Either from "@effect/data/Either"
+
+const example = Effect.gen(function* ($) {
+  const n = yield* $(Random.next(), Effect.either)
+  if (Either.isRight(n)) {
+    return yield* $(Effect.succeed("yay!"))
+  } else {
+    return yield* $(Effect.fail("oh no!"))
+  }
+})
+```
+
+### Using the `Do` simulation
 
 To avoid nested pipes and generators, Effect has a `Do` function which can be used to simulate `Do` notation in other languages.
 
@@ -108,7 +131,7 @@ To avoid nested pipes and generators, Effect has a `Do` function which can be us
   notation or Scala's `for` comprehensions. Effect has a similar API.
 </Callout>
 
-Here's what a slightly more complex version of the above example would look like if you were to use the `Do` function.
+Here's what a slightly more complex version of the above example would look like if you were to use `Do`.
 
 ```ts twoslash
 import * as Effect from "@effect/io/Effect"
@@ -118,9 +141,7 @@ import { pipe } from "@effect/data/Function"
 const example = pipe(
   Effect.Do(),
   Effect.let("randomValue", () => 3),
-  Effect.bind("randomNumber", ({ randomValue }) =>
-    randomValue > 2 ? Random.next() : Random.next()
-  ),
+  Effect.bind("randomNumber", ({ randomValue }) => Random.next()),
   Effect.map(({ randomNumber, randomValue }) =>
     randomNumber > 0.5 && randomValue > 1
       ? Effect.succeed("yay!")
