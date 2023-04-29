@@ -17,7 +17,7 @@ import { pipe } from "@effect/data/Function";
 
 
 export interface CustomRandom {
-  readonly next: () => number;
+  readonly next: () => Effect.Effect<never, never, number>;
 }
 
 export const CustomRandom = Context.Tag<CustomRandom>();
@@ -26,7 +26,7 @@ export const CustomRandom = Context.Tag<CustomRandom>();
 const serviceExample = pipe(
 //           ^?
   CustomRandom,
-  Effect.map(randomService => randomService.next()),
+  Effect.flatMap(randomService => randomService.next()),
   Effect.flatMap((randomNumber) => Effect.logInfo(`${randomNumber}`))
 );
 // - 2
@@ -57,7 +57,7 @@ Now that we have a service interface, let's use it in an Effect.
 export const serviceExample = pipe(
   //           ^?
   CustomRandom,
-  Effect.map((randomService) => randomService.next()),
+  Effect.flatMap((randomService) => randomService.next()),
   Effect.flatMap((randomNumber) => Effect.logInfo(`${randomNumber}`))
 )
 ```
@@ -74,7 +74,7 @@ If we try to execute this Effect without the service being provided, we see an e
 // @errors: 2345
 export const serviceExample = pipe(
   CustomRandom,
-  Effect.map((randomService) => randomService.next()),
+  Effect.flatMap((randomService) => randomService.next()),
   Effect.flatMap((randomNumber) => Effect.logInfo(`${randomNumber}`))
 )
 
@@ -95,7 +95,7 @@ To provide an actual implementation of `CustomRandom`, we need to use the `provi
 const provideServiceExample = pipe(
   //    ^?
   serviceExample,
-  Effect.provideService(CustomRandom, { next: Math.random })
+  Effect.provideService(CustomRandom, { next: () => Effect.succeed(Math.random()) })
 )
 ```
 
@@ -117,7 +117,7 @@ export const AnswerToLife = Context.Tag<AnswerToLife>()
 const context = pipe(
   //    ^?
   Context.empty(),
-  Context.add(CustomRandom, { next: Math.random }),
+  Context.add(CustomRandom, { next: () => Effect.succeed(Math.random()) }),
   Context.add(AnswerToLife, { getAnswerToLife: () => 42 })
 )
 
@@ -143,11 +143,11 @@ import * as Option from "@effect/data/Option"
 const optionalServiceExample = pipe(
   //    ^?
   Effect.serviceOption(CustomRandom),
-  Effect.map((service) =>
+  Effect.flatMap((service) =>
     Option.match(
       service,
       // When it doesn't exist
-      () => -1,
+      () => Effect.succeed(-1),
       // When it exists
       (randomService) => randomService.next()
     )
