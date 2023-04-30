@@ -1,0 +1,78 @@
+# Cookbook
+
+The Effect community has found many interesting and useful(?) patterns for solving problems we never even knew existed. We want to share these wonderful solutions despite their limited scope to celebrate our communities inginuity and creativity.
+
+Even if you don't find your particulare use case here, there is a good chance you'll learn a thing or two on the way. Or at the very least, find your muse.
+
+## Library Integrations
+
+### `react-hook-form`
+
+```twoslash include hook-form
+import { pipe } from "@effect/data/Function"
+import * as Schema from "@effect/schema/Schema"
+import * as ParseResult from "@effect/schema/ParseResult"
+import * as Match from "@effect/match"
+import * as A from "@effect/data/ReadonlyArray"
+import * as O from "@effect/data/Option"
+import * as E from "@effect/data/Either"
+import * as RR from "@effect/data/ReadonlyRecord"
+
+type Entry = [string, { readonly message: string }]
+
+const buildError = (error: ParseResult.ParseErrors, path = [] as string[]): Array<Entry> =>
+  pipe(
+    Match.value(error),
+    Match.tag("Key", (e) => A.flatMap(e.errors, _ => buildError(_, A.append(path, String(e.key))))),
+    Match.tag("Index", (e) => A.flatMap(e.errors, _ => buildError(_, A.append(path, String(e.index))))),
+    Match.tag("UnionMember", (e) => A.flatMap(e.errors, _ => buildError(_, path))),
+    Match.tag("Type", (_) => [
+      [A.join(path, "."), {
+        message: O.getOrElse(_.message, () => `expected: ${_.expected._tag} actual: ${_.actual}`),
+      }] as Entry,
+    ]),
+    Match.tag("Missing", (_) => [[A.join(path, "."), { message: "Missing" }] as Entry]),
+    Match.tag("Forbidden", (_) => [[A.join(path, "."), { message: "Forbidden" }] as Entry]),
+    Match.tag("Unexpected", (_) => [[A.join(path, "."), { message: `Unexpected: ${_.actual}` }] as Entry]),
+    Match.exhaustive,
+  )
+
+const schemaResolver = <I, A>(schema: Schema.Schema<I, A>) => (data: I, context: any) => pipe(
+  Schema.decodeEither(schema)(data, { errors: "all" }),
+  E.match(({ errors }) => {
+    return ({
+      values: {},
+      errors: RR.fromEntries(A.flatMap(errors, _ => buildError(_))),
+    })
+  }, values => ({ values, errors: {} }))
+)
+
+```
+Thanks to how `/schema` handles errors, it can create the error tree view you might have seen while using it.
+But the same system can be leveraged to recursively create a flat object with keys expressing paths.
+
+This specific implementation was created to work with the popular react hook state management library.
+Do note, it's not complete, but it's a good showcase of the flexibility the effect ecosystem has.
+
+```ts twoslash
+// @include: hook-form
+```
+
+
+it is then consumed in the hook just like expected, and errors are correctly pointed
+
+```ts twoslash
+// @include: hook-form
+// ---cut---
+import { useForm } from 'react-hook-form'
+
+const FormSchema = Schema.struct({
+    foo: Schema.literal("bar")
+})
+
+function MyForm() {
+  const form = useForm({ resolver: schemaResolver(FormSchema) })
+//        ^?
+}
+
+```
