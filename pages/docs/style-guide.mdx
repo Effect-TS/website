@@ -38,11 +38,11 @@ Nested callbacks are a common problem in JavaScript, and are often handled by us
 
 This section will cover the three common ways to organize Effectful code:
 
-[1. Using pipe](#using-pipe)
+1. Using `pipe`
 
-[2. Using generators](#using-generators)
+2. Using generators
 
-[3. Using the `Do` simulation](#using-the-do-simulation)
+3. Using the `Do` simulation
 
 ### Using pipe
 
@@ -63,7 +63,7 @@ const example = pipe(
 )
 ```
 
-Here, Random.next() is getting piped as an argument to `Effect.flatMap`.
+Here, `Random.next()` is getting piped as an argument to `Effect.flatMap`.
 
 <Callout>
   Many functions in Effect have `dual` APIs, which means that you can either
@@ -103,7 +103,7 @@ This way, you can write in a more imperative style rather than having to use `pi
   underscore, etc.). The current convention is to use `$` as the argument name.
 </Callout>
 
-#### Using the adapter argument as a pipe
+#### Using the Adapter Argument as a `pipe`
 
 One thing to note is that the `$` argument also can be used as a pipe function. In the following example, `Random.next()` is piped into `Effect.either`.
 
@@ -142,7 +142,7 @@ const example = pipe(
   Effect.Do(),
   Effect.let("randomValue", () => 3),
   Effect.bind("randomNumber", ({ randomValue }) => Random.next()),
-  Effect.map(({ randomNumber, randomValue }) =>
+  Effect.flatMap(({ randomNumber, randomValue }) =>
     randomNumber > 0.5 && randomValue > 1
       ? Effect.succeed("yay!")
       : Effect.fail("oh no!")
