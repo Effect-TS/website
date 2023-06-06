@@ -1,0 +1,123 @@
+# `fetch` wrapper
+
+This example shows how to implement a wrapper around `fetch` using `effect-ts`.
+
+```ts
+export * as Effect from "@effect/io/Effect";
+
+class FetchError {
+  readonly _tag = "FetchError";
+  constructor(readonly error: unknown) {}
+}
+
+/** Perform a `fetch` request */
+export const request = (input: RequestInfo, init?: RequestInit) =>
+  Effect.tryCatchPromise(
+    () => fetch(input, init),
+    (error) => new FetchError(error)
+  );
+
+
+class JsonBodyError {
+  readonly _tag = "JsonBodyError";
+  constructor(readonly error: unknown) {}
+}
+
+/** Convert `Response` to json using the `json` method */
+export const jsonBody = (input: Response) =>
+  Effect.tryCatchPromise(
+    (): Promise<unknown> => input.json(),
+    (error) => new JsonBodyError(error)
+  );
+
+
+class ResponseTextError {
+  readonly _tag = "ResponseTextError";
+  constructor(readonly error: unknown) {}
+}
+
+/** Convert `Response` to `string` using the `text` method */
+export const responseText = (input: Response) =>
+  Effect.tryCatchPromise(
+    () => input.text(),
+    (error) => new ResponseTextError(error)
+  );
+```
+
+This module exports 3 functions: `request`, `jsonBody`, `responseText`.
+
+All of these 3 functions use the [`tryCatchPromise`](https://effect-ts.github.io/io/modules/Effect.ts.html#trycatchpromise) method from the [`Effect`](https://effect-ts.github.io/io/modules/Effect.ts.html) module.
+
+By using `effect-ts` we keep track of each request response and possible errors **directly from the return type**:
+
+- `request` returns `Effect.Effect<never, FetchError, Response>`
+  - `never`: No environment required
+  - `FetchError`: It may fail with a `FetchError`
+  - `Response`: It returns a `Response` when successful 
+
+```ts
+class FetchError {
+  readonly _tag = "FetchError";
+  constructor(readonly error: unknown) {}
+}
+
+/** `Effect.Effect<never, FetchError, Response>` */
+export const request = (input: RequestInfo, init?: RequestInit) =>
+  Effect.tryCatchPromise(
+    () => fetch(input, init),
+    (error) => new FetchError(error)
+  );
+```
+
+- `jsonBody` returns `Effect.Effect<never, JsonBodyError, unknown>`
+  - `never`: No environment required
+  - `JsonBodyError`: It may fail with a `JsonBodyError`
+  - `unknown`: It returns `unknown` when successful 
+
+```ts
+class JsonBodyError {
+  readonly _tag = "JsonBodyError";
+  constructor(readonly error: unknown) {}
+}
+
+/** `Effect.Effect<never, JsonBodyError, unknown>` */
+export const jsonBody = (input: Response) =>
+  Effect.tryCatchPromise(
+    (): Promise<unknown> => input.json(),
+    (error) => new JsonBodyError(error)
+  );
+```
+
+- `request` returns `Effect.Effect<never, ResponseTextError, string>`
+  - `never`: No environment required
+  - `ResponseTextError`: It may fail with a `ResponseTextError`
+  - `string`: It returns a `string` when successful 
+
+```ts
+class ResponseTextError {
+  readonly _tag = "ResponseTextError";
+  constructor(readonly error: unknown) {}
+}
+
+/** `Effect.Effect<never, ResponseTextError, string>` */
+export const responseText = (input: Response) =>
+  Effect.tryCatchPromise(
+    () => input.text(),
+    (error) => new ResponseTextError(error)
+  );
+```
+
+***
+
+You can re-export this module from `common.ts` ([read more](/docs/getting-started#using-effect-in-your-project) about how to use `effect-ts` in your project):
+
+```ts
+/** common.ts */
+export * as Http from "./http";
+```
+
+And then import the `Http` module from `common.ts`:
+
+```ts
+import { Http } from "./common";
+```
