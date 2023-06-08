@@ -24,15 +24,16 @@ Expected errors, also known as _failures_, _typed errors_ or _recoverable errors
 
 To indicate that our program can fail for some expected reason, we can use the `Effect.fail` constructor:
 
-```ts twoslash
+```ts
 import * as Effect from "@effect/io/Effect"
 
 class HttpError {
   readonly _tag = "HttpError"
 }
 
-const canFail = Effect.fail(new HttpError())
-//    ^?
+const canFail: Effect.Effect<never, HttpError, never> = Effect.fail(
+  new HttpError()
+)
 ```
 
 <Callout type="info">
@@ -49,7 +50,7 @@ Something to note about the example above is that we added a `_tag` field to our
 
 Let's use the following simple program to demonstrate how one could use Effect to handle expected errors.
 
-```twoslash include errors
+```ts
 import * as Data from "@effect/data/Data"
 import * as Effect from "@effect/io/Effect"
 import * as Random from "@effect/io/Random"
@@ -70,28 +71,20 @@ const BarError = Data.tagged<BarError>("BarError")
 const flakyFoo = pipe(
   Random.next(),
   Effect.flatMap((n) =>
-    n > 0.5
-      ? Effect.succeed("yay!")
-      : Effect.fail(FooError())
+    n > 0.5 ? Effect.succeed("yay!") : Effect.fail(FooError())
   )
 )
 
 const flakyBar = pipe(
   Random.next(),
   Effect.flatMap((n) =>
-    n > 0.5
-      ? Effect.succeed("yay!")
-      : Effect.fail(BarError())
+    n > 0.5 ? Effect.succeed("yay!") : Effect.fail(BarError())
   )
 )
-// - 1
-const program = pipe(flakyFoo, Effect.zipRight(flakyBar))
-//    ^?
-// - 2
-```
-
-```ts twoslash
-// @include: errors-2
+const program: Effect.Effect<never, FooError | BarError, string> = pipe(
+  flakyFoo,
+  Effect.zipRight(flakyBar)
+)
 ```
 
 <Callout type="info">
@@ -105,11 +98,8 @@ Let's say we have some piece of code in which we only want to handle `FooError`.
 
 Given that `FooError` has a `_tag` field, we can use the built-in `catchTag` method from Effect to handle `FooError` specifically:
 
-```ts twoslash
-// @include: errors-1
-// ---cut---
-const program = pipe(
-  //    ^?
+```ts
+const program: Effect.Effect<never, BarError, string> = pipe(
   flakyFoo,
   Effect.zipRight(flakyBar),
   Effect.catchTag("FooError", (fooError) =>
@@ -122,11 +112,8 @@ We can see the type in the error channel of our `program` in the example above h
 
 If we also wanted to handle `BarError`, it would be as simple as adding another `catchTag`.
 
-```ts twoslash
-// @include: errors-1
-// ---cut---
-const program = pipe(
-  //    ^?
+```ts
+const program: Effect.Effect<never, never, string> = pipe(
   flakyFoo,
   Effect.zipRight(flakyBar),
   Effect.catchTag("FooError", (fooError) =>
@@ -140,11 +127,8 @@ const program = pipe(
 
 We could optionally also use the `Effect.catchTags` combinator to handle all errors at once:
 
-```ts twoslash
-// @include: errors-1
-// ---cut---
-const program = pipe(
-  //    ^?
+```ts
+const program: Effect.Effect<never, never, string> = pipe(
   flakyFoo,
   Effect.zipRight(flakyBar),
   Effect.catchTags({
@@ -160,12 +144,8 @@ Sometimes you don't want to actually handle the error, but map over it instead. 
 
 To do this, we can use `Effect.mapError`:
 
-```ts twoslash
-// @include: errors-1
-// ---cut---
-
-const program = pipe(
-  //    ^?
+```ts
+const program: Effect.Effect<never, Error, string> = pipe(
   flakyFoo,
   Effect.zipRight(flakyBar),
   Effect.mapError((error) => {
@@ -184,7 +164,7 @@ const program = pipe(
 
 If you are using Effect with a Promise-based API, you can use the `Effect.promise` constructor to convert a Promise into an Effect. If the Promise rejects, the resulting Effect will be a defect (unexpected error). Alternatively, some other options are `Effect.tryPromise` or `Effect.tryCatchPromise`. `Effect.tryPromise` will result in a recoverable error with type `unknown` in the error channel, while `Effect.tryCatchPromise` allows you to turn a rejected Promise into a recoverable error with an error type of your choosing.
 
-```ts twoslash
+```ts
 import * as Effect from "@effect/io/Effect"
 import * as Data from "@effect/data/Data"
 
@@ -197,17 +177,18 @@ const SomeError = Data.tagged<SomeError>("SomeError")
 
 const promise = Promise.resolve(new Error("oh no!"))
 
-const effectPromise = Effect.promise(() => promise)
-//    ^?
-
-const effectTryPromise = Effect.tryPromise(() => promise)
-//    ^?
-
-const effectTryCatchPromise = Effect.tryCatchPromise(
-  //    ^?
-  () => promise,
-  (error) => SomeError({ error })
+const effectPromise: Effect.Effect<never, never, Error> = Effect.promise(
+  () => promise
 )
+
+const effectTryPromise: Effect.Effect<never, unknown, Error> =
+  Effect.tryPromise(() => promise)
+
+const effectTryCatchPromise: Effect.Effect<never, SomeError, Error> =
+  Effect.tryCatchPromise(
+    () => promise,
+    (error) => SomeError({ error })
+  )
 ```
 
 ### Unexpected Errors

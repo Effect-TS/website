@@ -18,7 +18,7 @@ The `Option` data type is a "polymorphic" data type, which makes use of a featur
 
 Here is the complete definition of the `Option` data type:
 
-```ts twoslash
+```ts
 // Represents the absence of a value
 export type None = {
   // Discriminating field used to identify the variant
@@ -48,7 +48,7 @@ The `Option` data type can be used to handle the presence or absence of a value 
 
 The `some` constructor takes a value of type `A` and returns an instance of `Option<A>` that holds that value:
 
-```ts twoslash
+```ts
 import { Option, some } from "@effect/data/Option"
 
 const value: Option<number> = some(1) // an Option holding the number 1
@@ -58,7 +58,7 @@ const value: Option<number> = some(1) // an Option holding the number 1
 
 The `none` constructor returns an instance of `Option<never`> representing the absence of a value:
 
-```ts twoslash
+```ts
 import { Option, none } from "@effect/data/Option"
 
 const empty: Option<never> = none() // an Option holding no value
@@ -66,7 +66,7 @@ const empty: Option<never> = none() // an Option holding no value
 
 By default, `none` returns an instance of `Option<never>`, which can be assigned to any `Option<A>` regardless of the type `A`:
 
-```ts twoslash
+```ts
 import { Option, none } from "@effect/data/Option"
 
 const optionNumber: Option<number> = none()
@@ -76,7 +76,7 @@ const optionBoolean: Option<boolean> = none()
 
 However, if you prefer, you can specify the desired type at the call site by explicitly indicating the type `A` you're interested in. In this case, you won't need to provide type annotations:
 
-```ts twoslash
+```ts
 import { Option, none } from "@effect/data/Option"
 
 const optionNumber = none<number>()
@@ -119,7 +119,7 @@ The `fromEither` function takes in an `Either<E, A>` value and returns an `Optio
 
 Example:
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 import * as E from "@effect/data/Either"
 
@@ -139,7 +139,7 @@ The `LazyArg<E>` value is a lazy (or "deferred") argument that is only executed 
 
 Here's an example of how to use toEither:
 
-```ts twoslash
+```ts
 import { pipe } from "@effect/data/Function"
 import * as O from "@effect/data/Option"
 import * as E from "@effect/data/Either"
@@ -157,7 +157,7 @@ The `getRight` function is an alias for `fromEither`, and is used to convert an 
 
 The `getLeft` function is a utility function that is used to extract the `Left` value from an `Either<E, A>` value. The function takes in a single argument - an `Either<E, A>` value and returns an `Option<E>` value.
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 import * as E from "@effect/data/Either"
 
@@ -176,7 +176,7 @@ The `toRefinement` ensures that a type guard definition is type-safe.
 
 Here is an example of using `toRefinement` to create a type guard for positive numbers:
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 // This function checks if a given number is positive
@@ -202,7 +202,7 @@ If the iterable is not empty (i.e., it has at least one item), `fromIterable` re
 
 Here are two examples to demonstrate the usage of `fromIterable`:
 
-```ts twoslash
+```ts
 import { fromIterable, some, none } from "@effect/data/Option"
 
 console.log(fromIterable([1, 2, 3])) // some(1)
@@ -210,7 +210,7 @@ console.log(fromIterable([1, 2, 3])) // some(1)
 
 In this example, `fromIterable` is passed an array with three values. Since the array is not empty, `fromIterable` returns the first value, `1`, wrapped in a `Some` value.
 
-```ts twoslash
+```ts
 import { fromIterable } from "@effect/data/Option"
 
 console.log(fromIterable([])) // none()
@@ -228,7 +228,7 @@ If the input is a `None` value, an empty array is returned.
 
 Here are two examples of how `toArray` can be used:
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 console.log(O.toArray(O.some(1))) // [1]
@@ -236,7 +236,7 @@ console.log(O.toArray(O.some(1))) // [1]
 
 In this example, `some(1)` is passed as the argument to `toArray`, which returns an array with the value `1`.
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 console.log(O.toArray(O.none())) // []
@@ -248,7 +248,7 @@ In this example, `none()` is passed as the argument to `toArray`, which returns 
 
 Here is an example of a `User` model where the `email` field is of type `Option<string>`. This means that the value of the `email` field may or may not be present and will be of type `string` when it is present.
 
-```ts twoslash
+```ts
 import { Option, some, none } from "@effect/data/Option"
 
 interface User {
@@ -280,7 +280,7 @@ Once you have an instance of `Option`, you can use the various functions provide
 
 The `map` function can be used to transform the `Some` values:
 
-```ts twoslash
+```ts
 import { pipe } from "@effect/data/Function"
 import { Option, some, map } from "@effect/data/Option"
 
@@ -296,7 +296,7 @@ This allows for a safe and convenient way of transforming optional values.
 
 What is also convenient about `Option` is how the absence of value (i.e. a `None`) is handled. See the example below:
 
-```ts twoslash
+```ts
 import { pipe } from "@effect/data/Function"
 import { Option, none, map } from "@effect/data/Option"
 
@@ -315,7 +315,7 @@ In software development, there are times when a function can "fail" to produce a
 
 Here's an example of a function `parseNumber` that takes a `string` as input and returns either a `number` or `null` depending on the input:
 
-```ts twoslash
+```ts
 function parseNumber(s: string): number | null {
   const n = parseFloat(s)
   if (isNaN(n)) {
@@ -332,7 +332,7 @@ A better way to handle these types of computations is to use the `Option` data t
 
 Here's how the `parseNumber` function would look using the `Option` data type:
 
-```ts twoslash
+```ts
 import { Option, none, some } from "@effect/data/Option"
 
 function parseNumber(s: string): Option<number> {
@@ -366,7 +366,7 @@ const result = pipe(
 
 To solve this issue, we need to use the `flatMap` function instead of the `map` function when adding a computation that returns an `Option` to our pipeline:
 
-```ts twoslash
+```ts
 import { pipe } from "@effect/data/Function"
 import { Option, some, none, flatMap, map } from "@effect/data/Option"
 
@@ -395,7 +395,7 @@ The `flatMap` function works similarly to the `map` function, but with the added
 
 **Example 1: Successful Path with Valid Input**
 
-```ts twoslash
+```ts
 import { pipe } from "@effect/data/Function"
 import { Option, some, none, flatMap, map } from "@effect/data/Option"
 
@@ -416,7 +416,7 @@ In this example, the `pipe` function is used to chain together a series of compu
 
 **Example 2: Error Path with Invalid Input**
 
-```ts twoslash
+```ts
 import { pipe } from "@effect/data/Function"
 import { Option, some, none, flatMap, map } from "@effect/data/Option"
 
@@ -437,7 +437,7 @@ In this example, the input to the pipeline is the string value of `"Not a number
 
 **Example 3: Error Path Starting with None**
 
-```ts twoslash
+```ts
 import { pipe } from "@effect/data/Function"
 import { Option, some, none, flatMap, map } from "@effect/data/Option"
 
@@ -470,7 +470,7 @@ The `inspectNone` function returns the original `Option<A>` value, but if it is 
 
 Here is an example of how you can use `inspectSome` and `inspectNone` to debug a pipeline:
 
-```ts twoslash
+```ts
 import { pipe } from "@effect/data/Function"
 import * as O from "@effect/data/Option"
 
@@ -510,7 +510,7 @@ To extract the value from an `Option`, you can use the `getOrThrow` function, wh
 
 Here's an example of how you can use `getOrThrow`:
 
-```ts twoslash
+```ts
 import { getOrThrow, some, none } from "@effect/data/Option"
 
 console.log(getOrThrow(some(10))) // 10
@@ -519,7 +519,7 @@ console.log(getOrThrow(none())) // throws new Error("getOrThrow called on a None
 
 However, using `getOrThrow` can lead to exceptions being thrown in your code, which can lead to unexpected behavior and crashes. To avoid this, you can use the `isSome` and `isNone` guards:
 
-```ts twoslash
+```ts
 import { some, isSome } from "@effect/data/Option"
 
 const option = some(1)
@@ -537,7 +537,7 @@ if (isSome(option)) {
 
 An alternative way to handle the cases of an `Option` being `None` or `Some` is by using the `match` function. The `match` function allows you to provide different actions for each case of the `Option` value.
 
-```ts twoslash
+```ts
 import { pipe } from "@effect/data/Function"
 import { some, match } from "@effect/data/Option"
 
@@ -565,7 +565,7 @@ To make working with code that does not use `Option` more convenient, there are 
 
 Here's an example of how you can use `getOrNull` and `getOrUndefined`:
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 O.getOrNull(O.some(5)) // 5
@@ -577,7 +577,7 @@ O.getOrUndefined(O.none()) // undefined
 
 `getOrElse` allows you to specify a default value that should be returned if the `Option` is `None`. Here's an example of how you can use `getOrElse`:
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 O.getOrElse(O.some(5), () => 0) // 5
@@ -588,7 +588,7 @@ Sometimes, when a computation returns `None`, you may want to continue with anot
 
 Here's an example:
 
-```ts twoslash
+```ts
 import { pipe } from "@effect/data/Function"
 import * as O from "@effect/data/Option"
 
@@ -618,7 +618,7 @@ The `firstSomeOf` function is used to retrieve the first value that is present w
 
 Here is an example of how you can use `firstSomeOf`:
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 const arr = [O.none(), O.some(2), O.none(), O.some(3)]
@@ -647,7 +647,7 @@ When using the `Option` data type, you may need to interact with code that uses 
 
 You can create an `Option` from a nullable value using the `fromNullable` API.
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 console.log(O.fromNullable(null)) // none()
@@ -657,7 +657,7 @@ console.log(O.fromNullable(1)) // some(1)
 
 You can also modify a function that returns a nullable value to a function that returns an `Option` using the `liftNullable` API. This process is known as "lifting."
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 const parse = (s: string): number | undefined => {
@@ -679,7 +679,7 @@ If you have a value of type `Option` and want to convert it to a nullable value,
 - Convert `None` to `null` using the `getOrNull` API
 - Convert `None` to `undefined` using the `getOrUndefined` API
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 console.log(O.getOrNull(O.some(1))) // 1
@@ -705,7 +705,7 @@ The `zipWith` function allows you to combine two `Option`s using a provided func
 
 Let's consider the following example where we have two `Option`s that hold values of two different types, `string` and `number`:
 
-```ts twoslash
+```ts
 import { Option, some } from "@effect/data/Option"
 
 const name: Option<string> = some("John")
@@ -714,7 +714,7 @@ const age: Option<number> = some(25)
 
 If we want to combine these two `Option`s into a single `Option` that holds an object with properties `name` and `age`, we can use the `zipWith` function:
 
-```ts twoslash
+```ts
 import { zipWith, some } from "@effect/data/Option"
 
 const name = some("John")
@@ -734,7 +734,7 @@ It's important to note that if either of the two `Option`s is `None`, the result
 
 For example:
 
-```ts twoslash
+```ts
 import { Option, zipWith, some, none } from "@effect/data/Option"
 
 const name: Option<string> = none()
@@ -760,7 +760,7 @@ In addition to `zipWith`, a series of algebraic operations such as sums, product
 
 For example, consider the following `Option`s holding numbers:
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 const num1 = O.some(3)
@@ -770,7 +770,7 @@ const num3 = O.none()
 
 Summing two `Some` values will result in a `Some` with the sum of the values:
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 const num1 = O.some(3)
@@ -784,7 +784,7 @@ console.log(sumOfSome) // some(7)
 
 Summing a `Some` and a `None` will result in a `None`:
 
-```ts twoslash
+```ts
 import * as O from "@effect/data/Option"
 
 const num1 = O.some(3)

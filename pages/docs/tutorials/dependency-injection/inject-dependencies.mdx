@@ -10,31 +10,16 @@ In this section, we'll learn how to work with Effects that have a context. We'll
 
 Let's create a service that implements a random number generator.
 
-```twoslash include service-interface
+```ts
 import * as Effect from "@effect/io/Effect"
-import * as Context from "@effect/data/Context";
-import { pipe } from "@effect/data/Function";
-
+import * as Context from "@effect/data/Context"
+import { pipe } from "@effect/data/Function"
 
 export interface CustomRandom {
-  readonly next: () => Effect.Effect<never, never, number>;
+  readonly next: () => Effect.Effect<never, never, number>
 }
 
-export const CustomRandom = Context.Tag<CustomRandom>();
-// - 1
-
-const serviceExample = pipe(
-//           ^?
-  CustomRandom,
-  Effect.flatMap(randomService => randomService.next()),
-  Effect.flatMap((randomNumber) => Effect.logInfo(`${randomNumber}`))
-);
-// - 2
-
-```
-
-```ts twoslash
-// @include: service-interface-1
+export const CustomRandom = Context.Tag<CustomRandom>()
 ```
 
 The above code creates an interface for a service called `CustomRandom`. It has a single method called `next` that returns a random number. The Tag allows Effect to find this service at runtime.
@@ -49,13 +34,10 @@ The above code creates an interface for a service called `CustomRandom`. It has 
 
 Now that we have a service interface, let's use it in an Effect.
 
-{/* TODO This is copy-pasted from the section above, not sure what the recommended way to re-use this is in twoslash */}
+```ts
+export const serviceExample: Effect.Effect<CustomRandom, never, void> = pipe(
 
-```ts twoslash
-// @include: service-interface-1
-// ---cut---
-export const serviceExample = pipe(
-  //           ^?
+const serviceExample: Effect.Effect<CustomRandom, never, void>
   CustomRandom,
   Effect.flatMap((randomService) => randomService.next()),
   Effect.flatMap((randomNumber) => Effect.logInfo(`${randomNumber}`))
@@ -68,10 +50,7 @@ Also, most importantly, the type of `serviceExample` now has something in the R 
 
 If we try to execute this Effect without the service being provided, we see an error like the following:
 
-```ts twoslash
-// @include: service-interface-1
-// ---cut---
-// @errors: 2345
+```ts {7}
 export const serviceExample = pipe(
   CustomRandom,
   Effect.flatMap((randomService) => randomService.next()),
@@ -79,6 +58,8 @@ export const serviceExample = pipe(
 )
 
 Effect.runPromise(serviceExample)
+// Argument of type 'Effect<CustomRandom, never, void>' is not assignable to parameter of type 'Effect<never, never, void>'.
+//  Type 'CustomRandom' is not assignable to type 'never'.
 ```
 
 This way, we can guarantee that the Effect has the required context before it is executed.
@@ -89,15 +70,12 @@ So far, we have an interface definition and we have used the interface. In the n
 
 To provide an actual implementation of `CustomRandom`, we need to use the `provideService` function.
 
-```ts twoslash
-// @include: service-interface-2
-// ---cut---
-const provideServiceExample = pipe(
-  //    ^?
+```ts
+const provideServiceExample: Effect.Effect<never, never, void> = pipe(
+
+const provideServiceExample: Effect.Effect<never, never, void>
   serviceExample,
-  Effect.provideService(CustomRandom, {
-    next: () => Effect.succeed(Math.random()),
-  })
+  Effect.provideService(CustomRandom, { next: () => Effect.succeed(Math.random()) })
 )
 ```
 
@@ -107,17 +85,14 @@ Here, we called `serviceExample` from above and provide it with an implementatio
 
 If we have multiple services that can be combined together into a single context/environment, we can build up a Context like the following:
 
-```ts twoslash
-// @include: service-interface-2
-// ---cut---
+```ts
 export interface AnswerToLife {
   readonly getAnswerToLife: () => number
 }
 
 export const AnswerToLife = Context.Tag<AnswerToLife>()
 
-const context = pipe(
-  //    ^?
+const context: Context.Context<CustomRandom | AnswerToLife> = pipe(
   Context.empty(),
   Context.add(CustomRandom, { next: () => Effect.succeed(Math.random()) }),
   Context.add(AnswerToLife, { getAnswerToLife: () => 42 })
@@ -137,13 +112,10 @@ Instead of using `provideService`, we can instead using `provideContext` to prov
 
 Sometimes, we may want to access a service implementation only if it is available. We can use the `serviceOption` function to handle this.
 
-```ts twoslash
-// @include: service-interface-1
-// ---cut---
+```ts
 import * as Option from "@effect/data/Option"
 
-const optionalServiceExample = pipe(
-  //    ^?
+const optionalServiceExample: Effect.Effect<never, never, void> = pipe(
   Effect.serviceOption(CustomRandom),
   Effect.flatMap((service) =>
     Option.match(

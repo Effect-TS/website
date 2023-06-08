@@ -1,13 +1,5 @@
 import { Callout } from "nextra-theme-docs"
 
-```twoslash include imports
-import * as Context from "@effect/data/Context"
-import * as Layer from "@effect/io/Layer"
-import { pipe } from "@effect/data/Function"
-import { seconds, minutes } from "@effect/data/Duration"
-// - 1
-```
-
 # Batching & Caching
 
 Before we dig into the Effect's solution to batching and caching let's start with a description of the problem.
@@ -22,7 +14,7 @@ It is very common in apps to depend on a number of external data sources like:
 
 Let's start with a fairly minimal model description:
 
-```twoslash include model
+```ts
 import * as Effect from "@effect/io/Effect"
 
 interface User {
@@ -50,45 +42,6 @@ class GetTodosError {
 class SendEmailError {
   readonly _tag = "SendEmailError"
 }
-// - 1
-```
-
-```twoslash include classic
-const getTodos = Effect.tryCatchPromise(
-  () => fetch("https://api.example.demo/todos").then(_ => _.json() as Promise<Todo[]>),
-  () => new GetTodosError()
-)
-
-const getUserById = (id: number) => Effect.tryCatchPromise(
-  () => fetch(`https://api.example.demo/getUserById?id=${id}`).then(_ => _.json() as Promise<User>),
-  () => new GetUserError()
-)
-
-const sendEmail = (address: string, text: string) => Effect.tryCatchPromise(
-  () => fetch("https://api.example.demo/sendEmail", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ address, text }),
-  }).then(_ => _.json() as Promise<void>),
-  () => new SendEmailError()
-)
-
-const sendEmailToUser = (id: number, message: string) => Effect.flatMap(
-  getUserById(id),
-  (user) => sendEmail(user.email, message)
-)
-
-const notifyOwner = (todo: Todo) => Effect.flatMap(
-  getUserById(todo.ownerId),
-  (user) => sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
-)
-// - 1
-```
-
-```ts twoslash
-// @include: model-1
 ```
 
 <Callout type="info">
@@ -101,10 +54,44 @@ const notifyOwner = (todo: Todo) => Effect.flatMap(
 
 Given such a model we usually write up functions to call some API (or database, etc.) like the following:
 
-```ts twoslash
-// @include: model-1
-// ---cut---
-// @include: classic-1
+```ts
+const getTodos = Effect.tryCatchPromise(
+  () =>
+    fetch("https://api.example.demo/todos").then(
+      (_) => _.json() as Promise<Todo[]>
+    ),
+  () => new GetTodosError()
+)
+
+const getUserById = (id: number) =>
+  Effect.tryCatchPromise(
+    () =>
+      fetch(`https://api.example.demo/getUserById?id=${id}`).then(
+        (_) => _.json() as Promise<User>
+      ),
+    () => new GetUserError()
+  )
+
+const sendEmail = (address: string, text: string) =>
+  Effect.tryCatchPromise(
+    () =>
+      fetch("https://api.example.demo/sendEmail", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ address, text }),
+      }).then((_) => _.json() as Promise<void>),
+    () => new SendEmailError()
+  )
+
+const sendEmailToUser = (id: number, message: string) =>
+  Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
+
+const notifyOwner = (todo: Todo) =>
+  Effect.flatMap(getUserById(todo.ownerId), (user) =>
+    sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
+  )
 ```
 
 <Callout type="info">
@@ -115,10 +102,7 @@ Given such a model we usually write up functions to call some API (or database, 
 
 When using the utilities we defined it is normal to end up with code that looks like the following:
 
-```ts twoslash
-// @include: model-1
-// @include: classic-1
-// ---cut---
+```ts
 const program = Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
 ```
 
@@ -138,7 +122,7 @@ Well **not anymore.**
 
 Let's rewrite our example to be as efficient as possible - we'll start by writing a model for the requests that our data sources support:
 
-```twoslash include requests
+```ts
 import * as Request from "@effect/io/Request"
 
 interface GetTodos extends Request.Request<GetTodosError, Todo[]> {
@@ -160,13 +144,6 @@ interface SendEmail extends Request.Request<SendEmailError, void> {
 const SendEmail = Request.tagged<SendEmail>("SendEmail")
 
 type ApiRequest = GetTodos | GetUserById | SendEmail
-// - 1
-```
-
-```ts twoslash
-// @include: model-1
-// ---cut---
-// @include: requests-1
 ```
 
 <Callout type="info">
@@ -183,69 +160,77 @@ Now that we have our requests defined it is time to tell `Effect` how to resolve
 Here we will define a single resolver per query. There is no right or wrong answer in how granular your resolvers should be
 but usually you will split up your resolvers based on which API calls can be batched.
 
-```twoslash include resolvers
+```ts
 import * as RequestResolver from "@effect/io/RequestResolver"
 
 // we assume we cannot batch GetTodos, we create a normal resolver
-const GetTodosResolver = RequestResolver.fromFunctionEffect((request: GetTodos) =>
-  Effect.tryCatchPromise(
-    () => fetch("https://api.example.demo/todos").then((_) => _.json()) as Promise<Todo[]>,
-    () => new GetTodosError()
-  )
+const GetTodosResolver = RequestResolver.fromFunctionEffect(
+  (request: GetTodos) =>
+    Effect.tryCatchPromise(
+      () =>
+        fetch("https://api.example.demo/todos").then((_) =>
+          _.json()
+        ) as Promise<Todo[]>,
+      () => new GetTodosError()
+    )
 )
 
 // we assume we can batch GetUserById, we create a batched resolver
-const GetUserByIdResolver = RequestResolver.makeBatched((requests: GetUserById[]) =>
-  pipe(
-    Effect.tryCatchPromise(
-      () => fetch("https://api.example.demo/getUserByIdBatch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) }),
-      }).then((_) => _.json()) as Promise<User[]>,
-      () => new GetUserError()
-    ),
-    Effect.flatMap((users) => Effect.forEachWithIndex(requests, (request, index) =>
-      Request.completeEffect(request, Effect.succeed(users[index]))
-    )),
-    Effect.catchAll((error) => Effect.forEach(requests, (request) =>
-      Request.completeEffect(request, Effect.fail(error))
-    ))
-  )
+const GetUserByIdResolver = RequestResolver.makeBatched(
+  (requests: GetUserById[]) =>
+    pipe(
+      Effect.tryCatchPromise(
+        () =>
+          fetch("https://api.example.demo/getUserByIdBatch", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) }),
+          }).then((_) => _.json()) as Promise<User[]>,
+        () => new GetUserError()
+      ),
+      Effect.flatMap((users) =>
+        Effect.forEachWithIndex(requests, (request, index) =>
+          Request.completeEffect(request, Effect.succeed(users[index]))
+        )
+      ),
+      Effect.catchAll((error) =>
+        Effect.forEach(requests, (request) =>
+          Request.completeEffect(request, Effect.fail(error))
+        )
+      )
+    )
 )
 
 // we assume we can batch SendEmail, we create a batched resolver
 const SendEmailResolver = RequestResolver.makeBatched((requests: SendEmail[]) =>
   pipe(
     Effect.tryCatchPromise(
-      () => fetch("https://api.example.demo/sendEmailBatch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ emails: requests.map(({ address, text }) => ({ address, text })) }),
-      }).then((_) => _.json()),
+      () =>
+        fetch("https://api.example.demo/sendEmailBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            emails: requests.map(({ address, text }) => ({ address, text })),
+          }),
+        }).then((_) => _.json()),
       () => new SendEmailError()
     ),
-    Effect.flatMap(() => Effect.forEach(requests, (request) =>
-      Request.completeEffect(request, Effect.unit())
-    )),
-    Effect.catchAll((error) => Effect.forEach(requests, (request) =>
-      Request.completeEffect(request, Effect.fail(error))
-    ))
+    Effect.flatMap(() =>
+      Effect.forEach(requests, (request) =>
+        Request.completeEffect(request, Effect.unit())
+      )
+    ),
+    Effect.catchAll((error) =>
+      Effect.forEach(requests, (request) =>
+        Request.completeEffect(request, Effect.fail(error))
+      )
+    )
   )
 )
-// - 1
-```
-
-```ts twoslash
-// @include: model-1
-// @include: imports-1
-// @include: requests-1
-// ---cut---
-// @include: resolvers-1
 ```
 
 <Callout type="info">
@@ -258,9 +243,10 @@ const SendEmailResolver = RequestResolver.makeBatched((requests: SendEmail[]) =>
 
 At this point we are ready to plug the pieces together! Let's do just that:
 
-```twoslash include queries
-const getTodos = Effect.request(
-  //    ^?
+```ts
+const getTodos: Effect.Effect<never, GetTodosError, Todo[]> = Effect.request(
+
+const getTodos: Effect.Effect<never, GetTodosError, Todo[]>
   GetTodos({}),
   GetTodosResolver
 )
@@ -284,29 +270,13 @@ const notifyOwner = (todo: Todo) => Effect.flatMap(
   getUserById(todo.ownerId),
   (user) => sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
 )
-// - 1
-```
-
-```ts twoslash
-// @include: model-1
-// @include: requests-1
-// @include: imports-1
-// @include: resolvers-1
-// ---cut---
-// @include: queries-1
 ```
 
 It looks like we are back at the beginning, same exact types and same exact composition.
 
 But now the following program:
 
-```ts twoslash
-// @include: model-1
-// @include: requests-1
-// @include: imports-1
-// @include: resolvers-1
-// @include: queries-1
-// ---cut---
+```ts
 const program = Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
 ```
 
@@ -323,7 +293,7 @@ you always have to specify how context is accessed.
 
 Let's see how we would do it:
 
-```twoslash include resolvers-new
+```ts
 import * as RequestResolver from "@effect/io/RequestResolver"
 
 interface HttpService {
@@ -339,23 +309,19 @@ const HttpServiceLive = Layer.sync(HttpService, () => ({ fetch }))
 const GetTodosResolver = pipe(
   // we create a normal resolver like we did before
   RequestResolver.fromFunctionEffect((request: GetTodos) =>
-    Effect.flatMap(HttpService, (http) => Effect.tryCatchPromise(
-      () => http.fetch("https://api.example.demo/todos").then((_) => _.json()) as Promise<Todo[]>,
-      () => new GetTodosError()
-    ))
+    Effect.flatMap(HttpService, (http) =>
+      Effect.tryCatchPromise(
+        () =>
+          http
+            .fetch("https://api.example.demo/todos")
+            .then((_) => _.json()) as Promise<Todo[]>,
+        () => new GetTodosError()
+      )
+    )
   ),
   // we list the tags that the resolver can access
   RequestResolver.contextFromServices(HttpService)
 )
-// - 1
-```
-
-```ts twoslash
-// @include: model-1
-// @include: imports-1
-// @include: requests-1
-// ---cut---
-// @include: resolvers-new-1
 ```
 
 We can see now that the type of `GetTodosResolver` is no longer a `RequestResolver` but instead it is
@@ -364,14 +330,10 @@ that access the `HttpService` and returns a composed resolver that has the minim
 
 Once we have such `Effect` we can directly use it in our request definition:
 
-```ts twoslash
-// @include: model-1
-// @include: imports-1
-// @include: requests-1
-// @include: resolvers-new-1
-// ---cut---
-const getTodos = Effect.request(
-  //    ^?
+```ts
+const getTodos: Effect.Effect<HttpService, GetTodosError, Todo[]> = Effect.request(
+
+const getTodos: Effect.Effect<HttpService, GetTodosError, Todo[]>
   GetTodos({}),
   GetTodosResolver
 )
@@ -383,12 +345,7 @@ Alternatively you can create RequestResolvers as part of layers direcly accessin
 
 For example:
 
-```ts twoslash
-// @include: model-1
-// @include: requests-1
-// @include: imports-1
-// @include: resolvers-1
-// ---cut---
+```ts
 interface HttpService {
   fetch: typeof fetch
 }
@@ -425,8 +382,8 @@ const TodosServiceLive = Layer.effect(
     }
   })
 )
-const getTodos = Effect.flatMap(TodosService, (_) => _.getTodos)
-//    ^?
+const getTodos: Effect.Effect<TodosService, GetTodosError, Todo[]> =
+  Effect.flatMap(TodosService, (_) => _.getTodos)
 ```
 
 This way is probably the best for most of the cases given that layers are the natural primitive where to wire services together.
@@ -435,13 +392,7 @@ This way is probably the best for most of the cases given that layers are the na
 
 Batching can be locally disabled using the `Effect.withRequestBatching("off")` utility in the following way:
 
-```ts twoslash
-// @include: model-1
-// @include: requests-1
-// @include: imports-1
-// @include: resolvers-1
-// @include: queries-1
-// ---cut---
+```ts
 const program = Effect.withRequestBatching("off")(
   Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
 )
@@ -455,12 +406,7 @@ This leads to request duplication...
 
 Fortunately we also have a primitive for caching in `Effect` and we use that to automatically cache requests.
 
-```ts twoslash
-// @include: model-1
-// @include: imports-1
-// @include: requests-1
-// @include: resolvers-1
-// ---cut---
+```ts
 const getUserById = (id: number) =>
   Effect.withRequestCaching("on")(
     Effect.request(GetUserById({ id }), GetUserByIdResolver)
@@ -471,13 +417,7 @@ const getUserById = (id: number) =>
 
 Assuming you've wired everything up correctly the following program:
 
-```ts twoslash
-// @include: model-1
-// @include: requests-1
-// @include: imports-1
-// @include: resolvers-1
-// @include: queries-1
-// ---cut---
+```ts
 import * as Schedule from "@effect/io/Schedule"
 
 const main = pipe(
@@ -496,13 +436,7 @@ or maybe you want a global cache with a different setup, or a mix of both.
 
 To cover those scenarios you'd create a custom cache like the following:
 
-```ts twoslash
-// @include: model-1
-// @include: requests-1
-// @include: imports-1
-// @include: resolvers-1
-// @include: queries-1
-// ---cut---
+```ts
 import * as Schedule from "@effect/io/Schedule"
 
 const main = pipe(
@@ -523,13 +457,7 @@ the custom cache (when enabled with `Effect.withRequestCaching("on")`)
 
 We recently introduced a new key primitive in the fiber that enables an execution to pause when it sees the program requires a request. In the process of pausing, the fiber will reify its stack into a continuation that can be externally performed.
 
-```ts twoslash
-// @include: model-1
-// @include: imports-1
-// @include: requests-1
-// @include: resolvers-1
-// @include: queries-1
-// ---cut---
+```ts
 const program = Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
 
 const nextStep = Effect.flatMapStep(program, (step) => {
@@ -571,7 +499,7 @@ calls or intensive work.
 
 Let's see how we would go about using cache:
 
-```ts twoslash
+```ts
 import * as Effect from "@effect/io/Effect"
 import * as Cache from "@effect/io/Cache"
 import * as Duration from "@effect/data/Duration"

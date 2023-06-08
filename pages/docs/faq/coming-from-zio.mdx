@@ -6,7 +6,7 @@ If you are coming to Effect from ZIO, there are a few differences to be aware of
 
 In Effect, we represent the environment required to run an `Effect` workflow as a union of services:
 
-```ts twoslash
+```ts
 import { Effect } from "@effect/io/Effect"
 
 //                 v---------v---- `R` is a union of Console | Logger
@@ -41,8 +41,7 @@ The rationale for using a union to represent the environment required by an `Eff
 
 To be able to remove `Has` from Effect, we had to think a bit more structurally given that TypeScript is a structural type system. In TypeScript, if you have a type `A & B` where there is a structural conflict between `A` and `B`, the type `A & B` will reduce to `never`.
 
-```ts twoslash
-// @errors: 2322
+```ts {10}
 interface A {
   readonly prop: string
 }
@@ -52,7 +51,7 @@ interface B {
 }
 
 const ab: A & B = {
-  prop: "",
+  prop: "", // Type 'string' is not assignable to type 'never'.
 }
 ```
 
@@ -64,7 +63,7 @@ To faciliate removal of `Has` in Effect, we had to consider how types in the env
 
 From our example above:
 
-```ts twoslash
+```ts
 interface A {
   readonly prop: string
 }
