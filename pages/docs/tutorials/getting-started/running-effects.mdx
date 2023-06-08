@@ -2,41 +2,88 @@ import { Callout } from "nextra-theme-docs"
 
 # Running Effects
 
-To run an `Effect`, we can use the variety of `run` functions available on the `Effect` module:
+To execute an `Effect`, we can utilize a variety of `run*` functions provided by the `Effect` module.
+
+## runSync
+
+The `runSync` function is used to execute an Effect synchronously, which means it runs immediately and returns the result.
+It is useful when your effect does not involve any asynchronous tasks and you need the result immediately.
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const result: string = Effect.runSync(Effect.succeed("Hello, World!"))
+```
+
+<Callout type="warning">
+  `runSync` should only be used if your Effect doesn't perform any asynchronous
+  tasks. If you're not sure, you can try using it, and it will crash at runtime
+  with a noticeable error if you should be using one of the other `run*` methods
+  instead.
+</Callout>
+
+## runPromise
+
+The `runPromise` function is used to execute an Effect and obtain the result as a `Promise`.
+It is useful when your effect involves asynchronous tasks and you want to work with the result using `Promise`-based APIs.
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const result: Promise<string> = Effect.runPromise(
+  Effect.succeed("Hello, World!")
+)
+```
+
+## runPromiseEither
+
+The `runPromiseEither` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an `Either` type.
+This allows you to handle both success and failure scenarios in a unified way.
+It is useful when you want to handle potential errors or failures in your effect.
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Either from "@effect/data/Either"
+
+const result: Promise<Either.Either<never, string>> = Effect.runPromiseEither(
+  Effect.succeed("Hello, World!")
+)
+```
+
+## runCallback
+
+The `runCallback` function is used to execute an Effect and provide a callback function to handle the result asynchronously.
+It is useful when you need to perform side effects or interact with APIs that follow the callback-style programming model.
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Runtime from "@effect/io/Runtime"
 import * as Either from "@effect/data/Either"
 
-// sync variant
-export const programSync: string = Effect.runSync(
-  Effect.succeed("Hello, World!")
+const result: Runtime.Cancel<never, string> = Effect.runCallback(
+  Effect.succeed("Hello, World!"),
+  () => console.log("I'm done!")
 )
-
-// promise variant
-export const programPromise: Promise<string> = Effect.runPromise(
-  Effect.succeed("Hello, World!")
-)
-
-// promise Either variant
-export const programPromiseEither: Promise<Either.Either<never, string>> =
-  Effect.runPromiseEither(Effect.succeed("Hello, World!"))
-
-// callback variant
-export const programCallback: Runtime.Cancel<never, string> =
-  Effect.runCallback(Effect.succeed("Hello, World!"), () =>
-    console.log("I'm done!")
-  )
 ```
 
-<Callout type="warning">
-  `runSync` should only be used if your Effect doesn't perform any asynchronous
-  tasks. If you're not sure, you can try using it, and it will crash at runtime
-  with a noticeable error if you should be using one of the other run methods
-  instead.
-</Callout>
+## Design principles
 
-There's several more `run` functions available on the `Effect` module, but these are the some common ones you may use.
+The recommended approach is to design your program with the majority of its logic as Effects. It's advisable to use the `run` functions closer to the "edge" of your program. This approach allows for greater flexibility in executing your program and building sophisticated Effects.
 
-The ideal way to work with Effects is to have as much of your program as an Effect as possible. You should try to use the `run` functions as close to the "edge" of your program as possible. This will allow you to have the most flexibility in how you run your program and build up very sophisticated Effects.
+## Cheatsheet
+
+The table provides a summary of the available `run*` functions, along with their input and output types, allowing you to choose the appropriate function based on your needs.
+
+| **Name**           | **Given**                 | **To**                  |
+| ------------------ | ------------------------- | ----------------------- |
+| `runSync`          | `Effect<never, never, A>` | `A`                     |
+| `runPromise`       | `Effect<never, never, A>` | `Promise<A>`            |
+| `runPromiseEither` | `Effect<never, E, A>`     | `Promise<Either<E, A>>` |
+| `runCallback`      | `Effect<never, E, A>`     | `Cancel<E, A>`          |
+
+You can find the complete list of `run*` functions [here](https://effect-ts.github.io/io/modules/Effect.ts.html#execution).
+
+## What to read next
+
+In the next tutorial, we will learn how to build more complex programs by creating **pipelines**.
+Check out the next tutorial on [Build a pipeline](pipeline) to find out more.
