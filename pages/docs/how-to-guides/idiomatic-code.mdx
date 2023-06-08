@@ -22,7 +22,7 @@ import * as Schema from "@effect/schema/Schema"
 Types and interfaces should be "namespaced" as well. You may think it's
 verbose, but it's explicit, and the code written in this style will never clash.
 
-```
+```ts
 Effect.Effect<SomeRequirement, SomeError, SomeResult>
 ```
 
@@ -65,14 +65,17 @@ const example = pipe(
 
 Here, `Random.next()` is getting piped as an argument to `Effect.flatMap`.
 
-<Callout>
+<Callout type="info">
   Many functions in Effect have `dual` APIs, which means that you can either
   call it `data-first` or `data-last`. Here, you can see how `Effect.flatMap` is
   _after_ the call to `Random.next()` in the `pipe`, so `Random.next()` is
-  passed in last (i.e. `data-last`). Similarly, you can also call
-  `Effect.flatMap(Random.next(), (n) => ...)` directly without `pipe` with
-  `Random.next()` as the first argument (i.e. `data-first`) and get the same
-  result.
+  passed in last (i.e. `data-last`).
+
+Similarly, you can also call
+`Effect.flatMap(Random.next(), (n) => ...)` directly without `pipe` with
+`Random.next()` as the first argument (i.e. `data-first`) and get the same
+result.
+
 </Callout>
 
 ### Using generators
@@ -124,7 +127,7 @@ const example = Effect.gen(function* ($) {
 
 ### Using the `Do` simulation
 
-To avoid nested pipes and generators, Effect has a `Do` function which can be used to simulate `Do` notation in other languages.
+To avoid nested pipes and generators, Effect has a `Do` function which can be used to simulate "do notation" in other languages.
 
 <Callout type="info">
   If you are familiar with Haskell or Scala, you may be familiar with `Do`

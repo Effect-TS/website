@@ -146,11 +146,14 @@ const SendEmail = Request.tagged<SendEmail>("SendEmail")
 type ApiRequest = GetTodos | GetUserById | SendEmail
 ```
 
-<Callout type="info">
+<Callout type="warning">
   We are using `@effect/data/Data` behind the scenes and given that requests
-  will be compared using `@effect/data/Equal` for caching it is important to
-  make sure they are compared by value. If you nest objects / arrays in your
-  model, you should use Data.struct / Data.case / Data.tuple / etc.
+  will be compared using `@effect/data/Equal` for caching **it is important to
+  make sure they are compared by value**.
+
+If you nest objects / arrays in your
+model, you should use Data.struct / Data.case / Data.tuple / etc.
+
 </Callout>
 
 ## Declaring Resolvers
