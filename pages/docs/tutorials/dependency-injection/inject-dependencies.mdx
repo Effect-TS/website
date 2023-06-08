@@ -1,6 +1,6 @@
 import { Callout } from "nextra-theme-docs"
 
-# Services
+# Manage dependencies
 
 Until now, we've only worked with Effects that have no context. In `Effect<R, E, A>`, R was always the `never` type.
 
@@ -95,7 +95,9 @@ To provide an actual implementation of `CustomRandom`, we need to use the `provi
 const provideServiceExample = pipe(
   //    ^?
   serviceExample,
-  Effect.provideService(CustomRandom, { next: () => Effect.succeed(Math.random()) })
+  Effect.provideService(CustomRandom, {
+    next: () => Effect.succeed(Math.random()),
+  })
 )
 ```
 
