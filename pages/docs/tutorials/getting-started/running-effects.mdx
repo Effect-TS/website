@@ -84,43 +84,6 @@ const result: Promise<Either.Either<never, string>> = Effect.runPromiseEither(
 )
 ```
 
-## runCallback
-
-The `runCallback` function is used to execute an Effect and provide a callback function to handle the result asynchronously.
-It is useful when you need to perform side effects or interact with APIs that follow the callback-style programming model.
-
-```ts
-import * as Effect from "@effect/io/Effect"
-import * as NodeFS from "node:fs"
-import * as Exit from "@effect/io/Exit"
-
-const readTodos = Effect.async<never, NodeJS.ErrnoException, Buffer>(
-  (resume) => {
-    NodeFS.readFile("todos.txt", (error, data) => {
-      if (error) {
-        resume(Effect.fail(error))
-      } else {
-        resume(Effect.succeed(data))
-      }
-    })
-  }
-)
-
-Effect.runCallback(readTodos, (result) =>
-  Exit.match(
-    result,
-    (cause) => console.error(cause),
-    (todos) => console.log(`I'm done! ${todos}`)
-  )
-)
-```
-
-In this example, `readTodos` is an Effect that reads the contents of a file asynchronously using the Node.js `fs` module.
-The `runCallback` function executes the Effect and provides a callback function to handle the result.
-Inside the callback function, we use `Exit.match` to pattern match on the result and handle both success and failure cases.
-If an error occurs while reading the file, we log the cause of the error, and if the reading is successful, we log a success message
-along with the todos.
-
 ## Design principles
 
 The recommended approach is to design your program with the majority of its logic as Effects. It's advisable to use the `run` functions closer to the "edge" of your program. This approach allows for greater flexibility in executing your program and building sophisticated Effects.
@@ -129,12 +92,12 @@ The recommended approach is to design your program with the majority of its logi
 
 The table provides a summary of the available `run*` functions, along with their input and output types, allowing you to choose the appropriate function based on your needs.
 
-| **Name**           | **Given**                 | **To**                  |
-| ------------------ | ------------------------- | ----------------------- |
-| `runSync`          | `Effect<never, never, A>` | `A`                     |
-| `runPromise`       | `Effect<never, never, A>` | `Promise<A>`            |
-| `runPromiseEither` | `Effect<never, E, A>`     | `Promise<Either<E, A>>` |
-| `runCallback`      | `Effect<never, E, A>`     | `Cancel<E, A>`          |
+| **Name**           | **Given**             | **To**                  |
+| ------------------ | --------------------- | ----------------------- |
+| `runSync`          | `Effect<never, E, A>` | `A`                     |
+| `runSyncEither`    | `Effect<never, E, A>` | `Either<E, A>`          |
+| `runPromise`       | `Effect<never, E, A>` | `Promise<A>`            |
+| `runPromiseEither` | `Effect<never, E, A>` | `Promise<Either<E, A>>` |
 
 You can find the complete list of `run*` functions [here](https://effect-ts.github.io/io/modules/Effect.ts.html#execution).
 
