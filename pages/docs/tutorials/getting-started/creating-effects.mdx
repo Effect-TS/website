@@ -4,44 +4,44 @@ import { Callout, Cards, Card } from "nextra-theme-docs"
 
 Effect provides different ways to create effects. In this tutorial, we will cover some of the common ones that you can use.
 
-## Creating an Effect from a value
+## From a value
 
 To create an `Effect` from a value, you can use the `succeed` constructor:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 
-const fromValue = Effect.succeed("Hello, World!")
+const program = Effect.succeed(42)
 ```
 
-By inspecting the type of `fromValue` we can see that it is:
+The `program` Effect has the type `Effect<never, never, number>` and can be interpreted as an Effect that:
+
+- does not require any context (`never`)
+- does not produce any expected error (`never`)
+- succeeds with a value of type `number`
+
+## From an error
+
+To create an Effect that represents an error, you can use the `fail` constructor:
 
 ```ts
-//       ①     ②      ③
-Effect<never, never, string>
+import * as Effect from "@effect/io/Effect"
 
-/*
-① = the context channel
-② = the error channel
-③ = the success channel
-*/
+const program = Effect.fail("my error")
 ```
 
-The type `Effect<never, never, string>` can be interpreted as an Effect that:
+The `program` Effect has the type `Effect<never, string, never>` and can be interpreted as an Effect that:
 
-- does not require any context (type `never`)
-- does not produce any expected error (type `never`)
-- succeeds with a value of type `string`
+- does not require any context (`never`)
+- fails with an expected error of type `string`
+- does not produce any value (`never`)
 
-## Creating an Effect from a "thunk"
+## From a "thunk"
 
 In JavaScript, you can defer a synchronous computation using a "thunk".
 
 <Callout type="info">
-A "thunk" is a function that takes no arguments and may return some value, for example:
-
-`const myThunk = () => 42{:ts}`.
-
+  A "thunk" is a function that takes no arguments and may return some value.
 </Callout>
 
 Thunks are useful for delaying the computation of a value until it is needed.
@@ -51,70 +51,121 @@ You can create an `Effect` from a thunk using the `sync` constructor:
 ```ts
 import * as Effect from "@effect/io/Effect"
 
-const logHelloWorld = Effect.sync(() => {
+const program = Effect.sync(() => {
   console.log("Hello, World!")
   return 42
 })
 ```
 
 In the above example, `Effect.sync` is used to defer the side-effect of writing to the console.
-The created Effect has the type `Effect<never, never, number>` because the thunk returns the value `42`.
+The `program` Effect has the type `Effect<never, never, number>` because the thunk returns the value `42`.
 
 Note that nothing is logged to the console yet when you inspect it.
-This is because `logHelloWorld` represents the action of writing to the console, but nothing happens until you explicitly run your program.
+This is because `program` represents the action of writing to the console, but nothing happens until you explicitly run your program.
 
-## Creating an Effect from a Promise
+<Callout type="warning">
+  The thunk passed to `sync` **should never throw** errors.
+</Callout>
+
+If the synchronous computation within the thunk may throw an error, you can use the `tryCatch` constructor
+to control what gets propagated to the error channel:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const program = Effect.tryCatch(
+  () => JSON.parse(""), // JSON.parse may throw for bad input
+  (e) => new Error(`something went wrong ${e}`) // remap the error
+)
+```
+
+The `program` Effect has the type `Effect<never, Error, any>`
+
+You can think of `tryCatch` as a similar pattern to the traditional `try-catch` block in JavaScript:
+
+```ts
+try {
+  return JSON.parse("")
+} catch (e) {
+  throw new Error(`something went wrong ${e}`)
+}
+```
+
+## From a Promise
 
 If you're dealing with asynchronous side effects that return a `Promise`, you can use the `promise` constructor:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 
-const fetchFirstTodo = Effect.promise(() =>
-  fetch("https://jsonplaceholder.typicode.com/todos/1")
+const program = Effect.promise(() => Promise.resove(42))
+```
+
+The `program` Effect has the type `Effect<never, never, number>`.
+
+<Callout type="warning">
+  The `Promise` passed to `promise` **should never reject**.
+</Callout>
+
+If the `Promise` within the thunk may reject, you can use the `tryCatchPromise` constructor
+to control what gets propagated to the error channel:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const program = Effect.tryCatchPromise(
+  () => fetch("https://jsonplaceholder.typicode.com/todos/1"),
+  (e) => new Error(`something went wrong ${e}`)
 )
 ```
 
-## Creating an Effect from a callback
+The `program` Effect has the type `Effect<never, Error, Response>`.
+
+## From a callback
 
 Sometimes you have to work with APIs that don't support `async/await` or `Promise` and instead use the callback style.
-
 To handle callback-based APIs, Effect provides the `async` constructor.
 
-For example, let's wrap the `readFile` function from the Node.js `fs` module with Effect:
+For example, let's wrap the `readFile` async API from the Node.js `fs` module with Effect:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as NodeFS from "node:fs"
 
-const readTodos = Effect.async<never, NodeJS.ErrnoException, Buffer>(
-  (resume) => {
-    NodeFS.readFile("todos.txt", (error, data) => {
-      if (error) {
-        resume(Effect.fail(error))
-      } else {
-        resume(Effect.succeed(data))
-      }
-    })
-  }
-)
+const program = Effect.async<never, NodeJS.ErrnoException, Buffer>((resume) => {
+  NodeFS.readFile("todos.txt", (error, data) => {
+    if (error) {
+      resume(Effect.fail(error))
+    } else {
+      resume(Effect.succeed(data))
+    }
+  })
+})
 ```
 
 In the above example, we manually annotate the types when calling `Effect.async` because TypeScript cannot infer the type parameters for a callback
 based on the return value inside the callback body. Annotating the types ensures that the values provided to `resume` match the expected types.
 
-You can seamlessly mix synchronous and asynchronous code within the Effect framework. **Everything becomes an Effect**, enabling you to handle different types of effects in a unified way.
+The `program` Effect has the type `Effect<never, NodeJS.ErrnoException, Buffer>`.
+
+## Design principles
+
+You can seamlessly mix synchronous and asynchronous code within the Effect framework.
+**Everything becomes an Effect**, enabling you to handle different types of side effects in a unified way.
 
 ## Cheatsheet
 
 The table provides a summary of the available constructors, along with their input and output types, allowing you to choose the appropriate function based on your needs.
 
-| **Name**  | **Given**          | **To**                    |
-| --------- | ------------------ | ------------------------- |
-| `succeed` | `A`                | `Effect<never, never, A>` |
-| `sync`    | `() => A`          | `Effect<never, never, A>` |
-| `promise` | `() => Promise<A>` | `Effect<never, never, A>` |
-| `async`   | `(E, A) => void`   | `Effect<never, E, A>`     |
+| **Name**          | **Given**                          | **To**                    |
+| ----------------- | ---------------------------------- | ------------------------- |
+| `succeed`         | `A`                                | `Effect<never, never, A>` |
+| `fail`            | `E`                                | `Effect<never, E, never>` |
+| `sync`            | `() => A`                          | `Effect<never, never, A>` |
+| `tryCatch`        | `() => A`, `unknown => E`          | `Effect<never, E, A>`     |
+| `promise`         | `() => Promise<A>`                 | `Effect<never, never, A>` |
+| `tryCatchPromise` | `() => Promise<A>`, `unknown => E` | `Effect<never, E, A>`     |
+| `async`           | `(E, A) => void`                   | `Effect<never, E, A>`     |
 
 You can find the complete list of constructors [here](https://effect-ts.github.io/io/modules/Effect.ts.html#constructors).
 
