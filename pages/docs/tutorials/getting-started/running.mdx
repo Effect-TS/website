@@ -1,4 +1,4 @@
-import { Callout } from "nextra-theme-docs"
+import { Design, Error } from "../../../../components/Callout"
 
 # Running Effects
 
@@ -22,10 +22,10 @@ const result: number = Effect.runSync(program)
 
 If you check the console, you will see the message `"Hello, World!"` printed.
 
-<Callout type="warning">
+<Error>
   `runSync` should only be used if your Effect doesn't fail and doesn't perform
   any asynchronous tasks
-</Callout>
+</Error>
 
 ## runSyncEither
 
@@ -45,10 +45,10 @@ const program: Effect.Effect<never, Error, any> = Effect.tryCatch(
 const result: Either.Either<Error, any> = Effect.runSyncEither(program)
 ```
 
-<Callout type="warning">
+<Error>
   `runSyncEither` should only be used if your Effect doesn't perform any
   asynchronous tasks
-</Callout>
+</Error>
 
 ## runPromise
 
@@ -65,9 +65,7 @@ const program: Effect.Effect<never, never, number> = Effect.promise(() =>
 const result: Promise<string> = Effect.runPromise(program)
 ```
 
-<Callout type="warning">
-  `runPromise` should only be used if your Effect doesn't fail
-</Callout>
+<Error>`runPromise` should only be used if your Effect doesn't fail</Error>
 
 ## runPromiseEither
 
@@ -84,9 +82,12 @@ const result: Promise<Either.Either<never, string>> = Effect.runPromiseEither(
 )
 ```
 
-## Design principles
-
-The recommended approach is to design your program with the majority of its logic as Effects. It's advisable to use the `run` functions closer to the "edge" of your program. This approach allows for greater flexibility in executing your program and building sophisticated Effects.
+<Design>
+  The recommended approach is to design your program with the majority of its
+  logic as Effects. It's advisable to use the `run*` functions closer to the
+  "edge" of your program. This approach allows for greater flexibility in
+  executing your program and building sophisticated Effects.
+</Design>
 
 ## Cheatsheet
 

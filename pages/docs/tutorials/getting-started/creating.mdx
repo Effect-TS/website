@@ -1,4 +1,4 @@
-import { Callout, Cards, Card } from "nextra-theme-docs"
+import { Info, Idea, Error } from "../../../../components/Callout"
 
 # Create your first Effect
 
@@ -40,9 +40,9 @@ The `program` Effect has the type `Effect<never, string, never>` and can be inte
 
 In JavaScript, you can defer a synchronous computation using a "thunk".
 
-<Callout type="info">
+<Info>
   A "thunk" is a function that takes no arguments and may return some value.
-</Callout>
+</Info>
 
 Thunks are useful for delaying the computation of a value until it is needed.
 
@@ -63,9 +63,7 @@ The `program` Effect has the type `Effect<never, never, number>` because the thu
 Note that nothing is logged to the console yet when you inspect it.
 This is because `program` represents the action of writing to the console, but nothing happens until you explicitly run your program.
 
-<Callout type="warning">
-  The thunk passed to `sync` **should never throw** errors.
-</Callout>
+<Error>The thunk passed to `sync` should never throw errors.</Error>
 
 If the synchronous computation within the thunk may throw an error, you can use the `tryCatch` constructor
 to control what gets propagated to the error channel:
@@ -103,9 +101,7 @@ const program = Effect.promise(() => Promise.resove(42))
 
 The `program` Effect has the type `Effect<never, never, number>`.
 
-<Callout type="warning">
-  The `Promise` passed to `promise` **should never reject**.
-</Callout>
+<Error>The `Promise` passed to `promise` should never reject.</Error>
 
 If the `Promise` within the thunk may reject, you can use the `tryCatchPromise` constructor
 to control what gets propagated to the error channel:
@@ -148,10 +144,11 @@ based on the return value inside the callback body. Annotating the types ensures
 
 The `program` Effect has the type `Effect<never, NodeJS.ErrnoException, Buffer>`.
 
-## Design principles
-
-You can seamlessly mix synchronous and asynchronous code within the Effect framework.
-**Everything becomes an Effect**, enabling you to handle different types of side effects in a unified way.
+<Idea>
+  You can seamlessly mix synchronous and asynchronous code within the Effect
+  framework. Everything becomes an Effect, enabling you to handle different
+  types of side effects in a unified way.
+</Idea>
 
 ## Cheatsheet
 
@@ -172,4 +169,4 @@ You can find the complete list of constructors [here](https://effect-ts.github.i
 ## What to read next
 
 Now that we know how to create effects, it's time to learn how to run them.
-Check out the next tutorial on [Running Effects](running-effects) to find out more.
+Check out the next tutorial on [Running Effects](running) to find out more.
