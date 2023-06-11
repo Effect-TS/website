@@ -1,4 +1,4 @@
-import { Design, Error } from "../../../../components/Callout"
+import { Design, Warning } from "../../../../components/Callout"
 
 # Running Effects
 
@@ -7,25 +7,30 @@ To execute an `Effect`, we can utilize a variety of `run*` functions provided by
 ## runSync
 
 The `runSync` function is used to execute an Effect synchronously, which means it runs immediately and returns the result.
-It is useful when your effect does not involve any asynchronous tasks and you need the result immediately.
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 
-const program: Effect.Effect<never, never, number> = Effect.sync(() => {
-  console.log("Hello, World!")
-  return 42
-})
-
-const result: number = Effect.runSync(program)
+Effect.runSync(
+  Effect.sync(() => {
+    console.log("Hello, World!")
+    return 1
+  })
+) // 1
 ```
 
 If you check the console, you will see the message `"Hello, World!"` printed.
 
-<Error>
-  `runSync` should only be used if your Effect doesn't fail and doesn't perform
-  any asynchronous tasks
-</Error>
+<Warning>
+  `runSync` will throw an error if your Effect fails or performs any
+  asynchronous tasks
+</Warning>
+
+```ts
+Effect.runSync(Effect.fail("error")) // throws
+
+Effect.runSync(Effect.promise(() => Promise.resolve(1))) // throws
+```
 
 ## runSyncEither
 
@@ -35,37 +40,59 @@ It is useful when your effect does not involve any asynchronous tasks and you ne
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import * as Either from "@effect/data/Either"
 
-const program: Effect.Effect<never, Error, any> = Effect.tryCatch(
-  () => JSON.parse(""), // JSON.parse may throw for bad input
-  (e) => new Error(`something went wrong ${e}`) // remap the error
-)
+Effect.runSyncEither(Effect.succeed(1)) // { _tag: 'Right', right: 1 }
 
-const result: Either.Either<Error, any> = Effect.runSyncEither(program)
+Effect.runSyncEither(Effect.fail("error")) // { _tag: 'Left', left: 'error' }
 ```
 
-<Error>
-  `runSyncEither` should only be used if your Effect doesn't perform any
-  asynchronous tasks
-</Error>
+<Warning>
+  `runSyncEither` will throw an error if your Effect performs any asynchronous
+  tasks
+</Warning>
 
-## runPromise
+```ts
+Effect.runSyncEither(Effect.promise(() => Promise.resolve(1))) // throws
+```
 
-The `runPromise` function is used to execute an Effect and obtain the result as a `Promise`.
-It is useful when your effect involves asynchronous tasks and you want to work with the result using `Promise`-based APIs.
+## runSyncExit
+
+The `runSyncExit` function is used to execute an Effect synchronously, which means it runs immediately and returns the result as an `Exit`
+(a data type used to represent the possibility of either a successful value or a failure value).
+It is useful when your effect does not involve any asynchronous tasks and you need to handle both the success or failure outcomes.
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 
-const program: Effect.Effect<never, never, number> = Effect.promise(() =>
-  Promise.resolve(42)
-)
+Effect.runSyncExit(Effect.succeed(1)) // { _tag: 'Success', ... }
 
-const result: Promise<string> = Effect.runPromise(program)
+Effect.runSyncExit(Effect.fail("error")) // { _tag: 'Failure', ... }
 ```
 
-<Error>`runPromise` should only be used if your Effect doesn't fail</Error>
+<Warning>
+  `runSyncExit` will throw an error if your Effect performs any asynchronous
+  tasks
+</Warning>
+
+```ts
+Effect.runSyncExit(Effect.promise(() => Promise.resolve(1))) // throws
+```
+
+## runPromise
+
+The `runPromise` function is used to execute an Effect and obtain the result as a `Promise`.
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+Effect.runPromise(Effect.succeed(1)) // Promise { 1 }
+```
+
+<Warning>`runPromise` will reject with an error if your Effect fails</Warning>
+
+```ts
+Effect.runPromise(Effect.fail("error")) // rejected Promise
+```
 
 ## runPromiseEither
 
@@ -75,12 +102,27 @@ It is useful when you need to handle both the success or failure outcomes.
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import * as Either from "@effect/data/Either"
 
-const result: Promise<Either.Either<never, string>> = Effect.runPromiseEither(
-  Effect.succeed("Hello, World!")
-)
+Effect.runPromiseEither(Effect.succeed(1)) // Promise { { _tag: 'Right', right: 1 } }
+
+Effect.runPromiseEither(Effect.fail("error")) // Promise { { _tag: 'Left', left: 'error' } }
 ```
+
+## runPromiseExit
+
+The `runPromiseExit` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an `Exit`
+(a data type used to represent the possibility of either a successful value or a failure value).
+It is useful when you need to handle both the success or failure outcomes.
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+Effect.runPromiseExit(Effect.succeed(1)) // Promise { _tag: 'Success', ... } }
+
+Effect.runPromiseExit(Effect.fail("error")) // Promise { { _tag: 'Failure', ... } }
+```
+
+## Cheatsheet
 
 <Design>
   The recommended approach is to design your program with the majority of its
@@ -89,16 +131,16 @@ const result: Promise<Either.Either<never, string>> = Effect.runPromiseEither(
   executing your program and building sophisticated Effects.
 </Design>
 
-## Cheatsheet
-
 The table provides a summary of the available `run*` functions, along with their input and output types, allowing you to choose the appropriate function based on your needs.
 
 | **Name**           | **Given**             | **To**                  |
 | ------------------ | --------------------- | ----------------------- |
 | `runSync`          | `Effect<never, E, A>` | `A`                     |
 | `runSyncEither`    | `Effect<never, E, A>` | `Either<E, A>`          |
+| `runSyncExit`      | `Effect<never, E, A>` | `Exit<E, A>`            |
 | `runPromise`       | `Effect<never, E, A>` | `Promise<A>`            |
 | `runPromiseEither` | `Effect<never, E, A>` | `Promise<Either<E, A>>` |
+| `runPromiseExit`   | `Effect<never, E, A>` | `Promise<Exit<E, A>>`   |
 
 You can find the complete list of `run*` functions [here](https://effect-ts.github.io/io/modules/Effect.ts.html#execution).
 
