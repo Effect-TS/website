@@ -1,5 +1,193 @@
-# Build a pipeline of effects
+import { Design } from "@/components/Callout"
 
-import { Stub } from "@/components/Stub"
+# Building pipelines
 
-<Stub />
+Effect pipelines allow for the composition and sequencing of operations on values, enabling the transformation and manipulation of data in a concise and modular manner.
+
+In this tutorial you will learn:
+
+- How `pipe` works and how to use it.
+- How `map` works with an example.
+- How `flatMap` works with an example.
+- An example that combines all three functions to build a pipeline.
+
+Let's get started!
+
+## Understanding and Using `pipe`
+
+The `pipe` function is a utility that allows us to compose functions in a readable and sequential manner. It takes the output of one function and passes it as the input to the next function in the pipeline. This enables us to build complex transformations by chaining multiple functions together.
+
+The basic syntax of `pipe` is as follows:
+
+```ts
+import { pipe } from "@effect/data/Function";
+
+const result = pipe(input, func1, func2, ..., funcN);
+```
+
+Here, `input` is the initial value, and `func1`, `func2`, ..., `funcN` are the functions to be applied in sequence. The result of each function becomes the input for the next function, and the final result is returned.
+
+Let's see an example to understand it better.
+
+```ts
+import * as assert from "node:assert"
+import { pipe } from "@effect/data/Function"
+
+const increment = (x: number) => x + 1
+const double = (x: number) => x * 2
+const subtractTen = (x: number) => x - 10
+
+const result = pipe(5, increment, double, subtractTen)
+
+assert.equal(result, 2)
+```
+
+In the above example, we start with the initial value of 5. The `increment` function adds 1 to the initial value, resulting in 6.
+The `double` function doubles the value, giving us 12. Finally, the `subtractTen` function subtracts 10 from 12, resulting in the final output of 2.
+
+## Understanding `map`
+
+The `map` function is used to transform the value inside an `Effect` data type. It applies a given function to the value within the `Effect` and returns a new `Effect` with the transformed value.
+
+The syntax for `map` is as follows:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const resultEffect = Effect.map(effect, func)
+```
+
+Here, `func` is the transformation function to be applied, and `effect` is the input `Effect`.
+
+Let's see an example to understand it better.
+
+```ts
+import * as assert from "node:assert"
+import * as Effect from "@effect/io/Effect"
+
+const increment = (x: number) => x + 1
+
+const effect = Effect.succeed(5)
+const mappedEffect = Effect.map(effect, increment)
+
+assert.equal(Effect.runSync(mappedEffect), 6)
+```
+
+In the above example:
+
+- we have an `Effect` created using `succeed` with an initial value of 5
+- we use `map` to apply the `increment` function to the value inside the `Effect`
+
+the resulting `Effect` contains the transformed value of 6.
+
+## Data-First and Data-Last
+
+When using the `map` function and many other APIs in the Effect ecosystem, you'll encounter two variants: the "data-first" variant and the "data-last" variant. Let's explore each variant and understand how they differ.
+
+The "data-first" variant is the one we have been using so far. In this variant, the Effect is passed as the first argument to the `map` function:
+
+```ts
+const mappedEffect = Effect.map(effect, increment)
+```
+
+The "data-last" variant of `map` uses the `pipe` function. In this variant, the Effect is passed as the first argument to the `pipe` function, followed by the `map` function:
+
+```ts
+const mappedEffect = pipe(effect, Effect.map(increment))
+```
+
+Both variants have their advantages, and the choice depends on personal preference and the coding style of the project.
+
+<Design>
+  **Choosing Between the Variants**. It's important to note that both variants
+  achieve the same result. They are simply two different ways of expressing the
+  code. You can choose the variant that best fits your coding style and makes
+  the code more readable for you and your team.
+</Design>
+
+## Understanding `flatMap`
+
+The `flatMap` function is used to chain computations that produce `Effect` values.
+It takes a transformation function that produces a new `Effect`, and then flattens the nested `Effect` structure.
+
+The syntax for `flatMap` is as follows:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const resultEffect = Effect.flatMap(effect, func)
+```
+
+Here, `func` is the transformation function that returns a new `Effect`, and `effect` is the input `Effect` to be transformed.
+
+Let's see an example to better understand how it works.
+
+```ts
+import * as assert from "node:assert"
+import * as Effect from "@effect/io/Effect"
+
+const divideByTwo = (x: number): Effect.Effect<never, never, number> =>
+  Effect.succeed(x / 2)
+
+const effect = Effect.succeed(10)
+const flatMappedEffect = Effect.flatMap(effect, divideByTwo)
+
+assert.equal(Effect.runSync(flatMappedEffect), 5)
+```
+
+In the above example:
+
+- we create an `Effect` using `succeed` with an initial value of 10
+- we then use `flatMap` to apply the `divideByTwo` function to the value inside the `Effect`
+
+the resulting `Effect` contains the value of 5, which is the result of dividing 10 by 2.
+
+It's worth noting that just like the `map` function, the `flatMap` function in Effect also has two variants:
+
+The "data-first" variant of `flatMap` is the one we have been using so far:
+
+```ts
+const resultEffect = Effect.flatMap(effect, func)
+```
+
+On the other hand, the "data-last" variant of `flatMap` can be used with the `pipe` function:
+
+```ts
+const resultEffect = pipe(effect, Effect.flatMap(func))
+```
+
+## Build your first pipeline
+
+Now, let's combine all three functions to build a pipeline that performs a series of transformations on a value.
+
+```ts
+import * as assert from "node:assert"
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+
+const addOne = (x: number) => x + 1
+const multiplyByTwo = (x: number) => x * 2
+const divideByTen = (x: number): Effect.Effect<never, never, number> =>
+  Effect.succeed(x / 10)
+
+const result = pipe(
+  5,
+  addOne,
+  multiplyByTwo,
+  Effect.succeed,
+  Effect.flatMap(divideByTen),
+  Effect.map((x) => `Result: ${x}`)
+)
+
+assert.equal(Effect.runSync(result), "Result: 1.2")
+```
+
+In this example, we start with the initial value of 5. We use `pipe` to chain the transformations:
+
+- `addOne` adds 1
+- `multiplyByTwo` multiplies by 2
+- `succeed` lifts the value into an `Effect`
+- `divideByTen` divides by 10 using an `Effect` transformation
+- and finally, `map` transforms the resulting value by appending `"Result: "` to it
+
+This example demonstrates how the `pipe` function can be used to construct a pipeline by chaining multiple transformations together. Each function in the pipeline operates on the result of the previous function, allowing you to perform a series of computations in a concise and readable manner.
