@@ -1,9 +1,57 @@
 # Glossary
 
-## Local Effect workflows
+## Dual (API)
+
+In the context of APIs, "dual" refers to a function that supports both the "data-first" and "data-last" variants.
+It means that the API can be used interchangeably with either style, depending on the developer's preference.
+
+One example of a dual API is the `map` function of the `Effect` data type.
+
+In the "data-first" variant, the effect is passed as the first argument to `map`:
+
+```ts
+Effect.map(Effect.succeed(1), (n) => n + 1)
+```
+
+while in the "data-last" variant, the effect is passed as the first argument to the `pipe` function, followed by the `map` function:
+
+```ts
+pipe(
+  Effect.succeed(1),
+  Effect.map((n) => n + 1)
+)
+```
+
+## Pipeline (of Effects)
+
+A "pipeline" refers to a series of sequential operations performed on `Effect` values to achieve a desired result.
+When working with `Effect`, a pipeline typically consists of operations such as mapping, flat-mapping, filtering, and error handling, among others. Each operation in the pipeline takes an input `Effect` and produces an output `Effect`, which becomes the input for the next operation in the sequence.
+
+## Expected Errors
+
+Also referred to as _failures_, _typed errors_ or _recoverable errors_.
+
+These are errors that developers anticipate and expect as part of normal program execution.
+Expected errors are tracked at the type level by the `Effect` data type in the "Error" channel:
+
+```ts /Error/
+Effect<Context, Error, Value>
+```
+
+## Unexpected Errors
+
+Also referred to as _defects_, _untyped errors_, or _unrecoverable errors_.
+
+These are errors that occur unexpectedly and are not part of the intended program flow.
+
+## Interruption
+
+Interruption errors occur when the execution of a running fiber is deliberately interrupted.
+
+## Local workflow
 
 Things that execute within a single execution boundary.
 
-## Distributed Effect workflows
+## Distributed workflow
 
 Things that may execute across multiple execution boundaries.
