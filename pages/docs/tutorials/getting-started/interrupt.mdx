@@ -3,3 +3,48 @@
 import { Stub } from "@/components/Stub"
 
 <Stub />
+
+---
+
+**Examples**
+
+Without interruptions
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+import { pipe } from "@effect/data/Function"
+
+const program = pipe(
+  Effect.logInfo("start"),
+  Effect.flatMap(() => Effect.sleep(Duration.millis(200))),
+  Effect.flatMap(() => Effect.logInfo("done"))
+)
+
+Effect.runPromise(program).catch((e) => console.log(`interrupted: ${e}`))
+/*
+...more infos... message=start
+...more infos... message=done
+*/
+```
+
+With interruptions
+
+```ts {8}
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+import { pipe } from "@effect/data/Function"
+
+const program = pipe(
+  Effect.logInfo("start"),
+  Effect.flatMap(() => Effect.sleep(Duration.millis(200))),
+  Effect.flatMap(() => Effect.interrupt()),
+  Effect.flatMap(() => Effect.logInfo("done"))
+)
+
+Effect.runPromise(program).catch((e) => console.log(`interrupted: ${e}`))
+/*
+...more infos... message=start
+interrupted: All fibers interrupted without errors.
+*/
+```

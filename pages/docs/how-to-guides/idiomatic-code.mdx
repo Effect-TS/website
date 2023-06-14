@@ -1,32 +1,43 @@
-import { Callout } from "nextra-theme-docs"
+import { Info, Warning } from "@/components/Callout"
 
 # How to write idiomatic code
 
-Effect style guide is a set of recommendations for writing Effect modules.
+The Effect style guide provides recommendations for writing Effect modules.
 
 ## Modules
 
-Effect ecosystem consists of many modules. Always use **`import * as ...`**
-to avoid name conflicts. Modules are like namespaces.
+The Effect ecosystem consists of multiple modules. To avoid name conflicts, it is recommended to use the
+
+**`import * as ...`**
+
+syntax when importing modules.
+This approach helps create namespaces for the modules.
+
+Examples:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import * as Either from "@effect/data/Either"
-import * as Schema from "@effect/schema/Schema"
-
-// Effect.runCallback
-// Either.fromNullable
-// Schema.struct
+import * as Context from "@effect/data/Context"
+import * as Duration from "@effect/data/Duration"
 ```
 
-Types and interfaces should be "namespaced" as well. You may think it's
-verbose, but it's explicit, and the code written in this style will never clash.
+### Types and interfaces
+
+Types and interfaces should also be "namespaced" to prevent clashes. While it may seem verbose, this explicit style ensures that code written in this manner will never have naming conflicts.
+
+Examples:
 
 ```ts
-Effect.Effect<SomeRequirement, SomeError, SomeResult>
+import * as Effect from "@effect/io/Effect"
+
+// ✅
+const good: Effect.Effect<Random, Error, number> = ...
+
+// ❌
+const bad: Effect<Random, Error, number> = ...
 ```
 
-There is only one exception. Functions from module Function shall be used directly.
+There is only one exception to this rule. Functions from the `Function` module can be used directly without the namespace.
 
 ```ts
 import { pipe } from "@effect/data/Function"
@@ -34,28 +45,34 @@ import { pipe } from "@effect/data/Function"
 
 ## Writing Code with Effect
 
-Nested callbacks are a common problem in JavaScript, and are often handled by using async/await in most modern JavaScript codebases. However, since we are working in the world of Effects, the available APIs are a bit different.
+Nested callbacks are a common challenge in JavaScript, often addressed using `async`/`await` syntax in modern JavaScript codebases. However, when working with Effects, the available APIs are slightly different.
 
-This section will cover the three common ways to organize Effectful code:
+This section will cover three common ways to organize Effectful code:
 
-1. Using `pipe`
-
-2. Using generators
-
-3. Using the `Do` simulation
+- Using `pipe`
+- Using generators
+- Using the `Do` simulation
 
 ### Using pipe
 
-The pipe function is a common way to organize Effectful code. It is a function that takes a value and a series of functions, and applies the functions to the value in order.
+The basic syntax of `pipe` is as follows:
 
-The pipe function is defined in the Effect library, and is available in the Effect namespace.
+```ts
+import { pipe } from "@effect/data/Function";
+
+const result = pipe(input, func1, func2, ..., funcN);
+```
+
+Here, `input` is the initial value, and `func1`, `func2`, ..., `funcN` are the functions to be applied in sequence. The result of each function becomes the input for the next function, and the final result is returned.
+
+Let's see an example to understand it better.
 
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Random from "@effect/io/Random"
 
-const example = pipe(
+const program = pipe(
   Random.next(),
   Effect.flatMap((n) =>
     n > 0.5 ? Effect.succeed("yay!") : Effect.fail("oh no!")
@@ -63,30 +80,17 @@ const example = pipe(
 )
 ```
 
-Here, `Random.next()` is getting piped as an argument to `Effect.flatMap`.
-
-<Callout type="info">
-  Many functions in Effect have `dual` APIs, which means that you can either
-  call it `data-first` or `data-last`. Here, you can see how `Effect.flatMap` is
-  _after_ the call to `Random.next()` in the `pipe`, so `Random.next()` is
-  passed in last (i.e. `data-last`).
-
-Similarly, you can also call
-`Effect.flatMap(Random.next(), (n) => ...)` directly without `pipe` with
-`Random.next()` as the first argument (i.e. `data-first`) and get the same
-result.
-
-</Callout>
+In this example, `Random.next()` is piped as an argument to `Effect.flatMap`.
 
 ### Using generators
 
-Effect has a unique imperative API to solve for the problem of lots of nested callbacks when using functions like `pipe`. Instead of writing the code above, here's what it would look like if you were to write the same thing with the generator API.
+Effect provides a unique imperative API to address the issue of nested callbacks encountered when using functions like `pipe`. Instead of the previous code, let's see how it would look using the generator API:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Random from "@effect/io/Random"
 
-const example = Effect.gen(function* (_) {
+const program = Effect.gen(function* (_) {
   const n = yield* _(Random.next())
   if (n > 0.5) {
     return yield* _(Effect.succeed("yay!"))
@@ -96,28 +100,44 @@ const example = Effect.gen(function* (_) {
 })
 ```
 
-Note the `yield*`, which is used to yield the next value from the generator. Additionally, one can also observe the `_` argument passed to `Effect.gen`, which is just a function that serves as an "adapter" that allows TypeScript to track our Effect types. When yielding an Effect, you must pass the Effect you would like to `yield*` to the adapter function to ensure that TypeScript can properly infer the types.
+<Warning>
+  The generator API is only available when using the `downlevelIteration` flag
+  or with a `target` of `"es2015"` or higher in your `tsconfig.json` file
+</Warning>
 
-This way, you can write in a more imperative style rather than having to use `pipe` and `flatMap`.
+Note the usage of `yield*`, which is used to yield the next value from the generator.
 
-<Callout type="info">
-  The `_` symbol is just an argument name convention and is not a special
-  symbol in Effect. You are free to name it whatever you want (e.g. `$`, etc.).
-  The current convention is to use `_` as the argument name.
-</Callout>
+```ts {2}
+const program = Effect.gen(function* (_) {
+  const n = yield* _(Random.next())
+  /* ... */
+})
+```
 
-#### Using the Adapter Argument as a `pipe`
+When yielding an Effect, it is necessary to pass the Effect you want to `yield*` to the helper function `_`, which is passed as an argument to `Effect.gen`. This ensures that TypeScript can correctly infer the types.
 
-One thing to note is that the `_` argument also can be used as a pipe function. In the following example, `Random.next()` is piped into `Effect.either`.
+<Info>
+  The `_` symbol is just a convention for the argument name and is not a special
+  symbol in Effect. You are free to name it whatever you want (e.g., `$`,
+  etc...). The current convention is to use `_` as the argument name.
+</Info>
+
+#### Using the helper as a `pipe`
+
+The `_` helper can also be used as a `pipe` function.
+
+In the following example, `Random.next()` is piped into `Effect.map`.
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Random from "@effect/io/Random"
-import * as Either from "@effect/data/Either"
 
-const example = Effect.gen(function* (_) {
-  const n = yield* _(Random.next(), Effect.either)
-  if (Either.isRight(n)) {
+const program = Effect.gen(function* (_) {
+  const n = yield* _(
+    Random.next(),
+    Effect.map((n) => n * 2)
+  )
+  if (n > 0.5) {
     return yield* _(Effect.succeed("yay!"))
   } else {
     return yield* _(Effect.fail("oh no!"))
@@ -127,41 +147,64 @@ const example = Effect.gen(function* (_) {
 
 ### Using the `Do` simulation
 
-To avoid nested pipes and generators, Effect has a `Do` function which can be used to simulate "do notation" in other languages.
+The `Do` simulation in Effect allows you to write code in a more declarative style, resembling the "do notation" found in other programming languages.
+It creates a scope where you can define variables and perform operations on them using functions like `Effect.bind`, `Effect.let`, and `Effect.flatMap`.
 
-<Callout type="info">
-  If you are familiar with Haskell or Scala, you may be familiar with `Do`
-  notation or Scala's `for` comprehensions. Effect has a similar API.
-</Callout>
+Here's how the `Do` simulation works:
 
-Here's what a slightly more complex version of the above example would look like if you were to use `Do`.
+1. Import the necessary modules:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import * as Random from "@effect/io/Random"
 import { pipe } from "@effect/data/Function"
+```
 
-const example = pipe(
+2. Use the `pipe` function to start the `Do` simulation:
+
+```ts
+const program = pipe(
+  Effect.Do()
+  // ... rest of the code
+)
+```
+
+3. Inside the `Do` simulation scope, you can use the `Effect.bind` function to define variables and bind them to `Effect` values:
+
+```ts
+Effect.bind("variableName", () => effectValue)
+```
+
+- `variableName` is the name of the variable you want to define. You can choose any name you like.
+- `effectValue` is the `Effect` value that you want to bind to the variable. It can be the result of a function call or any other valid `Effect` value.
+
+4. You can accumulate multiple `Effect.bind` statements to define multiple variables within the scope:
+
+```ts
+Effect.bind("variable1", () => effectValue1),
+Effect.bind("variable2", ({ variable1 }) => effectValue2),
+// ... additional bind statements
+```
+
+5. Note that you can still use regular Effect functions like `Effect.flatMap` within the `Do` simulation. They will receive the accumulated variables as arguments within the scope.
+
+```ts
+Effect.flatMap(({ variable1, variable2 }) => {
+  // Perform operations using variable1 and variable2
+  // Return an `Effect` value as the result
+})
+```
+
+Here's an example to illustrate the usage of the `Do` simulation:
+
+```ts
+const program = pipe(
   Effect.Do(),
-  Effect.let("randomValue", () => 3),
-  Effect.bind("randomNumber", ({ randomValue }) => Random.next()),
-  Effect.flatMap(({ randomNumber, randomValue }) =>
-    randomNumber > 0.5 && randomValue > 1
-      ? Effect.succeed("yay!")
-      : Effect.fail("oh no!")
+  Effect.bind("n", () => Random.next()),
+  Effect.flatMap(({ n }) =>
+    n > 0.5 ? Effect.succeed("yay!") : Effect.fail("oh no!")
   )
 )
 ```
 
-<Callout type="info">
-  Using `Effect.let` is similar to saving a variable to a value, while
-  `Effect.bind` will unwrap an Effect similar to `Effect.flatMap`.
-</Callout>
-
-The strings passed to `bind` become keys in an object, and the values being the result on the right. When using these functions, notice how each successive function is passed the previous result, similar to if you had set a variable in the generator example above.
-
-## Errors
-
-Define errors with `Error` suffix.
-
-TODO:
+In this example, the `"n"` variable is defined using `Effect.bind`, and then it is used within the `Effect.flatMap`
+to determine the success or failure of the program based on the numeric value of `n`.
