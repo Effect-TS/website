@@ -1,4 +1,4 @@
-import { Callout } from "nextra-theme-docs"
+import { Info, Warning } from "@/components/Callout"
 
 # Batching & Caching
 
@@ -44,11 +44,11 @@ class SendEmailError {
 }
 ```
 
-<Callout type="info">
+<Info>
   In a real world scenario we may want to use a more precise types instead of
   directly using primitives for identifiers (see `@effect/data/Brand`). We may
   also want to include more information in the errors.
-</Callout>
+</Info>
 
 ## Classic Approach
 
@@ -94,11 +94,11 @@ const notifyOwner = (todo: Todo) =>
   )
 ```
 
-<Callout type="info">
+<Info>
   In a real world scenario we may not want to trust our APIs to actually return
-  the expected data - for doing this properly you can use
-  `@effect/schema/Schema` or similar alternatives such as `zod`.
-</Callout>
+  the expected data - for doing this properly you can use `@effect/schema` or
+  similar alternatives such as `zod`.
+</Info>
 
 When using the utilities we defined it is normal to end up with code that looks like the following:
 
@@ -106,7 +106,7 @@ When using the utilities we defined it is normal to end up with code that looks 
 const program = Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
 ```
 
-Here we used the `Effect.forEachParDiscard` to repeat an `Effect` for every `Todo` and the `Effect` repeated
+Here we used the `forEachParDiscard` to repeat an `Effect` for every `Todo` and the `Effect` repeated
 first fetches the `User` who owns the todo and then sends an email.
 
 We like writing code this way because it is **very expressive** and very easy to read, but is it **efficient**?
@@ -128,12 +128,14 @@ import * as Request from "@effect/io/Request"
 interface GetTodos extends Request.Request<GetTodosError, Todo[]> {
   readonly _tag: "GetTodos"
 }
+
 const GetTodos = Request.tagged<GetTodos>("GetTodos")
 
 interface GetUserById extends Request.Request<GetUserError, User> {
   readonly _tag: "GetUserById"
   readonly id: number
 }
+
 const GetUserById = Request.tagged<GetUserById>("GetUserById")
 
 interface SendEmail extends Request.Request<SendEmailError, void> {
@@ -141,20 +143,11 @@ interface SendEmail extends Request.Request<SendEmailError, void> {
   readonly address: string
   readonly text: string
 }
+
 const SendEmail = Request.tagged<SendEmail>("SendEmail")
 
 type ApiRequest = GetTodos | GetUserById | SendEmail
 ```
-
-<Callout type="warning">
-  We are using `@effect/data/Data` behind the scenes and given that requests
-  will be compared using `@effect/data/Equal` for caching **it is important to
-  make sure they are compared by value**.
-
-If you nest objects / arrays in your
-model, you should use Data.struct / Data.case / Data.tuple / etc.
-
-</Callout>
 
 ## Declaring Resolvers
 
@@ -165,6 +158,7 @@ but usually you will split up your resolvers based on which API calls can be bat
 
 ```ts
 import * as RequestResolver from "@effect/io/RequestResolver"
+import { pipe } from "@effect/data/Function"
 
 // we assume we cannot batch GetTodos, we create a normal resolver
 const GetTodosResolver = RequestResolver.fromFunctionEffect(
@@ -236,11 +230,11 @@ const SendEmailResolver = RequestResolver.makeBatched((requests: SendEmail[]) =>
 )
 ```
 
-<Callout type="info">
+<Info>
   Resolvers can also access context like any other `Effect` and there are many
   different ways of creating resolvers. You may want to check the reference
   documentation of the `@effect/io/RequestResolver` module next.
-</Callout>
+</Info>
 
 ## Defining Queries
 
@@ -248,31 +242,23 @@ At this point we are ready to plug the pieces together! Let's do just that:
 
 ```ts
 const getTodos: Effect.Effect<never, GetTodosError, Todo[]> = Effect.request(
-
-const getTodos: Effect.Effect<never, GetTodosError, Todo[]>
   GetTodos({}),
   GetTodosResolver
 )
 
-const getUserById = (id: number) => Effect.request(
-  GetUserById({ id }),
-  GetUserByIdResolver
-)
+const getUserById = (id: number) =>
+  Effect.request(GetUserById({ id }), GetUserByIdResolver)
 
-const sendEmail = (address: string, text: string) => Effect.request(
-  SendEmail({ address, text }),
-  SendEmailResolver
-)
+const sendEmail = (address: string, text: string) =>
+  Effect.request(SendEmail({ address, text }), SendEmailResolver)
 
-const sendEmailToUser = (id: number, message: string) => Effect.flatMap(
-  getUserById(id),
-  (user) => sendEmail(user.email, message)
-)
+const sendEmailToUser = (id: number, message: string) =>
+  Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
 
-const notifyOwner = (todo: Todo) => Effect.flatMap(
-  getUserById(todo.ownerId),
-  (user) => sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
-)
+const notifyOwner = (todo: Todo) =>
+  Effect.flatMap(getUserById(todo.ownerId), (user) =>
+    sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
+  )
 ```
 
 It looks like we are back at the beginning, same exact types and same exact composition.
@@ -297,7 +283,8 @@ you always have to specify how context is accessed.
 Let's see how we would do it:
 
 ```ts
-import * as RequestResolver from "@effect/io/RequestResolver"
+import * as Context from "@effect/data/Context"
+import * as Layer from "@effect/io/Layer"
 
 interface HttpService {
   fetch: typeof fetch
@@ -309,7 +296,11 @@ const HttpService = Context.Tag<HttpService>(
 
 const HttpServiceLive = Layer.sync(HttpService, () => ({ fetch }))
 
-const GetTodosResolver = pipe(
+const GetTodosResolver: Effect.Effect<
+  HttpService,
+  never,
+  RequestResolver.RequestResolver<GetTodos, never>
+> = pipe(
   // we create a normal resolver like we did before
   RequestResolver.fromFunctionEffect((request: GetTodos) =>
     Effect.flatMap(HttpService, (http) =>
@@ -327,38 +318,32 @@ const GetTodosResolver = pipe(
 )
 ```
 
-We can see now that the type of `GetTodosResolver` is no longer a `RequestResolver` but instead it is
-`Effect.Effect<HttpService, never, RequestResolver.RequestResolver<GetTodos, never>>` which is an `Effect`
-that access the `HttpService` and returns a composed resolver that has the minimal context ready to use.
+We can see now that the type of `GetTodosResolver` is no longer a `RequestResolver` but instead it is:
+
+```ts
+Effect.Effect<
+  HttpService,
+  never,
+  RequestResolver.RequestResolver<GetTodos, never>
+>
+```
+
+which is an `Effect` that access the `HttpService` and returns a composed resolver that has the minimal context ready to use.
 
 Once we have such `Effect` we can directly use it in our request definition:
 
 ```ts
-const getTodos: Effect.Effect<HttpService, GetTodosError, Todo[]> = Effect.request(
-
-const getTodos: Effect.Effect<HttpService, GetTodosError, Todo[]>
-  GetTodos({}),
-  GetTodosResolver
-)
+const getTodos: Effect.Effect<HttpService, GetTodosError, Todo[]> =
+  Effect.request(GetTodos({}), GetTodosResolver)
 ```
 
 We can see that the `Effect` correctly requires `HttpService` to be provided.
 
-Alternatively you can create RequestResolvers as part of layers direcly accessing or closing over context from construction.
+Alternatively you can create `RequestResolver`s as part of layers direcly accessing or closing over context from construction.
 
 For example:
 
 ```ts
-interface HttpService {
-  fetch: typeof fetch
-}
-
-const HttpService = Context.Tag<HttpService>(
-  Symbol.for("@app/services/HttpService")
-)
-
-const HttpServiceLive = Layer.sync(HttpService, () => ({ fetch }))
-
 interface TodosService {
   getTodos: Effect.Effect<never, GetTodosError, Todo[]>
 }
@@ -385,6 +370,7 @@ const TodosServiceLive = Layer.effect(
     }
   })
 )
+
 const getTodos: Effect.Effect<TodosService, GetTodosError, Todo[]> =
   Effect.flatMap(TodosService, (_) => _.getTodos)
 ```
@@ -393,7 +379,7 @@ This way is probably the best for most of the cases given that layers are the na
 
 ## Controlling Batching
 
-Batching can be locally disabled using the `Effect.withRequestBatching("off")` utility in the following way:
+Batching can be locally disabled using the `Effect.withRequestBatching("off"){:ts}` utility in the following way:
 
 ```ts
 const program = Effect.withRequestBatching("off")(
@@ -422,15 +408,22 @@ Assuming you've wired everything up correctly the following program:
 
 ```ts
 import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
 
-const main = pipe(
+const program = pipe(
   getTodos,
   Effect.flatMap(Effect.forEachParDiscard(notifyOwner)),
-  Effect.repeat(Schedule.fixed(seconds(10)))
+  Effect.repeat(Schedule.fixed(Duration.seconds(10)))
 )
 ```
 
-should never execute the same `GetUserById` twice within a span of `1` minute (assuming less than 65k users) while also making sure emails are sent in batches.
+With this program, the `getTodos` operation retrieves the todos for each user. Then, the `Effect.forEachParDiscard` function is used to notify the owner of each todo in parallel, without waiting for the notifications to complete.
+
+The `repeat` function is applied to the entire chain of operations, and it ensures that the program repeats every 10 seconds using a fixed schedule. This means that the entire process, including fetching todos and sending notifications, will be executed repeatedly with a 10-second interval.
+
+The program incorporates a caching mechanism, which prevents the same `GetUserById` operation from being executed more than once within a span of 1 minute (unless there are more than 65,000 users). This **default** caching behavior helps optimize the program's execution and reduces unnecessary requests to fetch user data.
+
+Furthermore, the program is designed to send emails in batches, allowing for efficient processing and better utilization of resources.
 
 ## The Request Cache
 
@@ -439,22 +432,23 @@ or maybe you want a global cache with a different setup, or a mix of both.
 
 To cover those scenarios you'd create a custom cache like the following:
 
-```ts
+```ts {8-10}
 import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
 
-const main = pipe(
+const program = pipe(
   getTodos,
   Effect.flatMap(Effect.forEachParDiscard(notifyOwner)),
-  Effect.repeat(Schedule.fixed(seconds(10))),
+  Effect.repeat(Schedule.fixed(Duration.seconds(10))),
   Effect.provideSomeLayer(
-    Effect.setRequestCache(Request.makeCache(256, minutes(60)))
+    Effect.setRequestCache(Request.makeCache(256, Duration.minutes(60)))
   )
 )
 ```
 
-Alternatively you can also directly construct a cache with `Request.makeCache(256, minutes(60))` and then use
-`Effect.withRequestCache(myCache)(program)` on a program to make sure the requests generated from that program uses
-the custom cache (when enabled with `Effect.withRequestCaching("on")`)
+Alternatively you can also directly construct a cache with `Request.makeCache(256, Duration.minutes(60)){:ts}` and then use
+`Effect.withRequestCache(program, myCache){:ts}` on a program to make sure the requests generated from that program uses
+the custom cache (when enabled with `Effect.withRequestCaching("on"){:ts}`)
 
 ## How is this possible?
 
@@ -491,12 +485,12 @@ const shipRequestsToBeExecutedAndWait = <R, E, A>(
 ```
 
 By using the functions provided by the `@effect/io/RequestBlock` module, you can combine requests from multiple blocked
-effects. By using the function `Effect.blocked(requests, continuation)`, you can express an effect that is blocked
+effects. By using the function `Effect.blocked(requests, continuation){:ts}`, you can express an effect that is blocked
 on `requests` that should continue with `continuation`.
 
 ## Using Cache Directly
 
-There are many cases where you have functions `(key: Key) => Effect<R, E, A>` that you would like to cache
+There are many cases where you have functions `(key: Key) => Effect<R, E, A>{:ts}` that you would like to cache
 and not necessarily every case is a good fit for the request model shown above. For example, non-batchable API
 calls or intensive work.
 
@@ -527,11 +521,11 @@ const program = Effect.gen(function* ($) {
 })
 ```
 
-<Callout type="info">
+<Warning>
   In order for the cache to correctly compare two `Key` values if you are not
   using primitives (e.g. string, boolean, number), you should use types that
   implement the `@effect/data/Equal` interface.
-</Callout>
+</Warning>
 
 There are many more methods available in the `Cache` module. As a next step, check out the reference docs!
 
@@ -539,15 +533,19 @@ There are many more methods available in the `Cache` module. As a next step, che
 
 The following are the reference docs for each of the mentioned modules:
 
-- [https://effect-ts.github.io/io/modules/Effect.ts.html](https://effect-ts.github.io/io/modules/Effect.ts.html)
-- [https://effect-ts.github.io/io/modules/Request.ts.html](https://effect-ts.github.io/io/modules/Request.ts.html)
-- [https://effect-ts.github.io/io/modules/RequestResolver.ts.html](https://effect-ts.github.io/io/modules/RequestResolver.ts.html)
-- [https://effect-ts.github.io/io/modules/Cache.ts.html](https://effect-ts.github.io/io/modules/Cache.ts.html)
-- [https://effect-ts.github.io/io/modules/Schedule.ts.html](https://effect-ts.github.io/io/modules/Schedule.ts.html)
-- [https://effect-ts.github.io/io/modules/Layer.ts.html](https://effect-ts.github.io/io/modules/Layer.ts.html)
-- [https://effect-ts.github.io/data/modules/Data.ts.html](https://effect-ts.github.io/data/modules/Data.ts.html)
-- [https://effect-ts.github.io/data/modules/Equal.ts.html](https://effect-ts.github.io/data/modules/Equal.ts.html)
-- [https://effect-ts.github.io/data/modules/Duration.ts.html](https://effect-ts.github.io/data/modules/Duration.ts.html)
-- [https://effect-ts.github.io/data/modules/Function.ts.html](https://effect-ts.github.io/data/modules/Function.ts.html)
-- [https://effect-ts.github.io/data/modules/Brand.ts.html](https://effect-ts.github.io/data/modules/Brand.ts.html)
-- [https://effect-ts.github.io/schema/modules/Schema.ts.html](https://effect-ts.github.io/schema/modules/Schema.ts.html)
+`@effect/io`
+
+- [Effect](https://effect-ts.github.io/io/modules/Effect.ts.html)
+- [Request](https://effect-ts.github.io/io/modules/Request.ts.html)
+- [RequestResolver](https://effect-ts.github.io/io/modules/RequestResolver.ts.html)
+- [Cache](https://effect-ts.github.io/io/modules/Cache.ts.html)
+- [Schedule](https://effect-ts.github.io/io/modules/Schedule.ts.html)
+- [Layer](https://effect-ts.github.io/io/modules/Layer.ts.html)
+
+`@effect/data`
+
+- [Data](https://effect-ts.github.io/data/modules/Data.ts.html)
+- [Equal](https://effect-ts.github.io/data/modules/Equal.ts.html)
+- [Duration](https://effect-ts.github.io/data/modules/Duration.ts.html)
+- [Function](https://effect-ts.github.io/data/modules/Function.ts.html)
+- [Brand](https://effect-ts.github.io/data/modules/Brand.ts.html)
