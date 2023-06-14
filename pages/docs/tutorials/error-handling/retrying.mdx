@@ -1,0 +1,113 @@
+# Retrying
+
+In software development, it's common to encounter situations where an operation may fail temporarily due to various factors such as network issues, resource unavailability, or external dependencies. In such cases, it's often desirable to retry the operation automatically, allowing it to succeed eventually.
+
+Retrying is a powerful mechanism to handle transient failures and ensure the successful execution of critical operations. In Effect retrying is made simple and flexible with built-in functions and scheduling strategies.
+
+In this guide, we will explore the concept of retrying in Effect and learn how to use the `retry` and `retryOrElse` functions to handle failure scenarios. We'll see how to define retry policies using schedules, which dictate when and how many times the operation should be retried.
+
+Whether you're working on network requests, database interactions, or any other potentially error-prone operations, mastering the retrying capabilities of Effect can significantly enhance the resilience and reliability of your applications.
+
+## retry
+
+The basic syntax of `retry` is as follows:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const repeated = Effect.retry(action, policy)
+```
+
+**Example**
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
+
+let count = 0
+
+// Define an async effect that simulates an action with possible failures
+const action = Effect.async<never, number, number>((resume) => {
+  if (count <= 2) {
+    count++
+    console.log("failure")
+    resume(Effect.fail(count))
+  } else {
+    console.log("success")
+    resume(Effect.succeed(count))
+  }
+})
+
+// Define a repetition policy using a fixed delay between retries
+const policy = Schedule.fixed(Duration.millis(100))
+
+const repeated = Effect.retry(action, policy)
+
+Effect.runPromise(repeated)
+/*
+failure
+failure
+failure
+success
+*/
+```
+
+## retryOrElse
+
+There is another version of `retry` that allows us to define a fallback strategy in case of errors.
+If something goes wrong, we can handle it using the `retryOrElse` function.
+It lets us add an `orElse` callback that will run when the repetition fails.
+
+The basic syntax of `retryOrElse` is as follows:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const repeated = Effect.retry(action, policy, orElse)
+```
+
+**Example**
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
+import { pipe } from "@effect/data/Function"
+
+let count = 0
+
+// Define an async effect that simulates an action with possible failures
+const action = Effect.async<never, number, number>((resume) => {
+  if (count <= 2) {
+    count++
+    console.log("failure")
+    resume(Effect.fail(count))
+  } else {
+    console.log("success")
+    resume(Effect.succeed(count))
+  }
+})
+
+// Define a repetition policy using Schedule functions
+const policy = pipe(
+  Schedule.recurs(2), // Retry for a maximum of 2 times
+  Schedule.addDelay(() => Duration.millis(100)) // Add a delay of 100 milliseconds between retries
+)
+
+// Create a new effect that retries the action with the specified policy,
+// and provides a fallback action if all retries fail
+const repeated = Effect.retryOrElse(action, policy, () =>
+  Effect.sync(() => {
+    console.log("orElse")
+  })
+)
+
+Effect.runPromise(repeated)
+/*
+failure
+failure
+failure
+orElse
+*/
+```
