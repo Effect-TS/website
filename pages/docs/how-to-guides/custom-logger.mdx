@@ -1,5 +1,83 @@
-# Write a custom logger
+# Define a custom logger
 
-import { Stub } from "@/components/Stub"
+In this guide, we will learn how to define a custom logger and set it as the default logger in our program.
 
-<Stub />
+First, let's define our custom logger. Let's say we want to log `DEBUG` messages in regular text and all other messages in bold:
+
+```ts
+import * as Logger from "@effect/io/Logger"
+
+const ANSI = {
+  Reset: "\x1b[0m",
+  Bold: "\x1b[1m",
+}
+
+const CustomLogger = Logger.make((_, logLevel, message) => {
+  if (logLevel._tag === "Debug") {
+    globalThis.console.log(`[${logLevel.label}] ${message}`)
+  } else {
+    globalThis.console.log(
+      `${ANSI.Bold}[${logLevel.label}] ${message}${ANSI.Reset}`
+    )
+  }
+})
+```
+
+Assuming we have defined the following program:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const task1 = pipe(
+  Effect.sleep(Duration.millis(200)),
+  Effect.flatMap(() => Effect.logDebug("task1 done"))
+)
+
+const task2 = pipe(
+  Effect.sleep(Duration.millis(100)),
+  Effect.flatMap(() => Effect.logDebug("task2 done"))
+)
+
+const program = pipe(
+  Effect.logInfo("start"),
+  Effect.flatMap(() => task1),
+  Effect.flatMap(() => task2),
+  Effect.flatMap(() => Effect.logInfo("done"))
+)
+```
+
+To replace the default logger, we simply need to create a specific layer using `Logger.replace` and provide it to our program using `Effect.provideLayer` before executing it.
+
+```ts
+import * as LoggerLevel from "@effect/io/Logger/Level"
+
+Effect.runPromise(
+  pipe(
+    program,
+    Logger.withMinimumLogLevel(LoggerLevel.Debug),
+    Effect.provideLayer(Logger.replace(Logger.defaultLogger, CustomLogger))
+  )
+)
+```
+
+This is what we see printed on the console after executing the program:
+
+<br />
+<p>
+  <code>
+    <b>[INFO] start</b>
+  </code>
+</p>
+<p>
+  <code>[DEBUG] task1 done</code>
+</p>
+<p>
+  <code>[DEBUG] task2 done</code>
+</p>
+<p>
+  <code>
+    <b>[INFO] done</b>
+  </code>
+</p>
