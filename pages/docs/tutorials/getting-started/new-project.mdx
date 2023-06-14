@@ -9,14 +9,14 @@ In this tutorial, we will guide you through the process of setting up a new Effe
 
 Open your terminal and run the following commands:
 
-```sh
+```bash
 mkdir hello-effect
 cd hello-effect
 ```
 
 ### Initialize a TypeScript project using npm
 
-```sh
+```bash
 npm init -y
 npm install typescript --save-dev
 ```
@@ -25,7 +25,7 @@ This creates a `package.json` file with an initial setup for your TypeScript pro
 
 ### Initialize TypeScript
 
-```sh
+```bash
 npx tsc --init
 ```
 
@@ -43,10 +43,39 @@ Make sure to open the `tsconfig.json` file and verify that the value of the `str
 
 ### Install the necessary packages
 
-```sh
+```bash
 npm install @effect/io @effect/data
 ```
 
 These packages will provide the foundational functionality for your Effect project.
 
 </Steps>
+
+Let's write and run a simple program to ensure that everything is set up correctly:
+
+In your terminal, execute the following commands:
+
+```bash
+mkdir src
+touch src/index.ts
+```
+
+Now, open the `index.ts` file and add the following code:
+
+```typescript filename="src/index.ts"
+import * as Effect from "@effect/io/Effect"
+
+const program = Effect.sync(() => {
+  console.log("Hello, World!")
+})
+
+Effect.runSync(program)
+```
+
+Now, you can run the `index.ts` file. If you have `ts-node` installed, run the following command in the terminal:
+
+```bash
+ts-node src/index.ts
+```
+
+You should see the message `"Hello, World!"` printed. This confirms that the program is working correctly.

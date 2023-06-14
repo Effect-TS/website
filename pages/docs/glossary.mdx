@@ -1,5 +1,9 @@
 # Glossary
 
+## Context
+
+Context refers to an environment or container that holds the necessary services required by effects. It is a conceptual construct that allows effects to access and utilize services within their execution scope. The Context can be seen as a collection or map of Tags and their corresponding service implementations. By providing the appropriate Context to an effect, the effect gains access to the services it needs, allowing it to perform operations that require those services. Context plays a vital role in managing dependencies and facilitating the composition of effects in a modular and flexible manner.
+
 ## Dual (API)
 
 In the context of APIs, "dual" refers to a function that supports both the "data-first" and "data-last" variants.
@@ -22,10 +26,9 @@ pipe(
 )
 ```
 
-## Pipeline (of Effects)
+## Distributed workflow
 
-A "pipeline" refers to a series of sequential operations performed on `Effect` values to achieve a desired result.
-When working with `Effect`, a pipeline typically consists of operations such as mapping, flat-mapping, filtering, and error handling, among others. Each operation in the pipeline takes an input `Effect` and produces an output `Effect`, which becomes the input for the next operation in the sequence.
+Things that may execute across multiple execution boundaries.
 
 ## Expected Errors
 
@@ -38,12 +41,6 @@ Expected errors are tracked at the type level by the `Effect` data type in the "
 Effect<Context, Error, Value>
 ```
 
-## Unexpected Errors
-
-Also referred to as _defects_, _untyped errors_, or _unrecoverable errors_.
-
-These are errors that occur unexpectedly and are not part of the intended program flow.
-
 ## Interruption
 
 Interruption errors occur when the execution of a running fiber is deliberately interrupted.
@@ -52,6 +49,21 @@ Interruption errors occur when the execution of a running fiber is deliberately 
 
 Things that execute within a single execution boundary.
 
-## Distributed workflow
+## Pipeline (of Effects)
 
-Things that may execute across multiple execution boundaries.
+A "pipeline" refers to a series of sequential operations performed on `Effect` values to achieve a desired result.
+When working with `Effect`, a pipeline typically consists of operations such as mapping, flat-mapping, filtering, and error handling, among others. Each operation in the pipeline takes an input `Effect` and produces an output `Effect`, which becomes the input for the next operation in the sequence.
+
+## Service
+
+A Service is an interface that defines a set of operations or functionality. Services encapsulate specific capabilities or behaviors that can be utilized by effects. By providing service implementations, we can enhance the capabilities of effects and enable them to interact with external systems, perform IO operations, or access shared resources. Services are usually associated with Tags, which allow effects to locate and access the corresponding service implementation during runtime.
+
+## Tag
+
+A Tag refers to a value that represents a specific service. It acts as a key that allows Effect to locate and use the corresponding service implementation at runtime. Tags are used to associate services with effects, enabling the effects to access and utilize the functionality provided by the services. In essence, a Tag serves as a marker or identifier for a particular service within the Effect framework.
+
+## Unexpected Errors
+
+Also referred to as _defects_, _untyped errors_, or _unrecoverable errors_.
+
+These are errors that occur unexpectedly and are not part of the intended program flow.

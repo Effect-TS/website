@@ -12,15 +12,12 @@ The `runSync` function is used to execute an Effect synchronously, which means i
 import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 
-assert.strictEqual(
-  Effect.runSync(
-    Effect.sync(() => {
-      console.log("Hello, World!")
-      return 1
-    })
-  ),
-  1
-)
+const program = Effect.sync(() => {
+  console.log("Hello, World!")
+  return 1
+})
+
+assert.strictEqual(Effect.runSync(program), 1)
 ```
 
 If you check the console, you will see the message `"Hello, World!"` printed.
@@ -196,7 +193,9 @@ The table provides a summary of the available `run*` functions, along with their
 
 You can find the complete list of `run*` functions [here](https://effect-ts.github.io/io/modules/Effect.ts.html#execution).
 
-## What to read next
+---
+
+**What to read next**
 
 In the next tutorial, we will learn how to build more complex programs by creating **pipelines**.
 Check out the next tutorial on [Build a pipeline](pipeline) to find out more.
