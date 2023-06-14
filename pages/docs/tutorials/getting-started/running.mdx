@@ -12,15 +12,12 @@ The `runSync` function is used to execute an Effect synchronously, which means i
 import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 
-assert.strictEqual(
-  Effect.runSync(
-    Effect.sync(() => {
-      console.log("Hello, World!")
-      return 1
-    })
-  ),
-  1
-)
+const program = Effect.sync(() => {
+  console.log("Hello, World!")
+  return 1
+})
+
+assert.strictEqual(Effect.runSync(program), 1)
 ```
 
 If you check the console, you will see the message `"Hello, World!"` printed.
