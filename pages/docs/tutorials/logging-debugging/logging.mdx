@@ -1,5 +1,92 @@
 # Logging
 
-import { Stub } from "@/components/Stub"
+Effect provides a set of built-in utilities for logging. Let's explore the main ones.
 
-<Stub />
+## logInfo
+
+By default, `INFO` messages are printed.
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const task1 = Effect.sleep(Duration.millis(200))
+
+const task2 = Effect.sleep(Duration.millis(100))
+
+const program = pipe(
+  Effect.logInfo("start"),
+  Effect.flatMap(() => task1),
+  Effect.flatMap(() => task2),
+  Effect.flatMap(() => Effect.logInfo("done"))
+)
+
+Effect.runPromise(program)
+/*
+...more infos... level=INFO message=start
+...more infos... level=INFO message=done
+*/
+```
+
+In the above example, the `logInfo` function is used to log an `INFO` message with the content `"start"` and `"done"`. These messages will be printed during the execution of the program.
+
+## logDebug
+
+By default, `DEBUG` messages are **not** printed.
+
+However, you can configure the default logger to enable them using `Logger.withMinimumLogLevel` and setting the minimum log level to `LoggerLevel.Debug`.
+
+Here's an example that demonstrates how to enable `DEBUG` messages for a specific task (`task1`):
+
+```ts {10}
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+import * as Logger from "@effect/io/Logger"
+import * as LoggerLevel from "@effect/io/Logger/Level"
+
+const task1 = pipe(
+  Effect.sleep(Duration.millis(200)),
+  Effect.flatMap(() => Effect.logDebug("task1 done")),
+  Logger.withMinimumLogLevel(LoggerLevel.Debug)
+)
+
+const task2 = pipe(
+  Effect.sleep(Duration.millis(100)),
+  Effect.flatMap(() => Effect.logDebug("task2 done"))
+)
+
+const program = pipe(
+  Effect.logInfo("start"),
+  Effect.flatMap(() => task1),
+  Effect.flatMap(() => task2),
+  Effect.flatMap(() => Effect.logInfo("done"))
+)
+
+Effect.runPromise(program)
+/*
+...more infos... level=INFO message=start
+...more infos... level=DEBUG message="task1 done"
+...more infos... level=INFO message=done
+*/
+```
+
+In the above example, we enable `DEBUG` messages specifically for `task1` by using the `Logger.withMinimumLogLevel` function.
+
+By using `Logger.withMinimumLogLevel(effect, level){:ts}`, you have the flexibility to selectively enable different log levels for specific effects in your program. This allows you to control the level of detail in your logs and focus on the information that is most relevant to your debugging and troubleshooting needs.
+
+---
+
+**What to read next**
+
+import { Card, Cards } from "nextra-theme-docs"
+
+<Cards>
+  <Card icon="📚 " title="Debugging" href="debugging" />
+  <Card
+    icon="📝 "
+    title="Define a custom logger"
+    href="../../how-to-guides/custom-logger"
+  />
+</Cards>
