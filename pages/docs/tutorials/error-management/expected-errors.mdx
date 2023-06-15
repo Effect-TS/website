@@ -1,40 +1,11 @@
-import { Callout } from "nextra-theme-docs"
+import { Info, Idea } from "@/components/Callout"
 
-# Expected and Unexpected errors
-
-Just like any other program, Effect programs may fail for expected or unexpected reasons.
-The difference between a non-Effect program and an Effect program is in the detail provided to you when your program fails.
-Effect attempts to preserve as much information as possible about what caused your program to fail to produce a detailed,
-comprehensive, and human readable failure message.
+# Expected Errors
 
 In this tutorial you will learn:
 
-- The possible ways an Effect program can fail
-- How Effect represents the cause of an error
+- How Effect represents expected errors
 - The tools Effect provides for robust and comprehensive error management
-
-## Possible causes for failure
-
-In an Effect program, there are three possible ways for a program to fail:
-
-1. **Expected Errors**: These are errors that developers anticipate and expect as part of normal program execution.
-
-2. **Unexpected Errors**: These are errors that occur unexpectedly and are not part of the intended program flow.
-
-3. **Interruption**: Interruption errors occur when the execution of a running fiber is deliberately interrupted.
-
-## Expected Errors
-
-In an Effect program, it is common to encounter expected errors. These errors, also referred to as _failures_, _typed errors_
-or _recoverable errors_, are errors that developers anticipate as part of the normal program execution.
-They serve a similar purpose to checked exceptions and play a role in defining the program's domain and control flow.
-
-Expected errors are **tracked at the type level** by the `Effect` data type in the "Error" channel.
-In the following example, it is evident from the type that the program can fail with an error of type `HttpError`:
-
-```ts /HttpError/
-Effect.Effect<never, HttpError, never>
-```
 
 As we saw in the tutorial [Create your first Effect](../getting-started/creating), we can use the `fail` constructor to create an Effect
 that represents an error:
@@ -51,18 +22,34 @@ const program: Effect.Effect<never, HttpError, never> = Effect.fail(
 )
 ```
 
-<Callout type="info">
+<Info>
   We use a class to represent the `HttpError` type above simply to gain access
   to both the error type and a free constructor. However, you can use whatever
   you like to model your error types.
-</Callout>
+</Info>
 
 It's worth noting that we added a `_tag` field to our error in the example.
-This discriminant field can be helpful for distinguishing between different types of errors during error handling and prevents TypeScript
-from unifying types.
-Effect provides various combinators that make handling tagged errors seamless.
 
-### Tracking
+```ts /_tag/
+class HttpError {
+  readonly _tag = "HttpError"
+}
+```
+
+<Idea>
+  A discriminant field can be helpful for distinguishing between different types
+  of errors during error handling and prevents TypeScript from unifying types.
+</Idea>
+
+Expected errors **are tracked** at the type level by the `Effect` data type in the "Error" channel.
+
+It is evident from the type of `program` that can fail with an error of type `HttpError`:
+
+```ts /HttpError/
+Effect.Effect<never, HttpError, never>
+```
+
+## Error Accumulation
 
 The following program serves as an illustration of how errors are automatically tracked and accumulated for you:
 
@@ -114,11 +101,34 @@ indicating that it can potentially fail with either a `FooError` or a `BarError`
 
 By leveraging this error tracking mechanism, we can handle specific types of errors in a targeted manner.
 
-### Catching
+## Catching
+
+To handle errors in a simple way, you can use the `catchAll` function.
+
+### catchAll
+
+The `catchAll` function allows you to catch any error that occurs in the program and provide a fallback.
+
+```ts {4}
+const program: Effect.Effect<never, never, string> = pipe(
+  flakyFoo,
+  Effect.flatMap(() => flakyBar),
+  Effect.catchAll((e) => Effect.succeed(`Recovering from ${e._tag}`))
+)
+```
+
+We can observe that the type in the error channel of our `program` has changed to `never`,
+indicating that all errors has been handled.
+
+```ts /never/2
+Effect.Effect<never, never, string>
+```
+
+### catchTag
 
 Suppose we only want to handle `FooError`. In that case, we can use the `catchTag` method provided by Effect:
 
-```ts
+```ts {4-6}
 const program: Effect.Effect<never, BarError, string> = pipe(
   flakyFoo,
   Effect.flatMap(() => flakyBar),
@@ -135,9 +145,13 @@ and the program will proceed with the recovery logic specified within the handle
 We can observe that the type in the error channel of our `program` has changed to only show `BarError`,
 indicating that `FooError` has been handled.
 
+```ts /BarError/
+Effect.Effect<never, BarError, string>
+```
+
 If we also wanted to handle `BarError`, we can simply add another `catchTag`.
 
-```ts
+```ts {7-9}
 const program: Effect.Effect<never, never, string> = pipe(
   flakyFoo,
   Effect.flatMap(() => flakyBar),
@@ -150,9 +164,11 @@ const program: Effect.Effect<never, never, string> = pipe(
 )
 ```
 
-Alternatively, we can use the `catchTags` combinator to handle all errors at once:
+### catchTags
 
-```ts
+Instead of using the `catchTag` combinator multiple times to handle individual error types, we have a more convenient option called `catchTags`. With `catchTags`, we can handle multiple errors in a single block of code.
+
+```ts {4-7}
 const program: Effect.Effect<never, never, string> = pipe(
   flakyFoo,
   Effect.flatMap(() => flakyBar),
@@ -167,13 +183,13 @@ In the above example, instead of using `catchTag` multiple times to handle indiv
 This combinator takes an object where each property represents a specific error `_tag` (`"FooError"` and `"BarError"` in this case),
 and the corresponding value is the error handler function to be executed when that particular error occurs.
 
-### Modifying
+## Modifying
 
 Sometimes, instead of handling an error directly, you may need to transform or modify it in some way.
 This can involve adding extra information to the error or changing its type altogether.
 In such cases, you can use the `mapError` function.
 
-```ts
+```ts {4-10}
 const program: Effect.Effect<never, Error, string> = pipe(
   flakyFoo,
   Effect.flatMap(() => flakyBar),
@@ -187,6 +203,12 @@ const program: Effect.Effect<never, Error, string> = pipe(
 )
 ```
 
+We can observe that the type in the error channel of our `program` has changed from `FooError | BarError` to `Error`.
+
+```ts /Error/
+Effect.Effect<never, Error, string>
+```
+
 In the code snippet above, `mapError` is applied to the `Effect` computation.
 It allows us to transform the error produced by the computation while keeping the success value unchanged.
 The provided error transformation function takes the original error as an input and returns a new error.
@@ -198,22 +220,3 @@ This enables us to add specific information or customize the error representatio
 By utilizing `mapError`, you can manipulate the error channel of an `Effect` computation, tailoring it to your specific requirements.
 This can be particularly useful when you need to adapt error types, enrich error messages,
 or perform other error-related transformations while preserving the main logic and success pathway of your program.
-
-## Unexpected Errors
-
-Unexpected errors, also referred to as _defects_, _untyped errors_, or _unrecoverable errors_, are errors that developers
-do not anticipate occurring during normal program execution.
-Unlike expected errors, which are considered part of a program's domain and control flow,
-unexpected errors resemble unchecked exceptions and lie outside the expected behavior of the program.
-
-Since these errors are not expected, Effect does not track them at the type level.
-However, the Effect runtime does keep track of these errors and provides several methods to aid in recovering from unexpected errors.
-
-For a more comprehensive understanding of handling unexpected errors,
-refer to the How-to Guide on [Handling unexpected errors](../how-to-guides/cause).
-
-## Interruptions
-
-Interruption errors occur when the execution of a running fiber is interrupted.
-To understand the fiber runtime and interruption model in Effect,
-it is recommended to explore the comprehensive Reference Guide on [Fiber](../../reference-guides/fiber).
