@@ -30,16 +30,13 @@ Here, `input` is the initial value, and `func1`, `func2`, ..., `funcN` are the f
 Let's see an example to understand it better.
 
 ```ts
-import * as assert from "node:assert"
 import { pipe } from "@effect/data/Function"
 
 const increment = (x: number) => x + 1
 const double = (x: number) => x * 2
 const subtractTen = (x: number) => x - 10
 
-const result = pipe(5, increment, double, subtractTen)
-
-assert.equal(result, 2)
+const result = pipe(5, increment, double, subtractTen) // 2
 ```
 
 In the above example, we start with the initial value of 5. The `increment` function adds 1 to the initial value, resulting in 6.
@@ -62,7 +59,6 @@ Here, `func` is the transformation function to be applied, and `effect` is the i
 Let's see an example to understand it better.
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 
 const increment = (x: number) => x + 1
@@ -70,7 +66,7 @@ const increment = (x: number) => x + 1
 const effect = Effect.succeed(5)
 const mappedEffect = Effect.map(effect, increment)
 
-assert.equal(Effect.runSync(mappedEffect), 6)
+Effect.runSync(mappedEffect) // 6
 ```
 
 In the above example:
@@ -123,7 +119,6 @@ Here, `func` is the transformation function that returns a new `Effect`, and `ef
 Let's see an example to better understand how it works.
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 
 const divideByTwo = (x: number): Effect.Effect<never, never, number> =>
@@ -132,7 +127,7 @@ const divideByTwo = (x: number): Effect.Effect<never, never, number> =>
 const effect = Effect.succeed(10)
 const flatMappedEffect = Effect.flatMap(effect, divideByTwo)
 
-assert.equal(Effect.runSync(flatMappedEffect), 5)
+Effect.runSync(flatMappedEffect) // 5
 ```
 
 In the above example:
@@ -161,7 +156,6 @@ const resultEffect = pipe(effect, Effect.flatMap(func))
 Now, let's combine all three functions to build a pipeline that performs a series of transformations on a value.
 
 ```ts
-import * as assert from "node:assert"
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 
@@ -179,7 +173,7 @@ const result = pipe(
   Effect.map((x) => `Result: ${x}`)
 )
 
-assert.equal(Effect.runSync(result), "Result: 1.2")
+Effect.runSync(result) // "Result: 1.2"
 ```
 
 In this example, we start with the initial value of 5. We use `pipe` to chain the transformations:

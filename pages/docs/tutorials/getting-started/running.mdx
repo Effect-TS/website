@@ -9,7 +9,6 @@ To execute an `Effect`, we can utilize a variety of `run*` functions provided by
 The `runSync` function is used to execute an Effect synchronously, which means it runs immediately and returns the result.
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 
 const program = Effect.sync(() => {
@@ -17,7 +16,7 @@ const program = Effect.sync(() => {
   return 1
 })
 
-assert.strictEqual(Effect.runSync(program), 1)
+Effect.runSync(program) // 1
 ```
 
 If you check the console, you will see the message `"Hello, World!"` printed.
@@ -28,12 +27,11 @@ If you check the console, you will see the message `"Hello, World!"` printed.
 </Warning>
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 
-assert.throws(() => Effect.runSync(Effect.fail("error")))
+Effect.runSync(Effect.fail("error")) // throws
 
-assert.throws(() => Effect.runSync(Effect.promise(() => Promise.resolve(1))))
+Effect.runSync(Effect.promise(() => Promise.resolve(1))) // throws
 ```
 
 ## runSyncEither
@@ -43,16 +41,11 @@ The `runSyncEither` function is used to execute an Effect synchronously, which m
 It is useful when your effect does not involve any asynchronous tasks and you need to handle both the success or failure outcomes.
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
-import * as Either from "@effect/data/Either"
 
-assert.deepStrictEqual(Effect.runSyncEither(Effect.succeed(1)), Either.right(1))
+Effect.runSyncEither(Effect.succeed(1)) // Either.right(1))
 
-assert.deepStrictEqual(
-  Effect.runSyncEither(Effect.fail("error")),
-  Either.left("error")
-)
+Effect.runSyncEither(Effect.fail("error")) // Either.left("error")
 ```
 
 <Warning>
@@ -61,12 +54,9 @@ assert.deepStrictEqual(
 </Warning>
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 
-assert.throws(() =>
-  Effect.runSyncEither(Effect.promise(() => Promise.resolve(1)))
-)
+Effect.runSyncEither(Effect.promise(() => Promise.resolve(1))) // throws
 ```
 
 ## runSyncExit
@@ -76,13 +66,12 @@ The `runSyncExit` function is used to execute an Effect synchronously, which mea
 It is useful when your effect does not involve any asynchronous tasks and you need to handle both the success or failure outcomes.
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 import * as Exit from "@effect/io/Exit"
 
-assert.deepStrictEqual(Effect.runSyncExit(Effect.succeed(1)), Exit.succeed(1))
+Effect.runSyncExit(Effect.succeed(1)) // Exit.succeed(1)
 
-assert.ok(Exit.isFailure(Effect.runSyncExit(Effect.fail("error"))))
+Effect.runSyncExit(Effect.fail("error")) // Exit.fail(...)
 ```
 
 <Warning>
@@ -91,12 +80,9 @@ assert.ok(Exit.isFailure(Effect.runSyncExit(Effect.fail("error"))))
 </Warning>
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 
-assert.throws(() =>
-  Effect.runSyncExit(Effect.promise(() => Promise.resolve(1)))
-)
+Effect.runSyncExit(Effect.promise(() => Promise.resolve(1))) // throws
 ```
 
 ## runPromise
@@ -104,22 +90,17 @@ assert.throws(() =>
 The `runPromise` function is used to execute an Effect and obtain the result as a `Promise`.
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 
-const run = async () =>
-  assert.deepStrictEqual(await Effect.runPromise(Effect.succeed(1)), 1)
-
-run()
+await Effect.runPromise(Effect.succeed(1)) // 1
 ```
 
 <Warning>`runPromise` will reject with an error if your Effect fails</Warning>
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 
-assert.rejects(() => Effect.runPromise(Effect.fail("error")))
+Effect.runPromise(Effect.fail("error")) // rejects
 ```
 
 ## runPromiseEither
@@ -129,23 +110,12 @@ The `runPromiseEither` function is used to execute an Effect and obtain the resu
 It is useful when you need to handle both the success or failure outcomes.
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 import * as Either from "@effect/data/Either"
 
-const run = async () => {
-  assert.deepStrictEqual(
-    await Effect.runPromiseEither(Effect.succeed(1)),
-    Either.right(1)
-  )
+await Effect.runPromiseEither(Effect.succeed(1)) // Either.right(1)
 
-  assert.deepStrictEqual(
-    await Effect.runPromiseEither(Effect.fail("error")),
-    Either.left("error")
-  )
-}
-
-run()
+await Effect.runPromiseEither(Effect.fail("error")) // Either.left("error")
 ```
 
 ## runPromiseExit
@@ -155,20 +125,12 @@ The `runPromiseExit` function is used to execute an Effect and obtain the result
 It is useful when you need to handle both the success or failure outcomes.
 
 ```ts
-import * as assert from "node:assert"
 import * as Effect from "@effect/io/Effect"
 import * as Exit from "@effect/io/Exit"
 
-const run = async () => {
-  assert.deepStrictEqual(
-    await Effect.runPromiseExit(Effect.succeed(1)),
-    Exit.succeed(1)
-  )
+await Effect.runPromiseExit(Effect.succeed(1)) // Exit.succeed(1)
 
-  assert.ok(Exit.isFailure(await Effect.runPromiseExit(Effect.fail("error"))))
-}
-
-run()
+await Effect.runPromiseExit(Effect.fail("error")) // Exit.fail(...)
 ```
 
 ## Cheatsheet
