@@ -2,8 +2,13 @@ import { useRouter } from "next/router"
 import { EffectLogo } from "./components/EffectLogo"
 import { DocsThemeConfig } from "nextra-theme-docs"
 
+const bold = ["Concepts", "Guides"]
+
 const config: DocsThemeConfig = {
   docsRepositoryBase: "https://github.com/Effect-TS/website/blob/main",
+  sidebar: {
+    defaultMenuCollapseLevel: 2,
+  },
   useNextSeoProps() {
     const { asPath } = useRouter()
     if (asPath !== "/") {
