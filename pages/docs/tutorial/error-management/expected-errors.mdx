@@ -1,4 +1,4 @@
-import { Info, Idea } from "@/components/Callout"
+import { Info, Idea, Warning } from "@/components/Callout"
 
 # Expected Errors
 
@@ -164,6 +164,12 @@ const program: Effect.Effect<never, never, string> = pipe(
 )
 ```
 
+<Warning>
+  It is important to ensure that the error type used with `catchTag` has a
+  `readonly _tag` discriminant field. This field is required for the matching
+  and handling of specific error tags.
+</Warning>
+
 ### catchTags
 
 Instead of using the `catchTag` combinator multiple times to handle individual error types, we have a more convenient option called `catchTags`. With `catchTags`, we can handle multiple errors in a single block of code.
@@ -182,6 +188,12 @@ const program: Effect.Effect<never, never, string> = pipe(
 In the above example, instead of using `catchTag` multiple times to handle individual errors, we utilize the `catchTags` combinator.
 This combinator takes an object where each property represents a specific error `_tag` (`"FooError"` and `"BarError"` in this case),
 and the corresponding value is the error handler function to be executed when that particular error occurs.
+
+<Warning>
+  It is important to ensure that all the error types used with `catchTags` have
+  a `readonly _tag` discriminant field. This field is required for the matching
+  and handling of specific error tags.
+</Warning>
 
 ## Modifying
 
