@@ -1,0 +1,33 @@
+import { Callout } from "nextra-theme-docs"
+
+# The Effect Data Type
+
+The `Effect` data type provides a type-safe representation of programs. It can be thought of as a function that takes a `Context` as input and, when executed, can either fail with an `Error` or succeed with a `Value`.
+
+```ts
+type Effect<Context, Error, Value> = (context: Context) => Either<Error, Value>
+```
+
+This mental model helps us understand the `Effect` type conceptually, but it's important to note that `Effect` is more powerful than just a function.
+
+## Type Parameters
+
+The `Effect` type has three type parameters with the following meanings:
+
+| **Parameter** | **Description**                                                               |
+| ------------- | ----------------------------------------------------------------------------- |
+| `Context`     | Represents the contextual data required by the `Effect` to be executed.       |
+| `Error`       | Represents the expected errors that can occur when executing an `Effect`.     |
+| `Value`       | Represents the type of value that an `Effect` can succeed with when executed. |
+
+<Callout type="info">
+  In the Effect ecosystem, you may often encounter the type parameters of
+  `Effect` abbreviated as `R`, `E`, and `A` respectively. This is just shorthand
+  for **R**equirements, **E**rror, and the success value of type **A**.
+</Callout>
+
+Think of each of these type parameters as separate "channels" within the `Effect` data type. Your program can interact with each of these "channels" during its execution.
+
+For example, an `Effect` with no requirements would have the type `Effect<never, _, _>` and can run under any circumstances. Similarly, an `Effect` that is guaranteed not to fail would have the type `Effect<_, never, _>`.
+
+Effects are evaluated lazily, which means that creating a value of type `Effect` does not immediately execute the underlying code. To run the effects and execute the program, we need to bootstrap our components and configure the runtime environment. The `Effect` type offers strong compile-time guarantees that help us properly structure and organize dependencies.
