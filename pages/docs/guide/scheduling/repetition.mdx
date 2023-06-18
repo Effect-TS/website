@@ -1,0 +1,106 @@
+import { Warning } from "@/components/Callout"
+
+# Repetitions
+
+Repetition is a common requirement when working with effects in software development. It allows us to perform an effect multiple times according to a specific repetition policy.
+
+Repeat policies are used in the following functions:
+
+- `repeat`: Repeats an effect until the schedule is done.
+- `repeatOrElse`: Repeats an effect until the schedule is done, with a fallback for errors.
+
+<Warning>
+  Scheduled recurrences are in addition to the first execution, so that
+  `repeat(effect, Schedule.once)` yields an effect that executes `effect`, and
+  then if that succeeds, executes `effect` an additional time.
+</Warning>
+
+## repeat
+
+The basic syntax of `repeat` is as follows:
+
+```ts
+Effect.repeat(action, policy)
+```
+
+**Example**
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import { pipe } from "@effect/data/Function"
+import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
+
+const action = Effect.sync(() => {
+  console.log("success")
+})
+
+const policy = pipe(
+  Schedule.recurs(2), // Repeat for a maximum of 2 times
+  Schedule.addDelay(() => Duration.millis(100)) // Add a delay of 100 milliseconds between repetitions
+)
+
+const program = Effect.repeat(action, policy)
+
+Effect.runPromise(program)
+/*
+success
+success
+success
+*/
+```
+
+## repeatOrElse
+
+There is another version of `repeat` that helps us to have a fallback strategy in case of erros,
+if something goes wrong we can handle that by using the `Effect.repeatOrElse` function,
+which helps up to add an `orElse` callback that will run in case of repetition failure.
+
+The basic syntax of `repeatOrElse` is as follows:
+
+```ts
+Effect.repeatOrElse(action, policy, fallback)
+```
+
+**Example**
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import { pipe } from "@effect/data/Function"
+import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
+
+let count = 0
+
+// Define an async effect that simulates an action with possible failures
+const action = Effect.async<never, Error, string>((resume) => {
+  if (count > 1) {
+    console.log("failure")
+    resume(Effect.fail(new Error()))
+  } else {
+    count++
+    console.log("success")
+    resume(Effect.succeed("success"))
+  }
+})
+
+const policy = pipe(
+  Schedule.recurs(2), // Repeat for a maximum of 2 times
+  Schedule.addDelay(() => Duration.millis(100)) // Add a delay of 100 milliseconds between repetitions
+)
+
+const program = Effect.repeatOrElse(action, policy, (x, y) =>
+  Effect.sync(() => {
+    console.log("orElse")
+    return count
+  })
+)
+
+Effect.runPromise(program)
+/*
+success
+success
+failure
+orElse
+*/
+```
