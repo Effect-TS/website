@@ -1,5 +1,115 @@
 # Schedule Combinators
 
-import { Stub } from "@/components/Stub"
+Schedules define stateful, possibly effectful, recurring schedules of events, and compose in a variety of ways. Combinators allow us to take schedules and combine them together to get other schedules.
 
-<Stub />
+## Composition
+
+Schedules compose in the following primary ways:
+
+- **Union**. This performs the union of the intervals of two schedules.
+- **Intersection**. This performs the intersection of the intervals of two schedules.
+- **Sequencing**. This concatenates the intervals of one schedule onto another.
+
+## Union
+
+Combines two schedules through union, by recurring if either schedule wants to recur, using the minimum of the two delays between recurrences.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
+
+const schedule = Schedule.union(
+  Schedule.exponential(Duration.millis(100)),
+  Schedule.spaced(Duration.seconds(1))
+)
+
+dryRun(schedule)
+/*
+113  exponential
+208  exponential
+403  exponential
+807  exponential
+1007 spaced
+1006 spaced
+1006 spaced
+1007 spaced
+1007 spaced
+1007 spaced
+...
+*/
+```
+
+## Intersection
+
+Combines two schedules through the intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
+
+const schedule = Schedule.intersect(
+  Schedule.exponential(Duration.millis(10)),
+  Schedule.recurs(5)
+)
+
+dryRun(schedule)
+/*
+18  exponential + recurs
+21  exponential + recurs
+41  exponential + recurs
+82  exponential + recurs
+168 exponential + recurs
+end recurs
+*/
+```
+
+## Sequencing
+
+Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
+
+const schedule = Schedule.andThen(
+  Schedule.recurs(5),
+  Schedule.spaced(Duration.seconds(1))
+)
+
+dryRun(schedule)
+/*
+8    recurs
+4    recurs
+2    recurs
+1    recurs
+3    recurs
+1008 spaced
+1006 spaced
+1006 spaced
+1008 spaced
+1007 spaced
+1004 spaced
+...
+*/
+```
+
+## The dryRun helper
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+
+export function dryRun<Out>(schedule: Schedule.Schedule<never, unknown, Out>) {
+  let start = new Date().getTime()
+  Effect.runPromise(
+    Effect.schedule(
+      Effect.sync(() => {
+        const end = new Date().getTime()
+        console.log(end - start) // delay
+        start = end
+      }),
+      schedule
+    )
+  )
+}
+```
