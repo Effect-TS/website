@@ -1,5 +1,183 @@
 # Built-in Schedules
 
-import { Stub } from "@/components/Stub"
+## succeed
 
-<Stub />
+Returns a schedule that repeats one time, producing the specified constant value.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+
+const schedule = Schedule.succeed(5)
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3])).then(console.log)
+// { _tag: 'Chunk', values: [ 5, 5, 5 ] }
+```
+
+## fromFunction
+
+A schedule that always recurs, mapping input values through the specified function.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+
+const schedule = Schedule.fromFunction((n: number) => n + 1)
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3])).then(console.log)
+// { _tag: 'Chunk', values: [ 2, 3, 4 ] }
+```
+
+## stop
+
+A schedule that does not recur, it just stops.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+
+const schedule = Schedule.stop()
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3])).then(console.log)
+// { _tag: 'Chunk', values: [ undefined ] }
+```
+
+## once
+
+A schedule that recurs one time.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+
+const schedule = Schedule.once()
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3])).then(console.log)
+// { _tag: 'Chunk', values: [ undefined, undefined ] }
+```
+
+## forever
+
+A schedule that always recurs and produces number of recurrence at each run.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+
+const schedule = Schedule.forever()
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3])).then(console.log)
+// { _tag: 'Chunk', values: [ 0, 1, 2 ] }
+```
+
+## recurs
+
+A schedule that only recurs the specified number of times.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+
+const schedule = Schedule.recurs(2)
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4])).then(console.log)
+// { _tag: 'Chunk', values: [ 0, 1, 2 ] }
+```
+
+## spaced
+
+A schedule that recurs continuously, each repetition spaced the specified duration from the last run.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const schedule = Schedule.spaced(Duration.millis(200))
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4])).then(console.log)
+// { _tag: 'Chunk', values: [ 0, 1, 2, 3 ] }
+```
+
+## fixed
+
+A schedule that recurs on a fixed interval. Returns the number of repetitions of the schedule so far
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const schedule = Schedule.fixed(Duration.millis(200))
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4])).then(console.log)
+// { _tag: 'Chunk', values: [ 0, 1, 2, 3 ] }
+```
+
+## exponential
+
+A schedule that recurs using exponential backoff
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const schedule = Schedule.exponential(Duration.millis(10))
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4])).then(console.log)
+/*
+{
+  _tag: 'Chunk',
+  values: [
+    Duration { millis: 10 },
+    Duration { millis: 20 },
+    Duration { millis: 40 },
+    Duration { millis: 80 }
+  ]
+}
+*/
+```
+
+## fibonacci
+
+A schedule that always recurs, increasing delays by summing the preceding two delays (similar to the fibonacci sequence). Returns the current duration between recurrences.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const schedule = Schedule.fibonacci(Duration.millis(10))
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4, 5, 6])).then(
+  console.log
+)
+/*
+{
+  _tag: 'Chunk',
+  values: [
+    Duration { millis: 10 },
+    Duration { millis: 10 },
+    Duration { millis: 20 },
+    Duration { millis: 30 },
+    Duration { millis: 50 },
+    Duration { millis: 80 }
+  ]
+}
+*/
+```
+
+## unfold
+
+A schedule that repeats one time from the specified state and iterator.
+
+```ts
+import * as Schedule from "@effect/io/Schedule"
+import * as Effect from "@effect/io/Effect"
+
+const schedule = Schedule.unfold(5, (n) => n + 1)
+
+Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4])).then(console.log)
+// { _tag: 'Chunk', values: [ 5, 6, 7, 8 ] }
+```
