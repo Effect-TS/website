@@ -26,14 +26,14 @@ import * as Duration from "@effect/data/Duration"
 let count = 0
 
 // Define an async effect that simulates an action with possible failures
-const action = Effect.async<never, number, number>((resume) => {
+const action = Effect.async<never, Error, string>((resume) => {
   if (count <= 2) {
     count++
     console.log("failure")
-    resume(Effect.fail(count))
+    resume(Effect.fail(new Error()))
   } else {
     console.log("success")
-    resume(Effect.succeed(count))
+    resume(Effect.succeed("yay!"))
   }
 })
 
@@ -42,12 +42,13 @@ const policy = Schedule.fixed(Duration.millis(100))
 
 const repeated = Effect.retry(action, policy)
 
-Effect.runPromise(repeated)
+Effect.runPromise(repeated).then((s) => console.log(`result: ${s}`))
 /*
 failure
 failure
 failure
 success
+result: yay!
 */
 ```
 
@@ -74,14 +75,14 @@ import { pipe } from "@effect/data/Function"
 let count = 0
 
 // Define an async effect that simulates an action with possible failures
-const action = Effect.async<never, number, number>((resume) => {
+const action = Effect.async<never, Error, string>((resume) => {
   if (count <= 2) {
     count++
     console.log("failure")
-    resume(Effect.fail(count))
+    resume(Effect.fail(new Error()))
   } else {
     console.log("success")
-    resume(Effect.succeed(count))
+    resume(Effect.succeed("yay!"))
   }
 })
 
@@ -96,14 +97,16 @@ const policy = pipe(
 const repeated = Effect.retryOrElse(action, policy, () =>
   Effect.sync(() => {
     console.log("orElse")
+    return "default value"
   })
 )
 
-Effect.runPromise(repeated)
+Effect.runPromise(repeated).then((s) => console.log(`result: ${s}`))
 /*
 failure
 failure
 failure
 orElse
+result: default value
 */
 ```
