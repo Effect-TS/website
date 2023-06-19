@@ -95,9 +95,12 @@ In order to provide an actual implementation of the `Random` service, we can uti
 ```ts
 const runnable: Effect.Effect<never, never, void> = pipe(
   program,
-  Effect.provideService(Random, {
-    next: () => Effect.succeed(Math.random()),
-  })
+  Effect.provideService(
+    Random,
+    Random.of({
+      next: () => Effect.succeed(Math.random()),
+    })
+  )
 )
 
 Effect.runSync(runnable)
@@ -150,9 +153,12 @@ However, if we provide the `Random` service implementation:
 Effect.runSync(
   pipe(
     program,
-    Effect.provideService(Random, {
-      next: () => Effect.succeed(Math.random()),
-    })
+    Effect.provideService(
+      Random,
+      Random.of({
+        next: () => Effect.succeed(Math.random()),
+      })
+    )
   )
 )
 // ...more output... message=0.9957979486841035
@@ -207,12 +213,18 @@ To execute the `program`, we need to provide implementations for both services:
 ```ts
 const runnable = pipe(
   program,
-  Effect.provideService(Random, {
-    next: () => Effect.succeed(Math.random()),
-  }),
-  Effect.provideService(Logger, {
-    log: Effect.logInfo,
-  })
+  Effect.provideService(
+    Random,
+    Random.of({
+      next: () => Effect.succeed(Math.random()),
+    })
+  ),
+  Effect.provideService(
+    Logger,
+    Logger.of({
+      log: Effect.logInfo,
+    })
+  )
 )
 ```
 
@@ -221,10 +233,13 @@ Alternatively, instead of calling `provideService` multiple times, we can combin
 ```ts
 const context: Context.Context<Random | Logger> = pipe(
   Context.empty(),
-  Context.add(Random, { next: () => Effect.succeed(Math.random()) }),
-  Context.add(Logger, {
-    log: Effect.logInfo,
-  })
+  Context.add(Random, Random.of({ next: () => Effect.succeed(Math.random()) })),
+  Context.add(
+    Logger,
+    Logger.of({
+      log: Effect.logInfo,
+    })
+  )
 )
 ```
 
