@@ -1,45 +1,43 @@
 # Built-in Schedules
 
-## succeed
-
-Returns a schedule that repeats one time, producing the specified constant value.
+To demonstrate the functionality of different schedules, we will be working with the following effect:
 
 ```ts
-import * as Schedule from "@effect/io/Schedule"
 import * as Effect from "@effect/io/Effect"
 
-const schedule = Schedule.succeed(5)
+let start = new Date().getTime()
 
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3])).then(console.log)
-// { _tag: 'Chunk', values: [ 5, 5, 5 ] }
+const logDelay = Effect.sync(() => {
+  const now = new Date().getTime()
+  console.log(`delay: ${now - start}`)
+  start = now
+})
 ```
 
-## fromFunction
+The `logDelay` effect logs the time delay between each execution. We will use this effect to showcase the behavior of various built-in schedules.
 
-A schedule that always recurs, mapping input values through the specified function.
+## forever
 
-```ts
-import * as Schedule from "@effect/io/Schedule"
-import * as Effect from "@effect/io/Effect"
-
-const schedule = Schedule.fromFunction((n: number) => n + 1)
-
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3])).then(console.log)
-// { _tag: 'Chunk', values: [ 2, 3, 4 ] }
-```
-
-## stop
-
-A schedule that does not recur, it just stops.
+A schedule that always recurs and produces number of recurrence at each run.
 
 ```ts
 import * as Schedule from "@effect/io/Schedule"
 import * as Effect from "@effect/io/Effect"
 
-const schedule = Schedule.stop()
+const schedule = Schedule.forever()
 
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3])).then(console.log)
-// { _tag: 'Chunk', values: [ undefined ] }
+Effect.runPromise(Effect.repeat(logDelay, schedule))
+/*
+delay: 3
+delay: 7 < forever
+delay: 5
+delay: 1
+delay: 1
+delay: 1
+delay: 1
+delay: 1
+...
+*/
 ```
 
 ## once
@@ -52,22 +50,11 @@ import * as Effect from "@effect/io/Effect"
 
 const schedule = Schedule.once()
 
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3])).then(console.log)
-// { _tag: 'Chunk', values: [ undefined, undefined ] }
-```
-
-## forever
-
-A schedule that always recurs and produces number of recurrence at each run.
-
-```ts
-import * as Schedule from "@effect/io/Schedule"
-import * as Effect from "@effect/io/Effect"
-
-const schedule = Schedule.forever()
-
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3])).then(console.log)
-// { _tag: 'Chunk', values: [ 0, 1, 2 ] }
+Effect.runPromise(Effect.repeat(logDelay, schedule))
+/*
+delay: 3
+delay: 8 < once
+*/
 ```
 
 ## recurs
@@ -78,13 +65,28 @@ A schedule that only recurs the specified number of times.
 import * as Schedule from "@effect/io/Schedule"
 import * as Effect from "@effect/io/Effect"
 
-const schedule = Schedule.recurs(2)
+const schedule = Schedule.recurs(5)
 
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4])).then(console.log)
-// { _tag: 'Chunk', values: [ 0, 1, 2 ] }
+Effect.runPromise(Effect.repeat(logDelay, schedule))
+/*
+delay: 5
+delay: 8 < recurs
+delay: 6
+delay: 2
+delay: 1
+delay: 1
+*/
 ```
 
-## spaced
+## Recurring at specific intervals
+
+In the context of scheduling, two commonly used schedules are `spaced` and `fixed`. While they both involve recurring at specific intervals, they have a fundamental difference in how they determine the timing of repetitions.
+
+The `spaced` schedule creates a recurring pattern where each repetition is spaced apart by a specified duration. This means that there is a delay between the completion of one repetition and the start of the next. The duration between repetitions remains constant, providing a consistent spacing pattern.
+
+On the other hand, the `fixed` schedule recurs on a fixed interval, regardless of the duration of the actions or the completion time of previous repetitions. It operates independently of the execution time, ensuring a regular recurrence at the specified interval.
+
+### spaced
 
 A schedule that recurs continuously, each repetition spaced the specified duration from the last run.
 
@@ -95,13 +97,24 @@ import * as Duration from "@effect/data/Duration"
 
 const schedule = Schedule.spaced(Duration.millis(200))
 
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4])).then(console.log)
-// { _tag: 'Chunk', values: [ 0, 1, 2, 3 ] }
+const action = Effect.delay(logDelay, Duration.millis(100))
+
+Effect.runPromise(Effect.repeat(action, schedule))
+/*
+delay: 109
+delay: 316 < spaced
+delay: 302
+delay: 306
+delay: 306
+...
+*/
 ```
 
-## fixed
+The first delay is approximately 100 milliseconds, as the initial execution is not affected by the schedule. Subsequent delays are approximately 200 milliseconds apart, demonstrating the effect of the `spaced` schedule.
 
-A schedule that recurs on a fixed interval. Returns the number of repetitions of the schedule so far
+### fixed
+
+A schedule that recurs on a fixed interval. Returns the number of repetitions of the schedule so far.
 
 ```ts
 import * as Schedule from "@effect/io/Schedule"
@@ -110,9 +123,20 @@ import * as Duration from "@effect/data/Duration"
 
 const schedule = Schedule.fixed(Duration.millis(200))
 
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4])).then(console.log)
-// { _tag: 'Chunk', values: [ 0, 1, 2, 3 ] }
+const action = Effect.delay(logDelay, Duration.millis(100))
+
+Effect.runPromise(Effect.repeat(action, schedule))
+/*
+delay: 109
+delay: 316 < fixed
+delay: 202
+delay: 202
+delay: 203
+...
+*/
 ```
+
+The first delay is approximately 100 milliseconds, as the initial execution is not affected by the schedule. Subsequent delays are consistently around 200 milliseconds apart, demonstrating the effect of the `fixed` schedule.
 
 ## exponential
 
@@ -125,17 +149,18 @@ import * as Duration from "@effect/data/Duration"
 
 const schedule = Schedule.exponential(Duration.millis(10))
 
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4])).then(console.log)
+Effect.runPromise(Effect.repeat(logDelay, schedule))
 /*
-{
-  _tag: 'Chunk',
-  values: [
-    Duration { millis: 10 },
-    Duration { millis: 20 },
-    Duration { millis: 40 },
-    Duration { millis: 80 }
-  ]
-}
+delay: 4
+delay: 17 < exponential
+delay: 21
+delay: 40
+delay: 85
+delay: 168
+delay: 324
+delay: 644
+delay: 1287
+...
 */
 ```
 
@@ -154,30 +179,18 @@ Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4, 5, 6])).then(
   console.log
 )
 /*
-{
-  _tag: 'Chunk',
-  values: [
-    Duration { millis: 10 },
-    Duration { millis: 10 },
-    Duration { millis: 20 },
-    Duration { millis: 30 },
-    Duration { millis: 50 },
-    Duration { millis: 80 }
-  ]
-}
+delay: 3
+delay: 17 < fibonacci
+delay: 11
+delay: 23
+delay: 32
+delay: 52
+delay: 84
+delay: 132
+delay: 212
+delay: 342
+delay: 556
+delay: 892
+...
 */
-```
-
-## unfold
-
-A schedule that repeats one time from the specified state and iterator.
-
-```ts
-import * as Schedule from "@effect/io/Schedule"
-import * as Effect from "@effect/io/Effect"
-
-const schedule = Schedule.unfold(5, (n) => n + 1)
-
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4])).then(console.log)
-// { _tag: 'Chunk', values: [ 5, 6, 7, 8 ] }
 ```

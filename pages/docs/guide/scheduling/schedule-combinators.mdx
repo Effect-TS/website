@@ -2,6 +2,22 @@
 
 Schedules define stateful, possibly effectful, recurring schedules of events, and compose in a variety of ways. Combinators allow us to take schedules and combine them together to get other schedules.
 
+To demonstrate the functionality of different combinators, we will be working with the following effect:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+let start = new Date().getTime()
+
+const logDelay = Effect.sync(() => {
+  const now = new Date().getTime()
+  console.log(`delay: ${now - start}`)
+  start = now
+})
+```
+
+The `logDelay` effect logs the time delay between each execution. We will use this effect to showcase the behavior of various built-in combinators.
+
 ## Composition
 
 Schedules compose in the following primary ways:
@@ -10,11 +26,12 @@ Schedules compose in the following primary ways:
 - **Intersection**. This performs the intersection of the intervals of two schedules.
 - **Sequencing**. This concatenates the intervals of one schedule onto another.
 
-## Union
+### Union
 
 Combines two schedules through union, by recurring if either schedule wants to recur, using the minimum of the two delays between recurrences.
 
 ```ts
+import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
 import * as Duration from "@effect/data/Duration"
 
@@ -23,27 +40,30 @@ const schedule = Schedule.union(
   Schedule.spaced(Duration.seconds(1))
 )
 
-dryRun(schedule)
+Effect.runPromise(Effect.repeat(logDelay, schedule))
 /*
-113  exponential
-208  exponential
-403  exponential
-807  exponential
-1007 spaced
-1006 spaced
-1006 spaced
-1007 spaced
-1007 spaced
-1007 spaced
+delay: 3
+delay: 115  < exponential
+delay: 202
+delay: 404
+delay: 802
+delay: 1002 < spaced
+delay: 1006
+delay: 1006
+delay: 1006
+delay: 1006
 ...
 */
 ```
 
-## Intersection
+When we use the combined schedule with `Effect.repeat`, we observe that the effect is executed repeatedly based on the minimum delay between the two schedules. In this case, the delay alternates between the exponential schedule (increasing delay) and the spaced schedule (constant delay).
+
+### Intersection
 
 Combines two schedules through the intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences.
 
 ```ts
+import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
 import * as Duration from "@effect/data/Duration"
 
@@ -52,64 +72,161 @@ const schedule = Schedule.intersect(
   Schedule.recurs(5)
 )
 
-dryRun(schedule)
+Effect.runPromise(Effect.repeat(logDelay, schedule))
 /*
-18  exponential + recurs
-21  exponential + recurs
-41  exponential + recurs
-82  exponential + recurs
-168 exponential + recurs
-end recurs
+delay: 4
+delay: 18  < recurs
+delay: 22
+delay: 45
+delay: 84
+delay: 166
 */
 ```
 
-## Sequencing
+When we use the combined schedule with `Effect.repeat`, we observe that the effect is executed repeatedly only if both schedules want it to recur. The delay between recurrences is determined by the maximum delay between the two schedules. In this case, the delay follows the progression of the exponential schedule until the maximum number of recurrences specified by the recursive schedule is reached.
+
+### Sequencing
 
 Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy.
 
 ```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
 import * as Duration from "@effect/data/Duration"
 
-const schedule = Schedule.andThen(
+const schedule = pipe(
   Schedule.recurs(5),
-  Schedule.spaced(Duration.seconds(1))
+  Schedule.andThen(Schedule.spaced(Duration.seconds(1)))
 )
 
-dryRun(schedule)
+Effect.runPromise(Effect.repeat(logDelay, schedule))
 /*
-8    recurs
-4    recurs
-2    recurs
-1    recurs
-3    recurs
-1008 spaced
-1006 spaced
-1006 spaced
-1008 spaced
-1007 spaced
-1004 spaced
+delay: 4
+delay: 8    < recurs
+delay: 4
+delay: 2
+delay: 0
+delay: 2
+delay: 1005 < spaced
+delay: 1007
+delay: 1006
+delay: 1007
+delay: 1005
 ...
 */
 ```
 
-## The dryRun helper
+When we use the combined schedule with `Effect.repeat`, we observe that the effect follows the policy of the first schedule (recurs) until it completes the specified number of recurrences. After that, it switches to the policy of the second schedule (spaced) and continues repeating the effect with the fixed delay between recurrences.
+
+## Jittering
+
+A `jittered` is a combinator that takes one schedule and returns another schedule of the same type except for the delay which is applied randomly
+
+When a resource is out of service due to overload or contention, retrying and backing off doesn't help us. If all failed API calls are backed off to the same point of time, they cause another overload or contention. Jitter adds some amount of randomness to the delay of the schedule. This helps us to avoid ending up accidentally synchronizing and taking the service down by accident.
+
+[Research](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) shows that `Schedule.jittered(0.0, 1.0)` is very suitable for retrying.
 
 ```ts
-import * as Schedule from "@effect/io/Schedule"
 import * as Effect from "@effect/io/Effect"
+import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
 
-export function dryRun<Out>(schedule: Schedule.Schedule<never, unknown, Out>) {
-  let start = new Date().getTime()
-  Effect.runPromise(
-    Effect.schedule(
-      Effect.sync(() => {
-        const end = new Date().getTime()
-        console.log(end - start) // delay
-        start = end
-      }),
-      schedule
-    )
-  )
-}
+const schedule = Schedule.jittered(Schedule.exponential(Duration.millis(10)))
+
+Effect.runPromise(Effect.repeat(logDelay, schedule))
+/*
+delay: 3
+delay: 18
+delay: 24
+delay: 48
+delay: 92
+delay: 184
+delay: 351
+delay: 620
+delay: 1129
+delay: 2576
+...
+*/
+```
+
+In this example, we use the `jittered` combinator to apply jitter to an exponential schedule. The exponential schedule increases the delay between each repetition exponentially. By adding jitter to the schedule, the delays become randomly adjusted within a certain range.
+
+## Filtering
+
+We can filter inputs or outputs of a schedule with `whileInput` and `whileOutput`.
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Schedule from "@effect/io/Schedule"
+
+const schedule = pipe(
+  Schedule.recurs(5),
+  Schedule.whileOutput((n) => n <= 2)
+)
+
+Effect.runPromise(Effect.repeat(logDelay, schedule))
+/*
+delay: 2
+delay: 11 < recurs
+delay: 1
+delay: 1
+(end)     < whileOutput
+ */
+```
+
+In this example, we create a schedule using `Schedule.recurs(5)` to repeat a certain action up to 5 times. However, we apply the `whileOutput` combinator with a predicate that filters out outputs greater than 2. As a result, the schedule stops producing outputs once the value exceeds 2, and the repetition ends.
+
+## Modifying
+
+Modifies the delay of a schedule.
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Schedule from "@effect/io/Schedule"
+import * as Duration from "@effect/data/Duration"
+
+const schedule = pipe(
+  Schedule.spaced(Duration.seconds(1)),
+  Schedule.modifyDelay((_) => Duration.millis(100))
+)
+
+Effect.runPromise(Effect.repeat(logDelay, schedule))
+/*
+delay: 4
+delay: 110 < modifyDelay
+delay: 103
+delay: 103
+delay: 106
+...
+ */
+```
+
+# Tapping
+
+Whenever we need to effectfully process each schedule input/output, we can use `tapInput` and `tapOutput`.
+
+We can use these two functions for logging purposes:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Schedule from "@effect/io/Schedule"
+
+const schedule = pipe(
+  Schedule.recurs(2),
+  Schedule.tapOutput((n) => Effect.sync(() => console.log(`repeating ${n}`)))
+)
+
+Effect.runPromise(Effect.repeat(logDelay, schedule))
+/*
+delay: 2
+repeating 0
+delay: 8
+repeating 1
+delay: 5
+repeating 2
+ */
 ```
