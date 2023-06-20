@@ -1,6 +1,6 @@
 import { Idea } from "@/components/Callout"
 
-# Manage services
+# Managing Services
 
 Up until now, we have been working with Effects that do not have any context. In the `Effect<R, E, A>` type, the `R` parameter has always been of type `never`.
 
@@ -95,9 +95,12 @@ In order to provide an actual implementation of the `Random` service, we can uti
 ```ts
 const runnable: Effect.Effect<never, never, void> = pipe(
   program,
-  Effect.provideService(Random, {
-    next: () => Effect.succeed(Math.random()),
-  })
+  Effect.provideService(
+    Random,
+    Random.of({
+      next: () => Effect.succeed(Math.random()),
+    })
+  )
 )
 
 Effect.runSync(runnable)
@@ -150,9 +153,12 @@ However, if we provide the `Random` service implementation:
 Effect.runSync(
   pipe(
     program,
-    Effect.provideService(Random, {
-      next: () => Effect.succeed(Math.random()),
-    })
+    Effect.provideService(
+      Random,
+      Random.of({
+        next: () => Effect.succeed(Math.random()),
+      })
+    )
   )
 )
 // ...more output... message=0.9957979486841035
@@ -164,7 +170,7 @@ By using the `serviceOption` function, we can gracefully handle scenarios where 
 
 ## Using multiple services
 
-When we need to manage multiple services in our program, we can utilize the `all` function.
+When we need to manage multiple services in our program, we can utilize the `Effect.all(...tags){:ts}` function.
 By passing a tuple of tags, we can access the corresponding tuple of services:
 
 ```ts
@@ -207,12 +213,18 @@ To execute the `program`, we need to provide implementations for both services:
 ```ts
 const runnable = pipe(
   program,
-  Effect.provideService(Random, {
-    next: () => Effect.succeed(Math.random()),
-  }),
-  Effect.provideService(Logger, {
-    log: Effect.logInfo,
-  })
+  Effect.provideService(
+    Random,
+    Random.of({
+      next: () => Effect.succeed(Math.random()),
+    })
+  ),
+  Effect.provideService(
+    Logger,
+    Logger.of({
+      log: Effect.logInfo,
+    })
+  )
 )
 ```
 
@@ -221,10 +233,13 @@ Alternatively, instead of calling `provideService` multiple times, we can combin
 ```ts
 const context: Context.Context<Random | Logger> = pipe(
   Context.empty(),
-  Context.add(Random, { next: () => Effect.succeed(Math.random()) }),
-  Context.add(Logger, {
-    log: Effect.logInfo,
-  })
+  Context.add(Random, Random.of({ next: () => Effect.succeed(Math.random()) })),
+  Context.add(
+    Logger,
+    Logger.of({
+      log: Effect.logInfo,
+    })
+  )
 )
 ```
 
@@ -236,8 +251,7 @@ const runnable = pipe(program, Effect.provideContext(context))
 
 By providing the necessary implementations for each service, we ensure that the `runnable` effect can access and utilize both services when it is executed.
 
-In the upcoming section, we will delve into the topic of [Layers](layers).
-Layers are powerful constructs for creating services, enabling us to build complex contexts that can be seamlessly provided to Effects.
+In the upcoming section, we will delve into the topic of [Layers](layers). Layers are powerful constructs for creating services and composing them together, enabling us to build complex dependency graphs that can be seamlessly provided to Effects.
 
 ---
 
@@ -246,5 +260,5 @@ Layers are powerful constructs for creating services, enabling us to build compl
 import { Card, Cards } from "nextra-theme-docs"
 
 <Cards>
-  <Card icon="📚 " title="Building Dependency Graph" href="layers" />
+  <Card icon="📚 " title="Building a Dependency Graph" href="layers" />
 </Cards>

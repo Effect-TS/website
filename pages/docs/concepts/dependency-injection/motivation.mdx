@@ -1,0 +1,124 @@
+import { Steps } from "nextra-theme-docs"
+import { Idea } from "@/components/Callout"
+
+# Motivation
+
+## What is Dependency Injection?
+
+Dependency injection is a design pattern used in software development that helps manage the dependencies between different components of an application. It allows developers to create loosely coupled code by passing dependencies to a class or function from an external source.
+
+In simpler terms, instead of creating dependencies inside a component, dependency injection enables us to provide them from the outside, making code more flexible and easier to test and maintain. By using dependency injection, developers can easily swap out dependencies or change their behavior without modifying the component's code directly.
+
+## Illustrating the Problem
+
+Let's assume we have an `Mailer` service which depends upon the functionality provided by a `Logger` service.
+
+```ts
+class Logger {
+  log(message: string): void {
+    console.log(message)
+  }
+}
+
+class Mailer {
+  logger = new Logger()
+  sendMail(address: string, message: string): void {
+    this.logger.log(`Sending the message ${message} to ${address}`)
+  }
+}
+```
+
+In the code above, we directly construct a `Logger` within our `Mailer` service. This tight coupling between the `Logger` and `Mailer` services introduces several problems:
+
+1. Developers using the `Mailer` service have no control over how the `Logger` is constructed
+2. Alternate implementations of the `Logger` service (e.g. for testing) cannot be provided
+3. Changes to the `Logger` service may necessitate changes to the `Mailer` service
+
+However, by making use of dependency injection we can decouple our `Mailer` and `Logger` services and solve the problems
+
+## Decoupling the Dependency Graph
+
+The first step to solving the problems outlined above is to decouple the construction of the `Mailer` and `Logger` services from one another.
+
+```ts
+const logger = new Logger()
+
+class Mailer {
+  constructor(readonly logger: Logger) {}
+  sendMail(address: string, message: string): void {
+    this.logger.log(`Sending the message ${message} to ${address}`)
+  }
+}
+```
+
+Now instead of constructing the `Logger` service within the `Mailer` service, we construct the `Logger` externally and pass it to the constructor of the `Mailer` service.
+
+<Idea>
+  This pattern of inverting control of a service to the user is commonly known in software engineering as [_Inversion of Control_](https://en.wikipedia.org/wiki/Inversion_of_control).
+</Idea>
+
+This gives the developer much more control over how the dependencies within their application are constructed and composed together into a dependency graph.
+
+## Using Service Interfaces
+
+Though we have improved the coupling between our `Mailer` and `Logger` services in the example above, there is still a problem with our code - we can only have a single implementation of our `Mailer` and `Logger` services.
+
+But what if we want to provide a different implementation of `Logger` to the `Mailer` service when we are running our application's test suite?
+
+We can take things a step further and allow for multiple implementations of our services by decoupling the _interface_ of our services from the _implementation_ of the service.
+
+<Steps>
+### Define the interface of our services
+
+First, we define the _interface_, or _behavior_, that our services should expose:
+
+```ts
+interface Logger {
+  log(message: string): void
+}
+
+interface Mailer {
+  sendMail(address: string, message: string): void
+}
+```
+
+### Create concrete service implementations
+
+Then, we bind the actual implementation of these services to the interfaces we have defined:
+
+```ts
+class ConsoleLogger implements Logger {
+  log(message: string): void {
+    console.log(message)
+  }
+}
+
+class Email implements Mailer {
+  constructor(readonly logger: Logger) {}
+  sendMail(address: string, message: string): void {
+    this.logger.log(`Sending the message ${message} to ${address}`)
+  }
+}
+
+const logger = new ConsoleLogger()
+const mailer = new Email(logger)
+```
+
+### Providing other service implementations
+
+Now, as long as we adhere to the interface specified by our services, we can easily create alternate implementations.
+
+For example, we can test the `Mailer` service and provide a mock implementation of the `Logger` to track all messages logged by the service in our tests:
+
+```ts
+class MockLogger implements Logger {
+  readonly messages: Array<string> = []
+  log(message: string): void {
+    this.messages.push(message)
+  }
+}
+
+const logger = new MockLogger()
+const mailer = new Email(logger)
+```
+</Steps>
