@@ -64,6 +64,7 @@ import * as Effect from "@effect/io/Effect"
 const increment = (x: number) => x + 1
 
 const effect = Effect.succeed(5)
+
 const mappedEffect = Effect.map(effect, increment)
 
 Effect.runSync(mappedEffect) // 6
@@ -125,6 +126,7 @@ const divideByTwo = (x: number): Effect.Effect<never, never, number> =>
   Effect.succeed(x / 2)
 
 const effect = Effect.succeed(10)
+
 const flatMappedEffect = Effect.flatMap(effect, divideByTwo)
 
 Effect.runSync(flatMappedEffect) // 5
@@ -159,29 +161,26 @@ Now, let's combine all three functions to build a pipeline that performs a serie
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 
-const addOne = (x: number) => x + 1
-const multiplyByTwo = (x: number) => x * 2
-const divideByTen = (x: number): Effect.Effect<never, never, number> =>
-  Effect.succeed(x / 10)
+const addOne = (x: number) => Effect.succeed(x + 1)
+
+const divideByTwo = (x: number) => Effect.succeed(x / 2)
 
 const result = pipe(
   5,
-  addOne,
-  multiplyByTwo,
   Effect.succeed,
-  Effect.flatMap(divideByTen),
+  Effect.flatMap(addOne),
+  Effect.flatMap(divideByTwo),
   Effect.map((x) => `Result: ${x}`)
 )
 
-Effect.runSync(result) // "Result: 1.2"
+Effect.runSync(result) // "Result: 3"
 ```
 
 In this example, we start with the initial value of 5. We use `pipe` to chain the transformations:
 
-- `addOne` adds 1
-- `multiplyByTwo` multiplies by 2
 - `succeed` lifts the value into an `Effect`
-- `divideByTen` divides by 10 using an `Effect` transformation
+- `increment` adds 1 using an `Effect` transformation
+- `divideByTwo` divides by 2 using an `Effect` transformation
 - and finally, `map` transforms the resulting value by appending `"Result: "` to it
 
 This example demonstrates how the `pipe` function can be used to construct a pipeline by chaining multiple transformations together. Each function in the pipeline operates on the result of the previous function, allowing you to perform a series of computations in a concise and readable manner.

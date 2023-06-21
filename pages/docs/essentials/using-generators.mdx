@@ -1,0 +1,100 @@
+import { Info, Warning, Idea } from "@/components/Callout"
+
+# Using Generators in Effect
+
+Effect provides a unique imperative API to address the issue of nested callbacks encountered when using functions like `pipe`.
+
+Generators provide an alternative way to write effectful code, making it easier to handle complex operations. By using the `Effect.gen` helper, you can organize your code in a more straightforward and sequential manner.
+
+<Idea>
+  The use of generators is an **optional feature** in Effect. If you find
+  generators unfamiliar or prefer a different coding style, you can continue
+  using APIs like `Effect.flatMap` and `Effect.map` to compose your effects
+  using the `pipe` function. Effect provides flexibility, allowing you to choose
+  the approach that suits your coding preferences and project requirements.
+</Idea>
+
+Let's look at an example of a pipeline we wrote in the previous section:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+
+const addOne = (x: number) => Effect.succeed(x + 1)
+
+const divideByTwo = (x: number) => Effect.succeed(x / 2)
+
+const result = pipe(
+  5,
+  Effect.succeed,
+  Effect.flatMap((x) => addOne(x)),
+  Effect.flatMap((y) => divideByTwo(y)),
+  Effect.map((z) => `Result: ${z}`)
+)
+
+Effect.runSync(result) // "Result: 3"
+```
+
+Now, let's see how the same code can be written using the `Effect.gen` helper:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const addOne = (x: number) => Effect.succeed(x + 1)
+
+const divideByTwo = (x: number) => Effect.succeed(x / 2)
+
+const result = Effect.gen(function* (_) {
+  const x = yield* _(Effect.succeed(5))
+  const y = yield* _(addOne(x))
+  const z = yield* _(divideByTwo(y))
+  return `Result: ${z}`
+})
+
+Effect.runSync(result) // "Result: 3"
+```
+
+<Warning>
+  The generator API is only available when using the `downlevelIteration` flag
+  or with a `target` of `"es2015"` or higher in your `tsconfig.json` file
+</Warning>
+
+Notice the use of `yield*` to retrieve the next value from the generator:
+
+```ts {2}
+const result = Effect.gen(function* (_) {
+  const x = yield* _(Effect.succeed(5))
+  /* ... */
+})
+```
+
+When yielding an effect, it is necessary to pass the Effect you want to `yield*` to the helper function `_`, which is passed as an argument to `Effect.gen`. This ensures that TypeScript can correctly infer the types.
+
+<Info>
+  The `_` symbol is just a convention for the argument name and is not a special
+  symbol in Effect. You are free to use any name you prefer (e.g., `$`, etc...).
+  The current convention is to use `_` as the argument name.
+</Info>
+
+## Using the helper as a `pipe`
+
+The `_` helper can also be used as a `pipe` function.
+
+In the following example, `Random.next()` is piped into `Effect.map`.
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Random from "@effect/io/Random"
+
+const program = Effect.gen(function* (_) {
+  const n = yield* _(
+    Random.next(),
+    Effect.map((n) => n * 2)
+  )
+  if (n > 0.5) {
+    return yield* _(Effect.succeed("yay!"))
+  } else {
+    return yield* _(Effect.fail("oh no!"))
+  }
+})
+```
