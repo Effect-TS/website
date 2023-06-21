@@ -75,3 +75,26 @@ When yielding an effect, it is necessary to pass the Effect you want to `yield*`
   symbol in Effect. You are free to use any name you prefer (e.g., `$`, etc...).
   The current convention is to use `_` as the argument name.
 </Info>
+
+## Using the helper as a `pipe`
+
+The `_` helper can also be used as a `pipe` function.
+
+In the following example, `Random.next()` is piped into `Effect.map`.
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Random from "@effect/io/Random"
+
+const program = Effect.gen(function* (_) {
+  const n = yield* _(
+    Random.next(),
+    Effect.map((n) => n * 2)
+  )
+  if (n > 0.5) {
+    return yield* _(Effect.succeed("yay!"))
+  } else {
+    return yield* _(Effect.fail("oh no!"))
+  }
+})
+```
