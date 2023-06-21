@@ -1,5 +1,212 @@
 # Configuration
 
-import { Stub } from "@/components/Stub"
+Configuration is an essential aspect of any cloud-native application. Effect simplifies the process of managing configuration by offering a convenient interface for configuration providers.
 
-<Stub />
+The configuration front-end in Effect enables ecosystem libraries and applications to specify their configuration requirements in a declarative manner. It offloads the complex tasks to a `ConfigProvider`, which can be supplied by third-party libraries.
+
+Effect comes bundled with a straightforward default `ConfigProvider` that retrieves configuration data from environment variables. This default provider can be used during development or as a starting point before transitioning to more advanced configuration providers.
+
+To make our application configurable, we need to understand three essential elements:
+
+- **Config Description**: We describe the configuration data using an instance of `Config<A>`. If the configuration data is simple, such as a `string`, `number`, or `boolean`, we can use the built-in functions provided by the `@effect/io/Config` module. For more complex data types like `HostPort`, we can combine primitive configs to create a custom configuration description.
+
+- **Config Frontend**: We use `Effect.config` to load the configuration data described by a `Config<A>` instance. This function leverages the current `ConfigProvider` to retrieve the configuration.
+
+- **Config Backend**: The `ConfigProvider` is the underlying engine that powers `Effect.config` and handles the loading of configurations. Effect comes with a default config provider as part of its default services. This default provider reads the configuration data from environment variables. If we want to use a custom config provider, we can utilize the `Effect.setConfigProvider` layer to configure the Effect runtime accordingly.
+
+## Primitives
+
+Effect provides a set of primitives for the most common types like `string`, `number`, `boolean`, `integer`, etc.
+
+Let's start with a simple example of how to read configuration from environment variables:
+
+```ts filename="primitives.ts" showLineNumbers
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Config from "@effect/io/Config"
+
+const program = pipe(
+  Effect.all(
+    Effect.config(Config.string("HOST")),
+    Effect.config(Config.float("PORT"))
+  ),
+  Effect.flatMap(([host, port]) =>
+    Effect.sync(() => console.log(`Application started: ${host}:${port}`))
+  )
+)
+
+Effect.runSync(program)
+```
+
+If we run this application we will get the following output:
+
+```bash filename="Terminal" {3-6}
+ts-node config.ts
+
+/path/to/config.ts:7
+    Effect.config(Config.string("HOST")),
+           ^
+(Missing data at HOST: "Expected HOST to exist in the process context")
+...
+```
+
+This is because we have not provided any configuration. Let's try to run it with the following environment variables:
+
+```bash filename="Terminal"
+HOST=localhost PORT=8080 ts-node config.ts
+```
+
+Now we get the following output:
+
+```bash
+Application started: localhost:8080
+```
+
+## Custom Configurations
+
+In addition to primitive types, we can also define configurations for custom types. To achieve this, we use primitive configs and combine them using `Config` operators (`zip`, `orElse`, `map`, etc.) and constructors (`setOf`, `arrayOf`, `table`, etc.).
+
+Let's consider the `HostPort` data type, which consists of two fields: `host` and `port`.
+
+```ts
+class HostPort {
+  constructor(readonly host: string, readonly port: number) {}
+
+  get url() {
+    return `${this.host}:${this.port}`
+  }
+}
+```
+
+We can define a configuration for this data type by combining primitive configs for `string` and `number`:
+
+```ts filename="HostPort.ts" {13}
+import { pipe } from "@effect/data/Function"
+import * as Config from "@effect/io/Config"
+
+export class HostPort {
+  constructor(readonly host: string, readonly port: number) {}
+
+  get url() {
+    return `${this.host}:${this.port}`
+  }
+}
+
+export const config: Config.Config<HostPort> = pipe(
+  Config.zip(Config.string("HOST"), Config.float("PORT")),
+  Config.map(([host, port]) => new HostPort(host, port))
+)
+```
+
+In the above example, we use the `zip` operator to combine two primitive configs `Config<string>` and `Config<number>` into a `Config<[string, number]>`.
+
+If we use this customized configuration in our application:
+
+```ts filename="HostPort.ts" {19}
+import { pipe } from "@effect/data/Function"
+import * as Config from "@effect/io/Config"
+import * as Effect from "@effect/io/Effect"
+
+export class HostPort {
+  constructor(readonly host: string, readonly port: number) {}
+
+  get url() {
+    return `${this.host}:${this.port}`
+  }
+}
+
+export const config: Config.Config<HostPort> = pipe(
+  Config.zip(Config.string("HOST"), Config.float("PORT")),
+  Config.map(([host, port]) => new HostPort(host, port))
+)
+
+export const program = pipe(
+  Effect.config(config),
+  Effect.flatMap((hostPort) =>
+    Effect.sync(() => console.log(`Application started: ${hostPort.url}`))
+  )
+)
+
+Effect.runSync(program)
+```
+
+it attempts to read the corresponding values from environment variables (`HOST` and `PORT`):
+
+```bash filename="Terminal"
+HOST=localhost PORT=8080 ts-node HostPort.ts
+
+Application started: localhost:8080
+```
+
+## Top-level and Nested Configurations
+
+So far, we have learned how to define configurations in a top-level manner, whether they are for primitive or custom types. However, we can also define nested configurations.
+
+Let's assume we have a `ServiceConfig` data type that consists of two fields: `hostPort` and `timeout`.
+
+```ts filename="ServiceConfig.ts"
+import * as HostPort from "./HostPort"
+import * as Config from "@effect/io/Config"
+import { pipe } from "@effect/data/Function"
+
+class ServiceConfig {
+  constructor(readonly hostPort: HostPort.HostPort, readonly timeout: number) {}
+}
+
+const config: Config.Config<ServiceConfig> = pipe(
+  Config.zip(HostPort.config, Config.float("TIMEOUT")),
+  Config.map(([hostPort, timeout]) => new ServiceConfig(hostPort, timeout))
+)
+```
+
+If we use this customized config in our application, it tries to read corresponding values from environment variables: `HOST`, `PORT`, and `TIMEOUT`.
+
+However, in many cases, we don't want to read all configurations from the top-level namespace. Instead, we may want to nest them under a common namespace. For example, we want to read both `HOST` and `PORT` from the `HOSTPORT` namespace, and `TIMEOUT` from the root namespace.
+
+To achieve this, we can use the `nested` combinator. It allows us to nest configs under a specific namespace. Here's how we can update our configuration:
+
+```diff
+const config: Config.Config<ServiceConfig> = pipe(
+-  Config.zip(HostPort.config, Config.float("TIMEOUT")),
++  Config.zip(
++    Config.nested(HostPort.config, "HOSTPORT"),
++    Config.float("TIMEOUT")
++  ),
+  Config.map(([hostPort, timeout]) => new ServiceConfig(hostPort, timeout))
+)
+```
+
+Now, if we run our application, it will attempt to read the corresponding values from the environment variables: `HOSTPORT_HOST`, `HOSTPORT_PORT`, and `TIMEOUT`.
+
+## Testing Services
+
+When testing services, there are scenarios where we need to provide specific configurations to them. In such cases, we should be able to mock the backend that reads the configuration data.
+
+To accomplish this, we can use the `ConfigProvider.fromMap` constructor. This constructor takes a `Map<string, string>` that represents the configuration data, and it returns a config provider that reads the configuration from that map.
+
+Once we have the mock config provider, we can use `Effect.setConfigProvider` function. This function allows us to override the default config provider and provide our own custom config provider. It returns a `Layer` that can be used to configure the Effect runtime for our test specs.
+
+Here's an example of how we can mock a config provider for testing purposes:
+
+```ts filename="mockConfigProvider.ts"
+import * as ConfigProvider from "@effect/io/Config/Provider"
+import * as HostPort from "./HostPort"
+import * as Effect from "@effect/io/Effect"
+
+// Create a mock config provider using ConfigProvider.fromMap
+const mockConfigProvider = ConfigProvider.fromMap(
+  new Map([
+    ["HOST", "localhost"],
+    ["PORT", "8080"],
+  ])
+)
+
+// Create a layer using Effect.setConfigProvider to override the default config provider
+const layer = Effect.setConfigProvider(mockConfigProvider)
+
+// Run the program using the provided layer
+Effect.runSync(Effect.provideLayer(HostPort.program, layer))
+// Output: Application started: localhost:8080
+```
+
+By using this approach, we can easily mock the configuration data and test our services with different configurations in a controlled manner.
