@@ -1,5 +1,148 @@
 # Scope
 
-import { Stub } from "@/components/Stub"
+The `Scope` data type is fundamental for managing resources safely and in a composable manner in Effect.
 
-<Stub />
+In simple terms, a scope represents the lifetime of one or more resources. When a scope is closed, the resources associated with it are guaranteed to be released.
+
+By combining `Scope` with the Effect environment, we gain a powerful way to manage resources effectively.
+
+## Defining Resources
+
+We can define a resource using operators like `Effect.acquireRelease(acquire, release){:ts}`, which allows us to create a scoped value from an `acquire` and `release` workflow.
+
+For example, let's define a simple resource:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import type { Scope } from "@effect/io/Scope"
+
+// Define the interface for the resource
+interface MyResource {
+  readonly contents: string
+  readonly close: () => Promise<void>
+}
+
+// Simulate getting the resource
+const getMyResource = (): Promise<MyResource> =>
+  Promise.resolve({
+    contents: "lorem ipsum",
+    close: () =>
+      new Promise((resolve) => {
+        console.log("Resource released")
+        resolve()
+      }),
+  })
+
+// Define the acquisition of the resource with error handling
+const acquire = Effect.tryCatchPromise(
+  () =>
+    getMyResource().then((res) => {
+      console.log("Resource acquired")
+      return res
+    }),
+  () => new Error("getMyResourceError")
+)
+
+// Define the release of the resource
+const release = (res: MyResource) => Effect.promise(() => res.close())
+
+// Create a scoped resource effect using acquireRelease
+const resource: Effect.Effect<Scope, Error, MyResource> = Effect.acquireRelease(
+  acquire,
+  release
+)
+```
+
+Notice that the `acquireRelease` operator added a `Scope` to the environment required by the workflow:
+
+```ts /Scope/
+Effect.Effect<Scope, Error, MyResource>
+```
+
+This indicates that the workflow needs a `Scope` to run and adds a finalizer that will close the resource when the scope is closed.
+
+We can continue working with the resource for as long as we want by using `flatMap` or other Effect operators. For example, here's how we can read the contents:
+
+```ts
+Effect.flatMap(resource, (res) =>
+  Effect.sync(() => console.log(`contents is ${res.contents}`))
+)
+```
+
+Once we are done working with the resource, we can close the scope using the `Effect.scoped` operator. It creates a new `Scope`, provides it to the workflow, and closes the `Scope` when the workflow is finished.
+
+```ts
+const program: Effect.Effect<never, Error, void> = Effect.scoped(
+  Effect.flatMap(resource, (res) =>
+    Effect.sync(() => console.log(`contents is ${res.contents}`))
+  )
+)
+```
+
+The `scoped` operator removes the `Scope` from the environment, indicating that there are no longer any resources used by this workflow which require a scope.
+
+We now have a workflow that is ready to run:
+
+```ts
+// Run the program and observe the output
+Effect.runPromise(program)
+/*
+Resource acquired
+contents is lorem ipsum
+Resource released
+*/
+```
+
+## acquireUseRelease
+
+The `Effect.acquireUseRelease(acquire, use, release){:ts}` function is a specialized version of the `acquireRelease` function that simplifies resource management by automatically handling the scoping of resources.
+
+The main difference is that `acquireUseRelease` eliminates the need to manually call `Effect.scoped` to manage the resource's scope. It has additional knowledge about when you are done using the resource created with the `acquire` step. This is achieved by providing a `use` argument, which represents the function that operates on the acquired resource. As a result, `acquireUseRelease` can automatically determine when it should execute the release step.
+
+Here's an example that demonstrates the usage of `acquireUseRelease`:
+
+```ts {29-36}
+import * as Effect from "@effect/io/Effect"
+
+interface MyResource {
+  readonly contents: string
+  readonly close: () => Promise<void>
+}
+
+const getMyResource = (): Promise<MyResource> =>
+  Promise.resolve({
+    contents: "lorem ipsum",
+    close: () =>
+      new Promise((resolve) => {
+        console.log("Resource released")
+        resolve()
+      }),
+  })
+
+const acquire = Effect.tryCatchPromise(
+  () =>
+    getMyResource().then((res) => {
+      console.log("Resource acquired")
+      return res
+    }),
+  () => new Error("getMyResourceError")
+)
+
+const release = (res: MyResource) => Effect.promise(() => res.close())
+
+const use = (res: MyResource) =>
+  Effect.sync(() => console.log(`contents is ${res.contents}`))
+
+const program: Effect.Effect<never, Error, void> = Effect.acquireUseRelease(
+  acquire,
+  use,
+  release
+)
+
+Effect.runPromise(program)
+/*
+Resource acquired
+contents is lorem ipsum
+Resource released
+*/
+```
