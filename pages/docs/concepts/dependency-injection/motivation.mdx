@@ -34,21 +34,22 @@ In the code above, we directly construct a `Logger` within our `Mailer` service.
 2. Alternate implementations of the `Logger` service (e.g. for testing) cannot be provided
 3. Changes to the `Logger` service may necessitate changes to the `Mailer` service
 
-However, by making use of dependency injection we can decouple our `Mailer` and `Logger` services and solve the problems
+However, by making use of dependency injection we can decouple our `Mailer` and `Logger` services and solve the problems outlined above.
 
 ## Decoupling the Dependency Graph
 
 The first step to solving the problems outlined above is to decouple the construction of the `Mailer` and `Logger` services from one another.
 
 ```ts
-const logger = new Logger()
-
 class Mailer {
   constructor(readonly logger: Logger) {}
   sendMail(address: string, message: string): void {
     this.logger.log(`Sending the message ${message} to ${address}`)
   }
 }
+
+const logger = new Logger()
+const mailer = new Mailer(logger)
 ```
 
 Now instead of constructing the `Logger` service within the `Mailer` service, we construct the `Logger` externally and pass it to the constructor of the `Mailer` service.
@@ -93,7 +94,7 @@ class ConsoleLogger implements Logger {
   }
 }
 
-class Email implements Mailer {
+class ConsoleMailer implements Mailer {
   constructor(readonly logger: Logger) {}
   sendMail(address: string, message: string): void {
     this.logger.log(`Sending the message ${message} to ${address}`)
@@ -101,14 +102,14 @@ class Email implements Mailer {
 }
 
 const logger = new ConsoleLogger()
-const mailer = new Email(logger)
+const mailer = new ConsoleMailer(logger)
 ```
 
 ### Providing other service implementations
 
 Now, as long as we adhere to the interface specified by our services, we can easily create alternate implementations.
 
-For example, we can test the `Mailer` service and provide a mock implementation of the `Logger` to track all messages logged by the service in our tests:
+For example, we can create mock implementations of the `Logger` and `Mailer` services to use in our tests which internally track all messages logged and sent by the services:
 
 ```ts
 class MockLogger implements Logger {
@@ -118,7 +119,17 @@ class MockLogger implements Logger {
   }
 }
 
+class MockMailer implements Mailer {
+  readonly sentMail: Array<string> = []
+  constructor(readonly logger: Logger) {}
+  sendMail(address: string, message: string): void {
+    const message = `Sending the message ${message} to ${address}`
+    this.logger.log(message)
+    this.sentMail.push(message)
+  }
+}
+
 const logger = new MockLogger()
-const mailer = new Email(logger)
+const mailer = new MockMailer(logger)
 ```
 </Steps>
