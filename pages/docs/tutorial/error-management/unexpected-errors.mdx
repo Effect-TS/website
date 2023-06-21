@@ -1,5 +1,59 @@
+import { Warning } from "@/components/Callout"
+
 # Unexpected Errors
 
-import { Stub } from "@/components/Stub"
+Effect provides two functions that allow you to handle unexpected errors that may occur during the execution of your effects.
 
-<Stub />
+<Warning>
+  There is no sensible way to recover from defects. The functions we're about to
+  discuss should be used only at the boundary between Effect and an external
+  system, to transmit information on a defect for diagnostic or explanatory
+  purposes.
+</Warning>
+
+## catchAllDefect
+
+The `catchAllDefect` operator allows you to recover from all defects using a provided function. Here's an example:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+
+pipe(
+  Effect.dieMessage("Boom!"),
+  Effect.catchAllDefect((e) => {
+    if (e instanceof Error) {
+      return Effect.logDebug("Boom! defect caught.")
+    }
+    return Effect.logDebug("Unknown defect caught.")
+  })
+)
+```
+
+It's important to note that these error-handling operators can only recover from defects, not failures or fiber interruptions. A defect refers to an error that cannot be anticipated in advance, and there is no reliable way to respond to it. As a general rule, it's recommended to let defects crash the application, as they often indicate serious issues that need to be addressed.
+
+However, in some specific cases, such as when dealing with dynamically loaded plugins, a controlled recovery approach might be necessary. For example, if our application supports runtime loading of plugins and a defect occurs within a plugin, we may choose to log the defect and then reload only the affected plugin instead of crashing the entire application. This allows for a more resilient and uninterrupted operation of the application.
+
+## catchSomeDefect
+
+The `catchSomeDefect` operator in Effect allows you to recover from specific defects using a provided partial function. Let's take a look at an example:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Option from "@effect/data/Option"
+
+pipe(
+  Effect.dieMessage("Boom!"),
+  Effect.catchSomeDefect((e) => {
+    if (e instanceof Error) {
+      return Option.some(Effect.logDebug("Boom! defect caught."))
+    }
+    return Option.none()
+  })
+)
+```
+
+In the above example, we have an effect that throws a defect using `Effect.dieMessage("Boom!")`. By using the `catchSomeDefect` operator and providing a partial function to handle the defect, we can selectively recover from specific types of defects.
+
+It's important to note that, similar to `catchAllDefect`, `catchSomeDefect` can only recover from defects and not failures or fiber interruptions.
