@@ -1,0 +1,63 @@
+# Using the `Do` simulation
+
+The `Do` simulation in Effect allows you to write code in a more declarative style, resembling the "do notation" found in other programming languages.
+It creates a scope where you can define variables and perform operations on them using functions like `Effect.bind`, `Effect.let`, and `Effect.flatMap`.
+
+Here's how the `Do` simulation works:
+
+1. Import the necessary modules:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import { pipe } from "@effect/data/Function"
+```
+
+2. Use the `pipe` function to start the `Do` simulation:
+
+```ts
+const program = pipe(
+  Effect.Do()
+  // ... rest of the code
+)
+```
+
+3. Inside the `Do` simulation scope, you can use the `Effect.bind` function to define variables and bind them to `Effect` values:
+
+```ts
+Effect.bind("variableName", () => effectValue)
+```
+
+- `variableName` is the name of the variable you want to define. You can choose any name you like.
+- `effectValue` is the `Effect` value that you want to bind to the variable. It can be the result of a function call or any other valid `Effect` value.
+
+4. You can accumulate multiple `Effect.bind` statements to define multiple variables within the scope:
+
+```ts
+Effect.bind("variable1", () => effectValue1),
+Effect.bind("variable2", ({ variable1 }) => effectValue2),
+// ... additional bind statements
+```
+
+5. Note that you can still use regular Effect functions like `Effect.flatMap` within the `Do` simulation. They will receive the accumulated variables as arguments within the scope.
+
+```ts
+Effect.flatMap(({ variable1, variable2 }) => {
+  // Perform operations using variable1 and variable2
+  // Return an `Effect` value as the result
+})
+```
+
+Here's an example to illustrate the usage of the `Do` simulation:
+
+```ts
+const program = pipe(
+  Effect.Do(),
+  Effect.bind("n", () => Random.next()),
+  Effect.flatMap(({ n }) =>
+    n > 0.5 ? Effect.succeed("yay!") : Effect.fail("oh no!")
+  )
+)
+```
+
+In this example, the `"n"` variable is defined using `Effect.bind`, and then it is used within the `Effect.flatMap`
+to determine the success or failure of the program based on the numeric value of `n`.
