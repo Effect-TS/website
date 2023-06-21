@@ -1,4 +1,5 @@
 import { Info, Idea, Warning } from "@/components/Callout"
+import { Tabs, Tab } from "@/components/Code"
 
 # Expected Errors
 
@@ -53,6 +54,9 @@ Effect.Effect<never, HttpError, never>
 
 The following program serves as an illustration of how errors are automatically tracked and accumulated for you:
 
+<Tabs>
+  <Tab>
+
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Random from "@effect/io/Random"
@@ -68,26 +72,62 @@ class BarError {
 
 const flakyFoo = pipe(
   Random.next(),
-  Effect.flatMap((n) =>
-    n > 0.5 ? Effect.succeed("yay!") : Effect.fail(new FooError())
+  Effect.flatMap((n1) =>
+    n1 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new FooError())
   )
 )
 
 const flakyBar = pipe(
   Random.next(),
-  Effect.flatMap((n) =>
-    n > 0.5 ? Effect.succeed("yay!") : Effect.fail(new BarError())
+  Effect.flatMap((n2) =>
+    n2 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new BarError())
   )
 )
 
 const program: Effect.Effect<never, FooError | BarError, string> = pipe(
-  flakyFoo,
-  Effect.flatMap(() => flakyBar)
+  Effect.all(flakyFoo, flakyBar),
+  Effect.map(([foo, bar]) => foo + bar)
 )
 ```
 
+  </Tab>
+  <Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Random from "@effect/io/Random"
+
+class FooError {
+  readonly _tag = "FooError"
+}
+
+class BarError {
+  readonly _tag = "BarError"
+}
+
+const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next())
+  const n2 = yield* _(Random.next())
+
+  const foo =
+    n1 > 0.5
+      ? yield* _(Effect.succeed("yay!"))
+      : yield* _(Effect.fail(new FooError()))
+
+  const bar =
+    n2 > 0.5
+      ? yield* _(Effect.succeed("yay!"))
+      : yield* _(Effect.fail(new BarError()))
+
+  return foo + bar
+})
+```
+
+  </Tab>
+</Tabs>
+
 In the above program, we have two operations: `flakyFoo` and `flakyBar`, each representing a potential source of error.
-These operations are combined using the `flatMap` function from the Effect library, which allows us to sequence them together.
+These operations are combined using the `Effect.all(...effects){:ts}` function from the Effect library, which allows us to sequence them together.
 
 Effect automatically keeps track of the possible errors that can occur during the execution of the program.
 In this case, we have `FooError` and `BarError` as the possible error types.
@@ -109,10 +149,9 @@ To handle errors in a simple way, you can use the `catchAll` function.
 
 The `catchAll` function allows you to catch any error that occurs in the program and provide a fallback.
 
-```ts {4}
-const program: Effect.Effect<never, never, string> = pipe(
-  flakyFoo,
-  Effect.flatMap(() => flakyBar),
+```ts {3}
+const recovered: Effect.Effect<never, never, string> = pipe(
+  program,
   Effect.catchAll((e) => Effect.succeed(`Recovering from ${e._tag}`))
 )
 ```
@@ -128,10 +167,9 @@ Effect.Effect<never, never, string>
 
 Suppose we only want to handle `FooError`. In that case, we can use the `catchTag` method provided by Effect:
 
-```ts {4-6}
-const program: Effect.Effect<never, BarError, string> = pipe(
-  flakyFoo,
-  Effect.flatMap(() => flakyBar),
+```ts {3-5}
+const recovered: Effect.Effect<never, BarError, string> = pipe(
+  program,
   Effect.catchTag("FooError", (fooError) =>
     Effect.succeed(`Recovering from ${fooError._tag}`)
   )
@@ -151,10 +189,9 @@ Effect.Effect<never, BarError, string>
 
 If we also wanted to handle `BarError`, we can simply add another `catchTag`.
 
-```ts {7-9}
-const program: Effect.Effect<never, never, string> = pipe(
-  flakyFoo,
-  Effect.flatMap(() => flakyBar),
+```ts {6-8}
+const recovered: Effect.Effect<never, never, string> = pipe(
+  program,
   Effect.catchTag("FooError", (fooError) =>
     Effect.succeed(`Recovering from ${fooError._tag}`)
   ),
@@ -174,10 +211,9 @@ const program: Effect.Effect<never, never, string> = pipe(
 
 Instead of using the `catchTag` combinator multiple times to handle individual error types, we have a more convenient option called `catchTags`. With `catchTags`, we can handle multiple errors in a single block of code.
 
-```ts {4-7}
-const program: Effect.Effect<never, never, string> = pipe(
-  flakyFoo,
-  Effect.flatMap(() => flakyBar),
+```ts {3-6}
+const recovered: Effect.Effect<never, never, string> = pipe(
+  program,
   Effect.catchTags({
     FooError: (fooError) => Effect.succeed(`Recovering from ${fooError._tag}`),
     BarError: (barError) => Effect.succeed(`Recovering from ${barError._tag}`),
@@ -201,10 +237,9 @@ Sometimes, instead of handling an error directly, you may need to transform or m
 This can involve adding extra information to the error or changing its type altogether.
 In such cases, you can use the `mapError` function.
 
-```ts {4-10}
-const program: Effect.Effect<never, Error, string> = pipe(
-  flakyFoo,
-  Effect.flatMap(() => flakyBar),
+```ts {3-9}
+const modified: Effect.Effect<never, Error, string> = pipe(
+  program,
   Effect.mapError((error) => {
     if (error._tag === "FooError") {
       return new Error("Something went wrong with Foo")
