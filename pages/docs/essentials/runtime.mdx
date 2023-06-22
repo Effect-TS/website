@@ -12,11 +12,11 @@ Therefore, it is crucial to understand that when working with a functional effec
 
 So how does Effect actually run these workflows? This is where the Effect Runtime System comes into play. When we invoke a `Runtime.run*` function, the Runtime System takes over and follows the instructions described by the `Effect`, executing them step by step.
 
-To simplify, we can envision the Runtime System as a black box that takes both the effect ([`Effect<R, E, A>`](../concepts/effect-data-type)) and its associated environment (`R`). It runs the effect and returns the result as an [`Exit<E, A>`](exit) value.
+To simplify, we can envision the Runtime System as a black box that takes both the effect ([`Effect<R, E, A>`](../concepts/effect-data-type)) and its associated environment (`Context<R>`). It runs the effect and returns the result as an [`Exit<E, A>`](exit) value.
 
 ```mermaid
 flowchart LR
-  effect["(R, Effect&lt;R, E, A&gt;)"] --> runtime(("Effect Runtime System"))
+  effect["(Context&lt;R&gt;, Effect&lt;R, E, A&gt;)"] --> runtime(("Effect Runtime System"))
   runtime --> exit["Exit&lt;E, A&gt;"]
 ```
 
