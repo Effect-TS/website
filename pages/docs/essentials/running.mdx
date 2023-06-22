@@ -2,7 +2,7 @@ import { Design, Warning } from "@/components/Callout"
 
 # Running Effects
 
-To execute an `Effect`, we can utilize a variety of `run*` functions provided by the `Effect` module.
+To execute an `Effect`, we can utilize a variety of "run" functions provided by the `@effect/io/Effect` module.
 
 ## runSync
 
@@ -38,7 +38,6 @@ Effect.runSync(Effect.promise(() => Promise.resolve(1))) // throws
 
 The `runSyncEither` function is used to execute an Effect synchronously, which means it runs immediately and returns the result as an `Either`
 (a data type used to represent the possibility of either a successful value or a failure value).
-It is useful when your effect does not involve any asynchronous tasks and you need to handle both the success or failure outcomes.
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -61,9 +60,8 @@ Effect.runSyncEither(Effect.promise(() => Promise.resolve(1))) // throws
 
 ## runSyncExit
 
-The `runSyncExit` function is used to execute an Effect synchronously, which means it runs immediately and returns the result as an `Exit`
-(a data type used to represent the possibility of either a successful value or a failure value).
-It is useful when your effect does not involve any asynchronous tasks and you need to handle both the success or failure outcomes.
+The `runSyncExit` function is used to execute an Effect synchronously, which means it runs immediately and returns the result as an [`Exit`](exit)
+(a data type used to describe the result of executing an `Effect` workflow).
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -107,7 +105,6 @@ Effect.runPromise(Effect.fail("error")) // rejects
 
 The `runPromiseEither` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an `Either`
 (a data type used to represent the possibility of either a successful value or a failure value).
-It is useful when you need to handle both the success or failure outcomes.
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -120,9 +117,8 @@ await Effect.runPromiseEither(Effect.fail("error")) // Either.left("error")
 
 ## runPromiseExit
 
-The `runPromiseExit` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an `Exit`
-(a data type used to represent the possibility of either a successful value or a failure value).
-It is useful when you need to handle both the success or failure outcomes.
+The `runPromiseExit` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an [`Exit`](exit)
+(a data type used to describe the result of executing an `Effect` workflow).
 
 ```ts
 import * as Effect from "@effect/io/Effect"
