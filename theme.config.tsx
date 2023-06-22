@@ -7,7 +7,7 @@ const bold = ["Concepts", "Guides"]
 const config: DocsThemeConfig = {
   docsRepositoryBase: "https://github.com/Effect-TS/website/blob/main",
   sidebar: {
-    defaultMenuCollapseLevel: 2,
+    defaultMenuCollapseLevel: 1,
   },
   useNextSeoProps() {
     const { asPath } = useRouter()
