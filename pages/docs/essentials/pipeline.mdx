@@ -9,11 +9,12 @@ In this tutorial you will learn:
 - How `pipe` works and how to use it.
 - How `map` works with an example.
 - How `flatMap` works with an example.
-- An example that combines all three functions to build a pipeline.
+- How `all` works with an example.
+- An example that combines all four functions to build a pipeline.
 
 Let's get started!
 
-## Understanding and Using `pipe`
+## pipe
 
 The `pipe` function is a utility that allows us to compose functions in a readable and sequential manner. It takes the output of one function and passes it as the input to the next function in the pipeline. This enables us to build complex transformations by chaining multiple functions together.
 
@@ -42,9 +43,9 @@ const result = pipe(5, increment, double, subtractTen) // 2
 In the above example, we start with the initial value of `5`. The `increment` function adds `1` to the initial value, resulting in `6`.
 The `double` function doubles the value, giving us `12`. Finally, the `subtractTen` function subtracts `10` from `12`, resulting in the final output of `2`.
 
-## Understanding `map`
+## map
 
-The `map` function is used to transform the value inside an `Effect`.
+The `Effect.map` function is used to transform the value inside an `Effect`.
 It takes a function and applies it to the value contained within the `Effect`, creating a **new** `Effect` with the transformed value.
 
 <Info>
@@ -89,11 +90,11 @@ In the example above:
 
 The resulting `Effect` contains the transformed value of 6.
 
-## Understanding `flatMap`
+## flatMap
 
 In the previous example, we saw how to transform an `Effect` using the `map` function when the transformation function returns a regular value. But what if we want to transform an `Effect` using a function that itself returns another `Effect`?
 
-The `flatMap` function allows us to chain computations that produce `Effect` values. It takes a transformation function that produces a new `Effect` and then "flattens" the nested `Effect` structure.
+The `Effect.flatMap` function allows us to chain computations that produce `Effect` values. It takes a transformation function that produces a new `Effect` and then "flattens" the nested `Effect` structure.
 
 The syntax for `flatMap` is as follows:
 
@@ -136,14 +137,31 @@ In the example above:
 
 The resulting `Effect` contains the transformed value of 5.
 
+## all
+
+The `Effect.all` function is a powerful utility provided by Effect that allows you to combine multiple effects into a single effect that produces a tuple of results:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const foo = Effect.succeed(42)
+const bar = Effect.succeed("Hello")
+
+// combinedEffect: Effect.Effect<never, never, [number, string]>
+const combinedEffect = Effect.all(foo, bar)
+
+Effect.runSync(combinedEffect) // Output: [42, "Hello"]
+```
+
 ## Cheatsheet
 
 Let's summarize the transformation functions we have seen so far:
 
-| **Function** | **Input**                                 | **Output**        |
-| ------------ | ----------------------------------------- | ----------------- |
-| `map`        | `Effect<R, E, A>`, `A => B`               | `Effect<R, E, B>` |
-| `flatMap`    | `Effect<R, E, A>`, `A => Effect<R, E, B>` | `Effect<R, E, B>` |
+| **Function** | **Input**                                 | **Output**             |
+| ------------ | ----------------------------------------- | ---------------------- |
+| `map`        | `Effect<R, E, A>`, `A => B`               | `Effect<R, E, B>`      |
+| `flatMap`    | `Effect<R, E, A>`, `A => Effect<R, E, B>` | `Effect<R, E, B>`      |
+| `all`        | `Effect<R, E, A>`, `Effect<R, E, B>`      | `Effect<R, E, [A, B]>` |
 
 These functions are powerful tools for transforming and chaining `Effect` computations. They allow you to apply functions to values inside `Effect` and build complex pipelines of computations.
 
@@ -151,7 +169,7 @@ Remember to choose the appropriate function based on the type of transformation 
 
 ## Build your first pipeline
 
-Now, let's combine all three functions (`pipe`, `map` and `flatMap`) to build a pipeline that performs a series of transformations on a value:
+Now, let's combine all four functions (`pipe`, `map`, `flatMap` and `all`) to build a pipeline that performs a series of transformations on a value:
 
 ```ts
 import { pipe } from "@effect/data/Function"
@@ -166,15 +184,15 @@ function divide(a: number, b: number): Effect.Effect<never, Error, number> {
   return Effect.succeed(a / b)
 }
 
-// result: Effect.Effect<never, Error, string>
-const result = pipe(
-  Effect.succeed({ a: 10, b: 2 }),
-  Effect.flatMap(({ a, b }) => divide(a, b)),
-  Effect.map(increment),
-  Effect.map((x) => `Result is: ${x}`)
+// program: Effect.Effect<never, Error, string>
+const program = pipe(
+  Effect.all(Effect.succeed(10), Effect.succeed(2)),
+  Effect.flatMap(([a, b]) => divide(a, b)),
+  Effect.map((n1) => increment(n1)),
+  Effect.map((n2) => `Result is: ${n2}`)
 )
 
-Effect.runSync(result) // Output: "Result is: 6"
+console.log(Effect.runSync(program)) // Output: "Result is: 6"
 ```
 
 ## Dual APIs
