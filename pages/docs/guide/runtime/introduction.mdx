@@ -1,8 +1,8 @@
 # Introduction to Runtime
 
-A `Runtime<R>` data type represents a Runtime System that can execute effects, in order to execute any effect we need a `Runtime` that contains at least the reqirements of the effect we want to execute.
+The `Runtime<R>` data type represents a Runtime System that can execute effects. To execute any effect, we need a `Runtime` that includes the necessary requirements for that effect.
 
-A `Runtime<R>` is a plain object that contains 3 things:
+A `Runtime<R>` consists of three main components:
 
 - a value of type `Context<R>`
 - a value of type `FiberRefs`
@@ -10,13 +10,13 @@ A `Runtime<R>` is a plain object that contains 3 things:
 
 ## The Default Runtime
 
-When using functions such as `Effect.run*` we are implicitly using the default runtime, it contains:
+When we use functions like `Effect.run*`, we are implicitly using the default runtime. The default runtime includes:
 
-- an empty `Context<never>`
-- a set of `FiberRefs` that include the default services
-- a default config for `RuntimeFlags` that enables `Interruption` and `CooperativeYielding`
+- An empty `Context<never>`
+- A set of `FiberRefs` that include the default services
+- A default configuration for `RuntimeFlags` that enables `Interruption` and `CooperativeYielding`
 
-Using the default runtime is ok in most of the cases, it can be useful to create a custom runtime in order to reuse a specific context or configuration. It is very common to create a `Runtime<R>` as the result of initializing a `Layer<RIn, Err, R>` in order to reuse the context across execution boundaries (for example in a React App or to execute operations in a server when responding to api requests).
+In most cases, using the default runtime is sufficient. However, it can be useful to create a custom runtime to reuse a specific context or configuration. It is common to create a `Runtime<R>` by initializing a `Layer<RIn, Err, R>`. This allows for context reuse across execution boundaries, such as in a React App or when executing operations on a server in response to API requests.
 
 ## What is a Runtime System?
 
@@ -26,13 +26,13 @@ However, this data structure itself does not perform any actions; it is solely a
 
 Therefore, it is crucial to understand that when working with a functional effect system like Effect, our code for actions such as printing to the console, reading files, or querying databases is actually building a workflow or blueprint for an application. We are constructing a data structure.
 
-So how does Effect actually run these workflows? This is where the Effect Runtime System comes into play. When we invoke a `Runtime.run*` function, the Runtime System takes over, first it creates an empty root Fiber with:
+So how does Effect actually run these workflows? This is where the Effect Runtime System comes into play. When we invoke a `Runtime.run*` function, the Runtime System takes over. First, it creates an empty root Fiber with:
 
-- the initial context
-- the initial fiberRefs
-- the initial Effect
+- The initial context
+- The initial fiberRefs
+- The initial Effect
 
-after creation of the Fiber it invokes the Fiber's runLoop that follows the instructions described by the `Effect`, executing them step by step.
+After the creation of the Fiber, it invokes the Fiber's runLoop, which follows the instructions described by the `Effect` and executes them step by step.
 
 To simplify, we can envision the Runtime System as a black box that takes both the effect ([`Effect<R, E, A>`](../concepts/effect-data-type)) and its associated context (`Context<R>`). It runs the effect and returns the result as an [`Exit<E, A>`](exit) value.
 
