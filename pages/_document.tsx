@@ -2,9 +2,7 @@ import { Html, Head, Main, NextScript } from "next/document"
 
 export default function Document() {
   // Netlify URL https://docs.netlify.com/configure-builds/environment-variables/#deploy-urls-and-metadata
-  const deployUrl = process.env.DEPLOY_URL
-    ? "https://" + process.env.DEPLOY_URL
-    : "https://effect.website"
+  const deployUrl = process.env.DEPLOY_URL ?? "https://effect.website"
 
   const metaTitle = "Effect"
   const metaDescription = "A set of libraries to write better TypeScript"
