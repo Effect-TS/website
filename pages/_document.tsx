@@ -15,7 +15,7 @@ export default function Document() {
         <meta
           name="og:image"
           // NOTE og:image must be an absolute url
-          content={`${deployUrl}/twitter.png`}
+          content={`${deployUrl}/og.png`}
         />
         <meta name="twitter:title" content={metaTitle} />
         <meta name="twitter:description" content={metaDescription} />
