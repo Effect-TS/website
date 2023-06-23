@@ -6,16 +6,23 @@ export default function Document() {
     ? "https://" + process.env.DEPLOY_URL
     : "https://effect.website"
 
+  const metaTitle = "Effect"
+  const metaDescription = "A set of libraries to write better TypeScript"
+
   return (
     <Html lang="en">
       <Head>
-        <meta name="og:title" content="Vercel Edge Network" />
-        <meta name="og:description" content="Vercel Edge Network" />
+        <meta name="og:title" content={metaTitle} />
+        <meta name="og:description" content={metaDescription} />
         <meta
           name="og:image"
           // NOTE og:image must be an absolute url
           content={`${deployUrl}/twitter.png`}
         />
+        <meta name="twitter:title" content={metaTitle} />
+        <meta name="twitter:description" content={metaDescription} />
+        {/* NOTE twitter:image must be an absolute url */}
+        <meta name="twitter:image" content={`${deployUrl}/twitter.png`} />
       </Head>
       <body>
         <Main />
