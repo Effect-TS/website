@@ -1,5 +1,136 @@
 # Immutability
 
-import { Stub } from "@/components/Stub"
+In simple words, immutability means that a value can never be changed or, in a deeper sense, that the observable behaviour of a value can never be changed.
 
-<Stub />
+When you deal with immutable values, you can always safely "capture" them because you know that they will never change – doing the same with mutable values requires making a copy.
+
+Let's have a look at some usage of immutable code:
+
+```ts
+let arr: ReadonlyArray<number> = []
+
+while (arr.length < 10) {
+  const newArr = [...arr, arr.length]
+  setTimeout(() => {
+    console.log(newArr.length)
+  }, 0)
+  arr = newArr
+}
+```
+
+When executed, this code will produce on the console every number between `1` and `10` (included).
+
+If we were to do the same with mutable code, we would get to a totally different result. Let's have a look:
+
+```ts
+const arr: Array<number> = []
+
+while (arr.length < 10) {
+  arr.push(arr.length)
+  setTimeout(() => {
+    console.log(arr.length)
+  }, 0)
+}
+```
+
+This code will instead print 10 times the number 10.
+
+What we've done here is showcase what "capture" means, the call to `setTimeout` takes a reference from the local scope and carries it across to a different scope; `setTimeout` will always execute after all the sync operations in our program are done.
+
+At that point, in the first example, we get effectively 10 different arrays, each with different lengths, while in the second example, we get a single array containing all the numbers from 0 to 9 (having a length of 10).
+
+## Copy On Write
+
+The technique we used in the previous example is commonly known as "copy on write", meaning whenever we intend to "mutate" something, we create a new copy of it, which allows the initial structure (pre-mutation) to remain unchanged (aka frozen).
+
+We can see that no changes happen to the original structure by using `Object.freeze` that will raise an error anytime something is mutated:
+
+```ts
+let arr: ReadonlyArray<number> = Object.freeze([])
+
+while (arr.length < 10) {
+  const newArr = Object.freeze([...arr, arr.length])
+  setTimeout(() => {
+    console.log(newArr.length)
+  }, 0)
+  arr = newArr
+}
+```
+
+The same technique can be applied to objects and generally any structure that can be "cloned".
+
+All good, isn't it? Well, all good, except made for performance, cloning becomes progressively expensive as things grow.
+
+```ts
+const copyOnWrite = (n: number) => {
+  console.time(`copy-on-write-${n}`)
+  let arr: ReadonlyArray<number> = []
+  while (arr.length < n) {
+    const newArr = [...arr, arr.length]
+    arr = newArr
+  }
+  console.timeEnd(`copy-on-write-${n}`)
+}
+
+copyOnWrite(10)
+copyOnWrite(100)
+copyOnWrite(1000)
+copyOnWrite(10000)
+copyOnWrite(100000)
+```
+
+This program will produce:
+
+```bash filename="Terminal"
+copy-on-write-10: 0.074ms
+copy-on-write-100: 0.093ms
+copy-on-write-1000: 1.034ms
+copy-on-write-10000: 82.26ms
+copy-on-write-100000: 52.010s
+```
+
+Clearly, this becomes prohibitive very quickly, especially in problems of unbounded size (where you don't know the size of the structures you'll need to clone).
+
+So, is immutability screwed for good? No... but copy on write is.
+
+## Persistent Data Structures
+
+I won't go into all the details and techniques around Persistent Data Structures. If you're interested in the topic in more details, I can recommend following the amazing course by Erik Demaine entitled "Advanced Data Structures" consumable, for free, from the MIT opencourseware platform: https://ocw.mit.edu/courses/6-851-advanced-data-structures-spring-2012/.
+
+For the sake of this article, we'll say that persistent data structures are data structures that remember their history and each new "copy" shares as much as possible with the original.
+
+In the case of the example seen earlier, a persistent array structure should remember and share all the elements with the previous one instead of having to clone everything every time.
+
+Let's do the same example using a persistent array. We will use the "Chunk" data structure from the new @fp-ts/data that is based on the following paper: http://aleksandar-prokopec.com/resources/docs/lcpc-conc-trees.pdf.
+
+```ts
+import * as Chunk from "@effect/data/Chunk"
+
+const copyOnWrite = (n: number) => {
+  console.time(`persistent-${n}`)
+  let arr: Chunk.Chunk<number> = Chunk.empty()
+  while (arr.length < n) {
+    const newArr = Chunk.append(Chunk.size(arr))(arr)
+    arr = newArr
+  }
+  console.timeEnd(`persistent-${n}`)
+}
+
+copyOnWrite(10)
+copyOnWrite(100)
+copyOnWrite(1000)
+copyOnWrite(10000)
+copyOnWrite(100000)
+```
+
+As we can see the code looks almost the same as the previous one but its execution doesn't even compare:
+
+```bash filename="Terminal"
+persistent-10: 0.534ms
+persistent-100: 0.728ms
+persistent-1000: 1.493ms
+persistent-10000: 14.425ms
+persistent-100000: 10.705ms
+```
+
+The point is that the complexity doesn't grow with size and all the previous references can be captured safely as they are still valid.
