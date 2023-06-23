@@ -10,7 +10,11 @@ A `Runtime<R>` consists of three main components:
 
 ## The Default Runtime
 
-When we use functions like `Effect.run*`, we are implicitly using the default runtime. The default runtime includes:
+When we use functions like `Effect.run*`, we are actually using the **default runtime** without explicitly mentioning it. These functions are designed as convenient shortcuts for executing our effects using the default runtime.
+
+For instance, in the `@effect/io/Runtime` module, there is a corresponding `Runtime.run*(defaultRuntime)` function that is called internally by `Effect.run*`, e.g. `Effect.runSync` is simply an alias for `Runtime.runSync(defaultRuntime)`.
+
+The default runtime includes:
 
 - An empty `Context<never>`
 - A set of `FiberRefs` that include the default services
