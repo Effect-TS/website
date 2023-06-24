@@ -1,55 +1,67 @@
-import { Design } from "@/components/Callout"
+import { Design, Info } from "@/components/Callout"
 
 # Dual APIs
 
-When working with APIs in the Effect ecosystem,
-you'll come across two different way to use the same API, corrsponding to two TypeScript overloads:
+When you're working with APIs in the Effect ecosystem, you may come across two different ways to use the same API. These two ways are called the "data-last" and "data-first" variants.
 
-- the "data-last" variant
-- the "data-first" variant
+<Info>
+  From a technical perspective, these variants are implemented using two
+  TypeScript overloads.
+</Info>
 
-Let's explore each variant and understand how they differ and how they are used.
+When an API supports both variants, we call them "dual" APIs.
 
-Let's pick for example the `Effect.map` API, this is its type:
+Let's explore these two variants using a concrete example of a dual API: `Effect.map`.
 
-```ts
+The `Effect.map` function is defined with two TypeScript overloads. The terms "data-last" and "data-first" refer to the position of the `self` argument (also known as the "data") in the signatures of the two overloads:
+
+```ts /self/
 export declare const map: {
-  // 1) "data-last" overload
+  // data-last
   <A, B>(f: (a: A) => B): <R, E>(self: Effect<R, E, A>) => Effect<R, E, B>
-
-  // 2) "data-first" overload
+  // data-first
   <R, E, A, B>(self: Effect<R, E, A>, f: (a: A) => B): Effect<R, E, B>
 }
 ```
 
-As you can see `map` is defined as a function with two TypeScript overloads.
+## data-last
 
-The "data-last" overload is the one we have been using so far with `pipe`. In this variant, the `Effect` is passed as the first argument to the `pipe` function, followed by the corresponding `Effect` function, such as `Effect.map`:
+In the first overload, the `self` argument comes in the **last position**:
+
+```ts /self/
+<A, B>(f: (a: A) => B): <R, E>(self: Effect<R, E, A>) => Effect<R, E, B>
+```
+
+This is the variant we have been using with `pipe`. You pass the `Effect` as the first argument to the `pipe` function, followed by a call to `Effect.map`:
 
 ```ts
 const mappedEffect = pipe(effect, Effect.map(func))
 ```
 
-This overload is useful when you need to chain multiple computations in a long pipeline. You can continue the pipeline by adding more computations after the initial transformation:
+This variant is useful when you need to chain multiple computations in a long pipeline. You can continue the pipeline by adding more computations after the initial transformation:
 
 ```ts
 pipe(effect, Effect.map(func1), Effect.flatMap(func2), ...)
 ```
 
-On the other hand, the "data-first" overload doesn't require the `pipe` function. Instead, you directly pass the `Effect` as the first argument to the corresponding `Effect` function:
+## data-first
+
+In the second overload, the `self` argument comes in the **first position**:
+
+```ts /self/
+<R, E, A, B>(self: Effect<R, E, A>, f: (a: A) => B): Effect<R, E, B>
+```
+
+This variant doesn't require the `pipe` function. Instead, you can directly pass the `Effect` as the first argument to the `Effect.map` function:
 
 ```ts
 const mappedEffect = Effect.map(effect, func)
 ```
 
-This overload is convenient when you only need to perform a single operation on the `Effect`.
-
-When an API like `Effect.map` supports both overloads, we call them "dual" APIs.
-
-Both variants have their advantages, and the choice depends on personal preference and the coding style of the project.
+This variant is convenient when you only need to perform a single operation on the `Effect`.
 
 <Design>
-  **Choosing Between the overloads**. It's important to note that both overloads
+  **Choosing Between the variants**. It's important to note that both overloads
   achieve the same result. They are simply two different ways of expressing the
   code. You can choose the overload that best fits your coding style and makes
   the code more readable for you and your team.
