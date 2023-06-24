@@ -7,22 +7,41 @@ There are two possible values for an `Exit<E, A>`:
 - `Exit.Success` contains a success value of type `A`.
 - `Exit.Failure` contains a failure [`Cause`](cause) of type `E`.
 
-To handle the different outcomes of an `Exit`, we can use the `match` function:
+To handle the different outcomes of an `Exit`, we can use the `Exit.match(onFailure, onSuccess){:ts}` function:
 
 ```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
 import * as Exit from "@effect/io/Exit"
 
-Exit.match(
-  Exit.succeed(1),
-  // onFailure
-  (cause) => console.error(`Exited with failure state: ${cause}`),
-  // onSuccess
-  (value) => console.log(`Exited with success value: ${value}`)
+// $ExpectType Exit<never, number>
+const simulatedSuccess = Effect.runSyncExit(Effect.succeed(1))
+
+pipe(
+  simulatedSuccess,
+  Exit.match(
+    (cause) => console.error(`Exited with failure state: ${cause._tag}`),
+    (value) => console.log(`Exited with success value: ${value}`)
+  )
 )
-// Output: Exited with success value: 1
+// Output: "Exited with success value: 1"
+
+// $ExpectType Exit<string, never>
+const simulatedFailure = Effect.runSyncExit(Effect.fail("error"))
+
+pipe(
+  simulatedFailure,
+  Exit.match(
+    (cause) => console.error(`Exited with failure state: ${cause._tag}`),
+    (value) => console.log(`Exited with success value: ${value}`)
+  )
+)
+// Output: "Exited with failure state: Annotated"
 ```
 
-By using `match`, we can provide callbacks that handle the failure case and the success case. In this example, since the `Exit` is a success, the corresponding success callback is executed, printing the success value of `1`.
+In this example, we first simulate a successful `Effect` execution using `Effect.runSyncExit` and `Effect.succeed`. We then handle the `Exit` using `Exit.match`, where the `onSuccess` callback prints the success value.
+
+Next, we simulate a failure using `Effect.runSyncExit` and `Effect.fail`, and handle the `Exit` again using `Exit.match`, where the `onFailure` callback prints the failure state.
 
 ## Exit vs Either
 
