@@ -280,6 +280,30 @@ Option.getOrUndefined(Option.some(1)) // 1
 Option.getOrUndefined(Option.none()) // undefined
 ```
 
+## Interoperability with Effect
+
+The `Option` type is a subtype of the `Effect` type, which means that it can be seamlessly used with functions from the `@effect/io/Effect` module. These functions are primarily designed to work with `Effect` values, but they can also handle `Option` values and process them correctly.
+
+In the context of `Effect`, the two members of the `Option` type are treated as follows:
+
+- `None` is equivalent to `Effect<never, NoSuchElementException, never>`
+- `Some<A>` is equivalent to `Effect<never, never, A>`
+
+To illustrate this interoperability, let's consider the following example:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Option from "@effect/data/Option"
+
+const head = <A>(as: ReadonlyArray<A>): Option.Option<A> =>
+  as.length > 0 ? Option.some(as[0]) : Option.none()
+
+Effect.runSync(pipe(Effect.succeed([1, 2, 3]), Effect.flatMap(head))) // Output: 1
+
+Effect.runSync(pipe(Effect.succeed([]), Effect.flatMap(head))) // Throws NoSuchElementException
+```
+
 ## Combining Two or More `Option`s
 
 The `Option.zipWith` function allows you to combine two `Option` values using a provided function. It creates a new `Option` that holds the combined value of both original `Option` values.
