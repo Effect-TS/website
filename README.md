@@ -26,22 +26,18 @@ The documentation is organized into six main sections to help you navigate and c
 
 6. More: The More section includes miscellaneous resources that can't be categorized into the previous sections. Here, you'll find additional materials such as FAQ, Glossary, and other relevant information that complements the other sections of the documentation.
 
-## Getting Started
+## Contributing
 
-First, run the development server:
+Thank you for considering contributing to our open-source project! We welcome your contributions to enhance the content on our website.
 
-```bash
-pnpm dev
-```
+### Process
 
-## Contributing?
+We follow a phased approach to add and refine the contents of our website:
 
-Please make sure to run the `pnpm run lint`, or `pnpm run lint --fix` to auto fix any formatting issues.
+**Phase 1**: In this initial phase, we have identified a series of pages and added them as "stubs". Currently, we are in the process of filling these stubs with content. This phase serves to refine the process, make important decisions regarding examples, warnings, errors, and more. We aim to test and validate this phase thoroughly, which may take a bit longer as it is the first cycle.
 
-## Additional Notes
+**Feedback and Stubs Proposals**: We value your input and suggestions. If you have proposals for new stub pages or if you would like to provide feedback on existing pages, please open an issue in our repository. We appreciate your involvement in shaping the future of our documentation.
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+**Questions and Clarifications**: If you have any doubts or require assistance regarding the contribution process, please join our Discord community. You can ask your questions and seek clarifications in the dedicated [Docs channel](https://discord.com/channels/795981131316985866/848185224356691978).
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
-
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+Once again, thank you for considering contributing to our project. We look forward to your valuable contributions to make our documentation even better!
