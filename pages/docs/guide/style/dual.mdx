@@ -1,0 +1,68 @@
+import { Design, Info } from "@/components/Callout"
+
+# Dual APIs
+
+When you're working with APIs in the Effect ecosystem, you may come across two different ways to use the same API. These two ways are called the "data-last" and "data-first" variants.
+
+<Info>
+  From a technical perspective, these variants are implemented using two
+  TypeScript overloads.
+</Info>
+
+When an API supports both variants, we call them "dual" APIs.
+
+Let's explore these two variants using a concrete example of a dual API: `Effect.map`.
+
+The `Effect.map` function is defined with two TypeScript overloads. The terms "data-last" and "data-first" refer to the position of the `self` argument (also known as the "data") in the signatures of the two overloads:
+
+```ts /self/
+export declare const map: {
+  // data-last
+  <A, B>(f: (a: A) => B): <R, E>(self: Effect<R, E, A>) => Effect<R, E, B>
+  // data-first
+  <R, E, A, B>(self: Effect<R, E, A>, f: (a: A) => B): Effect<R, E, B>
+}
+```
+
+## data-last
+
+In the first overload, the `self` argument comes in the **last position**:
+
+```ts /self/
+<A, B>(f: (a: A) => B): <R, E>(self: Effect<R, E, A>) => Effect<R, E, B>
+```
+
+This is the variant we have been using with `pipe`. You pass the `Effect` as the first argument to the `pipe` function, followed by a call to `Effect.map`:
+
+```ts
+const mappedEffect = pipe(effect, Effect.map(func))
+```
+
+This variant is useful when you need to chain multiple computations in a long pipeline. You can continue the pipeline by adding more computations after the initial transformation:
+
+```ts
+pipe(effect, Effect.map(func1), Effect.flatMap(func2), ...)
+```
+
+## data-first
+
+In the second overload, the `self` argument comes in the **first position**:
+
+```ts /self/
+<R, E, A, B>(self: Effect<R, E, A>, f: (a: A) => B): Effect<R, E, B>
+```
+
+This variant doesn't require the `pipe` function. Instead, you can directly pass the `Effect` as the first argument to the `Effect.map` function:
+
+```ts
+const mappedEffect = Effect.map(effect, func)
+```
+
+This variant is convenient when you only need to perform a single operation on the `Effect`.
+
+<Design>
+  **Choosing Between the variants**. It's important to note that both overloads
+  achieve the same result. They are simply two different ways of expressing the
+  code. You can choose the overload that best fits your coding style and makes
+  the code more readable for you and your team.
+</Design>
