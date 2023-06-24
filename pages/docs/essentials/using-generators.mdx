@@ -1,10 +1,9 @@
 import { Info, Warning, Idea } from "@/components/Callout"
+import { Tab, Tabs } from "nextra-theme-docs"
 
 # Using Generators in Effect
 
-Effect provides a unique imperative API to address the issue of nested callbacks encountered when using functions like `pipe`.
-
-Generators provide an alternative way to write effectful code, making it easier to handle complex operations. By using the `Effect.gen` helper, you can organize your code in a more straightforward and sequential manner.
+In the [previous section](pipeline) , we learned how to build pipelines using the `pipe` function. However, Effect provides an alternative approach for writing effectful code: using generators.
 
 <Idea>
   The use of generators is an **optional feature** in Effect. If you find
@@ -14,61 +13,79 @@ Generators provide an alternative way to write effectful code, making it easier 
   the approach that suits your coding preferences and project requirements.
 </Idea>
 
-Let's look at an example of a pipeline we wrote in the previous section:
+Let's rewrite the pipeline we created in the previous section using the `Effect.gen` helper:
+
+<Tabs items={['Using Effect.gen', 'Using pipe']}>
+  <Tab>
+
+```ts
+// import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+
+const increment = (x: number) => x + 1
+
+function divide(a: number, b: number): Effect.Effect<never, Error, number> {
+  if (b === 0) {
+    return Effect.fail(new Error("Cannot divide by zero"))
+  }
+  return Effect.succeed(a / b)
+}
+
+// program: Effect.Effect<never, Error, string>
+const program = Effect.gen(function* (_) {
+  const [a, b] = yield* _(Effect.all(Effect.succeed(10), Effect.succeed(2)))
+  const n1 = yield* _(divide(a, b))
+  const n2 = increment(n1)
+  return `Result is: ${n2}`
+})
+
+console.log(Effect.runSync(program)) // Output: "Result is: 6"
+```
+
+  </Tab>
+  <Tab>
 
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 
-const addOne = (x: number) => Effect.succeed(x + 1)
+const increment = (x: number) => x + 1
 
-const divideByTwo = (x: number) => Effect.succeed(x / 2)
+function divide(a: number, b: number): Effect.Effect<never, Error, number> {
+  if (b === 0) {
+    return Effect.fail(new Error("Cannot divide by zero"))
+  }
+  return Effect.succeed(a / b)
+}
 
-const result = pipe(
-  5,
-  Effect.succeed,
-  Effect.flatMap((x) => addOne(x)),
-  Effect.flatMap((y) => divideByTwo(y)),
-  Effect.map((z) => `Result: ${z}`)
+// program: Effect.Effect<never, Error, string>
+const program = pipe(
+  Effect.all(Effect.succeed(10), Effect.succeed(2)),
+  Effect.flatMap(([a, b]) => divide(a, b)),
+  Effect.map((n1) => increment(n1)),
+  Effect.map((n2) => `Result is: ${n2}`)
 )
 
-Effect.runSync(result) // "Result: 3"
+console.log(Effect.runSync(program)) // Output: "Result is: 6"
 ```
 
-Now, let's see how the same code can be written using the `Effect.gen` helper:
-
-```ts
-import * as Effect from "@effect/io/Effect"
-
-const addOne = (x: number) => Effect.succeed(x + 1)
-
-const divideByTwo = (x: number) => Effect.succeed(x / 2)
-
-const result = Effect.gen(function* (_) {
-  const x = yield* _(Effect.succeed(5))
-  const y = yield* _(addOne(x))
-  const z = yield* _(divideByTwo(y))
-  return `Result: ${z}`
-})
-
-Effect.runSync(result) // "Result: 3"
-```
+  </Tab>
+</Tabs>
 
 <Warning>
   The generator API is only available when using the `downlevelIteration` flag
   or with a `target` of `"es2015"` or higher in your `tsconfig.json` file
 </Warning>
 
-Notice the use of `yield*` to retrieve the next value from the generator:
+When yielding an effect, it is necessary to pass the Effect you want to yield to the helper function `_`, this ensures that TypeScript can correctly infer the types.
 
-```ts {2}
+```ts /Effect.succeed({ a: 10, b: 2 })/ /divide(a, b)/
 const result = Effect.gen(function* (_) {
-  const x = yield* _(Effect.succeed(5))
-  /* ... */
+  const { a, b } = yield* _(Effect.succeed({ a: 10, b: 2 }))
+  const n1 = yield* _(divide(a, b))
+  ...
 })
 ```
-
-When yielding an effect, it is necessary to pass the Effect you want to `yield*` to the helper function `_`, which is passed as an argument to `Effect.gen`. This ensures that TypeScript can correctly infer the types.
 
 <Info>
   The `_` symbol is just a convention for the argument name and is not a special
@@ -76,13 +93,66 @@ When yielding an effect, it is necessary to pass the Effect you want to `yield*`
   The current convention is to use `_` as the argument name.
 </Info>
 
-## Using the helper as a `pipe`
+## Comparing Effect.gen with async/await
 
-The `_` helper can also be used as a `pipe` function.
+If you are familiar with `async`/`await`, the way of writing the flow is similar:
 
-In the following example, `Random.next()` is piped into `Effect.map`.
+<Tabs items={['Using Effect.gen', 'Using async / await']}>
+  <Tab>
 
 ```ts
+const increment = (x: number) => x + 1
+
+function divide(a: number, b: number) {
+  if (b === 0) {
+    return Effect.fail(new Error("Cannot divide by zero"))
+  }
+  return Effect.succeed(a / b)
+}
+
+const program = Effect.gen(function* (_) {
+  const [a, b] = yield* _(Effect.all(Effect.succeed(10), Effect.succeed(2)))
+  const n1 = yield* _(divide(a, b))
+  const n2 = increment(n1)
+  return `Result is: ${n2}`
+})
+
+console.log(Effect.runSync(program)) // Output: "Result is: 6"
+```
+
+  </Tab>
+  <Tab>
+
+```ts
+const increment = (x: number) => x + 1
+
+function divide(a: number, b: number) {
+  if (b === 0) {
+    return Promise.reject(new Error("Cannot divide by zero"))
+  }
+  return Promise.resolve(a / b)
+}
+
+async function program() {
+  const [a, b] = await Promise.all([Promise.resolve(10), Promise.resolve(2)])
+  const n1 = await divide(a, b)
+  const n2 = increment(n1)
+  return `Result is: ${n2}`
+}
+
+console.log(await program()) // Output: "Result is: 6"
+```
+
+  </Tab>
+</Tabs>
+
+## Using the helper as a `pipe`
+
+The `_` helper can also be used as a `pipe` function, allowing you to mix and match different styles of writing code within `Effect.gen` if needed.
+
+In the following example, the `Random.next()` effect is piped into the `Effect.map` function:
+
+```ts {6-7}
 import * as Effect from "@effect/io/Effect"
 import * as Random from "@effect/io/Random"
 
@@ -97,4 +167,18 @@ const program = Effect.gen(function* (_) {
     return yield* _(Effect.fail("oh no!"))
   }
 })
+```
+
+This approach is useful to avoid excessive notation by using both the `_` helper and the `pipe` function. Instead, you can directly pass the `Random.next()` effect to `Effect.map` within the `_` helper, eliminating the need for an additional `pipe` function:
+
+```ts /pipe/
+const program = Effect.gen(function* (_) {
+  const n = yield* _(
+    pipe(
+      Random.next(),
+      Effect.map((n) => n * 2)
+    )
+  )
+  ...
+}
 ```
