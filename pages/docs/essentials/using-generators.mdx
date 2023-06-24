@@ -31,7 +31,7 @@ function divide(a: number, b: number): Effect.Effect<never, Error, number> {
   return Effect.succeed(a / b)
 }
 
-// program: Effect.Effect<never, Error, string>
+// Effect<never, Error, string>
 const program = Effect.gen(function* (_) {
   const [a, b] = yield* _(Effect.all(Effect.succeed(10), Effect.succeed(2)))
   const n1 = yield* _(divide(a, b))
@@ -58,7 +58,7 @@ function divide(a: number, b: number): Effect.Effect<never, Error, number> {
   return Effect.succeed(a / b)
 }
 
-// program: Effect.Effect<never, Error, string>
+// Effect<never, Error, string>
 const program = pipe(
   Effect.all(Effect.succeed(10), Effect.succeed(2)),
   Effect.flatMap(([a, b]) => divide(a, b)),
