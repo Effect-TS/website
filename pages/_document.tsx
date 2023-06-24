@@ -21,6 +21,10 @@ export default function Document() {
         <meta name="twitter:description" content={metaDescription} />
         {/* NOTE twitter:image must be an absolute url */}
         <meta name="twitter:image" content={`${deployUrl}/twitter.png`} />
+        <meta
+          name="google-site-verification"
+          content="cN7h9WqixFPvcmRWNVLkqz6wYJlvXpqGx-xh10MCWBg"
+        />
       </Head>
       <body>
         <Main />
