@@ -165,20 +165,6 @@ Effect.runSync(combinedEffect) // Output: [42, "Hello"]
 
 In this example, `foo` and `bar` are two separate effects. Using `Effect.all`, we combine them into a single effect `combinedEffect`. When we run `combinedEffect`, it produces a tuple `[42, "Hello"]` containing the results of both effects.
 
-## Cheatsheet
-
-Let's summarize the transformation functions we have seen so far:
-
-| **Function** | **Input**                                 | **Output**             |
-| ------------ | ----------------------------------------- | ---------------------- |
-| `map`        | `Effect<R, E, A>`, `A => B`               | `Effect<R, E, B>`      |
-| `flatMap`    | `Effect<R, E, A>`, `A => Effect<R, E, B>` | `Effect<R, E, B>`      |
-| `all`        | `Effect<R, E, A>`, `Effect<R, E, B>`      | `Effect<R, E, [A, B]>` |
-
-These functions are powerful tools for transforming and chaining `Effect` computations. They allow you to apply functions to values inside `Effect` and build complex pipelines of computations.
-
-Remember to choose the appropriate function based on the type of transformation you want to perform. If you have a function that directly returns a value without wrapping it in an `Effect`, you can use `map`. If you have a function that returns an `Effect` itself, you can use `flatMap` to chain computations.
-
 ## Build your first pipeline
 
 Now, let's combine all four functions (`pipe`, `map`, `flatMap` and `all`) to build a pipeline that performs a series of transformations:
@@ -206,3 +192,17 @@ const program = pipe(
 
 console.log(Effect.runSync(program)) // Output: "Result is: 6"
 ```
+
+## Cheatsheet
+
+Let's summarize the transformation functions we have seen so far:
+
+| **Function** | **Input**                                 | **Output**             |
+| ------------ | ----------------------------------------- | ---------------------- |
+| `map`        | `Effect<R, E, A>`, `A => B`               | `Effect<R, E, B>`      |
+| `flatMap`    | `Effect<R, E, A>`, `A => Effect<R, E, B>` | `Effect<R, E, B>`      |
+| `all`        | `Effect<R, E, A>`, `Effect<R, E, B>`      | `Effect<R, E, [A, B]>` |
+
+These functions are powerful tools for transforming and chaining `Effect` computations. They allow you to apply functions to values inside `Effect` and build complex pipelines of computations.
+
+Remember to choose the appropriate function based on the type of transformation you want to perform. If you have a function that directly returns a value without wrapping it in an `Effect`, you can use `map`. If you have a function that returns an `Effect` itself, you can use `flatMap` to chain computations.
