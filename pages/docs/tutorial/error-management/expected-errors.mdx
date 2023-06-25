@@ -42,7 +42,7 @@ class HttpError {
   of errors during error handling and prevents TypeScript from unifying types.
 </Idea>
 
-Expected errors **are tracked** at the type level by the `Effect` data type in the "Error" channel.
+Expected errors **are tracked at the type level** by the `Effect` data type in the "Error" channel.
 
 It is evident from the type of `program` that can fail with an error of type `HttpError`:
 
@@ -84,11 +84,15 @@ const flakyBar = pipe(
   )
 )
 
-const program: Effect.Effect<never, FooError | BarError, string> = pipe(
+// Effect<never, FooError | BarError, string>
+const program = pipe(
   Effect.all(flakyFoo, flakyBar),
   Effect.map(([foo, bar]) => foo + bar)
 )
 ```
+
+In the above program, we have two operations: `flakyFoo` and `flakyBar`, each representing a potential source of error.
+These operations are combined using the `Effect.all(...effects){:ts}` function from the Effect library, which allows us to sequence them together.
 
   </Tab>
   <Tab>
@@ -105,6 +109,7 @@ class BarError {
   readonly _tag = "BarError"
 }
 
+// Effect<never, FooError | BarError, string>
 const program = Effect.gen(function* (_) {
   const n1 = yield* _(Random.next())
   const n2 = yield* _(Random.next())
@@ -126,15 +131,12 @@ const program = Effect.gen(function* (_) {
   </Tab>
 </Tabs>
 
-In the above program, we have two operations: `flakyFoo` and `flakyBar`, each representing a potential source of error.
-These operations are combined using the `Effect.all(...effects){:ts}` function from the Effect library, which allows us to sequence them together.
-
 Effect automatically keeps track of the possible errors that can occur during the execution of the program.
 In this case, we have `FooError` and `BarError` as the possible error types.
 The error channel of the `program` is specified as
 
 ```ts /FooError | BarError/
-Effect.Effect<never, FooError | BarError, string>
+Effect<never, FooError | BarError, string>
 ```
 
 indicating that it can potentially fail with either a `FooError` or a `BarError`.
@@ -149,29 +151,55 @@ To handle errors in a simple way, you can use the `catchAll` function.
 
 The `catchAll` function allows you to catch any error that occurs in the program and provide a fallback.
 
-```ts {3}
-const recovered: Effect.Effect<never, never, string> = pipe(
+<Tabs>
+<Tab>
+
+```ts {4}
+// Effect<never, never, string>
+const recovered = pipe(
   program,
-  Effect.catchAll((e) => Effect.succeed(`Recovering from ${e._tag}`))
+  Effect.catchAll((error) => Effect.succeed(`Recovering from ${error._tag}`))
 )
 ```
+
+</Tab>
+<Tab>
+
+```ts {4-7}
+// Effect<never, never, string>
+const recovered = Effect.gen(function* (_) {
+  const successOrFailure = yield* _(Effect.either(program))
+  if (Either.isLeft(successOrFailure)) {
+    const error = successOrFailure.left
+    return `Recovering from ${error._tag}`
+  }
+  return successOrFailure.right
+})
+```
+
+</Tab>
+</Tabs>
 
 We can observe that the type in the error channel of our `program` has changed to `never`,
 indicating that all errors has been handled.
 
 ```ts /never/2
-Effect.Effect<never, never, string>
+Effect<never, never, string>
 ```
 
 ### catchTag
 
 Suppose we only want to handle `FooError`. In that case, we can use the `catchTag` method provided by Effect:
 
-```ts {3-5}
-const recovered: Effect.Effect<never, BarError, string> = pipe(
+<Tabs>
+<Tab>
+
+```ts {4-6}
+// Effect<never, BarError, string>
+const recovered = pipe(
   program,
   Effect.catchTag("FooError", (fooError) =>
-    Effect.succeed(`Recovering from ${fooError._tag}`)
+    Effect.succeed("Recovering from FooError")
   )
 )
 ```
@@ -180,26 +208,72 @@ In the example above, the `catchTag` function allows us to handle `FooError` spe
 If a `FooError` occurs during the execution of the program, the provided error handler function will be invoked,
 and the program will proceed with the recovery logic specified within the handler.
 
+</Tab>
+<Tab>
+
+```ts {6-8}
+// Effect<never, BarError, string>
+const recovered = Effect.gen(function* (_) {
+  const successOrFailure = yield* _(Effect.either(program))
+  if (Either.isLeft(successOrFailure)) {
+    const error = successOrFailure.left
+    if (error._tag === "FooError") {
+      return "Recovering from FooError"
+    }
+    return yield* _(Effect.fail(error))
+  }
+  return successOrFailure.right
+})
+```
+
+</Tab>
+</Tabs>
+
 We can observe that the type in the error channel of our `program` has changed to only show `BarError`,
 indicating that `FooError` has been handled.
 
 ```ts /BarError/
-Effect.Effect<never, BarError, string>
+Effect<never, BarError, string>
 ```
 
 If we also wanted to handle `BarError`, we can simply add another `catchTag`.
 
-```ts {6-8}
-const recovered: Effect.Effect<never, never, string> = pipe(
+<Tabs>
+<Tab>
+
+```ts {7-9}
+// Effect<never, never, string>
+const recovered = pipe(
   program,
   Effect.catchTag("FooError", (fooError) =>
-    Effect.succeed(`Recovering from ${fooError._tag}`)
+    Effect.succeed("Recovering from FooError")
   ),
   Effect.catchTag("BarError", (barError) =>
-    Effect.succeed(`Recovering from ${barError._tag}`)
+    Effect.succeed("Recovering from BarError")
   )
 )
 ```
+
+</Tab>
+<Tab>
+
+```ts {8}
+// Effect<never, never, string>
+const recovered = Effect.gen(function* (_) {
+  const successOrFailure = yield* _(Effect.either(program))
+  if (Either.isLeft(successOrFailure)) {
+    const error = successOrFailure.left
+    if (error._tag === "FooError") {
+      return "Recovering from FooError"
+    }
+    return "Recovering from BarError"
+  }
+  return successOrFailure.right
+})
+```
+
+</Tab>
+</Tabs>
 
 <Warning>
   It is important to ensure that the error type used with `catchTag` has a
@@ -211,12 +285,16 @@ const recovered: Effect.Effect<never, never, string> = pipe(
 
 Instead of using the `catchTag` combinator multiple times to handle individual error types, we have a more convenient option called `catchTags`. With `catchTags`, we can handle multiple errors in a single block of code.
 
-```ts {3-6}
-const recovered: Effect.Effect<never, never, string> = pipe(
+<Tabs>
+<Tab>
+
+```ts {4-7}
+// Effect<never, never, string>
+const recovered = pipe(
   program,
   Effect.catchTags({
-    FooError: (fooError) => Effect.succeed(`Recovering from ${fooError._tag}`),
-    BarError: (barError) => Effect.succeed(`Recovering from ${barError._tag}`),
+    FooError: (fooError) => Effect.succeed(`Recovering from FooError`),
+    BarError: (barError) => Effect.succeed(`Recovering from BarError`),
   })
 )
 ```
@@ -224,6 +302,29 @@ const recovered: Effect.Effect<never, never, string> = pipe(
 In the above example, instead of using `catchTag` multiple times to handle individual errors, we utilize the `catchTags` combinator.
 This combinator takes an object where each property represents a specific error `_tag` (`"FooError"` and `"BarError"` in this case),
 and the corresponding value is the error handler function to be executed when that particular error occurs.
+
+</Tab>
+<Tab>
+
+```ts {6-11}
+// Effect<never, never, string>
+const recovered = Effect.gen(function* (_) {
+  const successOrFailure = yield* _(Effect.either(program))
+  if (Either.isLeft(successOrFailure)) {
+    const error = successOrFailure.left
+    switch (error._tag) {
+      case "FooError":
+        return "Recovering from FooError"
+      case "BarError":
+        return "Recovering from BarError"
+    }
+  }
+  return successOrFailure.right
+})
+```
+
+</Tab>
+</Tabs>
 
 <Warning>
   It is important to ensure that all the error types used with `catchTags` have
@@ -237,8 +338,12 @@ Sometimes, instead of handling an error directly, you may need to transform or m
 This can involve adding extra information to the error or changing its type altogether.
 In such cases, you can use the `mapError` function.
 
-```ts {3-9}
-const modified: Effect.Effect<never, Error, string> = pipe(
+<Tabs>
+<Tab>
+
+```ts {4-10}
+// Effect<never, Error, string>
+const modified = pipe(
   program,
   Effect.mapError((error) => {
     if (error._tag === "FooError") {
@@ -250,20 +355,35 @@ const modified: Effect.Effect<never, Error, string> = pipe(
 )
 ```
 
-We can observe that the type in the error channel of our `program` has changed from `FooError | BarError` to `Error`.
-
-```ts /Error/
-Effect.Effect<never, Error, string>
-```
-
 In the code snippet above, `mapError` is applied to the `Effect` computation.
 It allows us to transform the error produced by the computation while keeping the success value unchanged.
 The provided error transformation function takes the original error as an input and returns a new error.
 
-In this example, we check the `_tag` field of the error to determine its type (`FooError` or `BarError`).
-Depending on the type, we create a new error object with a modified message.
-This enables us to add specific information or customize the error representation based on the encountered error type.
+</Tab>
+<Tab>
 
-By utilizing `mapError`, you can manipulate the error channel of an `Effect` computation, tailoring it to your specific requirements.
-This can be particularly useful when you need to adapt error types, enrich error messages,
-or perform other error-related transformations while preserving the main logic and success pathway of your program.
+```ts {6-11}
+// Effect<never, Error, string>
+const modified = Effect.gen(function* (_) {
+  const successOrFailure = yield* _(Effect.either(program))
+  if (Either.isLeft(successOrFailure)) {
+    const error = successOrFailure.left
+    switch (error._tag) {
+      case "FooError":
+        return yield* _(Effect.fail(new Error("Something went wrong with Foo")))
+      case "BarError":
+        return yield* _(Effect.fail(new Error("Something went wrong with Bar")))
+    }
+  }
+  return successOrFailure.right
+})
+```
+
+</Tab>
+</Tabs>
+
+We can observe that the type in the error channel of our `program` has changed from `FooError | BarError` to `Error`.
+
+```ts /Error/
+Effect<never, Error, string>
+```
