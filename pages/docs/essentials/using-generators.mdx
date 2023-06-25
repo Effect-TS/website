@@ -77,7 +77,7 @@ console.log(Effect.runSync(program)) // Output: "Result is: 6"
   or with a `target` of `"es2015"` or higher in your `tsconfig.json` file
 </Warning>
 
-When yielding an effect, it is necessary to pass the Effect you want to yield to the helper function `_`, this ensures that TypeScript can correctly infer the types.
+When working with generators in Effect, the `_` helper plays a crucial role when yielding an effect. By passing the effect you want to yield to the `_` function
 
 ```ts /Effect.succeed({ a: 10, b: 2 })/ /divide(a, b)/
 const result = Effect.gen(function* (_) {
@@ -86,6 +86,10 @@ const result = Effect.gen(function* (_) {
   ...
 })
 ```
+
+TypeScript can accurately infer the types associated with that effect. This ensures that your code is type-safe and helps prevent potential errors.
+
+Additionally, the `_` function acts as an adapter between Effect and the JavaScript world, particularly the iterable protocol. This adapter allows you to seamlessly leverage the `yield*` keyword from JavaScript's generator syntax within Effect's generator functions.
 
 <Info>
   The `_` symbol is just a convention for the argument name and is not a special
