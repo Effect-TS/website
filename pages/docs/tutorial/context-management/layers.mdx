@@ -1,10 +1,10 @@
 import { Idea, Info } from "@/components/Callout"
 
-# Building a Dependency Graph
+# Managing Service Dependencies
 
 In the [previous section](services), you learned how to create effects which depend on some context to be provided in order to execute, as well as how to provide that context to an Effect.
 
-However, what if we have a service within the context of our Effect program which has a dependency on other services? To represent the dependency graph of our program we need a more powerful abstraction.
+However, what if we have a service within the context of our Effect program which has a dependency on other services? To represent the "dependency graph" of our program we need a more powerful abstraction.
 
 In this tutorial, we will cover the following topics:
 
@@ -35,7 +35,7 @@ Now let's take our dependency graph and translate it into code.
 
 ## Creating Layers
 
-We will use `Layers`s to construct the `Recipe` service instead of providing a service implementation directly as we did in the [Services](services) tutorial.
+We will use `Layers`s to construct the `Recipe` service instead of providing a service implementation directly as we did in the [Managing Services](services) tutorial.
 
 A `Layer<RIn, E, ROut>` represents a blueprint for constructing a `Context<ROut>`. It takes a value of type `RIn` as input and may potentially produce an error of type `E` during the construction process.
 
@@ -73,7 +73,7 @@ Layer<Flour | Sugar, never, Recipe>
 ### MeasuringCup
 
 The `MeasuringCup` service does not depend on any other services, so `MeasuringCupLive` will be the simplest layer to implement.
-Just like in the [Services](services) tutorial, we must create a `Tag` for the service.
+Just like in the [Managing Services](services) tutorial, we must create a `Tag` for the service.
 And because the service has no dependencies, we can create the layer directly using `Layer.succeed(tag, service){:ts}`:
 
 ```ts filename="MeasuringCup.ts"

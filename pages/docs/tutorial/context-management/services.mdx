@@ -3,15 +3,26 @@ import { Tabs, Tab } from "@/components/Code"
 
 # Managing Services
 
-Remember that in the `Effect<R, E, A>` type, the parameter `R` represents the contextual data required by the effect to be executed. This contextual data is stored in a collection called `Context`.
+In the context of programming, a service refers to a reusable component or functionality that can be used by different parts of an application. Services are designed to provide specific capabilities and can be shared across multiple modules or components.
 
-So far, we have been working with Effects that don't require any specific context. In those cases, the `R` parameter in the `Effect<R, E, A>` type has always been of type `never`.
+Services often encapsulate common tasks or operations that are needed by different parts of an application. They can handle complex operations, interact with external systems or APIs, manage data, or perform other specialized tasks.
 
-In this tutorial, you will learn:
+Services are typically designed to be modular and decoupled from the rest of the application. This allows them to be easily maintained, tested, and replaced without affecting the overall functionality of the application.
 
-- How to work with Effects that require a context
-- How to create Effects that depend on a specific context
-- How to provide the required context to the Effect
+When working with services in Effect, it is important to understand the concept of context: in the type `Effect<R, E, A>`, the parameter `R` represents the contextual data required by the effect to be executed. This contextual data is stored in a collection called `Context`.
+
+## Managing Services with Effects
+
+So far, we have been working with effects that don't require any specific context. In those cases, the `R` parameter in the `Effect<R, E, A>` type has always been of type `never`.
+However, there are situations where we need to work with effects that depend on specific services or contextual data.
+
+In this tutorial, we will learn how to:
+
+- Create Effects that depend on a specific context.
+- Work with Effects that require a context or service dependencies.
+- Provide the required context to the Effect.
+
+Understanding how to manage services and provide the necessary context to effects is essential for building more complex and customizable programs. Let's dive in and explore these concepts in detail.
 
 ## Creating a simple Service
 
@@ -34,10 +45,10 @@ It has a single method called `next` that returns a random number.
 The `Random` value is what is referred to as a "Tag" in Effect.
 It serves as a representation of the `Random` service and allows Effect to locate and use this service at runtime.
 
-Conceptually, we can start building a mental model of the context of an Effect by thinking of it as a
+Conceptually, we can start building a mental model of the context of an effect by thinking of it as a `Map`:
 
 ```ts
-Map<Tag, Service>
+Map<Tag, ServiceImpl>
 ```
 
 where the Tag acts as the "key" to the service implementation within the context.
