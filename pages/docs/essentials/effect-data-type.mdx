@@ -2,23 +2,32 @@ import { Info } from "@/components/Callout"
 
 # The Effect Data Type
 
-The `Effect` data type provides a type-safe representation of programs. It can be thought of as a function that takes a `Context` as input and, when executed, can either fail with an `Error` or succeed with a `Value`.
+The `Effect<Requirements, Error, Value>` data type represents an **immutable** value that **lazily** describes a workflow or job.
+
+It encapsulates the logic of a program that requires a collection of contextual data `Context<Requirements>` to execute.
+This program can either fail, producing an error of type `Error`, or succeed, yielding a value of type `Value`.
+
+Conceptually, you can think of `Effect<Requirements, Error, Value>` as an effectful version of the following function type:
 
 ```ts
-type Effect<Context, Error, Value> = (context: Context) => Either<Error, Value>
+type Effect<Requirements, Error, Value> = (
+  context: Context<Requirements>
+) => Error | Value
 ```
 
-This mental model helps us understand the `Effect` type conceptually, but it's important to note that `Effect` is more powerful than just a function.
+Effects are not actually functions, of course, they can model synchronous, asynchronous, concurrent, and resourceful computations.
 
 ## Type Parameters
 
 The `Effect` type has three type parameters with the following meanings:
 
-| **Parameter** | **Description**                                                               |
-| ------------- | ----------------------------------------------------------------------------- |
-| `Context`     | Represents the contextual data required by the `Effect` to be executed.       |
-| `Error`       | Represents the expected errors that can occur when executing an `Effect`.     |
-| `Value`       | Represents the type of value that an `Effect` can succeed with when executed. |
+- **Requirements**. Represents the contextual data required by the effect to be executed.
+  This data is stored in a collection named `Context`.
+  If this type parameter is `never`, it means the effect has no requirements and the `Context` collection is empty.
+- **Error**. Represents the expected errors that can occur when executing an effect.
+  If this type parameter is `never`, it means the effect cannot fail, because there are no values of type `never`.
+- **Value**. Represents the type of value that an effect can succeed with when executed.
+  If this type parameter is `void`, it means the effect produces no useful information, while if it is `never`, it means the effect runs forever (or until failure).
 
 <Info>
   In the Effect ecosystem, you may often encounter the type parameters of
@@ -26,8 +35,9 @@ The `Effect` type has three type parameters with the following meanings:
   for **R**equirements, **E**rror, and the success value of type **A**.
 </Info>
 
-Think of each of these type parameters as separate "channels" within the `Effect` data type. Your program can interact with each of these "channels" during its execution.
+`Effect` values are immutable, and all Effect functions produce new `Effect` values.
 
-For example, an `Effect` with no requirements would have the type `Effect<never, _, _>` and can run under any circumstances. Similarly, an `Effect` that is guaranteed not to fail would have the type `Effect<_, never, _>`.
+`Effect` values do not actually do anything, they are just values that model or describe effectful interactions.
 
-Effects are evaluated lazily, which means that creating a value of type `Effect` does not immediately execute the underlying code. To run the effects and execute the program, we need to bootstrap our components and configure the runtime environment. The `Effect` type offers strong compile-time guarantees that help us properly structure and organize dependencies.
+An `Effect` can be interpreted by the Effect Runtime System into effectful interactions with the external world.
+Ideally, this occurs at a single time, in our application's `main` function.
