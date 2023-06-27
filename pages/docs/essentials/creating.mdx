@@ -11,6 +11,7 @@ To create an `Effect` from a value, you can use the `succeed` constructor:
 ```ts
 import * as Effect from "@effect/io/Effect"
 
+// Effect<never, never, number>
 const program = Effect.succeed(42)
 ```
 
@@ -27,6 +28,7 @@ To create an Effect that represents an error, you can use the `fail` constructor
 ```ts
 import * as Effect from "@effect/io/Effect"
 
+// Effect<never, string, never>
 const program = Effect.fail("my error")
 ```
 
@@ -51,6 +53,7 @@ You can create an `Effect` from a thunk using the `sync` constructor:
 ```ts
 import * as Effect from "@effect/io/Effect"
 
+// Effect<never, never, number>
 const program = Effect.sync(() => {
   console.log("Hello, World!")
   return 42
@@ -71,13 +74,12 @@ to control what gets propagated to the error channel:
 ```ts
 import * as Effect from "@effect/io/Effect"
 
+// Effect<never, Error, any>
 const program = Effect.tryCatch(
   () => JSON.parse(""), // JSON.parse may throw for bad input
   (e) => new Error(`something went wrong ${e}`) // remap the error
 )
 ```
-
-The `program` Effect has the type `Effect<never, Error, any>`
 
 You can think of `tryCatch` as a similar pattern to the traditional `try-catch` block in JavaScript:
 
@@ -96,10 +98,9 @@ If you're dealing with asynchronous side effects that return a `Promise`, you ca
 ```ts
 import * as Effect from "@effect/io/Effect"
 
+// Effect<never, never, number>
 const program = Effect.promise(() => Promise.resolve(42))
 ```
-
-The `program` Effect has the type `Effect<never, never, number>`.
 
 <Error>The `Promise` passed to `promise` should never reject.</Error>
 
@@ -109,13 +110,12 @@ to control what gets propagated to the error channel:
 ```ts
 import * as Effect from "@effect/io/Effect"
 
+// Effect<never, Error, Response>
 const program = Effect.tryCatchPromise(
   () => fetch("https://jsonplaceholder.typicode.com/todos/1"),
   (e) => new Error(`something went wrong ${e}`)
 )
 ```
-
-The `program` Effect has the type `Effect<never, Error, Response>`.
 
 ## From a callback
 
@@ -128,6 +128,7 @@ For example, let's wrap the `readFile` async API from the Node.js `fs` module wi
 import * as Effect from "@effect/io/Effect"
 import * as NodeFS from "node:fs"
 
+// Effect<never, NodeJS.ErrnoException, Buffer>
 const program = Effect.async<never, NodeJS.ErrnoException, Buffer>((resume) => {
   NodeFS.readFile("todos.txt", (error, data) => {
     if (error) {
@@ -141,8 +142,6 @@ const program = Effect.async<never, NodeJS.ErrnoException, Buffer>((resume) => {
 
 In the above example, we manually annotate the types when calling `Effect.async` because TypeScript cannot infer the type parameters for a callback
 based on the return value inside the callback body. Annotating the types ensures that the values provided to `resume` match the expected types.
-
-The `program` Effect has the type `Effect<never, NodeJS.ErrnoException, Buffer>`.
 
 <Idea>
   You can seamlessly mix synchronous and asynchronous code within the Effect
@@ -176,8 +175,6 @@ Check out the next tutorial on [Running Effects](running) to find out more.
 import { Card, Cards } from "nextra-theme-docs"
 
 <Cards>
-  <Card icon="📚 " title="Running Effects" href="running" />
-  <Card icon="📚 " title="Building pipelines" href="pipeline" />
   <Card
     icon="📖 "
     title="Complete list of constructors"
