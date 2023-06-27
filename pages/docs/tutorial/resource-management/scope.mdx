@@ -4,7 +4,7 @@ The `Scope` data type is fundamental for managing resources safely and in a comp
 
 In simple terms, a scope represents the lifetime of one or more resources. When a scope is closed, the resources associated with it are guaranteed to be released.
 
-By combining `Scope` with the Effect environment, we gain a powerful way to manage resources effectively.
+By combining `Scope` with the Effect context, we gain a powerful way to manage resources effectively.
 
 ## Defining Resources
 
@@ -53,7 +53,7 @@ const resource: Effect.Effect<Scope, Error, MyResource> = Effect.acquireRelease(
 )
 ```
 
-Notice that the `acquireRelease` operator added a `Scope` to the environment required by the workflow:
+Notice that the `acquireRelease` operator added a `Scope` to the context required by the workflow:
 
 ```ts /Scope/
 Effect.Effect<Scope, Error, MyResource>
@@ -79,7 +79,7 @@ const program: Effect.Effect<never, Error, void> = Effect.scoped(
 )
 ```
 
-The `scoped` operator removes the `Scope` from the environment, indicating that there are no longer any resources used by this workflow which require a scope.
+The `scoped` operator removes the `Scope` from the context, indicating that there are no longer any resources used by this workflow which require a scope.
 
 We now have a workflow that is ready to run:
 
