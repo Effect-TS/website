@@ -1,4 +1,5 @@
 import { Idea, Info } from "@/components/Callout"
+import { Tabs, Tab } from "@/components/Code"
 
 # Managing Service Dependencies
 
@@ -168,6 +169,9 @@ Looking at the type of `SugarLive` and `FlourLive` we can observe:
 
 Finally, we can use our ingredients to assemble the final recipe:
 
+<Tabs>
+<Tab>
+
 ```ts filename="Recipe.ts"
 import * as Context from "@effect/data/Context"
 import * as Effect from "@effect/io/Effect"
@@ -190,6 +194,37 @@ export const RecipeLive = Layer.effect(
   )
 )
 ```
+
+</Tab>
+<Tab>
+
+```ts filename="Recipe.ts"
+import * as Context from "@effect/data/Context"
+import * as Effect from "@effect/io/Effect"
+import * as Layer from "@effect/io/Layer"
+import { Flour, Sugar } from "./Ingredients"
+
+export interface Recipe {
+  readonly steps: Effect.Effect<never, never, ReadonlyArray<string>>
+}
+
+export const Recipe = Context.Tag<Recipe>()
+
+// Layer<Flour | Sugar, never, Recipe>
+export const RecipeLive = Layer.effect(
+  Recipe,
+  Effect.gen(function* (_) {
+    const sugar = yield* _(Sugar)
+    const flour = yield* _(Flour)
+    return Recipe.of({
+      steps: Effect.all(sugar.grams(200), flour.cups(1)),
+    })
+  })
+)
+```
+
+</Tab>
+</Tabs>
 
 Looking at the type of `RecipeLive` we can observe that the `RIn` type is `Flour | Sugar`, i.e. the `Recipe` service requires both `Flour` and `Sugar` services.
 
@@ -259,7 +294,10 @@ const MainLive = pipe(
 Now that we have assembled the fully resolved `MainLayer` for our application,
 we can provide it to our program to satisfy the program's requirements using `Effect.provideLayer(effect, layer){:ts}`:
 
-```ts filename="main.ts" {26}
+<Tabs>
+<Tab>
+
+```ts filename="main.ts" {28}
 import { pipe } from "@effect/data/Function"
 import * as Layer from "@effect/io/Layer"
 import { FlourLive, SugarLive } from "./Ingredients"
@@ -281,7 +319,9 @@ const MainLive = pipe(
 const program = pipe(
   Recipe,
   Effect.flatMap((recipe) => recipe.steps),
-  Effect.flatMap((steps) => Effect.forEachDiscard(steps, Effect.logInfo))
+  Effect.flatMap((steps) =>
+    Effect.forEachDiscard(steps, (step) => Effect.logInfo(step))
+  )
 )
 
 // Effect<never, never, void>
@@ -294,3 +334,45 @@ Effect.runPromise(runnable)
 ```
 
 The `Effect.forEachDiscard` function is used to iterate over a collection of values (`steps`) and perform a side effect on each element (`Effect.logInfo`), discarding the result (`void`).
+
+</Tab>
+<Tab>
+
+```ts filename="main.ts" {28}
+import { pipe } from "@effect/data/Function"
+import * as Layer from "@effect/io/Layer"
+import { FlourLive, SugarLive } from "./Ingredients"
+import { MeasuringCupLive } from "./MeasuringCup"
+import { Recipe, RecipeLive } from "./Recipe"
+import * as Effect from "@effect/io/Effect"
+
+// Layer<MeasuringCup, never, Flour | Sugar>
+const IngredientsLive = Layer.merge(FlourLive, SugarLive)
+
+// Layer<never, never, Recipe>
+const MainLive = pipe(
+  MeasuringCupLive,
+  Layer.provide(IngredientsLive),
+  Layer.provide(RecipeLive)
+)
+
+// Effect<Recipe, never, void>
+const program = Effect.gen(function* (_) {
+  const recipe = yield* _(Recipe)
+  const steps = yield* _(recipe.steps)
+  for (const step of steps) {
+    yield* _(Effect.logInfo(step))
+  }
+})
+
+// Effect<never, never, void>
+const runnable = Effect.provideLayer(program, MainLive)
+
+Effect.runPromise(runnable)
+
+// ...more output... message="Measured 200 gram(s)"
+// ...more output... message="Measured 1 cup(s)"
+```
+
+</Tab>
+</Tabs>
