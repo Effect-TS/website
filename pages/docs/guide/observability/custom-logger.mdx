@@ -1,10 +1,12 @@
+import { Tabs, Tab } from "@/components/Code"
+
 # Custom loggers
 
 In this guide, we will learn how to define a custom logger and set it as the default logger in our program.
 
 First, let's define our custom logger. Let's say we want to log `DEBUG` messages in regular text and all other messages in bold:
 
-```ts
+```ts filename="CustomLogger.ts"
 import * as Logger from "@effect/io/Logger"
 
 const ANSI = {
@@ -12,7 +14,7 @@ const ANSI = {
   Bold: "\x1b[1m",
 }
 
-const CustomLogger = Logger.make((_, logLevel, message) => {
+export const CustomLogger = Logger.make((_, logLevel, message) => {
   if (logLevel._tag === "Debug") {
     globalThis.console.log(`[${logLevel.label}] ${message}`)
   } else {
@@ -25,21 +27,27 @@ const CustomLogger = Logger.make((_, logLevel, message) => {
 
 Assuming we have defined the following program:
 
-```ts
+<Tabs>
+<Tab>
+
+```ts filename="main.ts"
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Duration from "@effect/data/Duration"
 
+// Effect<never, never, void>
 const task1 = pipe(
-  Effect.sleep(Duration.millis(200)),
+  Effect.sleep(Duration.seconds(2)),
   Effect.flatMap(() => Effect.logDebug("task1 done"))
 )
 
+// Effect<never, never, void>
 const task2 = pipe(
-  Effect.sleep(Duration.millis(100)),
+  Effect.sleep(Duration.seconds(1)),
   Effect.flatMap(() => Effect.logDebug("task2 done"))
 )
 
+// Effect<never, never, void>
 const program = pipe(
   Effect.logInfo("start"),
   Effect.flatMap(() => task1),
@@ -48,16 +56,51 @@ const program = pipe(
 )
 ```
 
+</Tab>
+<Tab>
+
+```ts filename="main.ts"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+// Effect<never, never, void>
+const task1 = Effect.gen(function* (_) {
+  yield* _(Effect.sleep(Duration.seconds(2)))
+  yield* _(Effect.logDebug("task1 done"))
+})
+
+// Effect<never, never, void>
+const task2 = Effect.gen(function* (_) {
+  yield* _(Effect.sleep(Duration.seconds(1)))
+  yield* _(Effect.logDebug("task2 done"))
+})
+
+// Effect<never, never, void>
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.logInfo("start"))
+  yield* _(task1)
+  yield* _(task2)
+  yield* _(Effect.logInfo("done"))
+})
+```
+
+</Tab>
+</Tabs>
+
 To replace the default logger, we simply need to create a specific layer using `Logger.replace` and provide it to our program using `Effect.provideLayer` before executing it.
 
-```ts
+```ts filename="main.ts"
+import * as Logger from "@effect/io/Logger"
 import * as LoggerLevel from "@effect/io/Logger/Level"
+import { CustomLogger } from "./CustomLogger"
+
+// Layer<never, never, never>
+const layer = Logger.replace(Logger.defaultLogger, CustomLogger)
 
 Effect.runPromise(
-  pipe(
-    program,
-    Logger.withMinimumLogLevel(LoggerLevel.Debug),
-    Effect.provideLayer(Logger.replace(Logger.defaultLogger, CustomLogger))
+  Effect.provideLayer(
+    Logger.withMinimumLogLevel(program, LoggerLevel.Debug),
+    layer
   )
 )
 ```

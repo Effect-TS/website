@@ -1,3 +1,5 @@
+import { Tabs, Tab } from "@/components/Code"
+
 # Configuration
 
 Configuration is an essential aspect of any cloud-native application. Effect simplifies the process of managing configuration by offering a convenient interface for configuration providers.
@@ -20,11 +22,15 @@ Effect provides a set of primitives for the most common types like `string`, `nu
 
 Let's start with a simple example of how to read configuration from environment variables:
 
+<Tabs>
+<Tab>
+
 ```ts filename="primitives.ts" showLineNumbers
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Config from "@effect/io/Config"
 
+// Effect<never, ConfigError, void>
 const program = pipe(
   Effect.all(
     Effect.config(Config.string("HOST")),
@@ -43,14 +49,46 @@ If we run this application we will get the following output:
 ```bash filename="Terminal" {3-6}
 ts-node primitives.ts
 
-/path/to/primitives.ts:7
+/path/to/primitives.ts:8
     Effect.config(Config.string("HOST")),
            ^
 (Missing data at HOST: "Expected HOST to exist in the process context")
 ...
 ```
 
-This is because we have not provided any configuration. Let's try to run it with the following environment variables:
+</Tab>
+<Tab>
+
+```ts filename="primitives.ts" showLineNumbers
+import * as Effect from "@effect/io/Effect"
+import * as Config from "@effect/io/Config"
+
+// Effect<never, ConfigError, void>
+const program = Effect.gen(function* (_) {
+  const host = yield* _(Effect.config(Config.string("HOST")))
+  const port = yield* _(Effect.config(Config.string("PORT")))
+  console.log(`Application started: ${host}:${port}`)
+})
+
+Effect.runSync(program)
+```
+
+If we run this application we will get the following output:
+
+```bash filename="Terminal" {3-6}
+ts-node primitives.ts
+
+/path/to/primitives.ts:6
+  const host = yield* _(Effect.config(Config.string("HOST")))
+                               ^
+(Missing data at HOST: "Expected HOST to exist in the process context")
+...
+```
+
+</Tab>
+</Tabs>
+
+This is because we have not provided any configuration. Let's try running it with the following environment variables:
 
 ```bash filename="Terminal"
 HOST=localhost PORT=8080 ts-node primitives.ts
@@ -80,7 +118,7 @@ class HostPort {
 
 We can define a configuration for this data type by combining primitive configs for `string` and `number`:
 
-```ts filename="HostPort.ts" {13}
+```ts filename="HostPort.ts"
 import { pipe } from "@effect/data/Function"
 import * as Config from "@effect/io/Config"
 
@@ -92,17 +130,21 @@ export class HostPort {
   }
 }
 
-export const config: Config.Config<HostPort> = pipe(
-  Config.zip(Config.string("HOST"), Config.float("PORT")),
+// Config<HostPort>
+export const config = pipe(
+  Config.all(Config.string("HOST"), Config.float("PORT")),
   Config.map(([host, port]) => new HostPort(host, port))
 )
 ```
 
-In the above example, we use the `zip` operator to combine two primitive configs `Config<string>` and `Config<number>` into a `Config<[string, number]>`.
+In the above example, we use the `Config.all(...configs){:ts}` operator to combine two primitive configs `Config<string>` and `Config<number>` into a `Config<[string, number]>`.
 
 If we use this customized configuration in our application:
 
-```ts filename="HostPort.ts" {19}
+<Tabs>
+<Tab>
+
+```ts filename="HostPort.ts" {20}
 import { pipe } from "@effect/data/Function"
 import * as Config from "@effect/io/Config"
 import * as Effect from "@effect/io/Effect"
@@ -116,10 +158,11 @@ export class HostPort {
 }
 
 export const config: Config.Config<HostPort> = pipe(
-  Config.zip(Config.string("HOST"), Config.float("PORT")),
+  Config.all(Config.string("HOST"), Config.float("PORT")),
   Config.map(([host, port]) => new HostPort(host, port))
 )
 
+// Effect<never, ConfigError, void>
 export const program = pipe(
   Effect.config(config),
   Effect.flatMap((hostPort) =>
@@ -129,6 +172,39 @@ export const program = pipe(
 
 Effect.runSync(program)
 ```
+
+</Tab>
+<Tab>
+
+```ts filename="HostPort.ts" {20}
+import { pipe } from "@effect/data/Function"
+import * as Config from "@effect/io/Config"
+import * as Effect from "@effect/io/Effect"
+
+export class HostPort {
+  constructor(readonly host: string, readonly port: number) {}
+
+  get url() {
+    return `${this.host}:${this.port}`
+  }
+}
+
+export const config: Config.Config<HostPort> = pipe(
+  Config.all(Config.string("HOST"), Config.float("PORT")),
+  Config.map(([host, port]) => new HostPort(host, port))
+)
+
+// Effect<never, ConfigError, void>
+export const program = Effect.gen(function* (_) {
+  const hostPort = yield* _(Effect.config(config))
+  console.log(`Application started: ${hostPort.url}`)
+})
+
+Effect.runSync(program)
+```
+
+</Tab>
+</Tabs>
 
 it attempts to read the corresponding values from environment variables (`HOST` and `PORT`):
 
@@ -154,7 +230,7 @@ class ServiceConfig {
 }
 
 const config: Config.Config<ServiceConfig> = pipe(
-  Config.zip(HostPort.config, Config.float("TIMEOUT")),
+  Config.all(HostPort.config, Config.float("TIMEOUT")),
   Config.map(([hostPort, timeout]) => new ServiceConfig(hostPort, timeout))
 )
 ```
@@ -167,8 +243,8 @@ To achieve this, we can use the `nested` combinator. It allows us to nest config
 
 ```diff
 const config: Config.Config<ServiceConfig> = pipe(
--  Config.zip(HostPort.config, Config.float("TIMEOUT")),
-+  Config.zip(
+-  Config.all(HostPort.config, Config.float("TIMEOUT")),
++  Config.all(
 +    Config.nested(HostPort.config, "HOSTPORT"),
 +    Config.float("TIMEOUT")
 +  ),
