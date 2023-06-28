@@ -1,3 +1,5 @@
+import { Tabs, Tab } from "@/components/Code"
+
 # Logging
 
 Effect provides a set of built-in utilities for logging. Let's explore the main ones.
@@ -6,15 +8,21 @@ Effect provides a set of built-in utilities for logging. Let's explore the main 
 
 By default, `INFO` messages are printed.
 
+<Tabs>
+<Tab>
+
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Duration from "@effect/data/Duration"
 
-const task1 = Effect.sleep(Duration.millis(200))
+// Effect<never, never, void>
+const task1 = Effect.sleep(Duration.seconds(2))
 
-const task2 = Effect.sleep(Duration.millis(100))
+// Effect<never, never, void>
+const task2 = Effect.sleep(Duration.seconds(1))
 
+// Effect<never, never, void>
 const program = pipe(
   Effect.logInfo("start"),
   Effect.flatMap(() => task1),
@@ -25,11 +33,44 @@ const program = pipe(
 Effect.runPromise(program)
 /*
 ...more infos... level=INFO message=start
+... 3 seconds ...
 ...more infos... level=INFO message=done
 */
 ```
 
-In the above example, the `logInfo` function is used to log an `INFO` message with the content `"start"` and `"done"`. These messages will be printed during the execution of the program.
+</Tab>
+<Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+// Effect<never, never, void>
+const task1 = Effect.sleep(Duration.seconds(2))
+
+// Effect<never, never, void>
+const task2 = Effect.sleep(Duration.seconds(1))
+
+// Effect<never, never, void>
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.logInfo("start"))
+  yield* _(task1)
+  yield* _(task2)
+  yield* _(Effect.logInfo("done"))
+})
+
+Effect.runPromise(program)
+/*
+...more infos... level=INFO message=start
+... 3 seconds ...
+...more infos... level=INFO message=done
+*/
+```
+
+</Tab>
+</Tabs>
+
+In the above example, the `Effect.logInfo` function is used to log an `INFO` message with the content `"start"` and `"done"`. These messages will be printed during the execution of the program.
 
 ## logDebug
 
@@ -39,24 +80,30 @@ However, you can configure the default logger to enable them using `Logger.withM
 
 Here's an example that demonstrates how to enable `DEBUG` messages for a specific task (`task1`):
 
-```ts {10}
+<Tabs>
+<Tab>
+
+```ts {11}
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Duration from "@effect/data/Duration"
 import * as Logger from "@effect/io/Logger"
 import * as LoggerLevel from "@effect/io/Logger/Level"
 
+// Effect<never, never, void>
 const task1 = pipe(
-  Effect.sleep(Duration.millis(200)),
+  Effect.sleep(Duration.seconds(2)),
   Effect.flatMap(() => Effect.logDebug("task1 done")),
   Logger.withMinimumLogLevel(LoggerLevel.Debug)
 )
 
+// Effect<never, never, void>
 const task2 = pipe(
-  Effect.sleep(Duration.millis(100)),
+  Effect.sleep(Duration.seconds(1)),
   Effect.flatMap(() => Effect.logDebug("task2 done"))
 )
 
+// Effect<never, never, void>
 const program = pipe(
   Effect.logInfo("start"),
   Effect.flatMap(() => task1),
@@ -67,10 +114,58 @@ const program = pipe(
 Effect.runPromise(program)
 /*
 ...more infos... level=INFO message=start
+... 2 seconds ...
 ...more infos... level=DEBUG message="task1 done"
+... 1 second ...
 ...more infos... level=INFO message=done
 */
 ```
+
+</Tab>
+<Tab>
+
+```ts {13}
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+import * as Logger from "@effect/io/Logger"
+import * as LoggerLevel from "@effect/io/Logger/Level"
+
+// Effect<never, never, void>
+const task1 = pipe(
+  Effect.gen(function* (_) {
+    yield* _(Effect.sleep(Duration.seconds(2)))
+    yield* _(Effect.logDebug("task1 done"))
+  }),
+  Logger.withMinimumLogLevel(LoggerLevel.Debug)
+)
+
+// Effect<never, never, void>
+const task2 = Effect.gen(function* (_) {
+  yield* _(Effect.sleep(Duration.seconds(1)))
+  yield* _(Effect.logDebug("task2 done"))
+})
+
+// Effect<never, never, void>
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.logInfo("start"))
+  yield* _(task1)
+  yield* _(task2)
+  yield* _(Effect.logInfo("done"))
+})
+
+Effect.runPromise(program)
+/*
+...more infos... level=INFO message=start
+... 2 seconds ...
+...more infos... level=DEBUG message="task1 done"
+... 1 second ...
+...more infos... level=INFO message=done
+*/
+```
+
+</Tab>
+</Tabs>
 
 In the above example, we enable `DEBUG` messages specifically for `task1` by using the `Logger.withMinimumLogLevel` function.
 
