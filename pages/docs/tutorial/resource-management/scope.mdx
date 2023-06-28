@@ -1,3 +1,5 @@
+import { Tabs, Tab } from "@/components/Code"
+
 # Scope
 
 The `Scope` data type is fundamental for managing resources safely and in a composable manner in Effect.
@@ -46,11 +48,8 @@ const acquire = Effect.tryCatchPromise(
 // Define the release of the resource
 const release = (res: MyResource) => Effect.promise(() => res.close())
 
-// Create a scoped resource effect using acquireRelease
-const resource: Effect.Effect<Scope, Error, MyResource> = Effect.acquireRelease(
-  acquire,
-  release
-)
+// Effect<Scope, Error, MyResource>
+const resource = Effect.acquireRelease(acquire, release)
 ```
 
 Notice that the `acquireRelease` operator added a `Scope` to the context required by the workflow:
@@ -63,32 +62,74 @@ This indicates that the workflow needs a `Scope` to run and adds a finalizer tha
 
 We can continue working with the resource for as long as we want by using `flatMap` or other Effect operators. For example, here's how we can read the contents:
 
-```ts
-Effect.flatMap(resource, (res) =>
-  Effect.sync(() => console.log(`contents is ${res.contents}`))
-)
-```
-
-Once we are done working with the resource, we can close the scope using the `Effect.scoped` operator. It creates a new `Scope`, provides it to the workflow, and closes the `Scope` when the workflow is finished.
+<Tabs>
+<Tab>
 
 ```ts
-const program: Effect.Effect<never, Error, void> = Effect.scoped(
-  Effect.flatMap(resource, (res) =>
-    Effect.sync(() => console.log(`contents is ${res.contents}`))
+// Effect<Scope, Error, void>
+const program = pipe(
+  Effect.acquireRelease(acquire, release),
+  Effect.flatMap((resource) =>
+    Effect.sync(() => console.log(`content is ${resource.contents}`))
   )
 )
 ```
+
+</Tab>
+<Tab>
+
+```ts
+// Effect<Scope, Error, void>
+const program = Effect.gen(function* (_) {
+  const resource = yield* _(Effect.acquireRelease(acquire, release))
+  console.log(`content is ${resource.contents}`)
+})
+```
+
+</Tab>
+</Tabs>
+
+Once we are done working with the resource, we can close the scope using the `Effect.scoped` operator. It creates a new `Scope`, provides it to the workflow, and closes the `Scope` when the workflow is finished.
+
+<Tabs>
+<Tab>
+
+```ts /Effect.scoped/
+// Effect<never, Error, void>
+const program = pipe(
+  Effect.acquireRelease(acquire, release),
+  Effect.flatMap((resource) =>
+    Effect.sync(() => console.log(`content is ${resource.contents}`))
+  ),
+  Effect.scoped
+)
+```
+
+</Tab>
+<Tab>
+
+```ts /Effect.scoped/
+// Effect<never, Error, void>
+const program = Effect.scoped(
+  Effect.gen(function* (_) {
+    const resource = yield* _(Effect.acquireRelease(acquire, release))
+    console.log(`content is ${resource.contents}`)
+  })
+)
+```
+
+</Tab>
+</Tabs>
 
 The `scoped` operator removes the `Scope` from the context, indicating that there are no longer any resources used by this workflow which require a scope.
 
 We now have a workflow that is ready to run:
 
 ```ts
-// Run the program and observe the output
 Effect.runPromise(program)
 /*
 Resource acquired
-contents is lorem ipsum
+content is lorem ipsum
 Resource released
 */
 ```
@@ -131,7 +172,7 @@ const acquire = Effect.tryCatchPromise(
 const release = (res: MyResource) => Effect.promise(() => res.close())
 
 const use = (res: MyResource) =>
-  Effect.sync(() => console.log(`contents is ${res.contents}`))
+  Effect.sync(() => console.log(`content is ${res.contents}`))
 
 const program: Effect.Effect<never, Error, void> = Effect.acquireUseRelease(
   acquire,
@@ -142,7 +183,7 @@ const program: Effect.Effect<never, Error, void> = Effect.acquireUseRelease(
 Effect.runPromise(program)
 /*
 Resource acquired
-contents is lorem ipsum
+content is lorem ipsum
 Resource released
 */
 ```
