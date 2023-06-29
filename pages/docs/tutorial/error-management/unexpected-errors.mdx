@@ -18,19 +18,32 @@ The `catchAllDefect` operator allows you to recover from all defects using a pro
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
+import * as Cause from "@effect/io/Cause"
 
-pipe(
-  Effect.dieMessage("Boom!"),
-  Effect.catchAllDefect((e) => {
-    if (e instanceof Error) {
-      return Effect.logDebug("Boom! defect caught.")
+// Effect<never, never, void>
+const program = pipe(
+  Effect.dieMessage("Boom!"), // Simulating a runtime error
+  Effect.catchAllDefect((defect) => {
+    if (Cause.isRuntimeException(defect)) {
+      return Effect.logFatal(
+        `RuntimeException defect caught: ${defect.message}`
+      )
     }
-    return Effect.logDebug("Unknown defect caught.")
+    return Effect.logFatal("Unknown defect caught.")
   })
 )
+
+// We get an Exit.Success because we caught all defects
+console.log(JSON.stringify(Effect.runSyncExit(program)))
+/*
+... level=FATAL fiber=#0 message="RuntimeException defect caught: Boom!"
+{"_tag":"Success"}
+*/
 ```
 
-It's important to note that these error-handling operators can only recover from defects, not failures or fiber interruptions. A defect refers to an error that cannot be anticipated in advance, and there is no reliable way to respond to it. As a general rule, it's recommended to let defects crash the application, as they often indicate serious issues that need to be addressed.
+It's important to understand that `catchAllDefect` can only handle defects, not expected errors (such as those caused by `Effect.fail`) or interruptions in execution (such as when using `Effect.interrupt`).
+
+A defect refers to an error that cannot be anticipated in advance, and there is no reliable way to respond to it. As a general rule, it's recommended to let defects crash the application, as they often indicate serious issues that need to be addressed.
 
 However, in some specific cases, such as when dealing with dynamically loaded plugins, a controlled recovery approach might be necessary. For example, if our application supports runtime loading of plugins and a defect occurs within a plugin, we may choose to log the defect and then reload only the affected plugin instead of crashing the entire application. This allows for a more resilient and uninterrupted operation of the application.
 
@@ -41,19 +54,28 @@ The `catchSomeDefect` operator in Effect allows you to recover from specific def
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
+import * as Cause from "@effect/io/Cause"
 import * as Option from "@effect/data/Option"
 
-pipe(
-  Effect.dieMessage("Boom!"),
-  Effect.catchSomeDefect((e) => {
-    if (e instanceof Error) {
-      return Option.some(Effect.logDebug("Boom! defect caught."))
+// Effect<never, never, void>
+const program = pipe(
+  Effect.dieMessage("Boom!"), // Simulating a runtime error
+  Effect.catchSomeDefect((defect) => {
+    if (Cause.isIllegalArgumentException(defect)) {
+      return Option.some(
+        Effect.logFatal(
+          `Caught an IllegalArgumentException defect: ${defect.message}`
+        )
+      )
     }
     return Option.none()
   })
 )
+
+// Since we are only catching IllegalArgumentException
+// we will get an Exit.Failure because we simulated a runtime error.
+console.log(JSON.stringify(Effect.runSyncExit(program)))
+// Output: {"_tag":"Failure", ... }
 ```
 
-In the above example, we have an effect that throws a defect using `Effect.dieMessage("Boom!")`. By using the `catchSomeDefect` operator and providing a partial function to handle the defect, we can selectively recover from specific types of defects.
-
-It's important to note that, similar to `catchAllDefect`, `catchSomeDefect` can only recover from defects and not failures or fiber interruptions.
+It's important to understand that `catchSomeDefect` can only handle defects, not expected errors (such as those caused by `Effect.fail`) or interruptions in execution (such as when using `Effect.interrupt`).
