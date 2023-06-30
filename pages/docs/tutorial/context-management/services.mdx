@@ -343,7 +343,8 @@ const runnable = pipe(
 Alternatively, instead of calling `provideService` multiple times, we can combine the service implementations into a single `Context`:
 
 ```ts
-const context: Context.Context<Random | Logger> = pipe(
+// Context<Random | Logger>
+const context = pipe(
   Context.empty(),
   Context.add(Random, Random.of({ next: () => Effect.succeed(Math.random()) })),
   Context.add(
