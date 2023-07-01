@@ -24,7 +24,8 @@ If you check the console, you will see the message `"Hello, World!"` printed.
 
 <Warning>
   `runSync` will throw an error if your Effect fails or performs any
-  asynchronous tasks
+  asynchronous tasks. In the latter case, the execution will not proceed beyond
+  that asynchronous task.
 </Warning>
 
 ```ts
@@ -50,7 +51,7 @@ Effect.runSyncEither(Effect.fail("error")) // Either.left("error")
 
 <Warning>
   `runSyncEither` will throw an error if your Effect performs any asynchronous
-  tasks
+  tasks and the execution will not proceed beyond that asynchronous task.
 </Warning>
 
 ```ts
@@ -75,7 +76,7 @@ Effect.runSyncExit(Effect.fail("error")) // Exit.fail(...)
 
 <Warning>
   `runSyncExit` will throw an error if your Effect performs any asynchronous
-  tasks
+  tasks and the execution will not proceed beyond that asynchronous task.
 </Warning>
 
 ```ts
@@ -153,4 +154,5 @@ The table provides a summary of the available `run*` functions, along with their
 You can find the complete list of `run*` functions [here](https://effect-ts.github.io/io/modules/Effect.ts.html#execution).
 
 In the next tutorial, we will learn how to build more complex programs by creating **pipelines**.
-Check out the next tutorial on [Build a pipeline](pipeline) to find out more.
+
+---
