@@ -1,14 +1,47 @@
-# Interrupt an Effect
+import { Tabs, Tab } from "@/components/Code"
 
-import { Stub } from "@/components/Stub"
+# Introduction to Effect's Interruption Model
 
-<Stub />
+While developing concurrent applications, there are several cases that we need to _interrupt_ the execution of other fibers, for example:
 
----
+1. A parent fiber might start some child fibers to perform a task, and later the parent might decide that, it doesn't need the result of some or all of the child fibers.
 
-**Examples**
+2. Two or more fibers start race with each other. The fiber whose result is computed first wins, and all other fibers are no longer needed, and should be interrupted.
+
+3. In interactive applications, a user may want to stop some already running tasks, such as clicking on the "stop" button to prevent downloading more files.
+
+4. Computations that run longer than expected should be aborted by using timeout operations.
+
+5. When we have an application that perform compute-intensive tasks based on the user inputs, if the user changes the input we should cancel the current task and perform another one.
+
+## Polling vs. Asynchronous Interruption
+
+When it comes to interrupting fibers, a naive approach is to allow one fiber to forcefully terminate another fiber. However, this approach is not ideal because it can leave shared state in an inconsistent and unreliable state if the target fiber is in the middle of modifying that state. Therefore, it does not guarantee internal consistency of the shared mutable state.
+
+Instead, there are two popular and valid solutions to tackle this problem:
+
+1. **Semi-asynchronous Interruption (Polling for Interruption)**: Imperative languages often employ polling as a semi-asynchronous signaling mechanism, such as Java. In this model, a fiber sends an interruption request to another fiber. The target fiber continuously polls the interrupt status and checks whether it has received any interruption requests from other fibers. If an interruption request is detected, the target fiber terminates itself as soon as possible.
+
+   With this solution, the fiber itself handles critical sections. So, if a fiber is in the middle of a critical section and receives an interruption request, it ignores the interruption and defers its handling until after the critical section.
+
+   However, one drawback of this approach is that if the programmer forgets to poll regularly, the target fiber can become unresponsive, leading to deadlocks. Additionally, polling a global flag is not aligned with the functional paradigm followed by Effect.
+
+2. **Asynchronous Interruption**: In asynchronous interruption, a fiber is allowed to terminate another fiber. The target fiber is not responsible for polling the interrupt status. Instead, during critical sections, the target fiber disables the interruptibility of those regions. This is a purely functional solution that doesn't require polling a global state. Effect adopts this solution for its interruption model, which is a fully asynchronous signaling mechanism.
+
+   This mechanism overcomes the drawback of forgetting to poll regularly. It is also fully compatible with the functional paradigm because in a purely functional computation, we can abort the computation at any point, except during critical sections where interruption is disabled.
+
+## When Does a Fiber Get Interrupted?
+
+There are several ways and situations in which fibers can be interrupted. Let's explore each one and provide examples to illustrate how to reproduce these scenarios.
+
+### Calling Effect.interrupt
+
+A fiber can be interrupted by invoking the `Effect.interrupt` operator on that particular fiber.
 
 Without interruptions
+
+<Tabs>
+<Tab>
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -17,18 +50,48 @@ import { pipe } from "@effect/data/Function"
 
 const program = pipe(
   Effect.logInfo("start"),
-  Effect.flatMap(() => Effect.sleep(Duration.millis(200))),
+  Effect.flatMap(() => Effect.sleep(Duration.seconds(2))),
   Effect.flatMap(() => Effect.logInfo("done"))
 )
 
-Effect.runPromise(program).catch((e) => console.log(`interrupted: ${e}`))
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
 /*
-...more infos... message=start
-...more infos... message=done
+timestamp=...646Z level=INFO fiber=#0 message=start
+timestamp=...656Z level=INFO fiber=#0 message=done
 */
 ```
 
+</Tab>
+<Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.logInfo("start"))
+  yield* _(Effect.sleep(Duration.seconds(2)))
+  yield* _(Effect.logInfo("done"))
+})
+
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
+/*
+timestamp=...646Z level=INFO fiber=#0 message=start
+timestamp=...656Z level=INFO fiber=#0 message=done
+*/
+```
+
+</Tab>
+</Tabs>
+
 With interruptions
+
+<Tabs>
+<Tab>
 
 ```ts {8}
 import * as Effect from "@effect/io/Effect"
@@ -37,14 +100,120 @@ import { pipe } from "@effect/data/Function"
 
 const program = pipe(
   Effect.logInfo("start"),
-  Effect.flatMap(() => Effect.sleep(Duration.millis(200))),
+  Effect.flatMap(() => Effect.sleep(Duration.seconds(2))),
   Effect.flatMap(() => Effect.interrupt()),
   Effect.flatMap(() => Effect.logInfo("done"))
 )
 
-Effect.runPromise(program).catch((e) => console.log(`interrupted: ${e}`))
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
 /*
-...more infos... message=start
+timestamp=...885Z level=INFO fiber=#0 message=start
 interrupted: All fibers interrupted without errors.
 */
 ```
+
+</Tab>
+<Tab>
+
+```ts {7}
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.logInfo("start"))
+  yield* _(Effect.sleep(Duration.seconds(2)))
+  yield* _(Effect.interrupt())
+  yield* _(Effect.logInfo("done"))
+})
+
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
+/*
+timestamp=...885Z level=INFO fiber=#0 message=start
+interrupted: All fibers interrupted without errors.
+*/
+```
+
+</Tab>
+</Tabs>
+
+### Interruption of Parallel Effects
+
+When we combine multiple parallel effects using functions like `Effect.forEachPar`, it's important to note that if one of the effects is interrupted, all the other parallel effects will also be interrupted. Let's take a look at an example:
+
+<Tabs>
+<Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+import { pipe } from "@effect/data/Function"
+
+const program = Effect.forEachPar([1, 2, 3], (n) =>
+  pipe(
+    Effect.logInfo(`start #${n}`),
+    Effect.flatMap(() => {
+      const effect = Effect.sleep(Duration.seconds(n))
+      if (n > 1) {
+        return Effect.flatMap(effect, () => Effect.interrupt())
+      } else {
+        return effect
+      }
+    }),
+    Effect.flatMap(() => Effect.logInfo(`done #${n}`))
+  )
+)
+
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
+/*
+timestamp=...634Z level=INFO fiber=#1 message="start #1"
+timestamp=...638Z level=INFO fiber=#2 message="start #2"
+timestamp=...638Z level=INFO fiber=#3 message="start #3"
+timestamp=...642Z level=INFO fiber=#1 message="done #1"
+interrupted: All fibers interrupted without errors.
+*/
+```
+
+</Tab>
+<Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const program = Effect.forEachPar([1, 2, 3], (n) =>
+  Effect.gen(function* (_) {
+    yield* _(Effect.logInfo(`start #${n}`))
+    yield* _(Effect.sleep(Duration.seconds(n)))
+    if (n > 1) {
+      yield* _(Effect.interrupt())
+    }
+    yield* _(Effect.logInfo(`done #${n}`))
+  })
+)
+
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
+/*
+timestamp=...634Z level=INFO fiber=#1 message="start #1"
+timestamp=...638Z level=INFO fiber=#2 message="start #2"
+timestamp=...638Z level=INFO fiber=#3 message="start #3"
+timestamp=...642Z level=INFO fiber=#1 message="done #1"
+interrupted: All fibers interrupted without errors.
+*/
+```
+
+</Tab>
+</Tabs>
+
+In this example, we have an array `[1, 2, 3]` representing three parallel tasks. We use `Effect.forEachPar` to iterate over each element and perform some operations. The `Effect.logInfo` function is used to log messages indicating the start and completion of each task.
+
+Looking at the output, we can see that the task with `n=1` starts and completes successfully. However, the task with `n=2` is interrupted using `Effect.interrupt` before it finishes. As a result, all the fibers are interrupted, and the program terminates with the message "All fibers interrupted without errors."
+
+This example demonstrates how interruption works with parallel effects. If one of the parallel tasks is interrupted, it triggers the interruption of all the other parallel tasks as well.
