@@ -1,3 +1,5 @@
+import { Tabs, Tab } from "@/components/Code"
+
 # Introduction to Effect's Interruption Model
 
 While developing concurrent applications, there are several cases that we need to _interrupt_ the execution of other fibers, for example:
@@ -38,6 +40,9 @@ A fiber can be interrupted by invoking the `Effect.interrupt` operator on that p
 
 Without interruptions
 
+<Tabs>
+<Tab>
+
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Duration from "@effect/data/Duration"
@@ -49,14 +54,44 @@ const program = pipe(
   Effect.flatMap(() => Effect.logInfo("done"))
 )
 
-Effect.runPromise(program).catch((e) => console.log(`interrupted: ${e}`))
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
 /*
 timestamp=...646Z level=INFO fiber=#0 message=start
 timestamp=...656Z level=INFO fiber=#0 message=done
 */
 ```
 
+</Tab>
+<Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.logInfo("start"))
+  yield* _(Effect.sleep(Duration.seconds(2)))
+  yield* _(Effect.logInfo("done"))
+})
+
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
+/*
+timestamp=...646Z level=INFO fiber=#0 message=start
+timestamp=...656Z level=INFO fiber=#0 message=done
+*/
+```
+
+</Tab>
+</Tabs>
+
 With interruptions
+
+<Tabs>
+<Tab>
 
 ```ts {8}
 import * as Effect from "@effect/io/Effect"
@@ -70,47 +105,115 @@ const program = pipe(
   Effect.flatMap(() => Effect.logInfo("done"))
 )
 
-Effect.runPromise(program).catch((e) => console.log(`interrupted: ${e}`))
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
 /*
 timestamp=...885Z level=INFO fiber=#0 message=start
 interrupted: All fibers interrupted without errors.
 */
 ```
 
+</Tab>
+<Tab>
+
+```ts {7}
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.logInfo("start"))
+  yield* _(Effect.sleep(Duration.seconds(2)))
+  yield* _(Effect.interrupt())
+  yield* _(Effect.logInfo("done"))
+})
+
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
+/*
+timestamp=...885Z level=INFO fiber=#0 message=start
+interrupted: All fibers interrupted without errors.
+*/
+```
+
+</Tab>
+</Tabs>
+
 ### Interruption of Parallel Effects
 
-When combining multiple parallel effects, such as using the `Effect.forEachPar` function, if one of them is interrupted, the other fibers will also be interrupted. So, if we have two parallel tasks and one of them fails or is interrupted, the other task will also be interrupted:
+When we combine multiple parallel effects using functions like `Effect.forEachPar`, it's important to note that if one of the effects is interrupted, all the other parallel effects will also be interrupted. Let's take a look at an example:
+
+<Tabs>
+<Tab>
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Duration from "@effect/data/Duration"
 import { pipe } from "@effect/data/Function"
 
-const program = Effect.forEachPar([1, 2], (n) =>
+const program = Effect.forEachPar([1, 2, 3], (n) =>
   pipe(
     Effect.logInfo(`start #${n}`),
     Effect.flatMap(() => {
       const effect = Effect.sleep(Duration.seconds(n))
       if (n > 1) {
         return Effect.flatMap(effect, () => Effect.interrupt())
+      } else {
+        return effect
       }
-      return effect
     }),
     Effect.flatMap(() => Effect.logInfo(`done #${n}`))
   )
 )
 
-Effect.runPromise(program).catch((e) => console.log(`interrupted: ${e}`))
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
 /*
 timestamp=...634Z level=INFO fiber=#1 message="start #1"
 timestamp=...638Z level=INFO fiber=#2 message="start #2"
+timestamp=...638Z level=INFO fiber=#3 message="start #3"
 timestamp=...642Z level=INFO fiber=#1 message="done #1"
 interrupted: All fibers interrupted without errors.
 */
 ```
 
-In this example, we have two parallel tasks represented by the array `[1, 2]`. We iterate over each element using `Effect.forEachPar` and perform some operations. The `Effect.logInfo` function logs a message indicating the start and completion of each task.
+</Tab>
+<Tab>
 
-If we observe the output, we can see that the task with `n=1` starts and completes successfully. However, the task with `n=2` is interrupted using `Effect.interrupt` before it completes. As a result, both fibers are interrupted, and the program terminates with the message "All fibers interrupted without errors."
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
 
-This demonstrates how parallel effects are affected by interruption. If one of the parallel tasks is interrupted, it triggers the interruption of other tasks as well.
+const program = Effect.forEachPar([1, 2, 3], (n) =>
+  Effect.gen(function* (_) {
+    yield* _(Effect.logInfo(`start #${n}`))
+    yield* _(Effect.sleep(Duration.seconds(n)))
+    if (n > 1) {
+      yield* _(Effect.interrupt())
+    }
+    yield* _(Effect.logInfo(`done #${n}`))
+  })
+)
+
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
+/*
+timestamp=...634Z level=INFO fiber=#1 message="start #1"
+timestamp=...638Z level=INFO fiber=#2 message="start #2"
+timestamp=...638Z level=INFO fiber=#3 message="start #3"
+timestamp=...642Z level=INFO fiber=#1 message="done #1"
+interrupted: All fibers interrupted without errors.
+*/
+```
+
+</Tab>
+</Tabs>
+
+In this example, we have an array `[1, 2, 3]` representing three parallel tasks. We use `Effect.forEachPar` to iterate over each element and perform some operations. The `Effect.logInfo` function is used to log messages indicating the start and completion of each task.
+
+Looking at the output, we can see that the task with `n=1` starts and completes successfully. However, the task with `n=2` is interrupted using `Effect.interrupt` before it finishes. As a result, all the fibers are interrupted, and the program terminates with the message "All fibers interrupted without errors."
+
+This example demonstrates how interruption works with parallel effects. If one of the parallel tasks is interrupted, it triggers the interruption of all the other parallel tasks as well.

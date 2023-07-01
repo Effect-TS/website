@@ -77,7 +77,7 @@ import * as Effect from "@effect/io/Effect"
 // Effect<never, Error, any>
 const program = Effect.tryCatch(
   () => JSON.parse(""), // JSON.parse may throw for bad input
-  (e) => new Error(`something went wrong ${e}`) // remap the error
+  (error) => new Error(`something went wrong ${error}`) // remap the error
 )
 ```
 
@@ -113,7 +113,7 @@ import * as Effect from "@effect/io/Effect"
 // Effect<never, Error, Response>
 const program = Effect.tryCatchPromise(
   () => fetch("https://jsonplaceholder.typicode.com/todos/1"),
-  (e) => new Error(`something went wrong ${e}`)
+  (error) => new Error(`something went wrong ${error}`)
 )
 ```
 
