@@ -1,5 +1,155 @@
-# Brands
+# Branded Types
 
-import { Stub } from "@/components/Stub"
+In this tutorial, we will explore the concept of **branded types** in TypeScript and learn how to create and work with them using the `@effect/data/Brand` module. Branded types are TypeScript types with an added type tag that helps prevent accidental usage of a value in the wrong context. They allow us to create distinct types based on an existing underlying type, enabling type safety and better code organization.
 
-<Stub />
+## Setup
+
+Before we dive into creating and using branded types, make sure you have the `@effect/data/Brand` module installed in your TypeScript project. You can install it via npm:
+
+```bash filename="Terminal"
+npm install @effect/data
+```
+
+Once installed, you can import the necessary functions and types from the module:
+
+```ts
+import * as Brand from "@effect/data/Brand"
+```
+
+## Understanding Branded Types
+
+Branded types allow us to create new types in TypeScript by adding a type tag to an existing underlying type. This type tag, also known as the "brand," distinguishes values of the branded type from other values of the same underlying type. The brand acts as a compile-time check, ensuring that values are used correctly in the intended context.
+
+## Creating Branded Types
+
+The `@effect/data/Brand` module provides two main functions for creating branded types: `refined` and `nominal`. Let's understand each of them:
+
+### 1. Refined Branded Types
+
+The `refined` function is used to create a new branded type that performs validation on the input data. It takes a refinement predicate as an argument, which is a function that determines whether the input data is valid for the branded type. If the input data fails the validation, a `BrandErrors` data type is returned, providing information about the specific validation failure.
+
+Here's an example of creating a refined branded type:
+
+```ts
+import * as Brand from "@effect/data/Brand"
+
+type Int = number & Brand.Brand<"Int">
+
+const Int = Brand.refined<Int>(
+  (n) => Number.isInteger(n), // Check if the value is an integer
+  (n) => Brand.error(`Expected ${n} to be an integer`) // Error message if the value is not an integer
+)
+```
+
+In this example, we create a branded type called `Int` using the `Brand.refined` function. The refinement predicate ensures that the input value is an integer. If the value fails the validation, an error message is provided using the `Brand.error` function.
+
+Now, let's see how we can use the `Int` branded type:
+
+```ts
+// Create a value of type Int
+const x: Int = Int(3)
+console.log(x) // Output: 3
+
+// Attempt to create a value of type Int with a non-integer value
+const y: Int = Int(3.14) // Throws an error: [ { message: 'Expected 3.14 to be an integer' } ]
+```
+
+By enforcing the `Int` brand, we can ensure that only integer values are used in the designated context.
+Attempting to assign a non-`Int` value will result in a compile-time error:
+
+```ts
+// ✅
+const good: Int = Int(3)
+
+// ❌
+const bad1: Int = 3 // Type 'number' is not assignable to type 'Brand<"Int">'
+const bad2: Int = 3.14 // Type 'number' is not assignable to type 'Brand<"Int">'
+```
+
+### 2. Nominal Branded Types
+
+The `nominal` function is used to create a new branded type without performing any runtime checks. It simply adds a type tag to the underlying type, allowing us to distinguish between values of the same type but with different meanings. Nominal branded types are useful when we only want to create distinct types for clarity and code organization purposes.
+
+Here's an example of creating a nominal branded type:
+
+```ts
+import * as Brand from "@effect/data/Brand"
+
+type UserId = number & Brand.Brand<"UserId">
+
+const UserId = Brand.nominal<UserId>()
+```
+
+In the previous example, we created a nominal branded type called `UserId` using the `Brand.nominal` function. The `UserId` type is based on the underlying type `number`, but it has a distinct type tag that differentiates it from other `number` values.
+
+Now, let's see how we can use the `UserId` branded type:
+
+```ts
+// Create a value of type UserId with a valid value
+const id1: UserId = UserId(1)
+console.log(id1) // Output: 1
+
+// Create another value of type UserId with a different valid value
+const id2: UserId = UserId(2)
+console.log(id2) // Output: 2
+
+// Attempt to create a value of type UserId with a non-branded number
+const id3: UserId = 3 // Error: Type 'number' is not assignable to type 'Brand<"UserId">'
+```
+
+By enforcing the `UserId` brand, we can ensure that only values explicitly created as `UserId` are used in the designated context. Assigning a regular `number` value to a `UserId` variable will result in a type error.
+
+Nominal branded types help improve code clarity and prevent accidental mixing of values with different meanings. They are especially useful when working with identifiers, unique keys, or any scenario where distinguishing between values is important.
+
+## Using Branded Types in Functions
+
+Branded types can be used in function signatures to provide stronger type guarantees. Let's see how we can incorporate branded types in function parameters and return types.
+
+```ts
+function getUserById(id: UserId): User {
+  // Retrieve user from the database based on the UserId
+}
+
+function createUser(name: string, email: string): UserId {
+  // Create a new user and return the generated UserId
+}
+```
+
+In the `getUserById` function, we specify that the `id` parameter must be of type `UserId`. This ensures that only valid `UserId` values are accepted when calling the function.
+
+Similarly, in the `createUser` function, we specify that the return type is `UserId`. This guarantees that the function will always return a valid `UserId` value.
+
+By using branded types in function signatures, we can catch potential bugs at compile-time and reduce the likelihood of passing incorrect values to functions.
+
+## Combining Branded Types
+
+In some scenarios, you may need to combine multiple branded types together. The `@effect/data/Brand` module provides the `all` API to facilitate this:
+
+```ts
+import * as Brand from "@effect/data/Brand"
+
+type Int = number & Brand.Brand<"Int">
+
+const Int = Brand.refined<Int>(
+  (n) => Number.isInteger(n),
+  (n) => Brand.error(`Expected ${n} to be an integer`)
+)
+
+type Positive = number & Brand.Brand<"Positive">
+
+const Positive = Brand.refined<Positive>(
+  (n) => n > 0,
+  (n) => Brand.error(`Expected ${n} to be positive`)
+)
+
+// Combine the Int and Positive branded types into a new branded type PositiveInt
+const PositiveInt = Brand.all(Int, Positive)
+
+// Extract the branded type from the PositiveInt constructor
+type PositiveInt = Brand.Brand.FromConstructor<typeof PositiveInt>
+
+// Usage example
+const value1: PositiveInt = PositiveInt(10) // Valid positive integer
+const value2: PositiveInt = PositiveInt(-5) // Throws an error: [ { message: 'Expected -5 to be positive' } ]
+const value3: PositiveInt = PositiveInt(3.14) // Throws an error: [ { message: 'Expected 3.14 to be an integer' } ]
+```
