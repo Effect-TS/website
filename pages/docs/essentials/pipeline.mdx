@@ -153,6 +153,54 @@ In the example above:
 
 The resulting `Effect` contains the transformed value of `5`.
 
+When using `Effect.flatMap`, it is crucial to ensure that **all effects** are properly considered in the computation. If you ignore an effect returned by a computation within `flatMap`, it can result in unexpected behavior and incorrect program logic.
+
+Let's take a look at the following code snippet:
+
+```ts {2}
+Effect.flatMap(([a, b]) => {
+  Effect.sync(() => console.log(`Performing division: ${a} / ${b}`))
+  return divide(a, b)
+})
+```
+
+The problem here is that the effect returned by `Effect.sync` will be ignored and not included in the resulting computation. It will not be chained or combined with the effect returned by`divide(a, b)`. As a result, you may encounter unexpected program behavior and obtain incorrect results.
+
+To ensure correct behavior, make sure that any effect you want to include in the computation is explicitly chained using `flatMap` or combined with other `Effect` values using the appropriate functions provided by the Effect library.
+
+In the next section, we will explore how to address this problem using the `tap` API.
+
+## tap
+
+In the previous section, we discussed the problem of ignoring effects in a computation.
+To address this issue, we can use the `tap` API, which allows us to execute side effects without affecting the computation flow.
+
+The `tap` API has a similar signature to `flatMap`, but the result of the transformation function is **ignored**.
+This means that the value returned by the previous computation (i.e. `[a, b]`) will still be available for the next computation (i.e. `divide`).
+
+Let's take a look at an updated code snippet that incorporates the `tap` API to fix the problem:
+
+```ts {3-5}
+const flatMappedEffect = pipe(
+  Effect.succeed([10, 2]),
+  Effect.tap(([a, b]) =>
+    Effect.sync(() => console.log(`Performing division: ${a} / ${b}`))
+  ),
+  // [a, b] is still available!
+  Effect.flatMap(([a, b]) => divide(a, b))
+)
+
+console.log(Effect.runSync(flatMappedEffect))
+/*
+Performing division: 10 / 2
+5
+*/
+```
+
+By using `Effect.tap`, we include the effect of `Effect.sync` in the computation. This ensures that the logging action is performed, providing us with the desired output and maintaining correct program logic. The resulting output is still `5`, as expected.
+
+Using `tap` allows us to execute side effects during the computation without altering the result. This can be useful for logging, performing additional actions, or observing the intermediate values without interfering with the main computation flow.
+
 ## all
 
 The `Effect.all` function is a powerful utility provided by Effect that allows you to combine multiple effects into a single effect that produces a tuple of results.
