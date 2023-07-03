@@ -74,9 +74,7 @@ const loop = (
     })
   )
 
-const getNames: Effect.Effect<never, never, List.List<string>> = loop(
-  List.empty()
-)
+const getNames = loop(List.empty())
 
 Effect.runPromise(getNames).then((result) => console.log(String(result)))
 /*
@@ -97,25 +95,23 @@ import * as List from "@effect/data/List"
 import * as Effect from "@effect/io/Effect"
 import { readLine } from "./readLine"
 
-const getNames: Effect.Effect<never, never, List.List<string>> = Effect.gen(
-  function* (_) {
-    let state = List.empty<string>()
+const getNames = Effect.suspend(() => {
+  let state = List.empty<string>()
 
-    const loop: Effect.Effect<never, never, List.List<string>> = Effect.gen(
-      function* (_) {
-        const name = yield* _(readLine("Please enter a name or `q` to exit: "))
-        if (name === "q") {
-          return state
-        } else {
-          state = List.cons(name, state)
-          return yield* _(loop)
-        }
+  const loop: Effect.Effect<never, never, List.List<string>> = Effect.gen(
+    function* (_) {
+      const name = yield* _(readLine("Please enter a name or `q` to exit: "))
+      if (name === "q") {
+        return state
+      } else {
+        state = List.cons(name, state)
+        return yield* _(loop)
       }
-    )
+    }
+  )
 
-    return yield* _(loop)
-  }
-)
+  return loop
+})
 
 Effect.runPromise(getNames).then((result) => console.log(String(result)))
 /*
