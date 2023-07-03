@@ -46,3 +46,9 @@ Next, we simulate a failure using `Effect.runSyncExit` and `Effect.fail`, and ha
 ## Exit vs Either
 
 An `Exit<E, A>` is conceptually an `Either<Cause<E>, A>`. However, it's important to note that [`Cause`](cause) encompasses more states than just the expected error type `E`. It also includes other states such as interruption and defects (unexpected errors), as well as the possibility of combining multiple `Cause` values together.
+
+## Exit vs Effect
+
+The `Exit` data type is a subtype of the `Effect` type, which means that an `Exit` is itself an `Effect`.
+The reason for this is that a result can be considered as a _constant computation_.
+Technically, `Effect.succeed` is an alias for `Exit.succeed`, and `Effect.fail` is an alias for `Exit.fail` (avoiding conversions between `Exit` and `Effect` is important for performance, as boxing and unboxing have a cost).
