@@ -53,9 +53,46 @@ The same pattern can be applied when dealing with side effects. Let's consider a
 import { pipe } from "@effect/data/Function"
 import * as List from "@effect/data/List"
 import * as Effect from "@effect/io/Effect"
+import { readLine } from "./readLine"
+
+const loop = (
+  state: List.List<string>
+): Effect.Effect<never, never, List.List<string>> =>
+  pipe(
+    readLine("Please enter a name or `q` to exit: "),
+    Effect.flatMap((name) => {
+      if (name === "q") {
+        return Effect.succeed(state)
+      } else {
+        return loop(List.cons(name, state))
+      }
+    })
+  )
+
+const getNames: Effect.Effect<never, never, List.List<string>> = loop(
+  List.empty()
+)
+
+Effect.runPromise(getNames).then((result) => console.log(String(result)))
+/*
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+List.Cons(Bob, Alice)
+*/
+```
+
+The `loop` function is now responsible for managing the state, represented by the `state` variable. It reads input from the user and checks if the entered name is `"q"`. If so, it returns the final result using `Effect.succeed`. Otherwise, it recursively calls itself with an updated state by prepending the new name to the existing list.
+
+In this example, we introduce the `readLine` function to read user input:
+
+```ts filename="readline.ts"
+import * as Effect from "@effect/io/Effect"
 import { createInterface } from "node:readline"
 
-const readLine = (message: string): Effect.Effect<never, never, string> =>
+export const readLine = (
+  message: string
+): Effect.Effect<never, never, string> =>
   Effect.promise(
     () =>
       new Promise((resolve) => {
@@ -69,33 +106,6 @@ const readLine = (message: string): Effect.Effect<never, never, string> =>
         })
       })
   )
-
-const getNames: Effect.Effect<never, never, List.List<string>> = (() => {
-  const loop = (
-    state: List.List<string>
-  ): Effect.Effect<never, never, List.List<string>> =>
-    pipe(
-      readLine("Please enter a name or `q` to exit: "),
-      Effect.flatMap((name) => {
-        if (name === "q") {
-          return Effect.succeed(state)
-        } else {
-          return loop(List.prepend(state, name))
-        }
-      })
-    )
-  return loop(List.empty())
-})()
-
-Effect.runPromise(getNames).then((result) => console.log(String(result)))
-/*
-Please enter a name or `q` to exit: Alice
-Please enter a name or `q` to exit: Bob
-Please enter a name or `q` to exit: q
-List.Cons(Bob, Alice)
-*/
 ```
-
-In this example, we introduce the `readLine` function to read user input. The `loop` function is now responsible for managing the state, represented by the `state` variable. It reads input from the user and checks if the entered name is `"q"`. If so, it returns the final result using `Effect.succeed`. Otherwise, it recursively calls itself with an updated state by prepending the new name to the existing list.
 
 On this page, we have learned how to have stateful computations in our programs using recursion. However, this approach is not suitable for concurrent programs, where multiple fibers want to change the state of the program concurrently. Let's move on to the next page, where we will discuss stateful computation over concurrent programs.

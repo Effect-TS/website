@@ -1,0 +1,226 @@
+import { Info } from "@/components/Callout"
+
+# Global Shared State Using Ref
+
+One of the common use cases for `Ref` is to manage the state of applications, especially in concurrent environments.
+We can use the `Ref` data type, which is a purely functional description of a mutable reference.
+
+<Info>
+  In this section, we will only cover the basic usage of the `Ref` data type. To
+  learn more details about the `Ref`, especially its usage in concurrent
+  programming, please refer to the [Ref](../concurrency/ref) page on the
+  concurrency section.
+</Info>
+
+In the previous page, we have learned how to use recursive functions to manage the state of our application. However, this approach has the following drawbacks:
+
+- We cannot share the state between multiple fibers.
+- Sometime, writing the application logic is a bit tedious. It is somehow awkward to pass the state using function parameters.
+
+Thanks to the `Ref` data type, we can easily use the `Ref` data type to manage the state of our application, whether we need concurrency or not.
+
+## Example 1: Counter
+
+Let's write a counter using the `Ref` data type:
+
+```ts filename="Counter.ts"
+import * as Effect from "@effect/io/Effect"
+import * as Ref from "@effect/io/Ref"
+
+export class Counter {
+  constructor(private value: Ref.Ref<number>) {}
+  inc = Ref.update(this.value, (n) => n + 1)
+  dec = Ref.update(this.value, (n) => n - 1)
+  get = Ref.get(this.value)
+}
+
+export const make = Effect.map(Ref.make(0), (value) => new Counter(value))
+```
+
+Here is the usage example of the `Counter`:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import { make } from "./Counter"
+
+const program = Effect.flatMap(make, (c) =>
+  pipe(
+    c.inc,
+    Effect.flatMap(() => c.inc),
+    Effect.flatMap(() => c.dec),
+    Effect.flatMap(() => c.inc),
+    Effect.flatMap(() => c.get),
+    Effect.flatMap((v) => Effect.logInfo(`This counter has a value of ${v}.`))
+  )
+)
+
+Effect.runSync(program)
+/*
+... message="This counter has a value of 2."
+*/
+```
+
+<Info>
+  All the operations on the `Ref` data type are effectful. So when we are
+  reading from or writing to a `Ref`, we are performing an effectful operation.
+</Info>
+
+We can use this counter in a concurrent environment, e.g. in a RESTful API to count the number of requests. But for just an example, let's concurrently update the counter:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import { make } from "./Counter"
+
+const program = Effect.flatMap(make, (c) => {
+  const logCounter = (
+    action: Effect.Effect<never, never, void>
+  ): Effect.Effect<never, never, void> =>
+    pipe(
+      c.get,
+      Effect.flatMap((v) => Effect.logInfo(`get: ${v}`)),
+      Effect.flatMap(() => action)
+    )
+
+  return pipe(
+    c.inc,
+    Effect.zipPar(logCounter(c.inc)),
+    Effect.zipPar(logCounter(c.dec)),
+    Effect.zipPar(logCounter(c.inc)),
+    Effect.flatMap(() => c.get),
+    Effect.flatMap((v) => Effect.logInfo(`This counter has a value of ${v}.`))
+  )
+})
+
+Effect.runSync(program)
+/*
+... fiber=#2 message="get: 0"
+... fiber=#4 message="get: 1"
+... fiber=#6 message="get: 1"
+... fiber=#0 message="This counter has a value of 2."
+*/
+```
+
+## Example 2: Read names from user input
+
+In the [previous section](recursion), we learned that we can have state management, even for effectful operations. Here is the last example we tried:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as List from "@effect/data/List"
+import * as Effect from "@effect/io/Effect"
+import { readLine } from "./readLine"
+
+const loop = (
+  state: List.List<string>
+): Effect.Effect<never, never, List.List<string>> =>
+  pipe(
+    readLine("Please enter a name or `q` to exit: "),
+    Effect.flatMap((name) => {
+      if (name === "q") {
+        return Effect.succeed(state)
+      } else {
+        return loop(List.cons(name, state))
+      }
+    })
+  )
+
+const getNames: Effect.Effect<never, never, List.List<string>> = loop(
+  List.empty()
+)
+```
+
+This code can be rewritten using the `Ref` data type:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as List from "@effect/data/List"
+import * as Effect from "@effect/io/Effect"
+import { readLine } from "./readLine"
+import * as Ref from "@effect/io/Ref"
+
+const getNames: Effect.Effect<never, never, List.List<string>> = Effect.flatMap(
+  Ref.make(List.empty<string>()),
+  (ref) =>
+    pipe(
+      readLine("Please enter a name or `q` to exit: "),
+      Effect.repeatWhileEffect((name) => {
+        if (name === "q") {
+          return Effect.succeed(false)
+        } else {
+          return pipe(
+            ref,
+            Ref.update((state) => List.cons(name, state)),
+            Effect.as(true)
+          )
+        }
+      }),
+      Effect.flatMap(() => Ref.get(ref))
+    )
+)
+```
+
+First, we created a mutable reference to the initial state value, which is an empty list. Then, we read from the console repeatedly until the user enters the "q" command. Finally, we got the value of the reference and returned it.
+
+Now that we have learned how to use the Ref data type, we can use it to manage the state concurrently. For example, assume while we are reading from the console, we have another fiber that is trying to update the state from a different source:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as List from "@effect/data/List"
+import * as Effect from "@effect/io/Effect"
+import { readLine } from "./readLine"
+import * as Ref from "@effect/io/Ref"
+import * as Duration from "@effect/data/Duration"
+import * as Fiber from "@effect/io/Fiber"
+
+const getNames: Effect.Effect<never, never, List.List<string>> = Effect.flatMap(
+  Ref.make(List.empty<string>()),
+  (ref) => {
+    const f1 = pipe(
+      readLine("Please enter a name or `q` to exit: "),
+      Effect.repeatWhileEffect((name) => {
+        if (name === "q") {
+          return Effect.succeed(false)
+        } else {
+          return pipe(
+            ref,
+            Ref.update((state) => List.cons(name, state)),
+            Effect.as(true)
+          )
+        }
+      }),
+      Effect.fork
+    )
+    const f2 = pipe(
+      ["John", "Jane", "Joe", "Tom"],
+      Effect.forEachDiscard((name) =>
+        pipe(
+          ref,
+          Ref.update((state) => List.cons(name, state)),
+          Effect.flatMap(() => Effect.sleep(Duration.seconds(1)))
+        )
+      ),
+      Effect.fork
+    )
+    return pipe(
+      Effect.all(f1, f2),
+      Effect.flatMap(([f1, f2]) =>
+        pipe(
+          Fiber.join(f1),
+          Effect.flatMap(() => Fiber.join(f2))
+        )
+      ),
+      Effect.flatMap(() => Ref.get(ref))
+    )
+  }
+)
+
+Effect.runPromise(getNames).then((result) => console.log(String(result)))
+/*
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+List.Cons(Tom, Joe, Bob, Jane, Alice, John)
+*/
+```
