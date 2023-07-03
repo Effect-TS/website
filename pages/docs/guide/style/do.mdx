@@ -1,63 +1,180 @@
-# Using the `Do` simulation
+import { Design } from "@/components/Callout"
 
-The `Do` simulation in Effect allows you to write code in a more declarative style, resembling the "do notation" found in other programming languages.
-It creates a scope where you can define variables and perform operations on them using functions like `Effect.bind`, `Effect.let`, and `Effect.flatMap`.
+# Do Simulation
+
+The `Do` simulation in Effect allows you to write code in a more declarative style, similar to the "do notation" in other programming languages. It provides a way to define variables and perform operations on them using functions like `Effect.bind` and `Effect.let`.
+
+## Motivation
+
+Let's consider a scenario where we want to create a custom combinator that prints the elapsed time taken by an effect to execute:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const now = Effect.sync(() => new Date().getTime())
+
+// Prints the elapsed time occurred to `self` to execute
+const elapsed = <R, E, A>(
+  self: Effect.Effect<R, E, A>
+): Effect.Effect<R, E, A> =>
+  pipe(
+    now,
+    Effect.flatMap((startMillis) =>
+      pipe(
+        self,
+        Effect.flatMap((result) =>
+          pipe(
+            now,
+            Effect.flatMap((endMillis) =>
+              pipe(
+                Effect.logInfo(`Elapsed: ${endMillis - startMillis}`),
+                Effect.map(() => result)
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+
+const program = pipe(
+  Effect.succeed("some task"),
+  Effect.delay(Duration.millis(200)),
+  elapsed
+)
+
+Effect.runPromise(program).then(console.log)
+/*
+... message="Elapsed: 204"
+some task
+*/
+```
+
+This code is not only verbose but also has excessive levels of nesting, making it difficult to read and understand.
+
+To simplify the code and address this issue, there are two solutions available:
+
+1. Switching to generators
+2. Using the `Do` simulation
+
+## Using `Effect.gen`
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const now = Effect.sync(() => new Date().getTime())
+
+const elapsed = <R, E, A>(
+  self: Effect.Effect<R, E, A>
+): Effect.Effect<R, E, A> =>
+  Effect.gen(function* (_) {
+    const startMillis = yield* _(now)
+    const result = yield* _(self)
+    const endMillis = yield* _(now)
+    yield* _(Effect.logInfo(`Elapsed: ${endMillis - startMillis}`))
+    return result
+  })
+
+const program = pipe(
+  Effect.succeed("some task"),
+  Effect.delay(Duration.millis(200)),
+  elapsed
+)
+
+Effect.runPromise(program).then(console.log)
+/*
+... message="Elapsed: 204"
+some task
+*/
+```
+
+In this solution, we switch to using [generators](../../essentials/using-generators) to simplify the code. The `elapsed` function now uses a generator function (`Effect.gen`) to define the flow of execution. Within the generator, we use `yield*` to invoke effects and bind their results to variables. This eliminates the nesting and provides a more readable and sequential code structure.
+
+## Using the `Do` simulation
 
 Here's how the `Do` simulation works:
 
-1. Import the necessary modules:
+1. Start the `Do` simulation using the `pipe` function and `Effect.Do`:
 
-```ts
-import * as Effect from "@effect/io/Effect"
-import { pipe } from "@effect/data/Function"
-```
+   ```ts
+   const program = pipe(
+     Effect.Do()
+     // ... rest of the code
+   )
+   ```
 
-2. Use the `pipe` function to start the `Do` simulation:
+2. Inside the `Do` simulation scope, you can use the `Effect.bind` function to define variables and bind them to `Effect` values:
 
-```ts
-const program = pipe(
-  Effect.Do()
-  // ... rest of the code
-)
-```
-
-3. Inside the `Do` simulation scope, you can use the `Effect.bind` function to define variables and bind them to `Effect` values:
-
-```ts
-Effect.bind("variableName", () => effectValue)
-```
+   ```ts
+   Effect.bind("variableName", () => effectValue)
+   ```
 
 - `variableName` is the name of the variable you want to define. You can choose any name you like.
 - `effectValue` is the `Effect` value that you want to bind to the variable. It can be the result of a function call or any other valid `Effect` value.
 
-4. You can accumulate multiple `Effect.bind` statements to define multiple variables within the scope:
+3. You can accumulate multiple `Effect.bind` statements to define multiple variables within the scope:
+
+   ```ts
+   Effect.bind("variable1", () => effectValue1),
+   Effect.bind("variable2", ({ variable1 }) => effectValue2),
+   // ... additional bind statements
+   ```
+
+4. Regular Effect functions like `Effect.flatMap`, `Effect.tap`, and `Effect.map` can still be used within the `Do` simulation. These functions will receive the accumulated variables as arguments within the scope:
+
+   ```ts
+   Effect.flatMap(({ variable1, variable2 }) => {
+     // Perform operations using variable1 and variable2
+     // Return an `Effect` value as the result
+   })
+   ```
+
+Now let's rewrite the `elapsed` combinator using the `Do` simulation:
 
 ```ts
-Effect.bind("variable1", () => effectValue1),
-Effect.bind("variable2", ({ variable1 }) => effectValue2),
-// ... additional bind statements
-```
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
 
-5. Note that you can still use regular Effect functions like `Effect.flatMap` within the `Do` simulation. They will receive the accumulated variables as arguments within the scope.
+const now = Effect.sync(() => new Date().getTime())
 
-```ts
-Effect.flatMap(({ variable1, variable2 }) => {
-  // Perform operations using variable1 and variable2
-  // Return an `Effect` value as the result
-})
-```
-
-Here's an example to illustrate the usage of the `Do` simulation:
-
-```ts
-const program = pipe(
-  Effect.Do(),
-  Effect.bind("n", () => Random.next()),
-  Effect.flatMap(({ n }) =>
-    n > 0.5 ? Effect.succeed("yay!") : Effect.fail("oh no!")
+const elapsed = <R, E, A>(
+  self: Effect.Effect<R, E, A>
+): Effect.Effect<R, E, A> =>
+  pipe(
+    Effect.Do(),
+    Effect.bind("startMillis", () => now),
+    Effect.bind("result", () => self),
+    Effect.bind("endMillis", () => now),
+    Effect.tap(({ startMillis, endMillis }) =>
+      Effect.logInfo(`Elapsed: ${endMillis - startMillis}`)
+    ),
+    Effect.map(({ result }) => result)
   )
+
+const program = pipe(
+  Effect.succeed("some task"),
+  Effect.delay(Duration.millis(200)),
+  elapsed
 )
+
+Effect.runPromise(program).then(console.log)
+/*
+... message="Elapsed: 204"
+some task
+*/
 ```
 
-In this example, the `"n"` variable is defined using `Effect.bind`, and then it is used within the `Effect.flatMap`
-to determine the success or failure of the program based on the numeric value of `n`.
+In this solution, we use the `Do` simulation to simplify the code. The `elapsed` function now starts with `Effect.Do()` to enter the simulation scope.
+Inside the scope, we use `Effect.bind` to define variables and bind them to the corresponding effects.
+
+<Design>
+  Both solutions discussed, using generators and the `Do` simulation, achieve
+  the same goal of simplifying the code and reducing nesting. They offer clearer
+  and more readable code, making it easier to understand and work with. Choose
+  the approach that best suits your preferences and requirements.
+</Design>
