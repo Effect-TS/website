@@ -4,74 +4,6 @@ import { Tabs, Tab } from "@/components/Code"
 
 Effect provides a set of built-in utilities for logging. Let's explore the main ones.
 
-## logInfo
-
-By default, `INFO` messages are printed.
-
-<Tabs>
-<Tab>
-
-```ts
-import { pipe } from "@effect/data/Function"
-import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
-
-// Effect<never, never, void>
-const task1 = Effect.sleep(Duration.seconds(2))
-
-// Effect<never, never, void>
-const task2 = Effect.sleep(Duration.seconds(1))
-
-// Effect<never, never, void>
-const program = pipe(
-  Effect.logInfo("start"),
-  Effect.flatMap(() => task1),
-  Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.logInfo("done"))
-)
-
-Effect.runPromise(program)
-/*
-...more infos... level=INFO message=start
-... 3 seconds ...
-...more infos... level=INFO message=done
-*/
-```
-
-</Tab>
-<Tab>
-
-```ts
-import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
-
-// Effect<never, never, void>
-const task1 = Effect.sleep(Duration.seconds(2))
-
-// Effect<never, never, void>
-const task2 = Effect.sleep(Duration.seconds(1))
-
-// Effect<never, never, void>
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.logInfo("start"))
-  yield* _(task1)
-  yield* _(task2)
-  yield* _(Effect.logInfo("done"))
-})
-
-Effect.runPromise(program)
-/*
-...more infos... level=INFO message=start
-... 3 seconds ...
-...more infos... level=INFO message=done
-*/
-```
-
-</Tab>
-</Tabs>
-
-In the above example, the `Effect.logInfo` function is used to log an `INFO` message with the content `"start"` and `"done"`. These messages will be printed during the execution of the program.
-
 ## logDebug
 
 By default, `DEBUG` messages are **not** printed.
@@ -170,3 +102,132 @@ Effect.runPromise(program)
 In the above example, we enable `DEBUG` messages specifically for `task1` by using the `Logger.withMinimumLogLevel` function.
 
 By using `Logger.withMinimumLogLevel(effect, level){:ts}`, you have the flexibility to selectively enable different log levels for specific effects in your program. This allows you to control the level of detail in your logs and focus on the information that is most relevant to your debugging and troubleshooting needs.
+
+## logInfo
+
+By default, `INFO` messages are printed.
+
+<Tabs>
+<Tab>
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+// Effect<never, never, void>
+const task1 = Effect.sleep(Duration.seconds(2))
+
+// Effect<never, never, void>
+const task2 = Effect.sleep(Duration.seconds(1))
+
+// Effect<never, never, void>
+const program = pipe(
+  Effect.logInfo("start"),
+  Effect.flatMap(() => task1),
+  Effect.flatMap(() => task2),
+  Effect.flatMap(() => Effect.logInfo("done"))
+)
+
+Effect.runPromise(program)
+/*
+...more infos... level=INFO message=start
+... 3 seconds ...
+...more infos... level=INFO message=done
+*/
+```
+
+</Tab>
+<Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+// Effect<never, never, void>
+const task1 = Effect.sleep(Duration.seconds(2))
+
+// Effect<never, never, void>
+const task2 = Effect.sleep(Duration.seconds(1))
+
+// Effect<never, never, void>
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.logInfo("start"))
+  yield* _(task1)
+  yield* _(task2)
+  yield* _(Effect.logInfo("done"))
+})
+
+Effect.runPromise(program)
+/*
+...more infos... level=INFO message=start
+... 3 seconds ...
+...more infos... level=INFO message=done
+*/
+```
+
+</Tab>
+</Tabs>
+
+In the above example, the `Effect.logInfo` function is used to log an `INFO` message with the content `"start"` and `"done"`. These messages will be printed during the execution of the program.
+
+## logWarning
+
+By default, `WARN` messages are printed.
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+
+const program = pipe(
+  Effect.fail("Something went wrong!"),
+  Effect.catchAll((e) => Effect.logWarning(String(e)))
+)
+
+Effect.runPromise(program)
+/*
+timestamp=... level=WARN fiber=#0 message="Something went wrong!"
+*/
+```
+
+## logError
+
+By default, `ERROR` messages are printed.
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+
+const program = pipe(
+  Effect.fail("Something went wrong!"),
+  Effect.catchAll((e) => Effect.logError(String(e)))
+)
+
+Effect.runPromise(program)
+/*
+timestamp=... level=ERROR fiber=#0 message="Something went wrong!"
+*/
+```
+
+## Spans
+
+Effect also provides support for spans, allowing you to measure the duration of specific operations or tasks within your program.
+
+```ts /myspan=1011ms/
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+const program = pipe(
+  Effect.sleep(Duration.seconds(1)),
+  Effect.flatMap(() => Effect.logInfo("The job is finished!")),
+  Effect.logSpan("myspan")
+)
+
+Effect.runPromise(program)
+/*
+timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
+*/
+```
+
+In the above example, a span is created using the `Effect.logSpan` function. It measures the duration of the code block within the span and logs an `INFO` message with the content "The job is finished!" along with the span duration of 1011ms (`myspan=1011ms`).
