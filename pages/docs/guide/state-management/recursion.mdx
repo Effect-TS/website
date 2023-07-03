@@ -1,3 +1,5 @@
+import { Tabs, Tab } from "@/components/Code"
+
 # Managing State Using Recursion
 
 Managing state is a common pattern in programming, and it often involves using variables to keep track of the current state. Let's explore how we can manage state using recursion, which is a technique where a function calls itself to handle different states.
@@ -49,6 +51,9 @@ In this updated version, we define an inner function `loop` that takes two argum
 
 The same pattern can be applied when dealing with side effects. Let's consider an example where we want to read names from user input until the user enters the command `"q"` to exit:
 
+<Tabs>
+<Tab>
+
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as List from "@effect/data/List"
@@ -83,6 +88,46 @@ List.Cons(Bob, Alice)
 ```
 
 The `loop` function is now responsible for managing the state, represented by the `state` variable. It reads input from the user and checks if the entered name is `"q"`. If so, it returns the final result using `Effect.succeed`. Otherwise, it recursively calls itself with an updated state by prepending the new name to the existing list.
+
+</Tab>
+<Tab>
+
+```ts
+import * as List from "@effect/data/List"
+import * as Effect from "@effect/io/Effect"
+import { readLine } from "./readLine"
+
+const getNames: Effect.Effect<never, never, List.List<string>> = Effect.gen(
+  function* (_) {
+    let state = List.empty<string>()
+
+    const loop: Effect.Effect<never, never, List.List<string>> = Effect.gen(
+      function* (_) {
+        const name = yield* _(readLine("Please enter a name or `q` to exit: "))
+        if (name === "q") {
+          return state
+        } else {
+          state = List.cons(name, state)
+          return yield* _(loop)
+        }
+      }
+    )
+
+    return yield* _(loop)
+  }
+)
+
+Effect.runPromise(getNames).then((result) => console.log(String(result)))
+/*
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+List.Cons(Bob, Alice)
+*/
+```
+
+</Tab>
+</Tabs>
 
 In this example, we introduce the `readLine` function to read user input:
 
