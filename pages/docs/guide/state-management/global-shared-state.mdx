@@ -47,17 +47,19 @@ Here is the usage example of the `Counter`:
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
-import { make } from "./Counter"
+import * as Counter from "./Counter"
 
 // Effect<never, never, void>
-const program = Effect.flatMap(make, (c) =>
+const program = Effect.flatMap(Counter.make, (counter) =>
   pipe(
-    c.inc,
-    Effect.flatMap(() => c.inc),
-    Effect.flatMap(() => c.dec),
-    Effect.flatMap(() => c.inc),
-    Effect.flatMap(() => c.get),
-    Effect.flatMap((v) => Effect.logInfo(`This counter has a value of ${v}.`))
+    counter.inc,
+    Effect.flatMap(() => counter.inc),
+    Effect.flatMap(() => counter.dec),
+    Effect.flatMap(() => counter.inc),
+    Effect.flatMap(() => counter.get),
+    Effect.flatMap((value) =>
+      Effect.logInfo(`This counter has a value of ${value}.`)
+    )
   )
 )
 
@@ -72,17 +74,17 @@ Effect.runSync(program)
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import { make } from "./Counter"
+import * as Counter from "./Counter"
 
 // Effect<never, never, void>
 const program = Effect.gen(function* (_) {
-  const c = yield* _(make)
-  yield* _(c.inc)
-  yield* _(c.inc)
-  yield* _(c.dec)
-  yield* _(c.inc)
-  const v = yield* _(c.get)
-  yield* _(Effect.logInfo(`This counter has a value of ${v}.`))
+  const counter = yield* _(Counter.make)
+  yield* _(counter.inc)
+  yield* _(counter.inc)
+  yield* _(counter.dec)
+  yield* _(counter.inc)
+  const value = yield* _(counter.get)
+  yield* _(Effect.logInfo(`This counter has a value of ${value}.`))
 })
 
 Effect.runSync(program)
@@ -107,24 +109,26 @@ We can use this counter in a concurrent environment, e.g. in a RESTful API to co
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
-import { make } from "./Counter"
+import * as Counter from "./Counter"
 
 // Effect<never, never, void>
-const program = Effect.flatMap(make, (c) => {
+const program = Effect.flatMap(Counter.make, (counter) => {
   const logCounter = <R, E, A>(action: Effect.Effect<R, E, A>) =>
     pipe(
-      c.get,
-      Effect.flatMap((v) => Effect.logInfo(`get: ${v}`)),
+      counter.get,
+      Effect.flatMap((value) => Effect.logInfo(`get: ${value}`)),
       Effect.flatMap(() => action)
     )
 
   return pipe(
-    c.inc,
-    Effect.zipPar(logCounter(c.inc)),
-    Effect.zipPar(logCounter(c.dec)),
-    Effect.zipPar(logCounter(c.inc)),
-    Effect.flatMap(() => c.get),
-    Effect.flatMap((v) => Effect.logInfo(`This counter has a value of ${v}.`))
+    counter.inc,
+    Effect.zipPar(logCounter(counter.inc)),
+    Effect.zipPar(logCounter(counter.dec)),
+    Effect.zipPar(logCounter(counter.inc)),
+    Effect.flatMap(() => counter.get),
+    Effect.flatMap((value) =>
+      Effect.logInfo(`This counter has a value of ${value}.`)
+    )
   )
 })
 
@@ -143,28 +147,29 @@ Effect.runSync(program)
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
-import { make } from "./Counter"
+import * as Counter from "./Counter"
 
 // Effect<never, never, void>
 const program = Effect.gen(function* (_) {
-  const logCounter = <R, E, A>(action: Effect.Effect<R, E, A>) =>
+  const counter = yield* _(Counter.make)
+
+  const logCounter = <R, E, A>(effect: Effect.Effect<R, E, A>) =>
     Effect.gen(function* (_) {
-      const v = yield* _(c.get)
-      yield* _(Effect.logInfo(`get: ${v}`))
-      return yield* _(action)
+      const value = yield* _(counter.get)
+      yield* _(Effect.logInfo(`get: ${value}`))
+      return yield* _(effect)
     })
 
-  const c = yield* _(make)
   yield* _(
     pipe(
-      c.inc,
-      Effect.zipPar(logCounter(c.inc)),
-      Effect.zipPar(logCounter(c.dec)),
-      Effect.zipPar(logCounter(c.inc))
+      counter.inc,
+      Effect.zipPar(logCounter(counter.inc)),
+      Effect.zipPar(logCounter(counter.dec)),
+      Effect.zipPar(logCounter(counter.inc))
     )
   )
-  const v = yield* _(c.get)
-  yield* _(Effect.logInfo(`This counter has a value of ${v}.`))
+  const value = yield* _(counter.get)
+  yield* _(Effect.logInfo(`This counter has a value of ${value}.`))
 })
 
 Effect.runSync(program)
@@ -192,13 +197,13 @@ Here's how the code can be rewritten using the `Ref` data type:
 import { pipe } from "@effect/data/Function"
 import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
-import { readLine } from "./readLine"
+import * as ReadLine from "./ReadLine"
 import * as Ref from "@effect/io/Ref"
 
 // Effect<never, never, Chunk.Chunk<string>>
 const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) =>
   pipe(
-    readLine("Please enter a name or `q` to exit: "),
+    ReadLine.readLine("Please enter a name or `q` to exit: "),
     Effect.repeatWhileEffect((name) => {
       if (name === "q") {
         return Effect.succeed(false)
@@ -229,7 +234,7 @@ Chunk(Alice, Bob)
 ```ts
 import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
-import { readLine } from "./readLine"
+import * as ReadLine from "./ReadLine"
 import * as Ref from "@effect/io/Ref"
 
 // Effect<never, never, List.List<string>>
@@ -237,7 +242,9 @@ const getNames = Effect.gen(function* (_) {
   const ref = yield* _(Ref.make(Chunk.empty<string>()))
   let name: string
   while (
-    (name = yield* _(readLine("Please enter a name or `q` to exit: "))) !== "q"
+    (name = yield* _(
+      ReadLine.readLine("Please enter a name or `q` to exit: ")
+    )) !== "q"
   ) {
     yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
   }
@@ -265,15 +272,15 @@ Now that we have learned how to use the `Ref` data type, we can use it to manage
 import { pipe } from "@effect/data/Function"
 import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
-import { readLine } from "./readLine"
+import * as ReadLine from "./ReadLine"
 import * as Ref from "@effect/io/Ref"
 import * as Duration from "@effect/data/Duration"
 import * as Fiber from "@effect/io/Fiber"
 
 // Effect<never, never, Chunk.Chunk<string>>
 const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
-  const f1 = pipe(
-    readLine("Please enter a name or `q` to exit: "),
+  const fiber1 = pipe(
+    ReadLine.readLine("Please enter a name or `q` to exit: "),
     Effect.repeatWhileEffect((name) => {
       if (name === "q") {
         return Effect.succeed(false)
@@ -287,7 +294,7 @@ const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
     }),
     Effect.fork
   )
-  const f2 = pipe(
+  const fiber2 = pipe(
     ["John", "Jane", "Joe", "Tom"],
     Effect.forEachDiscard((name) =>
       pipe(
@@ -299,7 +306,7 @@ const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
     Effect.fork
   )
   return pipe(
-    Effect.all(f1, f2),
+    Effect.all(fiber1, fiber2),
     Effect.flatMap(([f1, f2]) =>
       pipe(
         Fiber.join(f1),
@@ -325,7 +332,7 @@ Chunk(John, Jane, Alice, Joe, Bob, Tom)
 ```ts
 import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
-import { readLine } from "./readLine"
+import * as ReadLine from "./ReadLine"
 import * as Ref from "@effect/io/Ref"
 import * as Duration from "@effect/data/Duration"
 import * as Fiber from "@effect/io/Fiber"
@@ -333,13 +340,13 @@ import * as Fiber from "@effect/io/Fiber"
 // Effect<never, never, Chunk.Chunk<string>>
 const getNames = Effect.gen(function* (_) {
   const ref = yield* _(Ref.make(Chunk.empty<string>()))
-  const f1 = yield _(
+  const fiber1 = yield _(
     Effect.fork(
       Effect.gen(function* (_) {
         let name: string
         while (
           (name = yield* _(
-            readLine("Please enter a name or `q` to exit: ")
+            ReadLine.readLine("Please enter a name or `q` to exit: ")
           )) !== "q"
         ) {
           yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
@@ -347,7 +354,7 @@ const getNames = Effect.gen(function* (_) {
       })
     )
   )
-  const f2 = yield* _(
+  const fiber2 = yield* _(
     Effect.fork(
       Effect.gen(function* (_) {
         for (const name of ["John", "Jane", "Joe", "Tom"]) {
@@ -357,8 +364,8 @@ const getNames = Effect.gen(function* (_) {
       })
     )
   )
-  yield* _(Fiber.join(f1))
-  yield* _(Fiber.join(f2))
+  yield* _(Fiber.join(fiber1))
+  yield* _(Fiber.join(fiber2))
   return yield* _(Ref.get(ref))
 })
 
