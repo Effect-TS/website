@@ -53,9 +53,9 @@ The same pattern can be applied when dealing with side effects. Let's consider a
 
 First, let's introduce a `readLine` utility to read user input:
 
-```ts filename="readline.ts"
+```ts filename="ReadLine.ts"
 import * as Effect from "@effect/io/Effect"
-import { createInterface } from "node:readline"
+import * as NodeReadLine from "node:readline"
 
 export const readLine = (
   message: string
@@ -63,7 +63,7 @@ export const readLine = (
   Effect.promise(
     () =>
       new Promise((resolve) => {
-        const rl = createInterface({
+        const rl = NodeReadLine.createInterface({
           input: process.stdin,
           output: process.stdout,
         })
@@ -84,13 +84,13 @@ Now, let's take a look at the main program:
 import { pipe } from "@effect/data/Function"
 import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
-import { readLine } from "./readLine"
+import * as ReadLine from "./ReadLine"
 
 const loop = (
   state: Chunk.Chunk<string>
 ): Effect.Effect<never, never, Chunk.Chunk<string>> =>
   pipe(
-    readLine("Please enter a name or `q` to exit: "),
+    ReadLine.readLine("Please enter a name or `q` to exit: "),
     Effect.flatMap((name) => {
       if (name === "q") {
         return Effect.succeed(state)
@@ -117,13 +117,15 @@ Chunk(Alice, Bob)
 ```ts
 import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
-import { readLine } from "./readLine"
+import * as ReadLine from "./ReadLine"
 
 const loop = (
   state: Chunk.Chunk<string>
 ): Effect.Effect<never, never, Chunk.Chunk<string>> =>
   Effect.gen(function* (_) {
-    const name = yield* _(readLine("Please enter a name or `q` to exit: "))
+    const name = yield* _(
+      ReadLine.readLine("Please enter a name or `q` to exit: ")
+    )
     if (name === "q") {
       return state
     } else {
