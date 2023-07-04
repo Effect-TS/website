@@ -190,13 +190,13 @@ Here's how the code can be rewritten using the `Ref` data type:
 
 ```ts
 import { pipe } from "@effect/data/Function"
-import * as List from "@effect/data/List"
+import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
 import { readLine } from "./readLine"
 import * as Ref from "@effect/io/Ref"
 
-// Effect<never, never, List.List<string>>
-const getNames = Effect.flatMap(Ref.make(List.empty<string>()), (ref) =>
+// Effect<never, never, Chunk.Chunk<string>>
+const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) =>
   pipe(
     readLine("Please enter a name or `q` to exit: "),
     Effect.repeatWhileEffect((name) => {
@@ -205,7 +205,7 @@ const getNames = Effect.flatMap(Ref.make(List.empty<string>()), (ref) =>
       } else {
         return pipe(
           ref,
-          Ref.update((state) => List.cons(name, state)),
+          Ref.update((state) => Chunk.append(state, name)),
           Effect.as(true)
         )
       }
@@ -219,7 +219,7 @@ Effect.runPromise(getNames).then((result) => console.log(String(result)))
 Please enter a name or `q` to exit: Alice
 Please enter a name or `q` to exit: Bob
 Please enter a name or `q` to exit: q
-List.Cons(Bob, Alice)
+Chunk(Alice, Bob)
 */
 ```
 
@@ -227,19 +227,19 @@ List.Cons(Bob, Alice)
 <Tab>
 
 ```ts
-import * as List from "@effect/data/List"
+import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
 import { readLine } from "./readLine"
 import * as Ref from "@effect/io/Ref"
 
 // Effect<never, never, List.List<string>>
 const getNames = Effect.gen(function* (_) {
-  const ref = yield* _(Ref.make(List.empty<string>()))
+  const ref = yield* _(Ref.make(Chunk.empty<string>()))
   let name: string
   while (
     (name = yield* _(readLine("Please enter a name or `q` to exit: "))) !== "q"
   ) {
-    yield* _(Ref.update(ref, (state) => List.cons(name, state)))
+    yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
   }
   return yield* _(Ref.get(ref))
 })
@@ -249,7 +249,7 @@ Effect.runPromise(getNames).then((result) => console.log(String(result)))
 Please enter a name or `q` to exit: Alice
 Please enter a name or `q` to exit: Bob
 Please enter a name or `q` to exit: q
-List.Cons(Bob, Alice)
+Chunk(Alice, Bob)
 */
 ```
 
@@ -263,15 +263,15 @@ Now that we have learned how to use the `Ref` data type, we can use it to manage
 
 ```ts
 import { pipe } from "@effect/data/Function"
-import * as List from "@effect/data/List"
+import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
 import { readLine } from "./readLine"
 import * as Ref from "@effect/io/Ref"
 import * as Duration from "@effect/data/Duration"
 import * as Fiber from "@effect/io/Fiber"
 
-// Effect<never, never, List.List<string>>
-const getNames = Effect.flatMap(Ref.make(List.empty<string>()), (ref) => {
+// Effect<never, never, Chunk.Chunk<string>>
+const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
   const f1 = pipe(
     readLine("Please enter a name or `q` to exit: "),
     Effect.repeatWhileEffect((name) => {
@@ -280,7 +280,7 @@ const getNames = Effect.flatMap(Ref.make(List.empty<string>()), (ref) => {
       } else {
         return pipe(
           ref,
-          Ref.update((state) => List.cons(name, state)),
+          Ref.update((state) => Chunk.append(state, name)),
           Effect.as(true)
         )
       }
@@ -292,7 +292,7 @@ const getNames = Effect.flatMap(Ref.make(List.empty<string>()), (ref) => {
     Effect.forEachDiscard((name) =>
       pipe(
         ref,
-        Ref.update((state) => List.cons(name, state)),
+        Ref.update((state) => Chunk.append(state, name)),
         Effect.flatMap(() => Effect.sleep(Duration.seconds(1)))
       )
     ),
@@ -315,7 +315,7 @@ Effect.runPromise(getNames).then((result) => console.log(String(result)))
 Please enter a name or `q` to exit: Alice
 Please enter a name or `q` to exit: Bob
 Please enter a name or `q` to exit: q
-List.Cons(Tom, Joe, Bob, Jane, Alice, John)
+Chunk(John, Jane, Alice, Joe, Bob, Tom)
 */
 ```
 
@@ -323,16 +323,16 @@ List.Cons(Tom, Joe, Bob, Jane, Alice, John)
 <Tab>
 
 ```ts
-import * as List from "@effect/data/List"
+import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
 import { readLine } from "./readLine"
 import * as Ref from "@effect/io/Ref"
 import * as Duration from "@effect/data/Duration"
 import * as Fiber from "@effect/io/Fiber"
 
-// Effect<never, never, List.List<string>>
+// Effect<never, never, Chunk.Chunk<string>>
 const getNames = Effect.gen(function* (_) {
-  const ref = yield* _(Ref.make(List.empty<string>()))
+  const ref = yield* _(Ref.make(Chunk.empty<string>()))
   const f1 = yield _(
     Effect.fork(
       Effect.gen(function* (_) {
@@ -342,7 +342,7 @@ const getNames = Effect.gen(function* (_) {
             readLine("Please enter a name or `q` to exit: ")
           )) !== "q"
         ) {
-          yield* _(Ref.update(ref, (state) => List.cons(name, state)))
+          yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
         }
       })
     )
@@ -351,7 +351,7 @@ const getNames = Effect.gen(function* (_) {
     Effect.fork(
       Effect.gen(function* (_) {
         for (const name of ["John", "Jane", "Joe", "Tom"]) {
-          yield* _(Ref.update(ref, (state) => List.cons(name, state)))
+          yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
           yield* _(Effect.sleep(Duration.seconds(1)))
         }
       })
@@ -367,7 +367,7 @@ Effect.runPromise(getNames).then((result) => console.log(String(result)))
 Please enter a name or `q` to exit: Alice
 Please enter a name or `q` to exit: Bob
 Please enter a name or `q` to exit: q
-List.Cons(Tom, Joe, Bob, Jane, Alice, John)
+Chunk(John, Jane, Alice, Joe, Bob, Tom)
 */
 ```
 
