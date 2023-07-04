@@ -1,0 +1,375 @@
+import { Info } from "@/components/Callout"
+import { Tabs, Tab } from "@/components/Code"
+
+# Global Shared State Using Ref
+
+One of the common use cases for `Ref` is to manage the state of applications, especially in concurrent environments.
+We can use the `Ref` data type, which is a purely functional description of a mutable reference.
+
+<Info>
+  In this section, we will only cover the basic usage of the `Ref` data type. To
+  learn more details about the `Ref`, especially its usage in concurrent
+  programming, please refer to the [Ref](../concurrency/ref) page on the
+  concurrency section.
+</Info>
+
+In the previous page, we have learned how to use recursive functions to manage the state of our application. However, this approach has the following drawbacks:
+
+- We cannot share the state between multiple fibers.
+- Sometime, writing the application logic is a bit tedious. It is somehow awkward to pass the state using function parameters.
+
+Thanks to the `Ref` data type, we can easily use the `Ref` data type to manage the state of our application, whether we need concurrency or not.
+
+## Example 1: Counter
+
+Let's write a counter using the `Ref` data type:
+
+```ts filename="Counter.ts"
+import * as Effect from "@effect/io/Effect"
+import * as Ref from "@effect/io/Ref"
+
+export class Counter {
+  constructor(private value: Ref.Ref<number>) {}
+  inc = Ref.update(this.value, (n) => n + 1)
+  dec = Ref.update(this.value, (n) => n - 1)
+  get = Ref.get(this.value)
+}
+
+// Effect<never, never, Counter>
+export const make = Effect.map(Ref.make(0), (value) => new Counter(value))
+```
+
+Here is the usage example of the `Counter`:
+
+<Tabs>
+<Tab>
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import { make } from "./Counter"
+
+// Effect<never, never, void>
+const program = Effect.flatMap(make, (c) =>
+  pipe(
+    c.inc,
+    Effect.flatMap(() => c.inc),
+    Effect.flatMap(() => c.dec),
+    Effect.flatMap(() => c.inc),
+    Effect.flatMap(() => c.get),
+    Effect.flatMap((v) => Effect.logInfo(`This counter has a value of ${v}.`))
+  )
+)
+
+Effect.runSync(program)
+/*
+... message="This counter has a value of 2."
+*/
+```
+
+</Tab>
+<Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import { make } from "./Counter"
+
+// Effect<never, never, void>
+const program = Effect.gen(function* (_) {
+  const c = yield* _(make)
+  yield* _(c.inc)
+  yield* _(c.inc)
+  yield* _(c.dec)
+  yield* _(c.inc)
+  const v = yield* _(c.get)
+  yield* _(Effect.logInfo(`This counter has a value of ${v}.`))
+})
+
+Effect.runSync(program)
+/*
+... message="This counter has a value of 2."
+*/
+```
+
+</Tab>
+</Tabs>
+
+<Info>
+  All the operations on the `Ref` data type are effectful. So when we are
+  reading from or writing to a `Ref`, we are performing an effectful operation.
+</Info>
+
+We can use this counter in a concurrent environment, e.g. in a RESTful API to count the number of requests. But for just an example, let's concurrently update the counter:
+
+<Tabs>
+<Tab>
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import { make } from "./Counter"
+
+// Effect<never, never, void>
+const program = Effect.flatMap(make, (c) => {
+  const logCounter = <R, E, A>(action: Effect.Effect<R, E, A>) =>
+    pipe(
+      c.get,
+      Effect.flatMap((v) => Effect.logInfo(`get: ${v}`)),
+      Effect.flatMap(() => action)
+    )
+
+  return pipe(
+    c.inc,
+    Effect.zipPar(logCounter(c.inc)),
+    Effect.zipPar(logCounter(c.dec)),
+    Effect.zipPar(logCounter(c.inc)),
+    Effect.flatMap(() => c.get),
+    Effect.flatMap((v) => Effect.logInfo(`This counter has a value of ${v}.`))
+  )
+})
+
+Effect.runSync(program)
+/*
+... fiber=#2 message="get: 0"
+... fiber=#4 message="get: 1"
+... fiber=#6 message="get: 1"
+... fiber=#0 message="This counter has a value of 2."
+*/
+```
+
+</Tab>
+<Tab>
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import { make } from "./Counter"
+
+// Effect<never, never, void>
+const program = Effect.gen(function* (_) {
+  const logCounter = <R, E, A>(action: Effect.Effect<R, E, A>) =>
+    Effect.gen(function* (_) {
+      const v = yield* _(c.get)
+      yield* _(Effect.logInfo(`get: ${v}`))
+      return yield* _(action)
+    })
+
+  const c = yield* _(make)
+  yield* _(
+    pipe(
+      c.inc,
+      Effect.zipPar(logCounter(c.inc)),
+      Effect.zipPar(logCounter(c.dec)),
+      Effect.zipPar(logCounter(c.inc))
+    )
+  )
+  const v = yield* _(c.get)
+  yield* _(Effect.logInfo(`This counter has a value of ${v}.`))
+})
+
+Effect.runSync(program)
+/*
+... fiber=#2 message="get: 0"
+... fiber=#4 message="get: 1"
+... fiber=#6 message="get: 1"
+... fiber=#0 message="This counter has a value of 2."
+*/
+```
+
+</Tab>
+</Tabs>
+
+## Example 2: Read names from user input
+
+In the [previous section](recursion#example-3-recursive-state-management-with-side-effects), we learned that we can have state management, even for effectful operations.
+
+Here's how the code can be rewritten using the `Ref` data type:
+
+<Tabs>
+<Tab>
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Chunk from "@effect/data/Chunk"
+import * as Effect from "@effect/io/Effect"
+import { readLine } from "./readLine"
+import * as Ref from "@effect/io/Ref"
+
+// Effect<never, never, Chunk.Chunk<string>>
+const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) =>
+  pipe(
+    readLine("Please enter a name or `q` to exit: "),
+    Effect.repeatWhileEffect((name) => {
+      if (name === "q") {
+        return Effect.succeed(false)
+      } else {
+        return pipe(
+          ref,
+          Ref.update((state) => Chunk.append(state, name)),
+          Effect.as(true)
+        )
+      }
+    }),
+    Effect.flatMap(() => Ref.get(ref))
+  )
+)
+
+Effect.runPromise(getNames).then((result) => console.log(String(result)))
+/*
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+Chunk(Alice, Bob)
+*/
+```
+
+</Tab>
+<Tab>
+
+```ts
+import * as Chunk from "@effect/data/Chunk"
+import * as Effect from "@effect/io/Effect"
+import { readLine } from "./readLine"
+import * as Ref from "@effect/io/Ref"
+
+// Effect<never, never, List.List<string>>
+const getNames = Effect.gen(function* (_) {
+  const ref = yield* _(Ref.make(Chunk.empty<string>()))
+  let name: string
+  while (
+    (name = yield* _(readLine("Please enter a name or `q` to exit: "))) !== "q"
+  ) {
+    yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
+  }
+  return yield* _(Ref.get(ref))
+})
+
+Effect.runPromise(getNames).then((result) => console.log(String(result)))
+/*
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+Chunk(Alice, Bob)
+*/
+```
+
+</Tab>
+</Tabs>
+
+Now that we have learned how to use the `Ref` data type, we can use it to manage the state concurrently. For example, assume while we are reading from the console, we have another fiber that is trying to update the state from a different source:
+
+<Tabs>
+<Tab>
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Chunk from "@effect/data/Chunk"
+import * as Effect from "@effect/io/Effect"
+import { readLine } from "./readLine"
+import * as Ref from "@effect/io/Ref"
+import * as Duration from "@effect/data/Duration"
+import * as Fiber from "@effect/io/Fiber"
+
+// Effect<never, never, Chunk.Chunk<string>>
+const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
+  const f1 = pipe(
+    readLine("Please enter a name or `q` to exit: "),
+    Effect.repeatWhileEffect((name) => {
+      if (name === "q") {
+        return Effect.succeed(false)
+      } else {
+        return pipe(
+          ref,
+          Ref.update((state) => Chunk.append(state, name)),
+          Effect.as(true)
+        )
+      }
+    }),
+    Effect.fork
+  )
+  const f2 = pipe(
+    ["John", "Jane", "Joe", "Tom"],
+    Effect.forEachDiscard((name) =>
+      pipe(
+        ref,
+        Ref.update((state) => Chunk.append(state, name)),
+        Effect.flatMap(() => Effect.sleep(Duration.seconds(1)))
+      )
+    ),
+    Effect.fork
+  )
+  return pipe(
+    Effect.all(f1, f2),
+    Effect.flatMap(([f1, f2]) =>
+      pipe(
+        Fiber.join(f1),
+        Effect.flatMap(() => Fiber.join(f2))
+      )
+    ),
+    Effect.flatMap(() => Ref.get(ref))
+  )
+})
+
+Effect.runPromise(getNames).then((result) => console.log(String(result)))
+/*
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+Chunk(John, Jane, Alice, Joe, Bob, Tom)
+*/
+```
+
+</Tab>
+<Tab>
+
+```ts
+import * as Chunk from "@effect/data/Chunk"
+import * as Effect from "@effect/io/Effect"
+import { readLine } from "./readLine"
+import * as Ref from "@effect/io/Ref"
+import * as Duration from "@effect/data/Duration"
+import * as Fiber from "@effect/io/Fiber"
+
+// Effect<never, never, Chunk.Chunk<string>>
+const getNames = Effect.gen(function* (_) {
+  const ref = yield* _(Ref.make(Chunk.empty<string>()))
+  const f1 = yield _(
+    Effect.fork(
+      Effect.gen(function* (_) {
+        let name: string
+        while (
+          (name = yield* _(
+            readLine("Please enter a name or `q` to exit: ")
+          )) !== "q"
+        ) {
+          yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
+        }
+      })
+    )
+  )
+  const f2 = yield* _(
+    Effect.fork(
+      Effect.gen(function* (_) {
+        for (const name of ["John", "Jane", "Joe", "Tom"]) {
+          yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
+          yield* _(Effect.sleep(Duration.seconds(1)))
+        }
+      })
+    )
+  )
+  yield* _(Fiber.join(f1))
+  yield* _(Fiber.join(f2))
+  return yield* _(Ref.get(ref))
+})
+
+Effect.runPromise(getNames).then((result) => console.log(String(result)))
+/*
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+Chunk(John, Jane, Alice, Joe, Bob, Tom)
+*/
+```
+
+</Tab>
+</Tabs>
