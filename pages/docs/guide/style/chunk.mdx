@@ -1,0 +1,114 @@
+import { Warning } from "@/components/Callout"
+
+# Chunk
+
+A `Chunk<A>` represents a chunk of values of type `A`.
+Chunks are usually backed by arrays, but expose a purely functional, safe interface to the underlying elements, and they become lazy on operations that would be costly with arrays, such as repeated concatenation. Like lists and arrays, `Chunk` is an ordered collection.
+
+## Why Chunk?
+
+Let's explore the reasons behind using `Chunk`:
+
+- **Immutability**: In JavaScript, there is no built-in immutable data type that can efficiently represent an array. While the `Array` type exists, it provides a mutable interface, which means it can be modified after creation. `Chunk`, on the other hand, is an immutable array-like data structure that ensures the data remains unchanged. Immutability is beneficial in various scenarios, especially when dealing with concurrent programming.
+
+- **High Performance**: `Chunk` not only offers immutability but also delivers high performance. It provides specialized operations for common array manipulations, such as appending a single element or concatenating two `Chunk`s together. These specialized operations are significantly faster than performing the same operations on regular JavaScript arrays.
+
+## Operations
+
+### Creating
+
+To create an empty `Chunk`, you can use the following code:
+
+```ts
+import * as Chunk from "@effect/data/Chunk"
+
+// Chunk<never>
+const emptyChunk = Chunk.empty()
+```
+
+If you want to create a `Chunk` with specific values, you can use the `Chunk.make(...values){:ts}` function:
+
+```ts
+import * as Chunk from "@effect/data/Chunk"
+
+// NonEmptyChunk<number>
+const nonEmptyChunk = Chunk.make(1, 2, 3)
+```
+
+Alternatively, you can create a `Chunk` by providing a collection of values. There are multiple ways to achieve this:
+
+- Creating a `Chunk` from a generic `Iterable`:
+
+  ```ts
+  import * as Chunk from "@effect/data/Chunk"
+  import * as List from "@effect/data/List"
+
+  // Chunk<number>
+  const fromArray = Chunk.fromIterable([1, 2, 3])
+
+  // Chunk<number>
+  const fromList = Chunk.fromIterable(List.make(1, 2, 3))
+  ```
+
+- Creating a `Chunk` from an `Array`:
+
+  ```ts
+  import * as Chunk from "@effect/data/Chunk"
+
+  // Chunk<number>
+  const fromUnsafeArray = Chunk.unsafeFromArray([1, 2, 3])
+  ```
+
+<Warning>
+  It is important to note that using `unsafeFromArray` can potentially lead to
+  unsafe or unexpected behavior if the input array is mutated after conversion.
+  If you want to ensure safety, it is recommended to use `fromIterable`.
+</Warning>
+
+### Concatenating
+
+You can concatenate two Chunks using the `concat` function:
+
+```ts
+import * as Chunk from "@effect/data/Chunk"
+
+// Chunk<string | number>
+const concatenatedChunk = Chunk.concat(Chunk.make(1, 2), Chunk.make("a", "b"))
+```
+
+### Dropping
+
+To drop elements from the beginning of a `Chunk`, you can use the `drop` function:
+
+```ts
+import * as Chunk from "@effect/data/Chunk"
+
+// Chunk<number>
+const droppedChunk = Chunk.drop(Chunk.make(1, 2, 3, 4), 2) // Drops the first 2 elements from the Chunk
+```
+
+### Comparing
+
+You can compare two `Chunk`s for equality using the `Equal.equals` function:
+
+```ts
+import * as Chunk from "@effect/data/Chunk"
+import * as Equal from "@effect/data/Equal"
+
+const chunk1 = Chunk.make(1, 2)
+const chunk2 = Chunk.make(1, 2, 3)
+
+// boolean
+const areEqual = Equal.equals(chunk1, chunk2)
+```
+
+### Converting
+
+To convert a `Chunk` to a `ReadonlyArray`, you can use the `toReadonlyArray` function:
+
+```ts
+import * as Chunk from "@effect/data/Chunk"
+
+// ReadonlyArray<number>
+const readonlyArray = Chunk.toReadonlyArray(Chunk.make(1, 2, 3))
+```
