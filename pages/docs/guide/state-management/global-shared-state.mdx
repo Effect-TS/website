@@ -240,12 +240,13 @@ import * as Ref from "@effect/io/Ref"
 // Effect<never, never, List.List<string>>
 const getNames = Effect.gen(function* (_) {
   const ref = yield* _(Ref.make(Chunk.empty<string>()))
-  let name: string
-  while (
-    (name = yield* _(
+  while (true) {
+    const name = yield* _(
       ReadLine.readLine("Please enter a name or `q` to exit: ")
-    )) !== "q"
-  ) {
+    )
+    if (name === "q") {
+      break
+    }
     yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
   }
   return yield* _(Ref.get(ref))
@@ -343,12 +344,13 @@ const getNames = Effect.gen(function* (_) {
   const fiber1 = yield _(
     Effect.fork(
       Effect.gen(function* (_) {
-        let name: string
-        while (
-          (name = yield* _(
+        while (true) {
+          const name = yield* _(
             ReadLine.readLine("Please enter a name or `q` to exit: ")
-          )) !== "q"
-        ) {
+          )
+          if (name === "q") {
+            break
+          }
           yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
         }
       })
