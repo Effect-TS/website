@@ -161,13 +161,13 @@ const operation1 = Effect.sync(() => console.log("operation1"))
 const operation2 = Effect.fail(new Error("Something went wrong!"))
 const operation3 = Effect.sync(() => console.log("operation3"))
 
-const program = pipe(
-  operation1,
-  Effect.flatMap(() => operation2),
-  Effect.flatMap(() => operation3) // This computation won't be executed because the previous one fails
+const result = Effect.runSyncExit(
+  pipe(
+    operation1,
+    Effect.flatMap(() => operation2),
+    Effect.flatMap(() => operation3) // This computation won't be executed because the previous one fails
+  )
 )
-
-const result = Effect.runSyncExit(program)
 /*
 operation1
 */
@@ -188,13 +188,13 @@ const operation1 = Effect.sync(() => console.log("operation1"))
 const operation2 = Effect.fail(new Error("Something went wrong!"))
 const operation3 = Effect.sync(() => console.log("operation3"))
 
-const program = Effect.gen(function* (_) {
-  yield* _(operation1)
-  yield* _(operation2)
-  yield* _(operation3) // This computation won't be executed because the previous one fails
-})
-
-const result = Effect.runSyncExit(program)
+const result = Effect.runSyncExit(
+  Effect.gen(function* (_) {
+    yield* _(operation1)
+    yield* _(operation2)
+    yield* _(operation3) // This computation won't be executed because the previous one fails
+  })
+)
 /*
 operation1
 */
@@ -235,7 +235,9 @@ const recovered = pipe(
 </Tab>
 <Tab>
 
-```ts {4-7}
+```ts {6-9}
+import * as Either from "@effect/data/Either"
+
 // Effect<never, never, string>
 const recovered = Effect.gen(function* (_) {
   const successOrFailure = yield* _(Effect.either(program))
@@ -281,7 +283,9 @@ and the program will proceed with the recovery logic specified within the handle
 </Tab>
 <Tab>
 
-```ts {6-8}
+```ts {8-10}
+import * as Either from "@effect/data/Either"
+
 // Effect<never, BarError, string>
 const recovered = Effect.gen(function* (_) {
   const successOrFailure = yield* _(Effect.either(program))
@@ -327,7 +331,9 @@ const recovered = pipe(
 </Tab>
 <Tab>
 
-```ts {8}
+```ts {11}
+import * as Either from "@effect/data/Either"
+
 // Effect<never, never, string>
 const recovered = Effect.gen(function* (_) {
   const successOrFailure = yield* _(Effect.either(program))
@@ -376,7 +382,9 @@ and the corresponding value is the error handler function to be executed when th
 </Tab>
 <Tab>
 
-```ts {6-11}
+```ts {8-13}
+import * as Either from "@effect/data/Either"
+
 // Effect<never, never, string>
 const recovered = Effect.gen(function* (_) {
   const successOrFailure = yield* _(Effect.either(program))
@@ -432,7 +440,9 @@ The provided error transformation function takes the original error as an input 
 </Tab>
 <Tab>
 
-```ts {6-11}
+```ts {8-13}
+import * as Either from "@effect/data/Either"
+
 // Effect<never, Error, string>
 const modified = Effect.gen(function* (_) {
   const successOrFailure = yield* _(Effect.either(program))
