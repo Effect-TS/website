@@ -76,11 +76,16 @@ You can determine whether an `Option` is a `Some` or a `None` by using the `isSo
 ```ts
 import * as Option from "@effect/data/Option"
 
-Option.isSome(value) // true
-Option.isSome(noValue) // false
+const foo = Option.some(1)
 
-Option.isNone(value) // false
-Option.isNone(noValue) // true
+console.log(Option.isSome(foo)) // Output: true
+
+if (Option.isNone(foo)) {
+  console.log("Option is empty")
+} else {
+  console.log(`Option has a value: ${foo.value}`)
+}
+// Output: "Option has a value: 1"
 ```
 
 ## Pattern Matching
@@ -90,10 +95,12 @@ The `Option.match` function allows you to handle different cases of an `Option` 
 ```ts
 import * as Option from "@effect/data/Option"
 
+const foo = Option.some(1)
+
 const result = Option.match(
-  Option.some(1),
+  foo,
   // onNone callback
-  () => `Option is empty`,
+  () => "Option is empty",
   // onSome callback
   (value) => `Option has a value: ${value}`
 )
