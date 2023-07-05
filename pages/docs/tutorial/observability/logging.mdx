@@ -4,6 +4,30 @@ import { Tabs, Tab } from "@/components/Code"
 
 Effect provides a set of built-in utilities for logging. Let's explore the main ones.
 
+## log
+
+The `log` function is used to print a message at the current log level, which is `INFO` by default.
+
+```typescript
+import * as Effect from "@effect/io/Effect"
+
+const program = Effect.log("Application started")
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=2023-07-05T09:14:53.275Z level=INFO fiber=#0 message="Application started"
+*/
+```
+
+The log message contains the following information:
+
+- `timestamp`: The timestamp when the log message was generated.
+- `level`: The log level at which the message is logged.
+- `fiber`: The identifier of the [fiber](../interruption-model#what-is-a-fiber) executing the program.
+- `message`: The content of the log message.
+- `span`: (Optional) The duration of the span in milliseconds.
+
 ## logDebug
 
 By default, `DEBUG` messages are **not** printed.
@@ -175,13 +199,17 @@ In the above example, the `Effect.logInfo` function is used to log an `INFO` mes
 
 By default, `WARN` messages are printed.
 
+<Tabs>
+<Tab>
+
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 
+// Effect<never, never, void>
 const program = pipe(
   Effect.fail("Something went wrong!"),
-  Effect.catchAll((e) => Effect.logWarning(String(e)))
+  Effect.catchAll((error) => Effect.logWarning(String(error)))
 )
 
 Effect.runPromise(program)
@@ -190,17 +218,50 @@ timestamp=... level=WARN fiber=#0 message="Something went wrong!"
 */
 ```
 
+</Tab>
+<Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Either from "@effect/data/Either"
+
+// Effect<never, never, void>
+const program = Effect.gen(function* (_) {
+  const successOrFailure = yield* _(
+    Effect.either(Effect.fail("Something went wrong!"))
+  )
+  if (Either.isLeft(successOrFailure)) {
+    const error = successOrFailure.left
+    yield* _(Effect.logWarning(String(error)))
+    return undefined
+  }
+  return successOrFailure.right
+})
+
+Effect.runPromise(program)
+/*
+timestamp=... level=WARN fiber=#0 message="Something went wrong!"
+*/
+```
+
+</Tab>
+</Tabs>
+
 ## logError
 
 By default, `ERROR` messages are printed.
+
+<Tabs>
+<Tab>
 
 ```ts
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 
+// Effect<never, never, void>
 const program = pipe(
   Effect.fail("Something went wrong!"),
-  Effect.catchAll((e) => Effect.logError(String(e)))
+  Effect.catchAll((error) => Effect.logError(String(error)))
 )
 
 Effect.runPromise(program)
@@ -209,15 +270,48 @@ timestamp=... level=ERROR fiber=#0 message="Something went wrong!"
 */
 ```
 
+</Tab>
+<Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+import * as Either from "@effect/data/Either"
+
+// Effect<never, never, void>
+const program = Effect.gen(function* (_) {
+  const successOrFailure = yield* _(
+    Effect.either(Effect.fail("Something went wrong!"))
+  )
+  if (Either.isLeft(successOrFailure)) {
+    const error = successOrFailure.left
+    yield* _(Effect.logError(String(error)))
+    return undefined
+  }
+  return successOrFailure.right
+})
+
+Effect.runPromise(program)
+/*
+timestamp=... level=ERROR fiber=#0 message="Something went wrong!"
+*/
+```
+
+</Tab>
+</Tabs>
+
 ## Spans
 
 Effect also provides support for spans, allowing you to measure the duration of specific operations or tasks within your program.
+
+<Tabs>
+<Tab>
 
 ```ts /myspan=1011ms/
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Duration from "@effect/data/Duration"
 
+// Effect<never, never, void>
 const program = pipe(
   Effect.sleep(Duration.seconds(1)),
   Effect.flatMap(() => Effect.logInfo("The job is finished!")),
@@ -229,5 +323,31 @@ Effect.runPromise(program)
 timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
 */
 ```
+
+</Tab>
+<Tab>
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Duration from "@effect/data/Duration"
+
+// Effect<never, never, void>
+const program = pipe(
+  Effect.gen(function* (_) {
+    yield* _(Effect.sleep(Duration.seconds(1)))
+    yield* _(Effect.logInfo("The job is finished!"))
+  }),
+  Effect.logSpan("myspan")
+)
+
+Effect.runPromise(program)
+/*
+timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
+*/
+```
+
+</Tab>
+</Tabs>
 
 In the above example, a span is created using the `Effect.logSpan` function. It measures the duration of the code block within the span and logs an `INFO` message with the content "The job is finished!" along with the span duration of 1011ms (`myspan=1011ms`).
