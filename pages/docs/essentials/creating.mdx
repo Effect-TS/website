@@ -6,7 +6,7 @@ Effect provides different ways to create effects. In this tutorial, we will cove
 
 ## From a value
 
-To create an `Effect` from a value, you can use the `succeed` constructor:
+To create an `Effect` from a value, you can use the `Effect.succeed` constructor:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -15,7 +15,7 @@ import * as Effect from "@effect/io/Effect"
 const program = Effect.succeed(42)
 ```
 
-The `program` Effect has the type `Effect<never, never, number>` and can be interpreted as an Effect that:
+The `program` value has the type `Effect<never, never, number>` and can be interpreted as an effect that:
 
 - does not require any context (`never`)
 - does not produce any expected error (`never`)
@@ -23,7 +23,7 @@ The `program` Effect has the type `Effect<never, never, number>` and can be inte
 
 ## From an error
 
-To create an Effect that represents an error, you can use the `fail` constructor:
+To create an `Effect` that represents an error, you can use the `Effect.fail` constructor:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -32,7 +32,7 @@ import * as Effect from "@effect/io/Effect"
 const program = Effect.fail("my error")
 ```
 
-The `program` Effect has the type `Effect<never, string, never>` and can be interpreted as an Effect that:
+The `program` value has the type `Effect<never, string, never>` and can be interpreted as an effect that:
 
 - does not require any context (`never`)
 - fails with an expected error of type `string`
@@ -48,7 +48,7 @@ In JavaScript, you can defer a synchronous computation using a "thunk".
 
 Thunks are useful for delaying the computation of a value until it is needed.
 
-You can create an `Effect` from a thunk using the `sync` constructor:
+You can create an `Effect` from a thunk using the `Effect.sync` constructor:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -61,14 +61,14 @@ const program = Effect.sync(() => {
 ```
 
 In the above example, `Effect.sync` is used to defer the side-effect of writing to the console.
-The `program` Effect has the type `Effect<never, never, number>` because the thunk returns the value `42`.
+The `program` value has the type `Effect<never, never, number>` because the thunk returns the value `42`.
 
 Note that nothing is logged to the console yet when you inspect it.
 This is because `program` represents the action of writing to the console, but nothing happens until you explicitly run your program.
 
 <Error>The thunk passed to `sync` should never throw errors.</Error>
 
-If the synchronous computation within the thunk may throw an error, you can use the `tryCatch` constructor
+If the synchronous computation within the thunk may throw an error, you can use the `Effect.tryCatch(thunk, onError){:ts}` constructor
 to control what gets propagated to the error channel:
 
 ```ts
@@ -77,7 +77,7 @@ import * as Effect from "@effect/io/Effect"
 // Effect<never, Error, any>
 const program = Effect.tryCatch(
   () => JSON.parse(""), // JSON.parse may throw for bad input
-  (error) => new Error(`something went wrong ${error}`) // remap the error
+  (unknown) => new Error(`something went wrong ${unknown}`) // remap the error
 )
 ```
 
@@ -86,14 +86,14 @@ You can think of `tryCatch` as a similar pattern to the traditional `try-catch` 
 ```ts
 try {
   return JSON.parse("")
-} catch (e) {
-  throw new Error(`something went wrong ${e}`)
+} catch (unknown) {
+  throw new Error(`something went wrong ${unknown}`)
 }
 ```
 
 ## From a Promise
 
-If you're dealing with asynchronous side effects that return a `Promise`, you can use the `promise` constructor:
+If you're dealing with asynchronous side effects that return a `Promise`, you can use the `Effect.promise` constructor:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -104,8 +104,19 @@ const program = Effect.promise(() => Promise.resolve(42))
 
 <Error>The `Promise` passed to `promise` should never reject.</Error>
 
-If the `Promise` within the thunk may reject, you can use the `tryCatchPromise` constructor
-to control what gets propagated to the error channel:
+If the `Promise` within the thunk may reject, you can use the `Effect.tryPromise(thunk){:ts}` constructor
+to handle the error propagation (as `unknown`):
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+// Effect<never, unknown, Response>
+const program = Effect.tryPromise(() =>
+  fetch("https://jsonplaceholder.typicode.com/todos/1")
+)
+```
+
+If you want more control over what gets propagated to the error channel, you can use the `Effect.tryCatchPromise(thunk, onReject){:ts}` constructor:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -113,14 +124,14 @@ import * as Effect from "@effect/io/Effect"
 // Effect<never, Error, Response>
 const program = Effect.tryCatchPromise(
   () => fetch("https://jsonplaceholder.typicode.com/todos/1"),
-  (error) => new Error(`something went wrong ${error}`)
+  (unknown) => new Error(`something went wrong ${unknown}`) // remap the error
 )
 ```
 
 ## From a callback
 
 Sometimes you have to work with APIs that don't support `async/await` or `Promise` and instead use the callback style.
-To handle callback-based APIs, Effect provides the `async` constructor.
+To handle callback-based APIs, Effect provides the `Effect.async` constructor.
 
 For example, let's wrap the `readFile` async API from the Node.js `fs` module with Effect:
 
@@ -153,15 +164,16 @@ based on the return value inside the callback body. Annotating the types ensures
 
 The table provides a summary of the available constructors, along with their input and output types, allowing you to choose the appropriate function based on your needs.
 
-| **Name**          | **Given**                               | **To**                    |
-| ----------------- | --------------------------------------- | ------------------------- |
-| `succeed`         | `A`                                     | `Effect<never, never, A>` |
-| `fail`            | `E`                                     | `Effect<never, E, never>` |
-| `sync`            | `() => A`                               | `Effect<never, never, A>` |
-| `tryCatch`        | `() => A`, `unknown => E`               | `Effect<never, E, A>`     |
-| `promise`         | `() => Promise<A>`                      | `Effect<never, never, A>` |
-| `tryCatchPromise` | `() => Promise<A>`, `unknown => E`      | `Effect<never, E, A>`     |
-| `async`           | `(resume: Effect<never, E, A>) => void` | `Effect<never, E, A>`     |
+| **Name**          | **Given**                               | **To**                      |
+| ----------------- | --------------------------------------- | --------------------------- |
+| `succeed`         | `A`                                     | `Effect<never, never, A>`   |
+| `fail`            | `E`                                     | `Effect<never, E, never>`   |
+| `sync`            | `() => A`                               | `Effect<never, never, A>`   |
+| `tryCatch`        | `() => A`, `unknown => E`               | `Effect<never, E, A>`       |
+| `promise`         | `() => Promise<A>`                      | `Effect<never, never, A>`   |
+| `tryPromise`      | `() => Promise<A>`                      | `Effect<never, unknown, A>` |
+| `tryCatchPromise` | `() => Promise<A>`, `unknown => E`      | `Effect<never, E, A>`       |
+| `async`           | `(resume: Effect<never, E, A>) => void` | `Effect<never, E, A>`       |
 
 You can find the complete list of constructors [here](https://effect-ts.github.io/io/modules/Effect.ts.html#constructors).
 
