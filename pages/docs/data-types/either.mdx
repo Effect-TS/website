@@ -166,3 +166,29 @@ console.log(
 )
 // Output: { _tag: 'Left', left: 'not a number!' }
 ```
+
+## Interop with Effect
+
+The `Either` type is a subtype of the `Effect` type, which means that it can be seamlessly used with functions from the `@effect/io/Effect` module. These functions are primarily designed to work with `Effect` values, but they can also handle `Option` values and process them correctly.
+
+In the context of `Effect`, the two members of the `Either` type are treated as follows:
+
+- `Left<E>` is equivalent to `Effect<never, E, never>`
+- `Right<A>` is equivalent to `Effect<never, never, A>`
+
+To illustrate this interoperability, let's consider the following example:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+import * as Either from "@effect/data/Either"
+
+const head = <A>(as: ReadonlyArray<A>): Either.Either<string, A> =>
+  as.length > 0 ? Either.right(as[0]) : Either.left("empty array")
+
+console.log(
+  Effect.runSync(pipe(Effect.succeed([1, 2, 3]), Effect.flatMap(head)))
+) // Output: 1
+
+Effect.runSync(pipe(Effect.succeed([]), Effect.flatMap(head))) // Throws "empty array"
+```

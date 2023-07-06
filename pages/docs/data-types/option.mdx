@@ -287,7 +287,7 @@ Option.getOrUndefined(Option.some(1)) // 1
 Option.getOrUndefined(Option.none()) // undefined
 ```
 
-## Interoperability with Effect
+## Interop with Effect
 
 The `Option` type is a subtype of the `Effect` type, which means that it can be seamlessly used with functions from the `@effect/io/Effect` module. These functions are primarily designed to work with `Effect` values, but they can also handle `Option` values and process them correctly.
 
@@ -306,7 +306,9 @@ import * as Option from "@effect/data/Option"
 const head = <A>(as: ReadonlyArray<A>): Option.Option<A> =>
   as.length > 0 ? Option.some(as[0]) : Option.none()
 
-Effect.runSync(pipe(Effect.succeed([1, 2, 3]), Effect.flatMap(head))) // Output: 1
+console.log(
+  Effect.runSync(pipe(Effect.succeed([1, 2, 3]), Effect.flatMap(head)))
+) // Output: 1
 
 Effect.runSync(pipe(Effect.succeed([]), Effect.flatMap(head))) // Throws NoSuchElementException
 ```
