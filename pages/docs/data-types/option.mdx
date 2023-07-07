@@ -18,8 +18,8 @@ The `some` constructor takes a value of type `A` and returns an `Option<A>` that
 ```ts
 import * as Option from "@effect/data/Option"
 
-// An Option holding the number 1
-const value = Option.some(1)
+// Option<number>
+const value = Option.some(1) // An Option holding the number 1
 ```
 
 On the other hand, the `none` constructor returns an `Option<never>`, representing the absence of a value:
@@ -27,8 +27,8 @@ On the other hand, the `none` constructor returns an `Option<never>`, representi
 ```ts
 import * as Option from "@effect/data/Option"
 
-// An Option holding no value
-const noValue = Option.none()
+// Option<never>
+const noValue = Option.none() // An Option holding no value
 ```
 
 ## Modeling Optional Properties
@@ -54,8 +54,6 @@ interface User {
 Now, let's see how we can create instances of `User` with and without an email:
 
 ```ts
-import * as Option from "@effect/data/Option"
-
 const withEmail: User = {
   id: 1,
   username: "john_doe",
@@ -97,13 +95,10 @@ import * as Option from "@effect/data/Option"
 
 const foo = Option.some(1)
 
-const result = Option.match(
-  foo,
-  // onNone callback
-  () => "Option is empty",
-  // onSome callback
-  (value) => `Option has a value: ${value}`
-)
+const result = Option.match(foo, {
+  onNone: () => "Option is empty",
+  onSome: (value) => `Option has a value: ${value}`,
+})
 
 console.log(result) // Output: "Option has a value: 1"
 ```
@@ -238,11 +233,10 @@ const result: Option.Option<number> = pipe(
   Option.orElse(() => performAlternativeComputation())
 )
 
-Option.match(
-  result,
-  () => console.log("Both computations resulted in None"),
-  (value) => console.log("Computed value:", value) // At least one computation succeeded
-)
+Option.match(result, {
+  onNone: () => console.log("Both computations resulted in None"),
+  onSome: (value) => console.log("Computed value:", value), // At least one computation succeeded
+})
 ```
 
 Additionally, the `Option.firstSomeOf` function can be used to retrieve the first value that is `Some` within an iterable of `Option` values:
@@ -367,7 +361,30 @@ These functions allow you to gain insights into what's happening within your cod
 Here's an example to demonstrate how you can use `inspectSome` and `inspectNone` for debugging:
 
 ```ts
-const street: Option.Option<string> = pipe(
+import { pipe } from "@effect/data/Function"
+import * as Option from "@effect/data/Option"
+
+interface User {
+  readonly id: number
+  readonly username: string
+  readonly email: Option.Option<string>
+  readonly address: Option.Option<Address>
+}
+
+interface Address {
+  readonly city: string
+  readonly street: Option.Option<string>
+}
+
+const user: User = {
+  id: 1,
+  username: "john_doe",
+  email: Option.some("john.doe@example.com"),
+  address: Option.none(),
+}
+
+// Option<string>
+const street = pipe(
   user.address,
   Option.inspectNone(() => console.log("No address provided")),
   Option.flatMap((addr) => addr.street)
