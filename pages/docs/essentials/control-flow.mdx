@@ -65,9 +65,7 @@ import * as Effect from "@effect/io/Effect"
 import * as Random from "@effect/io/Random"
 
 // Effect<never, never, Option.Option<number>>
-const randomIntOption = Effect.whenEffect(Random.nextBoolean())(
-  Random.nextInt()
-)
+const randomIntOption = Effect.whenEffect(Random.nextBoolean)(Random.nextInt)
 ```
 
 The `Effect.when` and `Effect.whenEffect` operators allow us to conditionally execute effects based on a given predicate or an effectful predicate, respectively.
@@ -87,11 +85,11 @@ import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Random from "@effect/io/Random"
 
-const onTrue = Effect.logInfo("Head")
-const onFalse = Effect.logInfo("Tail")
+const onTrue = Effect.log("Head")
+const onFalse = Effect.log("Tail")
 
 // Effect<never, never, void>
-const flipTheCoin = pipe(Random.nextBoolean(), Effect.ifEffect(onTrue, onFalse))
+const flipTheCoin = pipe(Random.nextBoolean, Effect.if({ onTrue, onFalse }))
 ```
 
 In this example, we generate a random boolean value using `Random.nextBoolean()`. If the value is `true`, the effect `onTrue` will be executed, which logs "Head". Otherwise, if the value is `false`, the effect `onFalse` will be executed, logging "Tail".
@@ -103,7 +101,7 @@ In this example, we generate a random boolean value using `Random.nextBoolean()`
 The `Effect.loop` operator allows you to repeatedly change the state based on an `inc` function until a condition given by the `cont` function is evaluated to `true`:
 
 ```ts
-Effect.loop(initial, cont, inc, body)
+Effect.loop(initial, {while, step, body})
 ```
 
 It collects all intermediate states in an array and returns it as the final result.
@@ -111,13 +109,15 @@ It collects all intermediate states in an array and returns it as the final resu
 We can think of `Effect.loop` as a moral equivalent of a `while` loop in JavaScript:
 
 ```ts
-let s = initial
-let result = []
+let state: T = initial
+let collection = [] as readonly T[]
 
-while (cont(s)) {
-  as = [...result, body(s)]
-  s = inc(s)
+while (while(state)) {
+  collection = [body(state), ...as]
+  state = step(state)
 }
+
+return Array.reverse(collection)
 ```
 
 Here's an example of how it works:
@@ -128,9 +128,11 @@ import * as Effect from "@effect/io/Effect"
 // Effect<never, never, number[]>
 const result = Effect.loop(
   1, // Initial state
-  (n) => n <= 5, // Condition to continue looping
-  (n) => n + 1, // State update function
-  (n) => Effect.succeed(n) // Effect to be performed on each iteration
+  {
+    while: (n) => n <= 5, // Condition to continue looping
+    step: (n) => n + 1, // State update function
+    body: (n) => Effect.succeed(n), // Effect to be performed on each iteration
+  }
 )
 
 console.log(Effect.runSync(result)) // Output: [1, 2, 3, 4, 5]
@@ -138,9 +140,9 @@ console.log(Effect.runSync(result)) // Output: [1, 2, 3, 4, 5]
 
 In this example, the loop starts with an initial state of `1`. The loop continues as long as the condition `n <= 5` is `true`, and in each iteration, the state `n` is incremented by `1`. The effect `Effect.succeed(n)` is performed on each iteration, collecting all intermediate states in an array.
 
-You can also use the `Effect.loopDiscard` operator if you're not interested in collecting the intermediate results. It discards all intermediate states and returns `undefined` as the final result.
+You can also use the `discard` option if you're not interested in collecting the intermediate results. It discards all intermediate states and returns `undefined` as the final result.
 
-Here's an example using `Effect.loopDiscard`:
+Here's an example using `discard: true`:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -175,7 +177,7 @@ We can think of `Effect.iterate` as a moral equivalent of a `while` loop in Java
 ```ts
 let result = initial
 
-while (cont(result)) {
+while (while(result)) {
   result = body(result)
 }
 
@@ -190,8 +192,10 @@ import * as Effect from "@effect/io/Effect"
 // Effect<never, never, number>
 const result = Effect.iterate(
   1, // Initial state
-  (n) => n <= 5, // Condition to continue iterating
-  (n) => Effect.succeed(n + 1) // Operation to change the state
+  {
+    while: (n) => n <= 5, // Condition to continue iterating
+    body: (n) => Effect.succeed(n + 1), // Operation to change the state
+  }
 )
 
 console.log(Effect.runSync(result)) // Output: 6
@@ -230,14 +234,16 @@ In this example, we have an array `[1, 2, 3, 4, 5]`, and for each element `index
 
 The `Effect.forEach` combinator collects the results of each effectful operation in an array, which is why the final output is `[ 2, 4, 6, 8, 10 ]`.
 
-We also have the `Effect.forEachDiscard` combinator, which is similar to `Effect.forEach` but discards the results of each effectful operation:
+We also have the `discard` option, which when set to `true` discards the results of each effectful operation:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 
 // Effect<never, never, void>
-const result2 = Effect.forEachDiscard([1, 2, 3, 4, 5], (index) =>
-  Effect.sync(() => console.log(`Currently at index ${index}`))
+const result2 = Effect.forEach(
+  [1, 2, 3, 4, 5],
+  (index) => Effect.sync(() => console.log(`Currently at index ${index}`)),
+  { discard: true }
 )
 
 console.log(Effect.runSync(result2))
