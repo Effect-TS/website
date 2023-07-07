@@ -93,11 +93,10 @@ A schedule that recurs continuously, each repetition spaced the specified durati
 ```ts
 import * as Schedule from "@effect/io/Schedule"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
-const schedule = Schedule.spaced(Duration.millis(200))
+const schedule = Schedule.spaced("200 millis")
 
-const action = Effect.delay(logDelay, Duration.millis(100))
+const action = Effect.delay(logDelay, "100 millis")
 
 Effect.runPromise(Effect.repeat(action, schedule))
 /*
@@ -119,11 +118,10 @@ A schedule that recurs on a fixed interval. Returns the number of repetitions of
 ```ts
 import * as Schedule from "@effect/io/Schedule"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
-const schedule = Schedule.fixed(Duration.millis(200))
+const schedule = Schedule.fixed("200 millis")
 
-const action = Effect.delay(logDelay, Duration.millis(100))
+const action = Effect.delay(logDelay, "100 millis")
 
 Effect.runPromise(Effect.repeat(action, schedule))
 /*
@@ -145,9 +143,8 @@ A schedule that recurs using exponential backoff
 ```ts
 import * as Schedule from "@effect/io/Schedule"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
-const schedule = Schedule.exponential(Duration.millis(10))
+const schedule = Schedule.exponential("10 millis")
 
 Effect.runPromise(Effect.repeat(logDelay, schedule))
 /*
@@ -171,9 +168,8 @@ A schedule that always recurs, increasing delays by summing the preceding two de
 ```ts
 import * as Schedule from "@effect/io/Schedule"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
-const schedule = Schedule.fibonacci(Duration.millis(10))
+const schedule = Schedule.fibonacci("10 millis")
 
 Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4, 5, 6])).then(
   console.log
