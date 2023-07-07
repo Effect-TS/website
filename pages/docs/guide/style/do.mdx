@@ -9,9 +9,7 @@ The `Do` simulation in Effect allows you to write code in a more declarative sty
 Let's consider a scenario where we want to create a custom combinator that prints the elapsed time taken by an effect to execute:
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 const now = Effect.sync(() => new Date().getTime())
 
@@ -19,17 +17,13 @@ const now = Effect.sync(() => new Date().getTime())
 const elapsed = <R, E, A>(
   self: Effect.Effect<R, E, A>
 ): Effect.Effect<R, E, A> =>
-  pipe(
-    now,
+  now.pipe(
     Effect.flatMap((startMillis) =>
-      pipe(
-        self,
+      self.pipe(
         Effect.flatMap((result) =>
-          pipe(
-            now,
+          now.pipe(
             Effect.flatMap((endMillis) =>
-              pipe(
-                Effect.logInfo(`Elapsed: ${endMillis - startMillis}`),
+              Effect.log(`Elapsed: ${endMillis - startMillis}`).pipe(
                 Effect.map(() => result)
               )
             )
@@ -39,9 +33,8 @@ const elapsed = <R, E, A>(
     )
   )
 
-const program = pipe(
-  Effect.succeed("some task"),
-  Effect.delay(Duration.millis(200)),
+const program = Effect.succeed("some task").pipe(
+  Effect.delay("200 millis"),
   elapsed
 )
 
@@ -62,9 +55,7 @@ To simplify the code and address this issue, there are two solutions available:
 ## Using `Effect.gen`
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 const now = Effect.sync(() => new Date().getTime())
 
@@ -75,13 +66,12 @@ const elapsed = <R, E, A>(
     const startMillis = yield* _(now)
     const result = yield* _(self)
     const endMillis = yield* _(now)
-    yield* _(Effect.logInfo(`Elapsed: ${endMillis - startMillis}`))
+    yield* _(Effect.log(`Elapsed: ${endMillis - startMillis}`))
     return result
   })
 
-const program = pipe(
-  Effect.succeed("some task"),
-  Effect.delay(Duration.millis(200)),
+const program = Effect.succeed("some task").pipe(
+  Effect.delay("200 millis"),
   elapsed
 )
 
@@ -98,13 +88,10 @@ In this solution, we switch to using [generators](../../essentials/using-generat
 
 Here's how the `Do` simulation works:
 
-1. Start the `Do` simulation using the `pipe` function and `Effect.Do`:
+1. Start the `Do` simulation using `Effect.Do`:
 
    ```ts
-   const program = pipe(
-     Effect.Do()
-     // ... rest of the code
-   )
+   const program = Effect.Do.pipe(/* ... rest of the code */)
    ```
 
 2. Inside the `Do` simulation scope, you can use the `Effect.bind` function to define variables and bind them to `Effect` values:
@@ -136,29 +123,25 @@ Here's how the `Do` simulation works:
 Now let's rewrite the `elapsed` combinator using the `Do` simulation:
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 const now = Effect.sync(() => new Date().getTime())
 
 const elapsed = <R, E, A>(
   self: Effect.Effect<R, E, A>
 ): Effect.Effect<R, E, A> =>
-  pipe(
-    Effect.Do(),
+  Effect.Do.pipe(
     Effect.bind("startMillis", () => now),
     Effect.bind("result", () => self),
     Effect.bind("endMillis", () => now),
     Effect.tap(({ startMillis, endMillis }) =>
-      Effect.logInfo(`Elapsed: ${endMillis - startMillis}`)
+      Effect.log(`Elapsed: ${endMillis - startMillis}`)
     ),
     Effect.map(({ result }) => result)
   )
 
-const program = pipe(
-  Effect.succeed("some task"),
-  Effect.delay(Duration.millis(200)),
+const program = Effect.succeed("some task").pipe(
+  Effect.delay("200 millis"),
   elapsed
 )
 
