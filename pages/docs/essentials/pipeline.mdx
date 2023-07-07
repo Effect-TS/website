@@ -267,9 +267,23 @@ console.log(Effect.runSync(program)) // Output: "Result is: 6"
 
 ## The pipe method
 
-Effect provides a `pipe` method that works similarly to the `pipe` method found in [`rxjs`](https://rxjs.dev/api/index/function/pipe). This method allows you to chain multiple operations together, making your code more concise and readable. The `pipe` method is available on all effects, eliminating the need to import the `pipe` function from the `@effect/data/Function` module and saving you some keystrokes.
+Effect provides a `pipe` method that works similarly to the `pipe` method found in [`rxjs`](https://rxjs.dev/api/index/function/pipe). This method allows you to chain multiple operations together, making your code more concise and readable.
 
-Let's rewrite the previous pipeline using the `pipe` method:
+Here's how the `pipe` **method** works:
+
+```ts
+const result = effect.pipe(func1, func2, ..., funcN)
+```
+
+This is equivalent to using the `pipe` **function** like this:
+
+```ts
+const result = pipe(effect, func1, func2, ..., funcN)
+```
+
+The `pipe` method is available on all effects and many other data types, eliminating the need to import the `pipe` function from the `@effect/data/Function` module and saving you some keystrokes.
+
+Let's rewrite the previous example using the `pipe` method:
 
 ```ts {16}
 import * as Effect from "@effect/io/Effect"
