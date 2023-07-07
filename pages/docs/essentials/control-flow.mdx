@@ -51,9 +51,8 @@ import * as Option from "@effect/data/Option"
 
 const validateWeightOption = (
   weight: number
-): Effect.Effect<never, never, Option.Option<number>> => {
-  return Effect.when(() => weight >= 0)(Effect.succeed(weight))
-}
+): Effect.Effect<never, never, Option.Option<number>> =>
+  Effect.when(() => weight >= 0)(Effect.succeed(weight))
 ```
 
 If the condition itself involves an effect, we can use `Effect.whenEffect`.
@@ -74,14 +73,13 @@ The `Effect.when` and `Effect.whenEffect` operators allow us to conditionally ex
 
 The `Effect.unless` and `Effect.unlessEffect` operators are similar to the `when*` operators, but they are the moral equivalent of the `if (!condition) expression` construct.
 
-### ifEffect
+### if
 
-The `Effect.ifEffect` operator allows you to provide an effectful predicate. If the predicate evaluates to `true`, the `onTrue` effect will be executed. Otherwise, the `onFalse` effect will be executed.
+The `Effect.if` operator allows you to provide an effectful predicate. If the predicate evaluates to `true`, the `onTrue` effect will be executed. Otherwise, the `onFalse` effect will be executed.
 
 Let's use this operator to create a simple virtual coin flip function:
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Random from "@effect/io/Random"
 
@@ -89,19 +87,21 @@ const onTrue = Effect.log("Head")
 const onFalse = Effect.log("Tail")
 
 // Effect<never, never, void>
-const flipTheCoin = pipe(Random.nextBoolean, Effect.if({ onTrue, onFalse }))
+const flipTheCoin = Effect.if(Random.nextBoolean, { onTrue, onFalse })
+
+Effect.runSync(flipTheCoin)
 ```
 
-In this example, we generate a random boolean value using `Random.nextBoolean()`. If the value is `true`, the effect `onTrue` will be executed, which logs "Head". Otherwise, if the value is `false`, the effect `onFalse` will be executed, logging "Tail".
+In this example, we generate a random boolean value using `Random.nextBoolean`. If the value is `true`, the effect `onTrue` will be executed, which logs "Head". Otherwise, if the value is `false`, the effect `onFalse` will be executed, logging "Tail".
 
 ## Loop Operators
 
 ### loop
 
-The `Effect.loop` operator allows you to repeatedly change the state based on an `inc` function until a condition given by the `cont` function is evaluated to `true`:
+The `Effect.loop` operator allows you to repeatedly change the state based on an `step` function until a condition given by the `cont` function is evaluated to `true`:
 
 ```ts
-Effect.loop(initial, {while, step, body})
+Effect.loop(initial, options: { while, step, body })
 ```
 
 It collects all intermediate states in an array and returns it as the final result.
@@ -109,18 +109,18 @@ It collects all intermediate states in an array and returns it as the final resu
 We can think of `Effect.loop` as a moral equivalent of a `while` loop in JavaScript:
 
 ```ts
-let state: T = initial
-let collection = [] as readonly T[]
+let state = initial
+let result = []
 
-while (while(state)) {
-  collection = [body(state), ...as]
-  state = step(state)
+while (options.while(state)) {
+  result = [...result, options.body(state)]
+  state = options.step(s)
 }
 
-return Array.reverse(collection)
+return result
 ```
 
-Here's an example of how it works:
+**Example**
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -142,17 +142,21 @@ In this example, the loop starts with an initial state of `1`. The loop continue
 
 You can also use the `discard` option if you're not interested in collecting the intermediate results. It discards all intermediate states and returns `undefined` as the final result.
 
-Here's an example using `discard: true`:
+**Example** (`discard: true`)
 
 ```ts
 import * as Effect from "@effect/io/Effect"
 
 // Effect<never, never, void>
-const result = Effect.loopDiscard(
+const result = Effect.loop(
   1, // Initial state
-  (n) => n <= 5, // Condition to continue looping
-  (n) => n + 1, // State update function
-  (index) => Effect.sync(() => console.log(`Currently at index ${index}`)) // Effect to be performed on each iteration
+  {
+    while: (n) => n <= 5, // Condition to continue looping,
+    step: (n) => n + 1, // State update function,
+    body: (index) =>
+      Effect.sync(() => console.log(`Currently at index ${index}`)), // Effect to be performed on each iteration,
+    discard: true,
+  }
 )
 
 console.log(Effect.runSync(result))
@@ -172,13 +176,17 @@ In this example, the loop performs a side effect of logging the current index on
 
 The `Effect.iterate` combinator allows you to iterate with an effectful operation. It uses an effectful `body` operation to change the state during each iteration and continues the iteration as long as the `cont` function evaluates to `true`.
 
+```ts
+Effect.iterate(initial, options: { while, body })
+```
+
 We can think of `Effect.iterate` as a moral equivalent of a `while` loop in JavaScript:
 
 ```ts
 let result = initial
 
-while (while(result)) {
-  result = body(result)
+while (options.while(result)) {
+  result = options.body(result)
 }
 
 return result
@@ -212,14 +220,14 @@ Let's take a look at an example:
 import * as Effect from "@effect/io/Effect"
 
 // Effect<never, never, number[]>
-const result1 = Effect.forEach([1, 2, 3, 4, 5], (index) =>
+const result = Effect.forEach([1, 2, 3, 4, 5], (index) =>
   Effect.sync(() => {
     console.log(`Currently at index ${index}`)
     return index * 2
   })
 )
 
-console.log(Effect.runSync(result1))
+console.log(Effect.runSync(result))
 /*
 Currently at index 1
 Currently at index 2
@@ -240,13 +248,13 @@ We also have the `discard` option, which when set to `true` discards the results
 import * as Effect from "@effect/io/Effect"
 
 // Effect<never, never, void>
-const result2 = Effect.forEach(
+const result = Effect.forEach(
   [1, 2, 3, 4, 5],
   (index) => Effect.sync(() => console.log(`Currently at index ${index}`)),
   { discard: true }
 )
 
-console.log(Effect.runSync(result2))
+console.log(Effect.runSync(result))
 /*
 Currently at index 1
 Currently at index 2
