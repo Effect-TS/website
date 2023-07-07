@@ -55,26 +55,26 @@ class SendEmailError {
 Given such a model we usually write up functions to call some API (or database, etc.) like the following:
 
 ```ts
-const getTodos = Effect.tryCatchPromise(
-  () =>
+const getTodos = Effect.tryPromise({
+  try: () =>
     fetch("https://api.example.demo/todos").then(
       (_) => _.json() as Promise<Todo[]>
     ),
-  () => new GetTodosError()
-)
+  catch: () => new GetTodosError(),
+})
 
 const getUserById = (id: number) =>
-  Effect.tryCatchPromise(
-    () =>
+  Effect.tryPromise({
+    try: () =>
       fetch(`https://api.example.demo/getUserById?id=${id}`).then(
         (_) => _.json() as Promise<User>
       ),
-    () => new GetUserError()
-  )
+    catch: () => new GetUserError(),
+  })
 
 const sendEmail = (address: string, text: string) =>
-  Effect.tryCatchPromise(
-    () =>
+  Effect.tryPromise({
+    try: () =>
       fetch("https://api.example.demo/sendEmail", {
         method: "POST",
         headers: {
@@ -82,8 +82,8 @@ const sendEmail = (address: string, text: string) =>
         },
         body: JSON.stringify({ address, text }),
       }).then((_) => _.json() as Promise<void>),
-    () => new SendEmailError()
-  )
+    catch: () => new SendEmailError(),
+  })
 
 const sendEmailToUser = (id: number, message: string) =>
   Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
@@ -103,10 +103,15 @@ const notifyOwner = (todo: Todo) =>
 When using the utilities we defined it is normal to end up with code that looks like the following:
 
 ```ts
-const program = Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
+// Effect<never, GetUserError | GetTodosError | SendEmailError, void>
+const program = getTodos.pipe(
+  Effect.flatMap(
+    Effect.forEach(notifyOwner, { concurrency: "unbounded", discard: true })
+  )
+)
 ```
 
-Here we used the `forEachParDiscard` to repeat an `Effect` for every `Todo` and the `Effect` repeated
+Here we used the `forEach` to repeat an `Effect` for every `Todo` and the `Effect` repeated
 first fetches the `User` who owns the todo and then sends an email.
 
 We like writing code this way because it is **very expressive** and very easy to read, but is it **efficient**?
@@ -158,37 +163,35 @@ but usually you will split up your resolvers based on which API calls can be bat
 
 ```ts
 import * as RequestResolver from "@effect/io/RequestResolver"
-import { pipe } from "@effect/data/Function"
 
 // we assume we cannot batch GetTodos, we create a normal resolver
 const GetTodosResolver = RequestResolver.fromFunctionEffect(
   (request: GetTodos) =>
-    Effect.tryCatchPromise(
-      () =>
+    Effect.tryPromise({
+      try: () =>
         fetch("https://api.example.demo/todos").then((_) =>
           _.json()
         ) as Promise<Todo[]>,
-      () => new GetTodosError()
-    )
+      catch: () => new GetTodosError(),
+    })
 )
 
 // we assume we can batch GetUserById, we create a batched resolver
 const GetUserByIdResolver = RequestResolver.makeBatched(
   (requests: GetUserById[]) =>
-    pipe(
-      Effect.tryCatchPromise(
-        () =>
-          fetch("https://api.example.demo/getUserByIdBatch", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) }),
-          }).then((_) => _.json()) as Promise<User[]>,
-        () => new GetUserError()
-      ),
+    Effect.tryPromise({
+      try: () =>
+        fetch("https://api.example.demo/getUserByIdBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) }),
+        }).then((_) => _.json()) as Promise<User[]>,
+      catch: () => new GetUserError(),
+    }).pipe(
       Effect.flatMap((users) =>
-        Effect.forEachWithIndex(requests, (request, index) =>
+        Effect.forEach(requests, (request, index) =>
           Request.completeEffect(request, Effect.succeed(users[index]))
         )
       ),
@@ -202,23 +205,22 @@ const GetUserByIdResolver = RequestResolver.makeBatched(
 
 // we assume we can batch SendEmail, we create a batched resolver
 const SendEmailResolver = RequestResolver.makeBatched((requests: SendEmail[]) =>
-  pipe(
-    Effect.tryCatchPromise(
-      () =>
-        fetch("https://api.example.demo/sendEmailBatch", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            emails: requests.map(({ address, text }) => ({ address, text })),
-          }),
-        }).then((_) => _.json()),
-      () => new SendEmailError()
-    ),
+  Effect.tryPromise({
+    try: () =>
+      fetch("https://api.example.demo/sendEmailBatch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          emails: requests.map(({ address, text }) => ({ address, text })),
+        }),
+      }).then((_) => _.json()),
+    catch: () => new SendEmailError(),
+  }).pipe(
     Effect.flatMap(() =>
       Effect.forEach(requests, (request) =>
-        Request.completeEffect(request, Effect.unit())
+        Request.completeEffect(request, Effect.unit)
       )
     ),
     Effect.catchAll((error) =>
@@ -253,11 +255,13 @@ const sendEmail = (address: string, text: string) =>
   Effect.request(SendEmail({ address, text }), SendEmailResolver)
 
 const sendEmailToUser = (id: number, message: string) =>
-  Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
+  getUserById(id).pipe(Effect.flatMap((user) => sendEmail(user.email, message)))
 
 const notifyOwner = (todo: Todo) =>
-  Effect.flatMap(getUserById(todo.ownerId), (user) =>
-    sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
+  getUserById(todo.ownerId).pipe(
+    Effect.flatMap((user) =>
+      sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
+    )
   )
 ```
 
@@ -266,7 +270,12 @@ It looks like we are back at the beginning, same exact types and same exact comp
 But now the following program:
 
 ```ts
-const program = Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
+// Effect<never, GetTodosError | GetUserError | SendEmailError, void>
+const program = getTodos.pipe(
+  Effect.flatMap(
+    Effect.forEach(notifyOwner, { concurrency: "unbounded", discard: true })
+  )
+)
 ```
 
 Will only require **3** queries to be executed to our APIs instead of **1 + 2n** where **n** is the number of todos.
@@ -283,6 +292,7 @@ you always have to specify how context is accessed.
 Let's see how we would do it:
 
 ```ts
+import { pipe } from "@effect/data/Function"
 import * as Context from "@effect/data/Context"
 import * as Layer from "@effect/io/Layer"
 
@@ -304,13 +314,13 @@ const GetTodosResolver: Effect.Effect<
   // we create a normal resolver like we did before
   RequestResolver.fromFunctionEffect((request: GetTodos) =>
     Effect.flatMap(HttpService, (http) =>
-      Effect.tryCatchPromise(
-        () =>
+      Effect.tryPromise({
+        try: () =>
           http
             .fetch("https://api.example.demo/todos")
             .then((_) => _.json()) as Promise<Todo[]>,
-        () => new GetTodosError()
-      )
+        catch: () => new GetTodosError(),
+      })
     )
   ),
   // we list the tags that the resolver can access
@@ -357,13 +367,13 @@ const TodosServiceLive = Layer.effect(
   Effect.gen(function* ($) {
     const http = yield* $(HttpService)
     const resolver = RequestResolver.fromFunctionEffect((request: GetTodos) =>
-      Effect.tryCatchPromise(
-        () =>
+      Effect.tryPromise({
+        try: () =>
           http
             .fetch("https://api.example.demo/todos")
             .then((_) => _.json()) as Promise<Todo[]>,
-        () => new GetTodosError()
-      )
+        catch: () => new GetTodosError(),
+      })
     )
     return {
       getTodos: Effect.request(GetTodos({}), resolver),
@@ -372,7 +382,7 @@ const TodosServiceLive = Layer.effect(
 )
 
 const getTodos: Effect.Effect<TodosService, GetTodosError, Todo[]> =
-  Effect.flatMap(TodosService, (_) => _.getTodos)
+  TodosService.pipe(Effect.flatMap((_) => _.getTodos))
 ```
 
 This way is probably the best for most of the cases given that layers are the natural primitive where to wire services together.
@@ -382,8 +392,12 @@ This way is probably the best for most of the cases given that layers are the na
 Batching can be locally disabled using the `Effect.withRequestBatching("off"){:ts}` utility in the following way:
 
 ```ts
+// Effect<TodosService, GetTodosError | GetUserError | SendEmailError, void>
 const program = Effect.withRequestBatching("off")(
-  Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
+  Effect.flatMap(
+    getTodos,
+    Effect.forEach(notifyOwner, { concurrency: "unbounded", discard: true })
+  )
 )
 ```
 
@@ -408,16 +422,17 @@ Assuming you've wired everything up correctly the following program:
 
 ```ts
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
 
-const program = pipe(
-  getTodos,
-  Effect.flatMap(Effect.forEachParDiscard(notifyOwner)),
-  Effect.repeat(Schedule.fixed(Duration.seconds(10)))
+// Effect<TodosService, GetTodosError | GetUserError | SendEmailError, number>
+const program = getTodos.pipe(
+  Effect.flatMap(
+    Effect.forEach(notifyOwner, { concurrency: "unbounded", discard: true })
+  ),
+  Effect.repeat(Schedule.fixed("10 seconds"))
 )
 ```
 
-With this program, the `getTodos` operation retrieves the todos for each user. Then, the `Effect.forEachParDiscard` function is used to notify the owner of each todo in parallel, without waiting for the notifications to complete.
+With this program, the `getTodos` operation retrieves the todos for each user. Then, the `Effect.forEach` function is used to notify the owner of each todo in parallel, without waiting for the notifications to complete.
 
 The `repeat` function is applied to the entire chain of operations, and it ensures that the program repeats every 10 seconds using a fixed schedule. This means that the entire process, including fetching todos and sending notifications, will be executed repeatedly with a 10-second interval.
 
@@ -432,21 +447,25 @@ or maybe you want a global cache with a different setup, or a mix of both.
 
 To cover those scenarios you'd create a custom cache like the following:
 
-```ts {8-10}
+```ts {10-14}
 import * as Schedule from "@effect/io/Schedule"
 import * as Duration from "@effect/data/Duration"
 
-const program = pipe(
-  getTodos,
-  Effect.flatMap(Effect.forEachParDiscard(notifyOwner)),
-  Effect.repeat(Schedule.fixed(Duration.seconds(10))),
+// Effect<TodosService, GetTodosError | GetUserError | SendEmailError, number>
+const program = getTodos.pipe(
+  Effect.flatMap(
+    Effect.forEach(notifyOwner, { concurrency: "unbounded", discard: true })
+  ),
+  Effect.repeat(Schedule.fixed("10 seconds")),
   Effect.provideSomeLayer(
-    Effect.setRequestCache(Request.makeCache(256, Duration.minutes(60)))
+    Effect.setRequestCache(
+      Request.makeCache({ capacity: 256, timeToLive: Duration.minutes(60) })
+    )
   )
 )
 ```
 
-Alternatively you can also directly construct a cache with `Request.makeCache(256, Duration.minutes(60)){:ts}` and then use
+Alternatively you can also directly construct a cache with `Request.makeCache({ capacity: 256, timeToLive: Duration.minutes(60) }){:ts}` and then use
 `Effect.withRequestCache(program, myCache){:ts}` on a program to make sure the requests generated from that program uses
 the custom cache (when enabled with `Effect.withRequestCaching("on"){:ts}`)
 
@@ -455,7 +474,11 @@ the custom cache (when enabled with `Effect.withRequestCaching("on"){:ts}`)
 We recently introduced a new key primitive in the fiber that enables an execution to pause when it sees the program requires a request. In the process of pausing, the fiber will reify its stack into a continuation that can be externally performed.
 
 ```ts
-const program = Effect.flatMap(getTodos, Effect.forEachParDiscard(notifyOwner))
+const program = getTodos.pipe(
+  Effect.flatMap(
+    Effect.forEach(notifyOwner, { concurrency: "unbounded", discard: true })
+  )
+)
 
 const nextStep = Effect.flatMapStep(program, (step) => {
   switch (step._tag) {
@@ -463,9 +486,8 @@ const nextStep = Effect.flatMapStep(program, (step) => {
     case "Blocked": {
       const requests = step.i0
       const continuation = step.i1
-      return Effect.flatMap(
-        shipRequestsToBeExecutedAndWait(requests),
-        () => continuation
+      return shipRequestsToBeExecutedAndWait(requests).pipe(
+        Effect.flatMap(() => continuation)
       )
     }
     // the program completed
@@ -480,7 +502,7 @@ const shipRequestsToBeExecutedAndWait = <R, E, A>(
   requests: Effect.Blocked<R, E, A>["i0"]
 ): Effect.Effect<R, E, void> => {
   // go on mars and come back
-  return Effect.unit()
+  return Effect.unit
 }
 ```
 
@@ -507,7 +529,11 @@ declare const intensiveWork: (
 
 const program = Effect.gen(function* ($) {
   const cache = yield* $(
-    Cache.make(Number.MAX_SAFE_INTEGER, Duration.infinity, intensiveWork)
+    Cache.make({
+      capacity: Number.MAX_SAFE_INTEGER,
+      timeToLive: Infinity,
+      lookup: intensiveWork,
+    })
   )
 
   const a0 = yield* $(cache.get("key0"))

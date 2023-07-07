@@ -33,11 +33,10 @@ Combines two schedules through union, by recurring if either schedule wants to r
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
 
 const schedule = Schedule.union(
-  Schedule.exponential(Duration.millis(100)),
-  Schedule.spaced(Duration.seconds(1))
+  Schedule.exponential("100 millis"),
+  Schedule.spaced("1 seconds")
 )
 
 Effect.runPromise(Effect.repeat(logDelay, schedule))
@@ -65,10 +64,9 @@ Combines two schedules through the intersection, by recurring only if both sched
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
 
 const schedule = Schedule.intersect(
-  Schedule.exponential(Duration.millis(10)),
+  Schedule.exponential("10 millis"),
   Schedule.recurs(5)
 )
 
@@ -93,11 +91,10 @@ Combines two schedules sequentially, by following the first policy until it ends
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
 
 const schedule = pipe(
   Schedule.recurs(5),
-  Schedule.andThen(Schedule.spaced(Duration.seconds(1)))
+  Schedule.andThen(Schedule.spaced("1 seconds"))
 )
 
 Effect.runPromise(Effect.repeat(logDelay, schedule))
@@ -130,9 +127,8 @@ When a resource is out of service due to overload or contention, retrying and ba
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
 
-const schedule = Schedule.jittered(Schedule.exponential(Duration.millis(10)))
+const schedule = Schedule.jittered(Schedule.exponential("10 millis"))
 
 Effect.runPromise(Effect.repeat(logDelay, schedule))
 /*
@@ -186,11 +182,10 @@ Modifies the delay of a schedule.
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
 
 const schedule = pipe(
-  Schedule.spaced(Duration.seconds(1)),
-  Schedule.modifyDelay((_) => Duration.millis(100))
+  Schedule.spaced("1 seconds"),
+  Schedule.modifyDelay((_) => "100 millis")
 )
 
 Effect.runPromise(Effect.repeat(logDelay, schedule))

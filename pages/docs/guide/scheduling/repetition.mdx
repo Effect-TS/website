@@ -29,7 +29,6 @@ Effect.repeat(action, policy)
 import * as Effect from "@effect/io/Effect"
 import { pipe } from "@effect/data/Function"
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
 
 const action = Effect.sync(() => {
   console.log("success")
@@ -37,7 +36,7 @@ const action = Effect.sync(() => {
 
 const policy = pipe(
   Schedule.recurs(2), // Repeat for a maximum of 2 times
-  Schedule.addDelay(() => Duration.millis(100)) // Add a delay of 100 milliseconds between repetitions
+  Schedule.addDelay(() => "100 millis") // Add a delay of 100 milliseconds between repetitions
 )
 
 const program = Effect.repeat(action, policy)
@@ -69,7 +68,6 @@ Effect.repeatOrElse(action, policy, fallback)
 import * as Effect from "@effect/io/Effect"
 import { pipe } from "@effect/data/Function"
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
 
 let count = 0
 
@@ -87,7 +85,7 @@ const action = Effect.async<never, Error, string>((resume) => {
 
 const policy = pipe(
   Schedule.recurs(2), // Repeat for a maximum of 2 times
-  Schedule.addDelay(() => Duration.millis(100)) // Add a delay of 100 milliseconds between repetitions
+  Schedule.addDelay(() => "100 millis") // Add a delay of 100 milliseconds between repetitions
 )
 
 const program = Effect.repeatOrElse(action, policy, () =>
