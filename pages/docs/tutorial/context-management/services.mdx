@@ -68,10 +68,9 @@ Now that we have our service interface defined, let's see how we can use it by b
 
 ```ts
 // Effect<Random, never, void>
-const program = pipe(
-  Random,
+const program = Random.pipe(
   Effect.flatMap((random) => random.next()),
-  Effect.flatMap((randomNumber) => Effect.logInfo(`${randomNumber}`))
+  Effect.flatMap((randomNumber) => Effect.log(`${randomNumber}`))
 )
 ```
 
@@ -87,7 +86,7 @@ We then use the `Effect.logInfo` utility to log the generated random number.
 const program = Effect.gen(function* (_) {
   const random = yield* _(Random)
   const randomNumber = yield* _(random.next())
-  return yield* _(Effect.logInfo(`${randomNumber}`))
+  return yield* _(Effect.log(`${randomNumber}`))
 })
 ```
 
@@ -129,14 +128,12 @@ In order to provide an actual implementation of the `Random` service, we can uti
 
 ```ts
 // Effect<never, never, void>
-const runnable = pipe(
+const runnable = Effect.provideService(
   program,
-  Effect.provideService(
-    Random,
-    Random.of({
-      next: () => Effect.succeed(Math.random()),
-    })
-  )
+  Random,
+  Random.of({
+    next: () => Effect.succeed(Math.random()),
+  })
 )
 
 Effect.runSync(runnable)
@@ -144,7 +141,7 @@ Effect.runSync(runnable)
 ```
 
 In the code snippet above, we call the `program` that we defined earlier and provide it with an implementation of the `Random` service.
-We use the `Effect.provideService(tag, implementation){:ts}` function to associate the `Random` service with its implementation, an object with a `next` method that generates a random number passed to `Random.of(){:ts}` (a convenience method to construct and return the service with the correct type).
+We use the `Effect.provideService(effect, tag, implementation){:ts}` function to associate the `Random` service with its implementation, an object with a `next` method that generates a random number passed to `Random.of(){:ts}` (a convenience method to construct and return the service with the correct type).
 
 Notice that the `R` type parameter of the `runnable` effect is now `never`. This indicates that the effect no longer requires any context to be provided. With the implementation of the `Random` service in place, we are able to run the program without any further dependencies.
 
@@ -173,20 +170,16 @@ To determine if we can use the service, we can use the `Option.match` function p
 import * as Option from "@effect/data/Option"
 
 // Effect<never, never, void>
-const program = pipe(
-  Effect.serviceOption(Random),
+const program = Effect.serviceOption(Random).pipe(
   Effect.flatMap((maybeRandom) =>
-    pipe(
-      maybeRandom,
-      Option.match(
-        // the service is not available, return a default value
-        () => Effect.succeed(-1),
-        // the service is available
-        (random) => random.next()
-      )
-    )
+    Option.match(maybeRandom, {
+      // the service is not available, return a default value
+      onNone: () => Effect.succeed(-1),
+      // the service is available
+      onSome: (random) => random.next(),
+    })
   ),
-  Effect.flatMap((randomNumber) => Effect.logInfo(`${randomNumber}`))
+  Effect.flatMap((randomNumber) => Effect.log(`${randomNumber}`))
 )
 ```
 
@@ -206,7 +199,7 @@ const program = Effect.gen(function* (_) {
       yield* _(Effect.succeed(-1))
     : // the service is available
       yield* _(maybeRandom.value.next())
-  return yield* _(Effect.logInfo(`${randomNumber}`))
+  return yield* _(Effect.log(`${randomNumber}`))
 })
 ```
 
@@ -228,14 +221,12 @@ However, if we provide the `Random` service implementation:
 
 ```ts
 Effect.runSync(
-  pipe(
+  Effect.provideService(
     program,
-    Effect.provideService(
-      Random,
-      Random.of({
-        next: () => Effect.succeed(Math.random()),
-      })
-    )
+    Random,
+    Random.of({
+      next: () => Effect.succeed(Math.random()),
+    })
   )
 )
 // Output: ...more output... message=0.9957979486841035
@@ -256,7 +247,6 @@ By passing a tuple of tags, we can access the corresponding tuple of services:
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Context from "@effect/data/Context"
-import { pipe } from "@effect/data/Function"
 
 interface Random {
   readonly next: () => Effect.Effect<never, never, number>
@@ -271,8 +261,7 @@ interface Logger {
 const Logger = Context.Tag<Logger>()
 
 // Effect<Random | Logger, never, void>
-const program = pipe(
-  Effect.all(Random, Logger),
+const program = Effect.all(Random, Logger).pipe(
   Effect.flatMap(([random, logger]) =>
     Effect.flatMap(random.next(), (randomNumber) =>
       logger.log(String(randomNumber))
@@ -323,8 +312,7 @@ Effect.Effect<Random | Logger, never, void>
 To execute the `program`, we need to provide implementations for both services:
 
 ```ts
-const runnable = pipe(
-  program,
+const runnable = program.pipe(
   Effect.provideService(
     Random,
     Random.of({
@@ -334,7 +322,7 @@ const runnable = pipe(
   Effect.provideService(
     Logger,
     Logger.of({
-      log: Effect.logInfo,
+      log: Effect.log,
     })
   )
 )
@@ -344,13 +332,12 @@ Alternatively, instead of calling `provideService` multiple times, we can combin
 
 ```ts
 // Context<Random | Logger>
-const context = pipe(
-  Context.empty(),
+const context = Context.empty().pipe(
   Context.add(Random, Random.of({ next: () => Effect.succeed(Math.random()) })),
   Context.add(
     Logger,
     Logger.of({
-      log: Effect.logInfo,
+      log: Effect.log,
     })
   )
 )
@@ -359,7 +346,7 @@ const context = pipe(
 and then provide the entire context using the `provideContext` function:
 
 ```ts
-const runnable = pipe(program, Effect.provideContext(context))
+const runnable = program.pipe(Effect.provideContext(context))
 ```
 
 By providing the necessary implementations for each service, we ensure that the `runnable` effect can access and utilize both services when it is executed.

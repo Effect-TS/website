@@ -265,6 +265,51 @@ const program = pipe(
 console.log(Effect.runSync(program)) // Output: "Result is: 6"
 ```
 
+## The pipe method
+
+Effect provides a `pipe` method that works similarly to the `pipe` method found in [`rxjs`](https://rxjs.dev/api/index/function/pipe). This method allows you to chain multiple operations together, making your code more concise and readable.
+
+Here's how the `pipe` **method** works:
+
+```ts
+const result = effect.pipe(func1, func2, ..., funcN)
+```
+
+This is equivalent to using the `pipe` **function** like this:
+
+```ts
+const result = pipe(effect, func1, func2, ..., funcN)
+```
+
+The `pipe` method is available on all effects and many other data types, eliminating the need to import the `pipe` function from the `@effect/data/Function` module and saving you some keystrokes.
+
+Let's rewrite the previous example using the `pipe` method:
+
+```ts {16}
+import * as Effect from "@effect/io/Effect"
+
+const increment = (x: number) => x + 1
+
+function divide(a: number, b: number): Effect.Effect<never, Error, number> {
+  if (b === 0) {
+    return Effect.fail(new Error("Cannot divide by zero"))
+  }
+  return Effect.succeed(a / b)
+}
+
+const foo = Effect.succeed(10)
+const bar = Effect.succeed(2)
+
+// Effect<never, Error, string>
+const program = Effect.all(foo, bar).pipe(
+  Effect.flatMap(([a, b]) => divide(a, b)),
+  Effect.map((n1) => increment(n1)),
+  Effect.map((n2) => `Result is: ${n2}`)
+)
+
+console.log(Effect.runSync(program)) // Output: "Result is: 6"
+```
+
 ## Cheatsheet
 
 Let's summarize the transformation functions we have seen so far:

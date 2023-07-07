@@ -60,13 +60,10 @@ Without interruptions
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
-import { pipe } from "@effect/data/Function"
 
-const program = pipe(
-  Effect.logInfo("start"),
-  Effect.flatMap(() => Effect.sleep(Duration.seconds(2))),
-  Effect.flatMap(() => Effect.logInfo("done"))
+const program = Effect.log("start").pipe(
+  Effect.flatMap(() => Effect.sleep("2 seconds")),
+  Effect.flatMap(() => Effect.log("done"))
 )
 
 Effect.runPromise(program).catch((error) =>
@@ -83,12 +80,11 @@ timestamp=...656Z level=INFO fiber=#0 message=done
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 const program = Effect.gen(function* (_) {
-  yield* _(Effect.logInfo("start"))
-  yield* _(Effect.sleep(Duration.seconds(2)))
-  yield* _(Effect.logInfo("done"))
+  yield* _(Effect.log("start"))
+  yield* _(Effect.sleep("2 seconds"))
+  yield* _(Effect.log("done"))
 })
 
 Effect.runPromise(program).catch((error) =>
@@ -108,16 +104,13 @@ With interruptions
 <Tabs>
 <Tab>
 
-```ts {8}
+```ts {5}
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
-import { pipe } from "@effect/data/Function"
 
-const program = pipe(
-  Effect.logInfo("start"),
-  Effect.flatMap(() => Effect.sleep(Duration.seconds(2))),
-  Effect.flatMap(() => Effect.interrupt()),
-  Effect.flatMap(() => Effect.logInfo("done"))
+const program = Effect.log("start").pipe(
+  Effect.flatMap(() => Effect.sleep("2 seconds")),
+  Effect.flatMap(() => Effect.interrupt),
+  Effect.flatMap(() => Effect.log("done"))
 )
 
 Effect.runPromise(program).catch((error) =>
@@ -132,15 +125,14 @@ interrupted: All fibers interrupted without errors.
 </Tab>
 <Tab>
 
-```ts {7}
+```ts {6}
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 const program = Effect.gen(function* (_) {
-  yield* _(Effect.logInfo("start"))
-  yield* _(Effect.sleep(Duration.seconds(2)))
-  yield* _(Effect.interrupt())
-  yield* _(Effect.logInfo("done"))
+  yield* _(Effect.log("start"))
+  yield* _(Effect.sleep("2 seconds"))
+  yield* _(Effect.interrupt)
+  yield* _(Effect.log("done"))
 })
 
 Effect.runPromise(program).catch((error) =>
@@ -157,29 +149,29 @@ interrupted: All fibers interrupted without errors.
 
 ### Interruption of Parallel Effects
 
-When we combine multiple parallel effects using functions like `Effect.forEachPar`, it's important to note that if one of the effects is interrupted, all the other parallel effects will also be interrupted. Let's take a look at an example:
+When we combine multiple parallel effects using functions like `Effect.forEach`, it's important to note that if one of the effects is interrupted, all the other parallel effects will also be interrupted. Let's take a look at an example:
 
 <Tabs>
 <Tab>
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
-import { pipe } from "@effect/data/Function"
 
-const program = Effect.forEachPar([1, 2, 3], (n) =>
-  pipe(
-    Effect.logInfo(`start #${n}`),
-    Effect.flatMap(() => {
-      const effect = Effect.sleep(Duration.seconds(n))
-      if (n > 1) {
-        return Effect.flatMap(effect, () => Effect.interrupt())
-      } else {
-        return effect
-      }
-    }),
-    Effect.flatMap(() => Effect.logInfo(`done #${n}`))
-  )
+const program = Effect.forEach(
+  [1, 2, 3],
+  (n) =>
+    Effect.log(`start #${n}`).pipe(
+      Effect.flatMap(() => {
+        const effect = Effect.sleep(`${n} seconds`)
+        if (n > 1) {
+          return Effect.flatMap(effect, () => Effect.interrupt)
+        } else {
+          return effect
+        }
+      }),
+      Effect.flatMap(() => Effect.log(`done #${n}`))
+    ),
+  { concurrency: "unbounded" }
 )
 
 Effect.runPromise(program).catch((error) =>
@@ -199,17 +191,19 @@ interrupted: All fibers interrupted without errors.
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
-const program = Effect.forEachPar([1, 2, 3], (n) =>
-  Effect.gen(function* (_) {
-    yield* _(Effect.logInfo(`start #${n}`))
-    yield* _(Effect.sleep(Duration.seconds(n)))
-    if (n > 1) {
-      yield* _(Effect.interrupt())
-    }
-    yield* _(Effect.logInfo(`done #${n}`))
-  })
+const program = Effect.forEach(
+  [1, 2, 3],
+  (n) =>
+    Effect.gen(function* (_) {
+      yield* _(Effect.log(`start #${n}`))
+      yield* _(Effect.sleep(`${n} seconds`))
+      if (n > 1) {
+        yield* _(Effect.interrupt)
+      }
+      yield* _(Effect.log(`done #${n}`))
+    }),
+  { concurrency: "unbounded" }
 )
 
 Effect.runPromise(program).catch((error) =>
@@ -227,7 +221,7 @@ interrupted: All fibers interrupted without errors.
 </Tab>
 </Tabs>
 
-In this example, we have an array `[1, 2, 3]` representing three parallel tasks. We use `Effect.forEachPar` to iterate over each element and perform some operations. The `Effect.logInfo` function is used to log messages indicating the start and completion of each task.
+In this example, we have an array `[1, 2, 3]` representing three parallel tasks. We use `Effect.forEach` to iterate over each element and perform some operations. The `Effect.log` function is used to log messages indicating the start and completion of each task.
 
 Looking at the output, we can see that the task with `n=1` starts and completes successfully. However, the task with `n=2` is interrupted using `Effect.interrupt` before it finishes. As a result, all the fibers are interrupted, and the program terminates with the message "All fibers interrupted without errors."
 

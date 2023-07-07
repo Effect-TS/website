@@ -10,13 +10,12 @@ By combining `Scope` with the Effect context, we gain a powerful way to manage r
 
 ## Defining Resources
 
-We can define a resource using operators like `Effect.acquireRelease(acquire, release){:ts}`, which allows us to create a scoped value from an `acquire` and `release` workflow.
+We can define a resource using operators like `Effect.acquireRelease(options: { acquire, release }){:ts}`, which allows us to create a scoped value from an `acquire` and `release` workflow.
 
 For example, let's define a simple resource:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import type { Scope } from "@effect/io/Scope"
 
 // Define the interface for the resource
 interface MyResource {
@@ -36,20 +35,20 @@ const getMyResource = (): Promise<MyResource> =>
   })
 
 // Define the acquisition of the resource with error handling
-const acquire = Effect.tryCatchPromise(
-  () =>
+const acquire = Effect.tryPromise({
+  try: () =>
     getMyResource().then((res) => {
       console.log("Resource acquired")
       return res
     }),
-  () => new Error("getMyResourceError")
-)
+  catch: () => new Error("getMyResourceError"),
+})
 
 // Define the release of the resource
 const release = (res: MyResource) => Effect.promise(() => res.close())
 
 // Effect<Scope, Error, MyResource>
-const resource = Effect.acquireRelease(acquire, release)
+const resource = Effect.acquireRelease({ acquire, release })
 ```
 
 Notice that the `acquireRelease` operator added a `Scope` to the context required by the workflow:
@@ -67,8 +66,7 @@ We can continue working with the resource for as long as we want by using `flatM
 
 ```ts
 // Effect<Scope, Error, void>
-const program = pipe(
-  Effect.acquireRelease(acquire, release),
+const program = Effect.acquireRelease({ acquire, release }).pipe(
   Effect.flatMap((resource) =>
     Effect.sync(() => console.log(`content is ${resource.contents}`))
   )
@@ -81,7 +79,7 @@ const program = pipe(
 ```ts
 // Effect<Scope, Error, void>
 const program = Effect.gen(function* (_) {
-  const resource = yield* _(Effect.acquireRelease(acquire, release))
+  const resource = yield* _(Effect.acquireRelease({ acquire, release }))
   console.log(`content is ${resource.contents}`)
 })
 ```
@@ -96,8 +94,7 @@ Once we are done working with the resource, we can close the scope using the `Ef
 
 ```ts /Effect.scoped/
 // Effect<never, Error, void>
-const program = pipe(
-  Effect.acquireRelease(acquire, release),
+const program = Effect.acquireRelease({ acquire, release }).pipe(
   Effect.flatMap((resource) =>
     Effect.sync(() => console.log(`content is ${resource.contents}`))
   ),
@@ -112,7 +109,7 @@ const program = pipe(
 // Effect<never, Error, void>
 const program = Effect.scoped(
   Effect.gen(function* (_) {
-    const resource = yield* _(Effect.acquireRelease(acquire, release))
+    const resource = yield* _(Effect.acquireRelease({ acquire, release }))
     console.log(`content is ${resource.contents}`)
   })
 )
@@ -136,7 +133,7 @@ Resource released
 
 ## acquireUseRelease
 
-The `Effect.acquireUseRelease(acquire, use, release){:ts}` function is a specialized version of the `acquireRelease` function that simplifies resource management by automatically handling the scoping of resources.
+The `Effect.acquireUseRelease(options: { acquire, use, release }){:ts}` function is a specialized version of the `acquireRelease` function that simplifies resource management by automatically handling the scoping of resources.
 
 The main difference is that `acquireUseRelease` eliminates the need to manually call `Effect.scoped` to manage the resource's scope. It has additional knowledge about when you are done using the resource created with the `acquire` step. This is achieved by providing a `use` argument, which represents the function that operates on the acquired resource. As a result, `acquireUseRelease` can automatically determine when it should execute the release step.
 
@@ -160,25 +157,25 @@ const getMyResource = (): Promise<MyResource> =>
       }),
   })
 
-const acquire = Effect.tryCatchPromise(
-  () =>
+const acquire = Effect.tryPromise({
+  try: () =>
     getMyResource().then((res) => {
       console.log("Resource acquired")
       return res
     }),
-  () => new Error("getMyResourceError")
-)
+  catch: () => new Error("getMyResourceError"),
+})
 
 const release = (res: MyResource) => Effect.promise(() => res.close())
 
 const use = (res: MyResource) =>
   Effect.sync(() => console.log(`content is ${res.contents}`))
 
-const program: Effect.Effect<never, Error, void> = Effect.acquireUseRelease(
+const program: Effect.Effect<never, Error, void> = Effect.acquireUseRelease({
   acquire,
   use,
-  release
-)
+  release,
+})
 
 Effect.runPromise(program)
 /*

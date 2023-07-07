@@ -26,16 +26,14 @@ Let's start with a simple example of how to read configuration from environment 
 <Tab>
 
 ```ts filename="primitives.ts" showLineNumbers
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Config from "@effect/io/Config"
 
 // Effect<never, ConfigError, void>
-const program = pipe(
-  Effect.all(
-    Effect.config(Config.string("HOST")),
-    Effect.config(Config.float("PORT"))
-  ),
+const program = Effect.all(
+  Effect.config(Config.string("HOST")),
+  Effect.config(Config.float("PORT"))
+).pipe(
   Effect.flatMap(([host, port]) =>
     Effect.sync(() => console.log(`Application started: ${host}:${port}`))
   )
@@ -49,7 +47,7 @@ If we run this application we will get the following output:
 ```bash filename="Terminal" {3-6}
 ts-node primitives.ts
 
-/path/to/primitives.ts:8
+/path/to/primitives.ts:6
     Effect.config(Config.string("HOST")),
            ^
 (Missing data at HOST: "Expected HOST to exist in the process context")
@@ -144,7 +142,7 @@ If we use this customized configuration in our application:
 <Tabs>
 <Tab>
 
-```ts filename="HostPort.ts" {20}
+```ts filename="HostPort.ts" {19}
 import { pipe } from "@effect/data/Function"
 import * as Config from "@effect/io/Config"
 import * as Effect from "@effect/io/Effect"
@@ -163,8 +161,7 @@ export const config: Config.Config<HostPort> = pipe(
 )
 
 // Effect<never, ConfigError, void>
-export const program = pipe(
-  Effect.config(config),
+export const program = Effect.config(config).pipe(
   Effect.flatMap((hostPort) =>
     Effect.sync(() => console.log(`Application started: ${hostPort.url}`))
   )
@@ -221,9 +218,9 @@ So far, we have learned how to define configurations in a top-level manner, whet
 Let's assume we have a `ServiceConfig` data type that consists of two fields: `hostPort` and `timeout`.
 
 ```ts filename="ServiceConfig.ts"
+import { pipe } from "@effect/data/Function"
 import * as HostPort from "./HostPort"
 import * as Config from "@effect/io/Config"
-import { pipe } from "@effect/data/Function"
 
 class ServiceConfig {
   constructor(readonly hostPort: HostPort.HostPort, readonly timeout: number) {}

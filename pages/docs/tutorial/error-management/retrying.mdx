@@ -21,7 +21,6 @@ Effect.retry(action, policy)
 ```ts
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
 
 let count = 0
 
@@ -38,7 +37,7 @@ const action = Effect.async<never, Error, string>((resume) => {
 })
 
 // Define a repetition policy using a fixed delay between retries
-const policy = Schedule.fixed(Duration.millis(100))
+const policy = Schedule.fixed("100 millis")
 
 const repeated = Effect.retry(action, policy)
 
@@ -67,10 +66,9 @@ Effect.retry(action, policy, fallback)
 **Example**
 
 ```ts
+import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
-import { pipe } from "@effect/data/Function"
 
 let count = 0
 
@@ -89,7 +87,7 @@ const action = Effect.async<never, Error, string>((resume) => {
 // Define a repetition policy using Schedule functions
 const policy = pipe(
   Schedule.recurs(2), // Retry for a maximum of 2 times
-  Schedule.addDelay(() => Duration.millis(100)) // Add a delay of 100 milliseconds between retries
+  Schedule.addDelay(() => "100 millis") // Add a delay of 100 milliseconds between retries
 )
 
 // Create a new effect that retries the action with the specified policy,
