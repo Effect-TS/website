@@ -55,13 +55,10 @@ import * as Either from "@effect/data/Either"
 
 const foo = Either.right(42)
 
-const result = Either.match(
-  foo,
-  // onLeft callback
-  (left) => `The left value is: ${left}`,
-  // onRight callback
-  (right) => `The Right value is: ${right}`
-)
+const result = Either.match(foo, {
+  onLeft: (left) => `The left value is: ${left}`,
+  onRight: (right) => `The Right value is: ${right}`,
+})
 
 console.log(result) // Output: "The Right value is: 42"
 ```
@@ -147,10 +144,10 @@ import * as Either from "@effect/data/Either"
 console.log(
   pipe(
     Either.right(42),
-    Either.bimap(
-      (s) => s + "!",
-      (n) => n + 1
-    )
+    Either.mapBoth({
+      onLeft: (s) => s + "!",
+      onRight: (n) => n + 1,
+    })
   )
 )
 // Output: { _tag: 'Right', right: 43 }
@@ -158,10 +155,10 @@ console.log(
 console.log(
   pipe(
     Either.left("not a number"),
-    Either.bimap(
-      (s) => s + "!",
-      (n) => n + 1
-    )
+    Either.mapBoth({
+      onLeft: (s) => s + "!",
+      onRight: (n) => n + 1,
+    })
   )
 )
 // Output: { _tag: 'Left', left: 'not a number!' }
