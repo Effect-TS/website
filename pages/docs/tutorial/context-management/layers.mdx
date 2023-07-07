@@ -297,7 +297,7 @@ we can provide it to our program to satisfy the program's requirements using `Ef
 <Tabs>
 <Tab>
 
-```ts filename="main.ts" {28}
+```ts filename="main.ts" {30}
 import { pipe } from "@effect/data/Function"
 import * as Layer from "@effect/io/Layer"
 import { FlourLive, SugarLive } from "./Ingredients"
@@ -316,11 +316,13 @@ const MainLive = pipe(
 )
 
 // Effect<Recipe, never, void>
-const program = pipe(
-  Recipe,
+const program = Recipe.pipe(
   Effect.flatMap((recipe) => recipe.steps),
   Effect.flatMap((steps) =>
-    Effect.forEachDiscard(steps, (step) => Effect.logInfo(step))
+    Effect.forEach(steps, (step) => Effect.log(step), {
+      concurrency: "unbounded",
+      discard: true,
+    })
   )
 )
 
@@ -361,7 +363,7 @@ const program = Effect.gen(function* (_) {
   const recipe = yield* _(Recipe)
   const steps = yield* _(recipe.steps)
   for (const step of steps) {
-    yield* _(Effect.logInfo(step))
+    yield* _(Effect.log(step))
   }
 })
 
