@@ -81,7 +81,6 @@ Now, let's take a look at the main program:
 <Tab>
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
 import * as ReadLine from "./ReadLine"
@@ -89,8 +88,7 @@ import * as ReadLine from "./ReadLine"
 const loop = (
   state: Chunk.Chunk<string>
 ): Effect.Effect<never, never, Chunk.Chunk<string>> =>
-  pipe(
-    ReadLine.readLine("Please enter a name or `q` to exit: "),
+  ReadLine.readLine("Please enter a name or `q` to exit: ").pipe(
     Effect.flatMap((name) => {
       if (name === "q") {
         return Effect.succeed(state)
