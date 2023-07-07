@@ -36,30 +36,6 @@ Effect.runSync(Effect.fail("error")) // throws
 Effect.runSync(Effect.promise(() => Promise.resolve(1))) // throws
 ```
 
-## runSyncEither
-
-The `runSyncEither` function is used to execute an Effect synchronously, which means it runs immediately and returns the result as an `Either`
-(a data type used to represent the possibility of either a successful value or a failure value).
-
-```ts
-import * as Effect from "@effect/io/Effect"
-
-Effect.runSyncEither(Effect.succeed(1)) // Either.right(1))
-
-Effect.runSyncEither(Effect.fail("error")) // Either.left("error")
-```
-
-<Warning>
-  `runSyncEither` will throw an error if your Effect performs any asynchronous
-  tasks and the execution will not proceed beyond that asynchronous task.
-</Warning>
-
-```ts
-import * as Effect from "@effect/io/Effect"
-
-Effect.runSyncEither(Effect.promise(() => Promise.resolve(1))) // throws
-```
-
 ## runSyncExit
 
 The `runSyncExit` function is used to execute an Effect synchronously, which means it runs immediately and returns the result as an [`Exit`](exit)
@@ -103,20 +79,6 @@ import * as Effect from "@effect/io/Effect"
 Effect.runPromise(Effect.fail("error")) // rejects
 ```
 
-## runPromiseEither
-
-The `runPromiseEither` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an `Either`
-(a data type used to represent the possibility of either a successful value or a failure value).
-
-```ts
-import * as Effect from "@effect/io/Effect"
-import * as Either from "@effect/data/Either"
-
-await Effect.runPromiseEither(Effect.succeed(1)) // Either.right(1)
-
-await Effect.runPromiseEither(Effect.fail("error")) // Either.left("error")
-```
-
 ## runPromiseExit
 
 The `runPromiseExit` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an [`Exit`](exit)
@@ -142,14 +104,12 @@ await Effect.runPromiseExit(Effect.fail("error")) // Exit.fail(...)
 
 The table provides a summary of the available `run*` functions, along with their input and output types, allowing you to choose the appropriate function based on your needs.
 
-| **Name**           | **Given**             | **To**                  |
-| ------------------ | --------------------- | ----------------------- |
-| `runSync`          | `Effect<never, E, A>` | `A`                     |
-| `runSyncEither`    | `Effect<never, E, A>` | `Either<E, A>`          |
-| `runSyncExit`      | `Effect<never, E, A>` | `Exit<E, A>`            |
-| `runPromise`       | `Effect<never, E, A>` | `Promise<A>`            |
-| `runPromiseEither` | `Effect<never, E, A>` | `Promise<Either<E, A>>` |
-| `runPromiseExit`   | `Effect<never, E, A>` | `Promise<Exit<E, A>>`   |
+| **Name**         | **Given**             | **To**                |
+| ---------------- | --------------------- | --------------------- |
+| `runSync`        | `Effect<never, E, A>` | `A`                   |
+| `runSyncExit`    | `Effect<never, E, A>` | `Exit<E, A>`          |
+| `runPromise`     | `Effect<never, E, A>` | `Promise<A>`          |
+| `runPromiseExit` | `Effect<never, E, A>` | `Promise<Exit<E, A>>` |
 
 You can find the complete list of `run*` functions [here](https://effect-ts.github.io/io/modules/Effect.ts.html#execution).
 

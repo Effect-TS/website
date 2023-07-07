@@ -173,7 +173,7 @@ import * as Random from "@effect/io/Random"
 
 const program = Effect.gen(function* (_) {
   const n = yield* _(
-    Random.next(),
+    Random.next,
     Effect.map((n) => n * 2)
   )
   if (n > 0.5) {
@@ -190,10 +190,10 @@ This approach is useful to avoid excessive notation by using both the `_` helper
 const program = Effect.gen(function* (_) {
   const n = yield* _(
     pipe(
-      Random.next(),
+      Random.next,
       Effect.map((n) => n * 2)
     )
   )
-  ...
-}
+  // ...
+})
 ```
