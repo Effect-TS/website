@@ -28,7 +28,7 @@ The log message contains the following information:
 - `message`: The content of the log message.
 - `span`: (Optional) The duration of the span in milliseconds.
 
-## logDebug
+## Debug
 
 By default, `DEBUG` messages are **not** printed.
 
@@ -39,32 +39,27 @@ Here's an example that demonstrates how to enable `DEBUG` messages for a specifi
 <Tabs>
 <Tab>
 
-```ts {11}
-import { pipe } from "@effect/data/Function"
+```ts {8}
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 import * as Logger from "@effect/io/Logger"
 import * as LoggerLevel from "@effect/io/Logger/Level"
 
 // Effect<never, never, void>
-const task1 = pipe(
-  Effect.sleep(Duration.seconds(2)),
-  Effect.flatMap(() => Effect.logDebug("task1 done")),
+const task1 = Effect.sleep("2 seconds").pipe(
+  Effect.flatMap(() => Effect.log("task1 done", { level: "Debug" })),
   Logger.withMinimumLogLevel(LoggerLevel.Debug)
 )
 
 // Effect<never, never, void>
-const task2 = pipe(
-  Effect.sleep(Duration.seconds(1)),
-  Effect.flatMap(() => Effect.logDebug("task2 done"))
+const task2 = Effect.sleep("1 seconds").pipe(
+  Effect.flatMap(() => Effect.log("task2 done", { level: "Debug" }))
 )
 
 // Effect<never, never, void>
-const program = pipe(
-  Effect.logInfo("start"),
+const program = Effect.log("start").pipe(
   Effect.flatMap(() => task1),
   Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.logInfo("done"))
+  Effect.flatMap(() => Effect.log("done"))
 )
 
 Effect.runPromise(program)
@@ -80,34 +75,29 @@ Effect.runPromise(program)
 </Tab>
 <Tab>
 
-```ts {13}
-import { pipe } from "@effect/data/Function"
+```ts {9}
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 import * as Logger from "@effect/io/Logger"
 import * as LoggerLevel from "@effect/io/Logger/Level"
 
 // Effect<never, never, void>
-const task1 = pipe(
-  Effect.gen(function* (_) {
-    yield* _(Effect.sleep(Duration.seconds(2)))
-    yield* _(Effect.logDebug("task1 done"))
-  }),
-  Logger.withMinimumLogLevel(LoggerLevel.Debug)
-)
+const task1 = Effect.gen(function* (_) {
+  yield* _(Effect.sleep("2 seconds"))
+  yield* _(Effect.log("task1 done", { level: "Debug" }))
+}).pipe(Logger.withMinimumLogLevel(LoggerLevel.Debug))
 
 // Effect<never, never, void>
 const task2 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep(Duration.seconds(1)))
-  yield* _(Effect.logDebug("task2 done"))
+  yield* _(Effect.sleep("1 seconds"))
+  yield* _(Effect.log("task2 done", { level: "Debug" }))
 })
 
 // Effect<never, never, void>
 const program = Effect.gen(function* (_) {
-  yield* _(Effect.logInfo("start"))
+  yield* _(Effect.log("start"))
   yield* _(task1)
   yield* _(task2)
-  yield* _(Effect.logInfo("done"))
+  yield* _(Effect.log("done"))
 })
 
 Effect.runPromise(program)
@@ -127,7 +117,7 @@ In the above example, we enable `DEBUG` messages specifically for `task1` by usi
 
 By using `Logger.withMinimumLogLevel(effect, level){:ts}`, you have the flexibility to selectively enable different log levels for specific effects in your program. This allows you to control the level of detail in your logs and focus on the information that is most relevant to your debugging and troubleshooting needs.
 
-## logInfo
+## Info
 
 By default, `INFO` messages are printed.
 
@@ -135,22 +125,19 @@ By default, `INFO` messages are printed.
 <Tab>
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 // Effect<never, never, void>
-const task1 = Effect.sleep(Duration.seconds(2))
+const task1 = Effect.sleep("2 seconds")
 
 // Effect<never, never, void>
-const task2 = Effect.sleep(Duration.seconds(1))
+const task2 = Effect.sleep("1 seconds")
 
 // Effect<never, never, void>
-const program = pipe(
-  Effect.logInfo("start"),
+const program = Effect.log("start").pipe(
   Effect.flatMap(() => task1),
   Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.logInfo("done"))
+  Effect.flatMap(() => Effect.log("done"))
 )
 
 Effect.runPromise(program)
@@ -166,20 +153,19 @@ Effect.runPromise(program)
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 // Effect<never, never, void>
-const task1 = Effect.sleep(Duration.seconds(2))
+const task1 = Effect.sleep("2 seconds")
 
 // Effect<never, never, void>
-const task2 = Effect.sleep(Duration.seconds(1))
+const task2 = Effect.sleep("1 seconds")
 
 // Effect<never, never, void>
 const program = Effect.gen(function* (_) {
-  yield* _(Effect.logInfo("start"))
+  yield* _(Effect.log("start"))
   yield* _(task1)
   yield* _(task2)
-  yield* _(Effect.logInfo("done"))
+  yield* _(Effect.log("done"))
 })
 
 Effect.runPromise(program)
@@ -195,7 +181,7 @@ Effect.runPromise(program)
 
 In the above example, the `Effect.logInfo` function is used to log an `INFO` message with the content `"start"` and `"done"`. These messages will be printed during the execution of the program.
 
-## logWarning
+## Warning
 
 By default, `WARN` messages are printed.
 
@@ -203,13 +189,11 @@ By default, `WARN` messages are printed.
 <Tab>
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 
 // Effect<never, never, void>
-const program = pipe(
-  Effect.fail("Something went wrong!"),
-  Effect.catchAll((error) => Effect.logWarning(String(error)))
+const program = Effect.fail("Something went wrong!").pipe(
+  Effect.catchAll((error) => Effect.log(String(error), { level: "Warning" }))
 )
 
 Effect.runPromise(program)
@@ -232,7 +216,7 @@ const program = Effect.gen(function* (_) {
   )
   if (Either.isLeft(successOrFailure)) {
     const error = successOrFailure.left
-    yield* _(Effect.logWarning(String(error)))
+    yield* _(Effect.log(String(error), { level: "Warning" }))
     return undefined
   }
   return successOrFailure.right
@@ -247,7 +231,7 @@ timestamp=... level=WARN fiber=#0 message="Something went wrong!"
 </Tab>
 </Tabs>
 
-## logError
+## Error
 
 By default, `ERROR` messages are printed.
 
@@ -255,13 +239,11 @@ By default, `ERROR` messages are printed.
 <Tab>
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 
 // Effect<never, never, void>
-const program = pipe(
-  Effect.fail("Something went wrong!"),
-  Effect.catchAll((error) => Effect.logError(String(error)))
+const program = Effect.fail("Something went wrong!").pipe(
+  Effect.catchAll((error) => Effect.log(String(error), { level: "Error" }))
 )
 
 Effect.runPromise(program)
@@ -284,7 +266,7 @@ const program = Effect.gen(function* (_) {
   )
   if (Either.isLeft(successOrFailure)) {
     const error = successOrFailure.left
-    yield* _(Effect.logError(String(error)))
+    yield* _(Effect.log(String(error), { level: "Error" }))
     return undefined
   }
   return successOrFailure.right
@@ -307,15 +289,12 @@ Effect also provides support for spans, allowing you to measure the duration of 
 <Tab>
 
 ```ts /myspan=1011ms/
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 // Effect<never, never, void>
-const program = pipe(
-  Effect.sleep(Duration.seconds(1)),
-  Effect.flatMap(() => Effect.logInfo("The job is finished!")),
-  Effect.logSpan("myspan")
+const program = Effect.sleep("1 seconds").pipe(
+  Effect.flatMap(() => Effect.log("The job is finished!")),
+  Effect.withLogSpan("myspan")
 )
 
 Effect.runPromise(program)
@@ -328,18 +307,13 @@ timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
 <Tab>
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 // Effect<never, never, void>
-const program = pipe(
-  Effect.gen(function* (_) {
-    yield* _(Effect.sleep(Duration.seconds(1)))
-    yield* _(Effect.logInfo("The job is finished!"))
-  }),
-  Effect.logSpan("myspan")
-)
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.sleep("1 seconds"))
+  yield* _(Effect.log("The job is finished!"))
+}).pipe(Effect.withLogSpan("myspan"))
 
 Effect.runPromise(program)
 /*
