@@ -75,7 +75,12 @@ You can concatenate two Chunks using the `concat` function:
 import * as Chunk from "@effect/data/Chunk"
 
 // Chunk<string | number>
-const concatenatedChunk = Chunk.concat(Chunk.make(1, 2), Chunk.make("a", "b"))
+const concatenatedChunk = Chunk.appendAll(
+  Chunk.make(1, 2),
+  Chunk.make("a", "b")
+)
+
+console.log(concatenatedChunk) // Output: Chunk(1, 2, "a", "b")
 ```
 
 ### Dropping
