@@ -272,7 +272,6 @@ resulting in one layer with the requirement of the first, and the output of the 
 Now we can compose the `MeasuringCupLive` layer with the `IngredientsLive` layer, and then compose the result with the `RecipeLive` layer:
 
 ```ts filename="main.ts"
-import { pipe } from "@effect/data/Function"
 import * as Layer from "@effect/io/Layer"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
@@ -282,8 +281,7 @@ import { RecipeLive } from "./Recipe"
 const IngredientsLive = Layer.merge(FlourLive, SugarLive)
 
 // Layer<never, never, Recipe>
-const MainLive = pipe(
-  MeasuringCupLive,
+const MainLive = MeasuringCupLive.pipe(
   Layer.provide(IngredientsLive), // provides the MeasuringCup to the ingredients
   Layer.provide(RecipeLive) // provides the ingredients to the recipe
 )
@@ -297,8 +295,7 @@ we can provide it to our program to satisfy the program's requirements using `Ef
 <Tabs>
 <Tab>
 
-```ts filename="main.ts" {30}
-import { pipe } from "@effect/data/Function"
+```ts filename="main.ts" {28}
 import * as Layer from "@effect/io/Layer"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
@@ -309,8 +306,7 @@ import * as Effect from "@effect/io/Effect"
 const IngredientsLive = Layer.merge(FlourLive, SugarLive)
 
 // Layer<never, never, Recipe>
-const MainLive = pipe(
-  MeasuringCupLive,
+const MainLive = MeasuringCupLive.pipe(
   Layer.provide(IngredientsLive),
   Layer.provide(RecipeLive)
 )
@@ -340,8 +336,7 @@ The `Effect.forEach` function is used to iterate over a collection of values (`s
 </Tab>
 <Tab>
 
-```ts filename="main.ts" {28}
-import { pipe } from "@effect/data/Function"
+```ts filename="main.ts" {26}
 import * as Layer from "@effect/io/Layer"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
@@ -352,8 +347,7 @@ import * as Effect from "@effect/io/Effect"
 const IngredientsLive = Layer.merge(FlourLive, SugarLive)
 
 // Layer<never, never, Recipe>
-const MainLive = pipe(
-  MeasuringCupLive,
+const MainLive = MeasuringCupLive.pipe(
   Layer.provide(IngredientsLive),
   Layer.provide(RecipeLive)
 )
