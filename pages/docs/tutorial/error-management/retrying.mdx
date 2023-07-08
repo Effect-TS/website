@@ -66,7 +66,6 @@ Effect.retry(action, policy, fallback)
 **Example**
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
 
@@ -84,11 +83,10 @@ const action = Effect.async<never, Error, string>((resume) => {
   }
 })
 
-// Define a repetition policy using Schedule functions
-const policy = pipe(
-  Schedule.recurs(2), // Retry for a maximum of 2 times
-  Schedule.addDelay(() => "100 millis") // Add a delay of 100 milliseconds between retries
-)
+const policy = Schedule.recurs(2) // Retry for a maximum of 2 times
+  .pipe(
+    Schedule.addDelay(() => "100 millis") // Add a delay of 100 milliseconds between retries
+  )
 
 // Create a new effect that retries the action with the specified policy,
 // and provides a fallback action if all retries fail
