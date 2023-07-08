@@ -292,7 +292,6 @@ you always have to specify how context is accessed.
 Let's see how we would do it:
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Context from "@effect/data/Context"
 import * as Layer from "@effect/io/Layer"
 
@@ -310,7 +309,7 @@ const GetTodosResolver: Effect.Effect<
   HttpService,
   never,
   RequestResolver.RequestResolver<GetTodos, never>
-> = pipe(
+> =
   // we create a normal resolver like we did before
   RequestResolver.fromFunctionEffect((request: GetTodos) =>
     Effect.flatMap(HttpService, (http) =>
@@ -322,10 +321,10 @@ const GetTodosResolver: Effect.Effect<
         catch: () => new GetTodosError(),
       })
     )
-  ),
-  // we list the tags that the resolver can access
-  RequestResolver.contextFromServices(HttpService)
-)
+  ).pipe(
+    // we list the tags that the resolver can access
+    RequestResolver.contextFromServices(HttpService)
+  )
 ```
 
 We can see now that the type of `GetTodosResolver` is no longer a `RequestResolver` but instead it is:
@@ -391,13 +390,13 @@ This way is probably the best for most of the cases given that layers are the na
 
 Batching can be locally disabled using the `Effect.withRequestBatching("off"){:ts}` utility in the following way:
 
-```ts
+```ts {6}
 // Effect<TodosService, GetTodosError | GetUserError | SendEmailError, void>
-const program = Effect.withRequestBatching("off")(
+const program = getTodos.pipe(
   Effect.flatMap(
-    getTodos,
     Effect.forEach(notifyOwner, { concurrency: "unbounded", discard: true })
-  )
+  ),
+  Effect.withRequestBatching("off")
 )
 ```
 
@@ -447,9 +446,8 @@ or maybe you want a global cache with a different setup, or a mix of both.
 
 To cover those scenarios you'd create a custom cache like the following:
 
-```ts {10-14}
+```ts {9-13}
 import * as Schedule from "@effect/io/Schedule"
-import * as Duration from "@effect/data/Duration"
 
 // Effect<TodosService, GetTodosError | GetUserError | SendEmailError, number>
 const program = getTodos.pipe(
@@ -459,7 +457,7 @@ const program = getTodos.pipe(
   Effect.repeat(Schedule.fixed("10 seconds")),
   Effect.provideSomeLayer(
     Effect.setRequestCache(
-      Request.makeCache({ capacity: 256, timeToLive: Duration.minutes(60) })
+      Request.makeCache({ capacity: 256, timeToLive: "60 minutes" })
     )
   )
 )
