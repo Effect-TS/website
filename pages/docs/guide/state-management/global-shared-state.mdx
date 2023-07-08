@@ -187,7 +187,6 @@ Here's how the code can be rewritten using the `Ref` data type:
 <Tab>
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
 import * as ReadLine from "./ReadLine"
@@ -200,8 +199,7 @@ const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) =>
       if (name === "q") {
         return Effect.succeed(false)
       } else {
-        return pipe(
-          ref,
+        return ref.pipe(
           Ref.update((state) => Chunk.append(state, name)),
           Effect.as(true)
         )
@@ -262,7 +260,6 @@ Now that we have learned how to use the `Ref` data type, we can use it to manage
 <Tab>
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Chunk from "@effect/data/Chunk"
 import * as Effect from "@effect/io/Effect"
 import * as ReadLine from "./ReadLine"
@@ -276,8 +273,7 @@ const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
       if (name === "q") {
         return Effect.succeed(false)
       } else {
-        return pipe(
-          ref,
+        return ref.pipe(
           Ref.update((state) => Chunk.append(state, name)),
           Effect.as(true)
         )
@@ -285,18 +281,16 @@ const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
     }),
     Effect.fork
   )
-  const fiber2 = pipe(
-    ["John", "Jane", "Joe", "Tom"],
+  const fiber2 = Effect.fork(
     Effect.forEach(
+      ["John", "Jane", "Joe", "Tom"],
       (name) =>
-        pipe(
-          ref,
+        ref.pipe(
           Ref.update((state) => Chunk.append(state, name)),
           Effect.flatMap(() => Effect.sleep("1 seconds"))
         ),
       { concurrency: "unbounded", discard: true }
-    ),
-    Effect.fork
+    )
   )
   return Effect.all(fiber1, fiber2).pipe(
     Effect.flatMap(([f1, f2]) =>

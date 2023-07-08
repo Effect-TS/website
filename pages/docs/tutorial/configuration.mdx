@@ -117,7 +117,6 @@ class HostPort {
 We can define a configuration for this data type by combining primitive configs for `string` and `number`:
 
 ```ts filename="HostPort.ts"
-import { pipe } from "@effect/data/Function"
 import * as Config from "@effect/io/Config"
 
 export class HostPort {
@@ -129,10 +128,10 @@ export class HostPort {
 }
 
 // Config<HostPort>
-export const config = pipe(
-  Config.all(Config.string("HOST"), Config.float("PORT")),
-  Config.map(([host, port]) => new HostPort(host, port))
-)
+export const config = Config.all(
+  Config.string("HOST"),
+  Config.float("PORT")
+).pipe(Config.map(([host, port]) => new HostPort(host, port)))
 ```
 
 In the above example, we use the `Config.all(...configs){:ts}` operator to combine two primitive configs `Config<string>` and `Config<number>` into a `Config<[string, number]>`.
@@ -142,8 +141,7 @@ If we use this customized configuration in our application:
 <Tabs>
 <Tab>
 
-```ts filename="HostPort.ts" {19}
-import { pipe } from "@effect/data/Function"
+```ts filename="HostPort.ts" {18}
 import * as Config from "@effect/io/Config"
 import * as Effect from "@effect/io/Effect"
 
@@ -155,10 +153,10 @@ export class HostPort {
   }
 }
 
-export const config: Config.Config<HostPort> = pipe(
-  Config.all(Config.string("HOST"), Config.float("PORT")),
-  Config.map(([host, port]) => new HostPort(host, port))
-)
+export const config = Config.all(
+  Config.string("HOST"),
+  Config.float("PORT")
+).pipe(Config.map(([host, port]) => new HostPort(host, port)))
 
 // Effect<never, ConfigError, void>
 export const program = Effect.config(config).pipe(
@@ -173,8 +171,7 @@ Effect.runSync(program)
 </Tab>
 <Tab>
 
-```ts filename="HostPort.ts" {20}
-import { pipe } from "@effect/data/Function"
+```ts filename="HostPort.ts" {19}
 import * as Config from "@effect/io/Config"
 import * as Effect from "@effect/io/Effect"
 
@@ -186,10 +183,10 @@ export class HostPort {
   }
 }
 
-export const config: Config.Config<HostPort> = pipe(
-  Config.all(Config.string("HOST"), Config.float("PORT")),
-  Config.map(([host, port]) => new HostPort(host, port))
-)
+export const config = Config.all(
+  Config.string("HOST"),
+  Config.float("PORT")
+).pipe(Config.map(([host, port]) => new HostPort(host, port)))
 
 // Effect<never, ConfigError, void>
 export const program = Effect.gen(function* (_) {
@@ -218,7 +215,6 @@ So far, we have learned how to define configurations in a top-level manner, whet
 Let's assume we have a `ServiceConfig` data type that consists of two fields: `hostPort` and `timeout`.
 
 ```ts filename="ServiceConfig.ts"
-import { pipe } from "@effect/data/Function"
 import * as HostPort from "./HostPort"
 import * as Config from "@effect/io/Config"
 
@@ -226,8 +222,10 @@ class ServiceConfig {
   constructor(readonly hostPort: HostPort.HostPort, readonly timeout: number) {}
 }
 
-const config: Config.Config<ServiceConfig> = pipe(
-  Config.all(HostPort.config, Config.float("TIMEOUT")),
+const config: Config.Config<ServiceConfig> = Config.all(
+  HostPort.config,
+  Config.float("TIMEOUT")
+).pipe(
   Config.map(([hostPort, timeout]) => new ServiceConfig(hostPort, timeout))
 )
 ```
@@ -236,15 +234,13 @@ If we use this customized config in our application, it tries to read correspond
 
 However, in many cases, we don't want to read all configurations from the top-level namespace. Instead, we may want to nest them under a common namespace. For example, we want to read both `HOST` and `PORT` from the `HOSTPORT` namespace, and `TIMEOUT` from the root namespace.
 
-To achieve this, we can use the `nested` combinator. It allows us to nest configs under a specific namespace. Here's how we can update our configuration:
+To achieve this, we can use the `Config.nested` combinator. It allows us to nest configs under a specific namespace. Here's how we can update our configuration:
 
-```diff
-const config: Config.Config<ServiceConfig> = pipe(
--  Config.all(HostPort.config, Config.float("TIMEOUT")),
-+  Config.all(
-+    Config.nested(HostPort.config, "HOSTPORT"),
-+    Config.float("TIMEOUT")
-+  ),
+```ts /Config.nested/
+const config: Config.Config<ServiceConfig> = Config.all(
+  Config.nested(HostPort.config, "HOSTPORT"),
+  Config.float("TIMEOUT")
+).pipe(
   Config.map(([hostPort, timeout]) => new ServiceConfig(hostPort, timeout))
 )
 ```

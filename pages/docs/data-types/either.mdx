@@ -2,41 +2,38 @@ import { Idea } from "@/components/Callout"
 
 # Either
 
-The `Either` data type represents two eclusive possible values.
-An `Either<E, A>` can be either a `Left` value or a `Right` value, where `E` represents the type of the `Left` value and `A` represents the type of the `Right` value.
+The `Either` data type represents two exclusive possible values: an `Either<E, A>` can be either a `Left` value or a `Right` value, where `E` represents the type of the `Left` value and `A` represents the type of the `Right` value.
 
 ## Creating Eithers
 
-You can create an Either value using the `left` and `right` functions.
+You can create an `Either` using the `Either.left` and `Either.right` constructors.
 
-The `left` function takes a value of type `E` and constructs a new Either value with that value as the Left value:
+- The `Either.right` function takes a value of type `A` and constructs a `Either<never, A>`:
 
-```ts
-import * as Either from "@effect/data/Either"
+  ```ts
+  import * as Either from "@effect/data/Either"
 
-// Either<never, number>
-const value = Either.right(42) // Creates an Either value with Right value 42
-```
+  // Either<never, number>
+  const rightValue = Either.right(42)
+  ```
 
-The `right` function takes a value of type `A` and constructs a new Either value with that value as the Right value:
+- The `Either.left` function takes a value of type `E` and constructs a `Either<E, never>`:
 
-```ts
-import * as Either from "@effect/data/Either"
+  ```ts
+  import * as Either from "@effect/data/Either"
 
-// Either<string, never>
-const value = Either.left("not a number") // Creates an Either value with Left value "not a number"
-```
+  // Either<string, never>
+  const leftValue = Either.left("not a number")
+  ```
 
 ## Guards
 
-You can determine whether an `Either` is a `Left` or a `Right` by using the `isLeft` and `isRight` guards:
+You can determine whether an `Either` is a `Left` or a `Right` by using the `Either.isLeft` and `Either.isRight` guards:
 
 ```ts
 import * as Either from "@effect/data/Either"
 
 const foo = Either.right(42)
-
-console.log(Either.isRight(foo)) // Output: true
 
 if (Either.isLeft(foo)) {
   console.log(`The left value is: ${foo.left}`)
@@ -48,19 +45,19 @@ if (Either.isLeft(foo)) {
 
 ## Pattern Matching
 
-The `Either.match` function allows you to handle different cases of an `Either` value by providing separate actions for each case:
+The `Either.match` function allows you to handle different cases of an `Either` by providing separate callbacks for each case:
 
 ```ts
 import * as Either from "@effect/data/Either"
 
 const foo = Either.right(42)
 
-const result = Either.match(foo, {
+const message = Either.match(foo, {
   onLeft: (left) => `The left value is: ${left}`,
   onRight: (right) => `The Right value is: ${right}`,
 })
 
-console.log(result) // Output: "The Right value is: 42"
+console.log(message) // Output: "The Right value is: 42"
 ```
 
 <Idea>
@@ -70,98 +67,71 @@ console.log(result) // Output: "The Right value is: 42"
 
 ## Working with Either
 
-Once you have an Either value, there are several operations you can perform on it.
+Once you have an `Either`, there are several operations you can perform on it.
 
 ### Mapping over the Right Value
 
-You can use the `map` function to transform the `Right` value of an `Either`.
+You can use the `Either.map` function to transform the `Right` value of an `Either`.
 The `map` function takes a transformation function that maps the `Right` value.
 
 If the `Either` value is a `Left` value, the transformation function is **ignored**, and the `Left` value is returned unchanged.
 
-Here's an example:
+**Example**
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Either from "@effect/data/Either"
 
-console.log(
-  pipe(
-    Either.right(42),
-    Either.map((n) => n + 1)
-  )
-)
-// Output: { _tag: 'Right', right: 43 }
+const foo = Either.map(Either.right(42), (n) => n + 1)
+console.log(foo)
+// Output: right(43)
 
-console.log(
-  pipe(
-    Either.left("not a number"),
-    Either.map((n) => n + 1)
-  )
-)
-// Output: { _tag: 'Left', left: 'not a number' }
+const bar = Either.map(Either.left("not a number"), (n) => n + 1)
+console.log(bar)
+// Output: left("not a number")
 ```
 
 ### Mapping over the Left Value
 
-You can use the `mapLeft` function to transform the `Left` value of an Either. The `mapLeft` function takes a transformation function that maps the `Left`.
+You can use the `Either.mapLeft` function to transform the `Left` value of an Either. The `mapLeft` function takes a transformation function that maps the `Left`.
 
 If the `Either` value is a `Right` value, the transformation function is **ignored**, and the `Right` value is returned unchanged.
 
-Here's an example:
+**Example**
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Either from "@effect/data/Either"
 
-console.log(
-  pipe(
-    Either.right(42),
-    Either.mapLeft((s) => s + "!")
-  )
-)
-// Output: { _tag: 'Right', right: 42 }
+const foo = Either.mapLeft(Either.right(42), (s) => s + "!")
+console.log(foo)
+// Output: right(42)
 
-console.log(
-  pipe(
-    Either.left("not a number"),
-    Either.mapLeft((s) => s + "!")
-  )
-)
-// Output: { _tag: 'Left', left: 'not a number!' }
+const bar = Either.mapLeft(Either.left("not a number"), (s) => s + "!")
+console.log(bar)
+// Output: left("not a number!")
 ```
 
 ### Mapping over Both Values
 
-You can use the `bimap` function to transform both the `Left` and `Right` values of an `Either`. The `bimap` function takes two transformation functions: one for the `Left` value and one for the `Right` value.
+You can use the `Either.mapBoth` function to transform both the `Left` and `Right` values of an `Either`. The `mapBoth` function takes two transformation functions: one for the `Left` value and one for the `Right` value.
 
-Here's an example:
+**Example**
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Either from "@effect/data/Either"
 
-console.log(
-  pipe(
-    Either.right(42),
-    Either.mapBoth({
-      onLeft: (s) => s + "!",
-      onRight: (n) => n + 1,
-    })
-  )
-)
-// Output: { _tag: 'Right', right: 43 }
+const foo = Either.mapBoth(Either.right(42), {
+  onLeft: (s) => s + "!",
+  onRight: (n) => n + 1,
+})
+console.log(foo)
+// Output: right(43)
 
-console.log(
-  pipe(
-    Either.left("not a number"),
-    Either.mapBoth({
-      onLeft: (s) => s + "!",
-      onRight: (n) => n + 1,
-    })
-  )
-)
-// Output: { _tag: 'Left', left: 'not a number!' }
+const bar = Either.mapBoth(Either.left("not a number"), {
+  onLeft: (s) => s + "!",
+  onRight: (n) => n + 1,
+})
+console.log(bar)
+// Output: left("not a number!")
 ```
 
 ## Interop with Effect
@@ -176,16 +146,14 @@ In the context of `Effect`, the two members of the `Either` type are treated as 
 To illustrate this interoperability, let's consider the following example:
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Either from "@effect/data/Either"
 
-const head = <A>(as: ReadonlyArray<A>): Either.Either<string, A> =>
-  as.length > 0 ? Either.right(as[0]) : Either.left("empty array")
+const head = <A>(array: ReadonlyArray<A>): Either.Either<string, A> =>
+  array.length > 0 ? Either.right(array[0]) : Either.left("empty array")
 
-console.log(
-  Effect.runSync(pipe(Effect.succeed([1, 2, 3]), Effect.flatMap(head)))
-) // Output: 1
+const foo = Effect.runSync(Effect.flatMap(Effect.succeed([1, 2, 3]), head))
+console.log(foo) // Output: 1
 
-Effect.runSync(pipe(Effect.succeed([]), Effect.flatMap(head))) // Throws "empty array"
+const bar = Effect.runSync(Effect.flatMap(Effect.succeed([]), head)) // Throws "empty array"
 ```

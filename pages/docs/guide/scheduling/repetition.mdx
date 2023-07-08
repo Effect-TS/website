@@ -27,17 +27,14 @@ Effect.repeat(action, policy)
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import { pipe } from "@effect/data/Function"
 import * as Schedule from "@effect/io/Schedule"
 
 const action = Effect.sync(() => {
   console.log("success")
 })
 
-const policy = pipe(
-  Schedule.recurs(2), // Repeat for a maximum of 2 times
-  Schedule.addDelay(() => "100 millis") // Add a delay of 100 milliseconds between repetitions
-)
+const policy = Schedule.recurs(2) // Repeat for a maximum of 2 times
+  .pipe(Schedule.addDelay(() => "100 millis")) // Add a delay of 100 milliseconds between repetitions
 
 const program = Effect.repeat(action, policy)
 
@@ -66,7 +63,6 @@ Effect.repeatOrElse(action, policy, fallback)
 
 ```ts
 import * as Effect from "@effect/io/Effect"
-import { pipe } from "@effect/data/Function"
 import * as Schedule from "@effect/io/Schedule"
 
 let count = 0
@@ -83,10 +79,10 @@ const action = Effect.async<never, Error, string>((resume) => {
   }
 })
 
-const policy = pipe(
-  Schedule.recurs(2), // Repeat for a maximum of 2 times
-  Schedule.addDelay(() => "100 millis") // Add a delay of 100 milliseconds between repetitions
-)
+const policy = Schedule.recurs(2) // Repeat for a maximum of 2 times
+  .pipe(
+    Schedule.addDelay(() => "100 millis") // Add a delay of 100 milliseconds between repetitions
+  )
 
 const program = Effect.repeatOrElse(action, policy, () =>
   Effect.sync(() => {

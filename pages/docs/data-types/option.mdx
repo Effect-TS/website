@@ -155,8 +155,6 @@ interface Address {
 We can use `Option.flatMap` to extract the `street` property from the `address` field.
 
 ```ts
-import { pipe } from "@effect/data/Function"
-
 const user: User = {
   id: 1,
   username: "john_doe",
@@ -167,10 +165,8 @@ const user: User = {
   }),
 }
 
-const street: Option.Option<string> = pipe(
-  user.address,
-  Option.flatMap((addr) => addr.street)
-)
+/// Option<string>
+const street = user.address.pipe(Option.flatMap((address) => address.street))
 ```
 
 Here's how it works: if the `address` is `Some`, meaning it has a value, the mapping function `(addr) => addr.street` is applied to retrieve the `street` value. On the other hand, if the `address` is `None`, indicating the absence of a value, the mapping function is not executed, and the result is also `None`.
@@ -216,7 +212,6 @@ To retrieve the value stored within an `Option`, you can use various functions p
 In certain situations, when a computation returns `None`, you may want to try an alternative computation that returns an `Option`. This is where the `Option.orElse` function comes in handy. It allows you to chain multiple computations together and continue with the next one if the previous one resulted in `None`. This can be useful for implementing retry logic, where you want to attempt a computation multiple times until you either succeed or exhaust all possible attempts.
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Option from "@effect/data/Option"
 
 // Simulating a computation that may or may not produce a result
@@ -228,8 +223,8 @@ function performAlternativeComputation(): Option.Option<number> {
   return Math.random() < 0.5 ? Option.some(20) : Option.none()
 }
 
-const result: Option.Option<number> = pipe(
-  performComputation(),
+// Option<number>
+const result = performComputation().pipe(
   Option.orElse(() => performAlternativeComputation())
 )
 
@@ -293,7 +288,6 @@ In the context of `Effect`, the two members of the `Option` type are treated as 
 To illustrate this interoperability, let's consider the following example:
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Option from "@effect/data/Option"
 
@@ -301,10 +295,10 @@ const head = <A>(as: ReadonlyArray<A>): Option.Option<A> =>
   as.length > 0 ? Option.some(as[0]) : Option.none()
 
 console.log(
-  Effect.runSync(pipe(Effect.succeed([1, 2, 3]), Effect.flatMap(head)))
+  Effect.runSync(Effect.succeed([1, 2, 3]).pipe(Effect.flatMap(head)))
 ) // Output: 1
 
-Effect.runSync(pipe(Effect.succeed([]), Effect.flatMap(head))) // Throws NoSuchElementException
+Effect.runSync(Effect.succeed([]).pipe(Effect.flatMap(head))) // Throws NoSuchElementException
 ```
 
 ## Combining Two or More `Option`s
@@ -361,7 +355,6 @@ These functions allow you to gain insights into what's happening within your cod
 Here's an example to demonstrate how you can use `inspectSome` and `inspectNone` for debugging:
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Option from "@effect/data/Option"
 
 interface User {
@@ -384,8 +377,7 @@ const user: User = {
 }
 
 // Option<string>
-const street = pipe(
-  user.address,
+const street = user.address.pipe(
   Option.inspectNone(() => console.log("No address provided")),
   Option.flatMap((addr) => addr.street)
 )
