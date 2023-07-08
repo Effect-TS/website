@@ -14,7 +14,7 @@ const ANSI = {
   Bold: "\x1b[1m",
 }
 
-export const CustomLogger = Logger.make((_, logLevel, message) => {
+export const logger = Logger.make(({ logLevel, message }) => {
   if (logLevel._tag === "Debug") {
     globalThis.console.log(`[${logLevel.label}] ${message}`)
   } else {
@@ -31,28 +31,23 @@ Assuming we have defined the following program:
 <Tab>
 
 ```ts filename="main.ts"
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 // Effect<never, never, void>
-const task1 = pipe(
-  Effect.sleep(Duration.seconds(2)),
-  Effect.flatMap(() => Effect.logDebug("task1 done"))
+const task1 = Effect.sleep("2 seconds").pipe(
+  Effect.flatMap(() => Effect.log("task1 done", { level: "Debug" }))
 )
 
 // Effect<never, never, void>
-const task2 = pipe(
-  Effect.sleep(Duration.seconds(1)),
-  Effect.flatMap(() => Effect.logDebug("task2 done"))
+const task2 = Effect.sleep("1 seconds").pipe(
+  Effect.flatMap(() => Effect.log("task2 done", { level: "Debug" }))
 )
 
 // Effect<never, never, void>
-const program = pipe(
-  Effect.logInfo("start"),
+const program = Effect.log("start").pipe(
   Effect.flatMap(() => task1),
   Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.logInfo("done"))
+  Effect.flatMap(() => Effect.log("done"))
 )
 ```
 
@@ -61,41 +56,58 @@ const program = pipe(
 
 ```ts filename="main.ts"
 import * as Effect from "@effect/io/Effect"
-import * as Duration from "@effect/data/Duration"
 
 // Effect<never, never, void>
 const task1 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep(Duration.seconds(2)))
-  yield* _(Effect.logDebug("task1 done"))
+  yield* _(Effect.sleep("2 seconds"))
+  yield* _(Effect.log("task1 done", { level: "Debug" }))
 })
 
 // Effect<never, never, void>
 const task2 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep(Duration.seconds(1)))
-  yield* _(Effect.logDebug("task2 done"))
+  yield* _(Effect.sleep("1 seconds"))
+  yield* _(Effect.log("task2 done", { level: "Debug" }))
 })
 
 // Effect<never, never, void>
 const program = Effect.gen(function* (_) {
-  yield* _(Effect.logInfo("start"))
+  yield* _(Effect.log("start"))
   yield* _(task1)
   yield* _(task2)
-  yield* _(Effect.logInfo("done"))
+  yield* _(Effect.log("done"))
 })
 ```
 
 </Tab>
 </Tabs>
 
-To replace the default logger, we simply need to create a specific layer using `Logger.replace` and provide it to our program using `Effect.provideLayer` before executing it.
+To replace the default logger, we simply need to create a specific layer using `Logger.replace` and provide it to our program using `Effect.provideLayer` before executing it:
+
+<Tabs>
+<Tab>
 
 ```ts filename="main.ts"
+import * as Effect from "@effect/io/Effect"
 import * as Logger from "@effect/io/Logger"
 import * as LoggerLevel from "@effect/io/Logger/Level"
-import { CustomLogger } from "./CustomLogger"
+import * as CustomLogger from "./CustomLogger"
+
+const task1 = Effect.sleep("2 seconds").pipe(
+  Effect.flatMap(() => Effect.log("task1 done", { level: "Debug" }))
+)
+
+const task2 = Effect.sleep("1 seconds").pipe(
+  Effect.flatMap(() => Effect.log("task2 done", { level: "Debug" }))
+)
+
+const program = Effect.log("start").pipe(
+  Effect.flatMap(() => task1),
+  Effect.flatMap(() => task2),
+  Effect.flatMap(() => Effect.log("done"))
+)
 
 // Layer<never, never, never>
-const layer = Logger.replace(Logger.defaultLogger, CustomLogger)
+const layer = Logger.replace(Logger.defaultLogger, CustomLogger.logger)
 
 Effect.runPromise(
   Effect.provideLayer(
@@ -104,6 +116,47 @@ Effect.runPromise(
   )
 )
 ```
+
+</Tab>
+
+<Tab>
+
+```ts filename="main.ts"
+import * as Effect from "@effect/io/Effect"
+import * as Logger from "@effect/io/Logger"
+import * as LoggerLevel from "@effect/io/Logger/Level"
+import * as CustomLogger from "./CustomLogger"
+
+const task1 = Effect.gen(function* (_) {
+  yield* _(Effect.sleep("2 seconds"))
+  yield* _(Effect.log("task1 done", { level: "Debug" }))
+})
+
+const task2 = Effect.gen(function* (_) {
+  yield* _(Effect.sleep("1 seconds"))
+  yield* _(Effect.log("task2 done", { level: "Debug" }))
+})
+
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.log("start"))
+  yield* _(task1)
+  yield* _(task2)
+  yield* _(Effect.log("done"))
+})
+
+// Layer<never, never, never>
+const layer = Logger.replace(Logger.defaultLogger, CustomLogger.logger)
+
+Effect.runPromise(
+  Effect.provideLayer(
+    Logger.withMinimumLogLevel(program, LoggerLevel.Debug),
+    layer
+  )
+)
+```
+
+</Tab>
+</Tabs>
 
 This is what we see printed on the console after executing the program:
 
