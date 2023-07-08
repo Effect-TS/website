@@ -137,74 +137,6 @@ Effect<never, FooError | BarError, string>
 
 indicating that it can potentially fail with either a `FooError` or a `BarError`.
 
-## Short-Circuiting
-
-When working with APIs like `Effect.map`, `Effect.flatMap`, and `Effect.all`, it's important to understand how they handle errors.
-These APIs are designed to **short-circuit the execution** upon encountering the **first error**.
-
-What does this mean for you as a developer? Well, let's say you have a chain of operations or a collection of effects to be executed in sequence. If any error occurs during the execution of one of these effects, the remaining computations will be skipped, and the error will be propagated to the final result.
-
-In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program, it won't waste time executing unnecessary computations. Instead, it will immediately stop and return the error to let you know that something went wrong.
-
-<Tabs>
-  <Tab>
-
-```ts
-import * as Effect from "@effect/io/Effect"
-
-const operation1 = Effect.sync(() => console.log("operation1"))
-const operation2 = Effect.fail(new Error("Something went wrong!"))
-const operation3 = Effect.sync(() => console.log("operation3"))
-
-const result = Effect.runSyncExit(
-  operation1.pipe(
-    Effect.flatMap(() => operation2),
-    Effect.flatMap(() => operation3) // This computation won't be executed because the previous one fails
-  )
-)
-
-console.log(result)
-
-/*
-operation1
-Failure("Something went wrong!")
-*/
-```
-
-</Tab>
-<Tab>
-
-```ts
-import * as Effect from "@effect/io/Effect"
-
-const operation1 = Effect.sync(() => console.log("operation1"))
-const operation2 = Effect.fail(new Error("Something went wrong!"))
-const operation3 = Effect.sync(() => console.log("operation3"))
-
-const result = Effect.runSyncExit(
-  Effect.gen(function* (_) {
-    yield* _(operation1)
-    yield* _(operation2)
-    yield* _(operation3) // This computation won't be executed because the previous one fails
-  })
-)
-
-console.log(result)
-
-/*
-operation1
-Failure("Something went wrong!")
-*/
-```
-
-</Tab>
-</Tabs>
-
-This code snippet demonstrates the short-circuiting behavior when an error occurs.
-Each operation depends on the successful execution of the previous one.
-If any error occurs, the execution is short-circuited, and the error is propagated.
-In this specific example, `operation3` is never executed because an error occurs in `operation2`.
-
 ## Catching
 
 To handle errors in a simple way, you can use the `catchAll` function.
@@ -308,10 +240,10 @@ If we also wanted to handle `BarError`, we can simply add another `catchTag`.
 ```ts {6-8}
 // Effect<never, never, string>
 const recovered = program.pipe(
-  Effect.catchTag("FooError", (fooError) =>
+  Effect.catchTag("FooError", (_fooError) =>
     Effect.succeed("Recovering from FooError")
   ),
-  Effect.catchTag("BarError", (barError) =>
+  Effect.catchTag("BarError", (_barError) =>
     Effect.succeed("Recovering from BarError")
   )
 )
@@ -357,8 +289,8 @@ Instead of using the `catchTag` combinator multiple times to handle individual e
 // Effect<never, never, string>
 const recovered = program.pipe(
   Effect.catchTags({
-    FooError: (fooError) => Effect.succeed(`Recovering from FooError`),
-    BarError: (barError) => Effect.succeed(`Recovering from BarError`),
+    FooError: (_fooError) => Effect.succeed(`Recovering from FooError`),
+    BarError: (_barError) => Effect.succeed(`Recovering from BarError`),
   })
 )
 ```
@@ -454,3 +386,71 @@ We can observe that the type in the error channel of our `program` has changed f
 ```ts /Error/
 Effect<never, Error, string>
 ```
+
+## Short-Circuiting
+
+When working with APIs like `Effect.map`, `Effect.flatMap`, and `Effect.all`, it's important to understand how they handle errors.
+These APIs are designed to **short-circuit the execution** upon encountering the **first error**.
+
+What does this mean for you as a developer? Well, let's say you have a chain of operations or a collection of effects to be executed in sequence. If any error occurs during the execution of one of these effects, the remaining computations will be skipped, and the error will be propagated to the final result.
+
+In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program, it won't waste time executing unnecessary computations. Instead, it will immediately stop and return the error to let you know that something went wrong.
+
+<Tabs>
+  <Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const operation1 = Effect.sync(() => console.log("operation1"))
+const operation2 = Effect.fail(new Error("Something went wrong!"))
+const operation3 = Effect.sync(() => console.log("operation3"))
+
+const result = Effect.runSyncExit(
+  operation1.pipe(
+    Effect.flatMap(() => operation2),
+    Effect.flatMap(() => operation3) // This computation won't be executed because the previous one fails
+  )
+)
+
+console.log(result)
+
+/*
+operation1
+Failure("Something went wrong!")
+*/
+```
+
+</Tab>
+<Tab>
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const operation1 = Effect.sync(() => console.log("operation1"))
+const operation2 = Effect.fail(new Error("Something went wrong!"))
+const operation3 = Effect.sync(() => console.log("operation3"))
+
+const result = Effect.runSyncExit(
+  Effect.gen(function* (_) {
+    yield* _(operation1)
+    yield* _(operation2)
+    yield* _(operation3) // This computation won't be executed because the previous one fails
+  })
+)
+
+console.log(result)
+
+/*
+operation1
+Failure("Something went wrong!")
+*/
+```
+
+</Tab>
+</Tabs>
+
+This code snippet demonstrates the short-circuiting behavior when an error occurs.
+Each operation depends on the successful execution of the previous one.
+If any error occurs, the execution is short-circuited, and the error is propagated.
+In this specific example, `operation3` is never executed because an error occurs in `operation2`.
