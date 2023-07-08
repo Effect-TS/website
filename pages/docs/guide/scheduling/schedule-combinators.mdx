@@ -2,7 +2,7 @@
 
 Schedules define stateful, possibly effectful, recurring schedules of events, and compose in a variety of ways. Combinators allow us to take schedules and combine them together to get other schedules.
 
-To demonstrate the functionality of different combinators, we will be working with the following effect:
+To demonstrate the functionality of different combinators, we will be working with the following helper:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -16,7 +16,7 @@ const logDelay = Effect.sync(() => {
 })
 ```
 
-The `logDelay` effect logs the time delay between each execution. We will use this effect to showcase the behavior of various built-in combinators.
+The `logDelay` helper logs the time delay between each execution. We will use this effect to showcase the behavior of various built-in combinators.
 
 ## Composition
 
@@ -88,12 +88,10 @@ When we use the combined schedule with `Effect.repeat`, we observe that the effe
 Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy.
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
 
-const schedule = pipe(
-  Schedule.recurs(5),
+const schedule = Schedule.recurs(5).pipe(
   Schedule.andThen(Schedule.spaced("1 seconds"))
 )
 
@@ -153,14 +151,10 @@ In this example, we use the `jittered` combinator to apply jitter to an exponent
 We can filter inputs or outputs of a schedule with `whileInput` and `whileOutput`.
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
 
-const schedule = pipe(
-  Schedule.recurs(5),
-  Schedule.whileOutput((n) => n <= 2)
-)
+const schedule = Schedule.recurs(5).pipe(Schedule.whileOutput((n) => n <= 2))
 
 Effect.runPromise(Effect.repeat(logDelay, schedule))
 /*
@@ -179,12 +173,10 @@ In this example, we create a schedule using `Schedule.recurs(5)` to repeat a cer
 Modifies the delay of a schedule.
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
 
-const schedule = pipe(
-  Schedule.spaced("1 seconds"),
+const schedule = Schedule.spaced("1 seconds").pipe(
   Schedule.modifyDelay((_) => "100 millis")
 )
 
@@ -206,12 +198,10 @@ Whenever we need to effectfully process each schedule input/output, we can use `
 We can use these two functions for logging purposes:
 
 ```ts
-import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 import * as Schedule from "@effect/io/Schedule"
 
-const schedule = pipe(
-  Schedule.recurs(2),
+const schedule = Schedule.recurs(2).pipe(
   Schedule.tapOutput((n) => Effect.sync(() => console.log(`repeating ${n}`)))
 )
 
