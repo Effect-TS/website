@@ -1,0 +1,163 @@
+---
+description: 'In this article we will take a look at the usual way we represent errors in TypeScript'
+date: June 7th, 2023
+---
+
+# A naive approach using classes with instanceof
+
+The first step to achieve type safety in error management as one may imagine is to define errors, let's have a look at a usual piece of code with the objective of improving its safety.
+
+```ts
+import * as S from "@effect/schema/Schema"
+
+const Todo_ = S.struct({
+  id: S.number,
+  userId: S.number,
+  title: S.string,
+  completed: S.boolean,
+})
+export interface Todo extends S.To<typeof Todo_> {}
+export const Todo: S.Schema<Todo> = Todo_
+
+export const fetchTodo = (id: number) =>
+  fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
+    .then((response) => response.json())
+    .then((value) => S.parseSync(Todo)(value))
+```
+
+Why can this code fail? when looking at the implementation we can easily spot at least 6 different causes of failure:
+
+1) network errors
+2) status not 200/404
+3) malformed input, non integer
+4) todo can't be found (response 400)
+5) malformed response, non json
+6) malformed todo
+
+By looking at the type signature we have:
+
+```ts
+const fetchTodo: (id: number) => Promise<Todo>
+```
+
+As we may imagine this isn't that helful in conveying the above information and we also have no way of really distinguishing between the failure cases unless we do some very deep investigation on what every single function we call can throw.
+
+The very first step would be to at least isolate the potential failure scenarios in a way that we can at least identify them separately.
+
+```ts
+class NetworkError {
+  readonly _tag = "NetworkError"
+  constructor(readonly error: unknown) {}
+}
+
+class ResponseStatusError {
+  readonly _tag = "ResponseStatusError"
+  constructor(readonly response: Response) {}
+}
+
+class MalformedResponse {
+  readonly _tag = "MalformedResponse"
+  constructor(readonly error: unknown) {}
+}
+
+class MalformedTodo {
+  readonly _tag = "MalformedTodo"
+  constructor(readonly error: unknown) {}
+}
+
+class MalformedId {
+  readonly _tag = "MalformedId"
+  constructor(readonly id: number) {}
+}
+
+class TodoNotFound {
+  readonly _tag = "TodoNotFound"
+  constructor(readonly id: number) {}
+}
+```
+
+rewriting the code above and trying to use async-await leads to quick explosion, nesting try-catch blocks to identify every possible case looks horrible. We can get a decent result if we introduce a function like:
+
+```ts
+export const tryOrError = <T, E>(
+  f: () => T,
+  onErr: (error: unknown) => E
+): T => {
+  try {
+    const r = f()
+    if (typeof r === "object" && r !== null && "then" in r) {
+      // @ts-expect-error
+      return (r as any as Promise<Awaited<T>>).catch((e) => {
+        throw onErr(e)
+      })
+    }
+    return r
+  } catch (e) {
+    throw onErr(e)
+  }
+}
+```
+
+that wraps a generic function (or Promise-returning function) in a try-catch block isolating its error.
+
+Let's see how it would look like:
+
+
+```ts
+export const fetchTodo = async (id: number) => {
+  if (!Number.isInteger(id)) {
+    throw new MalformedId(id)
+  }
+  const response = await tryOrError(
+    () => fetch(`https://jsonplaceholder.typicode.com/todos/${id}`),
+    (error) => new NetworkError(error)
+  )
+  if (response.status === 404) {
+    throw new TodoNotFound(id)
+  }
+  if (response.status !== 200) {
+    throw new ResponseStatusError(response)
+  }
+  const json = await tryOrError(
+    () => response.json(),
+    (error) => new MalformedResponse(error)
+  )
+  return tryOrError(
+    () => S.parseSync(Todo)(json),
+    (error) => new MalformedTodo(error)
+  )
+}
+```
+
+While the type hasn't changed we are now able to isolate the individual causes of failure, for example we may write code like the following:
+
+```ts
+const main = async () => {
+  try {
+    const todos = await Promise.all([1, 2, 3, 4].map(fetchTodo))
+    console.log(`todos:`)
+    for (const todo of todos) {
+      console.log(`---`)
+      console.log(`id: ${todo.id}`)
+      console.log(`userId: ${todo.userId}`)
+      console.log(`title: ${todo.title}`)
+      console.log(`completed: ${todo.completed}`)
+      console.log(`---`)
+    }
+  } catch (error) {
+    if (error instanceof TodoNotFound) {
+      console.error(`Todo with ${error.id} not found`)
+    } else {
+      console.error(`Unexpected error occurred`, error)
+    }
+  }
+}
+```
+
+Here we are explicitely dealing with a Todo that was not found differently from the other scenarios, this is a classic example of a very important distinction.
+
+Not all errors are equal for our program, some errors are to be accounted for in our domain and some are not, like in this case a todo that was mistakenly retrieved by our consumer can be considered a predictable scenario to be hendled with a helpful message while a malformed response would instead indicate a defect of the system that should never occur in normal scenarios.
+
+Even if TS was smart enough to know all the error types that may occur in when doing `catch (error)` we would still be left with poor ability to disciminate between domain errors and defects and more importantly we can't have guarantees that our program won't fail for other reasons (such as a stack limit reached) so we effectively the type of `error` would always be `unknown | something else`, potentially with `something else` being a very long list of errors.
+
+Can we do better? yes, and that's what we will explore in the next article of the series where we will introduce the concept of result types.
