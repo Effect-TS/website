@@ -215,13 +215,11 @@ In certain situations, when a computation returns `None`, you may want to try an
 import * as Option from "@effect/data/Option"
 
 // Simulating a computation that may or may not produce a result
-function performComputation(): Option.Option<number> {
-  return Math.random() < 0.5 ? Option.some(10) : Option.none()
-}
+const performComputation = (): Option.Option<number> =>
+  Math.random() < 0.5 ? Option.some(10) : Option.none()
 
-function performAlternativeComputation(): Option.Option<number> {
-  return Math.random() < 0.5 ? Option.some(20) : Option.none()
-}
+const performAlternativeComputation = (): Option.Option<number> =>
+  Math.random() < 0.5 ? Option.some(20) : Option.none()
 
 // Option<number>
 const result = performComputation().pipe(

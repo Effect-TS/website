@@ -129,12 +129,10 @@ Let's see an example to better understand how `flatMap` works:
 import { pipe } from "@effect/data/Function"
 import * as Effect from "@effect/io/Effect"
 
-function divide(a: number, b: number): Effect.Effect<never, Error, number> {
-  if (b === 0) {
-    return Effect.fail(new Error("Cannot divide by zero"))
-  }
-  return Effect.succeed(a / b)
-}
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 
 // Effect<never, Error, number>
 const flatMappedEffect = pipe(
@@ -243,12 +241,10 @@ import * as Effect from "@effect/io/Effect"
 
 const increment = (x: number) => x + 1
 
-function divide(a: number, b: number): Effect.Effect<never, Error, number> {
-  if (b === 0) {
-    return Effect.fail(new Error("Cannot divide by zero"))
-  }
-  return Effect.succeed(a / b)
-}
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 
 const foo = Effect.succeed(10)
 const bar = Effect.succeed(2)
@@ -289,12 +285,10 @@ import * as Effect from "@effect/io/Effect"
 
 const increment = (x: number) => x + 1
 
-function divide(a: number, b: number): Effect.Effect<never, Error, number> {
-  if (b === 0) {
-    return Effect.fail(new Error("Cannot divide by zero"))
-  }
-  return Effect.succeed(a / b)
-}
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 
 const foo = Effect.succeed(10)
 const bar = Effect.succeed(2)
