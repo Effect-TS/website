@@ -1,5 +1,124 @@
+import { Idea } from "@/components/Callout"
+
 # Equal
 
-import { Stub } from "@/components/Stub"
+The `@effect/data/Equal` module provides a simple and convenient way to define and check for equality between two values in TypeScript. This tutorial will guide you through the basics of using `@effect/data/Equal` and show you some code examples.
 
-<Stub />
+## Checking Equality
+
+The main function in `@effect/data/Equal` for checking equality is `Equal.equals()`. By default, it uses the `===` operator to perform the comparison. Let's take a look at an example:
+
+```ts
+import * as Equal from "@effect/data/Equal"
+
+const alice = { name: "Alice", age: 30 }
+const bob = { name: "Bob", age: 40 }
+
+console.log(Equal.equals(alice, alice)) // Output: true
+
+console.log(Equal.equals(alice, { name: "Alice", age: 30 })) // Output: false
+console.log(Equal.equals(alice, bob)) // Output: false
+```
+
+In the example above, we compare different objects based on their property values. Note that the equality check returns `true` only when the objects reference the same instance.
+
+## Implementing the Equal Interface
+
+To define custom equality behavior, you can implement the `Equal` interface in your classes. The interface extends the `Hash` interface from the `@effect/data/Hash` module. By implementing the `Equal` interface, you can provide a custom equality function for the object.
+
+Here's an example of implementing the `Equal` interface for a `Person` class:
+
+```ts
+import * as Equal from "@effect/data/Equal"
+import * as Hash from "@effect/data/Hash"
+
+class Person implements Equal.Equal {
+  constructor(readonly name: string, readonly age: number) {}
+
+  [Equal.symbol](that: Equal.Equal): boolean {
+    if (that instanceof Person) {
+      return (
+        Equal.equals(this.name, that.name) && Equal.equals(this.age, that.age)
+      )
+    }
+    return false
+  }
+
+  [Hash.symbol](): number {
+    return this.name.length + this.age
+  }
+}
+```
+
+In the example above, we define the custom equality function `[Equal.symbol]` and the hash function `[Hash.symbol]` for the `Person` class. The purpose of the `Hash` interface is to optimize equality checks by comparing hash values instead of comparing the objects directly.
+
+When comparing two objects for equality using the `Equal` module, the `Equal.equals()` function first checks if the hash values of the objects are equal. If the hash values are not equal, it immediately concludes that the objects are not equal, avoiding the need for a more detailed property-by-property comparison.
+
+## Custom Equality Checking
+
+Once you have implemented the `Equal` interface, you can use the `Equal.equals()` function to check for equality using your custom logic. Here's an example using the `Person` class:
+
+```ts
+const alice = new Person("Alice", 30)
+const bob = new Person("Bob", 40)
+
+console.log(Equal.equals(alice, alice)) // Output: true
+console.log(Equal.equals(alice, new Person("Alice", 30))) // Output: true
+
+console.log(Equal.equals(alice, bob)) // Output: false
+```
+
+In the example above, the equality check returns `true` for `alice` and a new `Person` object with the same property values. It returns `false` for `alice` and `bob` because their property values differ.
+
+## Simplifying Equality with the Data Module
+
+Implementing both `Equal` and `Hash` can be cumbersome if all you need is equality by value.
+Luckily, the `@effect/data/Data` module offers a simplified approach by providing APIs that automatically generate default implementations for `Equal` and `Hash`.
+Here's an example:
+
+```ts
+import * as Data from "@effect/data/Data"
+import * as Equal from "@effect/data/Equal"
+
+const alice = Data.struct({ name: "Alice", age: 30 })
+const bob = Data.struct({ name: "Bob", age: 40 })
+
+console.log(Equal.equals(alice, alice)) // Output: true
+console.log(Equal.equals(alice, Data.struct({ name: "Alice", age: 30 }))) // Output: true
+
+console.log(Equal.equals(alice, { name: "Alice", age: 30 })) // Output: false
+console.log(Equal.equals(alice, bob)) // Output: false
+```
+
+In this example, we use the `Data.struct()` function to create structured data objects and check their equality using `Equal.equals()`. The `Data` module simplifies the process by providing a default implementation for both `Equal` and `Hash`, allowing you to focus on comparing values without the need for explicit implementations.
+
+You can take it a step further and even use arrays to compare multiple values:
+
+```ts
+import * as Data from "@effect/data/Data"
+import * as Equal from "@effect/data/Equal"
+
+const alice = Data.struct({ name: "Alice", age: 30 })
+const bob = Data.struct({ name: "Bob", age: 40 })
+
+const persons = Data.array([alice, bob])
+
+console.log(
+  Equal.equals(
+    persons,
+    Data.array([
+      Data.struct({ name: "Alice", age: 30 }),
+      Data.struct({ name: "Bob", age: 40 }),
+    ])
+  )
+) // Output: true
+```
+
+In this extended example, we create an array of person objects using the `Data.array()` function. We then compare this array with another array of person objects using `Equal.equals()`, and the result is `true` since the arrays contain structurally equal elements.
+
+<Idea>
+  If you only need to compare values for equality without the need for explicit
+  implementations, consider using the `@effect/data/Data` module. It provides
+  convenient APIs that generate default implementations for `Equal` and `Hash`,
+  making equality checks a breeze.
+</Idea>
