@@ -238,7 +238,7 @@ By using the `Effect.serviceOption` function, we can gracefully handle scenarios
 
 ## Using Multiple Services
 
-When we need to manage multiple services in our program, we can utilize the `Effect.all(...tags){:ts}` function.
+When we need to manage multiple services in our program, we can utilize the `Effect.all(tags){:ts}` function.
 By passing a tuple of tags, we can access the corresponding tuple of services:
 
 <Tabs>
@@ -261,7 +261,7 @@ interface Logger {
 const Logger = Context.Tag<Logger>()
 
 // Effect<Random | Logger, never, void>
-const program = Effect.all(Random, Logger).pipe(
+const program = Effect.all([Random, Logger]).pipe(
   Effect.flatMap(([random, logger]) =>
     Effect.flatMap(random.next(), (randomNumber) =>
       logger.log(String(randomNumber))
@@ -291,7 +291,7 @@ const Logger = Context.Tag<Logger>()
 
 // Effect<Random | Logger, never, void>
 const program = Effect.gen(function* (_) {
-  const [random, logger] = yield* _(Effect.all(Random, Logger))
+  const [random, logger] = yield* _(Effect.all([Random, Logger]))
   const randomNumber = yield* _(random.next())
   return yield* _(logger.log(String(randomNumber)))
 })

@@ -208,10 +208,10 @@ The syntax for `all` is as follows:
 ```ts
 import * as Effect from "@effect/io/Effect"
 
-const combinedEffect = Effect.all(...effects)
+const combinedEffect = Effect.all(effects)
 ```
 
-Here, `...effects` represents multiple effects that you want to combine. The `all` function will execute all these effects in sequence and return a new effect that produces a tuple containing the results of each individual effect. This can be useful when you need to perform multiple independent operations and collect their results in a structured way.
+Here, `effects` represents multiple effects that you want to combine. The `all` function will execute all these effects in sequence and return a new effect that produces a tuple containing the results of each individual effect. This can be useful when you need to perform multiple independent operations and collect their results in a structured way.
 
 Keep in mind that the order of the results corresponds to the order of the original effects passed to `all`.
 
@@ -224,7 +224,7 @@ const foo = Effect.succeed(42)
 const bar = Effect.succeed("Hello")
 
 // Effect<never, never, [number, string]>
-const combinedEffect = Effect.all(foo, bar)
+const combinedEffect = Effect.all([foo, bar])
 
 console.log(Effect.runSync(combinedEffect)) // Output: [42, "Hello"]
 ```
@@ -251,7 +251,7 @@ const bar = Effect.succeed(2)
 
 // Effect<never, Error, string>
 const program = pipe(
-  Effect.all(foo, bar),
+  Effect.all([foo, bar]),
   Effect.flatMap(([a, b]) => divide(a, b)),
   Effect.map((n1) => increment(n1)),
   Effect.map((n2) => `Result is: ${n2}`)
@@ -294,7 +294,7 @@ const foo = Effect.succeed(10)
 const bar = Effect.succeed(2)
 
 // Effect<never, Error, string>
-const program = Effect.all(foo, bar).pipe(
+const program = Effect.all([foo, bar]).pipe(
   Effect.flatMap(([a, b]) => divide(a, b)),
   Effect.map((n1) => increment(n1)),
   Effect.map((n2) => `Result is: ${n2}`)
@@ -307,11 +307,11 @@ console.log(Effect.runSync(program)) // Output: "Result is: 6"
 
 Let's summarize the transformation functions we have seen so far:
 
-| **Function** | **Input**                                 | **Output**             |
-| ------------ | ----------------------------------------- | ---------------------- |
-| `map`        | `Effect<R, E, A>`, `A => B`               | `Effect<R, E, B>`      |
-| `flatMap`    | `Effect<R, E, A>`, `A => Effect<R, E, B>` | `Effect<R, E, B>`      |
-| `all`        | `Effect<R, E, A>`, `Effect<R, E, B>`      | `Effect<R, E, [A, B]>` |
+| **Function** | **Input**                                 | **Output**                  |
+| ------------ | ----------------------------------------- | --------------------------- |
+| `map`        | `Effect<R, E, A>`, `A => B`               | `Effect<R, E, B>`           |
+| `flatMap`    | `Effect<R, E, A>`, `A => Effect<R, E, B>` | `Effect<R, E, B>`           |
+| `all`        | `Effect<R, E, A>`, `Effect<R, E, B>`, ... | `Effect<R, E, [A, B, ...]>` |
 
 These functions are powerful tools for transforming and chaining `Effect` computations. They allow you to apply functions to values inside `Effect` and build complex pipelines of computations.
 
