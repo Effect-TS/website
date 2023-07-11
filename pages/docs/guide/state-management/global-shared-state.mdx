@@ -292,7 +292,7 @@ const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
       { concurrency: "unbounded", discard: true }
     )
   )
-  return Effect.all(fiber1, fiber2).pipe(
+  return Effect.all([fiber1, fiber2]).pipe(
     Effect.flatMap(([f1, f2]) =>
       Fiber.join(f1).pipe(Effect.flatMap(() => Fiber.join(f2)))
     ),

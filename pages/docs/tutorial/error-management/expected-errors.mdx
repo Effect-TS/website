@@ -82,13 +82,13 @@ const flakyBar = Random.next.pipe(
 )
 
 // Effect<never, FooError | BarError, string>
-const program = Effect.all(flakyFoo, flakyBar).pipe(
+const program = Effect.all([flakyFoo, flakyBar]).pipe(
   Effect.map(([foo, bar]) => foo + bar)
 )
 ```
 
 In the above program, we have two operations: `flakyFoo` and `flakyBar`, each representing a potential source of error.
-These operations are combined using the `Effect.all(...effects){:ts}` function from the Effect library, which allows us to sequence them together.
+These operations are combined using the `Effect.all(effects){:ts}` function from the Effect library, which allows us to sequence them together.
 
   </Tab>
   <Tab>

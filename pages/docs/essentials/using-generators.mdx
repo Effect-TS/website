@@ -31,7 +31,7 @@ const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
 
 // Effect<never, Error, string>
 const program = Effect.gen(function* (_) {
-  const [a, b] = yield* _(Effect.all(Effect.succeed(10), Effect.succeed(2)))
+  const [a, b] = yield* _(Effect.all([Effect.succeed(10), Effect.succeed(2)]))
   const n1 = yield* _(divide(a, b))
   const n2 = increment(n1)
   return `Result is: ${n2}`
@@ -56,7 +56,7 @@ const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
 
 // Effect<never, Error, string>
 const program = pipe(
-  Effect.all(Effect.succeed(10), Effect.succeed(2)),
+  Effect.all([Effect.succeed(10), Effect.succeed(2)]),
   Effect.flatMap(([a, b]) => divide(a, b)),
   Effect.map((n1) => increment(n1)),
   Effect.map((n2) => `Result is: ${n2}`)
@@ -75,9 +75,9 @@ console.log(Effect.runSync(program)) // Output: "Result is: 6"
 
 When working with generators in Effect, the `_` helper plays a crucial role when yielding an effect. By passing the effect you want to yield to the `_` function
 
-```ts /Effect.all(Effect.succeed(10), Effect.succeed(2))/ /divide(a, b)/
+```ts /Effect.all([Effect.succeed(10), Effect.succeed(2)])/ /divide(a, b)/
 const result = Effect.gen(function* (_) {
-  const [a, b] = yield* _(Effect.all(Effect.succeed(10), Effect.succeed(2)))
+  const [a, b] = yield* _(Effect.all([Effect.succeed(10), Effect.succeed(2)]))
   const n1 = yield* _(divide(a, b))
   ...
 })
@@ -111,7 +111,7 @@ const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
     : Effect.succeed(a / b)
 
 const program = Effect.gen(function* (_) {
-  const [a, b] = yield* _(Effect.all(Effect.succeed(10), Effect.succeed(2)))
+  const [a, b] = yield* _(Effect.all([Effect.succeed(10), Effect.succeed(2)]))
   const n1 = yield* _(divide(a, b))
   const n2 = increment(n1)
   return `Result is: ${n2}`
