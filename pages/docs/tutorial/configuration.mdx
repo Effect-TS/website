@@ -98,6 +98,42 @@ Now we get the following output:
 Application started: localhost:8080
 ```
 
+## Fallback Values
+
+In some cases, you may encounter situations where an environment variable is not set, leading to a missing value in the configuration. To handle such scenarios, Effect provides the `Config.withDefault` function. This function allows you to specify a fallback or default value to use when an environment variable is not present.
+
+Here's how you can use `Config.withDefault` to handle fallback values:
+
+```ts filename="withDefault.ts" /Config.withDefault(8080)/
+import * as Effect from "@effect/io/Effect"
+import * as Config from "@effect/io/Config"
+
+const program = Effect.all([
+  Effect.config(Config.string("HOST")),
+  Effect.config(Config.float("PORT").pipe(Config.withDefault(8080))),
+]).pipe(
+  Effect.flatMap(([host, port]) =>
+    Effect.sync(() => console.log(`Application started: ${host}:${port}`))
+  )
+)
+
+Effect.runSync(program)
+```
+
+When running the program with the command:
+
+```bash filename="Terminal"
+HOST=localhost ts-node withDefault.ts
+```
+
+you will see the following output:
+
+```bash
+Application started: localhost:8080
+```
+
+Even though the `PORT` environment variable is not set, the fallback value of `8080` is used, ensuring that the program continues to run smoothly with a default value.
+
 ## Custom Configurations
 
 In addition to primitive types, we can also define configurations for custom types. To achieve this, we use primitive configs and combine them using `Config` operators (`zip`, `orElse`, `map`, etc.) and constructors (`setOf`, `arrayOf`, `table`, etc.).
