@@ -2,11 +2,29 @@ import { Info, Idea, Error } from "@/components/Callout"
 
 # Creating Effects
 
-Effect provides different ways to create effects. In this tutorial, we will cover some of the common ones that you can use.
+Effect provides different ways to create effects, which are units of computation that encapsulate side effects.
+In this tutorial, we will cover some of the common methods that you can use to create effects.
 
-## From a value
+## Why Not Throw Errors?
 
-To create an `Effect` from a value, you can use the `Effect.succeed` constructor:
+In traditional programming, when an error occurs, it is often handled by throwing an exception:
+
+```ts
+const divide = (a: number, b: number): number => {
+  if (b === 0) {
+    throw new Error("Cannot divide by zero")
+  }
+  return a / b
+}
+```
+
+However, throwing errors can be problematic. The type signatures of functions do not indicate that they can throw exceptions, making it difficult to reason about potential errors.
+
+To address this issue, the `@effect/io/Effect` module introduces dedicated constructors for creating effects that represent both success and failure: `Effect.succeed` and `Effect.fail`. These constructors allow you to explicitly handle success and failure cases while **leveraging the type system to track errors**.
+
+### `Effect.succeed`
+
+To create an effect that represents a successful computation, you can use the `Effect.succeed` constructor. It takes a value as input and produces an effect that succeeds with that value. Here's an example:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -21,9 +39,9 @@ The `program` value has the type `Effect<never, never, number>` and can be inter
 - does not produce any expected error (`never`)
 - succeeds with a value of type `number`
 
-## From an error
+### `Effect.fail`
 
-To create an `Effect` that represents an error, you can use the `Effect.fail` constructor:
+To create an effect that represents a failure, you can use the `Effect.fail` constructor. It takes an error value as input and produces an effect that fails with that error. Here's an example:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -38,15 +56,34 @@ The `program` value has the type `Effect<never, string, never>` and can be inter
 - fails with an expected error of type `string`
 - does not produce any value (`never`)
 
-## From a "thunk"
+With `Effect.succeed` and `Effect.fail`, you can explicitly handle success and failure cases and the type system will ensure that errors are tracked and accounted for.
 
-In JavaScript, you can defer a synchronous computation using a "thunk".
+Let's see an example of rewriting the `divide` function using Effect to make the error handling explicit:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
+```
+
+In this example, the `divide` function explicitly indicates that it can produce an effect that either fails with an `Error` or succeeds with a `number` value. The type signature makes it clear how errors are handled and ensures that callers are aware of the possible outcomes.
+
+## Modeling Synchronous Effects
+
+In JavaScript, you can delay the execution of a synchronous computation using a "thunk".
 
 <Info>
   A "thunk" is a function that takes no arguments and may return some value.
 </Info>
 
 Thunks are useful for delaying the computation of a value until it is needed.
+
+To model synchronous side effects, Effect provides the `Effect.sync` and `Effect.try` constructors, which accept a thunk.
+
+### Effect.sync
 
 You can create an `Effect` from a thunk using the `Effect.sync` constructor:
 
@@ -55,8 +92,8 @@ import * as Effect from "@effect/io/Effect"
 
 // Effect<never, never, number>
 const program = Effect.sync(() => {
-  console.log("Hello, World!")
-  return 42
+  console.log("Hello, World!") // side effect
+  return 42 // return value
 })
 ```
 
@@ -68,7 +105,9 @@ This is because `program` represents the action of writing to the console, but n
 
 <Error>The thunk passed to `sync` should never throw errors.</Error>
 
-If the synchronous computation within the thunk may throw an error, you can use the `Effect.try(thunk){:ts}` constructor.
+### Effect.try
+
+If the synchronous computation within the thunk may throw an error, you can use the `Effect.try` constructor.
 If an error is caught, it will be propagated to the error channel as `unknown`:
 
 ```ts
@@ -102,7 +141,11 @@ try {
 }
 ```
 
-## From a Promise
+## Modeling Asynchronous Effects
+
+To model asynchronous side effects, Effect provides the `Effect.promise` and `Effect.tryPromise` constructors, which accept a thunk that returns a `Promise`.
+
+### Effect.promise
 
 If you're dealing with asynchronous side effects that return a `Promise`, you can use the `Effect.promise` constructor:
 
@@ -110,12 +153,18 @@ If you're dealing with asynchronous side effects that return a `Promise`, you ca
 import * as Effect from "@effect/io/Effect"
 
 // Effect<never, never, number>
-const program = Effect.promise(() => Promise.resolve(42))
+const program = Effect.promise(() => new Promise((resolve) => {
+  setTimeout(() => {
+    resolve("Async operation completed successfully!")
+  }, 2000)
+})
 ```
 
 <Error>The `Promise` passed to `promise` should never reject.</Error>
 
-If the `Promise` within the thunk may reject, you can use the `Effect.tryPromise(thunk){:ts}`constructor.
+### Effect.tryPromise
+
+If the `Promise` within the thunk may reject, you can use the `Effect.tryPromise` constructor.
 If an error is caught, it will be propagated to the error channel as `unknown`:
 
 ```ts
