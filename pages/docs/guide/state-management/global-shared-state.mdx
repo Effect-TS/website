@@ -117,9 +117,9 @@ const program = Effect.flatMap(Counter.make, (counter) => {
     )
 
   return counter.inc.pipe(
-    Effect.zip(logCounter(counter.inc), { parallel: true }),
-    Effect.zip(logCounter(counter.dec), { parallel: true }),
-    Effect.zip(logCounter(counter.inc), { parallel: true }),
+    Effect.zip(logCounter(counter.inc), { concurrent: true }),
+    Effect.zip(logCounter(counter.dec), { concurrent: true }),
+    Effect.zip(logCounter(counter.inc), { concurrent: true }),
     Effect.flatMap(() => counter.get),
     Effect.flatMap((value) =>
       Effect.log(`This counter has a value of ${value}.`)
@@ -156,9 +156,9 @@ const program = Effect.gen(function* (_) {
 
   yield* _(
     counter.inc.pipe(
-      Effect.zip(logCounter(counter.inc), { parallel: true }),
-      Effect.zip(logCounter(counter.dec), { parallel: true }),
-      Effect.zip(logCounter(counter.inc), { parallel: true })
+      Effect.zip(logCounter(counter.inc), { concurrent: true }),
+      Effect.zip(logCounter(counter.dec), { concurrent: true }),
+      Effect.zip(logCounter(counter.inc), { concurrent: true })
     )
   )
   const value = yield* _(counter.get)

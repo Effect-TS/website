@@ -147,9 +147,9 @@ interrupted: All fibers interrupted without errors.
 </Tab>
 </Tabs>
 
-### Interruption of Parallel Effects
+### Interruption of Concurrent Effects
 
-When we combine multiple parallel effects using functions like `Effect.forEach`, it's important to note that if one of the effects is interrupted, all the other parallel effects will also be interrupted. Let's take a look at an example:
+When we combine multiple concurrent effects using functions like `Effect.forEach`, it's important to note that if one of the effects is interrupted, all the other concurrent effects will also be interrupted. Let's take a look at an example:
 
 <Tabs>
 <Tab>
@@ -221,8 +221,8 @@ interrupted: All fibers interrupted without errors.
 </Tab>
 </Tabs>
 
-In this example, we have an array `[1, 2, 3]` representing three parallel tasks. We use `Effect.forEach` to iterate over each element and perform some operations. The `Effect.log` function is used to log messages indicating the start and completion of each task.
+In this example, we have an array `[1, 2, 3]` representing three concurrent tasks. We use `Effect.forEach` to iterate over each element and perform some operations. The `Effect.log` function is used to log messages indicating the start and completion of each task.
 
 Looking at the output, we can see that the task with `n=1` starts and completes successfully. However, the task with `n=2` is interrupted using `Effect.interrupt` before it finishes. As a result, all the fibers are interrupted, and the program terminates with the message "All fibers interrupted without errors."
 
-This example demonstrates how interruption works with parallel effects. If one of the parallel tasks is interrupted, it triggers the interruption of all the other parallel tasks as well.
+This example demonstrates how interruption works with concurrent effects. If one of the concurrent tasks is interrupted, it triggers the interruption of all the other concurrent tasks as well.
