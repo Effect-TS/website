@@ -1,0 +1,110 @@
+import { Warning } from "@/components/Callout"
+
+# Fallback
+
+## orElse
+
+We can attempt one effect, and if it fails, we can try another effect using the `Effect.orElse` combinator:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+const success = Effect.succeed("success")
+const failure = Effect.fail("failure")
+const fallback = Effect.succeed("fallback")
+
+const program1 = success.pipe(Effect.orElse(() => fallback))
+console.log(Effect.runSync(program1)) // Output: "success"
+
+const program2 = failure.pipe(Effect.orElse(() => fallback))
+console.log(Effect.runSync(program2)) // Output: "fallback"
+```
+
+## orElseFail / orElseSucceed
+
+These two operators modify the original failure by replacing it with constant succeed or failure values.
+
+The `Effect.orElseFail` will always replace the original failure with the new one:
+
+```ts /NegativeAgeError | IllegalAgeError/ /string/
+import * as Effect from "@effect/io/Effect"
+
+class NegativeAgeError {
+  readonly _tag = "NegativeAgeError"
+  constructor(readonly age: number) {}
+}
+
+class IllegalAgeError {
+  readonly _tag = "IllegalAgeError"
+  constructor(readonly age: number) {}
+}
+
+const validate = (
+  age: number
+): Effect.Effect<never, NegativeAgeError | IllegalAgeError, number> => {
+  if (age < 0) {
+    return Effect.fail(new NegativeAgeError(age))
+  } else if (age < 18) {
+    return Effect.fail(new IllegalAgeError(age))
+  } else {
+    return Effect.succeed(age)
+  }
+}
+
+// Effect<never, string, number>
+const program1 = validate(3).pipe(Effect.orElseFail(() => "invalid age"))
+```
+
+The `Effect.orElseSucceed` will always replace the original failure with a success value, so the resulting effect cannot fail:
+
+```ts / never/
+// Effect<never, never, number>
+const program2 = validate(3).pipe(Effect.orElseSucceed(() => 0))
+```
+
+## firstSuccessOf
+
+The `firstSuccessOf` operator simplifies running a series of effects and returns the result of the first one that succeeds. If none of the effects succeed, the resulting effect will fail with the error of the last effect in the series.
+
+This operator utilizes `Effect.orElse` to combine multiple effects into a single effect.
+
+In the following example, we attempt to retrieve a configuration from different nodes. If retrieving from the master node fails, we successively try retrieving from the next available nodes until we find a successful result:
+
+```ts
+import * as Effect from "@effect/io/Effect"
+
+interface Config {
+  // ...
+}
+
+const remoteConfig = (name: string): Effect.Effect<never, Error, Config> =>
+  name === "node3"
+    ? Effect.log(`Config for ${name} found`).pipe(
+        Effect.flatMap(() => Effect.succeed({}))
+      )
+    : Effect.log(`Unavailable config for ${name}`).pipe(
+        Effect.flatMap(() => Effect.fail(new Error()))
+      )
+
+// Effect<never, Error, Config>
+const masterConfig = remoteConfig("master")
+
+// Effect<never, Error, Config>[]
+const nodeConfigs = ["node1", "node2", "node3", "node4"].map(remoteConfig)
+
+// Effect<never, Error, Config>
+const config = Effect.firstSuccessOf([masterConfig, ...nodeConfigs])
+
+console.log(Effect.runSync(config))
+/*
+... message="Unavailable config for master"
+... message="Unavailable config for node1"
+... message="Unavailable config for node2"
+... message="Config for node3 found"
+*/
+```
+
+<Warning>
+  If the collection provided to the `Effect.firstSuccessOf` function is empty,
+  it will throw an `IllegalArgumentException` error.
+</Warning>
