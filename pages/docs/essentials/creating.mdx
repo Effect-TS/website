@@ -20,7 +20,7 @@ const divide = (a: number, b: number): number => {
 
 However, throwing errors can be problematic. The type signatures of functions do not indicate that they can throw exceptions, making it difficult to reason about potential errors.
 
-To address this issue, the `@effect/io/Effect` module introduces dedicated constructors for creating effects that represent both success and failure: `Effect.succeed` and `Effect.fail`. These constructors allow you to explicitly handle success and failure cases while **leveraging the type system to track errors**.
+To address this issue, Effect introduces dedicated constructors for creating effects that represent both success and failure: `Effect.succeed` and `Effect.fail`. These constructors allow you to explicitly handle success and failure cases while **leveraging the type system to track errors**.
 
 ### `Effect.succeed`
 
@@ -85,7 +85,7 @@ To model synchronous side effects, Effect provides the `Effect.sync` and `Effect
 
 ### Effect.sync
 
-You can create an `Effect` from a thunk using the `Effect.sync` constructor:
+If you're working with synchronous side effects and you're confident that they will **never throw errors**, you can use the `Effect.sync` constructor:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -98,12 +98,13 @@ const program = Effect.sync(() => {
 ```
 
 In the above example, `Effect.sync` is used to defer the side-effect of writing to the console.
+
 The `program` value has the type `Effect<never, never, number>` because the thunk returns the value `42`.
 
 Note that nothing is logged to the console yet when you inspect it.
 This is because `program` represents the action of writing to the console, but nothing happens until you explicitly run your program.
 
-<Error>The thunk passed to `sync` should never throw errors.</Error>
+<Error>The thunk passed to `Effect.sync` should never throw errors.</Error>
 
 ### Effect.try
 
@@ -121,7 +122,7 @@ const program = Effect.try(
 
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.try` that takes a remapping function:
 
-```ts
+```ts {6}
 import * as Effect from "@effect/io/Effect"
 
 // Effect<never, Error, any>
@@ -143,11 +144,13 @@ try {
 
 ## Modeling Asynchronous Effects
 
-To model asynchronous side effects, Effect provides the `Effect.promise` and `Effect.tryPromise` constructors, which accept a thunk that returns a `Promise`.
+In traditional programming, we often use `Promise`s to handle asynchronous computations. However, dealing with errors in promises can be problematic. By default, `Promise<Value>` only provides the type `Value` for the resolved value, which means errors are not reflected in the type system. This limits the expressiveness and makes it challenging to handle and track errors effectively.
+
+To overcome these limitations, Effect introduces dedicated constructors for creating effects that represent both success and failure in an asynchronous context: `Effect.promise` and `Effect.tryPromise`. These constructors allow you to explicitly handle success and failure cases while **leveraging the type system to track errors**.
 
 ### Effect.promise
 
-If you're dealing with asynchronous side effects that return a `Promise`, you can use the `Effect.promise` constructor:
+If you're working with asynchronous side effects that return a `Promise` and you're confident that the `Promise` will **never reject**, you can use the `Effect.promise` constructor:
 
 ```ts
 import * as Effect from "@effect/io/Effect"
@@ -160,7 +163,15 @@ const program = Effect.promise(() => new Promise((resolve) => {
 })
 ```
 
-<Error>The `Promise` passed to `promise` should never reject.</Error>
+The `program` value has the type `Effect<never, never, number>` and can be interpreted as an effect that:
+
+- does not require any context (`never`)
+- does not produce any expected error (`never`)
+- succeeds with a value of type `number`
+
+<Error>
+  The `Promise` within the thunk passed to `Effect.promise` should never reject.
+</Error>
 
 ### Effect.tryPromise
 
@@ -178,7 +189,7 @@ const program = Effect.tryPromise(() =>
 
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.tryPromise` that takes a remapping function:
 
-```ts
+```ts {6}
 import * as Effect from "@effect/io/Effect"
 
 // Effect<never, Error, Response>
