@@ -104,6 +104,18 @@ In the example above:
 
 The resulting `Effect` contains the transformed value of `6`.
 
+If you simply want to replace the value with a constant, you can use `Effect.as`:
+
+```ts
+import { pipe } from "@effect/data/Function"
+import * as Effect from "@effect/io/Effect"
+
+// Effect<never, never, string>
+const program = pipe(Effect.succeed(5), Effect.as("new value"))
+
+console.log(Effect.runSync(program)) // Output: "new value"
+```
+
 ## flatMap
 
 In the previous example, we saw how to transform an `Effect` using the `map` function when the transformation function returns a regular value. But what if we want to transform an `Effect` using a function that itself returns another `Effect`?
