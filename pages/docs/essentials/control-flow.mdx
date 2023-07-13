@@ -7,8 +7,7 @@ Even though JavaScript provides built-in control flow structures, Effect offers 
 When working with Effect values, we can use the standard JavaScript if-then-else expressions:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Option from "@effect/data/Option"
+import { Effect, Option } from "effect"
 
 const validateWeightOption = (
   weight: number
@@ -26,7 +25,7 @@ Here we are using the [`Option`](../data-types/option) data type to represent th
 We can also handle invalid inputs by using the error channel:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 const validateWeightOrFail = (
   weight: number
@@ -46,8 +45,7 @@ const validateWeightOrFail = (
 Instead of using `if (condition) expression`, we can use the `Effect.when` operator:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Option from "@effect/data/Option"
+import { Effect, Option } from "effect"
 
 const validateWeightOption = (
   weight: number
@@ -60,8 +58,7 @@ If the condition itself involves an effect, we can use `Effect.whenEffect`.
 For example, the following function creates a random option of an integer value:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Random from "@effect/io/Random"
+import { Effect, Random } from "effect"
 
 // Effect<never, never, Option.Option<number>>
 const randomIntOption = Effect.whenEffect(Random.nextBoolean)(Random.nextInt)
@@ -80,8 +77,7 @@ The `Effect.if` operator allows you to provide an effectful predicate. If the pr
 Let's use this operator to create a simple virtual coin flip function:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Random from "@effect/io/Random"
+import { Effect, Random } from "effect"
 
 const onTrue = Effect.log("Head")
 const onFalse = Effect.log("Tail")
@@ -126,7 +122,7 @@ return result
 **Example**
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, number[]>
 const result = Effect.loop(
@@ -148,7 +144,7 @@ You can also use the `discard` option if you're not interested in collecting the
 **Example** (`discard: true`)
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, void>
 const result = Effect.loop(
@@ -198,7 +194,7 @@ return result
 Here's an example of how it works:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, number>
 const result = Effect.iterate(
@@ -220,7 +216,7 @@ It applies the given effectful operation to each element of the `Iterable` seque
 Let's take a look at an example:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, number[]>
 const result = Effect.forEach([1, 2, 3, 4, 5], (index) =>
@@ -248,7 +244,7 @@ The `Effect.forEach` combinator collects the results of each effectful operation
 We also have the `discard` option, which when set to `true` discards the results of each effectful operation:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, void>
 const result = Effect.forEach(

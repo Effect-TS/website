@@ -20,7 +20,7 @@ Let's explore the reasons behind using `Chunk`:
 To create an empty `Chunk`, you can use the following code:
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
+import { Chunk } from "effect"
 
 // Chunk<never>
 const emptyChunk = Chunk.empty()
@@ -29,7 +29,7 @@ const emptyChunk = Chunk.empty()
 If you want to create a `Chunk` with specific values, you can use the `Chunk.make(...values){:ts}` function:
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
+import { Chunk } from "effect"
 
 // NonEmptyChunk<number>
 const nonEmptyChunk = Chunk.make(1, 2, 3)
@@ -40,8 +40,7 @@ Alternatively, you can create a `Chunk` by providing a collection of values. The
 - Creating a `Chunk` from a generic `Iterable`:
 
   ```ts
-  import * as Chunk from "@effect/data/Chunk"
-  import * as List from "@effect/data/List"
+  import { Chunk, List } from "effect"
 
   // Chunk<number>
   const fromArray = Chunk.fromIterable([1, 2, 3])
@@ -53,7 +52,7 @@ Alternatively, you can create a `Chunk` by providing a collection of values. The
 - Creating a `Chunk` from an `Array`:
 
   ```ts
-  import * as Chunk from "@effect/data/Chunk"
+  import { Chunk } from "effect"
 
   // Chunk<number>
   const fromUnsafeArray = Chunk.unsafeFromArray([1, 2, 3])
@@ -72,7 +71,7 @@ Alternatively, you can create a `Chunk` by providing a collection of values. The
 You can concatenate two Chunks using the `concat` function:
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
+import { Chunk } from "effect"
 
 // Chunk<string | number>
 const concatenatedChunk = Chunk.appendAll(
@@ -88,7 +87,7 @@ console.log(concatenatedChunk) // Output: Chunk(1, 2, "a", "b")
 To drop elements from the beginning of a `Chunk`, you can use the `drop` function:
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
+import { Chunk } from "effect"
 
 // Chunk<number>
 const droppedChunk = Chunk.drop(Chunk.make(1, 2, 3, 4), 2) // Drops the first 2 elements from the Chunk
@@ -99,8 +98,7 @@ const droppedChunk = Chunk.drop(Chunk.make(1, 2, 3, 4), 2) // Drops the first 2 
 You can compare two `Chunk`s for equality using the `Equal.equals` function:
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
-import * as Equal from "@effect/data/Equal"
+import { Chunk, Equal } from "effect"
 
 const chunk1 = Chunk.make(1, 2)
 const chunk2 = Chunk.make(1, 2, 3)
@@ -114,7 +112,7 @@ const areEqual = Equal.equals(chunk1, chunk2)
 To convert a `Chunk` to a `ReadonlyArray`, you can use the `toReadonlyArray` function:
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
+import { Chunk } from "effect"
 
 // ReadonlyArray<number>
 const readonlyArray = Chunk.toReadonlyArray(Chunk.make(1, 2, 3))

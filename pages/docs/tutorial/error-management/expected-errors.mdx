@@ -12,7 +12,7 @@ As we saw in the tutorial [Creating Effects](../../essentials/creating), we can 
 that represents an error:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 class HttpError {
   readonly _tag = "HttpError"
@@ -58,8 +58,7 @@ The following program serves as an illustration of how errors are automatically 
   <Tab>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Random from "@effect/io/Random"
+import { Effect, Random } from "effect"
 
 class FooError {
   readonly _tag = "FooError"
@@ -94,8 +93,7 @@ These operations are combined using the `Effect.all(effects){:ts}` function from
   <Tab>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Random from "@effect/io/Random"
+import { Effect, Random } from "effect"
 
 class FooError {
   readonly _tag = "FooError"
@@ -159,7 +157,7 @@ const recovered = program.pipe(
 <Tab>
 
 ```ts {6-9}
-import * as Either from "@effect/data/Either"
+import { Effect, Either } from "effect"
 
 // Effect<never, never, string>
 const recovered = Effect.gen(function* (_) {
@@ -206,7 +204,7 @@ and the program will proceed with the recovery logic specified within the handle
 <Tab>
 
 ```ts {8-10}
-import * as Either from "@effect/data/Either"
+import { Effect, Either } from "effect"
 
 // Effect<never, BarError, string>
 const recovered = Effect.gen(function* (_) {
@@ -253,7 +251,7 @@ const recovered = program.pipe(
 <Tab>
 
 ```ts {11}
-import * as Either from "@effect/data/Either"
+import { Effect, Either } from "effect"
 
 // Effect<never, never, string>
 const recovered = Effect.gen(function* (_) {
@@ -303,7 +301,7 @@ and the corresponding value is the error handler function to be executed when th
 <Tab>
 
 ```ts {8-13}
-import * as Either from "@effect/data/Either"
+import { Effect, Either } from "effect"
 
 // Effect<never, never, string>
 const recovered = Effect.gen(function* (_) {
@@ -360,7 +358,7 @@ The provided error transformation function takes the original error as an input 
 <Tab>
 
 ```ts {8-13}
-import * as Either from "@effect/data/Either"
+import { Effect, Either } from "effect"
 
 // Effect<never, Error, string>
 const modified = Effect.gen(function* (_) {
@@ -400,7 +398,7 @@ In simpler terms, the short-circuiting behavior ensures that if something goes w
   <Tab>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 const operation1 = Effect.sync(() => console.log("operation1"))
 const operation2 = Effect.fail(new Error("Something went wrong!"))
@@ -425,7 +423,7 @@ Failure("Something went wrong!")
 <Tab>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 const operation1 = Effect.sync(() => console.log("operation1"))
 const operation2 = Effect.fail(new Error("Something went wrong!"))

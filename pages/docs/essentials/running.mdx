@@ -9,7 +9,7 @@ To execute an `Effect`, we can utilize a variety of "run" functions provided by 
 The `runSync` function is used to execute an Effect synchronously, which means it runs immediately and returns the result.
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, number>
 const program = Effect.sync(() => {
@@ -34,7 +34,7 @@ If you check the console, you will see the message `"Hello, World!"` printed.
 </Warning>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 Effect.runSync(Effect.fail("error")) // throws
 
@@ -47,7 +47,7 @@ The `runSyncExit` function is used to execute an Effect synchronously, which mea
 (a data type used to describe the result of executing an `Effect` workflow).
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 Effect.runSyncExit(Effect.succeed(1)) // Exit.succeed(1)
 
@@ -60,7 +60,7 @@ Effect.runSyncExit(Effect.fail("error")) // Exit.fail(...)
 </Warning>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 Effect.runSyncExit(Effect.promise(() => Promise.resolve(1))) // throws
 ```
@@ -70,7 +70,7 @@ Effect.runSyncExit(Effect.promise(() => Promise.resolve(1))) // throws
 The `runPromise` function is used to execute an Effect and obtain the result as a `Promise`.
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 await Effect.runPromise(Effect.succeed(1)) // 1
 ```
@@ -78,7 +78,7 @@ await Effect.runPromise(Effect.succeed(1)) // 1
 <Warning>`runPromise` will reject with an error if your Effect fails</Warning>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 Effect.runPromise(Effect.fail("error")) // rejects
 ```
@@ -89,8 +89,7 @@ The `runPromiseExit` function is used to execute an Effect and obtain the result
 (a data type used to describe the result of executing an `Effect` workflow).
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Exit from "@effect/io/Exit"
+import { Effect } from "effect"
 
 await Effect.runPromiseExit(Effect.succeed(1)) // Exit.succeed(1)
 

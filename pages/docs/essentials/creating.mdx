@@ -27,7 +27,7 @@ To address this issue, Effect introduces dedicated constructors for creating eff
 To create an effect that represents a successful computation, you can use the `Effect.succeed` constructor. It takes a value as input and produces an effect that succeeds with that value. Here's an example:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, number>
 const program = Effect.succeed(42)
@@ -44,7 +44,7 @@ The `program` value has the type `Effect<never, never, number>` and can be inter
 To create an effect that represents a failure, you can use the `Effect.fail` constructor. It takes an error value as input and produces an effect that fails with that error. Here's an example:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, string, never>
 const program = Effect.fail("my error")
@@ -61,7 +61,7 @@ With `Effect.succeed` and `Effect.fail`, you can explicitly handle success and f
 Let's see an example of rewriting the `divide` function using Effect to make the error handling explicit:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
   b === 0
@@ -88,7 +88,7 @@ To model synchronous side effects, Effect provides the `Effect.sync` and `Effect
 If you're working with synchronous side effects and you're confident that they will **never throw errors**, you can use the `Effect.sync` constructor:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, number>
 const program = Effect.sync(() => {
@@ -112,7 +112,7 @@ If the synchronous computation within the thunk may throw an error, you can use 
 If an error is caught, it will be propagated to the error channel as `unknown`:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, unknown, any>
 const program = Effect.try(
@@ -123,7 +123,7 @@ const program = Effect.try(
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.try` that takes a remapping function:
 
 ```ts {6}
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, Error, any>
 const program = Effect.try({
@@ -153,7 +153,7 @@ To overcome these limitations, Effect introduces dedicated constructors for crea
 If you're working with asynchronous side effects that return a `Promise` and you're confident that the `Promise` will **never reject**, you can use the `Effect.promise` constructor:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, number>
 const program = Effect.promise(() => new Promise((resolve) => {
@@ -179,7 +179,7 @@ If the `Promise` within the thunk may reject, you can use the `Effect.tryPromise
 If an error is caught, it will be propagated to the error channel as `unknown`:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, unknown, Response>
 const program = Effect.tryPromise(() =>
@@ -190,7 +190,7 @@ const program = Effect.tryPromise(() =>
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.tryPromise` that takes a remapping function:
 
 ```ts {6}
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, Error, Response>
 const program = Effect.tryPromise({
@@ -207,7 +207,7 @@ To handle callback-based APIs, Effect provides the `Effect.async` constructor.
 For example, let's wrap the `readFile` async API from the Node.js `fs` module with Effect:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 import * as NodeFS from "node:fs"
 
 // Effect<never, NodeJS.ErrnoException, Buffer>

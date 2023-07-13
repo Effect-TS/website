@@ -78,9 +78,7 @@ Just like in the [Managing Services](services) tutorial, we must create a `Tag` 
 And because the service has no dependencies, we can create the layer directly using `Layer.succeed(tag, service){:ts}`:
 
 ```ts filename="MeasuringCup.ts"
-import * as Context from "@effect/data/Context"
-import * as Effect from "@effect/io/Effect"
-import * as Layer from "@effect/io/Layer"
+import { Effect, Context, Layer } from "effect"
 
 // Define the interface for the MeasuringCup service
 export interface MeasuringCup {
@@ -117,9 +115,7 @@ Just like we did in the [Services](services#using-the-service) tutorial, we can 
 Given that mapping over a Tag is an effectful operation, we use `Layer.effect(tag, effect){:ts}` to create a `Layer` from the resulting `Effect`.
 
 ```ts filename="Ingredients.ts"
-import * as Context from "@effect/data/Context"
-import * as Effect from "@effect/io/Effect"
-import * as Layer from "@effect/io/Layer"
+import { Effect, Context, Layer } from "effect"
 import { MeasuringCup } from "./MeasuringCup"
 
 // Sugar
@@ -173,9 +169,7 @@ Finally, we can use our ingredients to assemble the final recipe:
 <Tab>
 
 ```ts filename="Recipe.ts"
-import * as Context from "@effect/data/Context"
-import * as Effect from "@effect/io/Effect"
-import * as Layer from "@effect/io/Layer"
+import { Effect, Context, Layer } from "effect"
 import { Flour, Sugar } from "./Ingredients"
 
 export interface Recipe {
@@ -199,9 +193,7 @@ export const RecipeLive = Layer.effect(
 <Tab>
 
 ```ts filename="Recipe.ts"
-import * as Context from "@effect/data/Context"
-import * as Effect from "@effect/io/Effect"
-import * as Layer from "@effect/io/Layer"
+import { Effect, Context, Layer } from "effect"
 import { Flour, Sugar } from "./Ingredients"
 
 export interface Recipe {
@@ -251,7 +243,7 @@ For example, in our cake recipe application above, we can merge our `FlourLive` 
 into a single `IngredientsLive` layer, which retains the requirements of both layers (`MeasuringCup`) and the outputs of both layers (`Flour | Sugar`):
 
 ```ts filename="main.ts"
-import * as Layer from "@effect/io/Layer"
+import { Layer } from "effect"
 import { FlourLive, SugarLive } from "./Ingredients"
 
 // Layer<MeasuringCup, never, Flour | Sugar>
@@ -272,7 +264,7 @@ resulting in one layer with the requirement of the first, and the output of the 
 Now we can compose the `MeasuringCupLive` layer with the `IngredientsLive` layer, and then compose the result with the `RecipeLive` layer:
 
 ```ts filename="main.ts"
-import * as Layer from "@effect/io/Layer"
+import { Layer } from "effect"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
 import { RecipeLive } from "./Recipe"
@@ -295,12 +287,11 @@ we can provide it to our program to satisfy the program's requirements using `Ef
 <Tabs>
 <Tab>
 
-```ts filename="main.ts" {28}
-import * as Layer from "@effect/io/Layer"
+```ts filename="main.ts" {27}
+import { Effect, Layer } from "effect"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
 import { Recipe, RecipeLive } from "./Recipe"
-import * as Effect from "@effect/io/Effect"
 
 // Layer<MeasuringCup, never, Flour | Sugar>
 const IngredientsLive = Layer.merge(FlourLive, SugarLive)
@@ -336,12 +327,11 @@ The `Effect.forEach` function is used to iterate over a collection of values (`s
 </Tab>
 <Tab>
 
-```ts filename="main.ts" {26}
-import * as Layer from "@effect/io/Layer"
+```ts filename="main.ts" {25}
+import { Effect, Layer } from "effect"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
 import { Recipe, RecipeLive } from "./Recipe"
-import * as Effect from "@effect/io/Effect"
 
 // Layer<MeasuringCup, never, Flour | Sugar>
 const IngredientsLive = Layer.merge(FlourLive, SugarLive)

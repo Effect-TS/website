@@ -29,8 +29,7 @@ Understanding how to manage services and provide the necessary context to effect
 Let's start by creating a service for a random number generator.
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Context from "@effect/data/Context"
+import { Effect, Context } from "effect"
 
 interface Random {
   readonly next: () => Effect.Effect<never, never, number>
@@ -167,7 +166,7 @@ Let's take a look at an example that demonstrates the usage of optional services
 To determine if we can use the service, we can use the `Option.match` function provided by the `@effect/data/Option` module. This function allows us to perform different actions based on whether the service is available or not. It takes two callbacks as arguments: one for the case when the service is not available, and another for the case when it is available.
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 // Effect<never, never, void>
 const program = Effect.serviceOption(Random).pipe(
@@ -189,7 +188,7 @@ const program = Effect.serviceOption(Random).pipe(
 To determine what action to take, we can use the `Option.isNone` function provided by the `@effect/data/Option` module. This function allows us to check if the service is available or not by returning `true` when the service is not available.
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 // Effect<never, never, void>
 const program = Effect.gen(function* (_) {
@@ -245,8 +244,7 @@ By passing a tuple of tags, we can access the corresponding tuple of services:
 <Tab>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Context from "@effect/data/Context"
+import { Effect, Context } from "effect"
 
 interface Random {
   readonly next: () => Effect.Effect<never, never, number>
@@ -274,8 +272,7 @@ const program = Effect.all([Random, Logger]).pipe(
 <Tab>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Context from "@effect/data/Context"
+import { Effect, Context } from "effect"
 
 interface Random {
   readonly next: () => Effect.Effect<never, never, number>
