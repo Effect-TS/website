@@ -1,32 +1,32 @@
 # Built-in Schedules
 
-To demonstrate the functionality of different schedules, we will be working with the following effect:
+To demonstrate the functionality of different schedules, we will be working with the following helper:
 
-```ts
-import * as Effect from "@effect/io/Effect"
+```ts filename="Delay.ts"
+import { Effect } from "effect"
 
 let start = new Date().getTime()
 
-const logDelay = Effect.sync(() => {
+export const log = Effect.sync(() => {
   const now = new Date().getTime()
   console.log(`delay: ${now - start}`)
   start = now
 })
 ```
 
-The `logDelay` effect logs the time delay between each execution. We will use this effect to showcase the behavior of various built-in schedules.
+The `log` helper logs the time delay between each execution. We will use this helper to showcase the behavior of various built-in schedules.
 
 ## forever
 
 A schedule that always recurs and produces number of recurrence at each run.
 
 ```ts
-import * as Schedule from "@effect/io/Schedule"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Schedule } from "effect"
+import * as Delay from "./Delay"
 
 const schedule = Schedule.forever
 
-Effect.runPromise(Effect.repeat(logDelay, schedule))
+Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
 delay: 3
 delay: 7 < forever
@@ -45,12 +45,12 @@ delay: 1
 A schedule that recurs one time.
 
 ```ts
-import * as Schedule from "@effect/io/Schedule"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Schedule } from "effect"
+import * as Delay from "./Delay"
 
 const schedule = Schedule.once
 
-Effect.runPromise(Effect.repeat(logDelay, schedule))
+Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
 delay: 3
 delay: 8 < once
@@ -62,12 +62,12 @@ delay: 8 < once
 A schedule that only recurs the specified number of times.
 
 ```ts
-import * as Schedule from "@effect/io/Schedule"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Schedule } from "effect"
+import * as Delay from "./Delay"
 
 const schedule = Schedule.recurs(5)
 
-Effect.runPromise(Effect.repeat(logDelay, schedule))
+Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
 delay: 5
 delay: 8 < recurs
@@ -91,12 +91,12 @@ On the other hand, the `fixed` schedule recurs on a fixed interval, regardless o
 A schedule that recurs continuously, each repetition spaced the specified duration from the last run.
 
 ```ts
-import * as Schedule from "@effect/io/Schedule"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Schedule } from "effect"
+import * as Delay from "./Delay"
 
 const schedule = Schedule.spaced("200 millis")
 
-const action = Effect.delay(logDelay, "100 millis")
+const action = Effect.delay(Delay.log, "100 millis")
 
 Effect.runPromise(Effect.repeat(action, schedule))
 /*
@@ -116,12 +116,12 @@ The first delay is approximately 100 milliseconds, as the initial execution is n
 A schedule that recurs on a fixed interval. Returns the number of repetitions of the schedule so far.
 
 ```ts
-import * as Schedule from "@effect/io/Schedule"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Schedule } from "effect"
+import * as Delay from "./Delay"
 
 const schedule = Schedule.fixed("200 millis")
 
-const action = Effect.delay(logDelay, "100 millis")
+const action = Effect.delay(Delay.log, "100 millis")
 
 Effect.runPromise(Effect.repeat(action, schedule))
 /*
@@ -141,12 +141,12 @@ The first delay is approximately 100 milliseconds, as the initial execution is n
 A schedule that recurs using exponential backoff
 
 ```ts
-import * as Schedule from "@effect/io/Schedule"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Schedule } from "effect"
+import * as Delay from "./Delay"
 
 const schedule = Schedule.exponential("10 millis")
 
-Effect.runPromise(Effect.repeat(logDelay, schedule))
+Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
 delay: 4
 delay: 17 < exponential
@@ -166,12 +166,12 @@ delay: 1287
 A schedule that always recurs, increasing delays by summing the preceding two delays (similar to the fibonacci sequence). Returns the current duration between recurrences.
 
 ```ts
-import * as Schedule from "@effect/io/Schedule"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Schedule } from "effect"
+import * as Delay from "./Delay"
 
 const schedule = Schedule.fibonacci("10 millis")
 
-Effect.runPromise(Effect.repeat(logDelay, schedule))
+Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
 delay: 3
 delay: 17 < fibonacci

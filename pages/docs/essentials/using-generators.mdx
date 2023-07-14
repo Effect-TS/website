@@ -19,8 +19,7 @@ Let's rewrite the pipeline we created in the previous section using the `Effect.
   <Tab>
 
 ```ts
-// import { pipe } from "@effect/data/Function"
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 const increment = (x: number) => x + 1
 
@@ -44,8 +43,7 @@ console.log(Effect.runSync(program)) // Output: "Result is: 6"
   <Tab>
 
 ```ts
-import { pipe } from "@effect/data/Function"
-import * as Effect from "@effect/io/Effect"
+import { pipe, Effect } from "effect"
 
 const increment = (x: number) => x + 1
 
@@ -159,9 +157,8 @@ The `_` helper can also be used as a `pipe` function, allowing you to mix and ma
 
 In the following example, the `Random.next()` effect is piped into the `Effect.map` function:
 
-```ts {6-7}
-import * as Effect from "@effect/io/Effect"
-import * as Random from "@effect/io/Random"
+```ts {5-6}
+import { Effect, Random } from "effect"
 
 const program = Effect.gen(function* (_) {
   const n = yield* _(

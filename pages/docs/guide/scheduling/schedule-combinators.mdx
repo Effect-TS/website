@@ -5,7 +5,7 @@ Schedules define stateful, possibly effectful, recurring schedules of events, an
 To demonstrate the functionality of different combinators, we will be working with the following helper:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 let start = new Date().getTime()
 
@@ -31,8 +31,7 @@ Schedules compose in the following primary ways:
 Combines two schedules through union, by recurring if either schedule wants to recur, using the minimum of the two delays between recurrences.
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Schedule from "@effect/io/Schedule"
+import { Effect, Schedule } from "effect"
 
 const schedule = Schedule.union(
   Schedule.exponential("100 millis"),
@@ -62,8 +61,7 @@ When we use the combined schedule with `Effect.repeat`, we observe that the effe
 Combines two schedules through the intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences.
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Schedule from "@effect/io/Schedule"
+import { Effect, Schedule } from "effect"
 
 const schedule = Schedule.intersect(
   Schedule.exponential("10 millis"),
@@ -88,8 +86,7 @@ When we use the combined schedule with `Effect.repeat`, we observe that the effe
 Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy.
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Schedule from "@effect/io/Schedule"
+import { Effect, Schedule } from "effect"
 
 const schedule = Schedule.recurs(5).pipe(
   Schedule.andThen(Schedule.spaced("1 seconds"))
@@ -123,8 +120,7 @@ When a resource is out of service due to overload or contention, retrying and ba
 [Research](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) shows that `Schedule.jittered(0.0, 1.0)` is very suitable for retrying.
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Schedule from "@effect/io/Schedule"
+import { Effect, Schedule } from "effect"
 
 const schedule = Schedule.jittered(Schedule.exponential("10 millis"))
 
@@ -151,8 +147,7 @@ In this example, we use the `jittered` combinator to apply jitter to an exponent
 We can filter inputs or outputs of a schedule with `whileInput` and `whileOutput`.
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Schedule from "@effect/io/Schedule"
+import { Effect, Schedule } from "effect"
 
 const schedule = Schedule.recurs(5).pipe(Schedule.whileOutput((n) => n <= 2))
 
@@ -173,8 +168,7 @@ In this example, we create a schedule using `Schedule.recurs(5)` to repeat a cer
 Modifies the delay of a schedule.
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Schedule from "@effect/io/Schedule"
+import { Effect, Schedule } from "effect"
 
 const schedule = Schedule.spaced("1 seconds").pipe(
   Schedule.modifyDelay((_) => "100 millis")
@@ -198,8 +192,7 @@ Whenever we need to effectfully process each schedule input/output, we can use `
 We can use these two functions for logging purposes:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Schedule from "@effect/io/Schedule"
+import { Effect, Schedule } from "effect"
 
 const schedule = Schedule.recurs(2).pipe(
   Schedule.tapOutput((n) => Effect.sync(() => console.log(`repeating ${n}`)))

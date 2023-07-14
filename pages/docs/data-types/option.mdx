@@ -16,7 +16,7 @@ The `Option` type is versatile and can be applied in various scenarios, includin
 The `some` constructor takes a value of type `A` and returns an `Option<A>` that holds that value:
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 // Option<number>
 const value = Option.some(1) // An Option holding the number 1
@@ -25,7 +25,7 @@ const value = Option.some(1) // An Option holding the number 1
 On the other hand, the `none` constructor returns an `Option<never>`, representing the absence of a value:
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 // Option<never>
 const noValue = Option.none() // An Option holding no value
@@ -37,7 +37,7 @@ Let's look at an example of a `User` model where the `"email"` property is optio
 To represent this, we can use the `Option<string>` type:
 
 ```ts {6}
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 interface User {
   readonly id: number
@@ -72,7 +72,7 @@ const withoutEmail: User = {
 You can determine whether an `Option` is a `Some` or a `None` by using the `isSome` and `isNone` guards:
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 const foo = Option.some(1)
 
@@ -91,7 +91,7 @@ if (Option.isNone(foo)) {
 The `Option.match` function allows you to handle different cases of an `Option` value by providing separate actions for each case:
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 const foo = Option.some(1)
 
@@ -113,7 +113,7 @@ console.log(result) // Output: "Option has a value: 1"
 The `Option.map` function allows you to transform the value inside an `Option` without having to unwrap and wrap the underlying value. Let's see an example:
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 const maybeIncremented = Option.map(Option.some(1), (n) => n + 1) // some(2)
 ```
@@ -121,7 +121,7 @@ const maybeIncremented = Option.map(Option.some(1), (n) => n + 1) // some(2)
 The convenient aspect of using `Option` is how it handles the absence of a value, represented by `None`:
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 const maybeIncremented = Option.map(Option.none(), (n) => n + 1) // none
 ```
@@ -133,7 +133,7 @@ The `flatMap` function works similarly to `map`, but with an additional feature.
 Let's explore an example that involves a **nested** optional property. We have a `User` model with an optional `address` field of type `Option<Address>`:
 
 ```ts {7}
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 interface User {
   readonly id: number
@@ -180,7 +180,7 @@ To retrieve the value stored within an `Option`, you can use various functions p
 - `getOrThrow`: It retrieves the wrapped value from an `Option`, or throws an error if the `Option` is a `None`. Here's an example:
 
   ```ts
-  import * as Option from "@effect/data/Option"
+  import { Option } from "effect"
 
   Option.getOrThrow(Option.some(10)) // 10
   Option.getOrThrow(Option.none()) // throws Error("getOrThrow called on a None")
@@ -189,7 +189,7 @@ To retrieve the value stored within an `Option`, you can use various functions p
 - `getOrNull` and `getOrUndefined`: These functions are useful when you want to work with code that doesn't use `Option`. They allow you to retrieve the value of an `Option` as `null` or `undefined`, respectively. Examples:
 
   ```ts
-  import * as Option from "@effect/data/Option"
+  import { Option } from "effect"
 
   Option.getOrNull(Option.some(5)) // 5
   Option.getOrNull(Option.none()) // null
@@ -201,7 +201,7 @@ To retrieve the value stored within an `Option`, you can use various functions p
 - `getOrElse`: This function lets you provide a default value that will be returned if the `Option` is a `None`. Here's an example:
 
   ```ts
-  import * as Option from "@effect/data/Option"
+  import { Option } from "effect"
 
   Option.getOrElse(Option.some(5), () => 0) // 5
   Option.getOrElse(Option.none(), () => 0) // 0
@@ -212,7 +212,7 @@ To retrieve the value stored within an `Option`, you can use various functions p
 In certain situations, when a computation returns `None`, you may want to try an alternative computation that returns an `Option`. This is where the `Option.orElse` function comes in handy. It allows you to chain multiple computations together and continue with the next one if the previous one resulted in `None`. This can be useful for implementing retry logic, where you want to attempt a computation multiple times until you either succeed or exhaust all possible attempts.
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 // Simulating a computation that may or may not produce a result
 const performComputation = (): Option.Option<number> =>
@@ -235,7 +235,7 @@ Option.match(result, {
 Additionally, the `Option.firstSomeOf` function can be used to retrieve the first value that is `Some` within an iterable of `Option` values:
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 const first = Option.firstSomeOf([
   Option.none(),
@@ -252,7 +252,7 @@ When working with the `Option` data type, you may come across code that uses `un
 You can create an `Option` from a nullable value using the `fromNullable` API.
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 Option.fromNullable(null) // none()
 Option.fromNullable(undefined) // none()
@@ -265,7 +265,7 @@ Conversely, if you have a value of type `Option` and want to convert it to a nul
 - Convert `None` to `undefined` using the `getOrUndefined` API.
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 Option.getOrNull(Option.some(1)) // 1
 Option.getOrNull(Option.none()) // null
@@ -286,8 +286,7 @@ In the context of `Effect`, the two members of the `Option` type are treated as 
 To illustrate this interoperability, let's consider the following example:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Option from "@effect/data/Option"
+import { Effect, Option } from "effect"
 
 const head = <A>(as: ReadonlyArray<A>): Option.Option<A> =>
   as.length > 0 ? Option.some(as[0]) : Option.none()
@@ -304,7 +303,7 @@ Effect.runSync(Effect.succeed([]).pipe(Effect.flatMap(head))) // Throws NoSuchEl
 The `Option.zipWith` function allows you to combine two `Option` values using a provided function. It creates a new `Option` that holds the combined value of both original `Option` values.
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 const maybeName = Option.some("John")
 const maybeAge = Option.some(25)
@@ -326,7 +325,7 @@ The `zipWith` function takes three arguments:
 It's important to note that if either of the two `Option` values is `None`, the resulting `Option` will also be `None`:
 
 ```ts {4}
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 const maybeName = Option.some("John")
 const maybeAge = Option.none()
@@ -353,7 +352,7 @@ These functions allow you to gain insights into what's happening within your cod
 Here's an example to demonstrate how you can use `inspectSome` and `inspectNone` for debugging:
 
 ```ts
-import * as Option from "@effect/data/Option"
+import { Option } from "effect"
 
 interface User {
   readonly id: number

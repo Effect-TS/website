@@ -7,7 +7,7 @@ import { Warning } from "@/components/Callout"
 We can attempt one effect, and if it fails, we can try another effect using the `Effect.orElse` combinator:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 const success = Effect.succeed("success")
 const failure = Effect.fail("failure")
@@ -27,7 +27,7 @@ These two operators modify the original failure by replacing it with constant su
 The `Effect.orElseFail` will always replace the original failure with the new one:
 
 ```ts /NegativeAgeError | IllegalAgeError/ /string/
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 class NegativeAgeError {
   readonly _tag = "NegativeAgeError"
@@ -71,7 +71,7 @@ This operator utilizes `Effect.orElse` to combine multiple effects into a single
 In the following example, we attempt to retrieve a configuration from different nodes. If retrieving from the master node fails, we successively try retrieving from the next available nodes until we find a successful result:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 interface Config {
   // ...

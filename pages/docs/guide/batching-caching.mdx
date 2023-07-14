@@ -15,7 +15,7 @@ It is very common in apps to depend on a number of external data sources like:
 Let's start with a fairly minimal model description:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 interface User {
   readonly _tag: "User"
@@ -128,7 +128,7 @@ Well **not anymore.**
 Let's rewrite our example to be as efficient as possible - we'll start by writing a model for the requests that our data sources support:
 
 ```ts
-import * as Request from "@effect/io/Request"
+import { Request } from "effect"
 
 interface GetTodos extends Request.Request<GetTodosError, Todo[]> {
   readonly _tag: "GetTodos"
@@ -162,7 +162,7 @@ Here we will define a single resolver per query. There is no right or wrong answ
 but usually you will split up your resolvers based on which API calls can be batched.
 
 ```ts
-import * as RequestResolver from "@effect/io/RequestResolver"
+import { RequestResolver } from "effect"
 
 // we assume we cannot batch GetTodos, we create a normal resolver
 const GetTodosResolver = RequestResolver.fromFunctionEffect(
@@ -292,8 +292,7 @@ you always have to specify how context is accessed.
 Let's see how we would do it:
 
 ```ts
-import * as Context from "@effect/data/Context"
-import * as Layer from "@effect/io/Layer"
+import { Context, Layer } from "effect"
 
 interface HttpService {
   fetch: typeof fetch
@@ -420,7 +419,7 @@ const getUserById = (id: number) =>
 Assuming you've wired everything up correctly the following program:
 
 ```ts
-import * as Schedule from "@effect/io/Schedule"
+import { Schedule } from "effect"
 
 // Effect<TodosService, GetTodosError | GetUserError | SendEmailError, number>
 const program = getTodos.pipe(
@@ -447,7 +446,7 @@ or maybe you want a global cache with a different setup, or a mix of both.
 To cover those scenarios you'd create a custom cache like the following:
 
 ```ts {9-13}
-import * as Schedule from "@effect/io/Schedule"
+import { Schedule } from "effect"
 
 // Effect<TodosService, GetTodosError | GetUserError | SendEmailError, number>
 const program = getTodos.pipe(
@@ -517,9 +516,7 @@ calls or intensive work.
 Let's see how we would go about using cache:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Cache from "@effect/io/Cache"
-import * as Duration from "@effect/data/Duration"
+import { Effect, Cache } from "effect"
 
 declare const intensiveWork: (
   key: string

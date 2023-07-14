@@ -25,9 +25,8 @@ Let's start with a simple example of how to read configuration from environment 
 <Tabs>
 <Tab>
 
-```ts filename="primitives.ts" showLineNumbers
-import * as Effect from "@effect/io/Effect"
-import * as Config from "@effect/io/Config"
+```ts filename="primitives.ts"
+import { Effect, Config } from "effect"
 
 // Effect<never, ConfigError, void>
 const program = Effect.all([
@@ -42,24 +41,11 @@ const program = Effect.all([
 Effect.runSync(program)
 ```
 
-If we run this application we will get the following output:
-
-```bash filename="Terminal" {3-6}
-ts-node primitives.ts
-
-/path/to/primitives.ts:6
-    Effect.config(Config.string("HOST")),
-           ^
-(Missing data at HOST: "Expected HOST to exist in the process context")
-...
-```
-
 </Tab>
 <Tab>
 
-```ts filename="primitives.ts" showLineNumbers
-import * as Effect from "@effect/io/Effect"
-import * as Config from "@effect/io/Config"
+```ts filename="primitives.ts"
+import { Effect, Config } from "effect"
 
 // Effect<never, ConfigError, void>
 const program = Effect.gen(function* (_) {
@@ -71,20 +57,14 @@ const program = Effect.gen(function* (_) {
 Effect.runSync(program)
 ```
 
+</Tab>
+</Tabs>
+
 If we run this application we will get the following output:
 
 ```bash filename="Terminal" {3-6}
-ts-node primitives.ts
-
-/path/to/primitives.ts:6
-  const host = yield* _(Effect.config(Config.string("HOST")))
-                               ^
 (Missing data at HOST: "Expected HOST to exist in the process context")
-...
 ```
-
-</Tab>
-</Tabs>
 
 This is because we have not provided any configuration. Let's try running it with the following environment variables:
 
@@ -105,8 +85,7 @@ In some cases, you may encounter situations where an environment variable is not
 Here's how you can use `Config.withDefault` to handle fallback values:
 
 ```ts filename="withDefault.ts" /Config.withDefault(8080)/
-import * as Effect from "@effect/io/Effect"
-import * as Config from "@effect/io/Config"
+import { Effect, Config } from "effect"
 
 const program = Effect.all([
   Effect.config(Config.string("HOST")),
@@ -153,7 +132,7 @@ class HostPort {
 We can define a configuration for this data type by combining primitive configs for `string` and `number`:
 
 ```ts filename="HostPort.ts"
-import * as Config from "@effect/io/Config"
+import { Config } from "effect"
 
 export class HostPort {
   constructor(readonly host: string, readonly port: number) {}
@@ -177,9 +156,8 @@ If we use this customized configuration in our application:
 <Tabs>
 <Tab>
 
-```ts filename="HostPort.ts" {18}
-import * as Config from "@effect/io/Config"
-import * as Effect from "@effect/io/Effect"
+```ts filename="HostPort.ts" {17}
+import { Effect, Config } from "effect"
 
 export class HostPort {
   constructor(readonly host: string, readonly port: number) {}
@@ -207,9 +185,8 @@ Effect.runSync(program)
 </Tab>
 <Tab>
 
-```ts filename="HostPort.ts" {19}
-import * as Config from "@effect/io/Config"
-import * as Effect from "@effect/io/Effect"
+```ts filename="HostPort.ts" {18}
+import { Effect, Config } from "effect"
 
 export class HostPort {
   constructor(readonly host: string, readonly port: number) {}
@@ -252,7 +229,7 @@ Let's assume we have a `ServiceConfig` data type that consists of two fields: `h
 
 ```ts filename="ServiceConfig.ts"
 import * as HostPort from "./HostPort"
-import * as Config from "@effect/io/Config"
+import { Config } from "effect"
 
 class ServiceConfig {
   constructor(readonly hostPort: HostPort.HostPort, readonly timeout: number) {}
@@ -294,9 +271,8 @@ Once we have the mock config provider, we can use `Effect.setConfigProvider` fun
 Here's an example of how we can mock a config provider for testing purposes:
 
 ```ts filename="mockConfigProvider.ts"
-import * as ConfigProvider from "@effect/io/Config/Provider"
+import { Effect, ConfigProvider } from "effect"
 import * as HostPort from "./HostPort"
-import * as Effect from "@effect/io/Effect"
 
 // Create a mock config provider using ConfigProvider.fromMap
 const mockConfigProvider = ConfigProvider.fromMap(

@@ -11,7 +11,7 @@ You can create an `Either` using the `Either.left` and `Either.right` constructo
 - The `Either.right` function takes a value of type `A` and constructs a `Either<never, A>`:
 
   ```ts
-  import * as Either from "@effect/data/Either"
+  import { Either } from "effect"
 
   // Either<never, number>
   const rightValue = Either.right(42)
@@ -20,7 +20,7 @@ You can create an `Either` using the `Either.left` and `Either.right` constructo
 - The `Either.left` function takes a value of type `E` and constructs a `Either<E, never>`:
 
   ```ts
-  import * as Either from "@effect/data/Either"
+  import { Either } from "effect"
 
   // Either<string, never>
   const leftValue = Either.left("not a number")
@@ -31,7 +31,7 @@ You can create an `Either` using the `Either.left` and `Either.right` constructo
 You can determine whether an `Either` is a `Left` or a `Right` by using the `Either.isLeft` and `Either.isRight` guards:
 
 ```ts
-import * as Either from "@effect/data/Either"
+import { Either } from "effect"
 
 const foo = Either.right(42)
 
@@ -48,7 +48,7 @@ if (Either.isLeft(foo)) {
 The `Either.match` function allows you to handle different cases of an `Either` by providing separate callbacks for each case:
 
 ```ts
-import * as Either from "@effect/data/Either"
+import { Either } from "effect"
 
 const foo = Either.right(42)
 
@@ -79,13 +79,13 @@ If the `Either` value is a `Left` value, the transformation function is **ignore
 **Example**
 
 ```ts
-import * as Either from "@effect/data/Either"
+import { Either } from "effect"
 
-const foo = Either.map(Either.right(42), (n) => n + 1)
+const foo = Either.mapRight(Either.right(42), (n) => n + 1)
 console.log(foo)
 // Output: right(43)
 
-const bar = Either.map(Either.left("not a number"), (n) => n + 1)
+const bar = Either.mapRight(Either.left("not a number"), (n) => n + 1)
 console.log(bar)
 // Output: left("not a number")
 ```
@@ -99,7 +99,7 @@ If the `Either` value is a `Right` value, the transformation function is **ignor
 **Example**
 
 ```ts
-import * as Either from "@effect/data/Either"
+import { Either } from "effect"
 
 const foo = Either.mapLeft(Either.right(42), (s) => s + "!")
 console.log(foo)
@@ -117,7 +117,7 @@ You can use the `Either.mapBoth` function to transform both the `Left` and `Righ
 **Example**
 
 ```ts
-import * as Either from "@effect/data/Either"
+import { Either } from "effect"
 
 const foo = Either.mapBoth(Either.right(42), {
   onLeft: (s) => s + "!",
@@ -146,8 +146,7 @@ In the context of `Effect`, the two members of the `Either` type are treated as 
 To illustrate this interoperability, let's consider the following example:
 
 ```ts
-import * as Effect from "@effect/io/Effect"
-import * as Either from "@effect/data/Either"
+import { Effect, Either } from "effect"
 
 const head = <A>(array: ReadonlyArray<A>): Either.Either<string, A> =>
   array.length > 0 ? Either.right(array[0]) : Either.left("empty array")

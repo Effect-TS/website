@@ -25,8 +25,7 @@ Thanks to the `Ref` data type, we can easily use the `Ref` data type to manage t
 Let's write a counter using the `Ref` data type:
 
 ```ts filename="Counter.ts"
-import * as Effect from "@effect/io/Effect"
-import * as Ref from "@effect/io/Ref"
+import { Effect, Ref } from "effect"
 
 export class Counter {
   constructor(private value: Ref.Ref<number>) {}
@@ -45,7 +44,7 @@ Here is the usage example of the `Counter`:
 <Tab>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 import * as Counter from "./Counter"
 
 // Effect<never, never, void>
@@ -71,7 +70,7 @@ Effect.runSync(program)
 <Tab>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 import * as Counter from "./Counter"
 
 // Effect<never, never, void>
@@ -105,7 +104,7 @@ We can use this counter in a concurrent environment, e.g. in a RESTful API to co
 <Tab>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 import * as Counter from "./Counter"
 
 // Effect<never, never, void>
@@ -140,7 +139,7 @@ Effect.runSync(program)
 <Tab>
 
 ```ts
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 import * as Counter from "./Counter"
 
 // Effect<never, never, void>
@@ -187,10 +186,8 @@ Here's how the code can be rewritten using the `Ref` data type:
 <Tab>
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Chunk, Ref } from "effect"
 import * as ReadLine from "./ReadLine"
-import * as Ref from "@effect/io/Ref"
 
 // Effect<never, never, Chunk.Chunk<string>>
 const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) =>
@@ -222,10 +219,8 @@ Chunk(Alice, Bob)
 <Tab>
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Chunk, Ref } from "effect"
 import * as ReadLine from "./ReadLine"
-import * as Ref from "@effect/io/Ref"
 
 // Effect<never, never, List.List<string>>
 const getNames = Effect.gen(function* (_) {
@@ -260,11 +255,8 @@ Now that we have learned how to use the `Ref` data type, we can use it to manage
 <Tab>
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Chunk, Ref, Fiber } from "effect"
 import * as ReadLine from "./ReadLine"
-import * as Ref from "@effect/io/Ref"
-import * as Fiber from "@effect/io/Fiber"
 
 // Effect<never, never, Chunk.Chunk<string>>
 const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
@@ -313,11 +305,8 @@ Chunk(John, Jane, Alice, Joe, Bob, Tom)
 <Tab>
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Chunk, Ref, Fiber } from "effect"
 import * as ReadLine from "./ReadLine"
-import * as Ref from "@effect/io/Ref"
-import * as Fiber from "@effect/io/Fiber"
 
 // Effect<never, never, Chunk.Chunk<string>>
 const getNames = Effect.gen(function* (_) {

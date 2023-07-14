@@ -7,7 +7,7 @@ In this guide, we will learn how to define a custom logger and set it as the def
 First, let's define our custom logger. Let's say we want to log `DEBUG` messages in regular text and all other messages in bold:
 
 ```ts filename="CustomLogger.ts"
-import * as Logger from "@effect/io/Logger"
+import { Logger } from "effect"
 
 const ANSI = {
   Reset: "\x1b[0m",
@@ -31,7 +31,7 @@ Assuming we have defined the following program:
 <Tab>
 
 ```ts filename="main.ts"
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, void>
 const task1 = Effect.sleep("2 seconds").pipe(
@@ -55,7 +55,7 @@ const program = Effect.log("start").pipe(
 <Tab>
 
 ```ts filename="main.ts"
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 
 // Effect<never, never, void>
 const task1 = Effect.gen(function* (_) {
@@ -87,9 +87,7 @@ To replace the default logger, we simply need to create a specific layer using `
 <Tab>
 
 ```ts filename="main.ts"
-import * as Effect from "@effect/io/Effect"
-import * as Logger from "@effect/io/Logger"
-import * as LoggerLevel from "@effect/io/Logger/Level"
+import { Effect, Logger, LoggerLevel } from "effect"
 import * as CustomLogger from "./CustomLogger"
 
 const task1 = Effect.sleep("2 seconds").pipe(
@@ -122,9 +120,7 @@ Effect.runPromise(
 <Tab>
 
 ```ts filename="main.ts"
-import * as Effect from "@effect/io/Effect"
-import * as Logger from "@effect/io/Logger"
-import * as LoggerLevel from "@effect/io/Logger/Level"
+import { Effect, Logger, LoggerLevel } from "effect"
 import * as CustomLogger from "./CustomLogger"
 
 const task1 = Effect.gen(function* (_) {

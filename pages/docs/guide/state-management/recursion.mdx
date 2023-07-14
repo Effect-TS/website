@@ -9,7 +9,7 @@ Managing state is a common pattern in programming, and it often involves using v
 One common scenario is calculating the length of a list. We can achieve this by using a variable, `count`, to store the intermediate result:
 
 ```ts
-import * as List from "@effect/data/List"
+import { List } from "effect"
 
 const size = <A>(self: List.List<A>): number => {
   let count = 0
@@ -29,7 +29,7 @@ In this example, we iterate over each element in the list and increment the `cou
 Another technique for managing state is using recursive calls and passing the updated state as a function argument. Let's modify the previous example to use recursion:
 
 ```ts
-import * as List from "@effect/data/List"
+import { List } from "effect"
 
 const size = <A>(self: List.List<A>): number => {
   const loop = (result: number, state: List.List<A>): number => {
@@ -54,7 +54,7 @@ The same pattern can be applied when dealing with side effects. Let's consider a
 First, let's introduce a `readLine` utility to read user input:
 
 ```ts filename="ReadLine.ts"
-import * as Effect from "@effect/io/Effect"
+import { Effect } from "effect"
 import * as NodeReadLine from "node:readline"
 
 export const readLine = (
@@ -81,8 +81,7 @@ Now, let's take a look at the main program:
 <Tab>
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Chunk } from "effect"
 import * as ReadLine from "./ReadLine"
 
 const loop = (
@@ -113,8 +112,7 @@ Chunk(Alice, Bob)
 <Tab>
 
 ```ts
-import * as Chunk from "@effect/data/Chunk"
-import * as Effect from "@effect/io/Effect"
+import { Effect, Chunk } from "effect"
 import * as ReadLine from "./ReadLine"
 
 const loop = (
