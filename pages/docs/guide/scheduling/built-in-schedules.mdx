@@ -24,7 +24,7 @@ A schedule that always recurs and produces number of recurrence at each run.
 import * as Schedule from "@effect/io/Schedule"
 import * as Effect from "@effect/io/Effect"
 
-const schedule = Schedule.forever()
+const schedule = Schedule.forever
 
 Effect.runPromise(Effect.repeat(logDelay, schedule))
 /*
@@ -48,7 +48,7 @@ A schedule that recurs one time.
 import * as Schedule from "@effect/io/Schedule"
 import * as Effect from "@effect/io/Effect"
 
-const schedule = Schedule.once()
+const schedule = Schedule.once
 
 Effect.runPromise(Effect.repeat(logDelay, schedule))
 /*
@@ -171,9 +171,7 @@ import * as Effect from "@effect/io/Effect"
 
 const schedule = Schedule.fibonacci("10 millis")
 
-Effect.runPromise(Schedule.run(schedule, 0, [1, 2, 3, 4, 5, 6])).then(
-  console.log
-)
+Effect.runPromise(Effect.repeat(logDelay, schedule))
 /*
 delay: 3
 delay: 17 < fibonacci
