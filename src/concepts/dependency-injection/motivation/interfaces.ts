@@ -1,8 +1,8 @@
-interface Logger {
+export interface Logger {
   log(message: string): void
 }
 
-interface Mailer {
+export interface Mailer {
   sendMail(address: string, message: string): void
 }
 
@@ -40,4 +40,4 @@ class MockMailer implements Mailer {
 }
 
 const mockLogger = new MockLogger()
-const mockMailer = new MockMailer(logger)
+const mockMailer = new MockMailer(mockLogger)
