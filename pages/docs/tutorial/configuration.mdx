@@ -25,36 +25,15 @@ Let's start with a simple example of how to read configuration from environment 
 <Tabs>
 <Tab>
 
-```ts filename="primitives.ts"
-import { Effect, Config } from "effect"
+```ts filename="primitives.ts" file=<rootDir>/src/tutorial/configuration/primitives-pipe.ts
 
-// Effect<never, ConfigError, void>
-const program = Effect.all([
-  Effect.config(Config.string("HOST")),
-  Effect.config(Config.float("PORT")),
-]).pipe(
-  Effect.flatMap(([host, port]) =>
-    Effect.sync(() => console.log(`Application started: ${host}:${port}`))
-  )
-)
-
-Effect.runSync(program)
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="primitives.ts"
-import { Effect, Config } from "effect"
+```ts filename="primitives.ts" file=<rootDir>/src/tutorial/configuration/primitives-gen.ts
 
-// Effect<never, ConfigError, void>
-const program = Effect.gen(function* (_) {
-  const host = yield* _(Effect.config(Config.string("HOST")))
-  const port = yield* _(Effect.config(Config.string("PORT")))
-  console.log(`Application started: ${host}:${port}`)
-})
-
-Effect.runSync(program)
 ```
 
 </Tab>
@@ -84,19 +63,8 @@ In some cases, you may encounter situations where an environment variable is not
 
 Here's how you can use `Config.withDefault` to handle fallback values:
 
-```ts filename="withDefault.ts" /Config.withDefault(8080)/
-import { Effect, Config } from "effect"
+```ts filename="withDefault.ts" /Config.withDefault(8080)/ file=<rootDir>/src/tutorial/configuration/withDefault.ts
 
-const program = Effect.all([
-  Effect.config(Config.string("HOST")),
-  Effect.config(Config.float("PORT").pipe(Config.withDefault(8080))),
-]).pipe(
-  Effect.flatMap(([host, port]) =>
-    Effect.sync(() => console.log(`Application started: ${host}:${port}`))
-  )
-)
-
-Effect.runSync(program)
 ```
 
 When running the program with the command:
@@ -119,34 +87,14 @@ In addition to primitive types, we can also define configurations for custom typ
 
 Let's consider the `HostPort` data type, which consists of two fields: `host` and `port`.
 
-```ts
-class HostPort {
-  constructor(readonly host: string, readonly port: number) {}
+```ts filename="HostPort.ts" file=<rootDir>/src/tutorial/configuration/HostPort.ts#L3-L9
 
-  get url() {
-    return `${this.host}:${this.port}`
-  }
-}
 ```
 
 We can define a configuration for this data type by combining primitive configs for `string` and `number`:
 
-```ts filename="HostPort.ts"
-import { Config } from "effect"
+```ts filename="HostPort.ts" file=<rootDir>/src/tutorial/configuration/HostPort.ts
 
-export class HostPort {
-  constructor(readonly host: string, readonly port: number) {}
-
-  get url() {
-    return `${this.host}:${this.port}`
-  }
-}
-
-// Config<HostPort>
-export const config = Config.all(
-  Config.string("HOST"),
-  Config.float("PORT")
-).pipe(Config.map(([host, port]) => new HostPort(host, port)))
 ```
 
 In the above example, we use the `Config.all(...configs){:ts}` operator to combine two primitive configs `Config<string>` and `Config<number>` into a `Config<[string, number]>`.
@@ -156,58 +104,15 @@ If we use this customized configuration in our application:
 <Tabs>
 <Tab>
 
-```ts filename="HostPort.ts" {17}
-import { Effect, Config } from "effect"
+```ts filename="App.ts" {5} file=<rootDir>/src/tutorial/configuration/App.ts
 
-export class HostPort {
-  constructor(readonly host: string, readonly port: number) {}
-
-  get url() {
-    return `${this.host}:${this.port}`
-  }
-}
-
-export const config = Config.all(
-  Config.string("HOST"),
-  Config.float("PORT")
-).pipe(Config.map(([host, port]) => new HostPort(host, port)))
-
-// Effect<never, ConfigError, void>
-export const program = Effect.config(config).pipe(
-  Effect.flatMap((hostPort) =>
-    Effect.sync(() => console.log(`Application started: ${hostPort.url}`))
-  )
-)
-
-Effect.runSync(program)
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="HostPort.ts" {18}
-import { Effect, Config } from "effect"
+```ts filename="App.ts" {6} file=<rootDir>/src/tutorial/configuration/App-gen.ts
 
-export class HostPort {
-  constructor(readonly host: string, readonly port: number) {}
-
-  get url() {
-    return `${this.host}:${this.port}`
-  }
-}
-
-export const config = Config.all(
-  Config.string("HOST"),
-  Config.float("PORT")
-).pipe(Config.map(([host, port]) => new HostPort(host, port)))
-
-// Effect<never, ConfigError, void>
-export const program = Effect.gen(function* (_) {
-  const hostPort = yield* _(Effect.config(config))
-  console.log(`Application started: ${hostPort.url}`)
-})
-
-Effect.runSync(program)
 ```
 
 </Tab>
@@ -227,20 +132,8 @@ So far, we have learned how to define configurations in a top-level manner, whet
 
 Let's assume we have a `ServiceConfig` data type that consists of two fields: `hostPort` and `timeout`.
 
-```ts filename="ServiceConfig.ts"
-import * as HostPort from "./HostPort"
-import { Config } from "effect"
+```ts filename="ServiceConfig.ts" file=<rootDir>/src/tutorial/configuration/ServiceConfig.ts
 
-class ServiceConfig {
-  constructor(readonly hostPort: HostPort.HostPort, readonly timeout: number) {}
-}
-
-const config: Config.Config<ServiceConfig> = Config.all(
-  HostPort.config,
-  Config.float("TIMEOUT")
-).pipe(
-  Config.map(([hostPort, timeout]) => new ServiceConfig(hostPort, timeout))
-)
 ```
 
 If we use this customized config in our application, it tries to read corresponding values from environment variables: `HOST`, `PORT`, and `TIMEOUT`.
@@ -249,7 +142,7 @@ However, in many cases, we don't want to read all configurations from the top-le
 
 To achieve this, we can use the `Config.nested` combinator. It allows us to nest configs under a specific namespace. Here's how we can update our configuration:
 
-```ts /Config.nested/
+```ts /Config.nested/ filename="ServiceConfig.ts" file=<rootDir>/src/tutorial/configuration/ServiceConfig-nested.ts#L8-
 const config: Config.Config<ServiceConfig> = Config.all(
   Config.nested(HostPort.config, "HOSTPORT"),
   Config.float("TIMEOUT")
@@ -270,24 +163,8 @@ Once we have the mock config provider, we can use `Effect.setConfigProvider` fun
 
 Here's an example of how we can mock a config provider for testing purposes:
 
-```ts filename="mockConfigProvider.ts"
-import { Effect, ConfigProvider } from "effect"
-import * as HostPort from "./HostPort"
+```ts filename="mockConfigProvider.ts" file=<rootDir>/src/tutorial/configuration/mockConfigProvider.ts
 
-// Create a mock config provider using ConfigProvider.fromMap
-const mockConfigProvider = ConfigProvider.fromMap(
-  new Map([
-    ["HOST", "localhost"],
-    ["PORT", "8080"],
-  ])
-)
-
-// Create a layer using Effect.setConfigProvider to override the default config provider
-const layer = Effect.setConfigProvider(mockConfigProvider)
-
-// Run the program using the provided layer
-Effect.runSync(Effect.provideLayer(HostPort.program, layer))
-// Output: Application started: localhost:8080
 ```
 
 By using this approach, we can easily mock the configuration data and test our services with different configurations in a controlled manner.
