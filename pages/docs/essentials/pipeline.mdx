@@ -323,11 +323,11 @@ console.log(Effect.runSync(program)) // Output: "Result is: 6"
 
 Let's summarize the transformation functions we have seen so far:
 
-| **Function** | **Input**                                 | **Output**                  |
-| ------------ | ----------------------------------------- | --------------------------- |
-| `map`        | `Effect<R, E, A>`, `A => B`               | `Effect<R, E, B>`           |
-| `flatMap`    | `Effect<R, E, A>`, `A => Effect<R, E, B>` | `Effect<R, E, B>`           |
-| `all`        | `Effect<R, E, A>`, `Effect<R, E, B>`, ... | `Effect<R, E, [A, B, ...]>` |
+| **Function** | **Input**                                                 | **Output**                                                                                                                     |
+| ------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `map`        | `Effect<R, E, A>`, <br/> `A => B`                         | `Effect<R, E, B>`                                                                                                              |
+| `flatMap`    | `Effect<R1, E1, A>`, <br/> `A => Effect<R2, E2, B>`       | `Effect<R1 \| R2, E1 \| E2, B>`                                                                                                |
+| `all`        | `Effect<R1, E1, A>`, <br/> `Effect<R2, E2, B>`, <br/> ... | `Effect<` <br/>&nbsp;&nbsp; `R1 \| R2 \| ...,` <br/>&nbsp;&nbsp; `E1 \| E2 \| ...,` <br/>&nbsp;&nbsp; ` [A, B, ...]` <br/> `>` |
 
 These functions are powerful tools for transforming and chaining `Effect` computations. They allow you to apply functions to values inside `Effect` and build complex pipelines of computations.
 
