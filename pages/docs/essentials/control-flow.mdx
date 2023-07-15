@@ -6,36 +6,16 @@ Even though JavaScript provides built-in control flow structures, Effect offers 
 
 When working with Effect values, we can use the standard JavaScript if-then-else expressions:
 
-```ts
-import { Effect, Option } from "effect"
+```ts file=<rootDir>/src/essentials/control-flow/if-expression.ts
 
-const validateWeightOption = (
-  weight: number
-): Effect.Effect<never, never, Option.Option<number>> => {
-  if (weight >= 0) {
-    return Effect.succeed(Option.some(weight))
-  } else {
-    return Effect.succeed(Option.none())
-  }
-}
 ```
 
 Here we are using the [`Option`](../data-types/option) data type to represent the absence of a valid value.
 
 We can also handle invalid inputs by using the error channel:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/control-flow/if-expression-error-channel.ts
 
-const validateWeightOrFail = (
-  weight: number
-): Effect.Effect<never, string, number> => {
-  if (weight >= 0) {
-    return Effect.succeed(weight)
-  } else {
-    return Effect.fail(`negative input: ${weight}`)
-  }
-}
 ```
 
 ## Conditional Operators
@@ -44,24 +24,16 @@ const validateWeightOrFail = (
 
 Instead of using `if (condition) expression`, we can use the `Effect.when` operator:
 
-```ts
-import { Effect, Option } from "effect"
+```ts file=<rootDir>/src/essentials/control-flow/when.ts
 
-const validateWeightOption = (
-  weight: number
-): Effect.Effect<never, never, Option.Option<number>> =>
-  Effect.when(() => weight >= 0)(Effect.succeed(weight))
 ```
 
 If the condition itself involves an effect, we can use `Effect.whenEffect`.
 
 For example, the following function creates a random option of an integer value:
 
-```ts
-import { Effect, Random } from "effect"
+```ts file=<rootDir>/src/essentials/control-flow/whenEffect.ts
 
-// Effect<never, never, Option.Option<number>>
-const randomIntOption = Effect.whenEffect(Random.nextBoolean)(Random.nextInt)
 ```
 
 The `Effect.when` and `Effect.whenEffect` operators allow us to conditionally execute effects based on a given predicate or an effectful predicate, respectively.
@@ -76,19 +48,8 @@ The `Effect.if` operator allows you to provide an effectful predicate. If the pr
 
 Let's use this operator to create a simple virtual coin flip function:
 
-```ts
-import { Effect, Random } from "effect"
+```ts file=<rootDir>/src/essentials/control-flow/if.ts
 
-const onTrue = Effect.log("Head")
-const onFalse = Effect.log("Tail")
-
-// Effect<never, never, void>
-const flipTheCoin = Effect.if(Random.nextBoolean, { onTrue, onFalse })
-
-Effect.runSync(flipTheCoin)
-/*
-... level=INFO fiber=#0 message=Head (or Tail)
-*/
 ```
 
 In this example, we generate a random boolean value using `Random.nextBoolean`. If the value is `true`, the effect `onTrue` will be executed, which logs "Head". Otherwise, if the value is `false`, the effect `onFalse` will be executed, logging "Tail".
@@ -121,20 +82,8 @@ return result
 
 **Example**
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/control-flow/loop.ts
 
-// Effect<never, never, number[]>
-const result = Effect.loop(
-  1, // Initial state
-  {
-    while: (n) => n <= 5, // Condition to continue looping
-    step: (n) => n + 1, // State update function
-    body: (n) => Effect.succeed(n), // Effect to be performed on each iteration
-  }
-)
-
-console.log(Effect.runSync(result)) // Output: [1, 2, 3, 4, 5]
 ```
 
 In this example, the loop starts with an initial state of `1`. The loop continues as long as the condition `n <= 5` is `true`, and in each iteration, the state `n` is incremented by `1`. The effect `Effect.succeed(n)` is performed on each iteration, collecting all intermediate states in an array.
@@ -143,30 +92,8 @@ You can also use the `discard` option if you're not interested in collecting the
 
 **Example** (`discard: true`)
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/control-flow/loop-discard.ts
 
-// Effect<never, never, void>
-const result = Effect.loop(
-  1, // Initial state
-  {
-    while: (n) => n <= 5, // Condition to continue looping,
-    step: (n) => n + 1, // State update function,
-    body: (index) =>
-      Effect.sync(() => console.log(`Currently at index ${index}`)), // Effect to be performed on each iteration,
-    discard: true,
-  }
-)
-
-console.log(Effect.runSync(result))
-/*
-Currently at index 1
-Currently at index 2
-Currently at index 3
-Currently at index 4
-Currently at index 5
-undefined
-*/
 ```
 
 In this example, the loop performs a side effect of logging the current index on each iteration, but it discards all intermediate results. The final result is `undefined`.
@@ -193,19 +120,8 @@ return result
 
 Here's an example of how it works:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/control-flow/iterate.ts
 
-// Effect<never, never, number>
-const result = Effect.iterate(
-  1, // Initial state
-  {
-    while: (n) => n <= 5, // Condition to continue iterating
-    body: (n) => Effect.succeed(n + 1), // Operation to change the state
-  }
-)
-
-console.log(Effect.runSync(result)) // Output: 6
 ```
 
 ### forEach
@@ -215,26 +131,8 @@ It applies the given effectful operation to each element of the `Iterable` seque
 
 Let's take a look at an example:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/control-flow/forEach.ts
 
-// Effect<never, never, number[]>
-const result = Effect.forEach([1, 2, 3, 4, 5], (index) =>
-  Effect.sync(() => {
-    console.log(`Currently at index ${index}`)
-    return index * 2
-  })
-)
-
-console.log(Effect.runSync(result))
-/*
-Currently at index 1
-Currently at index 2
-Currently at index 3
-Currently at index 4
-Currently at index 5
-[ 2, 4, 6, 8, 10 ]
-*/
 ```
 
 In this example, we have an array `[1, 2, 3, 4, 5]`, and for each element `index`, we perform an effectful operation. The output shows that the operation is executed for each element in the array, displaying the current index.
@@ -243,25 +141,8 @@ The `Effect.forEach` combinator collects the results of each effectful operation
 
 We also have the `discard` option, which when set to `true` discards the results of each effectful operation:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/control-flow/forEach-discard.ts
 
-// Effect<never, never, void>
-const result = Effect.forEach(
-  [1, 2, 3, 4, 5],
-  (index) => Effect.sync(() => console.log(`Currently at index ${index}`)),
-  { discard: true }
-)
-
-console.log(Effect.runSync(result))
-/*
-Currently at index 1
-Currently at index 2
-Currently at index 3
-Currently at index 4
-Currently at index 5
-undefined
-*/
 ```
 
 In this case, the output is the same, but the final result is `undefined` since the results of each effectful operation are discarded.
