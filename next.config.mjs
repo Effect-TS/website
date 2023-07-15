@@ -1,6 +1,7 @@
 // import { nodeTypes } from "@mdx-js/mdx"
 import nextra from "nextra"
 import remarkGFM from "remark-gfm"
+import codeImport from "remark-code-import"
 // import rehypeRaw from "rehype-raw"
 // import remarkShikiTwoslash from "remark-shiki-twoslash"
 
@@ -10,7 +11,9 @@ const withNextra = nextra({
   defaultShowCopyCode: true,
   mdxOptions: {
     // rehypePlugins: [[rehypeRaw, { passThrough: nodeTypes }]],
-    remarkPlugins: [remarkGFM,
+    remarkPlugins: [
+      remarkGFM,
+      codeImport,
       // [
       //   remarkShikiTwoslash.default,
       //   {
