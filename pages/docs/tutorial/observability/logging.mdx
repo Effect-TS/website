@@ -8,16 +8,8 @@ Effect provides a set of built-in utilities for logging. Let's explore the main 
 
 The `log` function is used to print a message at the current log level, which is `INFO` by default.
 
-```typescript
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/observability/logging/log.ts
 
-const program = Effect.log("Application started")
-
-Effect.runSync(program)
-/*
-Output:
-timestamp=2023-07-05T09:14:53.275Z level=INFO fiber=#0 message="Application started"
-*/
 ```
 
 The log message contains the following information:
@@ -39,71 +31,15 @@ Here's an example that demonstrates how to enable `DEBUG` messages for a specifi
 <Tabs>
 <Tab>
 
-```ts {6}
-import { Effect, Logger, LoggerLevel } from "effect"
+```ts {6} file=<rootDir>/src/tutorial/observability/logging/debug-pipe.ts
 
-// Effect<never, never, void>
-const task1 = Effect.sleep("2 seconds").pipe(
-  Effect.flatMap(() => Effect.log("task1 done", { level: "Debug" })),
-  Logger.withMinimumLogLevel(LoggerLevel.Debug)
-)
-
-// Effect<never, never, void>
-const task2 = Effect.sleep("1 seconds").pipe(
-  Effect.flatMap(() => Effect.log("task2 done", { level: "Debug" }))
-)
-
-// Effect<never, never, void>
-const program = Effect.log("start").pipe(
-  Effect.flatMap(() => task1),
-  Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.log("done"))
-)
-
-Effect.runPromise(program)
-/*
-...more infos... level=INFO message=start
-... 2 seconds ...
-...more infos... level=DEBUG message="task1 done"
-... 1 second ...
-...more infos... level=INFO message=done
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts {7}
-import { Effect, Logger, LoggerLevel } from "effect"
+```ts {7} file=<rootDir>/src/tutorial/observability/logging/debug-gen.ts
 
-// Effect<never, never, void>
-const task1 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("2 seconds"))
-  yield* _(Effect.log("task1 done", { level: "Debug" }))
-}).pipe(Logger.withMinimumLogLevel(LoggerLevel.Debug))
-
-// Effect<never, never, void>
-const task2 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("1 seconds"))
-  yield* _(Effect.log("task2 done", { level: "Debug" }))
-})
-
-// Effect<never, never, void>
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.log("start"))
-  yield* _(task1)
-  yield* _(task2)
-  yield* _(Effect.log("done"))
-})
-
-Effect.runPromise(program)
-/*
-...more infos... level=INFO message=start
-... 2 seconds ...
-...more infos... level=DEBUG message="task1 done"
-... 1 second ...
-...more infos... level=INFO message=done
-*/
 ```
 
 </Tab>
@@ -120,56 +56,15 @@ By default, `INFO` messages are printed.
 <Tabs>
 <Tab>
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/observability/logging/info-pipe.ts
 
-// Effect<never, never, void>
-const task1 = Effect.sleep("2 seconds")
-
-// Effect<never, never, void>
-const task2 = Effect.sleep("1 seconds")
-
-// Effect<never, never, void>
-const program = Effect.log("start").pipe(
-  Effect.flatMap(() => task1),
-  Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.log("done"))
-)
-
-Effect.runPromise(program)
-/*
-...more infos... level=INFO message=start
-... 3 seconds ...
-...more infos... level=INFO message=done
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/observability/logging/info-gen.ts
 
-// Effect<never, never, void>
-const task1 = Effect.sleep("2 seconds")
-
-// Effect<never, never, void>
-const task2 = Effect.sleep("1 seconds")
-
-// Effect<never, never, void>
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.log("start"))
-  yield* _(task1)
-  yield* _(task2)
-  yield* _(Effect.log("done"))
-})
-
-Effect.runPromise(program)
-/*
-...more infos... level=INFO message=start
-... 3 seconds ...
-...more infos... level=INFO message=done
-*/
 ```
 
 </Tab>
@@ -184,43 +79,15 @@ By default, `WARN` messages are printed.
 <Tabs>
 <Tab>
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/observability/logging/warning-pipe.ts
 
-// Effect<never, never, void>
-const program = Effect.fail("Something went wrong!").pipe(
-  Effect.catchAll((error) => Effect.log(String(error), { level: "Warning" }))
-)
-
-Effect.runPromise(program)
-/*
-timestamp=... level=WARN fiber=#0 message="Something went wrong!"
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect, Either } from "effect"
+```ts file=<rootDir>/src/tutorial/observability/logging/warning-gen.ts
 
-// Effect<never, never, void>
-const program = Effect.gen(function* (_) {
-  const successOrFailure = yield* _(
-    Effect.either(Effect.fail("Something went wrong!"))
-  )
-  if (Either.isLeft(successOrFailure)) {
-    const error = successOrFailure.left
-    yield* _(Effect.log(String(error), { level: "Warning" }))
-    return undefined
-  }
-  return successOrFailure.right
-})
-
-Effect.runPromise(program)
-/*
-timestamp=... level=WARN fiber=#0 message="Something went wrong!"
-*/
 ```
 
 </Tab>
@@ -233,43 +100,15 @@ By default, `ERROR` messages are printed.
 <Tabs>
 <Tab>
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/observability/logging/error-pipe.ts
 
-// Effect<never, never, void>
-const program = Effect.fail("Something went wrong!").pipe(
-  Effect.catchAll((error) => Effect.log(String(error), { level: "Error" }))
-)
-
-Effect.runPromise(program)
-/*
-timestamp=... level=ERROR fiber=#0 message="Something went wrong!"
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect, Either } from "effect"
+```ts file=<rootDir>/src/tutorial/observability/logging/error-gen.ts
 
-// Effect<never, never, void>
-const program = Effect.gen(function* (_) {
-  const successOrFailure = yield* _(
-    Effect.either(Effect.fail("Something went wrong!"))
-  )
-  if (Either.isLeft(successOrFailure)) {
-    const error = successOrFailure.left
-    yield* _(Effect.log(String(error), { level: "Error" }))
-    return undefined
-  }
-  return successOrFailure.right
-})
-
-Effect.runPromise(program)
-/*
-timestamp=... level=ERROR fiber=#0 message="Something went wrong!"
-*/
 ```
 
 </Tab>
@@ -282,37 +121,15 @@ Effect also provides support for spans, allowing you to measure the duration of 
 <Tabs>
 <Tab>
 
-```ts /myspan=1011ms/
-import { Effect } from "effect"
+```ts /myspan=1011ms/ file=<rootDir>/src/tutorial/observability/logging/spans-pipe.ts
 
-// Effect<never, never, void>
-const program = Effect.sleep("1 seconds").pipe(
-  Effect.flatMap(() => Effect.log("The job is finished!")),
-  Effect.withLogSpan("myspan")
-)
-
-Effect.runPromise(program)
-/*
-timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect } from "effect"
+```ts /myspan=1011ms/ file=<rootDir>/src/tutorial/observability/logging/spans-gen.ts
 
-// Effect<never, never, void>
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("1 seconds"))
-  yield* _(Effect.log("The job is finished!"))
-}).pipe(Effect.withLogSpan("myspan"))
-
-Effect.runPromise(program)
-/*
-timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
-*/
 ```
 
 </Tab>
