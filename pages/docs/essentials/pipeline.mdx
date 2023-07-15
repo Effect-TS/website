@@ -43,16 +43,8 @@ It's important to note that functions passed to `pipe` must have a **single argu
 
 Let's see an example to better understand how `pipe` works:
 
-```ts
-import { pipe } from "effect"
+```ts file=<rootDir>/src/essentials/pipeline/pipe.ts
 
-const increment = (x: number) => x + 1
-const double = (x: number) => x * 2
-const subtractTen = (x: number) => x - 10
-
-const result = pipe(5, increment, double, subtractTen)
-
-console.log(result) // Output: 2
 ```
 
 In the above example, we start with an input value of `5`. The `increment` function adds `1` to the initial value, resulting in `6`. Then, the `double` function doubles the value, giving us `12`. Finally, the `subtractTen` function subtracts `10` from `12`, resulting in the final output of `2`.
@@ -80,18 +72,8 @@ In the code above, `func` represents the transformation function to be applied, 
 
 Let's see an example to better understand how `map` works:
 
-```ts
-import { pipe, Effect } from "effect"
+```ts file=<rootDir>/src/essentials/pipeline/map.ts
 
-const increment = (x: number) => x + 1
-
-// Effect<never, never, number>
-const mappedEffect = pipe(
-  Effect.succeed(5),
-  Effect.map((x) => increment(x))
-)
-
-console.log(Effect.runSync(mappedEffect)) // Output: 6
 ```
 
 In the example above:
@@ -137,21 +119,8 @@ In the code above, `func` represents the transformation function that returns a 
 
 Let's see an example to better understand how `flatMap` works:
 
-```ts
-import { pipe, Effect } from "effect"
+```ts file=<rootDir>/src/essentials/pipeline/flatMap.ts
 
-const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
-
-// Effect<never, Error, number>
-const flatMappedEffect = pipe(
-  Effect.succeed([10, 2]),
-  Effect.flatMap(([a, b]) => divide(a, b))
-)
-
-console.log(Effect.runSync(flatMappedEffect)) // Output: 5
 ```
 
 In the example above:
@@ -189,7 +158,7 @@ This means that the value returned by the previous computation (i.e. `[a, b]`) w
 
 Let's take a look at an updated code snippet that incorporates the `tap` API to fix the problem:
 
-```ts {3-5}
+```ts {3-5} file=<rootDir>/src/essentials/pipeline/tap.ts#L8-
 const flatMappedEffect = pipe(
   Effect.succeed([10, 2]),
   Effect.tap(([a, b]) =>
@@ -228,16 +197,8 @@ Keep in mind that the order of the results corresponds to the order of the origi
 
 Let's see an example to better understand how `all` works:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/pipeline/all.ts
 
-const foo = Effect.succeed(42)
-const bar = Effect.succeed("Hello")
-
-// Effect<never, never, [number, string]>
-const combinedEffect = Effect.all([foo, bar])
-
-console.log(Effect.runSync(combinedEffect)) // Output: [42, "Hello"]
 ```
 
 In this example, `foo` and `bar` are two separate effects. Using `Effect.all`, we combine them into a single effect `combinedEffect`. When we run `combinedEffect`, it produces a tuple `[42, "Hello"]` containing the results of both effects.
@@ -246,28 +207,8 @@ In this example, `foo` and `bar` are two separate effects. Using `Effect.all`, w
 
 Now, let's combine all four functions (`pipe`, `map`, `flatMap` and `all`) to build a pipeline that performs a series of transformations:
 
-```ts
-import { pipe, Effect } from "effect"
+```ts file=<rootDir>/src/essentials/pipeline/pipeline.ts
 
-const increment = (x: number) => x + 1
-
-const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
-
-const foo = Effect.succeed(10)
-const bar = Effect.succeed(2)
-
-// Effect<never, Error, string>
-const program = pipe(
-  Effect.all([foo, bar]),
-  Effect.flatMap(([a, b]) => divide(a, b)),
-  Effect.map((n1) => increment(n1)),
-  Effect.map((n2) => `Result is: ${n2}`)
-)
-
-console.log(Effect.runSync(program)) // Output: "Result is: 6"
 ```
 
 ## The pipe method
@@ -290,27 +231,8 @@ The `pipe` method is available on all effects and many other data types, elimina
 
 Let's rewrite the previous example using the `pipe` method:
 
-```ts {16}
-import { Effect } from "effect"
+```ts {14} file=<rootDir>/src/essentials/pipeline/pipe-method.ts
 
-const increment = (x: number) => x + 1
-
-const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
-
-const foo = Effect.succeed(10)
-const bar = Effect.succeed(2)
-
-// Effect<never, Error, string>
-const program = Effect.all([foo, bar]).pipe(
-  Effect.flatMap(([a, b]) => divide(a, b)),
-  Effect.map((n1) => increment(n1)),
-  Effect.map((n2) => `Result is: ${n2}`)
-)
-
-console.log(Effect.runSync(program)) // Output: "Result is: 6"
 ```
 
 ## Cheatsheet
