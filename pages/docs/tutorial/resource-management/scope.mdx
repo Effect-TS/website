@@ -14,41 +14,8 @@ We can define a resource using operators like `Effect.acquireRelease(acquire, re
 
 For example, let's define a simple resource:
 
-```ts
-import { Effect } from "effect"
+```ts filename="resource.ts" file=<rootDir>/src/tutorial/resource-management/scope/resource.ts
 
-// Define the interface for the resource
-interface MyResource {
-  readonly contents: string
-  readonly close: () => Promise<void>
-}
-
-// Simulate getting the resource
-const getMyResource = (): Promise<MyResource> =>
-  Promise.resolve({
-    contents: "lorem ipsum",
-    close: () =>
-      new Promise((resolve) => {
-        console.log("Resource released")
-        resolve()
-      }),
-  })
-
-// Define the acquisition of the resource with error handling
-const acquire = Effect.tryPromise({
-  try: () =>
-    getMyResource().then((res) => {
-      console.log("Resource acquired")
-      return res
-    }),
-  catch: () => new Error("getMyResourceError"),
-})
-
-// Define the release of the resource
-const release = (res: MyResource) => Effect.promise(() => res.close())
-
-// Effect<Scope, Error, MyResource>
-const resource = Effect.acquireRelease(acquire, release)
 ```
 
 Notice that the `acquireRelease` operator added a `Scope` to the context required by the workflow:
@@ -64,24 +31,15 @@ We can continue working with the resource for as long as we want by using `flatM
 <Tabs>
 <Tab>
 
-```ts
-// Effect<Scope, Error, void>
-const program = Effect.acquireRelease(acquire, release).pipe(
-  Effect.flatMap((resource) =>
-    Effect.sync(() => console.log(`content is ${resource.contents}`))
-  )
-)
+```ts file=<rootDir>/src/tutorial/resource-management/scope/using-pipe.ts
+
 ```
 
 </Tab>
 <Tab>
 
-```ts
-// Effect<Scope, Error, void>
-const program = Effect.gen(function* (_) {
-  const resource = yield* _(Effect.acquireRelease(acquire, release))
-  console.log(`content is ${resource.contents}`)
-})
+```ts file=<rootDir>/src/tutorial/resource-management/scope/using-gen.ts
+
 ```
 
 </Tab>
@@ -92,27 +50,15 @@ Once we are done working with the resource, we can close the scope using the `Ef
 <Tabs>
 <Tab>
 
-```ts /Effect.scoped/
-// Effect<never, Error, void>
-const program = Effect.acquireRelease(acquire, release).pipe(
-  Effect.flatMap((resource) =>
-    Effect.sync(() => console.log(`content is ${resource.contents}`))
-  ),
-  Effect.scoped
-)
+```ts /Effect.scoped/ file=<rootDir>/src/tutorial/resource-management/scope/scoped-pipe.ts
+
 ```
 
 </Tab>
 <Tab>
 
-```ts /Effect.scoped/
-// Effect<never, Error, void>
-const program = Effect.scoped(
-  Effect.gen(function* (_) {
-    const resource = yield* _(Effect.acquireRelease(acquire, release))
-    console.log(`content is ${resource.contents}`)
-  })
-)
+```ts /Effect.scoped/ file=<rootDir>/src/tutorial/resource-management/scope/scoped-gen.ts
+
 ```
 
 </Tab>
@@ -139,48 +85,6 @@ The main difference is that `acquireUseRelease` eliminates the need to manually 
 
 Here's an example that demonstrates the usage of `acquireUseRelease`:
 
-```ts {29-36}
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/resource-management/scope/acquireUseRelease.ts
 
-interface MyResource {
-  readonly contents: string
-  readonly close: () => Promise<void>
-}
-
-const getMyResource = (): Promise<MyResource> =>
-  Promise.resolve({
-    contents: "lorem ipsum",
-    close: () =>
-      new Promise((resolve) => {
-        console.log("Resource released")
-        resolve()
-      }),
-  })
-
-const acquire = Effect.tryPromise({
-  try: () =>
-    getMyResource().then((res) => {
-      console.log("Resource acquired")
-      return res
-    }),
-  catch: () => new Error("getMyResourceError"),
-})
-
-const release = (res: MyResource) => Effect.promise(() => res.close())
-
-const use = (res: MyResource) =>
-  Effect.sync(() => console.log(`content is ${res.contents}`))
-
-const program: Effect.Effect<never, Error, void> = Effect.acquireUseRelease(
-  acquire,
-  use,
-  release
-)
-
-Effect.runPromise(program)
-/*
-Resource acquired
-content is lorem ipsum
-Resource released
-*/
 ```
