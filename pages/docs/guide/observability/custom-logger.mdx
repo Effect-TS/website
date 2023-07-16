@@ -6,23 +6,8 @@ In this guide, we will learn how to define a custom logger and set it as the def
 
 First, let's define our custom logger. Let's say we want to log `DEBUG` messages in regular text and all other messages in bold:
 
-```ts filename="CustomLogger.ts"
-import { Logger } from "effect"
+```ts filename="CustomLogger.ts" file=<rootDir>/src/guide/observability/custom-logger/CustomLogger.ts
 
-const ANSI = {
-  Reset: "\x1b[0m",
-  Bold: "\x1b[1m",
-}
-
-export const logger = Logger.make(({ logLevel, message }) => {
-  if (logLevel._tag === "Debug") {
-    globalThis.console.log(`[${logLevel.label}] ${message}`)
-  } else {
-    globalThis.console.log(
-      `${ANSI.Bold}[${logLevel.label}] ${message}${ANSI.Reset}`
-    )
-  }
-})
 ```
 
 Assuming we have defined the following program:
@@ -30,52 +15,15 @@ Assuming we have defined the following program:
 <Tabs>
 <Tab>
 
-```ts filename="main.ts"
-import { Effect } from "effect"
+```ts filename="program.ts" file=<rootDir>/src/guide/observability/custom-logger/program.ts
 
-// Effect<never, never, void>
-const task1 = Effect.sleep("2 seconds").pipe(
-  Effect.flatMap(() => Effect.log("task1 done", { level: "Debug" }))
-)
-
-// Effect<never, never, void>
-const task2 = Effect.sleep("1 seconds").pipe(
-  Effect.flatMap(() => Effect.log("task2 done", { level: "Debug" }))
-)
-
-// Effect<never, never, void>
-const program = Effect.log("start").pipe(
-  Effect.flatMap(() => task1),
-  Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.log("done"))
-)
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="main.ts"
-import { Effect } from "effect"
+```ts filename="program.ts" file=<rootDir>/src/guide/observability/custom-logger/program-gen.ts
 
-// Effect<never, never, void>
-const task1 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("2 seconds"))
-  yield* _(Effect.log("task1 done", { level: "Debug" }))
-})
-
-// Effect<never, never, void>
-const task2 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("1 seconds"))
-  yield* _(Effect.log("task2 done", { level: "Debug" }))
-})
-
-// Effect<never, never, void>
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.log("start"))
-  yield* _(task1)
-  yield* _(task2)
-  yield* _(Effect.log("done"))
-})
 ```
 
 </Tab>
@@ -83,93 +31,15 @@ const program = Effect.gen(function* (_) {
 
 To replace the default logger, we simply need to create a specific layer using `Logger.replace` and provide it to our program using `Effect.provideLayer` before executing it:
 
-<Tabs>
-<Tab>
+```ts filename="index.ts" file=<rootDir>/src/guide/observability/custom-logger/index.ts
 
-```ts filename="main.ts"
-import { Effect, Logger, LoggerLevel } from "effect"
-import * as CustomLogger from "./CustomLogger"
-
-const task1 = Effect.sleep("2 seconds").pipe(
-  Effect.flatMap(() => Effect.log("task1 done", { level: "Debug" }))
-)
-
-const task2 = Effect.sleep("1 seconds").pipe(
-  Effect.flatMap(() => Effect.log("task2 done", { level: "Debug" }))
-)
-
-const program = Effect.log("start").pipe(
-  Effect.flatMap(() => task1),
-  Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.log("done"))
-)
-
-// Layer<never, never, never>
-const layer = Logger.replace(Logger.defaultLogger, CustomLogger.logger)
-
-Effect.runPromise(
-  Effect.provideLayer(
-    Logger.withMinimumLogLevel(program, LoggerLevel.Debug),
-    layer
-  )
-)
 ```
-
-</Tab>
-
-<Tab>
-
-```ts filename="main.ts"
-import { Effect, Logger, LoggerLevel } from "effect"
-import * as CustomLogger from "./CustomLogger"
-
-const task1 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("2 seconds"))
-  yield* _(Effect.log("task1 done", { level: "Debug" }))
-})
-
-const task2 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("1 seconds"))
-  yield* _(Effect.log("task2 done", { level: "Debug" }))
-})
-
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.log("start"))
-  yield* _(task1)
-  yield* _(task2)
-  yield* _(Effect.log("done"))
-})
-
-// Layer<never, never, never>
-const layer = Logger.replace(Logger.defaultLogger, CustomLogger.logger)
-
-Effect.runPromise(
-  Effect.provideLayer(
-    Logger.withMinimumLogLevel(program, LoggerLevel.Debug),
-    layer
-  )
-)
-```
-
-</Tab>
-</Tabs>
 
 This is what we see printed on the console after executing the program:
 
-<br />
-<p>
-  <code>
-    <b>[INFO] start</b>
-  </code>
-</p>
-<p>
-  <code>[DEBUG] task1 done</code>
-</p>
-<p>
-  <code>[DEBUG] task2 done</code>
-</p>
-<p>
-  <code>
-    <b>[INFO] done</b>
-  </code>
-</p>
+```ansi
+[1m[INFO] start[0m
+[DEBUG] task1 done
+[DEBUG] task2 done
+[1m[INFO] done[0m
+```
