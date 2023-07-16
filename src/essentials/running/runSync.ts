@@ -1,12 +1,12 @@
 import { Effect } from "effect"
 
-// Effect<never, never, number>
+// $ExpectType Effect<never, never, number>
 const program = Effect.sync(() => {
   console.log("Hello, World!")
   return 1
 })
 
-// number
+// $ExpectType number
 const result = Effect.runSync(program)
 // Output: Hello, World!
 

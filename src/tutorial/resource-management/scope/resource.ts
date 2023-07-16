@@ -30,5 +30,5 @@ export const acquire = Effect.tryPromise({
 // Define the release of the resource
 export const release = (res: MyResource) => Effect.promise(() => res.close())
 
-// Effect<Scope, Error, MyResource>
+// $ExpectType Effect<Scope, Error, MyResource>
 export const resource = Effect.acquireRelease(acquire, release)

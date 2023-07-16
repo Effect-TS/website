@@ -1,13 +1,13 @@
 import { Effect } from "effect"
 import { Random } from "./service"
 
-// Effect<Random, never, void>
+// $ExpectType Effect<Random, never, void>
 const program = Random.pipe(
   Effect.flatMap((random) => random.next()),
   Effect.flatMap((randomNumber) => Effect.log(`${randomNumber}`))
 )
 
-// Effect<never, never, void>
+// $ExpectType Effect<never, never, void>
 const runnable = Effect.provideService(
   program,
   Random,

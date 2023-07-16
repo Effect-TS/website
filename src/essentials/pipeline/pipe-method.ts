@@ -10,7 +10,7 @@ const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
 const foo = Effect.succeed(10)
 const bar = Effect.succeed(2)
 
-// Effect<never, Error, string>
+// $ExpectType Effect<never, Error, string>
 const program = Effect.all([foo, bar]).pipe(
   Effect.flatMap(([a, b]) => divide(a, b)),
   Effect.map((n1) => increment(n1)),

@@ -4,6 +4,7 @@ const operation1 = Effect.sync(() => console.log("operation1"))
 const operation2 = Effect.fail(new Error("Something went wrong!"))
 const operation3 = Effect.sync(() => console.log("operation3"))
 
+// $ExpectType Exit<Error, void>
 const result = Effect.runSyncExit(
   Effect.gen(function* (_) {
     yield* _(operation1)

@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 
-// Effect<never, never, number>
-const program = Effect.promise(
+// $ExpectType Effect<never, never, string>
+const program = Effect.promise<string>(
   () =>
     new Promise((resolve) => {
       setTimeout(() => {

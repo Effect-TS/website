@@ -4,11 +4,8 @@ import { MyResource, acquire, release } from "./resource"
 const use = (res: MyResource) =>
   Effect.sync(() => console.log(`content is ${res.contents}`))
 
-const program: Effect.Effect<never, Error, void> = Effect.acquireUseRelease(
-  acquire,
-  use,
-  release
-)
+// $ExpectType Effect<never, Error, void>
+const program = Effect.acquireUseRelease(acquire, use, release)
 
 Effect.runPromise(program)
 /*

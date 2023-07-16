@@ -3,16 +3,16 @@ import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
 import { Recipe, RecipeLive } from "./Recipe"
 
-// Layer<MeasuringCup, never, Flour | Sugar>
-const IngredientsLive = Layer.merge(FlourLive, SugarLive)
+// $ExpectType Layer<MeasuringCup, never, Sugar | Flour>
+const IngredientsLive = Layer.merge(SugarLive, FlourLive)
 
-// Layer<never, never, Recipe>
+// $ExpectType Layer<never, never, Recipe>
 const MainLive = MeasuringCupLive.pipe(
   Layer.provide(IngredientsLive),
   Layer.provide(RecipeLive)
 )
 
-// Effect<Recipe, never, void>
+// $ExpectType Effect<Recipe, never, void>
 const program = Recipe.pipe(
   Effect.flatMap((recipe) => recipe.steps),
   Effect.flatMap((steps) =>
@@ -23,7 +23,7 @@ const program = Recipe.pipe(
   )
 )
 
-// Effect<never, never, void>
+// $ExpectType Effect<never, never, void>
 const runnable = Effect.provideLayer(program, MainLive)
 
 Effect.runPromise(runnable)

@@ -12,7 +12,7 @@ interface Logger {
 
 const Logger = Context.Tag<Logger>()
 
-// Effect<Random | Logger, never, void>
+// $ExpectType Effect<Random | Logger, never, void>
 const program = Effect.gen(function* (_) {
   const [random, logger] = yield* _(Effect.all([Random, Logger]))
   const randomNumber = yield* _(random.next())

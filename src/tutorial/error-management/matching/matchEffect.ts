@@ -5,7 +5,7 @@ const failure: Effect.Effect<never, Error, number> = Effect.fail(
   new Error("Uh oh!")
 )
 
-// Effect<never, never, string>
+// $ExpectType Effect<never, never, string>
 const program1 = success.pipe(
   Effect.matchEffect({
     onFailure: (error) =>
@@ -20,7 +20,7 @@ console.log(Effect.runSync(program1))
 success: 42
 */
 
-// Effect<never, never, string>
+// $ExpectType Effect<never, never, string>
 const program2 = failure.pipe(
   Effect.matchEffect({
     onFailure: (error) =>

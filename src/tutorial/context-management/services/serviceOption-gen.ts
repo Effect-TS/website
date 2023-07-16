@@ -1,7 +1,7 @@
 import { Effect, Option } from "effect"
 import { Random } from "./service"
 
-// Effect<never, never, void>
+// $ExpectType Effect<never, never, void>
 const program = Effect.gen(function* (_) {
   const maybeRandom = yield* _(Effect.serviceOption(Random))
   const randomNumber = Option.isNone(maybeRandom)

@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect"
-import { program } from "./error-accumulation-gen"
+import { program } from "./error-accumulation"
 
-// Effect<never, never, string>
+// $ExpectType Effect<never, never, string>
 const recovered = Effect.gen(function* (_) {
   const successOrFailure = yield* _(Effect.either(program))
   if (Either.isLeft(successOrFailure)) {

@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 import * as HostPort from "./HostPort"
 
-// Effect<never, ConfigError, void>
+// $ExpectType Effect<never, ConfigError, void>
 export const program = Effect.config(HostPort.config).pipe(
   Effect.flatMap((hostPort) =>
     Effect.sync(() => console.log(`Application started: ${hostPort.url}`))

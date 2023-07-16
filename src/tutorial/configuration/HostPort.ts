@@ -8,7 +8,7 @@ export class HostPort {
   }
 }
 
-// Config<HostPort>
+// $ExpectType Config<HostPort>
 export const config = Config.all(
   Config.string("HOST"),
   Config.float("PORT")

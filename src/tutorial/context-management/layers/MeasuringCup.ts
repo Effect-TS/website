@@ -11,7 +11,7 @@ export interface MeasuringCup {
 // Create a tag for the MeasuringCup service
 export const MeasuringCup = Context.Tag<MeasuringCup>()
 
-// Layer<never, never, MeasuringCup>
+// $ExpectType Layer<never, never, MeasuringCup>
 export const MeasuringCupLive = Layer.succeed(
   MeasuringCup,
   MeasuringCup.of({

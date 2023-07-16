@@ -1,7 +1,7 @@
 import { Effect } from "effect"
-import { program } from "./error-accumulation-pipe"
+import { program } from "./error-accumulation"
 
-// Effect<never, never, string>
+// $ExpectType Effect<never, never, string>
 const recovered = program.pipe(
   Effect.catchTag("FooError", (_fooError) =>
     Effect.succeed("Recovering from FooError")

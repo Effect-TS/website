@@ -7,7 +7,7 @@ export interface Recipe {
 
 export const Recipe = Context.Tag<Recipe>()
 
-// Layer<Flour | Sugar, never, Recipe>
+// $ExpectType Layer<Sugar | Flour, never, Recipe>
 export const RecipeLive = Layer.effect(
   Recipe,
   Effect.gen(function* (_) {

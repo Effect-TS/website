@@ -2,7 +2,7 @@ import { pipe, Effect } from "effect"
 
 const increment = (x: number) => x + 1
 
-// Effect<never, never, number>
+// $ExpectType Effect<never, never, number>
 const mappedEffect = pipe(
   Effect.succeed(5),
   Effect.map((x) => increment(x))

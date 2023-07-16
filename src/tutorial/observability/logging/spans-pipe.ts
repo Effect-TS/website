@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 
-// Effect<never, never, void>
+// $ExpectType Effect<never, never, void>
 const program = Effect.sleep("1 seconds").pipe(
   Effect.flatMap(() => Effect.log("The job is finished!")),
   Effect.withLogSpan("myspan")

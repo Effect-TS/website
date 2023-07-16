@@ -1,7 +1,7 @@
 import { Effect } from "effect"
-import { program } from "./error-accumulation-pipe"
+import { program } from "./error-accumulation"
 
-// Effect<never, Error, string>
+// $ExpectType Effect<never, Error, string>
 const modified = program.pipe(
   Effect.mapError((error) => {
     if (error._tag === "FooError") {

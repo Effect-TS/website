@@ -7,7 +7,7 @@ const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-// Effect<never, Error, string>
+// $ExpectType Effect<never, Error, string>
 const program = pipe(
   Effect.all([Effect.succeed(10), Effect.succeed(2)]),
   Effect.flatMap(([a, b]) => divide(a, b)),

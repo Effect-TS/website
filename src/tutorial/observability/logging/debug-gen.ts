@@ -1,18 +1,18 @@
 import { Effect, Logger, LoggerLevel } from "effect"
 
-// Effect<never, never, void>
+// $ExpectType Effect<never, never, void>
 const task1 = Effect.gen(function* (_) {
   yield* _(Effect.sleep("2 seconds"))
   yield* _(Effect.log("task1 done", { level: "Debug" }))
 }).pipe(Logger.withMinimumLogLevel(LoggerLevel.Debug))
 
-// Effect<never, never, void>
+// $ExpectType Effect<never, never, void>
 const task2 = Effect.gen(function* (_) {
   yield* _(Effect.sleep("1 seconds"))
   yield* _(Effect.log("task2 done", { level: "Debug" }))
 })
 
-// Effect<never, never, void>
+// $ExpectType Effect<never, never, void>
 const program = Effect.gen(function* (_) {
   yield* _(Effect.log("start"))
   yield* _(task1)

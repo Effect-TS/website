@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 
-// Effect<never, never, number[]>
+// $ExpectType Effect<never, never, number[]>
 const result = Effect.forEach([1, 2, 3, 4, 5], (index) =>
   Effect.sync(() => {
     console.log(`Currently at index ${index}`)

@@ -9,7 +9,7 @@ export interface Sugar {
 
 export const Sugar = Context.Tag<Sugar>()
 
-// Layer<MeasuringCup, never, Sugar>
+// $ExpectType Layer<MeasuringCup, never, Sugar>
 export const SugarLive = Layer.effect(
   Sugar,
   Effect.map(MeasuringCup, (measuringCup) =>
@@ -27,7 +27,7 @@ export interface Flour {
 
 export const Flour = Context.Tag<Flour>()
 
-// Layer<MeasuringCup, never, Flour>
+// $ExpectType Layer<MeasuringCup, never, Flour>
 export const FlourLive = Layer.effect(
   Flour,
   Effect.map(MeasuringCup, (measuringCup) =>

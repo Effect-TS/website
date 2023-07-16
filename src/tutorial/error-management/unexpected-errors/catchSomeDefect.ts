@@ -1,6 +1,6 @@
 import { Effect, Cause, Option } from "effect"
 
-// Effect<never, never, void>
+// $ExpectType Effect<never, never, void>
 const program = Effect.dieMessage("Boom!") // Simulating a runtime error
   .pipe(
     Effect.catchSomeDefect((defect) => {

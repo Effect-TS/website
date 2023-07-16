@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 
-// Effect<never, never, void>
+// $ExpectType Effect<never, never, void>
 const program = Effect.fail("Something went wrong!").pipe(
   Effect.catchAll((error) => Effect.log(String(error), { level: "Error" }))
 )

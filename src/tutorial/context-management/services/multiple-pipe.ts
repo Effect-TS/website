@@ -12,7 +12,7 @@ interface Logger {
 
 const Logger = Context.Tag<Logger>()
 
-// Effect<Random | Logger, never, void>
+// $ExpectType Effect<Random | Logger, never, void>
 const program = Effect.all([Random, Logger]).pipe(
   Effect.flatMap(([random, logger]) =>
     Effect.flatMap(random.next(), (randomNumber) =>
