@@ -8,18 +8,8 @@ Managing state is a common pattern in programming, and it often involves using v
 
 One common scenario is calculating the length of a list. We can achieve this by using a variable, `count`, to store the intermediate result:
 
-```ts
-import { List } from "effect"
+```ts file=<rootDir>/src/guide/state-management/recursion/example-1.ts
 
-const size = <A>(self: List.List<A>): number => {
-  let count = 0
-  for (const _ of self) {
-    count++
-  }
-  return count
-}
-
-console.log(size(List.make(1, 2, 3))) // Output: 3
 ```
 
 In this example, we iterate over each element in the list and increment the `count` variable to keep track of the number of elements. Finally, we return the value of `count` as the length of the list.
@@ -28,21 +18,8 @@ In this example, we iterate over each element in the list and increment the `cou
 
 Another technique for managing state is using recursive calls and passing the updated state as a function argument. Let's modify the previous example to use recursion:
 
-```ts
-import { List } from "effect"
+```ts file=<rootDir>/src/guide/state-management/recursion/example-2.ts
 
-const size = <A>(self: List.List<A>): number => {
-  const loop = (result: number, state: List.List<A>): number => {
-    if (List.isNil(state)) {
-      return result
-    } else {
-      return loop(result + 1, state.tail)
-    }
-  }
-  return loop(0, self)
-}
-
-console.log(size(List.make(1, 2, 3))) // Output: 3
 ```
 
 In this updated version, we define an inner function `loop` that takes two arguments: `result`, which stores the current result, and `state`, which represents the remaining elements in the list. The function checks if the state is empty (`List.isNil(state)`), and if so, it returns the final result. Otherwise, it recursively calls itself with an updated result (`result + 1`) and the next state (`state.tail`). This process continues until we reach the end of the list.
@@ -53,26 +30,8 @@ The same pattern can be applied when dealing with side effects. Let's consider a
 
 First, let's introduce a `readLine` utility to read user input:
 
-```ts filename="ReadLine.ts"
-import { Effect } from "effect"
-import * as NodeReadLine from "node:readline"
+```ts filename="ReadLine.ts" file=<rootDir>/src/guide/state-management/recursion/ReadLine.ts
 
-export const readLine = (
-  message: string
-): Effect.Effect<never, never, string> =>
-  Effect.promise(
-    () =>
-      new Promise((resolve) => {
-        const rl = NodeReadLine.createInterface({
-          input: process.stdin,
-          output: process.stdout,
-        })
-        rl.question(message, (answer) => {
-          rl.close()
-          resolve(answer)
-        })
-      })
-  )
 ```
 
 Now, let's take a look at the main program:
@@ -80,64 +39,15 @@ Now, let's take a look at the main program:
 <Tabs>
 <Tab>
 
-```ts
-import { Effect, Chunk } from "effect"
-import * as ReadLine from "./ReadLine"
+```ts file=<rootDir>/src/guide/state-management/recursion/index-pipe.ts
 
-const loop = (
-  state: Chunk.Chunk<string>
-): Effect.Effect<never, never, Chunk.Chunk<string>> =>
-  ReadLine.readLine("Please enter a name or `q` to exit: ").pipe(
-    Effect.flatMap((name) => {
-      if (name === "q") {
-        return Effect.succeed(state)
-      } else {
-        return loop(Chunk.append(state, name))
-      }
-    })
-  )
-
-const getNames = loop(Chunk.empty())
-
-Effect.runPromise(getNames).then((result) => console.log(String(result)))
-/*
-Please enter a name or `q` to exit: Alice
-Please enter a name or `q` to exit: Bob
-Please enter a name or `q` to exit: q
-Chunk(Alice, Bob)
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect, Chunk } from "effect"
-import * as ReadLine from "./ReadLine"
+```ts file=<rootDir>/src/guide/state-management/recursion/index-gen.ts
 
-const loop = (
-  state: Chunk.Chunk<string>
-): Effect.Effect<never, never, Chunk.Chunk<string>> =>
-  Effect.gen(function* (_) {
-    const name = yield* _(
-      ReadLine.readLine("Please enter a name or `q` to exit: ")
-    )
-    if (name === "q") {
-      return state
-    } else {
-      return yield* _(loop(Chunk.append(state, name)))
-    }
-  })
-
-const getNames = loop(Chunk.empty())
-
-Effect.runPromise(getNames).then((result) => console.log(String(result)))
-/*
-Please enter a name or `q` to exit: Alice
-Please enter a name or `q` to exit: Bob
-Please enter a name or `q` to exit: q
-Chunk(Alice, Bob)
-*/
 ```
 
 </Tab>
