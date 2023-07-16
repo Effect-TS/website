@@ -1,7 +1,7 @@
 import { Effect, Chunk, Ref, Fiber } from "effect"
 import * as ReadLine from "./ReadLine"
 
-// $ExpectType Effect<never, never, Chunk.Chunk<string>>
+// $ExpectType Effect<never, never, Chunk<string>>
 const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
   const fiber1 = ReadLine.readLine("Please enter a name or `q` to exit: ").pipe(
     Effect.repeatWhileEffect((name) => {
