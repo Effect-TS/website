@@ -11,16 +11,8 @@ In this tutorial you will learn:
 As we saw in the tutorial [Creating Effects](../../essentials/creating), we can use the `fail` constructor to create an Effect
 that represents an error:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/error-management/expected-errors/fail.ts
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
-
-const program: Effect.Effect<never, HttpError, never> = Effect.fail(
-  new HttpError()
-)
 ```
 
 <Info>
@@ -31,10 +23,8 @@ const program: Effect.Effect<never, HttpError, never> = Effect.fail(
 
 It's worth noting that we added a `_tag` field to our error in the example.
 
-```ts /_tag/
-class HttpError {
-  readonly _tag = "HttpError"
-}
+```ts /_tag/ file=<rootDir>/src/tutorial/error-management/expected-errors/fail.ts#L3-L5
+
 ```
 
 <Idea>
@@ -57,33 +47,8 @@ The following program serves as an illustration of how errors are automatically 
 <Tabs>
   <Tab>
 
-```ts
-import { Effect, Random } from "effect"
+```ts filename="error-accumulation.ts" file=<rootDir>/src/tutorial/error-management/expected-errors/error-accumulation.ts#L1-L26
 
-class FooError {
-  readonly _tag = "FooError"
-}
-
-class BarError {
-  readonly _tag = "BarError"
-}
-
-const flakyFoo = Random.next.pipe(
-  Effect.flatMap((n1) =>
-    n1 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new FooError())
-  )
-)
-
-const flakyBar = Random.next.pipe(
-  Effect.flatMap((n2) =>
-    n2 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new BarError())
-  )
-)
-
-// Effect<never, FooError | BarError, string>
-const program = Effect.all([flakyFoo, flakyBar]).pipe(
-  Effect.map(([foo, bar]) => foo + bar)
-)
 ```
 
 In the above program, we have two operations: `flakyFoo` and `flakyBar`, each representing a potential source of error.
@@ -92,34 +57,8 @@ These operations are combined using the `Effect.all(effects){:ts}` function from
   </Tab>
   <Tab>
 
-```ts
-import { Effect, Random } from "effect"
+```ts filename="error-accumulation.ts" file=<rootDir>/src/tutorial/error-management/expected-errors/error-accumulation-gen.ts#L1-L27
 
-class FooError {
-  readonly _tag = "FooError"
-}
-
-class BarError {
-  readonly _tag = "BarError"
-}
-
-// Effect<never, FooError | BarError, string>
-const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
-
-  const foo =
-    n1 > 0.5
-      ? yield* _(Effect.succeed("yay!"))
-      : yield* _(Effect.fail(new FooError()))
-
-  const bar =
-    n2 > 0.5
-      ? yield* _(Effect.succeed("yay!"))
-      : yield* _(Effect.fail(new BarError()))
-
-  return foo + bar
-})
 ```
 
   </Tab>
@@ -146,34 +85,21 @@ The `catchAll` function allows you to catch any error that occurs in the program
 <Tabs>
 <Tab>
 
-```ts {3}
-// Effect<never, never, string>
-const recovered = program.pipe(
-  Effect.catchAll((error) => Effect.succeed(`Recovering from ${error._tag}`))
-)
+```ts {6} file=<rootDir>/src/tutorial/error-management/expected-errors/catchAll-pipe.ts
+
 ```
 
 </Tab>
 <Tab>
 
-```ts {6-9}
-import { Effect, Either } from "effect"
+```ts {7-10} file=<rootDir>/src/tutorial/error-management/expected-errors/catchAll-gen.ts
 
-// Effect<never, never, string>
-const recovered = Effect.gen(function* (_) {
-  const successOrFailure = yield* _(Effect.either(program))
-  if (Either.isLeft(successOrFailure)) {
-    const error = successOrFailure.left
-    return `Recovering from ${error._tag}`
-  }
-  return successOrFailure.right
-})
 ```
 
 </Tab>
 </Tabs>
 
-We can observe that the type in the error channel of our `program` has changed to `never`,
+We can observe that the type in the error channel of our program has changed to `never`,
 indicating that all errors has been handled.
 
 ```ts /never/2
@@ -187,13 +113,8 @@ Suppose we only want to handle `FooError`. In that case, we can use the `catchTa
 <Tabs>
 <Tab>
 
-```ts {3-5}
-// Effect<never, BarError, string>
-const recovered = program.pipe(
-  Effect.catchTag("FooError", (fooError) =>
-    Effect.succeed("Recovering from FooError")
-  )
-)
+```ts {6-8} file=<rootDir>/src/tutorial/error-management/expected-errors/catchTag-pipe.ts
+
 ```
 
 In the example above, the `catchTag` function allows us to handle `FooError` specifically.
@@ -203,27 +124,14 @@ and the program will proceed with the recovery logic specified within the handle
 </Tab>
 <Tab>
 
-```ts {8-10}
-import { Effect, Either } from "effect"
+```ts {9-11} file=<rootDir>/src/tutorial/error-management/expected-errors/catchTag-gen.ts
 
-// Effect<never, BarError, string>
-const recovered = Effect.gen(function* (_) {
-  const successOrFailure = yield* _(Effect.either(program))
-  if (Either.isLeft(successOrFailure)) {
-    const error = successOrFailure.left
-    if (error._tag === "FooError") {
-      return "Recovering from FooError"
-    }
-    return yield* _(Effect.fail(error))
-  }
-  return successOrFailure.right
-})
 ```
 
 </Tab>
 </Tabs>
 
-We can observe that the type in the error channel of our `program` has changed to only show `BarError`,
+We can observe that the type in the error channel of our program has changed to only show `BarError`,
 indicating that `FooError` has been handled.
 
 ```ts /BarError/
@@ -235,36 +143,15 @@ If we also wanted to handle `BarError`, we can simply add another `catchTag`.
 <Tabs>
 <Tab>
 
-```ts {6-8}
-// Effect<never, never, string>
-const recovered = program.pipe(
-  Effect.catchTag("FooError", (_fooError) =>
-    Effect.succeed("Recovering from FooError")
-  ),
-  Effect.catchTag("BarError", (_barError) =>
-    Effect.succeed("Recovering from BarError")
-  )
-)
+```ts {9-11} file=<rootDir>/src/tutorial/error-management/expected-errors/catchTag-pipe-2.ts
+
 ```
 
 </Tab>
 <Tab>
 
-```ts {11}
-import { Effect, Either } from "effect"
+```ts {12} file=<rootDir>/src/tutorial/error-management/expected-errors/catchTag-gen-2.ts
 
-// Effect<never, never, string>
-const recovered = Effect.gen(function* (_) {
-  const successOrFailure = yield* _(Effect.either(program))
-  if (Either.isLeft(successOrFailure)) {
-    const error = successOrFailure.left
-    if (error._tag === "FooError") {
-      return "Recovering from FooError"
-    }
-    return "Recovering from BarError"
-  }
-  return successOrFailure.right
-})
 ```
 
 </Tab>
@@ -283,14 +170,8 @@ Instead of using the `catchTag` combinator multiple times to handle individual e
 <Tabs>
 <Tab>
 
-```ts {3-6}
-// Effect<never, never, string>
-const recovered = program.pipe(
-  Effect.catchTags({
-    FooError: (_fooError) => Effect.succeed(`Recovering from FooError`),
-    BarError: (_barError) => Effect.succeed(`Recovering from BarError`),
-  })
-)
+```ts {6-9} file=<rootDir>/src/tutorial/error-management/expected-errors/catchTags-pipe.ts
+
 ```
 
 In the above example, instead of using `catchTag` multiple times to handle individual errors, we utilize the `catchTags` combinator.
@@ -300,23 +181,8 @@ and the corresponding value is the error handler function to be executed when th
 </Tab>
 <Tab>
 
-```ts {8-13}
-import { Effect, Either } from "effect"
+```ts {9-14} file=<rootDir>/src/tutorial/error-management/expected-errors/catchTags-gen.ts
 
-// Effect<never, never, string>
-const recovered = Effect.gen(function* (_) {
-  const successOrFailure = yield* _(Effect.either(program))
-  if (Either.isLeft(successOrFailure)) {
-    const error = successOrFailure.left
-    switch (error._tag) {
-      case "FooError":
-        return "Recovering from FooError"
-      case "BarError":
-        return "Recovering from BarError"
-    }
-  }
-  return successOrFailure.right
-})
 ```
 
 </Tab>
@@ -337,17 +203,8 @@ In such cases, you can use the `mapError` function.
 <Tabs>
 <Tab>
 
-```ts {3-9}
-// Effect<never, Error, string>
-const modified = program.pipe(
-  Effect.mapError((error) => {
-    if (error._tag === "FooError") {
-      return new Error("Something went wrong with Foo")
-    } else {
-      return new Error("Something went wrong with Bar")
-    }
-  })
-)
+```ts {6-12} file=<rootDir>/src/tutorial/error-management/expected-errors/mapError-pipe.ts
+
 ```
 
 In the code snippet above, `mapError` is applied to the `Effect` computation.
@@ -357,29 +214,14 @@ The provided error transformation function takes the original error as an input 
 </Tab>
 <Tab>
 
-```ts {8-13}
-import { Effect, Either } from "effect"
+```ts {9-14} file=<rootDir>/src/tutorial/error-management/expected-errors/mapError-gen.ts
 
-// Effect<never, Error, string>
-const modified = Effect.gen(function* (_) {
-  const successOrFailure = yield* _(Effect.either(program))
-  if (Either.isLeft(successOrFailure)) {
-    const error = successOrFailure.left
-    switch (error._tag) {
-      case "FooError":
-        return yield* _(Effect.fail(new Error("Something went wrong with Foo")))
-      case "BarError":
-        return yield* _(Effect.fail(new Error("Something went wrong with Bar")))
-    }
-  }
-  return successOrFailure.right
-})
 ```
 
 </Tab>
 </Tabs>
 
-We can observe that the type in the error channel of our `program` has changed from `FooError | BarError` to `Error`.
+We can observe that the type in the error channel of our program has changed from `FooError | BarError` to `Error`.
 
 ```ts /Error/
 Effect<never, Error, string>
@@ -397,52 +239,15 @@ In simpler terms, the short-circuiting behavior ensures that if something goes w
 <Tabs>
   <Tab>
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/error-management/expected-errors/short-circuiting-pipe.ts
 
-const operation1 = Effect.sync(() => console.log("operation1"))
-const operation2 = Effect.fail(new Error("Something went wrong!"))
-const operation3 = Effect.sync(() => console.log("operation3"))
-
-const result = Effect.runSyncExit(
-  operation1.pipe(
-    Effect.flatMap(() => operation2),
-    Effect.flatMap(() => operation3) // This computation won't be executed because the previous one fails
-  )
-)
-
-console.log(result)
-
-/*
-operation1
-Failure("Something went wrong!")
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/error-management/expected-errors/short-circuiting-gen.ts
 
-const operation1 = Effect.sync(() => console.log("operation1"))
-const operation2 = Effect.fail(new Error("Something went wrong!"))
-const operation3 = Effect.sync(() => console.log("operation3"))
-
-const result = Effect.runSyncExit(
-  Effect.gen(function* (_) {
-    yield* _(operation1)
-    yield* _(operation2)
-    yield* _(operation3) // This computation won't be executed because the previous one fails
-  })
-)
-
-console.log(result)
-
-/*
-operation1
-Failure("Something went wrong!")
-*/
 ```
 
 </Tab>

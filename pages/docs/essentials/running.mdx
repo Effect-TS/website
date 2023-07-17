@@ -8,21 +8,8 @@ To execute an `Effect`, we can utilize a variety of "run" functions provided by 
 
 The `runSync` function is used to execute an Effect synchronously, which means it runs immediately and returns the result.
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/running/runSync.ts
 
-// Effect<never, never, number>
-const program = Effect.sync(() => {
-  console.log("Hello, World!")
-  return 1
-})
-
-// number
-const result = Effect.runSync(program)
-// Output: Hello, World!
-
-console.log(result)
-// Output: 1
 ```
 
 If you check the console, you will see the message `"Hello, World!"` printed.
@@ -33,12 +20,8 @@ If you check the console, you will see the message `"Hello, World!"` printed.
   that asynchronous task.
 </Warning>
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/running/runSync-throws.ts
 
-Effect.runSync(Effect.fail("error")) // throws
-
-Effect.runSync(Effect.promise(() => Promise.resolve(1))) // throws
 ```
 
 ## runSyncExit
@@ -46,12 +29,8 @@ Effect.runSync(Effect.promise(() => Promise.resolve(1))) // throws
 The `runSyncExit` function is used to execute an Effect synchronously, which means it runs immediately and returns the result as an [`Exit`](exit)
 (a data type used to describe the result of executing an `Effect` workflow).
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/running/runSyncExit.ts
 
-Effect.runSyncExit(Effect.succeed(1)) // Exit.succeed(1)
-
-Effect.runSyncExit(Effect.fail("error")) // Exit.fail(...)
 ```
 
 <Warning>
@@ -59,28 +38,22 @@ Effect.runSyncExit(Effect.fail("error")) // Exit.fail(...)
   tasks and the execution will not proceed beyond that asynchronous task.
 </Warning>
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/running/runSyncExit-throws.ts
 
-Effect.runSyncExit(Effect.promise(() => Promise.resolve(1))) // throws
 ```
 
 ## runPromise
 
 The `runPromise` function is used to execute an Effect and obtain the result as a `Promise`.
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/running/runPromise.ts
 
-await Effect.runPromise(Effect.succeed(1)) // 1
 ```
 
 <Warning>`runPromise` will reject with an error if your Effect fails</Warning>
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/running/runPromise-rejects.ts
 
-Effect.runPromise(Effect.fail("error")) // rejects
 ```
 
 ## runPromiseExit
@@ -88,12 +61,8 @@ Effect.runPromise(Effect.fail("error")) // rejects
 The `runPromiseExit` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an [`Exit`](exit)
 (a data type used to describe the result of executing an `Effect` workflow).
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/running/runPromiseExit.ts
 
-await Effect.runPromiseExit(Effect.succeed(1)) // Exit.succeed(1)
-
-await Effect.runPromiseExit(Effect.fail("error")) // Exit.fail(...)
 ```
 
 ## Cheatsheet

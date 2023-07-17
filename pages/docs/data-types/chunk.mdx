@@ -19,43 +19,28 @@ Let's explore the reasons behind using `Chunk`:
 
 To create an empty `Chunk`, you can use the following code:
 
-```ts
-import { Chunk } from "effect"
+```ts file=<rootDir>/src/data-types/chunk/empty.ts
 
-// Chunk<never>
-const emptyChunk = Chunk.empty()
 ```
 
 If you want to create a `Chunk` with specific values, you can use the `Chunk.make(...values){:ts}` function:
 
-```ts
-import { Chunk } from "effect"
+```ts file=<rootDir>/src/data-types/chunk/make.ts
 
-// NonEmptyChunk<number>
-const nonEmptyChunk = Chunk.make(1, 2, 3)
 ```
 
 Alternatively, you can create a `Chunk` by providing a collection of values. There are multiple ways to achieve this:
 
 - Creating a `Chunk` from a generic `Iterable`:
 
-  ```ts
-  import { Chunk, List } from "effect"
+  ```ts file=<rootDir>/src/data-types/chunk/fromIterable.ts
 
-  // Chunk<number>
-  const fromArray = Chunk.fromIterable([1, 2, 3])
-
-  // Chunk<number>
-  const fromList = Chunk.fromIterable(List.make(1, 2, 3))
   ```
 
 - Creating a `Chunk` from an `Array`:
 
-  ```ts
-  import { Chunk } from "effect"
+  ```ts file=<rootDir>/src/data-types/chunk/unsafeFromArray.ts
 
-  // Chunk<number>
-  const fromUnsafeArray = Chunk.unsafeFromArray([1, 2, 3])
   ```
 
 `Chunk.fromIterable` makes a chunk by cloning the iterable, which can be an expensive process for large iterables or when making many Chunks. `unsafeFromArray` doesn't do any cloning which can have performance benefits, but this breaks the assumption that Chunk is immutable.
@@ -70,50 +55,30 @@ Alternatively, you can create a `Chunk` by providing a collection of values. The
 
 You can concatenate two Chunks using the `concat` function:
 
-```ts
-import { Chunk } from "effect"
+```ts file=<rootDir>/src/data-types/chunk/appendAll.ts
 
-// Chunk<string | number>
-const concatenatedChunk = Chunk.appendAll(
-  Chunk.make(1, 2),
-  Chunk.make("a", "b")
-)
-
-console.log(concatenatedChunk) // Output: Chunk(1, 2, "a", "b")
 ```
 
 ### Dropping
 
 To drop elements from the beginning of a `Chunk`, you can use the `drop` function:
 
-```ts
-import { Chunk } from "effect"
+```ts file=<rootDir>/src/data-types/chunk/drop.ts
 
-// Chunk<number>
-const droppedChunk = Chunk.drop(Chunk.make(1, 2, 3, 4), 2) // Drops the first 2 elements from the Chunk
 ```
 
 ### Comparing
 
 You can compare two `Chunk`s for equality using the `Equal.equals` function:
 
-```ts
-import { Chunk, Equal } from "effect"
+```ts file=<rootDir>/src/data-types/chunk/equals.ts
 
-const chunk1 = Chunk.make(1, 2)
-const chunk2 = Chunk.make(1, 2, 3)
-
-// boolean
-const areEqual = Equal.equals(chunk1, chunk2)
 ```
 
 ### Converting
 
 To convert a `Chunk` to a `ReadonlyArray`, you can use the `toReadonlyArray` function:
 
-```ts
-import { Chunk } from "effect"
+```ts file=<rootDir>/src/data-types/chunk/toReadonlyArray.ts
 
-// ReadonlyArray<number>
-const readonlyArray = Chunk.toReadonlyArray(Chunk.make(1, 2, 3))
 ```

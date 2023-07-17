@@ -6,18 +6,8 @@ import { Warning } from "@/components/Callout"
 
 We can attempt one effect, and if it fails, we can try another effect using the `Effect.orElse` combinator:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/error-management/fallback/orElse.ts
 
-const success = Effect.succeed("success")
-const failure = Effect.fail("failure")
-const fallback = Effect.succeed("fallback")
-
-const program1 = success.pipe(Effect.orElse(() => fallback))
-console.log(Effect.runSync(program1)) // Output: "success"
-
-const program2 = failure.pipe(Effect.orElse(() => fallback))
-console.log(Effect.runSync(program2)) // Output: "fallback"
 ```
 
 ## orElseFail / orElseSucceed
@@ -26,40 +16,14 @@ These two operators modify the original failure by replacing it with constant su
 
 The `Effect.orElseFail` will always replace the original failure with the new one:
 
-```ts /NegativeAgeError | IllegalAgeError/ /string/
-import { Effect } from "effect"
+```ts /NegativeAgeError | IllegalAgeError/ /string/ file=<rootDir>/src/tutorial/error-management/fallback/orElseFail-orElseSucceed.ts#L1-L26
 
-class NegativeAgeError {
-  readonly _tag = "NegativeAgeError"
-  constructor(readonly age: number) {}
-}
-
-class IllegalAgeError {
-  readonly _tag = "IllegalAgeError"
-  constructor(readonly age: number) {}
-}
-
-const validate = (
-  age: number
-): Effect.Effect<never, NegativeAgeError | IllegalAgeError, number> => {
-  if (age < 0) {
-    return Effect.fail(new NegativeAgeError(age))
-  } else if (age < 18) {
-    return Effect.fail(new IllegalAgeError(age))
-  } else {
-    return Effect.succeed(age)
-  }
-}
-
-// Effect<never, string, number>
-const program1 = validate(3).pipe(Effect.orElseFail(() => "invalid age"))
 ```
 
 The `Effect.orElseSucceed` will always replace the original failure with a success value, so the resulting effect cannot fail:
 
-```ts / never/
-// Effect<never, never, number>
-const program2 = validate(3).pipe(Effect.orElseSucceed(() => 0))
+```ts / never/ file=<rootDir>/src/tutorial/error-management/fallback/orElseFail-orElseSucceed.ts#L28-
+
 ```
 
 ## firstSuccessOf
@@ -70,38 +34,8 @@ This operator utilizes `Effect.orElse` to combine multiple effects into a single
 
 In the following example, we attempt to retrieve a configuration from different nodes. If retrieving from the master node fails, we successively try retrieving from the next available nodes until we find a successful result:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/error-management/fallback/firstSuccessOf.ts
 
-interface Config {
-  // ...
-}
-
-const remoteConfig = (name: string): Effect.Effect<never, Error, Config> =>
-  name === "node3"
-    ? Effect.log(`Config for ${name} found`).pipe(
-        Effect.flatMap(() => Effect.succeed({}))
-      )
-    : Effect.log(`Unavailable config for ${name}`).pipe(
-        Effect.flatMap(() => Effect.fail(new Error()))
-      )
-
-// Effect<never, Error, Config>
-const masterConfig = remoteConfig("master")
-
-// Effect<never, Error, Config>[]
-const nodeConfigs = ["node1", "node2", "node3", "node4"].map(remoteConfig)
-
-// Effect<never, Error, Config>
-const config = Effect.firstSuccessOf([masterConfig, ...nodeConfigs])
-
-console.log(Effect.runSync(config))
-/*
-... message="Unavailable config for master"
-... message="Unavailable config for node1"
-... message="Unavailable config for node2"
-... message="Config for node3 found"
-*/
 ```
 
 <Warning>

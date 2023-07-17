@@ -24,18 +24,8 @@ Thanks to the `Ref` data type, we can easily use the `Ref` data type to manage t
 
 Let's write a counter using the `Ref` data type:
 
-```ts filename="Counter.ts"
-import { Effect, Ref } from "effect"
+```ts filename="Counter.ts" file=<rootDir>/src/guide/state-management/global-shared-state/Counter.ts
 
-export class Counter {
-  constructor(private value: Ref.Ref<number>) {}
-  inc = Ref.update(this.value, (n) => n + 1)
-  dec = Ref.update(this.value, (n) => n - 1)
-  get = Ref.get(this.value)
-}
-
-// Effect<never, never, Counter>
-export const make = Ref.make(0).pipe(Effect.map((value) => new Counter(value)))
 ```
 
 Here is the usage example of the `Counter`:
@@ -43,51 +33,15 @@ Here is the usage example of the `Counter`:
 <Tabs>
 <Tab>
 
-```ts
-import { Effect } from "effect"
-import * as Counter from "./Counter"
+```ts file=<rootDir>/src/guide/state-management/global-shared-state/example-1-pipe.ts
 
-// Effect<never, never, void>
-const program = Effect.flatMap(Counter.make, (counter) =>
-  counter.inc.pipe(
-    Effect.flatMap(() => counter.inc),
-    Effect.flatMap(() => counter.dec),
-    Effect.flatMap(() => counter.inc),
-    Effect.flatMap(() => counter.get),
-    Effect.flatMap((value) =>
-      Effect.log(`This counter has a value of ${value}.`)
-    )
-  )
-)
-
-Effect.runSync(program)
-/*
-... message="This counter has a value of 2."
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect } from "effect"
-import * as Counter from "./Counter"
+```ts file=<rootDir>/src/guide/state-management/global-shared-state/example-1-gen.ts
 
-// Effect<never, never, void>
-const program = Effect.gen(function* (_) {
-  const counter = yield* _(Counter.make)
-  yield* _(counter.inc)
-  yield* _(counter.inc)
-  yield* _(counter.dec)
-  yield* _(counter.inc)
-  const value = yield* _(counter.get)
-  yield* _(Effect.log(`This counter has a value of ${value}.`))
-})
-
-Effect.runSync(program)
-/*
-... message="This counter has a value of 2."
-*/
 ```
 
 </Tab>
@@ -103,74 +57,15 @@ We can use this counter in a concurrent environment, e.g. in a RESTful API to co
 <Tabs>
 <Tab>
 
-```ts
-import { Effect } from "effect"
-import * as Counter from "./Counter"
+```ts file=<rootDir>/src/guide/state-management/global-shared-state/example-1-concurrent-pipe.ts
 
-// Effect<never, never, void>
-const program = Effect.flatMap(Counter.make, (counter) => {
-  const logCounter = <R, E, A>(action: Effect.Effect<R, E, A>) =>
-    counter.get.pipe(
-      Effect.flatMap((value) => Effect.log(`get: ${value}`)),
-      Effect.flatMap(() => action)
-    )
-
-  return counter.inc.pipe(
-    Effect.zip(logCounter(counter.inc), { concurrent: true }),
-    Effect.zip(logCounter(counter.dec), { concurrent: true }),
-    Effect.zip(logCounter(counter.inc), { concurrent: true }),
-    Effect.flatMap(() => counter.get),
-    Effect.flatMap((value) =>
-      Effect.log(`This counter has a value of ${value}.`)
-    )
-  )
-})
-
-Effect.runSync(program)
-/*
-... fiber=#2 message="get: 0"
-... fiber=#4 message="get: 1"
-... fiber=#6 message="get: 1"
-... fiber=#0 message="This counter has a value of 2."
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect } from "effect"
-import * as Counter from "./Counter"
+```ts file=<rootDir>/src/guide/state-management/global-shared-state/example-1-concurrent-gen.ts
 
-// Effect<never, never, void>
-const program = Effect.gen(function* (_) {
-  const counter = yield* _(Counter.make)
-
-  const logCounter = <R, E, A>(effect: Effect.Effect<R, E, A>) =>
-    Effect.gen(function* (_) {
-      const value = yield* _(counter.get)
-      yield* _(Effect.log(`get: ${value}`))
-      return yield* _(effect)
-    })
-
-  yield* _(
-    counter.inc.pipe(
-      Effect.zip(logCounter(counter.inc), { concurrent: true }),
-      Effect.zip(logCounter(counter.dec), { concurrent: true }),
-      Effect.zip(logCounter(counter.inc), { concurrent: true })
-    )
-  )
-  const value = yield* _(counter.get)
-  yield* _(Effect.log(`This counter has a value of ${value}.`))
-})
-
-Effect.runSync(program)
-/*
-... fiber=#2 message="get: 0"
-... fiber=#4 message="get: 1"
-... fiber=#6 message="get: 1"
-... fiber=#0 message="This counter has a value of 2."
-*/
 ```
 
 </Tab>
@@ -185,65 +80,15 @@ Here's how the code can be rewritten using the `Ref` data type:
 <Tabs>
 <Tab>
 
-```ts
-import { Effect, Chunk, Ref } from "effect"
-import * as ReadLine from "./ReadLine"
+```ts file=<rootDir>/src/guide/state-management/global-shared-state/example-2-pipe.ts
 
-// Effect<never, never, Chunk.Chunk<string>>
-const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) =>
-  ReadLine.readLine("Please enter a name or `q` to exit: ").pipe(
-    Effect.repeatWhileEffect((name) => {
-      if (name === "q") {
-        return Effect.succeed(false)
-      } else {
-        return ref.pipe(
-          Ref.update((state) => Chunk.append(state, name)),
-          Effect.as(true)
-        )
-      }
-    }),
-    Effect.flatMap(() => Ref.get(ref))
-  )
-)
-
-Effect.runPromise(getNames).then((result) => console.log(String(result)))
-/*
-Please enter a name or `q` to exit: Alice
-Please enter a name or `q` to exit: Bob
-Please enter a name or `q` to exit: q
-Chunk(Alice, Bob)
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect, Chunk, Ref } from "effect"
-import * as ReadLine from "./ReadLine"
+```ts file=<rootDir>/src/guide/state-management/global-shared-state/example-2-gen.ts
 
-// Effect<never, never, List.List<string>>
-const getNames = Effect.gen(function* (_) {
-  const ref = yield* _(Ref.make(Chunk.empty<string>()))
-  while (true) {
-    const name = yield* _(
-      ReadLine.readLine("Please enter a name or `q` to exit: ")
-    )
-    if (name === "q") {
-      break
-    }
-    yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
-  }
-  return yield* _(Ref.get(ref))
-})
-
-Effect.runPromise(getNames).then((result) => console.log(String(result)))
-/*
-Please enter a name or `q` to exit: Alice
-Please enter a name or `q` to exit: Bob
-Please enter a name or `q` to exit: q
-Chunk(Alice, Bob)
-*/
 ```
 
 </Tab>
@@ -254,100 +99,15 @@ Now that we have learned how to use the `Ref` data type, we can use it to manage
 <Tabs>
 <Tab>
 
-```ts
-import { Effect, Chunk, Ref, Fiber } from "effect"
-import * as ReadLine from "./ReadLine"
+```ts file=<rootDir>/src/guide/state-management/global-shared-state/example-2-concurrent-pipe.ts
 
-// Effect<never, never, Chunk.Chunk<string>>
-const getNames = Effect.flatMap(Ref.make(Chunk.empty<string>()), (ref) => {
-  const fiber1 = ReadLine.readLine("Please enter a name or `q` to exit: ").pipe(
-    Effect.repeatWhileEffect((name) => {
-      if (name === "q") {
-        return Effect.succeed(false)
-      } else {
-        return ref.pipe(
-          Ref.update((state) => Chunk.append(state, name)),
-          Effect.as(true)
-        )
-      }
-    }),
-    Effect.fork
-  )
-  const fiber2 = Effect.fork(
-    Effect.forEach(
-      ["John", "Jane", "Joe", "Tom"],
-      (name) =>
-        ref.pipe(
-          Ref.update((state) => Chunk.append(state, name)),
-          Effect.flatMap(() => Effect.sleep("1 seconds"))
-        ),
-      { concurrency: "unbounded", discard: true }
-    )
-  )
-  return Effect.all([fiber1, fiber2]).pipe(
-    Effect.flatMap(([f1, f2]) =>
-      Fiber.join(f1).pipe(Effect.flatMap(() => Fiber.join(f2)))
-    ),
-    Effect.flatMap(() => Ref.get(ref))
-  )
-})
-
-Effect.runPromise(getNames).then((result) => console.log(String(result)))
-/*
-Please enter a name or `q` to exit: Alice
-Please enter a name or `q` to exit: Bob
-Please enter a name or `q` to exit: q
-Chunk(John, Jane, Alice, Joe, Bob, Tom)
-*/
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect, Chunk, Ref, Fiber } from "effect"
-import * as ReadLine from "./ReadLine"
+```ts file=<rootDir>/src/guide/state-management/global-shared-state/example-2-concurrent-gen.ts
 
-// Effect<never, never, Chunk.Chunk<string>>
-const getNames = Effect.gen(function* (_) {
-  const ref = yield* _(Ref.make(Chunk.empty<string>()))
-  const fiber1 = yield _(
-    Effect.fork(
-      Effect.gen(function* (_) {
-        while (true) {
-          const name = yield* _(
-            ReadLine.readLine("Please enter a name or `q` to exit: ")
-          )
-          if (name === "q") {
-            break
-          }
-          yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
-        }
-      })
-    )
-  )
-  const fiber2 = yield* _(
-    Effect.fork(
-      Effect.gen(function* (_) {
-        for (const name of ["John", "Jane", "Joe", "Tom"]) {
-          yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
-          yield* _(Effect.sleep("1 seconds"))
-        }
-      })
-    )
-  )
-  yield* _(Fiber.join(fiber1))
-  yield* _(Fiber.join(fiber2))
-  return yield* _(Ref.get(ref))
-})
-
-Effect.runPromise(getNames).then((result) => console.log(String(result)))
-/*
-Please enter a name or `q` to exit: Alice
-Please enter a name or `q` to exit: Bob
-Please enter a name or `q` to exit: q
-Chunk(John, Jane, Alice, Joe, Bob, Tom)
-*/
 ```
 
 </Tab>

@@ -9,13 +9,8 @@ In this tutorial, we will cover some of the common methods that you can use to c
 
 In traditional programming, when an error occurs, it is often handled by throwing an exception:
 
-```ts
-const divide = (a: number, b: number): number => {
-  if (b === 0) {
-    throw new Error("Cannot divide by zero")
-  }
-  return a / b
-}
+```ts file=<rootDir>/src/why-effect/divide.ts
+
 ```
 
 However, throwing errors can be problematic. The type signatures of functions do not indicate that they can throw exceptions, making it difficult to reason about potential errors.
@@ -26,11 +21,8 @@ To address this issue, Effect introduces dedicated constructors for creating eff
 
 To create an effect that represents a successful computation, you can use the `Effect.succeed` constructor. It takes a value as input and produces an effect that succeeds with that value. Here's an example:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/creating/succeed.ts
 
-// Effect<never, never, number>
-const program = Effect.succeed(42)
 ```
 
 The `program` value has the type `Effect<never, never, number>` and can be interpreted as an effect that:
@@ -43,11 +35,8 @@ The `program` value has the type `Effect<never, never, number>` and can be inter
 
 To create an effect that represents a failure, you can use the `Effect.fail` constructor. It takes an error value as input and produces an effect that fails with that error. Here's an example:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/creating/fail.ts
 
-// Effect<never, string, never>
-const program = Effect.fail("my error")
 ```
 
 The `program` value has the type `Effect<never, string, never>` and can be interpreted as an effect that:
@@ -60,13 +49,8 @@ With `Effect.succeed` and `Effect.fail`, you can explicitly handle success and f
 
 Let's see an example of rewriting the `divide` function using Effect to make the error handling explicit:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/why-effect/divide-effect.ts
 
-const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
 ```
 
 In this example, the `divide` function explicitly indicates that it can produce an effect that either fails with an `Error` or succeeds with a `number` value. The type signature makes it clear how errors are handled and ensures that callers are aware of the possible outcomes.
@@ -87,14 +71,8 @@ To model synchronous side effects, Effect provides the `Effect.sync` and `Effect
 
 If you're working with synchronous side effects and you're confident that they will **never throw errors**, you can use the `Effect.sync` constructor:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/creating/sync.ts
 
-// Effect<never, never, number>
-const program = Effect.sync(() => {
-  console.log("Hello, World!") // side effect
-  return 42 // return value
-})
 ```
 
 In the above example, `Effect.sync` is used to defer the side-effect of writing to the console.
@@ -102,7 +80,7 @@ In the above example, `Effect.sync` is used to defer the side-effect of writing 
 The `program` value has the type `Effect<never, never, number>` because the thunk returns the value `42`.
 
 Note that nothing is logged to the console yet when you inspect it.
-This is because `program` represents the action of writing to the console, but nothing happens until you explicitly run your program.
+This is because `program` represents the action of writing to the console, but nothing happens until you explicitly [run your program](running).
 
 <Error>The thunk passed to `Effect.sync` should never throw errors.</Error>
 
@@ -111,25 +89,14 @@ This is because `program` represents the action of writing to the console, but n
 If the synchronous computation within the thunk may throw an error, you can use the `Effect.try` constructor.
 If an error is caught, it will be propagated to the error channel as `unknown`:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/creating/try.ts
 
-// Effect<never, unknown, any>
-const program = Effect.try(
-  () => JSON.parse("") // JSON.parse may throw for bad input
-)
 ```
 
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.try` that takes a remapping function:
 
-```ts {6}
-import { Effect } from "effect"
+```ts {6} file=<rootDir>/src/essentials/creating/try-overload.ts
 
-// Effect<never, Error, any>
-const program = Effect.try({
-  try: () => JSON.parse(""), // JSON.parse may throw for bad input
-  catch: (unknown) => new Error(`something went wrong ${unknown}`), // remap the error
-})
 ```
 
 You can think of this as a similar pattern to the traditional try-catch block in JavaScript:
@@ -152,18 +119,8 @@ To overcome these limitations, Effect introduces dedicated constructors for crea
 
 If you're working with asynchronous side effects that return a `Promise` and you're confident that the `Promise` will **never reject**, you can use the `Effect.promise` constructor:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/creating/promise.ts
 
-// Effect<never, never, number>
-const program = Effect.promise(
-  () =>
-    new Promise((resolve) => {
-      setTimeout(() => {
-        resolve("Async operation completed successfully!")
-      }, 2000)
-    })
-)
 ```
 
 The `program` value has the type `Effect<never, never, number>` and can be interpreted as an effect that:
@@ -181,25 +138,14 @@ The `program` value has the type `Effect<never, never, number>` and can be inter
 If the `Promise` within the thunk may reject, you can use the `Effect.tryPromise` constructor.
 If an error is caught, it will be propagated to the error channel as `unknown`:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/essentials/creating/tryPromise.ts
 
-// Effect<never, unknown, Response>
-const program = Effect.tryPromise(() =>
-  fetch("https://jsonplaceholder.typicode.com/todos/1")
-)
 ```
 
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.tryPromise` that takes a remapping function:
 
-```ts {6}
-import { Effect } from "effect"
+```ts {6} file=<rootDir>/src/essentials/creating/tryPromise-overload.ts
 
-// Effect<never, Error, Response>
-const program = Effect.tryPromise({
-  try: () => fetch("https://jsonplaceholder.typicode.com/todos/1"),
-  catch: (unknown) => new Error(`something went wrong ${unknown}`), // remap the error
-})
 ```
 
 ## From a callback
@@ -209,20 +155,8 @@ To handle callback-based APIs, Effect provides the `Effect.async` constructor.
 
 For example, let's wrap the `readFile` async API from the Node.js `fs` module with Effect (ensure you have `@types/node` installed):
 
-```ts
-import { Effect } from "effect"
-import * as NodeFS from "node:fs"
+```ts file=<rootDir>/src/essentials/creating/async.ts
 
-// Effect<never, Error, Buffer>
-const program = Effect.async<never, Error, Buffer>((resume) => {
-  NodeFS.readFile("todos.txt", (error, data) => {
-    if (error) {
-      resume(Effect.fail(error))
-    } else {
-      resume(Effect.succeed(data))
-    }
-  })
-})
 ```
 
 In the above example, we manually annotate the types when calling `Effect.async` because TypeScript cannot infer the type parameters for a callback

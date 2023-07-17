@@ -8,41 +8,8 @@ The `Do` simulation in Effect allows you to write code in a more declarative sty
 
 Let's consider a scenario where we want to create a custom combinator that prints the elapsed time taken by an effect to execute:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/guide/style/do/elapsed-pipe.ts
 
-const now = Effect.sync(() => new Date().getTime())
-
-// Prints the elapsed time occurred to `self` to execute
-const elapsed = <R, E, A>(
-  self: Effect.Effect<R, E, A>
-): Effect.Effect<R, E, A> =>
-  now.pipe(
-    Effect.flatMap((startMillis) =>
-      self.pipe(
-        Effect.flatMap((result) =>
-          now.pipe(
-            Effect.flatMap((endMillis) =>
-              Effect.log(`Elapsed: ${endMillis - startMillis}`).pipe(
-                Effect.map(() => result)
-              )
-            )
-          )
-        )
-      )
-    )
-  )
-
-const program = Effect.succeed("some task").pipe(
-  Effect.delay("200 millis"),
-  elapsed
-)
-
-Effect.runPromise(program).then(console.log)
-/*
-... message="Elapsed: 204"
-some task
-*/
 ```
 
 This code is not only verbose but also has excessive levels of nesting, making it difficult to read and understand.
@@ -54,32 +21,8 @@ To simplify the code and address this issue, there are two solutions available:
 
 ## Using `Effect.gen`
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/guide/style/do/elapsed-gen.ts
 
-const now = Effect.sync(() => new Date().getTime())
-
-const elapsed = <R, E, A>(
-  self: Effect.Effect<R, E, A>
-): Effect.Effect<R, E, A> =>
-  Effect.gen(function* (_) {
-    const startMillis = yield* _(now)
-    const result = yield* _(self)
-    const endMillis = yield* _(now)
-    yield* _(Effect.log(`Elapsed: ${endMillis - startMillis}`))
-    return result
-  })
-
-const program = Effect.succeed("some task").pipe(
-  Effect.delay("200 millis"),
-  elapsed
-)
-
-Effect.runPromise(program).then(console.log)
-/*
-... message="Elapsed: 204"
-some task
-*/
 ```
 
 In this solution, we switch to using [generators](../../essentials/using-generators) to simplify the code. The `elapsed` function now uses a generator function (`Effect.gen`) to define the flow of execution. Within the generator, we use `yield*` to invoke effects and bind their results to variables. This eliminates the nesting and provides a more readable and sequential code structure.
@@ -122,34 +65,8 @@ Here's how the `Do` simulation works:
 
 Now let's rewrite the `elapsed` combinator using the `Do` simulation:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/guide/style/do/elapsed-do.ts
 
-const now = Effect.sync(() => new Date().getTime())
-
-const elapsed = <R, E, A>(
-  self: Effect.Effect<R, E, A>
-): Effect.Effect<R, E, A> =>
-  Effect.Do.pipe(
-    Effect.bind("startMillis", () => now),
-    Effect.bind("result", () => self),
-    Effect.bind("endMillis", () => now),
-    Effect.tap(({ startMillis, endMillis }) =>
-      Effect.log(`Elapsed: ${endMillis - startMillis}`)
-    ),
-    Effect.map(({ result }) => result)
-  )
-
-const program = Effect.succeed("some task").pipe(
-  Effect.delay("200 millis"),
-  elapsed
-)
-
-Effect.runPromise(program).then(console.log)
-/*
-... message="Elapsed: 204"
-some task
-*/
 ```
 
 In this solution, we use the `Do` simulation to simplify the code. The `elapsed` function now starts with `Effect.Do()` to enter the simulation scope.

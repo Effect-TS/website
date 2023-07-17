@@ -15,20 +15,14 @@ The `Option` type is versatile and can be applied in various scenarios, includin
 
 The `some` constructor takes a value of type `A` and returns an `Option<A>` that holds that value:
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/some.ts
 
-// Option<number>
-const value = Option.some(1) // An Option holding the number 1
 ```
 
 On the other hand, the `none` constructor returns an `Option<never>`, representing the absence of a value:
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/none.ts
 
-// Option<never>
-const noValue = Option.none() // An Option holding no value
 ```
 
 ## Modeling Optional Properties
@@ -36,14 +30,8 @@ const noValue = Option.none() // An Option holding no value
 Let's look at an example of a `User` model where the `"email"` property is optional and can have a value of type `string`.
 To represent this, we can use the `Option<string>` type:
 
-```ts {6}
-import { Option } from "effect"
+```ts {6} file=<rootDir>/src/data-types/option/optional-property.ts#L1-L7
 
-interface User {
-  readonly id: number
-  readonly username: string
-  readonly email: Option.Option<string>
-}
 ```
 
 <Warning>
@@ -53,54 +41,24 @@ interface User {
 
 Now, let's see how we can create instances of `User` with and without an email:
 
-```ts
-const withEmail: User = {
-  id: 1,
-  username: "john_doe",
-  email: Option.some("john.doe@example.com"),
-}
+```ts file=<rootDir>/src/data-types/option/optional-property.ts#L9-
 
-const withoutEmail: User = {
-  id: 2,
-  username: "jane_doe",
-  email: Option.none(),
-}
 ```
 
 ## Guards
 
 You can determine whether an `Option` is a `Some` or a `None` by using the `isSome` and `isNone` guards:
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/guards.ts
 
-const foo = Option.some(1)
-
-console.log(Option.isSome(foo)) // Output: true
-
-if (Option.isNone(foo)) {
-  console.log("Option is empty")
-} else {
-  console.log(`Option has a value: ${foo.value}`)
-}
-// Output: "Option has a value: 1"
 ```
 
 ## Matching
 
 The `Option.match` function allows you to handle different cases of an `Option` value by providing separate actions for each case:
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/match.ts
 
-const foo = Option.some(1)
-
-const result = Option.match(foo, {
-  onNone: () => "Option is empty",
-  onSome: (value) => `Option has a value: ${value}`,
-})
-
-console.log(result) // Output: "Option has a value: 1"
 ```
 
 <Idea>
@@ -112,18 +70,14 @@ console.log(result) // Output: "Option has a value: 1"
 
 The `Option.map` function allows you to transform the value inside an `Option` without having to unwrap and wrap the underlying value. Let's see an example:
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/map-some.ts
 
-const maybeIncremented = Option.map(Option.some(1), (n) => n + 1) // some(2)
 ```
 
 The convenient aspect of using `Option` is how it handles the absence of a value, represented by `None`:
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/map-none.ts
 
-const maybeIncremented = Option.map(Option.none(), (n) => n + 1) // none
 ```
 
 Despite having `None` as the input, we can still operate on the `Option` without encountering errors. The mapping function `(n) => n + 1` is not executed when the `Option` is `None`, and the result remains `none` representing the absence of a value.
@@ -132,20 +86,13 @@ The `flatMap` function works similarly to `map`, but with an additional feature.
 
 Let's explore an example that involves a **nested** optional property. We have a `User` model with an optional `address` field of type `Option<Address>`:
 
-```ts {7}
-import { Option } from "effect"
+```ts {7} file=<rootDir>/src/data-types/option/nested.ts#L1-L8
 
-interface User {
-  readonly id: number
-  readonly username: string
-  readonly email: Option.Option<string>
-  readonly address: Option.Option<Address>
-}
 ```
 
 The `address` field itself contains a nested optional property called `street` of type `Option<string>`:
 
-```ts {3}
+```ts {3} file=<rootDir>/src/data-types/option/nested.ts#L10-L13
 interface Address {
   readonly city: string
   readonly street: Option.Option<string>
@@ -154,19 +101,8 @@ interface Address {
 
 We can use `Option.flatMap` to extract the `street` property from the `address` field.
 
-```ts
-const user: User = {
-  id: 1,
-  username: "john_doe",
-  email: Option.some("john.doe@example.com"),
-  address: Option.some({
-    city: "New York",
-    street: Option.some("123 Main St"),
-  }),
-}
+```ts file=<rootDir>/src/data-types/option/nested.ts#L15-
 
-/// Option<string>
-const street = user.address.pipe(Option.flatMap((address) => address.street))
 ```
 
 Here's how it works: if the `address` is `Some`, meaning it has a value, the mapping function `(addr) => addr.street` is applied to retrieve the `street` value. On the other hand, if the `address` is `None`, indicating the absence of a value, the mapping function is not executed, and the result is also `None`.
@@ -179,70 +115,34 @@ To retrieve the value stored within an `Option`, you can use various functions p
 
 - `getOrThrow`: It retrieves the wrapped value from an `Option`, or throws an error if the `Option` is a `None`. Here's an example:
 
-  ```ts
-  import { Option } from "effect"
+  ```ts file=<rootDir>/src/data-types/option/getOrThrow.ts
 
-  Option.getOrThrow(Option.some(10)) // 10
-  Option.getOrThrow(Option.none()) // throws Error("getOrThrow called on a None")
   ```
 
 - `getOrNull` and `getOrUndefined`: These functions are useful when you want to work with code that doesn't use `Option`. They allow you to retrieve the value of an `Option` as `null` or `undefined`, respectively. Examples:
 
-  ```ts
-  import { Option } from "effect"
+  ```ts file=<rootDir>/src/data-types/option/getOrNull.ts
 
-  Option.getOrNull(Option.some(5)) // 5
-  Option.getOrNull(Option.none()) // null
-
-  Option.getOrUndefined(Option.some(5)) // 5
-  Option.getOrUndefined(Option.none()) // undefined
   ```
 
 - `getOrElse`: This function lets you provide a default value that will be returned if the `Option` is a `None`. Here's an example:
 
-  ```ts
-  import { Option } from "effect"
+  ```ts file=<rootDir>/src/data-types/option/getOrElse.ts
 
-  Option.getOrElse(Option.some(5), () => 0) // 5
-  Option.getOrElse(Option.none(), () => 0) // 0
   ```
 
 ## Retrying
 
 In certain situations, when a computation returns `None`, you may want to try an alternative computation that returns an `Option`. This is where the `Option.orElse` function comes in handy. It allows you to chain multiple computations together and continue with the next one if the previous one resulted in `None`. This can be useful for implementing retry logic, where you want to attempt a computation multiple times until you either succeed or exhaust all possible attempts.
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/orElse.ts
 
-// Simulating a computation that may or may not produce a result
-const performComputation = (): Option.Option<number> =>
-  Math.random() < 0.5 ? Option.some(10) : Option.none()
-
-const performAlternativeComputation = (): Option.Option<number> =>
-  Math.random() < 0.5 ? Option.some(20) : Option.none()
-
-// Option<number>
-const result = performComputation().pipe(
-  Option.orElse(() => performAlternativeComputation())
-)
-
-Option.match(result, {
-  onNone: () => console.log("Both computations resulted in None"),
-  onSome: (value) => console.log("Computed value:", value), // At least one computation succeeded
-})
 ```
 
 Additionally, the `Option.firstSomeOf` function can be used to retrieve the first value that is `Some` within an iterable of `Option` values:
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/firstSomeOf.ts
 
-const first = Option.firstSomeOf([
-  Option.none(),
-  Option.some(2),
-  Option.none(),
-  Option.some(3),
-]) // some(2)
 ```
 
 ## Interop with Nullable Types
@@ -251,12 +151,8 @@ When working with the `Option` data type, you may come across code that uses `un
 
 You can create an `Option` from a nullable value using the `fromNullable` API.
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/fromNullable.ts
 
-Option.fromNullable(null) // none()
-Option.fromNullable(undefined) // none()
-Option.fromNullable(1) // some(1)
 ```
 
 Conversely, if you have a value of type `Option` and want to convert it to a nullable value, you have two options:
@@ -264,14 +160,8 @@ Conversely, if you have a value of type `Option` and want to convert it to a nul
 - Convert `None` to `null` using the `getOrNull` API.
 - Convert `None` to `undefined` using the `getOrUndefined` API.
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/getOrNull.ts
 
-Option.getOrNull(Option.some(1)) // 1
-Option.getOrNull(Option.none()) // null
-
-Option.getOrUndefined(Option.some(1)) // 1
-Option.getOrUndefined(Option.none()) // undefined
 ```
 
 ## Interop with Effect
@@ -285,35 +175,16 @@ In the context of `Effect`, the two members of the `Option` type are treated as 
 
 To illustrate this interoperability, let's consider the following example:
 
-```ts
-import { Effect, Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/interop-effect.ts
 
-const head = <A>(as: ReadonlyArray<A>): Option.Option<A> =>
-  as.length > 0 ? Option.some(as[0]) : Option.none()
-
-console.log(
-  Effect.runSync(Effect.succeed([1, 2, 3]).pipe(Effect.flatMap(head)))
-) // Output: 1
-
-Effect.runSync(Effect.succeed([]).pipe(Effect.flatMap(head))) // Throws NoSuchElementException
 ```
 
 ## Combining Two or More `Option`s
 
 The `Option.zipWith` function allows you to combine two `Option` values using a provided function. It creates a new `Option` that holds the combined value of both original `Option` values.
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/data-types/option/zipWith.ts
 
-const maybeName = Option.some("John")
-const maybeAge = Option.some(25)
-
-const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
-  name,
-  age,
-}))
-
-console.log(person) // some({ name: "John", age: 25 })
 ```
 
 The `zipWith` function takes three arguments:
@@ -324,65 +195,6 @@ The `zipWith` function takes three arguments:
 
 It's important to note that if either of the two `Option` values is `None`, the resulting `Option` will also be `None`:
 
-```ts {4}
-import { Option } from "effect"
+```ts {4} file=<rootDir>/src/data-types/option/zipWith-none.ts
 
-const maybeName = Option.some("John")
-const maybeAge = Option.none()
-
-const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
-  name,
-  age,
-}))
-
-console.log(person) // none
 ```
-
-## Debugging
-
-Debugging your code can be challenging, especially when you have multiple transformations happening in a sequence. To assist with debugging and identifying issues, the `Option` module offers two helpful functions: `inspectSome` and `inspectNone`.
-
-These functions allow you to gain insights into what's happening within your code and diagnose potential problems. Let's understand each function:
-
-| **Function**  | **Description**                                                                                                                                      |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `inspectSome` | returns the original `Option<A>` value, but if it is a `Some<A>`, the provided callback function is called with the value wrapped inside the `Some`. |
-| `inspectNone` | returns the original `Option<A>` value, but if it is a `None`, the provided callback function is called without any arguments.                       |
-
-Here's an example to demonstrate how you can use `inspectSome` and `inspectNone` for debugging:
-
-```ts
-import { Option } from "effect"
-
-interface User {
-  readonly id: number
-  readonly username: string
-  readonly email: Option.Option<string>
-  readonly address: Option.Option<Address>
-}
-
-interface Address {
-  readonly city: string
-  readonly street: Option.Option<string>
-}
-
-const user: User = {
-  id: 1,
-  username: "john_doe",
-  email: Option.some("john.doe@example.com"),
-  address: Option.none(),
-}
-
-// Option<string>
-const street = user.address.pipe(
-  Option.inspectNone(() => console.log("No address provided")),
-  Option.flatMap((addr) => addr.street)
-)
-// Logs "No address provided" to the console
-```
-
-<Warning>
-  `inspectSome` and `inspectNone` should only be used for debugging purposes,
-  and it is not recommended to use them for performing side effects or encoding
-  business logic.
-</Warning>

@@ -16,40 +16,23 @@ The `refined` function is used to create a new branded type that performs valida
 
 Here's an example of creating a refined branded type:
 
-```ts
-import { Brand } from "effect"
+```ts file=<rootDir>/src/guide/style/brands/Int.ts#L1-L8
 
-type Int = number & Brand.Brand<"Int">
-
-const Int = Brand.refined<Int>(
-  (n) => Number.isInteger(n), // Check if the value is an integer
-  (n) => Brand.error(`Expected ${n} to be an integer`) // Error message if the value is not an integer
-)
 ```
 
 In this example, we create a branded type called `Int` using the `Brand.refined` function. The refinement predicate ensures that the input value is an integer. If the value fails the validation, an error message is provided using the `Brand.error` function.
 
 Now, let's see how we can use the `Int` branded type:
 
-```ts
-// Create a value of type Int
-const x: Int = Int(3)
-console.log(x) // Output: 3
+```ts file=<rootDir>/src/guide/style/brands/Int.ts#L10-L15
 
-// Attempt to create a value of type Int with a non-integer value
-const y: Int = Int(3.14) // Throws an error: [ { message: 'Expected 3.14 to be an integer' } ]
 ```
 
 By enforcing the `Int` brand, we can ensure that only integer values are used in the designated context.
 Attempting to assign a non-`Int` value will result in a compile-time error:
 
-```ts
-// ✅
-const good: Int = Int(3)
+```ts file=<rootDir>/src/guide/style/brands/Int.ts#L17-
 
-// ❌
-const bad1: Int = 3 // Type 'number' is not assignable to type 'Brand<"Int">'
-const bad2: Int = 3.14 // Type 'number' is not assignable to type 'Brand<"Int">'
 ```
 
 ### 2. Nominal Branded Types
@@ -58,29 +41,16 @@ The `nominal` function is used to create a new branded type without performing a
 
 Here's an example of creating a nominal branded type:
 
-```ts
-import { Brand } from "effect"
+```ts file=<rootDir>/src/guide/style/brands/UserId.ts#L1-L5
 
-type UserId = number & Brand.Brand<"UserId">
-
-const UserId = Brand.nominal<UserId>()
 ```
 
 In the previous example, we created a nominal branded type called `UserId` using the `Brand.nominal` function. The `UserId` type is based on the underlying type `number`, but it has a distinct type tag that differentiates it from other `number` values.
 
 Now, let's see how we can use the `UserId` branded type:
 
-```ts
-// Create a value of type UserId with a valid value
-const id1: UserId = UserId(1)
-console.log(id1) // Output: 1
+```ts file=<rootDir>/src/guide/style/brands/UserId.ts#L7-
 
-// Create another value of type UserId with a different valid value
-const id2: UserId = UserId(2)
-console.log(id2) // Output: 2
-
-// Attempt to create a value of type UserId with a non-branded number
-const id3: UserId = 3 // Error: Type 'number' is not assignable to type 'Brand<"UserId">'
 ```
 
 By enforcing the `UserId` brand, we can ensure that only values explicitly created as `UserId` are used in the designated context. Assigning a regular `number` value to a `UserId` variable will result in a type error.
@@ -109,33 +79,8 @@ By using branded types in function signatures, we can catch potential bugs at co
 
 ## Combining Branded Types
 
-In some scenarios, you may need to combine multiple branded types together. The `@effect/data/Brand` module provides the `all` API to facilitate this:
+In some scenarios, you may need to combine multiple branded types together. The `Brand` module provides the `all` API to facilitate this:
 
-```ts
-import { Brand } from "effect"
+```ts file=<rootDir>/src/guide/style/brands/PositiveInt.ts
 
-type Int = number & Brand.Brand<"Int">
-
-const Int = Brand.refined<Int>(
-  (n) => Number.isInteger(n),
-  (n) => Brand.error(`Expected ${n} to be an integer`)
-)
-
-type Positive = number & Brand.Brand<"Positive">
-
-const Positive = Brand.refined<Positive>(
-  (n) => n > 0,
-  (n) => Brand.error(`Expected ${n} to be positive`)
-)
-
-// Combine the Int and Positive branded types into a new branded type PositiveInt
-const PositiveInt = Brand.all(Int, Positive)
-
-// Extract the branded type from the PositiveInt constructor
-type PositiveInt = Brand.Brand.FromConstructor<typeof PositiveInt>
-
-// Usage example
-const value1: PositiveInt = PositiveInt(10) // Valid positive integer
-const value2: PositiveInt = PositiveInt(-5) // Throws an error: [ { message: 'Expected -5 to be positive' } ]
-const value3: PositiveInt = PositiveInt(3.14) // Throws an error: [ { message: 'Expected 3.14 to be an integer' } ]
 ```

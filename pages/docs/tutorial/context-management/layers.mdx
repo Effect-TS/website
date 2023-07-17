@@ -77,27 +77,8 @@ The `MeasuringCup` service does not depend on any other services, so `MeasuringC
 Just like in the [Managing Services](services) tutorial, we must create a `Tag` for the service.
 And because the service has no dependencies, we can create the layer directly using `Layer.succeed(tag, service){:ts}`:
 
-```ts filename="MeasuringCup.ts"
-import { Effect, Context, Layer } from "effect"
+```ts filename="MeasuringCup.ts" file=<rootDir>/src/tutorial/context-management/layers/MeasuringCup.ts
 
-// Define the interface for the MeasuringCup service
-export interface MeasuringCup {
-  readonly measure: (
-    amount: number,
-    unit: string
-  ) => Effect.Effect<never, never, string>
-}
-
-// Create a tag for the MeasuringCup service
-export const MeasuringCup = Context.Tag<MeasuringCup>()
-
-// Layer<never, never, MeasuringCup>
-export const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`),
-  })
-)
 ```
 
 Looking at the type of `MeasuringCupLive` we can observe:
@@ -114,45 +95,8 @@ Just like we did in the [Services](services#using-the-service) tutorial, we can 
 
 Given that mapping over a Tag is an effectful operation, we use `Layer.effect(tag, effect){:ts}` to create a `Layer` from the resulting `Effect`.
 
-```ts filename="Ingredients.ts"
-import { Effect, Context, Layer } from "effect"
-import { MeasuringCup } from "./MeasuringCup"
+```ts filename="Ingredients.ts" file=<rootDir>/src/tutorial/context-management/layers/Ingredients.ts
 
-// Sugar
-
-export interface Sugar {
-  readonly grams: (amount: number) => Effect.Effect<never, never, string>
-}
-
-export const Sugar = Context.Tag<Sugar>()
-
-// Layer<MeasuringCup, never, Sugar>
-export const SugarLive = Layer.effect(
-  Sugar,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram"),
-    })
-  )
-)
-
-// Flour
-
-export interface Flour {
-  readonly cups: (amount: number) => Effect.Effect<never, never, string>
-}
-
-export const Flour = Context.Tag<Flour>()
-
-// Layer<MeasuringCup, never, Flour>
-export const FlourLive = Layer.effect(
-  Flour,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup"),
-    })
-  )
-)
 ```
 
 Looking at the type of `SugarLive` and `FlourLive` we can observe:
@@ -168,51 +112,15 @@ Finally, we can use our ingredients to assemble the final recipe:
 <Tabs>
 <Tab>
 
-```ts filename="Recipe.ts"
-import { Effect, Context, Layer } from "effect"
-import { Flour, Sugar } from "./Ingredients"
+```ts filename="Recipe.ts" file=<rootDir>/src/tutorial/context-management/layers/Recipe.ts
 
-export interface Recipe {
-  readonly steps: Effect.Effect<never, never, ReadonlyArray<string>>
-}
-
-export const Recipe = Context.Tag<Recipe>()
-
-// Layer<Flour | Sugar, never, Recipe>
-export const RecipeLive = Layer.effect(
-  Recipe,
-  Effect.map(Effect.all([Sugar, Flour]), ([sugar, flour]) =>
-    Recipe.of({
-      steps: Effect.all([sugar.grams(200), flour.cups(1)]),
-    })
-  )
-)
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="Recipe.ts"
-import { Effect, Context, Layer } from "effect"
-import { Flour, Sugar } from "./Ingredients"
+```ts filename="Recipe.ts" file=<rootDir>/src/tutorial/context-management/layers/Recipe-gen.ts
 
-export interface Recipe {
-  readonly steps: Effect.Effect<never, never, ReadonlyArray<string>>
-}
-
-export const Recipe = Context.Tag<Recipe>()
-
-// Layer<Flour | Sugar, never, Recipe>
-export const RecipeLive = Layer.effect(
-  Recipe,
-  Effect.gen(function* (_) {
-    const sugar = yield* _(Sugar)
-    const flour = yield* _(Flour)
-    return Recipe.of({
-      steps: Effect.all([sugar.grams(200), flour.cups(1)]),
-    })
-  })
-)
 ```
 
 </Tab>
@@ -242,12 +150,8 @@ Merging is useful when we combine layers that don't have any relationship with e
 For example, in our cake recipe application above, we can merge our `FlourLive` and `SugarLive` layers
 into a single `IngredientsLive` layer, which retains the requirements of both layers (`MeasuringCup`) and the outputs of both layers (`Flour | Sugar`):
 
-```ts filename="main.ts"
-import { Layer } from "effect"
-import { FlourLive, SugarLive } from "./Ingredients"
+```ts filename="index.ts" file=<rootDir>/src/tutorial/context-management/layers/index.ts
 
-// Layer<MeasuringCup, never, Flour | Sugar>
-const IngredientsLive = Layer.merge(FlourLive, SugarLive)
 ```
 
 ### Composing
@@ -263,7 +167,7 @@ resulting in one layer with the requirement of the first, and the output of the 
 
 Now we can compose the `MeasuringCupLive` layer with the `IngredientsLive` layer, and then compose the result with the `RecipeLive` layer:
 
-```ts filename="main.ts"
+```ts filename="index.ts" file=<rootDir>/src/tutorial/context-management/layers/index2.ts
 import { Layer } from "effect"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
@@ -287,77 +191,17 @@ we can provide it to our program to satisfy the program's requirements using `Ef
 <Tabs>
 <Tab>
 
-```ts filename="main.ts" {27}
-import { Effect, Layer } from "effect"
-import { FlourLive, SugarLive } from "./Ingredients"
-import { MeasuringCupLive } from "./MeasuringCup"
-import { Recipe, RecipeLive } from "./Recipe"
+```ts filename="index.ts" {27} file=<rootDir>/src/tutorial/context-management/layers/index-pipe.ts
 
-// Layer<MeasuringCup, never, Flour | Sugar>
-const IngredientsLive = Layer.merge(FlourLive, SugarLive)
-
-// Layer<never, never, Recipe>
-const MainLive = MeasuringCupLive.pipe(
-  Layer.provide(IngredientsLive),
-  Layer.provide(RecipeLive)
-)
-
-// Effect<Recipe, never, void>
-const program = Recipe.pipe(
-  Effect.flatMap((recipe) => recipe.steps),
-  Effect.flatMap((steps) =>
-    Effect.forEach(steps, (step) => Effect.log(step), {
-      concurrency: "unbounded",
-      discard: true,
-    })
-  )
-)
-
-// Effect<never, never, void>
-const runnable = Effect.provideLayer(program, MainLive)
-
-Effect.runPromise(runnable)
-
-// ...more output... message="Measured 200 gram(s)"
-// ...more output... message="Measured 1 cup(s)"
 ```
 
-The `Effect.forEach` function is used to iterate over a collection of values (`steps`) and perform a side effect on each element (`Effect.logInfo`), discarding the result (`void`).
+The `Effect.forEach` function is used to iterate over a collection of values (`steps`) and perform a side effect on each element (`Effect.log`), discarding the result (`void`).
 
 </Tab>
 <Tab>
 
-```ts filename="main.ts" {25}
-import { Effect, Layer } from "effect"
-import { FlourLive, SugarLive } from "./Ingredients"
-import { MeasuringCupLive } from "./MeasuringCup"
-import { Recipe, RecipeLive } from "./Recipe"
+```ts filename="index.ts" {25} file=<rootDir>/src/tutorial/context-management/layers/index-gen.ts
 
-// Layer<MeasuringCup, never, Flour | Sugar>
-const IngredientsLive = Layer.merge(FlourLive, SugarLive)
-
-// Layer<never, never, Recipe>
-const MainLive = MeasuringCupLive.pipe(
-  Layer.provide(IngredientsLive),
-  Layer.provide(RecipeLive)
-)
-
-// Effect<Recipe, never, void>
-const program = Effect.gen(function* (_) {
-  const recipe = yield* _(Recipe)
-  const steps = yield* _(recipe.steps)
-  for (const step of steps) {
-    yield* _(Effect.log(step))
-  }
-})
-
-// Effect<never, never, void>
-const runnable = Effect.provideLayer(program, MainLive)
-
-Effect.runPromise(runnable)
-
-// ...more output... message="Measured 200 gram(s)"
-// ...more output... message="Measured 1 cup(s)"
 ```
 
 </Tab>

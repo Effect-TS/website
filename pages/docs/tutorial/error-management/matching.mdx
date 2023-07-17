@@ -6,99 +6,28 @@ In the `Effect` data type, just like other data types such as [`Exit`](../../ess
 
 The `match` function allows us to handle both success and failure cases in a non-effectful manner by providing a handler for each case:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/error-management/matching/match.ts
 
-const success: Effect.Effect<never, Error, number> = Effect.succeed(42)
-const failure: Effect.Effect<never, Error, number> = Effect.fail(
-  new Error("Uh oh!")
-)
-
-// Effect<never, never, string>
-const program1 = success.pipe(
-  Effect.match({
-    onFailure: (error) => `failure: ${error.message}`,
-    onSuccess: (value) => `success: ${value}`,
-  })
-)
-console.log(Effect.runSync(program1)) // Output: "success: 42"
-
-// Effect<never, never, string>
-const program2 = failure.pipe(
-  Effect.match({
-    onFailure: (error) => `failure: ${error.message}`,
-    onSuccess: (value) => `success: ${value}`,
-  })
-)
-console.log(Effect.runSync(program2)) // Output: "failure: Uh oh!"
 ```
 
 We can also choose to ignore the success and failure values if we're not interested in them:
 
-```ts /never, void/
-import { Effect } from "effect"
-import { constVoid } from "effect/Function"
+```ts /never, void/ file=<rootDir>/src/tutorial/error-management/matching/ignore-constVoid.ts
 
-// Effect<never, never, void>
-const program = Effect.fail("Uh oh!").pipe(
-  Effect.as(5),
-  Effect.match({
-    onFailure: constVoid,
-    onSuccess: constVoid,
-  })
-)
 ```
 
 In this case, we use the `constVoid` function from the `Function` module to provide handlers that perform no operation. This effectively discards the success and failure values and focuses solely on the control flow or side effects of the program. Alternatively, we can achieve the same result using the `Effect.ignore` function:
 
-```ts /never, void/
-import { Effect } from "effect"
+```ts /never, void/ file=<rootDir>/src/tutorial/error-management/matching/ignore.ts
 
-// Effect<never, never, void>
-const program = Effect.fail("Uh oh!").pipe(Effect.as(5), Effect.ignore)
 ```
 
 ## matchEffect
 
 In addition to `match`, we have the `matchEffect` function, which allows us to handle success and failure cases while performing additional side effects. Let's see an example:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/error-management/matching/matchEffect.ts
 
-const success: Effect.Effect<never, Error, number> = Effect.succeed(42)
-const failure: Effect.Effect<never, Error, number> = Effect.fail(
-  new Error("Uh oh!")
-)
-
-// Effect<never, never, string>
-const program1 = success.pipe(
-  Effect.matchEffect({
-    onFailure: (error) =>
-      Effect.succeed(`failure: ${error.message}`).pipe(Effect.tap(Effect.log)),
-    onSuccess: (value) =>
-      Effect.succeed(`success: ${value}`).pipe(Effect.tap(Effect.log)),
-  })
-)
-console.log(Effect.runSync(program1))
-/*
-... message="success: 42"
-success: 42
-*/
-
-// Effect<never, never, string>
-const program2 = failure.pipe(
-  Effect.matchEffect({
-    onFailure: (error) =>
-      Effect.succeed(`failure: ${error.message}`).pipe(Effect.tap(Effect.log)),
-    onSuccess: (value) =>
-      Effect.succeed(`success: ${value}`).pipe(Effect.tap(Effect.log)),
-  })
-)
-console.log(Effect.runSync(program2))
-/*
-... message="failure: Uh oh!"
-failure: Uh oh!
-*/
 ```
 
 In this example, we use `matchEffect` instead of `match`. The `matchEffect` function allows us to perform additional side effects while handling success and failure cases. We can log messages or perform other side effects within the respective handlers.
@@ -107,28 +36,8 @@ In this example, we use `matchEffect` instead of `match`. The `matchEffect` func
 
 Effect also provides `matchCause` and `matchCauseEffect` functions, which are useful for accessing the full cause of the underlying fiber in case of failure. This allows us to handle different failure causes separately and take appropriate actions. Here's an example:
 
-```ts
-import { Effect } from "effect"
+```ts file=<rootDir>/src/tutorial/error-management/matching/matchCauseEffect.ts
 
-declare const exceptionalEffect: Effect.Effect<never, Error, void>
-
-const program = exceptionalEffect.pipe(
-  Effect.matchCauseEffect({
-    onFailure: (cause) => {
-      switch (cause._tag) {
-        case "Fail":
-          return Effect.sync(() => console.log(`Fail: ${cause.error.message}`))
-        case "Die":
-          return Effect.sync(() => console.log(`Die: ${cause.defect}`))
-        case "Interrupt":
-          return Effect.sync(() => console.log(`${cause.fiberId} interrupted!`))
-      }
-      return Effect.sync(() => console.log("failed due to other causes"))
-    },
-    onSuccess: (value) =>
-      Effect.sync(() => console.log(`succeeded with ${value} value`)),
-  })
-)
 ```
 
 In this example, we have an `exceptionalEffect` that may fail or encounter other types of exceptions. The `matchCauseEffect` function allows us to match and handle different failure causes separately.

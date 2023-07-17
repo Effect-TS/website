@@ -28,14 +28,8 @@ Understanding how to manage services and provide the necessary context to effect
 
 Let's start by creating a service for a random number generator.
 
-```ts
-import { Effect, Context } from "effect"
+```ts filename="service.ts" file=<rootDir>/src/tutorial/context-management/services/service.ts
 
-interface Random {
-  readonly next: () => Effect.Effect<never, never, number>
-}
-
-const Random = Context.Tag<Random>()
 ```
 
 The code above defines an interface called `Random`, which represents our service.
@@ -65,12 +59,8 @@ Now that we have our service interface defined, let's see how we can use it by b
 <Tabs>
 <Tab>
 
-```ts
-// Effect<Random, never, void>
-const program = Random.pipe(
-  Effect.flatMap((random) => random.next()),
-  Effect.flatMap((randomNumber) => Effect.log(`${randomNumber}`))
-)
+```ts file=<rootDir>/src/tutorial/context-management/services/program-pipe.ts#L1-L8
+
 ```
 
 In the code above, we can observe that we are able to flat-map over the `Random` Tag as if it were an Effect itself.
@@ -80,13 +70,8 @@ We then use the `Effect.log` utility to log the generated random number.
 </Tab>
 <Tab>
 
-```ts
-// Effect<Random, never, void>
-const program = Effect.gen(function* (_) {
-  const random = yield* _(Random)
-  const randomNumber = yield* _(random.next())
-  return yield* _(Effect.log(`${randomNumber}`))
-})
+```ts file=<rootDir>/src/tutorial/context-management/services/program-gen.ts
+
 ```
 
 In the code above, we can observe that we are able to yield the `Random` Tag as if it were an Effect itself.
@@ -125,18 +110,8 @@ In the next section, we will explore how to implement and provide the `Random` s
 
 In order to provide an actual implementation of the `Random` service, we can utilize the `Effect.provideService` function.
 
-```ts
-// Effect<never, never, void>
-const runnable = Effect.provideService(
-  program,
-  Random,
-  Random.of({
-    next: () => Effect.succeed(Math.random()),
-  })
-)
+```ts file=<rootDir>/src/tutorial/context-management/services/program-pipe.ts#L10-
 
-Effect.runSync(runnable)
-// Output: ...more infos... message=0.8241872233134417
 ```
 
 In the code snippet above, we call the `program` that we defined earlier and provide it with an implementation of the `Random` service.
@@ -163,43 +138,19 @@ Let's take a look at an example that demonstrates the usage of optional services
 <Tabs>
 <Tab>
 
-To determine if we can use the service, we can use the `Option.match` function provided by the `@effect/data/Option` module. This function allows us to perform different actions based on whether the service is available or not. It takes two callbacks as arguments: one for the case when the service is not available, and another for the case when it is available.
+To determine if we can use the service, we can use the `Option.match` function provided by the `Option` module. This function allows us to perform different actions based on whether the service is available or not. It takes two callbacks as arguments: one for the case when the service is not available, and another for the case when it is available.
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/tutorial/context-management/services/serviceOption-pipe.ts#L1-L15
 
-// Effect<never, never, void>
-const program = Effect.serviceOption(Random).pipe(
-  Effect.flatMap((maybeRandom) =>
-    Option.match(maybeRandom, {
-      // the service is not available, return a default value
-      onNone: () => Effect.succeed(-1),
-      // the service is available
-      onSome: (random) => random.next(),
-    })
-  ),
-  Effect.flatMap((randomNumber) => Effect.log(`${randomNumber}`))
-)
 ```
 
 </Tab>
 <Tab>
 
-To determine what action to take, we can use the `Option.isNone` function provided by the `@effect/data/Option` module. This function allows us to check if the service is available or not by returning `true` when the service is not available.
+To determine what action to take, we can use the `Option.isNone` function provided by the `Option` module. This function allows us to check if the service is available or not by returning `true` when the service is not available.
 
-```ts
-import { Option } from "effect"
+```ts file=<rootDir>/src/tutorial/context-management/services/serviceOption-gen.ts
 
-// Effect<never, never, void>
-const program = Effect.gen(function* (_) {
-  const maybeRandom = yield* _(Effect.serviceOption(Random))
-  const randomNumber = Option.isNone(maybeRandom)
-    ? // the service is not available, return a default value
-      yield* _(Effect.succeed(-1))
-    : // the service is available
-      yield* _(maybeRandom.value.next())
-  return yield* _(Effect.log(`${randomNumber}`))
-})
 ```
 
 </Tab>
@@ -218,17 +169,8 @@ We see that the log message contains `-1`, which is the default value we provide
 
 However, if we provide the `Random` service implementation:
 
-```ts
-Effect.runSync(
-  Effect.provideService(
-    program,
-    Random,
-    Random.of({
-      next: () => Effect.succeed(Math.random()),
-    })
-  )
-)
-// Output: ...more output... message=0.9957979486841035
+```ts file=<rootDir>/src/tutorial/context-management/services/serviceOption-pipe.ts#L17-
+
 ```
 
 We can observe that the log message now contains a random number generated by the `next` method of the `Random` service.
@@ -243,55 +185,15 @@ By passing a tuple of tags, we can access the corresponding tuple of services:
 <Tabs>
 <Tab>
 
-```ts
-import { Effect, Context } from "effect"
+```ts file=<rootDir>/src/tutorial/context-management/services/multiple-pipe.ts#L1-L22
 
-interface Random {
-  readonly next: () => Effect.Effect<never, never, number>
-}
-
-const Random = Context.Tag<Random>()
-
-interface Logger {
-  readonly log: (message: string) => Effect.Effect<never, never, void>
-}
-
-const Logger = Context.Tag<Logger>()
-
-// Effect<Random | Logger, never, void>
-const program = Effect.all([Random, Logger]).pipe(
-  Effect.flatMap(([random, logger]) =>
-    Effect.flatMap(random.next(), (randomNumber) =>
-      logger.log(String(randomNumber))
-    )
-  )
-)
 ```
 
 </Tab>
 <Tab>
 
-```ts
-import { Effect, Context } from "effect"
+```ts file=<rootDir>/src/tutorial/context-management/services/multiple-gen.ts
 
-interface Random {
-  readonly next: () => Effect.Effect<never, never, number>
-}
-
-const Random = Context.Tag<Random>()
-
-interface Logger {
-  readonly log: (message: string) => Effect.Effect<never, never, void>
-}
-
-const Logger = Context.Tag<Logger>()
-
-// Effect<Random | Logger, never, void>
-const program = Effect.gen(function* (_) {
-  const [random, logger] = yield* _(Effect.all([Random, Logger]))
-  const randomNumber = yield* _(random.next())
-  return yield* _(logger.log(String(randomNumber)))
-})
 ```
 
 </Tab>
@@ -308,42 +210,20 @@ Effect.Effect<Random | Logger, never, void>
 
 To execute the `program`, we need to provide implementations for both services:
 
-```ts
-const runnable = program.pipe(
-  Effect.provideService(
-    Random,
-    Random.of({
-      next: () => Effect.succeed(Math.random()),
-    })
-  ),
-  Effect.provideService(
-    Logger,
-    Logger.of({
-      log: Effect.log,
-    })
-  )
-)
+```ts file=<rootDir>/src/tutorial/context-management/services/multiple-pipe.ts#L24-L37
+
 ```
 
 Alternatively, instead of calling `provideService` multiple times, we can combine the service implementations into a single `Context`:
 
-```ts
-// Context<Random | Logger>
-const context = Context.empty().pipe(
-  Context.add(Random, Random.of({ next: () => Effect.succeed(Math.random()) })),
-  Context.add(
-    Logger,
-    Logger.of({
-      log: Effect.log,
-    })
-  )
-)
+```ts file=<rootDir>/src/tutorial/context-management/services/multiple-pipe.ts#L39-L48
+
 ```
 
 and then provide the entire context using the `provideContext` function:
 
-```ts
-const runnable = program.pipe(Effect.provideContext(context))
+```ts file=<rootDir>/src/tutorial/context-management/services/multiple-pipe.ts#L50-
+
 ```
 
 By providing the necessary implementations for each service, we ensure that the `runnable` effect can access and utilize both services when it is executed.
