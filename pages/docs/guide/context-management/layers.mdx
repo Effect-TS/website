@@ -7,7 +7,7 @@ In the [previous section](services), you learned how to create effects which dep
 
 However, what if we have a service within the context of our Effect program which has a dependency on other services? To represent the "dependency graph" of our program we need a more powerful abstraction.
 
-In this tutorial, we will cover the following topics:
+In this guide, we will cover the following topics:
 
 - Using `Layer`s to control the construction of dependencies.
 - Building a dependency graph with `Layer`s.
@@ -36,7 +36,7 @@ Now let's take our dependency graph and translate it into code.
 
 ## Creating Layers
 
-We will use `Layers`s to construct the `Recipe` service instead of providing a service implementation directly as we did in the [Managing Services](services) tutorial.
+We will use `Layers`s to construct the `Recipe` service instead of providing a service implementation directly as we did in the [Managing Services](services) guide.
 
 A `Layer<RIn, E, ROut>` represents a blueprint for constructing a `Context<ROut>`. It takes a value of type `RIn` as input and may potentially produce an error of type `E` during the construction process.
 
@@ -74,10 +74,10 @@ Layer<Flour | Sugar, never, Recipe>
 ### MeasuringCup
 
 The `MeasuringCup` service does not depend on any other services, so `MeasuringCupLive` will be the simplest layer to implement.
-Just like in the [Managing Services](services) tutorial, we must create a `Tag` for the service.
+Just like in the [Managing Services](services) guide, we must create a `Tag` for the service.
 And because the service has no dependencies, we can create the layer directly using `Layer.succeed(tag, service){:ts}`:
 
-```ts filename="MeasuringCup.ts" file=<rootDir>/src/tutorial/context-management/layers/MeasuringCup.ts
+```ts filename="MeasuringCup.ts" file=<rootDir>/src/guide/context-management/layers/MeasuringCup.ts
 
 ```
 
@@ -91,11 +91,11 @@ Looking at the type of `MeasuringCupLive` we can observe:
 
 Now we can move on to the implementation of the `Sugar` and `Flour` services, both of which depend on the `MeasuringCup` service to measure the proper amount of the ingredient.
 
-Just like we did in the [Services](services#using-the-service) tutorial, we can map over the `MeasuringCup` Tag to "extract" the service from the context and make use of it within our ingredient services.
+Just like we did in the [Services](services#using-the-service) guide, we can map over the `MeasuringCup` Tag to "extract" the service from the context and make use of it within our ingredient services.
 
 Given that mapping over a Tag is an effectful operation, we use `Layer.effect(tag, effect){:ts}` to create a `Layer` from the resulting `Effect`.
 
-```ts filename="Ingredients.ts" file=<rootDir>/src/tutorial/context-management/layers/Ingredients.ts
+```ts filename="Ingredients.ts" file=<rootDir>/src/guide/context-management/layers/Ingredients.ts
 
 ```
 
@@ -112,14 +112,14 @@ Finally, we can use our ingredients to assemble the final recipe:
 <Tabs>
 <Tab>
 
-```ts filename="Recipe.ts" file=<rootDir>/src/tutorial/context-management/layers/Recipe.ts
+```ts filename="Recipe.ts" file=<rootDir>/src/guide/context-management/layers/Recipe.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="Recipe.ts" file=<rootDir>/src/tutorial/context-management/layers/Recipe-gen.ts
+```ts filename="Recipe.ts" file=<rootDir>/src/guide/context-management/layers/Recipe-gen.ts
 
 ```
 
@@ -150,7 +150,7 @@ Merging is useful when we combine layers that don't have any relationship with e
 For example, in our cake recipe application above, we can merge our `FlourLive` and `SugarLive` layers
 into a single `IngredientsLive` layer, which retains the requirements of both layers (`MeasuringCup`) and the outputs of both layers (`Flour | Sugar`):
 
-```ts filename="index.ts" file=<rootDir>/src/tutorial/context-management/layers/index.ts
+```ts filename="index.ts" file=<rootDir>/src/guide/context-management/layers/index.ts
 
 ```
 
@@ -167,7 +167,7 @@ resulting in one layer with the requirement of the first, and the output of the 
 
 Now we can compose the `MeasuringCupLive` layer with the `IngredientsLive` layer, and then compose the result with the `RecipeLive` layer:
 
-```ts filename="index.ts" file=<rootDir>/src/tutorial/context-management/layers/index2.ts
+```ts filename="index.ts" file=<rootDir>/src/guide/context-management/layers/index2.ts
 import { Layer } from "effect"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
@@ -191,7 +191,7 @@ we can provide it to our program to satisfy the program's requirements using `Ef
 <Tabs>
 <Tab>
 
-```ts filename="index.ts" {27} file=<rootDir>/src/tutorial/context-management/layers/index-pipe.ts
+```ts filename="index.ts" {27} file=<rootDir>/src/guide/context-management/layers/index-pipe.ts
 
 ```
 
@@ -200,7 +200,7 @@ The `Effect.forEach` function is used to iterate over a collection of values (`s
 </Tab>
 <Tab>
 
-```ts filename="index.ts" {25} file=<rootDir>/src/tutorial/context-management/layers/index-gen.ts
+```ts filename="index.ts" {25} file=<rootDir>/src/guide/context-management/layers/index-gen.ts
 
 ```
 
