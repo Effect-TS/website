@@ -8,17 +8,31 @@ In this guide, we will explore the concept of retrying in Effect and learn how t
 
 Whether you're working on network requests, database interactions, or any other potentially error-prone operations, mastering the retrying capabilities of Effect can significantly enhance the resilience and reliability of your applications.
 
+To demonstrate the functionality of different retry functions, we will be working with the following helper that simulates an effect with possible failures:
+
+```ts filename="fake.ts" file=<rootDir>/src/guide/error-management/retrying/fake.ts
+
+```
+
 ## retry
 
 The basic syntax of `retry` is as follows:
 
 ```ts
-Effect.retry(action, policy)
+Effect.retry(effect, policy)
 ```
 
 **Example**
 
 ```ts file=<rootDir>/src/guide/error-management/retrying/retry.ts
+
+```
+
+## retryN
+
+There is a shortcut when the policy is trivial and the failed effect is immediately retried: `retryN(effect)`.
+
+```ts file=<rootDir>/src/guide/error-management/retrying/retryN.ts
 
 ```
 
@@ -31,7 +45,7 @@ It lets us add an `orElse` callback that will run when the repetition fails.
 The basic syntax of `retryOrElse` is as follows:
 
 ```ts
-Effect.retry(action, policy, fallback)
+Effect.retry(effect, policy, fallback)
 ```
 
 **Example**
