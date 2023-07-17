@@ -2,12 +2,12 @@ import { Effect } from "effect"
 
 // $ExpectType Effect<never, never, void>
 const task1 = Effect.sleep("2 seconds").pipe(
-  Effect.flatMap(() => Effect.log("task1 done", { level: "Debug" }))
+  Effect.flatMap(() => Effect.log("task1 done", "Debug"))
 )
 
 // $ExpectType Effect<never, never, void>
 const task2 = Effect.sleep("1 seconds").pipe(
-  Effect.flatMap(() => Effect.log("task2 done", { level: "Debug" }))
+  Effect.flatMap(() => Effect.log("task2 done", "Debug"))
 )
 
 // $ExpectType Effect<never, never, void>

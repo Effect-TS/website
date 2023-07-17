@@ -5,11 +5,12 @@ const program = Effect.dieMessage("Boom!") // Simulating a runtime error
   .pipe(
     Effect.catchAllDefect((defect) => {
       if (Cause.isRuntimeException(defect)) {
-        return Effect.log(`RuntimeException defect caught: ${defect.message}`, {
-          level: "Fatal",
-        })
+        return Effect.log(
+          `RuntimeException defect caught: ${defect.message}`,
+          "Fatal"
+        )
       }
-      return Effect.log("Unknown defect caught.", { level: "Fatal" })
+      return Effect.log("Unknown defect caught.", "Fatal")
     })
   )
 

@@ -7,7 +7,7 @@ const program = Effect.gen(function* (_) {
   )
   if (Either.isLeft(successOrFailure)) {
     const error = successOrFailure.left
-    return yield* _(Effect.log(String(error), { level: "Warning" }))
+    return yield* _(Effect.log(String(error), "Warning"))
   }
   return successOrFailure.right
 })
