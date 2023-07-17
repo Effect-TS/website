@@ -12,7 +12,7 @@ A `Runtime<R>` consists of three main components:
 
 When we use functions like `Effect.run*`, we are actually using the **default runtime** without explicitly mentioning it. These functions are designed as convenient shortcuts for executing our effects using the default runtime.
 
-For instance, in the `@effect/io/Runtime` module, there is a corresponding `Runtime.run*(defaultRuntime)` function that is called internally by `Effect.run*`, e.g. `Effect.runSync` is simply an alias for `Runtime.runSync(defaultRuntime)`.
+For instance, in the `Runtime` module, there is a corresponding `Runtime.run*(defaultRuntime)` function that is called internally by `Effect.run*`, e.g. `Effect.runSync` is simply an alias for `Runtime.runSync(defaultRuntime)`.
 
 The default runtime includes:
 
@@ -58,6 +58,6 @@ Runtime Systems have a lot of responsibilities:
 
 4. **Cooperatively yield to other fibers**. They have to cooperatively yield to other fibers so that fibers that are sort of hogging the spotlight, don't get to monopolize all the CPU resources.
 
-5. **Ensure finalizers are run appropriately**. They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed that clean-up logic is executed. This is the feature that powers [`Scope`](../../tutorial/resource-management/scope) and all the other resource-safe constructs in Effect.
+5. **Ensure finalizers are run appropriately**. They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed that clean-up logic is executed. This is the feature that powers [`Scope`](../resource-management/scope) and all the other resource-safe constructs in Effect.
 
 6. **Handle asynchronous callback**. They have to handle this messy job of dealing with asynchronous callbacks. So we don't have to deal with async code. When we are using Effect, everything can be interpreted as async or sync out of the box.

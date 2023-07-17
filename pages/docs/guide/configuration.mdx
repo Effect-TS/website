@@ -10,7 +10,7 @@ Effect comes bundled with a straightforward default `ConfigProvider` that retrie
 
 To make our application configurable, we need to understand three essential elements:
 
-- **Config Description**: We describe the configuration data using an instance of `Config<A>`. If the configuration data is simple, such as a `string`, `number`, or `boolean`, we can use the built-in functions provided by the `@effect/io/Config` module. For more complex data types like `HostPort`, we can combine primitive configs to create a custom configuration description.
+- **Config Description**: We describe the configuration data using an instance of `Config<A>`. If the configuration data is simple, such as a `string`, `number`, or `boolean`, we can use the built-in functions provided by the `Config` module. For more complex data types like `HostPort`, we can combine primitive configs to create a custom configuration description.
 
 - **Config Frontend**: We use `Effect.config` to load the configuration data described by a `Config<A>` instance. This function leverages the current `ConfigProvider` to retrieve the configuration.
 
@@ -25,14 +25,14 @@ Let's start with a simple example of how to read configuration from environment 
 <Tabs>
 <Tab>
 
-```ts filename="primitives.ts" file=<rootDir>/src/tutorial/configuration/primitives-pipe.ts
+```ts filename="primitives.ts" file=<rootDir>/src/guide/configuration/primitives-pipe.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="primitives.ts" file=<rootDir>/src/tutorial/configuration/primitives-gen.ts
+```ts filename="primitives.ts" file=<rootDir>/src/guide/configuration/primitives-gen.ts
 
 ```
 
@@ -63,7 +63,7 @@ In some cases, you may encounter situations where an environment variable is not
 
 Here's how you can use `Config.withDefault` to handle fallback values:
 
-```ts filename="withDefault.ts" /Config.withDefault(8080)/ file=<rootDir>/src/tutorial/configuration/withDefault.ts
+```ts filename="withDefault.ts" /Config.withDefault(8080)/ file=<rootDir>/src/guide/configuration/withDefault.ts
 
 ```
 
@@ -87,13 +87,13 @@ In addition to primitive types, we can also define configurations for custom typ
 
 Let's consider the `HostPort` data type, which consists of two fields: `host` and `port`.
 
-```ts filename="HostPort.ts" file=<rootDir>/src/tutorial/configuration/HostPort.ts#L3-L9
+```ts filename="HostPort.ts" file=<rootDir>/src/guide/configuration/HostPort.ts#L3-L9
 
 ```
 
 We can define a configuration for this data type by combining primitive configs for `string` and `number`:
 
-```ts filename="HostPort.ts" file=<rootDir>/src/tutorial/configuration/HostPort.ts
+```ts filename="HostPort.ts" file=<rootDir>/src/guide/configuration/HostPort.ts
 
 ```
 
@@ -104,14 +104,14 @@ If we use this customized configuration in our application:
 <Tabs>
 <Tab>
 
-```ts filename="App.ts" {5} file=<rootDir>/src/tutorial/configuration/App.ts
+```ts filename="App.ts" {5} file=<rootDir>/src/guide/configuration/App.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="App.ts" {6} file=<rootDir>/src/tutorial/configuration/App-gen.ts
+```ts filename="App.ts" {6} file=<rootDir>/src/guide/configuration/App-gen.ts
 
 ```
 
@@ -132,7 +132,7 @@ So far, we have learned how to define configurations in a top-level manner, whet
 
 Let's assume we have a `ServiceConfig` data type that consists of two fields: `hostPort` and `timeout`.
 
-```ts filename="ServiceConfig.ts" file=<rootDir>/src/tutorial/configuration/ServiceConfig.ts
+```ts filename="ServiceConfig.ts" file=<rootDir>/src/guide/configuration/ServiceConfig.ts
 
 ```
 
@@ -142,7 +142,7 @@ However, in many cases, we don't want to read all configurations from the top-le
 
 To achieve this, we can use the `Config.nested` combinator. It allows us to nest configs under a specific namespace. Here's how we can update our configuration:
 
-```ts /Config.nested/ filename="ServiceConfig.ts" file=<rootDir>/src/tutorial/configuration/ServiceConfig-nested.ts#L8-
+```ts /Config.nested/ filename="ServiceConfig.ts" file=<rootDir>/src/guide/configuration/ServiceConfig-nested.ts#L8-
 const config: Config.Config<ServiceConfig> = Config.all(
   Config.nested(HostPort.config, "HOSTPORT"),
   Config.float("TIMEOUT")
@@ -163,7 +163,7 @@ Once we have the mock config provider, we can use `Effect.setConfigProvider` fun
 
 Here's an example of how we can mock a config provider for testing purposes:
 
-```ts filename="mockConfigProvider.ts" file=<rootDir>/src/tutorial/configuration/mockConfigProvider.ts
+```ts filename="mockConfigProvider.ts" file=<rootDir>/src/guide/configuration/mockConfigProvider.ts
 
 ```
 
