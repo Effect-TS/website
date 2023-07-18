@@ -6,21 +6,13 @@ const now = Effect.sync(() => new Date().getTime())
 const elapsed = <R, E, A>(
   self: Effect.Effect<R, E, A>
 ): Effect.Effect<R, E, A> =>
-  now.pipe(
-    Effect.flatMap((startMillis) =>
-      self.pipe(
-        Effect.flatMap((result) =>
-          now.pipe(
-            Effect.flatMap((endMillis) =>
-              Effect.log(`Elapsed: ${endMillis - startMillis}`).pipe(
-                Effect.map(() => result)
-              )
-            )
-          )
-        )
-      )
-    )
-  )
+  Effect.gen(function* (_) {
+    const startMillis = yield* _(now)
+    const result = yield* _(self)
+    const endMillis = yield* _(now)
+    yield* _(Effect.log(`Elapsed: ${endMillis - startMillis}`))
+    return result
+  })
 
 const program = Effect.succeed("some task").pipe(
   Effect.delay("200 millis"),
