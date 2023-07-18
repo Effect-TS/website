@@ -5,7 +5,9 @@ import { Tabs, Tab } from "@/components/Code"
 
 In the [previous section](services), you learned how to create effects which depend on some context to be provided in order to execute, as well as how to provide that context to an Effect.
 
-However, what if we have a service within the context of our Effect program which has a dependency on other services? To represent the "dependency graph" of our program we need a more powerful abstraction.
+However, what if we have a service within our effect program that has dependencies on other services in order to be built? We want to **avoid leaking these implementation details** into the service interface.
+
+To represent the "dependency graph" of our program and manage these dependencies more effectively, we can utilize a powerful abstraction called `Layer`.
 
 In this guide, we will cover the following topics:
 
@@ -37,10 +39,18 @@ Now let's take our dependency graph and translate it into code.
 ## Creating Layers
 
 We will use `Layers`s to construct the `Recipe` service instead of providing a service implementation directly as we did in the [Managing Services](services) guide.
+Layers are a way of separating implementation details from the service itself.
+
+<Idea>
+  When a service has its own dependencies, it's best to separate implementation
+  details into layers. Layers act as **constructors** for creating the service,
+  allowing us to handle dependencies at the construction level rather than the
+  service level.
+</Idea>
 
 A `Layer<RIn, E, ROut>` represents a blueprint for constructing a `Context<ROut>`. It takes a value of type `RIn` as input and may potentially produce an error of type `E` during the construction process.
 
-In our case, the `ROut` type represents the service we want to construct. The `RIn` type represents all the dependencies required to construct the service.
+In our case, the `ROut` type represents the service we want to construct, while `RIn` represents the dependencies required for construction.
 
 <Info>
   For simplicity, let's assume that we won't encounter any errors during the
