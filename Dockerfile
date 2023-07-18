@@ -11,9 +11,9 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
-COPY package.json pnpm-lock.yaml* ./
+COPY .npmrc package.json pnpm-lock.yaml* ./
 
-RUN npm i -g pnpm@7 && pnpm i --frozen-lockfile
+RUN npm i -g pnpm@8 && pnpm i --frozen-lockfile
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -24,7 +24,7 @@ COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
-RUN npm i -g pnpm@7 && pnpm build
+RUN npm i -g pnpm@8 && pnpm build
 
 # Production image, copy all the files and run next
 FROM base AS runner
