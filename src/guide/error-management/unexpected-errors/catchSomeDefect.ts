@@ -6,9 +6,8 @@ const program = Effect.dieMessage("Boom!") // Simulating a runtime error
     Effect.catchSomeDefect((defect) => {
       if (Cause.isIllegalArgumentException(defect)) {
         return Option.some(
-          Effect.log(
-            `Caught an IllegalArgumentException defect: ${defect.message}`,
-            "Fatal"
+          Effect.logFatal(
+            `Caught an IllegalArgumentException defect: ${defect.message}`
           )
         )
       }
