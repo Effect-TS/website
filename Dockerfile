@@ -24,7 +24,7 @@ COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
-RUN npm i -g pnpm@7 && pnpm build
+RUN npm i -g pnpm@8 && pnpm build
 
 # Production image, copy all the files and run next
 FROM base AS runner
