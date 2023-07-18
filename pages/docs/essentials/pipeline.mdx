@@ -1,4 +1,4 @@
-import { Info } from "@/components/Callout"
+import { Info, Idea } from "@/components/Callout"
 
 # Building Pipelines
 
@@ -48,6 +48,33 @@ Let's see an example to better understand how `pipe` works:
 ```
 
 In the above example, we start with an input value of `5`. The `increment` function adds `1` to the initial value, resulting in `6`. Then, the `double` function doubles the value, giving us `12`. Finally, the `subtractTen` function subtracts `10` from `12`, resulting in the final output of `2`.
+
+## Importance of Functions in the Effect Ecosystem
+
+In the Effect ecosystem, libraries often expose functions rather than methods. This design choice is important for two key reasons: tree shakeability and extendibility.
+
+### Tree Shakeability
+
+Tree shakeability refers to the ability of a build system to eliminate unused code during the bundling process. Functions are tree shakeable, while methods are not.
+
+When functions are used in the Effect ecosystem, only the functions that are actually imported and used in your application will be included in the final bundled code. Unused functions are automatically removed, resulting in a smaller bundle size and improved performance.
+
+On the other hand, methods are attached to objects or prototypes, and they cannot be easily tree shaken. Even if you only use a subset of methods, all methods associated with an object or prototype will be included in the bundle, leading to unnecessary code bloat.
+
+### Extendibility
+
+Another important advantage of using functions in the Effect ecosystem is the ease of extendibility. With methods, extending the functionality of an existing API often requires modifying the prototype of the object, which can be complex and error-prone.
+
+In contrast, with functions, extending the functionality is much simpler. You can define your own "extension methods" as plain old functions without the need to modify the prototypes of objects. This promotes cleaner and more modular code, and it also allows for better compatibility with other libraries and modules.
+
+<Idea>
+  The use of functions in the Effect ecosystem libraries is important for
+  achieving **tree shakeability** and ensuring **extendibility**. Functions
+  enable efficient bundling by eliminating unused code, and they provide a
+  flexible and modular approach to extending the libraries' functionality.
+</Idea>
+
+Now let's explore some examples of APIs that can be used with the `pipe` function to build pipelines.
 
 ## map
 
