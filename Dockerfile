@@ -13,7 +13,7 @@ WORKDIR /app
 # Install dependencies based on the preferred package manager
 COPY package.json pnpm-lock.yaml* ./
 
-RUN npm i -g pnpm@7 && pnpm i --frozen-lockfile
+RUN npm i -g pnpm@8 && pnpm i --frozen-lockfile
 
 # Rebuild the source code only when needed
 FROM base AS builder

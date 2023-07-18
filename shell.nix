@@ -25,7 +25,7 @@ in
           kubectl
           nix
           nil
-          nodejs-16_x
+          nodejs-18_x
           nodePackages.pnpm
           pre-commit
           python310Packages.pre-commit-hooks
