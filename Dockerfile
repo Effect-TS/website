@@ -11,7 +11,7 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
-COPY package.json pnpm-lock.yaml* ./
+COPY .npmrc package.json pnpm-lock.yaml* ./
 
 RUN npm i -g pnpm@8 && pnpm i --frozen-lockfile
 
