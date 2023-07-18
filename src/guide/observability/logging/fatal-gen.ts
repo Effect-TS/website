@@ -7,12 +7,12 @@ const program = Effect.gen(function* (_) {
   )
   if (Either.isLeft(successOrFailure)) {
     const error = successOrFailure.left
-    return yield* _(Effect.logWarning(String(error)))
+    return yield* _(Effect.logFatal(String(error)))
   }
   return successOrFailure.right
 })
 
 Effect.runPromise(program)
 /*
-timestamp=... level=WARN fiber=#0 message="Something went wrong!"
+timestamp=... level=FATAL fiber=#0 message="Something went wrong!"
 */

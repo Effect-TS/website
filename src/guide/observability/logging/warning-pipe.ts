@@ -2,7 +2,7 @@ import { Effect } from "effect"
 
 // $ExpectType Effect<never, never, void>
 const program = Effect.fail("Something went wrong!").pipe(
-  Effect.catchAll((error) => Effect.log(String(error), "Warning"))
+  Effect.catchAll((error) => Effect.logWarning(String(error)))
 )
 
 Effect.runPromise(program)

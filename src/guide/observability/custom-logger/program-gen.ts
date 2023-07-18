@@ -3,13 +3,13 @@ import { Effect } from "effect"
 // $ExpectType Effect<never, never, void>
 const task1 = Effect.gen(function* (_) {
   yield* _(Effect.sleep("2 seconds"))
-  yield* _(Effect.log("task1 done", "Debug"))
+  yield* _(Effect.logDebug("task1 done"))
 })
 
 // $ExpectType Effect<never, never, void>
 const task2 = Effect.gen(function* (_) {
   yield* _(Effect.sleep("1 seconds"))
-  yield* _(Effect.log("task2 done", "Debug"))
+  yield* _(Effect.logDebug("task2 done"))
 })
 
 // $ExpectType Effect<never, never, void>

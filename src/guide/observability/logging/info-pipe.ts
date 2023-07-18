@@ -7,10 +7,10 @@ const task1 = Effect.sleep("2 seconds")
 const task2 = Effect.sleep("1 seconds")
 
 // $ExpectType Effect<never, never, void>
-const program = Effect.log("start").pipe(
+const program = Effect.logInfo("start").pipe(
   Effect.flatMap(() => task1),
   Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.log("done"))
+  Effect.flatMap(() => Effect.logInfo("done"))
 )
 
 Effect.runPromise(program)

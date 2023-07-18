@@ -8,10 +8,10 @@ const task2 = Effect.sleep("1 seconds")
 
 // $ExpectType Effect<never, never, void>
 const program = Effect.gen(function* (_) {
-  yield* _(Effect.log("start"))
+  yield* _(Effect.logInfo("start"))
   yield* _(task1)
   yield* _(task2)
-  yield* _(Effect.log("done"))
+  yield* _(Effect.logInfo("done"))
 })
 
 Effect.runPromise(program)
