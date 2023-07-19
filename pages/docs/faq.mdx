@@ -12,7 +12,7 @@
 
 ```
 
-### Looking for Type Aliases?
+### Looking for ZIO Type Aliases?
 
 **Question**. I can't seem to find any type aliases for Effect. Do any exist? I'm looking for something similar to ZIO's `UIO` / `URIO` / `RIO` / `Task` / `IO`. If not, have you considered adding them?
 
@@ -21,3 +21,11 @@
 The reason for this is that type aliases are lost as soon as you compose them, which renders them somewhat useless unless you maintain **multiple** signatures for **every** function. In Effect, we have chosen not to go down this path. Instead, we utilize the `never` type to indicate unused types.
 
 It's worth mentioning that the perception of type aliases being quicker to understand is often just an illusion. In Effect, the explicit notation `Effect<never, never, A>` clearly communicates that only type `A` is being used. On the other hand, when using a type alias like `RIO<R, A>`, questions arise about the type `E`. Is it `unknown`? `never`? Remembering such details becomes challenging.
+
+## Layer
+
+### Configuring Layers
+
+**Question**: Is it common for layers to accept arguments that control how they construct a service?
+
+**Answer**: Yes, it is perfectly normal for `Layer`s to accept arguments that influence the way they construct a service. For example, a layer may require some configuration values in order to properly initialize the service. By passing these arguments to the layer, you can customize the behavior and characteristics of the resulting service instance.
