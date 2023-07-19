@@ -4,7 +4,7 @@ import { Random } from "./service"
 // $ExpectType Effect<Random, never, void>
 const program = Random.pipe(
   Effect.flatMap((random) => random.next()),
-  Effect.flatMap((randomNumber) => Effect.log(`${randomNumber}`))
+  Effect.flatMap((randomNumber) => Effect.log(`random number: ${randomNumber}`))
 )
 
 // $ExpectType Effect<never, never, void>
@@ -17,4 +17,4 @@ const runnable = Effect.provideService(
 )
 
 Effect.runSync(runnable)
-// Output: ...more infos... message=0.8241872233134417
+// Output: ...more infos... message="random number: 0.8241872233134417"

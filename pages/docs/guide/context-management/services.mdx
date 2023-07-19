@@ -121,6 +121,43 @@ Notice that the `R` type parameter of the `runnable` effect is now `never`. This
 
 By calling `Effect.runSync(runnable){:ts}`, we execute the effect and observe the result.
 
+## Using the Service multiple times
+
+In the `program` definition, we have used the `Random` service only once:
+
+```ts /random.next()/ file=<rootDir>/src/guide/context-management/services/program-pipe.ts#L1-L8
+
+```
+
+But what if we need to use it multiple times? In such cases, we need to ensure that the service handle (`random`) remains in scope.
+
+```ts file=<rootDir>/src/guide/context-management/services/using-multiple-times-issue.ts
+
+```
+
+The solution depends on whether we are using `pipe` or `Effect.gen`:
+
+<Tabs>
+  <Tab>
+
+We can use `flatMap` to create a second pipeline and keep our service handle in scope:
+
+```ts /random.next()/ file=<rootDir>/src/guide/context-management/services/using-multiple-times-pipe.ts#L1-L17
+
+```
+
+  </Tab>
+  <Tab>
+
+With `Effect.gen` our service handle is always in scope:
+
+```ts /random.next()/ file=<rootDir>/src/guide/context-management/services/using-multiple-times-gen.ts#L1-L11
+
+```
+
+  </Tab>
+</Tabs>
+
 ## Using Multiple Services
 
 When we need to manage multiple services in our program, we can utilize the `Effect.all(tags){:ts}` function.
@@ -129,14 +166,14 @@ By passing a tuple of tags, we can access the corresponding tuple of services:
 <Tabs>
 <Tab>
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-pipe.ts#L1-L22
+```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L1-L22
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-gen.ts
+```ts file=<rootDir>/src/guide/context-management/services/multiple-services-gen.ts
 
 ```
 
@@ -154,19 +191,19 @@ Effect.Effect<Random | Logger, never, void>
 
 To execute the `program`, we need to provide implementations for both services:
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-pipe.ts#L24-L37
+```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L24-L37
 
 ```
 
 Alternatively, instead of calling `provideService` multiple times, we can combine the service implementations into a single `Context`:
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-pipe.ts#L39-L48
+```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L39-L48
 
 ```
 
 and then provide the entire context using the `provideContext` function:
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-pipe.ts#L50-
+```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L50-
 
 ```
 
