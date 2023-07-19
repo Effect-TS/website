@@ -1,7 +1,6 @@
 import { Effect } from "effect"
 
-// $ExpectType Effect<never, never, number>
-const program = Effect.sync(() => {
-  console.log("Hello, World!") // side effect
-  return 42 // return value
-})
+// Effect<never, unknown, any>
+const program = Effect.try(
+  () => JSON.parse("") // JSON.parse may throw for bad input
+)
