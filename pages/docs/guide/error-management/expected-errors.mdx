@@ -40,9 +40,9 @@ It is evident from the type of `program` that can fail with an error of type `Ht
 Effect.Effect<never, HttpError, never>
 ```
 
-## Error Accumulation
+## Error Tracking
 
-The following program serves as an illustration of how errors are automatically tracked and accumulated for you:
+The following program serves as an illustration of how errors are automatically tracked for you:
 
 <Tabs>
   <Tab>
@@ -73,6 +73,37 @@ Effect<never, FooError | BarError, string>
 ```
 
 indicating that it can potentially fail with either a `FooError` or a `BarError`.
+
+## Short-Circuiting
+
+When working with APIs like `Effect.map`, `Effect.flatMap`, and `Effect.all`, it's important to understand how they handle errors.
+These APIs are designed to **short-circuit the execution** upon encountering the **first error**.
+
+What does this mean for you as a developer? Well, let's say you have a chain of operations or a collection of effects to be executed in sequence. If any error occurs during the execution of one of these effects, the remaining computations will be skipped, and the error will be propagated to the final result.
+
+In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program, it won't waste time executing unnecessary computations. Instead, it will immediately stop and return the error to let you know that something went wrong.
+
+<Tabs>
+  <Tab>
+
+```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-pipe.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-gen.ts
+
+```
+
+</Tab>
+</Tabs>
+
+This code snippet demonstrates the short-circuiting behavior when an error occurs.
+Each operation depends on the successful execution of the previous one.
+If any error occurs, the execution is short-circuited, and the error is propagated.
+In this specific example, `operation3` is never executed because an error occurs in `operation2`.
 
 ## Catching
 
@@ -193,67 +224,3 @@ and the corresponding value is the error handler function to be executed when th
   a `readonly _tag` discriminant field. This field is required for the matching
   and handling of specific error tags.
 </Warning>
-
-## Modifying
-
-Sometimes, instead of handling an error directly, you may need to transform or modify it in some way.
-This can involve adding extra information to the error or changing its type altogether.
-In such cases, you can use the `mapError` function.
-
-<Tabs>
-<Tab>
-
-```ts {6-12} file=<rootDir>/src/guide/error-management/expected-errors/mapError-pipe.ts
-
-```
-
-In the code snippet above, `mapError` is applied to the `Effect` computation.
-It allows us to transform the error produced by the computation while keeping the success value unchanged.
-The provided error transformation function takes the original error as an input and returns a new error.
-
-</Tab>
-<Tab>
-
-```ts {9-14} file=<rootDir>/src/guide/error-management/expected-errors/mapError-gen.ts
-
-```
-
-</Tab>
-</Tabs>
-
-We can observe that the type in the error channel of our program has changed from `FooError | BarError` to `Error`.
-
-```ts /Error/
-Effect<never, Error, string>
-```
-
-## Short-Circuiting
-
-When working with APIs like `Effect.map`, `Effect.flatMap`, and `Effect.all`, it's important to understand how they handle errors.
-These APIs are designed to **short-circuit the execution** upon encountering the **first error**.
-
-What does this mean for you as a developer? Well, let's say you have a chain of operations or a collection of effects to be executed in sequence. If any error occurs during the execution of one of these effects, the remaining computations will be skipped, and the error will be propagated to the final result.
-
-In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program, it won't waste time executing unnecessary computations. Instead, it will immediately stop and return the error to let you know that something went wrong.
-
-<Tabs>
-  <Tab>
-
-```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-pipe.ts
-
-```
-
-</Tab>
-<Tab>
-
-```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-gen.ts
-
-```
-
-</Tab>
-</Tabs>
-
-This code snippet demonstrates the short-circuiting behavior when an error occurs.
-Each operation depends on the successful execution of the previous one.
-If any error occurs, the execution is short-circuited, and the error is propagated.
-In this specific example, `operation3` is never executed because an error occurs in `operation2`.
