@@ -1,49 +1,36 @@
-import { Design } from "@/components/Callout"
+# Simplifying Excessive Nesting in Effect
 
-# Do Simulation
+Suppose you want to create a custom function `elapsed` that prints the elapsed time taken by an effect to execute.
 
-The `Do` simulation in Effect allows you to write code in a more declarative style, similar to the "do notation" in other programming languages. It provides a way to define variables and perform operations on them using functions like `Effect.bind` and `Effect.let`.
+## Using plain pipe
 
-## Motivation
-
-Let's consider a scenario where we want to create a custom combinator that prints the elapsed time taken by an effect to execute:
+Initially, you may come up with code that uses the standard `pipe` [method](../essentials/pipeline#the-pipe-method), but this approach can lead to excessive nesting and result in verbose and hard-to-read code:
 
 ```ts file=<rootDir>/src/guide/style/do/elapsed-pipe.ts
 
 ```
 
-This code is not only verbose but also has excessive levels of nesting, making it difficult to read and understand.
+To address this issue and make the code more manageable, there is a solution: the "do simulation."
 
-To simplify the code and address this issue, there are two solutions available:
+## Using the "do simulation"
 
-1. Switching to generators
-2. Using the `Do` simulation
+The "do simulation" in Effect allows you to write code in a more declarative style, similar to the "do notation" in other programming languages. It provides a way to define variables and perform operations on them using functions like `Effect.bind` and `Effect.let`.
 
-## Using `Effect.gen`
+Here's how the do simulation works:
 
-```ts file=<rootDir>/src/guide/style/do/elapsed-gen.ts
-
-```
-
-In this solution, we switch to using [generators](../../essentials/using-generators) to simplify the code. The `elapsed` function now uses a generator function (`Effect.gen`) to define the flow of execution. Within the generator, we use `yield*` to invoke effects and bind their results to variables. This eliminates the nesting and provides a more readable and sequential code structure.
-
-## Using the `Do` simulation
-
-Here's how the `Do` simulation works:
-
-1. Start the `Do` simulation using `Effect.Do`:
+1. Start the do simulation using the `Effect.Do` value:
 
    ```ts
    const program = Effect.Do.pipe(/* ... rest of the code */)
    ```
 
-2. Inside the `Do` simulation scope, you can use the `Effect.bind` function to define variables and bind them to `Effect` values:
+2. Within the do simulation scope, you can use the `Effect.bind` function to define variables and bind them to `Effect` values:
 
    ```ts
-   Effect.bind("variableName", () => effectValue)
+   Effect.bind("variableName", (scope) => effectValue)
    ```
 
-- `variableName` is the name of the variable you want to define. You can choose any name you like.
+- `variableName` is the name you choose for the variable you want to define. It must be unique within the scope.
 - `effectValue` is the `Effect` value that you want to bind to the variable. It can be the result of a function call or any other valid `Effect` value.
 
 3. You can accumulate multiple `Effect.bind` statements to define multiple variables within the scope:
@@ -54,7 +41,16 @@ Here's how the `Do` simulation works:
    // ... additional bind statements
    ```
 
-4. Regular Effect functions like `Effect.flatMap`, `Effect.tap`, and `Effect.map` can still be used within the `Do` simulation. These functions will receive the accumulated variables as arguments within the scope:
+4. Inside the do simulation scope, you can also use the `Effect.let` function to define variables and bind them to simple values:
+
+   ```ts
+   Effect.let("variableName", (scope) => simpleValue)
+   ```
+
+- `variableName` is the name you give to the variable. Like before, it must be unique within the scope.
+- `simpleValue` is the value you want to assign to the variable. It can be a simple value like a `number`, `string`, or `boolean`.
+
+5. Regular Effect functions like `Effect.flatMap`, `Effect.tap`, and `Effect.map` can still be used within the do simulation. These functions will receive the accumulated variables as arguments within the scope:
 
    ```ts
    Effect.flatMap(({ variable1, variable2 }) => {
@@ -63,18 +59,27 @@ Here's how the `Do` simulation works:
    })
    ```
 
-Now let's rewrite the `elapsed` combinator using the `Do` simulation:
+With the do simulation, you can rewrite the `elapsed` combinator like this:
 
 ```ts file=<rootDir>/src/guide/style/do/elapsed-do.ts
 
 ```
 
-In this solution, we use the `Do` simulation to simplify the code. The `elapsed` function now starts with `Effect.Do()` to enter the simulation scope.
+In this solution, we use the do simulation to simplify the code. The `elapsed` function now starts with `Effect.Do` to enter the simulation scope.
 Inside the scope, we use `Effect.bind` to define variables and bind them to the corresponding effects.
 
-<Design>
-  Both solutions discussed, using generators and the `Do` simulation, achieve
-  the same goal of simplifying the code and reducing nesting. They offer clearer
-  and more readable code, making it easier to understand and work with. Choose
-  the approach that best suits your preferences and requirements.
-</Design>
+## Using `Effect.gen`
+
+The most concise and convenient solution is to use the `Effect.gen` constructor, which allows you to work with [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) when dealing with effects. This approach leverages the native scope provided by the generator syntax, avoiding excessive nesting and leading to more concise code.
+
+```ts file=<rootDir>/src/guide/style/do/elapsed-gen.ts
+
+```
+
+In this solution, we switch to using [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) to simplify the code. The `elapsed` function now uses a generator function (`Effect.gen`) to define the flow of execution. Within the generator, we use `yield*` to invoke effects and bind their results to variables. This eliminates the nesting and provides a more readable and sequential code structure.
+
+The generator style in Effect uses a more linear and sequential flow of execution, resembling traditional imperative programming languages. This makes the code easier to read and understand, especially for developers who are more familiar with imperative programming paradigms.
+
+On the other hand, the pipe style can lead to excessive nesting, especially when dealing with complex effectful computations. This can make the code harder to follow and debug.
+
+For more information on how to use generators in Effect, you can refer to the [Using Generators in Effect](../essentials/using-generators) guide.
