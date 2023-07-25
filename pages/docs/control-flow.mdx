@@ -6,15 +6,15 @@ Even though JavaScript provides built-in control flow structures, Effect offers 
 
 When working with Effect values, we can use the standard JavaScript if-then-else expressions:
 
-```ts file=<rootDir>/src/essentials/control-flow/if-expression.ts
+```ts file=<rootDir>/src/guide/control-flow/if-expression.ts
 
 ```
 
-Here we are using the [`Option`](../data-types/option) data type to represent the absence of a valid value.
+Here we are using the [`Option`](./data-types/option) data type to represent the absence of a valid value.
 
 We can also handle invalid inputs by using the error channel:
 
-```ts file=<rootDir>/src/essentials/control-flow/if-expression-error-channel.ts
+```ts file=<rootDir>/src/guide/control-flow/if-expression-error-channel.ts
 
 ```
 
@@ -24,7 +24,7 @@ We can also handle invalid inputs by using the error channel:
 
 Instead of using `if (condition) expression`, we can use the `Effect.when` operator:
 
-```ts file=<rootDir>/src/essentials/control-flow/when.ts
+```ts file=<rootDir>/src/guide/control-flow/when.ts
 
 ```
 
@@ -32,7 +32,7 @@ If the condition itself involves an effect, we can use `Effect.whenEffect`.
 
 For example, the following function creates a random option of an integer value:
 
-```ts file=<rootDir>/src/essentials/control-flow/whenEffect.ts
+```ts file=<rootDir>/src/guide/control-flow/whenEffect.ts
 
 ```
 
@@ -40,7 +40,7 @@ The `Effect.when` and `Effect.whenEffect` operators allow us to conditionally ex
 
 ### unless
 
-The `Effect.unless` and `Effect.unlessEffect` operators are similar to the `when*` operators, but they are the moral equivalent of the `if (!condition) expression` construct.
+The `Effect.unless` and `Effect.unlessEffect` operators are similar to the `when*` operators, but they are equivalent to the `if (!condition) expression` construct.
 
 ### if
 
@@ -48,7 +48,7 @@ The `Effect.if` operator allows you to provide an effectful predicate. If the pr
 
 Let's use this operator to create a simple virtual coin flip function:
 
-```ts file=<rootDir>/src/essentials/control-flow/if.ts
+```ts file=<rootDir>/src/guide/control-flow/if.ts
 
 ```
 
@@ -66,7 +66,7 @@ Effect.loop(initial, options: { while, step, body })
 
 It collects all intermediate states in an array and returns it as the final result.
 
-We can think of `Effect.loop` as a moral equivalent of a `while` loop in JavaScript:
+We can think of `Effect.loop` as equivalent to a `while` loop in JavaScript:
 
 ```ts
 let state = initial
@@ -82,7 +82,7 @@ return result
 
 **Example**
 
-```ts file=<rootDir>/src/essentials/control-flow/loop.ts
+```ts file=<rootDir>/src/guide/control-flow/loop.ts
 
 ```
 
@@ -92,7 +92,7 @@ You can also use the `discard` option if you're not interested in collecting the
 
 **Example** (`discard: true`)
 
-```ts file=<rootDir>/src/essentials/control-flow/loop-discard.ts
+```ts file=<rootDir>/src/guide/control-flow/loop-discard.ts
 
 ```
 
@@ -106,7 +106,7 @@ The `Effect.iterate` combinator allows you to iterate with an effectful operatio
 Effect.iterate(initial, options: { while, body })
 ```
 
-We can think of `Effect.iterate` as a moral equivalent of a `while` loop in JavaScript:
+We can think of `Effect.iterate` as equivalent to a `while` loop in JavaScript:
 
 ```ts
 let result = initial
@@ -120,7 +120,7 @@ return result
 
 Here's an example of how it works:
 
-```ts file=<rootDir>/src/essentials/control-flow/iterate.ts
+```ts file=<rootDir>/src/guide/control-flow/iterate.ts
 
 ```
 
@@ -131,7 +131,7 @@ It applies the given effectful operation to each element of the `Iterable` seque
 
 Let's take a look at an example:
 
-```ts file=<rootDir>/src/essentials/control-flow/forEach.ts
+```ts file=<rootDir>/src/guide/control-flow/forEach.ts
 
 ```
 
@@ -141,7 +141,7 @@ The `Effect.forEach` combinator collects the results of each effectful operation
 
 We also have the `discard` option, which when set to `true` discards the results of each effectful operation:
 
-```ts file=<rootDir>/src/essentials/control-flow/forEach-discard.ts
+```ts file=<rootDir>/src/guide/control-flow/forEach-discard.ts
 
 ```
 

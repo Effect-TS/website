@@ -4,7 +4,7 @@ import { Tabs, Tab } from "nextra-theme-docs"
 
 In this tutorial, we will guide you through the process of setting up a new Effect project from scratch using plain **TypeScript**.
 
-<Tabs items={["Node.js", "Deno", "Bun"]}>
+<Tabs items={["Node.js", "Deno", "Bun", "Vite + React"]}>
 <Tab>
 
 Follow these steps to create a new Effect project for **Node.js**:
@@ -169,4 +169,106 @@ bun index.ts
 You should see the message `"Hello, World!"` printed. This confirms that the program is working correctly.
 
 </Tab>
+<Tab>
+
+Follow these steps to create a new Effect project for **Vite + React**:
+
+1. Scaffold your Vite project, open your terminal and run the following command:
+
+   ```bash filename="Terminal"
+   # npm 6.x
+   npm create vite@latest hello-effect --template react-ts
+
+   # npm 7+, extra double-dash is needed:
+   npm create vite@latest hello-effect -- --template react-ts
+   ```
+
+   This command will create a new Vite project with React and TypeScript template.
+
+2. Navigate into the newly created project directory and install the required packages:
+
+   ```bash filename="Terminal"
+   cd hello-effect
+   npm install
+   ```
+
+   Once the packages are installed, open the `tsconfig.json` file and ensure that the value of the `strict` option is set to true.
+
+   ```json filename="tsconfig.json"
+   {
+     "compilerOptions": {
+       "strict": true
+     }
+   }
+   ```
+
+3. Then, install the necessary `effect` package as a dependency:
+
+   ```bash filename="Terminal"
+   npm install effect
+   ```
+
+   The `effect` package will provide the foundational functionality for your Effect project.
+
+Now, let's write and run a simple program to ensure that everything is set up correctly.
+
+Open the `src/App.tsx` file and replace its content with the following code:
+
+```tsx {5,7-9,14} /, useEffect/
+import { useState, useEffect } from "react"
+import reactLogo from "./assets/react.svg"
+import viteLogo from "/vite.svg"
+import "./App.css"
+import { Effect } from "effect"
+
+const program = Effect.sync(() => {
+  console.log("Hello, World!")
+})
+
+function App() {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => () => Effect.runSync(program), [])
+
+  return (
+    <>
+      <div>
+        <a href="https://vitejs.dev" target="_blank">
+          <img src={viteLogo} className="logo" alt="Vite logo" />
+        </a>
+        <a href="https://react.dev" target="_blank">
+          <img src={reactLogo} className="logo react" alt="React logo" />
+        </a>
+      </div>
+      <h1>Vite + React</h1>
+      <div className="card">
+        <button onClick={() => setCount((count) => count + 1)}>
+          count is {count}
+        </button>
+        <p>
+          Edit <code>src/App.tsx</code> and save to test HMR
+        </p>
+      </div>
+      <p className="read-the-docs">
+        Click on the Vite and React logos to learn more
+      </p>
+    </>
+  )
+}
+
+export default App
+```
+
+After making these changes, start the development server by running the following command:
+
+```bash filename="Terminal"
+npm run dev
+```
+
+Then, press **o** to open the application in your browser.
+
+You should see the message `"Hello, World!"` printed in the console. This confirms that the program is working correctly.
+
+</Tab>
+
 </Tabs>

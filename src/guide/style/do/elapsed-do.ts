@@ -1,5 +1,6 @@
 import { Effect } from "effect"
 
+// Get the current timestamp
 const now = Effect.sync(() => new Date().getTime())
 
 const elapsed = <R, E, A>(
@@ -9,16 +10,18 @@ const elapsed = <R, E, A>(
     Effect.bind("startMillis", () => now),
     Effect.bind("result", () => self),
     Effect.bind("endMillis", () => now),
-    Effect.tap(({ startMillis, endMillis }) =>
-      Effect.log(`Elapsed: ${endMillis - startMillis}`)
+    Effect.let(
+      "elapsed",
+      ({ startMillis, endMillis }) => endMillis - startMillis // Calculate the elapsed time in milliseconds
     ),
+    Effect.tap(({ elapsed }) => Effect.log(`Elapsed: ${elapsed}`)), // Log the elapsed time
     Effect.map(({ result }) => result)
   )
 
-const program = Effect.succeed("some task").pipe(
-  Effect.delay("200 millis"),
-  elapsed
-)
+// Simulates a successful computation with a delay of 200 milliseconds
+const task = Effect.succeed("some task").pipe(Effect.delay("200 millis"))
+
+const program = elapsed(task)
 
 Effect.runPromise(program).then(console.log)
 /*
