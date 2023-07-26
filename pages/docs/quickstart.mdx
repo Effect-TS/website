@@ -214,21 +214,23 @@ Now, let's write and run a simple program to ensure that everything is set up co
 
 Open the `src/App.tsx` file and replace its content with the following code:
 
-```tsx {5,7-9,14} /, useEffect/
-import { useState, useEffect } from "react"
+```tsx {1,5,10-16,30}
+import { useState, useMemo, useCallback } from "react"
 import reactLogo from "./assets/react.svg"
 import viteLogo from "/vite.svg"
 import "./App.css"
 import { Effect } from "effect"
 
-const program = Effect.sync(() => {
-  console.log("Hello, World!")
-})
-
 function App() {
   const [count, setCount] = useState(0)
 
-  useEffect(() => () => Effect.runSync(program), [])
+  // Effect<never, never, void>
+  const myeffect = useMemo(
+    () => Effect.sync(() => setCount((current) => current + 1)),
+    [setCount]
+  )
+
+  const increment = useCallback(() => Effect.runSync(myeffect), [myeffect])
 
   return (
     <>
@@ -242,9 +244,7 @@ function App() {
       </div>
       <h1>Vite + React</h1>
       <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
+        <button onClick={increment}>count is {count}</button>
         <p>
           Edit <code>src/App.tsx</code> and save to test HMR
         </p>
@@ -267,7 +267,7 @@ npm run dev
 
 Then, press **o** to open the application in your browser.
 
-You should see the message `"Hello, World!"` printed in the console. This confirms that the program is working correctly.
+When you click the button, you should see the counter increment. This confirms that the program is working correctly.
 
 </Tab>
 
