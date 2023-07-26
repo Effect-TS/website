@@ -6,7 +6,7 @@ const divide = (a: number, b: number): Promise<number> =>
     : Promise.resolve(a / b)
 
 // $ExpectType () => Promise<string>
-export const program = async function () {
+const program = async function () {
   const [a, b] = await Promise.all([Promise.resolve(10), Promise.resolve(2)])
   const n1 = await divide(a, b)
   const n2 = increment(n1)
