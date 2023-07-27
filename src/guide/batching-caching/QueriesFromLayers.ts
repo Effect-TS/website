@@ -35,4 +35,4 @@ export const getTodos: Effect.Effect<
   TodosService,
   Model.GetTodosError,
   Array<Model.Todo>
-> = TodosService.pipe(Effect.flatMap((_) => _.getTodos))
+> = Effect.flatMap(TodosService, (service) => service.getTodos)
