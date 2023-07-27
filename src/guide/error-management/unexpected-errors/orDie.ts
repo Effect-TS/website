@@ -6,6 +6,6 @@ const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
     : Effect.succeed(a / b)
 
 // $ExpectType Effect<never, never, number>
-const program = divide(1, 0).pipe(Effect.orDie)
+const program = Effect.orDie(divide(1, 0))
 
 Effect.runSync(program) // throws Error("Cannot divide by zero")
