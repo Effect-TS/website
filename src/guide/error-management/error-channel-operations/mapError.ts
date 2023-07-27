@@ -4,4 +4,4 @@ import { Effect } from "effect"
 const program = Effect.fail("Oh no!").pipe(Effect.as(1))
 
 // $ExpectType Effect<never, Error, number>
-const modified = program.pipe(Effect.mapError((message) => new Error(message)))
+const modified = Effect.mapError(program, (message) => new Error(message))

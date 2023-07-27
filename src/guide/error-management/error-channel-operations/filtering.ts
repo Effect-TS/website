@@ -1,30 +1,29 @@
 import { Effect, Random, Cause } from "effect"
 
 // $ExpectType Effect<never, string, number>
-const program1 = Random.nextRange(-1, 1).pipe(
-  Effect.filterOrFail(
-    (n) => n >= 0,
-    () => "random number is negative"
-  )
+const program1 = Effect.filterOrFail(
+  Random.nextRange(-1, 1),
+  (n) => n >= 0,
+  () => "random number is negative"
 )
 
 // $ExpectType Effect<never, never, number>
-const program2 = Random.nextRange(-1, 1).pipe(
-  Effect.filterOrDie(
-    (n) => n >= 0,
-    () => Cause.IllegalArgumentException("random number is negative")
-  )
+const program2 = Effect.filterOrDie(
+  Random.nextRange(-1, 1),
+  (n) => n >= 0,
+  () => Cause.IllegalArgumentException("random number is negative")
 )
 
 // $ExpectType Effect<never, never, number>
-const program3 = Random.nextRange(-1, 1).pipe(
-  Effect.filterOrDieMessage((n) => n >= 0, "random number is negative")
+const program3 = Effect.filterOrDieMessage(
+  Random.nextRange(-1, 1),
+  (n) => n >= 0,
+  "random number is negative"
 )
 
 // $ExpectType Effect<never, never, number>
-const program4 = Random.nextRange(-1, 1).pipe(
-  Effect.filterOrElse(
-    (n) => n >= 0,
-    () => program3
-  )
+const program4 = Effect.filterOrElse(
+  Random.nextRange(-1, 1),
+  (n) => n >= 0,
+  () => program3
 )

@@ -44,6 +44,24 @@ After using `mapBoth`, we can observe that the type of our program has changed f
   the overall success or failure of the effect.
 </Info>
 
+## Filtering the Success Channel
+
+The Effect library provides several operators to filter values on the success channel based on a given predicate. These operators offer different strategies for handling cases where the predicate fails. Let's explore them:
+
+| **Function**                                         | **Description**                                                                                                                                                                                                                                   |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Effect.filterOrFail`                                | This operator filters the values on the success channel based on a predicate. If the predicate fails for any value, the original effect fails with an error.                                                                                      |
+| `Effect.filterOrDie` and `Effect.filterOrDieMessage` | These operators also filter the values on the success channel based on a predicate. If the predicate fails for any value, the original effect terminates abruptly. The `filterOrDieMessage` variant allows you to provide a custom error message. |
+| `Effect.filterOrElse`                                | This operator filters the values on the success channel based on a predicate. If the predicate fails for any value, an alternative effect is executed instead.                                                                                    |
+
+Here's an example that demonstrates these filtering operators in action:
+
+```ts file=<rootDir>/src/guide/error-management/error-channel-operations/filtering.ts
+
+```
+
+It's important to note that depending on the specific filtering operator used, the effect can either fail, terminate abruptly, or execute an alternative effect when the predicate fails. Choose the appropriate operator based on your desired error handling strategy and program logic.
+
 ## Tapping Errors
 
 Similar to [tapping](../essentials/pipeline#tap) for success values, Effect provides several operators for inspecting error values. These operators allow us to peek into failures or underlying defects or causes:
@@ -63,24 +81,6 @@ Let's see an example of how to use these operators:
   It's important to note that tapping into error values **does not change** the
   type of the program.
 </Info>
-
-## Filtering the Success Channel
-
-The Effect library provides several operators to filter values on the success channel based on a given predicate. These operators offer different strategies for handling cases where the predicate fails. Let's explore them:
-
-| **Function**                                         | **Description**                                                                                                                                                                                                                                   |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Effect.filterOrFail`                                | This operator filters the values on the success channel based on a predicate. If the predicate fails for any value, the original effect fails with an error.                                                                                      |
-| `Effect.filterOrDie` and `Effect.filterOrDieMessage` | These operators also filter the values on the success channel based on a predicate. If the predicate fails for any value, the original effect terminates abruptly. The `filterOrDieMessage` variant allows you to provide a custom error message. |
-| `Effect.filterOrElse`                                | This operator filters the values on the success channel based on a predicate. If the predicate fails for any value, an alternative effect is executed instead.                                                                                    |
-
-Here's an example that demonstrates these filtering operators in action:
-
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/filtering.ts
-
-```
-
-It's important to note that depending on the specific filtering operator used, the effect can either fail, terminate abruptly, or execute an alternative effect when the predicate fails. Choose the appropriate operator based on your desired error handling strategy and program logic.
 
 ## Exposing Errors in The Success Channel
 

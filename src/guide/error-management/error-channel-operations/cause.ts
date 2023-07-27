@@ -4,10 +4,10 @@ import { Effect } from "effect"
 const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
 // $ExpectType Effect<never, never, Cause<string>>
-const cause = Effect.cause(task)
+const taskCause = Effect.cause(task)
 
 // $ExpectType Effect<never, never, void>
-const program = cause.pipe(Effect.flatMap(Effect.log))
+const program = Effect.flatMap(taskCause, (cause) => Effect.log(cause))
 
 Effect.runPromise(program)
 /*
