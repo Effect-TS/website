@@ -1,4 +1,4 @@
-import { Idea } from "@/components/Callout"
+import { Idea, Warning } from "@/components/Callout"
 import { Tabs, Tab } from "@/components/Code"
 
 # Managing Services
@@ -123,6 +123,11 @@ By calling `Effect.runSync(runnable){:ts}`, we execute the effect and observe th
 
 ## Using the Service multiple times
 
+<Warning>
+  This section is relevant only if you are using the `pipe` syntax. If you are
+  not using `pipe`, you can skip this section.
+</Warning>
+
 In the `program` definition, we have used the `Random` service only once:
 
 ```ts /random.next()/ file=<rootDir>/src/guide/context-management/services/program-pipe.ts#L1-L8
@@ -135,7 +140,7 @@ But what if we need to use it multiple times? In such cases, we need to ensure t
 
 ```
 
-The solution depends on whether we are using `pipe` or `Effect.gen`:
+The solution depends on whether we are using `Effect.gen` or `pipe`:
 
 <Tabs>
 <Tab>
@@ -200,7 +205,7 @@ Alternatively, instead of calling `provideService` multiple times, we can combin
 
 ```
 
-and then provide the entire context using the `provideContext` function:
+and then provide the entire context using the `Effect.provideContext` function:
 
 ```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L50-
 
