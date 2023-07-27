@@ -1,15 +1,16 @@
 import { Effect, Either } from "effect"
 
+const myeffect = Effect.asUnit(Effect.fail("Something went wrong!"))
+
 // $ExpectType Effect<never, never, void>
 const program = Effect.gen(function* (_) {
-  const successOrFailure = yield* _(
-    Effect.either(Effect.fail("Something went wrong!"))
+  const failureOrSuccess = yield* _(Effect.either(myeffect))
+  return yield* _(
+    Either.match(failureOrSuccess, {
+      onLeft: (error) => Effect.logWarning(String(error)),
+      onRight: (value) => Effect.succeed(value),
+    })
   )
-  if (Either.isLeft(successOrFailure)) {
-    const error = successOrFailure.left
-    return yield* _(Effect.logWarning(String(error)))
-  }
-  return successOrFailure.right
 })
 
 Effect.runPromise(program)
