@@ -8,8 +8,11 @@ export class HostPort {
   }
 }
 
+// $ExpectType Config<[string, number]>
+const both = Config.all([Config.string("HOST"), Config.number("PORT")])
+
 // $ExpectType Config<HostPort>
-export const config = Config.all([
-  Config.string("HOST"),
-  Config.number("PORT"),
-]).pipe(Config.map(([host, port]) => new HostPort(host, port)))
+export const config = Config.map(
+  both,
+  ([host, port]) => new HostPort(host, port)
+)

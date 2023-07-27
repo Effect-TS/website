@@ -25,14 +25,14 @@ Let's start with a simple example of how to read configuration from environment 
 <Tabs>
 <Tab>
 
-```ts filename="primitives.ts" file=<rootDir>/src/guide/configuration/primitives-pipe.ts
+```ts filename="primitives.ts" file=<rootDir>/src/guide/configuration/primitives-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="primitives.ts" file=<rootDir>/src/guide/configuration/primitives-gen.ts
+```ts filename="primitives.ts" file=<rootDir>/src/guide/configuration/primitives-pipe.ts
 
 ```
 
@@ -63,9 +63,22 @@ In some cases, you may encounter situations where an environment variable is not
 
 Here's how you can use `Config.withDefault` to handle fallback values:
 
-```ts filename="withDefault.ts" /Config.withDefault(8080)/ file=<rootDir>/src/guide/configuration/withDefault.ts
+<Tabs>
+<Tab>
+
+```ts filename="withDefault.ts" /Config.withDefault(8080)/ file=<rootDir>/src/guide/configuration/withDefault-gen.ts
 
 ```
+
+</Tab>
+<Tab>
+
+```ts filename="withDefault.ts" /Config.withDefault(8080)/ file=<rootDir>/src/guide/configuration/withDefault-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
 
 When running the program with the command:
 
@@ -97,21 +110,21 @@ We can define a configuration for this data type by combining primitive configs 
 
 ```
 
-In the above example, we use the `Config.all(...configs){:ts}` operator to combine two primitive configs `Config<string>` and `Config<number>` into a `Config<[string, number]>`.
+In the above example, we use the `Config.all(configs){:ts}` operator to combine two primitive configs `Config<string>` and `Config<number>` into a `Config<[string, number]>`.
 
 If we use this customized configuration in our application:
 
 <Tabs>
 <Tab>
 
-```ts filename="App.ts" {5} file=<rootDir>/src/guide/configuration/App.ts
+```ts filename="App.ts" /Effect.config(HostPort.config)/ file=<rootDir>/src/guide/configuration/App-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="App.ts" {6} file=<rootDir>/src/guide/configuration/App-gen.ts
+```ts filename="App.ts" /Effect.config(HostPort.config)/ file=<rootDir>/src/guide/configuration/App.ts
 
 ```
 

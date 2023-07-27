@@ -45,7 +45,14 @@ Effect.Effect<never, HttpError, never>
 The following program serves as an illustration of how errors are automatically tracked for you:
 
 <Tabs>
-  <Tab>
+<Tab>
+
+```ts filename="error-accumulation.ts" file=<rootDir>/src/guide/error-management/expected-errors/error-accumulation-gen.ts#L1-L27
+
+```
+
+</Tab>
+<Tab>
 
 ```ts filename="error-accumulation.ts" file=<rootDir>/src/guide/error-management/expected-errors/error-accumulation.ts#L1-L26
 
@@ -54,14 +61,7 @@ The following program serves as an illustration of how errors are automatically 
 In the above program, we have two operations: `flakyFoo` and `flakyBar`, each representing a potential source of error.
 These operations are combined using the `Effect.all(effects){:ts}` function from the Effect library, which allows us to sequence them together.
 
-  </Tab>
-  <Tab>
-
-```ts filename="error-accumulation.ts" file=<rootDir>/src/guide/error-management/expected-errors/error-accumulation-gen.ts#L1-L27
-
-```
-
-  </Tab>
+</Tab>
 </Tabs>
 
 Effect automatically keeps track of the possible errors that can occur during the execution of the program.
@@ -84,16 +84,16 @@ What does this mean for you as a developer? Well, let's say you have a chain of 
 In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program, it won't waste time executing unnecessary computations. Instead, it will immediately stop and return the error to let you know that something went wrong.
 
 <Tabs>
-  <Tab>
+<Tab>
 
-```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-pipe.ts
+```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-gen.ts
+```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-pipe.ts
 
 ```
 
@@ -116,14 +116,14 @@ The `catchAll` function allows you to catch any error that occurs in the program
 <Tabs>
 <Tab>
 
-```ts {6} file=<rootDir>/src/guide/error-management/expected-errors/catchAll-pipe.ts
+```ts {7-10} file=<rootDir>/src/guide/error-management/expected-errors/catchAll-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts {7-10} file=<rootDir>/src/guide/error-management/expected-errors/catchAll-gen.ts
+```ts {6} file=<rootDir>/src/guide/error-management/expected-errors/catchAll-pipe.ts
 
 ```
 
@@ -144,6 +144,13 @@ Suppose we only want to handle `FooError`. In that case, we can use the `catchTa
 <Tabs>
 <Tab>
 
+```ts {9-11} file=<rootDir>/src/guide/error-management/expected-errors/catchTag-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
 ```ts {6-8} file=<rootDir>/src/guide/error-management/expected-errors/catchTag-pipe.ts
 
 ```
@@ -151,13 +158,6 @@ Suppose we only want to handle `FooError`. In that case, we can use the `catchTa
 In the example above, the `catchTag` function allows us to handle `FooError` specifically.
 If a `FooError` occurs during the execution of the program, the provided error handler function will be invoked,
 and the program will proceed with the recovery logic specified within the handler.
-
-</Tab>
-<Tab>
-
-```ts {9-11} file=<rootDir>/src/guide/error-management/expected-errors/catchTag-gen.ts
-
-```
 
 </Tab>
 </Tabs>
@@ -174,14 +174,14 @@ If we also wanted to handle `BarError`, we can simply add another `catchTag`.
 <Tabs>
 <Tab>
 
-```ts {9-11} file=<rootDir>/src/guide/error-management/expected-errors/catchTag-pipe-2.ts
+```ts {12} file=<rootDir>/src/guide/error-management/expected-errors/catchTag-gen-2.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts {12} file=<rootDir>/src/guide/error-management/expected-errors/catchTag-gen-2.ts
+```ts {9-11} file=<rootDir>/src/guide/error-management/expected-errors/catchTag-pipe-2.ts
 
 ```
 
@@ -201,6 +201,13 @@ Instead of using the `catchTag` combinator multiple times to handle individual e
 <Tabs>
 <Tab>
 
+```ts {9-14} file=<rootDir>/src/guide/error-management/expected-errors/catchTags-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
 ```ts {6-9} file=<rootDir>/src/guide/error-management/expected-errors/catchTags-pipe.ts
 
 ```
@@ -208,13 +215,6 @@ Instead of using the `catchTag` combinator multiple times to handle individual e
 In the above example, instead of using `catchTag` multiple times to handle individual errors, we utilize the `catchTags` combinator.
 This combinator takes an object where each property represents a specific error `_tag` (`"FooError"` and `"BarError"` in this case),
 and the corresponding value is the error handler function to be executed when that particular error occurs.
-
-</Tab>
-<Tab>
-
-```ts {9-14} file=<rootDir>/src/guide/error-management/expected-errors/catchTags-gen.ts
-
-```
 
 </Tab>
 </Tabs>
