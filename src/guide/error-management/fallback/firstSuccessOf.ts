@@ -4,14 +4,18 @@ interface Config {
   // ...
 }
 
+const makeConfig = (/* ... */): Config => ({})
+
 const remoteConfig = (name: string): Effect.Effect<never, Error, Config> =>
-  name === "node3"
-    ? Effect.log(`Config for ${name} found`).pipe(
-        Effect.flatMap(() => Effect.succeed({}))
-      )
-    : Effect.log(`Unavailable config for ${name}`).pipe(
-        Effect.flatMap(() => Effect.fail(new Error()))
-      )
+  Effect.gen(function* (_) {
+    if (name === "node3") {
+      yield* _(Effect.log(`Config for ${name} found`))
+      return makeConfig()
+    } else {
+      yield* _(Effect.log(`Unavailable config for ${name}`))
+      return yield* _(Effect.fail(new Error()))
+    }
+  })
 
 // $ExpectType Effect<never, Error, Config>
 const masterConfig = remoteConfig("master")
