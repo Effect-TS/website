@@ -170,7 +170,7 @@ This way is probably the best for most of the cases given that layers are the na
 
 Batching can be locally disabled using the `Effect.withRequestBatching` utility in the following way:
 
-```ts {12} filename="index.ts" file=<rootDir>/src/guide/batching-caching/withRequestBatching.ts
+```ts filename="index.ts" {12} file=<rootDir>/src/guide/batching-caching/withRequestBatching.ts
 
 ```
 
@@ -209,13 +209,13 @@ or maybe you want a global cache with a different setup, or a mix of both.
 
 To cover those scenarios you'd create a custom cache like the following:
 
-```ts {13-17} filename="index.ts" file=<rootDir>/src/guide/batching-caching/final-program-with-cache.ts
+```ts {14-18} filename="index.ts" file=<rootDir>/src/guide/batching-caching/final-program-with-cache.ts
 
 ```
 
-Alternatively you can also directly construct a cache with `Request.makeCache({ capacity: 256, timeToLive: Duration.minutes(60) }){:ts}` and then use
+Alternatively you can also directly construct a cache with `Request.makeCache({ capacity: 256, timeToLive: "60 minutes" }){:ts}` and then use
 `Effect.withRequestCache(program, myCache){:ts}` on a program to make sure the requests generated from that program uses
-the custom cache (when enabled with `Effect.withRequestCaching("on"){:ts}`)
+the custom cache (when enabled with `Effect.withRequestCaching(true){:ts}`).
 
 ## How is this possible?
 

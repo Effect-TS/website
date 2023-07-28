@@ -1,14 +1,14 @@
 import { Effect } from "effect"
 import * as Queries from "./Queries"
 
-const program = Queries.getTodos.pipe(
-  Effect.flatMap((todos) =>
-    Effect.forEach(todos, Queries.notifyOwner, {
+const program = Effect.gen(function* (_) {
+  const todos = yield* _(Queries.getTodos)
+  yield* _(
+    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
       concurrency: "unbounded",
-      discard: true,
     })
   )
-)
+})
 
 const nextStep = Effect.flatMapStep(program, (step) => {
   switch (step._tag) {
