@@ -2,8 +2,8 @@ import { Effect } from "effect"
 import * as Queries from "./Queries"
 
 const program = Queries.getTodos.pipe(
-  Effect.flatMap(
-    Effect.forEach(Queries.notifyOwner, {
+  Effect.flatMap((todos) =>
+    Effect.forEach(todos, Queries.notifyOwner, {
       concurrency: "unbounded",
       discard: true,
     })

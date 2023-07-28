@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 import * as Model from "./Model"
 
+// $ExpectType Effect<never, GetTodosError, Todo[]>
 export const getTodos = Effect.tryPromise({
   try: () =>
     fetch("https://api.example.demo/todos").then(
@@ -9,6 +10,7 @@ export const getTodos = Effect.tryPromise({
   catch: () => new Model.GetTodosError(),
 })
 
+// $ExpectType (id: number) => Effect<never, GetUserError, User>
 export const getUserById = (id: number) =>
   Effect.tryPromise({
     try: () =>
@@ -18,6 +20,7 @@ export const getUserById = (id: number) =>
     catch: () => new Model.GetUserError(),
   })
 
+// $ExpectType (address: string, text: string) => Effect<never, SendEmailError, void>
 export const sendEmail = (address: string, text: string) =>
   Effect.tryPromise({
     try: () =>
@@ -31,9 +34,11 @@ export const sendEmail = (address: string, text: string) =>
     catch: () => new Model.SendEmailError(),
   })
 
+// $ExpectType (id: number, message: string) => Effect<never, GetUserError | SendEmailError, void>
 export const sendEmailToUser = (id: number, message: string) =>
   Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
 
+// $ExpectType (todo: Todo) => Effect<never, GetUserError | SendEmailError, void>
 export const notifyOwner = (todo: Model.Todo) =>
   Effect.flatMap(getUserById(todo.ownerId), (user) =>
     sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)

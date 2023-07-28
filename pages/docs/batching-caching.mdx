@@ -1,4 +1,4 @@
-import { Info, Warning } from "@/components/Callout"
+import { Idea, Info, Warning } from "@/components/Callout"
 
 # Batching & Caching
 
@@ -44,11 +44,11 @@ class SendEmailError {
 }
 ```
 
-<Info>
+<Idea>
   In a real world scenario we may want to use a more precise types instead of
-  directly using primitives for identifiers (see the `Brand` module). We may
-  also want to include more information in the errors.
-</Info>
+  directly using primitives for identifiers (see [Branded Types](style/brands)).
+  We may also want to include more information in the errors.
+</Idea>
 
 ## Classic Approach
 
@@ -58,11 +58,11 @@ Given such a model we usually write up functions to call some API (or database, 
 
 ```
 
-<Info>
+<Idea>
   In a real world scenario we may not want to trust our APIs to actually return
   the expected data - for doing this properly you can use `@effect/schema` or
   similar alternatives such as `zod`.
-</Info>
+</Idea>
 
 When using the utilities we defined it is normal to end up with code that looks like the following:
 
@@ -70,12 +70,12 @@ When using the utilities we defined it is normal to end up with code that looks 
 
 ```
 
-Here we used the `forEach` to repeat an `Effect` for every `Todo` and the `Effect` repeated
+Here we used the `forEach` to repeat an effect for every `Todo` and the effect repeated
 first fetches the `User` who owns the todo and then sends an email.
 
 We like writing code this way because it is **very expressive** and very easy to read, but is it **efficient**?
 
-This code will execute tons of individual API calls. Many todos will likely have the same owner and
+This code will execute tons of individual API calls. Many `Todo`s will likely have the same owner and
 our APIs may also provide batched alternatives where you can request as many users as you would like to in one call.
 
 So what can we do? Rewrite all our code to use a different form of API? Should we really do that?
@@ -168,7 +168,7 @@ This way is probably the best for most of the cases given that layers are the na
 
 ## Controlling Batching
 
-Batching can be locally disabled using the `Effect.withRequestBatching(false){:ts}` utility in the following way:
+Batching can be locally disabled using the `Effect.withRequestBatching` utility in the following way:
 
 ```ts {12} filename="index.ts" file=<rootDir>/src/guide/batching-caching/withRequestBatching.ts
 
