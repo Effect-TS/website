@@ -15,25 +15,13 @@ The `Effect.die` function returns an effect that dies a specified error, while `
 Example using `die`:
 
 ```ts file=<rootDir>/src/guide/error-management/unexpected-errors/die.ts
-import { Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<never, never, number> =>
-  b === 0
-    ? Effect.die(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
-
-Effect.runSync(divide(1, 0)) // throws Error("Cannot divide by zero")
 ```
 
 Example using `dieMessage`:
 
 ```ts file=<rootDir>/src/guide/error-management/unexpected-errors/dieMessage.ts
-import { Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<never, never, number> =>
-  b === 0 ? Effect.dieMessage("Cannot divide by zero") : Effect.succeed(a / b)
-
-Effect.runSync(divide(1, 0)) // throws RuntimeException("Cannot divide by zero")
 ```
 
 ### orDie
@@ -41,17 +29,7 @@ Effect.runSync(divide(1, 0)) // throws RuntimeException("Cannot divide by zero")
 The `Effect.orDie` function transforms an effect's failure into a termination of the fiber, making all failures unchecked and not part of the type of the effect. It can be used to handle errors that you do not wish to recover from.
 
 ```ts file=<rootDir>/src/guide/error-management/unexpected-errors/orDie.ts
-import { Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
-
-// $ExpectType Effect<never, never, number>
-const program = divide(1, 0).pipe(Effect.orDie)
-
-Effect.runSync(program) // throws Error("Cannot divide by zero")
 ```
 
 After using `Effect.orDie`, the error channel type of the `program` is `never`, indicating that all failures are unchecked, and the effect is expected to terminate the fiber when an error occurs.
@@ -61,19 +39,7 @@ After using `Effect.orDie`, the error channel type of the `program` is `never`, 
 Similar to `Effect.orDie`, the `Effect.orDieWith` function transforms an effect's failure into a termination of the fiber using a specified mapping function. It allows you to customize the error message before terminating the fiber.
 
 ```ts file=<rootDir>/src/guide/error-management/unexpected-errors/orDieWith.ts
-import { Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
-
-// $ExpectType Effect<never, never, number>
-const program = divide(1, 0).pipe(
-  Effect.orDieWith((error) => new Error(`defect: ${error.message}`))
-)
-
-Effect.runSync(program) // throws Error("defect: Cannot divide by zero")
 ```
 
 After using `Effect.orDieWith`, the error channel type of the `program` is `never`, just like with `Effect.orDie`.
@@ -91,7 +57,7 @@ Effect provides two functions that allow you to handle unexpected errors that ma
 
 ### catchAllDefect
 
-The `catchAllDefect` operator allows you to recover from all defects using a provided function. Here's an example:
+The `Effect.catchAllDefect` function allows you to recover from all defects using a provided function. Here's an example:
 
 ```ts file=<rootDir>/src/guide/error-management/unexpected-errors/catchAllDefect.ts
 
@@ -105,7 +71,7 @@ However, in some specific cases, such as when dealing with dynamically loaded pl
 
 ### catchSomeDefect
 
-The `catchSomeDefect` operator in Effect allows you to recover from specific defects using a provided partial function. Let's take a look at an example:
+The `Effect.catchSomeDefect` function in Effect allows you to recover from specific defects using a provided partial function. Let's take a look at an example:
 
 ```ts file=<rootDir>/src/guide/error-management/unexpected-errors/catchSomeDefect.ts
 
