@@ -3,30 +3,26 @@ import { Tabs, Tab } from "@/components/Code"
 
 # Error Channel Operations
 
-In the Effect library, you can perform various operations on the error channel of effects. These operations allow you to transform, inspect, and handle errors in different ways. Let's explore some of these operations.
+In Effect you can perform various operations on the error channel of effects. These operations allow you to transform, inspect, and handle errors in different ways. Let's explore some of these operations.
 
 ## Map Operations
 
 ### mapError
 
-The `mapError` function is used when you need to transform or modify an error produced by an effect, without affecting the success value. This can be helpful when you want to add extra information to the error or change its type.
+The `Effect.mapError` function is used when you need to transform or modify an error produced by an effect, without affecting the success value. This can be helpful when you want to add extra information to the error or change its type.
 
 ```ts /string/1 /Error/1 file=<rootDir>/src/guide/error-management/error-channel-operations/mapError.ts
 
 ```
 
-In the code snippet above, `mapError` is applied to the `Effect` computation.
-It allows us to transform the error produced by the computation while keeping the success value unchanged.
-The provided error transformation function takes the original error as an input and returns a new error.
-
 We can observe that the type in the error channel of our program has changed from `string` to `Error`.
 
 <Info>
-  It's important to note that using the `mapError` function **does not change**
-  the overall success or failure of the effect. If the mapped effect is
+  It's important to note that using the `Effect.mapError` function **does not
+  change** the overall success or failure of the effect. If the mapped effect is
   successful, then the mapping function is ignored. In other words, the
-  `mapError` operation only applies the transformation to the error channel of
-  the effect, while leaving the success channel unchanged.
+  `Effect.mapError` operation only applies the transformation to the error
+  channel of the effect, while leaving the success channel unchanged.
 </Info>
 
 ### mapBoth
@@ -41,7 +37,9 @@ After using `mapBoth`, we can observe that the type of our program has changed f
 
 <Info>
   It's important to note that using the `mapBoth` function **does not change**
-  the overall success or failure of the effect.
+  the overall success or failure of the effect. It only transforms the values in
+  the error and success channels while preserving the effect's original success
+  or failure status.
 </Info>
 
 ## Filtering the Success Channel
@@ -115,9 +113,22 @@ This function becomes especially useful when recovering from effects that may fa
 
 You can use the `Effect.cause` function to expose the cause of an effect, which is a more detailed representation of failures, including error messages and defects.
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/cause.ts
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/error-management/error-channel-operations/cause-gen.ts
 
 ```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/error-management/error-channel-operations/cause-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
 
 ## Merging the Error Channel into the Success Channel
 
