@@ -13,12 +13,12 @@ interface Logger {
 const Logger = Context.Tag<Logger>()
 
 // $ExpectType Effect<Random | Logger, never, void>
-const program = Effect.flatMap(
-  Effect.all([Random, Logger]),
-  ([random, logger]) =>
-    Effect.flatMap(random.next(), (randomNumber) =>
-      logger.log(String(randomNumber))
-    )
+const program = Effect.all([Random, Logger]).pipe(
+  Effect.flatMap(([random, logger]) =>
+    random
+      .next()
+      .pipe(Effect.flatMap((randomNumber) => logger.log(String(randomNumber))))
+  )
 )
 
 const runnable1 = program.pipe(

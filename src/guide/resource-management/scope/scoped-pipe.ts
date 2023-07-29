@@ -3,7 +3,9 @@ import { resource } from "./resource"
 
 // $ExpectType Effect<never, Error, void>
 const program = Effect.scoped(
-  Effect.flatMap(resource, (res) =>
-    Effect.sync(() => console.log(`content is ${res.contents}`))
+  resource.pipe(
+    Effect.flatMap((res) =>
+      Effect.sync(() => console.log(`content is ${res.contents}`))
+    )
   )
 )

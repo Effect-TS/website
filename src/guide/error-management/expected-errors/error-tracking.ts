@@ -8,16 +8,19 @@ class BarError {
   readonly _tag = "BarError"
 }
 
-const flakyFoo = Effect.flatMap(Random.next, (n1) =>
-  n1 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new FooError())
+const flakyFoo = Random.next.pipe(
+  Effect.flatMap((n1) =>
+    n1 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new FooError())
+  )
 )
 
-const flakyBar = Effect.flatMap(Random.next, (n2) =>
-  n2 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new BarError())
+const flakyBar = Random.next.pipe(
+  Effect.flatMap((n2) =>
+    n2 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new BarError())
+  )
 )
 
 // $ExpectType Effect<never, FooError | BarError, string>
-export const program = Effect.map(
-  Effect.all([flakyFoo, flakyBar]),
-  ([foo, bar]) => foo + bar
+export const program = Effect.all([flakyFoo, flakyBar]).pipe(
+  Effect.map(([foo, bar]) => foo + bar)
 )
