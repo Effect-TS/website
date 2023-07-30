@@ -21,15 +21,17 @@ that represents an error:
   you like to model your error types.
 </Info>
 
-It's worth noting that we added a `_tag` field to our error in the example.
+It's worth noting that we added a readonly `_tag` field as discriminant to our error in the example:
 
-```ts /_tag/ file=<rootDir>/src/guide/error-management/expected-errors/fail.ts#L3-L5
+```ts /readonly _tag/ file=<rootDir>/src/guide/error-management/expected-errors/fail.ts#L3-L5
 
 ```
 
 <Idea>
-  A discriminant field can be helpful for distinguishing between different types
-  of errors during error handling and prevents TypeScript from unifying types.
+  Adding a discriminant field, such as `_tag`, can be beneficial for
+  distinguishing between different types of errors during error handling. It
+  also prevents TypeScript from unifying types, ensuring that each error is
+  treated uniquely based on its discriminant value.
 </Idea>
 
 Expected errors **are tracked at the type level** by the `Effect` data type in the "Error" channel.
@@ -37,7 +39,7 @@ Expected errors **are tracked at the type level** by the `Effect` data type in t
 It is evident from the type of `program` that can fail with an error of type `HttpError`:
 
 ```ts /HttpError/
-Effect.Effect<never, HttpError, never>
+Effect<never, HttpError, never>
 ```
 
 ## Error Tracking
@@ -50,6 +52,8 @@ The following program serves as an illustration of how errors are automatically 
 ```ts filename="error-tracking.ts" file=<rootDir>/src/guide/error-management/expected-errors/error-tracking-gen.ts
 
 ```
+
+In the above program, we compute two values: `foo` and `bar`, each representing a potential source of error.
 
 </Tab>
 <Tab>
@@ -103,7 +107,7 @@ In simpler terms, the short-circuiting behavior ensures that if something goes w
 This code snippet demonstrates the short-circuiting behavior when an error occurs.
 Each operation depends on the successful execution of the previous one.
 If any error occurs, the execution is short-circuited, and the error is propagated.
-In this specific example, `operation3` is never executed because an error occurs in `operation2`.
+In this specific example, `task3` is never executed because an error occurs in `task2`.
 
 ## Catching all Errors
 
@@ -117,7 +121,7 @@ Effect<R, E, A> -> Effect<R, never, Either<E, A>>
 ```
 
 The [`Either<E, A>`](../data-types/either) data type represents a value that can be either an error (`E`) or a successful result (`A`).
-By yielding an `Either`, we gain the ability to **pattern match** on this type to handle both failure and success cases within the generator function.
+By yielding an `Either`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function.
 
 ```ts /Effect.either/ file=<rootDir>/src/guide/error-management/expected-errors/catch-all-gen.ts
 
@@ -178,7 +182,7 @@ indicating that all errors has been handled.
 </Tab>
 <Tab>
 
-If **all** the errors are **tagged** we can catch a specific error using the `Effect.catchTag` function:
+If all the errors in our program are tagged with a `_tag` field as a discriminant, we can use the `Effect.catchTag` function to catch and handle specific errors.
 
 ```ts {6-8} file=<rootDir>/src/guide/error-management/expected-errors/catch-error-pipe.ts
 
