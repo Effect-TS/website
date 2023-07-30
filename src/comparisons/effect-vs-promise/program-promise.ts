@@ -11,7 +11,7 @@ const task1 = Promise.resolve(10)
 const task2 = Promise.resolve(2)
 
 // $ExpectType () => Promise<string>
-export const program = async function () {
+const program = async function () {
   const a = await task1
   const b = await task2
   const n1 = await divide(a, b)

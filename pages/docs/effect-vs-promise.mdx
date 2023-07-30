@@ -1,0 +1,262 @@
+import { Tab, CustomTabs } from "@/components/Code"
+
+# Effect vs Promise
+
+## Type safety
+
+When comparing the types of `Promise` with the type of `Effect`:
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts
+Promise<A>
+```
+
+</Tab>
+<Tab>
+
+```ts
+Effect<Context, Error, A>
+```
+
+</Tab>
+</CustomTabs>
+
+it becomes immediately apparent that Effect offers additional features:
+
+- The ability to track the types of errors statically (type parameter `Error`).
+  For more informations about error management, see [Expected Errors](./error-management/expected-errors).
+- The ability to track the types of required dependencies statically (type parameter `Context`).
+  For more informations about context management, see [Managing Services](./context-management/services).
+
+## Creating
+
+### Success
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/success-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/success-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### Failure
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/failure-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/failure-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### Constructor
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/constructor-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/constructor-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+## Thenable
+
+### map
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/map-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/map-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### flatMap
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/flatMap-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/flatMap-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+## async / await
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/program-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/program-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+## Concurrency
+
+### Promise.all()
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/all-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/all-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### Promise.allSettled()
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/allSettled-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/allSettled-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### Promise.any()
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts
+const task1 = new Promise<number>((resolve, reject) => {
+  console.log("Executing task1...")
+  setTimeout(() => {
+    console.log("task1 done")
+    reject("Something went wrong!")
+  }, 100)
+})
+
+const task2 = new Promise<number>((resolve, reject) => {
+  console.log("Executing task2...")
+  setTimeout(() => {
+    console.log("task2 done")
+    resolve(2)
+  }, 200)
+})
+
+const task3 = new Promise<number>((resolve, reject) => {
+  console.log("Executing task3...")
+  setTimeout(() => {
+    console.log("task3 done")
+    reject("Uh oh!")
+  }, 300)
+})
+
+export const program = Promise.any([task1, task2, task3])
+
+program.then(console.log, console.error)
+/*
+Executing task1...
+Executing task2...
+Executing task3...
+task1 done
+task2 done
+2
+task3 done
+*/
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/any-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### Promise.race()
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/race-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/race-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
