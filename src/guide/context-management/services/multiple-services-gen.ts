@@ -14,7 +14,8 @@ const Logger = Context.Tag<Logger>()
 
 // $ExpectType Effect<Random | Logger, never, void>
 const program = Effect.gen(function* (_) {
-  const [random, logger] = yield* _(Effect.all([Random, Logger]))
+  const random = yield* _(Random)
+  const logger = yield* _(Logger)
   const randomNumber = yield* _(random.next())
   return yield* _(logger.log(String(randomNumber)))
 })
