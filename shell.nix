@@ -9,7 +9,12 @@ let
     })
     {};
 in
-  {pkgs ? lockedNixpkgs}:
+  {pkgs ? lockedNixpkgs}: let
+    corepackEnable = pkgs.runCommand "corepack-enable" {} ''
+      mkdir -p $out/bin
+      ${pkgs.nodejs-18_x}/bin/corepack enable --install-directory $out/bin
+    '';
+  in
     with pkgs;
       mkShell {
         name = "nixos-shell";
@@ -20,13 +25,13 @@ in
         buildInputs = [
           age
           alejandra
+          corepackEnable
           git
           home-manager
           kubectl
           nix
           nil
           nodejs-18_x
-          nodePackages.pnpm
           pre-commit
           python310Packages.pre-commit-hooks
           sops
