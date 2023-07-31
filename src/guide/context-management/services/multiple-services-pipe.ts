@@ -15,9 +15,9 @@ const Logger = Context.Tag<Logger>()
 // $ExpectType Effect<Random | Logger, never, void>
 const program = Effect.all([Random, Logger]).pipe(
   Effect.flatMap(([random, logger]) =>
-    Effect.flatMap(random.next(), (randomNumber) =>
-      logger.log(String(randomNumber))
-    )
+    random
+      .next()
+      .pipe(Effect.flatMap((randomNumber) => logger.log(String(randomNumber))))
   )
 )
 
@@ -47,4 +47,4 @@ const context = Context.empty().pipe(
   )
 )
 
-const runnable2 = program.pipe(Effect.provideContext(context))
+const runnable2 = Effect.provideContext(program, context)

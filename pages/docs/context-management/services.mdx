@@ -1,4 +1,4 @@
-import { Idea } from "@/components/Callout"
+import { Idea, Warning } from "@/components/Callout"
 import { Tabs, Tab } from "@/components/Code"
 
 # Managing Services
@@ -59,23 +59,23 @@ Now that we have our service interface defined, let's see how we can use it by b
 <Tabs>
 <Tab>
 
-```ts file=<rootDir>/src/guide/context-management/services/program-pipe.ts#L1-L8
-
-```
-
-In the code above, we can observe that we are able to flat-map over the `Random` Tag as if it were an Effect itself.
-This allows us to access the `next` method of the service within the `flatMap` callback.
-We then use the `Effect.log` utility to log the generated random number.
-
-</Tab>
-<Tab>
-
 ```ts file=<rootDir>/src/guide/context-management/services/program-gen.ts
 
 ```
 
 In the code above, we can observe that we are able to yield the `Random` Tag as if it were an Effect itself.
 This allows us to access the `next` method of the service.
+We then use the `Effect.log` utility to log the generated random number.
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/context-management/services/program-pipe.ts#L1-L8
+
+```
+
+In the code above, we can observe that we are able to flat-map over the `Random` Tag as if it were an Effect itself.
+This allows us to access the `next` method of the service within the `flatMap` callback.
 We then use the `Effect.log` utility to log the generated random number.
 
 </Tab>
@@ -123,6 +123,11 @@ By calling `Effect.runSync(runnable){:ts}`, we execute the effect and observe th
 
 ## Using the Service multiple times
 
+<Warning>
+  This section is relevant only if you are using the `pipe` syntax. If you are
+  not using `pipe`, you can skip this section.
+</Warning>
+
 In the `program` definition, we have used the `Random` service only once:
 
 ```ts /random.next()/ file=<rootDir>/src/guide/context-management/services/program-pipe.ts#L1-L8
@@ -135,19 +140,10 @@ But what if we need to use it multiple times? In such cases, we need to ensure t
 
 ```
 
-The solution depends on whether we are using `pipe` or `Effect.gen`:
+The solution depends on whether we are using `Effect.gen` or `pipe`:
 
 <Tabs>
-  <Tab>
-
-We can use `flatMap` to create a second pipeline and keep our service handle in scope:
-
-```ts /random.next()/ file=<rootDir>/src/guide/context-management/services/using-multiple-times-pipe.ts#L1-L17
-
-```
-
-  </Tab>
-  <Tab>
+<Tab>
 
 With `Effect.gen` our service handle is always in scope:
 
@@ -155,7 +151,16 @@ With `Effect.gen` our service handle is always in scope:
 
 ```
 
-  </Tab>
+</Tab>
+<Tab>
+
+We can use `flatMap` to create a second pipeline and keep our service handle in scope:
+
+```ts /random.next()/ file=<rootDir>/src/guide/context-management/services/using-multiple-times-pipe.ts#L1-L17
+
+```
+
+</Tab>
 </Tabs>
 
 ## Using Multiple Services
@@ -166,19 +171,18 @@ By passing a tuple of tags, we can access the corresponding tuple of services:
 <Tabs>
 <Tab>
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L1-L22
+```ts file=<rootDir>/src/guide/context-management/services/multiple-services-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-services-gen.ts
+```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L1-L22
 
 ```
 
 </Tab>
-
 </Tabs>
 
 In the code above, we define two service interfaces: `Random` and `Logger`. Each interface represents a different service with its own set of methods.
@@ -186,7 +190,7 @@ In the code above, we define two service interfaces: `Random` and `Logger`. Each
 The `program` effect now has an `R` type parameter of `Random | Logger`, indicating that it requires both the `Random` and `Logger` services to be provided.
 
 ```ts /Random | Logger/
-Effect.Effect<Random | Logger, never, void>
+Effect<Random | Logger, never, void>
 ```
 
 To execute the `program`, we need to provide implementations for both services:
@@ -201,7 +205,7 @@ Alternatively, instead of calling `provideService` multiple times, we can combin
 
 ```
 
-and then provide the entire context using the `provideContext` function:
+and then provide the entire context using the `Effect.provideContext` function:
 
 ```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L50-
 
@@ -226,18 +230,18 @@ Let's take a look at an example that demonstrates the usage of optional services
 <Tabs>
 <Tab>
 
-To determine if we can use the service, we can use the `Option.match` function provided by the `Option` module. This function allows us to perform different actions based on whether the service is available or not. It takes two callbacks as arguments: one for the case when the service is not available, and another for the case when it is available.
+To determine what action to take, we can use the `Option.isNone` function provided by the `Option` module. This function allows us to check if the service is available or not by returning `true` when the service is not available.
 
-```ts file=<rootDir>/src/guide/context-management/services/serviceOption-pipe.ts#L1-L15
+```ts file=<rootDir>/src/guide/context-management/services/serviceOption-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-To determine what action to take, we can use the `Option.isNone` function provided by the `Option` module. This function allows us to check if the service is available or not by returning `true` when the service is not available.
+To determine if we can use the service, we can use the `Option.match` function provided by the `Option` module. This function allows us to perform different actions based on whether the service is available or not. It takes two callbacks as arguments: one for the case when the service is not available, and another for the case when it is available.
 
-```ts file=<rootDir>/src/guide/context-management/services/serviceOption-gen.ts
+```ts file=<rootDir>/src/guide/context-management/services/serviceOption-pipe.ts#L1-L15
 
 ```
 

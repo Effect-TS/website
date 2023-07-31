@@ -23,7 +23,7 @@ const validate = (
 }
 
 // $ExpectType Effect<never, string, number>
-const program1 = validate(3).pipe(Effect.orElseFail(() => "invalid age"))
+const program1 = Effect.orElseFail(validate(3), () => "invalid age")
 
 // $ExpectType Effect<never, never, number>
-const program2 = validate(3).pipe(Effect.orElseSucceed(() => 0))
+const program2 = Effect.orElseSucceed(validate(3), () => 0)

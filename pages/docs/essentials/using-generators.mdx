@@ -1,5 +1,5 @@
 import { Info, Warning, Idea } from "@/components/Callout"
-import { Tab, Tabs } from "nextra-theme-docs"
+import { Tabs, Tab, CustomTabs } from "@/components/Code"
 
 # Using Generators in Effect
 
@@ -15,21 +15,21 @@ In the [previous section](pipeline) , we learned how to build pipelines using th
 
 Let's rewrite the pipeline we created in the previous section using the `Effect.gen` helper:
 
-<Tabs items={['Using Effect.gen', 'Using pipe']}>
-  <Tab>
+<Tabs>
+<Tab>
 
 ```ts file=<rootDir>/src/essentials/using-generators/pipeline-gen.ts
 
 ```
 
-  </Tab>
-  <Tab>
+</Tab>
+<Tab>
 
 ```ts file=<rootDir>/src/essentials/using-generators/pipeline-pipe.ts
 
 ```
 
-  </Tab>
+</Tab>
 </Tabs>
 
 <Warning>
@@ -59,7 +59,7 @@ If you are familiar with `async`/`await`, you may notice that the flow of writin
 
 Let's compare the two approaches:
 
-<Tabs items={['Using Effect.gen', 'Using async / await']}>
+<CustomTabs items={['Using Effect.gen', 'Using async / await']}>
   <Tab>
 
 ```ts file=<rootDir>/src/essentials/using-generators/pipeline-gen.ts#L3-
@@ -70,25 +70,11 @@ Let's compare the two approaches:
   <Tab>
 
 ```ts file=<rootDir>/src/essentials/using-generators/pipeline-async-await.ts
-const increment = (x: number) => x + 1
 
-const divide = (a: number, b: number): Promise<number> =>
-  b === 0
-    ? Promise.reject(new Error("Cannot divide by zero"))
-    : Promise.resolve(a / b)
-
-const program = async function () {
-  const [a, b] = await Promise.all([Promise.resolve(10), Promise.resolve(2)])
-  const n1 = await divide(a, b)
-  const n2 = increment(n1)
-  return `Result is: ${n2}`
-}
-
-console.log(await program()) // Output: "Result is: 6"
 ```
 
   </Tab>
-</Tabs>
+</CustomTabs>
 
 It's important to note that although the code appears similar, the two programs are not identical. The purpose of comparing them side by side is just to highlight the resemblance in how they are written.
 

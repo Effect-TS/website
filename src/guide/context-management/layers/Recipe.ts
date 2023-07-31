@@ -10,9 +10,11 @@ export const Recipe = Context.Tag<Recipe>()
 // $ExpectType Layer<Sugar | Flour, never, Recipe>
 export const RecipeLive = Layer.effect(
   Recipe,
-  Effect.map(Effect.all([Sugar, Flour]), ([sugar, flour]) =>
-    Recipe.of({
-      steps: Effect.all([sugar.grams(200), flour.cups(1)]),
-    })
+  Effect.all([Sugar, Flour]).pipe(
+    Effect.map(([sugar, flour]) =>
+      Recipe.of({
+        steps: Effect.all([sugar.grams(200), flour.cups(1)]),
+      })
+    )
   )
 )

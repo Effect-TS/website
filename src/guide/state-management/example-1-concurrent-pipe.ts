@@ -2,23 +2,25 @@ import { Effect } from "effect"
 import * as Counter from "./Counter"
 
 // $ExpectType Effect<never, never, void>
-const program = Effect.flatMap(Counter.make, (counter) => {
-  const logCounter = <R, E, A>(action: Effect.Effect<R, E, A>) =>
-    counter.get.pipe(
-      Effect.flatMap((value) => Effect.log(`get: ${value}`)),
-      Effect.flatMap(() => action)
-    )
+const program = Counter.make.pipe(
+  Effect.flatMap((counter) => {
+    const logCounter = <R, E, A>(action: Effect.Effect<R, E, A>) =>
+      counter.get.pipe(
+        Effect.flatMap((value) => Effect.log(`get: ${value}`)),
+        Effect.flatMap(() => action)
+      )
 
-  return counter.inc.pipe(
-    Effect.zip(logCounter(counter.inc), { concurrent: true }),
-    Effect.zip(logCounter(counter.dec), { concurrent: true }),
-    Effect.zip(logCounter(counter.inc), { concurrent: true }),
-    Effect.flatMap(() => counter.get),
-    Effect.flatMap((value) =>
-      Effect.log(`This counter has a value of ${value}.`)
+    return counter.inc.pipe(
+      Effect.zip(logCounter(counter.inc), { concurrent: true }),
+      Effect.zip(logCounter(counter.dec), { concurrent: true }),
+      Effect.zip(logCounter(counter.inc), { concurrent: true }),
+      Effect.flatMap(() => counter.get),
+      Effect.flatMap((value) =>
+        Effect.log(`This counter has a value of ${value}.`)
+      )
     )
-  )
-})
+  })
+)
 
 Effect.runSync(program)
 /*

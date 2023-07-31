@@ -1,4 +1,5 @@
 import { Effect, Context, Layer, RequestResolver } from "effect"
+import * as API from "./API"
 import * as Model from "./Model"
 import * as RequestModel from "./RequestModel"
 
@@ -24,9 +25,9 @@ export const GetTodosResolver: Effect.Effect<
     Effect.flatMap(HttpService, (http) =>
       Effect.tryPromise({
         try: () =>
-          http
-            .fetch("https://api.example.demo/todos")
-            .then((_) => _.json()) as Promise<Array<Model.Todo>>,
+          API.simulatedValidation<Array<Model.Todo>>(
+            http.fetch("https://api.example.demo/todos")
+          ),
         catch: () => new Model.GetTodosError(),
       })
     )

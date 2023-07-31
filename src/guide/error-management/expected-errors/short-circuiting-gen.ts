@@ -1,21 +1,24 @@
 import { Effect } from "effect"
 
-const operation1 = Effect.sync(() => console.log("operation1"))
-const operation2 = Effect.fail(new Error("Something went wrong!"))
-const operation3 = Effect.sync(() => console.log("operation3"))
+// Define three effects representing different tasks.
+const task1 = Effect.sync(() => console.log("Executing task1..."))
+const task2 = Effect.fail(new Error("Something went wrong!"))
+const task3 = Effect.sync(() => console.log("Executing task3..."))
+
+// Compose the three tasks to run them in sequence.
+// If one of the tasks fails, the subsequent tasks won't be executed.
+const program = Effect.gen(function* (_) {
+  yield* _(task1)
+  yield* _(task2) // After task1, task2 is executed, but it fails with an error
+  yield* _(task3) // This computation won't be executed because the previous one fails
+})
 
 // $ExpectType Exit<Error, void>
-const result = Effect.runSyncExit(
-  Effect.gen(function* (_) {
-    yield* _(operation1)
-    yield* _(operation2)
-    yield* _(operation3) // This computation won't be executed because the previous one fails
-  })
-)
+const result = Effect.runSyncExit(program)
 
-console.log(result)
+console.log("result: ", result)
 
 /*
-operation1
-Failure("Something went wrong!")
+Executing task1...
+result: <Failure("Something went wrong!")>
 */

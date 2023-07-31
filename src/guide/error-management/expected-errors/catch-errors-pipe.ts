@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { program } from "./error-accumulation"
+import { program } from "./error-tracking"
 
 // $ExpectType Effect<never, never, string>
 const recovered = program.pipe(

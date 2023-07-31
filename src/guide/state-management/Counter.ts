@@ -8,4 +8,4 @@ export class Counter {
 }
 
 // $ExpectType Effect<never, never, Counter>
-export const make = Ref.make(0).pipe(Effect.map((value) => new Counter(value)))
+export const make = Effect.map(Ref.make(0), (value) => new Counter(value))

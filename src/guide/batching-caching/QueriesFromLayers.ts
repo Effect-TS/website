@@ -1,4 +1,5 @@
 import { Effect, Context, Layer, RequestResolver } from "effect"
+import * as API from "./API"
 import * as Model from "./Model"
 import * as RequestModel from "./RequestModel"
 import * as ResolversWithContext from "./ResolversWithContext"
@@ -19,9 +20,9 @@ export const TodosServiceLive = Layer.effect(
       (request: RequestModel.GetTodos) =>
         Effect.tryPromise({
           try: () =>
-            http
-              .fetch("https://api.example.demo/todos")
-              .then((_) => _.json()) as Promise<Array<Model.Todo>>,
+            API.simulatedValidation<Array<Model.Todo>>(
+              http.fetch("https://api.example.demo/todos")
+            ),
           catch: () => new Model.GetTodosError(),
         })
     )
@@ -35,4 +36,4 @@ export const getTodos: Effect.Effect<
   TodosService,
   Model.GetTodosError,
   Array<Model.Todo>
-> = TodosService.pipe(Effect.flatMap((_) => _.getTodos))
+> = Effect.flatMap(TodosService, (service) => service.getTodos)

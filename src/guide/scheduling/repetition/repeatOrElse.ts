@@ -14,10 +14,10 @@ const action = Effect.async<never, Error, string>((resume) => {
   }
 })
 
-const policy = Schedule.recurs(2) // Repeat for a maximum of 2 times
-  .pipe(
-    Schedule.addDelay(() => "100 millis") // Add a delay of 100 milliseconds between repetitions
-  )
+const policy = Schedule.addDelay(
+  Schedule.recurs(2), // Repeat for a maximum of 2 times
+  () => "100 millis" // Add a delay of 100 milliseconds between repetitions
+)
 
 const program = Effect.repeatOrElse(action, policy, () =>
   Effect.sync(() => {

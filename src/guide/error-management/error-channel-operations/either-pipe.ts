@@ -1,17 +1,18 @@
 import { Effect, Either } from "effect"
 
 // $ExpectType Effect<never, string, number>
-const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
+const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
-// $ExpectType Effect<never, never, Either<string, number>>
-const lifted = Effect.either(task)
-
-// $ExpectType Effect<never, never, void>
-const program = lifted.pipe(
-  Effect.flatMap((failureOrSuccess) =>
-    Either.match(failureOrSuccess, {
-      onLeft: (error) => Effect.log(`failure: ${error}`),
-      onRight: (value) => Effect.log(`success: ${value}`),
-    })
+// $ExpectType Effect<never, never, number>
+const program = Effect.either(simulatedTask).pipe(
+  Effect.flatMap(
+    (
+      failureOrSuccess // $ExpectType Either<string, number>
+    ) =>
+      Either.match(failureOrSuccess, {
+        onLeft: (error) => Effect.log(`failure: ${error}`).pipe(Effect.as(0)),
+        onRight: (value) =>
+          Effect.log(`success: ${value}`).pipe(Effect.as(value)),
+      })
   )
 )

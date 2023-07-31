@@ -4,6 +4,5 @@ class HttpError {
   readonly _tag = "HttpError"
 }
 
-const program: Effect.Effect<never, HttpError, never> = Effect.fail(
-  new HttpError()
-)
+// $ExpectType Effect<never, HttpError, never>
+const program = Effect.fail(new HttpError())

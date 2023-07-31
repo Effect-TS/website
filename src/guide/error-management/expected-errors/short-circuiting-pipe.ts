@@ -1,20 +1,24 @@
 import { Effect } from "effect"
 
-const operation1 = Effect.sync(() => console.log("operation1"))
-const operation2 = Effect.fail(new Error("Something went wrong!"))
-const operation3 = Effect.sync(() => console.log("operation3"))
+// Define three effects representing different tasks.
+const task1 = Effect.sync(() => console.log("Executing task1..."))
+const task2 = Effect.fail(new Error("Something went wrong!"))
+const task3 = Effect.sync(() => console.log("Executing task3..."))
 
-// $ExpectType Exit<Error, void>
-const result = Effect.runSyncExit(
-  operation1.pipe(
-    Effect.flatMap(() => operation2),
-    Effect.flatMap(() => operation3) // This computation won't be executed because the previous one fails
-  )
+// Compose the three tasks using `Effect.flatMap` to run them in sequence.
+// The `Effect.flatMap` function allows us to chain effects together.
+// If one of the tasks fails, the subsequent tasks won't be executed.
+const program = task1.pipe(
+  Effect.flatMap(() => task2), // After task1, task2 is executed, but it fails with an error
+  Effect.flatMap(() => task3) // This computation won't be executed because the previous one fails
 )
 
-console.log(result)
+// $ExpectType Exit<Error, void>
+const result = Effect.runSyncExit(program)
+
+console.log("result: ", result)
 
 /*
-operation1
-Failure("Something went wrong!")
+Executing task1...
+result: <Failure("Something went wrong!")>
 */

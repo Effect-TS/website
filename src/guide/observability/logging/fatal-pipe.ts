@@ -1,11 +1,12 @@
 import { Effect } from "effect"
 
-// $ExpectType Effect<never, never, void>
-const program = Effect.fail("Something went wrong!").pipe(
-  Effect.catchAll((error) => Effect.logFatal(String(error)))
+const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = task.pipe(
+  Effect.catchAll((error) => Effect.logFatal(error).pipe(Effect.as(0)))
 )
 
 Effect.runPromise(program)
 /*
-timestamp=... level=FATAL fiber=#0 message="Something went wrong!"
+timestamp=... level=FATAL fiber=#0 message="Oh uh!"
 */

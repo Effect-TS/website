@@ -1,4 +1,4 @@
-import { Tabs as T, Tab } from "nextra-theme-docs"
+import { Tabs as CustomTabs, Tab } from "nextra-theme-docs"
 import type { ReactNode } from "react"
 
 export function Tabs({
@@ -9,10 +9,13 @@ export function Tabs({
   children: ReactNode
 }) {
   return (
-    <T defaultIndex={defaultIndex} items={["Using pipe", "Using Effect.gen"]}>
+    <CustomTabs
+      defaultIndex={defaultIndex}
+      items={["Using Effect.gen", "Using pipe"]}
+    >
       {children}
-    </T>
+    </CustomTabs>
   )
 }
 
-export { Tab }
+export { Tab, CustomTabs }

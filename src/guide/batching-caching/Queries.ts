@@ -22,11 +22,9 @@ export const sendEmail = (address: string, text: string) =>
   )
 
 export const sendEmailToUser = (id: number, message: string) =>
-  getUserById(id).pipe(Effect.flatMap((user) => sendEmail(user.email, message)))
+  Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
 
 export const notifyOwner = (todo: Model.Todo) =>
-  getUserById(todo.ownerId).pipe(
-    Effect.flatMap((user) =>
-      sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
-    )
+  Effect.flatMap(getUserById(todo.ownerId), (user) =>
+    sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
   )

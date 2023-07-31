@@ -1,6 +1,6 @@
 # Introduction to Effect's Control Flow Operators
 
-Even though JavaScript provides built-in control flow structures, Effect offers additional control flow operators that are useful in Effect applications. In this section, we will introduce different ways to control the flow of execution.
+Even though JavaScript provides built-in control flow structures, Effect offers additional control flow functions that are useful in Effect applications. In this section, we will introduce different ways to control the flow of execution.
 
 ## `if` Expression
 
@@ -22,9 +22,17 @@ We can also handle invalid inputs by using the error channel:
 
 ### when
 
-Instead of using `if (condition) expression`, we can use the `Effect.when` operator:
+Instead of using `if (condition) expression`, we can use the `Effect.when` function:
 
-```ts file=<rootDir>/src/guide/control-flow/when.ts
+```ts file=<rootDir>/src/guide/control-flow/when.ts#L1-L6
+
+```
+
+Here we are using the [`Option`](./data-types/option) data type to represent the absence of a valid value.
+
+If the condition evaluates to `true`, the effect inside the `Effect.when` will be executed and the result will be wrapped in a `Some`, otherwise it returns `None`:
+
+```ts file=<rootDir>/src/guide/control-flow/when.ts#L8-
 
 ```
 
@@ -36,17 +44,15 @@ For example, the following function creates a random option of an integer value:
 
 ```
 
-The `Effect.when` and `Effect.whenEffect` operators allow us to conditionally execute effects based on a given predicate or an effectful predicate, respectively.
-
 ### unless
 
-The `Effect.unless` and `Effect.unlessEffect` operators are similar to the `when*` operators, but they are equivalent to the `if (!condition) expression` construct.
+The `Effect.unless` and `Effect.unlessEffect` functions are similar to the `when*` functions, but they are equivalent to the `if (!condition) expression` construct.
 
 ### if
 
-The `Effect.if` operator allows you to provide an effectful predicate. If the predicate evaluates to `true`, the `onTrue` effect will be executed. Otherwise, the `onFalse` effect will be executed.
+The `Effect.if` function allows you to provide an effectful predicate. If the predicate evaluates to `true`, the `onTrue` effect will be executed. Otherwise, the `onFalse` effect will be executed.
 
-Let's use this operator to create a simple virtual coin flip function:
+Let's use this function to create a simple virtual coin flip function:
 
 ```ts file=<rootDir>/src/guide/control-flow/if.ts
 
@@ -58,7 +64,7 @@ In this example, we generate a random boolean value using `Random.nextBoolean`. 
 
 ### loop
 
-The `Effect.loop` operator allows you to repeatedly change the state based on an `step` function until a condition given by the `cont` function is evaluated to `true`:
+The `Effect.loop` function allows you to repeatedly change the state based on an `step` function until a condition given by the `cont` function is evaluated to `true`:
 
 ```ts
 Effect.loop(initial, options: { while, step, body })
@@ -135,7 +141,7 @@ Let's take a look at an example:
 
 ```
 
-In this example, we have an array `[1, 2, 3, 4, 5]`, and for each element `index`, we perform an effectful operation. The output shows that the operation is executed for each element in the array, displaying the current index.
+In this example, we have an array `[1, 2, 3, 4, 5]`, and for each element we perform an effectful operation. The output shows that the operation is executed for each element in the array, displaying the current index.
 
 The `Effect.forEach` combinator collects the results of each effectful operation in an array, which is why the final output is `[ 2, 4, 6, 8, 10 ]`.
 

@@ -5,9 +5,10 @@ class ServiceConfig {
   constructor(readonly hostPort: HostPort.HostPort, readonly timeout: number) {}
 }
 
-const config: Config.Config<ServiceConfig> = Config.all([
-  Config.nested(HostPort.config, "HOSTPORT"),
-  Config.number("TIMEOUT"),
-]).pipe(
-  Config.map(([hostPort, timeout]) => new ServiceConfig(hostPort, timeout))
+const config: Config.Config<ServiceConfig> = Config.map(
+  Config.all([
+    Config.nested(HostPort.config, "HOSTPORT"),
+    Config.number("TIMEOUT"),
+  ]),
+  ([hostPort, timeout]) => new ServiceConfig(hostPort, timeout)
 )

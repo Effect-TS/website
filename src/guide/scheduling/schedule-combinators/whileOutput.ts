@@ -1,7 +1,7 @@
 import { Effect, Schedule } from "effect"
 import * as Delay from "./Delay"
 
-const schedule = Schedule.recurs(5).pipe(Schedule.whileOutput((n) => n <= 2))
+const schedule = Schedule.whileOutput(Schedule.recurs(5), (n) => n <= 2)
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*

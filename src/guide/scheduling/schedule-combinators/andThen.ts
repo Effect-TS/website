@@ -1,8 +1,9 @@
 import { Effect, Schedule } from "effect"
 import * as Delay from "./Delay"
 
-const schedule = Schedule.recurs(5).pipe(
-  Schedule.andThen(Schedule.spaced("1 seconds"))
+const schedule = Schedule.andThen(
+  Schedule.recurs(5),
+  Schedule.spaced("1 seconds")
 )
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))

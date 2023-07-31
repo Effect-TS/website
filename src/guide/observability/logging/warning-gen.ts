@@ -1,18 +1,18 @@
 import { Effect, Either } from "effect"
 
-// $ExpectType Effect<never, never, void>
+const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
 const program = Effect.gen(function* (_) {
-  const successOrFailure = yield* _(
-    Effect.either(Effect.fail("Something went wrong!"))
-  )
-  if (Either.isLeft(successOrFailure)) {
-    const error = successOrFailure.left
-    return yield* _(Effect.logWarning(String(error)))
+  const failureOrSuccess = yield* _(Effect.either(task))
+  if (Either.isLeft(failureOrSuccess)) {
+    yield* _(Effect.logWarning(failureOrSuccess.left))
+    return 0
+  } else {
+    return failureOrSuccess.right
   }
-  return successOrFailure.right
 })
 
 Effect.runPromise(program)
 /*
-timestamp=... level=WARN fiber=#0 message="Something went wrong!"
+timestamp=... level=WARN fiber=#0 message="Oh uh!"
 */

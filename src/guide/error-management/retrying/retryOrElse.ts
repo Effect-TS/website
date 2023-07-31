@@ -1,10 +1,10 @@
 import { Effect, Schedule } from "effect"
 import { effect } from "./fake"
 
-const policy = Schedule.recurs(2) // Retry for a maximum of 2 times
-  .pipe(
-    Schedule.addDelay(() => "100 millis") // Add a delay of 100 milliseconds between retries
-  )
+const policy = Schedule.addDelay(
+  Schedule.recurs(2), // Retry for a maximum of 2 times
+  () => "100 millis" // Add a delay of 100 milliseconds between retries
+)
 
 // Create a new effect that retries the effect with the specified policy,
 // and provides a fallback effect if all retries fail

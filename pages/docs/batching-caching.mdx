@@ -1,4 +1,4 @@
-import { Info, Warning } from "@/components/Callout"
+import { Idea, Info, Warning } from "@/components/Callout"
 
 # Batching & Caching
 
@@ -44,11 +44,11 @@ class SendEmailError {
 }
 ```
 
-<Info>
+<Idea>
   In a real world scenario we may want to use a more precise types instead of
-  directly using primitives for identifiers (see the `Brand` module). We may
-  also want to include more information in the errors.
-</Info>
+  directly using primitives for identifiers (see [Branded Types](style/brands)).
+  We may also want to include more information in the errors.
+</Idea>
 
 ## Classic Approach
 
@@ -58,11 +58,11 @@ Given such a model we usually write up functions to call some API (or database, 
 
 ```
 
-<Info>
+<Idea>
   In a real world scenario we may not want to trust our APIs to actually return
   the expected data - for doing this properly you can use `@effect/schema` or
   similar alternatives such as `zod`.
-</Info>
+</Idea>
 
 When using the utilities we defined it is normal to end up with code that looks like the following:
 
@@ -70,12 +70,12 @@ When using the utilities we defined it is normal to end up with code that looks 
 
 ```
 
-Here we used the `forEach` to repeat an `Effect` for every `Todo` and the `Effect` repeated
+Here we used the `forEach` to repeat an effect for every `Todo` and the effect repeated
 first fetches the `User` who owns the todo and then sends an email.
 
 We like writing code this way because it is **very expressive** and very easy to read, but is it **efficient**?
 
-This code will execute tons of individual API calls. Many todos will likely have the same owner and
+This code will execute tons of individual API calls. Many `Todo`s will likely have the same owner and
 our APIs may also provide batched alternatives where you can request as many users as you would like to in one call.
 
 So what can we do? Rewrite all our code to use a different form of API? Should we really do that?
@@ -143,7 +143,7 @@ Let's see how we would do it:
 We can see now that the type of `GetTodosResolver` is no longer a `RequestResolver` but instead it is:
 
 ```ts
-Effect.Effect<HttpService, never, RequestResolver<GetTodos, never>>
+Effect<HttpService, never, RequestResolver<GetTodos, never>>
 ```
 
 which is an `Effect` that access the `HttpService` and returns a composed resolver that has the minimal context ready to use.
@@ -168,9 +168,9 @@ This way is probably the best for most of the cases given that layers are the na
 
 ## Controlling Batching
 
-Batching can be locally disabled using the `Effect.withRequestBatching("off"){:ts}` utility in the following way:
+Batching can be locally disabled using the `Effect.withRequestBatching` utility in the following way:
 
-```ts {9} filename="index.ts" file=<rootDir>/src/guide/batching-caching/withRequestBatching.ts
+```ts filename="index.ts" {12} file=<rootDir>/src/guide/batching-caching/withRequestBatching.ts
 
 ```
 
@@ -209,13 +209,13 @@ or maybe you want a global cache with a different setup, or a mix of both.
 
 To cover those scenarios you'd create a custom cache like the following:
 
-```ts {13-17} filename="index.ts" file=<rootDir>/src/guide/batching-caching/final-program-with-cache.ts
+```ts {14-18} filename="index.ts" file=<rootDir>/src/guide/batching-caching/final-program-with-cache.ts
 
 ```
 
-Alternatively you can also directly construct a cache with `Request.makeCache({ capacity: 256, timeToLive: Duration.minutes(60) }){:ts}` and then use
+Alternatively you can also directly construct a cache with `Request.makeCache({ capacity: 256, timeToLive: "60 minutes" }){:ts}` and then use
 `Effect.withRequestCache(program, myCache){:ts}` on a program to make sure the requests generated from that program uses
-the custom cache (when enabled with `Effect.withRequestCaching("on"){:ts}`)
+the custom cache (when enabled with `Effect.withRequestCaching(true){:ts}`).
 
 ## How is this possible?
 

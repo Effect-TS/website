@@ -1,15 +1,8 @@
 import { Effect } from "effect"
 
-// $ExpectType Effect<never, never, void>
-const task1 = Effect.sleep("2 seconds")
-
-// $ExpectType Effect<never, never, void>
-const task2 = Effect.sleep("1 seconds")
-
-// $ExpectType Effect<never, never, void>
 const program = Effect.logInfo("start").pipe(
-  Effect.flatMap(() => task1),
-  Effect.flatMap(() => task2),
+  Effect.flatMap(() => Effect.sleep("2 seconds")),
+  Effect.flatMap(() => Effect.sleep("1 seconds")),
   Effect.flatMap(() => Effect.logInfo("done"))
 )
 

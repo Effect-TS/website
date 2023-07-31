@@ -16,9 +16,12 @@ const MainLive = MeasuringCupLive.pipe(
 const program = Effect.gen(function* (_) {
   const recipe = yield* _(Recipe)
   const steps = yield* _(recipe.steps)
-  for (const step of steps) {
-    yield* _(Effect.log(step))
-  }
+  return yield* _(
+    Effect.forEach(steps, (step) => Effect.log(step), {
+      concurrency: "unbounded",
+      discard: true,
+    })
+  )
 })
 
 // $ExpectType Effect<never, never, void>

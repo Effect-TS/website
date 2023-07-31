@@ -3,35 +3,31 @@ import { Tabs, Tab } from "@/components/Code"
 
 # Error Channel Operations
 
-In the Effect library, you can perform various operations on the error channel of effects. These operations allow you to transform, inspect, and handle errors in different ways. Let's explore some of these operations.
+In Effect you can perform various operations on the error channel of effects. These operations allow you to transform, inspect, and handle errors in different ways. Let's explore some of these operations.
 
 ## Map Operations
 
 ### mapError
 
-The `mapError` function is used when you need to transform or modify an error produced by an effect, without affecting the success value. This can be helpful when you want to add extra information to the error or change its type.
+The `Effect.mapError` function is used when you need to **transform or modify an error** produced by an effect, without affecting the success value. This can be helpful when you want to add extra information to the error or change its type.
 
 ```ts /string/1 /Error/1 file=<rootDir>/src/guide/error-management/error-channel-operations/mapError.ts
 
 ```
 
-In the code snippet above, `mapError` is applied to the `Effect` computation.
-It allows us to transform the error produced by the computation while keeping the success value unchanged.
-The provided error transformation function takes the original error as an input and returns a new error.
-
 We can observe that the type in the error channel of our program has changed from `string` to `Error`.
 
 <Info>
-  It's important to note that using the `mapError` function **does not change**
-  the overall success or failure of the effect. If the mapped effect is
+  It's important to note that using the `Effect.mapError` function **does not
+  change** the overall success or failure of the effect. If the mapped effect is
   successful, then the mapping function is ignored. In other words, the
-  `mapError` operation only applies the transformation to the error channel of
-  the effect, while leaving the success channel unchanged.
+  `Effect.mapError` operation only applies the transformation to the error
+  channel of the effect, while leaving the success channel unchanged.
 </Info>
 
 ### mapBoth
 
-The `Effect.mapBoth` function allows you to apply transformations to both the error channel and the success channel of an effect. It takes two map functions as arguments: one for the error channel and the other for the success channel.
+The `Effect.mapBoth` function allows you to **apply transformations to both channels**: the error channel and the success channel of an effect. It takes two map functions as arguments: one for the error channel and the other for the success channel.
 
 ```ts /string, number/ /Error, boolean/ file=<rootDir>/src/guide/error-management/error-channel-operations/mapBoth.ts
 
@@ -41,12 +37,32 @@ After using `mapBoth`, we can observe that the type of our program has changed f
 
 <Info>
   It's important to note that using the `mapBoth` function **does not change**
-  the overall success or failure of the effect.
+  the overall success or failure of the effect. It only transforms the values in
+  the error and success channels while preserving the effect's original success
+  or failure status.
 </Info>
 
-## Tapping Errors
+## Filtering the Success Channel
 
-Similar to [tapping](../essentials/pipeline#tap) for success values, Effect provides several operators for inspecting error values. These operators allow us to peek into failures or underlying defects or causes:
+The Effect library provides several operators to **filter values on the success channel** based on a given predicate. These operators offer different strategies for handling cases where the predicate fails. Let's explore them:
+
+| **Function**                                         | **Description**                                                                                                                                                                                                                                   |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Effect.filterOrFail`                                | This operator filters the values on the success channel based on a predicate. If the predicate fails for any value, the original effect fails with an error.                                                                                      |
+| `Effect.filterOrDie` and `Effect.filterOrDieMessage` | These operators also filter the values on the success channel based on a predicate. If the predicate fails for any value, the original effect terminates abruptly. The `filterOrDieMessage` variant allows you to provide a custom error message. |
+| `Effect.filterOrElse`                                | This operator filters the values on the success channel based on a predicate. If the predicate fails for any value, an alternative effect is executed instead.                                                                                    |
+
+Here's an example that demonstrates these filtering operators in action:
+
+```ts file=<rootDir>/src/guide/error-management/error-channel-operations/filtering.ts
+
+```
+
+It's important to note that depending on the specific filtering operator used, the effect can either fail, terminate abruptly, or execute an alternative effect when the predicate fails. Choose the appropriate operator based on your desired error handling strategy and program logic.
+
+## Inspecting Errors
+
+Similar to [tapping](../essentials/pipeline#tap) for success values, Effect provides several operators for **inspecting error values**. These operators allow us to peek into failures or underlying defects or causes:
 
 - `tapError`
 - `tapBoth`
@@ -64,27 +80,9 @@ Let's see an example of how to use these operators:
   type of the program.
 </Info>
 
-## Filtering the Success Channel
-
-The Effect library provides several operators to filter values on the success channel based on a given predicate. These operators offer different strategies for handling cases where the predicate fails. Let's explore them:
-
-| **Function**                                         | **Description**                                                                                                                                                                                                                                   |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Effect.filterOrFail`                                | This operator filters the values on the success channel based on a predicate. If the predicate fails for any value, the original effect fails with an error.                                                                                      |
-| `Effect.filterOrDie` and `Effect.filterOrDieMessage` | These operators also filter the values on the success channel based on a predicate. If the predicate fails for any value, the original effect terminates abruptly. The `filterOrDieMessage` variant allows you to provide a custom error message. |
-| `Effect.filterOrElse`                                | This operator filters the values on the success channel based on a predicate. If the predicate fails for any value, an alternative effect is executed instead.                                                                                    |
-
-Here's an example that demonstrates these filtering operators in action:
-
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/filtering.ts
-
-```
-
-It's important to note that depending on the specific filtering operator used, the effect can either fail, terminate abruptly, or execute an alternative effect when the predicate fails. Choose the appropriate operator based on your desired error handling strategy and program logic.
-
 ## Exposing Errors in The Success Channel
 
-You can use the `Effect.either` function to convert an `Effect<R, E, A>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an `Either<E, A>` data type, representing the success channel of the `Effect` data type.
+You can use the `Effect.either` function to convert an `Effect<R, E, A>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<E, A>`](../data-types/either) data type:
 
 ```ts
 Effect<R, E, A> -> Effect<R, never, Either<E, A>>
@@ -95,14 +93,6 @@ The resulting effect is an unexceptional effect, which means it cannot fail, bec
 This function becomes especially useful when recovering from effects that may fail when using `Effect.gen`.
 
 <Tabs>
-
-<Tab>
-
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/either-pipe.ts
-
-```
-
-</Tab>
 <Tab>
 
 ```ts file=<rootDir>/src/guide/error-management/error-channel-operations/either-gen.ts
@@ -110,20 +100,39 @@ This function becomes especially useful when recovering from effects that may fa
 ```
 
 </Tab>
+<Tab>
 
+```ts file=<rootDir>/src/guide/error-management/error-channel-operations/either-pipe.ts
+
+```
+
+</Tab>
 </Tabs>
 
 ## Exposing the Cause in The Success Channel
 
-You can use the `Effect.cause` function to expose the cause of an effect, which is a more detailed representation of failures, including error messages and defects.
+You can use the `Effect.cause` function to **expose the cause** of an effect, which is a more detailed representation of failures, including error messages and defects.
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/cause.ts
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/error-management/error-channel-operations/cause-gen.ts
 
 ```
 
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/error-management/error-channel-operations/cause-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
 ## Merging the Error Channel into the Success Channel
 
-Using the `Effect.merge` function, you can merge the error channel into the success channel, creating an effect that always succeeds with the merged value.
+Using the `Effect.merge` function, you can **merge the error channel into the success channel**, creating an effect that always succeeds with the merged value.
 
 ```ts file=<rootDir>/src/guide/error-management/error-channel-operations/merge.ts
 
@@ -131,7 +140,7 @@ Using the `Effect.merge` function, you can merge the error channel into the succ
 
 ## Flipping Error and Success Channels
 
-Using the `Effect.flip` function, you can flip the error and success channels of an effect, effectively swapping their roles.
+Using the `Effect.flip` function, you can **flip the error and success channels** of an effect, effectively swapping their roles.
 
 ```ts file=<rootDir>/src/guide/error-management/error-channel-operations/flip.ts
 
