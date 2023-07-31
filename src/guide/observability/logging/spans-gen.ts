@@ -1,6 +1,5 @@
 import { Effect } from "effect"
 
-// $ExpectType Effect<never, never, void>
 const program = Effect.gen(function* (_) {
   yield* _(Effect.sleep("1 seconds"))
   yield* _(Effect.log("The job is finished!"))
