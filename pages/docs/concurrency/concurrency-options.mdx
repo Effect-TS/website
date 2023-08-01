@@ -1,0 +1,66 @@
+import { Info } from "@/components/Callout"
+
+# Concurrency Options
+
+Effect offers various options to manage how effects are executed and control the overall operation's result. These options help determine how many effects can run at the same time concurrently.
+
+```ts
+type Options = {
+  readonly concurrency?: Concurrency
+  /* ... other options ... */
+}
+```
+
+In this section, we'll focus on the option that handles concurrency, which is the `concurrency` option with a type of `Concurrency`:
+
+```ts
+type Concurrency = number | "unbounded" | "inherit"
+```
+
+Let's understand the meaning of each configuration value.
+
+<Info>
+  The following examples use the `Effect.all` function, but the concept applies
+  to many other Effect APIs that accept concurrency options, such as
+  `Effect.forEach`.
+</Info>
+
+## Sequential Execution (Default)
+
+By default, if you don't specify any concurrency option, effects will run sequentially, one after the other. This means each effect starts only after the previous one completes.
+
+```ts file=<rootDir>/src/guide/concurrency/concurrency-options/all-default.ts
+
+```
+
+## Numbered Concurrency
+
+You can control the number of concurrent operations with the `concurrency` option. For example, with `concurrency: 2`, up to 2 effects will run simultaneously.
+
+```ts file=<rootDir>/src/guide/concurrency/concurrency-options/all-number.ts
+
+```
+
+## Unbounded Concurrency
+
+If you set `concurrency: "unbounded"`, as many effects as needed will run concurrently, without any specific limit.
+
+```ts file=<rootDir>/src/guide/concurrency/concurrency-options/all-unbounded.ts
+
+```
+
+## Inherit Concurrency
+
+The `concurrency: "inherit"` option adapts based on context, controlled by `Effect.withConcurrency(number | "unbounded")`.
+
+If there's no `Effect.withConcurrency` call, the default is `"unbounded"`. Otherwise, it inherits the configuration set by `Effect.withConcurrency`.
+
+```ts file=<rootDir>/src/guide/concurrency/concurrency-options/all-inherit-default.ts
+
+```
+
+If you use `Effect.withConcurrency`, it will adopt that specific concurrency configuration.
+
+```ts file=<rootDir>/src/guide/concurrency/concurrency-options/all-inherit-withConcurrency.ts
+
+```
