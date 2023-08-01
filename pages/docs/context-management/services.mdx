@@ -52,6 +52,16 @@ Where the Tag acts as the "key" to the service implementation within the context
   related Tag.
 </Idea>
 
+If desired, you can specify a unique `key` as shown below:
+
+```ts filename="service.ts" file=<rootDir>/src/guide/context-management/services/service-with-key.ts#L7
+
+```
+
+When you specify the `key`, it makes the `Tag` global, which means that two tags with the same `key` will refer to the same instance.
+
+This feature comes in handy in scenarios where live reloads can occur, and you want to preserve the instance across reloads. It ensures that there is no duplication of instances (although it should not happen in the first place, some bundlers and frameworks can behave strangely, and we don't have control over them). Additionally, using a unique `key` allows for better printing of a tag. If you ever face "Service Not Found" or "Service Not Found: myapp/Random," the second is better and provides more helpful information to identify the issue.
+
 ## Using the Service
 
 Now that we have our service interface defined, let's see how we can use it by building a pipeline.
