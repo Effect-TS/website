@@ -14,7 +14,7 @@ We can define a resource using operators like `Effect.acquireRelease(acquire, re
 
 For example, let's define a simple resource:
 
-```ts filename="resource.ts" file=<rootDir>/src/guide/resource-management/scope/resource.ts
+```ts filename="resource.ts" file=<rootDir>/src/guide/resource-management/resource.ts
 
 ```
 
@@ -31,14 +31,14 @@ We can continue working with the resource for as long as we want by using `flatM
 <Tabs>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/scope/using-gen.ts
+```ts file=<rootDir>/src/guide/resource-management/using-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/scope/using-pipe.ts
+```ts file=<rootDir>/src/guide/resource-management/using-pipe.ts
 
 ```
 
@@ -50,14 +50,14 @@ Once we are done working with the resource, we can close the scope using the `Ef
 <Tabs>
 <Tab>
 
-```ts /Effect.scoped/ file=<rootDir>/src/guide/resource-management/scope/scoped-gen.ts
+```ts /Effect.scoped/ file=<rootDir>/src/guide/resource-management/scoped-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts /Effect.scoped/ file=<rootDir>/src/guide/resource-management/scope/scoped-pipe.ts
+```ts /Effect.scoped/ file=<rootDir>/src/guide/resource-management/scoped-pipe.ts
 
 ```
 
@@ -85,6 +85,116 @@ The main difference is that `acquireUseRelease` eliminates the need to manually 
 
 Here's an example that demonstrates the usage of `acquireUseRelease`:
 
-```ts file=<rootDir>/src/guide/resource-management/scope/acquireUseRelease.ts
+```ts file=<rootDir>/src/guide/resource-management/acquireUseRelease.ts
 
 ```
+
+## Pattern: Chained Operations with Reversal for Failure
+
+In certain scenarios, you might need to perform a sequence of chained operations where the success of each operation depends on the previous one. However, if any of the operations fail, you would want to reverse the effects of all previous successful operations. This pattern is valuable when you need to ensure that either all operations succeed, or none of them have any effect at all.
+
+Effect offers a way to achieve this pattern using the `acquireRelease` function in combination with the `Exit` type. The `acquireRelease` function allows you to acquire a resource, perform operations with it, and release the resource when you're done. The [`Exit`](./data-types/exit) type represents the outcome of an effectful computation, indicating whether it succeeded or failed.
+
+Let's go through an example of implementing this pattern. Suppose we want to create a "Workspace" in our application, which involves creating an S3 bucket, an ElasticSearch index, and a Database entry that relies on the previous two.
+
+To begin, we define the domain model for the required [services](./context-management/services): `S3`, `ElasticSearch`, and `Database`.
+
+```ts filename="Services.ts" file=<rootDir>/src/guide/resource-management/pattern/Services.ts
+
+```
+
+Next, we define the three create actions and the overall transaction (`make`) for the Workspace.
+
+<Tabs>
+<Tab>
+
+```ts filename="Workspace.ts" file=<rootDir>/src/guide/resource-management/pattern/Workspace.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts filename="Workspace.ts" file=<rootDir>/src/guide/resource-management/pattern/Workspace-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+We then create simple service implementations to test the behavior of our Workspace code. Note that each service implementation accepts a `fail` boolean, which allows us to test different error scenarios.
+
+<Tabs>
+<Tab>
+
+```ts filename="WorkspaceTest.ts" file=<rootDir>/src/guide/resource-management/pattern/WorkspaceTest.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts filename="Workspace.ts" file=<rootDir>/src/guide/resource-management/pattern/WorkspaceTest-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+Let's examine the test results for the scenario where all `fail` arguments are set to `false` (happy path):
+
+```bash filename="Terminal"
+... message="[S3] creating bucket"
+... message="[ElasticSearch] creating index"
+... message="[Database] creating entry for bucket <bucket.name> and index <index.id>"
+{ _tag: 'Right', right: { id: '<entry.id>' } }
+```
+
+In this case, all operations succeed, and we see a successful result with `right({ id: '<entry.id>' })`.
+
+Now, let's simulate a failure in the `Database`:
+
+```ts {4}
+const ctx = Context.empty().pipe(
+  Context.add(Services.S3, S3Test(false)),
+  Context.add(Services.ElasticSearch, ElasticSearchTest(false)),
+  Context.add(Services.Database, DatabaseTest(true))
+)
+```
+
+The console output will be:
+
+```bash filename="Terminal"
+... message="[S3] creating bucket"
+... message="[ElasticSearch] creating index"
+... message="[Database] creating entry for bucket <bucket.name> and index <index.id>"
+... message="[ElasticSearch] delete index <index.id>"
+... message="[S3] delete bucket <bucket.name>"
+{ _tag: 'Left', left: DatabaseError { _tag: 'DatabaseError' } }
+```
+
+You can observe that once the `Database` error occurs, there is a complete rollback that deletes the `ElasticSearch` index first and then the associated `S3` bucket. The result is a failure with `left(new DatabaseError())`.
+
+Let's now make the index creation fail instead:
+
+```ts {3}
+const ctx = Context.empty().pipe(
+  Context.add(Services.S3, S3Test(false)),
+  Context.add(Services.ElasticSearch, ElasticSearchTest(true)),
+  Context.add(Services.Database, DatabaseTest(false))
+)
+```
+
+In this case, the console output will be:
+
+```bash filename="Terminal"
+... message="[S3] creating bucket"
+... message="[ElasticSearch] creating index"
+... message="[S3] delete bucket <bucket.name>"
+{
+  _tag: 'Left',
+  left: ElasticSearchError { _tag: 'ElasticSearchError' }
+}
+```
+
+As expected, once the `ElasticSearch` index creation fails, there is a rollback that deletes the `S3` bucket. The result is a failure with `left(new ElasticSearchError())`.
