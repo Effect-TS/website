@@ -48,7 +48,7 @@ const ctx = Context.empty().pipe(
   Context.add(Services.Database, DatabaseTest(false))
 )
 
-// $ExpectType Effect<never, S3Error | ElasticSearchError | DatabaseError, void>
+// $ExpectType Effect<never, S3Error | ElasticSearchError | DatabaseError, Entry>
 const runnable = Effect.provideContext(Workspace.make, ctx)
 
 Effect.runPromise(Effect.either(runnable)).then(console.log)

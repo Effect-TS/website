@@ -33,7 +33,7 @@ const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
     )
   )
 
-// $ExpectType Effect<S3 | ElasticSearch | Database, S3Error | ElasticSearchError | DatabaseError, void>
+// $ExpectType Effect<S3 | ElasticSearch | Database, S3Error | ElasticSearchError | DatabaseError, Entry>
 export const make = Effect.scoped(
   Effect.Do.pipe(
     Effect.bind("bucket", () => createBucket),

@@ -36,11 +36,11 @@ const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
     )
   })
 
-// $ExpectType Effect<S3 | ElasticSearch | Database, S3Error | ElasticSearchError | DatabaseError, void>
+// $ExpectType Effect<S3 | ElasticSearch | Database, S3Error | ElasticSearchError | DatabaseError, Entry>
 export const make = Effect.scoped(
   Effect.gen(function* (_) {
     const bucket = yield* _(createBucket)
     const index = yield* _(createIndex)
-    yield* _(createEntry(bucket, index))
+    return yield* _(createEntry(bucket, index))
   })
 )
