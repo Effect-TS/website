@@ -1,5 +1,3 @@
-import { Info } from "@/components/Callout"
-
 # Introduction to Effect's Control Flow Operators
 
 Even though JavaScript provides built-in control flow structures, Effect offers additional control flow functions that are useful in Effect applications. In this section, we will introduce different ways to control the flow of execution.
@@ -134,8 +132,19 @@ Here's an example of how it works:
 
 ### forEach
 
-The `Effect.forEach` combinator allows you to iterate over an `Iterable` and perform an effectful operation for each element.
-It applies the given effectful operation to each element of the `Iterable` sequentially.
+The `Effect.forEach` function allows you to iterate over an `Iterable` and perform an effectful operation for each element.
+
+The syntax for `forEach` is as follow:
+
+```ts
+import { Effect } from "effect"
+
+const combinedEffect = Effect.forEach(iterable, operation, options)
+```
+
+It applies the given effectful operation to each element of the `Iterable`. By default, it executes each effect in **sequence** (to explore options for managing concurrency and controlling how these effects are executed, you can refer to the [Concurrency Options](./concurrency/concurrency-options) documentation).
+
+This function returns a new effect that produces an array containing the results of each individual effect.
 
 Let's take a look at an example:
 
@@ -155,8 +164,46 @@ We also have the `discard` option, which when set to `true` discards the results
 
 In this case, the output is the same, but the final result is `undefined` since the results of each effectful operation are discarded.
 
-<Info>
-  By default, `forEach` executes all effects sequentially. To manage concurrency
-  and explore other options, you can refer to the [Concurrency
-  Options](./concurrency/concurrency-options) section.
-</Info>
+### all
+
+The `Effect.all` function in the Effect library is a powerful tool that allows you to merge multiple effects into a single effect, offering flexibility by working with various structured formats such as tuples, iterables, structs, and records.
+
+The syntax for `all` is as follow:
+
+```ts
+import { Effect } from "effect"
+
+const combinedEffect = Effect.all(effects, options)
+```
+
+where `effects` is a collection of individual effects that you wish to merge.
+
+By default, the `all` function will execute each effect in **sequence** (to explore options for managing concurrency and controlling how these effects are executed, you can refer to the [Concurrency Options](./concurrency/concurrency-options) documentation).
+
+It will return a new effect that produces a result with a shape that depends on the shape of the `effects` argument.
+
+Let's explore examples for each supported shape: tuples, iterables, structs, and records.
+
+#### Tuples
+
+```ts file=<rootDir>/src/guide/control-flow/all-tuple.ts
+
+```
+
+#### Iterables
+
+```ts file=<rootDir>/src/guide/control-flow/all-iterable.ts
+
+```
+
+#### Structs
+
+```ts file=<rootDir>/src/guide/control-flow/all-struct.ts
+
+```
+
+#### Records
+
+```ts file=<rootDir>/src/guide/control-flow/all-record.ts
+
+```

@@ -213,8 +213,14 @@ import { Effect } from "effect"
 const combinedEffect = Effect.all(effects)
 ```
 
-Here, `effects` represents multiple effects that you want to combine. The `all` function will execute all these effects in **sequence** and return a new effect that produces a tuple containing the results of each individual effect. This can be useful when you need to perform multiple independent operations and collect their results in a structured way.
+Here, `effects` represents multiple effects that you want to combine.
 
+The `all` function will execute all these effects in **sequence** (to explore options for
+managing concurrency and controlling how these effects are executed, you can
+refer to the [Concurrency Options](../concurrency/concurrency-options)
+documentation).
+
+It will return a new effect that produces a tuple containing the results of each individual effect.
 Keep in mind that the order of the results corresponds to the order of the original effects passed to `all`.
 
 Let's see an example to better understand how `all` works:
@@ -226,9 +232,10 @@ Let's see an example to better understand how `all` works:
 In this example, `foo` and `bar` are two separate effects. Using `Effect.all`, we combine them into a single effect `combinedEffect`. When we run `combinedEffect`, it produces a tuple `[42, "Hello"]` containing the results of both effects.
 
 <Info>
-  By default, `all` executes all effects sequentially. To manage concurrency and
-  explore other options, you can refer to the [Concurrency
-  Options](../concurrency/concurrency-options) section.
+  The `all` function not only combines tuples but also works seamlessly with
+  iterables, structs, and records. To explore the full potential of `all` head
+  over to the [Introduction to Effect's Control Flow
+  Operators](../control-flow#all) documentation.
 </Info>
 
 ## Build your first pipeline
