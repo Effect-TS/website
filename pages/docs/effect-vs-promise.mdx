@@ -2,9 +2,11 @@ import { Tab, CustomTabs } from "@/components/Code"
 
 # Effect vs Promise
 
+In this guide, we will explore the differences between `Promise` and `Effect`, two approaches to handling asynchronous operations in TypeScript. We'll discuss their type safety, creation, chaining, and concurrency, providing examples to help you understand their usage.
+
 ## Type safety
 
-When comparing the types of `Promise` with the type of `Effect`:
+Let's start by comparing the types of `Promise` and `Effect`. The type parameter `A` represents the resolved value of the operation:
 
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
@@ -23,16 +25,16 @@ Effect<Context, Error, A>
 </Tab>
 </CustomTabs>
 
-it becomes immediately apparent that Effect offers additional features:
+Here's what sets `Effect` apart:
 
-- The ability to track the types of errors statically (type parameter `Error`).
-  For more informations about error management, see [Expected Errors](./error-management/expected-errors).
-- The ability to track the types of required dependencies statically (type parameter `Context`).
-  For more informations about context management, see [Managing Services](./context-management/services).
+- It allows you to track the types of errors statically through the type parameter `Error`. For more information about error management in `Effect`, see [Expected Errors](./error-management/expected-errors).
+- It allows you to track the types of required dependencies statically through the type parameter `Context`. For more information about context management in `Effect`, see [Managing Services](./context-management/services).
 
 ## Creating
 
 ### Success
+
+Let's compare creating a successful operation using `Promise` and `Effect`:
 
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
@@ -53,6 +55,8 @@ it becomes immediately apparent that Effect offers additional features:
 
 ### Failure
 
+Now, let's see how to handle failures with `Promise` and `Effect`:
+
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
@@ -72,6 +76,8 @@ it becomes immediately apparent that Effect offers additional features:
 
 ### Constructor
 
+Creating operations with custom logic:
+
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
@@ -90,6 +96,8 @@ it becomes immediately apparent that Effect offers additional features:
 </CustomTabs>
 
 ## Thenable
+
+Mapping the result of an operation:
 
 ### map
 
@@ -112,6 +120,8 @@ it becomes immediately apparent that Effect offers additional features:
 
 ### flatMap
 
+Chaining multiple operations:
+
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
@@ -129,7 +139,11 @@ it becomes immediately apparent that Effect offers additional features:
 </Tab>
 </CustomTabs>
 
-## async / await
+## Comparing Effect.gen with async/await
+
+If you are familiar with `async`/`await`, you may notice that the flow of writing code is similar.
+
+Let's compare the two approaches:
 
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
@@ -147,6 +161,8 @@ it becomes immediately apparent that Effect offers additional features:
 
 </Tab>
 </CustomTabs>
+
+It's important to note that although the code appears similar, the two programs are not identical. The purpose of comparing them side by side is just to highlight the resemblance in how they are written.
 
 ## Concurrency
 
