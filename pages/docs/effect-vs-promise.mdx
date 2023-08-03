@@ -1,0 +1,278 @@
+import { Tab, CustomTabs } from "@/components/Code"
+
+# Effect vs Promise
+
+In this guide, we will explore the differences between `Promise` and `Effect`, two approaches to handling asynchronous operations in TypeScript. We'll discuss their type safety, creation, chaining, and concurrency, providing examples to help you understand their usage.
+
+## Type safety
+
+Let's start by comparing the types of `Promise` and `Effect`. The type parameter `A` represents the resolved value of the operation:
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts
+Promise<A>
+```
+
+</Tab>
+<Tab>
+
+```ts
+Effect<Context, Error, A>
+```
+
+</Tab>
+</CustomTabs>
+
+Here's what sets `Effect` apart:
+
+- It allows you to track the types of errors statically through the type parameter `Error`. For more information about error management in `Effect`, see [Expected Errors](./error-management/expected-errors).
+- It allows you to track the types of required dependencies statically through the type parameter `Context`. For more information about context management in `Effect`, see [Managing Services](./context-management/services).
+
+## Creating
+
+### Success
+
+Let's compare creating a successful operation using `Promise` and `Effect`:
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/success-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/success-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### Failure
+
+Now, let's see how to handle failures with `Promise` and `Effect`:
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/failure-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/failure-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### Constructor
+
+Creating operations with custom logic:
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/constructor-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/constructor-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+## Thenable
+
+Mapping the result of an operation:
+
+### map
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/map-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/map-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### flatMap
+
+Chaining multiple operations:
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/flatMap-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/flatMap-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+## Comparing Effect.gen with async/await
+
+If you are familiar with `async`/`await`, you may notice that the flow of writing code is similar.
+
+Let's compare the two approaches:
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/program-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/program-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+It's important to note that although the code appears similar, the two programs are not identical. The purpose of comparing them side by side is just to highlight the resemblance in how they are written.
+
+## Concurrency
+
+### Promise.all()
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/all-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/all-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### Promise.allSettled()
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/allSettled-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/allSettled-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### Promise.any()
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts
+const task1 = new Promise<number>((resolve, reject) => {
+  console.log("Executing task1...")
+  setTimeout(() => {
+    console.log("task1 done")
+    reject("Something went wrong!")
+  }, 100)
+})
+
+const task2 = new Promise<number>((resolve, reject) => {
+  console.log("Executing task2...")
+  setTimeout(() => {
+    console.log("task2 done")
+    resolve(2)
+  }, 200)
+})
+
+const task3 = new Promise<number>((resolve, reject) => {
+  console.log("Executing task3...")
+  setTimeout(() => {
+    console.log("task3 done")
+    reject("Uh oh!")
+  }, 300)
+})
+
+export const program = Promise.any([task1, task2, task3])
+
+program.then(console.log, console.error)
+/*
+Executing task1...
+Executing task2...
+Executing task3...
+task1 done
+task2 done
+2
+task3 done
+*/
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/any-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
+
+### Promise.race()
+
+<CustomTabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/race-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/comparisons/effect-vs-promise/race-effect.ts#L3-
+
+```
+
+</Tab>
+</CustomTabs>
