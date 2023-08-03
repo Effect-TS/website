@@ -8,5 +8,5 @@ export interface B {
 
 const ab: A & B = {
   // @ts-expect-error
-  prop: "", // Type 'string' is not assignable to type 'never'.
+  prop: "" // Type 'string' is not assignable to type 'never'.
 }

@@ -14,7 +14,7 @@ const getMyResource = (): Promise<MyResource> =>
       new Promise((resolve) => {
         console.log("Resource released")
         resolve()
-      }),
+      })
   })
 
 // Define the acquisition of the resource with error handling
@@ -24,7 +24,7 @@ export const acquire = Effect.tryPromise({
       console.log("Resource acquired")
       return res
     }),
-  catch: () => new Error("getMyResourceError"),
+  catch: () => new Error("getMyResourceError")
 })
 
 // Define the release of the resource

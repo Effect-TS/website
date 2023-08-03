@@ -8,7 +8,7 @@ const result = Effect.loop(
     step: (n) => n + 1, // State update function,
     body: (index) =>
       Effect.sync(() => console.log(`Currently at index ${index}`)), // Effect to be performed on each iteration,
-    discard: true,
+    discard: true
   }
 )
 

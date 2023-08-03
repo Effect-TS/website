@@ -19,7 +19,7 @@ const program = Effect.gen(function* (_) {
   return yield* _(
     Effect.forEach(steps, (step) => Effect.log(step), {
       concurrency: "unbounded",
-      discard: true,
+      discard: true
     })
   )
 })

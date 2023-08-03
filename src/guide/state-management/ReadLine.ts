@@ -9,7 +9,7 @@ export const readLine = (
       new Promise((resolve) => {
         const rl = NodeReadLine.createInterface({
           input: process.stdin,
-          output: process.stdout,
+          output: process.stdout
         })
         rl.question(message, (answer) => {
           rl.close()

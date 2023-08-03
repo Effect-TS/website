@@ -15,7 +15,7 @@ const runnable = Effect.provideService(
   program,
   Random,
   Random.of({
-    next: () => Effect.succeed(Math.random()),
+    next: () => Effect.succeed(Math.random())
   })
 )
 

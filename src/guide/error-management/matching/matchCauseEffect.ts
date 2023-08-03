@@ -15,5 +15,5 @@ const program = Effect.matchCauseEffect(exceptionalEffect, {
     return Effect.sync(() => console.log("failed due to other causes"))
   },
   onSuccess: (value) =>
-    Effect.sync(() => console.log(`succeeded with ${value} value`)),
+    Effect.sync(() => console.log(`succeeded with ${value} value`))
 })

@@ -15,6 +15,6 @@ export const MeasuringCup = Context.Tag<MeasuringCup>()
 export const MeasuringCupLive = Layer.succeed(
   MeasuringCup,
   MeasuringCup.of({
-    measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`),
+    measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
   })
 )

@@ -8,7 +8,7 @@ class ServiceConfig {
 const config: Config.Config<ServiceConfig> = Config.map(
   Config.all([
     Config.nested(HostPort.config, "HOSTPORT"),
-    Config.number("TIMEOUT"),
+    Config.number("TIMEOUT")
   ]),
   ([hostPort, timeout]) => new ServiceConfig(hostPort, timeout)
 )

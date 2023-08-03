@@ -2,7 +2,7 @@ import { Effect } from "effect"
 
 const record: Record<string, Effect.Effect<never, string, number>> = {
   key1: Effect.succeed(1).pipe(Effect.tap(Effect.log)),
-  key2: Effect.succeed(2).pipe(Effect.tap(Effect.log)),
+  key2: Effect.succeed(2).pipe(Effect.tap(Effect.log))
 }
 
 // $ExpectType Effect<never, string, { [x: string]: number; }>

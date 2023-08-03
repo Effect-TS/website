@@ -3,10 +3,10 @@ module.exports = {
   content: [
     "./components/**/*.{ts,tsx}",
     "./pages/**/*.{md,mdx}",
-    "./theme.config.tsx",
+    "./theme.config.tsx"
   ],
   theme: {
-    extend: {},
+    extend: {}
   },
-  plugins: [],
+  plugins: []
 }

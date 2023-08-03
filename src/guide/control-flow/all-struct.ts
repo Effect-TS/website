@@ -2,7 +2,7 @@ import { Effect } from "effect"
 
 const struct = {
   a: Effect.succeed(42).pipe(Effect.tap(Effect.log)),
-  b: Effect.succeed("Hello").pipe(Effect.tap(Effect.log)),
+  b: Effect.succeed("Hello").pipe(Effect.tap(Effect.log))
 }
 
 // $ExpectType Effect<never, string, { a: number; b: string; }>

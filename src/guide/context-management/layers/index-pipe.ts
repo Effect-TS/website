@@ -18,7 +18,7 @@ const program = Recipe.pipe(
   Effect.flatMap((steps) =>
     Effect.forEach(steps, (step) => Effect.log(step), {
       concurrency: "unbounded",
-      discard: true,
+      discard: true
     })
   )
 )

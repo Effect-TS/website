@@ -14,7 +14,7 @@ export const getTodos = Effect.tryPromise({
     simulatedValidation<Array<Model.Todo>>(
       fetch("https://api.example.demo/todos")
     ),
-  catch: () => new Model.GetTodosError(),
+  catch: () => new Model.GetTodosError()
 })
 
 // $ExpectType (id: number) => Effect<never, GetUserError, User>
@@ -24,7 +24,7 @@ export const getUserById = (id: number) =>
       simulatedValidation<Model.User>(
         fetch(`https://api.example.demo/getUserById?id=${id}`)
       ),
-    catch: () => new Model.GetUserError(),
+    catch: () => new Model.GetUserError()
   })
 
 // $ExpectType (address: string, text: string) => Effect<never, SendEmailError, void>
@@ -35,12 +35,12 @@ export const sendEmail = (address: string, text: string) =>
         fetch("https://api.example.demo/sendEmail", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json"
           },
-          body: JSON.stringify({ address, text }),
+          body: JSON.stringify({ address, text })
         })
       ),
-    catch: () => new Model.SendEmailError(),
+    catch: () => new Model.SendEmailError()
   })
 
 // $ExpectType (id: number, message: string) => Effect<never, GetUserError | SendEmailError, void>

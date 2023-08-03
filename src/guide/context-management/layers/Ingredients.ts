@@ -14,7 +14,7 @@ export const SugarLive = Layer.effect(
   Sugar,
   Effect.map(MeasuringCup, (measuringCup) =>
     Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram"),
+      grams: (amount) => measuringCup.measure(amount, "gram")
     })
   )
 )
@@ -32,7 +32,7 @@ export const FlourLive = Layer.effect(
   Flour,
   Effect.map(MeasuringCup, (measuringCup) =>
     Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup"),
+      cups: (amount) => measuringCup.measure(amount, "cup")
     })
   )
 )

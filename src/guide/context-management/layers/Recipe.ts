@@ -13,7 +13,7 @@ export const RecipeLive = Layer.effect(
   Effect.all([Sugar, Flour]).pipe(
     Effect.map(([sugar, flour]) =>
       Recipe.of({
-        steps: Effect.all([sugar.grams(200), flour.cups(1)]),
+        steps: Effect.all([sugar.grams(200), flour.cups(1)])
       })
     )
   )

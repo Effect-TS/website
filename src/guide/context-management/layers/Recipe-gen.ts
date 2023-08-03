@@ -14,7 +14,7 @@ export const RecipeLive = Layer.effect(
     const sugar = yield* _(Sugar)
     const flour = yield* _(Flour)
     return Recipe.of({
-      steps: Effect.all([sugar.grams(200), flour.cups(1)]),
+      steps: Effect.all([sugar.grams(200), flour.cups(1)])
     })
   })
 )

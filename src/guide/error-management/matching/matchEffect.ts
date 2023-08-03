@@ -14,7 +14,7 @@ const program1 = Effect.matchEffect(success, {
   onSuccess: (value) =>
     Effect.succeed(`success: ${value}`).pipe(
       Effect.tap((message) => Effect.log(message))
-    ),
+    )
 })
 
 console.log(Effect.runSync(program1))
@@ -32,7 +32,7 @@ const program2 = Effect.matchEffect(failure, {
   onSuccess: (value) =>
     Effect.succeed(`success: ${value}`).pipe(
       Effect.tap((message) => Effect.log(message))
-    ),
+    )
 })
 
 console.log(Effect.runSync(program2))

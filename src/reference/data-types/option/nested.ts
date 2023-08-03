@@ -18,8 +18,8 @@ const user: User = {
   email: Option.some("john.doe@example.com"),
   address: Option.some({
     city: "New York",
-    street: Option.some("123 Main St"),
-  }),
+    street: Option.some("123 Main St")
+  })
 }
 
 // $ExpectType Option<string>

@@ -12,7 +12,7 @@ export const GetTodosResolver = RequestResolver.fromFunctionEffect(
         API.simulatedValidation<Array<Model.Todo>>(
           fetch("https://api.example.demo/todos")
         ),
-      catch: () => new Model.GetTodosError(),
+      catch: () => new Model.GetTodosError()
     })
 )
 
@@ -26,12 +26,12 @@ export const GetUserByIdResolver = RequestResolver.makeBatched(
           fetch("https://api.example.demo/getUserByIdBatch", {
             method: "POST",
             headers: {
-              "Content-Type": "application/json",
+              "Content-Type": "application/json"
             },
-            body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) }),
+            body: JSON.stringify({ users: requests.map(({ id }) => ({ id })) })
           })
         ),
-      catch: () => new Model.GetUserError(),
+      catch: () => new Model.GetUserError()
     }).pipe(
       Effect.flatMap((users) =>
         Effect.forEach(requests, (request, index) =>
@@ -55,13 +55,13 @@ export const SendEmailResolver = RequestResolver.makeBatched(
         fetch("https://api.example.demo/sendEmailBatch", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            emails: requests.map(({ address, text }) => ({ address, text })),
-          }),
+            emails: requests.map(({ address, text }) => ({ address, text }))
+          })
         }).then((_) => _.json()),
-      catch: () => new Model.SendEmailError(),
+      catch: () => new Model.SendEmailError()
     }).pipe(
       Effect.flatMap(() =>
         Effect.forEach(requests, (request) =>

@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 
 export function Tabs({
   defaultIndex,
-  children,
+  children
 }: {
   defaultIndex?: number
   children: ReactNode
