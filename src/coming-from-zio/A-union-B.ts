@@ -7,5 +7,5 @@ export interface B {
 }
 
 const ab: A | B = {
-  prop: "",
+  prop: ""
 }

@@ -23,11 +23,11 @@ export const TodosServiceLive = Layer.effect(
             API.simulatedValidation<Array<Model.Todo>>(
               http.fetch("https://api.example.demo/todos")
             ),
-          catch: () => new Model.GetTodosError(),
+          catch: () => new Model.GetTodosError()
         })
     )
     return {
-      getTodos: Effect.request(RequestModel.GetTodos({}), resolver),
+      getTodos: Effect.request(RequestModel.GetTodos({}), resolver)
     }
   })
 )

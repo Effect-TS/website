@@ -10,7 +10,7 @@ console.log(
     persons,
     Data.array([
       Data.struct({ name: "Alice", age: 30 }),
-      Data.struct({ name: "Bob", age: 40 }),
+      Data.struct({ name: "Bob", age: 40 })
     ])
   )
 ) // Output: true

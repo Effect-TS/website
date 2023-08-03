@@ -14,5 +14,5 @@ const result = performComputation().pipe(
 
 Option.match(result, {
   onNone: () => console.log("Both computations resulted in None"),
-  onSome: (value) => console.log("Computed value:", value), // At least one computation succeeded
+  onSome: (value) => console.log("Computed value:", value) // At least one computation succeeded
 })

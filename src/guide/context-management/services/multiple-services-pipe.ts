@@ -25,13 +25,13 @@ const runnable1 = program.pipe(
   Effect.provideService(
     Random,
     Random.of({
-      next: () => Effect.succeed(Math.random()),
+      next: () => Effect.succeed(Math.random())
     })
   ),
   Effect.provideService(
     Logger,
     Logger.of({
-      log: Effect.log,
+      log: Effect.log
     })
   )
 )
@@ -42,7 +42,7 @@ const context = Context.empty().pipe(
   Context.add(
     Logger,
     Logger.of({
-      log: Effect.log,
+      log: Effect.log
     })
   )
 )

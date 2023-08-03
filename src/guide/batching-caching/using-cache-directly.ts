@@ -9,7 +9,7 @@ const program = Effect.gen(function* ($) {
     Cache.make({
       capacity: Number.MAX_SAFE_INTEGER,
       timeToLive: Infinity,
-      lookup: intensiveWork,
+      lookup: intensiveWork
     })
   )
 

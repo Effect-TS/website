@@ -30,14 +30,14 @@ function getValuesForCSSLeft(currentElement: HTMLElement) {
   return {
     elementXPos,
     allowedContentFullWidth,
-    elementXPosRatio,
+    elementXPosRatio
   }
 }
 
 function computeTwoSlashOverrideStyle({
   contentWidth,
   allowedContentFullWidth,
-  elementXPos,
+  elementXPos
 }: {
   contentWidth: number
   allowedContentFullWidth: number
@@ -74,7 +74,7 @@ export function useCustomStyle() {
       computeTwoSlashOverrideStyle({
         contentWidth,
         allowedContentFullWidth,
-        elementXPos,
+        elementXPos
       })
     )
   }
@@ -98,6 +98,6 @@ export function useCustomStyle() {
   }, [])
 
   return {
-    currentStyle,
+    currentStyle
   }
 }

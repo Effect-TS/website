@@ -2,7 +2,7 @@ import { Effect } from "effect"
 
 const tuple = [
   Effect.succeed(42).pipe(Effect.tap(Effect.log)),
-  Effect.succeed("Hello").pipe(Effect.tap(Effect.log)),
+  Effect.succeed("Hello").pipe(Effect.tap(Effect.log))
 ] as const
 
 // $ExpectType Effect<never, string, [number, string]>

@@ -5,7 +5,7 @@ const maybeAge = Option.none()
 
 const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
   name,
-  age,
+  age
 }))
 
 console.log(person) // none

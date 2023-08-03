@@ -15,7 +15,7 @@ const S3Test = Layer.function(Failure, Services.S3, (Failure) =>
           : Effect.succeed({ name: "<bucket.name>" })
       )
     ),
-    deleteBucket: (bucket) => Effect.log(`[S3] delete bucket ${bucket.name}`),
+    deleteBucket: (bucket) => Effect.log(`[S3] delete bucket ${bucket.name}`)
   })
 )
 
@@ -32,7 +32,7 @@ const ElasticSearchTest = Layer.function(
         )
       ),
       deleteIndex: (index) =>
-        Effect.log(`[ElasticSearch] delete index ${index.id}`),
+        Effect.log(`[ElasticSearch] delete index ${index.id}`)
     })
 )
 
@@ -48,7 +48,7 @@ const DatabaseTest = Layer.function(Failure, Services.Database, (Failure) =>
             : Effect.succeed({ id: "<entry.id>" })
         )
       ),
-    deleteEntry: (entry) => Effect.log(`[Database] delete entry ${entry.id}`),
+    deleteEntry: (entry) => Effect.log(`[Database] delete entry ${entry.id}`)
   })
 )
 

@@ -6,7 +6,7 @@ const result = Effect.loop(
   {
     while: (n) => n <= 5, // Condition to continue looping
     step: (n) => n + 1, // State update function
-    body: (n) => Effect.succeed(n), // Effect to be performed on each iteration
+    body: (n) => Effect.succeed(n) // Effect to be performed on each iteration
   }
 )
 

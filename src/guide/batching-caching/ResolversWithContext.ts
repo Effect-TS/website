@@ -28,7 +28,7 @@ export const GetTodosResolver: Effect.Effect<
           API.simulatedValidation<Array<Model.Todo>>(
             http.fetch("https://api.example.demo/todos")
           ),
-        catch: () => new Model.GetTodosError(),
+        catch: () => new Model.GetTodosError()
       })
     )
   ).pipe(

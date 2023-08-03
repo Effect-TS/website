@@ -9,11 +9,11 @@ interface User {
 const withEmail: User = {
   id: 1,
   username: "john_doe",
-  email: Option.some("john.doe@example.com"),
+  email: Option.some("john.doe@example.com")
 }
 
 const withoutEmail: User = {
   id: 2,
   username: "jane_doe",
-  email: Option.none(),
+  email: Option.none()
 }

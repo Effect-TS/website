@@ -5,13 +5,13 @@ import { DocsThemeConfig } from "nextra-theme-docs"
 const config: DocsThemeConfig = {
   docsRepositoryBase: "https://github.com/Effect-TS/website/blob/main",
   sidebar: {
-    defaultMenuCollapseLevel: 1,
+    defaultMenuCollapseLevel: 1
   },
   useNextSeoProps() {
     const { asPath } = useRouter()
     if (asPath !== "/") {
       return {
-        titleTemplate: "%s – Effect",
+        titleTemplate: "%s – Effect"
       }
     }
   },
@@ -48,10 +48,10 @@ const config: DocsThemeConfig = {
     </div>
   ),
   project: {
-    link: "https://github.com/Effect-TS",
+    link: "https://github.com/Effect-TS"
   },
   chat: {
-    link: "https://discord.gg/effect-ts",
+    link: "https://discord.gg/effect-ts"
   },
   footer: {
     text: (
@@ -62,8 +62,8 @@ const config: DocsThemeConfig = {
         </a>
         .
       </span>
-    ),
-  },
+    )
+  }
 }
 
 export default config

@@ -2,7 +2,7 @@ import { Logger } from "effect"
 
 const ANSI = {
   Reset: "\x1b[0m",
-  Bold: "\x1b[1m",
+  Bold: "\x1b[1m"
 }
 
 export const logger = Logger.make(({ logLevel, message }) => {

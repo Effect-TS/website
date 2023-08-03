@@ -19,7 +19,7 @@ const task4 = makeTask(4, "110 millis")
 const task5 = makeTask(5, "150 millis")
 
 const number = Effect.all([task1, task2, task3, task4, task5], {
-  concurrency: 2,
+  concurrency: 2
 })
 
 Effect.runPromise(number)

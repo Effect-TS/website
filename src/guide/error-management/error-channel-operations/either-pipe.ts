@@ -12,7 +12,7 @@ const program = Effect.either(simulatedTask).pipe(
       Either.match(failureOrSuccess, {
         onLeft: (error) => Effect.log(`failure: ${error}`).pipe(Effect.as(0)),
         onRight: (value) =>
-          Effect.log(`success: ${value}`).pipe(Effect.as(value)),
+          Effect.log(`success: ${value}`).pipe(Effect.as(value))
       })
   )
 )

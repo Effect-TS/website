@@ -5,6 +5,6 @@ import { program } from "./error-tracking"
 const recovered = program.pipe(
   Effect.catchTags({
     FooError: (_fooError) => Effect.succeed(`Recovering from FooError`),
-    BarError: (_barError) => Effect.succeed(`Recovering from BarError`),
+    BarError: (_barError) => Effect.succeed(`Recovering from BarError`)
   })
 )

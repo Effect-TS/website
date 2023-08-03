@@ -5,7 +5,7 @@ import * as App from "./App"
 const mockConfigProvider = ConfigProvider.fromMap(
   new Map([
     ["HOST", "localhost"],
-    ["PORT", "8080"],
+    ["PORT", "8080"]
   ])
 )
 

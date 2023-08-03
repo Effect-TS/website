@@ -15,5 +15,5 @@ const tapping1 = Effect.tapError(task, (error) =>
 // $ExpectType Effect<never, string, number>
 const tapping2 = Effect.tapBoth(task, {
   onFailure: (error) => Effect.log(`failure: ${error}`),
-  onSuccess: (randomNumber) => Effect.log(`random number: ${randomNumber}`),
+  onSuccess: (randomNumber) => Effect.log(`random number: ${randomNumber}`)
 })

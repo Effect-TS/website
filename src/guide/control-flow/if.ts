@@ -3,7 +3,7 @@ import { Effect, Random } from "effect"
 // $ExpectType Effect<never, never, void>
 const flipTheCoin = Effect.if(Random.nextBoolean, {
   onTrue: Effect.log("Head"),
-  onFalse: Effect.log("Tail"),
+  onFalse: Effect.log("Tail")
 })
 
 Effect.runSync(flipTheCoin)

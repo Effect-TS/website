@@ -8,7 +8,7 @@ const program = Effect.serviceOption(Random).pipe(
       // the service is not available, return a default value
       onNone: () => Effect.succeed(-1),
       // the service is available
-      onSome: (random) => random.next(),
+      onSome: (random) => random.next()
     })
   ),
   Effect.flatMap((randomNumber) => Effect.log(`${randomNumber}`))
@@ -19,7 +19,7 @@ Effect.runSync(
     program,
     Random,
     Random.of({
-      next: () => Effect.succeed(Math.random()),
+      next: () => Effect.succeed(Math.random())
     })
   )
 )

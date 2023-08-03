@@ -7,7 +7,7 @@ class GetNumbersError {
 // $ExpectType Effect<never, GetNumbersError, number[]>
 const getNumbers = Effect.tryPromise({
   try: () => Promise.resolve([1, 2, 3]),
-  catch: () => new GetNumbersError(),
+  catch: () => new GetNumbersError()
 })
 
 class EmptyError {

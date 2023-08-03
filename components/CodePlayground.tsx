@@ -17,7 +17,7 @@ export const CodePlayground: React.FC<{
       stackblitz
         .embedGithubProject(ref.current, repo, {
           openFile,
-          showSidebar: true,
+          showSidebar: true
         })
         .then((_) => setVm(_))
     }
@@ -36,7 +36,7 @@ export const CodePlayground: React.FC<{
         (className ? " " + className : "")
       }
       style={{
-        height: height ?? 500,
+        height: height ?? 500
       }}
     >
       <div className="h-full w-full" ref={ref} />
