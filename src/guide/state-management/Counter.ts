@@ -2,9 +2,18 @@ import { Effect, Ref } from "effect"
 
 export class Counter {
   constructor(private value: Ref.Ref<number>) {}
-  inc = Ref.update(this.value, (n) => n + 1)
-  dec = Ref.update(this.value, (n) => n - 1)
-  get = Ref.get(this.value)
+
+  get inc() {
+    return Ref.update(this.value, (n) => n + 1)
+  }
+
+  get dec() {
+    return Ref.update(this.value, (n) => n - 1)
+  }
+
+  get get() {
+    return Ref.get(this.value)
+  }
 }
 
 // $ExpectType Effect<never, never, Counter>
