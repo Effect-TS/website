@@ -3,43 +3,31 @@ import { Tabs, Tab, CustomTabs } from "@/components/Code"
 
 # Using Generators in Effect
 
-In the [previous section](pipeline) , we learned how to build pipelines using the `pipe` function. However, Effect provides an alternative approach for writing effectful code: using [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator).
+In the previous sections, we learned how to [create](./creating) effects and [execute](./running) them. Now, it's time to write our first simple program.
+
+Effect offers a convenient syntax, similar to `async`/`await`, to write effectful code using [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator).
 
 <Idea>
   The use of generators is an **optional feature** in Effect. If you find
-  generators unfamiliar or prefer a different coding style, you can continue
-  using APIs like `Effect.flatMap` and `Effect.map` to compose your effects
-  using the `pipe` function. Effect provides flexibility, allowing you to choose
-  the approach that suits your coding preferences and project requirements.
+  generators unfamiliar or prefer a different coding style, you can explore the
+  documentation about [Building Pipelines](./pipeline) in Effect.
 </Idea>
 
-Let's rewrite the pipeline we created in the previous section using the `Effect.gen` helper:
+Let's start with a basic program that performs a series of transformations:
 
-<Tabs>
-<Tab>
-
-```ts file=<rootDir>/src/essentials/using-generators/pipeline-gen.ts
+```ts file=<rootDir>/src/essentials/using-generators/first-program-gen.ts
 
 ```
-
-</Tab>
-<Tab>
-
-```ts file=<rootDir>/src/essentials/using-generators/pipeline-pipe.ts
-
-```
-
-</Tab>
-</Tabs>
 
 <Warning>
   The generator API is only available when using the `downlevelIteration` flag
   or with a `target` of `"es2015"` or higher in your `tsconfig.json` file
 </Warning>
 
-When working with generators in Effect, the `_` helper plays a crucial role when yielding an effect. By passing the effect you want to yield to the `_` function
+When working with generators in Effect, the `_` helper plays a crucial role when yielding an effect.
+By passing the effect you want to yield to the `_` function
 
-```ts /Effect.all([Effect.succeed(10), Effect.succeed(2)])/ /divide(a, b)/ file=<rootDir>/src/essentials/using-generators/pipeline-gen.ts#L11-L13
+```ts /task1/ /task2/ /divide(a, b)/ file=<rootDir>/src/essentials/using-generators/first-program-gen.ts#L16-L22
 
 ```
 
@@ -62,14 +50,14 @@ Let's compare the two approaches:
 <CustomTabs items={['Using Effect.gen', 'Using async / await']}>
   <Tab>
 
-```ts file=<rootDir>/src/essentials/using-generators/pipeline-gen.ts#L3-
+```ts file=<rootDir>/src/essentials/using-generators/first-program-gen.ts#L3-
 
 ```
 
   </Tab>
   <Tab>
 
-```ts file=<rootDir>/src/essentials/using-generators/pipeline-async-await.ts
+```ts file=<rootDir>/src/essentials/using-generators/first-program-async-await.ts
 
 ```
 
@@ -87,7 +75,7 @@ It's important to note that although the code appears similar, the two programs 
 
 ## Using the helper as a `pipe`
 
-The `_` helper can also be used as a `pipe` function, allowing you to mix and match different styles of writing code within `Effect.gen` if needed.
+The `_` helper can also be used as a `pipe` function (see [Building Pipelines](./pipeline) for more information), allowing you to mix and match different styles of writing code within `Effect.gen` if needed.
 
 In the following example, the `Random.next()` effect is piped into the `Effect.map` function:
 
