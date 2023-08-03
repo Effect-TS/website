@@ -122,7 +122,9 @@ Next, we define the three create actions and the overall transaction (`make`) fo
 </Tab>
 </Tabs>
 
-We then create simple service implementations to test the behavior of our Workspace code. Note that each service implementation accepts a `fail` boolean, which allows us to test different error scenarios.
+We then create simple service implementations to test the behavior of our Workspace code.
+To achieve this, we will utilize [layers](./context-management/layers) to construct test services.
+These layers will be able to handle various scenarios, including errors, which we can control using the `FailureCase` type.
 
 <Tabs>
 <Tab>
@@ -141,7 +143,7 @@ We then create simple service implementations to test the behavior of our Worksp
 </Tab>
 </Tabs>
 
-Let's examine the test results for the scenario where all `fail` arguments are set to `false` (happy path):
+Let's examine the test results for the scenario where `FailureCase` is set to `undefined` (happy path):
 
 ```bash filename="Terminal"
 ... message="[S3] creating bucket"
