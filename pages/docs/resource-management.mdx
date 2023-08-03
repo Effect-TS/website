@@ -89,7 +89,7 @@ Here's an example that demonstrates the usage of `acquireUseRelease`:
 
 ```
 
-## Pattern: Chained Operations with Reversal for Failure
+## Pattern: Sequence of Operations with Compensating Actions on Failure
 
 In certain scenarios, you might need to perform a sequence of chained operations where the success of each operation depends on the previous one. However, if any of the operations fail, you would want to reverse the effects of all previous successful operations. This pattern is valuable when you need to ensure that either all operations succeed, or none of them have any effect at all.
 
@@ -154,11 +154,10 @@ In this case, all operations succeed, and we see a successful result with `right
 
 Now, let's simulate a failure in the `Database`:
 
-```ts {4}
-const ctx = Context.empty().pipe(
-  Context.add(Services.S3, S3Test(false)),
-  Context.add(Services.ElasticSearch, ElasticSearchTest(false)),
-  Context.add(Services.Database, DatabaseTest(true))
+```ts /"Database"/
+const runnable = Workspace.make.pipe(
+  Effect.provideLayer(layer),
+  Effect.provideService(Failure, "Database")
 )
 ```
 
@@ -177,11 +176,10 @@ You can observe that once the `Database` error occurs, there is a complete rollb
 
 Let's now make the index creation fail instead:
 
-```ts {3}
-const ctx = Context.empty().pipe(
-  Context.add(Services.S3, S3Test(false)),
-  Context.add(Services.ElasticSearch, ElasticSearchTest(true)),
-  Context.add(Services.Database, DatabaseTest(false))
+```ts /"ElasticSearch"/
+const runnable = Workspace.make.pipe(
+  Effect.provideLayer(layer),
+  Effect.provideService(Failure, "ElasticSearch")
 )
 ```
 
