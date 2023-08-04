@@ -1,11 +1,11 @@
 import { Effect } from "effect"
 
-const record: Record<string, Effect.Effect<never, string, number>> = {
+const record: Record<string, Effect.Effect<never, never, number>> = {
   key1: Effect.succeed(1).pipe(Effect.tap(Effect.log)),
   key2: Effect.succeed(2).pipe(Effect.tap(Effect.log))
 }
 
-// $ExpectType Effect<never, string, { [x: string]: number; }>
+// $ExpectType Effect<never, never, { [x: string]: number; }>
 const combinedEffect = Effect.all(record)
 
 console.log(Effect.runSync(combinedEffect))
