@@ -14,8 +14,8 @@ const program = Effect.catchAllDefect(
 )
 
 // We get an Exit.Success because we caught all defects
-console.log(JSON.stringify(Effect.runSyncExit(program)))
+console.log(Effect.runSyncExit(program))
 /*
 ... level=FATAL fiber=#0 message="RuntimeException defect caught: Boom!"
-{"_tag":"Success"}
+{ _tag: 'Success', value: undefined }
 */

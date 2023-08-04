@@ -17,5 +17,7 @@ const program = Effect.catchSomeDefect(
 
 // Since we are only catching IllegalArgumentException
 // we will get an Exit.Failure because we simulated a runtime error.
-console.log(JSON.stringify(Effect.runSyncExit(program)))
-// Output: {"_tag":"Failure", ... }
+console.log(Effect.runSyncExit(program))
+/*
+{ _tag: 'Failure', cause: { _tag: 'Cause', errors: [ [Object] ] } }
+*/

@@ -5,7 +5,7 @@ const struct = {
   b: Effect.succeed("Hello").pipe(Effect.tap(Effect.log))
 }
 
-// $ExpectType Effect<never, string, { a: number; b: string; }>
+// $ExpectType Effect<never, never, { a: number; b: string; }>
 const combinedEffect = Effect.all(struct)
 
 console.log(Effect.runSync(combinedEffect))

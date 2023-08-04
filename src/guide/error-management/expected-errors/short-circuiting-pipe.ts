@@ -17,8 +17,7 @@ const program = task1.pipe(
 const result = Effect.runSyncExit(program)
 
 console.log("result: ", result)
-
 /*
 Executing task1...
-result: <Failure("Something went wrong!")>
+result: { _tag: 'Failure', cause: { _tag: 'Cause', errors: [ [Object] ] } }
 */
