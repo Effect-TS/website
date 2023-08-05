@@ -2,10 +2,10 @@ import { Effect } from "effect"
 
 // $ExpectType Effect<never, never, number>
 const result = Effect.iterate(
-  1, // Initial state
+  1, // Initial result
   {
-    while: (n) => n <= 5, // Condition to continue iterating
-    body: (n) => Effect.succeed(n + 1) // Operation to change the state
+    while: (result) => result <= 5, // Condition to continue iterating
+    body: (result) => Effect.succeed(result + 1) // Operation to change the result
   }
 )
 
