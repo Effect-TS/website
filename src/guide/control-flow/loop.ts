@@ -4,9 +4,9 @@ import { Effect } from "effect"
 const result = Effect.loop(
   1, // Initial state
   {
-    while: (n) => n <= 5, // Condition to continue looping
-    step: (n) => n + 1, // State update function
-    body: (n) => Effect.succeed(n) // Effect to be performed on each iteration
+    while: (state) => state <= 5, // Condition to continue looping
+    step: (state) => state + 1, // State update function
+    body: (state) => Effect.succeed(state) // Effect to be performed on each iteration
   }
 )
 

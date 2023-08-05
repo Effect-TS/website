@@ -4,20 +4,20 @@ import { Effect } from "effect"
 const result = Effect.loop(
   1, // Initial state
   {
-    while: (n) => n <= 5, // Condition to continue looping,
-    step: (n) => n + 1, // State update function,
-    body: (index) =>
-      Effect.sync(() => console.log(`Currently at index ${index}`)), // Effect to be performed on each iteration,
+    while: (state) => state <= 5, // Condition to continue looping,
+    step: (state) => state + 1, // State update function,
+    body: (state) =>
+      Effect.sync(() => console.log(`Currently at state ${state}`)), // Effect to be performed on each iteration,
     discard: true
   }
 )
 
 console.log(Effect.runSync(result))
 /*
-Currently at index 1
-Currently at index 2
-Currently at index 3
-Currently at index 4
-Currently at index 5
+Currently at state 1
+Currently at state 2
+Currently at state 3
+Currently at state 4
+Currently at state 5
 undefined
 */
