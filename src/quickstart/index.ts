@@ -1,7 +1,5 @@
-import { Effect } from "effect"
+import { Effect, Console } from "effect"
 
-const program = Effect.sync(() => {
-  console.log("Hello, World!")
-})
+const program = Console.log("Hello, World!")
 
 Effect.runSync(program)

@@ -1,4 +1,4 @@
-import { Effect, Context, Layer } from "effect"
+import { Effect, Context, Layer, Console } from "effect"
 import * as Services from "./Services"
 import * as Workspace from "./Workspace"
 
@@ -19,14 +19,14 @@ const S3Test = Layer.effect(
   Services.S3,
   Effect.map(FailureCase, (failureCase) =>
     Services.S3.of({
-      createBucket: Effect.log("[S3] creating bucket").pipe(
+      createBucket: Console.log("[S3] creating bucket").pipe(
         Effect.flatMap(() =>
           failureCase === "S3"
             ? Effect.fail(new Services.S3Error())
             : Effect.succeed({ name: "<bucket.name>" })
         )
       ),
-      deleteBucket: (bucket) => Effect.log(`[S3] delete bucket ${bucket.name}`)
+      deleteBucket: (bucket) => Console.log(`[S3] delete bucket ${bucket.name}`)
     })
   )
 )
@@ -38,7 +38,7 @@ const ElasticSearchTest = Layer.effect(
   Services.ElasticSearch,
   Effect.map(FailureCase, (failureCase) =>
     Services.ElasticSearch.of({
-      createIndex: Effect.log("[ElasticSearch] creating index").pipe(
+      createIndex: Console.log("[ElasticSearch] creating index").pipe(
         Effect.flatMap(() =>
           failureCase === "ElasticSearch"
             ? Effect.fail(new Services.ElasticSearchError())
@@ -46,7 +46,7 @@ const ElasticSearchTest = Layer.effect(
         )
       ),
       deleteIndex: (index) =>
-        Effect.log(`[ElasticSearch] delete index ${index.id}`)
+        Console.log(`[ElasticSearch] delete index ${index.id}`)
     })
   )
 )
@@ -59,7 +59,7 @@ const DatabaseTest = Layer.effect(
   Effect.map(FailureCase, (failureCase) =>
     Services.Database.of({
       createEntry: (bucket, index) =>
-        Effect.log(
+        Console.log(
           `[Database] creating entry for bucket ${bucket.name} and index ${index.id}`
         ).pipe(
           Effect.flatMap(() =>
@@ -68,7 +68,7 @@ const DatabaseTest = Layer.effect(
               : Effect.succeed({ id: "<entry.id>" })
           )
         ),
-      deleteEntry: (entry) => Effect.log(`[Database] delete entry ${entry.id}`)
+      deleteEntry: (entry) => Console.log(`[Database] delete entry ${entry.id}`)
     })
   )
 )

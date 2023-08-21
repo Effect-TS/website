@@ -1,9 +1,9 @@
-import { Effect } from "effect"
+import { Effect, Console } from "effect"
 
 // Define three effects representing different tasks.
-const task1 = Effect.sync(() => console.log("Executing task1..."))
+const task1 = Console.log("Executing task1...")
 const task2 = Effect.fail(new Error("Something went wrong!"))
-const task3 = Effect.sync(() => console.log("Executing task3..."))
+const task3 = Console.log("Executing task3...")
 
 // Compose the three tasks using `Effect.flatMap` to run them in sequence.
 // The `Effect.flatMap` function allows us to chain effects together.

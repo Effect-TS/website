@@ -1,4 +1,4 @@
-import { Effect, Cause, Option } from "effect"
+import { Effect, Cause, Option, Console } from "effect"
 
 // $ExpectType Effect<never, never, void>
 const program = Effect.catchSomeDefect(
@@ -6,7 +6,7 @@ const program = Effect.catchSomeDefect(
   (defect) => {
     if (Cause.isIllegalArgumentException(defect)) {
       return Option.some(
-        Effect.logFatal(
+        Console.log(
           `Caught an IllegalArgumentException defect: ${defect.message}`
         )
       )

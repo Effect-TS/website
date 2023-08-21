@@ -1,4 +1,4 @@
-import { Effect, Random } from "effect"
+import { Effect, Random, Console } from "effect"
 
 // $ExpectType Effect<never, string, number>
 const task = Effect.filterOrFail(
@@ -9,11 +9,11 @@ const task = Effect.filterOrFail(
 
 // $ExpectType Effect<never, string, number>
 const tapping1 = Effect.tapError(task, (error) =>
-  Effect.log(`failure: ${error}`)
+  Console.log(`failure: ${error}`)
 )
 
 // $ExpectType Effect<never, string, number>
 const tapping2 = Effect.tapBoth(task, {
-  onFailure: (error) => Effect.log(`failure: ${error}`),
-  onSuccess: (randomNumber) => Effect.log(`random number: ${randomNumber}`)
+  onFailure: (error) => Console.log(`failure: ${error}`),
+  onSuccess: (randomNumber) => Console.log(`random number: ${randomNumber}`)
 })

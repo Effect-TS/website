@@ -1,4 +1,4 @@
-import { Effect, Context, Layer } from "effect"
+import { Effect, Context, Layer, Console } from "effect"
 import * as Services from "./Services"
 import * as Workspace from "./Workspace"
 
@@ -21,14 +21,14 @@ const S3Test = Layer.effect(
     const failureCase = yield* _(FailureCase)
     return Services.S3.of({
       createBucket: Effect.gen(function* (_) {
-        yield* _(Effect.log("[S3] creating bucket"))
+        console.log("[S3] creating bucket")
         if (failureCase === "S3") {
           return yield* _(Effect.fail(new Services.S3Error()))
         } else {
           return { name: "<bucket.name>" }
         }
       }),
-      deleteBucket: (bucket) => Effect.log(`[S3] delete bucket ${bucket.name}`)
+      deleteBucket: (bucket) => Console.log(`[S3] delete bucket ${bucket.name}`)
     })
   })
 )
@@ -42,7 +42,7 @@ const ElasticSearchTest = Layer.effect(
     const failureCase = yield* _(FailureCase)
     return Services.ElasticSearch.of({
       createIndex: Effect.gen(function* (_) {
-        yield* _(Effect.log("[ElasticSearch] creating index"))
+        console.log("[ElasticSearch] creating index")
         if (failureCase === "ElasticSearch") {
           return yield* _(Effect.fail(new Services.ElasticSearchError()))
         } else {
@@ -50,7 +50,7 @@ const ElasticSearchTest = Layer.effect(
         }
       }),
       deleteIndex: (index) =>
-        Effect.log(`[ElasticSearch] delete index ${index.id}`)
+        Console.log(`[ElasticSearch] delete index ${index.id}`)
     })
   })
 )
@@ -65,10 +65,8 @@ const DatabaseTest = Layer.effect(
     return Services.Database.of({
       createEntry: (bucket, index) =>
         Effect.gen(function* (_) {
-          yield* _(
-            Effect.log(
-              `[Database] creating entry for bucket ${bucket.name} and index ${index.id}`
-            )
+          console.log(
+            `[Database] creating entry for bucket ${bucket.name} and index ${index.id}`
           )
           if (failureCase === "Database") {
             return yield* _(Effect.fail(new Services.DatabaseError()))
@@ -76,7 +74,7 @@ const DatabaseTest = Layer.effect(
             return { id: "<entry.id>" }
           }
         }),
-      deleteEntry: (entry) => Effect.log(`[Database] delete entry ${entry.id}`)
+      deleteEntry: (entry) => Console.log(`[Database] delete entry ${entry.id}`)
     })
   })
 )

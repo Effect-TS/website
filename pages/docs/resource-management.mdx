@@ -145,10 +145,10 @@ These layers will be able to handle various scenarios, including errors, which w
 
 Let's examine the test results for the scenario where `FailureCase` is set to `undefined` (happy path):
 
-```bash filename="Terminal"
-... message="[S3] creating bucket"
-... message="[ElasticSearch] creating index"
-... message="[Database] creating entry for bucket <bucket.name> and index <index.id>"
+```verbatim filename="Terminal"
+[S3] creating bucket
+[ElasticSearch] creating index
+[Database] creating entry for bucket <bucket.name> and index <index.id>
 { _tag: 'Right', right: { id: '<entry.id>' } }
 ```
 
@@ -165,12 +165,12 @@ const runnable = Workspace.make.pipe(
 
 The console output will be:
 
-```bash filename="Terminal"
-... message="[S3] creating bucket"
-... message="[ElasticSearch] creating index"
-... message="[Database] creating entry for bucket <bucket.name> and index <index.id>"
-... message="[ElasticSearch] delete index <index.id>"
-... message="[S3] delete bucket <bucket.name>"
+```verbatim filename="Terminal"
+[S3] creating bucket
+[ElasticSearch] creating index
+[Database] creating entry for bucket <bucket.name> and index <index.id>
+[ElasticSearch] delete index <index.id>
+[S3] delete bucket <bucket.name>
 { _tag: 'Left', left: DatabaseError { _tag: 'DatabaseError' } }
 ```
 
@@ -187,10 +187,10 @@ const runnable = Workspace.make.pipe(
 
 In this case, the console output will be:
 
-```bash filename="Terminal"
-... message="[S3] creating bucket"
-... message="[ElasticSearch] creating index"
-... message="[S3] delete bucket <bucket.name>"
+```verbatim filename="Terminal"
+[S3] creating bucket
+[ElasticSearch] creating index
+[S3] delete bucket <bucket.name>
 {
   _tag: 'Left',
   left: ElasticSearchError { _tag: 'ElasticSearchError' }

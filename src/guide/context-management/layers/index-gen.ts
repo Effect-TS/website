@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Console } from "effect"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
 import { Recipe, RecipeLive } from "./Recipe"
@@ -17,7 +17,7 @@ const program = Effect.gen(function* (_) {
   const recipe = yield* _(Recipe)
   const steps = yield* _(recipe.steps)
   return yield* _(
-    Effect.forEach(steps, (step) => Effect.log(step), {
+    Effect.forEach(steps, (step) => Console.log(step), {
       concurrency: "unbounded",
       discard: true
     })
@@ -28,6 +28,8 @@ const program = Effect.gen(function* (_) {
 const runnable = Effect.provideLayer(program, MainLive)
 
 Effect.runPromise(runnable)
-
-// ...more output... message="Measured 200 gram(s)"
-// ...more output... message="Measured 1 cup(s)"
+/*
+Output:
+Measured 200 gram(s)
+Measured 1 cup(s)
+*/
