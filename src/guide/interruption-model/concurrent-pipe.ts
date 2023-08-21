@@ -21,6 +21,7 @@ Effect.runPromise(program).catch((error) =>
   console.log(`interrupted: ${error}`)
 )
 /*
+Output:
 timestamp=... level=INFO fiber=#1 message="start #1"
 timestamp=... level=INFO fiber=#2 message="start #2"
 timestamp=... level=INFO fiber=#3 message="start #3"

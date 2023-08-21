@@ -8,6 +8,7 @@ const schedule = Schedule.andThen(
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
+Output:
 delay: 4
 delay: 8    < recurs
 delay: 4

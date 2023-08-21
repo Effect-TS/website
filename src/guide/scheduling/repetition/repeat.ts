@@ -11,6 +11,7 @@ const program = Effect.repeat(action, policy)
 
 Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
 /*
+Output:
 success
 success
 success

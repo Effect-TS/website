@@ -19,5 +19,6 @@ const program = Effect.catchSomeDefect(
 // we will get an Exit.Failure because we simulated a runtime error.
 console.log(Effect.runSyncExit(program))
 /*
+Output:
 { _tag: 'Failure', cause: { _tag: 'Cause', errors: [ [Object] ] } }
 */

@@ -24,6 +24,7 @@ const unbounded = Effect.all([task1, task2, task3, task4, task5], {
 
 Effect.runPromise(unbounded)
 /*
+Output:
 start task1
 start task2
 start task3

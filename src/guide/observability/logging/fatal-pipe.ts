@@ -8,5 +8,6 @@ const program = task.pipe(
 
 Effect.runPromise(program)
 /*
-timestamp=... level=FATAL fiber=#0 message="Oh uh!"
+Output:
+... level=FATAL fiber=#0 message="Oh uh!"
 */

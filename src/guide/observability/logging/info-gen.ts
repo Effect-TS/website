@@ -9,7 +9,7 @@ const program = Effect.gen(function* (_) {
 
 Effect.runPromise(program)
 /*
-...more infos... level=INFO message=start
-... 3 seconds ...
-...more infos... level=INFO message=done
+Output:
+... level=INFO message=start
+... level=INFO message=done <-- 3 seconds later
 */

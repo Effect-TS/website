@@ -18,6 +18,7 @@ const result = Effect.runSyncExit(program)
 
 console.log("result: ", result)
 /*
+Output:
 Executing task1...
 result: { _tag: 'Failure', cause: { _tag: 'Cause', errors: [ [Object] ] } }
 */

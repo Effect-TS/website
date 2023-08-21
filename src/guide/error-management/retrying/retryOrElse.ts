@@ -14,6 +14,7 @@ const repeated = Effect.retryOrElse(effect, policy, () =>
 
 Effect.runPromise(repeated).then((s) => console.log(`result: ${s}`))
 /*
+Output:
 failure
 failure
 failure

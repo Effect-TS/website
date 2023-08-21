@@ -14,5 +14,6 @@ const program = Effect.gen(function* (_) {
 
 Effect.runPromise(program)
 /*
-timestamp=... level=WARN fiber=#0 message="Oh uh!"
+Output:
+... level=WARN fiber=#0 message="Oh uh!"
 */

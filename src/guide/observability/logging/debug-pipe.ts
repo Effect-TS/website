@@ -17,9 +17,8 @@ const program = Effect.log("start").pipe(
 
 Effect.runPromise(program)
 /*
-...more infos... level=INFO message=start
-... 2 seconds ...
-...more infos... level=DEBUG message="task1 done"
-... 1 second ...
-...more infos... level=INFO message=done
+Output:
+... level=INFO message=start
+... level=DEBUG message="task1 done" <-- 2 seconds later
+... level=INFO message=done <-- 1 second later
 */

@@ -5,6 +5,7 @@ const schedule = Schedule.once
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
+Output:
 delay: 3
 delay: 8 < once
 */

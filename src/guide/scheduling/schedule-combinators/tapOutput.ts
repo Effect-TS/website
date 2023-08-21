@@ -7,6 +7,7 @@ const schedule = Schedule.tapOutput(Schedule.recurs(2), (n) =>
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
+Output:
 delay: 2
 repeating 0
 delay: 8

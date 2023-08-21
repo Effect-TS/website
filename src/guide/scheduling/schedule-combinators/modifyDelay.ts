@@ -8,6 +8,7 @@ const schedule = Schedule.modifyDelay(
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
+Output:
 delay: 4
 delay: 110 < modifyDelay
 delay: 103

@@ -21,6 +21,7 @@ const runnable = Effect.provideService(
 
 Effect.runSync(runnable)
 /*
+Output:
 random number: 0.8241872233134417
 another random number: 0.8241872233134417
 */

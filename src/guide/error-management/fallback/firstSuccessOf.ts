@@ -28,6 +28,7 @@ const config = Effect.firstSuccessOf([masterConfig, ...nodeConfigs])
 
 console.log(Effect.runSync(config))
 /*
+Output:
 Unavailable config for master
 Unavailable config for node1
 Unavailable config for node2

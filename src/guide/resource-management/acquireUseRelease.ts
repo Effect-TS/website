@@ -8,6 +8,7 @@ const program = Effect.acquireUseRelease(acquire, use, release)
 
 Effect.runPromise(program)
 /*
+Output:
 Resource acquired
 content is lorem ipsum
 Resource released

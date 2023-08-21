@@ -16,6 +16,7 @@ const flatMappedEffect = pipe(
 
 console.log(Effect.runSync(flatMappedEffect))
 /*
+Output:
 Performing division: 10 / 2
 5
 */

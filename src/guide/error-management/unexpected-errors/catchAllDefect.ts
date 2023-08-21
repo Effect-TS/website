@@ -14,6 +14,7 @@ const program = Effect.catchAllDefect(
 // We get an Exit.Success because we caught all defects
 console.log(Effect.runSyncExit(program))
 /*
+Output:
 RuntimeException defect caught: Boom!
 { _tag: 'Success', value: undefined }
 */

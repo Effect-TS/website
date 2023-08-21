@@ -14,5 +14,6 @@ const program = Effect.gen(function* (_) {
 
 Effect.runSync(program)
 /*
+Output:
 This counter has a value of 2.
 */
