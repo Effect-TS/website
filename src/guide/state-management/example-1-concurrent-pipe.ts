@@ -24,6 +24,7 @@ const program = Counter.make.pipe(
 
 Effect.runSync(program)
 /*
+Output:
 ... fiber=#2 message="get: 0"
 ... fiber=#4 message="get: 1"
 ... fiber=#6 message="get: 1"

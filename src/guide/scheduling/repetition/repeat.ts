@@ -1,8 +1,6 @@
-import { Effect, Schedule } from "effect"
+import { Effect, Schedule, Console } from "effect"
 
-const action = Effect.sync(() => {
-  console.log("success")
-})
+const action = Console.log("success")
 
 const policy = Schedule.addDelay(
   Schedule.recurs(2), // Repeat for a maximum of 2 times
@@ -13,6 +11,7 @@ const program = Effect.repeat(action, policy)
 
 Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
 /*
+Output:
 success
 success
 success

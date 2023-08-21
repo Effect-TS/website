@@ -8,6 +8,7 @@ const schedule = Schedule.intersect(
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
+Output:
 delay: 4
 delay: 18  < recurs
 delay: 22

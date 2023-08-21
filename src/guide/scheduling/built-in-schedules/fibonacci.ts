@@ -5,6 +5,7 @@ const schedule = Schedule.fibonacci("10 millis")
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
+Output:
 delay: 3
 delay: 17 < fibonacci
 delay: 11

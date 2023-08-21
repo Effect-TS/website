@@ -1,4 +1,4 @@
-import { Effect, Context, Ref } from "effect"
+import { Effect, Context, Ref, Console } from "effect"
 
 // Define a custom type for our state
 interface MyState extends Ref.Ref<number> {}
@@ -24,7 +24,7 @@ const subprogram2 = MyState.pipe(
 // $ExpectType Effect<MyState, never, void>
 const subprogram3 = MyState.pipe(
   Effect.flatMap((state) => Ref.get(state)),
-  Effect.flatMap((value) => Effect.log(`MyState has a value of ${value}.`))
+  Effect.flatMap((value) => Console.log(`MyState has a value of ${value}.`))
 )
 
 // Compose subprograms 1, 2, and 3 to create the main program
@@ -45,5 +45,6 @@ const runnable = Effect.provideServiceEffect(program, MyState, initialState)
 // Run the program and observe the output
 Effect.runFork(runnable)
 /*
-... message="MyState has a value of 2."
+Output:
+MyState has a value of 2.
 */

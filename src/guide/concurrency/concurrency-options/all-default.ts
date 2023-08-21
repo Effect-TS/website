@@ -19,6 +19,7 @@ const sequential = Effect.all([task1, task2])
 
 Effect.runPromise(sequential)
 /*
+Output:
 start task1
 task1 done
 start task2 <-- task2 starts only after task1 completes

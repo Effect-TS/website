@@ -1,10 +1,12 @@
-import { Effect } from "effect"
+import { Effect, Console } from "effect"
 import { Random } from "./service"
 
 // $ExpectType Effect<Random, never, void>
 const program = Random.pipe(
-  Effect.flatMap((random) => random.next()),
-  Effect.flatMap((randomNumber) => Effect.log(`random number: ${randomNumber}`))
+  Effect.flatMap((random) => random.next),
+  Effect.flatMap((randomNumber) =>
+    Console.log(`random number: ${randomNumber}`)
+  )
 )
 
 // $ExpectType Effect<never, never, void>
@@ -12,9 +14,9 @@ const runnable = Effect.provideService(
   program,
   Random,
   Random.of({
-    next: () => Effect.succeed(Math.random())
+    next: Effect.sync(() => Math.random())
   })
 )
 
 Effect.runSync(runnable)
-// Output: ...more infos... message="random number: 0.8241872233134417"
+// Output: random number: 0.8241872233134417

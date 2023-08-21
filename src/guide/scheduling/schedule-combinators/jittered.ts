@@ -5,6 +5,7 @@ const schedule = Schedule.jittered(Schedule.exponential("10 millis"))
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
+Output:
 delay: 3
 delay: 18
 delay: 24

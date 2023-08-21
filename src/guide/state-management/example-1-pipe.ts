@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Effect, Console } from "effect"
 import * as Counter from "./Counter"
 
 // $ExpectType Effect<never, never, void>
@@ -10,7 +10,7 @@ const program = Counter.make.pipe(
       Effect.flatMap(() => counter.inc),
       Effect.flatMap(() => counter.get),
       Effect.flatMap((value) =>
-        Effect.log(`This counter has a value of ${value}.`)
+        Console.log(`This counter has a value of ${value}.`)
       )
     )
   )
@@ -18,5 +18,5 @@ const program = Counter.make.pipe(
 
 Effect.runSync(program)
 /*
-... message="This counter has a value of 2."
+This counter has a value of 2.
 */

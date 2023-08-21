@@ -5,6 +5,7 @@ const schedule = Schedule.forever
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
+Output:
 delay: 3
 delay: 7 < forever
 delay: 5

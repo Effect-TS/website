@@ -19,6 +19,7 @@ const program1 = Effect.matchEffect(success, {
 
 console.log(Effect.runSync(program1))
 /*
+Output:
 ... message="success: 42"
 success: 42
 */
@@ -37,6 +38,7 @@ const program2 = Effect.matchEffect(failure, {
 
 console.log(Effect.runSync(program2))
 /*
+Output:
 ... message="failure: Uh oh!"
 failure: Uh oh!
 */

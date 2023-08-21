@@ -8,6 +8,7 @@ const repeated = Effect.retry(effect, policy)
 
 Effect.runPromise(repeated).then((s) => console.log(`result: ${s}`))
 /*
+Output:
 failure
 failure
 failure

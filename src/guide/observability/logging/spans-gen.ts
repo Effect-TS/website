@@ -7,5 +7,6 @@ const program = Effect.gen(function* (_) {
 
 Effect.runPromise(program)
 /*
-timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
+Output:
+... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
 */

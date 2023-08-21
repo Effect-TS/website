@@ -9,10 +9,11 @@ const program = Effect.gen(function* (_) {
   yield* _(counter.dec)
   yield* _(counter.inc)
   const value = yield* _(counter.get)
-  yield* _(Effect.log(`This counter has a value of ${value}.`))
+  console.log(`This counter has a value of ${value}.`)
 })
 
 Effect.runSync(program)
 /*
-... message="This counter has a value of 2."
+Output:
+This counter has a value of 2.
 */

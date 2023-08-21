@@ -36,6 +36,7 @@ const getNames = Effect.gen(function* (_) {
 
 Effect.runPromise(getNames).then((result) => console.log(String(result)))
 /*
+Output:
 Please enter a name or `q` to exit: Alice
 Please enter a name or `q` to exit: Bob
 Please enter a name or `q` to exit: q

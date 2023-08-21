@@ -24,6 +24,7 @@ const number = Effect.all([task1, task2, task3, task4, task5], {
 
 Effect.runPromise(number)
 /*
+Output:
 start task1
 start task2 <-- active tasks: task1, task2
 task2 done

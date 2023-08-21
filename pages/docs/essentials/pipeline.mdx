@@ -181,20 +181,7 @@ This means that the value returned by the previous computation (i.e. `[a, b]`) w
 Let's take a look at an updated code snippet that incorporates the `tap` API to fix the problem:
 
 ```ts {3-5} file=<rootDir>/src/essentials/pipeline/tap.ts#L8-
-const flatMappedEffect = pipe(
-  Effect.succeed([10, 2]),
-  Effect.tap(([a, b]) =>
-    Effect.sync(() => console.log(`Performing division: ${a} / ${b}`))
-  ),
-  // [a, b] is still available!
-  Effect.flatMap(([a, b]) => divide(a, b))
-)
 
-console.log(Effect.runSync(flatMappedEffect))
-/*
-Performing division: 10 / 2
-5
-*/
 ```
 
 By using `Effect.tap`, we include the effect of `Effect.sync` in the computation. This ensures that the logging action is performed, providing us with the desired output and maintaining correct program logic. The resulting output is still `5`, as expected.

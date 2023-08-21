@@ -27,7 +27,7 @@ const subprogram2 = Effect.gen(function* (_) {
 const subprogram3 = Effect.gen(function* (_) {
   const state = yield* _(MyState)
   const value = yield* _(Ref.get(state))
-  yield* _(Effect.log(`MyState has a value of ${value}.`))
+  console.log(`MyState has a value of ${value}.`)
 })
 
 // Compose subprograms 1, 2, and 3 to create the main program
@@ -49,5 +49,6 @@ const runnable = Effect.provideServiceEffect(program, MyState, initialState)
 // Run the program and observe the output
 Effect.runFork(runnable)
 /*
-... message="MyState has a value of 2."
+Output:
+MyState has a value of 2.
 */

@@ -26,6 +26,7 @@ const withConcurrency = inherit.pipe(Effect.withConcurrency(2))
 
 Effect.runPromise(withConcurrency)
 /*
+Output:
 start task1
 start task2 <-- active tasks: task1, task2
 task2 done

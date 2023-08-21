@@ -28,6 +28,7 @@ const program = Effect.repeatOrElse(action, policy, () =>
 
 Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
 /*
+Output:
 success
 success
 failure

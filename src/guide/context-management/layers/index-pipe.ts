@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Console } from "effect"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
 import { Recipe, RecipeLive } from "./Recipe"
@@ -16,7 +16,7 @@ const MainLive = MeasuringCupLive.pipe(
 const program = Recipe.pipe(
   Effect.flatMap((recipe) => recipe.steps),
   Effect.flatMap((steps) =>
-    Effect.forEach(steps, (step) => Effect.log(step), {
+    Effect.forEach(steps, (step) => Console.log(step), {
       concurrency: "unbounded",
       discard: true
     })
@@ -27,6 +27,8 @@ const program = Recipe.pipe(
 const runnable = Effect.provideLayer(program, MainLive)
 
 Effect.runPromise(runnable)
-
-// ...more output... message="Measured 200 gram(s)"
-// ...more output... message="Measured 1 cup(s)"
+/*
+Output:
+Measured 200 gram(s)
+Measured 1 cup(s)
+*/

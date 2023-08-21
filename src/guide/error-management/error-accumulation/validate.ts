@@ -13,6 +13,7 @@ const program = task1.pipe(
 
 Effect.runPromise(program).then(console.log, console.error)
 /*
+Output:
 Error: Oh uh!
 Error: Oh no!
 */

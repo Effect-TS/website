@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Effect, Console } from "effect"
 
 declare const exceptionalEffect: Effect.Effect<never, Error, void>
 
@@ -6,14 +6,13 @@ const program = Effect.matchCauseEffect(exceptionalEffect, {
   onFailure: (cause) => {
     switch (cause._tag) {
       case "Fail":
-        return Effect.sync(() => console.log(`Fail: ${cause.error.message}`))
+        return Console.log(`Fail: ${cause.error.message}`)
       case "Die":
-        return Effect.sync(() => console.log(`Die: ${cause.defect}`))
+        return Console.log(`Die: ${cause.defect}`)
       case "Interrupt":
-        return Effect.sync(() => console.log(`${cause.fiberId} interrupted!`))
+        return Console.log(`${cause.fiberId} interrupted!`)
     }
-    return Effect.sync(() => console.log("failed due to other causes"))
+    return Console.log("failed due to other causes")
   },
-  onSuccess: (value) =>
-    Effect.sync(() => console.log(`succeeded with ${value} value`))
+  onSuccess: (value) => Console.log(`succeeded with ${value} value`)
 })

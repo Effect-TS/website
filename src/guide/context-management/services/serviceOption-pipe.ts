@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect"
+import { Effect, Option, Console } from "effect"
 import { Random } from "./service"
 
 // $ExpectType Effect<never, never, void>
@@ -8,10 +8,10 @@ const program = Effect.serviceOption(Random).pipe(
       // the service is not available, return a default value
       onNone: () => Effect.succeed(-1),
       // the service is available
-      onSome: (random) => random.next()
+      onSome: (random) => random.next
     })
   ),
-  Effect.flatMap((randomNumber) => Effect.log(`${randomNumber}`))
+  Effect.flatMap((randomNumber) => Console.log(`${randomNumber}`))
 )
 
 Effect.runSync(
@@ -19,8 +19,8 @@ Effect.runSync(
     program,
     Random,
     Random.of({
-      next: () => Effect.succeed(Math.random())
+      next: Effect.sync(() => Math.random())
     })
   )
 )
-// Output: ...more output... message=0.9957979486841035
+// Output: 0.9957979486841035

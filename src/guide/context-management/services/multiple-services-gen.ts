@@ -1,7 +1,7 @@
 import { Effect, Context } from "effect"
 
 interface Random {
-  readonly next: () => Effect.Effect<never, never, number>
+  readonly next: Effect.Effect<never, never, number>
 }
 
 const Random = Context.Tag<Random>()
@@ -16,6 +16,6 @@ const Logger = Context.Tag<Logger>()
 const program = Effect.gen(function* (_) {
   const random = yield* _(Random)
   const logger = yield* _(Logger)
-  const randomNumber = yield* _(random.next())
+  const randomNumber = yield* _(random.next)
   return yield* _(logger.log(String(randomNumber)))
 })

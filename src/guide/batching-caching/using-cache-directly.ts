@@ -19,6 +19,6 @@ const program = Effect.gen(function* ($) {
   const b1 = yield* $(cache.get("key1"))
 
   if (a0 === a1 && b0 === b1) {
-    yield* $(Effect.log("I'll always end up here...."))
+    console.log("I'll always end up here....")
   }
 })

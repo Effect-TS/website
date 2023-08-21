@@ -5,6 +5,7 @@ const schedule = Schedule.exponential("10 millis")
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
 /*
+Output:
 delay: 4
 delay: 17 < exponential
 delay: 21

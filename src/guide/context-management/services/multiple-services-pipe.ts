@@ -1,7 +1,7 @@
-import { Effect, Context } from "effect"
+import { Effect, Context, Console } from "effect"
 
 interface Random {
-  readonly next: () => Effect.Effect<never, never, number>
+  readonly next: Effect.Effect<never, never, number>
 }
 
 const Random = Context.Tag<Random>()
@@ -15,9 +15,9 @@ const Logger = Context.Tag<Logger>()
 // $ExpectType Effect<Random | Logger, never, void>
 const program = Effect.all([Random, Logger]).pipe(
   Effect.flatMap(([random, logger]) =>
-    random
-      .next()
-      .pipe(Effect.flatMap((randomNumber) => logger.log(String(randomNumber))))
+    random.next.pipe(
+      Effect.flatMap((randomNumber) => logger.log(String(randomNumber)))
+    )
   )
 )
 
@@ -25,24 +25,24 @@ const runnable1 = program.pipe(
   Effect.provideService(
     Random,
     Random.of({
-      next: () => Effect.succeed(Math.random())
+      next: Effect.sync(() => Math.random())
     })
   ),
   Effect.provideService(
     Logger,
     Logger.of({
-      log: Effect.log
+      log: Console.log
     })
   )
 )
 
 // Context<Random | Logger>
 const context = Context.empty().pipe(
-  Context.add(Random, Random.of({ next: () => Effect.succeed(Math.random()) })),
+  Context.add(Random, Random.of({ next: Effect.sync(() => Math.random()) })),
   Context.add(
     Logger,
     Logger.of({
-      log: Effect.log
+      log: Console.log
     })
   )
 )

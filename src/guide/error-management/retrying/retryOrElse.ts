@@ -1,4 +1,4 @@
-import { Effect, Schedule } from "effect"
+import { Effect, Schedule, Console } from "effect"
 import { effect } from "./fake"
 
 const policy = Schedule.addDelay(
@@ -9,14 +9,12 @@ const policy = Schedule.addDelay(
 // Create a new effect that retries the effect with the specified policy,
 // and provides a fallback effect if all retries fail
 const repeated = Effect.retryOrElse(effect, policy, () =>
-  Effect.sync(() => {
-    console.log("orElse")
-    return "default value"
-  })
+  Console.log("orElse").pipe(Effect.as("default value"))
 )
 
 Effect.runPromise(repeated).then((s) => console.log(`result: ${s}`))
 /*
+Output:
 failure
 failure
 failure

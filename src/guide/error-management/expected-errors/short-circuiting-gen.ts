@@ -1,9 +1,9 @@
-import { Effect } from "effect"
+import { Effect, Console } from "effect"
 
 // Define three effects representing different tasks.
-const task1 = Effect.sync(() => console.log("Executing task1..."))
+const task1 = Console.log("Executing task1...")
 const task2 = Effect.fail(new Error("Something went wrong!"))
-const task3 = Effect.sync(() => console.log("Executing task3..."))
+const task3 = Console.log("Executing task3...")
 
 // Compose the three tasks to run them in sequence.
 // If one of the tasks fails, the subsequent tasks won't be executed.
@@ -18,6 +18,7 @@ const result = Effect.runSyncExit(program)
 
 console.log("result: ", result)
 /*
+Output:
 Executing task1...
 result: { _tag: 'Failure', cause: { _tag: 'Cause', errors: [ [Object] ] } }
 */

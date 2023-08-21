@@ -7,6 +7,7 @@ const action = Effect.delay(Delay.log, "100 millis")
 
 Effect.runPromise(Effect.repeat(action, schedule))
 /*
+Output:
 delay: 109
 delay: 316 < spaced
 delay: 302

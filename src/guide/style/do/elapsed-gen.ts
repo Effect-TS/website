@@ -14,7 +14,7 @@ const elapsed = <R, E, A>(
     // Calculate the elapsed time in milliseconds
     const elapsed = endMillis - startMillis
     // Log the elapsed time
-    yield* _(Effect.log(`Elapsed: ${elapsed}`))
+    console.log(`Elapsed: ${elapsed}`)
     return result
   })
 
@@ -25,6 +25,7 @@ const program = elapsed(task)
 
 Effect.runPromise(program).then(console.log)
 /*
-... message="Elapsed: 204"
+Output:
+Elapsed: 204
 some task
 */

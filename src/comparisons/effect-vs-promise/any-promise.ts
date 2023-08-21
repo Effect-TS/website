@@ -2,7 +2,7 @@ const task1 = new Promise<number>((resolve, reject) => {
   console.log("Executing task1...")
   setTimeout(() => {
     console.log("task1 done")
-    resolve(1)
+    reject("Something went wrong!")
   }, 100)
 })
 
@@ -10,7 +10,7 @@ const task2 = new Promise<number>((resolve, reject) => {
   console.log("Executing task2...")
   setTimeout(() => {
     console.log("task2 done")
-    reject("Uh oh!")
+    resolve(2)
   }, 200)
 })
 
@@ -18,11 +18,11 @@ const task3 = new Promise<number>((resolve, reject) => {
   console.log("Executing task3...")
   setTimeout(() => {
     console.log("task3 done")
-    resolve(3)
+    reject("Uh oh!")
   }, 300)
 })
 
-export const program = Promise.all([task1, task2, task3])
+export const program = Promise.any([task1, task2, task3])
 
 program.then(console.log, console.error)
 /*
@@ -32,6 +32,6 @@ Executing task2...
 Executing task3...
 task1 done
 task2 done
-Uh oh!
+2
 task3 done
 */

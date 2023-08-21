@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Effect, Console } from "effect"
 
 // Get the current timestamp
 const now = Effect.sync(() => new Date().getTime())
@@ -16,7 +16,7 @@ const elapsed = <R, E, A>(
               // Calculate the elapsed time in milliseconds
               const elapsed = endMillis - startMillis
               // Log the elapsed time
-              return Effect.log(`Elapsed: ${elapsed}`).pipe(
+              return Console.log(`Elapsed: ${elapsed}`).pipe(
                 Effect.map(() => result)
               )
             })
@@ -33,6 +33,7 @@ const program = elapsed(task)
 
 Effect.runPromise(program).then(console.log)
 /*
-... message="Elapsed: 204"
+Output:
+Elapsed: 204
 some task
 */
