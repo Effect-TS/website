@@ -14,6 +14,7 @@ const program = Effect.gen(function* (_) {
 
 Effect.runPromise(program)
 /*
+Output:
 SubscriptionRef changed to 0
 SubscriptionRef changed to 1
 SubscriptionRef changed to 2
