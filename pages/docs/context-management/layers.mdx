@@ -169,33 +169,53 @@ into a single `IngredientsLive` layer, which retains the requirements of both la
 Layers can be composed using the `Layer.provide` combinator:
 
 ```ts
-layer1.pipe(Layer.provide(layer2))
+first.pipe(Layer.provide(second))
 ```
 
-Sequential composition of layers implies that the output of one layer is used as input for the subsequent layer,
+Sequential composition of layers implies that the output of one layer (`first`) is used as input for the subsequent layer (`second`),
 resulting in one layer with the requirement of the first, and the output of the second.
 
 Now we can compose the `MeasuringCupLive` layer with the `IngredientsLive` layer, and then compose the result with the `RecipeLive` layer:
 
 ```ts filename="index.ts" file=<rootDir>/src/guide/context-management/layers/index2.ts
-import { Layer } from "effect"
-import { FlourLive, SugarLive } from "./Ingredients"
-import { MeasuringCupLive } from "./MeasuringCup"
-import { RecipeLive } from "./Recipe"
 
-// Layer<MeasuringCup, never, Flour | Sugar>
-const IngredientsLive = Layer.merge(FlourLive, SugarLive)
-
-// Layer<never, never, Recipe>
-const MainLive = MeasuringCupLive.pipe(
-  Layer.provide(IngredientsLive), // provides the MeasuringCup to the ingredients
-  Layer.provide(RecipeLive) // provides the ingredients to the recipe
-)
 ```
+
+Alternatively, you can achieve composition with the `Layer.use` combinator.
+This allows you to compose layers in a bottom-up fashion:
+
+```ts
+second.pipe(Layer.use(first))
+```
+
+Let's revisit our `MainLive` layer:
+
+```ts file=<rootDir>/src/guide/context-management/layers/index2-use.ts#L9-
+
+```
+
+In both cases, whether you use `provide` or `use`, the result is the same (`Layer<never, never, Recipe>`). The choice between them depends on your convenience and the flow of your application.
+
+### Merging and Composing
+
+Let's say we want our `MainLive` layer to return both the `MeasuringCup` and `Recipe` services.
+We can achieve this with `Layer.provideMerge`:
+
+```ts filename="index.ts" file=<rootDir>/src/guide/context-management/layers/index2-provideMerge.ts
+
+```
+
+Alternatively, you can achieve the same result in a bottom-up fashion by using `Layer.useMerge`:
+
+```ts filename="index.ts" file=<rootDir>/src/guide/context-management/layers/index2-useMerge.ts
+
+```
+
+In both cases, whether you use `provideMerge` or `useMerge`, the result is the same (`Layer<never, never, MeasuringCup | Recipe>`). The choice between them depends on your convenience and the flow of your application.
 
 ## Providing a Layer to an Effect
 
-Now that we have assembled the fully resolved `MainLayer` for our application,
+Now that we have assembled the fully resolved `MainLive` for our application,
 we can provide it to our program to satisfy the program's requirements using `Effect.provideLayer(effect, layer){:ts}`:
 
 <Tabs>
