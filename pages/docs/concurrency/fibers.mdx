@@ -1,0 +1,34 @@
+# Fibers
+
+## What is a Fiber?
+
+A "fiber" is a small unit of work or a lightweight thread of execution. It represents a specific computation or an effectful operation in a program. Fibers are used to manage concurrency and asynchronous tasks.
+
+Think of a fiber as a worker that performs a specific job. It can be started, paused, resumed, and even interrupted. Fibers are useful when we want to perform multiple tasks simultaneously or handle long-running operations without blocking the main program.
+
+By using fibers, developers can control and coordinate the execution of tasks, allowing for efficient multitasking and responsiveness in their applications.
+
+To summarize:
+
+- An `Effect` is a higher-level concept that describes an effectful computation. It is lazy and immutable, meaning it represents a computation that may produce a value or fail but does not immediately execute.
+- A fiber, on the other hand, represents the running execution of an `Effect`. It can be interrupted or awaited to retrieve its result. Think of it as a way to control and interact with the ongoing computation.
+
+## Creating Fibers
+
+A fiber is created any time an effect is run. When running effects concurrently, a fiber is created for each concurrent effect.
+
+## When do Fibers run?
+
+New fibers begin execution after the current fiber completes or yields. This is necessary to prevent infinite loops in some cases, and is useful to know when using the `fork` APIs.
+
+In the following example the `SubscriptionRef` `changes` stream only contains a single value `2` because the fiber (created by `fork`) to run the stream is started _after_ the value has been updated.
+
+```ts file=<rootDir>/src/guide/concurrency/fibers/fiber-fork.ts
+
+```
+
+If we add `Effect.yieldNow()` to force the current fiber to yield then the stream will contain all values `0`, `1`, and `2` because the fiber running the stream has an opportunity to start before the value is changed.
+
+```ts file=<rootDir>/src/guide/concurrency/fibers/fiber-fork-yieldNow.ts
+
+```
