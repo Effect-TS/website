@@ -8,6 +8,7 @@ const program = Effect.gen(function* (_) {
     Stream.runDrain,
     Effect.fork
   )
+  yield* _(Effect.yieldNow())
   yield* _(SubscriptionRef.set(ref, 1))
   yield* _(SubscriptionRef.set(ref, 2))
 })
