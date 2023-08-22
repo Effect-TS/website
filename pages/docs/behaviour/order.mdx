@@ -1,5 +1,141 @@
 # Order
 
-import { Stub } from "@/components/Stub"
+The Order module provides a way to compare values and determine their order.
+It defines an interface `Order<A>` which represents a single function for comparing two values of type `A`.
+The function returns `-1`, `0`, or `1`, indicating whether the first value is less than, equal to, or greater than the second value.
 
-<Stub />
+Here's the basic structure of an `Order`:
+
+```ts
+interface Order<A> {
+  (first: A, second: A): -1 | 0 | 1
+}
+```
+
+## Using the Built-in Orders
+
+The Order module comes with several built-in comparators for common data types:
+
+- `string`: Used for comparing strings.
+- `number`: Used for comparing numbers.
+- `bigint`: Used for comparing big integers.
+- `Date`: Used for comparing `Date`s.
+
+Here's how you can use these comparators:
+
+```ts file=<rootDir>/src/order/built-in.ts
+
+```
+
+## Sorting Arrays
+
+Once you have your comparators, you can sort arrays. The ReadonlyArray module provides a handy function called `sort` that allows you to sort arrays without modifying the original array. Here's an example:
+
+```ts file=<rootDir>/src/order/sort.ts
+
+```
+
+You can even use an `Order` as a comparator in JavaScript's native `Array.sort` method:
+
+```ts file=<rootDir>/src/order/sort-native.ts
+
+```
+
+Please note that when using `Array#sort`, you modify the original array. So, be cautious if you want to keep the original order. If you don't want to alter the original array, consider using `ReadonlyArray.sort` as shown earlier.
+
+## Deriving Orders
+
+Sometimes, when working with more complex data structures, you may need to create custom sorting rules.
+The `Order` module allows you to do this by deriving a new `Order` from an existing one using the `Order.mapInput` function.
+
+Imagine you have a list of `Person` objects, and you want to sort them by their names in ascending order.
+To achieve this, you can create a custom `Order`.
+
+Here's how you can do it:
+
+```ts file=<rootDir>/src/order/deriving.ts#L1-L10
+
+```
+
+In this example, we first import the necessary modules and define the `Person` interface, representing our data structure.
+Next, we create a custom sorting rule called `byName` using the `mapInput` function.
+
+The `mapInput` function takes two arguments:
+
+1. The existing sorting rule you want to use as a base (`Order.string` in this case, for comparing strings).
+2. A function that extracts the value you want to use for sorting from your data structure (`person.name` in this case).
+
+Once you have defined your custom sorting rule, you can apply it to sort a list of `Person` objects:
+
+```ts file=<rootDir>/src/order/deriving.ts#L12-
+
+```
+
+## Combining Orders
+
+The Order module not only handles basic comparisons but also empowers you to create intricate sorting rules. This is especially valuable when you need to sort data based on multiple criteria or properties.
+
+The `combine*` functions in the Order module enables you to merge two or more `Order` instances, resulting in a new `Order` that incorporates the combined sorting logic. Let's walk through an example to illustrate this concept.
+
+Imagine you have a list of people, each represented by an object with a `name` and an `age`. You want to sort this list first by name and then, for individuals with the same name, by age.
+
+Here's how you can achieve this using the Order module:
+
+```ts file=<rootDir>/src/order/combining.ts
+
+```
+
+In the code above, we first create two separate `Order` instances: `byName` and `byAge`. These orders individually sort people by their names and ages, respectively.
+
+Next, we use the `combine` function to merge these two orders into a single `byNameAge` order. This combined order first sorts people by name and then, for those with the same name, by age.
+
+Finally, we apply this combined order to the array of people using `ReadonlyArray.sort`. The result is an array of people sorted according to the specified criteria.
+
+## Additional Useful Functions
+
+The Order module extends its functionality by providing additional functions for common operations. These functions make it easier to work with ordered values and perform various comparisons. Let's explore each of them:
+
+### Reversing Order
+
+The `Order.reverse` function does exactly what its name suggests; it reverses the order of comparison. If you have an `Order` that sorts values in ascending order, applying `reverse` will sort them in descending order.
+
+```ts file=<rootDir>/src/order/reverse.ts
+
+```
+
+### Comparing Values
+
+These functions allow you to perform simple comparisons between values:
+
+- `lessThan`: Checks if one value is strictly less than another.
+- `greaterThan`: Checks if one value is strictly greater than another.
+- `lessThanOrEqualTo`: Checks if one value is less than or equal to another.
+- `greaterThanOrEqualTo`: Checks if one value is greater than or equal to another.
+
+```ts file=<rootDir>/src/order/comparing.ts
+
+```
+
+### Finding Minimum and Maximum
+
+The `min` and `max` functions return the minimum or maximum value between two values, considering the order. These functions are particularly useful when you want to determine the smallest or largest value among multiple options.
+
+```ts file=<rootDir>/src/order/min-max.ts
+
+```
+
+### Clamping Values
+
+The `clamp` function ensures that a value stays within a specified range. It takes three arguments: the value you want to clamp, the minimum bound, and the maximum bound. If the value falls outside the range, it's adjusted to the nearest bound.
+
+```ts file=<rootDir>/src/order/clamp.ts
+
+```
+
+### Checking Value Range
+
+The `between` function checks if a value falls within a specified range, inclusively. It takes three arguments: the value you want to check, the minimum bound, and the maximum bound.
+
+```ts file=<rootDir>/src/order/between.ts
+
+```
