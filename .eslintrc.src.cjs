@@ -22,7 +22,7 @@ module.exports = {
     "plugin:@typescript-eslint/recommended",
     "plugin:expect-type/recommended"
   ],
-  plugins: ["eslint-plugin-expect-type"],
+  plugins: ["eslint-plugin-expect-type", "import"],
   rules: {
     "no-fallthrough": "off",
     "no-irregular-whitespace": "off",
