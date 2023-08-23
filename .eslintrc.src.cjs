@@ -4,23 +4,23 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: "module",
-    project: "./tsconfig.src.json",
+    project: "./tsconfig.src.json"
   },
   settings: {
     "import/parsers": {
-      "@typescript-eslint/parser": [".ts", ".tsx"],
+      "@typescript-eslint/parser": [".ts", ".tsx"]
     },
     "import/resolver": {
       typescript: {
-        alwaysTryTypes: true,
-      },
-    },
+        alwaysTryTypes: true
+      }
+    }
   },
   extends: [
     "eslint:recommended",
     "plugin:@typescript-eslint/eslint-recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:expect-type/recommended",
+    "plugin:expect-type/recommended"
   ],
   plugins: ["eslint-plugin-expect-type"],
   rules: {
@@ -41,7 +41,7 @@ module.exports = {
     "simple-import-sort/imports": "off",
     "@typescript-eslint/array-type": [
       "warn",
-      { default: "generic", readonly: "generic" },
+      { default: "generic", readonly: "generic" }
     ],
     "@typescript-eslint/member-delimiter-style": 0,
     "@typescript-eslint/no-non-null-assertion": "off",
@@ -58,5 +58,6 @@ module.exports = {
     "@typescript-eslint/no-array-constructor": "off",
     "@typescript-eslint/no-use-before-define": "off",
     "@typescript-eslint/no-namespace": "off",
-  },
+    "react-hooks/rules-of-hooks": "off"
+  }
 }
