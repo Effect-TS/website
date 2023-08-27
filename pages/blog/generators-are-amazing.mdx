@@ -1,0 +1,159 @@
+---
+title: Generators Are Amazing
+description: 'Exploring the usage of generators and their advantage over plain async-await'
+searchable: false
+series: false
+---
+
+In this article we'll first briefly discuss programming styles and what problems async/await resolves we'll then take it further and see how the same problems can be solved for custom types different from `Promise<A>` and why it is important.
+
+## Imperative vs Declarative
+
+When learning to program the very first style of programming we encounter is usually the imperative style, we are thought to think of programs as series of instructions (statements) that are executed by our language one by one and one after another.
+
+A simple example of this style can be:
+
+```ts
+const program = () => {
+    const a = Math.random()
+    const b = Math.random()
+    const c = a + b
+    console.log(`${a} + ${b} = ${c}`)
+}
+program()
+```
+
+In this program we are:
+1) defining two constants `a` and `b`
+2) computing their sum and calling the result of such computation `c`
+3) we are printing a message to show our computation as `a + b = c`
+
+We can see here how we are progressively giving instructions to our machine and how we are expecting every step to have access to all the context from the previous.
+
+This programming model is very powerful and it maps precisely to how we are used to think about algorithms and procedures in real life.
+
+Life's good until we face the reality, when we introduce concurrency in our code, namely asyncronious concurrency.
+
+Let's assume generating random numbers and computing their sum being expensive operations and being asyncronious, let's see what options we are presented with.
+
+Using `Promise<A>` we can write our program like:
+
+```ts
+const random = () =>
+  new Promise<number>((onValue) => {
+    // pretend we schedule something
+    setTimeout(() => {
+      // call onValue when we are done
+      onValue(Math.random())
+    }, 1000)
+  })
+
+const computeSum = (a: number, b: number) =>
+  new Promise<number>((onValue) => {
+    setTimeout(() => {
+      onValue(a + b)
+    }, 1000)
+  })
+
+const program = () =>
+  random().then((a) =>
+    random().then((b) =>
+      computeSum(a, b).then((c) => console.log(`${a} + ${b} = ${c}`))
+    )
+  )
+
+program()
+```
+
+We can easily see how this style leads to contrived and hard to read code, all of our operations are either nested or they lose access to any previous steps. This style of programming is commonly known as "functional" or "declarative", our program isn't any longer a sequence of instructions, it's rather more similar to a chain of function calls.
+
+To solve this issue in `JS` we are gifted with `async / await` when we use `Promise<A>` we can use custom syntax to represent our program in a way that is familiar to us and very similar to our initial version, using this syntax our program becomes:
+
+```ts
+const random = () =>
+  new Promise<number>((onValue) => {
+    // pretend we schedule something
+    setTimeout(() => {
+      // call onValue when we are done
+      onValue(Math.random())
+    }, 1000)
+  })
+
+const computeSum = (a: number, b: number) =>
+  new Promise<number>((onValue) => {
+    setTimeout(() => {
+      onValue(a + b)
+    }, 1000)
+  })
+
+const program = async () => {
+  const a = await random()
+  const b = await random()
+  const c = await computeSum(a, b)
+  console.log(`${a} + ${b} = ${c}`)
+}
+```
+
+## Limits of Promises & Async-Await
+
+- Sync & Async code looks different, writing utilities that work with both sync and async functions becomes impossible
+- Changing a single nested operation from sync to async bubbles up to the rest of our program
+- We don't have any idea about what errors our code can raise, both in sync & async code
+- We cannot represent any higher order behaviour such as `repeat(5)(random())` because the promise content is invoked as soon as the promise is constructed, we need to resort to use `() => Promise<A>` for example saying `repeat(5)(random)()`
+
+## Custom Result Types
+
+To resolve some of the issues folks have been investigating usage of custom types, for example if we ignore the problem of async code and only care about sync execution we could leverage a result type like `Either<Err, Ok>` and our code would become:
+
+```ts
+import * as Either from "@effect/data/Either"
+
+const random = (): Either.Either<"RandomGenerationError", number> => {
+  const n = Math.random()
+  if (n > 0.9) {
+    return Either.left("RandomGenerationError")
+  } else {
+    return Either.right(n)
+  }
+}
+
+const computeSum = (a: number, b: number): Either.Either<"ComputeSumError", number> => {
+  const n = a + b
+  if (n > 0.9) {
+    return Either.left("ComputeSumError")
+  } else {
+    return Either.right(n)
+  }
+}
+
+const program = (): Either.Either<"ComputeSumError" | "RandomGenerationError", void> => {
+  const a = random()
+  if (Either.isLeft(a)) {
+    return Either.left(a.left)
+  }
+  const b = random()
+  if (Either.isLeft(b)) {
+    return Either.left(b.left)
+  }
+  const c = random()
+  if (Either.isLeft(c)) {
+    return Either.left(c.left)
+  }
+  console.log(`${a.right} + ${b.right} = ${c.right}`)
+  return Either.right(void 0)
+}
+
+const result = program()
+
+if (Effect.isLeft(result)) {
+    console.error(result.left)
+}
+```
+
+While the code is now very precise on stating what may occur in the non-happy path we are back to code that looks different from what we are used to write, now at every step of our program we need to locally deal with the case the operation fails and in case of failures manually do early returns. This pattern is similar to writing Go code, where every statement returns an optional error, while it is easy to reason about mentally it leads to extreme verbosity of code, and even worse inference isn't really helping too much, if we are not annotating types manually we find ourselves with large union types that are impossible to read and deal with.
+
+Going back to code that looks normal can be done using generators, the same code as above can be rewrote as:
+
+// add back
+
+## Using Generators with Effect

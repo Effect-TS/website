@@ -8,21 +8,21 @@ date: June 7th, 2023
 The first step to achieve type safety in error management as one may imagine is to define errors, let's have a look at a usual piece of code with the objective of improving its safety.
 
 ```ts
-import * as S from "@effect/schema/Schema"
+import * as Schema from "@effect/schema/Schema"
 
-const Todo_ = S.struct({
+const Todo_ = Schema.struct({
   id: S.number,
   userId: S.number,
   title: S.string,
   completed: S.boolean,
 })
-export interface Todo extends S.To<typeof Todo_> {}
-export const Todo: S.Schema<Todo> = Todo_
+export interface Todo extends Schema.To<typeof Todo_> {}
+export const Todo: Schema.Schema<Todo> = Todo_
 
 export const fetchTodo = (id: number) =>
   fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
     .then((response) => response.json())
-    .then((value) => S.parseSync(Todo)(value))
+    .then((value) => Schema.parseSync(Todo)(value))
 ```
 
 Why can this code fail? when looking at the implementation we can easily spot at least 6 different causes of failure:
