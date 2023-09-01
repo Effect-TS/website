@@ -1,8 +1,8 @@
-import { Effect, Logger, LoggerLevel } from "effect"
+import { Effect, Logger, LogLevel } from "effect"
 
 const task1 = Effect.sleep("2 seconds").pipe(
   Effect.flatMap(() => Effect.logDebug("task1 done")),
-  Logger.withMinimumLogLevel(LoggerLevel.Debug)
+  Logger.withMinimumLogLevel(LogLevel.Debug)
 )
 
 const task2 = Effect.sleep("1 seconds").pipe(

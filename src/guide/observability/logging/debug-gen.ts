@@ -1,9 +1,9 @@
-import { Effect, Logger, LoggerLevel } from "effect"
+import { Effect, Logger, LogLevel } from "effect"
 
 const task1 = Effect.gen(function* (_) {
   yield* _(Effect.sleep("2 seconds"))
   yield* _(Effect.logDebug("task1 done"))
-}).pipe(Logger.withMinimumLogLevel(LoggerLevel.Debug))
+}).pipe(Logger.withMinimumLogLevel(LogLevel.Debug))
 
 const task2 = Effect.gen(function* (_) {
   yield* _(Effect.sleep("1 seconds"))

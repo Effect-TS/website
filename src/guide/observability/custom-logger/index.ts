@@ -1,4 +1,4 @@
-import { Effect, Logger, LoggerLevel } from "effect"
+import { Effect, Logger, LogLevel } from "effect"
 import * as CustomLogger from "./CustomLogger"
 import { program } from "./program"
 
@@ -7,7 +7,7 @@ const layer = Logger.replace(Logger.defaultLogger, CustomLogger.logger)
 
 Effect.runPromise(
   Effect.provideLayer(
-    Logger.withMinimumLogLevel(program, LoggerLevel.Debug),
+    Logger.withMinimumLogLevel(program, LogLevel.Debug),
     layer
   )
 )

@@ -17,18 +17,145 @@ To summarize:
 
 A fiber is created any time an effect is run. When running effects concurrently, a fiber is created for each concurrent effect.
 
+## Lifetime of Child Fibers
+
+When we fork fibers, depending on how we fork them we can have four different lifetime strategies for the child fibers:
+
+1. **Fork With Automatic Supervision**. If we use the ordinary `Effect.fork` operation, the child fiber will be automatically supervised by the parent fiber. The lifetime child fibers are tied to the lifetime of their parent fiber. This means that these fibers will be terminated either when they end naturally, or when their parent fiber is terminated.
+
+2. **Fork in Global Scope (Daemon)**. Sometimes we want to run long-running background fibers that aren't tied to their parent fiber, and also we want to fork them in a global scope. Any fiber that is forked in global scope will become daemon fiber. This can be achieved by using the `Effect.forkDaemon` operator. As these fibers have no parent, they are not supervised, and they will be terminated when they end naturally, or when our application is terminated.
+
+3. **Fork in Local Scope**. Sometimes, we want to run a background fiber that isn't tied to its parent fiber, but we want to live that fiber in the local scope. We can fork fibers in the local scope by using `Effect.forkScoped`. Such fibers can outlive their parent fiber (so they are not supervised by their parents), and they will be terminated when their life end or their local scope is closed.
+
+4. **Fork in Specific Scope**. This is similar to the previous strategy, but we can have more fine-grained control over the lifetime of the child fiber by forking it in a specific scope. We can do this by using the `Effect.forkIn` operator.
+
+### Fork with Automatic Supervision
+
+Effect employs a **structured concurrency** model where the lifetimes of fibers are neatly nested. Simply put, the lifespan of a fiber depends on the lifespan of its parent fiber.
+
+To help clarify this concept, let's explore the following example. In this scenario, the `foo` fiber spawns the `bar` fiber. The `bar` fiber is engaged in a long-running task that never completes. What's important to note here is that Effect ensures the `bar` fiber will not outlive the `foo` fiber:
+
+```ts file=<rootDir>/src/concurrency/fibers/lifetime-of-child-fibers/fork.ts
+
+```
+
+When you run the above program, you'll see the following output:
+
+```
+Foo: started!
+Bar: still running!
+Bar: still running!
+Bar: still running!
+Foo: finished!
+```
+
+This pattern can be extended to any level of nested fibers.
+
+### Fork in Global Scope (Daemon)
+
+Using `Effect.forkDaemon` we can create a daemon fiber from an effect. Its lifetime is tied to the global scope. So if the parent fiber terminates, the daemon fiber will not be terminated. It will only will be terminated when the global scope is closed, or its life end naturally.
+
+```ts file=<rootDir>/src/concurrency/fibers/lifetime-of-child-fibers/forkDaemon.ts
+
+```
+
+If we run the above program, we will see the following output which shows that while the lifetime of the `foo` fiber ends after 3 seconds, the daemon fiber (`bar`) is still running:
+
+```
+Foo: started!
+Bar: still running!
+Bar: still running!
+Bar: still running!
+Foo: finished!
+Bar: still running!
+Bar: still running!
+Bar: still running!
+Bar: still running!
+Bar: still running!
+...etc...
+```
+
+Even if we interrupt the `foo` fiber, the daemon fiber (`bar`) will not be interrupted:
+
+```ts file=<rootDir>/src/concurrency/fibers/lifetime-of-child-fibers/forkDaemon-interrupted.ts
+
+```
+
+The output:
+
+```
+Foo: started!
+Bar: still running!
+Bar: still running!
+Foo: interrupted!
+Bar: still running!
+Bar: still running!
+Bar: still running!
+Bar: still running!
+Bar: still running!
+...etc...
+```
+
+### Fork in Local Scope
+
+Sometimes we want to attach fiber to a local scope. In such cases, we can use the `Effect.forkScoped` operator. By using this operator, the lifetime of the forked fiber can be outlived the lifetime of its parent fiber, and it will be terminated when the local scope is closed:
+
+```ts file=<rootDir>/src/concurrency/fibers/lifetime-of-child-fibers/forkScoped.ts
+
+```
+
+In the above example, the `bar` fiber forked in the local scope has bigger lifetime than its parent fiber (`foo`).
+So, when its parent fiber (`foo`) is terminated, the `bar` fiber still running in the local scope until the local scope is closed.
+Let's see the output:
+
+```
+Local scope started!
+Foo: started!
+Bar: still running!
+Bar: still running!
+Bar: still running!
+Foo: finished!
+Bar: still running!
+Bar: still running!
+Leaving the local scope!
+```
+
+### Fork in Specific Scope
+
+There are some cases where we need more fine-grained control, so we want to fork a fiber in a specific scope. We can use the `Effect.forkIn` operator which takes the target scope as an argument:
+
+```ts file=<rootDir>/src/concurrency/fibers/lifetime-of-child-fibers/forkIn.ts
+
+```
+
+The output:
+
+```
+Still running!
+Still running!
+Still running!
+The innermost scope is about to be closed.
+Still running!
+Still running!
+Still running!
+Still running!
+Still running!
+Still running!
+The outer scope is about to be closed.
+```
+
 ## When do Fibers run?
 
 New fibers begin execution after the current fiber completes or yields. This is necessary to prevent infinite loops in some cases, and is useful to know when using the `fork` APIs.
 
 In the following example the `SubscriptionRef` `changes` stream only contains a single value `2` because the fiber (created by `fork`) to run the stream is started _after_ the value has been updated.
 
-```ts file=<rootDir>/src/guide/concurrency/fibers/fiber-fork.ts
+```ts file=<rootDir>/src/concurrency/fibers/fiber-fork.ts
 
 ```
 
 If we add `Effect.yieldNow()` to force the current fiber to yield then the stream will contain all values `0`, `1`, and `2` because the fiber running the stream has an opportunity to start before the value is changed.
 
-```ts file=<rootDir>/src/guide/concurrency/fibers/fiber-fork-yieldNow.ts
+```ts file=<rootDir>/src/concurrency/fibers/fiber-fork-yieldNow.ts
 
 ```
