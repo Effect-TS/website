@@ -1,0 +1,72 @@
+# Timing out
+
+In the world of programming, we often deal with tasks that take some time to complete. Sometimes, we want to set a limit on how long we are willing to wait for a task to finish. This is where the `Effect.timeout` function comes into play. It allows us to put a time constraint on an operation, ensuring that it doesn't run indefinitely. In this guide, we'll explore how to use `Effect.timeout` effectively.
+
+## timeout
+
+Effect lets us timeout any effect using the `Effect.timeout` function, which returns a new effect that succeeds with an [`Option`](../data-types/option):
+
+- A `None` indicates that the timeout elapsed before the effect could complete its execution.
+- A `Some` indicates that the effect completed before the timeout elapsed, and the `Some` contains the result of the effect.
+
+If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
+
+Suppose we have the following effect:
+
+```ts file=<rootDir>/src/guide/error-management/timing-out/program.ts
+
+```
+
+When we apply `Effect.timeout` to `program`, it behaves in one of the following ways:
+
+1. If the original effect (`program` in this case) completes before the timeout elapses, it returns `Some` of the produced value by the original effect. Here's an example:
+
+   ```ts file=<rootDir>/src/guide/error-management/timing-out/1.ts
+
+   ```
+
+2. If the timeout elapses before the original effect completes, and the effect is interruptible, it will be immediately interrupted, and the timeout operation produces a `None` value. Here's an example:
+
+   ```ts file=<rootDir>/src/guide/error-management/timing-out/2.ts
+
+   ```
+
+3. If the effect is uninterruptible, it will be blocked until the original effect safely finishes its work, and then the timeout operator produces a `None` value. Here's an example:
+
+   ```ts file=<rootDir>/src/guide/error-management/timing-out/3.ts
+
+   ```
+
+   If we want to return early after the timeout has passed and before an underlying effect has been interrupted, we can use `Effect.disconnect`. This technique allows the original effect to be interrupted in the background. Here's an example:
+
+   ```ts file=<rootDir>/src/guide/error-management/timing-out/disconnect.ts
+
+   ```
+
+## Customizing Timeout Behavior
+
+In addition to the basic `Effect.timeout` function, there are variations available that allow you to customize the behavior when a timeout occurs.
+
+### timeoutTo
+
+The `timeoutTo` function is similar to `Effect.timeout`, but it provides more control over the final result type. It allows you to specify what should be returned in case of a timeout. Here's an example:
+
+```ts file=<rootDir>/src/guide/error-management/timing-out/timeoutTo.ts
+
+```
+
+### timeoutFail
+
+The `timeoutFail` function allows you to produce a specific error when a timeout happens. This can be helpful for signaling timeout errors in your code. Here's an example:
+
+```ts file=<rootDir>/src/guide/error-management/timing-out/timeoutFail.ts
+
+```
+
+### timeoutFailCause
+
+The `timeoutFailCause` function allows you to produce a specific defect when a timeout occurs. This is useful when you need to handle timeouts as exceptional cases in your code. Here's an example:
+
+```ts file=<rootDir>/src/guide/error-management/timing-out/timeoutFailCause.ts
+
+```
