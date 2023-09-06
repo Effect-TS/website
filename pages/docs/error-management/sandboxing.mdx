@@ -20,40 +20,8 @@ Once you have exposed the causes, you can utilize standard error-handling operat
 
 Let's walk through an example to illustrate how error sandboxing works:
 
-```ts
-import { Effect, Console } from "effect"
+```ts file=<rootDir>/src/guide/error-management/sandboxing/sandbox.ts
 
-// $ExpectType Effect<never, string, string>
-const effect = Effect.fail("Oh uh!").pipe(Effect.as("primary result"))
-
-// $ExpectType Effect<never, Cause<string>, string>
-const sandboxed = Effect.sandbox(effect)
-
-// $ExpectType Effect<never, Empty | Annotated<string> | Sequential<string> | Parallel<string>, string>
-const program = Effect.catchTags(sandboxed, {
-  Die: (cause) =>
-    Console.log(`Caught a defect: ${cause.defect}`).pipe(
-      Effect.as("fallback result on defect")
-    ),
-  Interrupt: (cause) =>
-    Console.log(`Caught a defect: ${cause.fiberId}`).pipe(
-      Effect.as("fallback result on fiber interruption")
-    ),
-  Fail: (cause) =>
-    Console.log(`Caught a defect: ${cause.error}`).pipe(
-      Effect.as("fallback result on failure")
-    )
-})
-
-// $ExpectType Effect<never, string, string>
-const main = Effect.unsandbox(program)
-
-Effect.runPromise(main).then(console.log)
-/*
-Output:
-Caught a defect: Oh uh!
-fallback result on failure
-*/
 ```
 
 In this example, we expose the full cause of an effect using `Effect.sandbox`. Then, we handle specific error conditions using `Effect.catchTags`. Finally, if needed, we can undo the sandboxing operation with `Effect.unsandbox`.
