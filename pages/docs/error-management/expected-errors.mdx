@@ -184,7 +184,7 @@ indicating that all errors has been handled.
 Effect<never, never, string>
 ```
 
-## Catching a Specific Error
+## Catching Some Errors
 
 Suppose we want to handle a specific error, such as `FooError`.
 
@@ -214,7 +214,17 @@ indicating that all errors has been handled.
 </Tab>
 <Tab>
 
-If all the errors in our program are tagged with a `_tag` field as a discriminant, we can use the `Effect.catchTag` function to catch and handle specific errors.
+If we want to catch and recover from only some types of errors and effectfully attempt recovery, we can use the `Effect.catchSome` function:
+
+```ts /FooError | BarError/ file=<rootDir>/src/guide/error-management/expected-errors/catchSome.ts
+
+```
+
+In the code above, `Effect.catchSome` takes a function that examines the error (`error`) and decides whether to attempt recovery or not. If the error matches a specific condition, recovery can be attempted by returning `Option.some(effect)`. If no recovery is possible, you can simply return `Option.none()`.
+
+It's essential to understand that while `Effect.catchSome` allows you to catch specific errors, it **cannot reduce or eliminate the error type** itself. In other words, the resulting effect (`recovered` in this case) will still have the same error type (`FooError | BarError`) as the original effect.
+
+However, if your program's errors are all tagged with a `_tag` field that acts as a discriminator, there is a solution. You can use the `Effect.catchTag` function to catch and handle specific errors with precision.
 
 ```ts {6-8} file=<rootDir>/src/guide/error-management/expected-errors/catch-error-pipe.ts
 
