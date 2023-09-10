@@ -6,11 +6,23 @@ const program = Effect.log("start").pipe(
   Effect.flatMap(() => Effect.log("done"))
 )
 
-Effect.runPromise(program).catch((error) =>
-  console.log(`interrupted: ${error}`)
+Effect.runPromise(program).catch((fiberFailure) =>
+  console.log(`interrupted: ${fiberFailure}`)
 )
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message=start
-interrupted: All fibers interrupted without errors.
+interrupted: {
+  "_id": "FiberFailure",
+  "cause": {
+    "_id": "Cause",
+    "_tag": "Interrupt",
+    "fiberId": {
+      "_id": "FiberId",
+      "_tag": "Runtime",
+      "id": 0,
+      "startTimeMillis": ...
+    }
+  }
+}
 */
