@@ -39,8 +39,18 @@ task1 done
 task2 done
 task3 done
 [
-  { _tag: 'Right', right: 1 },
-  { _tag: 'Left', left: 'Uh oh!' },
-  { _tag: 'Right', right: 3 }
+  {
+    _id: "Either",
+    _tag: "Right",
+    right: 1
+  }, {
+    _id: "Either",
+    _tag: "Left",
+    left: "Uh oh!"
+  }, {
+    _id: "Either",
+    _tag: "Right",
+    right: 3
+  }
 ]
 */
