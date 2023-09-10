@@ -1,4 +1,4 @@
-import { Effect, Option, Console } from "effect"
+import { Effect, Option } from "effect"
 import { Random } from "./service"
 
 // $ExpectType Effect<never, never, void>
@@ -9,5 +9,5 @@ const program = Effect.gen(function* (_) {
       -1
     : // the service is available
       yield* _(maybeRandom.value.next)
-  return yield* _(Console.log(`${randomNumber}`))
+  console.log(randomNumber)
 })

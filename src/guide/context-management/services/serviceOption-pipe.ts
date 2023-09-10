@@ -14,7 +14,7 @@ const program = Effect.serviceOption(Random).pipe(
   Effect.flatMap((randomNumber) => Console.log(`${randomNumber}`))
 )
 
-Effect.runSync(
+Effect.runPromise(
   Effect.provideService(
     program,
     Random,
@@ -22,5 +22,5 @@ Effect.runSync(
       next: Effect.sync(() => Math.random())
     })
   )
-)
+).then(console.log)
 // Output: 0.9957979486841035
