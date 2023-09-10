@@ -1,15 +1,25 @@
 import { Effect } from "effect"
 
-Effect.runPromiseExit(Effect.succeed(1)).then((result1) => console.log(result1))
+Effect.runPromiseExit(Effect.succeed(1)).then(console.log)
 /*
 Output:
-{ _tag: 'Success', value: 1 }
+{
+  _id: "Exit",
+  _tag: "Success",
+  value: 1
+}
 */
 
-Effect.runPromiseExit(Effect.fail("error")).then((result2) =>
-  console.log(result2)
-)
+Effect.runPromiseExit(Effect.fail("my error")).then(console.log)
 /*
 Output:
-{ _tag: 'Failure', cause: { _tag: 'Cause', errors: [ [Object] ] } }
+{
+  _id: "Exit",
+  _tag: "Failure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "my error"
+  }
+}
 */
