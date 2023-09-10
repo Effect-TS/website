@@ -1,4 +1,4 @@
-import { Effect, Config } from "effect"
+import { Effect, Config, Console } from "effect"
 
 // $ExpectType Effect<never, ConfigError, void>
 const program = Effect.all([
@@ -6,7 +6,7 @@ const program = Effect.all([
   Effect.config(Config.number("PORT"))
 ]).pipe(
   Effect.flatMap(([host, port]) =>
-    Effect.sync(() => console.log(`Application started: ${host}:${port}`))
+    Console.log(`Application started: ${host}:${port}`)
   )
 )
 
