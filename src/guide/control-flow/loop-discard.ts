@@ -11,7 +11,7 @@ const result = Effect.loop(
   }
 )
 
-console.log(Effect.runSync(result))
+Effect.runPromise(result).then(console.log)
 /*
 Output:
 Currently at state 1

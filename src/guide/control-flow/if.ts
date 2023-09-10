@@ -6,4 +6,4 @@ const flipTheCoin = Effect.if(Random.nextBoolean, {
   onFalse: Console.log("Tail")
 })
 
-Effect.runSync(flipTheCoin)
+Effect.runPromise(flipTheCoin)

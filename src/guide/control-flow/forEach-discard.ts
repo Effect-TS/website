@@ -8,7 +8,7 @@ const result = Effect.forEach(
   { discard: true }
 )
 
-console.log(Effect.runSync(result))
+Effect.runPromise(result).then(console.log)
 /*
 Output:
 Currently at index 0

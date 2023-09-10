@@ -5,7 +5,7 @@ const result = Effect.forEach([1, 2, 3, 4, 5], (n, index) =>
   Console.log(`Currently at index ${index}`).pipe(Effect.as(n * 2))
 )
 
-console.log(Effect.runSync(result))
+Effect.runPromise(result).then(console.log)
 /*
 Output:
 Currently at index 0
