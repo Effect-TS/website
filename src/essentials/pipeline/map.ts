@@ -8,4 +8,4 @@ const mappedEffect = pipe(
   Effect.map((x) => increment(x))
 )
 
-console.log(Effect.runSync(mappedEffect)) // Output: 6
+Effect.runPromise(mappedEffect).then(console.log) // Output: 6

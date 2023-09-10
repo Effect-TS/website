@@ -11,4 +11,4 @@ const flatMappedEffect = pipe(
   Effect.flatMap(([a, b]) => divide(a, b))
 )
 
-console.log(Effect.runSync(flatMappedEffect)) // Output: 5
+Effect.runPromise(flatMappedEffect).then(console.log) // Output: 5
