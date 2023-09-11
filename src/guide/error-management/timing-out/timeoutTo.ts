@@ -22,5 +22,9 @@ Effect.runPromise(main).then(console.log)
 /*
 Output:
 start doing something...
-{ _tag: 'Left', left: 'timeout!' }
+{
+  _id: "Either",
+  _tag: "Left",
+  left: "timeout!"
+}
 */
