@@ -20,5 +20,5 @@ Effect.runPromise(main).then(console.log)
 /*
 Output:
 start doing something...
-new Error("timeout")
+Error: timeout
 */

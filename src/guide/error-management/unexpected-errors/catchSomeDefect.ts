@@ -17,8 +17,21 @@ const program = Effect.catchSomeDefect(
 
 // Since we are only catching IllegalArgumentException
 // we will get an Exit.Failure because we simulated a runtime error.
-console.log(Effect.runSyncExit(program))
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
-{ _tag: 'Failure', cause: { _tag: 'Cause', errors: [ [Object] ] } }
+{
+  _id: "Exit",
+  _tag: "Failure",
+  cause: {
+    _id: "Cause",
+    _tag: "Die",
+    defect: {
+      _tag: "RuntimeException",
+      message: "Boom!",
+      [Symbol(@effect/io/Cause/errors/RuntimeException)]: Symbol(@effect/io/Cause/errors/RuntimeException),
+      toString: [Function: toString]
+    }
+  }
+}
 */

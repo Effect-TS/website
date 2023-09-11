@@ -14,6 +14,18 @@ const program = task1.pipe(
 Effect.runPromise(program).then(console.log, console.error)
 /*
 Output:
-Error: Oh uh!
-Error: Oh no!
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Sequential",
+    errors: [
+      {
+        message: "Error: Oh uh!"
+      }, {
+        message: "Error: Oh no!"
+      }
+    ]
+  }
+}
 */

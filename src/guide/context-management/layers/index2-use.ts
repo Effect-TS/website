@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect"
+import { Layer } from "effect"
 import { FlourLive, SugarLive } from "./Ingredients"
 import { MeasuringCupLive } from "./MeasuringCup"
 import { RecipeLive } from "./Recipe"

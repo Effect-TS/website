@@ -10,4 +10,14 @@ const program = Effect.forEach([1, 2, 3, 4, 5], (n) => {
 })
 
 Effect.runPromise(program).then(console.log, console.error)
-// Output: Error: 4 is not less that 4
+/*
+Output:
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "4 is not less that 4"
+  }
+}
+*/

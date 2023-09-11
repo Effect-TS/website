@@ -8,13 +8,9 @@ const failure: Effect.Effect<never, Error, number> = Effect.fail(
 // $ExpectType Effect<never, never, string>
 const program1 = Effect.matchEffect(success, {
   onFailure: (error) =>
-    Effect.succeed(`failure: ${error.message}`).pipe(
-      Effect.tap((message) => Effect.log(message))
-    ),
+    Effect.succeed(`failure: ${error.message}`).pipe(Effect.tap(Effect.log)),
   onSuccess: (value) =>
-    Effect.succeed(`success: ${value}`).pipe(
-      Effect.tap((message) => Effect.log(message))
-    )
+    Effect.succeed(`success: ${value}`).pipe(Effect.tap(Effect.log))
 })
 
 console.log(Effect.runSync(program1))
@@ -27,13 +23,9 @@ success: 42
 // $ExpectType Effect<never, never, string>
 const program2 = Effect.matchEffect(failure, {
   onFailure: (error) =>
-    Effect.succeed(`failure: ${error.message}`).pipe(
-      Effect.tap((message) => Effect.log(message))
-    ),
+    Effect.succeed(`failure: ${error.message}`).pipe(Effect.tap(Effect.log)),
   onSuccess: (value) =>
-    Effect.succeed(`success: ${value}`).pipe(
-      Effect.tap((message) => Effect.log(message))
-    )
+    Effect.succeed(`success: ${value}`).pipe(Effect.tap(Effect.log))
 })
 
 console.log(Effect.runSync(program2))

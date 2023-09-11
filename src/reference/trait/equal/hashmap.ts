@@ -7,4 +7,12 @@ const map = HashMap.empty().pipe(
 
 console.log(HashMap.size(map)) // Output: 1
 
-console.log(HashMap.get(map, Data.struct({ name: "Alice", age: 30 }))) // Output: some(2)
+console.log(HashMap.get(map, Data.struct({ name: "Alice", age: 30 })))
+/*
+Output:
+{
+  _id: "Option",
+  _tag: "Some",
+  value: 2
+}
+*/

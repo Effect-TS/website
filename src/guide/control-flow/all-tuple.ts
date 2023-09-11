@@ -8,7 +8,7 @@ const tuple = [
 // $ExpectType Effect<never, never, [number, string]>
 const combinedEffect = Effect.all(tuple)
 
-console.log(Effect.runSync(combinedEffect))
+Effect.runPromise(combinedEffect).then(console.log)
 /*
 Output:
 42

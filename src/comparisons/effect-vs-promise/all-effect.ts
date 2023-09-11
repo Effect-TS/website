@@ -33,5 +33,16 @@ Executing task2...
 Executing task3...
 task1 done
 task2 done
-Error: Uh oh!
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Parallel",
+    errors: [
+      {
+        message: "Error: Uh oh!"
+      }
+    ]
+  }
+}
 */

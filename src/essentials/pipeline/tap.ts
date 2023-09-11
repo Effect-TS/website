@@ -5,7 +5,7 @@ const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-const flatMappedEffect = pipe(
+const program = pipe(
   Effect.succeed([10, 2]),
   Effect.tap(([a, b]) =>
     Effect.sync(() => console.log(`Performing division: ${a} / ${b}`))
@@ -14,7 +14,7 @@ const flatMappedEffect = pipe(
   Effect.flatMap(([a, b]) => divide(a, b))
 )
 
-console.log(Effect.runSync(flatMappedEffect))
+Effect.runPromise(program).then(console.log)
 /*
 Output:
 Performing division: 10 / 2

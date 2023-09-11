@@ -12,12 +12,12 @@ const repeated = Effect.retryOrElse(effect, policy, () =>
   Console.log("orElse").pipe(Effect.as("default value"))
 )
 
-Effect.runPromise(repeated).then((s) => console.log(`result: ${s}`))
+Effect.runPromise(repeated).then(console.log)
 /*
 Output:
 failure
 failure
 failure
 orElse
-result: default value
+default value
 */

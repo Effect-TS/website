@@ -5,4 +5,4 @@ const divide = (a: number, b: number): Effect.Effect<never, never, number> =>
     ? Effect.die(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-Effect.runSync(divide(1, 0)) // throws Error("Cannot divide by zero")
+Effect.runSync(divide(1, 0)) // throws Error: Cannot divide by zero

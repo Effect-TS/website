@@ -16,5 +16,9 @@ Effect.runPromise(main).then(console.log)
 Output:
 start doing something...
 my job is finished!
-{ _tag: 'Some', value: 'some result' }
+{
+  _id: "Option",
+  _tag: "Some",
+  value: "some result"
+}
 */

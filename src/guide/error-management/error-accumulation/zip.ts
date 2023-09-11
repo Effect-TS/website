@@ -13,4 +13,14 @@ const program = task1.pipe(
 )
 
 Effect.runPromise(program).then(console.log, console.error)
-// Output: Error: Oh uh!
+/*
+Output:
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "Oh uh!"
+  }
+}
+*/

@@ -1,3 +1,10 @@
 import { Duration } from "effect"
 
-console.log(String(Duration.infinity)) // Duration(Infinity)
+console.log(String(Duration.infinity))
+/*
+Output:
+{
+  "_id": "Duration",
+  "_tag": "Infinity"
+}
+*/

@@ -12,7 +12,7 @@ const program = Effect.gen(function* (_) {
   console.log(`This counter has a value of ${value}.`)
 })
 
-Effect.runSync(program)
+Effect.runPromise(program)
 /*
 Output:
 This counter has a value of 2.

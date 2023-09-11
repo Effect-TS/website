@@ -16,7 +16,7 @@ const program = Counter.make.pipe(
   )
 )
 
-Effect.runSync(program)
+Effect.runPromise(program)
 /*
 This counter has a value of 2.
 */

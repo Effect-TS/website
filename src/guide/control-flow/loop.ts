@@ -10,4 +10,4 @@ const result = Effect.loop(
   }
 )
 
-console.log(Effect.runSync(result)) // Output: [1, 2, 3, 4, 5]
+Effect.runPromise(result).then(console.log) // Output: [1, 2, 3, 4, 5]

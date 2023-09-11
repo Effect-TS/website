@@ -8,7 +8,7 @@ const struct = {
 // $ExpectType Effect<never, never, { a: number; b: string; }>
 const combinedEffect = Effect.all(struct)
 
-console.log(Effect.runSync(combinedEffect))
+Effect.runPromise(combinedEffect).then(console.log)
 /*
 Output:
 42

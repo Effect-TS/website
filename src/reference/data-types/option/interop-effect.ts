@@ -7,4 +7,4 @@ console.log(
   Effect.runSync(Effect.succeed([1, 2, 3]).pipe(Effect.flatMap(head)))
 ) // Output: 1
 
-Effect.runSync(Effect.succeed([]).pipe(Effect.flatMap(head))) // Throws NoSuchElementException
+Effect.runSync(Effect.succeed([]).pipe(Effect.flatMap(head))) // throws NoSuchElementException: undefined

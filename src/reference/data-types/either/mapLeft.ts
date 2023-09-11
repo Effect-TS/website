@@ -1,9 +1,5 @@
 import { Either } from "effect"
 
-const foo = Either.mapLeft(Either.right(42), (s) => s + "!")
-console.log(foo)
-// Output: right(42)
+Either.mapLeft(Either.right(1), (s) => s + "!") // right(1)
 
-const bar = Either.mapLeft(Either.left("not a number"), (s) => s + "!")
-console.log(bar)
-// Output: left("not a number!")
+Either.mapLeft(Either.left("not a number"), (s) => s + "!") // left("not a number!")

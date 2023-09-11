@@ -30,5 +30,9 @@ Executing task1...
 Executing task2...
 Executing task3...
 task1 done
-{ _tag: 'Left', left: 'Something went wrong!' }
+{
+  _id: "Either",
+  _tag: "Left",
+  left: "Something went wrong!"
+}
 */

@@ -18,5 +18,5 @@ const runnable = Effect.provideService(
   })
 )
 
-Effect.runSync(runnable)
+Effect.runPromise(runnable).then(console.log)
 // Output: random number: 0.8241872233134417

@@ -6,4 +6,4 @@ const head = <A>(array: ReadonlyArray<A>): Either.Either<string, A> =>
 const foo = Effect.runSync(Effect.flatMap(Effect.succeed([1, 2, 3]), head))
 console.log(foo) // Output: 1
 
-const bar = Effect.runSync(Effect.flatMap(Effect.succeed([]), head)) // Throws "empty array"
+const bar = Effect.runSync(Effect.flatMap(Effect.succeed([]), head)) // throws "empty array"

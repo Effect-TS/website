@@ -6,12 +6,12 @@ const policy = Schedule.fixed("100 millis")
 
 const repeated = Effect.retry(effect, policy)
 
-Effect.runPromise(repeated).then((s) => console.log(`result: ${s}`))
+Effect.runPromise(repeated).then(console.log)
 /*
 Output:
 failure
 failure
 failure
 success
-result: yay!
+yay!
 */

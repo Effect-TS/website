@@ -8,4 +8,11 @@ const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
   age
 }))
 
-console.log(person) // none
+console.log(person)
+/*
+Output:
+{
+  _id: "Option",
+  _tag: "None"
+}
+*/

@@ -8,7 +8,7 @@ const record: Record<string, Effect.Effect<never, never, number>> = {
 // $ExpectType Effect<never, never, { [x: string]: number; }>
 const combinedEffect = Effect.all(record)
 
-console.log(Effect.runSync(combinedEffect))
+Effect.runPromise(combinedEffect).then(console.log)
 /*
 Output:
 1

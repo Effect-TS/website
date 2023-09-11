@@ -9,4 +9,4 @@ const result = Effect.iterate(
   }
 )
 
-console.log(Effect.runSync(result)) // Output: 6
+Effect.runPromise(result).then(console.log) // Output: 6

@@ -39,11 +39,14 @@ const getNames = Ref.make(Chunk.empty<string>()).pipe(
   })
 )
 
-Effect.runPromise(getNames).then((result) => console.log(String(result)))
+Effect.runPromise(getNames).then(console.log)
 /*
 Output:
 Please enter a name or `q` to exit: Alice
 Please enter a name or `q` to exit: Bob
 Please enter a name or `q` to exit: q
-Chunk(John, Jane, Alice, Joe, Bob, Tom)
+{
+  _id: "Chunk",
+  values: [ ... ]
+}
 */
