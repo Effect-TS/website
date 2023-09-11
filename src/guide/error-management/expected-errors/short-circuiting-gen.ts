@@ -2,7 +2,7 @@ import { Effect, Console } from "effect"
 
 // Define three effects representing different tasks.
 const task1 = Console.log("Executing task1...")
-const task2 = Effect.fail(new Error("Something went wrong!"))
+const task2 = Effect.fail("Something went wrong!")
 const task3 = Console.log("Executing task3...")
 
 // Compose the three tasks to run them in sequence.
@@ -13,12 +13,16 @@ const program = Effect.gen(function* (_) {
   yield* _(task3) // This computation won't be executed because the previous one fails
 })
 
-// $ExpectType Exit<Error, void>
-const result = Effect.runSyncExit(program)
-
-console.log("result: ", result)
+Effect.runPromise(program).then(console.log, console.error)
 /*
 Output:
 Executing task1...
-result: { _tag: 'Failure', cause: { _tag: 'Cause', errors: [ [Object] ] } }
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "Something went wrong!"
+  }
+}
 */
