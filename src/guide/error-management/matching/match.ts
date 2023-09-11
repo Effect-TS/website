@@ -11,7 +11,7 @@ const program1 = Effect.match(success, {
   onSuccess: (value) => `success: ${value}`
 })
 
-console.log(Effect.runSync(program1)) // Output: "success: 42"
+Effect.runPromise(program1).then(console.log) // Output: "success: 42"
 
 // $ExpectType Effect<never, never, string>
 const program2 = Effect.match(failure, {
@@ -19,4 +19,4 @@ const program2 = Effect.match(failure, {
   onSuccess: (value) => `success: ${value}`
 })
 
-console.log(Effect.runSync(program2)) // Output: "failure: Uh oh!"
+Effect.runPromise(program2).then(console.log) // Output: "failure: Uh oh!"
