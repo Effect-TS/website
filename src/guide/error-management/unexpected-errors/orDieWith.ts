@@ -11,4 +11,4 @@ const program = Effect.orDieWith(
   (error) => new Error(`defect: ${error.message}`)
 )
 
-Effect.runSync(program) // throws Error("defect: Cannot divide by zero")
+Effect.runSync(program) // throws Error: defect: Cannot divide by zero
