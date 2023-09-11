@@ -22,5 +22,5 @@ type PositiveInt = Brand.Brand.FromConstructor<typeof PositiveInt>
 
 // Usage example
 const value1: PositiveInt = PositiveInt(10) // Valid positive integer
-const value2: PositiveInt = PositiveInt(-5) // Throws an error: [ { message: 'Expected -5 to be positive' } ]
-const value3: PositiveInt = PositiveInt(3.14) // Throws an error: [ { message: 'Expected 3.14 to be an integer' } ]
+const value2: PositiveInt = PositiveInt(-5) // throws [ { message: 'Expected -5 to be positive' } ]
+const value3: PositiveInt = PositiveInt(3.14) // throws [ { message: 'Expected 3.14 to be an integer' } ]

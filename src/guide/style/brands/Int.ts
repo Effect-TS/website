@@ -12,7 +12,7 @@ const x: Int = Int(3)
 console.log(x) // Output: 3
 
 // Attempt to create a value of type Int with a non-integer value
-const y: Int = Int(3.14) // Throws an error: [ { message: 'Expected 3.14 to be an integer' } ]
+const y: Int = Int(3.14) // throws [ { message: 'Expected 3.14 to be an integer' } ]
 
 // ✅
 const good: Int = Int(3)
