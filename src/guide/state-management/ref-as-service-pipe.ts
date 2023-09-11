@@ -43,7 +43,7 @@ const initialState = Ref.make(0)
 const runnable = Effect.provideServiceEffect(program, MyState, initialState)
 
 // Run the program and observe the output
-Effect.runFork(runnable)
+Effect.runPromise(runnable)
 /*
 Output:
 MyState has a value of 2.

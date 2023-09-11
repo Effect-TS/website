@@ -22,7 +22,7 @@ const program = Counter.make.pipe(
   })
 )
 
-Effect.runSync(program)
+Effect.runPromise(program)
 /*
 Output:
 ... fiber=#2 message="get: 0"

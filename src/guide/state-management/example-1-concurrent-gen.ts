@@ -23,7 +23,7 @@ const program = Effect.gen(function* (_) {
   yield* _(Effect.log(`This counter has a value of ${value}.`))
 })
 
-Effect.runSync(program)
+Effect.runPromise(program)
 /*
 Output:
 ... fiber=#2 message="get: 0"

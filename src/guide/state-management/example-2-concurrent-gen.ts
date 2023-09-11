@@ -34,11 +34,14 @@ const getNames = Effect.gen(function* (_) {
   return yield* _(Ref.get(ref))
 })
 
-Effect.runPromise(getNames).then((result) => console.log(String(result)))
+Effect.runPromise(getNames).then(console.log)
 /*
 Output:
 Please enter a name or `q` to exit: Alice
 Please enter a name or `q` to exit: Bob
 Please enter a name or `q` to exit: q
-Chunk(John, Jane, Alice, Joe, Bob, Tom)
+{
+  _id: "Chunk",
+  values: [ ... ]
+}
 */
