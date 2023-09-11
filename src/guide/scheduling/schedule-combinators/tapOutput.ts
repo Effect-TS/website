@@ -1,8 +1,8 @@
-import { Effect, Schedule } from "effect"
+import { Effect, Schedule, Console } from "effect"
 import * as Delay from "./Delay"
 
 const schedule = Schedule.tapOutput(Schedule.recurs(2), (n) =>
-  Effect.sync(() => console.log(`repeating ${n}`))
+  Console.log(`repeating ${n}`)
 )
 
 Effect.runPromise(Effect.repeat(Delay.log, schedule))
