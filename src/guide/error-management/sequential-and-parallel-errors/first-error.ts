@@ -1,4 +1,4 @@
-import { Effect, Exit, Cause } from "effect"
+import { Effect } from "effect"
 
 const fail = Effect.fail("Oh uh!")
 const die = Effect.dieMessage("Boom!")
@@ -9,12 +9,15 @@ const program = Effect.all([fail, die]).pipe(
   Effect.asUnit
 )
 
-Effect.runPromiseExit(program).then((exit) => {
-  if (Exit.isFailure(exit) && Cause.isFailType(exit.cause)) {
-    console.log(exit.cause.error)
-  }
-})
+Effect.runPromise(program).then(console.log, console.error)
 /*
 Output:
-Oh uh!
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "Oh uh!"
+  }
+}
 */

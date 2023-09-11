@@ -1,28 +1,25 @@
-import { Effect, Exit } from "effect"
+import { Effect } from "effect"
 
 const fail = Effect.fail("Oh uh!")
 const die = Effect.dieMessage("Boom!")
 
 const program = fail.pipe(Effect.ensuring(die))
 
-Effect.runPromiseExit(program).then((exit) => {
-  if (Exit.isFailure(exit)) {
-    console.log(exit.cause._tag)
-    console.log(JSON.stringify(exit.cause, null, 2))
-  }
-})
+Effect.runPromise(program).then(console.log, console.error)
 /*
 Output:
-Sequential
 {
-  "_tag": "Cause",
-  "errors": [
-    {
-      "message": "Error: Oh uh!"
-    },
-    {
-      "message": "RuntimeException: Boom!"
-    }
-  ]
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Sequential",
+    errors: [
+      {
+        message: "Error: Oh uh!"
+      }, {
+        message: "Error: RuntimeException: Boom!"
+      }
+    ]
+  }
 }
 */

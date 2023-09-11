@@ -39,35 +39,8 @@ In this example, `Effect.parallelErrors` combines the errors from `fail1` and `f
 
 When working with resource-safety operators like `Effect.ensuring`, you may encounter multiple sequential errors. This happens because regardless of whether the original effect has any errors or not, the finalizer is uninterruptible and will run. Here's an example:
 
-```ts
-import { Effect, Exit } from "effect"
+```ts file=<rootDir>/src/guide/error-management/sequential-and-parallel-errors/sequential-errors.ts
 
-const fail = Effect.fail("Oh uh!")
-const die = Effect.dieMessage("Boom!")
-
-const program = fail.pipe(Effect.ensuring(die))
-
-Effect.runPromiseExit(program).then((exit) => {
-  if (Exit.isFailure(exit)) {
-    console.log(exit.cause._tag)
-    console.log(JSON.stringify(exit.cause, null, 2))
-  }
-})
-/*
-Output:
-Sequential
-{
-  "_tag": "Cause",
-  "errors": [
-    {
-      "message": "Error: Oh uh!"
-    },
-    {
-      "message": "RuntimeException: Boom!"
-    }
-  ]
-}
-*/
 ```
 
 In this case, the `program` will result in multiple sequential errors if both `fail` and the finalizer `die` encounter errors.
