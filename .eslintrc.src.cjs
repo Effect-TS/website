@@ -22,7 +22,7 @@ module.exports = {
     "plugin:@typescript-eslint/recommended",
     "plugin:expect-type/recommended"
   ],
-  plugins: ["eslint-plugin-expect-type", "import"],
+  plugins: ["eslint-plugin-expect-type", "import", "unused-imports"],
   rules: {
     "no-fallthrough": "off",
     "no-irregular-whitespace": "off",
@@ -50,6 +50,7 @@ module.exports = {
     "@typescript-eslint/no-empty-interface": "off",
     "@typescript-eslint/consistent-type-imports": "off",
     "@typescript-eslint/no-unused-vars": "off",
+    "unused-imports/no-unused-imports": "error",
     "@typescript-eslint/ban-ts-comment": "off",
     "@typescript-eslint/camelcase": "off",
     "@typescript-eslint/explicit-function-return-type": "off",
