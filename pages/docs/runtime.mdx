@@ -61,3 +61,58 @@ Runtime Systems have a lot of responsibilities:
 5. **Ensure finalizers are run appropriately**. They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed that clean-up logic is executed. This is the feature that powers [`Scope`](./resource-management) and all the other resource-safe constructs in Effect.
 
 6. **Handle asynchronous callback**. They have to handle this messy job of dealing with asynchronous callbacks. So we don't have to deal with async code. When we are using Effect, everything can be interpreted as async or sync out of the box.
+
+## Default Runtime
+
+Effect provides a default runtime named `Runtime.defaultRuntime` designed for mainstream usage.
+
+The default runtime provides the minimum capabilities to bootstrap execution of Effect tasks.
+
+Both of the following executions are equivalent:
+
+```ts file=<rootDir>/src/guide/runtime/defaultRuntime.ts
+
+```
+
+Under the hood, `Effect.runSync` (and the same principle applies to other `Effect.run*` functions) serves as a convenient shorthand for `Runtime.runSync(Runtime.defaultRuntime)`.
+
+## Locally Scoped Runtime Configuration
+
+In Effect, runtime configurations are typically inherited from their parent workflows. This means that when we access a runtime configuration or obtain a runtime inside a workflow, we are essentially using the configuration of the parent workflow. However, there are cases where we want to temporarily override the runtime configuration for a specific part of our code. This concept is known as locally scoped runtime configuration. Once the execution of that code region is completed, the runtime configuration reverts to its original settings.
+
+To achieve this, we make use of `Effect.provide*` functions, which allow us to provide a new runtime configuration to a specific section of our code.
+
+### Configuring Runtime by Providing Configuration Layers
+
+By utilizing the `Effect.provideLayer` function and providing runtime configuration layers to an Effect workflow, we can easily modify runtime configurations.
+
+Here's an example:
+
+```ts file=<rootDir>/src/guide/runtime/addSimpleLogger.ts
+
+```
+
+In this example, we first create a configuration layer for a simple logger using `Logger.replace`.
+Then, we use `Effect.provideLayer` to provide this configuration to our program, effectively overriding the default logger with the simple logger.
+
+To ensure that the runtime configuration is only applied to a specific part of an Effect application, we should provide the configuration layer exclusively to that particular section, as demonstrated in the following example:
+
+```ts file=<rootDir>/src/guide/runtime/addSimpleLogger-region.ts
+
+```
+
+## Top-level Runtime Configuration
+
+When developing an Effect application and executing it using `Effect.run*` functions, the application is automatically run using the default runtime behind the scenes. While we can adjust and customize specific aspects of our Effect application by providing locally scoped configuration layers using `Effect.provideLayer` operations, there are scenarios where we need to customize the runtime configuration for the entire application from the top level.
+
+In such situations, we can create a top-level runtime by converting a configuration layer into a runtime using the `Layer.toRuntime` operator:
+
+```ts file=<rootDir>/src/guide/runtime/toRuntime.ts
+
+```
+
+In this example, we first create a custom configuration layer called `appLayer`, which includes modifications to the logger configuration. Next, we transform this configuration layer into a runtime using `Layer.toRuntime`. This results in a top-level runtime that encapsulates the desired configuration for the entire Effect application.
+
+We then define a custom runtime function named `myrunSync` using `Runtime.runSync(runtime)`. Finally, we create our Effect program and execute it using the custom runtime, which applies the top-level configuration.
+
+By customizing the top-level runtime configuration, we can tailor the behavior of our entire Effect application to meet our specific needs and requirements.
