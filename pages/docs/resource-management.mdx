@@ -2,15 +2,125 @@ import { Tabs, Tab } from "@/components/Code"
 
 # Resource Management
 
+In the context of developing long-lived applications, resource management plays a critical role. Effective resource management is indispensable when building large-scale applications. It's imperative that our application is resource-efficient and does not result in resource leaks.
+
+Resource leaks, such as unclosed socket connections, database connections, or file descriptors, are unacceptable in web applications. Effect offers robust constructs to address this concern effectively.
+
+To create an application that manages resources safely, we must ensure that every time we open a resource, we have a mechanism in place to close it. This applies whether we fully utilize the resource or encounter exceptions during its use.
+
+In the following sections, we'll delve deeper into how Effect simplifies resource management and ensures resource safety in your applications.
+
+## Scope
+
 The `Scope` data type is fundamental for managing resources safely and in a composable manner in Effect.
 
 In simple terms, a scope represents the lifetime of one or more resources. When a scope is closed, the resources associated with it are guaranteed to be released.
 
+With the `Scope` data type, you can:
+
+- **Add finalizers**, which represent the release of a resource.
+- **Close** the scope, releasing all acquired resources and executing any added finalizers.
+
+To grasp the concept better, let's delve into an example that demonstrates how it works.
+It's worth noting that in typical Effect usage, you won't often find yourself working with these low-level APIs for managing scopes.
+
+```ts file=<rootDir>/src/guide/resource-management/scope.ts
+
+```
+
+By default, when a `Scope` is closed, all finalizers added to that `Scope` are executed in the reverse order in which they were added. This approach makes sense because releasing resources in the reverse order of acquisition ensures that resources are properly closed.
+
+For instance, if you open a network connection and then access a file on a remote server, you must close the file before closing the network connection. This sequence is critical to maintaining the ability to interact with the remote server.
+
 By combining `Scope` with the Effect context, we gain a powerful way to manage resources effectively.
+
+## addFinalizer
+
+Now, let's dive into the `Effect.addFinalizer` function, which provides a higher-level API for adding finalizers to the scope of an `Effect` value. These finalizers are guaranteed to execute when the associated scope is closed, and their behavior may depend on the `Exit` value with which the scope is closed.
+
+Let's explore some examples to understand this better.
+
+Let's observe how things behave in the event of success:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-succeed-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-succeed-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+Here, the `Effect.addFinalizer` operator adds a `Scope` to the context required by the workflow, as indicated by:
+
+```ts /Scope/
+Effect<Scope, never, void>
+```
+
+This signifies that the workflow needs a `Scope` to execute. You can provide this `Scope` using the `Effect.scoped` operator. It creates a new `Scope`, supplies it to the workflow, and closes the `Scope` once the workflow is complete.
+
+The `Effect.scoped` operator removes the `Scope` from the context, indicating that the workflow no longer requires any resources associated with a scope.
+
+Next, let's explore how things behave in the event of a failure:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-fail-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-fail-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+Finally, let's explore the behavior in the event of an interruption:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-interrupt-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-interrupt-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
 
 ## Defining Resources
 
 We can define a resource using operators like `Effect.acquireRelease(acquire, release){:ts}`, which allows us to create a scoped value from an `acquire` and `release` workflow.
+
+Every acquire release requires three actions:
+
+- **Acquiring Resource**. An effect describing the acquisition of resource. For example, opening a file.
+- **Using Resource**. An effect describing the actual process to produce a result. For example, counting the number of lines in a file.
+- **Releasing Resource**. An effect describing the final step of releasing or cleaning up the resource. For example, closing a file.
+
+The `acquireRelease` operator performs the `acquire` workflow **uninterruptibly**.
+This is important because if we allowed interruption during resource acquisition we could be interrupted when the resource was partially acquired.
+
+The guarantee of the `acquireRelease` operator is that if the `acquire` workflow successfully completes execution then the `release` workflow is guaranteed to be run when the `Scope` is closed.
 
 For example, let's define a simple resource:
 
@@ -64,7 +174,7 @@ Once we are done working with the resource, we can close the scope using the `Ef
 </Tab>
 </Tabs>
 
-The `scoped` operator removes the `Scope` from the context, indicating that there are no longer any resources used by this workflow which require a scope.
+The `Effect.scoped` operator removes the `Scope` from the context, indicating that there are no longer any resources used by this workflow which require a scope.
 
 We now have a workflow that is ready to run:
 
