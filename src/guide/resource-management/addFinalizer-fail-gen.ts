@@ -5,7 +5,7 @@ const program = Effect.gen(function* (_) {
   yield* _(
     Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
   )
-  yield* _(Effect.fail("Uh oh!"))
+  return yield* _(Effect.fail("Uh oh!"))
 })
 
 // $ExpectType Effect<never, string, never>
