@@ -116,3 +116,35 @@ In this example, we first create a custom configuration layer called `appLayer`,
 We then define a custom runtime function named `myrunSync` using `Runtime.runSync(runtime)`. Finally, we create our Effect program and execute it using the custom runtime, which applies the top-level configuration.
 
 By customizing the top-level runtime configuration, we can tailor the behavior of our entire Effect application to meet our specific needs and requirements.
+
+## Providing Context to the Runtime System
+
+Custom runtimes can simplify the execution of multiple effects that require the same environment. This eliminates the need to use `Effect.provide*` on each individual effect before running them.
+
+Let's break down this concept with an example. Imagine we want to create a `Runtime` tailored for testing purposes, where services don't interact with real external APIs. In such cases, we can design a custom runtime specifically for testing.
+
+Suppose we have defined two services: `LoggingService` and `EmailService`:
+
+```ts file=<rootDir>/src/guide/runtime/make.ts#L1-L13
+
+```
+
+We plan to implement a live version of `LoggingService` and a fake version of `EmailService` for testing:
+
+```ts file=<rootDir>/src/guide/runtime/make.ts#L15-L21
+
+```
+
+Let's create a custom runtime that includes these two service implementations within its context:
+
+```ts file=<rootDir>/src/guide/runtime/make.ts#L23-L30
+
+```
+
+Now we can execute our effects using this custom `Runtime<LoggingService | EmailService>`:
+
+```ts file=<rootDir>/src/guide/runtime/make.ts#L32-
+
+```
+
+By providing context to the runtime system, we create a specialized environment for our effects, making it easier to test and control their behavior as needed.
