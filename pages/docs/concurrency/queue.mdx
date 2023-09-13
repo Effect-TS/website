@@ -1,5 +1,113 @@
 # Queue
 
-import { Stub } from "@/components/Stub"
+A `Queue` is a lightweight in-memory queue built on Effect with composable and transparent back-pressure.
+It is fully asynchronous (no locks or blocking), purely-functional and type-safe.
 
-<Stub />
+## Basic Operations
+
+A `Queue<A>` stores values of type `A` and provides two fundamental operations:
+
+- `Queue.offer`: This operation adds a value of type `A` to the `Queue`.
+- `Queue.take`: It removes and returns the oldest value from the `Queue`.
+
+Here's an example demonstrating these basic operations:
+
+```ts file=<rootDir>/src/concurrency/queue/basic-operations.ts
+
+```
+
+## Creating a Queue
+
+A `Queue` can have bounded (limited capacity) or unbounded storage. Depending on your requirements, you can choose from various strategies to handle new values when the queue reaches its capacity.
+
+### Bounded Queue
+
+A bounded queue provides back-pressure when it's full. This means that if the queue is full, any attempt to add more items will be suspended until there's space available.
+
+```ts file=<rootDir>/src/concurrency/queue/bounded.ts
+
+```
+
+### Dropping Queue
+
+A dropping queue simply drops new items when it's full. It doesn't wait for space to become available.
+
+```ts file=<rootDir>/src/concurrency/queue/dropping.ts
+
+```
+
+### Sliding Queue
+
+A sliding queue removes old items when it's full to accommodate new ones.
+
+```ts file=<rootDir>/src/concurrency/queue/sliding.ts
+
+```
+
+### Unbounded Queue
+
+An unbounded queue has no capacity limit.
+
+```ts file=<rootDir>/src/concurrency/queue/unbounded.ts
+
+```
+
+## Adding Items to a Queue
+
+To add a value to the queue, you can use the `Queue.offer` operation:
+
+```ts file=<rootDir>/src/concurrency/queue/offer.ts
+
+```
+
+If you're using a back-pressured queue and it's full, the `offer` operation might suspend. In such cases, you can use `Effect.fork` to wait in a different execution context (fiber).
+
+```ts file=<rootDir>/src/concurrency/queue/offer-fork.ts
+
+```
+
+You can also add multiple values at once using `Queue.offerAll`:
+
+```ts file=<rootDir>/src/concurrency/queue/offerAll.ts
+
+```
+
+## Consuming Items from a Queue
+
+The `Queue.take` operation removes the oldest item from the queue and returns it. If the queue is empty, it will suspend and resume only when an item is added to the queue. You can also use `Effect.fork` to wait for the value in a different execution context (fiber).
+
+```ts file=<rootDir>/src/concurrency/queue/take.ts
+
+```
+
+You can retrieve the first item using `Queue.poll`. If the queue is empty, you'll get `None`; otherwise, the top item will be wrapped in `Some`.
+
+```ts file=<rootDir>/src/concurrency/queue/poll.ts
+
+```
+
+You can retrieve multiple items at once using `Queue.takeUpTo`. If the queue doesn't have enough items to return, it will return all the available items without waiting for more offers.
+
+```ts file=<rootDir>/src/concurrency/queue/takeUpTo.ts
+
+```
+
+Similarly, you can retrieve all items at once using `Queue.takeAll`. It returns immediately, providing an empty collection if the queue is empty.
+
+```ts file=<rootDir>/src/concurrency/queue/takeAll.ts
+
+```
+
+## Shutting Down a Queue
+
+With `Queue.shutdown`, you can interrupt all fibers that are suspended on `offer*` or `take*`. It also empties the queue and causes all future `offer*` and `take*` calls to terminate immediately.
+
+```ts file=<rootDir>/src/concurrency/queue/shutdown.ts
+
+```
+
+You can use `Queue.awaitShutdown` to execute an effect when the queue is shut down. This function waits until the queue is shut down, and if it's already shut down, it resumes immediately.
+
+```ts file=<rootDir>/src/concurrency/queue/awaitShutdown.ts
+
+```
