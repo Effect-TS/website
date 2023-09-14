@@ -25,7 +25,7 @@ const testableRuntime = Runtime.make({
   context: Context.make(LoggingService, LoggingServiceLive).pipe(
     Context.add(EmailService, EmailServiceFake)
   ),
-  fiberRefs: FiberRefs.unsafeMake(new Map()),
+  fiberRefs: FiberRefs.empty(),
   runtimeFlags: Runtime.defaultRuntimeFlags
 })
 

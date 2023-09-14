@@ -1,5 +1,108 @@
 # Hub
 
-import { Stub } from "@/components/Stub"
+In this guide, we'll explore the concept of a `Hub`, which is an asynchronous message hub. It allows publishers to send messages to the hub, and subscribers can receive those messages.
 
-<Stub />
+Unlike a [`Queue`](queue), where each value offered to the queue can be taken by **one** taker, each value published to a hub can be received by **all** subscribers.
+
+Whereas a `Queue` represents the optimal solution to the problem of how to **distribute** values, a `Hub` represents the optimal solution to the problem of how to **broadcast** them.
+
+## Basic Operations
+
+The core operations of a `Hub` are `Hub.publish` and `Hub.subscribe`:
+
+- The `publish` operation sends a message of type A to the hub. It returns an effect that indicates whether the message was successfully published.
+- The `subscribe` operation returns a scoped effect that allows you to subscribe to the hub. It automatically unsubscribes when the scope is closed. Within the scope, you gain access to a `Dequeue`, which is essentially a `Queue` for dequeuing messages published to the hub.
+
+Let's look at an example to understand how to use a hub:
+
+```ts file=<rootDir>/src/concurrency/hub/basic-operations.ts
+
+```
+
+It's important to note that a subscriber will only receive messages published to the hub while it's subscribed. To ensure that a specific message reaches a subscriber, make sure that the subscription has been established before publishing the message.
+
+## Creating Hubs
+
+You can create a hub using various constructors provided by the Hub module:
+
+### Bounded Hub
+
+A bounded hub applies back pressure to publishers when it's at capacity, meaning publishers will block if the hub is full.
+
+```ts file=<rootDir>/src/concurrency/hub/bounded.ts
+
+```
+
+Back pressure ensures that all subscribers receive all messages while they are subscribed. However, it can lead to slower message delivery if a subscriber is slow.
+
+### Dropping Hub
+
+A dropping hub simply discards values if it's full. The `Hub.publish` function will return `false` when the hub is full.
+
+```ts file=<rootDir>/src/concurrency/hub/dropping.ts
+
+```
+
+In a dropping hub, publishers can continue to publish new values, but subscribers are not guaranteed to receive all messages.
+
+### Sliding Hub
+
+A sliding hub drops the oldest value when it's full, ensuring that publishing always succeeds immediately.
+
+```ts file=<rootDir>/src/concurrency/hub/sliding.ts
+
+```
+
+A sliding hub prevents slow subscribers from impacting the message delivery rate. However, there's still a risk that slow subscribers may miss some messages.
+
+### Unbounded Hub
+
+An unbounded hub can never be full, and publishing always succeeds immediately.
+
+```ts file=<rootDir>/src/concurrency/hub/unbounded.ts
+
+```
+
+Unbounded hubs guarantee that all subscribers receive all messages without slowing down message delivery. However, they can grow indefinitely if messages are published faster than they are consumed.
+
+Generally, it's recommended to use bounded, dropping, or sliding hubs unless you have specific use cases for unbounded hubs.
+
+## Operators On Hubs
+
+Hubs support various operations similar to those available on queues.
+
+### Publishing Multiple Values
+
+You can use the `Hub.publishAll` operator to publish multiple values to the hub at once:
+
+```ts file=<rootDir>/src/concurrency/hub/publishAll.ts
+
+```
+
+### Checking Size
+
+You can determine the capacity and current size of the hub using `Hub.capacity` and `Hub.size`:
+
+```ts file=<rootDir>/src/concurrency/hub/size.ts
+
+```
+
+Note that `capacity` returns a `number` because the capacity is set at hub creation and never changes. In contrast, `size` returns an effect that determines the current size of the hub since the number of messages in the hub can change over time.
+
+### Shutting Down a Hub
+
+You can shut down a hub using `Hub.shutdown`, check if it's shut down with `Hub.isShutdown`, or await its shutdown with `Hub.awaitShutdown`. Shutting down a hub also shuts down all associated queues, ensuring the proper propagation of the shutdown signal.
+
+## Hub as an Enqueue
+
+As you can see, the operators on `Hub` are identical to the ones on [`Queue`](queue) with the exception of `Hub.publish` and `Hub.subscribe` replacing `Queue.offer` and `Queue.take`. So if you know how to use a `Queue`, you already know how to use a `Hub`.
+
+In fact, a `Hub` can be viewed as a `Queue` that can only be written to:
+
+```ts
+interface Hub<A> extends Queue.Enqueue<A> {}
+```
+
+Here, the `Enqueue` type represents a queue that can only be enqueued. Enqueuing to the queue publishes a value to the hub, and actions like shutting down the queue also shut down the hub.
+
+This versatility allows you to use a `Hub` wherever you currently use a `Queue` that you only write to.
