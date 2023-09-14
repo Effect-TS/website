@@ -1,0 +1,34 @@
+# Introduction to Streams
+
+In this guide, we'll explore the concept of a `Stream<R, E, A>`. A `Stream` is a program description that, when executed, can emit **zero or more values** of type `A`, handle errors of type `E`, and operates within a context of type `R`.
+
+## What is a Stream?
+
+Think of a `Stream` as an extension of an `Effect`. While an `Effect<R, E, A>` represents a program that requires a context of type `R`, may encounter an error of type `E`, and always produces a single result of type `A`, a `Stream<R, E, A>` takes this further by allowing the emission of zero or more values of type `A`.
+
+To clarify, let's examine some examples using `Effect`:
+
+```ts file=<rootDir>/src/streaming/introduction/effects.ts
+
+```
+
+In each case, the `Effect` always ends with **exactly one value**. There is no variability; you always get one result.
+
+## Understanding Streams
+
+Now, let's shift our focus to `Stream`. A `Stream` represents a program description that shares similarities with `Effect`, it requires a context of type `R`, may signal errors of type `E`, and yields values of type `A`. However, the key distinction is that it can yield **zero or more values**.
+
+Here are the possible scenarios for a `Stream`:
+
+- **An Empty Stream**: It can end up empty, representing a stream with no values.
+- **A Single-Element Stream**: It can represent a stream with just one value.
+- **A Finite Stream of Elements**: It can represent a stream with a finite number of values.
+- **An Infinite Stream of Elements**: It can represent a stream that continues indefinitely, essentially an infinite stream.
+
+Let's see these scenarios in action:
+
+```ts file=<rootDir>/src/streaming/introduction/streams.ts
+
+```
+
+In summary, a `Stream` is a versatile tool for representing programs that may yield multiple values, making it suitable for a wide range of tasks, from processing finite lists to handling infinite sequences.
