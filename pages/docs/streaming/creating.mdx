@@ -1,5 +1,272 @@
 # Creating Streams
 
-import { Stub } from "@/components/Stub"
+In this section, we'll explore various methods for creating Effect `Stream`s. These methods will help you generate streams tailored to your needs.
 
-<Stub />
+## Common Constructors
+
+### make
+
+You can create a pure stream by using the `Stream.make` constructor. This constructor accepts a variable list of values as its arguments.
+
+```ts file=<rootDir>/src/streaming/creating/make.ts
+
+```
+
+### empty
+
+Sometimes, you may require a stream that doesn't produce any values. In such cases, you can use `Stream.empty`. This constructor creates a stream that remains empty.
+
+```ts file=<rootDir>/src/streaming/creating/empty.ts
+
+```
+
+### unit
+
+If you need a stream that contains a single `void` value, you can use `Stream.unit`. This constructor is handy when you want to represent a stream with a single event or signal.
+
+```ts file=<rootDir>/src/streaming/creating/unit.ts
+
+```
+
+### range
+
+To create a stream of integers within a specified range `[min, max)` (excluding `max`), you can use `Stream.range`. This is particularly useful for generating a stream of sequential numbers.
+
+```ts file=<rootDir>/src/streaming/creating/range.ts
+
+```
+
+### iterate
+
+With `Stream.iterate`, you can generate a stream by applying a function iteratively to an initial value. The initial value becomes the first element produced by the stream, followed by subsequent values produced by `f(init)`, `f(f(init))`, and so on.
+
+```ts file=<rootDir>/src/streaming/creating/iterate.ts
+
+```
+
+### scoped
+
+`Stream.scoped` is used to create a single-valued stream from a scoped resource. It can be handy when dealing with resources that require explicit acquisition, usage, and release.
+
+```ts file=<rootDir>/src/streaming/creating/scoped.ts
+
+```
+
+## From Success and Failure
+
+Much like the `Effect` data type, you can generate a `Stream` using the `fail` and `succeed` functions:
+
+```ts file=<rootDir>/src/streaming/creating/fail-succeed.ts
+
+```
+
+## From Chunks
+
+You can construct a stream from a `Chunk` like this:
+
+```ts file=<rootDir>/src/streaming/creating/fromChunk.ts
+
+```
+
+Moreover, you can create a stream from multiple `Chunk`s as well:
+
+```ts file=<rootDir>/src/streaming/creating/fromChunks.ts
+
+```
+
+## From Effect
+
+You can generate a stream from an Effect workflow by employing the `Stream.fromEffect` constructor. For instance, consider the following stream, which generates a single random number:
+
+```ts file=<rootDir>/src/streaming/creating/fromEffect.ts
+
+```
+
+This method allows you to seamlessly transform the output of an Effect into a stream, providing a straightforward way to work with asynchronous operations within your streams.
+
+## From Asynchronous Callback
+
+Suppose you have an asynchronous function that relies on callbacks. If you want to register callbacks on that function and receive a stream of the results emitted by those callbacks, you can use `Stream.async`. This function can adapt functions that invoke their callbacks multiple times and emit the results as a stream:
+
+```ts file=<rootDir>/src/streaming/creating/async.ts
+
+```
+
+The `register` function's error type is optional. By setting the error to `None`, you can use it to signal the end of the stream when needed. This allows you to handle asynchronous callback-based operations and collect their results in a stream.
+
+## From Iterables
+
+### fromIterable
+
+You can create a pure stream from an `Iterable` of values using the `Stream.fromIterable` constructor. It's a straightforward way to convert a collection of values into a stream.
+
+```ts file=<rootDir>/src/streaming/creating/fromIterable.ts
+
+```
+
+### fromIterableEffect
+
+When you have an effect that produces a value of type `Iterable`, you can employ the `Stream.fromIterableEffect` constructor to generate a stream from that effect.
+
+For instance, let's say you have a database operation that retrieves a list of users. Since this operation involves effects, you can utilize `Stream.fromIterableEffect` to convert the result into a `Stream`:
+
+```ts file=<rootDir>/src/streaming/creating/fromIterableEffect.ts
+
+```
+
+This enables you to work seamlessly with effects and convert their results into streams for further processing.
+
+## From Repetition
+
+### Repeating a Single Value
+
+You can create a stream that endlessly repeats a specific value using the `Stream.repeatValue` constructor:
+
+```ts file=<rootDir>/src/streaming/creating/repeatValue.ts
+
+```
+
+### Repeating a Stream's Content
+
+`Stream.repeat` allows you to create a stream that repeats a specified stream's content according to a schedule. This can be useful for generating recurring events or values.
+
+```ts file=<rootDir>/src/streaming/creating/repeat.ts
+
+```
+
+### Repeating an Effect's Result
+
+Imagine you have an effectful API call, and you want to use the result of that call to create a stream. You can achieve this by creating a stream from the effect and repeating it indefinitely.
+
+Here's an example of generating a stream of random numbers:
+
+```ts file=<rootDir>/src/streaming/creating/repeatEffect.ts
+
+```
+
+### Repeating an Effect with Termination
+
+You can repeatedly evaluate a given effect and terminate the stream based on specific conditions.
+
+In this example, we're draining an `Iterator` to create a stream from it:
+
+```ts file=<rootDir>/src/streaming/creating/repeatEffectOption.ts
+
+```
+
+### Generating Ticks
+
+You can create a stream that emits `void` values at specified intervals using the `Stream.tick` constructor. This is useful for creating periodic events.
+
+```ts file=<rootDir>/src/streaming/creating/tick.ts
+
+```
+
+## From Unfolding/Pagination
+
+In functional programming, the concept of `unfold` can be thought of as the counterpart to `fold`.
+
+With `fold`, we process a data structure and produce a return value. For example, we can take an `Array<number>` and calculate the sum of its elements.
+
+On the other hand, `unfold` represents an operation where we start with an initial value and generate a recursive data structure, adding one element at a time using a specified state function. For example, we can create a sequence of natural numbers starting from `1` and using the `increment` function as the state function.
+
+### Unfold
+
+#### unfold
+
+The Stream module includes an `unfold` function defined as follows:
+
+```ts
+declare const unfold: <S, A>(
+  initialState: S,
+  step: (s: S) => Option.Option<readonly [A, S]>
+) => Stream<never, never, A>
+```
+
+Here's how it works:
+
+- **initialState**. This is the initial state value.
+- **step**. The state function `step` takes the current state `s` as input. If the result of this function is `None`, the stream ends. If it's `Some<[A, S]>`, the next element in the stream is `A`, and the state `S` is updated for the next step process.
+
+For example, let's create a stream of natural numbers using `Stream.unfold`:
+
+```ts file=<rootDir>/src/streaming/creating/unfold.ts
+
+```
+
+#### unfoldEffect
+
+Sometimes, we may need to perform effectful state transformations during the unfolding operation. This is where `Stream.unfoldEffect` comes in handy. It allows us to work with effects while generating streams.
+
+Here's an example of creating an infinite stream of random `1` and `-1` values using `Stream.unfoldEffect`:
+
+```ts file=<rootDir>/src/streaming/creating/unfoldEffect.ts
+
+```
+
+#### Additional Variants
+
+There are also similar operations like `Stream.unfoldChunk` and `Stream.unfoldChunkEffect` tailored for working with `Chunk` data types.
+
+### Pagination
+
+#### paginate
+
+`Stream.paginate` is similar to `Stream.unfold` but allows emitting values one step further.
+
+For example, the following stream emits `0, 1, 2, 3` elements:
+
+```ts file=<rootDir>/src/streaming/creating/paginate.ts
+
+```
+
+Here's how it works:
+
+- We start with an initial value of `0`.
+- The provided function takes the current value `n` and returns a tuple. The first element of the tuple is the value to emit (`n`), and the second element determines whether to continue (`Option.some(n + 1)`) or stop (`Option.none()`).
+
+#### Additional Variants
+
+There are also similar operations like `Stream.paginateChunk` and `Stream.paginateChunkEffect` tailored for working with `Chunk` data types.
+
+### Unfolding vs. Pagination
+
+You might wonder about the difference between the `unfold` and `paginate` combinators and when to use one over the other. Let's explore this by diving into an example.
+
+Imagine we have a paginated API that provides a substantial amount of data in a paginated manner. When we make a request to this API, it returns a `ResultPage` object containing the results for the current page and a flag indicating whether it's the last page or if there's more data to retrieve on the next page. Here's a simplified representation of our API:
+
+```ts filename="domain.ts" file=<rootDir>/src/streaming/creating/unfolding-vs-pagination/domain.ts
+
+```
+
+Our goal is to convert this paginated API into a stream of `RowData` events. For our initial attempt, we might think that using the `Stream.unfold` operation is the way to go:
+
+```ts filename="firstAttempt.ts" file=<rootDir>/src/streaming/creating/unfolding-vs-pagination/firstAttempt.ts
+
+```
+
+However, this approach has a drawback, it doesn't include the results from the last page. To work around this, we perform an extra API call to include those missing results:
+
+```ts filename="secondAttempt.ts" file=<rootDir>/src/streaming/creating/unfolding-vs-pagination/secondAttempt.ts
+
+```
+
+While this approach works, it's clear that `Stream.unfold` isn't the most friendly option for retrieving data from paginated APIs. It requires additional workarounds to include the results from the last page.
+
+This is where `Stream.paginate` comes to the rescue. It provides a more ergonomic way to convert a paginated API into an Effect stream. Let's rewrite our solution using `Stream.paginate`:
+
+```ts filename="finalAttempt.ts" file=<rootDir>/src/streaming/creating/unfolding-vs-pagination/finalAttempt.ts
+
+```
+
+## From Queue and Hub
+
+In Effect, there are two essential asynchronous messaging data types: [`Queue`](../concurrency/queue) and [`Hub`](../concurrency/hub). You can easily transform these data types into `Stream`s by utilizing `Stream.fromQueue` and `Stream.fromHub`, respectively.
+
+## From Schedule
+
+We can create a stream from a `Schedule` that does not require any further input. The stream will emit an element for each value output from the schedule, continuing for as long as the schedule continues:
+
+```ts file=<rootDir>/src/streaming/creating/fromSchedule.ts
+
+```
