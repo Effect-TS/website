@@ -584,3 +584,84 @@ Output:
 ```
 
 It's important to note that the right-hand side stream (`s2` in this case) will be iterated multiple times, once for each element in the left-hand side stream (`s1`). This means that if the right-hand side stream involves expensive or side-effectful operations, they will be executed multiple times.
+
+## Partitioning
+
+Partitioning a stream means dividing it into two separate streams based on a specified condition. The Stream module provides two helpful functions for achieving this: `Stream.partition` and `Stream.partitionEither`. Let's explore how these functions work and when to use them.
+
+### partition
+
+The `Stream.partition` function takes a predicate as input and splits the original stream into two substreams: one containing elements that satisfy the predicate (evaluate to `true`), and the other containing elements that do not (evaluate to `false`). Additionally, these substreams are wrapped within a `Scope` type.
+
+Here's an example where we partition a stream of numbers into even and odd numbers:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const partition = Stream.range(1, 10).pipe(
+  Stream.partition((n) => n % 2 === 0, { bufferSize: 5 })
+)
+
+Effect.runPromise(
+  Effect.scoped(
+    Effect.gen(function* (_) {
+      const [evens, odds] = yield* _(partition)
+      console.log(yield* _(Stream.runCollect(evens)))
+      console.log(yield* _(Stream.runCollect(odds)))
+    })
+  )
+)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 2, 4, 6, 8 ]
+}
+{
+  _id: "Chunk",
+  values: [ 1, 3, 5, 7, 9 ]
+}
+*/
+```
+
+In this example, we use the `Stream.partition` function with a predicate to split the stream into even and odd numbers. The `bufferSize` option controls how much the faster stream can advance beyond the slower one.
+
+### partitionEither
+
+Sometimes, you may need to partition a stream using an effectful predicate. For such cases, the `Stream.partitionEither` function is available. This function accepts an effectful predicate and divides the stream into two substreams based on the result of the predicate: elements that yield `Either.left` values go to one substream, while elements yielding `Either.right` values go to the other.
+
+Here's an example where we use `Stream.partitionEither` to partition a stream of numbers based on an effectful condition:
+
+```ts
+import { Stream, Effect, Either } from "effect"
+
+const partition = Stream.range(1, 10).pipe(
+  Stream.partitionEither(
+    (n) => Effect.succeed(n < 5 ? Either.left(n * 2) : Either.right(n)),
+    { bufferSize: 5 }
+  )
+)
+
+Effect.runPromise(
+  Effect.scoped(
+    Effect.gen(function* (_) {
+      const [evens, odds] = yield* _(partition)
+      console.log(yield* _(Stream.runCollect(evens)))
+      console.log(yield* _(Stream.runCollect(odds)))
+    })
+  )
+)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 2, 4, 6, 8 ]
+}
+{
+  _id: "Chunk",
+  values: [ 5, 6, 7, 8, 9 ]
+}
+*/
+```
+
+In this case, the `Stream.partitionEither` function splits the stream into two substreams: one containing values that are less than 5 (doubled using `Either.left`), and the other containing values greater than or equal to 5 (using `Either.right`).
