@@ -365,3 +365,190 @@ Output:
 In this example, we create a stream with random effects and collect the values of these effects initially. Later, we use `Stream.drain` to execute the same effects without collecting the values. This demonstrates how you can use draining to trigger effectful operations when you're not interested in the emitted values.
 
 Stream draining can be particularly useful when you need to perform certain actions or cleanup tasks in your application without affecting the main stream of data.
+
+## Detecting Changes in a Stream
+
+In this section, we'll explore the `Stream.changes` operation, which allows you to detect and emit elements that are different from their preceding elements within the stream.
+
+```ts
+import { Stream, Effect } from "effect"
+
+const stream = Stream.make(1, 1, 1, 2, 2, 3, 4).pipe(Stream.changes)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 1, 2, 3, 4 ]
+}
+*/
+```
+
+## Zipping
+
+Zipping is a process of combining two or more streams to create a new stream by pairing elements from the input streams. We can achieve this using the `Stream.zip` and `Stream.zipWith` operators. Let's dive into some examples:
+
+```ts
+import { Stream, Effect } from "effect"
+
+// We create two streams and zip them together.
+const s1 = Stream.zip(Stream.make(1, 2, 3, 4, 5, 6), Stream.make("a", "b", "c"))
+
+Effect.runPromise(Stream.runCollect(s1)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    [ 1, "a" ], [ 2, "b" ], [ 3, "c" ]
+  ]
+}
+*/
+
+// We create two streams and zip them with custom logic.
+const s2 = Stream.zipWith(
+  Stream.make(1, 2, 3, 4, 5, 6),
+  Stream.make("a", "b", "c"),
+  (n, s) => [n - s.length, s]
+)
+
+Effect.runPromise(Stream.runCollect(s2)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    [ 0, "a" ], [ 1, "b" ], [ 2, "c" ]
+  ]
+}
+*/
+```
+
+The new stream will end when one of the streams ends.
+
+### Handling Stream Endings
+
+When one of the input streams ends before the other, you might need to zip with default values. The `Stream.zipAll` and `Stream.zipAllWith` operations allow you to specify default values for both sides to handle such scenarios. Let's see an example:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const s1 = Stream.zipAll(Stream.make(1, 2, 3, 4, 5, 6), {
+  other: Stream.make("a", "b", "c"),
+  defaultSelf: 0,
+  defaultOther: "x"
+})
+
+Effect.runPromise(Stream.runCollect(s1)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    [ 1, "a" ], [ 2, "b" ], [ 3, "c" ], [ 4, "x" ], [ 5, "x" ], [ 6, "x" ]
+  ]
+}
+*/
+
+const s2 = Stream.zipAllWith(Stream.make(1, 2, 3, 4, 5, 6), {
+  other: Stream.make("a", "b", "c"),
+  onSelf: (n) => [n, "x"],
+  onOther: (s) => [0, s],
+  onBoth: (n, s) => [n - s.length, s]
+})
+
+Effect.runPromise(Stream.runCollect(s2)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    [ 0, "a" ], [ 1, "b" ], [ 2, "c" ], [ 4, "x" ], [ 5, "x" ], [ 6, "x" ]
+  ]
+}
+*/
+```
+
+This allows you to handle zipping when one stream completes earlier than the other.
+
+### Zipping Streams at Different Rates
+
+Sometimes, you might have two streams producing elements at different speeds. If you don't want to wait for the slower one when zipping elements, you can use `Stream.zipLatest` or `Stream.zipLatestWith`. These operations combine elements in a way that when a value is emitted by either of the two streams, it is combined with the latest value from the other stream to produce a result. Here's an example:
+
+```ts
+import { Stream, Schedule, Effect } from "effect"
+
+const s1 = Stream.make(1, 2, 3).pipe(
+  Stream.schedule(Schedule.spaced("1 seconds"))
+)
+
+const s2 = Stream.make("a", "b", "c", "d").pipe(
+  Stream.schedule(Schedule.spaced("500 millis"))
+)
+
+const stream = Stream.zipLatest(s1, s2)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    [ 1, "a" ], [ 1, "b" ], [ 2, "b" ], [ 2, "c" ], [ 2, "d" ], [ 3, "d" ]
+  ]
+}
+*/
+```
+
+Here, `Stream.zipLatest` combines elements from both streams without waiting for the slower one, resulting in a more responsive output.
+
+### Pairing with Previous and Next Elements
+
+- `zipWithPrevious`: This operator pairs each element of a stream with its previous element.
+
+- `zipWithNext`: It pairs each element of a stream with its next element.
+
+- `zipWithPreviousAndNext`: This operator pairs each element with both its previous and next elements.
+
+Here's an example illustrating these operations:
+
+```ts
+import { Stream } from "effect"
+
+const stream = Stream.make(1, 2, 3, 4)
+
+// $ExpectType Stream<never, never, readonly [Option<number>, number]>
+const s1 = Stream.zipWithPrevious(stream)
+
+// $ExpectType Stream<never, never, readonly [number, Option<number>]>
+const s2 = Stream.zipWithNext(stream)
+
+// $ExpectType Stream<never, never, readonly [Option<number>, number, Option<number>]>
+const s3 = Stream.zipWithPreviousAndNext(stream)
+```
+
+### Indexing Stream Elements
+
+Another handy operator is `Stream.zipWithIndex`, which indexes each element of a stream by pairing it with its respective index. This is especially useful when you need to keep track of the position of elements within the stream.
+
+Here's an example of indexing elements in a stream:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const stream = Stream.make("Mary", "James", "Robert", "Patricia")
+
+const indexedStream = Stream.zipWithIndex(stream)
+
+Effect.runPromise(Stream.runCollect(indexedStream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    [ "Mary", 0 ], [ "James", 1 ], [ "Robert", 2 ], [ "Patricia", 3 ]
+  ]
+}
+*/
+```
