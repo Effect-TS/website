@@ -238,3 +238,24 @@ Output:
 ```
 
 In this case, regardless of the original values in the stream, we've mapped them all to `null`.
+
+## Filtering
+
+The `Stream.filter` operation is like a sieve that lets through elements that meet a specified condition. Think of it as a way to sift through a stream and keep only the elements that satisfy the given criteria. Here's an example:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const stream = Stream.range(1, 11).pipe(Stream.filter((n) => n % 2 === 0))
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 2, 4, 6, 8, 10 ]
+}
+*/
+```
+
+In this example, we start with a stream of numbers from 1 to 10 and use `Stream.filter` to retain only the even numbers (those that satisfy the condition `n % 2 === 0`). The result is a filtered stream containing the even numbers from the original stream.
