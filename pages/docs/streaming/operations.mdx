@@ -193,3 +193,48 @@ Output:
 }
 */
 ```
+
+### Mapping and Flattening
+
+The `mapConcat` operation is akin to `Stream.map`, but it takes things a step further. It maps each element to zero or more elements of type `Iterable` and then flattens the entire stream. Let's illustrate this with an example:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const numbers = Stream.make("1-2-3", "4-5", "6").pipe(
+  Stream.mapConcat((s) => s.split("-")),
+  Stream.map((s) => parseInt(s))
+)
+
+Effect.runPromise(Stream.runCollect(numbers)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 1, 2, 3, 4, 5, 6 ]
+}
+*/
+```
+
+In this example, we take a stream of strings like `"1-2-3"` and split them into individual numbers, resulting in a flattened stream of integers.
+
+### Mapping to a Constant Value
+
+The `Stream.as` method allows you to map the success values of a stream to a specified constant value. This can be handy when you want to transform elements into a uniform value. Here's an example where we map all elements to the `null` value:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const numbers = Stream.range(1, 5).pipe(Stream.as(null))
+
+Effect.runPromise(Stream.runCollect(numbers)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ null, null, null, null ]
+}
+*/
+```
+
+In this case, regardless of the original values in the stream, we've mapped them all to `null`.
