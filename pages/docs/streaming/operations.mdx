@@ -552,3 +552,35 @@ Output:
 }
 */
 ```
+
+## Cartesian Product of Streams
+
+The Stream module introduces a powerful feature: the ability to compute the _Cartesian Product_ of two streams. This operation allows you to generate combinations of elements from two separate streams. Let's explore this concept further:
+
+Imagine you have two sets of items, and you want to generate all possible pairs by taking one item from each set. This process is known as finding the Cartesian Product of the sets. In the context of streams, it means creating combinations of elements from two streams.
+
+To achieve this, the Stream module provides the `Stream.cross` operator, along with its variants. These operators take two streams and generate a new stream containing all possible combinations of elements from the original streams.
+
+Here's a practical example:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const s1 = Stream.make(1, 2, 3)
+const s2 = Stream.make("a", "b")
+
+const product = Stream.cross(s1, s2)
+
+Effect.runPromise(Stream.runCollect(product)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    [ 1, "a" ], [ 1, "b" ], [ 2, "a" ], [ 2, "b" ], [ 3, "a" ], [ 3, "b" ]
+  ]
+}
+*/
+```
+
+It's important to note that the right-hand side stream (`s2` in this case) will be iterated multiple times, once for each element in the left-hand side stream (`s1`). This means that if the right-hand side stream involves expensive or side-effectful operations, they will be executed multiple times.
