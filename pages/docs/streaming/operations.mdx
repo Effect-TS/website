@@ -294,3 +294,74 @@ Effect.runPromise(fold).then(console.log) // Output: 15
 ```
 
 In this case, `Stream.runFold` gives you the final accumulated value, which is 15 in this example.
+
+## Draining
+
+In this section, we'll explore the concept of stream draining. Imagine you have a stream filled with effectful operations, but you're not interested in the values they produce; instead, you want to execute these effects and discard the results. This is where the `Stream.drain` function comes into play.
+
+Let's go through a few examples:
+
+**Example 1: Discarding Values**
+
+```ts
+import { Stream, Effect } from "effect"
+
+// We create a stream and immediately drain it.
+const s1 = Stream.range(1, 6).pipe(Stream.drain)
+
+Effect.runPromise(Stream.runCollect(s1)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: []
+}
+*/
+```
+
+In this example, we have a stream with values from 1 to 5, but we use `Stream.drain` to discard these values. As a result, the output stream is empty.
+
+**Example 2: Executing Random Effects**
+
+```ts
+import { Stream, Effect, Random } from "effect"
+
+const s2 = Stream.repeatEffect(
+  Effect.gen(function* (_) {
+    const nextInt = yield* _(Random.nextInt)
+    const number = Math.abs(nextInt % 10)
+    console.log(`random number: ${number}`)
+    return number
+  })
+).pipe(Stream.take(3))
+
+Effect.runPromise(Stream.runCollect(s2)).then(console.log)
+/*
+Output:
+random number: 4
+random number: 2
+random number: 7
+{
+  _id: "Chunk",
+  values: [ 4, 2, 7 ]
+}
+*/
+
+const s3 = Stream.drain(s2)
+
+Effect.runPromise(Stream.runCollect(s3)).then(console.log)
+/*
+random number: 1
+random number: 6
+random number: 0
+Output:
+{
+  _id: "Chunk",
+  values: []
+}
+*/
+```
+
+In this example, we create a stream with random effects and collect the values of these effects initially. Later, we use `Stream.drain` to execute the same effects without collecting the values. This demonstrates how you can use draining to trigger effectful operations when you're not interested in the emitted values.
+
+Stream draining can be particularly useful when you need to perform certain actions or cleanup tasks in your application without affecting the main stream of data.
