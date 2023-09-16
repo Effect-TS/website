@@ -259,3 +259,38 @@ Output:
 ```
 
 In this example, we start with a stream of numbers from 1 to 10 and use `Stream.filter` to retain only the even numbers (those that satisfy the condition `n % 2 === 0`). The result is a filtered stream containing the even numbers from the original stream.
+
+## Scanning
+
+In this section, we'll explore the concept of stream scanning. Scans are similar to folds, but they provide a historical perspective. Like folds, scans also involve a binary operator and an initial value. However, what makes scans unique is that they emit every intermediate result as part of the stream.
+
+```ts
+import { Stream, Effect } from "effect"
+
+const stream = Stream.range(1, 6).pipe(Stream.scan(0, (a, b) => a + b))
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 0, 1, 3, 6, 10, 15 ]
+}
+*/
+```
+
+In this example, we have a stream of numbers from 1 to 5, and we use `Stream.scan` to perform a cumulative addition starting from an initial value of 0. The result is a stream that emits the accumulated sum at each step: 0, 1, 3, 6, 10, and 15.
+
+Streams scans provide a way to keep a historical record of your stream transformations, which can be invaluable for various applications.
+
+Additionally, if you only need the final result of the scan, you can use `Stream.runFold`:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const fold = Stream.range(1, 6).pipe(Stream.runFold(0, (a, b) => a + b))
+
+Effect.runPromise(fold).then(console.log) // Output: 15
+```
+
+In this case, `Stream.runFold` gives you the final accumulated value, which is 15 in this example.
