@@ -665,3 +665,100 @@ Output:
 ```
 
 In this case, the `Stream.partitionEither` function splits the stream into two substreams: one containing values that are less than 5 (doubled using `Either.left`), and the other containing values greater than or equal to 5 (using `Either.right`).
+
+## GroupBy
+
+When working with streams of data, you may often need to group elements based on certain criteria. The Stream module provides two functions for achieving this: `groupByKey` and `groupBy`. Let's explore how these functions work and when to use them.
+
+### groupByKey
+
+The `groupByKey` function allows you to partition a stream by a simple function of type `A -> K`, where `A` represents the type of elements in your stream, and `K` represents the keys by which the stream should be partitioned. This function is not effectful; it simply groups elements by applying the provided function.
+
+In the example below, we use `groupByKey` to group exam results by the tens place of their scores and count the number of results in each group:
+
+```ts
+import { Stream, GroupBy, Effect, Chunk } from "effect"
+
+class Exam {
+  constructor(readonly person: string, readonly score: number) {}
+}
+
+const examResults = [
+  new Exam("Alex", 64),
+  new Exam("Michael", 97),
+  new Exam("Bill", 77),
+  new Exam("John", 78),
+  new Exam("Bobby", 71)
+]
+
+// $ExpectType GroupBy<never, never, number, Exam>
+const groupByKeyResult = Stream.fromIterable(examResults).pipe(
+  Stream.groupByKey((exam) => Math.floor(exam.score / 10) * 10)
+)
+
+// $ExpectType Stream<never, never, readonly [number, number]>
+const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
+  Stream.fromEffect(
+    Stream.runCollect(stream).pipe(
+      Effect.map((chunk) => [key, Chunk.size(chunk)] as const)
+    )
+  )
+)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    [ 60, 1 ], [ 90, 1 ], [ 70, 3 ]
+  ]
+}
+*/
+```
+
+In this example, we partition the exam results into groups based on the tens place of their scores (e.g., 60, 90, 70). The `groupByKey` function is ideal for simple, non-effectful partitioning.
+
+### groupBy
+
+In some cases, you may need to partition a stream using an effectful function of type `(a: A) => Effect<R2, E2, readonly [K, V]>`, where the partitioning operation itself involves effects. For such scenarios, the `groupBy` function provides a more powerful solution.
+
+The `groupBy` function takes an effectful partitioning function and creates a new data type called `GroupBy`. This `GroupBy` type represents a grouped stream. To work with the groups, you can use the `evaluate` function, which takes a function of type `(key: K, stream: Stream<never, E, V>) => Stream.Stream<R2, E2, A>`. This function runs across all groups and merges them in a non-deterministic fashion.
+
+In the following example, we group names by their first character and count the number of names in each group. Note that the partitioning operation itself is simulated as effectful:
+
+```ts
+import { Stream, GroupBy, Effect, Chunk } from "effect"
+
+// $ExpectType GroupBy<never, never, number, string>
+const groupByKeyResult = Stream.fromIterable([
+  "Mary",
+  "James",
+  "Robert",
+  "Patricia",
+  "John",
+  "Jennifer",
+  "Rebecca",
+  "Peter"
+]).pipe(Stream.groupBy((name) => Effect.succeed([name.substring(0, 1), name])))
+
+// $ExpectType Stream<never, never, readonly [string, number]>
+const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
+  Stream.fromEffect(
+    Stream.runCollect(stream).pipe(
+      Effect.map((chunk) => [key, Chunk.size(chunk)] as const)
+    )
+  )
+)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    [ "M", 1 ], [ "J", 3 ], [ "R", 2 ], [ "P", 2 ]
+  ]
+}
+*/
+```
