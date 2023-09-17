@@ -952,7 +952,7 @@ Output:
 */
 ```
 
-## Termination Strategy
+### Termination Strategy
 
 When merging two streams, we should consider their termination strategy. Each stream has its own lifetime, some may finish quickly, while others may continue indefinitely. By default, when using `Stream.merge`, the resulting stream terminates only when both specified streams terminate.
 
@@ -989,7 +989,7 @@ Output:
 
 In this example, we use `haltStrategy: "left"` to make the resulting stream terminate when the left-hand stream (`s1`) finishes.
 
-## mergeWith
+### mergeWith
 
 In some cases, we not only want to merge two streams but also transform and unify their elements into new types. This is where `Stream.mergeWith` comes into play. It allows us to specify transformation functions for both source streams.
 
@@ -1021,3 +1021,53 @@ Output:
 ```
 
 In this example, we use `Stream.mergeWith` to merge `s1` and `s2` while converting string elements from `s1` to integers and rounding decimal elements from `s2`.
+
+## Interleaving
+
+The `Stream.interleave` operator allows us to pull one element at a time from each of two streams, creating a new interleaved stream. Once one of the streams is exhausted, the remaining values from the other stream are pulled.
+
+Here's an example:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const s1 = Stream.make(1, 2, 3)
+const s2 = Stream.make(4, 5, 6)
+
+const stream = Stream.interleave(s1, s2)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 1, 4, 2, 5, 3, 6 ]
+}
+*/
+```
+
+For more advanced interleaving logic, `Stream.interleaveWith` provides additional flexibility. It allows you to specify the interleaving logic using a third stream of `boolean` values. When the boolean stream emits `true`, it chooses elements from the left-hand stream; otherwise, it selects elements from the right-hand stream.
+
+Here's an example:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const s1 = Stream.make(1, 3, 5, 7, 9)
+const s2 = Stream.make(2, 4, 6, 8, 10)
+
+const booleanStream = Stream.make(true, false, false).pipe(Stream.forever)
+
+const stream = Stream.interleaveWith(s1, s2, booleanStream)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 1, 2, 4, 3, 6, 8, 5, 10, 7, 9 ]
+}
+*/
+```
+
+In this example, `booleanStream` decides which source stream to choose for interleaving. When `true`, it picks elements from `s1`, and when `false`, it selects elements from `s2`.
