@@ -1178,3 +1178,32 @@ You can choose from different buffering options based on the type of underlying 
 - Unbounded Queue: `{ capacity: "unbounded" }`
 - Sliding Queue: `{ capacity: number, strategy: "sliding" }`
 - Dropping Queue: `{ capacity: number, strategy: "dropping" }`
+
+## Debouncing
+
+The `Stream.debounce` function plays a crucial role in controlling the rate at which elements are emitted. It introduces a minimum time interval between the emission of each element. This ensures that elements are emitted at a more controlled pace, especially when dealing with rapid or frequent emissions.
+
+```ts
+import { Stream, Effect } from "effect"
+
+const stream = Stream.make(1, 2, 3).pipe(
+  Stream.concat(Stream.fromEffect(Effect.sleep("500 millis"))),
+  Stream.concat(Stream.make(4, 5)),
+  Stream.concat(Stream.fromEffect(Effect.sleep("10 millis"))),
+  Stream.concat(Stream.make(6)),
+  Stream.debounce("100 millis") // Emit only after a pause of at least 100 ms
+)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 3, 6 ]
+}
+*/
+```
+
+In this example, we have a stream that emits elements at varying intervals. Some elements are emitted rapidly, while others are separated by pauses of different durations. We apply debouncing with a minimum pause requirement of 100 milliseconds using `Stream.debounce("100 millis")`.
+
+The result is that only elements that follow a pause of at least 100 milliseconds are emitted. This means that elements 1, 2, 4, and 5 are effectively skipped because they are emitted too close together. Only elements 3 and 6, which have a pause of at least 100 milliseconds before them, are emitted.

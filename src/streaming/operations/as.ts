@@ -1,8 +1,8 @@
 import { Stream, Effect } from "effect"
 
-const numbers = Stream.range(1, 5).pipe(Stream.as(null))
+const stream = Stream.range(1, 5).pipe(Stream.as(null))
 
-Effect.runPromise(Stream.runCollect(numbers)).then(console.log)
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
