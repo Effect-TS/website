@@ -672,7 +672,12 @@ When working with streams of data, you may often need to group elements based on
 
 ### groupByKey
 
-The `groupByKey` function allows you to partition a stream by a simple function of type `A -> K`, where `A` represents the type of elements in your stream, and `K` represents the keys by which the stream should be partitioned. This function is not effectful; it simply groups elements by applying the provided function.
+The `Stream.groupByKey` function allows you to partition a stream by a simple function of type `(a: A) => K`, where `A` represents the type of elements in your stream, and `K` represents the keys by which the stream should be partitioned.
+This function is not effectful, it simply groups elements by applying the provided function.
+
+The `Stream.groupByKey` function returns a new data type called `GroupBy`.
+This `GroupBy` type represents a grouped stream.
+To work with the groups, you can use the `GroupBy.evaluate` function, which takes a function of type `(key: K, stream: Stream<never, E, V>) => Stream.Stream<...>`. This function runs across all groups and merges them in a non-deterministic fashion.
 
 In the example below, we use `groupByKey` to group exam results by the tens place of their scores and count the number of results in each group:
 
@@ -721,9 +726,7 @@ In this example, we partition the exam results into groups based on the tens pla
 
 ### groupBy
 
-In some cases, you may need to partition a stream using an effectful function of type `(a: A) => Effect<R2, E2, readonly [K, V]>`, where the partitioning operation itself involves effects. For such scenarios, the `groupBy` function provides a more powerful solution.
-
-The `groupBy` function takes an effectful partitioning function and creates a new data type called `GroupBy`. This `GroupBy` type represents a grouped stream. To work with the groups, you can use the `evaluate` function, which takes a function of type `(key: K, stream: Stream<never, E, V>) => Stream.Stream<R2, E2, A>`. This function runs across all groups and merges them in a non-deterministic fashion.
+In more complex scenarios where partitioning involves effects, you can turn to the `Stream.groupBy` function. This function takes an effectful partitioning function and generates a `GroupBy` data type, representing a grouped stream. You can then use `GroupBy.evaluate` in a similar fashion as before to process the groups.
 
 In the following example, we group names by their first character and count the number of names in each group. Note that the partitioning operation itself is simulated as effectful:
 
