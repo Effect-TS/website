@@ -1071,3 +1071,59 @@ Output:
 ```
 
 In this example, `booleanStream` decides which source stream to choose for interleaving. When `true`, it picks elements from `s1`, and when `false`, it selects elements from `s2`.
+
+## Interspersing
+
+Interspersing is a technique that allows you to add separators in a stream. This can be especially useful when you want to format or structure the data in your streams.
+
+### intersperse
+
+The `Stream.intersperse` operator lets you intersperse a delimiter element between the elements of a stream. This delimiter can be any value you choose. It's added between each pair of elements in the original stream.
+
+Here's an example:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const stream = Stream.make(1, 2, 3, 4, 5).pipe(Stream.intersperse(0))
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 1, 0, 2, 0, 3, 0, 4, 0, 5 ]
+}
+*/
+```
+
+In this example, we have a stream `stream` with numbers from 1 to 5, and we use `Stream.intersperse(0)` to add zeros between them.
+
+### intersperseAffixes
+
+For more advanced interspersing needs, `Stream.intersperseAffixes` provides greater control. It allows you to specify different affixes for the start, middle, and end of your stream. These affixes can be strings or any other values you want.
+
+Here's an example:
+
+```ts
+import { Stream, Effect } from "effect"
+
+const stream = Stream.make(1, 2, 3, 4, 5).pipe(
+  Stream.intersperseAffixes({
+    start: "[",
+    middle: "-",
+    end: "]"
+  })
+)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ "[", 1, "-", 2, "-", 3, "-", 4, "-", 5, "]" ]
+}
+*/
+```
+
+In this example, we use `Stream.intersperseAffixes` to enclose the numbers from 1 to 5 within square brackets, separating them with hyphens.
