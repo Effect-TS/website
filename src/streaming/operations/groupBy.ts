@@ -1,6 +1,6 @@
 import { Stream, GroupBy, Effect, Chunk } from "effect"
 
-// $ExpectType GroupBy<never, never, number, string>
+// $ExpectType GroupBy<never, never, string, string>
 const groupByKeyResult = Stream.fromIterable([
   "Mary",
   "James",

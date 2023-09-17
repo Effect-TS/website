@@ -765,3 +765,79 @@ Output:
 }
 */
 ```
+
+## Grouping
+
+When working with streams, you may encounter situations where you need to group elements in a more structured manner. The Stream module provides two helpful functions for achieving this: `grouped` and `groupedWithin`. In this section, we'll explore how these functions work and when to use them.
+
+### grouped
+
+The `Stream.grouped` function is perfect for partitioning stream results into chunks of a specified size. It's especially useful when you want to work with data in smaller, more manageable pieces.
+
+Here's an example that demonstrates the use of `Stream.grouped`:
+
+```ts
+import { Stream, Effect } from "effect"
+
+// $ExpectType Stream<never, never, Chunk<number>>
+const stream = Stream.range(0, 9).pipe(Stream.grouped(3))
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    {
+      _id: "Chunk",
+      values: [ 0, 1, 2 ]
+    }, {
+      _id: "Chunk",
+      values: [ 3, 4, 5 ]
+    }, {
+      _id: "Chunk",
+      values: [ 6, 7 ]
+    }
+  ]
+}
+*/
+```
+
+In this example, we take a stream of numbers from 0 to 9 and use `Stream.grouped(3)` to divide it into chunks of size 3.
+
+### groupedWithin
+
+The `Stream.groupedWithin` function provides more flexibility by allowing you to group events based on time intervals or chunk size, whichever condition is satisfied first. This is particularly useful when you want to group data based on time constraints.
+
+```ts
+import { Stream, Schedule, Effect } from "effect"
+
+// $ExpectType Stream<never, never, Chunk<number>>
+const stream = Stream.range(0, 10).pipe(
+  Stream.repeat(Schedule.spaced("1 seconds")),
+  Stream.groupedWithin(18, "1.5 seconds"),
+  Stream.take(3)
+)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [
+    {
+      _id: "Chunk",
+      values: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7 ]
+    }, {
+      _id: "Chunk",
+      values: [ 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+    }, {
+      _id: "Chunk",
+      values: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7 ]
+    }
+  ]
+}
+*/
+```
+
+In this example, we use `Stream.groupedWithin(18, "1.5 seconds")` to create chunks of data. The grouping operation occurs either when 18 elements are reached or when 1.5 seconds have passed since the last chunk was created. This is particularly useful when dealing with time-sensitive data or when you want to control the chunk size dynamically.
