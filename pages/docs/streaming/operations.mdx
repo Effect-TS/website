@@ -919,3 +919,105 @@ Output:
 ```
 
 If we need to do the `flatMap` concurrently, we can use the `concurrency` option, and also if the order of concatenation is not important for us, we can use the `switch` option.
+
+## Merging
+
+Sometimes we need to interleave the emission of two streams and create another stream. In these cases, we can't use the `Stream.concat` operation because the concat operation waits for the first stream to finish and then consumes the second stream. So we need a way of picking elements from different sources. Effect Stream's merge operations does this for us. Let's discuss some variants of this operation:
+
+### merge
+
+The `Stream.merge` operation allows us to pick elements from different source streams and merge them into a single stream. Unlike `Stream.concat`, which waits for the first stream to finish before moving to the second, `Stream.merge` interleaves elements from both streams as they become available.
+
+Here's an example:
+
+```ts
+import { Schedule, Stream, Effect } from "effect"
+
+const s1 = Stream.make(1, 2, 3).pipe(
+  Stream.schedule(Schedule.spaced("100 millis"))
+)
+const s2 = Stream.make(4, 5, 6).pipe(
+  Stream.schedule(Schedule.spaced("200 millis"))
+)
+
+const stream = Stream.merge(s1, s2)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 1, 4, 2, 3, 5, 6 ]
+}
+*/
+```
+
+## Termination Strategy
+
+When merging two streams, we should consider their termination strategy. Each stream has its own lifetime, some may finish quickly, while others may continue indefinitely. By default, when using `Stream.merge`, the resulting stream terminates only when both specified streams terminate.
+
+However, you can define the termination strategy to align with your requirements. Stream offers four different termination strategies using the `haltStrategy` option:
+
+- `"left"`. The resulting stream will terminate when the left-hand side stream terminates.
+- `"right"`. The resulting stream will terminate when the right-hand side stream finishes.
+- `"both"`. The resulting stream will terminate when both streams finish.
+- `"either"`. The resulting stream will terminate when one of the streams finishes.
+
+Here's an example of specifying a termination strategy:
+
+```ts
+import { Stream, Schedule, Effect } from "effect"
+
+const s1 = Stream.range(1, 6).pipe(
+  Stream.schedule(Schedule.spaced("100 millis"))
+)
+const s2 = Stream.repeatValue(0).pipe(
+  Stream.schedule(Schedule.spaced("200 millis"))
+)
+
+const stream = Stream.merge(s1, s2, { haltStrategy: "left" })
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 1, 0, 2, 3, 0, 4, 5 ]
+}
+*/
+```
+
+In this example, we use `haltStrategy: "left"` to make the resulting stream terminate when the left-hand stream (`s1`) finishes.
+
+## mergeWith
+
+In some cases, we not only want to merge two streams but also transform and unify their elements into new types. This is where `Stream.mergeWith` comes into play. It allows us to specify transformation functions for both source streams.
+
+Here's an example:
+
+```ts
+import { Schedule, Stream, Effect } from "effect"
+
+const s1 = Stream.make("1", "2", "3").pipe(
+  Stream.schedule(Schedule.spaced("100 millis"))
+)
+const s2 = Stream.make(4.1, 5.3, 6.2).pipe(
+  Stream.schedule(Schedule.spaced("200 millis"))
+)
+
+const stream = Stream.mergeWith(s1, s2, {
+  onSelf: (s) => parseInt(s),
+  onOther: (n) => Math.floor(n)
+})
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 1, 4, 2, 3, 5, 6 ]
+}
+*/
+```
+
+In this example, we use `Stream.mergeWith` to merge `s1` and `s2` while converting string elements from `s1` to integers and rounding decimal elements from `s2`.

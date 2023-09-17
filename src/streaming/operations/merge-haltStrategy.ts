@@ -1,0 +1,19 @@
+import { Stream, Schedule, Effect } from "effect"
+
+const s1 = Stream.range(1, 6).pipe(
+  Stream.schedule(Schedule.spaced("100 millis"))
+)
+const s2 = Stream.repeatValue(0).pipe(
+  Stream.schedule(Schedule.spaced("200 millis"))
+)
+
+const stream = Stream.merge(s1, s2, { haltStrategy: "left" })
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 1, 0, 2, 3, 0, 4, 5 ]
+}
+*/
