@@ -1127,3 +1127,54 @@ Output:
 ```
 
 In this example, we use `Stream.intersperseAffixes` to enclose the numbers from 1 to 5 within square brackets, separating them with hyphens.
+
+## Buffering
+
+Effect streams operate in a pull-based manner, which means downstream consumers can request elements at their own pace without needing to signal the upstream to slow down. However, there are scenarios where you might need to handle producers and consumers independently, especially when there's a speed mismatch between them. This is where buffering comes into play, allowing you to manage communication between a faster producer and a slower consumer effectively. Effect streams provide a built-in `Stream.buffer` operator to assist with this.
+
+### buffer
+
+The `Stream.buffer` operator is designed to facilitate scenarios where a faster producer needs to work independently of a slower consumer. It achieves this by buffering elements in a queue, allowing the producer to continue working even if the consumer lags behind. You can specify the maximum buffer capacity using the `capacity` option.
+
+Let's walk through an example to see how it works:
+
+```ts
+import { Stream, Console, Schedule, Effect } from "effect"
+
+const stream = Stream.range(1, 11).pipe(
+  Stream.tap((n) => Console.log(`before buffering: ${n}`)),
+  Stream.buffer({ capacity: 4 }),
+  Stream.tap((n) => Console.log(`after buffering: ${n}`)),
+  Stream.schedule(Schedule.spaced("5 seconds"))
+)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+/*
+Output:
+before buffering: 1
+before buffering: 2
+before buffering: 3
+before buffering: 4
+before buffering: 5
+before buffering: 6
+after buffering: 1
+after buffering: 2
+before buffering: 7
+after buffering: 3
+before buffering: 8
+after buffering: 4
+before buffering: 9
+after buffering: 5
+before buffering: 10
+...
+*/
+```
+
+In this example, we create a stream of numbers from 1 to 11. We use `Stream.buffer({ capacity: 4 })` to buffer up to 4 elements at a time. As you can see, the `Stream.tap` operator allows us to log each element before and after buffering. We've also introduced a 5-second delay between each emission to illustrate the lag between producing and consuming messages.
+
+You can choose from different buffering options based on the type of underlying queue you need:
+
+- Bounded Queue: `{ capacity: number }`
+- Unbounded Queue: `{ capacity: "unbounded" }`
+- Sliding Queue: `{ capacity: number, strategy: "sliding" }`
+- Dropping Queue: `{ capacity: number, strategy: "dropping" }`
