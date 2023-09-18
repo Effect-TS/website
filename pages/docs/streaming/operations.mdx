@@ -427,6 +427,16 @@ Here's an example:
 
 In this example, we use `Stream.intersperseAffixes` to enclose the numbers from 1 to 5 within square brackets, separating them with hyphens.
 
+## Broadcasting
+
+Broadcasting a stream is a way to create multiple streams that contain the same elements as the source stream. This operation allows you to send each element to multiple downstream streams simultaneously. However, the upstream stream can emit events only up to a certain limit, which is determined by the `maximumLag` parameter. Once this limit is reached, the upstream stream slows down to match the speed of the slowest downstream stream.
+
+Let's take a closer look at how broadcasting works in the following example. Here, we are broadcasting a stream of numbers to two downstream streams. One of them calculates the maximum number in the stream, while the other performs some logging with an additional delay. The upstream stream adjusts its speed based on the slower logging stream:
+
+```ts file=<rootDir>/src/streaming/operations/broadcast.ts
+
+```
+
 ## Buffering
 
 Effect streams operate in a pull-based manner, which means downstream consumers can request elements at their own pace without needing to signal the upstream to slow down. However, there are scenarios where you might need to handle producers and consumers independently, especially when there's a speed mismatch between them. This is where buffering comes into play, allowing you to manage communication between a faster producer and a slower consumer effectively. Effect streams provide a built-in `Stream.buffer` operator to assist with this.
