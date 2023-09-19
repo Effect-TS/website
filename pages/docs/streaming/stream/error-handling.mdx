@@ -6,21 +6,21 @@ When working with streams that may encounter errors, it's crucial to know how to
 
 Here's a practical example:
 
-```ts file=<rootDir>/src/streaming/error-handling/orElse.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/orElse.ts
 
 ```
 
 In this example, `s1` encounters an error, but instead of terminating the stream, we gracefully switch to `s2` using `Stream.orElse`. This ensures that we can continue processing data even if one stream fails.
 
-There's also a variant called `Stream.orElseEither` that uses the [`Either`](../data-types/either) data type to distinguish elements from the two streams based on success or failure:
+There's also a variant called `Stream.orElseEither` that uses the [`Either`](../../data-types/either) data type to distinguish elements from the two streams based on success or failure:
 
-```ts file=<rootDir>/src/streaming/error-handling/orElseEither.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/orElseEither.ts
 
 ```
 
 The `Stream.catchAll` function provides advanced error handling capabilities compared to `Stream.orElse`. With `Stream.catchAll`, you can make decisions based on both the type and value of the encountered failure.
 
-```ts file=<rootDir>/src/streaming/error-handling/catchAll.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/catchAll.ts
 
 ```
 
@@ -32,7 +32,7 @@ When working with streams, it's essential to be prepared for various failure sce
 
 Here's an example to illustrate its usage:
 
-```ts file=<rootDir>/src/streaming/error-handling/catchAllCause.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/catchAllCause.ts
 
 ```
 
@@ -44,13 +44,13 @@ In stream processing, there may be situations where you need to recover from spe
 
 If you want to recover from a particular error, you can use `Stream.catchSome`:
 
-```ts file=<rootDir>/src/streaming/error-handling/catchSome.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/catchSome.ts
 
 ```
 
 To recover from a specific cause, you can use the `Stream.catchSomeCause` function:
 
-```ts file=<rootDir>/src/streaming/error-handling/catchSomeCause.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/catchSomeCause.ts
 
 ```
 
@@ -58,7 +58,7 @@ To recover from a specific cause, you can use the `Stream.catchSomeCause` functi
 
 In stream processing, it's crucial to handle errors gracefully and perform cleanup tasks when needed. The `Stream.onError` function allows us to do just that. If our stream encounters an error, we can specify a cleanup task to be executed.
 
-```ts file=<rootDir>/src/streaming/error-handling/onError.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/onError.ts
 
 ```
 
@@ -68,7 +68,7 @@ Sometimes, streams may encounter failures that are temporary or recoverable. In 
 
 Here's an example to illustrate how it works:
 
-```ts file=<rootDir>/src/streaming/error-handling/retry.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/retry.ts
 
 ```
 
@@ -80,7 +80,7 @@ When working with streams, there might be situations where you want to selective
 
 Here's an example to illustrate how it works:
 
-```ts file=<rootDir>/src/streaming/error-handling/refineOrDie.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/refineOrDie.ts
 
 ```
 
@@ -94,7 +94,7 @@ When working with streams, there are scenarios where you may want to handle time
 
 The `Stream.timeout` operator allows you to set a timeout on a stream. If the stream does not produce a value within the specified duration, it terminates.
 
-```ts file=<rootDir>/src/streaming/error-handling/timeout.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/timeout.ts
 
 ```
 
@@ -102,7 +102,7 @@ The `Stream.timeout` operator allows you to set a timeout on a stream. If the st
 
 The `Stream.timeoutFail` operator combines a timeout with a custom failure message. If the stream times out, it fails with the specified error message.
 
-```ts file=<rootDir>/src/streaming/error-handling/timeoutFail.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/timeoutFail.ts
 
 ```
 
@@ -110,7 +110,7 @@ The `Stream.timeoutFail` operator combines a timeout with a custom failure messa
 
 Similar to `Stream.timeoutFail`, `Stream.timeoutFailCause` combines a timeout with a custom failure cause. If the stream times out, it fails with the specified cause.
 
-```ts file=<rootDir>/src/streaming/error-handling/timeoutFailCause.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/timeoutFailCause.ts
 
 ```
 
@@ -118,6 +118,6 @@ Similar to `Stream.timeoutFail`, `Stream.timeoutFailCause` combines a timeout wi
 
 The `Stream.timeoutTo` operator allows you to switch to another stream if the first stream does not produce a value within the specified duration.
 
-```ts file=<rootDir>/src/streaming/error-handling/timeoutTo.ts
+```ts file=<rootDir>/src/streaming/stream/error-handling/timeoutTo.ts
 
 ```

@@ -8,7 +8,7 @@ Tapping is an operation that involves running an effect on each emission of the 
 
 For instance, you can use `Stream.tap` to print each element of a stream:
 
-```ts file=<rootDir>/src/streaming/operations/tap.ts
+```ts file=<rootDir>/src/streaming/stream/operations/tap.ts
 
 ```
 
@@ -21,7 +21,7 @@ Another essential operation is taking elements, which allows you to extract a sp
 - `takeUntil`. To extract elements until a specific condition is met.
 - `takeRight`. To extract a specified number of elements from the end.
 
-```ts file=<rootDir>/src/streaming/operations/take.ts
+```ts file=<rootDir>/src/streaming/stream/operations/take.ts
 
 ```
 
@@ -33,7 +33,7 @@ In this section, we'll explore how to transform elements within a stream using t
 
 The `Stream.map` operation applies a given function to all elements of the stream, creating another stream with the transformed values. Let's illustrate this with an example:
 
-```ts file=<rootDir>/src/streaming/operations/map.ts
+```ts file=<rootDir>/src/streaming/stream/operations/map.ts
 
 ```
 
@@ -41,7 +41,7 @@ The `Stream.map` operation applies a given function to all elements of the strea
 
 If your transformation involves effects, you can use `Stream.mapEffect` instead. It allows you to apply an effectful function to each element of the stream, producing a new stream with effectful results:
 
-```ts file=<rootDir>/src/streaming/operations/mapEffect.ts
+```ts file=<rootDir>/src/streaming/stream/operations/mapEffect.ts
 
 ```
 
@@ -49,7 +49,7 @@ You can evaluate effects concurrently using the `concurrency` option. It allows 
 
 Let's write a simple page downloader that fetches URLs concurrently:
 
-```ts file=<rootDir>/src/streaming/operations/mapEffectPar.ts
+```ts file=<rootDir>/src/streaming/stream/operations/mapEffectPar.ts
 
 ```
 
@@ -57,7 +57,7 @@ Let's write a simple page downloader that fetches URLs concurrently:
 
 The `Stream.mapAccum` operation is similar to `map`, but it transforms elements statefully and allows you to map and accumulate in a single operation. Let's see how you can use it to calculate the running total of an input stream:
 
-```ts file=<rootDir>/src/streaming/operations/mapAccum.ts
+```ts file=<rootDir>/src/streaming/stream/operations/mapAccum.ts
 
 ```
 
@@ -65,7 +65,7 @@ The `Stream.mapAccum` operation is similar to `map`, but it transforms elements 
 
 The `Stream.mapConcat` operation is akin to `Stream.map`, but it takes things a step further. It maps each element to zero or more elements of type `Iterable` and then flattens the entire stream. Let's illustrate this with an example:
 
-```ts file=<rootDir>/src/streaming/operations/mapConcat.ts
+```ts file=<rootDir>/src/streaming/stream/operations/mapConcat.ts
 
 ```
 
@@ -75,7 +75,7 @@ In this example, we take a stream of strings like `"1-2-3"` and split them into 
 
 The `Stream.as` method allows you to map the success values of a stream to a specified constant value. This can be handy when you want to transform elements into a uniform value. Here's an example where we map all elements to the `null` value:
 
-```ts file=<rootDir>/src/streaming/operations/as.ts
+```ts file=<rootDir>/src/streaming/stream/operations/as.ts
 
 ```
 
@@ -85,7 +85,7 @@ In this case, regardless of the original values in the stream, we've mapped them
 
 The `Stream.filter` operation is like a sieve that lets through elements that meet a specified condition. Think of it as a way to sift through a stream and keep only the elements that satisfy the given criteria. Here's an example:
 
-```ts file=<rootDir>/src/streaming/operations/filter.ts
+```ts file=<rootDir>/src/streaming/stream/operations/filter.ts
 
 ```
 
@@ -95,7 +95,7 @@ In this example, we start with a stream of numbers from 1 to 10 and use `Stream.
 
 In this section, we'll explore the concept of stream scanning. Scans are similar to folds, but they provide a historical perspective. Like folds, scans also involve a binary operator and an initial value. However, what makes scans unique is that they emit every intermediate result as part of the stream.
 
-```ts file=<rootDir>/src/streaming/operations/scan.ts
+```ts file=<rootDir>/src/streaming/stream/operations/scan.ts
 
 ```
 
@@ -105,7 +105,7 @@ Streams scans provide a way to keep a historical record of your stream transform
 
 Additionally, if you only need the final result of the scan, you can use `Stream.runFold`:
 
-```ts file=<rootDir>/src/streaming/operations/runFold.ts
+```ts file=<rootDir>/src/streaming/stream/operations/runFold.ts
 
 ```
 
@@ -119,7 +119,7 @@ Let's go through a few examples:
 
 **Example 1: Discarding Values**
 
-```ts file=<rootDir>/src/streaming/operations/drain-empty.ts
+```ts file=<rootDir>/src/streaming/stream/operations/drain-empty.ts
 
 ```
 
@@ -127,7 +127,7 @@ In this example, we have a stream with values from 1 to 5, but we use `Stream.dr
 
 **Example 2: Executing Random Effects**
 
-```ts file=<rootDir>/src/streaming/operations/drain.ts
+```ts file=<rootDir>/src/streaming/stream/operations/drain.ts
 
 ```
 
@@ -139,7 +139,7 @@ Stream draining can be particularly useful when you need to perform certain acti
 
 In this section, we'll explore the `Stream.changes` operation, which allows you to detect and emit elements that are different from their preceding elements within the stream.
 
-```ts file=<rootDir>/src/streaming/operations/changes.ts
+```ts file=<rootDir>/src/streaming/stream/operations/changes.ts
 
 ```
 
@@ -147,7 +147,7 @@ In this section, we'll explore the `Stream.changes` operation, which allows you 
 
 Zipping is a process of combining two or more streams to create a new stream by pairing elements from the input streams. We can achieve this using the `Stream.zip` and `Stream.zipWith` operators. Let's dive into some examples:
 
-```ts file=<rootDir>/src/streaming/operations/zip.ts
+```ts file=<rootDir>/src/streaming/stream/operations/zip.ts
 
 ```
 
@@ -157,7 +157,7 @@ The new stream will end when one of the streams ends.
 
 When one of the input streams ends before the other, you might need to zip with default values. The `Stream.zipAll` and `Stream.zipAllWith` operations allow you to specify default values for both sides to handle such scenarios. Let's see an example:
 
-```ts file=<rootDir>/src/streaming/operations/zipAll.ts
+```ts file=<rootDir>/src/streaming/stream/operations/zipAll.ts
 
 ```
 
@@ -167,7 +167,7 @@ This allows you to handle zipping when one stream completes earlier than the oth
 
 Sometimes, you might have two streams producing elements at different speeds. If you don't want to wait for the slower one when zipping elements, you can use `Stream.zipLatest` or `Stream.zipLatestWith`. These operations combine elements in a way that when a value is emitted by either of the two streams, it is combined with the latest value from the other stream to produce a result. Here's an example:
 
-```ts file=<rootDir>/src/streaming/operations/zipLatest.ts
+```ts file=<rootDir>/src/streaming/stream/operations/zipLatest.ts
 
 ```
 
@@ -183,7 +183,7 @@ Here, `Stream.zipLatest` combines elements from both streams without waiting for
 
 Here's an example illustrating these operations:
 
-```ts file=<rootDir>/src/streaming/operations/zipWithPrevious.ts
+```ts file=<rootDir>/src/streaming/stream/operations/zipWithPrevious.ts
 
 ```
 
@@ -193,7 +193,7 @@ Another handy operator is `Stream.zipWithIndex`, which indexes each element of a
 
 Here's an example of indexing elements in a stream:
 
-```ts file=<rootDir>/src/streaming/operations/zipWithIndex.ts
+```ts file=<rootDir>/src/streaming/stream/operations/zipWithIndex.ts
 
 ```
 
@@ -207,7 +207,7 @@ To achieve this, the Stream module provides the `Stream.cross` operator, along w
 
 Here's a practical example:
 
-```ts file=<rootDir>/src/streaming/operations/cross.ts
+```ts file=<rootDir>/src/streaming/stream/operations/cross.ts
 
 ```
 
@@ -223,7 +223,7 @@ The `Stream.partition` function takes a predicate as input and splits the origin
 
 Here's an example where we partition a stream of numbers into even and odd numbers:
 
-```ts file=<rootDir>/src/streaming/operations/partition.ts
+```ts file=<rootDir>/src/streaming/stream/operations/partition.ts
 
 ```
 
@@ -235,7 +235,7 @@ Sometimes, you may need to partition a stream using an effectful predicate. For 
 
 Here's an example where we use `Stream.partitionEither` to partition a stream of numbers based on an effectful condition:
 
-```ts file=<rootDir>/src/streaming/operations/partitionEither.ts
+```ts file=<rootDir>/src/streaming/stream/operations/partitionEither.ts
 
 ```
 
@@ -256,7 +256,7 @@ To work with the groups, you can use the `GroupBy.evaluate` function, which take
 
 In the example below, we use `groupByKey` to group exam results by the tens place of their scores and count the number of results in each group:
 
-```ts file=<rootDir>/src/streaming/operations/groupByKey.ts
+```ts file=<rootDir>/src/streaming/stream/operations/groupByKey.ts
 
 ```
 
@@ -268,7 +268,7 @@ In more complex scenarios where partitioning involves effects, you can turn to t
 
 In the following example, we group names by their first character and count the number of names in each group. Note that the partitioning operation itself is simulated as effectful:
 
-```ts file=<rootDir>/src/streaming/operations/groupBy.ts
+```ts file=<rootDir>/src/streaming/stream/operations/groupBy.ts
 
 ```
 
@@ -282,7 +282,7 @@ The `Stream.grouped` function is perfect for partitioning stream results into ch
 
 Here's an example that demonstrates the use of `Stream.grouped`:
 
-```ts file=<rootDir>/src/streaming/operations/grouped.ts
+```ts file=<rootDir>/src/streaming/stream/operations/grouped.ts
 
 ```
 
@@ -292,7 +292,7 @@ In this example, we take a stream of numbers from 0 to 9 and use `Stream.grouped
 
 The `Stream.groupedWithin` function provides more flexibility by allowing you to group events based on time intervals or chunk size, whichever condition is satisfied first. This is particularly useful when you want to group data based on time constraints.
 
-```ts file=<rootDir>/src/streaming/operations/groupedWithin.ts
+```ts file=<rootDir>/src/streaming/stream/operations/groupedWithin.ts
 
 ```
 
@@ -308,7 +308,7 @@ The `Stream.concat` operator is a straightforward way to concatenate two streams
 
 Here's an example of using `Stream.concat`:
 
-```ts file=<rootDir>/src/streaming/operations/concat.ts
+```ts file=<rootDir>/src/streaming/stream/operations/concat.ts
 
 ```
 
@@ -318,7 +318,7 @@ Sometimes you may have multiple streams that you want to concatenate together. I
 
 Here's an example:
 
-```ts file=<rootDir>/src/streaming/operations/concatAll.ts
+```ts file=<rootDir>/src/streaming/stream/operations/concatAll.ts
 
 ```
 
@@ -328,7 +328,7 @@ The `Stream.flatMap` operator allows you to create a stream whose elements are g
 
 Here's an example of using `Stream.flatMap`:
 
-```ts file=<rootDir>/src/streaming/operations/flatMap.ts
+```ts file=<rootDir>/src/streaming/stream/operations/flatMap.ts
 
 ```
 
@@ -344,7 +344,7 @@ The `Stream.merge` operation allows us to pick elements from different source st
 
 Here's an example:
 
-```ts file=<rootDir>/src/streaming/operations/merge.ts
+```ts file=<rootDir>/src/streaming/stream/operations/merge.ts
 
 ```
 
@@ -361,7 +361,7 @@ However, you can define the termination strategy to align with your requirements
 
 Here's an example of specifying a termination strategy:
 
-```ts file=<rootDir>/src/streaming/operations/merge-haltStrategy.ts
+```ts file=<rootDir>/src/streaming/stream/operations/merge-haltStrategy.ts
 
 ```
 
@@ -373,7 +373,7 @@ In some cases, we not only want to merge two streams but also transform and unif
 
 Here's an example:
 
-```ts file=<rootDir>/src/streaming/operations/mergeWith.ts
+```ts file=<rootDir>/src/streaming/stream/operations/mergeWith.ts
 
 ```
 
@@ -385,7 +385,7 @@ The `Stream.interleave` operator allows us to pull one element at a time from ea
 
 Here's an example:
 
-```ts file=<rootDir>/src/streaming/operations/interleave.ts
+```ts file=<rootDir>/src/streaming/stream/operations/interleave.ts
 
 ```
 
@@ -393,7 +393,7 @@ For more advanced interleaving logic, `Stream.interleaveWith` provides additiona
 
 Here's an example:
 
-```ts file=<rootDir>/src/streaming/operations/interleaveWith.ts
+```ts file=<rootDir>/src/streaming/stream/operations/interleaveWith.ts
 
 ```
 
@@ -409,7 +409,7 @@ The `Stream.intersperse` operator lets you intersperse a delimiter element betwe
 
 Here's an example:
 
-```ts file=<rootDir>/src/streaming/operations/intersperse.ts
+```ts file=<rootDir>/src/streaming/stream/operations/intersperse.ts
 
 ```
 
@@ -421,7 +421,7 @@ For more advanced interspersing needs, `Stream.intersperseAffixes` provides grea
 
 Here's an example:
 
-```ts file=<rootDir>/src/streaming/operations/intersperseAffixes.ts
+```ts file=<rootDir>/src/streaming/stream/operations/intersperseAffixes.ts
 
 ```
 
@@ -433,7 +433,7 @@ Broadcasting a stream is a way to create multiple streams that contain the same 
 
 Let's take a closer look at how broadcasting works in the following example. Here, we are broadcasting a stream of numbers to two downstream streams. One of them calculates the maximum number in the stream, while the other performs some logging with an additional delay. The upstream stream adjusts its speed based on the slower logging stream:
 
-```ts file=<rootDir>/src/streaming/operations/broadcast.ts
+```ts file=<rootDir>/src/streaming/stream/operations/broadcast.ts
 
 ```
 
@@ -447,7 +447,7 @@ The `Stream.buffer` operator is designed to facilitate scenarios where a faster 
 
 Let's walk through an example to see how it works:
 
-```ts file=<rootDir>/src/streaming/operations/buffer.ts
+```ts file=<rootDir>/src/streaming/stream/operations/buffer.ts
 
 ```
 
@@ -464,7 +464,7 @@ You can choose from different buffering options based on the type of underlying 
 
 The `Stream.debounce` function plays a crucial role in controlling the rate at which elements are emitted. It introduces a minimum time interval between the emission of each element. This ensures that elements are emitted at a more controlled pace, especially when dealing with rapid or frequent emissions.
 
-```ts file=<rootDir>/src/streaming/operations/debounce.ts
+```ts file=<rootDir>/src/streaming/stream/operations/debounce.ts
 
 ```
 
