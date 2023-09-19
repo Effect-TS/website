@@ -1,0 +1,29 @@
+# Sink Operations
+
+In the previous sections, we learned how to create and use sinks. Now, let's explore some operations you can perform on sinks to transform or filter their behavior.
+
+## Changing the Input
+
+Sometimes, you have a sink that works perfectly with one type of input, but you want to use it with a different type. This is where `Sink.contramap` comes in handy. While `map` modifies the output of a function, `contramap` modifies the input. It allows you to adapt your sink to work with a different input.
+
+Imagine you have a `Sink.sum` that calculates the sum of incoming numeric values. However, your stream contains strings, not numbers. You can use `contramap` to convert your strings into numbers and make `Sink.sum` compatible with your stream:
+
+```ts file=<rootDir>/src/streaming/sink/operations/contramap.ts
+
+```
+
+## Transforming Both Input and Output
+
+If you need to change both the input and output of a sink, you can use `Sink.dimap`. It's an extended version of `contramap` that lets you transform both types. This can be useful when you need to perform a complete conversion between your input and output types:
+
+```ts file=<rootDir>/src/streaming/sink/operations/dimap.ts
+
+```
+
+## Filtering Input
+
+Sinks offer a way to filter incoming elements using `Sink.filterInput`. This allows you to collect or process only the elements that meet a specific condition. In the following example, we collect elements in chunks of three and filter out the negative numbers:
+
+```ts file=<rootDir>/src/streaming/sink/operations/filterInput.ts
+
+```
