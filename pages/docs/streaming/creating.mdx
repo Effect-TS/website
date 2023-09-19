@@ -86,13 +86,23 @@ This method allows you to seamlessly transform the output of an Effect into a st
 
 ## From Asynchronous Callback
 
-Suppose you have an asynchronous function that relies on callbacks. If you want to register callbacks on that function and receive a stream of the results emitted by those callbacks, you can use `Stream.async`. This function can adapt functions that invoke their callbacks multiple times and emit the results as a stream:
+Imagine you have an asynchronous function that relies on callbacks. If you want to capture the results emitted by those callbacks as a stream, you can use the `Stream.async` function. This function is designed to adapt functions that invoke their callbacks multiple times and emit the results as a stream.
+
+Let's break down how to use it in the following example:
 
 ```ts file=<rootDir>/src/streaming/creating/async.ts
 
 ```
 
-The `register` function's error type is optional. By setting the error to `None`, you can use it to signal the end of the stream when needed. This allows you to handle asynchronous callback-based operations and collect their results in a stream.
+The `StreamEmit.Emit<R, E, A, void>` type represents an asynchronous callback that can be called multiple times. This callback takes a value of type `Effect<R, Option<E>, Chunk<A>>`. Here's what each of the possible outcomes means:
+
+- When the value provided to the callback results in a `Chunk<A>` upon success, it signifies that the specified elements should be emitted as part of the stream.
+
+- If the value passed to the callback results in a failure with `Some<E>`, it indicates the termination of the stream with the specified error.
+
+- When the value passed to the callback results in a failure with `None`, it serves as a signal for the end of the stream, essentially terminating it.
+
+To put it simply, this type allows you to specify how your asynchronous callback interacts with the stream, determining when to emit elements, when to terminate with an error, or when to signal the end of the stream.
 
 ## From Iterables
 
