@@ -1,0 +1,29 @@
+import { Info } from "@/components/Callout"
+
+# SynchronizedRef
+
+`SynchronizedRef<A>` serves as a **mutable reference** to a value of type `A`. With it, we can store **immutable** data and perform updates **atomically and effectfully**.
+
+<Info>
+  Most of the operations for `SynchronizedRef` are similar to those of `Ref`. If
+  you're not already familiar with `Ref`, it's recommended to read about
+  [`Ref`](ref) first.
+</Info>
+
+Let's delve into how we can effectively update a shared state using `SynchronizedRef`. Unlike `Ref`, `SynchronizedRef` introduces the concept of **effectful** operations. These operations accept effectful descriptions, then execute these effects to modify the shared state. This is the key distinction between `SynchronizedRef` and `Ref`.
+
+In the following example, we demonstrate how to use `SynchronizedRef` to update a reference by providing an `updateEffect`, which describes the update operation. `SynchronizedRef` executes this `updateEffect`:
+
+```ts file=<rootDir>/src/guide/state-management/synchronizedref/example1.ts
+
+```
+
+In real-world applications, there are scenarios where we need to execute an effect (e.g., querying a database) and then update the shared state accordingly. This is where `SynchronizedRef` shines, allowing us to update shared state in an actor-model fashion. We have a shared mutable state, but for each distinct command or message, we want to execute our effect and update the state.
+
+We can pass an effectful program into every single update. All of these updates will be performed in parallel, but the results will be sequenced in such a way that they only affect the state at different times, resulting in a consistent state at the end.
+
+In the following example, we send a `getAge` request for each user, updating the state accordingly:
+
+```ts file=<rootDir>/src/guide/state-management/synchronizedref/example2.ts
+
+```
