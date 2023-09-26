@@ -24,7 +24,7 @@ const program = Recipe.pipe(
 )
 
 // $ExpectType Effect<never, never, void>
-const runnable = Effect.provideLayer(program, MainLive)
+const runnable = Effect.provide(program, MainLive)
 
 Effect.runPromise(runnable)
 /*

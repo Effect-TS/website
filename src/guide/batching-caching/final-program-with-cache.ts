@@ -11,7 +11,7 @@ const program = Effect.gen(function* (_) {
   )
 }).pipe(
   Effect.repeat(Schedule.fixed("10 seconds")),
-  Effect.provideSomeLayer(
+  Effect.provide(
     Effect.setRequestCache(
       Request.makeCache({ capacity: 256, timeToLive: "60 minutes" })
     )

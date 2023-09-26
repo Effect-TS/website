@@ -47,4 +47,4 @@ const context = Context.empty().pipe(
   )
 )
 
-const runnable2 = Effect.provideContext(program, context)
+const runnable2 = Effect.provide(program, context)

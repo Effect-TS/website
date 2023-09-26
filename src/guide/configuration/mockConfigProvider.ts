@@ -13,5 +13,5 @@ const mockConfigProvider = ConfigProvider.fromMap(
 const layer = Effect.setConfigProvider(mockConfigProvider)
 
 // Run the program using the provided layer
-Effect.runSync(Effect.provideLayer(App.program, layer))
+Effect.runSync(Effect.provide(App.program, layer))
 // Output: Application started: localhost:8080

@@ -12,7 +12,7 @@ const program = Effect.gen(function* (_) {
       yield* _(Effect.log("I'm not going to be logged!"))
       yield* _(
         Effect.log("I will be logged by the simple logger.").pipe(
-          Effect.provideLayer(addSimpleLogger)
+          Effect.provide(addSimpleLogger)
         )
       )
       yield* _(
@@ -20,7 +20,7 @@ const program = Effect.gen(function* (_) {
           "Reset back to the previous configuration, so I won't be logged."
         )
       )
-    }).pipe(Effect.provideLayer(Logger.remove(Logger.defaultLogger)))
+    }).pipe(Effect.provide(Logger.remove(Logger.defaultLogger)))
   )
   yield* _(Effect.log("Application is about to exit!"))
 })
