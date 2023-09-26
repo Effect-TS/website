@@ -5,7 +5,7 @@ const numericSum = Sink.sum
 
 // $ExpectType Sink<never, never, string, never, number>
 const stringSum = numericSum.pipe(
-  Sink.contramap((s: string) => Number.parseFloat(s))
+  Sink.mapInput((s: string) => Number.parseFloat(s))
 )
 
 Effect.runPromise(

@@ -6,7 +6,7 @@ const effect = Effect.fail("Oh uh!").pipe(Effect.as("primary result"))
 // $ExpectType Effect<never, Cause<string>, string>
 const sandboxed = Effect.sandbox(effect)
 
-// $ExpectType Effect<never, Empty | Annotated<string> | Sequential<string> | Parallel<string>, string>
+// $ExpectType Effect<never, Empty | Sequential<string> | Parallel<string>, string>
 const program = Effect.catchTags(sandboxed, {
   Die: (cause) =>
     Console.log(`Caught a defect: ${cause.defect}`).pipe(

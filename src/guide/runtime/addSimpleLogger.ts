@@ -18,7 +18,7 @@ timestamp=... level=INFO fiber=#0 message="Application is about to exit!"
 */
 
 // Overriding the default logger
-Effect.runSync(program.pipe(Effect.provideLayer(addSimpleLogger)))
+Effect.runSync(program.pipe(Effect.provide(addSimpleLogger)))
 /*
 Output:
 Application started!

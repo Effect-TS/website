@@ -84,7 +84,7 @@ To achieve this, we make use of `Effect.provide*` functions, which allow us to p
 
 ### Configuring Runtime by Providing Configuration Layers
 
-By utilizing the `Effect.provideLayer` function and providing runtime configuration layers to an Effect workflow, we can easily modify runtime configurations.
+By utilizing the `Effect.provide` function and providing runtime configuration layers to an Effect workflow, we can easily modify runtime configurations.
 
 Here's an example:
 
@@ -93,7 +93,7 @@ Here's an example:
 ```
 
 In this example, we first create a configuration layer for a simple logger using `Logger.replace`.
-Then, we use `Effect.provideLayer` to provide this configuration to our program, effectively overriding the default logger with the simple logger.
+Then, we use `Effect.provide` to provide this configuration to our program, effectively overriding the default logger with the simple logger.
 
 To ensure that the runtime configuration is only applied to a specific part of an Effect application, we should provide the configuration layer exclusively to that particular section, as demonstrated in the following example:
 
@@ -103,7 +103,7 @@ To ensure that the runtime configuration is only applied to a specific part of a
 
 ## Top-level Runtime Configuration
 
-When developing an Effect application and executing it using `Effect.run*` functions, the application is automatically run using the default runtime behind the scenes. While we can adjust and customize specific aspects of our Effect application by providing locally scoped configuration layers using `Effect.provideLayer` operations, there are scenarios where we need to customize the runtime configuration for the entire application from the top level.
+When developing an Effect application and executing it using `Effect.run*` functions, the application is automatically run using the default runtime behind the scenes. While we can adjust and customize specific aspects of our Effect application by providing locally scoped configuration layers using `Effect.provide` operations, there are scenarios where we need to customize the runtime configuration for the entire application from the top level.
 
 In such situations, we can create a top-level runtime by converting a configuration layer into a runtime using the `Layer.toRuntime` operator:
 

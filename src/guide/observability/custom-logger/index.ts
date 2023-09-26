@@ -6,8 +6,5 @@ import { program } from "./program"
 const layer = Logger.replace(Logger.defaultLogger, CustomLogger.logger)
 
 Effect.runPromise(
-  Effect.provideLayer(
-    Logger.withMinimumLogLevel(program, LogLevel.Debug),
-    layer
-  )
+  Effect.provide(Logger.withMinimumLogLevel(program, LogLevel.Debug), layer)
 )

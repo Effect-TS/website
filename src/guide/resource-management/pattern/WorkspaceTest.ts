@@ -89,7 +89,7 @@ const layer = Layer.mergeAll(S3Test, ElasticSearchTest, DatabaseTest)
 
 // $ExpectType Effect<never, S3Error | ElasticSearchError | DatabaseError, Entry>
 const runnable = Workspace.make.pipe(
-  Effect.provideLayer(layer),
+  Effect.provide(layer),
   Effect.provideService(FailureCase, undefined)
 )
 
