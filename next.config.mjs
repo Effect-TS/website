@@ -31,7 +31,12 @@ const withNextra = nextra({
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
-  redirects: () => [],
+  rewrites: () => [
+    {
+      source: "/events/effect-days",
+      destination: "https://webflow.effect.website/events/effect-days-2024",
+    },
+  ],
 }
 
 export default withNextra(nextConfig)
