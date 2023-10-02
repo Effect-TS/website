@@ -159,3 +159,35 @@ Effect also provides support for spans, allowing you to measure the duration of 
 </Tabs>
 
 In the above example, a span is created using the `Effect.logSpan` function. It measures the duration of the code block within the span and logs an `INFO` message with the content "The job is finished!" along with the span duration of 1011ms (`myspan=1011ms`).
+
+## Disabling Default Logging
+
+If you ever find yourself needing to turn off default logging, perhaps during test execution, there are various ways to achieve this within the Effect framework. In this section, we'll explore different methods to disable default logging.
+
+**Using withMinimumLogLevel**
+
+Effect provides a convenient function called `withMinimumLogLevel` that allows you to set the minimum log level, effectively disabling logging:
+
+```ts file=<rootDir>/src/guide/observability/logging/disabling-logging-withMinimumLogLevel.ts
+
+```
+
+By setting the log level to `LogLevel.None`, you effectively disable logging, and only the final result will be displayed.
+
+**Using a Layer**
+
+Another approach to disable logging is by creating a layer that sets the minimum log level to `LogLevel.None`, effectively turning off all logging:
+
+```ts file=<rootDir>/src/guide/observability/logging/disabling-logging-layer.ts
+
+```
+
+**Using a Custom Runtime**
+
+You can also disable logging by creating a custom runtime that includes the configuration to turn off logging:
+
+```ts file=<rootDir>/src/guide/observability/logging/disabling-logging-runtime.ts
+
+```
+
+In this approach, you create a custom runtime that incorporates the configuration to disable logging, and then you execute your program using this custom runtime.
