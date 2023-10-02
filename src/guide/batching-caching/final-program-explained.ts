@@ -11,7 +11,7 @@ const program = Effect.gen(function* (_) {
 })
 
 const nextStep = Effect.flatMapStep(program, (step) => {
-  switch (step._tag) {
+  switch (step._op) {
     // the program is blocked on a number of requests
     case "Blocked": {
       const requests = step.i0
