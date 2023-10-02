@@ -6,7 +6,7 @@ const program = Effect.gen(function* (_) {
     Effect.map((n) => n * 2)
   )
   if (n > 0.5) {
-    return yield* _(Effect.succeed("yay!"))
+    return "yay!"
   } else {
     return yield* _(Effect.fail("oh no!"))
   }
