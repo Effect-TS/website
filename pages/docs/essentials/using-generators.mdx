@@ -129,3 +129,24 @@ const program = Effect.gen(function* (_) {
   // ...
 })
 ```
+
+## Passing `this`
+
+In some cases, you might need to pass a reference to the current object (`this`) into the body of your generator function. You can achieve this by utilizing an overload that accepts the reference as the first argument:
+
+```ts /this/
+import { Effect } from "effect"
+
+class MyService {
+  readonly local = 1
+  compute() {
+    return Effect.gen(this, function* (_) {
+      return yield* _(Effect.succeed(this.local + 1))
+    })
+  }
+}
+
+console.log(Effect.runSync(new MyService().compute())) // Output: 2
+```
+
+In this example, we have a `MyService` class with a property called `local`. By passing `this` as the first argument to `Effect.gen`, we make the `local` property available within the generator.
