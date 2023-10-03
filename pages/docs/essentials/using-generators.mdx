@@ -119,34 +119,15 @@ In the following example, the `Random.next()` effect is piped into the `Effect.m
 This approach is useful to avoid excessive notation by using both the `_` helper and the `pipe` function. Instead, you can directly pass the `Random.next()` effect to `Effect.map` within the `_` helper, eliminating the need for an additional `pipe` function:
 
 ```ts /pipe/ file=<rootDir>/src/essentials/using-generators/helper-as-pipe-redundant-pipe.ts#L3-
-const program = Effect.gen(function* (_) {
-  const n = yield* _(
-    pipe(
-      Random.next,
-      Effect.map((n) => n * 2)
-    )
-  )
-  // ...
-})
+
 ```
 
 ## Passing `this`
 
 In some cases, you might need to pass a reference to the current object (`this`) into the body of your generator function. You can achieve this by utilizing an overload that accepts the reference as the first argument:
 
-```ts /this/
-import { Effect } from "effect"
+```ts /this/ file=<rootDir>/src/essentials/using-generators/this.ts
 
-class MyService {
-  readonly local = 1
-  compute() {
-    return Effect.gen(this, function* (_) {
-      return yield* _(Effect.succeed(this.local + 1))
-    })
-  }
-}
-
-console.log(Effect.runSync(new MyService().compute())) // Output: 2
 ```
 
 In this example, we have a `MyService` class with a property called `local`. By passing `this` as the first argument to `Effect.gen`, we make the `local` property available within the generator.
