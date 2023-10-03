@@ -1,12 +1,12 @@
 import { Effect, Error, Random } from "effect"
 
 // An error with _tag: "Foo"
-class FooError extends Error.Tagged("Foo")<{
+class FooError extends Error.TaggedClass("Foo")<{
   message: string
 }> {}
 
 // An error with _tag: "Bar"
-class BarError extends Error.Tagged("Bar")<{
+class BarError extends Error.TaggedClass("Bar")<{
   randomNumber: number
 }> {}
 
