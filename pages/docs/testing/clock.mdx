@@ -1,0 +1,61 @@
+# TestClock
+
+In most cases, we want our unit tests to run as quickly as possible. Waiting for real time to pass can slow down our tests significantly. Effect provides a handy tool called `TestClock` that allows us to **control time during testing**. This means we can efficiently and predictably test code that involves time without having to wait for the actual time to pass.
+
+The `TestClock` in Effect allows us to control time for testing purposes. It lets us schedule effects to run at specific times, making it ideal for testing time-related functionality.
+
+Instead of waiting for real time to pass, we use the `TestClock` to set the clock time to a specific point. Any effects scheduled to run at or before that time will be executed in order.
+
+## How `TestClock` Works
+
+Imagine `TestClock` as a wall clock, but with a twist—it doesn't tick on its own. Instead, it only changes when we manually adjust it using the `TestClock.adjust` and `TestClock.setTime` functions. The clock time never progresses on its own.
+
+When we adjust the clock time, any effects scheduled to run at or before the new time will be executed. This allows us to simulate the passage of time in our tests without waiting for real time.
+
+Let's look at an example of how to test `Effect.timeout` using the `TestClock`:
+
+```ts file=<rootDir>/src/testing/clock/timeout.ts
+
+```
+
+In this example, we create a test scenario involving a fiber that sleeps for 5 minutes and then times out after 1 minute. Instead of waiting for the full 5 minutes to elapse in real time, we utilize the `TestClock` to instantly advance time by 1 minute.
+
+A critical point to note is the forking of the fiber where `Effect.sleep` is invoked. Calls to `Effect.sleep` and related methods wait until the clock time matches or surpasses the scheduled time for their execution. By forking the fiber, we ensure that we have control over the clock time adjustment.
+
+The recommended pattern when using the `TestClock` involves forking the effect being tested, adjusting the clock time as needed, and then verifying that the expected effects have occurred.
+
+## More Examples
+
+### Testing Recurring Effects
+
+Let's explore an example demonstrating how to test an effect that runs at fixed intervals using the `TestClock`:
+
+```ts file=<rootDir>/src/testing/clock/recurring.ts
+
+```
+
+In this example, we aim to test an effect that runs at regular intervals. We use an unbounded queue to manage the effects. We verify that:
+
+1. No effect is performed before the specified recurrence period.
+2. An effect is performed after the recurrence period.
+3. The effect is executed exactly once.
+
+It's crucial to note that after each recurrence, the next occurrence is scheduled to happen at the appropriate time in the future. When we adjust the clock by 60 minutes, precisely one value is placed in the queue, and when we adjust the clock by another 60 minutes, another value is added to the queue.
+
+### Testing `Clock`
+
+Let's explore an example that demonstrates how to test the behavior of the `Clock` using the `TestClock`:
+
+```ts file=<rootDir>/src/testing/clock/clock.ts
+
+```
+
+### Testing `Deferred`
+
+`TestClock` also affects asynchronous code scheduled to run after a certain time:
+
+```ts file=<rootDir>/src/testing/clock/deferred.ts
+
+```
+
+In this code, we create a scenario where a value is set in a `Deferred` after 10 seconds asynchronously. We use `Effect.fork` to run this asynchronously. By adjusting the `TestClock` by 10 seconds, we can simulate the passage of time and test the code without waiting for the actual 10 seconds to elapse.
