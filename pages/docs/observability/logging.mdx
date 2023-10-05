@@ -2,7 +2,23 @@ import { Tabs, Tab } from "@/components/Code"
 
 # Logging
 
-Effect provides a set of built-in utilities for logging. Let's explore the main ones.
+Logging is a crucial aspect of software development, especially when it comes to debugging and monitoring the behavior of your applications. In this section, we'll delve into Effect's logging utilities and explore their advantages over traditional methods like `console.log`.
+
+## Advantages Over Traditional Logging
+
+Effect's logging utilities offer several advantages over traditional logging methods like `console.log`:
+
+1. **Dynamic Log Level Control**: With Effect's logging, you have the ability to change the log level dynamically. This means you can control which log messages get displayed based on their severity. For example, you can configure your application to log only warnings or errors, which can be extremely helpful in production environments to reduce noise.
+
+2. **Custom Logging Output**: Effect's logging utilities allow you to change how logs are handled. You can direct log messages to various destinations, such as a service or a file, using a [custom logger](./custom-logger). This flexibility ensures that logs are stored and processed in a way that best suits your application's requirements.
+
+3. **Fine-Grained Logging**: Effect enables fine-grained control over logging on a per-part basis of your program. You can set different log levels for different parts of your application, tailoring the level of detail to each specific component. This can be invaluable for debugging and troubleshooting, as you can focus on the information that matters most.
+
+4. **Environment-Based Logging**: Effect's logging utilities can be combined with deployment environments to achieve granular logging strategies. For instance, during development, you might choose to log everything at a trace level and above for detailed debugging. In contrast, your production version could be configured to log only errors or critical issues, minimizing the impact on performance and noise in production logs.
+
+5. **Additional Features**: Effect's logging utilities come with additional features such as the ability to measure time spans, alter log levels on a per-effect basis, and integrate spans for performance monitoring.
+
+Now, let's dive into the specific logging utilities provided by Effect.
 
 ## log
 
@@ -22,7 +38,7 @@ The log message contains the following information:
 
 ## Log Levels
 
-### Debug
+### logDebug
 
 By default, `DEBUG` messages are **not** printed.
 
@@ -51,7 +67,7 @@ In the above example, we enable `DEBUG` messages specifically for `task1` by usi
 
 By using `Logger.withMinimumLogLevel(effect, level){:ts}`, you have the flexibility to selectively enable different log levels for specific effects in your program. This allows you to control the level of detail in your logs and focus on the information that is most relevant to your debugging and troubleshooting needs.
 
-### Info
+### logInfo
 
 By default, `INFO` messages are printed.
 
@@ -74,7 +90,7 @@ By default, `INFO` messages are printed.
 
 In the above example, the `Effect.log` function is used to log an `INFO` message with the content `"start"` and `"done"`. These messages will be printed during the execution of the program.
 
-### Warning
+### logWarning
 
 By default, `WARN` messages are printed.
 
@@ -95,7 +111,7 @@ By default, `WARN` messages are printed.
 </Tab>
 </Tabs>
 
-### Error
+### logError
 
 By default, `ERROR` messages are printed.
 
@@ -116,7 +132,7 @@ By default, `ERROR` messages are printed.
 </Tab>
 </Tabs>
 
-### Fatal
+### logFatal
 
 By default, `FATAL` messages are printed.
 
