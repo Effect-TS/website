@@ -17,8 +17,8 @@ const program = Effect.gen(function* (_) {
   })
 
   // Run both fibers concurrently
-  const fiberA = Effect.runFork(sendHelloWorld)
-  const fiberB = Effect.runFork(getAndPrint)
+  const fiberA = yield* _(Effect.fork(sendHelloWorld))
+  const fiberB = yield* _(Effect.fork(getAndPrint))
 
   // Wait for both fibers to complete
   return yield* _(Fiber.join(Fiber.zip(fiberA, fiberB)))
