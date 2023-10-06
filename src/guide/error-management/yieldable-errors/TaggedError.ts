@@ -1,12 +1,12 @@
-import { Effect, Error, Random } from "effect"
+import { Effect, Data, Random } from "effect"
 
 // An error with _tag: "Foo"
-class FooError extends Error.TaggedClass("Foo")<{
-  message: string
+class FooError extends Data.TaggedError("Foo")<{
+  reason: string
 }> {}
 
 // An error with _tag: "Bar"
-class BarError extends Error.TaggedClass("Bar")<{
+class BarError extends Data.TaggedError("Bar")<{
   randomNumber: number
 }> {}
 
@@ -16,11 +16,11 @@ export const program = Effect.gen(function* (_) {
   return n > 0.5
     ? "yay!"
     : n < 0.2
-    ? yield* _(new FooError({ message: "Oh no!" }))
+    ? yield* _(new FooError({ reason: "Oh no!" }))
     : yield* _(new BarError({ randomNumber: n }))
 }).pipe(
   Effect.catchTags({
-    Foo: (error) => Effect.succeed(`Foo error: ${error.message}`),
+    Foo: (error) => Effect.succeed(`Foo error: ${error.reason}`),
     Bar: (error) => Effect.succeed(`Bar error: ${error.randomNumber}`)
   })
 )
