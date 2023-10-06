@@ -111,3 +111,25 @@ You can use `Queue.awaitShutdown` to execute an effect when the queue is shut do
 ```ts file=<rootDir>/src/concurrency/queue/awaitShutdown.ts
 
 ```
+
+## Offer-only / Take-only Queues
+
+In some situations, you may need specific parts of your code to have exclusive capabilities, such as only offering values (`Enqueue`) or only taking values (`Dequeue`) from a queue. Effect provides a straightforward way to achieve this.
+
+All operations related to offering values are defined by the `Enqueue` interface. Here's an example of how to use it:
+
+```ts file=<rootDir>/src/concurrency/queue/enqueue-dequeue.ts#L3-L11
+
+```
+
+Similarly, all operations related to taking values are defined by the `Dequeue` interface. Here's an example:
+
+```ts file=<rootDir>/src/concurrency/queue/enqueue-dequeue.ts#L13-L21
+
+```
+
+The `Queue` type extends both `Enqueue` and `Dequeue`, allowing you to conveniently pass it to different parts of your code where you want to enforce either `Enqueue` or `Dequeue` behavior:
+
+```ts file=<rootDir>/src/concurrency/queue/enqueue-dequeue.ts#L23-
+
+```
