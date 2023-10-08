@@ -10,7 +10,7 @@ Effect's logging utilities offer several advantages over traditional logging met
 
 1. **Dynamic Log Level Control**: With Effect's logging, you have the ability to change the log level dynamically. This means you can control which log messages get displayed based on their severity. For example, you can configure your application to log only warnings or errors, which can be extremely helpful in production environments to reduce noise.
 
-2. **Custom Logging Output**: Effect's logging utilities allow you to change how logs are handled. You can direct log messages to various destinations, such as a service or a file, using a [custom logger](./custom-logger). This flexibility ensures that logs are stored and processed in a way that best suits your application's requirements.
+2. **Custom Logging Output**: Effect's logging utilities allow you to change how logs are handled. You can direct log messages to various destinations, such as a service or a file, using a [custom logger](#custom-loggers). This flexibility ensures that logs are stored and processed in a way that best suits your application's requirements.
 
 3. **Fine-Grained Logging**: Effect enables fine-grained control over logging on a per-part basis of your program. You can set different log levels for different parts of your application, tailoring the level of detail to each specific component. This can be invaluable for debugging and troubleshooting, as you can focus on the information that matters most.
 
@@ -207,3 +207,47 @@ You can also disable logging by creating a custom runtime that includes the conf
 ```
 
 In this approach, you create a custom runtime that incorporates the configuration to disable logging, and then you execute your program using this custom runtime.
+
+## Custom loggers
+
+In this section, we will learn how to define a custom logger and set it as the default logger in our program.
+
+First, let's define our custom logger. Let's say we want to log `DEBUG` messages in regular text and all other messages in bold:
+
+```ts filename="CustomLogger.ts" file=<rootDir>/src/guide/observability/logging/CustomLogger.ts
+
+```
+
+Assuming we have defined the following program:
+
+<Tabs>
+<Tab>
+
+```ts filename="program.ts" file=<rootDir>/src/guide/observability/logging/program-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts filename="program.ts" file=<rootDir>/src/guide/observability/logging/program.ts
+
+```
+
+</Tab>
+</Tabs>
+
+To replace the default logger, we simply need to create a specific layer using `Logger.replace` and provide it to our program using `Effect.provide` before executing it:
+
+```ts filename="index.ts" file=<rootDir>/src/guide/observability/logging/index.ts
+
+```
+
+This is what we see printed on the console after executing the program:
+
+```ansi
+[1m[INFO] start[0m
+[DEBUG] task1 done
+[DEBUG] task2 done
+[1m[INFO] done[0m
+```
