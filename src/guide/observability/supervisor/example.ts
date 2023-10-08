@@ -21,7 +21,7 @@ const program = Effect.gen(function* (_) {
 })
 
 const monitorFibers = (
-  supervisor: Supervisor.Supervisor<Fiber.RuntimeFiber<any, any>[]>
+  supervisor: Supervisor.Supervisor<Array<Fiber.RuntimeFiber<any, any>>>
 ): Effect.Effect<never, never, void> =>
   Effect.gen(function* (_) {
     const fibers = yield* _(supervisor.value())
