@@ -1,4 +1,4 @@
-import * as Metric from "effect/Metric"
+import { Metric } from "effect"
 
 // $ExpectType Counter<number>
 const numberCounter = Metric.counter("count", {
