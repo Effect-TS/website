@@ -1,1 +1,69 @@
 # Introduction to Metrics in Effect
+
+In complex and highly concurrent applications, managing various interconnected components can be quite challenging. Ensuring that everything runs smoothly and avoiding application downtime becomes crucial in such setups.
+
+Now, let's imagine we have a sophisticated infrastructure with numerous services. These services are replicated and distributed across our servers. However, we often lack insight into what's happening across these services, including error rates, response times, and service uptime. This lack of visibility can make it challenging to identify and address issues effectively. This is where Effect Metrics comes into play; it allows us to capture and analyze various metrics, providing valuable data for later investigation.
+
+Effect Metrics offers support for five different types of metrics:
+
+1. **Counter**: Counters are used to track values that increase over time, such as request counts. They help us keep tabs on how many times a specific event or action has occurred.
+
+2. **Gauge**: Gauges represent a single numerical value that can fluctuate up and down over time. They are often used to monitor metrics like memory usage, which can vary continuously.
+
+3. **Histogram**: Histograms are useful for tracking the distribution of observed values across different buckets. They are commonly used for metrics like request latencies, allowing us to understand how response times are distributed.
+
+4. **Summary**: Summaries provide insight into a sliding window of a time series and offer metrics for specific percentiles of the time series, often referred to as quantiles. This is particularly helpful for understanding latency-related metrics, such as request response times.
+
+5. **Frequency**: Frequency metrics count the occurrences of distinct string values. They are useful when you want to keep track of how often different events or conditions are happening in your application.
+
+## Counter
+
+In the world of metrics, a Counter is a metric that represents a single numerical value that can be incremented over time. Think of it like a tally that keeps track of something increasing, such as the number of a particular type of request received by your application.
+
+Unlike some other types of metrics (like gauges), where we're interested in the value at a specific moment, with counters, we care about the cumulative value over time.
+
+### How to Create a Counter
+
+To create a counter, you can use the `Metric.counter` constructor in your code. You have the option to specify the type of the counter as either `number` or `bigint`. Here's how you can do it:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/constructor.ts
+
+```
+
+### When to Use Counters
+
+Counters are incredibly useful when you want to keep track of values that only go up. They are not suitable for values that can decrease over time. So, when should you use counters?
+
+1. **Tracking a Value Over Time**: If you need to monitor something that consistently increases over time, like the number of incoming requests, counters are your go-to choice.
+
+2. **Measuring Growth Rates**: Counters are also handy when you want to measure how fast something is growing. For instance, you can use them to keep tabs on request rates.
+
+### Common Use Cases
+
+Counters find application in various scenarios, including:
+
+- **Request Counts**: Monitoring the number of incoming requests to your server.
+
+- **Completed Tasks**: Keeping track of how many tasks or processes have been successfully completed.
+
+- **Error Counts**: Counting the occurrences of errors in your application.
+
+### Example
+
+Here's a practical example of creating and using a counter in your code:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/countAll.ts
+
+```
+
+In this example, we create a counter called `countAll`, which is incremented by 1 each time it's invoked. We then use it to monitor the number of times certain tasks are executed. The result provides valuable insights into the cumulative count of these tasks.
+
+It's worth noting that applying the `countAll` metric to an effect doesn't change its type. So, if `task1` has a type of `Effect<never, never, number>`, then `countAll(task1)` still has the same type, `Effect<never, never, number>`.
+
+## Gauge
+
+## Histogram
+
+## Summary
+
+## Frequency
