@@ -38,8 +38,6 @@ Counters are incredibly useful when you want to keep track of values that only g
 
 2. **Measuring Growth Rates**: Counters are also handy when you want to measure how fast something is growing. For instance, you can use them to keep tabs on request rates.
 
-### Common Use Cases
-
 Counters find application in various scenarios, including:
 
 - **Request Counts**: Monitoring the number of incoming requests to your server.
@@ -147,5 +145,37 @@ This example demonstrates the use of a timer metric to track workflow durations.
 These examples showcase how histograms can be used to analyze and understand the distribution of data in various scenarios, making them a valuable tool in software metrics.
 
 ## Summary
+
+A Summary is a metric that provides valuable insights into a time series by calculating specific percentiles. These percentiles help us understand the distribution of values within the time series. Imagine you're tracking response times for requests over the past hour; you might be interested in percentiles like the 50th, 90th, 95th, and 99th to analyze performance.
+
+### How Summaries Work
+
+Summaries, much like histograms, observe `number` values. However, instead of directly modifying bucket counters and discarding samples, summaries retain the observed samples in their internal state. To prevent uncontrolled growth of the sample set, a summary is configured with a maximum age `maxAge` and a maximum size `maxSize`. When calculating statistics, it uses a maximum of `maxSize` samples, all of which are not older than `maxAge`.
+
+Think of the set of samples as a sliding window over the most recent observations that meet the specified conditions.
+
+Summaries are primarily used to calculate quantiles over the current set of samples. A quantile is defined by a `number` value `q` with `0 <= q <= 1` and results in a `number` as well.
+
+The value of a specific quantile `q` is determined as the maximum value `v` from the current sample buffer (with size `n`) where at most `q * n` values from the sample buffer are less than or equal to `v`.
+
+Common quantiles for observation include `0.5` (the median) and `0.95`. Quantiles are particularly useful for monitoring Service Level Agreements (SLAs).
+
+The Effect Metrics API also allows summaries to be configured with an error margin `error`. This margin is applied to the count of values, so a quantile `q` for a set of size `s` resolves to value `v` if the count `n` of values less than or equal to `v` falls within the range `(1 - error)q * s <= n <= (1 + error)q`.
+
+### When to Use Summaries
+
+Summaries are excellent for monitoring latencies when histograms are not the right fit due to accuracy concerns. They shine in situations where:
+
+- The range of values is not well-estimated, making histograms less suitable.
+
+- There's no need for aggregation or averaging across multiple instances, as summary calculations are performed on the application side.
+
+### Examples
+
+Let's create a summary to hold `100` samples, with a maximum sample age of `1 day`, and an error margin of `3%`. This summary should report the `10%`, `50%`, and `90%` quantiles. It can be applied to effects yielding integers:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/summary/example.ts
+
+```
 
 ## Frequency
