@@ -7,5 +7,3 @@ export const program = Effect.config(HostPort.config).pipe(
     Console.log(`Application started: ${hostPort.url}`)
   )
 )
-
-Effect.runSync(program)

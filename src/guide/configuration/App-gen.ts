@@ -6,5 +6,3 @@ export const program = Effect.gen(function* (_) {
   const hostPort = yield* _(Effect.config(HostPort.config))
   console.log(`Application started: ${hostPort.url}`)
 })
-
-Effect.runSync(program)
