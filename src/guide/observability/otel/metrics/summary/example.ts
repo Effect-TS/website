@@ -13,8 +13,8 @@ const program = summary(Random.nextIntBetween(1, 120)).pipe(
   Effect.flatMap(() => Metric.value(summary))
 )
 
-Effect.runPromise(program).then((histogramState) =>
-  console.log("%o", histogramState)
+Effect.runPromise(program).then((summaryState) =>
+  console.log("%o", summaryState)
 )
 /*
 Output:

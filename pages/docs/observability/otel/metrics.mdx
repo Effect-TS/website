@@ -170,7 +170,7 @@ Summaries are excellent for monitoring latencies when histograms are not the rig
 
 - There's no need for aggregation or averaging across multiple instances, as summary calculations are performed on the application side.
 
-### Examples
+### Example
 
 Let's create a summary to hold `100` samples, with a maximum sample age of `1 day`, and an error margin of `3%`. This summary should report the `10%`, `50%`, and `90%` quantiles. It can be applied to effects yielding integers:
 
@@ -179,3 +179,21 @@ Let's create a summary to hold `100` samples, with a maximum sample age of `1 da
 ```
 
 ## Frequency
+
+Frequencies are metrics that help us count the occurrences of specific values. Think of them as a set of counters, each associated with a unique value. When new values are observed, frequencies automatically create new counters for them.
+
+### When to Use Frequencies
+
+Frequencies are invaluable for counting the occurrences of distinct string values. Consider using frequencies in scenarios like:
+
+- Tracking the number of invocations for each service in an application that uses logical names for its services.
+
+- Monitoring the frequency of different types of failures.
+
+## Example
+
+Let's create a Frequency to observe the occurrences of unique strings. This example can be applied to effects that yield a `string`:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/frequency/example.ts
+
+```
