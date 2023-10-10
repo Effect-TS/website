@@ -96,6 +96,56 @@ Let's look at a practical example of creating and using a gauge in your code:
 
 ## Histogram
 
+A Histogram is a metric that helps us understand how a collection of numerical values is distributed over time. Instead of just focusing on the individual values, histograms organize these values into distinct intervals, called buckets, and record the frequency of values within each bucket.
+
+Histograms are valuable because they not only represent the actual values but also provide insights into their distribution. They are like a summary of a dataset, breaking down the data into buckets and showing how many data points fall into each one.
+
+### How Histograms Work
+
+In a histogram, each incoming sample is assigned to a predefined bucket. When a data point arrives, it increases the count for the corresponding bucket, and then the individual sample is discarded. This bucketed approach allows us to aggregate data across multiple instances. Histograms are especially useful for measuring percentiles, helping us estimate specific percentiles by looking at bucket counts.
+
+### Key Concepts
+
+- **Observing Values:** Histograms observe numerical values and count how many observations fall into specific buckets. Each bucket has an upper boundary, and the count for a bucket increases by 1 if an observed value is less than or equal to the bucket's upper boundary.
+
+- **Overall Count:** A histogram also keeps track of the total count of observed values and the sum of all observed values.
+
+- **Inspired by Prometheus:** The concept of histograms is inspired by [Prometheus](https://prometheus.io/docs/concepts/metric_types/#histogram), a popular monitoring and alerting toolkit.
+
+### When to Use Histograms
+
+Histograms are widely used in software metrics for various purposes, especially in analyzing the performance of software systems. They are valuable for metrics such as response times, latencies, and throughput. By visualizing the distribution of these metrics in a histogram, developers can identify performance bottlenecks, outliers, or variations. This information helps in optimizing code, infrastructure, and system configurations to improve overall performance.
+
+Histograms are the best choice in the following situations:
+
+- When you want to observe many values and later calculate percentiles of those observed values.
+
+- When you can estimate the range of values in advance, as histograms organize observations into predefined buckets.
+
+- When you don't require exact values due to the inherent lossy nature of bucketing data in histograms.
+
+- When you need to aggregate histograms across multiple instances.
+
+### Examples
+
+#### Histogram With Linear Buckets
+
+In this example, we create a histogram with linear buckets, ranging from 0 to 100 in increments of 10, and an "Infinity" bucket. It's suitable for effects yielding a `number`. The program then generates random values, records them in the histogram, and displays the histogram's state.
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/histogram/linear.ts
+
+```
+
+#### Timer Metric
+
+This example demonstrates the use of a timer metric to track workflow durations. It generates random values, simulates waiting times, records durations in the timer metric, and displays the histogram's state.
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/histogram/timer.ts
+
+```
+
+These examples showcase how histograms can be used to analyze and understand the distribution of data in various scenarios, making them a valuable tool in software metrics.
+
 ## Summary
 
 ## Frequency
