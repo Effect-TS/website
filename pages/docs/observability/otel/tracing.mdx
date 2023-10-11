@@ -3,3 +3,98 @@
 Although logs and metrics are useful to understand the behavior of individual services, they are not enough to provide a complete overview of the lifetime of a request in a distributed system.
 
 In a distributed system, a request can span multiple services and each service can make multiple requests to other services to fulfill the request. In such a scenario, we need to have a way to track the lifetime of a request across multiple services to diagnose what services are the bottlenecks and where the request is spending most of its time.
+
+## Spans
+
+A span represents a unit of work or operation. It tracks specific operations that a request makes, painting a picture of what happened during the time in which that operation was executed.
+
+A typical Span contains the following information:
+
+- **Name:** Describes the operation being tracked.
+
+- **Time-Related Data:** Timestamps to measure when the operation started and how long it took.
+
+- **Structured Log Messages:** Records essential information during the operation.
+
+- **Metadata (Attributes):** Additional data that provides context about the operation.
+
+## Traces
+
+A trace records the paths taken by requests (made by an application or end-user) as they propagate through multi-service architectures, like microservice and serverless applications.
+
+Without tracing, it is challenging to pinpoint the cause of performance problems in a distributed system.
+
+A trace is made of one or more spans. The first span represents the root span. Each root span represents a request from start to finish. The spans underneath the parent provide a more in-depth context of what occurs during a request (or what steps make up a request).
+
+Many Observability back-ends visualize traces as waterfall diagrams that may look something like this:
+
+<img
+  src="/pages/waterfall-trace.svg"
+  alt="Sample Trace"
+  title="Trace waterfall diagram"
+/>
+
+Waterfall diagrams show the parent-child relationship between a root span and its child spans. When a span encapsulates another span, this also represents a nested relationship.
+
+## Creating Spans
+
+You can instrument an effect with a Span using the `Effect.withSpan` API. Here's how you can do it:
+
+```ts file=<rootDir>/src/guide/observability/otel/tracing/withSpan.ts
+
+```
+
+It's important to note that instrumenting an effect doesn't change its type. You start with an `Effect<never, never, void>`, and you still get an `Effect<never, never, void>`.
+
+## Printing Spans
+
+Now, let's print our Span to the console. To achieve this, we need specific tools, including the `@effect/opentelemetry` package and the `@opentelemetry/sdk-trace-base` package. With these in place, we can visualize and understand the Spans in our application.
+
+Here's a code snippet demonstrating how to set up the necessary environment and print the Span to the console:
+
+```ts {29} file=<rootDir>/src/guide/observability/otel/tracing/print-withSpan.ts
+
+```
+
+Here's a breakdown of the output:
+
+| Field        | Description                                                                                                                                                                                                    |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `traceId`    | A unique identifier for the entire trace, helping trace requests or operations as they move through an application.                                                                                            |
+| `parentId`   | Identifies the parent span of the current span, marked as `undefined` in the output when there is no parent span, making it a root span.                                                                       |
+| `name`       | Describes the name of the span, indicating the operation being tracked (e.g., "myspan").                                                                                                                       |
+| `id`         | A unique identifier for the current span, distinguishing it from other spans within a trace.                                                                                                                   |
+| `timestamp`  | A timestamp representing when the span started, measured in nanoseconds since the Unix epoch.                                                                                                                  |
+| `duration`   | Specifies the duration of the span, representing the time taken to complete the operation (e.g., `2895.769` nanoseconds).                                                                                      |
+| `attributes` | Spans may contain attributes, which are key-value pairs providing additional context or information about the operation. In this output, it's an empty object, indicating no specific attributes in this span. |
+| `events`     | Spans can include events, which are records of specific moments during the span's lifecycle. In this output, it's an empty array, suggesting no specific events recorded.                                      |
+| `links`      | Links can be used to associate this span with other spans in different traces. In the output, it's an empty array, indicating no specific links for this span.                                                 |
+
+## Adding Annotations
+
+You can provide extra information to a span by utilizing the `Effect.annotateCurrentSpan` function.
+This tool allows you to associate key-value pairs, offering more context about the execution of the span.
+
+```ts {36} file=<rootDir>/src/guide/observability/otel/tracing/annotateCurrentSpan.ts
+
+```
+
+## Logs as events
+
+Logs are transformed into what are known as "Span Events." These events provide structured information and a timeline of occurrences within your application.
+
+```ts {37-44} file=<rootDir>/src/guide/observability/otel/tracing/log-withSpan.ts
+
+```
+
+Spans can contain events, which are records of specific moments during the span's lifecycle. In this output, there is one event named 'Hello.' It includes associated attributes, such as 'effect.fiberId' and 'effect.logLevel,' providing information about the logged event. The 'time' field represents the timestamp when the event occurred.
+
+## Nesting Spans
+
+Spans can be nested, creating a hierarchy of operations. This concept is illustrated in the following code:
+
+```ts /b953d6c7d37ad93d/ file=<rootDir>/src/guide/observability/otel/tracing/nested-spans.ts
+
+```
+
+As you can observe, the `b953d6c7d37ad93d` value plays a crucial role in maintaining the parent-child relationship between these spans. It provides a clear indication of how spans can be nested, creating a trace that helps developers understand the flow and hierarchy of operations in their applications.
