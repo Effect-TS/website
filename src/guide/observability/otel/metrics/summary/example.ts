@@ -8,14 +8,11 @@ const summary = Metric.summary({
   quantiles: Chunk.make(0.1, 0.5, 0.9)
 })
 
-const program = summary(Random.nextIntBetween(1, 120)).pipe(
-  Effect.repeatN(99),
-  Effect.flatMap(() => Metric.value(summary))
-)
+const program = summary(Random.nextIntBetween(1, 120)).pipe(Effect.repeatN(99))
 
-Effect.runPromise(program).then((summaryState) =>
-  console.log("%o", summaryState)
-)
+Effect.runPromise(
+  program.pipe(Effect.flatMap(() => Metric.value(summary)))
+).then((summaryState) => console.log("%o", summaryState))
 /*
 Output:
 SummaryState {

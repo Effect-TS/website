@@ -6,12 +6,11 @@ const timer = Metric.timerWithBoundaries("timer", Chunk.range(1, 10))
 const program = Random.nextIntBetween(1, 10).pipe(
   Effect.flatMap((n) => Effect.sleep(`${n} millis`)),
   Metric.trackDuration(timer),
-  Effect.repeatN(99),
-  Effect.flatMap(() => Metric.value(timer))
+  Effect.repeatN(99)
 )
 
-Effect.runPromise(program).then((histogramState) =>
-  console.log("%o", histogramState)
+Effect.runPromise(program.pipe(Effect.flatMap(() => Metric.value(timer)))).then(
+  (histogramState) => console.log("%o", histogramState)
 )
 /*
 Output:

@@ -1,4 +1,4 @@
-import { Metric, Effect } from "effect"
+import { Metric, Effect, Console } from "effect"
 
 // Create a counter named 'countAll' and increment it by 1 every time it's invoked
 const countAll = Metric.counter("countAll").pipe(Metric.withConstantInput(1))
@@ -13,16 +13,17 @@ const program = Effect.gen(function* (_) {
     countAll(task1)
   )
   const b = yield* _(countAll(task2))
-  console.log(yield* _(Metric.value(countAll)))
   return a + b
 })
 
-Effect.runPromise(program).then((result) => console.log(`result: ${result}`))
+const showMetric = Metric.value(countAll).pipe(Effect.flatMap(Console.log))
+
+Effect.runPromise(program.pipe(Effect.tap(() => showMetric))).then(console.log)
 /*
 Output:
 CounterState {
   count: 2,
   ...
 }
-result: 3
+3
 */

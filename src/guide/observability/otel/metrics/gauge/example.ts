@@ -1,4 +1,4 @@
-import { Metric, Effect, Random } from "effect"
+import { Metric, Effect, Random, Console } from "effect"
 
 const temperature = Metric.gauge("temperature")
 
@@ -10,14 +10,15 @@ const getTemperature = Effect.gen(function* (_) {
 
 const program = Effect.gen(function* (_) {
   const series: Array<number> = []
-  series.push(yield* _(getTemperature.pipe(temperature)))
-  series.push(yield* _(getTemperature.pipe(temperature)))
-  series.push(yield* _(getTemperature.pipe(temperature)))
-  console.log(yield* _(Metric.value(temperature)))
+  series.push(yield* _(temperature(getTemperature)))
+  series.push(yield* _(temperature(getTemperature)))
+  series.push(yield* _(temperature(getTemperature)))
   return series
 })
 
-Effect.runPromise(program).then(console.log)
+const showMetric = Metric.value(temperature).pipe(Effect.flatMap(Console.log))
+
+Effect.runPromise(program.pipe(Effect.tap(() => showMetric))).then(console.log)
 /*
 Output:
 variation: 6

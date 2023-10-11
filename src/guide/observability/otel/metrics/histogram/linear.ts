@@ -1,4 +1,4 @@
-import { Effect, Metric, MetricBoundaries, Random } from "effect"
+import { Effect, Metric, MetricBoundaries, Random, Console } from "effect"
 
 // Metric<Histogram, number, Histogram>
 const histogram = Metric.histogram(
@@ -7,13 +7,12 @@ const histogram = Metric.histogram(
 )
 
 const program = histogram(Random.nextIntBetween(1, 120)).pipe(
-  Effect.repeatN(99),
-  Effect.flatMap(() => Metric.value(histogram))
+  Effect.repeatN(99)
 )
 
-Effect.runPromise(program).then((histogramState) =>
-  console.log("%o", histogramState)
-)
+Effect.runPromise(
+  program.pipe(Effect.flatMap(() => Metric.value(histogram)))
+).then((histogramState) => console.log("%o", histogramState))
 /*
 Output:
 HistogramState {

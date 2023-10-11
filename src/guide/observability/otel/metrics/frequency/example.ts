@@ -4,13 +4,10 @@ const freq = Metric.frequency("MySet")
 
 const program = freq(
   Random.nextIntBetween(1, 10).pipe(Effect.map((n) => `MyKey-${n}`))
-).pipe(
-  Effect.repeatN(99),
-  Effect.flatMap(() => Metric.value(freq))
-)
+).pipe(Effect.repeatN(99))
 
-Effect.runPromise(program).then((frequencyState) =>
-  console.log("%o", frequencyState)
+Effect.runPromise(program.pipe(Effect.flatMap(() => Metric.value(freq)))).then(
+  (frequencyState) => console.log("%o", frequencyState)
 )
 /*
 Output:
