@@ -33,8 +33,8 @@ const nextConfig = {
   output: "standalone",
   rewrites: () => [
     {
-      source: "/events/effect-days",
-      destination: "https://webflow.effect.website/events/effect-days-2024",
+      source: "/events/:path*",
+      destination: "https://webflow.effect.website/events/:path*",
     },
   ],
 }
