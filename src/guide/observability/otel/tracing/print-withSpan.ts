@@ -6,16 +6,12 @@ const program = Effect.unit.pipe(Effect.delay("100 millis"))
 
 const instrumented = program.pipe(Effect.withSpan("myspan"))
 
-const ResourceLive = Resource.layer({ serviceName: "example" })
-
 const NodeSdkLive = NodeSdk.layer(() =>
-  NodeSdk.config({
-    traceExporter: new ConsoleSpanExporter()
-  })
+  NodeSdk.config({ traceExporter: new ConsoleSpanExporter() })
 )
 
 const TracingLive = Layer.provide(
-  ResourceLive,
+  Resource.layer({ serviceName: "example" }),
   Layer.merge(NodeSdkLive, Tracer.layer)
 )
 

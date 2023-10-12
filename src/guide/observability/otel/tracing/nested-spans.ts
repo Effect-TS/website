@@ -13,16 +13,12 @@ const parent = Effect.gen(function* (_) {
   yield* _(Effect.sleep("10 millis"))
 }).pipe(Effect.withSpan("parent"))
 
-const ResourceLive = Resource.layer({ serviceName: "example" })
-
 const NodeSdkLive = NodeSdk.layer(() =>
-  NodeSdk.config({
-    traceExporter: new ConsoleSpanExporter()
-  })
+  NodeSdk.config({ traceExporter: new ConsoleSpanExporter() })
 )
 
 const TracingLive = Layer.provide(
-  ResourceLive,
+  Resource.layer({ serviceName: "example" }),
   Layer.merge(NodeSdkLive, Tracer.layer)
 )
 

@@ -2,7 +2,7 @@ import { Effect, Layer } from "effect"
 import { NodeSdk, Resource, Tracer } from "@effect/opentelemetry"
 import { ConsoleSpanExporter } from "@opentelemetry/sdk-trace-base"
 
-const program = Effect.log("Hello").pipe(
+const program = Effect.fail("Oh no!").pipe(
   Effect.delay("100 millis"),
   Effect.withSpan("myspan")
 )
@@ -20,24 +20,17 @@ Effect.runPromise(program.pipe(Effect.provide(TracingLive)))
 /*
 Output:
 {
-  traceId: 'ad708d58c15f9e5c7b5cca2eeb6838a2',
+  traceId: '760510a3f9a0881a09de990c87ec1cef',
   parentId: undefined,
   traceState: undefined,
   name: 'myspan',
-  id: '4353fd47423e786a',
+  id: 'a528e38e82e848a5',
   kind: 0,
-  timestamp: 1697043230170724.2,
-  duration: 112052.514,
+  timestamp: 1697091363002970.5,
+  duration: 110371.664,
   attributes: {},
-  status: { code: 1 },
-  events: [
-    {
-      name: 'Hello',
-      attributes: { 'effect.fiberId': '#0', 'effect.logLevel': 'INFO' },
-      time: [ 1697043230, 280923805 ],
-      droppedAttributesCount: 0
-    }
-  ],
+  status: { code: 2, message: 'Error: Oh no!' },
+  events: [],
   links: []
 }
 */

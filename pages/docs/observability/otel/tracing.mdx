@@ -52,7 +52,7 @@ Now, let's print our Span to the console. To achieve this, we need specific tool
 
 Here's a code snippet demonstrating how to set up the necessary environment and print the Span to the console:
 
-```ts {29} file=<rootDir>/src/guide/observability/otel/tracing/print-withSpan.ts
+```ts {25} file=<rootDir>/src/guide/observability/otel/tracing/print-withSpan.ts
 
 ```
 
@@ -64,18 +64,25 @@ Here's a breakdown of the output:
 | `parentId`   | Identifies the parent span of the current span, marked as `undefined` in the output when there is no parent span, making it a root span.                                                                       |
 | `name`       | Describes the name of the span, indicating the operation being tracked (e.g., "myspan").                                                                                                                       |
 | `id`         | A unique identifier for the current span, distinguishing it from other spans within a trace.                                                                                                                   |
-| `timestamp`  | A timestamp representing when the span started, measured in nanoseconds since the Unix epoch.                                                                                                                  |
-| `duration`   | Specifies the duration of the span, representing the time taken to complete the operation (e.g., `2895.769` nanoseconds).                                                                                      |
+| `timestamp`  | A timestamp representing when the span started, measured in microseconds since the Unix epoch.                                                                                                                 |
+| `duration`   | Specifies the duration of the span, representing the time taken to complete the operation (e.g., `2895.769` microseconds).                                                                                     |
 | `attributes` | Spans may contain attributes, which are key-value pairs providing additional context or information about the operation. In this output, it's an empty object, indicating no specific attributes in this span. |
+| `status`     | The status field provides information about the span's status. In this case, it has a code of 1, which typically indicates an OK status (whereas a code of 2 signifies an ERROR status)                        |
 | `events`     | Spans can include events, which are records of specific moments during the span's lifecycle. In this output, it's an empty array, suggesting no specific events recorded.                                      |
 | `links`      | Links can be used to associate this span with other spans in different traces. In the output, it's an empty array, indicating no specific links for this span.                                                 |
+
+Let's examine the output of an effect that encountered an error:
+
+```ts {32} file=<rootDir>/src/guide/observability/otel/tracing/print-withSpan-fail.ts
+
+```
 
 ## Adding Annotations
 
 You can provide extra information to a span by utilizing the `Effect.annotateCurrentSpan` function.
 This tool allows you to associate key-value pairs, offering more context about the execution of the span.
 
-```ts {36} file=<rootDir>/src/guide/observability/otel/tracing/annotateCurrentSpan.ts
+```ts {32} file=<rootDir>/src/guide/observability/otel/tracing/annotateCurrentSpan.ts
 
 ```
 
@@ -83,7 +90,7 @@ This tool allows you to associate key-value pairs, offering more context about t
 
 Logs are transformed into what are known as "Span Events." These events provide structured information and a timeline of occurrences within your application.
 
-```ts {37-44} file=<rootDir>/src/guide/observability/otel/tracing/log-withSpan.ts
+```ts {33-40} file=<rootDir>/src/guide/observability/otel/tracing/log-withSpan.ts
 
 ```
 
