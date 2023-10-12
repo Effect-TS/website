@@ -18,21 +18,29 @@ Effect Metrics offers support for five different types of metrics:
 
 ## Counter
 
-In the world of metrics, a Counter is a metric that represents a single numerical value that can be incremented over time. Think of it like a tally that keeps track of something increasing, such as the number of a particular type of request received by your application.
+In the world of metrics, a Counter is a metric that represents a single numerical value that can be both incremented and decremented over time. Think of it like a tally that keeps track of changes, such as the number of a particular type of request received by your application, whether it's increasing or decreasing.
 
-Unlike some other types of metrics (like gauges), where we're interested in the value at a specific moment, with counters, we care about the cumulative value over time.
+Unlike some other types of metrics (like gauges), where we're interested in the value at a specific moment, with counters, we care about the cumulative value over time. This means it provides a running total of changes, which can go up and down, reflecting the dynamic nature of certain metrics.
 
 ### How to Create a Counter
 
 To create a counter, you can use the `Metric.counter` constructor in your code. You have the option to specify the type of the counter as either `number` or `bigint`. Here's how you can do it:
 
-```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/constructor.ts
+```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/constructor.ts#L1-L12
 
 ```
 
+If you wish to create a counter that only increases its value, you can utilize the `incremental: true` option as follows:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/constructor.ts#L14-
+
+```
+
+With this configuration, Effect ensures that non-incremental updates have no impact on the counter, making it exclusively suitable for counting upwards.
+
 ### When to Use Counters
 
-Counters are incredibly useful when you want to keep track of values that only go up. They are not suitable for values that can decrease over time. So, when should you use counters?
+Counters are incredibly useful when you need to keep track of cumulative values that can both increase and decrease over time. So, when should you use counters?
 
 1. **Tracking a Value Over Time**: If you need to monitor something that consistently increases over time, like the number of incoming requests, counters are your go-to choice.
 

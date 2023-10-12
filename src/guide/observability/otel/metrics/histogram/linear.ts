@@ -1,4 +1,4 @@
-import { Effect, Metric, MetricBoundaries, Random, Console } from "effect"
+import { Effect, Metric, MetricBoundaries, Random } from "effect"
 
 // Metric<Histogram, number, Histogram>
 const histogram = Metric.histogram(
