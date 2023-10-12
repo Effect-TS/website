@@ -1,17 +1,17 @@
 import { Effect, Metric, MetricBoundaries, Random } from "effect"
 
 // Metric<Histogram, number, Histogram>
-const histogram = Metric.histogram(
-  "histogram",
+const latencyHistogram = Metric.histogram(
+  "request_latency",
   MetricBoundaries.linear({ start: 0, width: 10, count: 11 })
 )
 
-const program = histogram(Random.nextIntBetween(1, 120)).pipe(
+const program = latencyHistogram(Random.nextIntBetween(1, 120)).pipe(
   Effect.repeatN(99)
 )
 
 Effect.runPromise(
-  program.pipe(Effect.flatMap(() => Metric.value(histogram)))
+  program.pipe(Effect.flatMap(() => Metric.value(latencyHistogram)))
 ).then((histogramState) => console.log("%o", histogramState))
 /*
 Output:

@@ -1,29 +1,29 @@
 import { Metric, Random, Effect } from "effect"
 
-const freq = Metric.frequency("MySet")
+const errorFrequency = Metric.frequency("error_frequency")
 
-const program = freq(
-  Random.nextIntBetween(1, 10).pipe(Effect.map((n) => `MyKey-${n}`))
+const program = errorFrequency(
+  Random.nextIntBetween(1, 10).pipe(Effect.map((n) => `Error-${n}`))
 ).pipe(Effect.repeatN(99))
 
-Effect.runPromise(program.pipe(Effect.flatMap(() => Metric.value(freq)))).then(
-  (frequencyState) => console.log("%o", frequencyState)
-)
+Effect.runPromise(
+  program.pipe(Effect.flatMap(() => Metric.value(errorFrequency)))
+).then((frequencyState) => console.log("%o", frequencyState))
 /*
 Output:
 FrequencyState {
   occurrences: {
     _id: 'HashMap',
     values: [
-      [ 'MyKey-9', 20 ],
-      [ 'MyKey-8', 7 ],
-      [ 'MyKey-3', 15 ],
-      [ 'MyKey-2', 7 ],
-      [ 'MyKey-1', 11 ],
-      [ 'MyKey-7', 7 ],
-      [ 'MyKey-6', 5 ],
-      [ 'MyKey-5', 12 ],
-      [ 'MyKey-4', 16 ]
+      [ 'Error-9', 20 ],
+      [ 'Error-8', 7 ],
+      [ 'Error-3', 15 ],
+      [ 'Error-2', 7 ],
+      [ 'Error-1', 11 ],
+      [ 'Error-7', 7 ],
+      [ 'Error-6', 5 ],
+      [ 'Error-5', 12 ],
+      [ 'Error-4', 16 ]
     ]
   },
   ...

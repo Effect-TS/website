@@ -1,17 +1,19 @@
 import { Metric, Chunk, Random, Effect } from "effect"
 
-const summary = Metric.summary({
-  name: "mySummary",
+const responseTimeSummary = Metric.summary({
+  name: "response_time_summary",
   maxAge: "1 days",
   maxSize: 100,
   error: 0.03,
   quantiles: Chunk.make(0.1, 0.5, 0.9)
 })
 
-const program = summary(Random.nextIntBetween(1, 120)).pipe(Effect.repeatN(99))
+const program = responseTimeSummary(Random.nextIntBetween(1, 120)).pipe(
+  Effect.repeatN(99)
+)
 
 Effect.runPromise(
-  program.pipe(Effect.flatMap(() => Metric.value(summary)))
+  program.pipe(Effect.flatMap(() => Metric.value(responseTimeSummary)))
 ).then((summaryState) => console.log("%o", summaryState))
 /*
 Output:
