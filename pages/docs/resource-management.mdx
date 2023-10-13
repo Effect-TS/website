@@ -1,4 +1,5 @@
 import { Tabs, Tab } from "@/components/Code"
+import { Info } from "@/components/Callout"
 
 # Resource Management
 
@@ -106,6 +107,63 @@ Finally, let's explore the behavior in the event of an interruption:
 
 </Tab>
 </Tabs>
+
+## Manually Create and Close Scopes
+
+When you're working with multiple scoped resources within a single operation, it's important to understand how their scopes interact. By default, these scopes are merged into one, but you can have more fine-grained control over when each scope is closed by manually creating and closing them.
+
+Let's start by looking at how scopes are merged by default. Take a look at this code example:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/managed-scopes-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/managed-scopes-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+In this case, the scopes of `task1` and `task2` are merged into a single scope, and when the program is run, it outputs the tasks and their finalizers in a specific order.
+
+If you want more control over when each scope is closed, you can manually create and close them, as shown in this example:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/manual-scopes-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/manual-scopes-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+In this example, we create two separate scopes, `scope1` and `scope2`, and extend the scope of each task into its respective scope. When you run the program, it outputs the tasks and their finalizers in a different order.
+
+<Info>
+  The `Scope.extend` function allows you to extend the scope of an `Effect`
+  workflow that requires a scope into another scope without closing the scope
+  when the workflow finishes executing. This allows you to extend a scoped value
+  into a larger scope.
+</Info>
+
+You might wonder what happens when a scope is closed, but a task within that scope hasn't completed yet. The key point to note is that the scope closing doesn't force the task to be interrupted. It will continue running, and the finalizer will execute immediately when registered. The call to `close` will only wait for the finalizers that have already been registered.
+
+So, finalizers run when the scope is closed, not necessarily when the effect finishes running. When you're using `Effect.scoped`, the scope is managed automatically, and finalizers are executed accordingly. However, when you manage the scope manually, you have control over when finalizers are executed.
 
 ## Defining Resources
 
