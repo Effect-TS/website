@@ -2,6 +2,28 @@
 
 ## Effect
 
+### Extract the type parameters
+
+**Question**. Is it possible to extract the types from an Effect?
+
+**Answer**. By using the utility types `Effect.Effect.Context`, `Effect.Effect.Error`, and `Effect.Effect.Success`, we can extract the corresponding types from the `program` Effect. In this example, we extract the context type (`R`), the error type (`E`), and the success type (`A`).
+
+```ts file=<rootDir>/src/faq/effect-extract-types.ts
+
+```
+
+### Synch / Asynch Behavior in Effects
+
+**Question:** Is there a way to determine whether an Effect is synchronous or asynchronous in advance?
+
+**Answer:** No, there isn't a straightforward way to statically determine if an Effect is synchronous or asynchronous. We did explore this idea in earlier versions of Effect, but we decided against it for a few important reasons:
+
+1. **Complexity:** Introducing this feature to track sync/async behavior in the type system would make Effect more complex to use and limit its composability.
+
+2. **Safety Concerns:** We experimented with different approaches to track asynchronous Effects, but they all resulted in a worse developer experience without significantly improving safety. Even with fully synchronous types, we needed to support a `fromCallback` combinator to work with APIs using Continuation-Passing Style (CPS). However, at the type level, it's impossible to guarantee that such a function is always called immediately and not deferred.
+
+In practice, it's important to note that you should typically only run Effects at the edges of your application. If your application is entirely based on Effect, it usually involves a single call to the `main` effect. In such cases, the best approach is to use `runPromise` or `runFork` for most executions. Synchronous execution is a special case and should be considered an edge case, used only when asynchronous execution is not possible. So, our recommendation is to use `runPromise` or `runFork` whenever you can and resort to `runSync` only when absolutely necessary.
+
 ### Comparison with fp-ts
 
 **Question**. What are the main differences between Effect and [fp-ts](https://github.com/gcanti/fp-ts)?
@@ -18,16 +40,6 @@
 - Effect offers built-in logging, scheduling, caching, and more, which fp-ts does not provide.
 
 For a more detailed comparison, you can refer to the [Effect vs fp-ts](fp-ts) documentation.
-
-### Extract the type parameters
-
-**Question**. Is it possible to extract the types from an Effect?
-
-**Answer**. By using the utility types `Effect.Effect.Context`, `Effect.Effect.Error`, and `Effect.Effect.Success`, we can extract the corresponding types from the `program` Effect. In this example, we extract the context type (`R`), the error type (`E`), and the success type (`A`).
-
-```ts file=<rootDir>/src/faq/effect-extract-types.ts
-
-```
 
 ### Looking for ZIO Type Aliases?
 
