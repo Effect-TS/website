@@ -29,7 +29,7 @@ A trace is made of one or more spans. The first span represents the root span. E
 Many Observability back-ends visualize traces as waterfall diagrams that may look something like this:
 
 <img
-  src="/pages/waterfall-trace.svg"
+  src="/pages/tracing/waterfall-trace.svg"
   alt="Sample Trace"
   title="Trace waterfall diagram"
 />
@@ -105,3 +105,53 @@ Spans can be nested, creating a hierarchy of operations. This concept is illustr
 ```
 
 As you can observe, the `b953d6c7d37ad93d` value plays a crucial role in maintaining the parent-child relationship between these spans. It provides a clear indication of how spans can be nested, creating a trace that helps developers understand the flow and hierarchy of operations in their applications.
+
+## Tutorial: Visualizing Traces with Docker, Prometheus, Grafana, and Tempo
+
+In this tutorial, we'll guide you through simulating and visualizing traces using a sample instrumented Node.js application. We will use Docker, Prometheus, Grafana, and Tempo to create, collect, and visualize traces.
+
+### Tools Explained
+
+Let's understand the tools we'll be using in simple terms:
+
+- **Docker**: Docker allows us to run applications in containers. Think of a container as a lightweight and isolated environment where your application can run consistently, regardless of the host system. It's a bit like a virtual machine but more efficient.
+
+- **Prometheus**: Prometheus is a monitoring and alerting toolkit. It collects metrics and data about your applications and stores them for further analysis. This helps in identifying performance issues and understanding the behavior of your applications.
+
+- **Grafana**: Grafana is a visualization and analytics platform. It helps in creating beautiful and interactive dashboards to visualize your application's data. You can use it to graphically represent metrics collected by Prometheus.
+
+- **Tempo**: Tempo is a distributed tracing system that allows you to trace the journey of a request as it flows through your application. It provides insights into how requests are processed and helps in debugging and optimizing your applications.
+
+### Getting Docker
+
+To get Docker, follow these steps:
+
+1. Visit the Docker website at [https://www.docker.com/](https://www.docker.com/).
+
+2. Download Docker Desktop for your operating system (Windows or macOS) and install it.
+
+3. After installation, open Docker Desktop, and it will run in the background.
+
+### Simulating Traces
+
+Now, let's simulate traces using a sample Node.js application. We'll provide you with the code and guide you on setting up the necessary components.
+
+1. **Download Docker Files**. Download the required Docker files: [docker.zip](/pages/tracing/docker.zip).
+
+2. **Set Up docker**. Unzip the downloaded file, navigate to the `/docker/local` directory in your terminal or command prompt and run the following command to start the necessary services:
+
+```bash filename="Terminal"
+docker-compose up
+```
+
+3. **Simulate Traces**. Run the following example code in your Node.js environment. This code simulates a set of tasks and generates traces:
+
+```ts file=<rootDir>/src/guide/observability/otel/tracing/example.ts
+
+```
+
+4. **Visualize Traces**. Now, open your web browser and go to [http://localhost:3000/explore](http://localhost:3000/explore). You will see a generated `Trace ID` on the web page. Click on it to see the details of the trace.
+
+![Traces in Grafana Tempo](/pages/tracing/trace.png)
+
+That's it! You've simulated and visualized traces using Docker, Prometheus, Grafana, and Tempo. You can use these tools to monitor, analyze, and gain insights into your applications' performance and behavior.
