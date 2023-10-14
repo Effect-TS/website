@@ -1,5 +1,6 @@
 import { Stream } from "effect"
 
-// Creating a stream from an array of numbers
 const numbers = [1, 2, 3]
+
+// $ExpectType Stream<never, never, number>
 const stream = Stream.fromIterable(numbers)
