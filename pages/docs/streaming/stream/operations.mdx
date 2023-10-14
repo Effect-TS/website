@@ -25,6 +25,24 @@ Another essential operation is taking elements, which allows you to extract a sp
 
 ```
 
+### Exploring Streams as an Alternative to Async Iterables
+
+When working with asynchronous data sources, like async iterables, you often need to consume data in a loop until a certain condition is met. This tutorial introduces how you can achieve similar behavior using Streams in a beginner-friendly manner.
+
+In async iterables, data consumption can continue in a loop until a break or return statement is encountered. To replicate this behavior with Streams, you have a couple of options:
+
+1. **Stream.takeUntil:** This function allows you to take elements from a stream until a specified condition evaluates to true. It's akin to breaking out of a loop in async iterables when a certain condition is met.
+
+2. **Stream.toPull:** The `Stream.toPull` function is another way to replicate looping through async iterables. It returns an effect that repeatedly pulls data chunks from the stream. This effect can fail with `None` when the stream is finished or with `Some` error if it fails.
+
+Let's take a closer look at the second option, `Stream.toPull`.
+
+```ts file=<rootDir>/src/streaming/stream/operations/toPull.ts
+
+```
+
+In this example, we're using `Stream.toPull` to repeatedly pull data chunks from the `stream`. The code enters a loop and continues to fetch and display chunks until there's no more data left to process.
+
 ## Mapping
 
 In this section, we'll explore how to transform elements within a stream using the `Stream.map` family of operations. These operations allow you to apply a function to each element of the stream, producing a new stream with the transformed values.
