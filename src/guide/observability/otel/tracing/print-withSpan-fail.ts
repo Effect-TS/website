@@ -1,24 +1,26 @@
-import { Effect, Layer } from "effect"
-import { NodeSdk, Resource, Tracer } from "@effect/opentelemetry"
-import { ConsoleSpanExporter } from "@opentelemetry/sdk-trace-base"
+import { Effect } from "effect"
+import { NodeSdk } from "@effect/opentelemetry"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor
+} from "@opentelemetry/sdk-trace-base"
 
 const program = Effect.fail("Oh no!").pipe(
   Effect.delay("100 millis"),
   Effect.withSpan("myspan")
 )
 
-const NodeSdkLive = NodeSdk.layer(() =>
-  NodeSdk.config({ traceExporter: new ConsoleSpanExporter() })
-)
+const NodeSdkLive = NodeSdk.layer(() => ({
+  resource: { serviceName: "example" },
+  spanProcessor: new BatchSpanProcessor(new ConsoleSpanExporter())
+}))
 
-const TracingLive = Layer.provide(
-  Resource.layer({ serviceName: "example" }),
-  Layer.merge(NodeSdkLive, Tracer.layer)
+Effect.runPromise(program.pipe(Effect.provide(NodeSdkLive))).then(
+  console.log,
+  console.error
 )
-
-Effect.runPromise(program.pipe(Effect.provide(TracingLive)))
 /*
-Output:
+Example Output:
 {
   traceId: '760510a3f9a0881a09de990c87ec1cef',
   parentId: undefined,
@@ -32,5 +34,9 @@ Output:
   status: { code: 2, message: 'Error: Oh no!' },
   events: [],
   links: []
+}
+{
+  _id: 'FiberFailure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Oh no!' }
 }
 */
