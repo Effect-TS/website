@@ -1,6 +1,9 @@
-import { Effect, Layer } from "effect"
-import { NodeSdk, Resource, Tracer } from "@effect/opentelemetry"
-import { ConsoleSpanExporter } from "@opentelemetry/sdk-trace-base"
+import { Effect } from "effect"
+import { NodeSdk } from "@effect/opentelemetry"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor
+} from "@opentelemetry/sdk-trace-base"
 
 const child = Effect.unit.pipe(
   Effect.delay("100 millis"),
@@ -13,18 +16,14 @@ const parent = Effect.gen(function* (_) {
   yield* _(Effect.sleep("10 millis"))
 }).pipe(Effect.withSpan("parent"))
 
-const NodeSdkLive = NodeSdk.layer(() =>
-  NodeSdk.config({ traceExporter: new ConsoleSpanExporter() })
-)
+const NodeSdkLive = NodeSdk.layer(() => ({
+  resource: { serviceName: "example" },
+  spanProcessor: new BatchSpanProcessor(new ConsoleSpanExporter())
+}))
 
-const TracingLive = Layer.provide(
-  Resource.layer({ serviceName: "example" }),
-  Layer.merge(NodeSdkLive, Tracer.layer)
-)
-
-Effect.runPromise(parent.pipe(Effect.provide(TracingLive)))
+Effect.runPromise(parent.pipe(Effect.provide(NodeSdkLive)))
 /*
-Output:
+Example Output:
 {
   traceId: '92fe81f1454d9c099198568cf867dc59',
   parentId: 'b953d6c7d37ad93d',

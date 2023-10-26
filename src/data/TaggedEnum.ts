@@ -6,12 +6,8 @@ type HttpError = Data.TaggedEnum<{
   NotFound: {}
 }>
 
-// Create a factory for constructors
-const HttpError = Data.taggedEnum<HttpError>()
-
 // Create constructors for specific error types
-const NotFound = HttpError("NotFound")
-const InternalServerError = HttpError("InternalServerError")
+const { NotFound, InternalServerError } = Data.taggedEnum<HttpError>()
 
 // Create instances of errors
 const error1 = InternalServerError({ reason: "test" })

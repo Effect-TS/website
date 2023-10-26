@@ -1,5 +1,6 @@
-import { Effect, Layer } from "effect"
-import { Tracer, Resource, NodeSdk } from "@effect/opentelemetry"
+import { Effect } from "effect"
+import { NodeSdk } from "@effect/opentelemetry"
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base"
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http"
 
 // Function to simulate a task with possible subtasks
@@ -32,18 +33,14 @@ const program = task("client", 2, [
   ])
 ])
 
-const NodeSdkLive = NodeSdk.layer(() =>
-  NodeSdk.config({ traceExporter: new OTLPTraceExporter() })
-)
-
-const TracingLive = Layer.provide(
-  Resource.layer({ serviceName: "example" }),
-  Layer.merge(NodeSdkLive, Tracer.layer)
-)
+const NodeSdkLive = NodeSdk.layer(() => ({
+  resource: { serviceName: "example" },
+  spanProcessor: new BatchSpanProcessor(new OTLPTraceExporter())
+}))
 
 Effect.runPromise(
   program.pipe(
-    Effect.provide(TracingLive),
+    Effect.provide(NodeSdkLive),
     Effect.catchAllCause(Effect.logError)
   )
 )

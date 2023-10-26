@@ -1,9 +1,9 @@
 import { Data, Equal } from "effect"
 
-// $ExpectType Data<{ name: string; age: number; }>
+// $ExpectType Data<{ readonly name: string; readonly age: number; }>
 const alice = Data.struct({ name: "Alice", age: 30 })
 
-// $ExpectType Data<{ name: string; age: number; }>
+// $ExpectType Data<{ readonly name: string; readonly age: number; }>
 const bob = Data.struct({ name: "Bob", age: 40 })
 
 console.log(Equal.equals(alice, alice)) // Output: true
