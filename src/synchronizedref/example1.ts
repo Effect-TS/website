@@ -2,6 +2,7 @@ import { Effect, SynchronizedRef } from "effect"
 
 const program = Effect.gen(function* (_) {
   const ref = yield* _(SynchronizedRef.make("current"))
+  // Simulating an effectful update operation
   const updateEffect = Effect.succeed("update")
   yield* _(SynchronizedRef.updateEffect(ref, () => updateEffect))
   const value = yield* _(SynchronizedRef.get(ref))

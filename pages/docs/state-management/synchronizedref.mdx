@@ -10,11 +10,9 @@ import { Info } from "@/components/Callout"
   [`Ref`](ref) first.
 </Info>
 
-Let's delve into how we can effectively update a shared state using `SynchronizedRef`. Unlike `Ref`, `SynchronizedRef` introduces the concept of **effectful** operations. These operations accept effectful descriptions, then execute these effects to modify the shared state. This is the key distinction between `SynchronizedRef` and `Ref`.
+The distinctive function in `SynchronizedRef` is `updateEffect`. This function takes an **effectful operation** and executes it to modify the shared state. This is the key feature setting `SynchronizedRef` apart from `Ref`.
 
-In the following example, we demonstrate how to use `SynchronizedRef` to update a reference by providing an `updateEffect`, which describes the update operation. `SynchronizedRef` executes this `updateEffect`:
-
-```ts file=<rootDir>/src/guide/state-management/synchronizedref/example1.ts
+```ts file=<rootDir>/src/synchronizedref/example1.ts
 
 ```
 
@@ -24,6 +22,6 @@ We can pass an effectful program into every single update. All of these updates 
 
 In the following example, we send a `getAge` request for each user, updating the state accordingly:
 
-```ts file=<rootDir>/src/guide/state-management/synchronizedref/example2.ts
+```ts file=<rootDir>/src/synchronizedref/example2.ts
 
 ```
