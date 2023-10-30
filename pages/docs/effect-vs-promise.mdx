@@ -39,14 +39,14 @@ Let's compare creating a successful operation using `Promise` and `Effect`:
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/success-promise.ts
+```ts file=<rootDir>/src/effect-vs-promise/success-promise.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/success-effect.ts#L3-
+```ts file=<rootDir>/src/effect-vs-promise/success-effect.ts#L3-
 
 ```
 
@@ -60,14 +60,14 @@ Now, let's see how to handle failures with `Promise` and `Effect`:
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/failure-promise.ts
+```ts file=<rootDir>/src/effect-vs-promise/failure-promise.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/failure-effect.ts#L3-
+```ts file=<rootDir>/src/effect-vs-promise/failure-effect.ts#L3-
 
 ```
 
@@ -81,14 +81,14 @@ Creating operations with custom logic:
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/constructor-promise.ts
+```ts file=<rootDir>/src/effect-vs-promise/constructor-promise.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/constructor-effect.ts#L3-
+```ts file=<rootDir>/src/effect-vs-promise/constructor-effect.ts#L3-
 
 ```
 
@@ -104,14 +104,14 @@ Mapping the result of an operation:
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/map-promise.ts
+```ts file=<rootDir>/src/effect-vs-promise/map-promise.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/map-effect.ts#L3-
+```ts file=<rootDir>/src/effect-vs-promise/map-effect.ts#L3-
 
 ```
 
@@ -125,14 +125,14 @@ Chaining multiple operations:
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/flatMap-promise.ts
+```ts file=<rootDir>/src/effect-vs-promise/flatMap-promise.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/flatMap-effect.ts#L3-
+```ts file=<rootDir>/src/effect-vs-promise/flatMap-effect.ts#L3-
 
 ```
 
@@ -148,14 +148,14 @@ Let's compare the two approaches:
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/program-promise.ts
+```ts file=<rootDir>/src/effect-vs-promise/program-promise.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/program-effect.ts#L3-
+```ts file=<rootDir>/src/effect-vs-promise/program-effect.ts#L3-
 
 ```
 
@@ -171,14 +171,14 @@ It's important to note that although the code appears similar, the two programs 
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/all-promise.ts
+```ts file=<rootDir>/src/effect-vs-promise/all-promise.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/all-effect.ts#L3-
+```ts file=<rootDir>/src/effect-vs-promise/all-effect.ts#L3-
 
 ```
 
@@ -190,14 +190,14 @@ It's important to note that although the code appears similar, the two programs 
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/allSettled-promise.ts
+```ts file=<rootDir>/src/effect-vs-promise/allSettled-promise.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/allSettled-effect.ts#L3-
+```ts file=<rootDir>/src/effect-vs-promise/allSettled-effect.ts#L3-
 
 ```
 
@@ -209,14 +209,14 @@ It's important to note that although the code appears similar, the two programs 
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/any-promise.ts
+```ts file=<rootDir>/src/effect-vs-promise/any-promise.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/any-effect.ts#L3-
+```ts file=<rootDir>/src/effect-vs-promise/any-effect.ts#L3-
 
 ```
 
@@ -228,16 +228,30 @@ It's important to note that although the code appears similar, the two programs 
 <CustomTabs items={['Promise', 'Effect']}>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/race-promise.ts
+```ts file=<rootDir>/src/effect-vs-promise/race-promise.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/comparisons/effect-vs-promise/race-effect.ts#L3-
+```ts file=<rootDir>/src/effect-vs-promise/race-effect.ts#L3-
 
 ```
 
 </Tab>
 </CustomTabs>
+
+## FAQ
+
+**Question**. What is the equivalent of starting a promise without immediately waiting for it in Effects?
+
+```ts {10,16} file=<rootDir>/src/effect-vs-promise/faq/faq-1-promise.ts
+
+```
+
+**Answer:** You can achieve this by utilizing `Effect.fork` and `Fiber.join`.
+
+```ts {11,17} file=<rootDir>/src/effect-vs-promise/faq/faq-1-effect.ts
+
+```
