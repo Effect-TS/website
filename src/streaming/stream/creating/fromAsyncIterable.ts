@@ -5,7 +5,7 @@ const myAsyncIterable = async function* () {
   yield 2
 }
 
-// $ExpectType Stream<never, Error, 2 | 1>
+// $ExpectType Stream<never, Error, 1 | 2>
 const stream = Stream.fromAsyncIterable(
   myAsyncIterable(),
   (e) => new Error(String(e)) // Error Handling
