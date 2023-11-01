@@ -83,32 +83,28 @@ const examples = [
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+const program = () =>
+  console.log("Hello, World!")
+)
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
-
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+program()\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Hello, World!'
     },
     withEffect: {
       fileName: 'index.ts',
       code: `\
 import { Effect } from "effect"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const program = Effect.sync(() =>
+  console.log("Hello, World!")
+)
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+Effect.runSync(program)\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Hello, World!'
     }
   },
   {
@@ -116,32 +112,32 @@ const program = Effect.fail(new HttpError())\
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+const sleep = (ms: number) =>
+  new Promise((resolve) =>
+    setTimeout(() => {
+      console.log("Hello, World!")
+      resolve()
+    }, ms)
+  )
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
-
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+sleep(1000)\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Hello, World!'
     },
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+import { Console, Effect } from "effect"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const program = Effect.sleep("1 seconds").pipe(
+  Effect.zipRight(Console.log("Hello, World!"))
+)
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+Effect.runPromise(program)\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Hello, World!'
     }
   },
   {
@@ -149,14 +145,22 @@ const program = Effect.fail(new HttpError())\
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
-
 class HttpError {
   readonly _tag = "HttpError"
 }
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+const program = () => {
+  throw new HttpError()
+}
+
+try {
+  program()
+} catch (error) {
+  console.log(
+    \`Error \${error._tag} gracefully handled. Yay!\`
+  )
+}
+\
       `,
       command: 'bun src/index.ts',
       result: 'Error “HttpError” gracefully handled. Yay!'
@@ -164,50 +168,75 @@ const program = Effect.fail(new HttpError())\
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+import { Console, Effect } from "effect"
 
 class HttpError {
   readonly _tag = "HttpError"
 }
 
 // Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+const program = Effect.fail(new HttpError()).pipe(
+  Effect.catchTag("HttpError", (error) =>
+    Console.log(
+      \`Error \${error._tag} gracefully handled. Yay!\`
+    )
+  )
+)
+
+Effect.runPromise(program)\
       `,
       command: 'bun src/index.ts',
       result: 'Error “HttpError” gracefully handled. Yay!'
     }
   },
   {
-    name: 'Cancelation',
+    name: 'Interruption',
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
-
-class HttpError {
-  readonly _tag = "HttpError"
+const delay = (millis: number): Promise<void> & { abort: () => void } => {
+  let timeout_id: NodeJS.Timeout
+  let rejector: () => void
+  const prom: any = new Promise((resolve, reject) => {
+    rejector = reject
+    timeout_id = setTimeout(() => {
+      resolve()
+    }, millis)
+  })
+  prom.abort = () => {
+    clearTimeout( timeout_id )
+    rejector()
+  }
+  return prom;
 }
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+const willInterrupt = delay(2000)
+
+willInterrupt
+  .then(() => console.log('Did not interrupt'))
+  .catch(() => console.log('Interrupted!'))
+
+setTimeout(() => willInterrupt.abort(), 1000)\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Interrupted!'
     },
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+import { Console, Effect } from "effect"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const program = Effect.sleep("2 seconds").pipe(
+  Effect.onInterrupt(() =>
+    Console.log("Interrupted!")
+  ),
+  Effect.timeout("1 seconds"),
+)
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+Effect.runPromiseExit(program)\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Interrupted!'
     }
   }
 ]
