@@ -28,7 +28,7 @@ export const Hero = () => {
   return (
     <section>
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-20">
-        <Pill href="https://effect.website/events/effect-days">Join "Effect Days" from Feb 22 to 24 in Vienna</Pill>
+        <Pill href="https://effect.website/events/effect-days">{`Join "Effect Days" from Feb 22 to 24 in Vienna`}</Pill>
         <div className="grid grid-cols-1 md:grid-cols-2 mt-4">
           <div>
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl">
