@@ -6,42 +6,43 @@ import {Button} from '../atoms/button'
 import {Badge} from '../atoms/badge'
 
 const content = {
-  heading: 'Join our growing community',
+  heading: 'Join our welcoming community',
   cta: {
     secondary: {
-      href: '/',
+      href: 'https://github.com/Effect-TS/effect/graphs/contributors',
       text: 'See all contributors'
     },
     primary: {
-      href: '/',
+      href: 'https://discord.gg/effect-ts',
       text: 'Join Discord'
     }
   },
   discord: {
-    members: '2000+ community members',
-    online: '205 currently online'
+    members: '2000+ community members', // TODO use Discord API
+    online: '205 currently online' // TODO use Discord API
   },
+  // TODO use images automatically from GitHub / Discord
   members: {
     top: [
-      {avatar: 'https://i.pravatar.cc/150?img=60', rank: 0, size: 'sm', position: 'center'},
-      {avatar: 'https://i.pravatar.cc/150?img=58', rank: 4, size: 'md', position: 'top'},
-      {avatar: 'https://i.pravatar.cc/150?img=17', rank: 1, size: 'lg', position: 'bottom'},
-      {avatar: 'https://i.pravatar.cc/150?img=39', rank: 0, size: 'sm', position: 'center'},
-      {avatar: 'https://i.pravatar.cc/150?img=27', rank: 2, size: 'lg', position: 'top'},
-      {avatar: 'https://i.pravatar.cc/150?img=54', rank: 5, size: 'md', position: 'bottom'},
-      {avatar: 'https://i.pravatar.cc/150?img=41', rank: 0, size: 'sm', position: 'top'},
-      {avatar: 'https://i.pravatar.cc/150?img=54', rank: 0, size: 'md', position: 'bottom'},
-      {avatar: 'https://i.pravatar.cc/150?img=12', rank: 8, size: 'md', position: 'top'},
-      {avatar: 'https://i.pravatar.cc/150?img=35', rank: 0, size: 'sm', position: 'center'}
+      {avatar: 'https://avatars.githubusercontent.com/u/286577?s=150&v=4', rank: 0, size: 'sm', position: 'center'},
+      {avatar: 'https://avatars.githubusercontent.com/u/878912?s=150&v=4', rank: 4, size: 'md', position: 'top'},
+      {avatar: 'https://avatars.githubusercontent.com/u/40680?s=150&v=4', rank: 1, size: 'lg', position: 'bottom'},
+      {avatar: 'https://avatars.githubusercontent.com/u/38051499?s=150&v=4', rank: 0, size: 'sm', position: 'center'},
+      {avatar: 'https://avatars.githubusercontent.com/u/539577?s=150&v=4', rank: 2, size: 'lg', position: 'top'},
+      {avatar: 'https://avatars.githubusercontent.com/u/24249610?s=150&v=4', rank: 5, size: 'md', position: 'bottom'},
+      {avatar: 'https://avatars.githubusercontent.com/u/20319430?s=150&v=4', rank: 0, size: 'sm', position: 'top'},
+      {avatar: 'https://avatars.githubusercontent.com/u/1172528?s=150&v=4', rank: 0, size: 'md', position: 'bottom'},
+      {avatar: 'https://avatars.githubusercontent.com/u/13787614?s=150&v=4', rank: 8, size: 'md', position: 'top'},
+      {avatar: 'https://avatars.githubusercontent.com/u/87831824?s=150&v=4', rank: 0, size: 'sm', position: 'center'}
     ],
     left: [
-      {avatar: 'https://i.pravatar.cc/150?img=60', rank: 7, size: 'md', position: 'top'},
-      {avatar: 'https://i.pravatar.cc/150?img=58', rank: 0, size: 'sm', position: 'bottom'},
-      {avatar: 'https://i.pravatar.cc/150?img=17', rank: 6, size: 'md', position: 'center'}
+      {avatar: 'https://avatars.githubusercontent.com/u/42661?s=150&v=4', rank: 7, size: 'md', position: 'top'},
+      {avatar: 'https://avatars.githubusercontent.com/u/5595092?s=150&v=4', rank: 0, size: 'sm', position: 'bottom'},
+      {avatar: 'https://avatars.githubusercontent.com/u/356257?s=150&v=4', rank: 6, size: 'md', position: 'center'}
     ],
     right: [
-      {avatar: 'https://i.pravatar.cc/150?img=58', rank: 3, size: 'md', position: 'center'},
-      {avatar: 'https://i.pravatar.cc/150?img=17', rank: 0, size: 'sm', position: 'top'}
+      {avatar: 'https://avatars.githubusercontent.com/u/6271474?s=150&v=4', rank: 3, size: 'md', position: 'center'},
+      {avatar: 'https://avatars.githubusercontent.com/u/22938931?s=150&v=4', rank: 0, size: 'sm', position: 'top'}
     ]
   }
 }

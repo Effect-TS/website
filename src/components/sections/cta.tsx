@@ -2,13 +2,8 @@
 import {useEffect, useState} from 'react'
 import {Button} from '../atoms/button'
 import {AnimatePresence, motion} from 'framer-motion'
+import { headlines } from './hero'
 
-const headlines = [
-  {text: 'build robust apps', gradient: 'from-[#5B9EE9] to-[#2F74C0]'},
-  {text: 'handle errors', gradient: 'from-red-400 to-red-600'},
-  {text: 'do something', gradient: 'from-emerald-400 to-emerald-600'},
-  {text: 'do some more', gradient: 'from-violet-400 to-violet-600'}
-]
 
 export const CTA = () => {
   const [currentIndex, setCurrentIndex] = useState<number>(0)
