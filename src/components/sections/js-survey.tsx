@@ -5,7 +5,11 @@ import {Logo} from '../atoms/logo'
 
 const content = {
   heading: 'The missing standard library for TypeScript',
-  text: 'Lorem ipsum dolor sit amet consectetur. Egestas maecenas sed egestas eget arcu parturient purus bibendum viverra. Sed molestie et commodo habitant purus orci habitasse facilisis. Est tellus integer odio elit proin ultricies tortor.',
+  text: `\
+TypeScript/JavaScript, the most popular programming language, is still missing a standard library. \
+Effect is filling this gap by providing a solid foundation of data structures, utilities, and abstractions \
+to make building applications easier.
+`,
   linkCaption: 'See 2022 State of JavaScript survey',
   survey: {
     url: 'https://2022.stateofjs.com/en-US/opinions/#top_currently_missing_from_js',
