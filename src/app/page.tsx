@@ -1,5 +1,7 @@
 import {BasicExamples} from '@/components/sections/basic-examples'
 import {Catch} from '@/components/sections/catch'
+import {Community} from '@/components/sections/community'
+import {CTA} from '@/components/sections/cta'
 import {FAQ} from '@/components/sections/faq'
 import {Features} from '@/components/sections/features'
 import {Hero} from '@/components/sections/hero'
@@ -24,6 +26,8 @@ export default function HomePage() {
       <Tweets />
       <Catch />
       <FAQ />
+      <Community />
+      <CTA />
     </main>
   )
 }

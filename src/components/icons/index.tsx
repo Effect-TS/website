@@ -23,6 +23,7 @@ import {AmazonIcon} from './amazon'
 import {ChevronRightIcon} from './chevron-right'
 import {TrendUpIcon} from './trend-up'
 import {LightBulbIcon} from './lightbulb'
+import {CheckIcon} from './check'
 
 const icons = {
   amazon: AmazonIcon,
@@ -31,6 +32,7 @@ const icons = {
   'arrow-up-right-light': ArrowUpRightLightIcon,
   blocks: BlocksIcon,
   bun: BunIcon,
+  check: CheckIcon,
   'check-circle': CheckCircleIcon,
   'chevron-right': ChevronRightIcon,
   cloudflare: CloudflareIcon,
