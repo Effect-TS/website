@@ -83,9 +83,9 @@ const examples = [
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-const program = () =>
+const program = () => {
   console.log("Hello, World!")
-)
+}
 
 program()\
       `,
