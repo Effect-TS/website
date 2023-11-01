@@ -26,7 +26,7 @@ export const Navigation = () => {
           {menu.map(({name, href}, index) => (
             <Link key={index} href={href} className="flex items-start">
               <span>{name}</span>
-              {href.startsWith('http') && <Icon name="arrow-up-right" className="h-3.5 mt-0.5 ml-0.5" />}
+              {href.startsWith('http') && <Icon name="arrow-up-right-light" className="h-3.5 mt-0.5 ml-0.5" />}
             </Link>
           ))}
           <Search className="w-56" />

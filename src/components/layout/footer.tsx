@@ -47,7 +47,7 @@ export const Footer = () => {
   return (
     <>
       <Divider />
-      <footer className="w-full bg-black text-sm">
+      <footer className="bg-black text-sm">
         <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 py-24 flex justify-between">
           <div>
             <Logo className="h-8" />
@@ -74,7 +74,7 @@ export const Footer = () => {
                     <li key={index}>
                       <Link href={href} className="flex items-start">
                         <span>{name}</span>
-                        {href.startsWith('http') && <Icon name="arrow-up-right" className="h-3 mt-0.5 ml-0.5" />}
+                        {href.startsWith('http') && <Icon name="arrow-up-right-light" className="h-3 mt-0.5 ml-0.5" />}
                       </Link>
                     </li>
                   ))}

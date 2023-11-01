@@ -2,6 +2,7 @@ import type {Metadata} from 'next'
 import {Inter} from 'next/font/google'
 import localFont from 'next/font/local'
 import './globals.css'
+import './hljs.css'
 import {Navigation} from '@/components/layout/navigation'
 import {Footer} from '@/components/layout/footer'
 
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" className={`${inter.variable} ${calSans.variable}`}>
-      <body className="antialiased bg-[#09090B] font-light text-zinc-400">
+      <body className="antialiased bg-[#09090B] font-light text-zinc-400 overflow-x-hidden">
         <Navigation />
         <main className="min-h-screen">{children}</main>
         <Footer />
