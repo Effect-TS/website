@@ -41,10 +41,13 @@ export const CTA = () => {
               </AnimatePresence>
             </span>
             <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">in Typescript</span>
           </h2>
-          <p className="mt-8 mb-4 max-w-xl text-center mx-auto">
+          {/* <p className="mt-8 mb-4 max-w-xl text-center mx-auto">
             Effect makes it easy to build typed, robust & scalable applications. Lorem ipsum dolor sit amet consectetur. Augue vitae rutrum felis neque.
-          </p>
+          </p> */}
+          {/* TODO re-enable above and div below */}
+          <div className='mt-8 mb-4' />
           <div className="mt-10 flex gap-3 justify-center">
             <Button href="/docs/get-started">Get Started</Button>
             <Button href="https://github.com/Effect-TS/examples" secondary>

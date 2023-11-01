@@ -4,51 +4,42 @@ import Image from 'next/image'
 
 const tweets = [
   {
-    text: 'Having type-safe access to my content has been extremely helpful. Contentlayer provides a nice abstraction between your Markdown files or CMS and your application.',
-    user: {
-      name: 'Lee Robinson',
-      bio: 'Developer Relations at Vercel',
-      avatar: 'https://pbs.twimg.com/profile_images/1587647097670467584/adWRdqQ6_400x400.jpg'
-    }
-  },
-  {
-    text: `Been using Contentlayer as the mdx processor for the Rainbow docs. Such a pleasant experience 🧘‍♂️
+    text: `Effect is the 🐐 of Typescript
 
-It transforms the mdx files, validates them AND adds types!`,
+- Rust style error handling
+- Retries, Concurrency, Steams, …
+- Missing standard library
+`,
     user: {
-      name: 'Pedro Duarte',
-      bio: 'Creator of Radix UI',
-      avatar: 'https://pbs.twimg.com/media/FC9arX6XEAYZ9eE?format=jpg&name=large'
+      name: 'Tobias Lins',
+      bio: 'Product Engineer at Vercel',
+      avatar: 'https://pbs.twimg.com/profile_images/1361293861813956608/FBJWYoXx_400x400.jpg'
     }
   },
   {
-    text: `Contentlayer looks like a super promising library [...] to import data from CMS platforms or local files like markdown into your application.
-
-Took me less than 5 minutes to cleanly separate and connect MDX files to a Next.js layout.`,
+    text: `Effect is so, so good. Error handling in TypeScript has always felt so haphazard. Effect makes it feel effortless. And that’s only a tiny part of what makes Effect such a great set of libraries. Keep up the great work!`,
     user: {
-      name: 'Houssein Djirdeh',
-      bio: 'Software Engineer at Google',
-      avatar: 'https://pbs.twimg.com/profile_images/1460651862340915201/w8Zva6LO_400x400.jpg'
+      name: 'Devin Jameson',
+      bio: 'Software engineer at PolyCam',
+      avatar: 'https://pbs.twimg.com/profile_images/1716844356873666560/dX84cWtB_400x400.jpg'
     }
   },
   {
-    text: `If you bring content-as-data into your website, whether it's from Markdown files or a hosted CMS, do yourself a favour and check this out.
-
-    Massive leap forward in speed, type safety, and DX 👏🏻`,
+    text: `I LOVE Effect, been using it for a month now and it took a minute to figure out how to build composable services, but oh-my-god my code has never been this sexy.`,
     user: {
-      name: 'Jed Watson',
-      bio: 'Co-founder of Thinkmill',
-      avatar: 'https://pbs.twimg.com/profile_images/694401960397570049/uIEsJzcv_400x400.jpg'
+      name: 'David Peter',
+      bio: 'Functional programmer in TypeScript',
+      avatar: 'https://pbs.twimg.com/profile_images/1595833949955260416/rzBglApR_400x400.jpg'
     }
   },
   {
-    text: `We're using Contentlayer on the @GraphCMS documentation, and it's fantastic! It not only loads all the local content, but it also supports MDX. Plus, having type definitions for the content is super helpful.`,
+    text: `Delightfully, Effect is one of those rare tools that lift you up & educate you to become a better developer; Sustainably and well beyond the framework itself. And it does so both /effect/ively and *very* gently... Also, our community is *chefs kiss*`,
     user: {
-      name: 'João Pedro Schmitz',
-      bio: 'Front-End Engineer at GraphCMS',
-      avatar: 'https://pbs.twimg.com/profile_images/1425192858412326912/dh_udEMJ_400x400.jpg'
+      name: 'Sebastian Lorenz',
+      bio: 'TypeScript Engineer',
+      avatar: 'https://avatars.githubusercontent.com/u/1172528?v=4'
     }
-  }
+  },
 ]
 
 export const Tweets = () => {
@@ -62,7 +53,7 @@ export const Tweets = () => {
             <div key={index} className="m-0 shrink-0 grow-0 px-6 w-[480px]">
               <div className="h-full bg-gradient-to-br from-zinc-300 to-zinc-500 p-px rounded-3xl">
                 <div className="h-full bg-gradient-to-br from-zinc-700 to-zinc-900 p-6 rounded-[23px] flex flex-col justify-between items-start text-zinc-200">
-                  <p>{text}</p>
+                  <p className='whitespace-pre-wrap'>{text}</p>
                   <div className="mt-6 flex gap-4">
                     <div className="relative h-12 w-12 rounded-full overflow-hidden border border-white shadow-lg">
                       <Image src={user.avatar} alt={user.name} fill />
