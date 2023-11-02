@@ -2,13 +2,7 @@
 import {useEffect, useState} from 'react'
 import {Button} from '../atoms/button'
 import {AnimatePresence, motion} from 'framer-motion'
-
-const headlines = [
-  {text: 'build robust apps', gradient: 'from-[#5B9EE9] to-[#2F74C0]'},
-  {text: 'handle errors', gradient: 'from-red-400 to-red-600'},
-  {text: 'do something', gradient: 'from-emerald-400 to-emerald-600'},
-  {text: 'do some more', gradient: 'from-violet-400 to-violet-600'}
-]
+import {headlines} from './hero'
 
 export const CTA = () => {
   const [currentIndex, setCurrentIndex] = useState<number>(0)
@@ -46,11 +40,14 @@ export const CTA = () => {
               </AnimatePresence>
             </span>
             <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">in Typescript</span>
           </h2>
-          <p className="mt-8 mb-4 max-w-xl text-center mx-auto">
+          {/* <p className="mt-8 mb-4 max-w-xl text-center mx-auto">
             Effect makes it easy to build typed, robust & scalable applications. Lorem ipsum dolor sit amet consectetur. Augue vitae rutrum felis neque.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center gap-3 justify-center">
+          </p> */}
+          {/* TODO re-enable above and div below */}
+          <div className="mt-8 mb-4" />
+          <div className="mt-10 flex gap-3 justify-center">
             <Button href="/docs/get-started">Get Started</Button>
             <Button href="https://github.com/Effect-TS/examples" secondary>
               Explore Examples

@@ -5,7 +5,11 @@ import {Logo} from '../atoms/logo'
 
 const content = {
   heading: 'The missing standard library for TypeScript',
-  text: 'Lorem ipsum dolor sit amet consectetur. Egestas maecenas sed egestas eget arcu parturient purus bibendum viverra. Sed molestie et commodo habitant purus orci habitasse facilisis. Est tellus integer odio elit proin ultricies tortor.',
+  text: `\
+TypeScript/JavaScript, the most popular programming language, is still missing a standard library. \
+Effect is filling this gap by providing a solid foundation of data structures, utilities, and abstractions \
+to make building applications easier.
+`,
   linkCaption: 'See 2022 State of JavaScript survey',
   survey: {
     url: 'https://2022.stateofjs.com/en-US/opinions/#top_currently_missing_from_js',
@@ -28,7 +32,7 @@ export const JSSurvey = () => {
         <div className="lg:pr-16">
           <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white max-w-md">{content.heading}</h2>
           <p className="mt-6 mb-3 max-w-xl">{content.text}</p>
-          <Link href="https://2022.stateofjs.com/en-US/opinions/#top_currently_missing_from_js" className="flex items-start text-white">
+          <Link target="_blank" href="https://2022.stateofjs.com/en-US/opinions/#top_currently_missing_from_js" className="flex items-start text-white">
             <span>{content.linkCaption}</span>
             <Icon name="arrow-up-right-light" className="h-3.5 mt-0.5 ml-0.5" />
           </Link>
@@ -36,7 +40,7 @@ export const JSSurvey = () => {
         <div className="flex gap-6">
           <div className="grow">
             <h3 className="font-display text-xl text-white">{content.survey.heading}</h3>
-            <Link href={content.survey.url} className="flex items-start text-sm">
+            <Link target="_blank" href={content.survey.url} className="flex items-start text-sm">
               <span>{content.survey.subheading}</span>
               <Icon name="arrow-up-right-light" className="h-3.5 mt-0.5 ml-0.5" />
             </Link>
@@ -48,12 +52,13 @@ export const JSSurvey = () => {
                     className="absolute inset-0 bg-zinc-700 rounded-r-md"
                     style={{opacity: `${100 - index * 15}%`, width: `${(value / content.survey.features[0].value) * 100}%`}}
                   />
-                  <div className="relative items-center text-sm text-white px-2 w-full flex h-6 whitespace-nowrap justify-between sm:justify-start">
+                  <div className="relative items-center text-sm text-white px-2 w-full flex h-6 whitespace-nowrap justify-start">
                     <span>{name}</span>
-                    <Link href={docsLink} className="flex sm:hidden gap-1 items-center text-white font-medium">
+                    {/* TODO: re-enable */}
+                    {/* <Link href={docsLink} className="flex sm:hidden gap-1 items-center text-white font-medium">
                       <span>Docs</span>
                       <Icon name="arrow-right" className="h-3.5 mt-0.5 ml-0.5" />
-                    </Link>
+                    </Link> */}
                   </div>
                 </li>
               ))}
@@ -66,10 +71,11 @@ export const JSSurvey = () => {
                 {content.survey.features.map(({docsLink}, index) => (
                   <li key={index} className="flex justify-center items-center gap-3">
                     <Icon name="check" className="h-5 text-emerald-400" />
-                    <Link href={docsLink} className="flex gap-1 items-center text-white font-medium">
+                    {/* TODO re-enable */}
+                    {/* <Link href={docsLink} className="flex gap-1 items-center text-white font-medium">
                       <span>Docs</span>
                       <Icon name="arrow-right" className="h-3.5 mt-0.5 ml-0.5" />
-                    </Link>
+                    </Link> */}
                   </li>
                 ))}
               </ul>

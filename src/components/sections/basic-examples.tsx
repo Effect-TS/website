@@ -83,38 +83,38 @@ export const BasicExamples = () => {
   )
 }
 
+function randomElement<A>(array: Array<A>): A {
+  return array[Math.floor(Math.random() * array.length)]
+}
+
 const examples = [
   {
     name: 'Sync code',
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
-
-class HttpError {
-  readonly _tag = "HttpError"
+const main = () => {
+  console.log('Hello, World!')
 }
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+main()\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Hello, World!'
     },
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+import { Effect } from 'effect'
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const main = Effect.sync(() =>
+  console.log('Hello, World!')
+)
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+Effect.runSync(main)\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Hello, World!'
     }
   },
   {
@@ -122,32 +122,37 @@ const program = Effect.fail(new HttpError())\
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+const sleep = (ms: number) =>
+  new Promise((resolve) =>
+    setTimeout(() => {
+      resolve()
+    }, ms)
+  )
 
-class HttpError {
-  readonly _tag = "HttpError"
+const main = async () => {
+  await sleep(1000)
+  console.log('Hello, World!')
 }
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+await main()\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Hello, World!'
     },
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+import { Effect } from 'effect'
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const main = Effect.gen(function* (_) {
+  yield* _(Effect.sleep(1000))
+  console.log('Hello, World!')
+})
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+await Effect.runPromise(program)\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Hello, World!'
     }
   },
   {
@@ -155,65 +160,159 @@ const program = Effect.fail(new HttpError())\
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+// What if we have some errors that should
+// be fatal and some that should be non-fatal?
+type PossibleErrors = NonFatalError | FatalError
 
-class HttpError {
-  readonly _tag = "HttpError"
+class NonFatalError {
+  readonly _tag = 'NonFatalError'
 }
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+class FatalError {
+  readonly _tag = 'FatalError'
+}
+
+const maybeFail = (error: PossibleErrors) => {
+  if (Math.random() > 0.5) {
+    throw error
+  }
+}
+
+// We have to be very careful to handle each
+// non-fatal error properly as well as to
+// propagate fatal errors
+const main = () => {
+  try {
+    maybeFail(new NonFatalError())
+    try {
+      maybeFail(new FatalError())
+    } catch (error) {
+      console.log('Fatal error encountered!')
+      throw error
+    }
+  } catch (error) {
+    if (error._tag === 'NonFatalError') {
+      console.log('Handling non-fatal error...')
+    } else {
+      throw error
+    }
+  }
+}
+
+main()\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: randomElement(['Handling non-fatal error...', 'Fatal error encountered!\n...'])
     },
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+// With Effect you have full control over how
+// errors are handled and propagated through
+// your program
+import { Effect, pipe } from 'effect'
 
-class HttpError {
-  readonly _tag = "HttpError"
+type PossibleErrors = NonFatalError | FatalError
+
+class NonFatalError {
+  readonly _tag = 'NonFatalError'
 }
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+class FatalError {
+  readonly _tag = 'FatalError'
+}
+
+const maybeFail = (error: PossibleErrors) =>
+  Math.random() > 0.5
+    ? Effect.fail(error)
+    : Effect.unit
+
+const main = pipe(
+  maybeFail(new NonFatalError()),
+  Effect.flatMap(() => maybeFail(new FatalError())),
+  Effect.catchTags({
+    NonFatalError: (error) => Effect.sync(() => {
+      console.log('Handling non-fatal error...')
+    }),
+    // Here we use \`Effect.die\` to elevate
+    // a FatalError to a failure that our
+    // program cannot handle
+    FatalError: (error) => Effect.sync(() => {
+      console.log('Fatal error encountered!')
+    }).pipe(Effect.flatMap(() => Effect.die(error))
+  })
+)
+
+await Effect.runPromise(main)\
       `,
       command: 'bun src/index.ts',
       result: 'Error “HttpError” gracefully handled. Yay!'
     }
   },
   {
-    name: 'Cancelation',
+    name: 'Interruption',
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
-
-class HttpError {
-  readonly _tag = "HttpError"
+interface AbortablePromise<A> extends Promise<A> {
+  readonly abort: () => void
 }
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+// This function creates an AbortablePromise which
+// will wait the specified number of milliseconds
+// before resolving. The promise can be aborted
+// using the \`.abort\` method.
+const delay = (
+  millis: number
+): AbortablePromise<void> => {
+  let timeout_id: NodeJS.Timeout
+  let rejector: () => void
+  const prom: any = new Promise((resolve, reject) => {
+    rejector = reject
+    timeout_id = setTimeout(() => {
+      resolve()
+    }, millis)
+  })
+  prom.abort = () => {
+    clearTimeout( timeout_id )
+    rejector()
+  }
+  return prom;
+}
+
+const interruptible = delay(2000)
+
+interruptible
+  .then(() => console.log('Did not interrupt'))
+  .catch(() => console.log('Interrupted!'))
+
+setTimeout(() => interruptible.abort(), 1000)\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Interrupted!'
     },
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+// Interruption is a first-class citizen in Effect
+// and is built right into the Effect runtime
+import { Effect, pipe } from 'effect'
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const main = pipe(
+  Effect.sleep(2000),
+  // Let's log a message if \`Effect.sleep\` is
+  // interrupted
+  Effect.onInterrupt(() =>
+    Effect.sync(() => console.log('Interrupted!'))
+  ),
+  // Interrupt the program after 1 second
+  Effect.timeout(1000)
+)
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+await Effect.runPromiseExit(program)\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: 'Interrupted!'
     }
   }
 ]
