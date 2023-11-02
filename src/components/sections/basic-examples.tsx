@@ -11,13 +11,13 @@ import {Code} from '../layout/code'
 
 export const BasicExamples = () => {
   return (
-    <section className="relative">
-      <Glow direction="down" />
-      <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-24">
-        <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl text-white">
-          Let&apos;s see some <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#5B9EE9] to-[#2F74C0]">example code</span>
+    <section className='relative'>
+      <Glow direction='down' />
+      <div className='w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-24'>
+        <h2 className='font-display text-3xl sm:text-4xl lg:text-5xl text-white'>
+          Let&apos;s see some <span className='text-transparent bg-clip-text bg-gradient-to-br from-[#5B9EE9] to-[#2F74C0]'>example code</span>
         </h2>
-        <p className="my-6 max-w-lg">
+        <p className='my-6 max-w-lg'>
           Doing the right thing in TypeScript is hard. Effect makes it easy lorem ipsum dolor sit amet consectetur. Mattis et lacus tortor sed integer nunc
           mattis suspendisse diam.
         </p>
@@ -28,20 +28,20 @@ export const BasicExamples = () => {
             'Effect integrates deeply with your current tech stack.'
           ]}
         />
-        <Button href="https://github.com/Effect-TS/examples" secondary className="mt-10 mb-16">
+        <Button href='https://github.com/Effect-TS/examples' secondary className='mt-10 mb-16'>
           See all examples on GitHub
         </Button>
         <Card>
-          <div className="flex flex-col items-center pt-16">
-            <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white">Basic Examples</h3>
-            <p className="mt-6 mb-10">Effect helps you with handling errors, async code, concurrency, streams and much more.</p>
-            <Tabs.Root defaultValue={examples[0].name} className="w-full flex flex-col">
-              <Tabs.List className="flex items-center justify-center gap-4 -mb-px">
+          <div className='flex flex-col items-center pt-16'>
+            <h3 className='font-display text-2xl sm:text-3xl lg:text-4xl text-white'>Basic Examples</h3>
+            <p className='mt-6 mb-10'>Effect helps you with handling errors, async code, concurrency, streams and much more.</p>
+            <Tabs.Root defaultValue={examples[0].name} className='w-full flex flex-col'>
+              <Tabs.List className='flex items-center justify-center gap-4 -mb-px'>
                 {examples.map(({name}, index) => (
                   <Tabs.Trigger
                     key={index}
                     value={name}
-                    className="border-b border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2"
+                    className='border-b border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2'
                   >
                     {name}
                   </Tabs.Trigger>
@@ -49,18 +49,18 @@ export const BasicExamples = () => {
               </Tabs.List>
               <Divider />
               {examples.map(({name, withoutEffect, withEffect}, index) => (
-                <Tabs.Content key={index} value={name} className="grow p-12 grid grid-cols-2 gap-6 data-[state=inactive]:absolute">
-                  <div className="flex flex-col items-center gap-6">
-                    <h4 className="font-display text-2xl text-white">Without Effect</h4>
+                <Tabs.Content key={index} value={name} className='grow p-12 grid grid-cols-2 gap-6 data-[state=inactive]:absolute'>
+                  <div className='flex flex-col items-center gap-6'>
+                    <h4 className='font-display text-2xl text-white'>Without Effect</h4>
                     <Code
                       tabs={[{name: withoutEffect.fileName, content: withoutEffect.code}]}
                       terminal={{run: 'Run snippet', command: withoutEffect.command, result: withoutEffect.result}}
                     />
                   </div>
-                  <div className="flex flex-col items-center gap-6">
-                    <h4 className="font-display text-2xl text-white">
-                      With <span className="sr-only">Effect</span>
-                      <Logo className="h-7 inline-block ml-1 -mt-1" />
+                  <div className='flex flex-col items-center gap-6'>
+                    <h4 className='font-display text-2xl text-white'>
+                      With <span className='sr-only'>Effect</span>
+                      <Logo className='h-7 inline-block ml-1 -mt-1' />
                     </h4>
                     <Code
                       tabs={[{name: withEffect.fileName, content: withEffect.code}]}
@@ -77,17 +77,21 @@ export const BasicExamples = () => {
   )
 }
 
+function randomElement<A>(array: Array<A>): A {
+  return array[Math.floor(Math.random() * array.length)]
+}
+
 const examples = [
   {
     name: 'Sync code',
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-const program = () => {
-  console.log("Hello, World!")
+const main = () => {
+  console.log('Hello, World!')
 }
 
-program()\
+main()\
       `,
       command: 'bun src/index.ts',
       result: 'Hello, World!'
@@ -95,13 +99,13 @@ program()\
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from "effect"
+import { Effect } from 'effect'
 
-const program = Effect.sync(() =>
-  console.log("Hello, World!")
+const main = Effect.sync(() =>
+  console.log('Hello, World!')
 )
 
-Effect.runSync(program)\
+Effect.runSync(main)\
       `,
       command: 'bun src/index.ts',
       result: 'Hello, World!'
@@ -115,12 +119,16 @@ Effect.runSync(program)\
 const sleep = (ms: number) =>
   new Promise((resolve) =>
     setTimeout(() => {
-      console.log("Hello, World!")
       resolve()
     }, ms)
   )
 
-sleep(1000)\
+const main = async () => {
+  await sleep(1000)
+  console.log('Hello, World!')
+}
+
+await main()\
       `,
       command: 'bun src/index.ts',
       result: 'Hello, World!'
@@ -128,13 +136,14 @@ sleep(1000)\
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Console, Effect } from "effect"
+import { Effect } from 'effect'
 
-const program = Effect.sleep("1 seconds").pipe(
-  Effect.zipRight(Console.log("Hello, World!"))
-)
+const main = Effect.gen(function* (_) {
+  yield* _(Effect.sleep(1000))
+  console.log('Hello, World!')
+})
 
-Effect.runPromise(program)\
+await Effect.runPromise(program)\
       `,
       command: 'bun src/index.ts',
       result: 'Hello, World!'
@@ -145,45 +154,93 @@ Effect.runPromise(program)\
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-class HttpError {
-  readonly _tag = "HttpError"
+// What if we have some errors that should
+// be fatal and some that should be non-fatal?
+type PossibleErrors = NonFatalError | FatalError
+
+class NonFatalError {
+  readonly _tag = 'NonFatalError'
 }
 
-const program = () => {
-  throw new HttpError()
+class FatalError {
+  readonly _tag = 'FatalError'
 }
 
-try {
-  program()
-} catch (error) {
-  console.log(
-    \`Error \${error._tag} gracefully handled. Yay!\`
-  )
+const maybeFail = (error: PossibleErrors) => {
+  if (Math.random() > 0.5) {
+    throw error
+  }
 }
-\
+
+// We have to be very careful to handle each
+// non-fatal error properly as well as to
+// propagate fatal errors
+const main = () => {
+  try {
+    maybeFail(new NonFatalError())
+    try {
+      maybeFail(new FatalError())
+    } catch (error) {
+      console.log('Fatal error encountered!')
+      throw error
+    }
+  } catch (error) {
+    if (error._tag === 'NonFatalError') {
+      console.log('Handling non-fatal error...')
+    } else {
+      throw error
+    }
+  }
+}
+
+main()\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: randomElement([
+        'Handling non-fatal error...',
+        'Fatal error encountered!\n...'
+      ])
     },
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Console, Effect } from "effect"
+// With Effect you have full control over how
+// errors are handled and propagated through
+// your program
+import { Effect, pipe } from 'effect'
 
-class HttpError {
-  readonly _tag = "HttpError"
+type PossibleErrors = NonFatalError | FatalError
+
+class NonFatalError {
+  readonly _tag = 'NonFatalError'
 }
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError()).pipe(
-  Effect.catchTag("HttpError", (error) =>
-    Console.log(
-      \`Error \${error._tag} gracefully handled. Yay!\`
-    )
-  )
+class FatalError {
+  readonly _tag = 'FatalError'
+}
+
+const maybeFail = (error: PossibleErrors) =>
+  Math.random() > 0.5
+    ? Effect.fail(error)
+    : Effect.unit
+
+const main = pipe(
+  maybeFail(new NonFatalError()),
+  Effect.flatMap(() => maybeFail(new FatalError())),
+  Effect.catchTags({
+    NonFatalError: (error) => Effect.sync(() => {
+      console.log('Handling non-fatal error...')
+    }),
+    // Here we use \`Effect.die\` to elevate
+    // a FatalError to a failure that our
+    // program cannot handle
+    FatalError: (error) => Effect.sync(() => {
+      console.log('Fatal error encountered!')
+    }).pipe(Effect.flatMap(() => Effect.die(error))
+  })
 )
 
-Effect.runPromise(program)\
+await Effect.runPromise(main)\
       `,
       command: 'bun src/index.ts',
       result: 'Error “HttpError” gracefully handled. Yay!'
@@ -194,7 +251,17 @@ Effect.runPromise(program)\
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-const delay = (millis: number): Promise<void> & { abort: () => void } => {
+interface AbortablePromise<A> extends Promise<A> {
+  readonly abort: () => void
+}
+
+// This function creates an AbortablePromise which
+// will wait the specified number of milliseconds
+// before resolving. The promise can be aborted
+// using the \`.abort\` method.
+const delay = (
+  millis: number
+): AbortablePromise<void> => {
   let timeout_id: NodeJS.Timeout
   let rejector: () => void
   const prom: any = new Promise((resolve, reject) => {
@@ -210,13 +277,13 @@ const delay = (millis: number): Promise<void> & { abort: () => void } => {
   return prom;
 }
 
-const willInterrupt = delay(2000)
+const interruptible = delay(2000)
 
-willInterrupt
+interruptible
   .then(() => console.log('Did not interrupt'))
   .catch(() => console.log('Interrupted!'))
 
-setTimeout(() => willInterrupt.abort(), 1000)\
+setTimeout(() => interruptible.abort(), 1000)\
       `,
       command: 'bun src/index.ts',
       result: 'Interrupted!'
@@ -224,16 +291,22 @@ setTimeout(() => willInterrupt.abort(), 1000)\
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Console, Effect } from "effect"
+// Interruption is a first-class citizen in Effect
+// and is built right into the Effect runtime
+import { Effect, pipe } from 'effect'
 
-const program = Effect.sleep("2 seconds").pipe(
+const main = pipe(
+  Effect.sleep(2000),
+  // Let's log a message if \`Effect.sleep\` is
+  // interrupted
   Effect.onInterrupt(() =>
-    Console.log("Interrupted!")
+    Effect.sync(() => console.log('Interrupted!'))
   ),
-  Effect.timeout("1 seconds"),
+  // Interrupt the program after 1 second
+  Effect.timeout(1000)
 )
 
-Effect.runPromiseExit(program)\
+await Effect.runPromiseExit(program)\
       `,
       command: 'bun src/index.ts',
       result: 'Interrupted!'
