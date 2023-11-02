@@ -61,7 +61,9 @@ export const Hero = () => {
               auctor justo euismod.
             </p> */}
             {/* TODO re-enable above and div below */}
-            <div className="mt-8 mb-4" />
+            <div className="md:hidden my-8">
+              <Video />
+            </div>
             <Checklist
               items={[
                 'Maximum Type-safety (incl. error handling)',
