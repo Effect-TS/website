@@ -35,7 +35,6 @@ export const Hero = () => {
               <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">The best way to</span>
               <br />
               <span className="block relative">
-                <span className="sr-only">{headlines[0].text}</span>
                 <AnimatePresence initial={false}>
                   {headlines.map(({text, gradient}, index) => {
                     if (index === currentIndex)
@@ -45,7 +44,7 @@ export const Hero = () => {
                           initial={{y: '-100%', opacity: 0}}
                           animate={{y: 0, opacity: 1}}
                           exit={{opacity: 0, transition: {duration: 0.2}}}
-                          className={`not-sr-only absolute block text-transparent bg-clip-text bg-gradient-to-br ${gradient}`}
+                          className={`not-sr-only h-32 absolute block text-transparent bg-clip-text bg-gradient-to-br ${gradient}`}
                         >
                           {text}
                         </motion.span>

@@ -21,7 +21,6 @@ export const CTA = () => {
             <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">Start to</span>
             <br />
             <span className="block relative">
-              <span className="sr-only">{headlines[0].text}</span>
               <AnimatePresence initial={false}>
                 {headlines.map(({text, gradient}, index) => {
                   if (index === currentIndex)
@@ -31,7 +30,7 @@ export const CTA = () => {
                         initial={{y: '-100%', opacity: 0}}
                         animate={{y: 0, opacity: 1}}
                         exit={{opacity: 0, transition: {duration: 0.2}}}
-                        className={`not-sr-only w-full text-center absolute block text-transparent bg-clip-text bg-gradient-to-br ${gradient}`}
+                        className={`not-sr-only w-full h-32 text-center absolute block text-transparent bg-clip-text bg-gradient-to-br ${gradient}`}
                       >
                         {text}
                       </motion.span>
