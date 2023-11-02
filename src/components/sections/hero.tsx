@@ -58,6 +58,9 @@ export const Hero = () => {
               Effect makes it easy to build typed, robust & scalable applications. Lorem ipsum dolor sit amet consectetur. Augue vitae rutrum felis neque
               auctor justo euismod.
             </p>
+            <div className="md:hidden my-8">
+              <Video />
+            </div>
             <Checklist
               items={[
                 'Maximum Type-safety (incl. error handling)',
@@ -65,14 +68,14 @@ export const Hero = () => {
                 'Extensive library and ecosystem packages'
               ]}
             />
-            <div className="mt-10 flex gap-3">
+            <div className="mt-10 flex flex-col sm:flex-row items-start gap-3">
               <Button href="/docs/get-started">Get Started</Button>
               <Button href="https://github.com/Effect-TS/examples" secondary>
                 Explore Examples
               </Button>
             </div>
           </div>
-          <div className="pt-3">
+          <div className="hidden md:block pt-3">
             <Video />
           </div>
         </div>

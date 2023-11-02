@@ -32,16 +32,18 @@ export const BasicExamples = () => {
           See all examples on GitHub
         </Button>
         <Card>
-          <div className="flex flex-col items-center pt-16">
-            <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white">Basic Examples</h3>
-            <p className="mt-6 mb-10">Effect helps you with handling errors, async code, concurrency, streams and much more.</p>
+          <div className="flex flex-col items-start md:items-center pt-8 md:pt-16">
+            <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white px-4">Basic Examples</h3>
+            <p className="mt-6 mb-6 md:mb-10 px-4 md:text-center">
+              Effect helps you with handling errors, async code, concurrency, streams and much more.
+            </p>
             <Tabs.Root defaultValue={examples[0].name} className="w-full flex flex-col">
-              <Tabs.List className="flex items-center justify-center gap-4 -mb-px">
+              <Tabs.List className="flex relative z-10 items-center px-4 md:justify-center overflow-x-auto gap-4 -mb-px">
                 {examples.map(({name}, index) => (
                   <Tabs.Trigger
                     key={index}
                     value={name}
-                    className="border-b border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2"
+                    className="border-b whitespace-nowrap border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2"
                   >
                     {name}
                   </Tabs.Trigger>
@@ -49,7 +51,11 @@ export const BasicExamples = () => {
               </Tabs.List>
               <Divider />
               {examples.map(({name, withoutEffect, withEffect}, index) => (
-                <Tabs.Content key={index} value={name} className="grow p-12 grid grid-cols-2 gap-6 data-[state=inactive]:absolute">
+                <Tabs.Content
+                  key={index}
+                  value={name}
+                  className="grow p-4 pt-8 md:p-12 grid grid-cols-1 gap-y-10 md:grid-cols-2 gap-6 data-[state=inactive]:absolute"
+                >
                   <div className="flex flex-col items-center gap-6">
                     <h4 className="font-display text-2xl text-white">Without Effect</h4>
                     <Code

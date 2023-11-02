@@ -66,7 +66,7 @@ export const Code: FC<{tabs: {name: string; content: string}[]; terminal?: {run:
                 <span>{terminal.run}</span>
               </div>
             </button>
-            <div className="font-mono text-white text-sm flex py-3">
+            <div className="font-mono text-white text-sm flex py-3 overflow-x-auto">
               <div className="text-zinc-600 w-12 shrink-0 text-right pr-4">$</div>
               <div>
                 <div>{terminal.command}</div>

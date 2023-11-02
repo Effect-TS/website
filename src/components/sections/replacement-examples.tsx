@@ -18,12 +18,12 @@ export const ReplacementExamples = () => {
           libero nisi at venenatis velit.
         </p>
         <Card>
-          <div className="flex flex-col items-center pt-16 pb-12">
-            <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white">Library Replacements</h3>
-            <p className="mt-6 mb-16">Effect provides a unified replacement for many one-off libraries.</p>
-            <Tabs.Root defaultValue={examples[0].examples[0].name} className="w-full relative pl-52">
-              <div className="absolute -top-32 -bottom-12 left-52 w-px -ml-px bg-gradient-to-b from-white/0 via-white/25 to-white/0" />
-              <div className="absolute inset-y-0 left-0 pl-12 pt-14 ">
+          <div className="flex flex-col items-start md:items-center pt-8 md:pt-16 pb-4 md:pb-12">
+            <h3 className="font-display px-4 md:text-center text-2xl sm:text-3xl lg:text-4xl text-white">Library Replacements</h3>
+            <p className="mt-6 mb-6 md:mb-16 px-4 md:text-center ">Effect provides a unified replacement for many one-off libraries.</p>
+            <Tabs.Root defaultValue={examples[0].examples[0].name} className="w-full relative md:pl-52">
+              <div className="hidden md:block absolute -top-32 -bottom-12 left-52 w-px -ml-px bg-gradient-to-b from-white/0 via-white/25 to-white/0" />
+              <div className="hidden md:block absolute inset-y-0 left-0 pl-12 pt-14 ">
                 <Tabs.List className="flex flex-col items-start gap-4 w-40 h-full overflow-y-auto">
                   {examples.map(({group, examples}, index) => (
                     <div key={index} className="w-full">
@@ -43,11 +43,31 @@ export const ReplacementExamples = () => {
                   ))}
                 </Tabs.List>
               </div>
-              <div className="">
+              <div className="md:hidden">
+                <Tabs.List className="flex relative z-10 items-center px-4 md:justify-center overflow-x-auto gap-4 -mb-px">
+                  {examples.map(({examples}) =>
+                    examples.map(({name}, index) => (
+                      <Tabs.Trigger
+                        key={index}
+                        value={name}
+                        className="border-b whitespace-nowrap border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2"
+                      >
+                        {name}
+                      </Tabs.Trigger>
+                    ))
+                  )}
+                </Tabs.List>
+                <Divider />
+              </div>
+              <div className="pt-8 md:pt-0">
                 {examples.map(({examples}, index) => (
                   <div key={index}>
                     {examples.map(({name, withoutEffect, withEffect}, index) => (
-                      <Tabs.Content key={index} value={name} className="grow grid grid-cols-2 px-12 gap-6 data-[state=inactive]:absolute">
+                      <Tabs.Content
+                        key={index}
+                        value={name}
+                        className="grow grid grid-cols-1 md:grid-cols-2 px-4 md:px-12 gap-y-10 gap-6 data-[state=inactive]:absolute"
+                      >
                         <div className="flex flex-col items-center gap-6">
                           <h4 className="font-display text-2xl text-white">Using {name}</h4>
                           <Code tabs={[{name: withoutEffect.fileName, content: withoutEffect.code}]} />

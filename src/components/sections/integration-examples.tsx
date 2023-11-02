@@ -21,25 +21,25 @@ export const IntegrationExamples = () => {
           libero nisi at venenatis velit.
         </p>
         <Card>
-          <div className="flex flex-col items-center pt-16">
-            <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white">Integrations</h3>
-            <p className="mt-6 mb-10">Effect integrates deeply with your current tech stack:</p>
+          <div className="flex flex-col items-start md:items-center pt-8 md:pt-16">
+            <h3 className="font-display text-2xl px-4 sm:text-3xl lg:text-4xl text-white">Integrations</h3>
+            <p className="mt-6 mb-6 md:mb-10 px-4">Effect integrates deeply with your current tech stack:</p>
             <Tabs.Root defaultValue={examples[0].name} className="w-full flex flex-col">
-              <Tabs.List className="flex items-center justify-center gap-5 -mb-px">
+              <Tabs.List className="flex items-center overflow-x-auto justify-start md:justify-center px-4 gap-5 -mb-px">
                 {examples.map(({name, icon}, index) => (
                   <Tabs.Trigger
                     key={index}
                     value={name}
-                    className="flex items-center gap-1.5 border-b border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2"
+                    className="flex whitespace-nowrap items-center gap-1.5 border-b border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2"
                   >
-                    {icon && <Icon name={icon as IconName} className="h-4" />}
+                    {icon && <Icon name={icon as IconName} className="h-4 shrink-0" />}
                     <span>{name}</span>
                   </Tabs.Trigger>
                 ))}
               </Tabs.List>
               <Divider />
               {examples.map(({name, tabs}, index) => (
-                <Tabs.Content key={index} value={name} className="grow p-12 data-[state=inactive]:absolute">
+                <Tabs.Content key={index} value={name} className="grow p-4 pt-8 md:p-12 data-[state=inactive]:absolute">
                   <Code tabs={tabs.map((tab) => ({name: tab.name, content: tab.code}))} />
                 </Tabs.Content>
               ))}

@@ -11,7 +11,7 @@ export const Button: FC<{secondary?: boolean | false; href: string; children: Re
   return (
     <Link
       href={href}
-      className={`inline-flex h-10 rounded-xl p-px shadow-lg ${
+      className={`inline-flex relative z-10 h-10 rounded-xl p-px shadow-lg ${
         secondary ? 'bg-gradient-to-br from-zinc-300 to-zinc-500' : 'bg-gradient-to-b from-white to-zinc-300'
       } ${className}`}
     >

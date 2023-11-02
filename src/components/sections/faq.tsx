@@ -51,7 +51,7 @@ export const FAQ = () => {
           <div>
             <h3 className="font-medium text-white">Any more questions?</h3>
             <p className="mt-4 mb-2">Feel free to reach out in our Discord community!</p>
-            <Button href="https://google.com" className="mt-4 mb-3">
+            <Button href="https://google.com" className="mt-4 mb-3 mr-3">
               See all questions
             </Button>
             <Button href="https://google.com" secondary>

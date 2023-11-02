@@ -46,7 +46,7 @@ Took me less than 5 minutes to cleanly separate and connect MDX files to a Next.
     user: {
       name: 'João Pedro Schmitz',
       bio: 'Front-End Engineer at GraphCMS',
-      avatar: 'https://pbs.twimg.com/profile_images/1425192858412326912/dh_udEMJ_400x400.jpg'
+      avatar: 'https://pbs.twimg.com/profile_images/1679225804209766400/6mwfr1N9_400x400.jpg'
     }
   }
 ]
@@ -57,9 +57,9 @@ export const Tweets = () => {
       <Glow direction="down" />
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-32">
         <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white text-center mb-16">What Effect users are saying</h2>
-        <div className="flex items-stretch animate-scroll">
+        <div className="flex flex-col gap-6 sm:gap-0 sm:flex-row items-stretch sm:animate-scroll">
           {[...tweets, ...tweets, ...tweets].map(({text, user}, index) => (
-            <div key={index} className="m-0 shrink-0 grow-0 px-6 w-[480px]">
+            <div key={index} className={`m-0 shrink-0 grow-0 px-6 w-full sm:w-[480px] ${index >= tweets.length ? 'hidden sm:block' : ''}`}>
               <div className="h-full bg-gradient-to-br from-zinc-300 to-zinc-500 p-px rounded-3xl">
                 <div className="h-full bg-gradient-to-br from-zinc-700 to-zinc-900 p-6 rounded-[23px] flex flex-col justify-between items-start text-zinc-200">
                   <p>{text}</p>

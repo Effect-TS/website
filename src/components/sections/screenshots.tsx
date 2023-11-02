@@ -73,8 +73,8 @@ export const Screenshots = () => {
       <Glow direction="down" />
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-32 pb-24">
         <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white text-center mb-16">Effect gives you new Superpowers</h2>
-        <div className="grid grid-cols-2">
-          <div className="flex flex-col items-center gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          <div className="hidden md:flex flex-col items-center gap-3">
             <div className="relative p-px overflow-hidden rounded-[2rem] bg-gradient-to-br from-zinc-700 to-zinc-800">
               <div className="rounded-[31px] overflow-hidden p-1.5 bg-gradient-to-br from-zinc-900 to-zinc-950">
                 <div className="rounded-[25px] border border-zinc-700 overflow-hidden">
@@ -90,7 +90,7 @@ export const Screenshots = () => {
             </div>
             <p className="text-sm text-zinc-500">{screenshots[currentIndex].alt}</p>
           </div>
-          <div className="pl-16 relative space-y-6">
+          <div className="md:pl-16 relative space-y-6">
             {screenshots.map(({heading, text}, index) => (
               <div
                 key={index}
@@ -102,6 +102,22 @@ export const Screenshots = () => {
                 <div className="flex items-center">
                   <h3 className={`grow font-display text-xl ${index === currentIndex ? 'text-white' : ''}`}>{heading}</h3>
                   <Icon name="chevron-right" className={`h-5 ${index === currentIndex ? 'rotate-90' : 'text-zinc-600'}`} />
+                </div>
+                <div className={`${index === currentIndex ? 'flex md:hidden' : 'hidden'} my-6 flex-col items-center gap-3`}>
+                  <div className="relative p-px overflow-hidden rounded-[2rem] bg-gradient-to-br from-zinc-700 to-zinc-800">
+                    <div className="rounded-[31px] overflow-hidden p-1.5 bg-gradient-to-br from-zinc-900 to-zinc-950">
+                      <div className="rounded-[25px] border border-zinc-700 overflow-hidden">
+                        <Image
+                          src={screenshots[currentIndex].src}
+                          alt={screenshots[currentIndex].alt}
+                          width={screenshots[currentIndex].width}
+                          height={screenshots[currentIndex].height}
+                          className="-mb-px"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-zinc-500">{screenshots[currentIndex].alt}</p>
                 </div>
                 <p className={`${index === currentIndex ? 'mt-3' : 'sr-only'}`}>{text}</p>
               </div>
