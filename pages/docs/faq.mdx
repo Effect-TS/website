@@ -41,6 +41,32 @@ In practice, it's important to note that you should typically only run Effects a
 
 For a more detailed comparison, you can refer to the [Effect vs fp-ts](fp-ts) documentation.
 
+### A Closer Look at `flatMap`
+
+Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap). Therefore it may be confusing to see `flatMap` methods exported from many of the modules that Effect provides.
+
+The `flatMap` operation can actually be used to describe a more generic data transformation. Let's consider for a moment a generic data type that we will call `F`. `F` will also be a container for elements, so we can further refine our representation of `F` to `F<A>` which states that `F` holds some information about some data of type `A`.
+
+If we have an `F<A>` and we want to transform to an `F<B>`, we could use the `map` operation:
+
+```
+map: <A, B>(fa: F<A>, f: (a: A) => B) => F<B>
+```
+
+But what if we have some function that returns an `F<B>` instead of just `B`? We can't use `map` because we would end up with a `F<F<B>>` instead of an `F<B>`. What we really want is some operator that allows us to `map` the data and then `flatten` the result.
+
+This exact situation describes a `flatMap` operation:
+
+```
+flatMap: <A, B>(fa: F<A>, f: (a: A) => F<B>) => F<B>
+```
+
+You can also see how this directly applies to `Array`'s `flatMap` if we replace our generic data type `F` with the concrete data type of `Array`:
+
+```
+flatMap: <A, B>(fa: Array<A>, f: (a: A) => Array<B>) => Array<B>
+```
+
 ### Looking for ZIO Type Aliases?
 
 **Question**. I can't seem to find any type aliases for Effect. Do any exist? I'm looking for something similar to ZIO's `UIO` / `URIO` / `RIO` / `Task` / `IO`. If not, have you considered adding them?
