@@ -50,7 +50,7 @@ The `flatMap` operation can actually be used to describe a more generic data tra
 If we have an `F<A>` and we want to transform to an `F<B>`, we could use the `map` operation:
 
 ```
-map: F<A> -> (A -> B) -> F<B>
+map: <A, B>(fa: F<A>, f: (a: A) => B) => F<B>
 ```
 
 But what if we have some function that returns an `F<B>` instead of just `B`? We can't use `map` because we would end up with a `F<F<B>>` instead of an `F<B>`. What we really want is some operator that allows us to `map` the data and then `flatten` the result.
@@ -58,13 +58,13 @@ But what if we have some function that returns an `F<B>` instead of just `B`? We
 This exact situation describes a `flatMap` operation:
 
 ```
-flatMap: F<A> -> (A -> F<B>) -> F<B>
+flatMap: <A, B>(fa: F<A>, f: (a: A) => F<B>) => F<B>
 ```
 
 You can also see how this directly applies to `Array`'s `flatMap` if we replace our generic data type `F` with the concrete data type of `Array`:
 
 ```
-flatMap: Array<A> -> (A -> Array<B>) -> Array<B>
+flatMap: <A, B>(fa: Array<A>, f: (a: A) => Array<B>) => Array<B>
 ```
 
 ### Looking for ZIO Type Aliases?
