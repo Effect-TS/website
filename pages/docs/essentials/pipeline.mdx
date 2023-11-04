@@ -124,7 +124,30 @@ In the previous example, we saw how to transform an `Effect` using the `map` fun
 Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap). However, `flatMap` can actually be used to describe a more generic data transformation. While this section will focus specifically on explaining how one can use `flatMap` from the `Effect` module, we provide a more detailed explanation of `flatMap` [in the FAQ](../faq#a-closer-look-at-flatmap).
 
 <Info>
-  If you're looking for how to operate on `Array`s with Effect, there is also [a small section in the FAQ](../faq#array) dedicated to that.
+  If you're just looking for how to flatten a nested `Array`s within an Effect:
+
+  <details>
+  <summary>Flattening a Nested Array</summary>
+
+  If you have an Effect where result type is a nested `Array`, for example:
+
+  ```
+  Effect<never, never, Array<Array<A>>>
+  ```
+
+  you can easily flatten the array using either the `ReadonlyArray` module exported from Effect:
+
+  ```ts file=<rootDir>/src/faq/array/flattening-readonlyarray.ts
+
+  ```
+
+  or using standard `Array` prototype methods:
+
+  ```ts file=<rootDir>/src/faq/array/flattening-array.ts
+
+  ```
+
+  </details>
 </Info>
 
 The `Effect.flatMap` function allows us to chain computations that produce `Effect` values. It takes a transformation function that produces a new `Effect` and then "flattens" the nested `Effect` structure.
