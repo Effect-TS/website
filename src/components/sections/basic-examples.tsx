@@ -314,5 +314,63 @@ await Effect.runPromiseExit(program)\
       command: 'bun src/index.ts',
       result: 'Interrupted!'
     }
-  }
+  },
+  {
+    name: 'Retry',
+    withoutEffect: {
+      fileName: 'index.ts',
+      code: `\
+// TODO
+      `,
+      command: 'bun src/index.ts',
+      result: 'TODO'
+    },
+    withEffect: {
+      fileName: 'index.ts',
+      code: `\
+// TODO
+      `,
+      command: 'bun src/index.ts',
+      result: 'TODO'
+    }
+  },
+  {
+    name: 'Concurrency',
+    withoutEffect: {
+      fileName: 'index.ts',
+      code: `\
+// TODO
+      `,
+      command: 'bun src/index.ts',
+      result: 'TODO'
+    },
+    withEffect: {
+      fileName: 'index.ts',
+      code: `\
+// TODO
+      `,
+      command: 'bun src/index.ts',
+      result: 'TODO'
+    }
+  },
+  {
+    // pipe, generators
+    name: 'Composition',
+    withoutEffect: {
+      fileName: 'index.ts',
+      code: `\
+// TODO
+      `,
+      command: 'bun src/index.ts',
+      result: 'TODO'
+    },
+    withEffect: {
+      fileName: 'index.ts',
+      code: `\
+// TODO
+      `,
+      command: 'bun src/index.ts',
+      result: 'TODO'
+    }
+  },
 ]
