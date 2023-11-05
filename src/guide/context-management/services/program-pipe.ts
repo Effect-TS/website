@@ -18,5 +18,8 @@ const runnable = Effect.provideService(
   })
 )
 
-Effect.runPromise(runnable).then(console.log)
-// Output: random number: 0.8241872233134417
+Effect.runPromise(runnable)
+/*
+Output:
+random number: 0.8241872233134417
+*/
