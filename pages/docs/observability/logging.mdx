@@ -24,7 +24,7 @@ Now, let's dive into the specific logging utilities provided by Effect.
 
 The `log` function is used to print a message at the current log level, which is `INFO` by default.
 
-```ts file=<rootDir>/src/guide/observability/logging/log.ts
+```ts file=<rootDir>/src/logging/log.ts
 
 ```
 
@@ -49,14 +49,14 @@ Here's an example that demonstrates how to enable `DEBUG` messages for a specifi
 <Tabs>
 <Tab>
 
-```ts /Logger.withMinimumLogLevel(LoggerLevel.Debug)/ file=<rootDir>/src/guide/observability/logging/debug-gen.ts
+```ts /Logger.withMinimumLogLevel(LoggerLevel.Debug)/ file=<rootDir>/src/logging/debug-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts /Logger.withMinimumLogLevel(LoggerLevel.Debug)/ file=<rootDir>/src/guide/observability/logging/debug-pipe.ts
+```ts /Logger.withMinimumLogLevel(LoggerLevel.Debug)/ file=<rootDir>/src/logging/debug-pipe.ts
 
 ```
 
@@ -74,14 +74,14 @@ By default, `INFO` messages are printed.
 <Tabs>
 <Tab>
 
-```ts file=<rootDir>/src/guide/observability/logging/info-gen.ts
+```ts file=<rootDir>/src/logging/info-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/observability/logging/info-pipe.ts
+```ts file=<rootDir>/src/logging/info-pipe.ts
 
 ```
 
@@ -97,14 +97,14 @@ By default, `WARN` messages are printed.
 <Tabs>
 <Tab>
 
-```ts file=<rootDir>/src/guide/observability/logging/warning-gen.ts
+```ts file=<rootDir>/src/logging/warning-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/observability/logging/warning-pipe.ts
+```ts file=<rootDir>/src/logging/warning-pipe.ts
 
 ```
 
@@ -118,14 +118,14 @@ By default, `ERROR` messages are printed.
 <Tabs>
 <Tab>
 
-```ts file=<rootDir>/src/guide/observability/logging/error-gen.ts
+```ts file=<rootDir>/src/logging/error-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/observability/logging/error-pipe.ts
+```ts file=<rootDir>/src/logging/error-pipe.ts
 
 ```
 
@@ -139,14 +139,14 @@ By default, `FATAL` messages are printed.
 <Tabs>
 <Tab>
 
-```ts file=<rootDir>/src/guide/observability/logging/fatal-gen.ts
+```ts file=<rootDir>/src/logging/fatal-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/observability/logging/fatal-pipe.ts
+```ts file=<rootDir>/src/logging/fatal-pipe.ts
 
 ```
 
@@ -160,14 +160,14 @@ Effect also provides support for spans, allowing you to measure the duration of 
 <Tabs>
 <Tab>
 
-```ts /Effect.withLogSpan("myspan")/ /myspan=1011ms/ file=<rootDir>/src/guide/observability/logging/spans-gen.ts
+```ts /Effect.withLogSpan("myspan")/ /myspan=1011ms/ file=<rootDir>/src/logging/spans-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts /Effect.withLogSpan("myspan")/ /myspan=1011ms/ file=<rootDir>/src/guide/observability/logging/spans-pipe.ts
+```ts /Effect.withLogSpan("myspan")/ /myspan=1011ms/ file=<rootDir>/src/logging/spans-pipe.ts
 
 ```
 
@@ -184,7 +184,7 @@ If you ever find yourself needing to turn off default logging, perhaps during te
 
 Effect provides a convenient function called `withMinimumLogLevel` that allows you to set the minimum log level, effectively disabling logging:
 
-```ts file=<rootDir>/src/guide/observability/logging/disabling-logging-withMinimumLogLevel.ts
+```ts file=<rootDir>/src/logging/disabling-logging-withMinimumLogLevel.ts
 
 ```
 
@@ -194,7 +194,7 @@ By setting the log level to `LogLevel.None`, you effectively disable logging, an
 
 Another approach to disable logging is by creating a layer that sets the minimum log level to `LogLevel.None`, effectively turning off all logging:
 
-```ts file=<rootDir>/src/guide/observability/logging/disabling-logging-layer.ts
+```ts file=<rootDir>/src/logging/disabling-logging-layer.ts
 
 ```
 
@@ -202,11 +202,21 @@ Another approach to disable logging is by creating a layer that sets the minimum
 
 You can also disable logging by creating a custom runtime that includes the configuration to turn off logging:
 
-```ts file=<rootDir>/src/guide/observability/logging/disabling-logging-runtime.ts
+```ts file=<rootDir>/src/logging/disabling-logging-runtime.ts
 
 ```
 
 In this approach, you create a custom runtime that incorporates the configuration to disable logging, and then you execute your program using this custom runtime.
+
+## Loading the Log Level from Configuration
+
+To retrieve the log level from a [configuration](../configuration) and incorporate it into your program, utilize the layer produced by `Logger.minimumLogLevel`:
+
+```ts file=<rootDir>/src/logging/load-log-level-from-configuration.ts
+
+```
+
+To evaluate the configured program, you can utilize `ConfigProvider.fromMap` for testing (refer to [Testing Services](../configuration#testing-services) for more details).
 
 ## Custom loggers
 
@@ -214,7 +224,7 @@ In this section, we will learn how to define a custom logger and set it as the d
 
 First, let's define our custom logger. Let's say we want to log `DEBUG` messages in regular text and all other messages in bold:
 
-```ts filename="CustomLogger.ts" file=<rootDir>/src/guide/observability/logging/CustomLogger.ts
+```ts filename="CustomLogger.ts" file=<rootDir>/src/logging/CustomLogger.ts
 
 ```
 
@@ -223,14 +233,14 @@ Assuming we have defined the following program:
 <Tabs>
 <Tab>
 
-```ts filename="program.ts" file=<rootDir>/src/guide/observability/logging/program-gen.ts
+```ts filename="program.ts" file=<rootDir>/src/logging/program-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="program.ts" file=<rootDir>/src/guide/observability/logging/program.ts
+```ts filename="program.ts" file=<rootDir>/src/logging/program.ts
 
 ```
 
@@ -239,7 +249,7 @@ Assuming we have defined the following program:
 
 To replace the default logger, we simply need to create a specific layer using `Logger.replace` and provide it to our program using `Effect.provide` before executing it:
 
-```ts filename="index.ts" file=<rootDir>/src/guide/observability/logging/index.ts
+```ts filename="index.ts" file=<rootDir>/src/logging/index.ts
 
 ```
 
