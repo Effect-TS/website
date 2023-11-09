@@ -10,7 +10,7 @@ const appLayer = Logger.replace(
 const scope = Effect.runSync(Scope.make())
 
 // Transform the configuration layer into a runtime
-const runtime = Effect.runSync(
+const runtime = await Effect.runPromise(
   Layer.toRuntime(appLayer).pipe(Scope.extend(scope))
 )
 
@@ -27,4 +27,4 @@ Application started!
 */
 
 // Cleaning up any resources used by the configuration layer
-Effect.runSync(Scope.close(scope, Exit.unit))
+Effect.runFork(Scope.close(scope, Exit.unit))
