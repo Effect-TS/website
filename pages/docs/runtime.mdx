@@ -70,7 +70,7 @@ The default runtime provides the minimum capabilities to bootstrap execution of 
 
 Both of the following executions are equivalent:
 
-```ts file=<rootDir>/src/guide/runtime/defaultRuntime.ts
+```ts file=<rootDir>/src/runtime/defaultRuntime.ts
 
 ```
 
@@ -88,7 +88,7 @@ By utilizing the `Effect.provide` function and providing runtime configuration l
 
 Here's an example:
 
-```ts file=<rootDir>/src/guide/runtime/addSimpleLogger.ts
+```ts file=<rootDir>/src/runtime/addSimpleLogger.ts
 
 ```
 
@@ -97,7 +97,7 @@ Then, we use `Effect.provide` to provide this configuration to our program, effe
 
 To ensure that the runtime configuration is only applied to a specific part of an Effect application, we should provide the configuration layer exclusively to that particular section, as demonstrated in the following example:
 
-```ts file=<rootDir>/src/guide/runtime/addSimpleLogger-region.ts
+```ts file=<rootDir>/src/runtime/addSimpleLogger-region.ts
 
 ```
 
@@ -107,7 +107,7 @@ When developing an Effect application and executing it using `Effect.run*` funct
 
 In such situations, we can create a top-level runtime by converting a configuration layer into a runtime using the `Layer.toRuntime` operator:
 
-```ts file=<rootDir>/src/guide/runtime/toRuntime.ts
+```ts file=<rootDir>/src/runtime/toRuntime.ts
 
 ```
 
@@ -125,25 +125,25 @@ Let's break down this concept with an example. Imagine we want to create a `Runt
 
 Suppose we have defined two services: `LoggingService` and `EmailService`:
 
-```ts file=<rootDir>/src/guide/runtime/make.ts#L1-L13
+```ts file=<rootDir>/src/runtime/make.ts#L1-L13
 
 ```
 
 We plan to implement a live version of `LoggingService` and a fake version of `EmailService` for testing:
 
-```ts file=<rootDir>/src/guide/runtime/make.ts#L15-L21
+```ts file=<rootDir>/src/runtime/make.ts#L15-L21
 
 ```
 
 Let's create a custom runtime that includes these two service implementations within its context:
 
-```ts file=<rootDir>/src/guide/runtime/make.ts#L23-L30
+```ts file=<rootDir>/src/runtime/make.ts#L23-L30
 
 ```
 
 Now we can execute our effects using this custom `Runtime<LoggingService | EmailService>`:
 
-```ts file=<rootDir>/src/guide/runtime/make.ts#L32-
+```ts file=<rootDir>/src/runtime/make.ts#L32-
 
 ```
 

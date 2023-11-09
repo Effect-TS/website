@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 module.exports = {
+  ignorePatterns: ["*.json"],
   parser: "@typescript-eslint/parser",
   parserOptions: {
     ecmaVersion: 2018,
