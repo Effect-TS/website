@@ -28,7 +28,7 @@ Understanding how to manage services and provide the necessary context to effect
 
 Let's start by creating a service for a random number generator.
 
-```ts filename="service.ts" file=<rootDir>/src/guide/context-management/services/service.ts
+```ts filename="service.ts" file=<rootDir>/src/context-management/services/service.ts
 
 ```
 
@@ -54,11 +54,15 @@ Where the Tag acts as the "key" to the service implementation within the context
 
 If desired, you can specify a unique `key` as shown below:
 
-```ts filename="service.ts" file=<rootDir>/src/guide/context-management/services/service-with-key.ts#L7
+```ts filename="service.ts" file=<rootDir>/src/context-management/services/service-with-key.ts#L7
 
 ```
 
-When you specify the `key`, it makes the `Tag` global, which means that two tags with the same `key` will refer to the same instance.
+When you specify the `key`, it makes the `Tag` global, which means that two tags with the same `key` will refer to the same instance:
+
+```ts file=<rootDir>/src/context-management/services/Tag.ts
+
+```
 
 This feature comes in handy in scenarios where live reloads can occur, and you want to preserve the instance across reloads. It ensures that there is no duplication of instances (although it should not happen in the first place, some bundlers and frameworks can behave strangely, and we don't have control over them). Additionally, using a unique `key` allows for better printing of a tag. If you ever face "Service Not Found" or "Service Not Found: myapp/Random," the second is better and provides more helpful information to identify the issue.
 
@@ -69,7 +73,7 @@ Now that we have our service interface defined, let's see how we can use it by b
 <Tabs>
 <Tab>
 
-```ts file=<rootDir>/src/guide/context-management/services/program-gen.ts
+```ts file=<rootDir>/src/context-management/services/program-gen.ts
 
 ```
 
@@ -80,7 +84,7 @@ We then use the `Console.log` utility to log the generated random number.
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/context-management/services/program-pipe.ts#L1-L10
+```ts file=<rootDir>/src/context-management/services/program-pipe.ts#L1-L10
 
 ```
 
@@ -120,7 +124,7 @@ In the next section, we will explore how to implement and provide the `Random` s
 
 In order to provide an actual implementation of the `Random` service, we can utilize the `Effect.provideService` function.
 
-```ts file=<rootDir>/src/guide/context-management/services/program-pipe.ts#L12-
+```ts file=<rootDir>/src/context-management/services/program-pipe.ts#L12-
 
 ```
 
@@ -140,13 +144,13 @@ By calling `Effect.runPromise(runnable){:ts}`, the program is executed, and the 
 
 In the `program` definition, we have used the `Random` service only once:
 
-```ts /random.next()/ file=<rootDir>/src/guide/context-management/services/program-pipe.ts#L1-L10
+```ts /random.next()/ file=<rootDir>/src/context-management/services/program-pipe.ts#L1-L10
 
 ```
 
 But what if we need to use it multiple times? In such cases, we need to ensure that the service handle (`random`) remains in scope.
 
-```ts file=<rootDir>/src/guide/context-management/services/using-multiple-times-issue.ts
+```ts file=<rootDir>/src/context-management/services/using-multiple-times-issue.ts
 
 ```
 
@@ -157,7 +161,7 @@ The solution depends on whether we are using `Effect.gen` or `pipe`:
 
 With `Effect.gen` our service handle is always in scope:
 
-```ts /random.next()/ file=<rootDir>/src/guide/context-management/services/using-multiple-times-gen.ts#L1-L11
+```ts /random.next()/ file=<rootDir>/src/context-management/services/using-multiple-times-gen.ts#L1-L11
 
 ```
 
@@ -166,7 +170,7 @@ With `Effect.gen` our service handle is always in scope:
 
 We can use `flatMap` to create a second pipeline and keep our service handle in scope:
 
-```ts /random.next()/ file=<rootDir>/src/guide/context-management/services/using-multiple-times-pipe.ts#L1-L17
+```ts /random.next()/ file=<rootDir>/src/context-management/services/using-multiple-times-pipe.ts#L1-L17
 
 ```
 
@@ -181,14 +185,14 @@ By passing a tuple of tags, we can access the corresponding tuple of services:
 <Tabs>
 <Tab>
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-services-gen.ts
+```ts file=<rootDir>/src/context-management/services/multiple-services-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L1-L22
+```ts file=<rootDir>/src/context-management/services/multiple-services-pipe.ts#L1-L22
 
 ```
 
@@ -205,19 +209,19 @@ Effect<Random | Logger, never, void>
 
 To execute the `program`, we need to provide implementations for both services:
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L24-L37
+```ts file=<rootDir>/src/context-management/services/multiple-services-pipe.ts#L24-L37
 
 ```
 
 Alternatively, instead of calling `provideService` multiple times, we can combine the service implementations into a single `Context`:
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L39-L48
+```ts file=<rootDir>/src/context-management/services/multiple-services-pipe.ts#L39-L48
 
 ```
 
 and then provide the entire context using the `Effect.provide` function:
 
-```ts file=<rootDir>/src/guide/context-management/services/multiple-services-pipe.ts#L50-
+```ts file=<rootDir>/src/context-management/services/multiple-services-pipe.ts#L50-
 
 ```
 
@@ -242,7 +246,7 @@ Let's take a look at an example that demonstrates the usage of optional services
 
 To determine what action to take, we can use the `Option.isNone` function provided by the `Option` module. This function allows us to check if the service is available or not by returning `true` when the service is not available.
 
-```ts file=<rootDir>/src/guide/context-management/services/serviceOption-gen.ts
+```ts file=<rootDir>/src/context-management/services/serviceOption-gen.ts
 
 ```
 
@@ -251,7 +255,7 @@ To determine what action to take, we can use the `Option.isNone` function provid
 
 To determine if we can use the service, we can use the `Option.match` function provided by the `Option` module. This function allows us to perform different actions based on whether the service is available or not. It takes two callbacks as arguments: one for the case when the service is not available, and another for the case when it is available.
 
-```ts file=<rootDir>/src/guide/context-management/services/serviceOption-pipe.ts#L1-L15
+```ts file=<rootDir>/src/context-management/services/serviceOption-pipe.ts#L1-L15
 
 ```
 
@@ -271,7 +275,7 @@ We see that the log message contains `-1`, which is the default value we provide
 
 However, if we provide the `Random` service implementation:
 
-```ts file=<rootDir>/src/guide/context-management/services/serviceOption-pipe.ts#L17-
+```ts file=<rootDir>/src/context-management/services/serviceOption-pipe.ts#L17-
 
 ```
 
@@ -279,4 +283,4 @@ We can observe that the log message now contains a random number generated by th
 
 By using the `Effect.serviceOption` function, we can gracefully handle scenarios where a service may or may not be available, providing flexibility in our programs.
 
-In the upcoming section, we will delve into the topic of [Layers](layers). Layers are powerful constructs for creating services and composing them together, enabling us to build complex dependency graphs that can be seamlessly provided to Effects.
+In the upcoming section, we will delve into the topic of [Layers](layers.mdx). Layers are powerful constructs for creating services and composing them together, enabling us to build complex dependency graphs that can be seamlessly provided to Effects.
