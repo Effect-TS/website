@@ -5,7 +5,7 @@ import * as RequestModel from "./RequestModel"
 
 // we assume we cannot batch GetTodos, we create a normal resolver
 // $ExpectType RequestResolver<GetTodos, never>
-export const GetTodosResolver = RequestResolver.fromFunctionEffect(
+export const GetTodosResolver = RequestResolver.fromEffect(
   (request: RequestModel.GetTodos) =>
     Effect.tryPromise({
       try: () =>

@@ -21,7 +21,7 @@ export const GetTodosResolver: Effect.Effect<
   RequestResolver.RequestResolver<RequestModel.GetTodos, never>
 > =
   // we create a normal resolver like we did before
-  RequestResolver.fromFunctionEffect((request: RequestModel.GetTodos) =>
+  RequestResolver.fromEffect((request: RequestModel.GetTodos) =>
     Effect.flatMap(HttpService, (http) =>
       Effect.tryPromise({
         try: () =>
