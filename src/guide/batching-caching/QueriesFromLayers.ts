@@ -16,7 +16,7 @@ export const TodosServiceLive = Layer.effect(
   TodosService,
   Effect.gen(function* ($) {
     const http = yield* $(ResolversWithContext.HttpService)
-    const resolver = RequestResolver.fromFunctionEffect(
+    const resolver = RequestResolver.fromEffect(
       (request: RequestModel.GetTodos) =>
         Effect.tryPromise({
           try: () =>

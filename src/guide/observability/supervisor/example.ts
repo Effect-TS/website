@@ -24,7 +24,7 @@ const monitorFibers = (
   supervisor: Supervisor.Supervisor<Array<Fiber.RuntimeFiber<any, any>>>
 ): Effect.Effect<never, never, void> =>
   Effect.gen(function* (_) {
-    const fibers = yield* _(supervisor.value())
+    const fibers = yield* _(supervisor.value)
     console.log(`number of fibers: ${fibers.length}`)
   })
 
