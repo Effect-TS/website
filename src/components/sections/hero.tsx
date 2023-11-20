@@ -36,20 +36,15 @@ export const Hero = () => {
               <br />
               <span className="block relative">
                 <AnimatePresence initial={false}>
-                  {headlines.map(({text, gradient}, index) => {
-                    if (index === currentIndex)
-                      return (
-                        <motion.span
-                          key={text}
-                          initial={{y: '-100%', opacity: 0}}
-                          animate={{y: 0, opacity: 1}}
-                          exit={{opacity: 0, transition: {duration: 0.2}}}
-                          className={`not-sr-only h-32 absolute block text-transparent bg-clip-text bg-gradient-to-br ${gradient}`}
-                        >
-                          {text}
-                        </motion.span>
-                      )
-                  })}
+                  <motion.span
+                    key={currentIndex}
+                    initial={{y: '-100%', opacity: 0}}
+                    animate={{y: 0, opacity: 1}}
+                    exit={{opacity: 0, transition: {duration: 0.2}}}
+                    className={`not-sr-only h-32 absolute block text-transparent bg-clip-text bg-gradient-to-br ${headlines[currentIndex].gradient}`}
+                  >
+                    {headlines[currentIndex].text}
+                  </motion.span>
                 </AnimatePresence>
               </span>
               <br />

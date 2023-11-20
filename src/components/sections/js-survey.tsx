@@ -28,7 +28,7 @@ to make building applications easier.
 export const JSSurvey = () => {
   return (
     <section className="relative">
-      <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-24 grid grid-cols-1 lg:grid-cols-2 gap-y-12">
+      <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-32 grid grid-cols-1 lg:grid-cols-2 gap-y-12">
         <div className="lg:pr-16">
           <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white max-w-md">{content.heading}</h2>
           <p className="mt-6 mb-3 max-w-xl">{content.text}</p>

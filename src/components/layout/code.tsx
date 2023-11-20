@@ -5,7 +5,11 @@ import * as Tabs from '@radix-ui/react-tabs'
 import hljs from 'highlight.js/lib/common'
 import {Icon} from '../icons'
 
-export const Code: FC<{tabs: {name: string; content: string}[]; terminal?: {run: string; command: string; result: string}}> = ({tabs, terminal}) => {
+export const Code: FC<{
+  tabs: {name: string; content: string; highlights?: {color: string; lines: number[]}[]}[]
+  terminal?: {run: string; command: string; result: string}
+  fixedHeight?: 80 | 96
+}> = ({tabs, terminal, fixedHeight}) => {
   const [running, setRunning] = useState<boolean>(false)
   const runSnippet = () => {
     setRunning(true)
@@ -33,23 +37,35 @@ export const Code: FC<{tabs: {name: string; content: string}[]; terminal?: {run:
             ))}
           </Tabs.List>
         </div>
-        <div className={`${terminal ? 'pb-8' : ''} max-h-96 overflow-y-auto`}>
-          {tabs.map(({name, content}, index) => {
+        <div className={`${terminal ? 'pb-8' : ''} ${fixedHeight === 80 ? 'lg:h-80' : fixedHeight === 96 ? 'lg:h-96' : ''} max-h-96 overflow-y-auto`}>
+          {tabs.map(({name, content, highlights}, index) => {
             const html = hljs.highlightAuto(content).value
             const lineCount = (html.match(/\n/g) || []).length + 1
             return (
-              <Tabs.Content key={index} value={name} className="font-mono text-sm flex py-3 data-[state=inactive]:absolute">
-                <ul className="text-zinc-600">
-                  {[...new Array(lineCount)].map((e, i) => (
-                    <li key={i} className="w-12 text-right pr-4">
-                      {i + 1}
-                    </li>
-                  ))}
+              <Tabs.Content key={index} value={name} className="relative font-mono text-sm flex data-[state=inactive]:absolute">
+                <ul className="absolute inset-0 text-zinc-600 py-3">
+                  {[...new Array(lineCount)].map((e, i) => {
+                    let backgroundColor = 'transparent'
+                    highlights?.forEach((highlight) => {
+                      if (highlight.lines.includes(i + 1)) {
+                        console.log(i)
+                        backgroundColor = highlight.color
+                      }
+                    })
+                    return (
+                      <li key={i} className="relative">
+                        <div className="absolute inset-y-0 left-0 w-full" style={{backgroundColor}} />
+                        <span className="relative block w-12 pr-4 text-right">{i + 1}</span>
+                      </li>
+                    )
+                  })}
                 </ul>
-                <div className="overflow-x-auto">
-                  <pre>
-                    <code dangerouslySetInnerHTML={{__html: html.replaceAll('\n', '<br/>')}} />
-                  </pre>
+                <div className="relative w-full py-3 pl-12">
+                  <div className="w-full overflow-x-auto ">
+                    <pre>
+                      <code dangerouslySetInnerHTML={{__html: html.replaceAll('\n', '<br/>')}} />
+                    </pre>
+                  </div>
                 </div>
               </Tabs.Content>
             )

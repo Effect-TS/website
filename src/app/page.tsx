@@ -1,6 +1,7 @@
 import {BasicExamples} from '@/components/sections/basic-examples'
 import {Catch} from '@/components/sections/catch'
 import {Community} from '@/components/sections/community'
+import {Complexity} from '@/components/sections/complexity'
 import {CTA} from '@/components/sections/cta'
 import {FAQ} from '@/components/sections/faq'
 import {Features} from '@/components/sections/features'
@@ -17,6 +18,7 @@ export default function HomePage() {
     <main>
       <Hero />
       <TechLogos />
+      <Complexity />
       <JSSurvey />
       <Features />
       <BasicExamples />
