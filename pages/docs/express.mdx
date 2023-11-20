@@ -1,0 +1,103 @@
+# Express Integration
+
+In this guide, we'll explore how to integrate Effect with [Express](https://expressjs.com/), a popular web framework for Node.js.
+
+## Hello World Example
+
+Let's start with a simple example that creates an Express server responding with "Hello World!" for requests to the root URL (/).
+This mirrors the classic ["Hello world example"](https://expressjs.com/en/starter/hello-world.html) found in the Express documentation.
+
+### Setup Steps
+
+1. Create a new directory for your project and navigate to it using your terminal:
+
+   ```bash filename="Terminal"
+   mkdir express-effect-integration
+   cd express-effect-integration
+   ```
+
+2. Initialize your project with npm. This will create a `package.json` file:
+
+   ```bash filename="Terminal"
+   npm init -y
+   ```
+
+3. Install the necessary dependencies:
+
+   ```bash filename="Terminal"
+   npm install effect express
+   ```
+
+   Install the necessary dev dependencies:
+
+   ```bash
+   npm install typescript @types/express --save-dev
+   ```
+
+   Now, initialize TypeScript:
+
+   ```bash
+   npx tsc --init
+   ```
+
+4. Create a new file, for example, `hello-world.ts`, and add the following code:
+
+   ```ts filename="hello-world.ts" file=<rootDir>/src/express/hello-world.ts
+
+   ```
+
+5. Run your Express server. If you have [`ts-node`](https://github.com/TypeStrong/ts-node) installed, run the following command in the terminal:
+
+   ```bash filename="Terminal"
+   ts-node hello-world.ts
+   ```
+
+   Visit [http://localhost:3001](http://localhost:3001) in your web browser, and you should see "Hello World!".
+
+### Code Breakdown
+
+Here's a breakdown of what's happening:
+
+- **Express Service**. We define an `Express` [service](context-management/services.mdx) to retrieve the Express app later on.
+
+  ```ts file=<rootDir>/src/express/hello-world.ts#L4-L5
+
+  ```
+
+- **Main Route**. The main route, `IndexRouteLive`, is defined as a [Layer](context-management/layers.mdx).
+
+  ```ts file=<rootDir>/src/express/hello-world.ts#L7-L17
+
+  ```
+
+  We access the [runtime](runtime.mdx) (`Effect.runtime`), which can be used to execute tasks within our route (`runFork`).
+  Since we don't need to produce any service in the output, we use `Layer.effectDiscard` to discard its output.
+
+- **Server Setup**. The server is created in a layer (`ServerLive`) and mounted at the end of our program.
+
+  ```ts file=<rootDir>/src/express/hello-world.ts#L19-L35
+
+  ```
+
+  We use [`Effect.acquireRelease`](resource-management.mdx#defining-resources) to create the server, allowing automatic management of the [scope](resource-management.mdx#scope).
+  Again, as we don't need to produce any service in the output, we use `Layer.scopedDiscard` to discard its output.
+
+- **Mounting**. Finally, we mount the server by adding our route
+
+  ```ts {2} file=<rootDir>/src/express/hello-world.ts#L41-L44
+
+  ```
+
+  and providing the necessary dependency to the Express app
+
+  ```ts {6} file=<rootDir>/src/express/hello-world.ts#L38-L44
+
+  ```
+
+## Basic routing
+
+In this example, we'll explore the basics of routing with Effect and Express. The goal is to create a simple web server with two routes: one that returns all todos and another that returns a todo by its ID.
+
+```ts filename="basic-routing.ts" file=<rootDir>/src/express/basic-routing.ts
+
+```
