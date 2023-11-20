@@ -19,7 +19,7 @@ const config: DocsThemeConfig = {
     key: 'effect-days-2024',
     text: (
       <a href="/events/effect-days" className="text-lg font-bold" target="_blank">
-        <span className="hidden sm:inline">Join the waitlist for </span><strong>Effect Days 2024</strong> in Vienna<span className="hidden sm:inline">, Austria &#8594;</span>
+        <span className="hidden sm:inline">Get your ticket for </span><strong>Effect Days 2024</strong> in Vienna<span className="hidden sm:inline">, Austria &#8594;</span>
       </a>
     )
   },
