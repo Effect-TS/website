@@ -48,7 +48,6 @@ export const Code: FC<{
                     let backgroundColor = 'transparent'
                     highlights?.forEach((highlight) => {
                       if (highlight.lines.includes(i + 1)) {
-                        console.log(i)
                         backgroundColor = highlight.color
                       }
                     })

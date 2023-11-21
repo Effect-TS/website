@@ -1,0 +1,66 @@
+'use client'
+
+import * as Tabs from '@radix-ui/react-tabs'
+import {Button} from '../atoms/button'
+import {Checklist} from '../atoms/checklist'
+import {Card} from '../layout/card'
+import {Glow} from '../layout/glow'
+import {BasicExamples} from './basic-examples'
+import {EcosystemExamples} from './ecosystem-examples'
+import {IntegrationExamples} from './integration-examples'
+
+const tabs = [
+  {name: 'Basics', component: BasicExamples},
+  {name: 'Ecosystem', component: EcosystemExamples},
+  {name: 'Integrations', component: IntegrationExamples}
+]
+
+export const Examples = () => {
+  return (
+    <section className="relative">
+      <Glow direction="down" />
+      <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-20">
+        <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl text-white">
+          Let&apos;s see some <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#5B9EE9] to-[#2F74C0]">example code</span>
+        </h2>
+        <p className="my-6 max-w-lg">
+          Doing the right thing in TypeScript is hard. Effect makes it easy lorem ipsum dolor sit amet consectetur. Mattis et lacus tortor sed integer nunc
+          mattis suspendisse diam.
+        </p>
+        <Checklist
+          items={[
+            'Effect helps you with handling errors, async code, concurrency, streams and much more.',
+            'Effect provides a unified replacement for many one-off dependencies.',
+            'Effect integrates deeply with your current tech stack.'
+          ]}
+        />
+        <Button href="https://github.com/Effect-TS/examples" secondary className="mt-10 mb-16">
+          See all examples on GitHub
+        </Button>
+        <Card>
+          <Tabs.Root defaultValue={tabs[0].name}>
+            <Tabs.List className="flex flex-col items-start md:items-center pt-12 md:pt-20">
+              {tabs.map(({name}, index) => (
+                <Tabs.Trigger
+                  key={index}
+                  value={name}
+                  className="data-[state=inactive]:opacity-40 data-[state=inactive]:scale-[0.8] origin-left md:origin-center transition-transform duration-200"
+                >
+                  <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white px-4 -mt-2">{name}</h3>
+                </Tabs.Trigger>
+              ))}
+            </Tabs.List>
+            {tabs.map(({name, component}, index) => {
+              const Component = component
+              return (
+                <Tabs.Content key={index} value={name}>
+                  <Component />
+                </Tabs.Content>
+              )
+            })}
+          </Tabs.Root>
+        </Card>
+      </div>
+    </section>
+  )
+}
