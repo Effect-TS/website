@@ -1,8 +1,8 @@
 'use client'
+
 import {useState} from 'react'
 import {Icon} from '../icons'
 import {motion} from 'framer-motion'
-import {ArrowRightIcon} from '../icons/arrow-right'
 import {Code} from '../layout/code'
 import {Logo} from '../atoms/logo'
 
@@ -12,27 +12,10 @@ export const Complexity = () => {
   return (
     <section className="relative">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-24">
-        <h2 className="font-display mb-6 text-2xl sm:text-3xl lg:text-4xl text-white max-w-md">{content.heading}</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-12 items-start">
-          <div className="lg:pr-16">
-            <p className="mb-6 max-w-xl">{content.text}</p>
-            <ul>
-              {content.features.map(({name}, index) => (
-                <li key={index}>
-                  {index > 0 && <div className="h-3 w-px my-0.5 ml-[9px] bg-zinc-700" />}
-                  <button onClick={() => setCurrentIndex(index)} className="text-white flex gap-4 items-center">
-                    <div className="bg-gradient-to-br from-zinc-100 to-zinc-500 h-5 w-5 rounded-md p-px">
-                      <div className={`rounded-[5px] h-full w-full flex items-center justify-center ${currentIndex >= index ? 'bg-white' : 'bg-black'}`}>
-                        <Icon name="check" className="ml-px h-3.5 text-black" />
-                      </div>
-                    </div>
-                    <div>{name}</div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="relative text-sm max-w-xl">
+        <h2 className="font-display mb-6 text-2xl sm:text-3xl lg:text-4xl text-white text-center ">{content.heading}</h2>
+        <p className="mb-16 text-center max-w-xl mx-auto">{content.text}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-12 gap-x-10 items-end">
+          <div className="relative text-sm max-w-lg">
             <svg viewBox="0 0 577 211" className="w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="0.5" y="187" width="576" height="1" fill="url(#paint0_linear_280_1304)" />
               <motion.line
@@ -44,7 +27,7 @@ export const Complexity = () => {
                 stroke="url(#paint1_linear_280_1304)"
               />
               <motion.path
-                animate={{pathLength: (1 / content.features.length) * (currentIndex + 1)}}
+                animate={{pathLength: (1 / content.features.length) * (currentIndex + 1) * (currentIndex === content.features.length - 1 ? 1 : 0.93)}}
                 d="M2.5 187C150.455 169.787 424 116 502.5 1"
                 stroke="url(#paint2_linear_280_1304)"
               />
@@ -72,11 +55,45 @@ export const Complexity = () => {
                 <Icon name="arrow-up-right-light" className="h-3" />
               </span>
               <span>(Lower is better)</span>
+              <span className="flex gap-1.5 items-center mt-2">
+                <span className="text-red-400">–</span>
+                <span>Without Effect</span>
+              </span>
+              <span className="flex gap-1.5 items-center">
+                <span className="text-blue-400">–</span>
+                <span>With Effect</span>
+              </span>
             </div>
             <div className="absolute right-0 bottom-0 flex items-center gap-1">
               <span>Features</span>
               <Icon name="arrow-right" className="h-3" />
             </div>
+          </div>
+          <div className="lg:pr-16">
+            <ul>
+              {content.features.map(({name, description, color}, index) => (
+                <li key={index}>
+                  {index > 0 && <div className="h-3 w-px ml-[9px] bg-zinc-700" />}
+                  <button onClick={() => setCurrentIndex(index)} className="text-white flex gap-4 items-center text-left relative">
+                    {currentIndex >= index && (
+                      <>
+                        <div className="absolute -left-2 w-9 h-9 rounded-xl" style={{backgroundColor: color}} />
+                        <div className="absolute -left-2 w-9 h-9 rounded-xl border border-white/10" />
+                      </>
+                    )}
+                    <div className="relative bg-gradient-to-br from-zinc-100 to-zinc-500 h-5 w-5 rounded-md p-px">
+                      <div className={`rounded-[5px] h-full w-full flex items-center justify-center ${currentIndex >= index ? 'bg-white' : 'bg-black'}`}>
+                        <Icon name="check" className="ml-px h-3.5 text-black" />
+                      </div>
+                    </div>
+                    <div>
+                      <div>{name}</div>
+                      <div className="text-xs text-zinc-400">{description}</div>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
         <div className="grid lg:grid-cols-2 gap-y-12 gap-x-6 pt-12">
@@ -121,6 +138,8 @@ const content = {
   features: [
     {
       name: 'Error Handling',
+      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
+      color: '#283413',
       withoutEffect: {
         fileName: 'index.ts',
         code: `\
@@ -130,7 +149,7 @@ const content = {
       `,
         highlights: [
           {
-            color: '#391E1F',
+            color: '#283413',
             lines: [1, 2, 3]
           }
         ]
@@ -144,7 +163,7 @@ const content = {
       `,
         highlights: [
           {
-            color: '#391E1F',
+            color: '#283413',
             lines: [1, 2, 3]
           }
         ]
@@ -152,6 +171,8 @@ const content = {
     },
     {
       name: 'Retry',
+      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
+      color: '#39300D',
       withoutEffect: {
         fileName: 'index.ts',
         code: `\
@@ -165,7 +186,7 @@ const content = {
       `,
         highlights: [
           {
-            color: '#391E1F',
+            color: '#283413',
             lines: [1, 2, 3]
           },
           {
@@ -186,7 +207,7 @@ const content = {
       `,
         highlights: [
           {
-            color: '#391E1F',
+            color: '#283413',
             lines: [1, 2, 3]
           },
           {
@@ -198,6 +219,8 @@ const content = {
     },
     {
       name: 'Observability',
+      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
+      color: '#10322E',
       withoutEffect: {
         fileName: 'index.ts',
         code: `\
@@ -217,7 +240,7 @@ const content = {
       `,
         highlights: [
           {
-            color: '#391E1F',
+            color: '#283413',
             lines: [1, 2, 3]
           },
           {
@@ -225,7 +248,7 @@ const content = {
             lines: [5, 6, 7]
           },
           {
-            color: '#123127',
+            color: '#10322E',
             lines: [9, 10, 11, 12, 13]
           }
         ]
@@ -245,7 +268,7 @@ const content = {
       `,
         highlights: [
           {
-            color: '#391E1F',
+            color: '#283413',
             lines: [1, 2, 3]
           },
           {
@@ -253,7 +276,7 @@ const content = {
             lines: [5, 6]
           },
           {
-            color: '#123127',
+            color: '#10322E',
             lines: [8, 9]
           }
         ]
@@ -261,6 +284,8 @@ const content = {
     },
     {
       name: 'Interruption',
+      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
+      color: '#28233B',
       withoutEffect: {
         fileName: 'index.ts',
         code: `\
@@ -288,7 +313,7 @@ const content = {
       `,
         highlights: [
           {
-            color: '#391E1F',
+            color: '#283413',
             lines: [1, 2, 3]
           },
           {
@@ -296,11 +321,11 @@ const content = {
             lines: [5, 6, 7]
           },
           {
-            color: '#123127',
+            color: '#10322E',
             lines: [9, 10, 11, 12, 13]
           },
           {
-            color: '#21233A',
+            color: '#28233B',
             lines: [15, 16, 17, 18, 19, 20, 21]
           }
         ]
@@ -324,7 +349,7 @@ const content = {
       `,
         highlights: [
           {
-            color: '#391E1F',
+            color: '#283413',
             lines: [1, 2, 3]
           },
           {
@@ -332,11 +357,11 @@ const content = {
             lines: [5, 6]
           },
           {
-            color: '#123127',
+            color: '#10322E',
             lines: [8, 9]
           },
           {
-            color: '#21233A',
+            color: '#28233B',
             lines: [11, 12, 13]
           }
         ]
