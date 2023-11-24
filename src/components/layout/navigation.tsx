@@ -2,6 +2,7 @@ import Link from 'next/link'
 import {Logo} from '../atoms/logo'
 import {Icon, IconName} from '../icons'
 import {Search} from '../atoms/search'
+import {MobileMenu} from './mobile-menu'
 
 const menu = [
   {name: 'Docs', href: '/docs'},
@@ -19,10 +20,11 @@ export const Navigation = () => {
   return (
     <header className="w-full">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 py-4 sm:py-8 flex justify-between items-center">
-        <Link href="/">
-          <Logo className="h-8" />
+        <Link href="/" className="z-50">
+          <Logo className="h-7 sm:h-8" />
         </Link>
-        <div className="flex items-center gap-8">
+        <MobileMenu menu={menu} socials={socials} />
+        <div className="hidden md:flex items-center gap-8">
           {menu.map(({name, href}, index) => (
             <Link key={index} href={href} className="flex items-start">
               <span>{name}</span>

@@ -24,12 +24,14 @@ import {ChevronRightIcon} from './chevron-right'
 import {TrendUpIcon} from './trend-up'
 import {LightBulbIcon} from './lightbulb'
 import {CheckIcon} from './check'
+import {BarsIcon} from './bars'
 
 const icons = {
   amazon: AmazonIcon,
   'arrow-right': ArrowRightIcon,
   'arrow-up-right': ArrowUpRightIcon,
   'arrow-up-right-light': ArrowUpRightLightIcon,
+  bars: BarsIcon,
   blocks: BlocksIcon,
   bun: BunIcon,
   check: CheckIcon,
