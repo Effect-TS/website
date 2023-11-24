@@ -80,7 +80,7 @@ In the above example, `Effect.sync` is used to defer the side-effect of writing 
 The `program` value has the type `Effect<never, never, number>` because the thunk returns the value `42`.
 
 Note that nothing is logged to the console yet when you inspect it.
-This is because `program` represents the action of writing to the console, but nothing happens until you explicitly [run your program](running).
+This is because `program` represents the action of writing to the console, but nothing happens until you explicitly [run your program](running.mdx).
 
 <Error>The thunk passed to `Effect.sync` should never throw errors.</Error>
 
@@ -168,6 +168,43 @@ based on the return value inside the callback body. Annotating the types ensures
   types of side effects in a unified way.
 </Idea>
 
+## Suspended Effects
+
+`Effect.suspend` is used to delay the creation of an effect.
+It allows you to defer the evaluation of an effect until it is actually needed.
+The `Effect.suspend` function takes a thunk that represents the effect, and it wraps it in a suspended effect.
+
+```ts
+const suspendedEffect = Effect.suspend(() => effect)
+```
+
+Let's explore some common scenarios where `Effect.suspend` proves useful:
+
+1. **Lazy Evaluation**. When you want to defer the evaluation of an effect until it is required. This can be useful for optimizing the execution of effects, especially when they are not always needed or when their computation is expensive.
+
+   Also, when effects with side effects or scoped captures are created, use `Effect.suspend` to re-execute on each invocation.
+
+   ```ts file=<rootDir>/src/essentials/creating/suspend-lazy-evaluation.ts
+
+   ```
+
+   In this example, `Effect.succeed(i++)` creates a new numeric value and consistently returns the same number. On the other hand, `Effect.suspend(() => Effect.succeed(i++))` generates a new number with each invocation.
+
+   This example utilizes `Effect.runSync` to execute effects and display their results (refer to [Running Effects](./running.mdx##runsync) for more details).
+
+2. **Handling Circular Dependencies**. `Effect.suspend` is helpful in managing circular dependencies between effects, where one effect depends on another, and vice versa.
+   For example it's fairly common for `Effect.suspend` to be used in recursive functions to escape an eager call. For instance:
+
+   ```ts file=<rootDir>/src/essentials/creating/suspend-recursive.ts
+
+   ```
+
+3. **Unifying Return Type**. In situations where TypeScript struggles to unify the returned effect type, `Effect.suspend` can be employed to resolve this issue. For example:
+
+   ```ts file=<rootDir>/src/essentials/creating/suspend-unify.ts
+
+   ```
+
 ## Cheatsheet
 
 The table provides a summary of the available constructors, along with their input and output types, allowing you to choose the appropriate function based on your needs.
@@ -183,8 +220,9 @@ The table provides a summary of the available constructors, along with their inp
 | `tryPromise`            | `() => Promise<A>`                 | `Effect<never, unknown, A>` |
 | `tryPromise` (overload) | `() => Promise<A>`, `unknown => E` | `Effect<never, E, A>`       |
 | `async`                 | `Effect<never, E, A> => void`      | `Effect<never, E, A>`       |
+| `suspend`               | `Effect<R, E, A>`                  | `Effect<R, E, A>`           |
 
 You can find the complete list of constructors [here](https://effect-ts.github.io/io/modules/Effect.ts.html#constructors).
 
 Now that we know how to create effects, it's time to learn how to run them.
-Check out the next guide on [Running Effects](running) to find out more.
+Check out the next guide on [Running Effects](running.mdx) to find out more.
