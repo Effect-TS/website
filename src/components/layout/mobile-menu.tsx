@@ -30,7 +30,7 @@ export const MobileMenu: FC<{
         <Icon name={open ? 'bars' : 'bars'} className="h-6 text-white" />
       </button>
       {open && (
-        <div className="md:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur pt-20 px-4 flex flex-col items-center gap-4">
+        <div className="md:hidden fixed inset-0 z-40 bg-[#09090B]/70 backdrop-blur pt-20 px-4 flex flex-col items-center gap-4">
           {menu.map(({name, href}, index) => (
             <Link key={index} href={href} className="flex items-start text-white">
               <span>{name}</span>

@@ -18,8 +18,8 @@ const socials = [
 
 export const Navigation = () => {
   return (
-    <header className="w-full">
-      <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 py-4 sm:py-8 flex justify-between items-center">
+    <header className="fixed top-0 inset-x-0 bg-[#09090B]/70 backdrop-blur z-30">
+      <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 h-16 sm:h-24 flex justify-between items-center">
         <Link href="/" className="z-50">
           <Logo className="h-7 sm:h-8" />
         </Link>

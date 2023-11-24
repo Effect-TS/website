@@ -5,6 +5,7 @@ import './globals.css'
 import './hljs.css'
 import {Navigation} from '@/components/layout/navigation'
 import {Footer} from '@/components/layout/footer'
+import {ReactNode} from 'react'
 
 const inter = Inter({subsets: ['latin'], display: 'swap', variable: '--font-inter'})
 const calSans = localFont({
@@ -19,12 +20,12 @@ export const metadata: Metadata = {
   description: 'Lorem ipsum'
 }
 
-export default function RootLayout({children}: {children: React.ReactNode}) {
+export default function RootLayout({children}: {children: ReactNode}) {
   return (
     <html lang="en" className={`overflow-x-hidden ${inter.variable} ${calSans.variable}`}>
       <body className="relative overflow-x-hidden antialiased bg-[#09090B] font-light text-zinc-400">
         <Navigation />
-        <main className="min-h-screen">{children}</main>
+        <div className="min-h-screen pt-16 sm:pt-24 ">{children}</div>
         <Footer />
       </body>
     </html>

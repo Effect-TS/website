@@ -1,3 +1,5 @@
+const {withContentlayer} = require('next-contentlayer')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -15,7 +17,16 @@ const nextConfig = {
         hostname: 'avatars.githubusercontent.com'
       }
     ]
+  },
+  async redirects() {
+    return [
+      {
+        source: '/docs',
+        destination: '/docs/introduction',
+        permanent: true
+      }
+    ]
   }
 }
 
-module.exports = nextConfig
+module.exports = withContentlayer(nextConfig)
