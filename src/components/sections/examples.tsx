@@ -39,14 +39,14 @@ export const Examples = () => {
         </Button>
         <Card>
           <Tabs.Root defaultValue={tabs[0].name}>
-            <Tabs.List className="flex flex-col items-start md:items-center pt-12 md:pt-20">
+            <Tabs.List className="flex flex-col md:flex-row items-start md:justify-center gap-x-6 pt-10 md:pt-16 px-4">
               {tabs.map(({name}, index) => (
                 <Tabs.Trigger
                   key={index}
                   value={name}
-                  className="data-[state=inactive]:opacity-40 data-[state=inactive]:scale-[0.8] origin-left md:origin-center transition-transform duration-200"
+                  className="data-[state=inactive]:opacity-40 origin-left md:origin-center transition-transform duration-200"
                 >
-                  <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white px-4 -mt-2">{name}</h3>
+                  <h3 className="font-display text-3xl lg:text-4xl text-white">{name}</h3>
                 </Tabs.Trigger>
               ))}
             </Tabs.List>
