@@ -22,10 +22,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {children: ReactNode}) {
   return (
-    <html lang="en" className={`overflow-x-hidden ${inter.variable} ${calSans.variable}`}>
-      <body className="relative overflow-x-hidden antialiased bg-[#09090B] font-light text-zinc-400">
+    <html lang="en" className={`${inter.variable} ${calSans.variable}`}>
+      <body className="relative antialiased bg-[#09090B] font-light text-zinc-400">
         <Navigation />
-        <div className="min-h-screen pt-16 sm:pt-24 ">{children}</div>
+        <div className="min-h-screen relative pt-16 sm:pt-24">{children}</div>
         <Footer />
       </body>
     </html>

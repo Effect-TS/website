@@ -19,14 +19,15 @@ export const Navigation = () => {
   const elements = generateDocsNavigation({pages: allDocsPages, parents: []})
 
   return (
-    <aside className="relative flex flex-col w-56 -ml-4">
+    <aside className="sticky top-32 sm:top-40 mb-16 flex flex-col w-64 -ml-4" style={{maxHeight: 'calc(100vh - )'}}>
       <div className="absolute left-0 bottom-0 -top-16 w-px bg-gradient-to-b from-zinc-600/0 via-zinc-600 to-zinc-600/0" />
-      <Search className="shrink-0 w-52 ml-4 mb-9" />
-      <ul className="relative grow overflow-y-auto">
+      <Search className="shrink-0 w-64 ml-4" />
+      <ul className="relative w-[17rem] grow overflow-y-auto py-9">
         {elements.map((element, index) => (
           <NavigationLink key={index} level={0} element={element} />
         ))}
       </ul>
+      <div className="absolute top-8 h-9 w-full bg-gradient-to-b from-[#09090B]" />
     </aside>
   )
 }

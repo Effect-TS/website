@@ -17,7 +17,7 @@ export const NavigationLink: FC<{level: number; element: DocsNavElement}> = ({le
     <li>
       <Link
         href={element.urlPath}
-        className={`h-6 flex items-center w-full justify-between pl-4 border-l ${
+        className={`h-6 flex items-center w-full justify-between px-4 border-l ${
           element.urlPath === pathname ? 'border-white text-white' : 'border-transparent text-zinc-400'
         } ${level === 0 && element.children.length ? 'text-white uppercase text-sm font-semibold mt-12' : 'mt-3'}`}
       >

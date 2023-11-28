@@ -13,7 +13,7 @@ import {Tweets} from '@/components/sections/tweets'
 
 export default function HomePage() {
   return (
-    <main>
+    <main className="w-full overflow-x-hidden">
       <Hero />
       <TechLogos />
       <Complexity />
