@@ -17,7 +17,10 @@ export default function Doc({params: {slug}}: {params: {slug: string[]}}) {
         <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white mb-12">{page.title}</h2>
         <MDX content={page.body.code} />
       </main>
-      <TableOfContents elements={page.headings} />
+      <TableOfContents
+        elements={page.headings}
+        githubLink={`https://github.com/Effect-TS/website/blob/website-redesign/content/${page._raw.sourceFilePath}`}
+      />
     </>
   )
 }
