@@ -29,6 +29,13 @@ export const DocsPage = defineDocumentType(() => ({
       description: 'Collapse child pages in sidebar navigation.',
       required: false,
       default: false
+    },
+    bottomNavigation: {
+      type: 'enum',
+      description: 'If and what bottom navigation should be shown on the page.',
+      options: ['none', 'childCards', 'pagination'],
+      required: true,
+      default: 'none'
     }
   },
   computedFields: {
@@ -41,7 +48,7 @@ export const DocsPage = defineDocumentType(() => ({
     pathSegments: {
       type: 'json',
       resolve: (page) =>
-        urlFromFilePath(page)
+        urlFromFilePath(page, true)
           .split('/')
           .slice(2)
           .map((dirName) => {
@@ -50,6 +57,15 @@ export const DocsPage = defineDocumentType(() => ({
             const order = orderStr ? parseInt(orderStr) : 0
             return {order, pathName}
           })
+    },
+    order: {
+      type: 'number',
+      resolve: (page) => {
+        const re = /^((\d+)-)?(.*)$/
+        const parentSlug = page._raw.sourceFilePath.split('/')[page._raw.sourceFilePath.split('/').length - 2]
+        const [, , orderStr] = page._raw.sourceFileName.match(re) ?? parentSlug.match(re) ?? []
+        return orderStr ? parseInt(orderStr) : 0
+      }
     },
     headings: {
       type: 'json',

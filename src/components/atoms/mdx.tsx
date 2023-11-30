@@ -1,6 +1,7 @@
 import {FC} from 'react'
 import {useMDXComponent} from 'next-contentlayer/hooks'
 import {H2, H3, H4} from '@/components/atoms/headings'
+import {ChildCards} from '../docs/child-cards'
 
 export const MDX: FC<{content: string}> = ({content}) => {
   const Content = useMDXComponent(content)

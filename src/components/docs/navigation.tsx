@@ -19,7 +19,7 @@ export const Navigation = () => {
   const elements = generateDocsNavigation({pages: allDocsPages, parents: []})
 
   return (
-    <aside className="sticky top-32 sm:top-40 mb-16 flex flex-col w-60 -ml-4">
+    <aside className="shrink-0 sticky top-32 sm:top-40 mb-16 flex flex-col w-60 -ml-4">
       <div className="absolute left-0 bottom-0 -top-16 w-px bg-gradient-to-b from-zinc-600/0 via-zinc-600 to-zinc-600/0" />
       <Search className="shrink-0 w-56 ml-4" />
       <ul className="relative w-64 grow overflow-y-auto py-9 text-sm">
