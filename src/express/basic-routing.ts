@@ -87,7 +87,7 @@ const RouterLive = Layer.mergeAll(IndexRouteLive, TodoByIdRouteLive)
 
 // Combine all layers to create the final application layer
 // $ExpectType Layer<TodoRepository, never, never>
-const AppLive = ServerLive.pipe(Layer.use(RouterLive), Layer.use(ExpressLive))
+const AppLive = ServerLive.pipe(Layer.provide(RouterLive), Layer.provide(ExpressLive))
 
 // Test Data for TodoRepository
 const testData = [
@@ -119,6 +119,6 @@ const TodoRepositoryTest = Layer.succeed(
   })
 )
 
-const Test = AppLive.pipe(Layer.use(TodoRepositoryTest))
+const Test = AppLive.pipe(Layer.provide(TodoRepositoryTest))
 
 Effect.runFork(Layer.launch(Test))

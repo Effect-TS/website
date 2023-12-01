@@ -11,7 +11,7 @@ const task1 = Effect.filterOrFail(
 const task2 = Effect.filterOrDie(
   Random.nextRange(-1, 1),
   (n) => n >= 0,
-  () => Cause.IllegalArgumentException("random number is negative")
+  () => new Cause.IllegalArgumentException("random number is negative")
 )
 
 // $ExpectType Effect<never, never, number>
