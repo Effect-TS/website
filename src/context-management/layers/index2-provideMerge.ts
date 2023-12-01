@@ -7,7 +7,7 @@ import { RecipeLive } from "./Recipe"
 const IngredientsLive = Layer.merge(FlourLive, SugarLive)
 
 // $ExpectType Layer<MeasuringCup, never, Recipe>
-const RecipeDraft = IngredientsLive.pipe(Layer.provide(RecipeLive)) // provides the ingredients to the recipe
+const RecipeDraft = RecipeLive.pipe(Layer.provide(IngredientsLive)) // provides the ingredients to the recipe
 
 // $ExpectType Layer<never, never, MeasuringCup | Recipe>
-const MainLive = MeasuringCupLive.pipe(Layer.provideMerge(RecipeDraft)) // provides the MeasuringCup to the recipe
+const MainLive = RecipeDraft.pipe(Layer.provideMerge(MeasuringCupLive)) // provides the MeasuringCup to the recipe
