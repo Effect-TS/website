@@ -1,6 +1,6 @@
 import { Chunk } from "effect"
 
-// $ExpectType Chunk<string | number>
+// $ExpectType NonEmptyChunk<string | number>
 const concatenatedChunk = Chunk.appendAll(
   Chunk.make(1, 2),
   Chunk.make("a", "b")
