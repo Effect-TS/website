@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 
-// $ExpectType Effect<never, never, [string[], number[]]>
+// $ExpectType Effect<never, never, [excluded: string[], satisfying: number[]]>
 const program = Effect.partition([0, 1, 2, 3, 4], (n) => {
   if (n % 2 === 0) {
     return Effect.succeed(n)
