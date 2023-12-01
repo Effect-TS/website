@@ -6,5 +6,5 @@ pipe(
     [1, 2],
     [3, 4]
   ]),
-  Effect.map(ReadonlyArray.flatten)
+  Effect.map((nested) => ReadonlyArray.flatten(nested))
 )

@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 
-// Effect<never, unknown, any>
+// $ExpectType Effect<never, UnknownException, any>
 const program = Effect.try(
   () => JSON.parse("") // JSON.parse may throw for bad input
 )

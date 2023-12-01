@@ -8,7 +8,7 @@ In this guide you will learn:
 - How Effect represents expected errors
 - The tools Effect provides for robust and comprehensive error management
 
-As we saw in the guide [Creating Effects](../essentials/creating), we can use the `fail` constructor to create an Effect
+As we saw in the guide [Creating Effects](../essentials/creating.mdx), we can use the `fail` constructor to create an Effect
 that represents an error:
 
 ```ts file=<rootDir>/src/guide/error-management/expected-errors/fail.ts
@@ -78,38 +78,6 @@ Effect<never, FooError | BarError, string>
 
 indicating that it can potentially fail with either a `FooError` or a `BarError`.
 
-## Avoiding the Pitfalls of Unknown
-
-When working with Effect, it's crucial to be aware of the implications of the error types you choose, as Effect tracks errors at the type level through unions. TypeScript follows some general rules to determine how to handle type unions. One important aspect to watch out for is the `unknown` type, as it follows the following rule for any type `T`:
-
-```
-unknown | T = unknown
-```
-
-This means that the `unknown` type "absorbs" any other type, making the resulting type uniform and losing the distinction between different errors.
-
-Let's take a look at an example of unintended behavior when using the [`Effect.try`](../essentials/creating#effecttry) and [`Effect.tryPromise`](../essentials/creating#effecttrypromise) constructors without specifying the `catch` part for error remapping:
-
-```ts file=<rootDir>/src/guide/error-management/expected-errors/error-tracking-issue-with-unknown.ts
-
-```
-
-Notice that the type of `getFirstNumber` is `Effect<never, unknown, number>`. We expected to see `EmptyError` as a possible error, but since
-
-```ts
-unknown | EmptyError = unknown
-```
-
-the `EmptyError` type is absorbed by `unknown`, and we are no longer able to distinguish it.
-
-Therefore, when using the `try` and `tryPromise` APIs, it's recommended to use their overloads that accept a `catch` remapping function, allowing you to return a more specific error. Here's an example:
-
-```ts {10} file=<rootDir>/src/guide/error-management/expected-errors/error-tracking-solution-with-unknown.ts
-
-```
-
-Now, notice that `getNumbers` has the type `Effect<never, GetNumbersError, number[]>`, and as a result, the Effect error tracking system can do a better job, yielding the expressive type `Effect<never, GetNumbersError | EmptyError, number>` for `getFirstNumber`, indicating that the effect can fail with either a `GetNumbersError` or an `EmptyError`.
-
 ## Short-Circuiting
 
 When working with APIs like `Effect.gen`, `Effect.map`, `Effect.flatMap`, and `Effect.all`, it's important to understand how they handle errors.
@@ -146,13 +114,13 @@ In this specific example, `task3` is never executed because an error occurs in `
 <Tabs>
 <Tab>
 
-The `Effect.either` function converts an `Effect<R, E, A>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<E, A>`](../data-types/either) data type:
+The `Effect.either` function converts an `Effect<R, E, A>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<E, A>`](../data-types/either.mdx) data type:
 
 ```ts
 Effect<R, E, A> -> Effect<R, never, Either<E, A>>
 ```
 
-The [`Either<E, A>`](../data-types/either) data type represents a value that can be either an error (`E`) or a successful result (`A`).
+The [`Either<E, A>`](../data-types/either.mdx) data type represents a value that can be either an error (`E`) or a successful result (`A`).
 By yielding an `Either`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function.
 
 ```ts /Effect.either/ file=<rootDir>/src/guide/error-management/expected-errors/catch-all-gen.ts
