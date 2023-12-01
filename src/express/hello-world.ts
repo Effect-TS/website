@@ -39,8 +39,8 @@ const ExpressLive = Layer.sync(Express, () => express())
 
 // Combine the layers
 const AppLive = ServerLive.pipe(
-  Layer.use(IndexRouteLive),
-  Layer.use(ExpressLive)
+  Layer.provide(IndexRouteLive),
+  Layer.provide(ExpressLive)
 )
 
 // Run the program
