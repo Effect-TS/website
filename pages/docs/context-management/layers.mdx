@@ -1,7 +1,7 @@
 import { Idea, Info } from "@/components/Callout"
 import { Tabs, Tab } from "@/components/Code"
 
-# Managing Service Dependencies
+# Managing Service Dependencies (Layers)
 
 In the [previous section](services.mdx), you learned how to create effects which depend on some context to be provided in order to execute, as well as how to provide that context to an Effect.
 
@@ -96,6 +96,18 @@ Looking at the type of `MeasuringCupLive` we can observe:
 - `RIn` is `never`, indicating that the layer has no dependencies
 - `E` is `never`, indicating that layer construction cannot fail
 - `ROut` is `MeasuringCup`, indicating that constructing the layer will produce a `MeasuringCup` service
+
+<Info>
+  Note that, to construct `MeasuringCupLive`, we used the `MeasuringCup.of`
+  constructor. However, this is merely a helper to ensure correct type inference
+  for the implementation. It's possible to skip this helper and construct the
+  implementation directly as a simple object:
+
+```ts file=<rootDir>/src/context-management/layers/MeasuringCup-without-of.ts#L12-
+
+```
+
+</Info>
 
 ### Sugar & Flour
 
