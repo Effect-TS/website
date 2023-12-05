@@ -1,0 +1,41 @@
+# Layers: Shared by Default
+
+Layer memoization allows a layer to be created once and used multiple times in the dependency graph. If we use the same layer twice, for example, `Layer.merge(Layer.provide(b, a), Layer.provide(c, a))`, then the `a` layer will be allocated only once.
+
+## Memoization When Providing Globally
+
+One important feature of an Effect application is that layers are shared by default. This means that if the same layer is used twice, and if we provide the layer globally, the layer will only be allocated a single time. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it.
+
+For example, assume we have the three services `A`, `B`, and `C`. The implementation of both `B` and `C` is dependent on the `A` service:
+
+```ts file=<rootDir>/src/dependency-memoization/globally.ts
+
+```
+
+Although both `b` and `c` layers require the `a` layer, the `a` layer is instantiated only once. It is shared with both `b` and `c`.
+
+## Acquiring a Fresh Version
+
+If we don't want to share a module, we should create a fresh, non-shared version of it through `Layer.fresh`.
+
+```ts /Layer.fresh(a)/ file=<rootDir>/src/dependency-memoization/globally-fresh.ts#L48-
+
+```
+
+## No Memoization When Providing Locally
+
+If we don't provide a layer globally but instead provide them locally, that layer doesn't support memoization by default.
+
+In the following example, we provided the `a` layer two times locally, and Effect doesn't memoize the construction of the `a` layer. So, it will be initialized two times:
+
+```ts file=<rootDir>/src/dependency-memoization/locally.ts
+
+```
+
+## Manual Memoization
+
+We can memoize the `a` layer manually using the `Layer.memoize` operator. It will return a scoped effect that, if evaluated, will return the lazily computed result of this layer:
+
+```ts file=<rootDir>/src/dependency-memoization/memoize.ts
+
+```
