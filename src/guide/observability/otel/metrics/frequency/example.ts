@@ -12,19 +12,16 @@ Effect.runPromise(
 /*
 Output:
 FrequencyState {
-  occurrences: {
-    _id: 'HashMap',
-    values: [
-      [ 'Error-9', 20 ],
-      [ 'Error-8', 7 ],
-      [ 'Error-3', 15 ],
-      [ 'Error-2', 7 ],
-      [ 'Error-1', 11 ],
-      [ 'Error-7', 7 ],
-      [ 'Error-6', 5 ],
-      [ 'Error-5', 12 ],
-      [ 'Error-4', 16 ]
-    ]
+  occurrences: Map(9) {
+    'Error-7' => 12,
+    'Error-2' => 12,
+    'Error-4' => 14,
+    'Error-1' => 14,
+    'Error-9' => 8,
+    'Error-6' => 11,
+    'Error-5' => 9,
+    'Error-3' => 14,
+    'Error-8' => 6
   },
   ...
 }
