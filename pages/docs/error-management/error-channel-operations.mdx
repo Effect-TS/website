@@ -60,9 +60,19 @@ Here's an example that demonstrates these filtering operators in action:
 
 It's important to note that depending on the specific filtering operator used, the effect can either fail, terminate abruptly, or execute an alternative effect when the predicate fails. Choose the appropriate operator based on your desired error handling strategy and program logic.
 
+In addition to the filtering capabilities discussed earlier, you have the option to further refine and narrow down the type of the success channel by providing a [user-defined type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) to the `filterOr*` APIs. This not only enhances type safety but also improves code clarity. Let's explore this concept through an example:
+
+```ts file=<rootDir>/src/guide/error-management/error-channel-operations/filtering-guards.ts
+
+```
+
+In the example above, a guard is used within the `filterOrFail` API to ensure that the `user` is of type `User` rather than `User | null`. This refined type information improves the reliability of your code and makes it more understandable.
+
+If you prefer, you can utilize a pre-made guard like [`Predicate.isNotNull`](https://effect-ts.github.io/effect/modules/Predicate.ts.html#isnotnull) for simplicity and consistency.
+
 ## Inspecting Errors
 
-Similar to [tapping](../essentials/pipeline#tap) for success values, Effect provides several operators for **inspecting error values**. These operators allow us to peek into failures or underlying defects or causes:
+Similar to [tapping](../essentials/pipeline.mdx#tap) for success values, Effect provides several operators for **inspecting error values**. These operators allow us to peek into failures or underlying defects or causes:
 
 - `tapError`
 - `tapBoth`
@@ -82,7 +92,7 @@ Let's see an example of how to use these operators:
 
 ## Exposing Errors in The Success Channel
 
-You can use the `Effect.either` function to convert an `Effect<R, E, A>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<E, A>`](../data-types/either) data type:
+You can use the `Effect.either` function to convert an `Effect<R, E, A>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<E, A>`](../data-types/either.mdx) data type:
 
 ```ts
 Effect<R, E, A> -> Effect<R, never, Either<E, A>>
