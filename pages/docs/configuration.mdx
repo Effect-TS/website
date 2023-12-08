@@ -25,14 +25,14 @@ Let's start with a simple example of how to read configuration from environment 
 <Tabs>
 <Tab>
 
-```ts filename="primitives.ts" file=<rootDir>/src/guide/configuration/primitives-gen.ts
+```ts filename="primitives.ts" file=<rootDir>/src/configuration/primitives-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="primitives.ts" file=<rootDir>/src/guide/configuration/primitives-pipe.ts
+```ts filename="primitives.ts" file=<rootDir>/src/configuration/primitives-pipe.ts
 
 ```
 
@@ -66,14 +66,14 @@ Here's how you can use `Config.withDefault` to handle fallback values:
 <Tabs>
 <Tab>
 
-```ts filename="withDefault.ts" /Config.withDefault/ file=<rootDir>/src/guide/configuration/withDefault-gen.ts
+```ts filename="withDefault.ts" /Config.withDefault/ file=<rootDir>/src/configuration/withDefault-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="withDefault.ts" /Config.withDefault/ file=<rootDir>/src/guide/configuration/withDefault-pipe.ts
+```ts filename="withDefault.ts" /Config.withDefault/ file=<rootDir>/src/configuration/withDefault-pipe.ts
 
 ```
 
@@ -100,13 +100,13 @@ In addition to primitive types, we can also define configurations for custom typ
 
 Let's consider the `HostPort` data type, which consists of two fields: `host` and `port`.
 
-```ts filename="HostPort.ts" file=<rootDir>/src/guide/configuration/HostPort.ts#L3-L9
+```ts filename="HostPort.ts" file=<rootDir>/src/configuration/HostPort.ts#L3-L9
 
 ```
 
 We can define a configuration for this data type by combining primitive configs for `string` and `number`:
 
-```ts filename="HostPort.ts" file=<rootDir>/src/guide/configuration/HostPort.ts
+```ts filename="HostPort.ts" file=<rootDir>/src/configuration/HostPort.ts
 
 ```
 
@@ -117,14 +117,14 @@ If we use this customized configuration in our application:
 <Tabs>
 <Tab>
 
-```ts filename="App.ts" /Effect.config(HostPort.config)/ file=<rootDir>/src/guide/configuration/App-gen.ts
+```ts filename="App.ts" /Effect.config(HostPort.config)/ file=<rootDir>/src/configuration/App-gen.ts
 
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="App.ts" /Effect.config(HostPort.config)/ file=<rootDir>/src/guide/configuration/App.ts
+```ts filename="App.ts" /Effect.config(HostPort.config)/ file=<rootDir>/src/configuration/App.ts
 
 ```
 
@@ -145,7 +145,7 @@ So far, we have learned how to define configurations in a top-level manner, whet
 
 Let's assume we have a `ServiceConfig` data type that consists of two fields: `hostPort` and `timeout`.
 
-```ts filename="ServiceConfig.ts" file=<rootDir>/src/guide/configuration/ServiceConfig.ts
+```ts filename="ServiceConfig.ts" file=<rootDir>/src/configuration/ServiceConfig.ts
 
 ```
 
@@ -155,7 +155,7 @@ However, in many cases, we don't want to read all configurations from the top-le
 
 To achieve this, we can use the `Config.nested` combinator. It allows us to nest configs under a specific namespace. Here's how we can update our configuration:
 
-```ts /Config.nested/ filename="ServiceConfig.ts" file=<rootDir>/src/guide/configuration/ServiceConfig-nested.ts#L8-
+```ts /Config.nested/ filename="ServiceConfig.ts" file=<rootDir>/src/configuration/ServiceConfig-nested.ts#L8-
 const config: Config.Config<ServiceConfig> = Config.all(
   Config.nested(HostPort.config, "HOSTPORT"),
   Config.float("TIMEOUT")
@@ -176,8 +176,23 @@ Once we have the mock config provider, we can use `Effect.setConfigProvider` fun
 
 Here's an example of how we can mock a config provider for testing purposes:
 
-```ts filename="mockConfigProvider.ts" file=<rootDir>/src/guide/configuration/mockConfigProvider.ts
+```ts filename="mockConfigProvider.ts" file=<rootDir>/src/configuration/mockConfigProvider.ts
 
 ```
 
 By using this approach, we can easily mock the configuration data and test our services with different configurations in a controlled manner.
+
+## Secret
+
+What sets `Config.secret` apart from `Config.string` is its handling of sensitive information.
+It parses the Config value and wraps it in a `Secret`, a data type designed for holding secrets.
+
+When you use `console.log` on a secret, the actual value remains hidden, providing an added layer of security. The only way to access the value is by using `Secret.value(secret)`.
+
+Here's a simple example to illustrate:
+
+```ts file=<rootDir>/src/configuration/secret.ts
+
+```
+
+In this example, you can see that when logging the secret using `console.log`, the actual value is replaced with `<redacted>`, ensuring that sensitive information is not exposed. The `Secret.value` function, on the other hand, provides a controlled way to retrieve the original secret value.
