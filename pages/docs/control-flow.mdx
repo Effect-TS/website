@@ -6,15 +6,15 @@ Even though JavaScript provides built-in control flow structures, Effect offers 
 
 When working with Effect values, we can use the standard JavaScript if-then-else expressions:
 
-```ts file=<rootDir>/src/guide/control-flow/if-expression.ts
+```ts file=<rootDir>/src/control-flow/if-expression.ts
 
 ```
 
-Here we are using the [`Option`](./data-types/option) data type to represent the absence of a valid value.
+Here we are using the [`Option`](./data-types/option.mdx) data type to represent the absence of a valid value.
 
 We can also handle invalid inputs by using the error channel:
 
-```ts file=<rootDir>/src/guide/control-flow/if-expression-error-channel.ts
+```ts file=<rootDir>/src/control-flow/if-expression-error-channel.ts
 
 ```
 
@@ -24,15 +24,15 @@ We can also handle invalid inputs by using the error channel:
 
 Instead of using `if (condition) expression`, we can use the `Effect.when` function:
 
-```ts file=<rootDir>/src/guide/control-flow/when.ts#L1-L6
+```ts file=<rootDir>/src/control-flow/when.ts#L1-L6
 
 ```
 
-Here we are using the [`Option`](./data-types/option) data type to represent the absence of a valid value.
+Here we are using the [`Option`](./data-types/option.mdx) data type to represent the absence of a valid value.
 
 If the condition evaluates to `true`, the effect inside the `Effect.when` will be executed and the result will be wrapped in a `Some`, otherwise it returns `None`:
 
-```ts file=<rootDir>/src/guide/control-flow/when.ts#L8-
+```ts file=<rootDir>/src/control-flow/when.ts#L8-
 
 ```
 
@@ -40,7 +40,7 @@ If the condition itself involves an effect, we can use `Effect.whenEffect`.
 
 For example, the following function creates a random option of an integer value:
 
-```ts file=<rootDir>/src/guide/control-flow/whenEffect.ts
+```ts file=<rootDir>/src/control-flow/whenEffect.ts
 
 ```
 
@@ -54,7 +54,7 @@ The `Effect.if` function allows you to provide an effectful predicate. If the pr
 
 Let's use this function to create a simple virtual coin flip function:
 
-```ts file=<rootDir>/src/guide/control-flow/if.ts
+```ts file=<rootDir>/src/control-flow/if.ts
 
 ```
 
@@ -88,7 +88,7 @@ return result
 
 **Example**
 
-```ts file=<rootDir>/src/guide/control-flow/loop.ts
+```ts file=<rootDir>/src/control-flow/loop.ts
 
 ```
 
@@ -98,7 +98,7 @@ You can also use the `discard` option if you're not interested in collecting the
 
 **Example** (`discard: true`)
 
-```ts file=<rootDir>/src/guide/control-flow/loop-discard.ts
+```ts file=<rootDir>/src/control-flow/loop-discard.ts
 
 ```
 
@@ -126,7 +126,7 @@ return result
 
 Here's an example of how it works:
 
-```ts file=<rootDir>/src/guide/control-flow/iterate.ts
+```ts file=<rootDir>/src/control-flow/iterate.ts
 
 ```
 
@@ -142,13 +142,13 @@ import { Effect } from "effect"
 const combinedEffect = Effect.forEach(iterable, operation, options)
 ```
 
-It applies the given effectful operation to each element of the `Iterable`. By default, it executes each effect in **sequence** (to explore options for managing concurrency and controlling how these effects are executed, you can refer to the [Concurrency Options](./concurrency/concurrency-options) documentation).
+It applies the given effectful operation to each element of the `Iterable`. By default, it executes each effect in **sequence** (to explore options for managing concurrency and controlling how these effects are executed, you can refer to the [Concurrency Options](./concurrency/concurrency-options.mdx) documentation).
 
 This function returns a new effect that produces an array containing the results of each individual effect.
 
 Let's take a look at an example:
 
-```ts file=<rootDir>/src/guide/control-flow/forEach.ts
+```ts file=<rootDir>/src/control-flow/forEach.ts
 
 ```
 
@@ -158,7 +158,7 @@ The `Effect.forEach` combinator collects the results of each effectful operation
 
 We also have the `discard` option, which when set to `true` discards the results of each effectful operation:
 
-```ts file=<rootDir>/src/guide/control-flow/forEach-discard.ts
+```ts file=<rootDir>/src/control-flow/forEach-discard.ts
 
 ```
 
@@ -178,7 +178,7 @@ const combinedEffect = Effect.all(effects, options)
 
 where `effects` is a collection of individual effects that you wish to merge.
 
-By default, the `all` function will execute each effect in **sequence** (to explore options for managing concurrency and controlling how these effects are executed, you can refer to the [Concurrency Options](./concurrency/concurrency-options) documentation).
+By default, the `all` function will execute each effect in **sequence** (to explore options for managing concurrency and controlling how these effects are executed, you can refer to the [Concurrency Options](./concurrency/concurrency-options.mdx) documentation).
 
 It will return a new effect that produces a result with a shape that depends on the shape of the `effects` argument.
 
@@ -186,24 +186,57 @@ Let's explore examples for each supported shape: tuples, iterables, structs, and
 
 #### Tuples
 
-```ts file=<rootDir>/src/guide/control-flow/all-tuple.ts
+```ts file=<rootDir>/src/control-flow/all-tuple.ts
 
 ```
 
 #### Iterables
 
-```ts file=<rootDir>/src/guide/control-flow/all-iterable.ts
+```ts file=<rootDir>/src/control-flow/all-iterable.ts
 
 ```
 
 #### Structs
 
-```ts file=<rootDir>/src/guide/control-flow/all-struct.ts
+```ts file=<rootDir>/src/control-flow/all-struct.ts
 
 ```
 
 #### Records
 
-```ts file=<rootDir>/src/guide/control-flow/all-record.ts
+```ts file=<rootDir>/src/control-flow/all-record.ts
+
+```
+
+#### The Role of Short-Circuiting
+
+When working with the `Effect.all` API, it's important to understand how it manages errors.
+This API is designed to **short-circuit the execution** upon encountering the **first error**.
+
+What does this mean for you as a developer? Well, let's say you have a collection of effects to be executed in sequence. If any error occurs during the execution of one of these effects, the remaining computations will be skipped, and the error will be propagated to the final result.
+
+In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program it will immediately stop and return the error to let you know that something went wrong.
+
+```ts file=<rootDir>/src/control-flow/all-default-option.ts
+
+```
+
+You can override this behavior by using the `mode` option.
+
+#### The mode option
+
+When you use the `{ mode: "either" }` option with `Effect.all`, it modifies the behavior of the API to handle errors differently. Instead of short-circuiting the entire computation on the first error, it continues to execute all effects, collecting both successes and failures. The result is an array of `Either` instances, representing either a successful outcome (`Right`) or a failure (`Left`) for each individual effect.
+
+Here's a breakdown:
+
+```ts file=<rootDir>/src/control-flow/all-either-option.ts
+
+```
+
+On the other hand, when you use the `{ mode: "validate" }` option with `Effect.all`, it takes a similar approach to `{ mode: "either" }` but uses the `Option` type to represent the success or failure of each effect. The resulting array will contain `None` for successful effects and `Some` with the associated error message for failed effects.
+
+Here's an illustration:
+
+```ts file=<rootDir>/src/control-flow/all-validate-option.ts
 
 ```
