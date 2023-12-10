@@ -121,7 +121,7 @@ If you simply want to replace the value with a constant, you can use `Effect.as`
 
 In the previous example, we saw how to transform an `Effect` using the `map` function when the transformation function returns a regular value. But what if we want to transform an `Effect` using a function that itself returns another `Effect`?
 
-Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap). However, `flatMap` can actually be used to describe a more generic data transformation. While this section will focus specifically on explaining how one can use `flatMap` from the `Effect` module, we provide a more detailed explanation of `flatMap` [in the FAQ](../faq#a-closer-look-at-flatmap).
+Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap). However, `flatMap` can actually be used to describe a more generic data transformation. While this section will focus specifically on explaining how one can use `flatMap` from the `Effect` module, we provide a more detailed explanation of `flatMap` [in the FAQ](../faq.mdx#a-closer-look-at-flatmap).
 
 <Info>
   If you're just looking for how to flatten a nested `Array`s within an Effect:
@@ -129,23 +129,23 @@ Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due 
   <details>
   <summary>Flattening a Nested Array</summary>
 
-  If you have an Effect where result type is a nested `Array`, for example:
+If you have an Effect where result type is a nested `Array`, for example:
 
-  ```
-  Effect<never, never, Array<Array<A>>>
-  ```
+```
+Effect<never, never, Array<Array<A>>>
+```
 
-  you can easily flatten the array using either the `ReadonlyArray` module exported from `effect`:
+you can easily flatten the array using either the `ReadonlyArray` module exported from `effect`:
 
-  ```ts file=<rootDir>/src/essentials/pipeline/flattening-readonlyarray.ts
+```ts file=<rootDir>/src/essentials/pipeline/flattening-readonlyarray.ts
 
-  ```
+```
 
-  or using standard `Array` prototype methods:
+or using standard `Array` prototype methods:
 
-  ```ts file=<rootDir>/src/essentials/pipeline/flattening-array.ts
+```ts file=<rootDir>/src/essentials/pipeline/flattening-array.ts
 
-  ```
+```
 
   </details>
 </Info>
@@ -233,7 +233,7 @@ Here, `effects` represents multiple effects that you want to combine.
 
 The `all` function will execute all these effects in **sequence** (to explore options for
 managing concurrency and controlling how these effects are executed, you can
-refer to the [Concurrency Options](../concurrency/concurrency-options)
+refer to the [Concurrency Options](../concurrency/concurrency-options.mdx)
 documentation).
 
 It will return a new effect that produces a tuple containing the results of each individual effect.
@@ -251,7 +251,7 @@ In this example, `foo` and `bar` are two separate effects. Using `Effect.all`, w
   The `all` function not only combines tuples but also works seamlessly with
   iterables, structs, and records. To explore the full potential of `all` head
   over to the [Introduction to Effect's Control Flow
-  Operators](../control-flow#all) documentation.
+  Operators](../control-flow.mdx#all) documentation.
 </Info>
 
 ## Build your first pipeline
