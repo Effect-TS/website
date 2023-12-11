@@ -1,0 +1,98 @@
+---
+title: Either
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+The `Either` data type represents two exclusive possible values: an `Either<E, A>` can be either a `Left` value or a `Right` value, where `E` represents the type of the `Left` value and `A` represents the type of the `Right` value.
+
+## Creating Eithers
+
+You can create an `Either` using the `Either.left` and `Either.right` constructors.
+
+- The `Either.right` function takes a value of type `A` and constructs a `Either<never, A>`:
+
+  ```ts file=<rootDir>/src/reference/data-types/either/right.ts
+
+  ```
+
+- The `Either.left` function takes a value of type `E` and constructs a `Either<E, never>`:
+
+  ```ts file=<rootDir>/src/reference/data-types/either/left.ts
+
+  ```
+
+## Guards
+
+You can determine whether an `Either` is a `Left` or a `Right` by using the `Either.isLeft` and `Either.isRight` guards:
+
+```ts file=<rootDir>/src/reference/data-types/either/guards.ts
+
+```
+
+## Pattern Matching
+
+The `Either.match` function allows you to handle different cases of an `Either` by providing separate callbacks for each case:
+
+```ts file=<rootDir>/src/reference/data-types/either/match.ts
+
+```
+
+<Idea>
+  Using `match` instead of `isLeft` or `isRight` can be more expressive and
+  provide a clear way to handle both cases of an `Either`.
+</Idea>
+
+## Working with Either
+
+Once you have an `Either`, there are several operations you can perform on it.
+
+### Mapping over the Right Value
+
+You can use the `Either.map` function to transform the `Right` value of an `Either`.
+The `map` function takes a transformation function that maps the `Right` value.
+
+If the `Either` value is a `Left` value, the transformation function is **ignored**, and the `Left` value is returned unchanged.
+
+**Example**
+
+```ts file=<rootDir>/src/reference/data-types/either/map.ts
+
+```
+
+### Mapping over the Left Value
+
+You can use the `Either.mapLeft` function to transform the `Left` value of an Either. The `mapLeft` function takes a transformation function that maps the `Left`.
+
+If the `Either` value is a `Right` value, the transformation function is **ignored**, and the `Right` value is returned unchanged.
+
+**Example**
+
+```ts file=<rootDir>/src/reference/data-types/either/mapLeft.ts
+
+```
+
+### Mapping over Both Values
+
+You can use the `Either.mapBoth` function to transform both the `Left` and `Right` values of an `Either`. The `mapBoth` function takes two transformation functions: one for the `Left` value and one for the `Right` value.
+
+**Example**
+
+```ts file=<rootDir>/src/reference/data-types/either/mapBoth.ts
+
+```
+
+## Interop with Effect
+
+The `Either` type is a subtype of the `Effect` type, which means that it can be seamlessly used with functions from the `Effect` module. These functions are primarily designed to work with `Effect` values, but they can also handle `Either` values and process them correctly.
+
+In the context of `Effect`, the two members of the `Either` type are treated as follows:
+
+- `Left<E>` is equivalent to `Effect<never, E, never>`
+- `Right<A>` is equivalent to `Effect<never, never, A>`
+
+To illustrate this interoperability, let's consider the following example:
+
+```ts file=<rootDir>/src/reference/data-types/either/interop-effect.ts
+
+```
