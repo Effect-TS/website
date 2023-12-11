@@ -1,0 +1,128 @@
+---
+title: Data
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+The Data module offers a range of features that make it easier to create and manipulate data structures in your TypeScript applications. It includes functionalities for defining data types, ensuring equality between data objects, and hashing data for efficient comparison.
+
+## Value Equality
+
+If you need to compare existing values for equality without the need for explicit
+implementations, consider using the Data module. It provides convenient APIs
+that generate default implementations for [`Equal`](../trait/equal.mdx) (TODO: brokwn link) and [`Hash`](../trait/hash.mdx) (TODO: brokwn link), making equality
+checks a breeze.
+
+### struct
+
+```ts file=<rootDir>/src/data/struct.ts
+
+```
+
+In this example, we use the `Data.struct` function to create structured data objects and check their equality using `Equal.equals()`. The `Data` module simplifies the process by providing a default implementation for both `Equal` and `Hash`, allowing you to focus on comparing values without the need for explicit implementations.
+
+### tuple
+
+If you prefer to model your domain with tuples, the `Data.tuple` function has got you covered:
+
+```ts file=<rootDir>/src/data/tuple.ts
+
+```
+
+### array
+
+You can take it a step further and use arrays to compare multiple values:
+
+```ts file=<rootDir>/src/data/array.ts
+
+```
+
+In this extended example, we create an array of person objects using the `Data.array` function. We then compare this array with another array of person objects using `Equal.equals()`, and the result is `true` since the arrays contain structurally equal elements.
+
+## Case Classes
+
+The module introduces the concept of "Case" classes.
+Case classes are a feature introduced by this module that automates several critical operations when creating data types. These operations include generating constructors, handling equality checks, and managing hashing.
+
+Case classes can be defined in two main ways: as structs using `Case`, `case`, and `tagged`, or as classes using `Class` or `TaggedClass`.
+
+### case
+
+Let's start by creating a case class using `Case` and `case`. This combination automatically provides implementations for constructors, equality checks, and hashing for your data type.
+
+```ts file=<rootDir>/src/data/case.ts
+
+```
+
+Here, we define a `Person` data type by extending `Data.Case`. We then create a constructor for `Person` using `Data.case`.
+The resulting `Person` instances come with built-in equality checks thanks to the Data module, making it simple to compare them using `Equal.equals`.
+
+If you prefer working with classes instead of plain objects, you can explore the use of [`Data.Class`](#class).
+
+### tagged
+
+In certain situations, like when you're defining a data type that includes a tag field (commonly used in disjoint unions), using the `case` approach can become repetitive and cumbersome. This is because you're required to specify the tag every time you create an instance:
+
+```ts file=<rootDir>/src/data/tagged-with-case.ts
+
+```
+
+To make your life easier, the `tagged` helper simplifies this process by allowing you to define the tag only once. It follows the convention within the Effect ecosystem of naming the tag field with `"_tag"`:
+
+```ts file=<rootDir>/src/data/tagged.ts
+
+```
+
+This approach significantly reduces redundancy and improves code readability when working with tagged data types.
+
+If you prefer working with classes instead of plain objects, you can explore the use of [`Data.TaggedClass`](#taggedclass).
+
+### Class
+
+If you find it more comfortable to work with classes instead of plain objects, you have the option to use `Data.Class` instead of `Case` and `case`. This approach can be particularly useful in scenarios where you prefer a more class-oriented structure:
+
+```ts file=<rootDir>/src/data/Class.ts
+
+```
+
+One advantage of using classes is that you can easily add custom getters and methods to the class definition, enhancing its functionality to suit your specific needs:
+
+```ts file=<rootDir>/src/data/Class-with-getters.ts
+
+```
+
+By incorporating custom methods like `upperName`, you can extend the capabilities of your data class to perform various operations tailored to your application requirements.
+
+### TaggedClass
+
+For those who prefer working with classes over plain objects, you can utilize `Data.TaggedClass` as an alternative to `Case` and `tagged`. This approach can be especially beneficial when you want to structure your data using class-based syntax:
+
+```ts file=<rootDir>/src/data/TaggedClass.ts
+
+```
+
+One of the advantages of using tagged classes is that you can seamlessly incorporate custom getters and methods into the class definition, expanding its functionality as needed:
+
+```ts file=<rootDir>/src/data/TaggedClass-with-getters.ts
+
+```
+
+By introducing custom getters such as `upperName`, you can extend the capabilities of your tagged class to suit your specific application requirements.
+
+## Unions of Case Classes
+
+If you're looking to create a disjoint union of tagged case classes, you can easily achieve this using `Data.TaggedEnum`. This feature simplifies the process of defining and working with unions.
+
+Let's walk through an example:
+
+```ts file=<rootDir>/src/data/TaggedEnum.ts
+
+```
+
+Note that it follows the convention within the Effect ecosystem of naming the tag field with `"_tag"`.
+
+You can also pass a `TaggedEnum.WithGenerics` if you want to add generics to the constructors:
+
+```ts file=<rootDir>/src/data/TaggedEnumWithGenerics.ts
+
+```
