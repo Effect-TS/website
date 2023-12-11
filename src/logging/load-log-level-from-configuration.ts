@@ -9,7 +9,7 @@ const program = Effect.gen(function* (_) {
 })
 
 // Load the log level from the configuration as a layer
-const LogLevelLive = Effect.config(Config.logLevel("LOG_LEVEL")).pipe(
+const LogLevelLive = Config.logLevel("LOG_LEVEL").pipe(
   Effect.map((level) => Logger.minimumLogLevel(level)),
   Layer.unwrapEffect
 )
