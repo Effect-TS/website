@@ -1,0 +1,259 @@
+---
+title: Effect vs Promise
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+In this guide, we will explore the differences between `Promise` and `Effect`, two approaches to handling asynchronous operations in TypeScript. We'll discuss their type safety, creation, chaining, and concurrency, providing examples to help you understand their usage.
+
+## Type safety
+
+Let's start by comparing the types of `Promise` and `Effect`. The type parameter `A` represents the resolved value of the operation:
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts
+Promise<A>
+```
+
+</Tab>
+<Tab>
+
+```ts
+Effect<Context, Error, A>
+```
+
+</Tab>
+</Tabs>
+
+Here's what sets `Effect` apart:
+
+- It allows you to track the types of errors statically through the type parameter `Error`. For more information about error management in `Effect`, see [Expected Errors](../guides/error-management/expected-errors).
+- It allows you to track the types of required dependencies statically through the type parameter `Context`. For more information about context management in `Effect`, see [Managing Services](../guides/context-management/services).
+
+## Creating
+
+### Success
+
+Let's compare creating a successful operation using `Promise` and `Effect`:
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/success-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/success-effect.ts#L3-
+
+```
+
+</Tab>
+</Tabs>
+
+### Failure
+
+Now, let's see how to handle failures with `Promise` and `Effect`:
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/failure-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/failure-effect.ts#L3-
+
+```
+
+</Tab>
+</Tabs>
+
+### Constructor
+
+Creating operations with custom logic:
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/constructor-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/constructor-effect.ts#L3-
+
+```
+
+</Tab>
+</Tabs>
+
+## Thenable
+
+Mapping the result of an operation:
+
+### map
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/map-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/map-effect.ts#L3-
+
+```
+
+</Tab>
+</Tabs>
+
+### flatMap
+
+Chaining multiple operations:
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/flatMap-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/flatMap-effect.ts#L3-
+
+```
+
+</Tab>
+</Tabs>
+
+## Comparing Effect.gen with async/await
+
+If you are familiar with `async`/`await`, you may notice that the flow of writing code is similar.
+
+Let's compare the two approaches:
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/program-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/program-effect.ts#L3-
+
+```
+
+</Tab>
+</Tabs>
+
+It's important to note that although the code appears similar, the two programs are not identical. The purpose of comparing them side by side is just to highlight the resemblance in how they are written.
+
+## Concurrency
+
+### Promise.all()
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/all-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/all-effect.ts#L3-
+
+```
+
+</Tab>
+</Tabs>
+
+### Promise.allSettled()
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/allSettled-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/allSettled-effect.ts#L3-
+
+```
+
+</Tab>
+</Tabs>
+
+### Promise.any()
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/any-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/any-effect.ts#L3-
+
+```
+
+</Tab>
+</Tabs>
+
+### Promise.race()
+
+<Tabs items={['Promise', 'Effect']}>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/race-promise.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/effect-vs-promise/race-effect.ts#L3-
+
+```
+
+</Tab>
+</Tabs>
+
+## FAQ
+
+**Question**. What is the equivalent of starting a promise without immediately waiting for it in Effects?
+
+```ts {10,16} file=<rootDir>/src/effect-vs-promise/faq/faq-1-promise.ts
+
+```
+
+**Answer:** You can achieve this by utilizing `Effect.fork` and `Fiber.join`.
+
+```ts {11,17} file=<rootDir>/src/effect-vs-promise/faq/faq-1-effect.ts
+
+```
