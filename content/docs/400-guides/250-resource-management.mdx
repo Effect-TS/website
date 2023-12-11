@@ -1,0 +1,384 @@
+---
+title: Resource Management
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+In the context of developing long-lived applications, resource management plays a critical role. Effective resource management is indispensable when building large-scale applications. It's imperative that our application is resource-efficient and does not result in resource leaks.
+
+Resource leaks, such as unclosed socket connections, database connections, or file descriptors, are unacceptable in web applications. Effect offers robust constructs to address this concern effectively.
+
+To create an application that manages resources safely, we must ensure that every time we open a resource, we have a mechanism in place to close it. This applies whether we fully utilize the resource or encounter exceptions during its use.
+
+In the following sections, we'll delve deeper into how Effect simplifies resource management and ensures resource safety in your applications.
+
+## Scope
+
+The `Scope` data type is fundamental for managing resources safely and in a composable manner in Effect.
+
+In simple terms, a scope represents the lifetime of one or more resources. When a scope is closed, the resources associated with it are guaranteed to be released.
+
+With the `Scope` data type, you can:
+
+- **Add finalizers**, which represent the release of a resource.
+- **Close** the scope, releasing all acquired resources and executing any added finalizers.
+
+To grasp the concept better, let's delve into an example that demonstrates how it works.
+It's worth noting that in typical Effect usage, you won't often find yourself working with these low-level APIs for managing scopes.
+
+```ts file=<rootDir>/src/guide/resource-management/scope.ts
+
+```
+
+By default, when a `Scope` is closed, all finalizers added to that `Scope` are executed in the reverse order in which they were added. This approach makes sense because releasing resources in the reverse order of acquisition ensures that resources are properly closed.
+
+For instance, if you open a network connection and then access a file on a remote server, you must close the file before closing the network connection. This sequence is critical to maintaining the ability to interact with the remote server.
+
+By combining `Scope` with the Effect context, we gain a powerful way to manage resources effectively.
+
+## addFinalizer
+
+Now, let's dive into the `Effect.addFinalizer` function, which provides a higher-level API for adding finalizers to the scope of an `Effect` value. These finalizers are guaranteed to execute when the associated scope is closed, and their behavior may depend on the `Exit` value with which the scope is closed.
+
+Let's explore some examples to understand this better.
+
+Let's observe how things behave in the event of success:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-succeed-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-succeed-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+Here, the `Effect.addFinalizer` operator adds a `Scope` to the context required by the workflow, as indicated by:
+
+```ts /Scope/
+Effect<Scope, never, void>
+```
+
+This signifies that the workflow needs a `Scope` to execute. You can provide this `Scope` using the `Effect.scoped` operator. It creates a new `Scope`, supplies it to the workflow, and closes the `Scope` once the workflow is complete.
+
+The `Effect.scoped` operator removes the `Scope` from the context, indicating that the workflow no longer requires any resources associated with a scope.
+
+Next, let's explore how things behave in the event of a failure:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-fail-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-fail-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+Finally, let's explore the behavior in the event of an interruption:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-interrupt-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/addFinalizer-interrupt-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+## Manually Create and Close Scopes
+
+When you're working with multiple scoped resources within a single operation, it's important to understand how their scopes interact. By default, these scopes are merged into one, but you can have more fine-grained control over when each scope is closed by manually creating and closing them.
+
+Let's start by looking at how scopes are merged by default. Take a look at this code example:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/managed-scopes-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/managed-scopes-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+In this case, the scopes of `task1` and `task2` are merged into a single scope, and when the program is run, it outputs the tasks and their finalizers in a specific order.
+
+If you want more control over when each scope is closed, you can manually create and close them, as shown in this example:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/manual-scopes-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/manual-scopes-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+In this example, we create two separate scopes, `scope1` and `scope2`, and extend the scope of each task into its respective scope. When you run the program, it outputs the tasks and their finalizers in a different order.
+
+<Info>
+  The `Scope.extend` function allows you to extend the scope of an `Effect`
+  workflow that requires a scope into another scope without closing the scope
+  when the workflow finishes executing. This allows you to extend a scoped value
+  into a larger scope.
+</Info>
+
+You might wonder what happens when a scope is closed, but a task within that scope hasn't completed yet. The key point to note is that the scope closing doesn't force the task to be interrupted. It will continue running, and the finalizer will execute immediately when registered. The call to `close` will only wait for the finalizers that have already been registered.
+
+So, finalizers run when the scope is closed, not necessarily when the effect finishes running. When you're using `Effect.scoped`, the scope is managed automatically, and finalizers are executed accordingly. However, when you manage the scope manually, you have control over when finalizers are executed.
+
+## Defining Resources
+
+We can define a resource using operators like `Effect.acquireRelease(acquire, release){:ts}`, which allows us to create a scoped value from an `acquire` and `release` workflow.
+
+Every acquire release requires three actions:
+
+- **Acquiring Resource**. An effect describing the acquisition of resource. For example, opening a file.
+- **Using Resource**. An effect describing the actual process to produce a result. For example, counting the number of lines in a file.
+- **Releasing Resource**. An effect describing the final step of releasing or cleaning up the resource. For example, closing a file.
+
+The `acquireRelease` operator performs the `acquire` workflow **uninterruptibly**.
+This is important because if we allowed interruption during resource acquisition we could be interrupted when the resource was partially acquired.
+
+The guarantee of the `acquireRelease` operator is that if the `acquire` workflow successfully completes execution then the `release` workflow is guaranteed to be run when the `Scope` is closed.
+
+For example, let's define a simple resource:
+
+```ts filename="resource.ts" file=<rootDir>/src/guide/resource-management/resource.ts
+
+```
+
+Notice that the `acquireRelease` operator added a `Scope` to the context required by the workflow:
+
+```ts /Scope/
+Effect<Scope, Error, MyResource>
+```
+
+This indicates that the workflow needs a `Scope` to run and adds a finalizer that will close the resource when the scope is closed.
+
+We can continue working with the resource for as long as we want by using `flatMap` or other Effect operators. For example, here's how we can read the contents:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/using-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/resource-management/using-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+Once we are done working with the resource, we can close the scope using the `Effect.scoped` operator. It creates a new `Scope`, provides it to the workflow, and closes the `Scope` when the workflow is finished.
+
+<Tabs>
+<Tab>
+
+```ts /Effect.scoped/ file=<rootDir>/src/guide/resource-management/scoped-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts /Effect.scoped/ file=<rootDir>/src/guide/resource-management/scoped-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+The `Effect.scoped` operator removes the `Scope` from the context, indicating that there are no longer any resources used by this workflow which require a scope.
+
+We now have a workflow that is ready to run:
+
+```ts
+Effect.runPromise(program)
+/*
+Resource acquired
+content is lorem ipsum
+Resource released
+*/
+```
+
+## acquireUseRelease
+
+The `Effect.acquireUseRelease(acquire, use, release){:ts}` function is a specialized version of the `acquireRelease` function that simplifies resource management by automatically handling the scoping of resources.
+
+The main difference is that `acquireUseRelease` eliminates the need to manually call `Effect.scoped` to manage the resource's scope. It has additional knowledge about when you are done using the resource created with the `acquire` step. This is achieved by providing a `use` argument, which represents the function that operates on the acquired resource. As a result, `acquireUseRelease` can automatically determine when it should execute the release step.
+
+Here's an example that demonstrates the usage of `acquireUseRelease`:
+
+```ts file=<rootDir>/src/guide/resource-management/acquireUseRelease.ts
+
+```
+
+## Pattern: Sequence of Operations with Compensating Actions on Failure
+
+In certain scenarios, you might need to perform a sequence of chained operations where the success of each operation depends on the previous one. However, if any of the operations fail, you would want to reverse the effects of all previous successful operations. This pattern is valuable when you need to ensure that either all operations succeed, or none of them have any effect at all.
+
+Effect offers a way to achieve this pattern using the `acquireRelease` function in combination with the `Exit` type. The `acquireRelease` function allows you to acquire a resource, perform operations with it, and release the resource when you're done. The [`Exit`](./data-types/exit) type represents the outcome of an effectful computation, indicating whether it succeeded or failed.
+
+Let's go through an example of implementing this pattern. Suppose we want to create a "Workspace" in our application, which involves creating an S3 bucket, an ElasticSearch index, and a Database entry that relies on the previous two.
+
+To begin, we define the domain model for the required [services](./context-management/services): `S3`, `ElasticSearch`, and `Database`.
+
+```ts filename="Services.ts" file=<rootDir>/src/guide/resource-management/pattern/Services.ts
+
+```
+
+Next, we define the three create actions and the overall transaction (`make`) for the Workspace.
+
+<Tabs>
+<Tab>
+
+```ts filename="Workspace.ts" file=<rootDir>/src/guide/resource-management/pattern/Workspace.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts filename="Workspace.ts" file=<rootDir>/src/guide/resource-management/pattern/Workspace-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+We then create simple service implementations to test the behavior of our Workspace code.
+To achieve this, we will utilize [layers](./context-management/layers) to construct test services.
+These layers will be able to handle various scenarios, including errors, which we can control using the `FailureCase` type.
+
+<Tabs>
+<Tab>
+
+```ts filename="WorkspaceTest.ts" file=<rootDir>/src/guide/resource-management/pattern/WorkspaceTest.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts filename="Workspace.ts" file=<rootDir>/src/guide/resource-management/pattern/WorkspaceTest-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+Let's examine the test results for the scenario where `FailureCase` is set to `undefined` (happy path):
+
+```verbatim filename="Terminal"
+[S3] creating bucket
+[ElasticSearch] creating index
+[Database] creating entry for bucket <bucket.name> and index <index.id>
+{
+  _id: "Either",
+  _tag: "Right",
+  right: {
+    id: "<entry.id>"
+  }
+}
+```
+
+In this case, all operations succeed, and we see a successful result with `right({ id: '<entry.id>' })`.
+
+Now, let's simulate a failure in the `Database`:
+
+```ts /"Database"/
+const runnable = Workspace.make.pipe(
+  Effect.provide(layer),
+  Effect.provideService(Failure, "Database")
+)
+```
+
+The console output will be:
+
+```verbatim filename="Terminal"
+[S3] creating bucket
+[ElasticSearch] creating index
+[Database] creating entry for bucket <bucket.name> and index <index.id>
+[ElasticSearch] delete index <index.id>
+[S3] delete bucket <bucket.name>
+{
+  _id: "Either",
+  _tag: "Left",
+  left: {
+    _tag: "DatabaseError"
+  }
+}
+```
+
+You can observe that once the `Database` error occurs, there is a complete rollback that deletes the `ElasticSearch` index first and then the associated `S3` bucket. The result is a failure with `left(new DatabaseError())`.
+
+Let's now make the index creation fail instead:
+
+```ts /"ElasticSearch"/
+const runnable = Workspace.make.pipe(
+  Effect.provide(layer),
+  Effect.provideService(Failure, "ElasticSearch")
+)
+```
+
+In this case, the console output will be:
+
+```verbatim filename="Terminal"
+[S3] creating bucket
+[ElasticSearch] creating index
+[S3] delete bucket <bucket.name>
+{
+  _id: "Either",
+  _tag: "Left",
+  left: {
+    _tag: "ElasticSearchError"
+  }
+}
+```
+
+As expected, once the `ElasticSearch` index creation fails, there is a rollback that deletes the `S3` bucket. The result is a failure with `left(new ElasticSearchError())`.
