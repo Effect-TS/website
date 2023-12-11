@@ -1,0 +1,47 @@
+---
+title: Parallel and Sequential Errors
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+---
+
+In a typical Effect application, when an error occurs, it usually fails with the first error encountered by the Effect runtime. Let's look at an example:
+
+```ts file=<rootDir>/src/guide/error-management/sequential-and-parallel-errors/first-error.ts
+
+```
+
+In this case, the `program` will fail with the first error, which is "Oh uh!":
+
+## Parallel Errors
+
+However, in some situations, you may encounter multiple errors, especially when performing parallel computations. When parallel computations are involved, the application may fail due to multiple errors. Here's an example:
+
+```ts file=<rootDir>/src/guide/error-management/sequential-and-parallel-errors/parallel-errors.ts
+
+```
+
+In this example, the `program` runs both `fail` and `die` concurrently, and if both fail, it will result in multiple errors.
+
+### parallelErrors
+
+Effect provides a useful combinator called `Effect.parallelErrors` that exposes all parallel failure errors in the error channel. Here's how you can use it:
+
+```ts file=<rootDir>/src/guide/error-management/sequential-and-parallel-errors/parallelErrors.ts
+
+```
+
+In this example, `Effect.parallelErrors` combines the errors from `fail1` and `fail2` into a single error.
+
+<Warning>
+  Note that this operator is **only for failures**, not defects or
+  interruptions.
+</Warning>
+
+## Sequential Errors
+
+When working with resource-safety operators like `Effect.ensuring`, you may encounter multiple sequential errors. This happens because regardless of whether the original effect has any errors or not, the finalizer is uninterruptible and will run. Here's an example:
+
+```ts file=<rootDir>/src/guide/error-management/sequential-and-parallel-errors/sequential-errors.ts
+
+```
+
+In this case, the `program` will result in multiple sequential errors if both `fail` and the finalizer `die` encounter errors.

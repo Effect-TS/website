@@ -1,0 +1,46 @@
+---
+title: Matching
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+---
+
+In the `Effect` data type, just like other data types such as [`Option`](../data-types/option#matching) and [`Exit`](../data-types/exit#matching), we have a `match` function that allows us to handle different cases simultaneously. When working with effects, we also have several functions that enable us to handle both success and failure scenarios.
+
+## match
+
+The `Effect.match` function allows us to **handle both success and failure cases** in a non-effectful manner by providing a handler for each case:
+
+```ts file=<rootDir>/src/guide/error-management/matching/match.ts
+
+```
+
+We can also choose to ignore the success and failure values if we're not interested in them:
+
+```ts /never, void/ file=<rootDir>/src/guide/error-management/matching/ignore-constVoid.ts
+
+```
+
+In this case, we use the `constVoid` function from the `Function` module, which constantly returns `void`, to provide handlers that perform no operation. This effectively discards the success and failure values and focuses solely on the control flow or side effects of the program. Alternatively, we can achieve the same result using the `Effect.ignore` function:
+
+```ts /never, void/ file=<rootDir>/src/guide/error-management/matching/ignore.ts
+
+```
+
+## matchEffect
+
+In addition to `Effect.match`, we have the `Effect.matchEffect` function, which allows us to handle success and failure cases while performing **additional side effects**. Let's see an example:
+
+```ts file=<rootDir>/src/guide/error-management/matching/matchEffect.ts
+
+```
+
+In this example, we use `Effect.matchEffect` instead of `Effect.match`. The `Effect.matchEffect` function allows us to perform additional side effects while handling success and failure cases. We can log messages or perform other side effects within the respective handlers.
+
+## matchCause / matchCauseEffect
+
+Effect also provides `Effect.matchCause` and `Effect.matchCauseEffect` functions, which are useful for **accessing the full cause** of the underlying fiber in case of failure. This allows us to handle different failure causes separately and take appropriate actions. Here's an example:
+
+```ts file=<rootDir>/src/guide/error-management/matching/matchCauseEffect.ts
+
+```
+
+In this example, we have an `exceptionalEffect` that may fail or encounter other types of exceptions. The `matchCauseEffect` function allows us to match and handle different failure causes separately.

@@ -3,6 +3,7 @@
 import { Tab as HeadlessTab } from '@headlessui/react'
 import cn from 'clsx'
 import type { ComponentProps, ReactElement, ReactNode } from 'react'
+import React from 'react';
 import { useCallback, useEffect, useState } from 'react'
 
 type TabItem = string | ReactNode
@@ -24,7 +25,7 @@ function _Tabs({
   children,
   storageKey
 }: {
-  items: (TabItem | TabObjectItem)[]
+  items?: (TabItem | TabObjectItem)[]
   selectedIndex?: number
   defaultIndex?: number
   onChange?: (index: number) => void
@@ -76,6 +77,10 @@ function _Tabs({
     onChange?.(index)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps -- only on mount
 
+  const itemsWithFallback = React.useMemo(() => {
+    return items ?? (Array.isArray(children) ? Array.from({length:children.length }, (_, i)  => `Tab ${i}`) : [])
+  }, [children, items])
+
   return (
     <HeadlessTab.Group
       selectedIndex={selectedIndex}
@@ -84,7 +89,7 @@ function _Tabs({
     >
       <div className="overflow-x-auto overflow-y-hidden overscroll-x-contain">
         <HeadlessTab.List className="mt-4 flex w-max min-w-full border-b border-gray-200 pb-px dark:border-neutral-800">
-          {items.map((item, index) => {
+          {itemsWithFallback.map((item, index) => {
             const disabled = isTabObjectItem(item) && item.disabled
             return (
               <HeadlessTab

@@ -1,0 +1,65 @@
+---
+title: Error Accumulation
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+---
+
+
+Sequential combinators such as `Effect.zip` and `Effect.forEach` have a "fail fast" policy when it comes to error management. This means that they stop and return immediately when they encounter the first error.
+
+Let's take a look at an example using the `Effect.zip` operator. In this example, we can see that `Effect.zip` will fail as soon as it encounters the first failure. As a result, only the first error is displayed:
+
+```ts file=<rootDir>/src/guide/error-management/error-accumulation/zip.ts
+
+```
+
+The `Effect.forEach` function behaves similarly. It takes a collection and an effectful operation, and tries to apply the operation to all elements of the collection. However, it also follows the "fail fast" policy and fails when it encounters the first error:
+
+```ts file=<rootDir>/src/guide/error-management/error-accumulation/forEach.ts
+
+```
+
+However, there are situations where we may need to collect all potential errors in a computation instead of failing fast. In such cases, we can use operators that accumulate errors as well as successes.
+
+## validate
+
+The `Effect.validate` function is similar to `Effect.zip`, but if it encounters an error, it continues the zip operation instead of stopping. It combines the effects and accumulates both errors and successes:
+
+```ts file=<rootDir>/src/guide/error-management/error-accumulation/validate.ts
+
+```
+
+With `Effect.validate`, we can collect all the errors encountered during the computation instead of stopping at the first error. This allows us to have a complete picture of all the potential errors and successes in our program.
+
+## validateAll
+
+The `Effect.validateAll` function is similar to the `Effect.forEach` function. It transforms all elements of a collection using the provided effectful operation, but it collects all errors in the error channel, as well as the success values in the success channel.
+
+```ts file=<rootDir>/src/guide/error-management/error-accumulation/validateAll.ts
+
+```
+
+<Warning>
+  Note that this function is lossy, which means that if there are any errors,
+  all successes will be lost. If you need a function that preserves both
+  successes and failures, please refer to the [partition](#partition) function.
+</Warning>
+
+## validateFirst
+
+The `Effect.validateFirst` function is similar to `Effect.validateAll` but it will return the first success (or all the failures):
+
+```ts file=<rootDir>/src/guide/error-management/error-accumulation/validateFirst.ts
+
+```
+
+Please note that the return type is `number` instead of `number[]`, as in the case of `validateAll`.
+
+## partition
+
+The `Effect.partition` function takes an iterable and an effectful function that transforms each value of the iterable. It then creates a tuple of both failures and successes in the success channel:
+
+```ts file=<rootDir>/src/guide/error-management/error-accumulation/partition.ts
+
+```
+
+Please note that this operator is an unexceptional effect, which means that the type of the error channel is `never`. Therefore, if we encounter a failure case, the whole effect doesn't fail.

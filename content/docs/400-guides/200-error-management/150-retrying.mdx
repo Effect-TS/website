@@ -1,0 +1,58 @@
+---
+title: Retrying
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+---
+
+In software development, it's common to encounter situations where an operation may fail temporarily due to various factors such as network issues, resource unavailability, or external dependencies. In such cases, it's often desirable to retry the operation automatically, allowing it to succeed eventually.
+
+Retrying is a powerful mechanism to handle transient failures and ensure the successful execution of critical operations. In Effect retrying is made simple and flexible with built-in functions and scheduling strategies.
+
+In this guide, we will explore the concept of retrying in Effect and learn how to use the `retry` and `retryOrElse` functions to handle failure scenarios. We'll see how to define retry policies using schedules, which dictate when and how many times the operation should be retried.
+
+Whether you're working on network requests, database interactions, or any other potentially error-prone operations, mastering the retrying capabilities of Effect can significantly enhance the resilience and reliability of your applications.
+
+To demonstrate the functionality of different retry functions, we will be working with the following helper that simulates an effect with possible failures:
+
+```ts filename="fake.ts" file=<rootDir>/src/guide/error-management/retrying/fake.ts
+
+```
+
+## retry
+
+The basic syntax of `retry` is as follows:
+
+```ts
+Effect.retry(effect, policy)
+```
+
+**Example**
+
+```ts file=<rootDir>/src/guide/error-management/retrying/retry.ts
+
+```
+
+## retryN
+
+There is a shortcut when the policy is trivial and the failed effect is immediately retried: `retryN(effect)`.
+
+```ts file=<rootDir>/src/guide/error-management/retrying/retryN.ts
+
+```
+
+## retryOrElse
+
+There is another version of `retry` that allows us to define a fallback strategy in case of errors.
+If something goes wrong, we can handle it using the `retryOrElse` function.
+It lets us add an `orElse` callback that will run when the repetition fails.
+
+The basic syntax of `retryOrElse` is as follows:
+
+```ts
+Effect.retryOrElse(effect, policy, fallback)
+```
+
+**Example**
+
+```ts file=<rootDir>/src/guide/error-management/retrying/retryOrElse.ts
+
+```
