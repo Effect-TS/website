@@ -3,6 +3,7 @@ import { useMDXComponent } from 'next-contentlayer/hooks'
 import { H2, H3, H4 } from '@/components/atoms/headings'
 import { Tab, Tabs } from '@/components/docs/components/tabs'
 import * as Callouts from '@/components/docs/components/callouts'
+import { Steps } from '@/components/docs/components/steps'
 
 export const MDX: FC<{ content: string }> = ({ content }) => {
   const Content = useMDXComponent(content)
@@ -16,6 +17,7 @@ export const MDX: FC<{ content: string }> = ({ content }) => {
           h4: H4,
           Tab,
           Tabs,
+          Steps,
           ...Callouts,
         }}
       />
