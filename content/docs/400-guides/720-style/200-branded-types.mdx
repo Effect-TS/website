@@ -1,0 +1,89 @@
+---
+title: Branded Types
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+---
+
+In this guide, we will explore the concept of **branded types** in TypeScript and learn how to create and work with them using the `Brand` module. Branded types are TypeScript types with an added type tag that helps prevent accidental usage of a value in the wrong context. They allow us to create distinct types based on an existing underlying type, enabling type safety and better code organization.
+
+## Understanding Branded Types
+
+Branded types allow us to create new types in TypeScript by adding a type tag to an existing underlying type. This type tag, also known as the "brand," distinguishes values of the branded type from other values of the same underlying type. The brand acts as a compile-time check, ensuring that values are used correctly in the intended context.
+
+## Creating Branded Types
+
+The `Brand` module provides two main functions for creating branded types: `refined` and `nominal`. Let's understand each of them:
+
+### 1. Refined Branded Types
+
+The `refined` function is used to create a new branded type that performs validation on the input data. It takes a refinement predicate as an argument, which is a function that determines whether the input data is valid for the branded type. If the input data fails the validation, a `BrandErrors` data type is returned, providing information about the specific validation failure.
+
+Here's an example of creating a refined branded type:
+
+```ts file=<rootDir>/src/guide/style/brands/Int.ts#L1-L8
+
+```
+
+In this example, we create a branded type called `Int` using the `Brand.refined` function. The refinement predicate ensures that the input value is an integer. If the value fails the validation, an error message is provided using the `Brand.error` function.
+
+Now, let's see how we can use the `Int` branded type:
+
+```ts file=<rootDir>/src/guide/style/brands/Int.ts#L10-L15
+
+```
+
+By enforcing the `Int` brand, we can ensure that only integer values are used in the designated context.
+Attempting to assign a non-`Int` value will result in a compile-time error:
+
+```ts file=<rootDir>/src/guide/style/brands/Int.ts#L17-
+
+```
+
+### 2. Nominal Branded Types
+
+The `nominal` function is used to create a new branded type without performing any runtime checks. It simply adds a type tag to the underlying type, allowing us to distinguish between values of the same type but with different meanings. Nominal branded types are useful when we only want to create distinct types for clarity and code organization purposes.
+
+Here's an example of creating a nominal branded type:
+
+```ts file=<rootDir>/src/guide/style/brands/UserId.ts#L1-L5
+
+```
+
+In the previous example, we created a nominal branded type called `UserId` using the `Brand.nominal` function. The `UserId` type is based on the underlying type `number`, but it has a distinct type tag that differentiates it from other `number` values.
+
+Now, let's see how we can use the `UserId` branded type:
+
+```ts file=<rootDir>/src/guide/style/brands/UserId.ts#L7-
+
+```
+
+By enforcing the `UserId` brand, we can ensure that only values explicitly created as `UserId` are used in the designated context. Assigning a regular `number` value to a `UserId` variable will result in a type error.
+
+Nominal branded types help improve code clarity and prevent accidental mixing of values with different meanings. They are especially useful when working with identifiers, unique keys, or any scenario where distinguishing between values is important.
+
+## Using Branded Types in Functions
+
+Branded types can be used in function signatures to provide stronger type guarantees. Let's see how we can incorporate branded types in function parameters and return types.
+
+```ts
+const getUserById = (id: UserId): User => {
+  // Retrieve user from the database based on the UserId
+}
+
+const createUser = (name: string, email: string): UserId => {
+  // Create a new user and return the generated UserId
+}
+```
+
+In the `getUserById` function, we specify that the `id` parameter must be of type `UserId`. This ensures that only valid `UserId` values are accepted when calling the function.
+
+Similarly, in the `createUser` function, we specify that the return type is `UserId`. This guarantees that the function will always return a valid `UserId` value.
+
+By using branded types in function signatures, we can catch potential bugs at compile-time and reduce the likelihood of passing incorrect values to functions.
+
+## Combining Branded Types
+
+In some scenarios, you may need to combine multiple branded types together. The `Brand` module provides the `all` API to facilitate this:
+
+```ts file=<rootDir>/src/guide/style/brands/PositiveInt.ts
+
+```
