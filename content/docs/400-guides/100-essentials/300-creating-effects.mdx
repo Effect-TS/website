@@ -82,7 +82,7 @@ In the above example, `Effect.sync` is used to defer the side-effect of writing 
 The `program` value has the type `Effect<never, never, number>` because the thunk returns the value `42`.
 
 Note that nothing is logged to the console yet when you inspect it.
-This is because `program` represents the action of writing to the console, but nothing happens until you explicitly [run your program](running.mdx).
+This is because `program` represents the action of writing to the console, but nothing happens until you explicitly [run your program](running-effects).
 
 <Error>The thunk passed to `Effect.sync` should never throw errors.</Error>
 
@@ -192,7 +192,7 @@ Let's explore some common scenarios where `Effect.suspend` proves useful:
 
    In this example, `Effect.succeed(i++)` creates a new numeric value and consistently returns the same number. On the other hand, `Effect.suspend(() => Effect.succeed(i++))` generates a new number with each invocation.
 
-   This example utilizes `Effect.runSync` to execute effects and display their results (refer to [Running Effects](./running.mdx##runsync) for more details).
+   This example utilizes `Effect.runSync` to execute effects and display their results (refer to [Running Effects](./running-effects##runsync) for more details).
 
 2. **Handling Circular Dependencies**. `Effect.suspend` is helpful in managing circular dependencies between effects, where one effect depends on another, and vice versa.
    For example it's fairly common for `Effect.suspend` to be used in recursive functions to escape an eager call. For instance:
@@ -227,4 +227,4 @@ The table provides a summary of the available constructors, along with their inp
 You can find the complete list of constructors [here](https://effect-ts.github.io/io/modules/Effect.ts.html#constructors).
 
 Now that we know how to create effects, it's time to learn how to run them.
-Check out the next guide on [Running Effects](running.mdx) to find out more.
+Check out the next guide on [Running Effects](running-effects) to find out more.

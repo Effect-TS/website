@@ -1,0 +1,25 @@
+---
+title: Default Services
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+Effect comes equipped with five pre-built services:
+
+```ts
+type DefaultServices = Clock | Console | Random | ConfigProvider | Tracer
+```
+
+When we employ these services, there's no need to explicitly provide their implementations. Effect automatically supplies live versions of these services to our effects, sparing us from manual setup.
+
+```ts file=<rootDir>/src/context-management/default-services/example.ts
+
+```
+
+As you can observe, even if our program utilizes both `Clock` and `Console`, the `R` parameter, representing the contextual data required for the effect to execute, remains set to `never`.
+
+```ts /never/1
+Effect<never, never, void>
+```
+
+Effect takes care of handling these services seamlessly for us.
