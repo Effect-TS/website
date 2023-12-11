@@ -1,0 +1,46 @@
+---
+title: Fallback
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+## orElse
+
+We can attempt one effect, and if it fails, we can try another effect using the `Effect.orElse` combinator:
+
+```ts file=<rootDir>/src/guide/error-management/fallback/orElse.ts
+
+```
+
+## orElseFail / orElseSucceed
+
+These two operators modify the original failure by replacing it with constant succeed or failure values.
+
+The `Effect.orElseFail` will always replace the original failure with the new one:
+
+```ts /NegativeAgeError | IllegalAgeError/ /string/ file=<rootDir>/src/guide/error-management/fallback/orElseFail-orElseSucceed.ts#L1-L26
+
+```
+
+The `Effect.orElseSucceed` will always replace the original failure with a success value, so the resulting effect cannot fail:
+
+```ts / never/ file=<rootDir>/src/guide/error-management/fallback/orElseFail-orElseSucceed.ts#L28-
+
+```
+
+## firstSuccessOf
+
+The `firstSuccessOf` operator simplifies running a series of effects and returns the result of the first one that succeeds. If none of the effects succeed, the resulting effect will fail with the error of the last effect in the series.
+
+This operator utilizes `Effect.orElse` to combine multiple effects into a single effect.
+
+In the following example, we attempt to retrieve a configuration from different nodes. If retrieving from the master node fails, we successively try retrieving from the next available nodes until we find a successful result:
+
+```ts file=<rootDir>/src/guide/error-management/fallback/firstSuccessOf.ts
+
+```
+
+<Warning>
+  If the collection provided to the `Effect.firstSuccessOf` function is empty,
+  it will throw an `IllegalArgumentException` error.
+</Warning>
