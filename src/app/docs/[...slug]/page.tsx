@@ -8,13 +8,9 @@ import { getBreadcrumbs } from '@/contentlayer/utils/get-breadcrumbs'
 import { allDocsPages } from 'contentlayer/generated'
 import { notFound } from 'next/navigation'
 
-export const generateStaticParams = ({ params }: { params: { slug: string[] } }) => {
-  return allDocsPages.map((page) => ({
-    params: {
-      slug: page.urlPath.replace('/docs/', '').split('/'),
-    },
-  }))
-}
+export const generateStaticParams = () => allDocsPages.map((page) => ({
+  slug: page.urlPath.replace('/docs/', '').split('/'),
+}))
 
 export default function Page({ params: { slug } }: { params: { slug: string[] } }) {
   const page = allDocsPages.find((page) => page.urlPath === `/docs/${slug.join('/')}`)
