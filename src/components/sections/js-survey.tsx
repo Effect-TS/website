@@ -54,11 +54,10 @@ export const JSSurvey = () => {
                   />
                   <div className="relative items-center text-sm text-white px-2 w-full flex h-6 whitespace-nowrap justify-start">
                     <span>{name}</span>
-                    {/* TODO: re-enable */}
-                    {/* <Link href={docsLink} className="flex sm:hidden gap-1 items-center text-white font-medium">
+                    <Link href={docsLink} className="flex sm:hidden gap-1 items-center text-white font-medium">
                       <span>Docs</span>
                       <Icon name="arrow-right" className="h-3.5 mt-0.5 ml-0.5" />
-                    </Link> */}
+                    </Link>
                   </div>
                 </li>
               ))}
@@ -71,11 +70,10 @@ export const JSSurvey = () => {
                 {content.survey.features.map(({docsLink}, index) => (
                   <li key={index} className="flex justify-center items-center gap-3">
                     <Icon name="check" className="h-5 text-emerald-400" />
-                    {/* TODO re-enable */}
-                    {/* <Link href={docsLink} className="flex gap-1 items-center text-white font-medium">
+                    <Link href={docsLink} className="flex gap-1 items-center text-white font-medium">
                       <span>Docs</span>
                       <Icon name="arrow-right" className="h-3.5 mt-0.5 ml-0.5" />
-                    </Link> */}
+                    </Link>
                   </li>
                 ))}
               </ul>

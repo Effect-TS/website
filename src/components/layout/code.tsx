@@ -61,7 +61,8 @@ export const Code: FC<{
                 </ul>
                 <div className="relative w-full py-3 pl-12">
                   <div className="w-full overflow-x-auto ">
-                    <pre>
+                    {/* `contain: none` needed for horizontal scrolling to work */}
+                    <pre style={{contain: 'none'}}>
                       <code dangerouslySetInnerHTML={{__html: html.replaceAll('\n', '<br/>')}} />
                     </pre>
                   </div>

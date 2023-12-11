@@ -31,8 +31,7 @@ export const Navigation = () => {
               {href.startsWith('http') && <Icon name="arrow-up-right-light" className="h-3.5 mt-0.5 ml-0.5" />}
             </Link>
           ))}
-          {/* TODO re-enable */}
-          {/* <Search className="w-56" /> */}
+          <Search className="w-56" />
           <div className="flex items-center gap-4">
             {socials.map(({name, icon, href}, index) => (
               <Link key={index} href={href}>
