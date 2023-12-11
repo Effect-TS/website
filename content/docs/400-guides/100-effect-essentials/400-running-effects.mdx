@@ -1,0 +1,88 @@
+---
+title: Running Effects
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+To execute an `Effect`, we can utilize a variety of "run" functions provided by the `Effect` module.
+
+## runSync
+
+The `runSync` function is used to execute an Effect synchronously, which means it runs immediately and returns the result.
+
+```ts file=<rootDir>/src/essentials/running/runSync.ts
+
+```
+
+If you check the console, you will see the message `"Hello, World!"` printed.
+
+<Warning>
+  `runSync` will throw an error if your Effect fails or performs any
+  asynchronous tasks. In the latter case, the execution will not proceed beyond
+  that asynchronous task.
+</Warning>
+
+```ts file=<rootDir>/src/essentials/running/runSync-throws.ts
+
+```
+
+## runSyncExit
+
+The `runSyncExit` function is used to execute an Effect synchronously, which means it runs immediately and returns the result as an [`Exit`](../data-types/exit)
+(a data type used to describe the result of executing an `Effect` workflow).
+
+```ts file=<rootDir>/src/essentials/running/runSyncExit.ts
+
+```
+
+<Warning>
+  `runSyncExit` will throw an error if your Effect performs any asynchronous
+  tasks and the execution will not proceed beyond that asynchronous task.
+</Warning>
+
+```ts file=<rootDir>/src/essentials/running/runSyncExit-throws.ts
+
+```
+
+## runPromise
+
+The `runPromise` function is used to execute an Effect and obtain the result as a `Promise`.
+
+```ts file=<rootDir>/src/essentials/running/runPromise.ts
+
+```
+
+<Warning>`runPromise` will reject with an error if your Effect fails</Warning>
+
+```ts file=<rootDir>/src/essentials/running/runPromise-rejects.ts
+
+```
+
+## runPromiseExit
+
+The `runPromiseExit` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an [`Exit`](../data-types/exit)
+(a data type used to describe the result of executing an `Effect` workflow).
+
+```ts file=<rootDir>/src/essentials/running/runPromiseExit.ts
+
+```
+
+## Cheatsheet
+
+<Design>
+  The recommended approach is to design your program with the majority of its
+  logic as Effects. It's advisable to use the `run*` functions closer to the
+  "edge" of your program. This approach allows for greater flexibility in
+  executing your program and building sophisticated Effects.
+</Design>
+
+The table provides a summary of the available `run*` functions, along with their input and output types, allowing you to choose the appropriate function based on your needs.
+
+| **Name**         | **Given**             | **To**                |
+| ---------------- | --------------------- | --------------------- |
+| `runSync`        | `Effect<never, E, A>` | `A`                   |
+| `runSyncExit`    | `Effect<never, E, A>` | `Exit<E, A>`          |
+| `runPromise`     | `Effect<never, E, A>` | `Promise<A>`          |
+| `runPromiseExit` | `Effect<never, E, A>` | `Promise<Exit<E, A>>` |
+
+You can find the complete list of `run*` functions [here](https://effect-ts.github.io/io/modules/Effect.ts.html#execution).

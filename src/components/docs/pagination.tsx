@@ -13,7 +13,7 @@ export const Pagination: FC<{path: string}> = ({path}) => {
   const pages = allDocsPages
     .filter((page) => page.urlPath.startsWith(parentPath) && page.urlPath.split('/').length === length && page.order > 0)
     .map((page) => ({title: page.title, urlPath: page.urlPath, order: page.order}))
-  console.log(pages)
+  // console.log(pages)
   const prev = pages.filter((page) => page.order < currentPage.order).sort((pageA, pageB) => pageB.order - pageA.order)[0]
   const next = pages.sort((pageA, pageB) => pageA.order - pageB.order).filter((page) => page.order > currentPage.order)[0]
   return (
