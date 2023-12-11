@@ -1,0 +1,95 @@
+---
+title: Schedule Combinators
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+Schedules define stateful, possibly effectful, recurring schedules of events, and compose in a variety of ways. Combinators allow us to take schedules and combine them together to get other schedules.
+
+To demonstrate the functionality of different combinators, we will be working with the following helper:
+
+```ts filename="Delay.ts" file=<rootDir>/src/guide/scheduling/schedule-combinators/Delay.ts
+
+```
+
+The `logDelay` helper logs the time delay between each execution. We will use this effect to showcase the behavior of various built-in combinators.
+
+## Composition
+
+Schedules compose in the following primary ways:
+
+- **Union**. This performs the union of the intervals of two schedules.
+- **Intersection**. This performs the intersection of the intervals of two schedules.
+- **Sequencing**. This concatenates the intervals of one schedule onto another.
+
+### Union
+
+Combines two schedules through union, by recurring if either schedule wants to recur, using the minimum of the two delays between recurrences.
+
+```ts file=<rootDir>/src/guide/scheduling/schedule-combinators/union.ts
+
+```
+
+When we use the combined schedule with `Effect.repeat`, we observe that the effect is executed repeatedly based on the minimum delay between the two schedules. In this case, the delay alternates between the exponential schedule (increasing delay) and the spaced schedule (constant delay).
+
+### Intersection
+
+Combines two schedules through the intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences.
+
+```ts file=<rootDir>/src/guide/scheduling/schedule-combinators/intersect.ts
+
+```
+
+When we use the combined schedule with `Effect.repeat`, we observe that the effect is executed repeatedly only if both schedules want it to recur. The delay between recurrences is determined by the maximum delay between the two schedules. In this case, the delay follows the progression of the exponential schedule until the maximum number of recurrences specified by the recursive schedule is reached.
+
+### Sequencing
+
+Combines two schedules sequentially, by following the first policy until it ends, and then following the second policy.
+
+```ts file=<rootDir>/src/guide/scheduling/schedule-combinators/andThen.ts
+
+```
+
+When we use the combined schedule with `Effect.repeat`, we observe that the effect follows the policy of the first schedule (recurs) until it completes the specified number of recurrences. After that, it switches to the policy of the second schedule (spaced) and continues repeating the effect with the fixed delay between recurrences.
+
+## Jittering
+
+A `jittered` is a combinator that takes one schedule and returns another schedule of the same type except for the delay which is applied randomly
+
+When a resource is out of service due to overload or contention, retrying and backing off doesn't help us. If all failed API calls are backed off to the same point of time, they cause another overload or contention. Jitter adds some amount of randomness to the delay of the schedule. This helps us to avoid ending up accidentally synchronizing and taking the service down by accident.
+
+[Research](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) shows that `Schedule.jittered(0.0, 1.0)` is very suitable for retrying.
+
+```ts file=<rootDir>/src/guide/scheduling/schedule-combinators/jittered.ts
+
+```
+
+In this example, we use the `jittered` combinator to apply jitter to an exponential schedule. The exponential schedule increases the delay between each repetition exponentially. By adding jitter to the schedule, the delays become randomly adjusted within a certain range.
+
+## Filtering
+
+We can filter inputs or outputs of a schedule with `whileInput` and `whileOutput`.
+
+```ts file=<rootDir>/src/guide/scheduling/schedule-combinators/whileOutput.ts
+
+```
+
+In this example, we create a schedule using `Schedule.recurs(5)` to repeat a certain action up to 5 times. However, we apply the `whileOutput` combinator with a predicate that filters out outputs greater than 2. As a result, the schedule stops producing outputs once the value exceeds 2, and the repetition ends.
+
+## Modifying
+
+Modifies the delay of a schedule.
+
+```ts file=<rootDir>/src/guide/scheduling/schedule-combinators/modifyDelay.ts
+
+```
+
+# Tapping
+
+Whenever we need to effectfully process each schedule input/output, we can use `tapInput` and `tapOutput`.
+
+We can use these two functions for logging purposes:
+
+```ts file=<rootDir>/src/guide/scheduling/schedule-combinators/tapOutput.ts
+
+```

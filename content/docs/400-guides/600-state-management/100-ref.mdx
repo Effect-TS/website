@@ -1,0 +1,142 @@
+---
+title: Ref
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+When we write programs, it is common to need to keep track of some form of state during the execution of the program. State refers to any data that can change as the program runs. For example, in a counter application, the count value changes as the user increments or decrements it. Similarly, in a banking application, the account balance changes as deposits and withdrawals are made. State management is crucial to building interactive and dynamic applications.
+
+In traditional imperative programming, one common way to store state is using variables. However, this approach can introduce bugs, especially when the state is shared between multiple components or functions. As the program becomes more complex, managing shared state can become challenging.
+
+To overcome these issues, Effect introduces a powerful data type called `Ref`, which represents a mutable reference. With `Ref`, we can share state between different parts of our program without relying on mutable variables directly. Instead, `Ref` provides a controlled way to handle mutable state and safely update it in a concurrent environment.
+
+Effect's `Ref` data type enables communication between different fibers in your program. This capability is crucial in concurrent programming, where multiple tasks may need to access and update shared state simultaneously.
+
+In this guide, we will explore how to use the `Ref` data type to manage state in your programs effectively. We will cover simple examples like counting, as well as more complex scenarios where state is shared between different parts of the program. Additionally, we will show how to use `Ref` in a concurrent environment, allowing multiple tasks to interact with shared state safely.
+
+Let's dive in and see how we can leverage `Ref` for effective state management in your Effect programs.
+
+## Using Ref
+
+Let's explore how to use the `Ref` data type with a simple example of a counter:
+
+```ts filename="Counter.ts" file=<rootDir>/src/guide/state-management/ref/Counter.ts
+
+```
+
+Here is the usage example of the `Counter`:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/state-management/ref/example-1-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/state-management/ref/example-1-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+<Info>
+  All the operations on the `Ref` data type are effectful. So when we are
+  reading from or writing to a `Ref`, we are performing an effectful operation.
+</Info>
+
+## Using Ref in a Concurrent Environment
+
+We can use this counter in a concurrent environment, such as counting the number of requests in a RESTful API.
+For this example, let's update the counter concurrently:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/state-management/ref/example-1-concurrent-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/state-management/ref/example-1-concurrent-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+## Using Ref as a Service
+
+You can also pass a `Ref` as a [service](../context-management/services) to share state between different parts of your program. Let's see how this works:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/state-management/ref/ref-as-service-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/state-management/ref/ref-as-service-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+Note that we use `Effect.provideServiceEffect` instead of `Effect.provideService` to provide an actual implementation of the `MyState` service because all the operations on the `Ref` data type are effectful, including the creation `Ref.make(0)`.
+
+## Sharing state between Fibers
+
+Let's consider an example where we want to read names from user input until the user enters the command `"q"` to exit.
+
+First, let's introduce a `readLine` utility to read user input (ensure you have `@types/node` installed):
+
+```ts filename="ReadLine.ts" file=<rootDir>/src/guide/state-management/ref/ReadLine.ts
+
+```
+
+Now, let's take a look at the main program:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/state-management/ref/example-2-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/state-management/ref/example-2-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+Now that we have learned how to use the `Ref` data type, we can use it to manage the state concurrently. For example, assume while we are reading from the console, we have another fiber that is trying to update the state from a different source:
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/guide/state-management/ref/example-2-concurrent-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/guide/state-management/ref/example-2-concurrent-pipe.ts
+
+```
+
+</Tab>
+</Tabs>

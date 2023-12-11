@@ -1,0 +1,81 @@
+---
+title: Built-in Schedules
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+To demonstrate the functionality of different schedules, we will be working with the following helper:
+
+```ts filename="Delay.ts" file=<rootDir>/src/guide/scheduling/built-in-schedules/Delay.ts
+
+```
+
+The `log` helper logs the time delay between each execution. We will use this helper to showcase the behavior of various built-in schedules.
+
+## forever
+
+A schedule that always recurs and produces number of recurrence at each run.
+
+```ts file=<rootDir>/src/guide/scheduling/built-in-schedules/forever.ts
+
+```
+
+## once
+
+A schedule that recurs one time.
+
+```ts file=<rootDir>/src/guide/scheduling/built-in-schedules/once.ts
+
+```
+
+## recurs
+
+A schedule that only recurs the specified number of times.
+
+```ts file=<rootDir>/src/guide/scheduling/built-in-schedules/recurs.ts
+
+```
+
+## Recurring at specific intervals
+
+In the context of scheduling, two commonly used schedules are `spaced` and `fixed`. While they both involve recurring at specific intervals, they have a fundamental difference in how they determine the timing of repetitions.
+
+The `spaced` schedule creates a recurring pattern where each repetition is spaced apart by a specified duration. This means that there is a delay between the completion of one repetition and the start of the next. The duration between repetitions remains constant, providing a consistent spacing pattern.
+
+On the other hand, the `fixed` schedule recurs on a fixed interval, regardless of the duration of the actions or the completion time of previous repetitions. It operates independently of the execution time, ensuring a regular recurrence at the specified interval.
+
+### spaced
+
+A schedule that recurs continuously, each repetition spaced the specified duration from the last run.
+
+```ts file=<rootDir>/src/guide/scheduling/built-in-schedules/spaced.ts
+
+```
+
+The first delay is approximately 100 milliseconds, as the initial execution is not affected by the schedule. Subsequent delays are approximately 200 milliseconds apart, demonstrating the effect of the `spaced` schedule.
+
+### fixed
+
+A schedule that recurs on a fixed interval. Returns the number of repetitions of the schedule so far.
+
+```ts file=<rootDir>/src/guide/scheduling/built-in-schedules/fixed.ts
+
+```
+
+The first delay is approximately 100 milliseconds, as the initial execution is not affected by the schedule. Subsequent delays are consistently around 200 milliseconds apart, demonstrating the effect of the `fixed` schedule.
+
+## exponential
+
+A schedule that recurs using exponential backoff
+
+```ts file=<rootDir>/src/guide/scheduling/built-in-schedules/exponential.ts
+
+```
+
+## fibonacci
+
+A schedule that always recurs, increasing delays by summing the preceding two delays (similar to the fibonacci sequence). Returns the current duration between recurrences.
+
+```ts file=<rootDir>/src/guide/scheduling/built-in-schedules/fibonacci.ts
+
+```

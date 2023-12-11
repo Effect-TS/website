@@ -1,0 +1,28 @@
+---
+title: Semaphore
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+---
+
+A semaphore, in the context of programming, is a synchronization mechanism that allows you to control access to a shared resource. In Effect, semaphores are used to manage access to resources or coordinate tasks in an asynchronous and concurrent environment. Let's dive into the concept of semaphores and how they work in Effect.
+
+## What is a Semaphore?
+
+A semaphore is a generalization of a mutex. It has a certain number of **permits**, which can be held and released concurrently by different parties. Think of permits as tickets that allow entities (e.g., tasks or fibers) to access a shared resource or perform a specific operation. If there are no permits available and an entity tries to acquire one, it will be suspended until a permit becomes available.
+
+Let's take a look at an example using asynchronous tasks:
+
+```ts filename="mutex.ts" file=<rootDir>/src/concurrency/semaphore/mutex.ts
+
+```
+
+Here, we synchronize and control the execution of asynchronous tasks using a semaphore with one permit. When all permits are in use, additional tasks attempting to acquire permits will wait until some become available.
+
+In another scenario, we create a semaphore with five permits. We then utilize `withPermits(n)` to acquire and release varying numbers of permits for each task:
+
+```ts file=<rootDir>/src/concurrency/semaphore/withPermits.ts
+
+```
+
+In this example, we show that you can acquire and release any number of permits with `withPermits(n)`. This flexibility allows for precise control over concurrency.
+
+One crucial aspect to remember is that `withPermits` ensures that each acquisition is matched with an equivalent number of releases, regardless of whether the task succeeds, fails, or gets interrupted.
