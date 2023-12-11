@@ -1,0 +1,126 @@
+---
+title: Error Handling in Streams
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+---
+
+## Recovering from Failure
+
+When working with streams that may encounter errors, it's crucial to know how to handle these errors gracefully. The `Stream.orElse` function is a powerful tool for recovering from failures and switching to an alternative stream in case of an error.
+
+Here's a practical example:
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/orElse.ts
+
+```
+
+In this example, `s1` encounters an error, but instead of terminating the stream, we gracefully switch to `s2` using `Stream.orElse`. This ensures that we can continue processing data even if one stream fails.
+
+There's also a variant called `Stream.orElseEither` that uses the [`Either`](../../data-types/either) data type to distinguish elements from the two streams based on success or failure:
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/orElseEither.ts
+
+```
+
+The `Stream.catchAll` function provides advanced error handling capabilities compared to `Stream.orElse`. With `Stream.catchAll`, you can make decisions based on both the type and value of the encountered failure.
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/catchAll.ts
+
+```
+
+In this example, we have a stream, `s1`, which may encounter two different types of errors. Instead of a straightforward switch to an alternative stream, as done with `Stream.orElse`, we employ `Stream.catchAll` to precisely determine how to handle each type of error. This level of control over error recovery enables you to choose different streams or actions based on the specific error conditions.
+
+## Recovering from Defects
+
+When working with streams, it's essential to be prepared for various failure scenarios, including defects that might occur during stream processing. To address this, the `Stream.catchAllCause` function provides a robust solution. It enables you to gracefully handle and recover from any type of failure that may arise.
+
+Here's an example to illustrate its usage:
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/catchAllCause.ts
+
+```
+
+In this example, `s1` may encounter a defect, but instead of crashing the application, we use `Stream.catchAllCause` to gracefully switch to an alternative stream, `s2`. This ensures that your application remains robust and continues processing data even in the face of unexpected issues.
+
+## Recovery from Some Errors
+
+In stream processing, there may be situations where you need to recover from specific types of failures. The `Stream.catchSome` and `Stream.catchSomeCause` functions come to the rescue, allowing you to handle and mitigate errors selectively.
+
+If you want to recover from a particular error, you can use `Stream.catchSome`:
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/catchSome.ts
+
+```
+
+To recover from a specific cause, you can use the `Stream.catchSomeCause` function:
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/catchSomeCause.ts
+
+```
+
+## Recovering to Effect
+
+In stream processing, it's crucial to handle errors gracefully and perform cleanup tasks when needed. The `Stream.onError` function allows us to do just that. If our stream encounters an error, we can specify a cleanup task to be executed.
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/onError.ts
+
+```
+
+## Retry a Failing Stream
+
+Sometimes, streams may encounter failures that are temporary or recoverable. In such cases, the `Stream.retry` operator comes in handy. It allows you to specify a retry schedule, and the stream will be retried according to that schedule.
+
+Here's an example to illustrate how it works:
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/retry.ts
+
+```
+
+In this example, the stream asks the user to input a number, but if an invalid value is entered (e.g., "a," "b," "c"), it fails with "NaN." However, we use `Stream.retry` with an exponential backoff schedule, which means it will retry after a delay of increasing duration. This allows us to handle temporary errors and eventually collect valid input.
+
+## Refining Errors
+
+When working with streams, there might be situations where you want to selectively keep certain errors and terminate the stream with the remaining errors. You can achieve this using the `Stream.refineOrDie` function.
+
+Here's an example to illustrate how it works:
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/refineOrDie.ts
+
+```
+
+In this example, `stream` initially fails with a generic `Error`. However, we use `Stream.refineOrDie` to filter and keep only errors of type `SyntaxError`. Any other errors will be terminated, while `SyntaxErrors` will be retained in `refinedStream`.
+
+## Timing Out
+
+When working with streams, there are scenarios where you may want to handle timeouts, such as terminating a stream if it doesn't produce a value within a certain duration. In this section, we'll explore how to manage timeouts using various operators.
+
+### timeout
+
+The `Stream.timeout` operator allows you to set a timeout on a stream. If the stream does not produce a value within the specified duration, it terminates.
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/timeout.ts
+
+```
+
+### timeoutFail
+
+The `Stream.timeoutFail` operator combines a timeout with a custom failure message. If the stream times out, it fails with the specified error message.
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/timeoutFail.ts
+
+```
+
+### timeoutFailCause
+
+Similar to `Stream.timeoutFail`, `Stream.timeoutFailCause` combines a timeout with a custom failure cause. If the stream times out, it fails with the specified cause.
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/timeoutFailCause.ts
+
+```
+
+### timeoutTo
+
+The `Stream.timeoutTo` operator allows you to switch to another stream if the first stream does not produce a value within the specified duration.
+
+```ts file=<rootDir>/src/streaming/stream/error-handling/timeoutTo.ts
+
+```

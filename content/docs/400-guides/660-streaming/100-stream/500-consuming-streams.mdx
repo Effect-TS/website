@@ -1,0 +1,45 @@
+---
+title: Consuming Streams
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+---
+
+When working with streams, it's essential to understand how to consume the data they produce.
+In this guide, we'll walk through several common methods for consuming streams.
+
+## Using `runCollect`
+
+To gather all the elements from a stream into a single `Chunk`, you can use the `Stream.runCollect` function.
+
+```ts file=<rootDir>/src/streaming/stream/consuming-streams/runCollect.ts
+
+```
+
+## Using `runForEach`
+
+Another way to consume elements of a stream is by using `Stream.runForEach`. It takes a callback function that receives each element of the stream. Here's an example:
+
+```ts file=<rootDir>/src/streaming/stream/consuming-streams/runForEach.ts
+
+```
+
+In this example, we use `Stream.runForEach` to log each element to the console.
+
+## Using a Fold Operation
+
+The `Stream.fold` function is another way to consume a stream by performing a fold operation over the stream of values and returning an effect containing the result. Here are a couple of examples:
+
+```ts file=<rootDir>/src/streaming/stream/consuming-streams/fold.ts
+
+```
+
+In the first example (`e1`), we use `Stream.runFold` to calculate the sum of all elements. In the second example (`e2`), we use `Stream.runFoldWhile` to calculate the sum but only until a certain condition is met.
+
+## Using a Sink
+
+To consume a stream using a Sink, you can pass the `Sink` to the `Stream.run` function. Here's an example:
+
+```ts file=<rootDir>/src/streaming/stream/consuming-streams/Sink.ts
+
+```
+
+In this example, we use a `Sink` to calculate the sum of the elements in the stream.
