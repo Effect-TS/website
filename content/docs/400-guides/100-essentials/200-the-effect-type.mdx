@@ -9,9 +9,11 @@ The `Effect<Requirements, Error, Value>` type represents an **immutable** value 
 It encapsulates the logic of a program that requires a collection of contextual data `Context<Requirements>` to execute.
 This program can either fail, produce an error of type `Error`, or succeed, yielding a value of type `Value`.
 
-Conceptually, you can think of `Effect<Requirements, Error, Value>` as an effectful version of the following function type:
+Conceptually, you can think of `Effect<Requirements, Error, Value>{:ts}` as an effectful version of the following function type:
 
-```ts
+```ts twoslash
+type Context<Requirements> = { [K in keyof Requirements]: Requirements[K] }
+// ---cut---
 type Effect<Requirements, Error, Value> = (
   context: Context<Requirements>
 ) => Error | Value

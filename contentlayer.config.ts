@@ -4,9 +4,11 @@ import { BlogPost } from './src/contentlayer/schema/blog-post'
 import { DocsPage } from './src/contentlayer/schema/docs-page'
 import { makeSource } from 'contentlayer/source-files'
 import remarkGfm from 'remark-gfm'
-// import rehypeShikiji from 'rehype-shikiji'
 import type { Options as RehypePrettyCodeOptions } from 'rehype-pretty-code'
 import rehypePrettyCode from 'rehype-pretty-code'
+import remarkShikiTwoslash from "remark-shiki-twoslash"
+import rehypeRaw from 'rehype-raw'
+import { nodeTypes } from '@mdx-js/mdx'
 import codeImport from "remark-code-import"
 
 export const CODE_BLOCK_FILENAME_REGEX = /filename="([^"]+)"/
@@ -30,29 +32,29 @@ const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS: RehypePrettyCodeOptions = {
     meta.replace(CODE_BLOCK_FILENAME_REGEX, '')
 }
 
+const conditionalShikiTwoslash = (options: any) => (tree: any, file: any) => {
+  if (file.data.rawDocumentData.sourceFilePath.includes('essentials')) {
+    // @ts-expect-error xxx
+    return remarkShikiTwoslash.default(options)(tree, file)
+  }
+}
+
 
 export default makeSource({
   contentDirPath: 'content',
   contentDirExclude: ['src'],
   documentTypes: [DocsPage, BlogPost],
   mdx: {
-    remarkPlugins: [[codeImport, { rootDir: process.cwd() + '/content' }], remarkGfm],
+    remarkPlugins: [
+      [codeImport, { rootDir: process.cwd() + '/content' }],
+      // // @ts-expect-error
+      // [remarkShikiTwoslash.default, { theme: "github-dark" }],
+      [conditionalShikiTwoslash, { theme: "github-dark" }],
+      remarkGfm
+    ],
     rehypePlugins: [
-      [
-        rehypePrettyCode,
-        {
-          ...DEFAULT_REHYPE_PRETTY_CODE_OPTIONS,
-          theme: 'github-dark',
-        }
-      ] as any
-      //   [rehypeShikiji as any, {
-      //   // or `theme` for a single theme
-      //   theme: 'github-dark',
-      //   // themes: {
-      //   //   light: 'github-light',
-      //   //   dark: 'github-dark',
-      //   // }
-      // }]
+      [rehypeRaw, { passThrough: nodeTypes }],
+      [rehypePrettyCode, { ...DEFAULT_REHYPE_PRETTY_CODE_OPTIONS, theme: 'github-dark', }] as any
     ]
   }
 })

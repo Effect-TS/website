@@ -11,8 +11,13 @@ In this guide, we will cover some of the common methods that you can use to crea
 
 In traditional programming, when an error occurs, it is often handled by throwing an exception:
 
-```ts file=<rootDir>/src/why-effect/divide.ts
-
+```ts twoslash
+const divide = (a: number, b: number): number => {
+  if (b === 0) {
+    throw new Error("Cannot divide by zero")
+  }
+  return a / b
+}
 ```
 
 However, throwing errors can be problematic. The type signatures of functions do not indicate that they can throw exceptions, making it difficult to reason about potential errors.
@@ -23,8 +28,10 @@ To address this issue, Effect introduces dedicated constructors for creating eff
 
 To create an effect that represents a successful computation, you can use the `Effect.succeed` constructor. It takes a value as input and produces an effect that succeeds with that value. Here's an example:
 
-```ts file=<rootDir>/src/essentials/creating/succeed.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.succeed(42)
 ```
 
 The `program` value has the type `Effect<never, never, number>` and can be interpreted as an effect that:
@@ -37,8 +44,10 @@ The `program` value has the type `Effect<never, never, number>` and can be inter
 
 To create an effect that represents a failure, you can use the `Effect.fail` constructor. It takes an error value as input and produces an effect that fails with that error. Here's an example:
 
-```ts file=<rootDir>/src/essentials/creating/fail.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.fail("my error")
 ```
 
 The `program` value has the type `Effect<never, string, never>` and can be interpreted as an effect that:
@@ -51,8 +60,13 @@ With `Effect.succeed` and `Effect.fail`, you can explicitly handle success and f
 
 Let's see an example of rewriting the `divide` function using Effect to make the error handling explicit:
 
-```ts file=<rootDir>/src/why-effect/divide-effect.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 ```
 
 In this example, the `divide` function explicitly indicates that it can produce an effect that either fails with an `Error` or succeeds with a `number` value. The type signature makes it clear how errors are handled and ensures that callers are aware of the possible outcomes.
@@ -73,7 +87,13 @@ To model synchronous side effects, Effect provides the `Effect.sync` and `Effect
 
 If you're working with synchronous side effects and you're confident that they will **never throw errors**, you can use the `Effect.sync` constructor:
 
-```ts file=<rootDir>/src/essentials/creating/sync.ts
+```ts twoslash
+import { Effect } from "effect"
+
+const program = Effect.sync(() => {
+  console.log("Hello, World!") // side effect
+  return 42 // return value
+})
 
 ```
 
@@ -91,23 +111,34 @@ This is because `program` represents the action of writing to the console, but n
 If the synchronous computation within the thunk may throw an error, you can use the `Effect.try` constructor.
 If an error is caught, it will be propagated to the error channel as `UnknownException`:
 
-```ts file=<rootDir>/src/essentials/creating/try.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.try(
+  () => JSON.parse("") // JSON.parse may throw for bad input
+)
 ```
 
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.try` that takes a remapping function:
 
-```ts {6} file=<rootDir>/src/essentials/creating/try-overload.ts
+```ts {5} twoslash
+import { Effect } from "effect"
 
+const program = Effect.try({
+  try: () => JSON.parse(""), // JSON.parse may throw for bad input
+  catch: (unknown) => new Error(`something went wrong ${unknown}`) // remap the error
+})
 ```
 
 You can think of this as a similar pattern to the traditional try-catch block in JavaScript:
 
-```ts
-try {
-  return JSON.parse("")
-} catch (unknown) {
-  throw new Error(`something went wrong ${unknown}`)
+```ts {2-6} twoslash
+const fn = () => {
+  try {
+    return JSON.parse("")
+  } catch (unknown) {
+    throw new Error(`something went wrong ${unknown}`)
+  }
 }
 ```
 
@@ -121,8 +152,17 @@ To overcome these limitations, Effect introduces dedicated constructors for crea
 
 If you're working with asynchronous side effects that return a `Promise` and you're confident that the `Promise` will **never reject**, you can use the `Effect.promise` constructor:
 
-```ts file=<rootDir>/src/essentials/creating/promise.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.promise<string>(
+  () =>
+    new Promise((resolve) => {
+      setTimeout(() => {
+        resolve("Async operation completed successfully!")
+      }, 2000)
+    })
+)
 ```
 
 The `program` value has the type `Effect<never, never, string>` and can be interpreted as an effect that:
@@ -140,14 +180,23 @@ The `program` value has the type `Effect<never, never, string>` and can be inter
 If the `Promise` within the thunk may reject, you can use the `Effect.tryPromise` constructor.
 If an error is caught, it will be propagated to the error channel as `UnknownException`:
 
-```ts file=<rootDir>/src/essentials/creating/tryPromise.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.tryPromise(() =>
+  fetch("https://jsonplaceholder.typicode.com/todos/1")
+)
 ```
 
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.tryPromise` that takes a remapping function:
 
-```ts {6} file=<rootDir>/src/essentials/creating/tryPromise-overload.ts
+```ts {5} twoslash
+import { Effect } from "effect"
 
+const program = Effect.tryPromise({
+  try: () => fetch("https://jsonplaceholder.typicode.com/todos/1"),
+  catch: (unknown) => new Error(`something went wrong ${unknown}`) // remap the error
+})
 ```
 
 ## From a callback
@@ -157,8 +206,21 @@ To handle callback-based APIs, Effect provides the `Effect.async` constructor.
 
 For example, let's wrap the `readFile` async API from the Node.js `fs` module with Effect (ensure you have `@types/node` installed):
 
-```ts file=<rootDir>/src/essentials/creating/async.ts
+```ts twoslash
+/// <reference types="node" />
+// ---cut---
+import { Effect } from "effect"
+import * as NodeFS from "node:fs"
 
+const program = Effect.async<never, Error, Buffer>((resume) => {
+  NodeFS.readFile("todos.txt", (error, data) => {
+    if (error) {
+      resume(Effect.fail(error))
+    } else {
+      resume(Effect.succeed(data))
+    }
+  })
+})
 ```
 
 In the above example, we manually annotate the types when calling `Effect.async` because TypeScript cannot infer the type parameters for a callback
@@ -176,7 +238,10 @@ based on the return value inside the callback body. Annotating the types ensures
 It allows you to defer the evaluation of an effect until it is actually needed.
 The `Effect.suspend` function takes a thunk that represents the effect, and it wraps it in a suspended effect.
 
-```ts
+```ts twoslash
+import { Effect } from "effect"
+const effect = Effect.succeed(42)
+// ---cut---
 const suspendedEffect = Effect.suspend(() => effect)
 ```
 
@@ -186,8 +251,20 @@ Let's explore some common scenarios where `Effect.suspend` proves useful:
 
    Also, when effects with side effects or scoped captures are created, use `Effect.suspend` to re-execute on each invocation.
 
-   ```ts file=<rootDir>/src/essentials/creating/suspend-lazy-evaluation.ts
+   ```ts twoslash
+   import { Effect } from "effect"
 
+   let i = 0
+
+   const bad = Effect.succeed(i++)
+
+   const good = Effect.suspend(() => Effect.succeed(i++))
+
+   console.log(Effect.runSync(bad)) // Output: 0
+   console.log(Effect.runSync(bad)) // Output: 0
+
+   console.log(Effect.runSync(good)) // Output: 1
+   console.log(Effect.runSync(good)) // Output: 2
    ```
 
    In this example, `Effect.succeed(i++)` creates a new numeric value and consistently returns the same number. On the other hand, `Effect.suspend(() => Effect.succeed(i++))` generates a new number with each invocation.
@@ -197,14 +274,45 @@ Let's explore some common scenarios where `Effect.suspend` proves useful:
 2. **Handling Circular Dependencies**. `Effect.suspend` is helpful in managing circular dependencies between effects, where one effect depends on another, and vice versa.
    For example it's fairly common for `Effect.suspend` to be used in recursive functions to escape an eager call. For instance:
 
-   ```ts file=<rootDir>/src/essentials/creating/suspend-recursive.ts
+   ```ts twoslash
+   import { Effect } from "effect"
+
+   const blowsUp = (n: number): Effect.Effect<never, never, number> =>
+     n < 2
+       ? Effect.succeed(1)
+       : Effect.zipWith(blowsUp(n - 1), blowsUp(n - 2), (a, b) => a + b)
+
+   // console.log(Effect.runSync(blowsUp(32))) // crash: JavaScript heap out of memory
+
+   const allGood = (n: number): Effect.Effect<never, never, number> =>
+     n < 2
+       ? Effect.succeed(1)
+       : Effect.zipWith(
+           Effect.suspend(() => allGood(n - 1)),
+           Effect.suspend(() => allGood(n - 2)),
+           (a, b) => a + b
+         )
+
+   console.log(Effect.runSync(allGood(32))) // Output: 3524578
 
    ```
 
 3. **Unifying Return Type**. In situations where TypeScript struggles to unify the returned effect type, `Effect.suspend` can be employed to resolve this issue. For example:
 
-   ```ts file=<rootDir>/src/essentials/creating/suspend-unify.ts
-
+   ```ts twoslash
+   import { Effect } from "effect"
+ 
+   const ugly = (a: number, b: number) =>
+     b === 0
+       ? Effect.fail(new Error("Cannot divide by zero"))
+       : Effect.succeed(a / b)
+ 
+   const nice = (a: number, b: number) =>
+     Effect.suspend(() =>
+       b === 0
+         ? Effect.fail(new Error("Cannot divide by zero"))
+         : Effect.succeed(a / b)
+     )
    ```
 
 ## Cheatsheet
