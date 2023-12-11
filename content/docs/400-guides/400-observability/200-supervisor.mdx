@@ -1,0 +1,29 @@
+---
+title: Supervisor
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+A `Supervisor<A>` is a tool that manages the creation and termination of fibers, producing some visible value of type `A` based on its supervision.
+
+## Creating
+
+### track
+
+To create a supervisor, you can use the `Supervisor.track` function. It generates a new supervisor that keeps track of its child fibers in a set.
+
+## Supervising
+
+### supervised
+
+Whenever you need to supervise an effect, you can employ the `Effect.supervised` function. This function takes a supervisor and returns an effect that behaves the same as the original effect. However, all child fibers forked within this effect are reported to the specified supervisor.
+
+By doing this, you associate the behavior of child fibers with the provided supervisor, giving you access to all the information about these child fibers through the supervisor.
+
+## Example
+
+In the following example, we will periodically monitor the number of fibers throughout our application's lifecycle:
+
+```ts file=<rootDir>/src/guide/observability/supervisor/example.ts
+
+```

@@ -1,0 +1,265 @@
+---
+title: Logging
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+Logging is a crucial aspect of software development, especially when it comes to debugging and monitoring the behavior of your applications. In this section, we'll delve into Effect's logging utilities and explore their advantages over traditional methods like `console.log`.
+
+## Advantages Over Traditional Logging
+
+Effect's logging utilities offer several advantages over traditional logging methods like `console.log`:
+
+1. **Dynamic Log Level Control**: With Effect's logging, you have the ability to change the log level dynamically. This means you can control which log messages get displayed based on their severity. For example, you can configure your application to log only warnings or errors, which can be extremely helpful in production environments to reduce noise.
+
+2. **Custom Logging Output**: Effect's logging utilities allow you to change how logs are handled. You can direct log messages to various destinations, such as a service or a file, using a [custom logger](#custom-loggers). This flexibility ensures that logs are stored and processed in a way that best suits your application's requirements.
+
+3. **Fine-Grained Logging**: Effect enables fine-grained control over logging on a per-part basis of your program. You can set different log levels for different parts of your application, tailoring the level of detail to each specific component. This can be invaluable for debugging and troubleshooting, as you can focus on the information that matters most.
+
+4. **Environment-Based Logging**: Effect's logging utilities can be combined with deployment environments to achieve granular logging strategies. For instance, during development, you might choose to log everything at a trace level and above for detailed debugging. In contrast, your production version could be configured to log only errors or critical issues, minimizing the impact on performance and noise in production logs.
+
+5. **Additional Features**: Effect's logging utilities come with additional features such as the ability to measure time spans, alter log levels on a per-effect basis, and integrate spans for performance monitoring.
+
+Now, let's dive into the specific logging utilities provided by Effect.
+
+## log
+
+The `log` function is used to print a message at the current log level, which is `INFO` by default.
+
+```ts file=<rootDir>/src/logging/log.ts
+
+```
+
+The log message contains the following information:
+
+- `timestamp`: The timestamp when the log message was generated.
+- `level`: The log level at which the message is logged.
+- `fiber`: The identifier of the [fiber](../concurrency/fibers.mdx#what-is-a-fiber) executing the program.
+- `message`: The content of the log message.
+- `span`: (Optional) The duration of the span in milliseconds.
+
+## Log Levels
+
+### logDebug
+
+By default, `DEBUG` messages are **not** printed.
+
+However, you can configure the default logger to enable them using `Logger.withMinimumLogLevel` and setting the minimum log level to `LoggerLevel.Debug`.
+
+Here's an example that demonstrates how to enable `DEBUG` messages for a specific task (`task1`):
+
+<Tabs>
+<Tab>
+
+```ts /Logger.withMinimumLogLevel(LoggerLevel.Debug)/ file=<rootDir>/src/logging/debug-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts /Logger.withMinimumLogLevel(LoggerLevel.Debug)/ file=<rootDir>/src/logging/debug-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+In the above example, we enable `DEBUG` messages specifically for `task1` by using the `Logger.withMinimumLogLevel` function.
+
+By using `Logger.withMinimumLogLevel(effect, level){:ts}`, you have the flexibility to selectively enable different log levels for specific effects in your program. This allows you to control the level of detail in your logs and focus on the information that is most relevant to your debugging and troubleshooting needs.
+
+### logInfo
+
+By default, `INFO` messages are printed.
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/logging/info-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/logging/info-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+In the above example, the `Effect.log` function is used to log an `INFO` message with the content `"start"` and `"done"`. These messages will be printed during the execution of the program.
+
+### logWarning
+
+By default, `WARN` messages are printed.
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/logging/warning-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/logging/warning-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+### logError
+
+By default, `ERROR` messages are printed.
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/logging/error-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/logging/error-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+### logFatal
+
+By default, `FATAL` messages are printed.
+
+<Tabs>
+<Tab>
+
+```ts file=<rootDir>/src/logging/fatal-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts file=<rootDir>/src/logging/fatal-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+## Spans
+
+Effect also provides support for spans, allowing you to measure the duration of specific operations or tasks within your program.
+
+<Tabs>
+<Tab>
+
+```ts /Effect.withLogSpan("myspan")/ /myspan=1011ms/ file=<rootDir>/src/logging/spans-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts /Effect.withLogSpan("myspan")/ /myspan=1011ms/ file=<rootDir>/src/logging/spans-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+In the above example, a span is created using the `Effect.withLogSpan` function. It measures the duration of the code block within the span and logs an `INFO` message with the content "The job is finished!" along with the span duration of 1011ms (`myspan=1011ms`).
+
+## Disabling Default Logging
+
+If you ever find yourself needing to turn off default logging, perhaps during test execution, there are various ways to achieve this within the Effect framework. In this section, we'll explore different methods to disable default logging.
+
+**Using withMinimumLogLevel**
+
+Effect provides a convenient function called `withMinimumLogLevel` that allows you to set the minimum log level, effectively disabling logging:
+
+```ts file=<rootDir>/src/logging/disabling-logging-withMinimumLogLevel.ts
+
+```
+
+By setting the log level to `LogLevel.None`, you effectively disable logging, and only the final result will be displayed.
+
+**Using a Layer**
+
+Another approach to disable logging is by creating a layer that sets the minimum log level to `LogLevel.None`, effectively turning off all logging:
+
+```ts file=<rootDir>/src/logging/disabling-logging-layer.ts
+
+```
+
+**Using a Custom Runtime**
+
+You can also disable logging by creating a custom runtime that includes the configuration to turn off logging:
+
+```ts file=<rootDir>/src/logging/disabling-logging-runtime.ts
+
+```
+
+In this approach, you create a custom runtime that incorporates the configuration to disable logging, and then you execute your program using this custom runtime.
+
+## Loading the Log Level from Configuration
+
+To retrieve the log level from a [configuration](../configuration.mdx) and incorporate it into your program, utilize the layer produced by `Logger.minimumLogLevel`:
+
+```ts file=<rootDir>/src/logging/load-log-level-from-configuration.ts
+
+```
+
+To evaluate the configured program, you can utilize `ConfigProvider.fromMap` for testing (refer to [Testing Services](../configuration.mdx#testing-services) for more details).
+
+## Custom loggers
+
+In this section, we will learn how to define a custom logger and set it as the default logger in our program.
+
+First, let's define our custom logger. Let's say we want to log `DEBUG` messages in regular text and all other messages in bold:
+
+```ts filename="CustomLogger.ts" file=<rootDir>/src/logging/CustomLogger.ts
+
+```
+
+Assuming we have defined the following program:
+
+<Tabs>
+<Tab>
+
+```ts filename="program.ts" file=<rootDir>/src/logging/program-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts filename="program.ts" file=<rootDir>/src/logging/program.ts
+
+```
+
+</Tab>
+</Tabs>
+
+To replace the default logger, we simply need to create a specific layer using `Logger.replace` and provide it to our program using `Effect.provide` before executing it:
+
+```ts filename="index.ts" file=<rootDir>/src/logging/index.ts
+
+```
+
+This is what we see printed on the console after executing the program:
+
+```ansi
+[1m[INFO] start[0m
+[DEBUG] task1 done
+[DEBUG] task2 done
+[1m[INFO] done[0m
+```

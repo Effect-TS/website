@@ -1,0 +1,200 @@
+---
+title: Configuration
+excerpt: Effect is a powerful TypeScript library designed to help developers easily create complex, synchronous, and asynchronous programs.
+bottomNavigation: pagination
+---
+
+Configuration is an essential aspect of any cloud-native application. Effect simplifies the process of managing configuration by offering a convenient interface for configuration providers.
+
+The configuration front-end in Effect enables ecosystem libraries and applications to specify their configuration requirements in a declarative manner. It offloads the complex tasks to a `ConfigProvider`, which can be supplied by third-party libraries.
+
+Effect comes bundled with a straightforward default `ConfigProvider` that retrieves configuration data from environment variables. This default provider can be used during development or as a starting point before transitioning to more advanced configuration providers.
+
+To make our application configurable, we need to understand three essential elements:
+
+- **Config Description**: We describe the configuration data using an instance of `Config<A>`. If the configuration data is simple, such as a `string`, `number`, or `boolean`, we can use the built-in functions provided by the `Config` module. For more complex data types like [`HostPort`](#custom-configurations), we can combine primitive configs to create a custom configuration description.
+
+- **Config Frontend**: We utilize the instance of `Config<A>` to load the configuration data described by the instance (a `Config` is, in itself, an effect). This process leverages the current `ConfigProvider` to retrieve the configuration.
+
+- **Config Backend**: The `ConfigProvider` serves as the underlying engine that manages the configuration loading process. Effect comes with a default config provider as part of its default services. This default provider reads the configuration data from environment variables. If we want to use a custom config provider, we can utilize the `Effect.setConfigProvider` layer to configure the Effect runtime accordingly.
+
+## Primitives
+
+Effect provides a set of primitives for the most common types like `string`, `number`, `boolean`, `integer`, etc.
+
+Let's start with a simple example of how to read configuration from environment variables:
+
+<Tabs>
+<Tab>
+
+```ts filename="primitives.ts" file=<rootDir>/src/configuration/primitives-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts filename="primitives.ts" file=<rootDir>/src/configuration/primitives-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+If we run this application we will get the following output:
+
+```bash filename="Terminal" {3-6}
+(Missing data at HOST: "Expected HOST to exist in the process context")
+```
+
+This is because we have not provided any configuration. Let's try running it with the following environment variables:
+
+```bash filename="Terminal"
+HOST=localhost PORT=8080 ts-node primitives.ts
+```
+
+Now we get the following output:
+
+```bash
+Application started: localhost:8080
+```
+
+## Fallback Values
+
+In some cases, you may encounter situations where an environment variable is not set, leading to a missing value in the configuration. To handle such scenarios, Effect provides the `Config.withDefault` function. This function allows you to specify a fallback or default value to use when an environment variable is not present.
+
+Here's how you can use `Config.withDefault` to handle fallback values:
+
+<Tabs>
+<Tab>
+
+```ts filename="withDefault.ts" /Config.withDefault/ file=<rootDir>/src/configuration/withDefault-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts filename="withDefault.ts" /Config.withDefault/ file=<rootDir>/src/configuration/withDefault-pipe.ts
+
+```
+
+</Tab>
+</Tabs>
+
+When running the program with the command:
+
+```bash filename="Terminal"
+HOST=localhost ts-node withDefault.ts
+```
+
+you will see the following output:
+
+```bash
+Application started: localhost:8080
+```
+
+Even though the `PORT` environment variable is not set, the fallback value of `8080` is used, ensuring that the program continues to run smoothly with a default value.
+
+## Custom Configurations
+
+In addition to primitive types, we can also define configurations for custom types. To achieve this, we use primitive configs and combine them using `Config` operators (`zip`, `orElse`, `map`, etc.) and constructors (`setOf`, `arrayOf`, `table`, etc.).
+
+Let's consider the `HostPort` data type, which consists of two fields: `host` and `port`.
+
+```ts filename="HostPort.ts" file=<rootDir>/src/configuration/HostPort.ts#L3-L9
+
+```
+
+We can define a configuration for this data type by combining primitive configs for `string` and `number`:
+
+```ts filename="HostPort.ts" file=<rootDir>/src/configuration/HostPort.ts
+
+```
+
+In the above example, we use the `Config.all(configs){:ts}` operator to combine two primitive configs `Config<string>` and `Config<number>` into a `Config<[string, number]>`.
+
+If we use this customized configuration in our application:
+
+<Tabs>
+<Tab>
+
+```ts filename="App.ts" /HostPort.config/ file=<rootDir>/src/configuration/App-gen.ts
+
+```
+
+</Tab>
+<Tab>
+
+```ts filename="App.ts" /HostPort.config/ file=<rootDir>/src/configuration/App.ts
+
+```
+
+</Tab>
+</Tabs>
+
+when you run the program using `Effect.runSync(program){:ts}`, it will attempt to read the corresponding values from environment variables (`HOST` and `PORT`):
+
+```bash filename="Terminal"
+HOST=localhost PORT=8080 ts-node HostPort.ts
+
+Application started: localhost:8080
+```
+
+## Top-level and Nested Configurations
+
+So far, we have learned how to define configurations in a top-level manner, whether they are for primitive or custom types. However, we can also define nested configurations.
+
+Let's assume we have a `ServiceConfig` data type that consists of two fields: `hostPort` and `timeout`.
+
+```ts filename="ServiceConfig.ts" file=<rootDir>/src/configuration/ServiceConfig.ts
+
+```
+
+If we use this customized config in our application, it tries to read corresponding values from environment variables: `HOST`, `PORT`, and `TIMEOUT`.
+
+However, in many cases, we don't want to read all configurations from the top-level namespace. Instead, we may want to nest them under a common namespace. For example, we want to read both `HOST` and `PORT` from the `HOSTPORT` namespace, and `TIMEOUT` from the root namespace.
+
+To achieve this, we can use the `Config.nested` combinator. It allows us to nest configs under a specific namespace. Here's how we can update our configuration:
+
+```ts /Config.nested/ filename="ServiceConfig.ts" file=<rootDir>/src/configuration/ServiceConfig-nested.ts#L8-
+const config: Config.Config<ServiceConfig> = Config.all(
+  Config.nested(HostPort.config, "HOSTPORT"),
+  Config.float("TIMEOUT")
+).pipe(
+  Config.map(([hostPort, timeout]) => new ServiceConfig(hostPort, timeout))
+)
+```
+
+Now, if we run our application, it will attempt to read the corresponding values from the environment variables: `HOSTPORT_HOST`, `HOSTPORT_PORT`, and `TIMEOUT`.
+
+## Testing Services
+
+When testing services, there are scenarios where we need to provide specific configurations to them. In such cases, we should be able to mock the backend that reads the configuration data.
+
+To accomplish this, we can use the `ConfigProvider.fromMap` constructor. This constructor takes a `Map<string, string>` that represents the configuration data, and it returns a config provider that reads the configuration from that map.
+
+Once we have the mock config provider, we can use `Effect.setConfigProvider` function. This function allows us to override the default config provider and provide our own custom config provider. It returns a `Layer` that can be used to configure the Effect runtime for our test specs.
+
+Here's an example of how we can mock a config provider for testing purposes:
+
+```ts filename="mockConfigProvider.ts" file=<rootDir>/src/configuration/mockConfigProvider.ts
+
+```
+
+By using this approach, we can easily mock the configuration data and test our services with different configurations in a controlled manner.
+
+## Secret
+
+What sets `Config.secret` apart from `Config.string` is its handling of sensitive information.
+It parses the Config value and wraps it in a `Secret`, a data type designed for holding secrets.
+
+When you use `console.log` on a secret, the actual value remains hidden, providing an added layer of security. The only way to access the value is by using `Secret.value(secret)`.
+
+Here's a simple example to illustrate:
+
+```ts file=<rootDir>/src/configuration/secret.ts
+
+```
+
+In this example, you can see that when logging the secret using `console.log`, the actual value is replaced with `<redacted>`, ensuring that sensitive information is not exposed. The `Secret.value` function, on the other hand, provides a controlled way to retrieve the original secret value.

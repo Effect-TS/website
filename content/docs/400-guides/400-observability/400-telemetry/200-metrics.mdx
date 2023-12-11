@@ -1,0 +1,211 @@
+---
+title: Introduction to Metrics in Effect
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+In complex and highly concurrent applications, managing various interconnected components can be quite challenging. Ensuring that everything runs smoothly and avoiding application downtime becomes crucial in such setups.
+
+Now, let's imagine we have a sophisticated infrastructure with numerous services. These services are replicated and distributed across our servers. However, we often lack insight into what's happening across these services, including error rates, response times, and service uptime. This lack of visibility can make it challenging to identify and address issues effectively. This is where Effect Metrics comes into play; it allows us to capture and analyze various metrics, providing valuable data for later investigation.
+
+Effect Metrics offers support for five different types of metrics:
+
+1. **Counter**: Counters are used to track values that increase over time, such as request counts. They help us keep tabs on how many times a specific event or action has occurred.
+
+2. **Gauge**: Gauges represent a single numerical value that can fluctuate up and down over time. They are often used to monitor metrics like memory usage, which can vary continuously.
+
+3. **Histogram**: Histograms are useful for tracking the distribution of observed values across different buckets. They are commonly used for metrics like request latencies, allowing us to understand how response times are distributed.
+
+4. **Summary**: Summaries provide insight into a sliding window of a time series and offer metrics for specific percentiles of the time series, often referred to as quantiles. This is particularly helpful for understanding latency-related metrics, such as request response times.
+
+5. **Frequency**: Frequency metrics count the occurrences of distinct string values. They are useful when you want to keep track of how often different events or conditions are happening in your application.
+
+## Counter
+
+In the world of metrics, a Counter is a metric that represents a single numerical value that can be both incremented and decremented over time. Think of it like a tally that keeps track of changes, such as the number of a particular type of request received by your application, whether it's increasing or decreasing.
+
+Unlike some other types of metrics (like gauges), where we're interested in the value at a specific moment, with counters, we care about the cumulative value over time. This means it provides a running total of changes, which can go up and down, reflecting the dynamic nature of certain metrics.
+
+### How to Create a Counter
+
+To create a counter, you can use the `Metric.counter` constructor in your code. You have the option to specify the type of the counter as either `number` or `bigint`. Here's how you can do it:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/constructor.ts#L1-L12
+
+```
+
+If you wish to create a counter that only increases its value, you can utilize the `incremental: true` option as follows:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/constructor.ts#L14-
+
+```
+
+With this configuration, Effect ensures that non-incremental updates have no impact on the counter, making it exclusively suitable for counting upwards.
+
+### When to Use Counters
+
+Counters are incredibly useful when you need to keep track of cumulative values that can both increase and decrease over time. So, when should you use counters?
+
+1. **Tracking a Value Over Time**: If you need to monitor something that consistently increases over time, like the number of incoming requests, counters are your go-to choice.
+
+2. **Measuring Growth Rates**: Counters are also handy when you want to measure how fast something is growing. For instance, you can use them to keep tabs on request rates.
+
+Counters find application in various scenarios, including:
+
+- **Request Counts**: Monitoring the number of incoming requests to your server.
+
+- **Completed Tasks**: Keeping track of how many tasks or processes have been successfully completed.
+
+- **Error Counts**: Counting the occurrences of errors in your application.
+
+### Example
+
+Here's a practical example of creating and using a counter in your code:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/example.ts
+
+```
+
+In this example, we create a counter called `taskCount`, which is incremented by 1 each time it's invoked. We then use it to monitor the number of times certain tasks are executed. The result provides valuable insights into the cumulative count of these tasks.
+
+It's worth noting that applying the `taskCount` metric to an effect doesn't change its type. So, if `task1` has a type of `Effect<never, never, number>`, then `taskCount(task1)` still has the same type, `Effect<never, never, number>`.
+
+## Gauge
+
+In the world of metrics, a Gauge is a metric that represents a single numerical value that can be set or adjusted. Think of it as a dynamic variable that can change over time. One common use case for a gauge is to monitor something like the current memory usage of your application.
+
+Unlike counters, where we're interested in cumulative values over time, with gauges, our focus is on the current value at a specific point in time.
+
+### How to Create a Gauge
+
+To create a gauge, you can use the `Metric.gauge` constructor in your code. You can specify the type of the gauge as either `number` or `bigint`. Here's how you can do it:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/gauge/constructor.ts
+
+```
+
+### When to Use Gauges
+
+Gauges are the best choice when you want to monitor values that can both increase and decrease, and you're not interested in tracking their rates of change. In other words, gauges help us measure things that have a specific value at a particular moment:
+
+- **Memory Usage**: Keeping an eye on how much memory your application is using right now.
+
+- **Queue Size**: Monitoring the current size of a queue where tasks are waiting to be processed.
+
+- **In-Progress Request Counts**: Tracking the number of requests currently being handled by your server.
+
+- **Temperature**: Measuring the current temperature, which can fluctuate up and down.
+
+### Example
+
+Let's look at a practical example of creating and using a gauge in your code:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/gauge/example.ts
+
+```
+
+## Histogram
+
+A Histogram is a metric that helps us understand how a collection of numerical values is distributed over time. Instead of just focusing on the individual values, histograms organize these values into distinct intervals, called buckets, and record the frequency of values within each bucket.
+
+Histograms are valuable because they not only represent the actual values but also provide insights into their distribution. They are like a summary of a dataset, breaking down the data into buckets and showing how many data points fall into each one.
+
+### How Histograms Work
+
+In a histogram, each incoming sample is assigned to a predefined bucket. When a data point arrives, it increases the count for the corresponding bucket, and then the individual sample is discarded. This bucketed approach allows us to aggregate data across multiple instances. Histograms are especially useful for measuring percentiles, helping us estimate specific percentiles by looking at bucket counts.
+
+### Key Concepts
+
+- **Observing Values:** Histograms observe numerical values and count how many observations fall into specific buckets. Each bucket has an upper boundary, and the count for a bucket increases by 1 if an observed value is less than or equal to the bucket's upper boundary.
+
+- **Overall Count:** A histogram also keeps track of the total count of observed values and the sum of all observed values.
+
+- **Inspired by Prometheus:** The concept of histograms is inspired by [Prometheus](https://prometheus.io/docs/concepts/metric_types/#histogram), a popular monitoring and alerting toolkit.
+
+### When to Use Histograms
+
+Histograms are widely used in software metrics for various purposes, especially in analyzing the performance of software systems. They are valuable for metrics such as response times, latencies, and throughput. By visualizing the distribution of these metrics in a histogram, developers can identify performance bottlenecks, outliers, or variations. This information helps in optimizing code, infrastructure, and system configurations to improve overall performance.
+
+Histograms are the best choice in the following situations:
+
+- When you want to observe many values and later calculate percentiles of those observed values.
+
+- When you can estimate the range of values in advance, as histograms organize observations into predefined buckets.
+
+- When you don't require exact values due to the inherent lossy nature of bucketing data in histograms.
+
+- When you need to aggregate histograms across multiple instances.
+
+### Examples
+
+#### Histogram With Linear Buckets
+
+In this example, we create a histogram with linear buckets, ranging from 0 to 100 in increments of 10, and an "Infinity" bucket. It's suitable for effects yielding a `number`. The program then generates random values, records them in the histogram, and displays the histogram's state.
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/histogram/linear.ts
+
+```
+
+#### Timer Metric
+
+This example demonstrates the use of a timer metric to track workflow durations. It generates random values, simulates waiting times, records durations in the timer metric, and displays the histogram's state.
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/histogram/timer.ts
+
+```
+
+These examples showcase how histograms can be used to analyze and understand the distribution of data in various scenarios, making them a valuable tool in software metrics.
+
+## Summary
+
+A Summary is a metric that provides valuable insights into a time series by calculating specific percentiles. These percentiles help us understand the distribution of values within the time series. Imagine you're tracking response times for requests over the past hour; you might be interested in percentiles like the 50th, 90th, 95th, and 99th to analyze performance.
+
+### How Summaries Work
+
+Summaries, much like histograms, observe `number` values. However, instead of directly modifying bucket counters and discarding samples, summaries retain the observed samples in their internal state. To prevent uncontrolled growth of the sample set, a summary is configured with a maximum age `maxAge` and a maximum size `maxSize`. When calculating statistics, it uses a maximum of `maxSize` samples, all of which are not older than `maxAge`.
+
+Think of the set of samples as a sliding window over the most recent observations that meet the specified conditions.
+
+Summaries are primarily used to calculate quantiles over the current set of samples. A quantile is defined by a `number` value `q` with `0 <= q <= 1` and results in a `number` as well.
+
+The value of a specific quantile `q` is determined as the maximum value `v` from the current sample buffer (with size `n`) where at most `q * n` values from the sample buffer are less than or equal to `v`.
+
+Common quantiles for observation include `0.5` (the median) and `0.95`. Quantiles are particularly useful for monitoring Service Level Agreements (SLAs).
+
+The Effect Metrics API also allows summaries to be configured with an error margin `error`. This margin is applied to the count of values, so a quantile `q` for a set of size `s` resolves to value `v` if the count `n` of values less than or equal to `v` falls within the range `(1 - error)q * s <= n <= (1 + error)q`.
+
+### When to Use Summaries
+
+Summaries are excellent for monitoring latencies when histograms are not the right fit due to accuracy concerns. They shine in situations where:
+
+- The range of values is not well-estimated, making histograms less suitable.
+
+- There's no need for aggregation or averaging across multiple instances, as summary calculations are performed on the application side.
+
+### Example
+
+Let's create a summary to hold `100` samples, with a maximum sample age of `1 day`, and an error margin of `3%`. This summary should report the `10%`, `50%`, and `90%` quantiles. It can be applied to effects yielding integers:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/summary/example.ts
+
+```
+
+## Frequency
+
+Frequencies are metrics that help us count the occurrences of specific values. Think of them as a set of counters, each associated with a unique value. When new values are observed, frequencies automatically create new counters for them.
+
+### When to Use Frequencies
+
+Frequencies are invaluable for counting the occurrences of distinct string values. Consider using frequencies in scenarios like:
+
+- Tracking the number of invocations for each service in an application that uses logical names for its services.
+
+- Monitoring the frequency of different types of failures.
+
+### Example
+
+Let's create a Frequency to observe the occurrences of unique strings. This example can be applied to effects that yield a `string`:
+
+```ts file=<rootDir>/src/guide/observability/otel/metrics/frequency/example.ts
+
+```
