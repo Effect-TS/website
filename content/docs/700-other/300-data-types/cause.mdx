@@ -1,0 +1,71 @@
+---
+title: Cause
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+The [`Effect<R, E, A>`](../../guides/essentials/the-effect-type) type is polymorphic in values of type `E`, which means we can work with any error type we want. However, there is additional information related to failures that is not captured by the `E` value alone.
+
+To preserve and provide comprehensive information about failures, Effect uses the `Cause<E>` data type. `Cause` is responsible for storing various details, such as:
+
+- Unexpected errors or defects
+- Stack and execution traces
+- Causes of fiber interruptions
+
+Effect is designed to be strict in preserving all the information related to a failure. It captures and stores the complete story of failure in the `Cause` data type. This ensures that no information about the failure is lost, allowing us to precisely determine what happened during the execution of our effects.
+
+Although we don't typically work directly with `Cause` values, it is an underlying data type that represents errors occurring within an Effect workflow. It provides us with total access to all concurrent and sequential errors within our codebase. This gives us the ability to analyze and handle failures in a comprehensive manner whenever needed.
+
+We have the ability to create effects with specific causes using the `Effect.failCause(cause){:ts}` function:
+
+```ts file=<rootDir>/src/reference/data-types/cause/failCause.ts
+
+```
+
+To uncover the underlying cause of an effect, we can use the `Effect.cause(effect){:ts}` function:
+
+```ts
+Effect.cause(effect).pipe(
+  Effect.flatMap((cause) => ...)
+)
+```
+
+## Cause Variations
+
+There are several causes for various errors, in this section, we will describe each of these causes.
+
+### Empty
+
+The `Empty` cause represents a lack of errors.
+
+### Fail
+
+The `Fail` cause represents a `Cause` which failed with an expected error of type `E`.
+
+### Die
+
+The `Die` cause represents a `Cause` which failed as a result of a defect, or in other words, an unexpected error.
+
+### Interrupt
+
+The `Interrupt` cause represents failure due to `Fiber` interruption, which contains the `FiberId` of the interrupted `Fiber`.
+
+### Sequential
+
+The `Sequential` cause represents the composition of two causes which occurred
+sequentially.
+
+For example, if we perform Effect's analog of `try-finally` (i.e.
+`Effect.ensuring`), and both the `try` and `finally` blocks fail, we have two
+errors which occurred sequentially. In these cases, the errors can be
+represented by the `Sequential` cause.
+
+### Parallel
+
+The `Parallel` cause represents the composition of two causes which occurred in parallel.
+
+In Effect programs, it is possible that two operations may be performed in
+parallel. In these cases, the `Effect` workflow can fail for more than one
+reason. If both computations fail, then there are actually two errors which
+occurred in parallel. In these cases, the errors can be represented by the
+`Parallel` cause.

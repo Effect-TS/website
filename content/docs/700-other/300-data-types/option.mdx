@@ -1,0 +1,202 @@
+---
+title: Option
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+The `Option` data type is used to represent optional values. An `Option` can be either `Some`, which contains a value, or `None`, which indicates the absence of a value.
+
+The `Option` type is versatile and can be applied in various scenarios, including:
+
+- Using it for initial values
+- Returning values from functions that are not defined for all possible inputs (referred to as "partial functions")
+- Managing optional fields in data structures
+- Handling optional function arguments
+
+## Creating Options
+
+The `some` constructor takes a value of type `A` and returns an `Option<A>` that holds that value:
+
+```ts file=<rootDir>/src/reference/data-types/option/some.ts
+
+```
+
+On the other hand, the `none` constructor returns an `Option<never>`, representing the absence of a value:
+
+```ts file=<rootDir>/src/reference/data-types/option/none.ts
+
+```
+
+## Modeling Optional Properties
+
+Let's look at an example of a `User` model where the `"email"` property is optional and can have a value of type `string`.
+To represent this, we can use the `Option<string>` type:
+
+```ts {6} file=<rootDir>/src/reference/data-types/option/optional-property.ts#L1-L7
+
+```
+
+<Warning>
+  Optionality only applies to the value of the property. The key `"email"` will
+  always be present in the object, regardless of whether it has a value or not.
+</Warning>
+
+Now, let's see how we can create instances of `User` with and without an email:
+
+```ts file=<rootDir>/src/reference/data-types/option/optional-property.ts#L9-
+
+```
+
+## Guards
+
+You can determine whether an `Option` is a `Some` or a `None` by using the `isSome` and `isNone` guards:
+
+```ts file=<rootDir>/src/reference/data-types/option/guards.ts
+
+```
+
+## Matching
+
+The `Option.match` function allows you to handle different cases of an `Option` value by providing separate actions for each case:
+
+```ts file=<rootDir>/src/reference/data-types/option/match.ts
+
+```
+
+<Idea>
+  Using `match` instead of `isSome` or `isNone` can be more expressive and
+  provide a clear way to handle both cases of an `Option`.
+</Idea>
+
+## Working with `Option`
+
+The `Option.map` function allows you to transform the value inside an `Option` without having to unwrap and wrap the underlying value. Let's see an example:
+
+```ts file=<rootDir>/src/reference/data-types/option/map-some.ts
+
+```
+
+The convenient aspect of using `Option` is how it handles the absence of a value, represented by `None`:
+
+```ts file=<rootDir>/src/reference/data-types/option/map-none.ts
+
+```
+
+Despite having `None` as the input, we can still operate on the `Option` without encountering errors. The mapping function `(n) => n + 1` is not executed when the `Option` is `None`, and the result remains `none` representing the absence of a value.
+
+The `flatMap` function works similarly to `map`, but with an additional feature. It allows us to sequence computations that depend on the absence or presence of a value in an `Option`.
+
+Let's explore an example that involves a **nested** optional property. We have a `User` model with an optional `address` field of type `Option<Address>`:
+
+```ts {7} file=<rootDir>/src/reference/data-types/option/nested.ts#L1-L8
+
+```
+
+The `address` field itself contains a nested optional property called `street` of type `Option<string>`:
+
+```ts {3} file=<rootDir>/src/reference/data-types/option/nested.ts#L10-L13
+interface Address {
+  readonly city: string
+  readonly street: Option.Option<string>
+}
+```
+
+We can use `Option.flatMap` to extract the `street` property from the `address` field.
+
+```ts file=<rootDir>/src/reference/data-types/option/nested.ts#L15-
+
+```
+
+Here's how it works: if the `address` is `Some`, meaning it has a value, the mapping function `(addr) => addr.street` is applied to retrieve the `street` value. On the other hand, if the `address` is `None`, indicating the absence of a value, the mapping function is not executed, and the result is also `None`.
+
+Here's a summary of the two functions:
+
+## Getting the Value from an `Option`
+
+To retrieve the value stored within an `Option`, you can use various functions provided by the `Option` module. Let's explore these functions:
+
+- `getOrThrow`: It retrieves the wrapped value from an `Option`, or throws an error if the `Option` is a `None`. Here's an example:
+
+  ```ts file=<rootDir>/src/reference/data-types/option/getOrThrow.ts
+
+  ```
+
+- `getOrNull` and `getOrUndefined`: These functions are useful when you want to work with code that doesn't use `Option`. They allow you to retrieve the value of an `Option` as `null` or `undefined`, respectively. Examples:
+
+  ```ts file=<rootDir>/src/reference/data-types/option/getOrNull.ts
+
+  ```
+
+- `getOrElse`: This function lets you provide a default value that will be returned if the `Option` is a `None`. Here's an example:
+
+  ```ts file=<rootDir>/src/reference/data-types/option/getOrElse.ts
+
+  ```
+
+## Fallback
+
+In certain situations, when a computation returns `None`, you may want to try an alternative computation that returns an `Option`. This is where the `Option.orElse` function comes in handy. It allows you to chain multiple computations together and continue with the next one if the previous one resulted in `None`. This can be useful for implementing retry logic, where you want to attempt a computation multiple times until you either succeed or exhaust all possible attempts.
+
+```ts file=<rootDir>/src/reference/data-types/option/orElse.ts
+
+```
+
+Additionally, the `Option.firstSomeOf` function can be used to retrieve the first value that is `Some` within an iterable of `Option` values:
+
+```ts file=<rootDir>/src/reference/data-types/option/firstSomeOf.ts
+
+```
+
+## Interop with Nullable Types
+
+When working with the `Option` data type, you may come across code that uses `undefined` or `null` to represent optional values. The `Option` data type provides several APIs to facilitate the interaction between `Option` and nullable types.
+
+You can create an `Option` from a nullable value using the `fromNullable` API.
+
+```ts file=<rootDir>/src/reference/data-types/option/fromNullable.ts
+
+```
+
+Conversely, if you have a value of type `Option` and want to convert it to a nullable value, you have two options:
+
+- Convert `None` to `null` using the `getOrNull` API.
+- Convert `None` to `undefined` using the `getOrUndefined` API.
+
+```ts file=<rootDir>/src/reference/data-types/option/getOrNull.ts
+
+```
+
+## Interop with Effect
+
+The `Option` type is a subtype of the `Effect` type, which means that it can be seamlessly used with functions from the `Effect` module. These functions are primarily designed to work with `Effect` values, but they can also handle `Option` values and process them correctly.
+
+In the context of `Effect`, the two members of the `Option` type are treated as follows:
+
+- `None` is equivalent to `Effect<never, NoSuchElementException, never>`
+- `Some<A>` is equivalent to `Effect<never, never, A>`
+
+To illustrate this interoperability, let's consider the following example:
+
+```ts file=<rootDir>/src/reference/data-types/option/interop-effect.ts
+
+```
+
+## Combining Two or More `Option`s
+
+The `Option.zipWith` function allows you to combine two `Option` values using a provided function. It creates a new `Option` that holds the combined value of both original `Option` values.
+
+```ts file=<rootDir>/src/reference/data-types/option/zipWith.ts
+
+```
+
+The `zipWith` function takes three arguments:
+
+- The first `Option` you want to combine
+- The second `Option` you want to combine
+- A function that takes two arguments, which are the values held by the two `Options`, and returns the combined value
+
+It's important to note that if either of the two `Option` values is `None`, the resulting `Option` will also be `None`:
+
+```ts {4} file=<rootDir>/src/reference/data-types/option/zipWith-none.ts
+
+```
