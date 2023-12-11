@@ -1,6 +1,6 @@
 import { Effect, Config, ConfigProvider, Layer, Console, Secret } from "effect"
 
-const program = Effect.config(Config.secret("API_KEY")).pipe(
+const program = Config.secret("API_KEY").pipe(
   Effect.tap((secret) => Console.log(`console.log: ${secret}`)),
   Effect.tap((secret) => Console.log(`Secret.value: ${Secret.value(secret)}`))
 )
