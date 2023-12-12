@@ -3,9 +3,7 @@ import { Effect } from "effect"
 const increment = (x: number) => x + 1
 
 const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
+  b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
 
 // $ExpectType Effect<never, never, number>
 const task1 = Effect.promise(() => Promise.resolve(10))

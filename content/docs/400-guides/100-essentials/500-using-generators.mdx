@@ -1,0 +1,131 @@
+---
+title: Using Generators in Effect
+excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+bottomNavigation: pagination
+---
+
+In the previous sections, we learned how to [create](./creating-effects) effects and [execute](./running-effects) them. Now, it's time to write our first simple program.
+
+Effect offers a convenient syntax, similar to `async`/`await`, to write effectful code using [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator).
+
+<Idea>
+  The use of generators is an **optional feature** in Effect. If you find generators unfamiliar or prefer a different coding style, you can explore the
+  documentation about [Building Pipelines](./pipeline) in Effect.
+</Idea>
+
+## Understanding Effect.gen
+
+Let's start with a basic program that performs a series of transformations:
+
+```ts file=<rootDir>/src/essentials/using-generators/first-program-gen.ts
+
+```
+
+<Warning>
+  The generator API is only available when using the `downlevelIteration` flag or with a `target` of `"es2015"` or higher in your `tsconfig.json` file
+</Warning>
+
+When working with generators in Effect, the `_` helper plays a crucial role when yielding an effect.
+By passing the effect you want to yield to the `_` function...
+
+```ts /task1/ /task2/ /divide(a, b)/ file=<rootDir>/src/essentials/using-generators/first-program-gen.ts#L16-L22
+
+```
+
+...TypeScript can accurately infer the types associated with that effect. This ensures that your code is type-safe and helps prevent potential errors.
+
+Additionally, the `_` function acts as an adapter between Effect and the JavaScript world, particularly the [iterable protocol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols). This adapter allows you to seamlessly leverage the [`yield*`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/yield*) keyword from JavaScript's generator syntax within Effect's generator functions.
+
+<Info>
+  The `_` symbol is just a convention for the argument name and is not a special symbol in Effect. You are free to use any name you prefer (e.g., `$`,
+  etc...). The current convention is to use `_` as the argument name.
+</Info>
+
+## Comparing Effect.gen with async/await
+
+If you are familiar with `async`/`await`, you may notice that the flow of writing code is similar.
+
+Let's compare the two approaches:
+
+<Tabs items={['Using Effect.gen', 'Using async / await']}>
+  <Tab>
+
+```ts file=<rootDir>/src/essentials/using-generators/first-program-gen.ts#L3-
+
+```
+
+  </Tab>
+  <Tab>
+
+```ts file=<rootDir>/src/essentials/using-generators/first-program-async-await.ts
+
+```
+
+  </Tab>
+</Tabs>
+
+It's important to note that although the code appears similar, the two programs are not identical. The purpose of comparing them side by side is just to highlight the resemblance in how they are written.
+
+## Embracing Control Flow
+
+One significant advantage of using `Effect.gen` in conjunction with generators is its capability to employ standard control flow constructs within the generator function. These constructs encompass `if`/`else`, `for`, `while`, and other branching and looping mechanisms, enhancing your ability to express complex control flow logic in your code.
+
+To illustrate this, let's delve into a practical example:
+
+```ts file=<rootDir>/src/essentials/using-generators/control-flow.ts
+
+```
+
+## Raising Errors
+
+Within the realm of the `Effect.gen` API, you have the capability to introduce errors into your program by using a failed effect as an argument to the `_` helper function. This can be effectively achieved, for instance, by using `Effect.fail`. Let's take a closer look at an example:
+
+```ts file=<rootDir>/src/essentials/using-generators/fail.ts
+
+```
+
+In this example, we intentionally introduce an error using `Effect.fail` to illustrate how errors can be managed within your program.
+
+### The Role of Short-Circuiting
+
+When working with the `Effect.gen` API, it's important to understand how it manages errors.
+This API is designed to **short-circuit the execution** upon encountering the **first error**.
+
+What does this mean for you as a developer? Well, let's say you have a chain of operations or a collection of effects to be executed in sequence. If any error occurs during the execution of one of these effects, the remaining computations will be skipped, and the error will be propagated to the final result.
+
+In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program it will immediately stop and return the error to let you know that something went wrong.
+
+```ts file=<rootDir>/src/essentials/using-generators/short-circuiting.ts
+
+```
+
+<Info>
+  If you want to dive deeper into effective error handling with Effect, you can explore the ["Error Management"](../error-management/two-error-types)
+  section.
+</Info>
+
+## Using the helper as a `pipe`
+
+The `_` helper can also be used as a `pipe` function (see [Building Pipelines](./pipeline.mdx) for more information), allowing you to mix and match different styles of writing code within `Effect.gen` if needed.
+
+In the following example, the `Random.next()` effect is piped into the `Effect.map` function:
+
+```ts {5-6} file=<rootDir>/src/essentials/using-generators/helper-as-pipe.ts
+
+```
+
+This approach is useful to avoid excessive notation by using both the `_` helper and the `pipe` function. Instead, you can directly pass the `Random.next()` effect to `Effect.map` within the `_` helper, eliminating the need for an additional `pipe` function:
+
+```ts /pipe/ file=<rootDir>/src/essentials/using-generators/helper-as-pipe-redundant-pipe.ts#L3-
+
+```
+
+## Passing `this`
+
+In some cases, you might need to pass a reference to the current object (`this`) into the body of your generator function. You can achieve this by utilizing an overload that accepts the reference as the first argument:
+
+```ts /this/ file=<rootDir>/src/essentials/using-generators/this.ts
+
+```
+
+In this example, we have a `MyService` class with a property called `local`. By passing `this` as the first argument to `Effect.gen`, we make the `local` property available within the generator.
