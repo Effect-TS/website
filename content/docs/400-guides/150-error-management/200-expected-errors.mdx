@@ -17,8 +17,7 @@ that represents an error:
 ```
 
 <Info>
-  We use a class to represent the `HttpError` type above simply to gain access
-  to both the error type and a free constructor. However, you can use whatever
+  We use a class to represent the `HttpError` type above simply to gain access to both the error type and a free constructor. However, you can use whatever
   you like to model your error types.
 </Info>
 
@@ -29,10 +28,8 @@ It's worth noting that we added a readonly `_tag` field as discriminant to our e
 ```
 
 <Idea>
-  Adding a discriminant field, such as `_tag`, can be beneficial for
-  distinguishing between different types of errors during error handling. It
-  also prevents TypeScript from unifying types, ensuring that each error is
-  treated uniquely based on its discriminant value.
+  Adding a discriminant field, such as `_tag`, can be beneficial for distinguishing between different types of errors during error handling. It also
+  prevents TypeScript from unifying types, ensuring that each error is treated uniquely based on its discriminant value.
 </Idea>
 
 Expected errors **are tracked at the type level** by the `Effect` data type in the "Error" channel.
@@ -47,7 +44,7 @@ Effect<never, HttpError, never>
 
 The following program serves as an illustration of how errors are automatically tracked for you:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts filename="error-tracking.ts" file=<rootDir>/src/guide/error-management/expected-errors/error-tracking-gen.ts
@@ -88,7 +85,7 @@ What does this mean for you as a developer? Well, let's say you have a chain of 
 
 In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program, it won't waste time executing unnecessary computations. Instead, it will immediately stop and return the error to let you know that something went wrong.
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-gen.ts
@@ -112,7 +109,7 @@ In this specific example, `task3` is never executed because an error occurs in `
 
 ## Catching all Errors
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 The `Effect.either` function converts an `Effect<R, E, A>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<E, A>`](../../other/data-types/either) data type:
@@ -157,7 +154,7 @@ Effect<never, never, string>
 
 Suppose we want to handle a specific error, such as `FooError`.
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts {9-11} file=<rootDir>/src/guide/error-management/expected-errors/catch-error-gen.ts
@@ -220,9 +217,8 @@ We can observe that the type in the error channel of our program has changed to 
 indicating that all errors has been handled.
 
 <Warning>
-  It is important to ensure that the error type used with `catchTag` has a
-  `readonly _tag` discriminant field. This field is required for the matching
-  and handling of specific error tags.
+  It is important to ensure that the error type used with `catchTag` has a `readonly _tag` discriminant field. This field is required for the matching and
+  handling of specific error tags.
 </Warning>
 
 Instead of using the `Effect.catchTag` function multiple times to handle individual error types, we have a more convenient option called `Effect.catchTags`. With `Effect.catchTags`, we can handle multiple errors in a single block of code.
@@ -236,9 +232,8 @@ This combinator takes an object where each property represents a specific error 
 and the corresponding value is the error handler function to be executed when that particular error occurs.
 
 <Warning>
-  It is important to ensure that all the error types used with
-  `Effect.catchTags` have a `readonly _tag` discriminant field. This field is
-  required for the matching and handling of specific error tags.
+  It is important to ensure that all the error types used with `Effect.catchTags` have a `readonly _tag` discriminant field. This field is required for the
+  matching and handling of specific error tags.
 </Warning>
 
 </Tab>

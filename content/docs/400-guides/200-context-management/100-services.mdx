@@ -48,8 +48,7 @@ Map<Tag, ServiceImpl>
 Where the Tag acts as the "key" to the service implementation within the context.
 
 <Idea>
-  Naming the interface the same as the value makes it easier to import in
-  TypeScript, so it's recommended that you name the interface the same as the
+  Naming the interface the same as the value makes it easier to import in TypeScript, so it's recommended that you name the interface the same as the
   related Tag.
 </Idea>
 
@@ -71,7 +70,7 @@ This feature comes in handy in scenarios where live reloads can occur, and you w
 
 Now that we have our service interface defined, let's see how we can use it by building a pipeline.
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/context-management/services/program-gen.ts
@@ -138,10 +137,7 @@ By calling `Effect.runPromise(runnable){:ts}`, the program is executed, and the 
 
 ## Using the Service multiple times
 
-<Warning>
-  This section is relevant only if you are using the `pipe` syntax. If you are
-  not using `pipe`, you can skip this section.
-</Warning>
+<Warning>This section is relevant only if you are using the `pipe` syntax. If you are not using `pipe`, you can skip this section.</Warning>
 
 In the `program` definition, we have used the `Random` service only once:
 
@@ -157,7 +153,7 @@ But what if we need to use it multiple times? In such cases, we need to ensure t
 
 The solution depends on whether we are using `Effect.gen` or `pipe`:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 With `Effect.gen` our service handle is always in scope:
@@ -183,7 +179,7 @@ We can use `flatMap` to create a second pipeline and keep our service handle in 
 When we need to manage multiple services in our program, we can utilize the `Effect.all(tags){:ts}` function.
 By passing a tuple of tags, we can access the corresponding tuple of services:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/context-management/services/multiple-services-gen.ts
@@ -242,7 +238,7 @@ Effect<never, never, Option<Random>>
 
 Let's take a look at an example that demonstrates the usage of optional services:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 To determine what action to take, we can use the `Option.isNone` function provided by the `Option` module. This function allows us to check if the service is available or not by returning `true` when the service is not available.

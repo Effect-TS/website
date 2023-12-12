@@ -43,20 +43,15 @@ We will use `Layer`s to construct the `Recipe` service instead of providing a se
 Layers are a way of separating implementation details from the service itself.
 
 <Idea>
-  When a service has its own dependencies, it's best to separate implementation
-  details into layers. Layers act as **constructors** for creating the service,
-  allowing us to handle dependencies at the construction level rather than the
-  service level.
+  When a service has its own dependencies, it's best to separate implementation details into layers. Layers act as **constructors** for creating the
+  service, allowing us to handle dependencies at the construction level rather than the service level.
 </Idea>
 
 A `Layer<RIn, E, ROut>` represents a blueprint for constructing a `Context<ROut>`. It takes a value of type `RIn` as input and may potentially produce an error of type `E` during the construction process.
 
 In our case, the `ROut` type represents the service we want to construct, while `RIn` represents the dependencies required for construction.
 
-<Info>
-  For simplicity, let's assume that we won't encounter any errors during the
-  value construction (meaning `E = never`).
-</Info>
+<Info>For simplicity, let's assume that we won't encounter any errors during the value construction (meaning `E = never`).</Info>
 
 Now, let's determine how many layers we need to implement our dependency graph:
 
@@ -68,10 +63,8 @@ Now, let's determine how many layers we need to implement our dependency graph:
 | `RecipeLive`       | The `Recipe` service depends on both `Flour` and `Sugar` services | `Layer<Flour \| Sugar, never, Recipe>` |
 
 <Idea>
-  A common convention when naming the `Layer` for a particular service is to add
-  a `Live` suffix for the "live" implementation and a `Test` suffix for the
-  "test" implementation. For example, for a `Database` service, the
-  `DatabaseLive` would be the layer you provide in your application and the
+  A common convention when naming the `Layer` for a particular service is to add a `Live` suffix for the "live" implementation and a `Test` suffix for the
+  "test" implementation. For example, for a `Database` service, the `DatabaseLive` would be the layer you provide in your application and the
   `DatabaseTest` would be the layer you provide in your tests.
 </Idea>
 
@@ -132,7 +125,7 @@ Looking at the type of `SugarLive` and `FlourLive` we can observe:
 
 Finally, we can use our ingredients to assemble the final recipe:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts filename="Recipe.ts" file=<rootDir>/src/context-management/layers/Recipe-gen.ts
@@ -208,7 +201,7 @@ We can achieve this with `Layer.provideMerge`:
 Now that we have assembled the fully resolved `MainLive` for our application,
 we can provide it to our program to satisfy the program's requirements using `Effect.provide(effect, layer){:ts}`:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts filename="index.ts" {28} file=<rootDir>/src/context-management/layers/index-gen.ts
