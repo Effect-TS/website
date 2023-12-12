@@ -18,11 +18,9 @@ The `Effect.mapError` function is used when you need to **transform or modify an
 We can observe that the type in the error channel of our program has changed from `string` to `Error`.
 
 <Info>
-  It's important to note that using the `Effect.mapError` function **does not
-  change** the overall success or failure of the effect. If the mapped effect is
-  successful, then the mapping function is ignored. In other words, the
-  `Effect.mapError` operation only applies the transformation to the error
-  channel of the effect, while leaving the success channel unchanged.
+  It's important to note that using the `Effect.mapError` function **does not change** the overall success or failure of the effect. If the mapped effect
+  is successful, then the mapping function is ignored. In other words, the `Effect.mapError` operation only applies the transformation to the error channel
+  of the effect, while leaving the success channel unchanged.
 </Info>
 
 ### mapBoth
@@ -36,10 +34,8 @@ The `Effect.mapBoth` function allows you to **apply transformations to both chan
 After using `mapBoth`, we can observe that the type of our program has changed from `Effect<never, string, number>` to `Effect<never, Error, boolean>`.
 
 <Info>
-  It's important to note that using the `mapBoth` function **does not change**
-  the overall success or failure of the effect. It only transforms the values in
-  the error and success channels while preserving the effect's original success
-  or failure status.
+  It's important to note that using the `mapBoth` function **does not change** the overall success or failure of the effect. It only transforms the values
+  in the error and success channels while preserving the effect's original success or failure status.
 </Info>
 
 ## Filtering the Success Channel
@@ -85,10 +81,7 @@ Let's see an example of how to use these operators:
 
 ```
 
-<Info>
-  It's important to note that tapping into error values **does not change** the
-  type of the program.
-</Info>
+<Info>It's important to note that tapping into error values **does not change** the type of the program.</Info>
 
 ## Exposing Errors in The Success Channel
 
@@ -102,7 +95,7 @@ The resulting effect is an unexceptional effect, which means it cannot fail, bec
 
 This function becomes especially useful when recovering from effects that may fail when using `Effect.gen`.
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/guide/error-management/error-channel-operations/either-gen.ts
@@ -123,7 +116,7 @@ This function becomes especially useful when recovering from effects that may fa
 
 You can use the `Effect.cause` function to **expose the cause** of an effect, which is a more detailed representation of failures, including error messages and defects.
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/guide/error-management/error-channel-operations/cause-gen.ts
