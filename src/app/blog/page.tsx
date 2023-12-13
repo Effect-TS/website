@@ -1,6 +1,7 @@
 import { Icon } from "@/components/icons"
 import { allBlogPosts } from "contentlayer/generated"
 import { format } from "date-fns"
+import { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -8,6 +9,11 @@ const content = {
   heading: "Effect Blog",
   description:
     "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum."
+}
+
+export const metadata: Metadata = {
+  title: content.heading,
+  description: content.description
 }
 
 export default function Blog() {

@@ -1,10 +1,11 @@
-'use client';
+"use client"
 
-import { Tab as HeadlessTab } from '@headlessui/react'
-import cn from 'clsx'
-import type { ComponentProps, ReactElement, ReactNode } from 'react'
-import React from 'react';
-import { useCallback, useEffect, useState } from 'react'
+import { Divider } from "@/components/layout/divider"
+import { Tab as HeadlessTab } from "@headlessui/react"
+import cn from "clsx"
+import type { ComponentProps, ReactElement, ReactNode } from "react"
+import React from "react"
+import { useCallback, useEffect, useState } from "react"
 
 type TabItem = string | ReactNode
 
@@ -14,7 +15,7 @@ type TabObjectItem = {
 }
 
 function isTabObjectItem(item: unknown): item is TabObjectItem {
-  return !!item && typeof item === 'object' && 'label' in item
+  return !!item && typeof item === "object" && "label" in item
 }
 
 function _Tabs({
@@ -55,9 +56,9 @@ function _Tabs({
     const index = Number(localStorage.getItem(storageKey))
     setSelectedIndex(Number.isNaN(index) ? 0 : index)
 
-    window.addEventListener('storage', fn)
+    window.addEventListener("storage", fn)
     return () => {
-      window.removeEventListener('storage', fn)
+      window.removeEventListener("storage", fn)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps -- only on mount
 
@@ -68,9 +69,7 @@ function _Tabs({
 
       // the storage event only get picked up (by the listener) if the localStorage was changed in
       // another browser's tab/window (of the same app), but not within the context of the current tab.
-      window.dispatchEvent(
-        new StorageEvent('storage', { key: storageKey, newValue })
-      )
+      window.dispatchEvent(new StorageEvent("storage", { key: storageKey, newValue }))
       return
     }
     setSelectedIndex(index)
@@ -78,17 +77,13 @@ function _Tabs({
   }, []) // eslint-disable-line react-hooks/exhaustive-deps -- only on mount
 
   const itemsWithFallback = React.useMemo(() => {
-    return items ?? (Array.isArray(children) ? Array.from({length:children.length }, (_, i)  => `Tab ${i}`) : [])
+    return items ?? (Array.isArray(children) ? Array.from({ length: children.length }, (_, i) => `Tab ${i}`) : [])
   }, [children, items])
 
   return (
-    <HeadlessTab.Group
-      selectedIndex={selectedIndex}
-      defaultIndex={defaultIndex}
-      onChange={handleChange}
-    >
-      <div className="overflow-x-auto overflow-y-hidden overscroll-x-contain">
-        <HeadlessTab.List className="mt-4 flex w-max min-w-full border-b border-gray-200 pb-px dark:border-neutral-800">
+    <HeadlessTab.Group selectedIndex={selectedIndex} defaultIndex={defaultIndex} onChange={handleChange}>
+      <div className="not-prose overflow-x-auto overflow-y-hidden overscroll-x-contain mt-8">
+        <HeadlessTab.List className="flex relative z-10 items-center overflow-x-auto gap-4 -mb-px">
           {itemsWithFallback.map((item, index) => {
             const disabled = isTabObjectItem(item) && item.disabled
             return (
@@ -97,13 +92,9 @@ function _Tabs({
                 disabled={disabled}
                 className={({ selected }) =>
                   cn(
-                    'mr-2 rounded-t p-2 font-medium leading-5 transition-colors',
-                    '-mb-0.5 select-none border-b-2',
-                    selected
-                      ? 'border-primary-500 text-primary-600'
-                      : 'border-transparent text-gray-600 hover:border-gray-200 hover:text-black dark:text-gray-200 dark:hover:border-neutral-800 dark:hover:text-white',
-                    disabled &&
-                      'pointer-events-none text-gray-400 dark:text-neutral-600'
+                    "border-b whitespace-nowrap border-transparent pb-2 focus:outline-none",
+                    selected && "border-white text-white",
+                    disabled && "pointer-events-none text-gray-400 dark:text-neutral-600"
                   )
                 }
               >
@@ -112,16 +103,16 @@ function _Tabs({
             )
           })}
         </HeadlessTab.List>
+        <div className="-mx-12">
+          <Divider />
+        </div>
       </div>
       <HeadlessTab.Panels>{children}</HeadlessTab.Panels>
     </HeadlessTab.Group>
   )
 }
 
-export function Tab({
-  children,
-  ...props
-}: ComponentProps<typeof HeadlessTab.Panel>): ReactElement {
+export function Tab({ children, ...props }: ComponentProps<typeof HeadlessTab.Panel>): ReactElement {
   return (
     <HeadlessTab.Panel {...props} className="rounded pt-6">
       {children}
@@ -129,4 +120,4 @@ export function Tab({
   )
 }
 
-export const Tabs = Object.assign(_Tabs, { displayName: 'Tabs', Tab })
+export const Tabs = Object.assign(_Tabs, { displayName: "Tabs", Tab })
