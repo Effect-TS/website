@@ -1,4 +1,4 @@
-@import url('./twoslash-shiki.css');
+@import url("./twoslash-shiki.css");
 
 @tailwind base;
 @tailwind components;
@@ -49,13 +49,33 @@ body.no-scroll {
   }
 }
 
+.prose code,
+.toc code {
+  @apply inline-block bg-white/10 border border-white/10 px-1.5 rounded-md font-normal leading-snug;
+}
+.prose code {
+  @apply text-zinc-300;
+}
+.prose h1 code,
+.prose h2 code,
+.prose h3 code,
+.prose h4 code,
+.prose h5 code {
+  @apply text-white;
+}
+.prose code::before {
+  display: none;
+}
+.prose code::after {
+  display: none;
+}
 
 code {
   box-decoration-break: slice;
   font-feature-settings:
-    'rlig' 1,
-    'calt' 1,
-    'ss01' 1;
+    "rlig" 1,
+    "calt" 1,
+    "ss01" 1;
 
   &[data-line-numbers] > [data-line] {
     @apply pl-2;
@@ -115,9 +135,7 @@ pre {
   }
 }
 
-@supports (
-  (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))
-) {
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .nextra-button {
     @apply backdrop-blur-md bg-opacity-[.85] dark:bg-opacity-80;
   }
