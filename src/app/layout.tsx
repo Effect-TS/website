@@ -1,26 +1,26 @@
-import type {Metadata} from 'next'
-import {Inter} from 'next/font/google'
-import localFont from 'next/font/local'
-import './globals.css'
-import './hljs.css'
-import {Navigation} from '@/components/layout/navigation'
-import {Footer} from '@/components/layout/footer'
-import {ReactNode} from 'react'
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import localFont from "next/font/local"
+import "./globals.css"
+import "./hljs.css"
+import { Navigation } from "@/components/layout/navigation"
+import { Footer } from "@/components/layout/footer"
+import { ReactNode } from "react"
 
-const inter = Inter({subsets: ['latin'], display: 'swap', variable: '--font-inter'})
+const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" })
 const calSans = localFont({
-  src: './cal-sans-semibold.woff2',
-  weight: '600',
-  display: 'swap',
-  variable: '--font-cal-sans'
+  src: "./cal-sans-semibold.woff2",
+  weight: "600",
+  display: "swap",
+  variable: "--font-cal-sans"
 })
 
 export const metadata: Metadata = {
-  title: 'Effect',
-  description: 'Effect is a powerful TypeScript library designed to help developers easily create complex, synchronous, and asynchronous programs.'
+  title: "Effect – The best way to build robust apps in Typescript",
+  description: "Effect is a powerful TypeScript library designed to help developers easily create complex, synchronous, and asynchronous programs."
 }
 
-export default function RootLayout({children}: {children: ReactNode}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${calSans.variable}`}>
       <body className="relative antialiased bg-[#09090B] font-light text-zinc-400">
