@@ -4,6 +4,7 @@ import { RelatedPosts } from "@/components/blog/related-posts"
 import { TableOfContents } from "@/components/docs/table-of-contents"
 import { Icon } from "@/components/icons"
 import { allBlogPosts } from "contentlayer/generated"
+import { format } from "date-fns"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
@@ -28,13 +29,14 @@ export default function Page({ params: { slug } }: { params: { slug: string } })
         ))}
       </aside>
       <main className="px-12 pb-24 -mt-2 grow">
-        <div className="flex text-sm gap-2 items-center h-4 -mt-5 mb-1">
+        <div className="flex gap-2 items-center -mt-5 mb-1 h-4 text-sm">
           <Link href="/blog" className="hover:text-white">
             Blog
           </Link>
           <Icon name={"chevron-right"} className="h-2.5 text-zinc-600" />
         </div>
-        <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white mb-12">{post.title}</h2>
+        <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white">{post.title}</h2>
+        <div className="text-sm h-4 mt-1.5 mb-6">{format(new Date(post.date), "MMM do, yyyy")}</div>
         <MDX content={post.body.code} />
         {post.relatedPosts && <RelatedPosts slugs={post.relatedPosts} />}
       </main>
