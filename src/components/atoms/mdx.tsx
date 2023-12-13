@@ -1,15 +1,15 @@
-import { FC } from 'react'
-import { useMDXComponent } from 'next-contentlayer/hooks'
-import { H2, H3, H4 } from '@/components/atoms/headings'
-import { Tab, Tabs } from '@/components/docs/components/tabs'
-import * as Callouts from '@/components/docs/components/callouts'
-import { Steps } from '@/components/docs/components/steps'
+import { FC } from "react"
+import { useMDXComponent } from "next-contentlayer/hooks"
+import { H2, H3, H4 } from "@/components/atoms/headings"
+import { Tab, Tabs } from "@/components/docs/components/tabs"
+import * as Callouts from "@/components/docs/components/callouts"
+import { Steps } from "@/components/docs/components/steps"
 
 export const MDX: FC<{ content: string }> = ({ content }) => {
   const Content = useMDXComponent(content)
 
   return (
-    <div className="relative prose prose-invert text-zinc-400">
+    <div className="relative prose prose-invert prose-tr:border-white/20 prose-thead:border-white/20 text-zinc-400">
       <Content
         components={{
           h2: H2,
@@ -18,7 +18,7 @@ export const MDX: FC<{ content: string }> = ({ content }) => {
           Tab,
           Tabs,
           Steps,
-          ...Callouts,
+          ...Callouts
         }}
       />
     </div>
