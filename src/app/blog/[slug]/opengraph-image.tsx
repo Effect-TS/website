@@ -29,7 +29,7 @@ export default async function Image({params: {slug}}: {params: {slug: string}}) 
         }}
       >
         <img src="https://i.imgur.com/xB9LgVa.png" alt="Effect Logotype" width="298" height="64" />
-        <div style={{color: 'white', fontSize: 64}}>{post.title}</div>
+        <div style={{color: 'white', fontSize: 64, fontFamily: 'CalSans'}}>{post.title}</div>
         <div style={{color: '#A1A1AB', fontSize: 32}}>{post.excerpt}</div>
         {/* <div style={{fontFamily: 'Cal Sans', color: '#ffffff', fontSize: 64}}>Test</div> */}
       </div>
@@ -42,13 +42,13 @@ export default async function Image({params: {slug}}: {params: {slug: string}}) 
           data: await fetch(new URL('../../inter-light.ttf', import.meta.url)).then((res) => res.arrayBuffer()),
           style: 'normal',
           weight: 300
+        },
+        {
+          name: 'CalSans',
+          data: await fetch(new URL('../../cal-sans-semibold.ttf', import.meta.url)).then((res) => res.arrayBuffer()),
+          style: 'normal',
+          weight: 600
         }
-        // {
-        //   name: 'Cal Sans',
-        //   data: await fetch(new URL('../../cal-sans-semibold.ttf', import.meta.url)).then((res) => res.arrayBuffer()),
-        //   style: 'normal',
-        //   weight: 600
-        // }
       ]
     }
   )
