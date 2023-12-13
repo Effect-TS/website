@@ -17,7 +17,7 @@ const calSans = localFont({
 
 export const metadata: Metadata = {
   title: 'Effect',
-  description: 'Lorem ipsum'
+  description: 'Effect is a powerful TypeScript library designed to help developers easily create complex, synchronous, and asynchronous programs.'
 }
 
 export default function RootLayout({children}: {children: ReactNode}) {

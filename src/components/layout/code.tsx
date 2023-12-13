@@ -63,7 +63,7 @@ export const Code: FC<{
                   <div className="w-full overflow-x-auto ">
                     {/* `contain: none` needed for horizontal scrolling to work */}
                     <pre style={{contain: 'none'}}>
-                      <code dangerouslySetInnerHTML={{__html: html.replaceAll('\n', '<br/>')}} />
+                      <code dangerouslySetInnerHTML={{__html: html.replaceAll('\n', '<br/>')}} className="block" />
                     </pre>
                   </div>
                 </div>
