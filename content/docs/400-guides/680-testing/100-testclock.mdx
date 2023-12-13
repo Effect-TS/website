@@ -18,7 +18,7 @@ When we adjust the clock time, any effects scheduled to run at or before the new
 
 Let's look at an example of how to test `Effect.timeout` using the `TestClock`:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/testing/clock/timeout.ts
@@ -40,9 +40,8 @@ In this example, we create a test scenario involving a fiber that sleeps for 5 m
 A critical point to note is the forking of the fiber where `Effect.sleep` is invoked. Calls to `Effect.sleep` and related methods wait until the clock time matches or surpasses the scheduled time for their execution. By forking the fiber, we ensure that we have control over the clock time adjustment.
 
 <Idea>
-  The recommended pattern when using the `TestClock` involves forking the effect
-  being tested, adjusting the clock time as needed, and then verifying that the
-  expected effects have occurred.
+  The recommended pattern when using the `TestClock` involves forking the effect being tested, adjusting the clock time as needed, and then verifying that
+  the expected effects have occurred.
 </Idea>
 
 ## More Examples
@@ -51,7 +50,7 @@ A critical point to note is the forking of the fiber where `Effect.sleep` is inv
 
 Let's explore an example demonstrating how to test an effect that runs at fixed intervals using the `TestClock`:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/testing/clock/recurring.ts
@@ -80,7 +79,7 @@ It's crucial to note that after each recurrence, the next occurrence is schedule
 
 Let's explore an example that demonstrates how to test the behavior of the `Clock` using the `TestClock`:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/testing/clock/clock.ts
@@ -101,7 +100,7 @@ Let's explore an example that demonstrates how to test the behavior of the `Cloc
 
 `TestClock` also affects asynchronous code scheduled to run after a certain time:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/testing/clock/deferred.ts

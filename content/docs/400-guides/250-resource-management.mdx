@@ -44,7 +44,7 @@ Let's explore some examples to understand this better.
 
 Let's observe how things behave in the event of success:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/guide/resource-management/addFinalizer-succeed-gen.ts
@@ -73,7 +73,7 @@ The `Effect.scoped` operator removes the `Scope` from the context, indicating th
 
 Next, let's explore how things behave in the event of a failure:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/guide/resource-management/addFinalizer-fail-gen.ts
@@ -92,7 +92,7 @@ Next, let's explore how things behave in the event of a failure:
 
 Finally, let's explore the behavior in the event of an interruption:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/guide/resource-management/addFinalizer-interrupt-gen.ts
@@ -115,7 +115,7 @@ When you're working with multiple scoped resources within a single operation, it
 
 Let's start by looking at how scopes are merged by default. Take a look at this code example:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/guide/resource-management/managed-scopes-gen.ts
@@ -136,7 +136,7 @@ In this case, the scopes of `task1` and `task2` are merged into a single scope, 
 
 If you want more control over when each scope is closed, you can manually create and close them, as shown in this example:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/guide/resource-management/manual-scopes-gen.ts
@@ -156,10 +156,8 @@ If you want more control over when each scope is closed, you can manually create
 In this example, we create two separate scopes, `scope1` and `scope2`, and extend the scope of each task into its respective scope. When you run the program, it outputs the tasks and their finalizers in a different order.
 
 <Info>
-  The `Scope.extend` function allows you to extend the scope of an `Effect`
-  workflow that requires a scope into another scope without closing the scope
-  when the workflow finishes executing. This allows you to extend a scoped value
-  into a larger scope.
+  The `Scope.extend` function allows you to extend the scope of an `Effect` workflow that requires a scope into another scope without closing the scope
+  when the workflow finishes executing. This allows you to extend a scoped value into a larger scope.
 </Info>
 
 You might wonder what happens when a scope is closed, but a task within that scope hasn't completed yet. The key point to note is that the scope closing doesn't force the task to be interrupted. It will continue running, and the finalizer will execute immediately when registered. The call to `close` will only wait for the finalizers that have already been registered.
@@ -197,7 +195,7 @@ This indicates that the workflow needs a `Scope` to run and adds a finalizer tha
 
 We can continue working with the resource for as long as we want by using `flatMap` or other Effect operators. For example, here's how we can read the contents:
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts file=<rootDir>/src/guide/resource-management/using-gen.ts
@@ -216,7 +214,7 @@ We can continue working with the resource for as long as we want by using `flatM
 
 Once we are done working with the resource, we can close the scope using the `Effect.scoped` operator. It creates a new `Scope`, provides it to the workflow, and closes the `Scope` when the workflow is finished.
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts /Effect.scoped/ file=<rootDir>/src/guide/resource-management/scoped-gen.ts
@@ -274,7 +272,7 @@ To begin, we define the domain model for the required [services](./context-manag
 
 Next, we define the three create actions and the overall transaction (`make`) for the Workspace.
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts filename="Workspace.ts" file=<rootDir>/src/guide/resource-management/pattern/Workspace.ts
@@ -295,7 +293,7 @@ We then create simple service implementations to test the behavior of our Worksp
 To achieve this, we will utilize [layers](./context-management/layers) to construct test services.
 These layers will be able to handle various scenarios, including errors, which we can control using the `FailureCase` type.
 
-<Tabs>
+<Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts filename="WorkspaceTest.ts" file=<rootDir>/src/guide/resource-management/pattern/WorkspaceTest.ts
@@ -332,10 +330,7 @@ In this case, all operations succeed, and we see a successful result with `right
 Now, let's simulate a failure in the `Database`:
 
 ```ts /"Database"/
-const runnable = Workspace.make.pipe(
-  Effect.provide(layer),
-  Effect.provideService(Failure, "Database")
-)
+const runnable = Workspace.make.pipe(Effect.provide(layer), Effect.provideService(Failure, "Database"))
 ```
 
 The console output will be:
@@ -360,10 +355,7 @@ You can observe that once the `Database` error occurs, there is a complete rollb
 Let's now make the index creation fail instead:
 
 ```ts /"ElasticSearch"/
-const runnable = Workspace.make.pipe(
-  Effect.provide(layer),
-  Effect.provideService(Failure, "ElasticSearch")
-)
+const runnable = Workspace.make.pipe(Effect.provide(layer), Effect.provideService(Failure, "ElasticSearch"))
 ```
 
 In this case, the console output will be:
