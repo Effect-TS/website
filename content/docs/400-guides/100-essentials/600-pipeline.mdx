@@ -45,8 +45,16 @@ It's important to note that functions passed to `pipe` must have a **single argu
 
 Let's see an example to better understand how `pipe` works:
 
-```ts file=<rootDir>/src/essentials/pipeline/pipe.ts
+```ts twoslash
+import { pipe } from "effect"
 
+const increment = (x: number) => x + 1
+const double = (x: number) => x * 2
+const subtractTen = (x: number) => x - 10
+
+const result = pipe(5, increment, double, subtractTen)
+
+console.log(result) // Output: 2
 ```
 
 In the above example, we start with an input value of `5`. The `increment` function adds `1` to the initial value, resulting in `6`. Then, the `double` function doubles the value, giving us `12`. Finally, the `subtractTen` function subtracts `10` from `12`, resulting in the final output of `2`.
@@ -70,8 +78,10 @@ Another important advantage of using functions in the Effect ecosystem is the ea
 In contrast, with functions, extending the functionality is much simpler. You can define your own "extension methods" as plain old functions without the need to modify the prototypes of objects. This promotes cleaner and more modular code, and it also allows for better compatibility with other libraries and modules.
 
 <Idea>
-  The use of functions in the Effect ecosystem libraries is important for achieving **tree shakeability** and ensuring **extendibility**. Functions enable
-  efficient bundling by eliminating unused code, and they provide a flexible and modular approach to extending the libraries' functionality.
+  The use of functions in the Effect ecosystem libraries is important for
+  achieving **tree shakeability** and ensuring **extendibility**. Functions
+  enable efficient bundling by eliminating unused code, and they provide a
+  flexible and modular approach to extending the libraries' functionality.
 </Idea>
 
 Now let's explore some examples of APIs that can be used with the `pipe` function to build pipelines.
@@ -82,8 +92,9 @@ The `Effect.map` function is used to transform the value inside an `Effect`.
 It takes a function and applies it to the value contained within the `Effect`, creating a **new** `Effect` with the transformed value.
 
 <Info>
-  It's important to note that `Effect`s are immutable, meaning that when you use `map` on an `Effect`, it doesn't modify the original data type. Instead,
-  it returns a new copy of the `Effect` with the transformed value.
+  It's important to note that `Effect`s are immutable, meaning that when you use
+  `map` on an `Effect`, it doesn't modify the original data type. Instead, it
+  returns a new copy of the `Effect` with the transformed value.
 </Info>
 
 The syntax for `map` is as follows:
@@ -98,8 +109,17 @@ In the code above, `func` represents the transformation function to be applied, 
 
 Let's see an example to better understand how `map` works:
 
-```ts file=<rootDir>/src/essentials/pipeline/map.ts
+```ts twoslash
+import { pipe, Effect } from "effect"
 
+const increment = (x: number) => x + 1
+
+const mappedEffect = pipe(
+  Effect.succeed(5),
+  Effect.map((x) => increment(x))
+)
+
+Effect.runPromise(mappedEffect).then(console.log) // Output: 6
 ```
 
 In the example above:
@@ -112,8 +132,12 @@ The resulting `Effect` contains the transformed value of `6`.
 
 If you simply want to replace the value with a constant, you can use `Effect.as`:
 
-```ts file=<rootDir>/src/essentials/pipeline/as.ts
+```ts twoslash
+import { pipe, Effect } from "effect"
 
+const program = pipe(Effect.succeed(5), Effect.as("new value"))
+
+Effect.runPromise(program).then(console.log) // Output: "new value"
 ```
 
 ## flatMap
@@ -130,14 +154,22 @@ Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due 
 
 If you have an Effect where result type is a nested `Array`, for example:
 
-```
+```ts
 Effect<never, never, Array<Array<A>>>
 ```
 
 you can easily flatten the array using either the `ReadonlyArray` module exported from `effect`:
 
-```ts file=<rootDir>/src/essentials/pipeline/flattening-readonlyarray.ts
+```ts twoslash
+import { pipe, Effect, ReadonlyArray } from "effect"
 
+const flattened = pipe(
+  Effect.succeed([
+    [1, 2],
+    [3, 4]
+  ]),
+  Effect.map((nested) => ReadonlyArray.flatten(nested))
+)
 ```
 
 or using standard `Array` prototype methods:
@@ -152,8 +184,9 @@ or using standard `Array` prototype methods:
 The `Effect.flatMap` function allows us to chain computations that produce `Effect` values. It takes a transformation function that produces a new `Effect` and then "flattens" the nested `Effect` structure.
 
 <Info>
-  It's important to note that `Effect`s are immutable, meaning that when you use `flatMap` on an `Effect`, it doesn't modify the original data type.
-  Instead, it returns a new copy of the `Effect` with the transformed value.
+  It's important to note that `Effect`s are immutable, meaning that when you use
+  `flatMap` on an `Effect`, it doesn't modify the original data type. Instead,
+  it returns a new copy of the `Effect` with the transformed value.
 </Info>
 
 The syntax for `flatMap` is as follows:
@@ -168,8 +201,20 @@ In the code above, `func` represents the transformation function that returns a 
 
 Let's see an example to better understand how `flatMap` works:
 
-```ts file=<rootDir>/src/essentials/pipeline/flatMap.ts
+```ts twoslash
+import { pipe, Effect } from "effect"
 
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
+
+const flatMappedEffect = pipe(
+  Effect.succeed([10, 2]),
+  Effect.flatMap(([a, b]) => divide(a, b))
+)
+
+Effect.runPromise(flatMappedEffect).then(console.log) // Output: 5
 ```
 
 In the example above:
@@ -184,7 +229,7 @@ When using `Effect.flatMap`, it is crucial to ensure that **all effects** are pr
 
 Let's take a look at the following code snippet:
 
-```ts {2}
+```ts {1}
 Effect.flatMap(([a, b]) => {
   Effect.sync(() => console.log(`Performing division: ${a} / ${b}`))
   return divide(a, b)
@@ -207,8 +252,29 @@ This means that the value returned by the previous computation (i.e. `[a, b]`) w
 
 Let's take a look at an updated code snippet that incorporates the `tap` API to fix the problem:
 
-```ts {3-5} file=<rootDir>/src/essentials/pipeline/tap.ts#L8-
+```ts {3-5} twoslash
+import { pipe, Effect } from "effect"
 
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
+// ---cut---
+const program = pipe(
+  Effect.succeed([10, 2]),
+  Effect.tap(([a, b]) =>
+    Effect.sync(() => console.log(`Performing division: ${a} / ${b}`))
+  ),
+  // [a, b] is still available!
+  Effect.flatMap(([a, b]) => divide(a, b))
+)
+
+Effect.runPromise(program).then(console.log)
+/*
+Output:
+Performing division: 10 / 2
+5
+*/
 ```
 
 By using `Effect.tap`, we include the effect of `Effect.sync` in the computation. This ensures that the logging action is performed, providing us with the desired output and maintaining correct program logic. The resulting output is still `5`, as expected.
@@ -239,23 +305,52 @@ Keep in mind that the order of the results corresponds to the order of the origi
 
 Let's see an example to better understand how `all` works:
 
-```ts file=<rootDir>/src/essentials/pipeline/all.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const foo = Effect.succeed(42)
+const bar = Effect.succeed("Hello")
+
+const combinedEffect = Effect.all([foo, bar])
+
+Effect.runPromise(combinedEffect).then(console.log) // Output: [42, "Hello"]
 ```
 
 In this example, `foo` and `bar` are two separate effects. Using `Effect.all`, we combine them into a single effect `combinedEffect`. When we run `combinedEffect`, it produces a tuple `[42, "Hello"]` containing the results of both effects.
 
 <Info>
-  The `all` function not only combines tuples but also works seamlessly with iterables, structs, and records. To explore the full potential of `all` head
-  over to the [Introduction to Effect's Control Flow Operators](../control-flow#all) documentation.
+  The `all` function not only combines tuples but also works seamlessly with
+  iterables, structs, and records. To explore the full potential of `all` head
+  over to the [Introduction to Effect's Control Flow
+  Operators](../control-flow#all) documentation.
 </Info>
 
 ## Build your first pipeline
 
 Now, let's combine all four functions (`pipe`, `map`, `flatMap` and `all`) to build a pipeline that performs a series of transformations:
 
-```ts file=<rootDir>/src/essentials/pipeline/pipeline.ts
+```ts twoslash
+import { pipe, Effect } from "effect"
 
+const increment = (x: number) => x + 1
+
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
+
+const task1 = Effect.promise(() => Promise.resolve(10))
+
+const task2 = Effect.promise(() => Promise.resolve(2))
+
+const program = pipe(
+  Effect.all([task1, task2]),
+  Effect.flatMap(([a, b]) => divide(a, b)),
+  Effect.map((n1) => increment(n1)),
+  Effect.map((n2) => `Result is: ${n2}`)
+)
+
+Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
 ```
 
 ## The pipe method
@@ -278,8 +373,27 @@ The `pipe` method is available on all effects and many other data types, elimina
 
 Let's rewrite the previous example using the `pipe` method:
 
-```ts /.pipe/ file=<rootDir>/src/essentials/pipeline/pipe-method.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const increment = (x: number) => x + 1
+
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
+
+const task1 = Effect.promise(() => Promise.resolve(10))
+
+const task2 = Effect.promise(() => Promise.resolve(2))
+
+const program = Effect.all([task1, task2]).pipe(
+  Effect.flatMap(([a, b]) => divide(a, b)),
+  Effect.map((n1) => increment(n1)),
+  Effect.map((n2) => `Result is: ${n2}`)
+)
+
+Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
 ```
 
 ## Cheatsheet
