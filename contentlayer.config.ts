@@ -28,12 +28,13 @@ const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS: RehypePrettyCodeOptions = {
   onVisitHighlightedChars(node: any) {
     node.properties.className = ["highlighted"]
   },
-  filterMetaString: (meta: string) => meta.replace(CODE_BLOCK_FILENAME_REGEX, "")
+  filterMetaString: (meta: string) =>
+    meta.replace(CODE_BLOCK_FILENAME_REGEX, "")
 }
 
 const conditionalShikiTwoslash = (options: any) => (tree: any, file: any) => {
   const sourceFilePath = file.data.rawDocumentData.sourceFilePath
-  if (sourceFilePath.includes("essentials") && !sourceFilePath.includes("using-generators") && !sourceFilePath.includes("pipeline")) {
+  if (sourceFilePath.includes("essentials")) {
     // @ts-expect-error xxx
     return remarkShikiTwoslash.default(options)(tree, file)
   }
@@ -51,6 +52,12 @@ export default makeSource({
       [conditionalShikiTwoslash, { theme: "github-dark" }],
       remarkGfm
     ],
-    rehypePlugins: [[rehypeRaw, { passThrough: nodeTypes }], [rehypePrettyCode, { ...DEFAULT_REHYPE_PRETTY_CODE_OPTIONS, theme: "github-dark" }] as any]
+    rehypePlugins: [
+      [rehypeRaw, { passThrough: nodeTypes }],
+      [
+        rehypePrettyCode,
+        { ...DEFAULT_REHYPE_PRETTY_CODE_OPTIONS, theme: "github-dark" }
+      ] as any
+    ]
   }
 })
