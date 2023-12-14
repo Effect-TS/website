@@ -93,7 +93,9 @@ function _Tabs({
                 className={({ selected }) =>
                   cn(
                     "border-b whitespace-nowrap pb-2 focus:outline-none",
-                    selected ? "border-black dark:border-white text-black font-normal dark:font-light dark:text-white" : "border-transparent",
+                    selected
+                      ? "border-black dark:border-white text-black font-normal dark:font-light dark:text-white"
+                      : "border-transparent hover:text-black dark:hover:text-white",
                     disabled && "pointer-events-none text-gray-400 dark:text-neutral-600"
                   )
                 }
