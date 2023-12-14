@@ -24,7 +24,7 @@ However, throwing errors can be problematic. The type signatures of functions do
 
 To address this issue, Effect introduces dedicated constructors for creating effects that represent both success and failure: `Effect.succeed` and `Effect.fail`. These constructors allow you to explicitly handle success and failure cases while **leveraging the type system to track errors**.
 
-### `Effect.succeed`
+### succeed
 
 To create an effect that represents a successful computation, you can use the `Effect.succeed` constructor. It takes a value as input and produces an effect that succeeds with that value. Here's an example:
 
@@ -40,7 +40,7 @@ The `program` value has the type `Effect<never, never, number>` and can be inter
 - does not produce any expected error (`never`)
 - succeeds with a value of type `number`
 
-### `Effect.fail`
+### fail
 
 To create an effect that represents a failure, you can use the `Effect.fail` constructor. It takes an error value as input and produces an effect that fails with that error. Here's an example:
 
@@ -79,7 +79,7 @@ Thunks are useful for delaying the computation of a value until it is needed.
 
 To model synchronous side effects, Effect provides the `Effect.sync` and `Effect.try` constructors, which accept a thunk.
 
-### Effect.sync
+### sync
 
 If you're working with synchronous side effects and you're confident that they will **never throw errors**, you can use the `Effect.sync` constructor:
 
@@ -101,7 +101,7 @@ This is because `program` represents the action of writing to the console, but n
 
 <Error>The thunk passed to `Effect.sync` should never throw errors.</Error>
 
-### Effect.try
+### try
 
 If the synchronous computation within the thunk may throw an error, you can use the `Effect.try` constructor.
 If an error is caught, it will be propagated to the error channel as `UnknownException`:
@@ -143,7 +143,7 @@ In traditional programming, we often use `Promise`s to handle asynchronous compu
 
 To overcome these limitations, Effect introduces dedicated constructors for creating effects that represent both success and failure in an asynchronous context: `Effect.promise` and `Effect.tryPromise`. These constructors allow you to explicitly handle success and failure cases while **leveraging the type system to track errors**.
 
-### Effect.promise
+### promise
 
 If you're working with asynchronous side effects that return a `Promise` and you're confident that the `Promise` will **never reject**, you can use the `Effect.promise` constructor:
 
@@ -168,7 +168,7 @@ The `program` value has the type `Effect<never, never, string>` and can be inter
 
 <Error>The `Promise` within the thunk passed to `Effect.promise` should never reject.</Error>
 
-### Effect.tryPromise
+### tryPromise
 
 If the `Promise` within the thunk may reject, you can use the `Effect.tryPromise` constructor.
 If an error is caught, it will be propagated to the error channel as `UnknownException`:
