@@ -33,7 +33,7 @@ const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS: RehypePrettyCodeOptions = {
 
 const conditionalShikiTwoslash = (options: any) => (tree: any, file: any) => {
   const sourceFilePath = file.data.rawDocumentData.sourceFilePath
-  if (sourceFilePath.includes("essentials") && !sourceFilePath.includes("using-generators") && !sourceFilePath.includes("pipeline")) {
+  if (sourceFilePath.includes("essentials") && !sourceFilePath.includes("pipeline")) {
     // @ts-expect-error xxx
     return remarkShikiTwoslash.default(options)(tree, file)
   }

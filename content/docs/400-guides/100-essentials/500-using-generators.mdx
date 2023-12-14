@@ -9,7 +9,8 @@ In the previous sections, we learned how to [create](./creating-effects) effects
 Effect offers a convenient syntax, similar to `async`/`await`, to write effectful code using [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator).
 
 <Idea>
-  The use of generators is an **optional feature** in Effect. If you find generators unfamiliar or prefer a different coding style, you can explore the
+  The use of generators is an **optional feature** in Effect. If you find
+  generators unfamiliar or prefer a different coding style, you can explore the
   documentation about [Building Pipelines](./pipeline) in Effect.
 </Idea>
 
@@ -17,19 +18,60 @@ Effect offers a convenient syntax, similar to `async`/`await`, to write effectfu
 
 Let's start with a basic program that performs a series of transformations:
 
-```ts file=<rootDir>/src/essentials/using-generators/first-program-gen.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const increment = (x: number) => x + 1
+
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
+
+const task1 = Effect.promise(() => Promise.resolve(10))
+
+const task2 = Effect.promise(() => Promise.resolve(2))
+
+export const program = Effect.gen(function* (_) {
+  const a = yield* _(task1)
+  const b = yield* _(task2)
+  const n1 = yield* _(divide(a, b))
+  const n2 = increment(n1)
+  return `Result is: ${n2}`
+})
+
+Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
 ```
 
 <Warning>
-  The generator API is only available when using the `downlevelIteration` flag or with a `target` of `"es2015"` or higher in your `tsconfig.json` file
+  The generator API is only available when using the `downlevelIteration` flag
+  or with a `target` of `"es2015"` or higher in your `tsconfig.json` file
 </Warning>
 
 When working with generators in Effect, the `_` helper plays a crucial role when yielding an effect.
 By passing the effect you want to yield to the `_` function...
 
-```ts /task1/ /task2/ /divide(a, b)/ file=<rootDir>/src/essentials/using-generators/first-program-gen.ts#L16-L22
+```ts twoslash
+import { Effect } from "effect"
 
+const increment = (x: number) => x + 1
+
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
+
+const task1 = Effect.promise(() => Promise.resolve(10))
+
+const task2 = Effect.promise(() => Promise.resolve(2))
+// ---cut---
+export const program = Effect.gen(function* (_) {
+  const a = yield* _(task1)
+  const b = yield* _(task2)
+  const n1 = yield* _(divide(a, b))
+  const n2 = increment(n1)
+  return `Result is: ${n2}`
+})
 ```
 
 ...TypeScript can accurately infer the types associated with that effect. This ensures that your code is type-safe and helps prevent potential errors.
@@ -37,8 +79,9 @@ By passing the effect you want to yield to the `_` function...
 Additionally, the `_` function acts as an adapter between Effect and the JavaScript world, particularly the [iterable protocol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols). This adapter allows you to seamlessly leverage the [`yield*`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/yield*) keyword from JavaScript's generator syntax within Effect's generator functions.
 
 <Info>
-  The `_` symbol is just a convention for the argument name and is not a special symbol in Effect. You are free to use any name you prefer (e.g., `$`,
-  etc...). The current convention is to use `_` as the argument name.
+  The `_` symbol is just a convention for the argument name and is not a special
+  symbol in Effect. You are free to use any name you prefer (e.g., `$`, etc...).
+  The current convention is to use `_` as the argument name.
 </Info>
 
 ## Comparing Effect.gen with async/await
@@ -50,15 +93,55 @@ Let's compare the two approaches:
 <Tabs items={['Using Effect.gen', 'Using async / await']}>
   <Tab>
 
-```ts file=<rootDir>/src/essentials/using-generators/first-program-gen.ts#L3-
+```ts twoslash
+import { Effect } from "effect"
+// ---cut---
+const increment = (x: number) => x + 1
 
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
+
+const task1 = Effect.promise(() => Promise.resolve(10))
+
+const task2 = Effect.promise(() => Promise.resolve(2))
+
+export const program = Effect.gen(function* (_) {
+  const a = yield* _(task1)
+  const b = yield* _(task2)
+  const n1 = yield* _(divide(a, b))
+  const n2 = increment(n1)
+  return `Result is: ${n2}`
+})
+
+Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
 ```
 
   </Tab>
   <Tab>
 
-```ts file=<rootDir>/src/essentials/using-generators/first-program-async-await.ts
+```ts twoslash
+const increment = (x: number) => x + 1
 
+const divide = (a: number, b: number): Promise<number> =>
+  b === 0
+    ? Promise.reject(new Error("Cannot divide by zero"))
+    : Promise.resolve(a / b)
+
+const task1 = Promise.resolve(10)
+
+const task2 = Promise.resolve(2)
+
+export const program = async function () {
+  const a = await task1
+  const b = await task2
+  const n1 = await divide(a, b)
+  const n2 = increment(n1)
+  return `Result is: ${n2}`
+}
+
+program().then(console.log) // Output: "Result is: 6"
 ```
 
   </Tab>
@@ -72,16 +155,67 @@ One significant advantage of using `Effect.gen` in conjunction with generators i
 
 To illustrate this, let's delve into a practical example:
 
-```ts file=<rootDir>/src/essentials/using-generators/control-flow.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
+
+const program = Effect.gen(function* (_) {
+  let i = 1
+
+  while (true) {
+    if (i === 10) {
+      break
+    } else {
+      if (i % 2 === 0) {
+        console.log(yield* _(divide(12, i)))
+      }
+      i++
+      continue
+    }
+  }
+})
+
+Effect.runPromise(program)
+/*
+Output:
+6
+3
+2
+1.5
+*/
 ```
 
 ## Raising Errors
 
 Within the realm of the `Effect.gen` API, you have the capability to introduce errors into your program by using a failed effect as an argument to the `_` helper function. This can be effectively achieved, for instance, by using `Effect.fail`. Let's take a closer look at an example:
 
-```ts file=<rootDir>/src/essentials/using-generators/fail.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.gen(function* (_) {
+  console.log("Task1...")
+  console.log("Task2...")
+  yield* _(Effect.fail("Something went wrong!"))
+})
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+Task1...
+Task2...
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "Something went wrong!"
+  }
+}
+*/
 ```
 
 In this example, we intentionally introduce an error using `Effect.fail` to illustrate how errors can be managed within your program.
@@ -95,13 +229,35 @@ What does this mean for you as a developer? Well, let's say you have a chain of 
 
 In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program it will immediately stop and return the error to let you know that something went wrong.
 
-```ts file=<rootDir>/src/essentials/using-generators/short-circuiting.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.gen(function* (_) {
+  console.log("Task1...")
+  console.log("Task2...")
+  yield* _(Effect.fail("Something went wrong!"))
+  console.log("This won't be executed")
+})
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+Task1...
+Task2...
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "Something went wrong!"
+  }
+}
+*/
 ```
 
 <Info>
-  If you want to dive deeper into effective error handling with Effect, you can explore the ["Error Management"](../error-management/two-error-types)
-  section.
+  If you want to dive deeper into effective error handling with Effect, you can
+  explore the ["Error Management"](../error-management/two-error-types) section.
 </Info>
 
 ## Using the helper as a pipe
@@ -110,22 +266,55 @@ The `_` helper can also be used as a `pipe` function (see [Building Pipelines](.
 
 In the following example, the `Random.next()` effect is piped into the `Effect.map` function:
 
-```ts {5-6} file=<rootDir>/src/essentials/using-generators/helper-as-pipe.ts
+```ts twoslash {5-6}
+import { Effect, Random } from "effect"
 
+const program = Effect.gen(function* (_) {
+  const n = yield* _(
+    Random.next,
+    Effect.map((n) => n * 2)
+  )
+  if (n > 0.5) {
+    return "yay!"
+  } else {
+    return yield* _(Effect.fail("oh no!"))
+  }
+})
 ```
 
 This approach is useful to avoid excessive notation by using both the `_` helper and the `pipe` function. Instead, you can directly pass the `Random.next()` effect to `Effect.map` within the `_` helper, eliminating the need for an additional `pipe` function:
 
-```ts /pipe/ file=<rootDir>/src/essentials/using-generators/helper-as-pipe-redundant-pipe.ts#L3-
-
+```ts twoslash
+import { Effect, Random, pipe } from "effect"
+// ---cut---
+const program = Effect.gen(function* (_) {
+  const n = yield* _(
+    pipe(
+      Random.next,
+      Effect.map((n) => n * 2)
+    )
+  )
+  // ...
+})
 ```
 
 ## Passing this
 
 In some cases, you might need to pass a reference to the current object (`this`) into the body of your generator function. You can achieve this by utilizing an overload that accepts the reference as the first argument:
 
-```ts /this/ file=<rootDir>/src/essentials/using-generators/this.ts
+```ts twoslash
+import { Effect } from "effect"
 
+class MyService {
+  readonly local = 1
+  compute() {
+    return Effect.gen(this, function* (_) {
+      return yield* _(Effect.succeed(this.local + 1))
+    })
+  }
+}
+
+console.log(Effect.runSync(new MyService().compute())) // Output: 2
 ```
 
 In this example, we have a `MyService` class with a property called `local`. By passing `this` as the first argument to `Effect.gen`, we make the `local` property available within the generator.
