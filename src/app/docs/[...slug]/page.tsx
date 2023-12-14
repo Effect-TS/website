@@ -1,6 +1,7 @@
 import { Breadcrumbs } from "@/components/atoms/breadcrumbs"
 import { MDX } from "@/components/atoms/mdx"
 import { ChildCards } from "@/components/docs/child-cards"
+import { MobileNavigation } from "@/components/docs/mobile-navigation"
 import { Pagination } from "@/components/docs/pagination"
 import { TableOfContents } from "@/components/docs/table-of-contents"
 import { Divider } from "@/components/layout/divider"
@@ -28,9 +29,12 @@ export default function Page({ params: { slug } }: { params: { slug: string[] } 
 
   return (
     <>
-      <main className="px-12 pb-24 -mt-2 grow">
+      <main className="shrink grow md:pl-12 xl:pr-12 pb-24 -mt-2 flex flex-col md:items-center xl:items-start">
         <Breadcrumbs elements={breadcrumbs} />
-        <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white mb-12">{page.title}</h2>
+        <div className="w-full max-w-2xl flex items-center mb-12">
+          <MobileNavigation className="md:hidden" />
+          <h2 className="grow shrink font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white">{page.title}</h2>
+        </div>
         <MDX content={page.body.code} />
         {page.bottomNavigation !== "none" && (
           <div className="-mx-12">

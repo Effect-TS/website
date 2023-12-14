@@ -33,6 +33,7 @@ import { SunIcon } from "./sun"
 import { MoonIcon } from "./moon"
 import { DisplayIcon } from "./display"
 import { GearIcon } from "./gear"
+import { CloseIcon } from "./close"
 
 const icons = {
   alert: AlertIcon,
@@ -46,6 +47,7 @@ const icons = {
   check: CheckIcon,
   "check-circle": CheckCircleIcon,
   "chevron-right": ChevronRightIcon,
+  close: CloseIcon,
   cloudflare: CloudflareIcon,
   deno: DenoIcon,
   discord: DiscordIcon,

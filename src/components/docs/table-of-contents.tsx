@@ -41,7 +41,7 @@ export const TableOfContents: FC<{ elements: { level: number; title: string }[];
   }
 
   return (
-    <aside className="toc shrink-0 sticky top-32 sm:top-40 mb-16 w-40 overflow-y-auto">
+    <aside className="toc flex-none sticky top-32 sm:top-40 mb-16 w-40 overflow-y-auto hidden xl:block">
       <div>
         {elements.length > 1 && <h2 className="text-black dark:text-white uppercase text-sm font-semibold h-8 flex items-end">On this page</h2>}
         <ul className="relative grow overflow-y-auto py-9 text-sm">
