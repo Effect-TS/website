@@ -6,6 +6,8 @@ import "./hljs.css"
 import { Navigation } from "@/components/layout/navigation"
 import { Footer } from "@/components/layout/footer"
 import { ReactNode } from "react"
+import Script from "next/script"
+import { ThemeWrapper } from "@/components/layout/theme-wrapper"
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" })
 const calSans = localFont({
@@ -23,9 +25,23 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${calSans.variable}`}>
-      <body className="relative antialiased bg-[#09090B] font-light text-zinc-400">
+      <body className="relative antialiased font-light bg-white dark:bg-[#09090B] text-zinc-700 dark:text-zinc-400">
+        <Script
+          id="check-theme"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ((!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches) || localStorage.theme === 'dark') {
+                document.documentElement.classList.add('dark')
+              } else {
+                document.documentElement.classList.remove('dark')
+              }
+            `
+          }}
+        />
+
         <Navigation />
-        <div className="min-h-screen relative pt-16 sm:pt-24">{children}</div>
+        {children}
         <Footer />
       </body>
     </html>

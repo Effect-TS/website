@@ -18,11 +18,16 @@ export const NavigationLink: FC<{ level: number; element: DocsNavElement }> = ({
       <Link
         href={element.urlPath}
         className={`leading-tight flex items-center w-full justify-between px-4 border-l ${
-          element.urlPath === pathname ? "border-white text-white" : "border-transparent text-zinc-400"
-        } ${level === 0 && element.children.length ? "text-white uppercase text-sm font-semibold mt-12" : "mt-3"}`}
+          element.urlPath === pathname
+            ? "border-black dark:border-white text-black font-normal dark:text-white dark:font-light"
+            : "border-transparent text-zinc-700 dark:text-zinc-400"
+        } ${level === 0 && element.children.length ? "text-black dark:text-white uppercase text-sm font-semibold mt-12" : "mt-3"}`}
         style={{ minHeight: "1.25rem" }}
       >
-        <span className={`${level === 0 && element.children.length ? "text-white" : ""}`} style={{ marginLeft: `${level > 0 ? level - 1 : 0}rem` }}>
+        <span
+          className={`${level === 0 && element.children.length ? "text-black dark:text-white" : ""}`}
+          style={{ marginLeft: `${level > 0 ? level - 1 : 0}rem` }}
+        >
           {element.title}
         </span>
         {element.children.length > 0 && element.collapsible && (

@@ -30,7 +30,7 @@ export default function Page({ params: { slug } }: { params: { slug: string[] } 
     <>
       <main className="px-12 pb-24 -mt-2 grow">
         <Breadcrumbs elements={breadcrumbs} />
-        <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white mb-12">{page.title}</h2>
+        <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white mb-12">{page.title}</h2>
         <MDX content={page.body.code} />
         {page.bottomNavigation !== "none" && (
           <div className="-mx-12">

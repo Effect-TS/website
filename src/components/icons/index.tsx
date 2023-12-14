@@ -29,6 +29,10 @@ import { AlertIcon } from "./alert"
 import { LightbulbSolidIcon } from "./lightbulb-solid"
 import { InfoIcon } from "./info"
 import { ErrorIcon } from "./error"
+import { SunIcon } from "./sun"
+import { MoonIcon } from "./moon"
+import { DisplayIcon } from "./display"
+import { GearIcon } from "./gear"
 
 const icons = {
   alert: AlertIcon,
@@ -45,12 +49,15 @@ const icons = {
   cloudflare: CloudflareIcon,
   deno: DenoIcon,
   discord: DiscordIcon,
+  display: DisplayIcon,
   error: ErrorIcon,
+  gear: GearIcon,
   github: GithubIcon,
   graphql: GraphQLIcon,
   info: InfoIcon,
   lightbulb: LightBulbIcon,
   "lightbulb-solid": LightbulbSolidIcon,
+  moon: MoonIcon,
   next: NextIcon,
   node: NodeIcon,
   "open-api": OpenAPIIcon,
@@ -59,6 +66,7 @@ const icons = {
   react: ReactIcon,
   search: SearchIcon,
   shield: ShieldIcon,
+  sun: SunIcon,
   "trend-up": TrendUpIcon,
   twitter: TwitterIcon
 }

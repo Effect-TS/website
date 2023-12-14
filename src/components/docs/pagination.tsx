@@ -20,23 +20,23 @@ export const Pagination: FC<{ path: string }> = ({ path }) => {
     <div className="flex justify-between max-w-[65ch]">
       <div>
         {prev && (
-          <Link href={prev.urlPath} className="hover:bg-zinc-900 p-3 -mr-3 -mt-3 block rounded-xl">
-            <div className="text-sm flex justify-start gap-1.5 items-center">
+          <Link href={prev.urlPath} className="hover:bg-zinc-100 dark:hover:bg-zinc-900 p-3 -mr-3 -mt-3 block rounded-xl">
+            <div className="text-sm flex justify-start gap-1.5 items-center text-zinc-500 dark:text-zinc-400">
               <Icon name="arrow-right" className="h-3 rotate-180" />
               <span>Prev</span>
             </div>
-            <div className="text-white">{prev.title}</div>
+            <div className="text-black dark:text-white">{prev.title}</div>
           </Link>
         )}
       </div>
       <div>
         {next && (
-          <Link href={next.urlPath} className="hover:bg-zinc-900 p-3 -mr-3 -mt-3 block rounded-xl">
-            <div className="text-sm flex justify-end gap-1.5 items-center">
+          <Link href={next.urlPath} className="hover:bg-zinc-100 dark:hover:bg-zinc-900 p-3 -mr-3 -mt-3 block rounded-xl">
+            <div className="text-sm flex justify-end gap-1.5 items-center text-zinc-500 dark:text-zinc-400">
               <span>Next</span>
               <Icon name="arrow-right" className="h-3" />
             </div>
-            <div className="text-white">{next.title}</div>
+            <div className="text-black dark:text-white">{next.title}</div>
           </Link>
         )}
       </div>

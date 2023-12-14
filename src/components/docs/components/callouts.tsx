@@ -44,7 +44,7 @@ export const Stub: React.FC = () => (
 )
 
 const classes: Record<CalloutType, string> = {
-  default: cn("bg-white/10 border-white/20"),
+  default: cn("bg-zinc-50 border-zinc-200 dark:bg-white/10 dark:border-white/20"),
   error: cn("bg-red-500/10 border-red-500/20"),
   info: cn("bg-blue-500/10 border-blue-500/20"),
   warning: cn("bg-amber-500/10 border-amber-500/20")
@@ -67,7 +67,7 @@ export const Callout = ({ children, type = "default", emoji = TypeToEmoji[type] 
       >
         {emoji}
       </div>
-      <div className="w-full min-w-0 leading-7 text-white/70">
+      <div className="w-full min-w-0 leading-7 text-black/70 dark:text-white/70">
         <div className="mb-5" />
         {children}
         <div className="mt-5" />
@@ -77,7 +77,7 @@ export const Callout = ({ children, type = "default", emoji = TypeToEmoji[type] 
 }
 
 const TypeToEmoji = {
-  default: <Icon name="lightbulb-solid" className="h-5 text-yellow-100" />,
+  default: <Icon name="lightbulb-solid" className="h-5 text-yellow-300 dark:text-yellow-100" />,
   error: <Icon name="error" className="h-5 text-red-500" />,
   info: <Icon name="info" className="h-5 text-blue-500" />,
   warning: <Icon name="alert" className="h-5 text-amber-500" />

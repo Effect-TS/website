@@ -9,14 +9,12 @@ The `Effect<Requirements, Error, Value>` type represents an **immutable** value 
 It encapsulates the logic of a program that requires a collection of contextual data `Context<Requirements>` to execute.
 This program can either fail, produce an error of type `Error`, or succeed, yielding a value of type `Value`.
 
-Conceptually, you can think of `Effect<Requirements, Error, Value>{:ts}` as an effectful version of the following function type:
+Conceptually, you can think of `Effect<Requirements, Error, Value>` as an effectful version of the following function type:
 
 ```ts twoslash
 type Context<Requirements> = { [K in keyof Requirements]: Requirements[K] }
 // ---cut---
-type Effect<Requirements, Error, Value> = (
-  context: Context<Requirements>
-) => Error | Value
+type Effect<Requirements, Error, Value> = (context: Context<Requirements>) => Error | Value
 ```
 
 Effects are not actually functions, of course, they can model synchronous, asynchronous, concurrent, and resourceful computations.
@@ -34,8 +32,7 @@ The `Effect` type has three type parameters with the following meanings:
   If this type parameter is `void`, it means the effect produces no useful information, while if it is `never`, it means the effect runs forever (or until failure).
 
 <Info>
-  In the Effect ecosystem, you may often encounter the type parameters of
-  `Effect` abbreviated as `R`, `E`, and `A` respectively. This is just shorthand
+  In the Effect ecosystem, you may often encounter the type parameters of `Effect` abbreviated as `R`, `E`, and `A` respectively. This is just shorthand
   for **R**equirements, **E**rror, and the success value of type **A**.
 </Info>
 
