@@ -4,6 +4,7 @@ import { H2, H3, H4 } from "@/components/atoms/headings"
 import { Tab, Tabs } from "@/components/docs/components/tabs"
 import * as Callouts from "@/components/docs/components/callouts"
 import { Steps } from "@/components/docs/components/steps"
+import { Pre } from "../docs/components/pre"
 
 export const MDX: FC<{ content: string }> = ({ content }) => {
   const Content = useMDXComponent(content)
@@ -15,6 +16,7 @@ export const MDX: FC<{ content: string }> = ({ content }) => {
           h2: H2,
           h3: H3,
           h4: H4,
+          pre: Pre,
           Tab,
           Tabs,
           Steps,

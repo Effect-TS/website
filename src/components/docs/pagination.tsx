@@ -17,7 +17,7 @@ export const Pagination: FC<{ path: string }> = ({ path }) => {
   const next = pages.sort((pageA, pageB) => pageA.order - pageB.order).filter((page) => page.order > currentPage.order)[0]
 
   return (
-    <div className="flex justify-between max-w-[65ch]">
+    <div className="flex w-full justify-between max-w-[65ch]">
       <div>
         {prev && (
           <Link href={prev.urlPath} className="hover:bg-zinc-100 dark:hover:bg-zinc-900 p-3 -mr-3 -mt-3 block rounded-xl">

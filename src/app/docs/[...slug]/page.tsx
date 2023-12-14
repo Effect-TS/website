@@ -37,8 +37,10 @@ export default function Page({ params: { slug } }: { params: { slug: string[] } 
         </div>
         <MDX content={page.body.code} />
         {page.bottomNavigation !== "none" && (
-          <div className="-mx-12">
-            <Divider className="my-16" />
+          <div className="w-full">
+            <div className="-mx-12">
+              <Divider className="my-16" />
+            </div>
           </div>
         )}
         {page.bottomNavigation === "childCards" && <ChildCards path={page.urlPath} />}

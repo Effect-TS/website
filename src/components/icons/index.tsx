@@ -34,6 +34,7 @@ import { MoonIcon } from "./moon"
 import { DisplayIcon } from "./display"
 import { GearIcon } from "./gear"
 import { CloseIcon } from "./close"
+import { ClipboardIcon } from "./clipboard"
 
 const icons = {
   alert: AlertIcon,
@@ -47,6 +48,7 @@ const icons = {
   check: CheckIcon,
   "check-circle": CheckCircleIcon,
   "chevron-right": ChevronRightIcon,
+  clipboard: ClipboardIcon,
   close: CloseIcon,
   cloudflare: CloudflareIcon,
   deno: DenoIcon,
