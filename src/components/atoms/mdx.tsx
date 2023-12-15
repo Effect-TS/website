@@ -1,13 +1,14 @@
-'use client';
+// "use client"
 
-import React, { FC } from "react"
+// import React, { FC } from "react"
+import { FC } from "react"
 import { useMDXComponent } from "next-contentlayer/hooks"
 import { H2, H3, H4 } from "@/components/atoms/headings"
 import { Tab, Tabs } from "@/components/docs/components/tabs"
 import * as Callouts from "@/components/docs/components/callouts"
 import { Steps } from "@/components/docs/components/steps"
 import { Pre } from "../docs/components/pre"
-import { Mermaid } from '@theguild/remark-mermaid/mermaid'
+// import { Mermaid } from "@theguild/remark-mermaid/mermaid"
 
 export const MDX: FC<{ content: string }> = ({ content }) => {
   const Content = useMDXComponent(content)
@@ -23,7 +24,7 @@ export const MDX: FC<{ content: string }> = ({ content }) => {
           Tab,
           Tabs,
           Steps,
-          Mermaid,
+          // Mermaid,
           ...Callouts
         }}
       />
