@@ -58,7 +58,7 @@ The following program serves as an illustration of how errors are automatically 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts filename="error-tracking.ts" twoslash
+```twoslash include error-tracking
 import { Effect, Random } from "effect"
 
 class FooError {
@@ -79,6 +79,10 @@ export const program = Effect.gen(function* (_) {
 
   return foo + bar
 })
+```
+
+```ts filename="error-tracking.ts" twoslash
+// @include: error-tracking
 
 Effect.runPromise(program).then(console.log, console.error)
 ```
@@ -233,20 +237,7 @@ By yielding an `Either`, we gain the ability to "pattern match" on this type to 
 
 ```ts twoslash
 // @filename: error-tracking.ts
-import { Effect, Random } from "effect"
-class FooError {
-  readonly _tag = "FooError"
-}
-class BarError {
-  readonly _tag = "BarError"
-}
-export const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
-  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
-  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
-  return foo + bar
-})
+// @include: error-tracking
 
 // @filename: index.ts
 // ---cut---
@@ -270,20 +261,7 @@ We can make the code less verbose by using the `Either.match` function, which di
 
 ```ts twoslash
 // @filename: error-tracking.ts
-import { Effect, Random } from "effect"
-class FooError {
-  readonly _tag = "FooError"
-}
-class BarError {
-  readonly _tag = "BarError"
-}
-export const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
-  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
-  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
-  return foo + bar
-})
+// @include: error-tracking
 
 // @filename: index.ts
 // ---cut---
@@ -306,20 +284,7 @@ The `catchAll` function allows you to catch any error that occurs in the program
 
 ```ts {5} twoslash
 // @filename: error-tracking.ts
-import { Effect, Random } from "effect"
-class FooError {
-  readonly _tag = "FooError"
-}
-class BarError {
-  readonly _tag = "BarError"
-}
-export const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
-  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
-  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
-  return foo + bar
-})
+// @include: error-tracking
 
 // @filename: index.ts
 // ---cut---
@@ -350,20 +315,7 @@ Suppose we want to handle a specific error, such as `FooError`.
 
 ```ts {8-10} twoslash
 // @filename: error-tracking.ts
-import { Effect, Random } from "effect"
-class FooError {
-  readonly _tag = "FooError"
-}
-class BarError {
-  readonly _tag = "BarError"
-}
-export const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
-  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
-  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
-  return foo + bar
-})
+// @include: error-tracking
 
 // @filename: index.ts
 // ---cut---
@@ -395,20 +347,7 @@ If we also want to handle `BarError`, we can easily add another case to our code
 
 ```ts {11} twoslash
 // @filename: error-tracking.ts
-import { Effect, Random } from "effect"
-class FooError {
-  readonly _tag = "FooError"
-}
-class BarError {
-  readonly _tag = "BarError"
-}
-export const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
-  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
-  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
-  return foo + bar
-})
+// @include: error-tracking
 
 // @filename: index.ts
 // ---cut---
@@ -440,20 +379,7 @@ If we want to catch and recover from only some types of errors and effectfully a
 
 ```ts twoslash
 // @filename: error-tracking.ts
-import { Effect, Random } from "effect"
-class FooError {
-  readonly _tag = "FooError"
-}
-class BarError {
-  readonly _tag = "BarError"
-}
-export const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
-  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
-  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
-  return foo + bar
-})
+// @include: error-tracking
 
 // @filename: index.ts
 // ---cut---
@@ -478,20 +404,7 @@ However, if your program's errors are all tagged with a `_tag` field that acts a
 
 ```ts {5-7} twoslash
 // @filename: error-tracking.ts
-import { Effect, Random } from "effect"
-class FooError {
-  readonly _tag = "FooError"
-}
-class BarError {
-  readonly _tag = "BarError"
-}
-export const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
-  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
-  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
-  return foo + bar
-})
+// @include: error-tracking
 
 // @filename: index.ts
 // ---cut---
@@ -520,20 +433,7 @@ If we also wanted to handle `BarError`, we can simply add another `catchTag`:
 
 ```ts {8-10} twoslash
 // @filename: error-tracking.ts
-import { Effect, Random } from "effect"
-class FooError {
-  readonly _tag = "FooError"
-}
-class BarError {
-  readonly _tag = "BarError"
-}
-export const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
-  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
-  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
-  return foo + bar
-})
+// @include: error-tracking
 
 // @filename: index.ts
 // ---cut---
@@ -563,20 +463,7 @@ Instead of using the `Effect.catchTag` function multiple times to handle individ
 
 ```ts {5-8} twoslash
 // @filename: error-tracking.ts
-import { Effect, Random } from "effect"
-class FooError {
-  readonly _tag = "FooError"
-}
-class BarError {
-  readonly _tag = "BarError"
-}
-export const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
-  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
-  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
-  return foo + bar
-})
+// @include: error-tracking
 
 // @filename: index.ts
 // ---cut---
