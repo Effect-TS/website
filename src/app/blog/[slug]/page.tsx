@@ -8,7 +8,11 @@ import { format } from "date-fns"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
-export async function generateMetadata({ params: { slug } }: { params: { slug: string[] } }) {
+export async function generateMetadata({
+  params: { slug }
+}: {
+  params: { slug: string[] }
+}) {
   const post = allBlogPosts.find((post) => post.urlPath === `/blog/${slug}`)!
   return {
     title: `${post.title} – Effect Blog`,
@@ -16,7 +20,11 @@ export async function generateMetadata({ params: { slug } }: { params: { slug: s
   }
 }
 
-export default function Page({ params: { slug } }: { params: { slug: string } }) {
+export default function Page({
+  params: { slug }
+}: {
+  params: { slug: string }
+}) {
   const post = allBlogPosts.find((post) => post.urlPath === `/blog/${slug}`)
   if (!post) notFound()
 
@@ -35,10 +43,17 @@ export default function Page({ params: { slug } }: { params: { slug: string } })
           <Link href="/blog" className="hover:text-black dark:hover:text-white">
             Blog
           </Link>
-          <Icon name={"chevron-right"} className="h-2.5 text-zinc-400 dark:text-zinc-600" />
+          <Icon
+            name={"chevron-right"}
+            className="h-2.5 text-zinc-400 dark:text-zinc-600"
+          />
         </div>
-        <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white">{post.title}</h2>
-        <div className="text-sm h-4 mt-1.5 mb-6">{format(new Date(post.date), "MMM do, yyyy")}</div>
+        <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white">
+          {post.title}
+        </h2>
+        <div className="text-sm h-4 mt-1.5 mb-6">
+          {format(new Date(post.date), "MMM do, yyyy")}
+        </div>
         <MDX content={post.body.code} />
         {post.relatedPosts && <RelatedPosts slugs={post.relatedPosts} />}
       </main>

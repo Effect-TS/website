@@ -8,11 +8,17 @@ export const Breadcrumbs: FC<{ elements: Breadcrumbs }> = ({ elements }) => {
       {elements.map(({ name, href }, index) => (
         <Fragment key={index}>
           <li>
-            <Link href={href} className="hover:text-black dark:hover:text-white">
+            <Link
+              href={href}
+              className="hover:text-black dark:hover:text-white"
+            >
               {name}
             </Link>
           </li>
-          <Icon name={"chevron-right"} className="h-2.5 text-zinc-400 dark:text-zinc-600" />
+          <Icon
+            name={"chevron-right"}
+            className="h-2.5 text-zinc-400 dark:text-zinc-600"
+          />
         </Fragment>
       ))}
     </ul>

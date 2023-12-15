@@ -14,26 +14,40 @@ export const generateStaticParams = () =>
     slug: page.urlPath.replace("/docs/", "").split("/")
   }))
 
-export async function generateMetadata({ params: { slug } }: { params: { slug: string[] } }) {
-  const page = allDocsPages.find((page) => page.urlPath === `/docs/${slug.join("/")}`)!
+export async function generateMetadata({
+  params: { slug }
+}: {
+  params: { slug: string[] }
+}) {
+  const page = allDocsPages.find(
+    (page) => page.urlPath === `/docs/${slug.join("/")}`
+  )!
   return {
     title: `${page.title} – Effect Docs`,
     description: page.excerpt
   }
 }
 
-export default function Page({ params: { slug } }: { params: { slug: string[] } }) {
-  const page = allDocsPages.find((page) => page.urlPath === `/docs/${slug.join("/")}`)
+export default function Page({
+  params: { slug }
+}: {
+  params: { slug: string[] }
+}) {
+  const page = allDocsPages.find(
+    (page) => page.urlPath === `/docs/${slug.join("/")}`
+  )
   if (!page) notFound()
   const breadcrumbs = getBreadcrumbs(page.pathSegments)
 
   return (
     <>
-      <main className="shrink grow md:pl-12 xl:pr-12 pb-24 -mt-2 flex flex-col md:items-center xl:items-start">
+      <main className="shrink grow md:pl-12 xl:pr-12 pb-24 -mt-2">
         <Breadcrumbs elements={breadcrumbs} />
-        <div className="w-full max-w-2xl flex items-center mb-12">
+        <div className="flex items-center mb-12">
           <MobileNavigation className="md:hidden" />
-          <h2 className="grow shrink font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white">{page.title}</h2>
+          <h2 className="grow shrink font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white">
+            {page.title}
+          </h2>
         </div>
         <MDX content={page.body.code} />
         {page.bottomNavigation !== "none" && (
@@ -43,10 +57,18 @@ export default function Page({ params: { slug } }: { params: { slug: string[] } 
             </div>
           </div>
         )}
-        {page.bottomNavigation === "childCards" && <ChildCards path={page.urlPath} />}
-        {page.bottomNavigation === "pagination" && <Pagination path={page.urlPath} />}
+        {page.bottomNavigation === "childCards" && (
+          <ChildCards path={page.urlPath} />
+        )}
+        {page.bottomNavigation === "pagination" && (
+          <Pagination path={page.urlPath} />
+        )}
       </main>
-      <TableOfContents elements={page.headings} pageFilePath={page._raw.sourceFilePath} pageTitle={page.title} />
+      <TableOfContents
+        elements={page.headings}
+        pageFilePath={page._raw.sourceFilePath}
+        pageTitle={page.title}
+      />
     </>
   )
 }
