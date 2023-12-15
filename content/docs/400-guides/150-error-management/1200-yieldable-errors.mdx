@@ -9,16 +9,67 @@ excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonum
 
 The `Data.Error` constructor enables you to create a base yieldable error class. This class can be used to represent different types of errors in your code. Here's how you can use it:
 
-```ts file=<rootDir>/src/guide/error-management/yieldable-errors/Error.ts
+```ts twoslash
+import { Effect, Data } from "effect"
 
+class MyError extends Data.Error<{ message: string }> {}
+
+export const program = Effect.gen(function* (_) {
+  yield* _(new MyError({ message: "Oh no!" })) // same as yield* _(Effect.fail(new MyError({ message: "Oh no!" })))
+})
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    reason: 'Oh no!'
+    failure: MyError: "Oh no!
+      at ...
+  }
+}
+*/
 ```
 
 ## Data.TaggedError
 
 The `Data.TaggedError` constructor is useful for creating tagged yieldable errors. These errors bear a distinct property named `_tag`, which acts as their unique identifier, allowing you to differentiate them from one another. Here's how you can use it:
 
-```ts file=<rootDir>/src/guide/error-management/yieldable-errors/TaggedError.ts
+```ts twoslash
+import { Effect, Data, Random } from "effect"
 
+// An error with _tag: "Foo"
+class FooError extends Data.TaggedError("Foo")<{
+  message: string
+}> {}
+
+// An error with _tag: "Bar"
+class BarError extends Data.TaggedError("Bar")<{
+  randomNumber: number
+}> {}
+
+export const program = Effect.gen(function* (_) {
+  const n = yield* _(Random.next)
+  return n > 0.5
+    ? "yay!"
+    : n < 0.2
+      ? yield* _(new FooError({ message: "Oh no!" }))
+      : yield* _(new BarError({ randomNumber: n }))
+}).pipe(
+  Effect.catchTags({
+    Foo: (error) => Effect.succeed(`Foo error: ${error.message}`),
+    Bar: (error) => Effect.succeed(`Bar error: ${error.randomNumber}`)
+  })
+)
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Example Output (n < 0.2):
+Foo error: Oh no!
+*/
 ```
 
 In this example, we create `FooError` and `BarError` classes with distinct tags ("Foo" and "Bar"). These tags help identify the type of error when handling errors in your code.

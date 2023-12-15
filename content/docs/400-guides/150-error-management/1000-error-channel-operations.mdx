@@ -11,31 +11,46 @@ In Effect you can perform various operations on the error channel of effects. Th
 
 The `Effect.mapError` function is used when you need to **transform or modify an error** produced by an effect, without affecting the success value. This can be helpful when you want to add extra information to the error or change its type.
 
-```ts /string/1 /Error/1 file=<rootDir>/src/guide/error-management/error-channel-operations/mapError.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const simulatedTask = Effect.fail("Oh no!").pipe(Effect.as(1))
+
+const mapped = Effect.mapError(simulatedTask, (message) => new Error(message))
 ```
 
 We can observe that the type in the error channel of our program has changed from `string` to `Error`.
 
 <Info>
-  It's important to note that using the `Effect.mapError` function **does not change** the overall success or failure of the effect. If the mapped effect
-  is successful, then the mapping function is ignored. In other words, the `Effect.mapError` operation only applies the transformation to the error channel
-  of the effect, while leaving the success channel unchanged.
+  It's important to note that using the `Effect.mapError` function **does not
+  change** the overall success or failure of the effect. If the mapped effect is
+  successful, then the mapping function is ignored. In other words, the
+  `Effect.mapError` operation only applies the transformation to the error
+  channel of the effect, while leaving the success channel unchanged.
 </Info>
 
 ### mapBoth
 
 The `Effect.mapBoth` function allows you to **apply transformations to both channels**: the error channel and the success channel of an effect. It takes two map functions as arguments: one for the error channel and the other for the success channel.
 
-```ts /string, number/ /Error, boolean/ file=<rootDir>/src/guide/error-management/error-channel-operations/mapBoth.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const simulatedTask = Effect.fail("Oh no!").pipe(Effect.as(1))
+
+const modified = Effect.mapBoth(simulatedTask, {
+  onFailure: (message) => new Error(message),
+  onSuccess: (n) => n > 0
+})
 ```
 
 After using `mapBoth`, we can observe that the type of our program has changed from `Effect<never, string, number>` to `Effect<never, Error, boolean>`.
 
 <Info>
-  It's important to note that using the `mapBoth` function **does not change** the overall success or failure of the effect. It only transforms the values
-  in the error and success channels while preserving the effect's original success or failure status.
+  It's important to note that using the `mapBoth` function **does not change**
+  the overall success or failure of the effect. It only transforms the values in
+  the error and success channels while preserving the effect's original success
+  or failure status.
 </Info>
 
 ## Filtering the Success Channel
@@ -50,16 +65,58 @@ The Effect library provides several operators to **filter values on the success 
 
 Here's an example that demonstrates these filtering operators in action:
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/filtering.ts
+```ts twoslash
+import { Effect, Random, Cause } from "effect"
 
+const task1 = Effect.filterOrFail(
+  Random.nextRange(-1, 1),
+  (n) => n >= 0,
+  () => "random number is negative"
+)
+
+const task2 = Effect.filterOrDie(
+  Random.nextRange(-1, 1),
+  (n) => n >= 0,
+  () => new Cause.IllegalArgumentException("random number is negative")
+)
+
+const task3 = Effect.filterOrDieMessage(
+  Random.nextRange(-1, 1),
+  (n) => n >= 0,
+  "random number is negative"
+)
+
+const task4 = Effect.filterOrElse(
+  Random.nextRange(-1, 1),
+  (n) => n >= 0,
+  () => task3
+)
 ```
 
 It's important to note that depending on the specific filtering operator used, the effect can either fail, terminate abruptly, or execute an alternative effect when the predicate fails. Choose the appropriate operator based on your desired error handling strategy and program logic.
 
 In addition to the filtering capabilities discussed earlier, you have the option to further refine and narrow down the type of the success channel by providing a [user-defined type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) to the `filterOr*` APIs. This not only enhances type safety but also improves code clarity. Let's explore this concept through an example:
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/filtering-guards.ts
+```ts twoslash
+import { Effect, pipe } from "effect"
 
+// Define a user interface
+interface User {
+  readonly name: string
+}
+
+// Assume an asynchronous authentication function
+declare const auth: () => Promise<User | null>
+
+const program = pipe(
+  Effect.promise(() => auth()),
+  Effect.filterOrFail(
+    // Define a guard to narrow down the type
+    (user): user is User => user !== null,
+    () => new Error("Unauthorized")
+  ),
+  Effect.map((user) => user.name) // The 'user' here has type `User`, not `User | null`
+)
 ```
 
 In the example above, a guard is used within the `filterOrFail` API to ensure that the `user` is of type `User` rather than `User | null`. This refined type information improves the reliability of your code and makes it more understandable.
@@ -77,11 +134,29 @@ Similar to [tapping](../essentials/pipeline#tap) for success values, Effect prov
 
 Let's see an example of how to use these operators:
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/tapError.ts
+```ts twoslash
+import { Effect, Random, Console } from "effect"
 
+const task = Effect.filterOrFail(
+  Random.nextRange(-1, 1),
+  (n) => n >= 0,
+  () => "random number is negative"
+)
+
+const tapping1 = Effect.tapError(task, (error) =>
+  Console.log(`failure: ${error}`)
+)
+
+const tapping2 = Effect.tapBoth(task, {
+  onFailure: (error) => Console.log(`failure: ${error}`),
+  onSuccess: (randomNumber) => Console.log(`random number: ${randomNumber}`)
+})
 ```
 
-<Info>It's important to note that tapping into error values **does not change** the type of the program.</Info>
+<Info>
+  It's important to note that tapping into error values **does not change** the
+  type of the program.
+</Info>
 
 ## Exposing Errors in The Success Channel
 
@@ -98,15 +173,42 @@ This function becomes especially useful when recovering from effects that may fa
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/either-gen.ts
+```ts twoslash
+import { Effect, Either, Console } from "effect"
 
+const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = Effect.gen(function* (_) {
+  const failureOrSuccess = yield* _(Effect.either(simulatedTask))
+  if (Either.isLeft(failureOrSuccess)) {
+    const error = failureOrSuccess.left
+    yield* _(Console.log(`failure: ${error}`))
+    return 0
+  } else {
+    const value = failureOrSuccess.right
+    yield* _(Console.log(`success: ${value}`))
+    return value
+  }
+})
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/either-pipe.ts
+```ts twoslash
+import { Effect, Either, Console } from "effect"
 
+const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = Effect.either(simulatedTask).pipe(
+  Effect.flatMap((failureOrSuccess) =>
+    Either.match(failureOrSuccess, {
+      onLeft: (error) => Console.log(`failure: ${error}`).pipe(Effect.as(0)),
+      onRight: (value) =>
+        Console.log(`success: ${value}`).pipe(Effect.as(value))
+    })
+  )
+)
 ```
 
 </Tab>
@@ -119,15 +221,28 @@ You can use the `Effect.cause` function to **expose the cause** of an effect, wh
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/cause-gen.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = Effect.gen(function* (_) {
+  const cause = yield* _(Effect.cause(simulatedTask))
+  yield* _(Console.log(cause))
+})
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/cause-pipe.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = Effect.cause(simulatedTask).pipe(
+  Effect.flatMap((cause) => Console.log(cause))
+)
 ```
 
 </Tab>
@@ -137,14 +252,22 @@ You can use the `Effect.cause` function to **expose the cause** of an effect, wh
 
 Using the `Effect.merge` function, you can **merge the error channel into the success channel**, creating an effect that always succeeds with the merged value.
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/merge.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const merged = Effect.merge(simulatedTask)
 ```
 
 ## Flipping Error and Success Channels
 
 Using the `Effect.flip` function, you can **flip the error and success channels** of an effect, effectively swapping their roles.
 
-```ts file=<rootDir>/src/guide/error-management/error-channel-operations/flip.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const flipped = Effect.flip(simulatedTask)
 ```

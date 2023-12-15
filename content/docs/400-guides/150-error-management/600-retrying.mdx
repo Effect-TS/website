@@ -14,8 +14,26 @@ Whether you're working on network requests, database interactions, or any other 
 
 To demonstrate the functionality of different retry functions, we will be working with the following helper that simulates an effect with possible failures:
 
-```ts filename="fake.ts" file=<rootDir>/src/guide/error-management/retrying/fake.ts
+```twoslash include fake
+import { Effect } from "effect"
 
+let count = 0
+
+// Simulates an effect with possible failures
+export const effect = Effect.async<never, Error, string>((resume) => {
+  if (count <= 2) {
+    count++
+    console.log("failure")
+    resume(Effect.fail(new Error()))
+  } else {
+    console.log("success")
+    resume(Effect.succeed("yay!"))
+  }
+})
+```
+
+```ts filename="fake.ts" twoslash
+// @include: fake
 ```
 
 ## retry
@@ -28,16 +46,52 @@ Effect.retry(effect, policy)
 
 **Example**
 
-```ts file=<rootDir>/src/guide/error-management/retrying/retry.ts
+```ts twoslash
+// @filename: fake.ts
+// @include: fake
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Schedule } from "effect"
+import { effect } from "./fake"
+
+// Define a repetition policy using a fixed delay between retries
+const policy = Schedule.fixed("100 millis")
+
+const repeated = Effect.retry(effect, policy)
+
+Effect.runPromise(repeated).then(console.log)
+/*
+Output:
+failure
+failure
+failure
+success
+yay!
+*/
 ```
 
 ## retryN
 
 There is a shortcut when the policy is trivial and the failed effect is immediately retried: `retryN(effect)`.
 
-```ts file=<rootDir>/src/guide/error-management/retrying/retryN.ts
+```ts twoslash
+// @filename: fake.ts
+// @include: fake
 
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import { effect } from "./fake"
+
+Effect.runPromise(Effect.retryN(effect, 5))
+/*
+Output:
+failure
+failure
+failure
+success
+*/
 ```
 
 ## retryOrElse
@@ -54,6 +108,33 @@ Effect.retryOrElse(effect, policy, fallback)
 
 **Example**
 
-```ts file=<rootDir>/src/guide/error-management/retrying/retryOrElse.ts
+```ts twoslash
+// @filename: fake.ts
+// @include: fake
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Schedule, Console } from "effect"
+import { effect } from "./fake"
+
+const policy = Schedule.addDelay(
+  Schedule.recurs(2), // Retry for a maximum of 2 times
+  () => "100 millis" // Add a delay of 100 milliseconds between retries
+)
+
+// Create a new effect that retries the effect with the specified policy,
+// and provides a fallback effect if all retries fail
+const repeated = Effect.retryOrElse(effect, policy, () =>
+  Console.log("orElse").pipe(Effect.as("default value"))
+)
+
+Effect.runPromise(repeated).then(console.log)
+/*
+Output:
+failure
+failure
+failure
+orElse
+default value
+*/
 ```

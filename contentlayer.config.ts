@@ -6,6 +6,7 @@ import { makeSource } from "contentlayer/source-files"
 import remarkGfm from "remark-gfm"
 import type { Options as RehypePrettyCodeOptions } from "rehype-pretty-code"
 import rehypePrettyCode from "rehype-pretty-code"
+// import { remarkMermaid } from "@theguild/remark-mermaid"
 import remarkShikiTwoslash from "remark-shiki-twoslash"
 import rehypeRaw from "rehype-raw"
 import { nodeTypes } from "@mdx-js/mdx"
@@ -34,7 +35,10 @@ const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS: RehypePrettyCodeOptions = {
 
 const conditionalShikiTwoslash = (options: any) => (tree: any, file: any) => {
   const sourceFilePath = file.data.rawDocumentData.sourceFilePath
-  if (sourceFilePath.includes("essentials")) {
+  if (
+    sourceFilePath.includes("essentials") ||
+    sourceFilePath.includes("error-management")
+  ) {
     // @ts-expect-error xxx
     return remarkShikiTwoslash.default(options)(tree, file)
   }
@@ -46,6 +50,7 @@ export default makeSource({
   documentTypes: [DocsPage, BlogPost],
   mdx: {
     remarkPlugins: [
+      // remarkMermaid as any,
       [codeImport, { rootDir: process.cwd() + "/content" }],
       // // @ts-expect-error
       // [remarkShikiTwoslash.default, { theme: "github-dark" }],

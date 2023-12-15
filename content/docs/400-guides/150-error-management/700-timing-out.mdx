@@ -17,34 +17,130 @@ If an effect times out, then instead of continuing to execute in the background,
 
 Suppose we have the following effect:
 
-```ts file=<rootDir>/src/guide/error-management/timing-out/program.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.gen(function* (_) {
+  console.log("start doing something...")
+  yield* _(Effect.sleep("2 seconds"))
+  console.log("my job is finished!")
+  return "some result"
+})
+
+const main = program.pipe(Effect.timeout("3 seconds"))
 ```
 
 When we apply `Effect.timeout` to `program`, it behaves in one of the following ways:
 
 1. If the original effect (`program` in this case) completes before the timeout elapses, it returns `Some` of the produced value by the original effect. Here's an example:
 
-   ```ts file=<rootDir>/src/guide/error-management/timing-out/1.ts
+   ```ts twoslash
+   import { Effect } from "effect"
 
+   const program = Effect.gen(function* (_) {
+     console.log("start doing something...")
+     yield* _(Effect.sleep("2 seconds"))
+     console.log("my job is finished!")
+     return "some result"
+   })
+
+   const main = program.pipe(Effect.timeout("3 seconds"))
+
+   Effect.runPromise(main).then(console.log)
+   /*
+   Output:
+   start doing something...
+   my job is finished!
+   {
+   _id: "Option",
+   _tag: "Some",
+   value: "some result"
+   }
+   */
    ```
 
 2. If the timeout elapses before the original effect completes, and the effect is interruptible, it will be immediately interrupted, and the timeout operation produces a `None` value. Here's an example:
 
-   ```ts file=<rootDir>/src/guide/error-management/timing-out/2.ts
+   ```ts twoslash
+   import { Effect } from "effect"
 
+   const program = Effect.gen(function* (_) {
+     console.log("start doing something...")
+     yield* _(Effect.sleep("2 seconds"))
+     console.log("my job is finished!")
+     return "some result"
+   })
+
+   const main = program.pipe(Effect.timeout("1 seconds"))
+
+   Effect.runPromise(main).then(console.log)
+   /*
+   Output:
+   start doing something...
+   {
+   _id: "Option",
+   _tag: "None"
+   }
+   */
    ```
 
 3. If the effect is uninterruptible, it will be blocked until the original effect safely finishes its work, and then the timeout operator produces a `None` value. Here's an example:
 
-   ```ts file=<rootDir>/src/guide/error-management/timing-out/3.ts
+   ```ts twoslash
+   import { Effect } from "effect"
 
+   const program = Effect.gen(function* (_) {
+     console.log("start doing something...")
+     yield* _(Effect.sleep("2 seconds"))
+     console.log("my job is finished!")
+     return "some result"
+   })
+
+   const main = program.pipe(
+     Effect.uninterruptible,
+     Effect.timeout("1 seconds")
+   )
+
+   Effect.runPromise(main).then(console.log)
+   /*
+   Output:
+   start doing something...
+   my job is finished!
+   {
+   _id: "Option",
+   _tag: "None"
+   }
+   */
    ```
 
    If we want to return early after the timeout has passed and before an underlying effect has been interrupted, we can use `Effect.disconnect`. This technique allows the original effect to be interrupted in the background. Here's an example:
 
-   ```ts file=<rootDir>/src/guide/error-management/timing-out/disconnect.ts
+   ```ts twoslash
+   import { Effect } from "effect"
 
+   const program = Effect.gen(function* (_) {
+     console.log("start doing something...")
+     yield* _(Effect.sleep("2 seconds"))
+     console.log("my job is finished!")
+     return "some result"
+   })
+
+   const main = program.pipe(
+     Effect.uninterruptible,
+     Effect.disconnect,
+     Effect.timeout("1 seconds")
+   )
+
+   Effect.runPromise(main).then(console.log)
+   /*
+   Output:
+   start doing something...
+   {
+   _id: "Option",
+   _tag: "None"
+   }
+   my job is finished!
+   */
    ```
 
 ## Customizing Timeout Behavior
@@ -55,22 +151,98 @@ In addition to the basic `Effect.timeout` function, there are variations availab
 
 The `timeoutTo` function is similar to `Effect.timeout`, but it provides more control over the final result type. It allows you to specify what should be returned in case of a timeout. Here's an example:
 
-```ts file=<rootDir>/src/guide/error-management/timing-out/timeoutTo.ts
+```ts twoslash
+import { Effect, Either } from "effect"
 
+const program = Effect.gen(function* (_) {
+  console.log("start doing something...")
+  yield* _(Effect.sleep("2 seconds"))
+  console.log("my job is finished!")
+  return "some result"
+})
+
+const main = program.pipe(
+  Effect.timeoutTo({
+    duration: "1 seconds",
+    // let's return an Either instead of an Option
+    onSuccess: (result): Either.Either<string, string> => Either.right(result),
+    onTimeout: (): Either.Either<string, string> => Either.left("timeout!")
+  })
+)
+
+Effect.runPromise(main).then(console.log)
+/*
+Output:
+start doing something...
+{
+  _id: "Either",
+  _tag: "Left",
+  left: "timeout!"
+}
+*/
 ```
 
 ### timeoutFail
 
 The `timeoutFail` function allows you to produce a specific error when a timeout happens. This can be helpful for signaling timeout errors in your code. Here's an example:
 
-```ts file=<rootDir>/src/guide/error-management/timing-out/timeoutFail.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.gen(function* (_) {
+  console.log("start doing something...")
+  yield* _(Effect.sleep("2 seconds"))
+  console.log("my job is finished!")
+  return "some result"
+})
+
+const main = program.pipe(
+  Effect.timeoutFail({
+    duration: "1 seconds",
+    onTimeout: () => new Error("timeout")
+  })
+)
+
+Effect.runPromise(main).then(console.log)
+/*
+Output:
+start doing something...
+Error: timeout
+*/
 ```
 
 ### timeoutFailCause
 
 The `timeoutFailCause` function allows you to produce a specific defect when a timeout occurs. This is useful when you need to handle timeouts as exceptional cases in your code. Here's an example:
 
-```ts file=<rootDir>/src/guide/error-management/timing-out/timeoutFailCause.ts
+```ts twoslash
+import { Effect, Cause } from "effect"
 
+const program = Effect.gen(function* (_) {
+  console.log("start doing something...")
+  yield* _(Effect.sleep("2 seconds"))
+  console.log("my job is finished!")
+  return "some result"
+})
+
+const main = program.pipe(
+  Effect.timeoutFailCause({
+    duration: "1 seconds",
+    onTimeout: () => Cause.die("timeout")
+  })
+)
+
+Effect.runPromise(main).then(console.log, console.error)
+/*
+Output:
+start doing something...
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Die",
+    defect: "timeout"
+  }
+}
+*/
 ```

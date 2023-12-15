@@ -5,8 +5,29 @@ excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonum
 
 In a typical Effect application, when an error occurs, it usually fails with the first error encountered by the Effect runtime. Let's look at an example:
 
-```ts file=<rootDir>/src/guide/error-management/sequential-and-parallel-errors/first-error.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const fail = Effect.fail("Oh uh!")
+const die = Effect.dieMessage("Boom!")
+
+const program = Effect.all([fail, die]).pipe(
+  Effect.zipRight(die),
+  Effect.asUnit
+)
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "Oh uh!"
+  }
+}
+*/
 ```
 
 In this case, the `program` will fail with the first error, which is "Oh uh!":
@@ -15,8 +36,34 @@ In this case, the `program` will fail with the first error, which is "Oh uh!":
 
 However, in some situations, you may encounter multiple errors, especially when performing parallel computations. When parallel computations are involved, the application may fail due to multiple errors. Here's an example:
 
-```ts file=<rootDir>/src/guide/error-management/sequential-and-parallel-errors/parallel-errors.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const fail = Effect.fail("Oh uh!")
+const die = Effect.dieMessage("Boom!")
+
+const program = Effect.all([fail, die], { concurrency: "unbounded" }).pipe(
+  Effect.asUnit
+)
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Parallel",
+    errors: [
+      {
+        message: "Error: Oh uh!"
+      }, {
+        message: "Error: RuntimeException: Boom!"
+      }
+    ]
+  }
+}
+*/
 ```
 
 In this example, the `program` runs both `fail` and `die` concurrently, and if both fail, it will result in multiple errors.
@@ -25,8 +72,29 @@ In this example, the `program` runs both `fail` and `die` concurrently, and if b
 
 Effect provides a useful combinator called `Effect.parallelErrors` that exposes all parallel failure errors in the error channel. Here's how you can use it:
 
-```ts file=<rootDir>/src/guide/error-management/sequential-and-parallel-errors/parallelErrors.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const fail1 = Effect.fail("Oh uh!")
+const fail2 = Effect.fail("Oh no!")
+const die = Effect.dieMessage("Boom!")
+
+const program = Effect.all([fail1, fail2, die], {
+  concurrency: "unbounded"
+}).pipe(Effect.asUnit, Effect.parallelErrors)
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: [ "Oh uh!", "Oh no!" ]
+  }
+}
+*/
 ```
 
 In this example, `Effect.parallelErrors` combines the errors from `fail1` and `fail2` into a single error.
@@ -40,8 +108,32 @@ In this example, `Effect.parallelErrors` combines the errors from `fail1` and `f
 
 When working with resource-safety operators like `Effect.ensuring`, you may encounter multiple sequential errors. This happens because regardless of whether the original effect has any errors or not, the finalizer is uninterruptible and will run. Here's an example:
 
-```ts file=<rootDir>/src/guide/error-management/sequential-and-parallel-errors/sequential-errors.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const fail = Effect.fail("Oh uh!")
+const die = Effect.dieMessage("Boom!")
+
+const program = fail.pipe(Effect.ensuring(die))
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Sequential",
+    errors: [
+      {
+        message: "Error: Oh uh!"
+      }, {
+        message: "Error: RuntimeException: Boom!"
+      }
+    ]
+  }
+}
+*/
 ```
 
 In this case, the `program` will result in multiple sequential errors if both `fail` and the finalizer `die` encounter errors.
