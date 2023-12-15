@@ -27,15 +27,30 @@ export const MobileMenu: FC<{
 
   return (
     <>
-      <button className="md:hidden z-50" onClick={() => setOpen((open) => !open)}>
-        <Icon name={open ? "close" : "bars"} className="h-6 text-black dark:text-white" />
+      <button
+        className="md:hidden z-50"
+        onClick={() => setOpen((open) => !open)}
+      >
+        <Icon
+          name={open ? "close" : "bars"}
+          className="h-6 text-black dark:text-white"
+        />
       </button>
       {open && (
         <div className="md:hidden fixed left-0 top-0 w-screen h-screen z-40 bg-white/90 dark:bg-[#09090B]/90 backdrop-blur pt-20 px-4 flex flex-col items-center gap-4">
           {menu.map(({ name, href }, index) => (
-            <Link key={index} href={href} className="flex items-start text-black dark:text-white">
+            <Link
+              key={index}
+              href={href}
+              className="flex items-start text-black dark:text-white"
+            >
               <span>{name}</span>
-              {href.startsWith("http") && <Icon name="arrow-up-right-light" className="h-3.5 mt-0.5 ml-0.5" />}
+              {href.startsWith("http") && (
+                <Icon
+                  name="arrow-up-right-light"
+                  className="h-3.5 mt-0.5 ml-0.5"
+                />
+              )}
             </Link>
           ))}
           <div className="mt-8">

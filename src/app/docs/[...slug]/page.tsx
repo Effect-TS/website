@@ -7,6 +7,7 @@ import { TableOfContents } from "@/components/docs/table-of-contents"
 import { Divider } from "@/components/layout/divider"
 import { getBreadcrumbs } from "@/contentlayer/utils/get-breadcrumbs"
 import { allDocsPages } from "contentlayer/generated"
+import { formatDistance } from "date-fns"
 import { notFound } from "next/navigation"
 
 export const generateStaticParams = () =>
@@ -41,15 +42,23 @@ export default function Page({
 
   return (
     <>
-      <main className="shrink grow md:pl-12 xl:pr-12 pb-24 -mt-2">
+      <main className="relative z-10 shrink grow md:pl-12 xl:pr-12 pb-24 -mt-2">
         <Breadcrumbs elements={breadcrumbs} />
-        <div className="flex items-center mb-12">
+        <div className="flex items-center">
           <MobileNavigation className="md:hidden" />
           <h2 className="grow shrink font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white">
             {page.title}
           </h2>
         </div>
-        <MDX content={page.body.code} />
+        {page.lastEdited && (
+          <div className="text-sm h-4 mt-1.5 mb-6">
+            Last edited {formatDistance(new Date(), new Date(page.lastEdited))}{" "}
+            ago.
+          </div>
+        )}
+        <div className="mt-12">
+          <MDX content={page.body.code} />
+        </div>
         {page.bottomNavigation !== "none" && (
           <div className="w-full">
             <div className="-mx-12">
