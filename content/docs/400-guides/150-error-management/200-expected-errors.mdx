@@ -12,31 +12,42 @@ In this guide you will learn:
 As we saw in the guide [Creating Effects](../essentials/creating-effects), we can use the `fail` constructor to create an Effect
 that represents an error:
 
-```ts file=<rootDir>/src/guide/error-management/expected-errors/fail.ts
+```ts twoslash
+import { Effect } from "effect"
 
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+const program = Effect.fail(new HttpError())
 ```
 
 <Info>
-  We use a class to represent the `HttpError` type above simply to gain access to both the error type and a free constructor. However, you can use whatever
+  We use a class to represent the `HttpError` type above simply to gain access
+  to both the error type and a free constructor. However, you can use whatever
   you like to model your error types.
 </Info>
 
 It's worth noting that we added a readonly `_tag` field as discriminant to our error in the example:
 
-```ts /readonly _tag/ file=<rootDir>/src/guide/error-management/expected-errors/fail.ts#L3-L5
-
+```ts {1}
+class HttpError {
+  readonly _tag = "HttpError"
+}
 ```
 
 <Idea>
-  Adding a discriminant field, such as `_tag`, can be beneficial for distinguishing between different types of errors during error handling. It also
-  prevents TypeScript from unifying types, ensuring that each error is treated uniquely based on its discriminant value.
+  Adding a discriminant field, such as `_tag`, can be beneficial for
+  distinguishing between different types of errors during error handling. It
+  also prevents TypeScript from unifying types, ensuring that each error is
+  treated uniquely based on its discriminant value.
 </Idea>
 
 Expected errors **are tracked at the type level** by the `Effect` data type in the "Error" channel.
 
 It is evident from the type of `program` that can fail with an error of type `HttpError`:
 
-```ts /HttpError/
+```ts
 Effect<never, HttpError, never>
 ```
 
@@ -47,8 +58,29 @@ The following program serves as an illustration of how errors are automatically 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts filename="error-tracking.ts" file=<rootDir>/src/guide/error-management/expected-errors/error-tracking-gen.ts
+```ts filename="error-tracking.ts" twoslash
+import { Effect, Random } from "effect"
 
+class FooError {
+  readonly _tag = "FooError"
+}
+
+class BarError {
+  readonly _tag = "BarError"
+}
+
+export const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next)
+  const n2 = yield* _(Random.next)
+
+  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+
+  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+
+  return foo + bar
+})
+
+Effect.runPromise(program).then(console.log, console.error)
 ```
 
 In the above program, we compute two values: `foo` and `bar`, each representing a potential source of error.
@@ -56,8 +88,32 @@ In the above program, we compute two values: `foo` and `bar`, each representing 
 </Tab>
 <Tab>
 
-```ts filename="error-tracking.ts" file=<rootDir>/src/guide/error-management/expected-errors/error-tracking.ts
+```ts filename="error-tracking.ts" twoslash
+import { Effect, Random } from "effect"
 
+class FooError {
+  readonly _tag = "FooError"
+}
+
+class BarError {
+  readonly _tag = "BarError"
+}
+
+const flakyFoo = Random.next.pipe(
+  Effect.flatMap((n1) =>
+    n1 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new FooError())
+  )
+)
+
+const flakyBar = Random.next.pipe(
+  Effect.flatMap((n2) =>
+    n2 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new BarError())
+  )
+)
+
+export const program = Effect.all([flakyFoo, flakyBar]).pipe(
+  Effect.map(([foo, bar]) => foo + bar)
+)
 ```
 
 In the above program, we have two operations: `flakyFoo` and `flakyBar`, each representing a potential source of error.
@@ -70,7 +126,7 @@ Effect automatically keeps track of the possible errors that can occur during th
 In this case, we have `FooError` and `BarError` as the possible error types.
 The error channel of the `program` is specified as
 
-```ts /FooError | BarError/
+```ts
 Effect<never, FooError | BarError, string>
 ```
 
@@ -88,15 +144,69 @@ In simpler terms, the short-circuiting behavior ensures that if something goes w
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-gen.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+// Define three effects representing different tasks.
+const task1 = Console.log("Executing task1...")
+const task2 = Effect.fail("Something went wrong!")
+const task3 = Console.log("Executing task3...")
+
+// Compose the three tasks to run them in sequence.
+// If one of the tasks fails, the subsequent tasks won't be executed.
+const program = Effect.gen(function* (_) {
+  yield* _(task1)
+  yield* _(task2) // After task1, task2 is executed, but it fails with an error
+  yield* _(task3) // This computation won't be executed because the previous one fails
+})
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+Executing task1...
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "Something went wrong!"
+  }
+}
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/error-management/expected-errors/short-circuiting-pipe.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+// Define three effects representing different tasks.
+const task1 = Console.log("Executing task1...")
+const task2 = Effect.fail("Something went wrong!")
+const task3 = Console.log("Executing task3...")
+
+// Compose the three tasks using `Effect.flatMap` to run them in sequence.
+// The `Effect.flatMap` function allows us to chain effects together.
+// If one of the tasks fails, the subsequent tasks won't be executed.
+const program = task1.pipe(
+  Effect.flatMap(() => task2), // After task1, task2 is executed, but it fails with an error
+  Effect.flatMap(() => task3) // This computation won't be executed because the previous one fails
+)
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+Executing task1...
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "Something went wrong!"
+  }
+}
+*/
 ```
 
 </Tab>
@@ -121,14 +231,72 @@ Effect<R, E, A> -> Effect<R, never, Either<E, A>>
 The [`Either<E, A>`](../../other/data-types/either) data type represents a value that can be either an error (`E`) or a successful result (`A`).
 By yielding an `Either`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function.
 
-```ts /Effect.either/ file=<rootDir>/src/guide/error-management/expected-errors/catch-all-gen.ts
+```ts twoslash
+// @filename: error-tracking.ts
+import { Effect, Random } from "effect"
+class FooError {
+  readonly _tag = "FooError"
+}
+class BarError {
+  readonly _tag = "BarError"
+}
+export const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next)
+  const n2 = yield* _(Random.next)
+  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+  return foo + bar
+})
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Either } from "effect"
+import { program } from "./error-tracking"
+
+const recovered = Effect.gen(function* (_) {
+  const failureOrSuccess = yield* _(Effect.either(program))
+  if (Either.isLeft(failureOrSuccess)) {
+    // failure case: you can extract the error from the `left` property
+    const error = failureOrSuccess.left
+    return `Recovering from ${error._tag}`
+  } else {
+    // success case: you can extract the value from the `right` property
+    return failureOrSuccess.right
+  }
+})
 ```
 
 We can make the code less verbose by using the `Either.match` function, which directly accepts the two callback functions for handling errors and successful values:
 
-```ts file=<rootDir>/src/guide/error-management/expected-errors/catch-all-gen-match.ts
+```ts twoslash
+// @filename: error-tracking.ts
+import { Effect, Random } from "effect"
+class FooError {
+  readonly _tag = "FooError"
+}
+class BarError {
+  readonly _tag = "BarError"
+}
+export const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next)
+  const n2 = yield* _(Random.next)
+  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+  return foo + bar
+})
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Either } from "effect"
+import { program } from "./error-tracking"
+
+const recovered = Effect.gen(function* (_) {
+  const failureOrSuccess = yield* _(Effect.either(program))
+  return Either.match(failureOrSuccess, {
+    onLeft: (error) => `Recovering from ${error._tag}`,
+    onRight: (value) => value // do nothing in case of success
+  })
+})
 ```
 
 </Tab>
@@ -136,8 +304,31 @@ We can make the code less verbose by using the `Either.match` function, which di
 
 The `catchAll` function allows you to catch any error that occurs in the program and provide a fallback.
 
-```ts {6} file=<rootDir>/src/guide/error-management/expected-errors/catch-all-pipe.ts
+```ts {5} twoslash
+// @filename: error-tracking.ts
+import { Effect, Random } from "effect"
+class FooError {
+  readonly _tag = "FooError"
+}
+class BarError {
+  readonly _tag = "BarError"
+}
+export const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next)
+  const n2 = yield* _(Random.next)
+  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+  return foo + bar
+})
 
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import { program } from "./error-tracking"
+
+const recovered = program.pipe(
+  Effect.catchAll((error) => Effect.succeed(`Recovering from ${error._tag}`))
+)
 ```
 
 </Tab>
@@ -146,7 +337,7 @@ The `catchAll` function allows you to catch any error that occurs in the program
 We can observe that the type in the error channel of our program has changed to `never`,
 indicating that all errors has been handled.
 
-```ts /never/2
+```ts
 Effect<never, never, string>
 ```
 
@@ -157,21 +348,86 @@ Suppose we want to handle a specific error, such as `FooError`.
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts {9-11} file=<rootDir>/src/guide/error-management/expected-errors/catch-error-gen.ts
+```ts {8-10} twoslash
+// @filename: error-tracking.ts
+import { Effect, Random } from "effect"
+class FooError {
+  readonly _tag = "FooError"
+}
+class BarError {
+  readonly _tag = "BarError"
+}
+export const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next)
+  const n2 = yield* _(Random.next)
+  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+  return foo + bar
+})
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Either } from "effect"
+import { program } from "./error-tracking"
+
+const recovered = Effect.gen(function* (_) {
+  const failureOrSuccess = yield* _(Effect.either(program))
+  if (Either.isLeft(failureOrSuccess)) {
+    const error = failureOrSuccess.left
+    if (error._tag === "FooError") {
+      return "Recovering from FooError"
+    }
+    return yield* _(Effect.fail(error))
+  } else {
+    return failureOrSuccess.right
+  }
+})
 ```
 
 We can observe that the type in the error channel of our program has changed to only show `BarError`,
 indicating that `FooError` has been handled.
 
-```ts /BarError/
+```ts
 Effect<never, BarError, string>
 ```
 
 If we also want to handle `BarError`, we can easily add another case to our code:
 
-```ts {12} file=<rootDir>/src/guide/error-management/expected-errors/catch-error-gen-2.ts
+```ts {11} twoslash
+// @filename: error-tracking.ts
+import { Effect, Random } from "effect"
+class FooError {
+  readonly _tag = "FooError"
+}
+class BarError {
+  readonly _tag = "BarError"
+}
+export const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next)
+  const n2 = yield* _(Random.next)
+  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+  return foo + bar
+})
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Either } from "effect"
+import { program } from "./error-tracking"
+
+const recovered = Effect.gen(function* (_) {
+  const failureOrSuccess = yield* _(Effect.either(program))
+  if (Either.isLeft(failureOrSuccess)) {
+    const error = failureOrSuccess.left
+    if (error._tag === "FooError") {
+      return "Recovering from FooError"
+    } else {
+      return "Recovering from BarError"
+    }
+  } else {
+    return failureOrSuccess.right
+  }
+})
 ```
 
 We can observe that the type in the error channel of our program has changed to `never`,
@@ -182,8 +438,36 @@ indicating that all errors has been handled.
 
 If we want to catch and recover from only some types of errors and effectfully attempt recovery, we can use the `Effect.catchSome` function:
 
-```ts /FooError | BarError/ file=<rootDir>/src/guide/error-management/expected-errors/catchSome.ts
+```ts twoslash
+// @filename: error-tracking.ts
+import { Effect, Random } from "effect"
+class FooError {
+  readonly _tag = "FooError"
+}
+class BarError {
+  readonly _tag = "BarError"
+}
+export const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next)
+  const n2 = yield* _(Random.next)
+  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+  return foo + bar
+})
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Option } from "effect"
+import { program } from "./error-tracking"
+
+const recovered = program.pipe(
+  Effect.catchSome((error) => {
+    if (error._tag === "FooError") {
+      return Option.some(Effect.succeed("Recovering from FooError"))
+    }
+    return Option.none()
+  })
+)
 ```
 
 In the code above, `Effect.catchSome` takes a function that examines the error (`error`) and decides whether to attempt recovery or not. If the error matches a specific condition, recovery can be attempted by returning `Option.some(effect)`. If no recovery is possible, you can simply return `Option.none()`.
@@ -192,8 +476,33 @@ It's essential to understand that while `Effect.catchSome` allows you to catch s
 
 However, if your program's errors are all tagged with a `_tag` field that acts as a discriminator, there is a solution. You can use the `Effect.catchTag` function to catch and handle specific errors with precision.
 
-```ts {6-8} file=<rootDir>/src/guide/error-management/expected-errors/catch-error-pipe.ts
+```ts {5-7} twoslash
+// @filename: error-tracking.ts
+import { Effect, Random } from "effect"
+class FooError {
+  readonly _tag = "FooError"
+}
+class BarError {
+  readonly _tag = "BarError"
+}
+export const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next)
+  const n2 = yield* _(Random.next)
+  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+  return foo + bar
+})
 
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import { program } from "./error-tracking"
+
+const recovered = program.pipe(
+  Effect.catchTag("FooError", (_fooError) =>
+    Effect.succeed("Recovering from FooError")
+  )
+)
 ```
 
 In the example above, the `Effect.catchTag` function allows us to handle `FooError` specifically.
@@ -203,28 +512,83 @@ and the program will proceed with the recovery logic specified within the handle
 We can observe that the type in the error channel of our program has changed to only show `BarError`,
 indicating that `FooError` has been handled.
 
-```ts /BarError/
+```ts
 Effect<never, BarError, string>
 ```
 
 If we also wanted to handle `BarError`, we can simply add another `catchTag`:
 
-```ts {9-11} file=<rootDir>/src/guide/error-management/expected-errors/catch-error-pipe-2.ts
+```ts {8-10} twoslash
+// @filename: error-tracking.ts
+import { Effect, Random } from "effect"
+class FooError {
+  readonly _tag = "FooError"
+}
+class BarError {
+  readonly _tag = "BarError"
+}
+export const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next)
+  const n2 = yield* _(Random.next)
+  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+  return foo + bar
+})
 
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import { program } from "./error-tracking"
+
+const recovered = program.pipe(
+  Effect.catchTag("FooError", (_fooError) =>
+    Effect.succeed("Recovering from FooError")
+  ),
+  Effect.catchTag("BarError", (_barError) =>
+    Effect.succeed("Recovering from BarError")
+  )
+)
 ```
 
 We can observe that the type in the error channel of our program has changed to `never`,
 indicating that all errors has been handled.
 
 <Warning>
-  It is important to ensure that the error type used with `catchTag` has a `readonly _tag` discriminant field. This field is required for the matching and
-  handling of specific error tags.
+  It is important to ensure that the error type used with `catchTag` has a
+  `readonly _tag` discriminant field. This field is required for the matching
+  and handling of specific error tags.
 </Warning>
 
 Instead of using the `Effect.catchTag` function multiple times to handle individual error types, we have a more convenient option called `Effect.catchTags`. With `Effect.catchTags`, we can handle multiple errors in a single block of code.
 
-```ts {6-9} file=<rootDir>/src/guide/error-management/expected-errors/catch-errors-pipe.ts
+```ts {5-8} twoslash
+// @filename: error-tracking.ts
+import { Effect, Random } from "effect"
+class FooError {
+  readonly _tag = "FooError"
+}
+class BarError {
+  readonly _tag = "BarError"
+}
+export const program = Effect.gen(function* (_) {
+  const n1 = yield* _(Random.next)
+  const n2 = yield* _(Random.next)
+  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+  return foo + bar
+})
 
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import { program } from "./error-tracking"
+
+const recovered = program.pipe(
+  Effect.catchTags({
+    FooError: (_fooError) => Effect.succeed(`Recovering from FooError`),
+    BarError: (_barError) => Effect.succeed(`Recovering from BarError`)
+  })
+)
 ```
 
 In the above example, instead of using `Effect.catchTag` multiple times to handle individual errors, we utilize the `Effect.catchTags` combinator.
@@ -232,8 +596,9 @@ This combinator takes an object where each property represents a specific error 
 and the corresponding value is the error handler function to be executed when that particular error occurs.
 
 <Warning>
-  It is important to ensure that all the error types used with `Effect.catchTags` have a `readonly _tag` discriminant field. This field is required for the
-  matching and handling of specific error tags.
+  It is important to ensure that all the error types used with
+  `Effect.catchTags` have a `readonly _tag` discriminant field. This field is
+  required for the matching and handling of specific error tags.
 </Warning>
 
 </Tab>
