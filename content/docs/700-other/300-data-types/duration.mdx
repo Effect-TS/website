@@ -10,16 +10,29 @@ The `Duration` data type data type is used to represent specific non-negative sp
 
 The `Duration` module provides several constructors to create durations of different units. Here are some examples:
 
-```ts file=<rootDir>/src/reference/data-types/duration/creating.ts
+```ts twoslash
+import { Duration } from "effect"
 
+const duration1 = Duration.millis(100) // Create a duration of 100 milliseconds
+const duration2 = Duration.seconds(2) // Create a duration of 2 seconds
+const duration3 = Duration.minutes(5) // Create a duration of 5 minutes
 ```
 
 You can create durations using units such as nanoseconds, microsecond, milliseconds, seconds, minutes, hours, days, and weeks.
 
 If you want to create an infinite duration, you can use `Duration.infinity`:
 
-```ts file=<rootDir>/src/reference/data-types/duration/infinity.ts
+```ts twoslash
+import { Duration } from "effect"
 
+console.log(String(Duration.infinity))
+/*
+Output:
+{
+  "_id": "Duration",
+  "_tag": "Infinity"
+}
+*/
 ```
 
 Another option for creating durations is using the `Duration.decode` helper:
@@ -28,28 +41,56 @@ Another option for creating durations is using the `Duration.decode` helper:
 - `bigint`s are treated as nanoseconds
 - strings must be formatted as `"${number} ${unit}"`
 
-```ts file=<rootDir>/src/reference/data-types/duration/decode.ts
+```ts twoslash
+// @target: ES2020
+import { Duration } from "effect"
 
+Duration.decode(10n) // same as Duration.nanos(10)
+Duration.decode(100) // same as Duration.millis(100)
+Duration.decode(Infinity) // same as Duration.infinity
+
+Duration.decode("10 nanos") // same as Duration.nanos(10)
+Duration.decode("20 micros") // same as Duration.micros(20)
+Duration.decode("100 millis") // same as Duration.millis(100)
+Duration.decode("2 seconds") // same as Duration.seconds(2)
+Duration.decode("5 minutes") // same as Duration.minutes(5)
+Duration.decode("7 hours") // same as Duration.hours(7)
+Duration.decode("3 weeks") // same as Duration.weeks(3)
 ```
 
 ## Getting the Duration Value
 
 You can retrieve the value of a duration in milliseconds using the `toMillis` function:
 
-```ts file=<rootDir>/src/reference/data-types/duration/toMillis.ts
+```ts twoslash
+import { Duration } from "effect"
 
+console.log(Duration.toMillis(Duration.seconds(30))) // Output: 30000
 ```
 
 You can retrieve the value of a duration in nanoseconds using the `toNanos` function:
 
-```ts file=<rootDir>/src/reference/data-types/duration/toNanos.ts
+```ts twoslash
+import { Duration } from "effect"
 
+console.log(Duration.toNanos(Duration.millis(100)))
+/*
+Output:
+{
+  _id: "Option",
+  _tag: "Some",
+  value: 100000000n
+}
+*/
 ```
 
 Note that `toNanos` returns an `Option<bigint>` since the duration might be infinite. If you want a `bigint` as a return type, you can use `unsafeToNanos`. However, note that it will throw an error for infinite durations:
 
-```ts file=<rootDir>/src/reference/data-types/duration/unsafeToNanos.ts
+```ts twoslash
+import { Duration } from "effect"
 
+console.log(Duration.unsafeToNanos(Duration.millis(100))) // Output: 100000000n
+console.log(Duration.unsafeToNanos(Duration.infinity)) // throws "Cannot convert infinite duration to nanos"
 ```
 
 ## Comparing Durations
@@ -63,14 +104,45 @@ You can compare two durations using the following functions:
 | `greaterThan`          | returns `true` if the first duration is greater than the second             |
 | `greaterThanOrEqualTo` | returns `true` if the first duration is greater than or equal to the second |
 
-```ts file=<rootDir>/src/reference/data-types/duration/comparing.ts
+```ts twoslash
+import { Duration } from "effect"
 
+const duration1 = Duration.seconds(30)
+const duration2 = Duration.minutes(1)
+
+console.log(Duration.lessThan(duration1, duration2)) // Output: true
+console.log(Duration.lessThanOrEqualTo(duration1, duration2)) // Output: true
+console.log(Duration.greaterThan(duration1, duration2)) // Output: false
+console.log(Duration.greaterThanOrEqualTo(duration1, duration2)) // Output: false
 ```
 
 ## Performing Arithmetic Operations
 
 You can perform arithmetic operations on durations, such as addition and multiplication. Here are some examples:
 
-```ts file=<rootDir>/src/reference/data-types/duration/arithmetic-operations.ts
+```ts twoslash
+import { Duration } from "effect"
 
+const duration1 = Duration.seconds(30)
+const duration2 = Duration.minutes(1)
+
+console.log(String(Duration.sum(duration1, duration2)))
+/*
+Output:
+{
+  "_id": "Duration",
+  "_tag": "Millis",
+  "millis": 90000
+}
+*/
+
+console.log(String(Duration.times(duration1, 2))) // Output: Duration("60000 millis")
+/*
+Output:
+{
+  "_id": "Duration",
+  "_tag": "Millis",
+  "millis": 60000
+}
+*/
 ```
