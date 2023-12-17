@@ -53,9 +53,9 @@ export default makeSource({
     remarkPlugins: [
       // remarkMermaid as any,
       [codeImport, { rootDir: process.cwd() + "/content" }],
-      // // @ts-expect-error
-      // [remarkShikiTwoslash.default, { theme: "github-dark" }],
-      [conditionalShikiTwoslash, { theme: "github-dark" }],
+      // @ts-expect-error
+      [remarkShikiTwoslash.default, { theme: "github-dark" }],
+      // [conditionalShikiTwoslash, { theme: "github-dark" }],
       remarkGfm
     ],
     rehypePlugins: [
