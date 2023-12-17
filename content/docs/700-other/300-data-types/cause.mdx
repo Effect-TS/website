@@ -18,8 +18,13 @@ Although we don't typically work directly with `Cause` values, it is an underlyi
 
 We have the ability to create effects with specific causes using the `Effect.failCause(cause){:ts}` function:
 
-```ts file=<rootDir>/src/reference/data-types/cause/failCause.ts
+```ts twoslash
+import { Effect, Cause } from "effect"
 
+// Create an effect that intentionally fails with an empty cause
+const effect: Effect.Effect<never, never, never> = Effect.failCause(
+  Cause.empty
+)
 ```
 
 To uncover the underlying cause of an effect, we can use the `Effect.cause(effect){:ts}` function:
