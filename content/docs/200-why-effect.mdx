@@ -12,8 +12,13 @@ Effect is an ecosystem of tools that help you build better applications and libr
 
 In "typical" TypeScript, without Effect, we write code that assumes that a function is either successful or throws an exception. Take this trivial example of division:
 
-```ts file=<rootDir>/src/why-effect/divide.ts
-
+```ts twoslash
+const divide = (a: number, b: number): number => {
+  if (b === 0) {
+    throw new Error("Cannot divide by zero")
+  }
+  return a / b
+}
 ```
 
 Based on the types, we have no idea that this function can throw an exception. We can only find out by reading the code. This may not seem like much of a problem when you only have one function in your codebase, but when you have hundreds or thousands, it really starts to add up. It's easy to forget that a function can throw an exception, and it's easy to forget to handle that exception.
@@ -30,8 +35,13 @@ Effect's major unique insight is that we can use the type system to track _error
 
 Here's the same divide function from above, but with the Effect pattern:
 
-```ts file=<rootDir>/src/why-effect/divide-effect.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 ```
 
 Notice how looking at the type signature tells you exactly what context the function needs (`never`, as in, no context required here), what error(s) it can throw (`Error`), and what success value(s) it returns (`number`). This function no longer throws an exception, and you can cleanly pass on the error to the caller of this function.

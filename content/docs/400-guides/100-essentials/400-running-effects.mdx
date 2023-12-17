@@ -11,10 +11,10 @@ To execute an `Effect`, we can utilize a variety of "run" functions provided by 
 The `runSync` function is used to execute an Effect synchronously, which means it runs immediately and returns the result.
 
 ```ts twoslash
-import {Effect} from 'effect'
+import { Effect } from "effect"
 
 const program = Effect.sync(() => {
-  console.log('Hello, World!')
+  console.log("Hello, World!")
   return 1
 })
 
@@ -28,14 +28,15 @@ console.log(result)
 If you check the console, you will see the message `"Hello, World!"` printed.
 
 <Warning>
-  `runSync` will throw an error if your Effect fails or performs any asynchronous tasks. In the latter case, the execution will not proceed beyond that
-  asynchronous task.
+  `runSync` will throw an error if your Effect fails or performs any
+  asynchronous tasks. In the latter case, the execution will not proceed
+  beyond that asynchronous task.
 </Warning>
 
 ```ts twoslash
-import {Effect} from 'effect'
+import { Effect } from "effect"
 
-Effect.runSync(Effect.fail('my error')) // throws
+Effect.runSync(Effect.fail("my error")) // throws
 
 Effect.runSync(Effect.promise(() => Promise.resolve(1))) // throws
 ```
@@ -46,15 +47,42 @@ The `runSyncExit` function is used to execute an Effect synchronously, which mea
 (a data type used to describe the result of executing an `Effect` workflow).
 
 ```ts twoslash
+import { Effect } from "effect"
 
+const result1 = Effect.runSyncExit(Effect.succeed(1))
+console.log(result1)
+/*
+Output:
+{
+  _id: "Exit",
+  _tag: "Success",
+  value: 1
+}
+*/
+
+const result2 = Effect.runSyncExit(Effect.fail("my error"))
+console.log(result2)
+/*
+Output:
+{
+  _id: "Exit",
+  _tag: "Failure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "my error"
+  }
+}
+*/
 ```
 
 <Warning>
-  `runSyncExit` will throw an error if your Effect performs any asynchronous tasks and the execution will not proceed beyond that asynchronous task.
+  `runSyncExit` will throw an error if your Effect performs any asynchronous
+  tasks and the execution will not proceed beyond that asynchronous task.
 </Warning>
 
 ```ts twoslash
-import {Effect} from 'effect'
+import { Effect } from "effect"
 
 Effect.runSyncExit(Effect.promise(() => Promise.resolve(1))) // throws
 ```
@@ -64,7 +92,7 @@ Effect.runSyncExit(Effect.promise(() => Promise.resolve(1))) // throws
 The `runPromise` function is used to execute an Effect and obtain the result as a `Promise`.
 
 ```ts twoslash
-import {Effect} from 'effect'
+import { Effect } from "effect"
 
 Effect.runPromise(Effect.succeed(1)).then(console.log) // Output: 1
 ```
@@ -72,9 +100,9 @@ Effect.runPromise(Effect.succeed(1)).then(console.log) // Output: 1
 <Warning>`runPromise` will reject with an error if your Effect fails</Warning>
 
 ```ts twoslash
-import {Effect} from 'effect'
+import { Effect } from "effect"
 
-Effect.runPromise(Effect.fail('my error')) // rejects
+Effect.runPromise(Effect.fail("my error")) // rejects
 ```
 
 ## runPromiseExit
@@ -83,7 +111,7 @@ The `runPromiseExit` function is used to execute an Effect and obtain the result
 (a data type used to describe the result of executing an `Effect` workflow).
 
 ```ts twoslash
-import {Effect} from 'effect'
+import { Effect } from "effect"
 
 Effect.runPromiseExit(Effect.succeed(1)).then(console.log)
 /*
@@ -95,7 +123,7 @@ Output:
 }
 */
 
-Effect.runPromiseExit(Effect.fail('my error')).then(console.log)
+Effect.runPromiseExit(Effect.fail("my error")).then(console.log)
 /*
 Output:
 {
@@ -113,8 +141,10 @@ Output:
 ## Cheatsheet
 
 <Design>
-  The recommended approach is to design your program with the majority of its logic as Effects. It's advisable to use the `run*` functions closer to the
-  "edge" of your program. This approach allows for greater flexibility in executing your program and building sophisticated Effects.
+  The recommended approach is to design your program with the majority of its
+  logic as Effects. It's advisable to use the `run*` functions closer to the
+  "edge" of your program. This approach allows for greater flexibility in
+  executing your program and building sophisticated Effects.
 </Design>
 
 The table provides a summary of the available `run*` functions, along with their input and output types, allowing you to choose the appropriate function based on your needs.

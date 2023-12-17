@@ -156,8 +156,10 @@ If you want more control over when each scope is closed, you can manually create
 In this example, we create two separate scopes, `scope1` and `scope2`, and extend the scope of each task into its respective scope. When you run the program, it outputs the tasks and their finalizers in a different order.
 
 <Info>
-  The `Scope.extend` function allows you to extend the scope of an `Effect` workflow that requires a scope into another scope without closing the scope
-  when the workflow finishes executing. This allows you to extend a scoped value into a larger scope.
+  The `Scope.extend` function allows you to extend the scope of an `Effect`
+  workflow that requires a scope into another scope without closing the scope
+  when the workflow finishes executing. This allows you to extend a scoped value
+  into a larger scope.
 </Info>
 
 You might wonder what happens when a scope is closed, but a task within that scope hasn't completed yet. The key point to note is that the scope closing doesn't force the task to be interrupted. It will continue running, and the finalizer will execute immediately when registered. The call to `close` will only wait for the finalizers that have already been registered.
@@ -330,7 +332,10 @@ In this case, all operations succeed, and we see a successful result with `right
 Now, let's simulate a failure in the `Database`:
 
 ```ts /"Database"/
-const runnable = Workspace.make.pipe(Effect.provide(layer), Effect.provideService(Failure, "Database"))
+const runnable = Workspace.make.pipe(
+  Effect.provide(layer),
+  Effect.provideService(Failure, "Database")
+)
 ```
 
 The console output will be:
@@ -355,7 +360,10 @@ You can observe that once the `Database` error occurs, there is a complete rollb
 Let's now make the index creation fail instead:
 
 ```ts /"ElasticSearch"/
-const runnable = Workspace.make.pipe(Effect.provide(layer), Effect.provideService(Failure, "ElasticSearch"))
+const runnable = Workspace.make.pipe(
+  Effect.provide(layer),
+  Effect.provideService(Failure, "ElasticSearch")
+)
 ```
 
 In this case, the console output will be:

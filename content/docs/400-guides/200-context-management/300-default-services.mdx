@@ -12,13 +12,18 @@ type DefaultServices = Clock | Console | Random | ConfigProvider | Tracer
 
 When we employ these services, there's no need to explicitly provide their implementations. Effect automatically supplies live versions of these services to our effects, sparing us from manual setup.
 
-```ts file=<rootDir>/src/context-management/default-services/example.ts
+```ts twoslash
+import { Effect, Clock, Console } from "effect"
 
+const program = Effect.gen(function* (_) {
+  const now = yield* _(Clock.currentTimeMillis)
+  yield* _(Console.log(`Application started at ${new Date(now)}`))
+})
 ```
 
 As you can observe, even if our program utilizes both `Clock` and `Console`, the `R` parameter, representing the contextual data required for the effect to execute, remains set to `never`.
 
-```ts /never/1
+```ts
 Effect<never, never, void>
 ```
 
