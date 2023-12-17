@@ -12,8 +12,25 @@ bottomNavigation: pagination
 
 **Answer**. By using the utility types `Effect.Effect.Context`, `Effect.Effect.Error`, and `Effect.Effect.Success`, we can extract the corresponding types from the `program` Effect. In this example, we extract the context type (`R`), the error type (`E`), and the success type (`A`).
 
-```ts file=<rootDir>/src/faq/effect-extract-types.ts
+```ts twoslash
+import { Effect, Context } from "effect"
 
+interface Random {
+  readonly next: () => Effect.Effect<never, never, number>
+}
+
+const Random = Context.Tag<Random>()
+
+declare const program: Effect.Effect<Random, string, number>
+
+// type R = Random
+type R = Effect.Effect.Context<typeof program>
+
+// type E = string
+type E = Effect.Effect.Error<typeof program>
+
+// type A = number
+type A = Effect.Effect.Success<typeof program>
 ```
 
 ### Sync / Async Behavior in Effects
@@ -45,7 +62,7 @@ In practice, it's important to note that you should typically only run Effects a
 
 For a more detailed comparison, you can refer to the [Effect vs fp-ts](fp-ts) documentation.
 
-### A Closer Look at `flatMap`
+### A Closer Look at flatMap
 
 Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap). Therefore it may be confusing to see `flatMap` methods exported from many of the modules that Effect provides.
 
@@ -53,7 +70,7 @@ The `flatMap` operation can actually be used to describe a more generic data tra
 
 If we have an `F<A>` and we want to transform to an `F<B>`, we could use the `map` operation:
 
-```
+```ts
 map: <A, B>(fa: F<A>, f: (a: A) => B) => F<B>
 ```
 
@@ -61,13 +78,13 @@ But what if we have some function that returns an `F<B>` instead of just `B`? We
 
 This exact situation describes a `flatMap` operation:
 
-```
+```ts
 flatMap: <A, B>(fa: F<A>, f: (a: A) => F<B>) => F<B>
 ```
 
 You can also see how this directly applies to `Array`'s `flatMap` if we replace our generic data type `F` with the concrete data type of `Array`:
 
-```
+```ts
 flatMap: <A, B>(fa: Array<A>, f: (a: A) => Array<B>) => Array<B>
 ```
 
