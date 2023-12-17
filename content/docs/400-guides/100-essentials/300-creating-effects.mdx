@@ -64,7 +64,9 @@ Let's see an example of rewriting the `divide` function using Effect to make the
 import { Effect } from "effect"
 
 const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
-  b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
 ```
 
 In this example, the `divide` function explicitly indicates that it can produce an effect that either fails with an `Error` or succeeds with a `number` value. The type signature makes it clear how errors are handled and ensures that callers are aware of the possible outcomes.
@@ -73,7 +75,9 @@ In this example, the `divide` function explicitly indicates that it can produce 
 
 In JavaScript, you can delay the execution of a synchronous computation using a "thunk".
 
-<Info>A "thunk" is a function that takes no arguments and may return some value.</Info>
+<Info>
+  A "thunk" is a function that takes no arguments and may return some value.
+</Info>
 
 Thunks are useful for delaying the computation of a value until it is needed.
 
@@ -127,13 +131,11 @@ const program = Effect.try({
 
 You can think of this as a similar pattern to the traditional try-catch block in JavaScript:
 
-```ts {2-6} twoslash
-const fn = () => {
-  try {
-    return JSON.parse("")
-  } catch (unknown) {
-    throw new Error(`something went wrong ${unknown}`)
-  }
+```ts
+try {
+  return JSON.parse("")
+} catch (unknown) {
+  throw new Error(`something went wrong ${unknown}`)
 }
 ```
 
@@ -166,7 +168,10 @@ The `program` value has the type `Effect<never, never, string>` and can be inter
 - does not produce any expected error (`never`)
 - succeeds with a value of type `string`
 
-<Error>The `Promise` within the thunk passed to `Effect.promise` should never reject.</Error>
+<Error>
+  The `Promise` within the thunk passed to `Effect.promise` should never
+  reject.
+</Error>
 
 ### tryPromise
 
@@ -176,7 +181,9 @@ If an error is caught, it will be propagated to the error channel as `UnknownExc
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.tryPromise(() => fetch("https://jsonplaceholder.typicode.com/todos/1"))
+const program = Effect.tryPromise(() =>
+  fetch("https://jsonplaceholder.typicode.com/todos/1")
+)
 ```
 
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.tryPromise` that takes a remapping function:
@@ -218,7 +225,8 @@ In the above example, we manually annotate the types when calling `Effect.async`
 based on the return value inside the callback body. Annotating the types ensures that the values provided to `resume` match the expected types.
 
 <Idea>
-  You can seamlessly mix synchronous and asynchronous code within the Effect framework. Everything becomes an Effect, enabling you to handle different
+  You can seamlessly mix synchronous and asynchronous code within the Effect
+  framework. Everything becomes an Effect, enabling you to handle different
   types of side effects in a unified way.
 </Idea>
 
@@ -228,10 +236,7 @@ based on the return value inside the callback body. Annotating the types ensures
 It allows you to defer the evaluation of an effect until it is actually needed.
 The `Effect.suspend` function takes a thunk that represents the effect, and it wraps it in a suspended effect.
 
-```ts twoslash
-import { Effect } from "effect"
-const effect = Effect.succeed(42)
-// ---cut---
+```ts
 const suspendedEffect = Effect.suspend(() => effect)
 ```
 
@@ -268,7 +273,9 @@ Let's explore some common scenarios where `Effect.suspend` proves useful:
    import { Effect } from "effect"
 
    const blowsUp = (n: number): Effect.Effect<never, never, number> =>
-     n < 2 ? Effect.succeed(1) : Effect.zipWith(blowsUp(n - 1), blowsUp(n - 2), (a, b) => a + b)
+     n < 2
+       ? Effect.succeed(1)
+       : Effect.zipWith(blowsUp(n - 1), blowsUp(n - 2), (a, b) => a + b)
 
    // console.log(Effect.runSync(blowsUp(32))) // crash: JavaScript heap out of memory
 
@@ -289,9 +296,17 @@ Let's explore some common scenarios where `Effect.suspend` proves useful:
    ```ts twoslash
    import { Effect } from "effect"
 
-   const ugly = (a: number, b: number) => (b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b))
+   const ugly = (a: number, b: number) =>
+     b === 0
+       ? Effect.fail(new Error("Cannot divide by zero"))
+       : Effect.succeed(a / b)
 
-   const nice = (a: number, b: number) => Effect.suspend(() => (b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)))
+   const nice = (a: number, b: number) =>
+     Effect.suspend(() =>
+       b === 0
+         ? Effect.fail(new Error("Cannot divide by zero"))
+         : Effect.succeed(a / b)
+     )
    ```
 
 ## Cheatsheet

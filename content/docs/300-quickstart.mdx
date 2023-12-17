@@ -64,8 +64,12 @@ touch src/index.ts
 
 Open the `index.ts` file and add the following code:
 
-```ts filename="src/index.ts" file=<rootDir>/src/quickstart/index.ts
+```ts filename="src/index.ts"
+import { Effect, Console } from "effect"
 
+const program = Console.log("Hello, World!")
+
+Effect.runSync(program)
 ```
 
 Run the `index.ts` file. If you have [`ts-node`](https://github.com/TypeStrong/ts-node) installed, run the following command in the terminal:
@@ -98,7 +102,7 @@ Let's write and run a simple program to ensure that everything is set up correct
 
 Open the `main.ts` file and replace the content with the following code:
 
-```ts
+```ts filename="main.ts"
 import { Effect, Console } from "npm:effect"
 
 const program = Console.log("Hello, World!")
@@ -156,8 +160,12 @@ Let's write and run a simple program to ensure that everything is set up correct
 
 Open the `index.ts` file and replace the content with the following code:
 
-```ts filename="src/index.ts" file=<rootDir>/src/quickstart/index.ts
+```ts filename="src/index.ts"
+import { Effect, Console } from "effect"
 
+const program = Console.log("Hello, World!")
+
+Effect.runSync(program)
 ```
 
 Run the `index.ts` file:
@@ -225,7 +233,10 @@ function App() {
   const [count, setCount] = useState(0)
 
   // Effect<never, never, void>
-  const task = useMemo(() => Effect.sync(() => setCount((current) => current + 1)), [setCount])
+  const task = useMemo(
+    () => Effect.sync(() => setCount((current) => current + 1)),
+    [setCount]
+  )
 
   const increment = useCallback(() => Effect.runSync(task), [task])
 
@@ -246,7 +257,9 @@ function App() {
           Edit <code>src/App.tsx</code> and save to test HMR
         </p>
       </div>
-      <p className="read-the-docs">Click on the Vite and React logos to learn more</p>
+      <p className="read-the-docs">
+        Click on the Vite and React logos to learn more
+      </p>
     </>
   )
 }
