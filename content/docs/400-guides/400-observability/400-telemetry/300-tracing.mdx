@@ -45,8 +45,12 @@ Waterfall diagrams show the parent-child relationship between a root span and it
 
 You can instrument an effect with a Span using the `Effect.withSpan` API. Here's how you can do it:
 
-```ts file=<rootDir>/src/guide/observability/otel/tracing/withSpan.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.unit.pipe(Effect.delay("100 millis"))
+
+const instrumented = program.pipe(Effect.withSpan("myspan"))
 ```
 
 It's important to note that instrumenting an effect doesn't change its type. You start with an `Effect<never, never, void>`, and you still get an `Effect<never, never, void>`.
@@ -57,8 +61,41 @@ Now, let's print our Span to the console. To achieve this, we need specific tool
 
 Here's a code snippet demonstrating how to set up the necessary environment and print the Span to the console:
 
-```ts {24} file=<rootDir>/src/guide/observability/otel/tracing/print-withSpan.ts
+```ts {23} twoslash
+import { Effect } from "effect"
+import { NodeSdk } from "@effect/opentelemetry"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor
+} from "@opentelemetry/sdk-trace-base"
 
+const program = Effect.unit.pipe(Effect.delay("100 millis"))
+
+const instrumented = program.pipe(Effect.withSpan("myspan"))
+
+const NodeSdkLive = NodeSdk.layer(() => ({
+  resource: { serviceName: "example" },
+  spanProcessor: new BatchSpanProcessor(new ConsoleSpanExporter())
+}))
+
+Effect.runPromise(instrumented.pipe(Effect.provide(NodeSdkLive)))
+/*
+Example Output:
+{
+  traceId: 'd0f730abfc366205806469596092b239',
+  parentId: undefined,
+  traceState: undefined,
+  name: 'myspan',
+  id: 'ab4e42592e7f1f7c',
+  kind: 0,
+  timestamp: 1697040012664380.5,
+  duration: 2895.769,
+  attributes: {},
+  status: { code: 1 },
+  events: [],
+  links: []
+}
+*/
 ```
 
 Here's a breakdown of the output:
@@ -78,8 +115,49 @@ Here's a breakdown of the output:
 
 Let's examine the output of an effect that encountered an error:
 
-```ts {34} file=<rootDir>/src/guide/observability/otel/tracing/print-withSpan-fail.ts
+```ts {33} twoslash
+import { Effect } from "effect"
+import { NodeSdk } from "@effect/opentelemetry"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor
+} from "@opentelemetry/sdk-trace-base"
 
+const program = Effect.fail("Oh no!").pipe(
+  Effect.delay("100 millis"),
+  Effect.withSpan("myspan")
+)
+
+const NodeSdkLive = NodeSdk.layer(() => ({
+  resource: { serviceName: "example" },
+  spanProcessor: new BatchSpanProcessor(new ConsoleSpanExporter())
+}))
+
+Effect.runPromise(program.pipe(Effect.provide(NodeSdkLive))).then(
+  console.log,
+  console.error
+)
+/*
+Example Output:
+{
+  traceId: '760510a3f9a0881a09de990c87ec1cef',
+  parentId: undefined,
+  traceState: undefined,
+  name: 'myspan',
+  id: 'a528e38e82e848a5',
+  kind: 0,
+  timestamp: 1697091363002970.5,
+  duration: 110371.664,
+  attributes: {},
+  status: { code: 2, message: 'Error: Oh no!' },
+  events: [],
+  links: []
+}
+{
+  _id: 'FiberFailure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Oh no!' }
+}
+*/
 ```
 
 ## Adding Annotations
@@ -87,16 +165,92 @@ Let's examine the output of an effect that encountered an error:
 You can provide extra information to a span by utilizing the `Effect.annotateCurrentSpan` function.
 This tool allows you to associate key-value pairs, offering more context about the execution of the span.
 
-```ts {31} file=<rootDir>/src/guide/observability/otel/tracing/annotateCurrentSpan.ts
+```ts {30} twoslash
+import { Effect } from "effect"
+import { NodeSdk } from "@effect/opentelemetry"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor
+} from "@opentelemetry/sdk-trace-base"
 
+const program = Effect.unit.pipe(
+  Effect.delay("100 millis"),
+  Effect.tap(() => Effect.annotateCurrentSpan("key", "value")),
+  Effect.withSpan("myspan")
+)
+
+const NodeSdkLive = NodeSdk.layer(() => ({
+  resource: { serviceName: "example" },
+  spanProcessor: new BatchSpanProcessor(new ConsoleSpanExporter())
+}))
+
+Effect.runPromise(program.pipe(Effect.provide(NodeSdkLive)))
+/*
+Example Output:
+{
+  traceId: '869c9d74d9db14a4ba4393ca8e0f61db',
+  parentId: undefined,
+  traceState: undefined,
+  name: 'myspan',
+  id: '31eb49570d197f8d',
+  kind: 0,
+  timestamp: 1697045981663321.5,
+  duration: 109563.353,
+  attributes: { key: 'value' },
+  status: { code: 1 },
+  events: [],
+  links: []
+}
+*/
 ```
 
 ## Logs as events
 
 Logs are transformed into what are known as "Span Events." These events provide structured information and a timeline of occurrences within your application.
 
-```ts {32-39} file=<rootDir>/src/guide/observability/otel/tracing/log-withSpan.ts
+```ts {31-38} twoslash
+import { Effect } from "effect"
+import { NodeSdk } from "@effect/opentelemetry"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor
+} from "@opentelemetry/sdk-trace-base"
 
+const program = Effect.log("Hello").pipe(
+  Effect.delay("100 millis"),
+  Effect.withSpan("myspan")
+)
+
+const NodeSdkLive = NodeSdk.layer(() => ({
+  resource: { serviceName: "example" },
+  spanProcessor: new BatchSpanProcessor(new ConsoleSpanExporter())
+}))
+
+Effect.runPromise(program.pipe(Effect.provide(NodeSdkLive)))
+/*
+Example Output:
+{
+  traceId: 'ad708d58c15f9e5c7b5cca2eeb6838a2',
+  parentId: undefined,
+  traceState: undefined,
+  name: 'myspan',
+  id: '4353fd47423e786a',
+  kind: 0,
+  timestamp: 1697043230170724.2,
+  duration: 112052.514,
+  attributes: {},
+  status: { code: 1 },
+  events: [
+    {
+      name: 'Hello',
+      attributes: { 'effect.fiberId': '#0', 'effect.logLevel': 'INFO' },
+      time: [ 1697043230, 280923805 ],
+      droppedAttributesCount: 0
+    }
+  ],
+  links: []
+}
+*/
 ```
 
 Spans can contain events, which are records of specific moments during the span's lifecycle. In this output, there is one event named 'Hello.' It includes associated attributes, such as 'effect.fiberId' and 'effect.logLevel,' providing information about the logged event. The 'time' field represents the timestamp when the event occurred.
@@ -105,8 +259,62 @@ Spans can contain events, which are records of specific moments during the span'
 
 Spans can be nested, creating a hierarchy of operations. This concept is illustrated in the following code:
 
-```ts /b953d6c7d37ad93d/ file=<rootDir>/src/guide/observability/otel/tracing/nested-spans.ts
+```ts twoslash
+import { Effect } from "effect"
+import { NodeSdk } from "@effect/opentelemetry"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor
+} from "@opentelemetry/sdk-trace-base"
 
+const child = Effect.unit.pipe(
+  Effect.delay("100 millis"),
+  Effect.withSpan("child")
+)
+
+const parent = Effect.gen(function* (_) {
+  yield* _(Effect.sleep("20 millis"))
+  yield* _(child)
+  yield* _(Effect.sleep("10 millis"))
+}).pipe(Effect.withSpan("parent"))
+
+const NodeSdkLive = NodeSdk.layer(() => ({
+  resource: { serviceName: "example" },
+  spanProcessor: new BatchSpanProcessor(new ConsoleSpanExporter())
+}))
+
+Effect.runPromise(parent.pipe(Effect.provide(NodeSdkLive)))
+/*
+Example Output:
+{
+  traceId: '92fe81f1454d9c099198568cf867dc59',
+  parentId: 'b953d6c7d37ad93d',
+  traceState: undefined,
+  name: 'child',
+  id: '2fd19c8c23ebc7e8',
+  kind: 0,
+  timestamp: 1697043815321888.2,
+  duration: 106536.264,
+  attributes: {},
+  status: { code: 1 },
+  events: [],
+  links: []
+}
+{
+  traceId: '92fe81f1454d9c099198568cf867dc59',
+  parentId: undefined,
+  traceState: undefined,
+  name: 'parent',
+  id: 'b953d6c7d37ad93d',
+  kind: 0,
+  timestamp: 1697043815292133.2,
+  duration: 149724.295,
+  attributes: {},
+  status: { code: 1 },
+  events: [],
+  links: []
+}
+*/
 ```
 
 As you can observe, the `b953d6c7d37ad93d` value plays a crucial role in maintaining the parent-child relationship between these spans. It provides a clear indication of how spans can be nested, creating a trace that helps developers understand the flow and hierarchy of operations in their applications.
@@ -154,11 +362,72 @@ Now, let's simulate traces using a sample Node.js application. We'll provide you
 
    Before proceeding, you'll need to install additional libraries in addition to the latest version of `effect`. Here are the required libraries:
 
-   - `@effect/opentelemetry@latest`
-   - `@opentelemetry/exporter-trace-otlp-http@0.43.0`
+   - `@effect/opentelemetry`
+   - `@opentelemetry/exporter-trace-otlp-http`
 
-   ```ts file=<rootDir>/src/guide/observability/otel/tracing/example.ts
+   ```ts twoslash
+   import { Effect } from "effect"
+   import { NodeSdk } from "@effect/opentelemetry"
+   import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base"
+   import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http"
 
+   // Function to simulate a task with possible subtasks
+   const task = (
+     name: string,
+     delay: number,
+     children: ReadonlyArray<Effect.Effect<never, never, void>> = []
+   ) =>
+     Effect.gen(function* (_) {
+       yield* _(Effect.log(name))
+       yield* _(Effect.sleep(`${delay} millis`))
+       for (const child of children) {
+         yield* _(child)
+       }
+       yield* _(Effect.sleep(`${delay} millis`))
+     }).pipe(Effect.withSpan(name))
+
+   const poll = task("/poll", 1)
+
+   // Create a program with tasks and subtasks
+   const program = task("client", 2, [
+     task("/api", 3, [
+       task("/authN", 4, [task("/authZ", 5)]),
+       task("/payment Gateway", 6, [task("DB", 7), task("Ext. Merchant", 8)]),
+       task("/dispatch", 9, [
+         task("/dispatch/search", 10),
+         Effect.all([poll, poll, poll], { concurrency: "inherit" }),
+         task("/pollDriver/{id}", 11)
+       ])
+     ])
+   ])
+
+   const NodeSdkLive = NodeSdk.layer(() => ({
+     resource: { serviceName: "example" },
+     spanProcessor: new BatchSpanProcessor(new OTLPTraceExporter())
+   }))
+
+   Effect.runPromise(
+     program.pipe(
+       Effect.provide(NodeSdkLive),
+       Effect.catchAllCause(Effect.logError)
+     )
+   )
+   /*
+   Output:
+   timestamp=... level=INFO fiber=#0 message=client
+   timestamp=... level=INFO fiber=#0 message=/api
+   timestamp=... level=INFO fiber=#0 message=/authN
+   timestamp=... level=INFO fiber=#0 message=/authZ
+   timestamp=... level=INFO fiber=#0 message="/payment Gateway"
+   timestamp=... level=INFO fiber=#0 message=DB
+   timestamp=... level=INFO fiber=#0 message="Ext. Merchant"
+   timestamp=... level=INFO fiber=#0 message=/dispatch
+   timestamp=... level=INFO fiber=#0 message=/dispatch/search
+   timestamp=... level=INFO fiber=#3 message=/poll
+   timestamp=... level=INFO fiber=#4 message=/poll
+   timestamp=... level=INFO fiber=#5 message=/poll
+   timestamp=... level=INFO fiber=#0 message=/pollDriver/{id}
+   */
    ```
 
 4. **Visualize Traces**. Now, open your web browser and go to [http://localhost:3000/explore](http://localhost:3000/explore). You will see a generated `Trace ID` on the web page. Click on it to see the details of the trace.
