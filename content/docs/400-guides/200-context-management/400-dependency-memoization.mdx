@@ -12,8 +12,63 @@ One important feature of an Effect application is that layers are shared by defa
 
 For example, assume we have the three services `A`, `B`, and `C`. The implementation of both `B` and `C` is dependent on the `A` service:
 
-```ts file=<rootDir>/src/dependency-memoization/globally.ts
+```ts twoslash
+import { Effect, Context, Layer } from "effect"
 
+interface A {
+  readonly a: number
+}
+
+const A = Context.Tag<A>()
+
+interface B {
+  readonly b: string
+}
+
+const B = Context.Tag<B>()
+
+interface C {
+  readonly c: boolean
+}
+
+const C = Context.Tag<C>()
+
+const a = Layer.effect(
+  A,
+  Effect.succeed({ a: 5 }).pipe(Effect.tap(() => Effect.log("initialized")))
+)
+
+const b = Layer.effect(
+  B,
+  Effect.gen(function* (_) {
+    const { a } = yield* _(A)
+    return { b: String(a) }
+  })
+)
+
+const c = Layer.effect(
+  C,
+  Effect.gen(function* (_) {
+    const { a } = yield* _(A)
+    return { c: a > 0 }
+  })
+)
+
+const program = Effect.gen(function* (_) {
+  yield* _(B)
+  yield* _(C)
+})
+
+const runnable = Effect.provide(
+  program,
+  Layer.merge(Layer.provide(b, a), Layer.provide(c, a))
+)
+
+Effect.runPromise(runnable)
+/*
+Output:
+timestamp=... level=INFO fiber=#2 message=initialized
+*/
 ```
 
 Although both `b` and `c` layers require the `a` layer, the `a` layer is instantiated only once. It is shared with both `b` and `c`.
@@ -22,8 +77,68 @@ Although both `b` and `c` layers require the `a` layer, the `a` layer is instant
 
 If we don't want to share a module, we should create a fresh, non-shared version of it through `Layer.fresh`.
 
-```ts /Layer.fresh(a)/ file=<rootDir>/src/dependency-memoization/globally-fresh.ts
+```ts twoslash
+import { Effect, Context, Layer } from "effect"
 
+interface A {
+  readonly a: number
+}
+
+const A = Context.Tag<A>()
+
+interface B {
+  readonly b: string
+}
+
+const B = Context.Tag<B>()
+
+interface C {
+  readonly c: boolean
+}
+
+const C = Context.Tag<C>()
+
+const a = Layer.effect(
+  A,
+  Effect.succeed({ a: 5 }).pipe(Effect.tap(() => Effect.log("initialized")))
+)
+
+const b = Layer.effect(
+  B,
+  Effect.gen(function* (_) {
+    const { a } = yield* _(A)
+    return { b: String(a) }
+  })
+)
+
+const c = Layer.effect(
+  C,
+  Effect.gen(function* (_) {
+    const { a } = yield* _(A)
+    return { c: a > 0 }
+  })
+)
+
+const program = Effect.gen(function* (_) {
+  yield* _(B)
+  yield* _(C)
+})
+
+// ---cut---
+const runnable = Effect.provide(
+  program,
+  Layer.merge(
+    Layer.provide(b, Layer.fresh(a)),
+    Layer.provide(c, Layer.fresh(a))
+  )
+)
+
+Effect.runPromise(runnable)
+/*
+Output:
+timestamp=... level=INFO fiber=#2 message=initialized
+timestamp=... level=INFO fiber=#3 message=initialized
+*/
 ```
 
 ## No Memoization When Providing Locally
@@ -32,14 +147,65 @@ If we don't provide a layer globally but instead provide them locally, that laye
 
 In the following example, we provided the `a` layer two times locally, and Effect doesn't memoize the construction of the `a` layer. So, it will be initialized two times:
 
-```ts file=<rootDir>/src/dependency-memoization/locally.ts
+```ts twoslash
+import { Effect, Context, Layer } from "effect"
 
+interface A {
+  readonly a: number
+}
+
+const A = Context.Tag<A>()
+
+const a = Layer.effect(
+  A,
+  Effect.succeed({ a: 5 }).pipe(Effect.tap(() => Effect.log("initialized")))
+)
+
+const program = Effect.gen(function* (_) {
+  yield* _(A, Effect.provide(a))
+  yield* _(A, Effect.provide(a))
+})
+
+Effect.runPromise(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=initialized
+timestamp=... level=INFO fiber=#0 message=initialized
+*/
 ```
 
 ## Manual Memoization
 
 We can memoize the `a` layer manually using the `Layer.memoize` operator. It will return a scoped effect that, if evaluated, will return the lazily computed result of this layer:
 
-```ts file=<rootDir>/src/dependency-memoization/memoize.ts
+```ts twoslash
+import { Effect, Context, Layer } from "effect"
 
+interface A {
+  readonly a: number
+}
+
+const A = Context.Tag<A>()
+
+const a = Layer.effect(
+  A,
+  Effect.succeed({ a: 5 }).pipe(Effect.tap(() => Effect.log("initialized")))
+)
+
+const program = Effect.scoped(
+  Layer.memoize(a).pipe(
+    Effect.flatMap((memoized) =>
+      Effect.gen(function* (_) {
+        yield* _(A, Effect.provide(memoized))
+        yield* _(A, Effect.provide(memoized))
+      })
+    )
+  )
+)
+
+Effect.runPromise(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=initialized
+*/
 ```
