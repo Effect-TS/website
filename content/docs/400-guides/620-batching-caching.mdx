@@ -16,61 +16,142 @@ It is very common in apps to depend on a number of external data sources like:
 
 Let's start with a fairly minimal model description:
 
-```ts filename="Model.ts" file=<rootDir>/src/guide/batching-caching/Model.ts
+```twoslash include Model
+// Model.ts
 import { Effect } from "effect"
 
-interface User {
+export interface User {
   readonly _tag: "User"
   readonly id: number
   readonly name: string
   readonly email: string
 }
 
-class GetUserError {
+export class GetUserError {
   readonly _tag = "GetUserError"
 }
 
-interface Todo {
+export interface Todo {
   readonly _tag: "Todo"
   readonly id: number
   readonly message: string
   readonly ownerId: number
 }
 
-class GetTodosError {
+export class GetTodosError {
   readonly _tag = "GetTodosError"
 }
 
-class SendEmailError {
+export class SendEmailError {
   readonly _tag = "SendEmailError"
 }
+```
+
+```ts filename="Model.ts" twoslash
+// @include: Model
 ```
 
 <Idea>
   In a real world scenario we may want to use a more precise types instead of
   directly using primitives for identifiers (see [Branded
-  Types](style/brands.mdx)). We may also want to include more information in the
-  errors.
+  Types](style/brands.mdx)). We may also want to include more information in
+  the errors.
 </Idea>
 
 ## Classic Approach
 
 Given such a model we usually write up functions to call some API (or database, etc.) like the following:
 
-```ts filename="API.ts" file=<rootDir>/src/guide/batching-caching/API.ts
+```twoslash include API
+// API.ts
+import { Effect } from "effect"
+import * as Model from "./Model"
 
+export const simulatedValidation = async <A>(
+  promise: Promise<Response>
+): Promise<A> => {
+  // In a real world scenario we may not want to trust our APIs to actually return the expected data
+  return promise.then((res) => res.json() as Promise<A>)
+}
+
+export const getTodos = Effect.tryPromise({
+  try: () =>
+    simulatedValidation<Array<Model.Todo>>(
+      fetch("https://api.example.demo/todos")
+    ),
+  catch: () => new Model.GetTodosError()
+})
+
+export const getUserById = (id: number) =>
+  Effect.tryPromise({
+    try: () =>
+      simulatedValidation<Model.User>(
+        fetch(`https://api.example.demo/getUserById?id=${id}`)
+      ),
+    catch: () => new Model.GetUserError()
+  })
+
+export const sendEmail = (address: string, text: string) =>
+  Effect.tryPromise({
+    try: () =>
+      simulatedValidation<void>(
+        fetch("https://api.example.demo/sendEmail", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ address, text })
+        })
+      ),
+    catch: () => new Model.SendEmailError()
+  })
+
+export const sendEmailToUser = (id: number, message: string) =>
+  Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
+
+export const notifyOwner = (todo: Model.Todo) =>
+  Effect.flatMap(getUserById(todo.ownerId), (user) =>
+    sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
+  )
+```
+
+```ts filename="API.ts" twoslash
+// @filename: Model.ts
+// @include: Model
+
+// @filename: API.ts
+// ---cut---
+// @include: API
 ```
 
 <Idea>
-  In a real world scenario we may not want to trust our APIs to actually return
-  the expected data - for doing this properly you can use `@effect/schema` or
-  similar alternatives such as `zod`.
+  In a real world scenario we may not want to trust our APIs to actually
+  return the expected data - for doing this properly you can use
+  `@effect/schema` or similar alternatives such as `zod`.
 </Idea>
 
 When using the utilities we defined it is normal to end up with code that looks like the following:
 
-```ts filename="index.ts" file=<rootDir>/src/guide/batching-caching/index.ts
+```ts filename="index.ts" twoslash
+// @filename: Model.ts
+// @include: Model
 
+// @filename: API.ts
+// @include: API
+
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import * as API from "./API"
+
+const program = Effect.gen(function* (_) {
+  const todos = yield* _(API.getTodos)
+  yield* _(
+    Effect.forEach(todos, (todo) => API.notifyOwner(todo), {
+      concurrency: "unbounded"
+    })
+  )
+})
 ```
 
 Here we used the `forEach` to repeat an effect for every `Todo` and the effect repeated
@@ -89,8 +170,45 @@ Well **not anymore.**
 
 Let's rewrite our example to be as efficient as possible - we'll start by writing a model for the requests that our data sources support:
 
-```ts filename="RequestModel.ts" file=<rootDir>/src/guide/batching-caching/RequestModel.ts
+```twoslash include RequestModel
+// RequestModel.ts
+import { Request } from "effect"
+import * as Model from "./Model"
 
+export interface GetTodos
+  extends Request.Request<Model.GetTodosError, Array<Model.Todo>> {
+  readonly _tag: "GetTodos"
+}
+
+export const GetTodos = Request.tagged<GetTodos>("GetTodos")
+
+export interface GetUserById
+  extends Request.Request<Model.GetUserError, Model.User> {
+  readonly _tag: "GetUserById"
+  readonly id: number
+}
+
+export const GetUserById = Request.tagged<GetUserById>("GetUserById")
+
+export interface SendEmail
+  extends Request.Request<Model.SendEmailError, void> {
+  readonly _tag: "SendEmail"
+  readonly address: string
+  readonly text: string
+}
+
+export const SendEmail = Request.tagged<SendEmail>("SendEmail")
+
+export type ApiRequest = GetTodos | GetUserById | SendEmail
+```
+
+```ts filename="RequestModel.ts" twoslash
+// @filename: Model.ts
+// @include: Model
+
+// @filename: RequestModel.ts
+// ---cut---
+// @include: RequestModel
 ```
 
 ## Declaring Resolvers
@@ -100,8 +218,99 @@ Now that we have our requests defined it is time to tell Effect how to resolve t
 Here we will define a single resolver per query. There is no right or wrong answer in how granular your resolvers should be
 but usually you will split up your resolvers based on which API calls can be batched.
 
-```ts filename="Resolvers.ts" file=<rootDir>/src/guide/batching-caching/Resolvers.ts
+```twoslash include Resolvers
+// Resolvers.ts
+import { Effect, RequestResolver, Request } from "effect"
+import * as API from "./API"
+import * as Model from "./Model"
+import * as RequestModel from "./RequestModel"
 
+// we assume we cannot batch GetTodos, we create a normal resolver
+export const GetTodosResolver = RequestResolver.fromEffect(
+  (request: RequestModel.GetTodos) =>
+    Effect.tryPromise({
+      try: () =>
+        API.simulatedValidation<Array<Model.Todo>>(
+          fetch("https://api.example.demo/todos")
+        ),
+      catch: () => new Model.GetTodosError()
+    })
+)
+
+// we assume we can batch GetUserById, we create a batched resolver
+export const GetUserByIdResolver = RequestResolver.makeBatched(
+  (requests: Array<RequestModel.GetUserById>) =>
+    Effect.tryPromise({
+      try: () =>
+        API.simulatedValidation<Array<Model.User>>(
+          fetch("https://api.example.demo/getUserByIdBatch", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              users: requests.map(({ id }) => ({ id }))
+            })
+          })
+        ),
+      catch: () => new Model.GetUserError()
+    }).pipe(
+      Effect.flatMap((users) =>
+        Effect.forEach(requests, (request, index) =>
+          Request.completeEffect(request, Effect.succeed(users[index]))
+        )
+      ),
+      Effect.catchAll((error) =>
+        Effect.forEach(requests, (request) =>
+          Request.completeEffect(request, Effect.fail(error))
+        )
+      )
+    )
+)
+
+// we assume we can batch SendEmail, we create a batched resolver
+export const SendEmailResolver = RequestResolver.makeBatched(
+  (requests: Array<RequestModel.SendEmail>) =>
+    Effect.tryPromise({
+      try: () =>
+        fetch("https://api.example.demo/sendEmailBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            emails: requests.map(({ address, text }) => ({ address, text }))
+          })
+        }).then((_) => _.json()),
+      catch: () => new Model.SendEmailError()
+    }).pipe(
+      Effect.flatMap(() =>
+        Effect.forEach(requests, (request) =>
+          Request.completeEffect(request, Effect.unit)
+        )
+      ),
+      Effect.catchAll((error) =>
+        Effect.forEach(requests, (request) =>
+          Request.completeEffect(request, Effect.fail(error))
+        )
+      )
+    )
+)
+```
+
+```ts filename="Resolvers.ts" twoslash
+// @filename: Model.ts
+// @include: Model
+
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: Resolvers.ts
+// ---cut---
+// @include: Resolvers
 ```
 
 <Info>
@@ -114,16 +323,90 @@ but usually you will split up your resolvers based on which API calls can be bat
 
 At this point we are ready to plug the pieces together! Let's do just that:
 
-```ts filename="Queries.ts" file=<rootDir>/src/guide/batching-caching/Queries.ts
+```twoslash include Queries
+import { Effect } from "effect"
+import * as Model from "./Model"
+import * as RequestModel from "./RequestModel"
+import * as Resolvers from "./Resolvers"
 
+export const getTodos: Effect.Effect<
+  never,
+  Model.GetTodosError,
+  Array<Model.Todo>
+> = Effect.request(RequestModel.GetTodos({}), Resolvers.GetTodosResolver)
+
+export const getUserById = (id: number) =>
+  Effect.request(
+    RequestModel.GetUserById({ id }),
+    Resolvers.GetUserByIdResolver
+  )
+
+export const sendEmail = (address: string, text: string) =>
+  Effect.request(
+    RequestModel.SendEmail({ address, text }),
+    Resolvers.SendEmailResolver
+  )
+
+export const sendEmailToUser = (id: number, message: string) =>
+  Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
+
+export const notifyOwner = (todo: Model.Todo) =>
+  Effect.flatMap(getUserById(todo.ownerId), (user) =>
+    sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
+  )
+```
+
+```ts filename="Queries.ts" twoslash
+// @filename: Model.ts
+// @include: Model
+
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: Resolvers.ts
+// @include: Resolvers
+
+// @filename: Queries.ts
+// ---cut---
+// @include: Queries
 ```
 
 It looks like we are back at the beginning, same exact types and same exact composition.
 
 But now the following program:
 
-```ts filename="index.ts" {9} file=<rootDir>/src/guide/batching-caching/index-queries.ts
+```ts filename="index.ts" {8} twoslash
+// @filename: Model.ts
+// @include: Model
 
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: Resolvers.ts
+// @include: Resolvers
+
+// @filename: Queries.ts
+// @include: Queries
+
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import * as Queries from "./Queries"
+
+const program = Effect.gen(function* (_) {
+  const todos = yield* _(Queries.getTodos)
+  yield* _(
+    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
+      batching: true
+    })
+  )
+})
 ```
 
 Will only require **3** queries to be executed to our APIs instead of **1 + 2n** where **n** is the number of todos.
@@ -139,8 +422,59 @@ you always have to specify how context is accessed.
 
 Let's see how we would do it:
 
-```ts filename="ResolversWithContext.ts" file=<rootDir>/src/guide/batching-caching/ResolversWithContext.ts
+```twoslash include ResolversWithContext
+import { Effect, Context, Layer, RequestResolver } from "effect"
+import * as API from "./API"
+import * as Model from "./Model"
+import * as RequestModel from "./RequestModel"
 
+export interface HttpService {
+  fetch: typeof fetch
+}
+
+export const HttpService = Context.Tag<HttpService>(
+  Symbol.for("@app/services/HttpService")
+)
+
+export const HttpServiceLive = Layer.sync(HttpService, () =>
+  HttpService.of({ fetch })
+)
+
+export const GetTodosResolver: Effect.Effect<
+  HttpService,
+  never,
+  RequestResolver.RequestResolver<RequestModel.GetTodos, never>
+> =
+  // we create a normal resolver like we did before
+  RequestResolver.fromEffect((request: RequestModel.GetTodos) =>
+    Effect.flatMap(HttpService, (http) =>
+      Effect.tryPromise({
+        try: () =>
+          API.simulatedValidation<Array<Model.Todo>>(
+            http.fetch("https://api.example.demo/todos")
+          ),
+        catch: () => new Model.GetTodosError()
+      })
+    )
+  ).pipe(
+    // we list the tags that the resolver can access
+    RequestResolver.contextFromServices(HttpService)
+  )
+```
+
+```ts filename="ResolversWithContext.ts" twoslash
+// @filename: Model.ts
+// @include: Model
+
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: ResolversWithContext.ts
+// ---cut---
+// @include: ResolversWithContext
 ```
 
 We can see now that the type of `GetTodosResolver` is no longer a `RequestResolver` but instead it is:
@@ -153,8 +487,35 @@ which is an `Effect` that access the `HttpService` and returns a composed resolv
 
 Once we have such `Effect` we can directly use it in our request definition:
 
-```ts filename="QueriesWithContext.ts" file=<rootDir>/src/guide/batching-caching/QueriesWithContext.ts
+```ts filename="QueriesWithContext.ts" twoslash
+// @filename: Model.ts
+// @include: Model
 
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: ResolversWithContext.ts
+// @include: ResolversWithContext
+
+// @filename: QueriesWithContext.ts
+// ---cut---
+// QueriesWithContext.ts
+import { Effect } from "effect"
+import * as Model from "./Model"
+import * as RequestModel from "./RequestModel"
+import * as ResolversWithContext from "./ResolversWithContext"
+
+export const getTodos: Effect.Effect<
+  ResolversWithContext.HttpService,
+  Model.GetTodosError,
+  Array<Model.Todo>
+> = Effect.request(
+  RequestModel.GetTodos({}),
+  ResolversWithContext.GetTodosResolver
+)
 ```
 
 We can see that the `Effect` correctly requires `HttpService` to be provided.
@@ -163,8 +524,61 @@ Alternatively you can create `RequestResolver`s as part of layers direcly access
 
 For example:
 
-```ts filename="QueriesFromLayers.ts" file=<rootDir>/src/guide/batching-caching/QueriesFromLayers.ts
+```ts filename="QueriesFromLayers.ts" twoslash
+// @filename: Model.ts
+// @include: Model
 
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: ResolversWithContext.ts
+// @include: ResolversWithContext
+
+// @filename: QueriesFromLayers.ts
+// ---cut---
+// QueriesFromLayers.ts
+import { Effect, Context, Layer, RequestResolver } from "effect"
+import * as API from "./API"
+import * as Model from "./Model"
+import * as RequestModel from "./RequestModel"
+import * as ResolversWithContext from "./ResolversWithContext"
+
+export interface TodosService {
+  getTodos: Effect.Effect<never, Model.GetTodosError, Array<Model.Todo>>
+}
+
+export const TodosService = Context.Tag<TodosService>(
+  Symbol.for("@app/services/TodosService")
+)
+
+export const TodosServiceLive = Layer.effect(
+  TodosService,
+  Effect.gen(function* ($) {
+    const http = yield* $(ResolversWithContext.HttpService)
+    const resolver = RequestResolver.fromEffect(
+      (request: RequestModel.GetTodos) =>
+        Effect.tryPromise({
+          try: () =>
+            API.simulatedValidation<Array<Model.Todo>>(
+              http.fetch("https://api.example.demo/todos")
+            ),
+          catch: () => new Model.GetTodosError()
+        })
+    )
+    return {
+      getTodos: Effect.request(RequestModel.GetTodos({}), resolver)
+    }
+  })
+)
+
+export const getTodos: Effect.Effect<
+  TodosService,
+  Model.GetTodosError,
+  Array<Model.Todo>
+> = Effect.flatMap(TodosService, (service) => service.getTodos)
 ```
 
 This way is probably the best for most of the cases given that layers are the natural primitive where to wire services together.
@@ -173,8 +587,35 @@ This way is probably the best for most of the cases given that layers are the na
 
 Batching can be locally disabled using the `Effect.withRequestBatching` utility in the following way:
 
-```ts filename="index.ts" {12} file=<rootDir>/src/guide/batching-caching/withRequestBatching.ts
+```ts filename="index.ts" {11} twoslash
+// @filename: Model.ts
+// @include: Model
 
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: Resolvers.ts
+// @include: Resolvers
+
+// @filename: Queries.ts
+// @include: Queries
+
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import * as Queries from "./Queries"
+
+const program = Effect.gen(function* (_) {
+  const todos = yield* _(Queries.getTodos)
+  yield* _(
+    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
+      concurrency: "unbounded"
+    })
+  )
+}).pipe(Effect.withRequestBatching(false))
 ```
 
 ## Request Caching
@@ -185,16 +626,67 @@ This leads to request duplication...
 
 Fortunately we also have a primitive for caching in `Effect` and we use that to automatically cache requests.
 
-```ts {9} filename="Queries.ts" file=<rootDir>/src/guide/batching-caching/withRequestCaching.ts
+```ts {10} filename="Queries.ts" twoslash
+// @filename: Model.ts
+// @include: Model
 
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: Resolvers.ts
+// @include: Resolvers
+
+// @filename: Queries.ts
+// ---cut---
+// Queries.ts
+import { Effect } from "effect"
+import * as RequestModel from "./RequestModel"
+import * as Resolvers from "./Resolvers"
+
+export const getUserById = (id: number) =>
+  Effect.request(
+    RequestModel.GetUserById({ id }),
+    Resolvers.GetUserByIdResolver
+  ).pipe(Effect.withRequestCaching(true))
 ```
 
 ## Final Program
 
 Assuming you've wired everything up correctly:
 
-```ts filename="index.ts" file=<rootDir>/src/guide/batching-caching/final-program.ts
+```ts filename="index.ts" twoslash
+// @filename: Model.ts
+// @include: Model
 
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: Resolvers.ts
+// @include: Resolvers
+
+// @filename: Queries.ts
+// @include: Queries
+
+// @filename: index.ts
+// ---cut---
+// index.ts
+import { Effect, Schedule } from "effect"
+import * as Queries from "./Queries"
+
+const program = Effect.gen(function* (_) {
+  const todos = yield* _(Queries.getTodos)
+  yield* _(
+    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
+      concurrency: "unbounded"
+    })
+  )
+}).pipe(Effect.repeat(Schedule.fixed("10 seconds")))
 ```
 
 With this program, the `getTodos` operation retrieves the todos for each user. Then, the `Effect.forEach` function is used to notify the owner of each todo concurrently, without waiting for the notifications to complete.
@@ -212,8 +704,43 @@ or maybe you want a global cache with a different setup, or a mix of both.
 
 To cover those scenarios you'd create a custom cache like the following:
 
-```ts {14-18} filename="index.ts" file=<rootDir>/src/guide/batching-caching/final-program-with-cache.ts
+```ts {14-18} filename="index.ts" twoslash
+// @filename: Model.ts
+// @include: Model
 
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: Resolvers.ts
+// @include: Resolvers
+
+// @filename: Queries.ts
+// @include: Queries
+
+// @filename: index.ts
+// ---cut---
+// index.ts
+import { Effect, Schedule, Layer, Request } from "effect"
+import * as Queries from "./Queries"
+
+const program = Effect.gen(function* (_) {
+  const todos = yield* _(Queries.getTodos)
+  yield* _(
+    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
+      concurrency: "unbounded"
+    })
+  )
+}).pipe(
+  Effect.repeat(Schedule.fixed("10 seconds")),
+  Effect.provide(
+    Layer.setRequestCache(
+      Request.makeCache({ capacity: 256, timeToLive: "60 minutes" })
+    )
+  )
+)
 ```
 
 Alternatively you can also directly construct a cache with `Request.makeCache({ capacity: 256, timeToLive: "60 minutes" }){:ts}` and then use
@@ -224,8 +751,62 @@ the custom cache (when enabled with `Effect.withRequestCaching(true){:ts}`).
 
 We recently introduced a new key primitive in the fiber that enables an execution to pause when it sees the program requires a request. In the process of pausing, the fiber will reify its stack into a continuation that can be externally performed.
 
-```ts file=<rootDir>/src/guide/batching-caching/final-program-explained.ts
+```ts twoslash
+// @filename: Model.ts
+// @include: Model
 
+// @filename: API.ts
+// @include: API
+
+// @filename: RequestModel.ts
+// @include: RequestModel
+
+// @filename: Resolvers.ts
+// @include: Resolvers
+
+// @filename: Queries.ts
+// @include: Queries
+
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import * as Queries from "./Queries"
+
+const program = Effect.gen(function* (_) {
+  const todos = yield* _(Queries.getTodos)
+  yield* _(
+    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
+      concurrency: "unbounded"
+    })
+  )
+})
+
+const nextStep = Effect.step(program).pipe(
+  Effect.flatMap((step) => {
+    switch (step._op) {
+      // the program is blocked on a number of requests
+      case "Blocked": {
+        const requests = step.i0
+        const continuation = step.i1
+        return shipRequestsToBeExecutedAndWait(requests).pipe(
+          Effect.flatMap(() => continuation)
+        )
+      }
+      // the program completed
+      case "Success":
+      case "Failure": {
+        return step
+      }
+    }
+  })
+)
+
+const shipRequestsToBeExecutedAndWait = <E, A>(
+  requests: Effect.Blocked<E, A>["i0"]
+): Effect.Effect<never, E, void> => {
+  // go on mars and come back
+  return Effect.unit
+}
 ```
 
 By using the functions provided by the `RequestBlock` module, you can combine requests from multiple blocked
@@ -240,8 +821,31 @@ calls or intensive work.
 
 Let's see how we would go about using cache:
 
-```ts file=<rootDir>/src/guide/batching-caching/using-cache-directly.ts
+```ts twoslash
+import { Effect, Cache } from "effect"
 
+declare const intensiveWork: (
+  key: string
+) => Effect.Effect<never, never, string>
+
+const program = Effect.gen(function* ($) {
+  const cache = yield* $(
+    Cache.make({
+      capacity: Number.MAX_SAFE_INTEGER,
+      timeToLive: Infinity,
+      lookup: intensiveWork
+    })
+  )
+
+  const a0 = yield* $(cache.get("key0"))
+  const b0 = yield* $(cache.get("key1"))
+  const a1 = yield* $(cache.get("key0"))
+  const b1 = yield* $(cache.get("key1"))
+
+  if (a0 === a1 && b0 === b1) {
+    console.log("I'll always end up here....")
+  }
+})
 ```
 
 <Warning>
