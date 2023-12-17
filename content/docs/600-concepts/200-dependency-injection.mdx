@@ -12,8 +12,19 @@ In simpler terms, instead of creating dependencies inside a component, dependenc
 
 Let's assume we have an `Mailer` service which depends upon the functionality provided by a `Logger` service.
 
-```ts file=<rootDir>/src/concepts/dependency-injection/motivation/illustrating.ts
+```ts twoslash
+export class Logger {
+  log(message: string): void {
+    console.log(message)
+  }
+}
 
+export class Mailer {
+  logger = new Logger()
+  sendMail(address: string, message: string): void {
+    this.logger.log(`Sending the message ${message} to ${address}`)
+  }
+}
 ```
 
 In the code above, we directly construct a `Logger` within our `Mailer` service. This tight coupling between the `Logger` and `Mailer` services introduces several problems:
@@ -28,8 +39,22 @@ However, by making use of dependency injection we can decouple our `Mailer` and 
 
 The first step to solving the problems outlined above is to decouple the construction of the `Mailer` and `Logger` services from one another.
 
-```ts file=<rootDir>/src/concepts/dependency-injection/motivation/decoupling.ts
+```ts twoslash
+export class Logger {
+  log(message: string): void {
+    console.log(message)
+  }
+}
 
+export class Mailer {
+  constructor(readonly logger: Logger) {}
+  sendMail(address: string, message: string): void {
+    this.logger.log(`Sending the message ${message} to ${address}`)
+  }
+}
+
+const logger = new Logger()
+const mailer = new Mailer(logger)
 ```
 
 Now instead of constructing the `Logger` service within the `Mailer` service, we construct the `Logger` externally and pass it to the constructor of the `Mailer` service.
@@ -55,16 +80,45 @@ We can take things a step further and allow for multiple implementations of our 
 
 First, we define the _interface_, or _behavior_, that our services should expose:
 
-```ts file=<rootDir>/src/concepts/dependency-injection/motivation/interfaces.ts#L1-L7
+```ts twoslash
+export interface Logger {
+  log(message: string): void
+}
 
+export interface Mailer {
+  sendMail(address: string, message: string): void
+}
 ```
 
 ### Create concrete service implementations
 
 Then, we bind the actual implementation of these services to the interfaces we have defined:
 
-```ts file=<rootDir>/src/concepts/dependency-injection/motivation/interfaces.ts#L9-L23
+```ts twoslash
+export interface Logger {
+  log(message: string): void
+}
 
+export interface Mailer {
+  sendMail(address: string, message: string): void
+}
+
+// ---cut---
+class ConsoleLogger implements Logger {
+  log(message: string): void {
+    console.log(message)
+  }
+}
+
+class ConsoleMailer implements Mailer {
+  constructor(readonly logger: Logger) {}
+  sendMail(address: string, message: string): void {
+    this.logger.log(`Sending the message ${message} to ${address}`)
+  }
+}
+
+const logger = new ConsoleLogger()
+const mailer = new ConsoleMailer(logger)
 ```
 
 ### Providing other service implementations
@@ -73,9 +127,35 @@ Now, as long as we adhere to the interface specified by our services, we can eas
 
 For example, we can create mock implementations of the `Logger` and `Mailer` services to use in our tests which internally track all messages logged and sent by the services:
 
-```ts file=<rootDir>/src/concepts/dependency-injection/motivation/interfaces.ts#L25-
+```ts twoslash
+export interface Logger {
+  log(message: string): void
+}
 
+export interface Mailer {
+  sendMail(address: string, message: string): void
+}
+
+// ---cut---
+class MockLogger implements Logger {
+  readonly messages: Array<string> = []
+  log(message: string): void {
+    this.messages.push(message)
+  }
+}
+
+class MockMailer implements Mailer {
+  readonly sentMail: Array<string> = []
+  constructor(readonly logger: Logger) {}
+  sendMail(address: string, message: string): void {
+    const email = `Sending the message ${message} to ${address}`
+    this.logger.log(email)
+    this.sentMail.push(email)
+  }
+}
+
+const mockLogger = new MockLogger()
+const mockMailer = new MockMailer(mockLogger)
 ```
 
 </Steps>
-
