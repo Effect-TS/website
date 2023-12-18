@@ -12,7 +12,7 @@ export const Code: FC<{
     highlights?: { color: string; lines: number[] }[]
   }[]
   terminal?: { run: string; command: string; result: string }
-  fixedHeight?: 80 | 96
+  fixedHeight?: number
 }> = ({ tabs, terminal, fixedHeight }) => {
   const [running, setRunning] = useState<boolean>(false)
   const runSnippet = () => {
@@ -46,13 +46,8 @@ export const Code: FC<{
             </Tabs.List>
           </div>
           <div
-            className={`${terminal ? "pb-8" : ""} ${
-              fixedHeight === 80
-                ? "lg:h-80"
-                : fixedHeight === 96
-                  ? "lg:h-96"
-                  : ""
-            } max-h-96 overflow-y-auto`}
+            style={{ height: fixedHeight}}
+            className={`${terminal ? "pb-8" : ""} ${fixedHeight ? "" : "max-h-96"} overflow-y-auto`}
           >
             {tabs.map(({ name, content, highlights }, index) => {
               const html = hljs.highlightAuto(content).value

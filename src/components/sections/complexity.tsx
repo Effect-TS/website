@@ -107,7 +107,7 @@ export const Complexity = () => {
                   highlights: content.features[currentIndex].withoutEffect.highlights
                 }
               ]}
-              fixedHeight={80}
+              fixedHeight={410}
             />
           </div>
           <div className="flex flex-col items-center gap-6">
@@ -123,7 +123,7 @@ export const Complexity = () => {
                   highlights: content.features[currentIndex].withEffect.highlights
                 }
               ]}
-              fixedHeight={80}
+              fixedHeight={410}
             />
           </div>
         </div>
