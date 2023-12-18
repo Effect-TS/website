@@ -225,7 +225,7 @@ async function getTodo(
       `,
         highlights: [
           {
-            color: '#283413',
+            color: '#39300D',
             lines: [3, 15, 16, 17, 21, 22, 23]
           },
         ]
@@ -244,7 +244,7 @@ const getTodo = (
       `,
         highlights: [
           {
-            color: '#283413',
+            color: '#39300D',
             lines: [7]
           },
         ]
@@ -311,7 +311,7 @@ async function getTodo(
       `,
         highlights: [
           {
-            color: '#283413',
+            color: '#28233B',
             lines: [5, 8, 14, 18, 19, 20, 21, 22, 23, 35, 41, 42, 46]
           },
         ]
@@ -340,7 +340,7 @@ const getTodo = (
       `,
         highlights: [
           {
-            color: '#283413',
+            color: '#28233B',
             lines: [1, 7, 13, 14, 15, 16]
           },
         ]
@@ -429,7 +429,7 @@ async function getTodo(
       `,
         highlights: [
           {
-            color: '#283413',
+            color: '#10322E',
             lines: [1, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
           },
         ]
@@ -459,7 +459,7 @@ const getTodo = (
       `,
         highlights: [
           {
-            color: '#283413',
+            color: '#10322E',
             lines: [18]
           },
         ]
