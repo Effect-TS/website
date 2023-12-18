@@ -11,7 +11,6 @@ import {
 } from "react-instantsearch"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { emulateTab } from "emulate-tab"
 
 const searchClient = algoliasearch(
   "BB6ZVASVH8",

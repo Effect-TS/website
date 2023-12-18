@@ -16,7 +16,7 @@ export const Pre: FC<PropsWithChildren<{}>> = ({ children }) => {
 
   return (
     <div className="relative mt-7">
-      <div className=" w-full bg-gradient-to-br from-zinc-500 to-zinc-800 p-px rounded-xl overflow-hidden">
+      <div className="w-full bg-gradient-to-br from-zinc-500 to-zinc-800 p-px rounded-xl overflow-hidden">
         <pre
           className="shiki twoslash"
           style={{ margin: 0, padding: 0, backgroundColor: "transparent" }}
