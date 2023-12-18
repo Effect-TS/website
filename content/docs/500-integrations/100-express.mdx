@@ -47,8 +47,55 @@ This mirrors the classic ["Hello world example"](https://expressjs.com/en/starte
 
 4. Create a new file, for example, `hello-world.ts`, and add the following code:
 
-   ```ts filename="hello-world.ts" file=<rootDir>/src/express/hello-world.ts
+   ```ts filename="hello-world.ts" twoslash
+   // hello-world.ts
+   import { Context, Layer, Effect, Runtime } from "effect"
+   import express from "express"
 
+   // Define Express as a service
+   const Express = Context.Tag<ReturnType<typeof express>>()
+
+   // Define the main route, IndexRouteLive, as a Layer
+   const IndexRouteLive = Layer.effectDiscard(
+     Effect.gen(function* (_) {
+       const app = yield* _(Express)
+       const runFork = Runtime.runFork(yield* _(Effect.runtime<never>()))
+
+       app.get("/", (_, res) => {
+         runFork(Effect.sync(() => res.send("Hello World!")))
+       })
+     })
+   )
+
+   // Server Setup
+   const ServerLive = Layer.scopedDiscard(
+     Effect.gen(function* (_) {
+       const port = 3001
+       const app = yield* _(Express)
+       yield* _(
+         Effect.acquireRelease(
+           Effect.sync(() =>
+             app.listen(port, () =>
+               console.log(`Example app listening on port ${port}`)
+             )
+           ),
+           (server) => Effect.sync(() => server.close())
+         )
+       )
+     })
+   )
+
+   // Setting Up Express
+   const ExpressLive = Layer.sync(Express, () => express())
+
+   // Combine the layers
+   const AppLive = ServerLive.pipe(
+     Layer.provide(IndexRouteLive),
+     Layer.provide(ExpressLive)
+   )
+
+   // Run the program
+   Effect.runFork(Layer.launch(AppLive))
    ```
 
 5. Run your Express server. If you have [`ts-node`](https://github.com/TypeStrong/ts-node) installed, run the following command in the terminal:
@@ -65,14 +112,25 @@ Here's a breakdown of what's happening:
 
 - **Express Service**. We define an `Express` [service](context-management/services.mdx) to retrieve the Express app later on.
 
-  ```ts file=<rootDir>/src/express/hello-world.ts#L4-L5
-
+  ```ts
+  // Define Express as a service
+  const Express = Context.Tag<ReturnType<typeof express>>()
   ```
 
 - **Main Route**. The main route, `IndexRouteLive`, is defined as a [Layer](context-management/layers.mdx).
 
-  ```ts file=<rootDir>/src/express/hello-world.ts#L7-L17
+  ```ts
+  // Define the main route, IndexRouteLive, as a Layer
+  const IndexRouteLive = Layer.effectDiscard(
+    Effect.gen(function* (_) {
+      const app = yield* _(Express)
+      const runFork = Runtime.runFork(yield* _(Effect.runtime<never>()))
 
+      app.get("/", (_, res) => {
+        runFork(Effect.sync(() => res.send("Hello World!")))
+      })
+    })
+  )
   ```
 
   We access the [runtime](runtime.mdx) (`Effect.runtime`), which can be used to execute tasks within our route (`runFork`).
@@ -80,8 +138,24 @@ Here's a breakdown of what's happening:
 
 - **Server Setup**. The server is created in a layer (`ServerLive`) and mounted at the end of our program.
 
-  ```ts file=<rootDir>/src/express/hello-world.ts#L19-L35
-
+  ```ts
+  // Server Setup
+  const ServerLive = Layer.scopedDiscard(
+    Effect.gen(function* (_) {
+      const port = 3001
+      const app = yield* _(Express)
+      yield* _(
+        Effect.acquireRelease(
+          Effect.sync(() =>
+            app.listen(port, () =>
+              console.log(`Example app listening on port ${port}`)
+            )
+          ),
+          (server) => Effect.sync(() => server.close())
+        )
+      )
+    })
+  )
   ```
 
   We use [`Effect.acquireRelease`](resource-management.mdx#defining-resources) to create the server, allowing automatic management of the [scope](resource-management.mdx#scope).
@@ -89,20 +163,153 @@ Here's a breakdown of what's happening:
 
 - **Mounting**. Finally, we mount the server by adding our route
 
-  ```ts {2} file=<rootDir>/src/express/hello-world.ts#L41-L44
-
+  ```ts {1}
+  const AppLive = ServerLive.pipe(
+    Layer.provide(IndexRouteLive),
+    Layer.provide(ExpressLive)
+  )
   ```
 
   and providing the necessary dependency to the Express app
 
-  ```ts {6} file=<rootDir>/src/express/hello-world.ts#L38-L44
+  ```ts {0,5}
+  const ExpressLive = Layer.sync(Express, () => express())
 
+  // Combine the layers
+  const AppLive = ServerLive.pipe(
+    Layer.provide(IndexRouteLive),
+    Layer.provide(ExpressLive)
+  )
   ```
 
 ## Basic routing
 
 In this example, we'll explore the basics of routing with Effect and Express. The goal is to create a simple web server with two routes: one that returns all todos and another that returns a todo by its ID.
 
-```ts filename="basic-routing.ts" file=<rootDir>/src/express/basic-routing.ts
+```ts filename="basic-routing.ts"
+// basic-routing.ts
+import { Context, Layer, Effect, Runtime } from "effect"
+import express from "express"
 
+// Define Express as a service
+const Express = Context.Tag<ReturnType<typeof express>>()
+
+interface Todo {
+  readonly id: number
+  readonly title: string
+  readonly completed: boolean
+}
+
+// Define a interface with methods to get all todos and a todo by ID
+interface TodoRepository {
+  readonly getTodos: Effect.Effect<never, never, Array<Todo>>
+  readonly getTodo: (id: number) => Effect.Effect<never, never, Todo | null>
+}
+
+// Define the repository as a service
+const TodoRepository = Context.Tag<TodoRepository>()
+
+// Define a main route that returns all Todos
+const IndexRouteLive = Layer.effectDiscard(
+  Effect.gen(function* (_) {
+    const app = yield* _(Express)
+    const runFork = Runtime.runFork(
+      yield* _(Effect.runtime<TodoRepository>())
+    )
+
+    app.get("/", (_, res) => {
+      runFork(
+        Effect.gen(function* (_) {
+          const repo = yield* _(TodoRepository)
+          const todos = yield* _(repo.getTodos)
+          res.json(todos)
+        })
+      )
+    })
+  })
+)
+
+// Define a route that returns a Todo by its ID
+const TodoByIdRouteLive = Layer.effectDiscard(
+  Effect.gen(function* (_) {
+    const app = yield* _(Express)
+    const runFork = Runtime.runFork(
+      yield* _(Effect.runtime<TodoRepository>())
+    )
+
+    app.get("/todo/:id", (req, res) => {
+      const id = req.params.id
+      runFork(
+        Effect.gen(function* (_) {
+          const repo = yield* _(TodoRepository)
+          const todo = yield* _(repo.getTodo(Number(id)))
+          res.json(todo)
+        })
+      )
+    })
+  })
+)
+
+// Server Setup
+const ServerLive = Layer.scopedDiscard(
+  Effect.gen(function* (_) {
+    const port = 3001
+    const app = yield* _(Express)
+    yield* _(
+      Effect.acquireRelease(
+        Effect.sync(() =>
+          app.listen(port, () =>
+            console.log(`Example app listening on port ${port}`)
+          )
+        ),
+        (server) => Effect.sync(() => server.close())
+      )
+    )
+  })
+)
+
+// Setting Up Express
+const ExpressLive = Layer.sync(Express, () => express())
+
+// Merge routes into a single layer
+const RouterLive = Layer.mergeAll(IndexRouteLive, TodoByIdRouteLive)
+
+// Combine all layers to create the final application layer
+const AppLive = ServerLive.pipe(
+  Layer.provide(RouterLive),
+  Layer.provide(ExpressLive)
+)
+
+// Test Data for TodoRepository
+const testData = [
+  {
+    id: 1,
+    title: "delectus aut autem",
+    completed: false
+  },
+  {
+    id: 2,
+    title: "quis ut nam facilis et officia qui",
+    completed: false
+  },
+  {
+    id: 3,
+    title: "fugiat veniam minus",
+    completed: false
+  }
+]
+
+// Create a layer with test data
+const TodoRepositoryTest = Layer.succeed(
+  TodoRepository,
+  TodoRepository.of({
+    getTodos: Effect.succeed(testData),
+    getTodo: (id) =>
+      Effect.succeed(testData.find((todo) => todo.id === id) || null)
+  })
+)
+
+const Test = AppLive.pipe(Layer.provide(TodoRepositoryTest))
+
+Effect.runFork(Layer.launch(Test))
 ```

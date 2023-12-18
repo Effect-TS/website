@@ -21,14 +21,25 @@ One example of a dual API is the `map` function of the `Effect` data type.
 
 In the "data-first" variant, the effect is passed as the first argument to `map`:
 
-```ts file=<rootDir>/src/glossary/data-first.ts
+```ts twoslash
+import { Effect } from "effect"
 
+Effect.map(Effect.succeed(1), (n) => n + 1)
 ```
 
 while in the "data-last" variant, the effect is passed as the first argument to the `pipe` function, followed by the `map` function:
 
-```ts file=<rootDir>/src/glossary/data-last.ts
+```ts twoslash
+import { Effect, pipe } from "effect"
 
+pipe(
+  Effect.succeed(1),
+  Effect.map((n) => n + 1)
+)
+
+// or
+
+Effect.succeed(1).pipe(Effect.map((n) => n + 1))
 ```
 
 ## Distributed workflow
@@ -42,7 +53,7 @@ Also referred to as _failures_, _typed errors_ or _recoverable errors_.
 These are errors that developers anticipate and expect as part of normal program execution.
 Expected errors are tracked at the type level by the `Effect` data type in the "Error" channel:
 
-```ts /Error/
+```ts
 Effect<Context, Error, Value>
 ```
 

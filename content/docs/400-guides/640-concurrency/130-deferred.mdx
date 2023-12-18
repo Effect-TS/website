@@ -33,8 +33,14 @@ You can create a `Deferred` using `Deferred.make<E, A>(){:ts}`. This returns an 
 
 To retrieve a value from a `Deferred`, you can use `Deferred.await`. This operation suspends the calling fiber until the `Deferred` is completed with a value or an error.
 
-```ts file=<rootDir>/src/concurrency/deferred/await.ts
+```ts twoslash
+import { Effect, Deferred } from "effect"
 
+const effectDeferred = Deferred.make<Error, string>()
+
+const effectGet = effectDeferred.pipe(
+  Effect.flatMap((deferred) => Deferred.await(deferred))
+)
 ```
 
 ### Completing
@@ -54,16 +60,49 @@ There are several ways to complete a `Deferred`:
 
 Here's an example that demonstrates the usage of these completion methods:
 
-```ts file=<rootDir>/src/concurrency/deferred/completing.ts
+```ts twoslash
+import { Effect, Deferred, Exit, Cause } from "effect"
 
+const program = Effect.gen(function* (_) {
+  const deferred = yield* _(Deferred.make<string, number>())
+
+  // Completing the Deferred in various ways
+  yield* _(Deferred.succeed(deferred, 1).pipe(Effect.fork))
+  yield* _(Deferred.complete(deferred, Effect.succeed(2)).pipe(Effect.fork))
+  yield* _(
+    Deferred.completeWith(deferred, Effect.succeed(3)).pipe(Effect.fork)
+  )
+  yield* _(Deferred.done(deferred, Exit.succeed(4)).pipe(Effect.fork))
+  yield* _(Deferred.fail(deferred, "5").pipe(Effect.fork))
+  yield* _(
+    Deferred.failCause(deferred, Cause.die(new Error("6"))).pipe(Effect.fork)
+  )
+  yield* _(Deferred.die(deferred, new Error("7")).pipe(Effect.fork))
+  yield* _(Deferred.interrupt(deferred).pipe(Effect.fork))
+
+  // Awaiting the Deferred to get its value
+  const value = yield* _(Deferred.await(deferred))
+  return value
+})
+
+Effect.runPromise(program).then(console.log, console.error) // Output: 1
 ```
 
 When you complete a `Deferred`, it results in an `Effect<never, never, boolean>`. This effect returns `true` if the `Deferred` value has been set and `false` if it was already set before completion. This can be useful for checking the state of the `Deferred`.
 
 Here's an example demonstrating the state change of a `Deferred`:
 
-```ts file=<rootDir>/src/concurrency/deferred/boolean.ts
+```ts twoslash
+import { Effect, Deferred } from "effect"
 
+const program = Effect.gen(function* (_) {
+  const deferred = yield* _(Deferred.make<string, number>())
+  const b1 = yield* _(Deferred.fail(deferred, "oh no!"))
+  const b2 = yield* _(Deferred.succeed(deferred, 1))
+  return [b1, b2]
+})
+
+Effect.runPromise(program).then(console.log) // Output: [ true, false ]
 ```
 
 ### Polling
@@ -78,18 +117,63 @@ Additionally, you can use the `Deferred.isDone` method, which returns an `Effect
 
 Here's a practical example:
 
-```ts file=<rootDir>/src/concurrency/deferred/poll.ts
+```ts twoslash
+import { Effect, Deferred } from "effect"
 
+const program = Effect.gen(function* (_) {
+  const deferred = yield* _(Deferred.make<string, number>())
+
+  // Polling the Deferred
+  const done1 = yield* _(Deferred.poll(deferred))
+
+  // Checking if the Deferred is already completed
+  const done2 = yield* _(Deferred.isDone(deferred))
+
+  return [done1, done2]
+})
+
+Effect.runPromise(program).then(console.log) // Output: [ none(), false ]
 ```
 
 In this example, we first create a `Deferred` and then use `Deferred.poll` to check its completion status. Since it's not completed yet, `done1` is `none()`. We also use `Deferred.isDone` to confirm that the `Deferred` is indeed not completed, so `done2` is `false`.
 
-## Example: Using `Deferred` to Coordinate Two Fibers
+## Example: Using Deferred to Coordinate Two Fibers
 
 Here's a scenario where we use a `Deferred` to hand over a value between two fibers:
 
-```ts file=<rootDir>/src/concurrency/deferred/example.ts
+```ts twoslash
+import { Effect, Deferred, Fiber } from "effect"
 
+const program = Effect.gen(function* (_) {
+  const deferred = yield* _(Deferred.make<string, string>())
+
+  // Fiber A: Set the Deferred value after waiting for 1 second
+  const sendHelloWorld = Effect.gen(function* (_) {
+    yield* _(Effect.sleep("1 seconds"))
+    return yield* _(Deferred.succeed(deferred, "hello world"))
+  })
+
+  // Fiber B: Wait for the Deferred and print the value
+  const getAndPrint = Effect.gen(function* (_) {
+    const s = yield* _(Deferred.await(deferred))
+    console.log(s)
+    return s
+  })
+
+  // Run both fibers concurrently
+  const fiberA = yield* _(Effect.fork(sendHelloWorld))
+  const fiberB = yield* _(Effect.fork(getAndPrint))
+
+  // Wait for both fibers to complete
+  return yield* _(Fiber.join(Fiber.zip(fiberA, fiberB)))
+})
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+hello world
+[ true, "hello world" ]
+*/
 ```
 
 In this example, we have two fibers, `fiberA` and `fiberB`, that communicate using a `Deferred`:

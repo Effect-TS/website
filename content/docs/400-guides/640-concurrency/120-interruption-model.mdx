@@ -1,5 +1,6 @@
 ---
 title: Introduction to Effect's Interruption Model
+navTitle: Interruption Model
 excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
 ---
 
@@ -46,15 +47,44 @@ Without interruptions
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/concurrency/interruption-model/without-interruptions-gen.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.log("start"))
+  yield* _(Effect.sleep("2 seconds"))
+  yield* _(Effect.log("done"))
+})
+
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=start
+timestamp=... level=INFO fiber=#0 message=done
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/concurrency/interruption-model/without-interruptions-pipe.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.log("start").pipe(
+  Effect.flatMap(() => Effect.sleep("2 seconds")),
+  Effect.flatMap(() => Effect.log("done"))
+)
+
+Effect.runPromise(program).catch((error) =>
+  console.log(`interrupted: ${error}`)
+)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=start
+timestamp=... level=INFO fiber=#0 message=done
+*/
 ```
 
 </Tab>
@@ -65,15 +95,70 @@ With interruptions
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts {6} file=<rootDir>/src/concurrency/interruption-model/with-interruptions-gen.ts
+```ts {6} twoslash
+import { Effect } from "effect"
 
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.log("start"))
+  yield* _(Effect.sleep("2 seconds"))
+  yield* _(Effect.interrupt)
+  yield* _(Effect.log("done"))
+})
+
+Effect.runPromise(program).catch((fiberFailure) =>
+  console.log(`interrupted: ${fiberFailure}`)
+)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=start
+interrupted: {
+  "_id": "FiberFailure",
+  "cause": {
+    "_id": "Cause",
+    "_tag": "Interrupt",
+    "fiberId": {
+      "_id": "FiberId",
+      "_tag": "Runtime",
+      "id": 0,
+      "startTimeMillis": ...
+    }
+  }
+}
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts {5} file=<rootDir>/src/concurrency/interruption-model/with-interruptions-pipe.ts
+```ts {5} twoslash
+import { Effect } from "effect"
 
+const program = Effect.log("start").pipe(
+  Effect.flatMap(() => Effect.sleep("2 seconds")),
+  Effect.flatMap(() => Effect.interrupt),
+  Effect.flatMap(() => Effect.log("done"))
+)
+
+Effect.runPromise(program).catch((fiberFailure) =>
+  console.log(`interrupted: ${fiberFailure}`)
+)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=start
+interrupted: {
+  "_id": "FiberFailure",
+  "cause": {
+    "_id": "Cause",
+    "_tag": "Interrupt",
+    "fiberId": {
+      "_id": "FiberId",
+      "_tag": "Runtime",
+      "id": 0,
+      "startTimeMillis": ...
+    }
+  }
+}
+*/
 ```
 
 </Tab>
@@ -86,15 +171,84 @@ When we combine multiple concurrent effects using functions like `Effect.forEach
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/concurrency/interruption-model/concurrent-gen.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.forEach(
+  [1, 2, 3],
+  (n) =>
+    Effect.gen(function* (_) {
+      yield* _(Effect.log(`start #${n}`))
+      yield* _(Effect.sleep(`${n} seconds`))
+      if (n > 1) {
+        yield* _(Effect.interrupt)
+      }
+      yield* _(Effect.log(`done #${n}`))
+    }),
+  { concurrency: "unbounded" }
+)
+
+Effect.runPromise(program).catch((fiberFailure) =>
+  console.log(`All fibers interrupted without errors: ${fiberFailure}`)
+)
+/*
+Output:
+timestamp=... level=INFO fiber=#1 message="start #1"
+timestamp=... level=INFO fiber=#2 message="start #2"
+timestamp=... level=INFO fiber=#3 message="start #3"
+timestamp=... level=INFO fiber=#1 message="done #1"
+All fibers interrupted without errors: {
+  "_id": "FiberFailure",
+  "cause": {
+    "_id": "Cause",
+    "_tag": "Parallel",
+    "errors": []
+  }
+}
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/concurrency/interruption-model/concurrent-pipe.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.forEach(
+  [1, 2, 3],
+  (n) =>
+    Effect.log(`start #${n}`).pipe(
+      Effect.flatMap(() => {
+        const effect = Effect.sleep(`${n} seconds`)
+        if (n > 1) {
+          return Effect.flatMap(effect, () => Effect.interrupt)
+        } else {
+          return effect
+        }
+      }),
+      Effect.flatMap(() => Effect.log(`done #${n}`))
+    ),
+  { concurrency: "unbounded" }
+)
+
+Effect.runPromise(program).catch((fiberFailure) =>
+  console.log(`All fibers interrupted without errors: ${fiberFailure}`)
+)
+/*
+Output:
+timestamp=... level=INFO fiber=#1 message="start #1"
+timestamp=... level=INFO fiber=#2 message="start #2"
+timestamp=... level=INFO fiber=#3 message="start #3"
+timestamp=... level=INFO fiber=#1 message="done #1"
+All fibers interrupted without errors: {
+  "_id": "FiberFailure",
+  "cause": {
+    "_id": "Cause",
+    "_tag": "Parallel",
+    "errors": []
+  }
+}
+*/
 ```
 
 </Tab>

@@ -26,8 +26,32 @@ With the `Scope` data type, you can:
 To grasp the concept better, let's delve into an example that demonstrates how it works.
 It's worth noting that in typical Effect usage, you won't often find yourself working with these low-level APIs for managing scopes.
 
-```ts file=<rootDir>/src/guide/resource-management/scope.ts
+```ts twoslash
+import { Scope, Effect, Console, Exit } from "effect"
 
+const program =
+  // create a new scope
+  Scope.make().pipe(
+    // add finalizer 1
+    Effect.tap((scope) =>
+      Scope.addFinalizer(scope, Console.log("finalizer 1"))
+    ),
+    // add finalizer 2
+    Effect.tap((scope) =>
+      Scope.addFinalizer(scope, Console.log("finalizer 2"))
+    ),
+    // close the scope
+    Effect.flatMap((scope) =>
+      Scope.close(scope, Exit.succeed("scope closed successfully"))
+    )
+  )
+
+Effect.runPromise(program)
+/*
+Output:
+finalizer 2 <-- finalizers are closed in reverse order
+finalizer 1
+*/
 ```
 
 By default, when a `Scope` is closed, all finalizers added to that `Scope` are executed in the reverse order in which they were added. This approach makes sense because releasing resources in the reverse order of acquisition ensures that resources are properly closed.
@@ -47,15 +71,44 @@ Let's observe how things behave in the event of success:
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/addFinalizer-succeed-gen.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+const program = Effect.gen(function* (_) {
+  yield* _(
+    Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
+  )
+  return 1
+})
+
+const runnable = Effect.scoped(program)
+
+Effect.runPromise(runnable).then(console.log, console.error)
+/*
+Output:
+finalizer after Success
+1
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/addFinalizer-succeed-pipe.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+const program = Effect.addFinalizer((exit) =>
+  Console.log(`finalizer after ${exit._tag}`)
+).pipe(Effect.flatMap(() => Effect.succeed(1)))
+
+const runnable = Effect.scoped(program)
+
+Effect.runPromise(runnable).then(console.log, console.error)
+/*
+Output:
+finalizer after Success
+1
+*/
 ```
 
 </Tab>
@@ -63,7 +116,7 @@ Let's observe how things behave in the event of success:
 
 Here, the `Effect.addFinalizer` operator adds a `Scope` to the context required by the workflow, as indicated by:
 
-```ts /Scope/
+```ts
 Effect<Scope, never, void>
 ```
 
@@ -76,15 +129,56 @@ Next, let's explore how things behave in the event of a failure:
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/addFinalizer-fail-gen.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+const program = Effect.gen(function* (_) {
+  yield* _(
+    Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
+  )
+  return yield* _(Effect.fail("Uh oh!"))
+})
+
+const runnable = Effect.scoped(program)
+
+Effect.runPromise(runnable).then(console.log, console.error)
+/*
+Output:
+finalizer after Failure
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "Uh oh!"
+  }
+}*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/addFinalizer-fail-pipe.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+const program = Effect.addFinalizer((exit) =>
+  Console.log(`finalizer after ${exit._tag}`)
+).pipe(Effect.flatMap(() => Effect.fail("Uh oh!")))
+
+const runnable = Effect.scoped(program)
+
+Effect.runPromise(runnable).then(console.log, console.error)
+/*
+Output:
+finalizer after Failure
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Fail",
+    failure: "Uh oh!"
+  }
+}*/
 ```
 
 </Tab>
@@ -95,15 +189,68 @@ Finally, let's explore the behavior in the event of an interruption:
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/addFinalizer-interrupt-gen.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+const program = Effect.gen(function* (_) {
+  yield* _(
+    Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
+  )
+  return yield* _(Effect.interrupt)
+})
+
+const runnable = Effect.scoped(program)
+
+Effect.runPromise(runnable).then(console.log, console.error)
+/*
+Output:
+finalizer after Failure
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Interrupt",
+    fiberId: {
+      _id: "FiberId",
+      _tag: "Runtime",
+      id: 0,
+      startTimeMillis: ...
+    }
+  }
+}
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/addFinalizer-interrupt-pipe.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+const program = Effect.addFinalizer((exit) =>
+  Console.log(`finalizer after ${exit._tag}`)
+).pipe(Effect.flatMap(() => Effect.interrupt))
+
+const runnable = Effect.scoped(program)
+
+Effect.runPromise(runnable).then(console.log, console.error)
+/*
+Output:
+finalizer after Failure
+{
+  _id: "FiberFailure",
+  cause: {
+    _id: "Cause",
+    _tag: "Interrupt",
+    fiberId: {
+      _id: "FiberId",
+      _tag: "Runtime",
+      id: 0,
+      startTimeMillis: ...
+    }
+  }
+}
+*/
 ```
 
 </Tab>
@@ -118,15 +265,65 @@ Let's start by looking at how scopes are merged by default. Take a look at this 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/managed-scopes-gen.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+const task1 = Effect.gen(function* (_) {
+  console.log("task 1")
+  yield* _(Effect.addFinalizer(() => Console.log("finalizer after task 1")))
+})
+
+const task2 = Effect.gen(function* (_) {
+  console.log("task 2")
+  yield* _(Effect.addFinalizer(() => Console.log("finalizer after task 2")))
+})
+
+const program = Effect.gen(function* (_) {
+  // Both of these scopes are merged into one
+  yield* _(task1)
+  yield* _(task2)
+})
+
+Effect.runPromise(program.pipe(Effect.scoped))
+/*
+Output:
+task 1
+task 2
+finalizer after task 2
+finalizer after task 1
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/managed-scopes-pipe.ts
+```ts twoslash
+import { Effect, Console } from "effect"
 
+const task1 = Console.log("task 1").pipe(
+  Effect.tap(() =>
+    Effect.addFinalizer(() => Console.log("finalizer after task 1"))
+  )
+)
+
+const task2 = Console.log("task 2").pipe(
+  Effect.tap(() =>
+    Effect.addFinalizer(() => Console.log("finalizer after task 2"))
+  )
+)
+
+const program =
+  // Both of these scopes are merged into one
+  Effect.all([task1, task2], { discard: true })
+
+Effect.runPromise(program.pipe(Effect.scoped))
+/*
+Output:
+task 1
+task 2
+finalizer after task 2
+finalizer after task 1
+*/
 ```
 
 </Tab>
@@ -139,15 +336,84 @@ If you want more control over when each scope is closed, you can manually create
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/manual-scopes-gen.ts
+```ts twoslash
+import { Console, Effect, Exit, Scope } from "effect"
 
+const task1 = Effect.gen(function* (_) {
+  console.log("task 1")
+  yield* _(Effect.addFinalizer(() => Console.log("finalizer after task 1")))
+})
+
+const task2 = Effect.gen(function* (_) {
+  console.log("task 2")
+  yield* _(Effect.addFinalizer(() => Console.log("finalizer after task 2")))
+})
+
+const program = Effect.gen(function* (_) {
+  const scope1 = yield* _(Scope.make())
+  const scope2 = yield* _(Scope.make())
+
+  // Extend the scope of task1 into scope1
+  yield* _(task1, Scope.extend(scope1))
+
+  // Extend the scope of task2 into scope2
+  yield* _(task2, Scope.extend(scope2))
+
+  // Close scope1 and scope2 manually
+  yield* _(Scope.close(scope1, Exit.unit))
+  yield* _(Console.log("doing something else"))
+  yield* _(Scope.close(scope2, Exit.unit))
+})
+
+Effect.runPromise(program.pipe(Effect.scoped))
+/*
+Output:
+task 1
+task 2
+finalizer after task 1
+doing something else
+finalizer after task 2
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/manual-scopes-pipe.ts
+```ts twoslash
+import { Console, Effect, Exit, Scope } from "effect"
 
+const task1 = Console.log("task 1").pipe(
+  Effect.tap(() =>
+    Effect.addFinalizer(() => Console.log("finalizer after task 1"))
+  )
+)
+
+const task2 = Console.log("task 2").pipe(
+  Effect.tap(() =>
+    Effect.addFinalizer(() => Console.log("finalizer after task 2"))
+  )
+)
+
+const program = Effect.all([Scope.make(), Scope.make()]).pipe(
+  Effect.flatMap(([scope1, scope2]) =>
+    Scope.extend(task1, scope1).pipe(
+      Effect.flatMap(() => Scope.extend(task2, scope2)),
+      Effect.flatMap(() => Scope.close(scope1, Exit.unit)),
+      Effect.flatMap(() => Console.log("doing something else")),
+      Effect.flatMap(() => Scope.close(scope2, Exit.unit))
+    )
+  )
+)
+
+Effect.runPromise(program.pipe(Effect.scoped))
+/*
+Output:
+task 1
+task 2
+finalizer after task 1
+doing something else
+finalizer after task 2
+*/
 ```
 
 </Tab>
@@ -158,8 +424,8 @@ In this example, we create two separate scopes, `scope1` and `scope2`, and exten
 <Info>
   The `Scope.extend` function allows you to extend the scope of an `Effect`
   workflow that requires a scope into another scope without closing the scope
-  when the workflow finishes executing. This allows you to extend a scoped value
-  into a larger scope.
+  when the workflow finishes executing. This allows you to extend a scoped
+  value into a larger scope.
 </Info>
 
 You might wonder what happens when a scope is closed, but a task within that scope hasn't completed yet. The key point to note is that the scope closing doesn't force the task to be interrupted. It will continue running, and the finalizer will execute immediately when registered. The call to `close` will only wait for the finalizers that have already been registered.
@@ -183,13 +449,50 @@ The guarantee of the `acquireRelease` operator is that if the `acquire` workflow
 
 For example, let's define a simple resource:
 
-```ts filename="resource.ts" file=<rootDir>/src/guide/resource-management/resource.ts
+```twoslash include resource
+// resource.ts
+import { Effect } from "effect"
 
+// Define the interface for the resource
+export interface MyResource {
+  readonly contents: string
+  readonly close: () => Promise<void>
+}
+
+// Simulate getting the resource
+const getMyResource = (): Promise<MyResource> =>
+  Promise.resolve({
+    contents: "lorem ipsum",
+    close: () =>
+      new Promise((resolve) => {
+        console.log("Resource released")
+        resolve()
+      })
+  })
+
+// Define the acquisition of the resource with error handling
+export const acquire = Effect.tryPromise({
+  try: () =>
+    getMyResource().then((res) => {
+      console.log("Resource acquired")
+      return res
+    }),
+  catch: () => new Error("getMyResourceError")
+})
+
+// Define the release of the resource
+export const release = (res: MyResource) => Effect.promise(() => res.close())
+
+export const resource = Effect.acquireRelease(acquire, release)
+```
+
+```ts filename="resource.ts" twoslash
+// @include: resource
 ```
 
 Notice that the `acquireRelease` operator added a `Scope` to the context required by the workflow:
 
-```ts /Scope/
+```ts
 Effect<Scope, Error, MyResource>
 ```
 
@@ -200,15 +503,36 @@ We can continue working with the resource for as long as we want by using `flatM
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/using-gen.ts
+```ts twoslash
+// @filename: resource.ts
+// @include: resource
 
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import { resource } from "./resource"
+
+const program = Effect.gen(function* (_) {
+  const res = yield* _(resource)
+  console.log(`content is ${res.contents}`)
+})
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/resource-management/using-pipe.ts
+```ts twoslash
+// @filename: resource.ts
+// @include: resource
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Console } from "effect"
+import { resource } from "./resource"
+
+const program = resource.pipe(
+  Effect.flatMap((res) => Console.log(`content is ${res.contents}`))
+)
 ```
 
 </Tab>
@@ -219,15 +543,40 @@ Once we are done working with the resource, we can close the scope using the `Ef
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts /Effect.scoped/ file=<rootDir>/src/guide/resource-management/scoped-gen.ts
+```ts twoslash
+// @filename: resource.ts
+// @include: resource
 
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import { resource } from "./resource"
+
+const program = Effect.scoped(
+  Effect.gen(function* (_) {
+    const res = yield* _(resource)
+    console.log(`content is ${res.contents}`)
+  })
+)
 ```
 
 </Tab>
 <Tab>
 
-```ts /Effect.scoped/ file=<rootDir>/src/guide/resource-management/scoped-pipe.ts
+```ts twoslash
+// @filename: resource.ts
+// @include: resource
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Console } from "effect"
+import { resource } from "./resource"
+
+const program = Effect.scoped(
+  resource.pipe(
+    Effect.flatMap((res) => Console.log(`content is ${res.contents}`))
+  )
+)
 ```
 
 </Tab>
@@ -254,8 +603,26 @@ The main difference is that `acquireUseRelease` eliminates the need to manually 
 
 Here's an example that demonstrates the usage of `acquireUseRelease`:
 
-```ts file=<rootDir>/src/guide/resource-management/acquireUseRelease.ts
+```ts twoslash
+// @filename: resource.ts
+// @include: resource
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Console } from "effect"
+import { MyResource, acquire, release } from "./resource"
+
+const use = (res: MyResource) => Console.log(`content is ${res.contents}`)
+
+const program = Effect.acquireUseRelease(acquire, use, release)
+
+Effect.runPromise(program)
+/*
+Output:
+Resource acquired
+content is lorem ipsum
+Resource released
+*/
 ```
 
 ## Pattern: Sequence of Operations with Compensating Actions on Failure
@@ -268,8 +635,61 @@ Let's go through an example of implementing this pattern. Suppose we want to cre
 
 To begin, we define the domain model for the required [services](./context-management/services): `S3`, `ElasticSearch`, and `Database`.
 
-```ts filename="Services.ts" file=<rootDir>/src/guide/resource-management/pattern/Services.ts
+```twoslash include Services
+// Services.ts
+import { Effect, Context } from "effect"
 
+export class S3Error {
+  readonly _tag = "S3Error"
+}
+
+export interface Bucket {
+  readonly name: string
+}
+
+export interface S3 {
+  createBucket: Effect.Effect<never, S3Error, Bucket>
+  deleteBucket: (bucket: Bucket) => Effect.Effect<never, never, void>
+}
+
+export const S3 = Context.Tag<S3>()
+
+export class ElasticSearchError {
+  readonly _tag = "ElasticSearchError"
+}
+
+export interface Index {
+  readonly id: string
+}
+
+export interface ElasticSearch {
+  createIndex: Effect.Effect<never, ElasticSearchError, Index>
+  deleteIndex: (index: Index) => Effect.Effect<never, never, void>
+}
+
+export const ElasticSearch = Context.Tag<ElasticSearch>()
+
+export class DatabaseError {
+  readonly _tag = "DatabaseError"
+}
+
+export interface Entry {
+  readonly id: string
+}
+
+export interface Database {
+  createEntry: (
+    bucket: Bucket,
+    index: Index
+  ) => Effect.Effect<never, DatabaseError, Entry>
+  deleteEntry: (entry: Entry) => Effect.Effect<never, never, void>
+}
+
+export const Database = Context.Tag<Database>()
+```
+
+```ts filename="Services.ts" twoslash
+// @include: Services
 ```
 
 Next, we define the three create actions and the overall transaction (`make`) for the Workspace.
@@ -277,15 +697,112 @@ Next, we define the three create actions and the overall transaction (`make`) fo
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts filename="Workspace.ts" file=<rootDir>/src/guide/resource-management/pattern/Workspace.ts
+```ts filename="Workspace.ts" twoslash
+// @filename: Services.ts
+// @include: Services
 
+// @filename: Workspace.ts
+// ---cut---
+// Workspace.ts
+import { Effect, Exit } from "effect"
+import * as Services from "./Services"
+
+// Create a bucket, and define the release function that deletes the bucket if the operation fails.
+const createBucket = Effect.gen(function* (_) {
+  const { createBucket, deleteBucket } = yield* _(Services.S3)
+  return yield* _(
+    Effect.acquireRelease(createBucket, (bucket, exit) =>
+      // The release function for the Effect.acquireRelease operation is responsible for handling the acquired resource (bucket) after the main effect has completed.
+      // It is called regardless of whether the main effect succeeded or failed.
+      // If the main effect failed, Exit.isFailure(exit) will be true, and the function will perform a rollback by calling deleteBucket(bucket).
+      // If the main effect succeeded, Exit.isFailure(exit) will be false, and the function will return Effect.unit, representing a successful, but do-nothing effect.
+      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.unit
+    )
+  )
+})
+
+// Create an index, and define the release function that deletes the index if the operation fails.
+const createIndex = Effect.gen(function* (_) {
+  const { createIndex, deleteIndex } = yield* _(Services.ElasticSearch)
+  return yield* _(
+    Effect.acquireRelease(createIndex, (index, exit) =>
+      Exit.isFailure(exit) ? deleteIndex(index) : Effect.unit
+    )
+  )
+})
+
+// Create an entry in the database, and define the release function that deletes the entry if the operation fails.
+const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
+  Effect.gen(function* (_) {
+    const { createEntry, deleteEntry } = yield* _(Services.Database)
+    return yield* _(
+      Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.unit
+      )
+    )
+  })
+
+export const make = Effect.scoped(
+  Effect.gen(function* (_) {
+    const bucket = yield* _(createBucket)
+    const index = yield* _(createIndex)
+    return yield* _(createEntry(bucket, index))
+  })
+)
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="Workspace.ts" file=<rootDir>/src/guide/resource-management/pattern/Workspace-pipe.ts
+```ts filename="Workspace.ts" twoslash
+// @filename: Services.ts
+// @include: Services
 
+// @filename: Workspace.ts
+// ---cut---
+// Workspace.ts
+import { Effect, Exit } from "effect"
+import * as Services from "./Services"
+
+// Create a bucket, and define the release function that deletes the bucket if the operation fails.
+const createBucket = Services.S3.pipe(
+  Effect.flatMap(({ createBucket, deleteBucket }) =>
+    Effect.acquireRelease(createBucket, (bucket, exit) =>
+      // The release function for the Effect.acquireRelease operation is responsible for handling the acquired resource (bucket) after the main effect has completed.
+      // It is called regardless of whether the main effect succeeded or failed.
+      // If the main effect failed, Exit.isFailure(exit) will be true, and the function will perform a rollback by calling deleteBucket(bucket).
+      // If the main effect succeeded, Exit.isFailure(exit) will be false, and the function will return Effect.unit, representing a successful, but do-nothing effect.
+      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.unit
+    )
+  )
+)
+
+// Create an index, and define the release function that deletes the index if the operation fails.
+const createIndex = Services.ElasticSearch.pipe(
+  Effect.flatMap(({ createIndex, deleteIndex }) =>
+    Effect.acquireRelease(createIndex, (index, exit) =>
+      Exit.isFailure(exit) ? deleteIndex(index) : Effect.unit
+    )
+  )
+)
+
+// Create an entry in the database, and define the release function that deletes the entry if the operation fails.
+const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
+  Services.Database.pipe(
+    Effect.flatMap(({ createEntry, deleteEntry }) =>
+      Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.unit
+      )
+    )
+  )
+
+export const make = Effect.scoped(
+  Effect.Do.pipe(
+    Effect.bind("bucket", () => createBucket),
+    Effect.bind("index", () => createIndex),
+    Effect.flatMap(({ bucket, index }) => createEntry(bucket, index))
+  )
+)
 ```
 
 </Tab>
@@ -298,15 +815,277 @@ These layers will be able to handle various scenarios, including errors, which w
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts filename="WorkspaceTest.ts" file=<rootDir>/src/guide/resource-management/pattern/WorkspaceTest.ts
+```ts filename="WorkspaceTest.ts" twoslash
+// @filename: Services.ts
+// @include: Services
 
+// @filename: Workspace.ts
+import { Effect, Exit } from "effect"
+import * as Services from "./Services"
+
+const createBucket = Services.S3.pipe(
+  Effect.flatMap(({ createBucket, deleteBucket }) =>
+    Effect.acquireRelease(createBucket, (bucket, exit) =>
+      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.unit
+    )
+  )
+)
+
+const createIndex = Services.ElasticSearch.pipe(
+  Effect.flatMap(({ createIndex, deleteIndex }) =>
+    Effect.acquireRelease(createIndex, (index, exit) =>
+      Exit.isFailure(exit) ? deleteIndex(index) : Effect.unit
+    )
+  )
+)
+
+const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
+  Services.Database.pipe(
+    Effect.flatMap(({ createEntry, deleteEntry }) =>
+      Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.unit
+      )
+    )
+  )
+
+export const make = Effect.scoped(
+  Effect.Do.pipe(
+    Effect.bind("bucket", () => createBucket),
+    Effect.bind("index", () => createIndex),
+    Effect.flatMap(({ bucket, index }) => createEntry(bucket, index))
+  )
+)
+
+// @filename: WorkspaceTest.ts
+// ---cut---
+import { Effect, Context, Layer, Console } from "effect"
+import * as Services from "./Services"
+import * as Workspace from "./Workspace"
+
+// The `FailureCase` type allows us to provide different error scenarios while testing our services.
+// For example, by providing the value "S3", we can simulate an error scenario specific to the S3 service.
+// This helps us ensure that our program handle errors correctly and behave as expected in various situations.
+// Similarly, we can provide other values like "ElasticSearch" or "Database" to simulate error scenarios for those services.
+// In cases where we want to test the absence of errors, we can provide `undefined`.
+// By using this parameter, we can thoroughly test our services and verify their behavior under different error conditions.
+type FailureCase = "S3" | "ElasticSearch" | "Database" | undefined
+
+const FailureCase = Context.Tag<FailureCase>()
+
+// Create a test layer for the S3 service
+
+const S3Test = Layer.effect(
+  Services.S3,
+  Effect.gen(function* (_) {
+    const failureCase = yield* _(FailureCase)
+    return Services.S3.of({
+      createBucket: Effect.gen(function* (_) {
+        console.log("[S3] creating bucket")
+        if (failureCase === "S3") {
+          return yield* _(Effect.fail(new Services.S3Error()))
+        } else {
+          return { name: "<bucket.name>" }
+        }
+      }),
+      deleteBucket: (bucket) =>
+        Console.log(`[S3] delete bucket ${bucket.name}`)
+    })
+  })
+)
+
+// Create a test layer for the ElasticSearch service
+
+const ElasticSearchTest = Layer.effect(
+  Services.ElasticSearch,
+  Effect.gen(function* (_) {
+    const failureCase = yield* _(FailureCase)
+    return Services.ElasticSearch.of({
+      createIndex: Effect.gen(function* (_) {
+        console.log("[ElasticSearch] creating index")
+        if (failureCase === "ElasticSearch") {
+          return yield* _(Effect.fail(new Services.ElasticSearchError()))
+        } else {
+          return { id: "<index.id>" }
+        }
+      }),
+      deleteIndex: (index) =>
+        Console.log(`[ElasticSearch] delete index ${index.id}`)
+    })
+  })
+)
+
+// Create a test layer for the Database service
+
+const DatabaseTest = Layer.effect(
+  Services.Database,
+  Effect.gen(function* (_) {
+    const failureCase = yield* _(FailureCase)
+    return Services.Database.of({
+      createEntry: (bucket, index) =>
+        Effect.gen(function* (_) {
+          console.log(
+            `[Database] creating entry for bucket ${bucket.name} and index ${index.id}`
+          )
+          if (failureCase === "Database") {
+            return yield* _(Effect.fail(new Services.DatabaseError()))
+          } else {
+            return { id: "<entry.id>" }
+          }
+        }),
+      deleteEntry: (entry) =>
+        Console.log(`[Database] delete entry ${entry.id}`)
+    })
+  })
+)
+
+// Merge all the test layers for S3, ElasticSearch, and Database services into a single layer
+
+const layer = Layer.mergeAll(S3Test, ElasticSearchTest, DatabaseTest)
+
+// Create a runnable effect to test the Workspace code
+// The effect is provided with the test layer and a FailureCase service with undefined value (no failure case)
+
+const runnable = Workspace.make.pipe(
+  Effect.provide(layer),
+  Effect.provideService(FailureCase, undefined)
+)
+
+Effect.runPromise(Effect.either(runnable)).then(console.log)
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="Workspace.ts" file=<rootDir>/src/guide/resource-management/pattern/WorkspaceTest-pipe.ts
+```ts filename="Workspace.ts" twoslash
+// @filename: Services.ts
+// @include: Services
 
+// @filename: Workspace.ts
+import { Effect, Exit } from "effect"
+import * as Services from "./Services"
+
+const createBucket = Services.S3.pipe(
+  Effect.flatMap(({ createBucket, deleteBucket }) =>
+    Effect.acquireRelease(createBucket, (bucket, exit) =>
+      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.unit
+    )
+  )
+)
+
+const createIndex = Services.ElasticSearch.pipe(
+  Effect.flatMap(({ createIndex, deleteIndex }) =>
+    Effect.acquireRelease(createIndex, (index, exit) =>
+      Exit.isFailure(exit) ? deleteIndex(index) : Effect.unit
+    )
+  )
+)
+
+const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
+  Services.Database.pipe(
+    Effect.flatMap(({ createEntry, deleteEntry }) =>
+      Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.unit
+      )
+    )
+  )
+
+export const make = Effect.scoped(
+  Effect.Do.pipe(
+    Effect.bind("bucket", () => createBucket),
+    Effect.bind("index", () => createIndex),
+    Effect.flatMap(({ bucket, index }) => createEntry(bucket, index))
+  )
+)
+
+// @filename: WorkspaceTest.ts
+// ---cut---
+import { Effect, Context, Layer, Console } from "effect"
+import * as Services from "./Services"
+import * as Workspace from "./Workspace"
+
+// The `FailureCase` type allows us to provide different error scenarios while testing our services.
+// For example, by providing the value "S3", we can simulate an error scenario specific to the S3 service.
+// This helps us ensure that our program handle errors correctly and behave as expected in various situations.
+// Similarly, we can provide other values like "ElasticSearch" or "Database" to simulate error scenarios for those services.
+// In cases where we want to test the absence of errors, we can provide `undefined`.
+// By using this parameter, we can thoroughly test our services and verify their behavior under different error conditions.
+type FailureCase = "S3" | "ElasticSearch" | "Database" | undefined
+
+const FailureCase = Context.Tag<FailureCase>()
+
+// Create a test layer for the S3 service
+
+const S3Test = Layer.effect(
+  Services.S3,
+  Effect.map(FailureCase, (failureCase) =>
+    Services.S3.of({
+      createBucket: Console.log("[S3] creating bucket").pipe(
+        Effect.flatMap(() =>
+          failureCase === "S3"
+            ? Effect.fail(new Services.S3Error())
+            : Effect.succeed({ name: "<bucket.name>" })
+        )
+      ),
+      deleteBucket: (bucket) =>
+        Console.log(`[S3] delete bucket ${bucket.name}`)
+    })
+  )
+)
+
+// Create a test layer for the ElasticSearch service
+
+const ElasticSearchTest = Layer.effect(
+  Services.ElasticSearch,
+  Effect.map(FailureCase, (failureCase) =>
+    Services.ElasticSearch.of({
+      createIndex: Console.log("[ElasticSearch] creating index").pipe(
+        Effect.flatMap(() =>
+          failureCase === "ElasticSearch"
+            ? Effect.fail(new Services.ElasticSearchError())
+            : Effect.succeed({ id: "<index.id>" })
+        )
+      ),
+      deleteIndex: (index) =>
+        Console.log(`[ElasticSearch] delete index ${index.id}`)
+    })
+  )
+)
+
+// Create a test layer for the Database service
+
+const DatabaseTest = Layer.effect(
+  Services.Database,
+  Effect.map(FailureCase, (failureCase) =>
+    Services.Database.of({
+      createEntry: (bucket, index) =>
+        Console.log(
+          `[Database] creating entry for bucket ${bucket.name} and index ${index.id}`
+        ).pipe(
+          Effect.flatMap(() =>
+            failureCase === "Database"
+              ? Effect.fail(new Services.DatabaseError())
+              : Effect.succeed({ id: "<entry.id>" })
+          )
+        ),
+      deleteEntry: (entry) =>
+        Console.log(`[Database] delete entry ${entry.id}`)
+    })
+  )
+)
+
+// Merge all the test layers for S3, ElasticSearch, and Database services into a single layer
+
+const layer = Layer.mergeAll(S3Test, ElasticSearchTest, DatabaseTest)
+
+// Create a runnable effect to test the Workspace code
+// The effect is provided with the test layer and a FailureCase service with undefined value (no failure case)
+
+const runnable = Workspace.make.pipe(
+  Effect.provide(layer),
+  Effect.provideService(FailureCase, undefined)
+)
+
+Effect.runPromise(Effect.either(runnable)).then(console.log)
 ```
 
 </Tab>
@@ -314,7 +1093,7 @@ These layers will be able to handle various scenarios, including errors, which w
 
 Let's examine the test results for the scenario where `FailureCase` is set to `undefined` (happy path):
 
-```verbatim filename="Terminal"
+```
 [S3] creating bucket
 [ElasticSearch] creating index
 [Database] creating entry for bucket <bucket.name> and index <index.id>
@@ -331,7 +1110,7 @@ In this case, all operations succeed, and we see a successful result with `right
 
 Now, let's simulate a failure in the `Database`:
 
-```ts /"Database"/
+```ts
 const runnable = Workspace.make.pipe(
   Effect.provide(layer),
   Effect.provideService(Failure, "Database")
@@ -340,7 +1119,7 @@ const runnable = Workspace.make.pipe(
 
 The console output will be:
 
-```verbatim filename="Terminal"
+```
 [S3] creating bucket
 [ElasticSearch] creating index
 [Database] creating entry for bucket <bucket.name> and index <index.id>
@@ -359,7 +1138,7 @@ You can observe that once the `Database` error occurs, there is a complete rollb
 
 Let's now make the index creation fail instead:
 
-```ts /"ElasticSearch"/
+```ts
 const runnable = Workspace.make.pipe(
   Effect.provide(layer),
   Effect.provideService(Failure, "ElasticSearch")
@@ -368,7 +1147,7 @@ const runnable = Workspace.make.pipe(
 
 In this case, the console output will be:
 
-```verbatim filename="Terminal"
+```
 [S3] creating bucket
 [ElasticSearch] creating index
 [S3] delete bucket <bucket.name>

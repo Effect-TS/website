@@ -14,12 +14,20 @@ At its core, a higher-kinded type is a type that abstracts over another type, wh
 
 To understand why HKTs are useful, let's consider a practical scenario. We often want to implement similar functionality across different data structures, like arrays, chunks, and options. Here are some functions as examples:
 
-```ts
-declare const mapArray: <A>(self: Array<A>, f: (a: A) => B) => Array<B>
+```ts twoslash
+import { Chunk, Option } from "effect"
 
-declare const mapChunk: <A>(self: Chunk<A>, f: (a: A) => B) => Chunk<B>
+declare const mapArray: <A, B>(self: Array<A>, f: (a: A) => B) => Array<B>
 
-declare const mapOption: <A>(self: Option<A>, f: (a: A) => B) => Option<B>
+declare const mapChunk: <A, B>(
+  self: Chunk.Chunk<A>,
+  f: (a: A) => B
+) => Chunk.Chunk<B>
+
+declare const mapOption: <A, B>(
+  self: Option.Option<A>,
+  f: (a: A) => B
+) => Option.Option<B>
 ```
 
 Notice that these functions share a lot of similarities; in fact, they are almost identical except for the data type they operate on (`Array`, `Chunk`, `Option`).
@@ -85,7 +93,7 @@ To work effectively with Higher-Kinded Types (HKTs), we need to first grasp the 
 
 A Type Lambda, like `Target -> F<Target>`, essentially defines a function that operates on types and returns other types. Let's break down this concept:
 
-```
+```ts
 Target -> Array<Target>
 ```
 
@@ -97,10 +105,14 @@ Type Lambdas allow us to express Higher-Kinded Types directly without the need f
 
 To implement a Type Lambda, we'll start by defining an interface that includes a `Target` field. Here's how it's done:
 
-```ts
+```twoslash include TypeLambda
 export interface TypeLambda {
   readonly Target: unknown
 }
+```
+
+```ts twoslash
+// @include: TypeLambda
 ```
 
 This simple interface sets the foundation for our Type Lambdas.
@@ -109,10 +121,17 @@ This simple interface sets the foundation for our Type Lambdas.
 
 Let's create a specific Type Lambda for the `Array` data type:
 
-```ts
+```twoslash include ArrayTypeLambda
 export interface ArrayTypeLambda extends TypeLambda {
   readonly type: Array<this["Target"]>
 }
+```
+
+```ts twoslash
+// @include: TypeLambda
+
+// ---cut---
+// @include: ArrayTypeLambda
 ```
 
 Here, we extend the base `TypeLambda` interface to define an `ArrayTypeLambda`. This specific Type Lambda is tailored for working with arrays.
@@ -121,7 +140,7 @@ Here, we extend the base `TypeLambda` interface to define an `ArrayTypeLambda`. 
 
 Now that we have our Type Lambda and its specialized version for arrays, we need a way to apply this type-level function to a concrete type `A`. We'll call this operator `Kind`:
 
-```ts
+```twoslash include Kind
 export type Kind<F extends TypeLambda, Target> = F extends {
   readonly type: unknown
 }
@@ -138,35 +157,57 @@ export type Kind<F extends TypeLambda, Target> = F extends {
     }
 ```
 
+```ts twoslash
+// @include: TypeLambda
+
+// ---cut---
+// @include: Kind
+```
+
 The `Kind` operator takes a Type Lambda `F` and a `Target` type. It ensures that `F` is a valid type lambda and then applies it to the `Target`. This allows us to obtain a type that represents the result of the Type Lambda operation.
 
 Let's test our operator with some examples:
 
-```ts
-// $ExpectType string[]
-type Test1 = Kind<ArrayTypeLambda, string> // Applying ArrayTypeLambda to string
+```ts twoslash
+// @include: TypeLambda
+// @include: Kind
+// @include: ArrayTypeLambda
 
-// $ExpectType number[]
-type Test2 = Kind<ArrayTypeLambda, number> // Applying ArrayTypeLambda to number
+// ---cut---
+// Applying ArrayTypeLambda to string
+type Test1 = Kind<ArrayTypeLambda, string>
+
+// Applying ArrayTypeLambda to number
+type Test2 = Kind<ArrayTypeLambda, number>
 ```
 
 Let's take a step further and define Type Lambdas for other data types, such as `Chunk` and `Option`:
 
-```ts
-import { Chunk, Option } from "effect"
-
+```twoslash include ChunkTypeLambda
 export interface ChunkTypeLambda extends TypeLambda {
   readonly type: Chunk.Chunk<this["Target"]>
 }
+```
 
+```twoslash include OptionTypeLambda
 export interface OptionTypeLambda extends TypeLambda {
   readonly type: Option.Option<this["Target"]>
 }
+```
 
-// $ExpectType Chunk<string>
+```ts twoslash
+// @include: TypeLambda
+// @include: Kind
+
+// ---cut---
+import { Chunk, Option } from "effect"
+
+// @include: ChunkTypeLambda
+
+// @include: OptionTypeLambda
+
 type Test3 = Kind<ChunkTypeLambda, string>
 
-// $ExpectType Option<string>
 type Test4 = Kind<OptionTypeLambda, string>
 ```
 
@@ -174,10 +215,18 @@ type Test4 = Kind<OptionTypeLambda, string>
 
 We are now ready to define the `Mappable` type class, which we introduced earlier:
 
-```ts
+```twoslash include Mappable
 export interface Mappable<F extends TypeLambda> {
   readonly map: <A, B>(self: Kind<F, A>, f: (a: A) => B) => Kind<F, B>
 }
+```
+
+```ts twoslash
+// @include: TypeLambda
+// @include: Kind
+
+// ---cut---
+// @include: Mappable
 ```
 
 In the code above, we define a `Mappable` type class. This type class provides a blueprint for creating functions that can map values from one type to another. It's a powerful tool for writing code that's both generic and flexible.
@@ -186,7 +235,9 @@ In the code above, we define a `Mappable` type class. This type class provides a
 
 To put our `Mappable` type class to use, we need to create instances for specific data types. These instances will allow us to perform mapping operations on those data types.
 
-```ts
+```twoslash include instances
+import { Chunk, Option } from "effect"
+
 export const MappableArray: Mappable<ArrayTypeLambda> = {
   map: (self, f) => self.map(f)
 }
@@ -200,31 +251,59 @@ export const MappableOption: Mappable<OptionTypeLambda> = {
 }
 ```
 
+```ts twoslash
+// @include: TypeLambda
+// @include: Kind
+// @include: ArrayTypeLambda
+// @include: ChunkTypeLambda
+// @include: OptionTypeLambda
+// @include: Mappable
+
+// ---cut---
+// @include: instances
+```
+
 Here, we've created instances for `Array`, `Chunk`, and `Option` types. Each instance is equipped with a `map` function tailored to its respective data type.
 
 Now, we can proceed to create our `stringify` function:
 
-```ts
+```twoslash include stringify
 export const stringify =
   <F extends TypeLambda>(TC: Mappable<F>) =>
   (self: Kind<F, number>): Kind<F, string> =>
     TC.map(self, (n) => `number: ${n}`)
 ```
 
+```ts twoslash
+// @include: TypeLambda
+// @include: Kind
+// @include: Mappable
+
+// ---cut---
+// @include: stringify
+```
+
 To ensure that everything works as expected, let's run some tests:
 
-```ts
-// $ExpectType string[]
+```ts twoslash
+// @include: TypeLambda
+// @include: Kind
+// @include: Mappable
+// @include: ArrayTypeLambda
+// @include: ChunkTypeLambda
+// @include: OptionTypeLambda
+// @include: instances
+// @include: stringify
+
+// ---cut---
 const arrayTest = stringify(MappableArray)([1, 2, 3])
 console.log(arrayTest)
 // [ 'number: 1', 'number: 2', 'number: 3' ]
 
-// $ExpectType Chunk<string>
 const chunkTest = stringify(MappableChunk)(Chunk.fromIterable([1, 2, 3]))
 console.log(chunkTest)
 // { _id: 'Chunk', values: [ 'number: 1', 'number: 2', 'number: 3' ] }
 
-// $ExpectType Option<string>
 const optionTest = stringify(MappableOption)(Option.some(1))
 console.log(optionTest)
 // { _id: 'Option', _tag: 'Some', value: 'number: 1' }
@@ -246,22 +325,78 @@ In Effect, we have the capability to work with data types that can have up to fo
 
 4. `Target` (Invariant): The `Target` type parameter remains invariant, meaning that it maintains the exact type as the original without any variation.
 
-```ts filename="effect/HKT.ts" file=<rootDir>/src/hkt/HKT.ts
+```twoslash include HKT
+export interface TypeLambda {
+  readonly In: unknown
+  readonly Out2: unknown
+  readonly Out1: unknown
+  readonly Target: unknown
+}
 
+export type Kind<F extends TypeLambda, In, Out2, Out1, Target> = F extends {
+  readonly type: unknown
+}
+  ? (F & {
+      readonly In: In
+      readonly Out2: Out2
+      readonly Out1: Out1
+      readonly Target: Target
+    })["type"]
+  : {
+      readonly F: F
+      readonly In: (_: In) => void // Contravariant
+      readonly Out2: () => Out2 // Covariant
+      readonly Out1: () => Out1 // Covariant
+      readonly Target: (_: Target) => Target // Invariant
+    }
+
+export declare const URI: unique symbol
+
+export interface TypeClass<F extends TypeLambda> {
+  // To improve inference it is necessary to mention the F parameter inside it
+  // otherwise it will be lost, we can do so by adding an optional property
+  readonly [URI]?: F
+}
+```
+
+```ts twoslash
+// @include: HKT
 ```
 
 Here's how to define a Type Lambda for the `Either` type:
 
-```ts filename="Either.ts" file=<rootDir>/src/hkt/Either.ts
+```ts twoslash
+// @filename: HKT.ts
+// @include: HKT
 
+// @filename: Either.ts
+// ---cut---
+import { TypeLambda } from "./HKT"
+import { Either } from "effect"
+
+export interface EitherTypeLambda extends TypeLambda {
+  readonly type: Either.Either<this["Out1"], this["Target"]>
+}
 ```
 
 Please note that we are using the `Out1` parameter, which is covariant since the `E` type parameter of `Either<E, A>` is covariant.
 
 And here's how to define the `Mappable` type class:
 
-```ts filename="Mappable.ts" file=<rootDir>/src/hkt/Mappable.ts
+```ts twoslash
+// @filename: HKT.ts
+// @include: HKT
 
+// @filename: Mappable.ts
+// ---cut---
+import { TypeLambda, TypeClass, Kind } from "./HKT"
+
+export interface Mappable<F extends TypeLambda> extends TypeClass<F> {
+  readonly map: <R, O, E, A, B>(
+    self: Kind<F, R, O, E, A>,
+    f: (a: A) => B
+  ) => Kind<F, R, O, E, B>
+}
 ```
 
 ## Variance
@@ -270,14 +405,42 @@ You might be wondering about the purpose of the second branch of the conditional
 
 This second branch serves to enforce something called "variance." To understand this concept, let's explore an example. Imagine we define a type class like this:
 
-```ts filename="Zippable.ts" file=<rootDir>/src/hkt/Zippable.ts#L1-L8
+```twoslash include Zippable
+import { Kind, TypeClass, TypeLambda } from "./HKT"
 
+export interface Zippable<F extends TypeLambda> extends TypeClass<F> {
+  readonly zip: <R1, O1, E1, A, R2, O2, E2, B>(
+    first: Kind<F, R1, O1, E1, A>,
+    second: Kind<F, R2, O2, E2, B>
+  ) => Kind<F, R1 & R2, O1 | O2, E1 | E2, readonly [A, B]>
+}
+```
+
+```ts twoslash
+// @filename: HKT.ts
+// @include: HKT
+
+// @filename: Zippable.ts
+// ---cut---
+// @include: Zippable
 ```
 
 Now, we derive a `pipe`-able version of `zip`:
 
-```ts filename="Zippable.ts" file=<rootDir>/src/hkt/Zippable.ts#L10-
+```ts twoslash
+// @filename: HKT.ts
+// @include: HKT
 
+// @filename: Zippable.ts
+// @include: Zippable
+// ---cut---
+export const zip =
+  <F extends TypeLambda>(Zippable: Zippable<F>) =>
+  <R2, O2, E2, B>(that: Kind<F, R2, O2, E2, B>) =>
+  <R1, O1, E1, A>(
+    self: Kind<F, R1, O1, E1, A>
+  ): Kind<F, R1 & R2, O1 | O2, E1 | E2, readonly [A, B]> =>
+    Zippable.zip(self, that)
 ```
 
 However, let's assume that we make a mistake while typing the return type of `zip` by specifying `R1` instead of `R1 & R2`:
@@ -301,8 +464,34 @@ The second branch of the conditional type helps catch such type errors and ensur
 
 Now, let's proceed to define an instance of `Zippable` for the `Either` type:
 
-```ts filename="Either.ts" file=<rootDir>/src/hkt/Either-Zippable.ts
+```ts twoslash
+// @filename: HKT.ts
+// @include: HKT
 
+// @filename: Zippable.ts
+// @include: Zippable
+
+// @filename: Either.ts
+// ---cut---
+import { TypeLambda } from "./HKT"
+import { Either } from "effect"
+import { Zippable } from "./Zippable"
+
+export interface EitherTypeLambda extends TypeLambda {
+  readonly type: Either.Either<this["Out1"], this["Target"]>
+}
+
+export const EitherZippable: Zippable<EitherTypeLambda> = {
+  zip: (first, second) => {
+    if (Either.isLeft(first)) {
+      return Either.left(first.left)
+    }
+    if (Either.isLeft(second)) {
+      return Either.left(second.left)
+    }
+    return Either.right([first.right, second.right])
+  }
+}
 ```
 
 If you hover over `EitherZippable.zip` you will notice that the return type is as follows:

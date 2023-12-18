@@ -4,7 +4,6 @@ excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonum
 bottomNavigation: pagination
 ---
 
-
 Effect offers various options to manage how effects are executed and control the overall operation's result. These options help determine how many effects can run at the same time concurrently.
 
 ```ts
@@ -23,8 +22,8 @@ type Concurrency = number | "unbounded" | "inherit"
 Let's understand the meaning of each configuration value.
 
 <Info>
-  The following examples use the `Effect.all` function, but the concept applies
-  to many other Effect APIs that accept concurrency options, such as
+  The following examples use the `Effect.all` function, but the concept
+  applies to many other Effect APIs that accept concurrency options, such as
   `Effect.forEach`.
 </Info>
 
@@ -32,24 +31,124 @@ Let's understand the meaning of each configuration value.
 
 By default, if you don't specify any concurrency option, effects will run sequentially, one after the other. This means each effect starts only after the previous one completes.
 
-```ts file=<rootDir>/src/concurrency/concurrency-options/all-default.ts
+```ts twoslash
+import { Effect, Duration } from "effect"
 
+const makeTask = (n: number, delay: Duration.DurationInput) =>
+  Effect.promise(
+    () =>
+      new Promise<void>((resolve) => {
+        console.log(`start task${n}`)
+        setTimeout(() => {
+          console.log(`task${n} done`)
+          resolve()
+        }, Duration.toMillis(delay))
+      })
+  )
+
+const task1 = makeTask(1, "200 millis")
+const task2 = makeTask(2, "100 millis")
+
+const sequential = Effect.all([task1, task2])
+
+Effect.runPromise(sequential)
+/*
+Output:
+start task1
+task1 done
+start task2 <-- task2 starts only after task1 completes
+task2 done
+*/
 ```
 
 ## Numbered Concurrency
 
 You can control the number of concurrent operations with the `concurrency` option. For example, with `concurrency: 2`, up to 2 effects will run simultaneously.
 
-```ts file=<rootDir>/src/concurrency/concurrency-options/all-number.ts
+```ts twoslash
+import { Effect, Duration } from "effect"
 
+const makeTask = (n: number, delay: Duration.DurationInput) =>
+  Effect.promise(
+    () =>
+      new Promise<void>((resolve) => {
+        console.log(`start task${n}`)
+        setTimeout(() => {
+          console.log(`task${n} done`)
+          resolve()
+        }, Duration.toMillis(delay))
+      })
+  )
+
+const task1 = makeTask(1, "200 millis")
+const task2 = makeTask(2, "100 millis")
+const task3 = makeTask(3, "210 millis")
+const task4 = makeTask(4, "110 millis")
+const task5 = makeTask(5, "150 millis")
+
+const number = Effect.all([task1, task2, task3, task4, task5], {
+  concurrency: 2
+})
+
+Effect.runPromise(number)
+/*
+Output:
+start task1
+start task2 <-- active tasks: task1, task2
+task2 done
+start task3 <-- active tasks: task1, task3
+task1 done
+start task4 <-- active tasks: task3, task4
+task4 done
+start task5 <-- active tasks: task3, task5
+task3 done
+task5 done
+*/
 ```
 
 ## Unbounded Concurrency
 
 If you set `concurrency: "unbounded"`, as many effects as needed will run concurrently, without any specific limit.
 
-```ts file=<rootDir>/src/concurrency/concurrency-options/all-unbounded.ts
+```ts twoslash
+import { Effect, Duration } from "effect"
 
+const makeTask = (n: number, delay: Duration.DurationInput) =>
+  Effect.promise(
+    () =>
+      new Promise<void>((resolve) => {
+        console.log(`start task${n}`)
+        setTimeout(() => {
+          console.log(`task${n} done`)
+          resolve()
+        }, Duration.toMillis(delay))
+      })
+  )
+
+const task1 = makeTask(1, "200 millis")
+const task2 = makeTask(2, "100 millis")
+const task3 = makeTask(3, "210 millis")
+const task4 = makeTask(4, "110 millis")
+const task5 = makeTask(5, "150 millis")
+
+const unbounded = Effect.all([task1, task2, task3, task4, task5], {
+  concurrency: "unbounded"
+})
+
+Effect.runPromise(unbounded)
+/*
+Output:
+start task1
+start task2
+start task3
+start task4
+start task5
+task2 done
+task4 done
+task5 done
+task1 done
+task3 done
+*/
 ```
 
 ## Inherit Concurrency
@@ -58,12 +157,88 @@ The `concurrency: "inherit"` option adapts based on context, controlled by `Effe
 
 If there's no `Effect.withConcurrency` call, the default is `"unbounded"`. Otherwise, it inherits the configuration set by `Effect.withConcurrency`.
 
-```ts file=<rootDir>/src/concurrency/concurrency-options/all-inherit-default.ts
+```ts twoslash
+import { Effect, Duration } from "effect"
 
+const makeTask = (n: number, delay: Duration.DurationInput) =>
+  Effect.promise(
+    () =>
+      new Promise<void>((resolve) => {
+        console.log(`start task${n}`)
+        setTimeout(() => {
+          console.log(`task${n} done`)
+          resolve()
+        }, Duration.toMillis(delay))
+      })
+  )
+
+const task1 = makeTask(1, "200 millis")
+const task2 = makeTask(2, "100 millis")
+const task3 = makeTask(3, "210 millis")
+const task4 = makeTask(4, "110 millis")
+const task5 = makeTask(5, "150 millis")
+
+const inherit = Effect.all([task1, task2, task3, task4, task5], {
+  concurrency: "inherit"
+})
+
+Effect.runPromise(inherit)
+/*
+Output:
+start task1
+start task2
+start task3
+start task4
+start task5
+task2 done
+task4 done
+task5 done
+task1 done
+task3 done
+*/
 ```
 
 If you use `Effect.withConcurrency`, it will adopt that specific concurrency configuration.
 
-```ts file=<rootDir>/src/concurrency/concurrency-options/all-inherit-withConcurrency.ts
+```ts twoslash
+import { Effect, Duration } from "effect"
 
+const makeTask = (n: number, delay: Duration.DurationInput) =>
+  Effect.promise(
+    () =>
+      new Promise<void>((resolve) => {
+        console.log(`start task${n}`)
+        setTimeout(() => {
+          console.log(`task${n} done`)
+          resolve()
+        }, Duration.toMillis(delay))
+      })
+  )
+
+const task1 = makeTask(1, "200 millis")
+const task2 = makeTask(2, "100 millis")
+const task3 = makeTask(3, "210 millis")
+const task4 = makeTask(4, "110 millis")
+const task5 = makeTask(5, "150 millis")
+
+const inherit = Effect.all([task1, task2, task3, task4, task5], {
+  concurrency: "inherit"
+})
+
+const withConcurrency = inherit.pipe(Effect.withConcurrency(2))
+
+Effect.runPromise(withConcurrency)
+/*
+Output:
+start task1
+start task2 <-- active tasks: task1, task2
+task2 done
+start task3 <-- active tasks: task1, task3
+task1 done
+start task4 <-- active tasks: task3, task4
+task4 done
+start task5 <-- active tasks: task3, task5
+task3 done
+task5 done
+*/
 ```

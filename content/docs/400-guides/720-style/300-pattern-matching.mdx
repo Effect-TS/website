@@ -17,16 +17,25 @@ Creating a `Matcher` involves using the `type` constructor function with a speci
 
 Here's a practical example:
 
-```ts file=<rootDir>/src/match/type.ts
+```ts twoslash
+import { Match } from "effect"
 
+const match = Match.type<{ a: number } | { b: string }>().pipe(
+  Match.when({ a: Match.number }, (_) => _.a),
+  Match.when({ b: Match.string }, (_) => _.b),
+  Match.exhaustive
+)
+
+console.log(match({ a: 0 })) // Output: 0
+console.log(match({ b: "hello" })) // Output: "hello"
 ```
 
 Let's dissect what's happening:
 
-- `Match.type<{ a: number } | { b: string }>()`: This creates a `Matcher` for objects that are either of type `{ a: number }` or `{ b: string }`.
-- `Match.when({ a: Match.number }, (_) => _.a)`: This sets up a condition to match an object with a property `a` containing a number. If matched, it returns the value of property `a`.
-- `Match.when({ b: Match.string }, (_) => _.b)`: This condition matches an object with a property `b` containing a string. If found, it returns the value of property `b`.
-- `Match.exhaustive`: This function ensures that all possible cases are considered and matched, making sure that no other unaccounted cases exist. It helps to prevent overlooking any potential scenario.
+- `Match.type<{ a: number } | { b: string }>(){:ts}`: This creates a `Matcher` for objects that are either of type `{ a: number }` or `{ b: string }`.
+- `Match.when({ a: Match.number }, (_) => _.a){:ts}`: This sets up a condition to match an object with a property `a` containing a number. If matched, it returns the value of property `a`.
+- `Match.when({ b: Match.string }, (_) => _.b){:ts}`: This condition matches an object with a property `b` containing a string. If found, it returns the value of property `b`.
+- `Match.exhaustive{:ts}`: This function ensures that all possible cases are considered and matched, making sure that no other unaccounted cases exist. It helps to prevent overlooking any potential scenario.
 
 Finally, the `match` function is applied to test two different objects, `{ a: 0 }` and `{ b: "hello" }`. As per the defined conditions within the `Matcher`, it correctly matches the objects and provides the expected output based on the defined conditions.
 
@@ -36,8 +45,18 @@ In addition to defining a `Matcher` based on a specific type, developers can als
 
 Let's take a look at an example to better understand this process:
 
-```ts file=<rootDir>/src/match/value.ts
+```ts twoslash
+import { Match } from "effect"
 
+const result = Match.value({ name: "John", age: 30 }).pipe(
+  Match.when(
+    { name: "John" },
+    (user) => `${user.name} is ${user.age} years old`
+  ),
+  Match.orElse(() => "Oh, not John")
+)
+
+console.log(result) // Output: "John is 30 years old"
 ```
 
 Here's a breakdown of what's happening:
@@ -52,24 +71,49 @@ Here's a breakdown of what's happening:
 
 Predicates allow the testing of values against specific conditions. It helps in creating rules or conditions for the data being evaluated.
 
-```ts file=<rootDir>/src/match/predicates.ts
+```ts twoslash
+import { Match } from "effect"
 
+const match = Match.type<{ age: number }>().pipe(
+  Match.when({ age: (age) => age >= 5 }, (user) => `Age: ${user.age}`),
+  Match.orElse((user) => `${user.age} is too young`)
+)
+
+console.log(match({ age: 5 })) // Output: "Age: 5"
+console.log(match({ age: 4 })) // Output: "4 is too young"
 ```
 
 ### not
 
 `not` allows for excluding a specific value while matching other conditions.
 
-```ts file=<rootDir>/src/match/not.ts
+```ts twoslash
+import { Match } from "effect"
 
+const match = Match.type<string | number>().pipe(
+  Match.not("hi", (_) => "a"),
+  Match.orElse(() => "b")
+)
+
+console.log(match("hello")) // Output: "a"
+console.log(match("hi")) // Output: "b"
 ```
 
 ### tag
 
 The `tag` function enables pattern matching against the tag within a [Discriminated Union](https://www.typescriptlang.org/docs/handbook/typescript-in-5-minutes-func.html#discriminated-unions).
 
-```ts file=<rootDir>/src/match/tag.ts
+```ts twoslash
+import { Match, Either } from "effect"
 
+const match = Match.type<Either.Either<string, number>>().pipe(
+  Match.tag("Right", (_) => _.right),
+  Match.tag("Left", (_) => _.left),
+  Match.exhaustive
+)
+
+console.log(match(Either.right(123))) // Output: 123
+console.log(match(Either.left("Oh no!"))) // Output: "Oh no!"
 ```
 
 <Warning>
@@ -83,30 +127,59 @@ The `tag` function enables pattern matching against the tag within a [Discrimina
 
 The `exhaustive` transformation serves as an endpoint within the matching process, ensuring all potential matches have been considered. It results in returning the match (for `Match.value`) or the evaluation function (for `Match.type`).
 
-```ts file=<rootDir>/src/match/exhaustive.ts
+```ts twoslash
+import { Match, Either } from "effect"
 
+const result = Match.value(Either.right(0)).pipe(
+  Match.when({ _tag: "Right" }, (_) => _.right),
+  // @ts-expect-error
+  Match.exhaustive // TypeError! Type 'Left<never, number>' is not assignable to type 'never'
+)
 ```
 
 ### orElse
 
 The `orElse` transformation signifies the conclusion of the matching process, offering a fallback value when no specific patterns match. It returns the match (for `Match.value`) or the evaluation function (for `Match.type`).
 
-```ts file=<rootDir>/src/match/orElse.ts
+```ts twoslash
+import { Match } from "effect"
 
+const match = Match.type<string | number>().pipe(
+  Match.when("hi", (_) => "hello"),
+  Match.orElse(() => "I literally do not understand")
+)
+
+console.log(match("hi")) // Output: "hello"
+console.log(match("hello")) // Output: "I literally do not understand"
 ```
 
 ### option
 
 The `option` transformation returns the result encapsulated within an [Option](../data-types/option). When the match succeeds, it represents the result as `Some`, and when there's no match, it signifies the absence of a value with `None`.
 
-```ts file=<rootDir>/src/match/option.ts
+```ts twoslash
+import { Match, Either } from "effect"
 
+const result = Match.value(Either.right(0)).pipe(
+  Match.when({ _tag: "Right" }, (_) => _.right),
+  Match.option
+)
+
+console.log(result) // Output: { _id: 'Option', _tag: 'Some', value: 0 }
 ```
 
 ### either
 
 The `either` transformation might match a value, returning an [Either](../data-types/either) following the format `Either<NoMatchResult, MatchResult>`.
 
-```ts file=<rootDir>/src/match/either.ts
+```ts twoslash
+import { Match } from "effect"
 
+const match = Match.type<string>().pipe(
+  Match.when("hi", (_) => _.length),
+  Match.either
+)
+
+console.log(match("hi")) // Output: { _id: 'Either', _tag: 'Right', right: 2 }
+console.log(match("shigidigi")) // Output: { _id: 'Either', _tag: 'Left', left: 'shigidigi' }
 ```

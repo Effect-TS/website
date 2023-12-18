@@ -10,7 +10,7 @@ The `TestClock` in Effect allows us to control time for testing purposes. It let
 
 Instead of waiting for real time to pass, we use the `TestClock` to set the clock time to a specific point. Any effects scheduled to run at or before that time will be executed in order.
 
-## How `TestClock` Works
+## How TestClock Works
 
 Imagine `TestClock` as a wall clock, but with a twist—it doesn't tick on its own. Instead, it only changes when we manually adjust it using the `TestClock.adjust` and `TestClock.setTime` functions. The clock time never progresses on its own.
 
@@ -21,15 +21,60 @@ Let's look at an example of how to test `Effect.timeout` using the `TestClock`:
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/testing/clock/timeout.ts
+```ts twoslash
+// @types: node
+import { Effect, TestClock, Fiber, Option, TestContext } from "effect"
+import * as assert from "node:assert"
 
+const test = Effect.gen(function* (_) {
+  // Create a fiber that sleeps for 5 minutes and then times out after 1 minute
+  const fiber = yield* _(
+    Effect.sleep("5 minutes"),
+    Effect.timeout("1 minutes"),
+    Effect.fork
+  )
+
+  // Adjust the TestClock by 1 minute to simulate the passage of time
+  yield* _(TestClock.adjust("1 minutes"))
+
+  // Get the result of the fiber
+  const result = yield* _(Fiber.join(fiber))
+
+  // Check if the result is None, indicating a timeout
+  assert.ok(Option.isNone(result))
+}).pipe(Effect.provide(TestContext.TestContext))
+
+Effect.runPromise(test)
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/testing/clock/timeout-pipe.ts
+```ts twoslash
+// @types: node
+import { Effect, TestClock, Fiber, Option, TestContext, pipe } from "effect"
+import * as assert from "node:assert"
 
+const test = pipe(
+  Effect.sleep("5 minutes"),
+  Effect.timeout("1 minutes"),
+  Effect.fork,
+  Effect.tap(() =>
+    // Adjust the TestClock by 1 minute to simulate the passage of time
+    TestClock.adjust("1 minutes")
+  ),
+  Effect.flatMap((fiber) =>
+    // Get the result of the fiber
+    Fiber.join(fiber)
+  ),
+  Effect.map((result) => {
+    // Check if the result is None, indicating a timeout
+    assert.ok(Option.isNone(result))
+  }),
+  Effect.provide(TestContext.TestContext)
+)
+
+Effect.runPromise(test)
 ```
 
 </Tab>
@@ -40,8 +85,9 @@ In this example, we create a test scenario involving a fiber that sleeps for 5 m
 A critical point to note is the forking of the fiber where `Effect.sleep` is invoked. Calls to `Effect.sleep` and related methods wait until the clock time matches or surpasses the scheduled time for their execution. By forking the fiber, we ensure that we have control over the clock time adjustment.
 
 <Idea>
-  The recommended pattern when using the `TestClock` involves forking the effect being tested, adjusting the clock time as needed, and then verifying that
-  the expected effects have occurred.
+  The recommended pattern when using the `TestClock` involves forking the
+  effect being tested, adjusting the clock time as needed, and then verifying
+  that the expected effects have occurred.
 </Idea>
 
 ## More Examples
@@ -53,15 +99,99 @@ Let's explore an example demonstrating how to test an effect that runs at fixed 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/testing/clock/recurring.ts
+```ts twoslash
+// @types: node
+import { Effect, Queue, TestClock, Option, TestContext } from "effect"
+import * as assert from "node:assert"
 
+const test = Effect.gen(function* (_) {
+  const q = yield* _(Queue.unbounded())
+
+  yield* _(
+    Queue.offer(q, undefined),
+    // Delay the effect for 60 minutes and repeat it forever
+    Effect.delay("60 minutes"),
+    Effect.forever,
+    Effect.fork
+  )
+
+  // Check if no effect is performed before the recurrence period
+  const a = yield* _(Queue.poll(q), Effect.map(Option.isNone))
+
+  // Adjust the TestClock by 60 minutes to simulate the passage of time
+  yield* _(TestClock.adjust("60 minutes"))
+
+  // Check if an effect is performed after the recurrence period
+  const b = yield* _(Queue.take(q), Effect.as(true))
+
+  // Check if the effect is performed exactly once
+  const c = yield* _(Queue.poll(q), Effect.map(Option.isNone))
+
+  // Adjust the TestClock by another 60 minutes
+  yield* _(TestClock.adjust("60 minutes"))
+
+  // Check if another effect is performed
+  const d = yield* _(Queue.take(q), Effect.as(true))
+  const e = yield* _(Queue.poll(q), Effect.map(Option.isNone))
+
+  // Ensure that all conditions are met
+  assert.ok(a && b && c && d && e)
+}).pipe(Effect.provide(TestContext.TestContext))
+
+Effect.runPromise(test)
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/testing/clock/recurring-pipe.ts
+```ts twoslash
+// @types: node
+import { Effect, Queue, TestClock, Option, TestContext, pipe } from "effect"
+import * as assert from "node:assert"
 
+const test = pipe(
+  Queue.unbounded(),
+  Effect.flatMap((q) =>
+    pipe(
+      Queue.offer(q, undefined),
+      // Delay the effect for 60 minutes and repeat it forever
+      Effect.delay("60 minutes"),
+      Effect.forever,
+      Effect.fork,
+      Effect.flatMap(() =>
+        pipe(
+          Effect.Do,
+          // Check if no effect is performed before the recurrence period
+          Effect.bind("a", () =>
+            pipe(Queue.poll(q), Effect.map(Option.isNone))
+          ),
+          // Adjust the TestClock by 60 minutes to simulate the passage of time
+          Effect.tap(() => TestClock.adjust("60 minutes")),
+          // Check if an effect is performed after the recurrence period
+          Effect.bind("b", () => pipe(Queue.take(q), Effect.as(true))),
+          // Check if the effect is performed exactly once
+          Effect.bind("c", () =>
+            pipe(Queue.poll(q), Effect.map(Option.isNone))
+          ),
+          // Adjust the TestClock by another 60 minutes
+          Effect.tap(() => TestClock.adjust("60 minutes")),
+          // Check if another effect is performed
+          Effect.bind("d", () => pipe(Queue.take(q), Effect.as(true))),
+          Effect.bind("e", () =>
+            pipe(Queue.poll(q), Effect.map(Option.isNone))
+          )
+        )
+      ),
+      Effect.map(({ a, b, c, d, e }) => {
+        // Ensure that all conditions are met
+        assert.ok(a && b && c && d && e)
+      })
+    )
+  ),
+  Effect.provide(TestContext.TestContext)
+)
+
+Effect.runPromise(test)
 ```
 
 </Tab>
@@ -75,43 +205,135 @@ In this example, we aim to test an effect that runs at regular intervals. We use
 
 It's crucial to note that after each recurrence, the next occurrence is scheduled to happen at the appropriate time in the future. When we adjust the clock by 60 minutes, precisely one value is placed in the queue, and when we adjust the clock by another 60 minutes, another value is added to the queue.
 
-### Testing `Clock`
+### Testing Clock
 
 Let's explore an example that demonstrates how to test the behavior of the `Clock` using the `TestClock`:
 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/testing/clock/clock.ts
+```ts twoslash
+// @types: node
+import { Effect, Clock, TestClock, TestContext } from "effect"
+import * as assert from "node:assert"
 
+const test = Effect.gen(function* (_) {
+  // Get the current time using the Clock
+  const startTime = yield* _(Clock.currentTimeMillis)
+
+  // Adjust the TestClock by 1 minute to simulate the passage of time
+  yield* _(TestClock.adjust("1 minutes"))
+
+  // Get the current time again
+  const endTime = yield* _(Clock.currentTimeMillis)
+
+  // Check if the time difference is at least 60,000 milliseconds (1 minute)
+  assert.ok(endTime - startTime >= 60_000)
+}).pipe(Effect.provide(TestContext.TestContext))
+
+Effect.runPromise(test)
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/testing/clock/clock-pipe.ts
+```ts twoslash
+// @types: node
+import { Effect, Clock, TestClock, TestContext, pipe } from "effect"
+import * as assert from "node:assert"
 
+const test = pipe(
+  // Get the current time using the Clock
+  Clock.currentTimeMillis,
+  Effect.flatMap((startTime) =>
+    // Adjust the TestClock by 1 minute to simulate the passage of time
+    TestClock.adjust("1 minutes").pipe(
+      // Get the current time again
+      Effect.flatMap(() => Clock.currentTimeMillis),
+      Effect.map((endTime) => {
+        // Check if the time difference is at least 60,000 milliseconds (1 minute)
+        assert.ok(endTime - startTime >= 60_000)
+      })
+    )
+  ),
+  Effect.provide(TestContext.TestContext)
+)
+
+Effect.runPromise(test)
 ```
 
 </Tab>
 </Tabs>
 
-### Testing `Deferred`
+### Testing Deferred
 
 `TestClock` also affects asynchronous code scheduled to run after a certain time:
 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/testing/clock/deferred.ts
+```ts twoslash
+// @types: node
+import { Effect, Deferred, TestClock, TestContext } from "effect"
+import * as assert from "node:assert"
 
+const test = Effect.gen(function* (_) {
+  // Create a deferred value
+  const deferred = yield* _(Deferred.make<void, number>())
+
+  // Run two effects concurrently: sleep for 10 seconds and succeed the deferred with a value of 1
+  yield* _(
+    Effect.all([Effect.sleep("10 seconds"), Deferred.succeed(deferred, 1)], {
+      concurrency: "unbounded"
+    }),
+    Effect.fork
+  )
+
+  // Adjust the TestClock by 10 seconds
+  yield* _(TestClock.adjust("10 seconds"))
+
+  // Await the value from the deferred
+  const readRef = yield* _(Deferred.await(deferred))
+
+  assert.ok(1 === readRef)
+}).pipe(Effect.provide(TestContext.TestContext))
+
+Effect.runPromise(test)
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/testing/clock/deferred-pipe.ts
+```ts twoslash
+// @types: node
+import { Effect, Deferred, TestClock, TestContext, pipe } from "effect"
+import * as assert from "node:assert"
 
+const test = pipe(
+  // Create a deferred value
+  Deferred.make<void, number>(),
+  Effect.tap((deferred) =>
+    // Run two effects concurrently: sleep for 10 seconds and succeed the deferred with a value of 1
+    Effect.fork(
+      Effect.all(
+        [Effect.sleep("10 seconds"), Deferred.succeed(deferred, 1)],
+        {
+          concurrency: "unbounded"
+        }
+      )
+    )
+  ),
+  // Adjust the TestClock by 10 seconds
+  Effect.tap(() => TestClock.adjust("10 seconds")),
+  // Await the value from the deferred
+  Effect.flatMap((deferred) => Deferred.await(deferred)),
+  Effect.map((readRef) => {
+    assert.ok(1 === readRef)
+  }),
+  Effect.provide(TestContext.TestContext)
+)
+
+Effect.runPromise(test)
 ```
 
 </Tab>

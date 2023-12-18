@@ -15,8 +15,18 @@ checks a breeze.
 
 ### struct
 
-```ts file=<rootDir>/src/data/struct.ts
+```ts twoslash
+import { Data, Equal } from "effect"
 
+const alice = Data.struct({ name: "Alice", age: 30 })
+
+const bob = Data.struct({ name: "Bob", age: 40 })
+
+console.log(Equal.equals(alice, alice)) // Output: true
+console.log(Equal.equals(alice, Data.struct({ name: "Alice", age: 30 }))) // Output: true
+
+console.log(Equal.equals(alice, { name: "Alice", age: 30 })) // Output: false
+console.log(Equal.equals(alice, bob)) // Output: false
 ```
 
 In this example, we use the `Data.struct` function to create structured data objects and check their equality using `Equal.equals()`. The `Data` module simplifies the process by providing a default implementation for both `Equal` and `Hash`, allowing you to focus on comparing values without the need for explicit implementations.
@@ -25,16 +35,41 @@ In this example, we use the `Data.struct` function to create structured data obj
 
 If you prefer to model your domain with tuples, the `Data.tuple` function has got you covered:
 
-```ts file=<rootDir>/src/data/tuple.ts
+```ts twoslash
+import { Data, Equal } from "effect"
 
+const alice = Data.tuple("Alice", 30)
+
+const bob = Data.tuple("Bob", 40)
+
+console.log(Equal.equals(alice, alice)) // Output: true
+console.log(Equal.equals(alice, Data.tuple("Alice", 30))) // Output: true
+
+console.log(Equal.equals(alice, ["Alice", 30])) // Output: false
+console.log(Equal.equals(alice, bob)) // Output: false
 ```
 
 ### array
 
 You can take it a step further and use arrays to compare multiple values:
 
-```ts file=<rootDir>/src/data/array.ts
+```ts twoslash
+import { Data, Equal } from "effect"
 
+const alice = Data.struct({ name: "Alice", age: 30 })
+const bob = Data.struct({ name: "Bob", age: 40 })
+
+const persons = Data.array([alice, bob])
+
+console.log(
+  Equal.equals(
+    persons,
+    Data.array([
+      Data.struct({ name: "Alice", age: 30 }),
+      Data.struct({ name: "Bob", age: 40 })
+    ])
+  )
+) // Output: true
 ```
 
 In this extended example, we create an array of person objects using the `Data.array` function. We then compare this array with another array of person objects using `Equal.equals()`, and the result is `true` since the arrays contain structurally equal elements.
@@ -50,8 +85,25 @@ Case classes can be defined in two main ways: as structs using `Case`, `case`, a
 
 Let's start by creating a case class using `Case` and `case`. This combination automatically provides implementations for constructors, equality checks, and hashing for your data type.
 
-```ts file=<rootDir>/src/data/case.ts
+```ts twoslash
+import { Data, Equal } from "effect"
 
+// Extending Data.Case to implement Equal
+interface Person extends Data.Case {
+  readonly name: string
+}
+
+// Creating a constructor for the specified Case
+const Person = Data.case<Person>()
+
+// Creating instances of Person
+const mike1 = Person({ name: "Mike" })
+const mike2 = Person({ name: "Mike" })
+const john = Person({ name: "John" })
+
+// Checking equality
+console.log(Equal.equals(mike1, mike2)) // Output: true
+console.log(Equal.equals(mike1, john)) // Output: false
 ```
 
 Here, we define a `Person` data type by extending `Data.Case`. We then create a constructor for `Person` using `Data.case`.
@@ -63,14 +115,38 @@ If you prefer working with classes instead of plain objects, you can explore the
 
 In certain situations, like when you're defining a data type that includes a tag field (commonly used in disjoint unions), using the `case` approach can become repetitive and cumbersome. This is because you're required to specify the tag every time you create an instance:
 
-```ts file=<rootDir>/src/data/tagged-with-case.ts
+```ts twoslash
+import { Data } from "effect"
 
+interface Person extends Data.Case {
+  readonly _tag: "Person" // the tag
+  readonly name: string
+}
+
+const Person = Data.case<Person>()
+
+// It can be quite frustrating to repeat `_tag: 'Person'` every time...
+const mike = Person({ _tag: "Person", name: "Mike" })
+const john = Person({ _tag: "Person", name: "John" })
 ```
 
 To make your life easier, the `tagged` helper simplifies this process by allowing you to define the tag only once. It follows the convention within the Effect ecosystem of naming the tag field with `"_tag"`:
 
-```ts file=<rootDir>/src/data/tagged.ts
+```ts twoslash
+import { Data } from "effect"
 
+interface Person extends Data.Case {
+  readonly _tag: "Person" // the tag
+  readonly name: string
+}
+
+const Person = Data.tagged<Person>("Person")
+
+// Now, it's much more convenient...
+const mike = Person({ name: "Mike" })
+const john = Person({ name: "John" })
+
+console.log(mike._tag) // Output: "Person"
 ```
 
 This approach significantly reduces redundancy and improves code readability when working with tagged data types.
@@ -81,14 +157,35 @@ If you prefer working with classes instead of plain objects, you can explore the
 
 If you find it more comfortable to work with classes instead of plain objects, you have the option to use `Data.Class` instead of `Case` and `case`. This approach can be particularly useful in scenarios where you prefer a more class-oriented structure:
 
-```ts file=<rootDir>/src/data/Class.ts
+```ts twoslash
+import { Data, Equal } from "effect"
 
+class Person extends Data.Class<{ name: string }> {}
+
+// Creating instances of Person
+const mike1 = new Person({ name: "Mike" })
+const mike2 = new Person({ name: "Mike" })
+const john = new Person({ name: "John" })
+
+// Checking equality
+console.log(Equal.equals(mike1, mike2)) // Output: true
+console.log(Equal.equals(mike1, john)) // Output: false
 ```
 
 One advantage of using classes is that you can easily add custom getters and methods to the class definition, enhancing its functionality to suit your specific needs:
 
-```ts file=<rootDir>/src/data/Class-with-getters.ts
+```ts twoslash
+import { Data } from "effect"
 
+class Person extends Data.Class<{ name: string }> {
+  get upperName() {
+    return this.name.toUpperCase()
+  }
+}
+
+const mike = new Person({ name: "Mike" })
+
+console.log(mike.upperName) // Output: MIKE
 ```
 
 By incorporating custom methods like `upperName`, you can extend the capabilities of your data class to perform various operations tailored to your application requirements.
@@ -97,14 +194,37 @@ By incorporating custom methods like `upperName`, you can extend the capabilitie
 
 For those who prefer working with classes over plain objects, you can utilize `Data.TaggedClass` as an alternative to `Case` and `tagged`. This approach can be especially beneficial when you want to structure your data using class-based syntax:
 
-```ts file=<rootDir>/src/data/TaggedClass.ts
+```ts twoslash
+import { Data, Equal } from "effect"
 
+class Person extends Data.TaggedClass("Person")<{ name: string }> {}
+
+// Creating instances of Person
+const mike1 = new Person({ name: "Mike" })
+const mike2 = new Person({ name: "Mike" })
+const john = new Person({ name: "John" })
+
+// Checking equality
+console.log(Equal.equals(mike1, mike2)) // Output: true
+console.log(Equal.equals(mike1, john)) // Output: false
+
+console.log(mike1._tag) // Output: "Person"
 ```
 
 One of the advantages of using tagged classes is that you can seamlessly incorporate custom getters and methods into the class definition, expanding its functionality as needed:
 
-```ts file=<rootDir>/src/data/TaggedClass-with-getters.ts
+```ts twoslash
+import { Data } from "effect"
 
+class Person extends Data.TaggedClass("Person")<{ name: string }> {
+  get upperName() {
+    return this.name.toUpperCase()
+  }
+}
+
+const mike = new Person({ name: "Mike" })
+
+console.log(mike.upperName) // Output: MIKE
 ```
 
 By introducing custom getters such as `upperName`, you can extend the capabilities of your tagged class to suit your specific application requirements.
@@ -115,14 +235,53 @@ If you're looking to create a disjoint union of tagged case classes, you can eas
 
 Let's walk through an example:
 
-```ts file=<rootDir>/src/data/TaggedEnum.ts
+```ts twoslash
+import { Data, Equal } from "effect"
 
+// Define a union type using TaggedEnum
+type HttpError = Data.TaggedEnum<{
+  InternalServerError: { reason: string }
+  NotFound: {}
+}>
+
+// Create constructors for specific error types
+const { NotFound, InternalServerError } = Data.taggedEnum<HttpError>()
+
+// Create instances of errors
+const error1 = InternalServerError({ reason: "test" })
+const error2 = InternalServerError({ reason: "test" })
+const error3 = NotFound()
+
+// Checking equality
+console.log(Equal.equals(error1, error2)) // Output: true
+console.log(Equal.equals(error1, error3)) // Output: false
+
+console.log(error1._tag) // Output: "InternalServerError"
+console.log(error3._tag) // Output: "NotFound"
 ```
 
 Note that it follows the convention within the Effect ecosystem of naming the tag field with `"_tag"`.
 
 You can also pass a `TaggedEnum.WithGenerics` if you want to add generics to the constructors:
 
-```ts file=<rootDir>/src/data/TaggedEnumWithGenerics.ts
+```ts twoslash
+import { Data } from "effect"
 
+type RemoteData<A, B> = Data.TaggedEnum<{
+  Loading: {}
+  Success: { data: A }
+  Failure: { error: B }
+}>
+
+interface RemoteDataDefinition extends Data.TaggedEnum.WithGenerics<2> {
+  readonly taggedEnum: RemoteData<this["A"], this["B"]>
+}
+
+const { Loading, Failure, Success } = Data.taggedEnum<RemoteDataDefinition>()
+
+const loading = Loading()
+
+const failure = Failure({ error: "err" })
+
+const success = Success({ data: 1 })
 ```

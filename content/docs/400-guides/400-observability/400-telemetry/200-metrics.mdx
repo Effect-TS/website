@@ -1,5 +1,6 @@
 ---
 title: Introduction to Metrics in Effect
+navTitle: Metrics
 excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
 bottomNavigation: pagination
 ---
@@ -30,14 +31,28 @@ Unlike some other types of metrics (like gauges), where we're interested in the 
 
 To create a counter, you can use the `Metric.counter` constructor in your code. You have the option to specify the type of the counter as either `number` or `bigint`. Here's how you can do it:
 
-```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/constructor.ts#L1-L12
+```ts twoslash
+import { Metric } from "effect"
 
+const numberCounter = Metric.counter("request_count", {
+  description: "A counter for tracking requests"
+})
+
+const bigintCounter = Metric.counter("error_count", {
+  description: "A counter for tracking errors",
+  bigint: true
+})
 ```
 
 If you wish to create a counter that only increases its value, you can utilize the `incremental: true` option as follows:
 
-```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/constructor.ts#L14-
+```ts twoslash
+import { Metric } from "effect"
 
+const incrementalCounter = Metric.counter("count", {
+  description: "a counter that only increases its value",
+  incremental: true
+})
 ```
 
 With this configuration, Effect ensures that non-incremental updates have no impact on the counter, making it exclusively suitable for counting upwards.
@@ -62,8 +77,36 @@ Counters find application in various scenarios, including:
 
 Here's a practical example of creating and using a counter in your code:
 
-```ts file=<rootDir>/src/guide/observability/otel/metrics/counter/example.ts
+```ts twoslash
+import { Metric, Effect, Console } from "effect"
 
+// Create a counter named 'task_count' and increment it by 1 every time it's invoked
+const taskCount = Metric.counter("task_count").pipe(
+  Metric.withConstantInput(1)
+)
+
+const task1 = Effect.succeed(1).pipe(Effect.delay("100 millis"))
+const task2 = Effect.succeed(2).pipe(Effect.delay("200 millis"))
+
+const program = Effect.gen(function* (_) {
+  const a = yield* _(taskCount(task1))
+  const b = yield* _(taskCount(task2))
+  return a + b
+})
+
+const showMetric = Metric.value(taskCount).pipe(Effect.flatMap(Console.log))
+
+Effect.runPromise(program.pipe(Effect.tap(() => showMetric))).then(
+  console.log
+)
+/*
+Output:
+CounterState {
+  count: 2,
+  ...
+}
+3
+*/
 ```
 
 In this example, we create a counter called `taskCount`, which is incremented by 1 each time it's invoked. We then use it to monitor the number of times certain tasks are executed. The result provides valuable insights into the cumulative count of these tasks.
@@ -80,8 +123,17 @@ Unlike counters, where we're interested in cumulative values over time, with gau
 
 To create a gauge, you can use the `Metric.gauge` constructor in your code. You can specify the type of the gauge as either `number` or `bigint`. Here's how you can do it:
 
-```ts file=<rootDir>/src/guide/observability/otel/metrics/gauge/constructor.ts
+```ts twoslash
+import { Metric } from "effect"
 
+const numberGauge = Metric.gauge("memory_usage", {
+  description: "A gauge for memory usage"
+})
+
+const bigintGauge = Metric.gauge("cpu_load", {
+  description: "A gauge for CPU load",
+  bigint: true
+})
 ```
 
 ### When to Use Gauges
@@ -100,8 +152,41 @@ Gauges are the best choice when you want to monitor values that can both increas
 
 Let's look at a practical example of creating and using a gauge in your code:
 
-```ts file=<rootDir>/src/guide/observability/otel/metrics/gauge/example.ts
+```ts twoslash
+import { Metric, Effect, Random, Console } from "effect"
 
+const temperature = Metric.gauge("temperature")
+
+const getTemperature = Effect.gen(function* (_) {
+  const n = yield* _(Random.nextIntBetween(-10, 10))
+  console.log(`variation: ${n}`)
+  return n
+})
+
+const program = Effect.gen(function* (_) {
+  const series: Array<number> = []
+  series.push(yield* _(temperature(getTemperature)))
+  series.push(yield* _(temperature(getTemperature)))
+  series.push(yield* _(temperature(getTemperature)))
+  return series
+})
+
+const showMetric = Metric.value(temperature).pipe(Effect.flatMap(Console.log))
+
+Effect.runPromise(program.pipe(Effect.tap(() => showMetric))).then(
+  console.log
+)
+/*
+Output:
+variation: 6
+variation: -4
+variation: -9
+GaugeState {
+  value: -9,
+  ...
+}
+[ 6, -4, -9 ]
+*/
 ```
 
 ## Histogram
@@ -142,16 +227,90 @@ Histograms are the best choice in the following situations:
 
 In this example, we create a histogram with linear buckets, ranging from 0 to 100 in increments of 10, and an "Infinity" bucket. It's suitable for effects yielding a `number`. The program then generates random values, records them in the histogram, and displays the histogram's state.
 
-```ts file=<rootDir>/src/guide/observability/otel/metrics/histogram/linear.ts
+```ts twoslash
+import { Effect, Metric, MetricBoundaries, Random } from "effect"
 
+const latencyHistogram = Metric.histogram(
+  "request_latency",
+  MetricBoundaries.linear({ start: 0, width: 10, count: 11 })
+)
+
+const program = latencyHistogram(Random.nextIntBetween(1, 120)).pipe(
+  Effect.repeatN(99)
+)
+
+Effect.runPromise(
+  program.pipe(Effect.flatMap(() => Metric.value(latencyHistogram)))
+).then((histogramState) => console.log("%o", histogramState))
+/*
+Output:
+HistogramState {
+  buckets: [
+    [ 0, 0 ],
+    [ 10, 7 ],
+    [ 20, 11 ],
+    [ 30, 20 ],
+    [ 40, 27 ],
+    [ 50, 38 ],
+    [ 60, 53 ],
+    [ 70, 64 ],
+    [ 80, 73 ],
+    [ 90, 84 ],
+    [ Infinity, 100 ],
+    [length]: 11
+  ],
+  count: 100,
+  min: 1,
+  max: 119,
+  sum: 5980,
+  ...
+}
+*/
 ```
 
 #### Timer Metric
 
 This example demonstrates the use of a timer metric to track workflow durations. It generates random values, simulates waiting times, records durations in the timer metric, and displays the histogram's state.
 
-```ts file=<rootDir>/src/guide/observability/otel/metrics/histogram/timer.ts
+```ts twoslash
+import { Metric, ReadonlyArray, Random, Effect } from "effect"
 
+// Metric<Histogram, Duration, Histogram>
+const timer = Metric.timerWithBoundaries("timer", ReadonlyArray.range(1, 10))
+
+const program = Random.nextIntBetween(1, 10).pipe(
+  Effect.flatMap((n) => Effect.sleep(`${n} millis`)),
+  Metric.trackDuration(timer),
+  Effect.repeatN(99)
+)
+
+Effect.runPromise(
+  program.pipe(Effect.flatMap(() => Metric.value(timer)))
+).then((histogramState) => console.log("%o", histogramState))
+/*
+Output:
+HistogramState {
+  buckets: [
+    [ 1, 3 ],
+    [ 2, 13 ],
+    [ 3, 17 ],
+    [ 4, 26 ],
+    [ 5, 35 ],
+    [ 6, 43 ],
+    [ 7, 53 ],
+    [ 8, 56 ],
+    [ 9, 65 ],
+    [ 10, 72 ],
+    [ Infinity, 100 ],
+    [length]: 11
+  ],
+  count: 100,
+  min: 0.25797,
+  max: 12.25421,
+  sum: 683.0266810000002,
+  ...
+}
+*/
 ```
 
 These examples showcase how histograms can be used to analyze and understand the distribution of data in various scenarios, making them a valuable tool in software metrics.
@@ -186,8 +345,40 @@ Summaries are excellent for monitoring latencies when histograms are not the rig
 
 Let's create a summary to hold `100` samples, with a maximum sample age of `1 day`, and an error margin of `3%`. This summary should report the `10%`, `50%`, and `90%` quantiles. It can be applied to effects yielding integers:
 
-```ts file=<rootDir>/src/guide/observability/otel/metrics/summary/example.ts
+```ts twoslash
+import { Metric, Random, Effect } from "effect"
 
+const responseTimeSummary = Metric.summary({
+  name: "response_time_summary",
+  maxAge: "1 days",
+  maxSize: 100,
+  error: 0.03,
+  quantiles: [0.1, 0.5, 0.9]
+})
+
+const program = responseTimeSummary(Random.nextIntBetween(1, 120)).pipe(
+  Effect.repeatN(99)
+)
+
+Effect.runPromise(
+  program.pipe(Effect.flatMap(() => Metric.value(responseTimeSummary)))
+).then((summaryState) => console.log("%o", summaryState))
+/*
+Output:
+SummaryState {
+  error: 0.03,
+  quantiles: [
+    [ 0.1, { _id: 'Option', _tag: 'Some', value: 17 } ],
+    [ 0.5, { _id: 'Option', _tag: 'Some', value: 62 } ],
+    [ 0.9, { _id: 'Option', _tag: 'Some', value: 109 } ]
+  ],
+  count: 100,
+  min: 4,
+  max: 119,
+  sum: 6058,
+  ...
+}
+*/
 ```
 
 ## Frequency
@@ -206,6 +397,33 @@ Frequencies are invaluable for counting the occurrences of distinct string value
 
 Let's create a Frequency to observe the occurrences of unique strings. This example can be applied to effects that yield a `string`:
 
-```ts file=<rootDir>/src/guide/observability/otel/metrics/frequency/example.ts
+```ts twoslash
+import { Metric, Random, Effect } from "effect"
 
+const errorFrequency = Metric.frequency("error_frequency")
+
+const program = errorFrequency(
+  Random.nextIntBetween(1, 10).pipe(Effect.map((n) => `Error-${n}`))
+).pipe(Effect.repeatN(99))
+
+Effect.runPromise(
+  program.pipe(Effect.flatMap(() => Metric.value(errorFrequency)))
+).then((frequencyState) => console.log("%o", frequencyState))
+/*
+Output:
+FrequencyState {
+  occurrences: Map(9) {
+    'Error-7' => 12,
+    'Error-2' => 12,
+    'Error-4' => 14,
+    'Error-1' => 14,
+    'Error-9' => 8,
+    'Error-6' => 11,
+    'Error-5' => 9,
+    'Error-3' => 14,
+    'Error-8' => 6
+  },
+  ...
+}
+*/
 ```

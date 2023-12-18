@@ -27,15 +27,36 @@ Let's start with a simple example of how to read configuration from environment 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts filename="primitives.ts" file=<rootDir>/src/configuration/primitives-gen.ts
+```ts filename="primitives.ts" twoslash
+// primitives.ts
+import { Effect, Config } from "effect"
 
+const program = Effect.gen(function* (_) {
+  const host = yield* _(Config.string("HOST"))
+  const port = yield* _(Config.string("PORT"))
+  console.log(`Application started: ${host}:${port}`)
+})
+
+Effect.runSync(program)
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="primitives.ts" file=<rootDir>/src/configuration/primitives-pipe.ts
+```ts filename="primitives.ts" twoslash
+// primitives.ts
+import { Effect, Config, Console } from "effect"
 
+const program = Effect.all([
+  Config.string("HOST"),
+  Config.number("PORT")
+]).pipe(
+  Effect.flatMap(([host, port]) =>
+    Console.log(`Application started: ${host}:${port}`)
+  )
+)
+
+Effect.runSync(program)
 ```
 
 </Tab>
@@ -43,7 +64,7 @@ Let's start with a simple example of how to read configuration from environment 
 
 If we run this application we will get the following output:
 
-```bash filename="Terminal" {3-6}
+```bash filename="Terminal"
 (Missing data at HOST: "Expected HOST to exist in the process context")
 ```
 
@@ -68,15 +89,36 @@ Here's how you can use `Config.withDefault` to handle fallback values:
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts filename="withDefault.ts" /Config.withDefault/ file=<rootDir>/src/configuration/withDefault-gen.ts
+```ts filename="withDefault.ts" twoslash
+// withDefault.ts
+import { Effect, Config } from "effect"
 
+const program = Effect.gen(function* (_) {
+  const host = yield* _(Config.string("HOST"))
+  const port = yield* _(Config.withDefault(Config.number("PORT"), 8080))
+  console.log(`Application started: ${host}:${port}`)
+})
+
+Effect.runSync(program)
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="withDefault.ts" /Config.withDefault/ file=<rootDir>/src/configuration/withDefault-pipe.ts
+```ts filename="withDefault.ts" twoslash
+// withDefault.ts
+import { Effect, Config, Console } from "effect"
 
+const program = Effect.all([
+  Config.string("HOST"),
+  Config.withDefault(Config.number("PORT"), 8080)
+]).pipe(
+  Effect.flatMap(([host, port]) =>
+    Console.log(`Application started: ${host}:${port}`)
+  )
+)
+
+Effect.runSync(program)
 ```
 
 </Tab>
@@ -102,14 +144,37 @@ In addition to primitive types, we can also define configurations for custom typ
 
 Let's consider the `HostPort` data type, which consists of two fields: `host` and `port`.
 
-```ts filename="HostPort.ts" file=<rootDir>/src/configuration/HostPort.ts#L3-L9
-
+```ts
+class HostPort {
+  constructor(
+    readonly host: string,
+    readonly port: number
+  ) {}
+}
 ```
 
 We can define a configuration for this data type by combining primitive configs for `string` and `number`:
 
-```ts filename="HostPort.ts" file=<rootDir>/src/configuration/HostPort.ts
+```ts filename="HostPort.ts" twoslash
+import { Config } from "effect"
 
+export class HostPort {
+  constructor(
+    readonly host: string,
+    readonly port: number
+  ) {}
+
+  get url() {
+    return `${this.host}:${this.port}`
+  }
+}
+
+const both = Config.all([Config.string("HOST"), Config.number("PORT")])
+
+export const config = Config.map(
+  both,
+  ([host, port]) => new HostPort(host, port)
+)
 ```
 
 In the above example, we use the `Config.all(configs){:ts}` operator to combine two primitive configs `Config<string>` and `Config<number>` into a `Config<[string, number]>`.
@@ -119,15 +184,76 @@ If we use this customized configuration in our application:
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts filename="App.ts" /HostPort.config/ file=<rootDir>/src/configuration/App-gen.ts
+```ts filename="App.ts" twoslash
+// @filename: HostPort.ts
+import { Config } from "effect"
 
+export class HostPort {
+  constructor(
+    readonly host: string,
+    readonly port: number
+  ) {}
+
+  get url() {
+    return `${this.host}:${this.port}`
+  }
+}
+
+const both = Config.all([Config.string("HOST"), Config.number("PORT")])
+
+export const config = Config.map(
+  both,
+  ([host, port]) => new HostPort(host, port)
+)
+
+// @filename: App.ts
+// ---cut---
+// App.ts
+import { Effect } from "effect"
+import * as HostPort from "./HostPort"
+
+export const program = Effect.gen(function* (_) {
+  const hostPort = yield* _(HostPort.config)
+  console.log(`Application started: ${hostPort.url}`)
+})
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="App.ts" /HostPort.config/ file=<rootDir>/src/configuration/App.ts
+```ts filename="App.ts" twoslash
+// @filename: HostPort.ts
+import { Config } from "effect"
 
+export class HostPort {
+  constructor(
+    readonly host: string,
+    readonly port: number
+  ) {}
+
+  get url() {
+    return `${this.host}:${this.port}`
+  }
+}
+
+const both = Config.all([Config.string("HOST"), Config.number("PORT")])
+
+export const config = Config.map(
+  both,
+  ([host, port]) => new HostPort(host, port)
+)
+
+// @filename: App.ts
+// ---cut---
+// App.ts
+import { Effect, Console } from "effect"
+import * as HostPort from "./HostPort"
+
+export const program = HostPort.config.pipe(
+  Effect.flatMap((hostPort) =>
+    Console.log(`Application started: ${hostPort.url}`)
+  )
+)
 ```
 
 </Tab>
@@ -147,8 +273,45 @@ So far, we have learned how to define configurations in a top-level manner, whet
 
 Let's assume we have a `ServiceConfig` data type that consists of two fields: `hostPort` and `timeout`.
 
-```ts filename="ServiceConfig.ts" file=<rootDir>/src/configuration/ServiceConfig.ts
+```ts filename="ServiceConfig.ts" twoslash
+// @filename: HostPort.ts
+import { Config } from "effect"
 
+export class HostPort {
+  constructor(
+    readonly host: string,
+    readonly port: number
+  ) {}
+
+  get url() {
+    return `${this.host}:${this.port}`
+  }
+}
+
+const both = Config.all([Config.string("HOST"), Config.number("PORT")])
+
+export const config = Config.map(
+  both,
+  ([host, port]) => new HostPort(host, port)
+)
+
+// @filename: ServiceConfig.ts
+// ---cut---
+// ServiceConfig.ts
+import * as HostPort from "./HostPort"
+import { Config } from "effect"
+
+class ServiceConfig {
+  constructor(
+    readonly hostPort: HostPort.HostPort,
+    readonly timeout: number
+  ) {}
+}
+
+const config = Config.map(
+  Config.all([HostPort.config, Config.number("TIMEOUT")]),
+  ([hostPort, timeout]) => new ServiceConfig(hostPort, timeout)
+)
 ```
 
 If we use this customized config in our application, it tries to read corresponding values from environment variables: `HOST`, `PORT`, and `TIMEOUT`.
@@ -157,9 +320,46 @@ However, in many cases, we don't want to read all configurations from the top-le
 
 To achieve this, we can use the `Config.nested` combinator. It allows us to nest configs under a specific namespace. Here's how we can update our configuration:
 
-```ts /Config.nested/ filename="ServiceConfig.ts" file=<rootDir>/src/configuration/ServiceConfig-nested.ts#L8-
-const config: Config.Config<ServiceConfig> = Config.all(Config.nested(HostPort.config, "HOSTPORT"), Config.float("TIMEOUT")).pipe(
-  Config.map(([hostPort, timeout]) => new ServiceConfig(hostPort, timeout))
+```ts twoslash
+// @filename: HostPort.ts
+import { Config } from "effect"
+
+export class HostPort {
+  constructor(
+    readonly host: string,
+    readonly port: number
+  ) {}
+
+  get url() {
+    return `${this.host}:${this.port}`
+  }
+}
+
+const both = Config.all([Config.string("HOST"), Config.number("PORT")])
+
+export const config = Config.map(
+  both,
+  ([host, port]) => new HostPort(host, port)
+)
+
+// @filename: ServiceConfig.ts
+import * as HostPort from "./HostPort"
+import { Config } from "effect"
+
+class ServiceConfig {
+  constructor(
+    readonly hostPort: HostPort.HostPort,
+    readonly timeout: number
+  ) {}
+}
+
+// ---cut---
+const config = Config.map(
+  Config.all([
+    Config.nested(HostPort.config, "HOSTPORT"),
+    Config.number("TIMEOUT")
+  ]),
+  ([hostPort, timeout]) => new ServiceConfig(hostPort, timeout)
 )
 ```
 
@@ -175,8 +375,58 @@ Once we have the mock config provider, we can use `Effect.setConfigProvider` fun
 
 Here's an example of how we can mock a config provider for testing purposes:
 
-```ts filename="mockConfigProvider.ts" file=<rootDir>/src/configuration/mockConfigProvider.ts
+```ts filename="mockConfigProvider.ts" twoslash
+// @filename: HostPort.ts
+import { Config } from "effect"
 
+export class HostPort {
+  constructor(
+    readonly host: string,
+    readonly port: number
+  ) {}
+
+  get url() {
+    return `${this.host}:${this.port}`
+  }
+}
+
+const both = Config.all([Config.string("HOST"), Config.number("PORT")])
+
+export const config = Config.map(
+  both,
+  ([host, port]) => new HostPort(host, port)
+)
+
+// @filename: App.ts
+import { Effect, Console } from "effect"
+import * as HostPort from "./HostPort"
+
+export const program = HostPort.config.pipe(
+  Effect.flatMap((hostPort) =>
+    Console.log(`Application started: ${hostPort.url}`)
+  )
+)
+
+// @filename: mockConfigProvider.ts
+// ---cut---
+// mockConfigProvider.ts
+import { ConfigProvider, Layer, Effect } from "effect"
+import * as App from "./App"
+
+// Create a mock config provider using ConfigProvider.fromMap
+const mockConfigProvider = ConfigProvider.fromMap(
+  new Map([
+    ["HOST", "localhost"],
+    ["PORT", "8080"]
+  ])
+)
+
+// Create a layer using Layer.setConfigProvider to override the default config provider
+const layer = Layer.setConfigProvider(mockConfigProvider)
+
+// Run the program using the provided layer
+Effect.runSync(Effect.provide(App.program, layer))
+// Output: Application started: localhost:8080
 ```
 
 By using this approach, we can easily mock the configuration data and test our services with different configurations in a controlled manner.
@@ -190,8 +440,35 @@ When you use `console.log` on a secret, the actual value remains hidden, providi
 
 Here's a simple example to illustrate:
 
-```ts file=<rootDir>/src/configuration/secret.ts
+```ts twoslash
+import {
+  Effect,
+  Config,
+  ConfigProvider,
+  Layer,
+  Console,
+  Secret
+} from "effect"
 
+const program = Config.secret("API_KEY").pipe(
+  Effect.tap((secret) => Console.log(`console.log: ${secret}`)),
+  Effect.tap((secret) => Console.log(`Secret.value: ${Secret.value(secret)}`))
+)
+
+Effect.runSync(
+  program.pipe(
+    Effect.provide(
+      Layer.setConfigProvider(
+        ConfigProvider.fromMap(new Map([["API_KEY", "my-api-key"]]))
+      )
+    )
+  )
+)
+/*
+Output:
+console.log: Secret(<redacted>)
+Secret.value: my-api-key
+*/
 ```
 
 In this example, you can see that when logging the secret using `console.log`, the actual value is replaced with `<redacted>`, ensuring that sensitive information is not exposed. The `Secret.value` function, on the other hand, provides a controlled way to retrieve the original secret value.

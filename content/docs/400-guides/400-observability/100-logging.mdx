@@ -26,8 +26,16 @@ Now, let's dive into the specific logging utilities provided by Effect.
 
 The `log` function is used to print a message at the current log level, which is `INFO` by default.
 
-```ts file=<rootDir>/src/logging/log.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.log("Application started")
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=2023-07-05T09:14:53.275Z level=INFO fiber=#0 message="Application started"
+*/
 ```
 
 The log message contains the following information:
@@ -51,15 +59,63 @@ Here's an example that demonstrates how to enable `DEBUG` messages for a specifi
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts /Logger.withMinimumLogLevel(LoggerLevel.Debug)/ file=<rootDir>/src/logging/debug-gen.ts
+```ts twoslash
+import { Effect, Logger, LogLevel } from "effect"
 
+const task1 = Effect.gen(function* (_) {
+  yield* _(Effect.sleep("2 seconds"))
+  yield* _(Effect.logDebug("task1 done"))
+}).pipe(Logger.withMinimumLogLevel(LogLevel.Debug))
+
+const task2 = Effect.gen(function* (_) {
+  yield* _(Effect.sleep("1 seconds"))
+  yield* _(Effect.logDebug("task2 done"))
+})
+
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.log("start"))
+  yield* _(task1)
+  yield* _(task2)
+  yield* _(Effect.log("done"))
+})
+
+Effect.runPromise(program)
+/*
+Output:
+... level=INFO message=start
+... level=DEBUG message="task1 done" <-- 2 seconds later
+... level=INFO message=done <-- 1 second later
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts /Logger.withMinimumLogLevel(LoggerLevel.Debug)/ file=<rootDir>/src/logging/debug-pipe.ts
+```ts twoslash
+import { Effect, Logger, LogLevel } from "effect"
 
+const task1 = Effect.sleep("2 seconds").pipe(
+  Effect.flatMap(() => Effect.logDebug("task1 done")),
+  Logger.withMinimumLogLevel(LogLevel.Debug)
+)
+
+const task2 = Effect.sleep("1 seconds").pipe(
+  Effect.flatMap(() => Effect.logDebug("task2 done"))
+)
+
+const program = Effect.log("start").pipe(
+  Effect.flatMap(() => task1),
+  Effect.flatMap(() => task2),
+  Effect.flatMap(() => Effect.log("done"))
+)
+
+Effect.runPromise(program)
+/*
+Output:
+... level=INFO message=start
+... level=DEBUG message="task1 done" <-- 2 seconds later
+... level=INFO message=done <-- 1 second later
+*/
 ```
 
 </Tab>
@@ -76,15 +132,42 @@ By default, `INFO` messages are printed.
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/logging/info-gen.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.logInfo("start"))
+  yield* _(Effect.sleep("2 seconds"))
+  yield* _(Effect.sleep("1 seconds"))
+  yield* _(Effect.logInfo("done"))
+})
+
+Effect.runPromise(program)
+/*
+Output:
+... level=INFO message=start
+... level=INFO message=done <-- 3 seconds later
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/logging/info-pipe.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.logInfo("start").pipe(
+  Effect.flatMap(() => Effect.sleep("2 seconds")),
+  Effect.flatMap(() => Effect.sleep("1 seconds")),
+  Effect.flatMap(() => Effect.logInfo("done"))
+)
+
+Effect.runPromise(program)
+/*
+Output:
+... level=INFO message=start
+... level=INFO message=done <-- 3 seconds later
+*/
 ```
 
 </Tab>
@@ -99,15 +182,45 @@ By default, `WARN` messages are printed.
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/logging/warning-gen.ts
+```ts twoslash
+import { Effect, Either } from "effect"
 
+const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = Effect.gen(function* (_) {
+  const failureOrSuccess = yield* _(Effect.either(task))
+  if (Either.isLeft(failureOrSuccess)) {
+    yield* _(Effect.logWarning(failureOrSuccess.left))
+    return 0
+  } else {
+    return failureOrSuccess.right
+  }
+})
+
+Effect.runPromise(program)
+/*
+Output:
+... level=WARN fiber=#0 message="Oh uh!"
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/logging/warning-pipe.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = task.pipe(
+  Effect.catchAll((error) => Effect.logWarning(error).pipe(Effect.as(0)))
+)
+
+Effect.runPromise(program)
+/*
+Output:
+... level=WARN fiber=#0 message="Oh uh!"
+*/
 ```
 
 </Tab>
@@ -120,15 +233,45 @@ By default, `ERROR` messages are printed.
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/logging/error-gen.ts
+```ts twoslash
+import { Effect, Either } from "effect"
 
+const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = Effect.gen(function* (_) {
+  const failureOrSuccess = yield* _(Effect.either(task))
+  if (Either.isLeft(failureOrSuccess)) {
+    yield* _(Effect.logError(failureOrSuccess.left))
+    return 0
+  } else {
+    return failureOrSuccess.right
+  }
+})
+
+Effect.runPromise(program)
+/*
+Output:
+... level=ERROR fiber=#0 message="Oh uh!"
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/logging/error-pipe.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = task.pipe(
+  Effect.catchAll((error) => Effect.logError(error).pipe(Effect.as(0)))
+)
+
+Effect.runPromise(program)
+/*
+Output:
+... level=ERROR fiber=#0 message="Oh uh!"
+*/
 ```
 
 </Tab>
@@ -141,15 +284,45 @@ By default, `FATAL` messages are printed.
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/logging/fatal-gen.ts
+```ts twoslash
+import { Effect, Either } from "effect"
 
+const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = Effect.gen(function* (_) {
+  const failureOrSuccess = yield* _(Effect.either(task))
+  if (Either.isLeft(failureOrSuccess)) {
+    yield* _(Effect.logFatal(failureOrSuccess.left))
+    return 0
+  } else {
+    return failureOrSuccess.right
+  }
+})
+
+Effect.runPromise(program)
+/*
+Output:
+... level=FATAL fiber=#0 message="Oh uh!"
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/logging/fatal-pipe.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
+
+const program = task.pipe(
+  Effect.catchAll((error) => Effect.logFatal(error).pipe(Effect.as(0)))
+)
+
+Effect.runPromise(program)
+/*
+Output:
+... level=FATAL fiber=#0 message="Oh uh!"
+*/
 ```
 
 </Tab>
@@ -162,15 +335,37 @@ Effect also provides support for spans, allowing you to measure the duration of 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts /Effect.withLogSpan("myspan")/ /myspan=1011ms/ file=<rootDir>/src/logging/spans-gen.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.sleep("1 seconds"))
+  yield* _(Effect.log("The job is finished!"))
+}).pipe(Effect.withLogSpan("myspan"))
+
+Effect.runPromise(program)
+/*
+Output:
+... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts /Effect.withLogSpan("myspan")/ /myspan=1011ms/ file=<rootDir>/src/logging/spans-pipe.ts
+```ts twoslash
+import { Effect } from "effect"
 
+const program = Effect.sleep("1 seconds").pipe(
+  Effect.flatMap(() => Effect.log("The job is finished!")),
+  Effect.withLogSpan("myspan")
+)
+
+Effect.runPromise(program)
+/*
+Output:
+... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
+*/
 ```
 
 </Tab>
@@ -186,8 +381,29 @@ If you ever find yourself needing to turn off default logging, perhaps during te
 
 Effect provides a convenient function called `withMinimumLogLevel` that allows you to set the minimum log level, effectively disabling logging:
 
-```ts file=<rootDir>/src/logging/disabling-logging-withMinimumLogLevel.ts
+```ts twoslash
+import { Effect, Logger, LogLevel } from "effect"
 
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.log("Executing task..."))
+  yield* _(Effect.sleep("100 millis"))
+  console.log("task done")
+})
+
+// Logging enabled (default)
+Effect.runPromise(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message="Executing task..."
+task done
+*/
+
+// Logging disabled using withMinimumLogLevel
+Effect.runPromise(program.pipe(Logger.withMinimumLogLevel(LogLevel.None)))
+/*
+Output:
+task done
+*/
 ```
 
 By setting the log level to `LogLevel.None`, you effectively disable logging, and only the final result will be displayed.
@@ -196,16 +412,50 @@ By setting the log level to `LogLevel.None`, you effectively disable logging, an
 
 Another approach to disable logging is by creating a layer that sets the minimum log level to `LogLevel.None`, effectively turning off all logging:
 
-```ts file=<rootDir>/src/logging/disabling-logging-layer.ts
+```ts twoslash
+import { Effect, Logger, LogLevel } from "effect"
 
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.log("Executing task..."))
+  yield* _(Effect.sleep("100 millis"))
+  console.log("task done")
+})
+
+const layer = Logger.minimumLogLevel(LogLevel.None)
+
+// Logging disabled using a layer
+Effect.runPromise(program.pipe(Effect.provide(layer)))
+/*
+Output:
+task done
+*/
 ```
 
 **Using a Custom Runtime**
 
 You can also disable logging by creating a custom runtime that includes the configuration to turn off logging:
 
-```ts file=<rootDir>/src/logging/disabling-logging-runtime.ts
+```ts twoslash
+import { Effect, Logger, LogLevel, Runtime, Layer } from "effect"
 
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.log("Executing task..."))
+  yield* _(Effect.sleep("100 millis"))
+  console.log("task done")
+})
+
+const customRuntime = Effect.runSync(
+  Effect.scoped(Layer.toRuntime(Logger.minimumLogLevel(LogLevel.None)))
+)
+
+// Logging disabled using a custom runtime
+const customRunPromise = Runtime.runPromise(customRuntime)
+
+customRunPromise(program)
+/*
+Output:
+task done
+*/
 ```
 
 In this approach, you create a custom runtime that incorporates the configuration to disable logging, and then you execute your program using this custom runtime.
@@ -214,8 +464,47 @@ In this approach, you create a custom runtime that incorporates the configuratio
 
 To retrieve the log level from a [configuration](../configuration.mdx) and incorporate it into your program, utilize the layer produced by `Logger.minimumLogLevel`:
 
-```ts file=<rootDir>/src/logging/load-log-level-from-configuration.ts
+```ts twoslash
+import {
+  Effect,
+  Config,
+  Logger,
+  Layer,
+  ConfigProvider,
+  LogLevel
+} from "effect"
 
+// Simulate a program with logs
+const program = Effect.gen(function* (_) {
+  yield* _(Effect.logError("ERROR!"))
+  yield* _(Effect.logWarning("WARNING!"))
+  yield* _(Effect.logInfo("INFO!"))
+  yield* _(Effect.logDebug("DEBUG!"))
+})
+
+// Load the log level from the configuration as a layer
+const LogLevelLive = Config.logLevel("LOG_LEVEL").pipe(
+  Effect.map((level) => Logger.minimumLogLevel(level)),
+  Layer.unwrapEffect
+)
+
+// Configure the program with the loaded log level
+const configured = Effect.provide(program, LogLevelLive)
+
+// Test the configured program using ConfigProvider.fromMap
+const test = Effect.provide(
+  configured,
+  Layer.setConfigProvider(
+    ConfigProvider.fromMap(new Map([["LOG_LEVEL", LogLevel.Warning.label]]))
+  )
+)
+
+Effect.runPromise(test)
+/*
+Output:
+... level=ERROR fiber=#0 message=ERROR!
+... level=WARN fiber=#0 message=WARNING!
+*/
 ```
 
 To evaluate the configured program, you can utilize `ConfigProvider.fromMap` for testing (refer to [Testing Services](../configuration.mdx#testing-services) for more details).
@@ -224,10 +513,19 @@ To evaluate the configured program, you can utilize `ConfigProvider.fromMap` for
 
 In this section, we will learn how to define a custom logger and set it as the default logger in our program.
 
-First, let's define our custom logger. Let's say we want to log `DEBUG` messages in regular text and all other messages in bold:
+First, let's define our custom logger:
 
-```ts filename="CustomLogger.ts" file=<rootDir>/src/logging/CustomLogger.ts
+```twoslash include CustomLogger
+// CustomLogger.ts
+import { Logger } from "effect"
 
+export const logger = Logger.make(({ logLevel, message }) => {
+  globalThis.console.log(`[${logLevel.label}] ${message}`)
+})
+```
+
+```ts filename="CustomLogger.ts" twoslash
+// @include: CustomLogger
 ```
 
 Assuming we have defined the following program:
@@ -235,15 +533,52 @@ Assuming we have defined the following program:
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts filename="program.ts" file=<rootDir>/src/logging/program-gen.ts
+```twoslash include program
+// program.ts
+import { Effect } from "effect"
 
+const task1 = Effect.gen(function* (_) {
+  yield* _(Effect.sleep("2 seconds"))
+  yield* _(Effect.logDebug("task1 done"))
+})
+
+const task2 = Effect.gen(function* (_) {
+  yield* _(Effect.sleep("1 seconds"))
+  yield* _(Effect.logDebug("task2 done"))
+})
+
+export const program = Effect.gen(function* (_) {
+  yield* _(Effect.log("start"))
+  yield* _(task1)
+  yield* _(task2)
+  yield* _(Effect.log("done"))
+})
+```
+
+```ts filename="program.ts" twoslash
+// @include: program
 ```
 
 </Tab>
 <Tab>
 
-```ts filename="program.ts" file=<rootDir>/src/logging/program.ts
+```ts filename="program.ts" twoslash
+// program.ts
+import { Effect } from "effect"
 
+const task1 = Effect.sleep("2 seconds").pipe(
+  Effect.flatMap(() => Effect.logDebug("task1 done"))
+)
+
+const task2 = Effect.sleep("1 seconds").pipe(
+  Effect.flatMap(() => Effect.logDebug("task2 done"))
+)
+
+export const program = Effect.log("start").pipe(
+  Effect.flatMap(() => task1),
+  Effect.flatMap(() => task2),
+  Effect.flatMap(() => Effect.log("done"))
+)
 ```
 
 </Tab>
@@ -251,15 +586,31 @@ Assuming we have defined the following program:
 
 To replace the default logger, we simply need to create a specific layer using `Logger.replace` and provide it to our program using `Effect.provide` before executing it:
 
-```ts filename="index.ts" file=<rootDir>/src/logging/index.ts
+```ts filename="index.ts" twoslash
+// @filename: CustomLogger.ts
+// @include: CustomLogger
 
+// @filename: program.ts
+// @include: program
+
+// @filename: index.ts
+// ---cut---
+import { Effect, Logger, LogLevel } from "effect"
+import * as CustomLogger from "./CustomLogger"
+import { program } from "./program"
+
+const layer = Logger.replace(Logger.defaultLogger, CustomLogger.logger)
+
+Effect.runPromise(
+  Effect.provide(Logger.withMinimumLogLevel(program, LogLevel.Debug), layer)
+)
 ```
 
 This is what we see printed on the console after executing the program:
 
-```ansi
-[1m[INFO] start[0m
+```
+[INFO] start
 [DEBUG] task1 done
 [DEBUG] task2 done
-[1m[INFO] done[0m
+[INFO] done
 ```

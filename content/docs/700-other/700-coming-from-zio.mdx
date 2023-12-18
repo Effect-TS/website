@@ -10,13 +10,36 @@ If you are coming to Effect from ZIO, there are a few differences to be aware of
 
 In Effect, we represent the environment required to run an `Effect` workflow as a union of services:
 
-```ts file=<rootDir>/src/coming-from-zio/environment.ts
+```ts twoslash
+import { Effect } from "effect"
 
+//                           v---------v---- `R` is a union of Console | Logger
+type Http = Effect.Effect<Console | Logger, IOError | HttpError, Response>
+
+type Response = Record<string, string>
+
+interface IOError {
+  readonly _tag: "IOError"
+}
+
+interface HttpError {
+  readonly _tag: "HttpError"
+}
+
+interface Console {
+  readonly log: (msg: string) => void
+}
+
+interface Logger {
+  readonly log: (msg: string) => void
+}
 ```
 
 This may be confusing to folks coming from ZIO, where the environment is represented as an intersection of services:
 
-`type Http = ZIO[Console with Logger, IOError, Response]`
+```scala
+type Http = ZIO[Console with Logger, IOError, Response]
+```
 
 ## Rationale
 
@@ -24,8 +47,19 @@ The rationale for using a union to represent the environment required by an `Eff
 
 To be able to remove `Has` from Effect, we had to think a bit more structurally given that TypeScript is a structural type system. In TypeScript, if you have a type `A & B` where there is a structural conflict between `A` and `B`, the type `A & B` will reduce to `never`.
 
-```ts {11} file=<rootDir>/src/coming-from-zio/A-intersect-B.ts
+```ts twoslash
+// @errors: 2322
+export interface A {
+  readonly prop: string
+}
 
+export interface B {
+  readonly prop: number
+}
+
+const ab: A & B = {
+  prop: ""
+}
 ```
 
 In previous versions of Effect, intersections were used for representing an environment with multiple services. The problem with using intersections (i.e. `A & B`) is that there could be multiple services in the environment that have functions and properties named in the same way. To remedy this, we wrapped services in the `Has` type (similar to ZIO 1.0), so you would have `Has<A> & Has<B>` in your environment.
@@ -36,8 +70,18 @@ To faciliate removal of `Has` in Effect, we had to consider how types in the env
 
 From our example above:
 
-```ts file=<rootDir>/src/coming-from-zio/A-union-B.ts
+```ts twoslash
+export interface A {
+  readonly prop: string
+}
 
+export interface B {
+  readonly prop: number
+}
+
+const ab: A | B = {
+  prop: ""
+}
 ```
 
 Representing `R` as a covariant type parameter containing the union of services required by an `Effect` workflow allowed us to remove the requirement for `Has`.

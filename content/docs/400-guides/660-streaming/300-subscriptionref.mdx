@@ -21,29 +21,56 @@ The `changes` stream is where the magic happens. It lets you observe the current
 
 To create a `SubscriptionRef`, you can use the `make` constructor, specifying the initial value:
 
-```ts file=<rootDir>/src/streaming/subscriptionref/make.ts
+```ts twoslash
+import { SubscriptionRef } from "effect"
 
+const ref = SubscriptionRef.make(0)
 ```
 
 A `SubscriptionRef` can be invaluable when modeling shared state, especially when multiple observers need to react to every change in that shared state. For example, in a functional reactive programming context, the `SubscriptionRef` value might represent a part of the application state, and each observer could update various user interface elements based on changes to that state.
 
 To see how this works, let's create a simple example where a "server" repeatedly updates a value observed by multiple "clients":
 
-```ts file=<rootDir>/src/streaming/subscriptionref/server.ts#L0-L4
+```ts twoslash
+import { Ref, Effect } from "effect"
 
+const server = (ref: Ref.Ref<number>) =>
+  Ref.update(ref, (n) => n + 1).pipe(Effect.forever)
 ```
 
 Note that the `server` function operates on a regular `Ref` and doesn't need to know about `SubscriptionRef`. It simply updates a value.
 
-```ts file=<rootDir>/src/streaming/subscriptionref/server.ts#L6-L11
+```ts twoslash
+import { Ref, Effect, Stream, Random } from "effect"
 
+const server = (ref: Ref.Ref<number>) =>
+  Ref.update(ref, (n) => n + 1).pipe(Effect.forever)
+
+const client = (changes: Stream.Stream<never, never, number>) =>
+  Effect.gen(function* (_) {
+    const n = yield* _(Random.nextIntBetween(1, 10))
+    const chunk = yield* _(Stream.runCollect(Stream.take(changes, n)))
+    return chunk
+  })
 ```
 
 Similarly, the `client` function only works with a `Stream` of values and doesn't concern itself with the source of these values.
 
 To tie everything together, we start the server, launch multiple client instances in parallel, and then shut down the server when we're finished. We also create the `SubscriptionRef` in this process.
 
-```ts file=<rootDir>/src/streaming/subscriptionref/server.ts#L13-
+```ts twoslash
+import { Ref, Effect, Stream, Random, SubscriptionRef, Fiber } from "effect"
+
+const server = (ref: Ref.Ref<number>) =>
+  Ref.update(ref, (n) => n + 1).pipe(Effect.forever)
+
+const client = (changes: Stream.Stream<never, never, number>) =>
+  Effect.gen(function* (_) {
+    const n = yield* _(Random.nextIntBetween(1, 10))
+    const chunk = yield* _(Stream.runCollect(Stream.take(changes, n)))
+    return chunk
+  })
+
 const program = Effect.gen(function* (_) {
   const ref = yield* _(SubscriptionRef.make(0))
   const serverFiber = yield* _(Effect.fork(server(ref)))

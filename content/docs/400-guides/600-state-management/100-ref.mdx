@@ -20,8 +20,27 @@ Let's dive in and see how we can leverage `Ref` for effective state management i
 
 Let's explore how to use the `Ref` data type with a simple example of a counter:
 
-```ts filename="Counter.ts" file=<rootDir>/src/guide/state-management/ref/Counter.ts
+```twoslash include Counter
+// Counter.ts
+import { Effect, Ref } from "effect"
 
+export class Counter {
+  inc: Effect.Effect<never, never, void>
+  dec: Effect.Effect<never, never, void>
+  get: Effect.Effect<never, never, number>
+
+  constructor(private value: Ref.Ref<number>) {
+    this.inc = Ref.update(this.value, (n) => n + 1)
+    this.dec = Ref.update(this.value, (n) => n - 1)
+    this.get = Ref.get(this.value)
+  }
+}
+
+export const make = Effect.map(Ref.make(0), (value) => new Counter(value))
+```
+
+```ts filename="Counter.ts" twoslash
+// @include: Counter
 ```
 
 Here is the usage example of the `Counter`:
@@ -29,22 +48,71 @@ Here is the usage example of the `Counter`:
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/state-management/ref/example-1-gen.ts
+```ts twoslash
+// @filename: Counter.ts
+// @include: Counter
 
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import * as Counter from "./Counter"
+
+const program = Effect.gen(function* (_) {
+  const counter = yield* _(Counter.make)
+  yield* _(counter.inc)
+  yield* _(counter.inc)
+  yield* _(counter.dec)
+  yield* _(counter.inc)
+  const value = yield* _(counter.get)
+  console.log(`This counter has a value of ${value}.`)
+})
+
+Effect.runPromise(program)
+/*
+Output:
+This counter has a value of 2.
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/state-management/ref/example-1-pipe.ts
+```ts twoslash
+// @filename: Counter.ts
+// @include: Counter
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Console } from "effect"
+import * as Counter from "./Counter"
+
+const program = Counter.make.pipe(
+  Effect.flatMap((counter) =>
+    counter.inc.pipe(
+      Effect.flatMap(() => counter.inc),
+      Effect.flatMap(() => counter.dec),
+      Effect.flatMap(() => counter.inc),
+      Effect.flatMap(() => counter.get),
+      Effect.flatMap((value) =>
+        Console.log(`This counter has a value of ${value}.`)
+      )
+    )
+  )
+)
+
+Effect.runPromise(program)
+/*
+This counter has a value of 2.
+*/
 ```
 
 </Tab>
 </Tabs>
 
 <Info>
-  All the operations on the `Ref` data type are effectful. So when we are reading from or writing to a `Ref`, we are performing an effectful operation.
+  All the operations on the `Ref` data type are effectful. So when we are
+  reading from or writing to a `Ref`, we are performing an effectful
+  operation.
 </Info>
 
 ## Using Ref in a Concurrent Environment
@@ -55,15 +123,94 @@ For this example, let's update the counter concurrently:
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/state-management/ref/example-1-concurrent-gen.ts
+```ts twoslash
+// @filename: Counter.ts
+// @include: Counter
 
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import * as Counter from "./Counter"
+
+const program = Effect.gen(function* (_) {
+  const counter = yield* _(Counter.make)
+
+  const logCounter = <R, E, A>(
+    label: string,
+    effect: Effect.Effect<R, E, A>
+  ) =>
+    Effect.gen(function* (_) {
+      const value = yield* _(counter.get)
+      yield* _(Effect.log(`${label} get: ${value}`))
+      return yield* _(effect)
+    })
+
+  yield* _(
+    logCounter("task 1", counter.inc).pipe(
+      Effect.zip(logCounter("task 2", counter.inc), { concurrent: true }),
+      Effect.zip(logCounter("task 3", counter.dec), { concurrent: true }),
+      Effect.zip(logCounter("task 4", counter.inc), { concurrent: true })
+    )
+  )
+  const value = yield* _(counter.get)
+  yield* _(Effect.log(`This counter has a value of ${value}.`))
+})
+
+Effect.runPromise(program)
+/*
+Output:
+... fiber=#2 message="task 4 get: 0"
+... fiber=#4 message="task 3 get: 1"
+... fiber=#5 message="task 1 get: 0"
+... fiber=#5 message="task 2 get: 1"
+... fiber=#0 message="This counter has a value of 2."
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/state-management/ref/example-1-concurrent-pipe.ts
+```ts twoslash
+// @filename: Counter.ts
+// @include: Counter
 
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import * as Counter from "./Counter"
+
+const program = Counter.make.pipe(
+  Effect.flatMap((counter) => {
+    const logCounter = <R, E, A>(
+      label: string,
+      effect: Effect.Effect<R, E, A>
+    ) =>
+      counter.get.pipe(
+        Effect.flatMap((value) => Effect.log(`${label} get: ${value}`)),
+        Effect.flatMap(() => effect)
+      )
+
+    return logCounter("task 1", counter.inc).pipe(
+      Effect.zip(logCounter("task 2", counter.inc), { concurrent: true }),
+      Effect.zip(logCounter("task 3", counter.dec), { concurrent: true }),
+      Effect.zip(logCounter("task 4", counter.inc), { concurrent: true }),
+      Effect.flatMap(() => counter.get),
+      Effect.flatMap((value) =>
+        Effect.log(`This counter has a value of ${value}.`)
+      )
+    )
+  })
+)
+
+Effect.runPromise(program)
+/*
+Output:
+... fiber=#2 message="task 4 get: 0"
+... fiber=#4 message="task 3 get: 1"
+... fiber=#5 message="task 1 get: 0"
+... fiber=#5 message="task 2 get: 1"
+... fiber=#0 message="This counter has a value of 2."
+*/
 ```
 
 </Tab>
@@ -76,15 +223,105 @@ You can also pass a `Ref` as a [service](../context-management/services) to shar
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/state-management/ref/ref-as-service-gen.ts
+```ts twoslash
+import { Effect, Context, Ref } from "effect"
 
+// Define a custom type for our state
+interface MyState extends Ref.Ref<number> {}
+
+// Create a Tag for our state
+const MyState = Context.Tag<MyState>()
+
+// Subprogram 1: Increment the state value twice
+const subprogram1 = Effect.gen(function* (_) {
+  const state = yield* _(MyState)
+  yield* _(Ref.update(state, (n) => n + 1))
+  yield* _(Ref.update(state, (n) => n + 1))
+})
+
+// Subprogram 2: Decrement the state value and then increment it
+const subprogram2 = Effect.gen(function* (_) {
+  const state = yield* _(MyState)
+  yield* _(Ref.update(state, (n) => n - 1))
+  yield* _(Ref.update(state, (n) => n + 1))
+})
+
+// Subprogram 3: Read and log the current value of the state
+const subprogram3 = Effect.gen(function* (_) {
+  const state = yield* _(MyState)
+  const value = yield* _(Ref.get(state))
+  console.log(`MyState has a value of ${value}.`)
+})
+
+// Compose subprograms 1, 2, and 3 to create the main program
+const program = Effect.gen(function* (_) {
+  yield* _(subprogram1)
+  yield* _(subprogram2)
+  yield* _(subprogram3)
+})
+
+// Create a Ref instance with an initial value of 0
+const initialState = Ref.make(0)
+
+// Provide the Ref as a service
+const runnable = Effect.provideServiceEffect(program, MyState, initialState)
+
+// Run the program and observe the output
+Effect.runPromise(runnable)
+/*
+Output:
+MyState has a value of 2.
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/state-management/ref/ref-as-service-pipe.ts
+```ts twoslash
+import { Effect, Context, Ref, Console } from "effect"
 
+// Define a custom type for our state
+interface MyState extends Ref.Ref<number> {}
+
+// Create a Tag for our state
+const MyState = Context.Tag<MyState>()
+
+// Subprogram 1: Increment the state value twice
+const subprogram1 = MyState.pipe(
+  Effect.tap((state) => Ref.update(state, (n) => n + 1)),
+  Effect.flatMap((state) => Ref.update(state, (n) => n + 1))
+)
+
+// Subprogram 2: Decrement the state value and then increment it
+const subprogram2 = MyState.pipe(
+  Effect.tap((state) => Ref.update(state, (n) => n - 1)),
+  Effect.flatMap((state) => Ref.update(state, (n) => n + 1))
+)
+
+// Subprogram 3: Read and log the current value of the state
+const subprogram3 = MyState.pipe(
+  Effect.flatMap((state) => Ref.get(state)),
+  Effect.flatMap((value) => Console.log(`MyState has a value of ${value}.`))
+)
+
+// Compose subprograms 1, 2, and 3 to create the main program
+const program = subprogram1.pipe(
+  Effect.flatMap(() => subprogram2),
+  Effect.flatMap(() => subprogram3)
+)
+
+// Create a Ref instance with an initial value of 0
+const initialState = Ref.make(0)
+
+// Provide the Ref as a service
+const runnable = Effect.provideServiceEffect(program, MyState, initialState)
+
+// Run the program and observe the output
+Effect.runPromise(runnable)
+/*
+Output:
+MyState has a value of 2.
+*/
 ```
 
 </Tab>
@@ -98,8 +335,32 @@ Let's consider an example where we want to read names from user input until the 
 
 First, let's introduce a `readLine` utility to read user input (ensure you have `@types/node` installed):
 
-```ts filename="ReadLine.ts" file=<rootDir>/src/guide/state-management/ref/ReadLine.ts
+```twoslash include ReadLine
+// @types: node
+// ReadLine.ts
+import { Effect } from "effect"
+import * as NodeReadLine from "node:readline"
 
+export const readLine = (
+  message: string
+): Effect.Effect<never, never, string> =>
+  Effect.promise(
+    () =>
+      new Promise((resolve) => {
+        const rl = NodeReadLine.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        })
+        rl.question(message, (answer) => {
+          rl.close()
+          resolve(answer)
+        })
+      })
+  )
+```
+
+```ts filename="ReadLine.ts" twoslash
+// @include: ReadLine
 ```
 
 Now, let's take a look at the main program:
@@ -107,15 +368,83 @@ Now, let's take a look at the main program:
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/state-management/ref/example-2-gen.ts
+```ts twoslash
+// @filename: ReadLine.ts
+// @include: ReadLine
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Chunk, Ref } from "effect"
+import * as ReadLine from "./ReadLine"
+
+const getNames = Effect.gen(function* (_) {
+  const ref = yield* _(Ref.make(Chunk.empty<string>()))
+  while (true) {
+    const name = yield* _(
+      ReadLine.readLine("Please enter a name or `q` to exit: ")
+    )
+    if (name === "q") {
+      break
+    }
+    yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
+  }
+  return yield* _(Ref.get(ref))
+})
+
+Effect.runPromise(getNames).then(console.log)
+/*
+Output:
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+{
+  _id: "Chunk",
+  values: [ "Alice", "Bob" ]
+}
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/state-management/ref/example-2-pipe.ts
+```ts twoslash
+// @filename: ReadLine.ts
+// @include: ReadLine
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Chunk, Ref } from "effect"
+import * as ReadLine from "./ReadLine"
+
+const getNames = Ref.make(Chunk.empty<string>()).pipe(
+  Effect.flatMap((ref) =>
+    ReadLine.readLine("Please enter a name or `q` to exit: ").pipe(
+      Effect.repeatWhileEffect((name) => {
+        if (name === "q") {
+          return Effect.succeed(false)
+        } else {
+          return ref.pipe(
+            Ref.update((state) => Chunk.append(state, name)),
+            Effect.as(true)
+          )
+        }
+      }),
+      Effect.flatMap(() => Ref.get(ref))
+    )
+  )
+)
+
+Effect.runPromise(getNames).then(console.log)
+/*
+Output:
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+{
+  _id: "Chunk",
+  values: [ "Alice", "Bob" ]
+}
+*/
 ```
 
 </Tab>
@@ -126,15 +455,120 @@ Now that we have learned how to use the `Ref` data type, we can use it to manage
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```ts file=<rootDir>/src/guide/state-management/ref/example-2-concurrent-gen.ts
+```ts twoslash
+// @filename: ReadLine.ts
+// @include: ReadLine
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Chunk, Ref, Fiber } from "effect"
+import * as ReadLine from "./ReadLine"
+
+const getNames = Effect.gen(function* (_) {
+  const ref = yield* _(Ref.make(Chunk.empty<string>()))
+  const fiber1 = yield* _(
+    Effect.fork(
+      Effect.gen(function* (_) {
+        while (true) {
+          const name = yield* _(
+            ReadLine.readLine("Please enter a name or `q` to exit: ")
+          )
+          if (name === "q") {
+            break
+          }
+          yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
+        }
+      })
+    )
+  )
+  const fiber2 = yield* _(
+    Effect.fork(
+      Effect.gen(function* (_) {
+        for (const name of ["John", "Jane", "Joe", "Tom"]) {
+          yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
+          yield* _(Effect.sleep("1 seconds"))
+        }
+      })
+    )
+  )
+  yield* _(Fiber.join(fiber1))
+  yield* _(Fiber.join(fiber2))
+  return yield* _(Ref.get(ref))
+})
+
+Effect.runPromise(getNames).then(console.log)
+/*
+Output:
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+{
+  _id: "Chunk",
+  values: [ ... ]
+}
+*/
 ```
 
 </Tab>
 <Tab>
 
-```ts file=<rootDir>/src/guide/state-management/ref/example-2-concurrent-pipe.ts
+```ts twoslash
+// @filename: ReadLine.ts
+// @include: ReadLine
 
+// @filename: index.ts
+// ---cut---
+import { Effect, Chunk, Ref, Fiber } from "effect"
+import * as ReadLine from "./ReadLine"
+
+const getNames = Ref.make(Chunk.empty<string>()).pipe(
+  Effect.flatMap((ref) => {
+    const fiber1 = ReadLine.readLine(
+      "Please enter a name or `q` to exit: "
+    ).pipe(
+      Effect.repeatWhileEffect((name) => {
+        if (name === "q") {
+          return Effect.succeed(false)
+        } else {
+          return ref.pipe(
+            Ref.update((state) => Chunk.append(state, name)),
+            Effect.as(true)
+          )
+        }
+      }),
+      Effect.fork
+    )
+    const fiber2 = Effect.fork(
+      Effect.forEach(
+        ["John", "Jane", "Joe", "Tom"],
+        (name) =>
+          ref.pipe(
+            Ref.update((state) => Chunk.append(state, name)),
+            Effect.flatMap(() => Effect.sleep("1 seconds"))
+          ),
+        { concurrency: "unbounded", discard: true }
+      )
+    )
+    return Effect.all([fiber1, fiber2]).pipe(
+      Effect.flatMap(([f1, f2]) =>
+        Fiber.join(f1).pipe(Effect.flatMap(() => Fiber.join(f2)))
+      ),
+      Effect.flatMap(() => Ref.get(ref))
+    )
+  })
+)
+
+Effect.runPromise(getNames).then(console.log)
+/*
+Output:
+Please enter a name or `q` to exit: Alice
+Please enter a name or `q` to exit: Bob
+Please enter a name or `q` to exit: q
+{
+  _id: "Chunk",
+  values: [ ... ]
+}
+*/
 ```
 
 </Tab>

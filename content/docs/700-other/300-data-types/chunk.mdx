@@ -21,66 +21,100 @@ Let's explore the reasons behind using `Chunk`:
 
 To create an empty `Chunk`, you can use the following code:
 
-```ts file=<rootDir>/src/reference/data-types/chunk/empty.ts
+```ts twoslash
+import { Chunk } from "effect"
 
+const emptyChunk = Chunk.empty()
 ```
 
 If you want to create a `Chunk` with specific values, you can use the `Chunk.make(...values){:ts}` function:
 
-```ts file=<rootDir>/src/reference/data-types/chunk/make.ts
+```ts twoslash
+import { Chunk } from "effect"
 
+const nonEmptyChunk = Chunk.make(1, 2, 3)
 ```
 
 Alternatively, you can create a `Chunk` by providing a collection of values. There are multiple ways to achieve this:
 
 - Creating a `Chunk` from a generic `Iterable`:
 
-  ```ts file=<rootDir>/src/reference/data-types/chunk/fromIterable.ts
+  ```ts twoslash
+  import { Chunk, List } from "effect"
 
+  const fromArray = Chunk.fromIterable([1, 2, 3])
+
+  const fromList = Chunk.fromIterable(List.make(1, 2, 3))
   ```
 
 - Creating a `Chunk` from an `Array`:
 
-  ```ts file=<rootDir>/src/reference/data-types/chunk/unsafeFromArray.ts
+  ```ts twoslash
+  import { Chunk } from "effect"
 
+  const fromUnsafeArray = Chunk.unsafeFromArray([1, 2, 3])
   ```
 
 `Chunk.fromIterable` makes a chunk by cloning the iterable, which can be an expensive process for large iterables or when making many Chunks. `unsafeFromArray` doesn't do any cloning which can have performance benefits, but this breaks the assumption that Chunk is immutable.
 
 <Warning>
   It is important to note that using `unsafeFromArray` can potentially lead to
-  unsafe or unexpected behavior if the input array is mutated after conversion.
-  If you want to ensure safety, it is recommended to use `fromIterable`.
+  unsafe or unexpected behavior if the input array is mutated after
+  conversion. If you want to ensure safety, it is recommended to use
+  `fromIterable`.
 </Warning>
 
 ### Concatenating
 
 You can concatenate two Chunks using the `appendAll` function:
 
-```ts file=<rootDir>/src/reference/data-types/chunk/appendAll.ts
+```ts twoslash
+import { Chunk } from "effect"
 
+const concatenatedChunk = Chunk.appendAll(
+  Chunk.make(1, 2),
+  Chunk.make("a", "b")
+)
+
+console.log(concatenatedChunk)
+/*
+Output:
+{
+  _id: "Chunk",
+  values: [ 1, 2, "a", "b" ]
+}
+*/
 ```
 
 ### Dropping
 
 To drop elements from the beginning of a `Chunk`, you can use the `drop` function:
 
-```ts file=<rootDir>/src/reference/data-types/chunk/drop.ts
+```ts twoslash
+import { Chunk } from "effect"
 
+const droppedChunk = Chunk.drop(Chunk.make(1, 2, 3, 4), 2) // Drops the first 2 elements from the Chunk
 ```
 
 ### Comparing
 
 You can compare two `Chunk`s for equality using the `Equal.equals` function:
 
-```ts file=<rootDir>/src/reference/data-types/chunk/equals.ts
+```ts twoslash
+import { Chunk, Equal } from "effect"
 
+const chunk1 = Chunk.make(1, 2)
+const chunk2 = Chunk.make(1, 2, 3)
+
+const areEqual = Equal.equals(chunk1, chunk2)
 ```
 
 ### Converting
 
 To convert a `Chunk` to a `ReadonlyArray`, you can use the `toReadonlyArray` function:
 
-```ts file=<rootDir>/src/reference/data-types/chunk/toReadonlyArray.ts
+```ts twoslash
+import { Chunk } from "effect"
 
+const readonlyArray = Chunk.toReadonlyArray(Chunk.make(1, 2, 3))
 ```
