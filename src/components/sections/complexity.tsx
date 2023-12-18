@@ -196,37 +196,55 @@ const getTodo = (
       withoutEffect: {
         fileName: 'index.ts',
         code: `\
-async function getTodo(
+function getTodo(
   id: number,
-  retries = 3,
+  {
+    retries = 3,
+    retryBaseDelay = 1000,
+  }: { retries?: number; retryBaseDelay?: number },
 ): Promise<
   | { ok: true; todo: any }
   | { ok: false; error: "InvalidJson" | "RequestFailed" }
 > {
-  try {
-    const response = await fetch(\`/todos/\${id}\`)
-    if (!response.ok) throw new Error("Not OK!")
+  async function execute(
+    attempt: number,
+  ): Promise<
+    | { ok: true; todo: any }
+    | { ok: false; error: "InvalidJson" | "RequestFailed" }
+  > {
     try {
-      const todo = await response.json()
-      return { ok: true, todo }
-    } catch (jsonError) {
-      if (retries > 0) {
-        return getTodo(id, retries - 1)
+      const response = await fetch(\`/todos/\${id}\`)
+      if (!response.ok) throw new Error("Not OK!")
+      try {
+        const todo = await response.json()
+        return { ok: true, todo }
+      } catch (jsonError) {
+        if (attempt < retries) {
+          throw jsonError // jump to retry
+        }
+        return { ok: false, error: "InvalidJson" }
       }
-      return { ok: false, error: "InvalidJson" }
+    } catch (error) {
+      if (attempt < retries) {
+        const delayMs = retryBaseDelay * 2 ** attempt
+        return new Promise((resolve) =>
+          setTimeout(
+            () => resolve(execute(attempt + 1)),
+            delayMs,
+          ),
+        )
+      }
+      return { ok: false, error: "RequestFailed" }
     }
-  } catch (error) {
-    if (retries > 0) {
-      return getTodo(id, retries - 1)
-    }
-    return { ok: false, error: "RequestFailed" }
   }
+
+  return execute(0)
 }\
       `,
         highlights: [
           {
             color: '#39300D',
-            lines: [3, 15, 16, 17, 21, 22, 23]
+            lines: [3, 4, 5, 6, 12, 24, 25, 26, 30, 31, 32, 33, 34, 35, 36, 37, 38, 43]
           },
         ]
       },
@@ -239,7 +257,7 @@ const getTodo = (
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
     Effect.flatMap((response) => response.json),
-    Effect.retryN(3),
+    Effect.retry(Schedule.exponential(1000)),
   )\
       `,
         highlights: [
@@ -257,13 +275,15 @@ const getTodo = (
       withoutEffect: {
         fileName: 'index.ts',
         code: `\
-async function getTodo(
+function getTodo(
   id: number,
   {
     retries = 3,
+    retryBaseDelay = 1000,
     signal,
   }: {
     retries?: number
+    retryBaseDelay?: number
     signal?: AbortSignal
   },
 ): Promise<
@@ -273,118 +293,7 @@ async function getTodo(
       error: "InvalidJson" | "RequestFailed" | "Timeout"
     }
 > {
-  try {
-    const controller = new AbortController()
-    setTimeout(() => controller.abort(), 1000)
-    signal?.addEventListener(
-      "abort",
-      () => controller.abort()
-    )
-    const response = await fetch(\`/todos/\${id}\`, {
-      signal: controller.signal,
-    })
-    if (!response.ok) throw new Error("Not OK!")
-    try {
-      const todo = await response.json()
-      return { ok: true, todo }
-    } catch (jsonError) {
-      if (retries > 0) {
-        return getTodo(id, {
-          retries: retries - 1,
-          signal
-        })
-      }
-      return { ok: false, error: "InvalidJson" }
-    }
-  } catch (error) {
-    if ((error as Error).name === "AbortError") {
-      return { ok: false, error: "Timeout" }
-    } else if (retries > 0) {
-      return getTodo(id, {
-        retries: retries - 1,
-        signal
-      })
-    }
-    return { ok: false, error: "RequestFailed" }
-  }
-}
-      `,
-        highlights: [
-          {
-            color: '#28233B',
-            lines: [5, 8, 14, 18, 19, 20, 21, 22, 23, 35, 41, 42, 46]
-          },
-        ]
-      },
-      withEffect: {
-        fileName: 'index.ts',
-        code: `\
-const getTodo = (
-  id: number
-): Effect.Effect<
-  never,
-  HttpClientError | NoSuchElementException,
-  unknown
-> =>
-  Http.request.get(\`/todos/\${id}\`).pipe(
-    Http.client.fetchOk(),
-    Effect.flatMap((response) => response.json),
-    Effect.timeout("1 seconds"),
-    Effect.retryN(3),
-  )\
-      `,
-        highlights: [
-          {
-            color: '#28233B',
-            lines: [5, 11]
-          },
-        ]
-      }
-    },
-    {
-      name: 'Observability',
-      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
-      color: '#10322E',
-      withoutEffect: {
-        fileName: 'index.ts',
-        code: `\
-const tracer = Otel.trace.getTracer("todos")
-
-async function getTodo(
-  id: number,
-  {
-    signal,
-    retries,
-  }: { retries?: number; signal?: AbortSignal },
-): Promise<
-  | { ok: true; todo: any }
-  | {
-      ok: false
-      error: "InvalidJson" | "RequestFailed" | "Timeout"
-    }
-> {
-  return tracer.startActiveSpan(
-    "getTodo",
-    { attributes: { id } },
-    async (span) => {
-      try {
-        const result = await getTodoRetry(retries)
-        if (result.ok) {
-          span.setStatus({ code: Otel.SpanStatusCode.OK })
-        } else {
-          span.setStatus({
-            code: Otel.SpanStatusCode.ERROR,
-            message: result.error,
-          })
-        }
-        return result
-      } finally {
-        span.end()
-      }
-    },
-  )
-
-  async function getTodoRetry(retries = 3): Promise<
+  async function execute(attempt: number): Promise<
     | { ok: true; todo: any }
     | {
         ok: false
@@ -405,27 +314,34 @@ async function getTodo(
         const todo = await response.json()
         return { ok: true, todo }
       } catch (jsonError) {
-        if (retries > 0) {
-          return getTodoRetry(retries - 1)
+        if (attempt < retries) {
+          throw jsonError // jump to retry
         }
         return { ok: false, error: "InvalidJson" }
       }
     } catch (error) {
       if ((error as Error).name === "AbortError") {
         return { ok: false, error: "Timeout" }
-      } else if (retries > 0) {
-        return getTodoRetry(retries - 1)
+      } else if (attempt < retries) {
+        const delayMs = retryBaseDelay * 2 ** attempt
+        return new Promise((resolve) =>
+          setTimeout(
+            () => resolve(execute(attempt + 1)),
+            delayMs,
+          ),
+        )
       }
       return { ok: false, error: "RequestFailed" }
     }
   }
-}
 
+  return execute(0)
+}\
       `,
         highlights: [
           {
-            color: '#10322E',
-            lines: [1, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+            color: '#28233B',
+            lines: [6, 10, 16, 23, 27, 28, 29, 30, 31, 33, 46, 47]
           },
         ]
       },
@@ -443,7 +359,130 @@ const getTodo = (
     Http.client.fetchOk(),
     Effect.flatMap((response) => response.json),
     Effect.timeout("1 seconds"),
-    Effect.retryN(3),
+    Effect.retry(Schedule.exponential(1000)),
+  )\
+      `,
+        highlights: [
+          {
+            color: '#28233B',
+            lines: [5, 11]
+          },
+        ]
+      }
+    },
+    {
+      name: 'Observability',
+      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
+      color: '#10322E',
+      withoutEffect: {
+        fileName: 'index.ts',
+        code: `\
+const tracer = Otel.trace.getTracer("todos")
+
+function getTodo(
+  id: number,
+  {
+    retries = 3,
+    retryBaseDelay = 1000,
+    signal,
+  }: {
+    retries?: number
+    retryBaseDelay?: number
+    signal?: AbortSignal
+  },
+): Promise<
+  | { ok: true; todo: any }
+  | {
+      ok: false
+      error: "InvalidJson" | "RequestFailed" | "Timeout"
+    }
+> {
+  return tracer.startActiveSpan(
+    "getTodo",
+    { attributes: { id } },
+    async (span) => {
+      try {
+        const result = await execute(0)
+        if (result.ok) {
+          span.setStatus({ code: Otel.SpanStatusCode.OK })
+        } else {
+          span.setStatus({
+            code: Otel.SpanStatusCode.ERROR,
+            message: result.error,
+          })
+        }
+        return result
+      } finally {
+        span.end()
+      }
+    },
+  )
+
+  async function execute(attempt: number): Promise<
+    | { ok: true; todo: any }
+    | {
+        ok: false
+        error: "InvalidJson" | "RequestFailed" | "Timeout"
+      }
+  > {
+    try {
+      const controller = new AbortController()
+      setTimeout(() => controller.abort(), 1000)
+      signal?.addEventListener("abort", () =>
+        controller.abort(),
+      )
+      const response = await fetch(\`/todos/\${id}\`, {
+        signal: controller.signal,
+      })
+      if (!response.ok) throw new Error("Not OK!")
+      try {
+        const todo = await response.json()
+        return { ok: true, todo }
+      } catch (jsonError) {
+        if (attempt < retries) {
+          throw jsonError // jump to retry
+        }
+        return { ok: false, error: "InvalidJson" }
+      }
+    } catch (error) {
+      if ((error as Error).name === "AbortError") {
+        return { ok: false, error: "Timeout" }
+      } else if (attempt < retries) {
+        const delayMs = retryBaseDelay * 2 ** attempt
+        return new Promise((resolve) =>
+          setTimeout(
+            () => resolve(execute(attempt + 1)),
+            delayMs,
+          ),
+        )
+      }
+      return { ok: false, error: "RequestFailed" }
+    }
+  }
+}\
+      `,
+        highlights: [
+          {
+            color: '#10322E',
+            lines: [1, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+          },
+        ]
+      },
+      withEffect: {
+        fileName: 'index.ts',
+        code: `\
+const getTodo = (
+  id: number
+): Effect.Effect<
+  never,
+  HttpClientError | NoSuchElementException,
+  unknown
+> =>
+  Http.request.get(\`/todos/\${id}\`).pipe(
+    Http.client.fetchOk(),
+    Effect.flatMap((response) => response.json),
+    Effect.timeout("1 seconds"),
+    Effect.retry(Schedule.exponential(1000)),
     Effect.withSpan("getTodo", { attributes: { id } }),
   )\
       `,
