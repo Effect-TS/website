@@ -143,29 +143,49 @@ const content = {
       withoutEffect: {
         fileName: 'index.ts',
         code: `\
-// This is some code
-// Showing how to handle errors
-// without using Effect.\
+async function getTodo(
+  id: number,
+): Promise<
+  | { ok: true; todo: any }
+  | { ok: false; error: "InvalidJson" | "RequestFailed" }
+> {
+  try {
+    const response = await fetch(\`/todos/\${id}\`)
+    if (!response.ok) throw new Error("Not OK!")
+    try {
+      const todo = await response.json()
+      return { ok: true, todo }
+    } catch (jsonError) {
+      return { ok: false, error: "InvalidJson" }
+    }
+  } catch (error) {
+    return { ok: false, error: "RequestFailed" }
+  }
+}\
       `,
         highlights: [
           {
             color: '#283413',
-            lines: [1, 2, 3]
-          }
+            lines: [4, 5, 9, 10, 12, 13, 14, 15, 16, 17]
+          },
         ]
       },
       withEffect: {
         fileName: 'index.ts',
         code: `\
-// This is some code
-// Showing how easy it is to
-// handle errors using Effect.\
+const getTodo = (
+  id: number
+): Effect.Effect<never, HttpClientError, unknown> =>
+  Http.request.get(\`/todos/\${id}\`).pipe(
+    Http.client.fetchOk(),
+    Effect.flatMap((response) => response.json),
+  )\
       `,
         highlights: [
           {
             color: '#283413',
-            lines: [1, 2, 3]
-          }
+            lines: [3]
+          },
         ]
       }
     },
@@ -176,109 +196,57 @@ const content = {
       withoutEffect: {
         fileName: 'index.ts',
         code: `\
-// This is some code
-// Showing how to handle errors
-// without using Effect.
-
-// And here we
-// add some code
-// to add retrys...\
-      `,
-        highlights: [
-          {
-            color: '#283413',
-            lines: [1, 2, 3]
-          },
-          {
-            color: '#39300D',
-            lines: [5, 6, 7]
-          }
-        ]
-      },
-      withEffect: {
-        fileName: 'index.ts',
-        code: `\
-// This is some code
-// Showing how easy it is to
-// handle errors using Effect.
-
-// And here we add retrys
-// using Effect.\
-      `,
-        highlights: [
-          {
-            color: '#283413',
-            lines: [1, 2, 3]
-          },
-          {
-            color: '#39300D',
-            lines: [5, 6]
-          }
-        ]
+async function getTodo(
+  id: number,
+  retries = 3,
+): Promise<
+  | { ok: true; todo: any }
+  | { ok: false; error: "InvalidJson" | "RequestFailed" }
+> {
+  try {
+    const response = await fetch(\`/todos/\${id}\`)
+    if (!response.ok) throw new Error("Not OK!")
+    try {
+      const todo = await response.json()
+      return { ok: true, todo }
+    } catch (jsonError) {
+      if (retries > 0) {
+        return getTodo(id, retries - 1)
       }
-    },
-    {
-      name: 'Observability',
-      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
-      color: '#10322E',
-      withoutEffect: {
-        fileName: 'index.ts',
-        code: `\
-// This is some code
-// Showing how to handle errors
-// without using Effect.
-
-// And here we
-// add some code
-// to add retrys...
-
-// Also, we want to show
-// how much more complex
-// the code gets with
-// observability when you
-// don't use Effect.\
+      return { ok: false, error: "InvalidJson" }
+    }
+  } catch (error) {
+    if (retries > 0) {
+      return getTodo(retries - 1)
+    }
+    return { ok: false, error: "RequestFailed" }
+  }
+}\
       `,
         highlights: [
           {
             color: '#283413',
-            lines: [1, 2, 3]
+            lines: [3, 15, 16, 17, 21, 22, 23]
           },
-          {
-            color: '#39300D',
-            lines: [5, 6, 7]
-          },
-          {
-            color: '#10322E',
-            lines: [9, 10, 11, 12, 13]
-          }
         ]
       },
       withEffect: {
         fileName: 'index.ts',
         code: `\
-// This is some code
-// Showing how easy it is to
-// handle errors using Effect.
-
-// And here we add retrys
-// using Effect.
-
-// Using Effect, adding
-// observability is easy.\
+const getTodo = (
+  id: number
+): Effect.Effect<never, HttpClientError, unknown> =>
+  Http.request.get(\`/todos/\${id}\`).pipe(
+    Http.client.fetchOk(),
+    Effect.flatMap((response) => response.json),
+    Effect.retryN(3),
+  )\
       `,
         highlights: [
           {
             color: '#283413',
-            lines: [1, 2, 3]
+            lines: [7]
           },
-          {
-            color: '#39300D',
-            lines: [5, 6]
-          },
-          {
-            color: '#10322E',
-            lines: [8, 9]
-          }
         ]
       }
     },
@@ -289,83 +257,213 @@ const content = {
       withoutEffect: {
         fileName: 'index.ts',
         code: `\
-// This is some code
-// Showing how to handle errors
-// without using Effect.
-
-// And here we
-// add some code
-// to add retrys...
-
-// Also, we want to show
-// how much more complex
-// the code gets with
-// observability when you
-// don't use Effect.
-
-// When also
-// adding
-// interruption,
-// you can
-// really see
-// how complex
-// the code gets...\
+async function getTodo(
+  id: number,
+  {
+    retries = 3,
+    signal,
+  }: {
+    retries?: number
+    signal?: AbortSignal
+  },
+): Promise<
+  | { ok: true; todo: any }
+  | {
+      ok: false
+      error: "InvalidJson" | "RequestFailed" | "Timeout"
+    }
+> {
+  try {
+    const controller = new AbortController()
+    setTimeout(() => controller.abort(), 1000)
+    signal?.addEventListener(
+      "abort",
+      () => controller.abort()
+    )
+    const response = await fetch(\`/todos/\${id}\`, {
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error("Not OK!")
+    try {
+      const todo = await response.json()
+      return { ok: true, todo }
+    } catch (jsonError) {
+      if (retries > 0) {
+        return getTodo(id, {
+          retries: retries - 1,
+          signal
+        })
+      }
+      return { ok: false, error: "InvalidJson" }
+    }
+  } catch (error) {
+    if ((error as Error).name === "AbortError") {
+      return { ok: false, error: "Timeout" }
+    } else if (retries > 0) {
+      return getTodo(id, {
+        retries: retries - 1,
+        signal
+      })
+    }
+    return { ok: false, error: "RequestFailed" }
+  }
+}
       `,
         highlights: [
           {
             color: '#283413',
-            lines: [1, 2, 3]
+            lines: [5, 8, 14, 18, 19, 20, 21, 22, 23, 35, 41, 42, 46]
           },
-          {
-            color: '#39300D',
-            lines: [5, 6, 7]
-          },
-          {
-            color: '#10322E',
-            lines: [9, 10, 11, 12, 13]
-          },
-          {
-            color: '#28233B',
-            lines: [15, 16, 17, 18, 19, 20, 21]
-          }
         ]
       },
       withEffect: {
         fileName: 'index.ts',
         code: `\
-// This is some code
-// Showing how easy it is to
-// handle errors using Effect.
+class Timeout extends Data.TaggedError("Timeout") {}
 
-// And here we add retrys
-// using Effect.
-
-// Using Effect, adding
-// observability is easy.
-
-// Adding interruptions
-// is probably easy
-// when using Effect.\
+const getTodo = (
+  id: number,
+): Effect.Effect<
+  never,
+  HttpClientError | Timeout,
+  unknown
+> =>
+  Http.request.get(\`/todos/\${id}\`).pipe(
+    Http.client.fetchOk(),
+    Effect.flatMap((response) => response.json),
+    Effect.timeoutFail({
+      duration: "1 seconds",
+      onTimeout: () => new Timeout()
+    }),
+    Effect.retryN(3),
+  )\
       `,
         highlights: [
           {
             color: '#283413',
-            lines: [1, 2, 3]
+            lines: [1, 7, 13, 14, 15, 16]
           },
-          {
-            color: '#39300D',
-            lines: [5, 6]
-          },
-          {
-            color: '#10322E',
-            lines: [8, 9]
-          },
-          {
-            color: '#28233B',
-            lines: [11, 12, 13]
-          }
         ]
       }
+    },
+    {
+      name: 'Observability',
+      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
+      color: '#10322E',
+      withoutEffect: {
+        fileName: 'index.ts',
+        code: `\
+const tracer = Otel.trace.getTracer("todos")
+
+async function getTodo(
+  id: number,
+  {
+    signal,
+    retries,
+  }: { retries?: number; signal?: AbortSignal },
+): Promise<
+  | { ok: true; todo: any }
+  | {
+      ok: false
+      error: "InvalidJson" | "RequestFailed" | "Timeout"
     }
+> {
+  return tracer.startActiveSpan(
+    "getTodo",
+    { attributes: { id } },
+    async (span) => {
+      try {
+        const result = await getTodoRetry(retries)
+        if (result.ok) {
+          span.setStatus({ code: Otel.SpanStatusCode.OK })
+        } else {
+          span.setStatus({
+            code: Otel.SpanStatusCode.ERROR,
+            message: result.error,
+          })
+        }
+        return result
+      } finally {
+        span.end()
+      }
+    },
+  )
+
+  async function getTodoRetry(retries = 3): Promise<
+    | { ok: true; todo: any }
+    | {
+        ok: false
+        error: "InvalidJson" | "RequestFailed" | "Timeout"
+      }
+  > {
+    try {
+      const controller = new AbortController()
+      setTimeout(() => controller.abort(), 1000)
+      signal?.addEventListener("abort", () =>
+        controller.abort(),
+      )
+      const response = await fetch(\`/todos/\${id}\`, {
+        signal: controller.signal,
+      })
+      if (!response.ok) throw new Error("Not OK!")
+      try {
+        const todo = await response.json()
+        return { ok: true, todo }
+      } catch (jsonError) {
+        if (retries > 0) {
+          return getTodoRetry(retries - 1)
+        }
+        return { ok: false, error: "InvalidJson" }
+      }
+    } catch (error) {
+      if ((error as Error).name === "AbortError") {
+        return { ok: false, error: "Timeout" }
+      } else if (retries > 0) {
+        return getTodoRetry(retries - 1)
+      }
+      return { ok: false, error: "RequestFailed" }
+    }
+  }
+}
+
+      `,
+        highlights: [
+          {
+            color: '#283413',
+            lines: [1, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+          },
+        ]
+      },
+      withEffect: {
+        fileName: 'index.ts',
+        code: `\
+class Timeout extends Data.TaggedError("Timeout") {}
+
+const getTodo = (
+  id: number,
+): Effect.Effect<
+  never,
+  HttpClientError | Timeout,
+  unknown
+> =>
+  Http.request.get(\`/todos/\${id}\`).pipe(
+    Http.client.fetchOk(),
+    Effect.flatMap((response) => response.json),
+    Effect.timeoutFail({
+      duration: "1 seconds",
+      onTimeout: () => new Timeout()
+    }),
+    Effect.retryN(3),
+    Effect.withSpan("getTodo", { attributes: { id } }),
+  )\
+      `,
+        highlights: [
+          {
+            color: '#283413',
+            lines: [18]
+          },
+        ]
+      }
+    },
   ]
 }
