@@ -33,18 +33,6 @@ const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS: RehypePrettyCodeOptions = {
     meta.replace(CODE_BLOCK_FILENAME_REGEX, "")
 }
 
-const conditionalShikiTwoslash = (options: any) => (tree: any, file: any) => {
-  const sourceFilePath = file.data.rawDocumentData.sourceFilePath
-  if (
-    sourceFilePath.includes("essentials") ||
-    sourceFilePath.includes("error-management") ||
-    sourceFilePath.includes("context-management")
-  ) {
-    // @ts-expect-error xxx
-    return remarkShikiTwoslash.default(options)(tree, file)
-  }
-}
-
 export default makeSource({
   contentDirPath: "content",
   contentDirExclude: ["src"],
