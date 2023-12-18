@@ -217,7 +217,7 @@ async function getTodo(
     }
   } catch (error) {
     if (retries > 0) {
-      return getTodo(retries - 1)
+      return getTodo(id, retries - 1)
     }
     return { ok: false, error: "RequestFailed" }
   }
