@@ -144,7 +144,7 @@ const content = {
         fileName: 'index.ts',
         code: `\
 async function getTodo(
-  id: number,
+  id: number
 ): Promise<
   | { ok: true; todo: any }
   | { ok: false; error: "InvalidJson" | "RequestFailed" }
@@ -197,7 +197,7 @@ const getTodo = (
         fileName: 'index.ts',
         code: `\
 function getTodo(
-  id: number,
+  id: number
   {
     retries = 3,
     retryBaseDelay = 1000,
@@ -207,7 +207,7 @@ function getTodo(
   | { ok: false; error: "InvalidJson" | "RequestFailed" }
 > {
   async function execute(
-    attempt: number,
+    attempt: number
   ): Promise<
     | { ok: true; todo: any }
     | { ok: false; error: "InvalidJson" | "RequestFailed" }
@@ -280,7 +280,7 @@ const getTodo = (
         fileName: 'index.ts',
         code: `\
 function getTodo(
-  id: number,
+  id: number
   {
     retries = 3,
     retryBaseDelay = 1000,
@@ -388,7 +388,7 @@ const getTodo = (
 const tracer = Otel.trace.getTracer("todos")
 
 function getTodo(
-  id: number,
+  id: number
   {
     retries = 3,
     retryBaseDelay = 1000,
