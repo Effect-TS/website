@@ -2,6 +2,7 @@ import { Breadcrumbs } from "@/components/atoms/breadcrumbs"
 import { MDX } from "@/components/atoms/mdx"
 import { ChildCards } from "@/components/docs/child-cards"
 import { MobileNavigation } from "@/components/docs/mobile-navigation"
+import { MobileTableOfContents } from "@/components/docs/mobile-table-of-contents"
 import { Pagination } from "@/components/docs/pagination"
 import { TableOfContents } from "@/components/docs/table-of-contents"
 import { Divider } from "@/components/layout/divider"
@@ -44,19 +45,24 @@ export default function Page({
     <>
       <main className="relative z-10 shrink grow md:pl-12 xl:pr-12 pb-24 -mt-2">
         <Breadcrumbs elements={breadcrumbs} />
-        <div className="flex items-center">
-          <MobileNavigation className="md:hidden" />
+        <div className="flex items-start">
+          <MobileNavigation className="mt-2 md:hidden" />
           <h2 className="grow shrink font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white">
             {page.title}
           </h2>
         </div>
         {page.lastEdited && (
           <div className="text-sm h-4 mt-1.5 mb-6">
-            Last edited {formatDistance(new Date(), new Date(page.lastEdited))}{" "}
-            ago.
+            Last edited{" "}
+            {formatDistance(new Date(), new Date(page.lastEdited))} ago.
           </div>
         )}
-        <div className="mt-12">
+        <MobileTableOfContents
+          elements={page.headings}
+          pageFilePath={page._raw.sourceFilePath}
+          pageTitle={page.title}
+        />
+        <div className="mt-6 xl:mt-12">
           <MDX content={page.body.code} />
         </div>
         {page.bottomNavigation !== "none" && (
