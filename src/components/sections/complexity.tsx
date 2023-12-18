@@ -107,7 +107,7 @@ export const Complexity = () => {
                   highlights: content.features[currentIndex].withoutEffect.highlights
                 }
               ]}
-              fixedHeight={410}
+              fixedHeight={310}
             />
           </div>
           <div className="flex flex-col items-center gap-6">
@@ -123,7 +123,7 @@ export const Complexity = () => {
                   highlights: content.features[currentIndex].withEffect.highlights
                 }
               ]}
-              fixedHeight={410}
+              fixedHeight={310}
             />
           </div>
         </div>
@@ -319,29 +319,24 @@ async function getTodo(
       withEffect: {
         fileName: 'index.ts',
         code: `\
-class Timeout extends Data.TaggedError("Timeout") {}
-
 const getTodo = (
-  id: number,
+  id: number
 ): Effect.Effect<
   never,
-  HttpClientError | Timeout,
+  HttpClientError | NoSuchElementException,
   unknown
 > =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
     Effect.flatMap((response) => response.json),
-    Effect.timeoutFail({
-      duration: "1 seconds",
-      onTimeout: () => new Timeout()
-    }),
+    Effect.timeout("1 seconds"),
     Effect.retryN(3),
   )\
       `,
         highlights: [
           {
             color: '#28233B',
-            lines: [1, 7, 13, 14, 15, 16]
+            lines: [5, 11]
           },
         ]
       }
@@ -437,22 +432,17 @@ async function getTodo(
       withEffect: {
         fileName: 'index.ts',
         code: `\
-class Timeout extends Data.TaggedError("Timeout") {}
-
 const getTodo = (
-  id: number,
+  id: number
 ): Effect.Effect<
   never,
-  HttpClientError | Timeout,
+  HttpClientError | NoSuchElementException,
   unknown
 > =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
     Effect.flatMap((response) => response.json),
-    Effect.timeoutFail({
-      duration: "1 seconds",
-      onTimeout: () => new Timeout()
-    }),
+    Effect.timeout("1 seconds"),
     Effect.retryN(3),
     Effect.withSpan("getTodo", { attributes: { id } }),
   )\
@@ -460,7 +450,7 @@ const getTodo = (
         highlights: [
           {
             color: '#10322E',
-            lines: [18]
+            lines: [13]
           },
         ]
       }
