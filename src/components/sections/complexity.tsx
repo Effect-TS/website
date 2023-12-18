@@ -107,7 +107,7 @@ export const Complexity = () => {
                   highlights: content.features[currentIndex].withoutEffect.highlights
                 }
               ]}
-              fixedHeight={310}
+              fixedHeight={390}
             />
           </div>
           <div className="flex flex-col items-center gap-6">
@@ -123,7 +123,7 @@ export const Complexity = () => {
                   highlights: content.features[currentIndex].withEffect.highlights
                 }
               ]}
-              fixedHeight={310}
+              fixedHeight={390}
             />
           </div>
         </div>
@@ -257,13 +257,17 @@ const getTodo = (
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
     Effect.flatMap((response) => response.json),
-    Effect.retry(Schedule.exponential(1000)),
+    Effect.retry(
+      Schedule.exponential(1000).pipe(
+        Schedule.compose(Schedule.recurs(3)),
+      ),
+    ),
   )\
       `,
         highlights: [
           {
             color: '#39300D',
-            lines: [7]
+            lines: [7, 8, 9, 10, 11]
           },
         ]
       }
@@ -359,7 +363,11 @@ const getTodo = (
     Http.client.fetchOk(),
     Effect.flatMap((response) => response.json),
     Effect.timeout("1 seconds"),
-    Effect.retry(Schedule.exponential(1000)),
+    Effect.retry(
+      Schedule.exponential(1000).pipe(
+        Schedule.compose(Schedule.recurs(3)),
+      ),
+    ),
   )\
       `,
         highlights: [
@@ -482,14 +490,18 @@ const getTodo = (
     Http.client.fetchOk(),
     Effect.flatMap((response) => response.json),
     Effect.timeout("1 seconds"),
-    Effect.retry(Schedule.exponential(1000)),
+    Effect.retry(
+      Schedule.exponential(1000).pipe(
+        Schedule.compose(Schedule.recurs(3)),
+      ),
+    ),
     Effect.withSpan("getTodo", { attributes: { id } }),
   )\
       `,
         highlights: [
           {
             color: '#10322E',
-            lines: [13]
+            lines: [17]
           },
         ]
       }
