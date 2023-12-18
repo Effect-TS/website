@@ -15,11 +15,19 @@ At its core, a higher-kinded type is a type that abstracts over another type, wh
 To understand why HKTs are useful, let's consider a practical scenario. We often want to implement similar functionality across different data structures, like arrays, chunks, and options. Here are some functions as examples:
 
 ```ts twoslash
-declare const mapArray: <A>(self: Array<A>, f: (a: A) => B) => Array<B>
+import { Chunk, Option } from "effect"
 
-declare const mapChunk: <A>(self: Chunk<A>, f: (a: A) => B) => Chunk<B>
+declare const mapArray: <A, B>(self: Array<A>, f: (a: A) => B) => Array<B>
 
-declare const mapOption: <A>(self: Option<A>, f: (a: A) => B) => Option<B>
+declare const mapChunk: <A, B>(
+  self: Chunk.Chunk<A>,
+  f: (a: A) => B
+) => Chunk.Chunk<B>
+
+declare const mapOption: <A, B>(
+  self: Option.Option<A>,
+  f: (a: A) => B
+) => Option.Option<B>
 ```
 
 Notice that these functions share a lot of similarities; in fact, they are almost identical except for the data type they operate on (`Array`, `Chunk`, `Option`).
