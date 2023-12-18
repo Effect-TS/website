@@ -69,7 +69,9 @@ function _Tabs({
 
       // the storage event only get picked up (by the listener) if the localStorage was changed in
       // another browser's tab/window (of the same app), but not within the context of the current tab.
-      window.dispatchEvent(new StorageEvent("storage", { key: storageKey, newValue }))
+      window.dispatchEvent(
+        new StorageEvent("storage", { key: storageKey, newValue })
+      )
       return
     }
     setSelectedIndex(index)
@@ -77,11 +79,20 @@ function _Tabs({
   }, []) // eslint-disable-line react-hooks/exhaustive-deps -- only on mount
 
   const itemsWithFallback = React.useMemo(() => {
-    return items ?? (Array.isArray(children) ? Array.from({ length: children.length }, (_, i) => `Tab ${i}`) : [])
+    return (
+      items ??
+      (Array.isArray(children)
+        ? Array.from({ length: children.length }, (_, i) => `Tab ${i}`)
+        : [])
+    )
   }, [children, items])
 
   return (
-    <HeadlessTab.Group selectedIndex={selectedIndex} defaultIndex={defaultIndex} onChange={handleChange}>
+    <HeadlessTab.Group
+      selectedIndex={selectedIndex}
+      defaultIndex={defaultIndex}
+      onChange={handleChange}
+    >
       <div className="not-prose overflow-x-auto overflow-y-hidden overscroll-x-contain mt-8">
         <HeadlessTab.List className="flex relative z-10 items-center overflow-x-auto gap-4 -mb-px">
           {itemsWithFallback.map((item, index) => {
@@ -96,7 +107,8 @@ function _Tabs({
                     selected
                       ? "border-black dark:border-white text-black font-normal dark:font-light dark:text-white"
                       : "border-transparent hover:text-black dark:hover:text-white",
-                    disabled && "pointer-events-none text-gray-400 dark:text-neutral-600"
+                    disabled &&
+                      "pointer-events-none text-gray-400 dark:text-neutral-600"
                   )
                 }
               >
@@ -105,16 +117,17 @@ function _Tabs({
             )
           })}
         </HeadlessTab.List>
-        <div className="-mx-12">
-          <Divider />
-        </div>
+        <Divider />
       </div>
       <HeadlessTab.Panels>{children}</HeadlessTab.Panels>
     </HeadlessTab.Group>
   )
 }
 
-export function Tab({ children, ...props }: ComponentProps<typeof HeadlessTab.Panel>): ReactElement {
+export function Tab({
+  children,
+  ...props
+}: ComponentProps<typeof HeadlessTab.Panel>): ReactElement {
   return (
     <HeadlessTab.Panel {...props} className="rounded pt-6">
       {children}
