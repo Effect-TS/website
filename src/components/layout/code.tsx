@@ -106,9 +106,9 @@ export const Code: FC<{
           <div className="relative border-t border-zinc-800 py-8">
             <button
               onClick={() => runSnippet()}
-              className="absolute -top-5 left-12 inline-flex h-10 rounded-xl p-px bg-gradient-to-b from-white to-zinc-300 shadow-lg"
+              className="absolute -top-5 left-12 inline-flex h-10 rounded-xl p-px bg-gradient-to-br from-zinc-300 to-zinc-500 shadow-lg"
             >
-              <div className="flex h-full items-center gap-2 px-6 font-medium rounded-[11px] bg-white text-black">
+              <div className="flex h-full items-center gap-2 px-6 font-medium rounded-[11px] bg-gradient-to-br from-zinc-700 to-zinc-900 text-white">
                 <Icon name="play" className="h-3.5" />
                 <span>{terminal.run}</span>
               </div>
