@@ -34,8 +34,13 @@ const generateDocsNavigation = ({
     }))
 }
 
-export const Navigation: FC<{ className?: string }> = ({ className = "" }) => {
-  const elements = generateDocsNavigation({ pages: allDocsPages, parents: [] })
+export const Navigation: FC<{ className?: string }> = ({
+  className = ""
+}) => {
+  const elements = generateDocsNavigation({
+    pages: allDocsPages,
+    parents: []
+  })
 
   return (
     <aside
@@ -43,7 +48,10 @@ export const Navigation: FC<{ className?: string }> = ({ className = "" }) => {
     >
       <div className="absolute left-0 bottom-0 -top-16 w-px bg-gradient-to-b from-zinc-300/0 via-zinc-300 to-zinc-300/0 dark:from-zinc-600/0 dark:via-zinc-600 dark:to-zinc-600/0" />
       <Search className="shrink-0 w-56 ml-4" />
-      <ul className="relative w-64 grow overflow-y-auto py-9 text-sm">
+      <ul
+        className="relative w-64 grow overflow-y-auto py-9 text-sm"
+        id="docs-sidebar-navigation"
+      >
         {elements.map((element, index) => (
           <NavigationLink key={index} level={0} element={element} />
         ))}
