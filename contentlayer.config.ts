@@ -11,6 +11,7 @@ import remarkShikiTwoslash from "remark-shiki-twoslash"
 import rehypeRaw from "rehype-raw"
 import { nodeTypes } from "@mdx-js/mdx"
 import codeImport from "remark-code-import"
+import remarkMdxCodeMeta from "remark-mdx-code-meta"
 
 export const CODE_BLOCK_FILENAME_REGEX = /filename="([^"]+)"/
 
@@ -44,7 +45,8 @@ export default makeSource({
       // @ts-expect-error
       [remarkShikiTwoslash.default, { theme: "github-dark" }],
       // [conditionalShikiTwoslash, { theme: "github-dark" }],
-      remarkGfm
+      remarkGfm,
+      remarkMdxCodeMeta
     ],
     rehypePlugins: [
       [rehypeRaw, { passThrough: nodeTypes }],
