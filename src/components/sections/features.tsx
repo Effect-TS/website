@@ -29,7 +29,7 @@ export const Features = () => {
           </div>
           <p className="my-6">
             With Effect the batteries are included. Regardless of the
-            application, your package.json will have never been this small before.
+            application, your package.json will have never been this small.
           </p>
           <Checklist items={['Data validation & serialization', 'Frameworks for CLI & HTTP applications', 'Powerful abstractions for every platform']} />
           <Button href="/docs" secondary className="mt-10">
