@@ -24,8 +24,8 @@ export const Examples = () => {
           Let&apos;s see some <span className="text-transparent bg-clip-text bg-gradient-to-br from-[#5B9EE9] to-[#2F74C0]">example code</span>
         </h2>
         <p className="my-6 max-w-lg">
-          Doing the right thing in TypeScript is hard. Effect makes it easy lorem ipsum dolor sit amet consectetur. Mattis et lacus tortor sed integer nunc
-          mattis suspendisse diam.
+          Doing the right thing in TypeScript is hard. Effect makes it easy!<br />
+          We have collated some examples to show you how Effect can be utilized in your next project.
         </p>
         <Checklist
           items={[
