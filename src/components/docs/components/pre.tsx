@@ -16,12 +16,15 @@ export const Pre: FC<PropsWithChildren<{}>> = ({ children }) => {
 
   return (
     <div className="relative mt-7">
-      <div className="w-full bg-gradient-to-br from-zinc-500 to-zinc-800 p-px rounded-xl overflow-hidden">
+      <div className="w-full bg-gradient-to-br from-zinc-500 to-zinc-800 p-px rounded-xl overflow-hidden [.code-output_&]:rounded-b-none">
         <pre
-          className="shiki twoslash"
+          className="shiki twoslash rounded-none"
           style={{ margin: 0, padding: 0, backgroundColor: "transparent" }}
         >
-          <div ref={container} className="bg-zinc-950 rounded-[11px]">
+          <div
+            ref={container}
+            className="bg-zinc-950 rounded-[11px] [.code-output_&]:rounded-b-none"
+          >
             {children}
           </div>
         </pre>
