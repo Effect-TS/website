@@ -266,32 +266,34 @@ const program = Effect.fail(new HttpError())\
         }
       },
       {
-        name: "ts-result",
+        name: "ts-results",
         withoutEffect: {
           fileName: "index.ts",
-          code: `\
-import { Effect } from "effect"
+          code: `import { existsSync, readFileSync } from "fs"
+import { Ok, Err, Result } from "ts-results"
 
-class HttpError {
-  readonly _tag = "HttpError"
+function readFile(path: string): Result<string, "invalid path"> {
+  if (existsSync(path)) {
+    return new Ok(readFileSync(path, "utf8"))
+  } else {
+    return new Err("invalid path")
+  }
 }
-
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
-      `
+`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `\
+          code: `import { existsSync, readFileSync } from "fs"
 import { Effect } from "effect"
 
-class HttpError {
-  readonly _tag = "HttpError"
+function readFile(path: string): Effect.Effect<never, "invalid path", string> {
+  if (existsSync(path)) {
+    return Effect.succeed(readFileSync(path, "utf8"))
+  } else {
+    return Effect.fail("invalid path")
+  }
 }
-
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
-      `
+`
         }
       }
     ]
