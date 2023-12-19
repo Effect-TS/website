@@ -74,11 +74,9 @@ main()\
     withEffect: {
       fileName: 'index.ts',
       code: `\
-import { Effect } from 'effect'
+import { Console, Effect } from 'effect'
 
-const main = Effect.sync(() =>
-  console.log('Hello, World!')
-)
+const main = Console.log('Hello, World!')
 
 Effect.runSync(main)\
       `,
@@ -93,9 +91,7 @@ Effect.runSync(main)\
       code: `\
 const sleep = (ms: number) =>
   new Promise((resolve) =>
-    setTimeout(() => {
-      resolve()
-    }, ms)
+    setTimeout(resolve, ms)
   )
 
 const main = async () => {
@@ -113,12 +109,11 @@ await main()\
       code: `\
 import { Effect } from 'effect'
 
-const main = Effect.gen(function* (_) {
-  yield* _(Effect.sleep(1000))
-  console.log('Hello, World!')
-})
+const main = Effect.sleep(1000).pipe(
+  Effect.andThen(Console.log('Hello, World!'))
+)
 
-await Effect.runPromise(program)\
+await Effect.runPromise(main)\
       `,
       command: 'bun src/index.ts',
       result: 'Hello, World!'
@@ -129,41 +124,30 @@ await Effect.runPromise(program)\
     withoutEffect: {
       fileName: 'index.ts',
       code: `\
-// What if we have some errors that should
-// be fatal and some that should be non-fatal?
-type PossibleErrors = NonFatalError | FatalError
-
-class NonFatalError {
-  readonly _tag = 'NonFatalError'
+class CustomError extends Error {
+  constructor(readonly value: number) {}
 }
 
-class FatalError {
-  readonly _tag = 'FatalError'
-}
-
-const maybeFail = (error: PossibleErrors) => {
-  if (Math.random() > 0.5) {
-    throw error
+// Return type of \`number\` doesn't reflect the
+// fact that the function can throw
+const maybeFail = (): number => {
+  const value = Math.random()
+  if (value > 0.5) {
+    throw new CustomError(value)
   }
+  return value
 }
 
-// We have to be very careful to handle each
-// non-fatal error properly as well as to
-// propagate fatal errors
+
 const main = () => {
   try {
-    maybeFail(new NonFatalError())
-    try {
-      maybeFail(new FatalError())
-    } catch (error) {
-      console.log('Fatal error encountered!')
-      throw error
-    }
+    const value = maybeFail()
+    console.log(\`Got value \${value}\`)
   } catch (error) {
-    if (error._tag === 'NonFatalError') {
-      console.log('Handling non-fatal error...')
+    if (error instanceof CustomError) {
+      console.error(\`Oops! Got value \${error.value}\`)
     } else {
-      throw error
+      console.error('No idea what happened!')
     }
   }
 }
@@ -171,51 +155,45 @@ const main = () => {
 main()\
       `,
       command: 'bun src/index.ts',
-      result: randomElement(['Handling non-fatal error...', 'Fatal error encountered!\n...'])
+      result: randomElement(['Oops! Got value 0.7'])
     },
     withEffect: {
       fileName: 'index.ts',
       code: `\
-// With Effect you have full control over how
-// errors are handled and propagated through
-// your program
-import { Effect, pipe } from 'effect'
+import { Console, Effect } from 'effect'
 
-type PossibleErrors = NonFatalError | FatalError
-
-class NonFatalError {
-  readonly _tag = 'NonFatalError'
+class CustomError {
+  readonly _tag = 'CustomError'
+  constructor(readonly value: number) {}
 }
 
-class FatalError {
-  readonly _tag = 'FatalError'
-}
-
-const maybeFail = (error: PossibleErrors) =>
-  Math.random() > 0.5
-    ? Effect.fail(error)
-    : Effect.unit
-
-const main = pipe(
-  maybeFail(new NonFatalError()),
-  Effect.flatMap(() => maybeFail(new FatalError())),
-  Effect.catchTags({
-    NonFatalError: (error) => Effect.sync(() => {
-      console.log('Handling non-fatal error...')
-    }),
-    // Here we use \`Effect.die\` to elevate
-    // a FatalError to a failure that our
-    // program cannot handle
-    FatalError: (error) => Effect.sync(() => {
-      console.log('Fatal error encountered!')
-    }).pipe(Effect.flatMap(() => Effect.die(error))
-  })
+const maybeFail: Effect.Effect<
+  never,
+  CustomError, // type safety
+  number
+> = Effect.sync(() => Math.random()).pipe(
+  Effect.andThen((value) =>
+    value > 0.5
+      ? Effect.fail(new CustomError(value))
+      : Effect.succeed(value),
+  ),
 )
+
+
+const main = maybeFail.pipe(
+  Effect.andThen((value) =>
+    Console.log(\`Got value \${value}\`),
+  ),
+  Effect.catchTag("CustomError", (error) =>
+    Console.error(\`Oops! Got value \${error.value}\`),
+  ),
+)
+
 
 await Effect.runPromise(main)\
       `,
       command: 'bun src/index.ts',
-      result: 'Error “HttpError” gracefully handled. Yay!'
+      result: randomElement(['Got value 0.3'])
     }
   },
   {
