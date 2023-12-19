@@ -134,11 +134,11 @@ export const Complexity = () => {
 
 const content = {
   heading: 'Keep your code simple at high complexity',
-  text: `Lorem ipsum dolor sit amet consectetur. Egestas maecenas sed egestas eget arcu parturient purus bibendum viverra.`,
+  text: `As your application grows, Effect scales with it - keeping your code simple and maintainable.`,
   features: [
     {
       name: 'Error Handling',
-      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
+      description: 'Keep track of possible errors and treat them as values.',
       color: '#283413',
       withoutEffect: {
         fileName: 'index.ts',
@@ -191,7 +191,7 @@ const getTodo = (
     },
     {
       name: 'Retry',
-      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
+      description: 'If something fails, retry with an exponential backoff up to 3 times.',
       color: '#39300D',
       withoutEffect: {
         fileName: 'index.ts',
@@ -274,7 +274,7 @@ const getTodo = (
     },
     {
       name: 'Interruption',
-      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
+      description: 'Abort the request after 1 second, cleaning up resources.',
       color: '#28233B',
       withoutEffect: {
         fileName: 'index.ts',
@@ -380,7 +380,7 @@ const getTodo = (
     },
     {
       name: 'Observability',
-      description: 'Lorem ipsum dolor sit amet consectetur egestas maecenas sed.',
+      description: 'Trace your requests and keep track of their status.',
       color: '#10322E',
       withoutEffect: {
         fileName: 'index.ts',
