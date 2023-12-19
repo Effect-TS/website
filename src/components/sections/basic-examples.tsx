@@ -126,7 +126,7 @@ const main = async () => {
   console.log('Hello, World!')
 }
 
-await main()\
+main()\
       `,
       command: "bun src/index.ts",
       result: "Hello, World!"
@@ -134,13 +134,13 @@ await main()\
     withEffect: {
       fileName: "index.ts",
       code: `\
-import { Effect } from 'effect'
+import { Console, Effect } from 'effect'
 
 const main = Effect.sleep(1000).pipe(
   Effect.andThen(Console.log('Hello, World!'))
 )
 
-await Effect.runPromise(main)\
+Effect.runPromise(main)\
       `,
       command: "bun src/index.ts",
       result: "Hello, World!"
@@ -217,7 +217,7 @@ const main = maybeFail.pipe(
 )
 
 
-await Effect.runPromise(main)\
+Effect.runPromise(main)\
       `,
       command: "bun src/index.ts",
       result: randomElement(["Got value 0.3"])
@@ -228,65 +228,45 @@ await Effect.runPromise(main)\
     withoutEffect: {
       fileName: "index.ts",
       code: `\
-interface AbortablePromise<A> extends Promise<A> {
-  readonly abort: () => void
-}
-
-// This function creates an AbortablePromise which
-// will wait the specified number of milliseconds
-// before resolving. The promise can be aborted
-// using the \`.abort\` method.
-const delay = (
-  millis: number
-): AbortablePromise<void> => {
-  let timeout_id: NodeJS.Timeout
-  let rejector: () => void
-  const prom: any = new Promise((resolve, reject) => {
-    rejector = reject
-    timeout_id = setTimeout(() => {
-      resolve()
-    }, millis)
+const sleep = <A>(
+  ms: number,
+  signal: AbortSignal,
+): Promise<A> =>
+  new Promise<A>((resolve, reject) => {
+    const timeout = setTimeout(resolve, ms)
+    signal.addEventListener("abort", () => {
+      clearTimeout(timeout)
+      reject("Aborted!")
+    })
   })
-  prom.abort = () => {
-    clearTimeout( timeout_id )
-    rejector()
-  }
-  return prom;
+
+async function main() {
+  await sleep(1000, AbortSignal.timeout(500))
+  console.log("Hello")
 }
 
-const interruptible = delay(2000)
-
-interruptible
-  .then(() => console.log('Did not interrupt'))
-  .catch(() => console.log('Interrupted!'))
-
-setTimeout(() => interruptible.abort(), 1000)\
+main()\
       `,
       command: "bun src/index.ts",
-      result: "Interrupted!"
+      result: "Aborted!"
     },
     withEffect: {
       fileName: "index.ts",
       code: `\
-// Interruption is a first-class citizen in Effect
-// and is built right into the Effect runtime
-import { Effect, pipe } from 'effect'
+import { Console, Effect } from "effect"
 
-const main = pipe(
-  Effect.sleep(2000),
-  // Let's log a message if \`Effect.sleep\` is
-  // interrupted
-  Effect.onInterrupt(() =>
-    Effect.sync(() => console.log('Interrupted!'))
-  ),
-  // Interrupt the program after 1 second
-  Effect.timeout(1000)
+const main = Effect.sleep(1000).pipe(
+  Effect.andThen(Console.log("Hello")),
+  Effect.timeoutFail({
+    duration: 500,
+    onTimeout: () => "Aborted!"
+  })
 )
 
-await Effect.runPromiseExit(program)\
+Effect.runPromise(main)\
       `,
       command: "bun src/index.ts",
-      result: "Interrupted!"
+      result: "Aborted!"
     }
   },
   {
@@ -294,18 +274,50 @@ await Effect.runPromiseExit(program)\
     withoutEffect: {
       fileName: "index.ts",
       code: `\
-// TODO
+async function getUser(id: number, retries = 3) {
+  try {
+    const response = await fetch(\`/users/\${id}\`)
+    if (!response.ok) throw new Error()
+    return await response.json()
+  } catch (error) {
+    if (retries === 0) {
+      throw error
+    }
+    return getUser(id, retries - 1)
+  }
+}
+
+async function main() {
+  const user = await getUser(1)
+  console.log("Got user", user)
+}
+
+main()
       `,
       command: "bun src/index.ts",
-      result: "TODO"
+      result: "Got user { id: 1, name: 'John' }"
     },
     withEffect: {
       fileName: "index.ts",
       code: `\
-// TODO
+import * as Http from "@effect/platform/HttpClient"
+import { Console, Effect } from "effect"
+
+const getUser = (id: number) =>
+  Http.request.get(\`/users/\${id}\`).pipe(
+    Http.client.fetchOk(),
+    Effect.andThen((response) => response.json),
+    Effect.retryN(3)
+  )
+
+const main = getUser(1).pipe(
+  Effect.andThen((user) => Console.log("Got user", user))
+)
+
+Effect.runPromise(main)\
       `,
       command: "bun src/index.ts",
-      result: "TODO"
+      result: "Got user { id: 1, name: 'John' }"
     }
   },
   {
@@ -313,18 +325,78 @@ await Effect.runPromiseExit(program)\
     withoutEffect: {
       fileName: "index.ts",
       code: `\
-// TODO
+declare const getUser: (
+  id: number,
+) => Promise<unknown>
+
+function forEach<A, B>(
+  items: Array<A>,
+  concurrency: number,
+  f: (a: A) => Promise<B>,
+): Promise<Array<B>> {
+  let index = 0
+  const results: Array<B> = new Array(
+    items.length,
+  )
+  async function process(index: number) {
+    const next = items[index]
+    results[index] = await f(next)
+  }
+  async function worker() {
+    while (index < items.length) {
+      await process(index++)
+    }
+  }
+  return Promise.all(
+    Array.from({ length: concurrency }, worker),
+  ).then(() => results)
+}
+
+const ids = Array.from(
+  { length: 10 },
+  (_, i) => i,
+)
+
+async function main() {
+  const users = await forEach(ids, 3, (id) =>
+    getUser(id),
+  )
+  console.log("Got users", users)
+}
+
+main()\
       `,
       command: "bun src/index.ts",
-      result: "TODO"
+      result: "Got users [ ... ]"
     },
     withEffect: {
       fileName: "index.ts",
       code: `\
-// TODO
+import { Console, Effect } from "effect"
+
+declare const getUser: (
+  id: number,
+) => Effect.Effect<never, Error, unknown>
+
+const ids = Array.from(
+  { length: 10 },
+  (_, i) => i,
+)
+
+const main = Effect.forEach(
+  ids,
+  (id) => getUser(id),
+  { concurrency: 3 },
+).pipe(
+  Effect.andThen((users) =>
+    Console.log("Got users", users),
+  ),
+)
+
+Effect.runPromise(main)\
       `,
       command: "bun src/index.ts",
-      result: "TODO"
+      result: "Got users [ ... ]"
     }
   },
   {

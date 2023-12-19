@@ -1,10 +1,10 @@
-'use client'
+"use client"
 
-import {useState} from 'react'
-import {Icon} from '../icons'
-import {motion} from 'framer-motion'
-import {Code} from '../layout/code'
-import {Logo} from '../atoms/logo'
+import { useState } from "react"
+import { Icon } from "../icons"
+import { motion } from "framer-motion"
+import { Code } from "../layout/code"
+import { Logo } from "../atoms/logo"
 
 export const Complexity = () => {
   const [currentIndex, setCurrentIndex] = useState<number>(0)
@@ -12,14 +12,30 @@ export const Complexity = () => {
   return (
     <section className="relative">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-24">
-        <h2 className="font-display mb-6 text-2xl sm:text-3xl lg:text-4xl text-white text-center">{content.heading}</h2>
+        <h2 className="font-display mb-6 text-2xl sm:text-3xl lg:text-4xl text-white text-center">
+          {content.heading}
+        </h2>
         <p className="mb-16 text-center max-w-xl mx-auto">{content.text}</p>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-12 gap-x-10 items-end">
           <div className="relative text-sm max-w-lg">
-            <svg viewBox="0 0 577 211" className="w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="0.5" y="187" width="576" height="1" fill="url(#paint0_linear_280_1304)" />
+            <svg
+              viewBox="0 0 577 211"
+              className="w-full"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect
+                x="0.5"
+                y="187"
+                width="576"
+                height="1"
+                fill="url(#paint0_linear_280_1304)"
+              />
               <motion.line
-                animate={{pathLength: (1 / content.features.length) * (currentIndex + 1)}}
+                animate={{
+                  pathLength:
+                    (1 / content.features.length) * (currentIndex + 1)
+                }}
                 x1="0.458313"
                 y1="186.502"
                 x2="502.458"
@@ -27,22 +43,48 @@ export const Complexity = () => {
                 stroke="url(#paint1_linear_280_1304)"
               />
               <motion.path
-                animate={{pathLength: (1 / content.features.length) * (currentIndex + 1) * (currentIndex === content.features.length - 1 ? 1 : 0.93)}}
+                animate={{
+                  pathLength:
+                    (1 / content.features.length) *
+                    (currentIndex + 1) *
+                    (currentIndex === content.features.length - 1 ? 1 : 0.93)
+                }}
                 d="M2.5 187C150.455 169.787 424 116 502.5 1"
                 stroke="url(#paint2_linear_280_1304)"
               />
               <defs>
-                <linearGradient id="paint0_linear_280_1304" x1="0.499992" y1="187.954" x2="576.5" y2="187.81" gradientUnits="userSpaceOnUse">
+                <linearGradient
+                  id="paint0_linear_280_1304"
+                  x1="0.499992"
+                  y1="187.954"
+                  x2="576.5"
+                  y2="187.81"
+                  gradientUnits="userSpaceOnUse"
+                >
                   <stop stopColor="#18181B" />
                   <stop offset="0.177083" stopColor="#71717A" />
                   <stop offset="1" stopColor="#09090B" />
                 </linearGradient>
-                <linearGradient id="paint1_linear_280_1304" x1="0.5" y1="187" x2="502.5" y2="145" gradientUnits="userSpaceOnUse">
+                <linearGradient
+                  id="paint1_linear_280_1304"
+                  x1="0.5"
+                  y1="187"
+                  x2="502.5"
+                  y2="145"
+                  gradientUnits="userSpaceOnUse"
+                >
                   <stop stopColor="#3178C6" stopOpacity="0.25" />
                   <stop offset="0.515625" stopColor="#3178C6" />
                   <stop offset="1" stopColor="#3178C6" />
                 </linearGradient>
-                <linearGradient id="paint2_linear_280_1304" x1="502.5" y1="0.99997" x2="2.5" y2="187" gradientUnits="userSpaceOnUse">
+                <linearGradient
+                  id="paint2_linear_280_1304"
+                  x1="502.5"
+                  y1="0.99997"
+                  x2="2.5"
+                  y2="187"
+                  gradientUnits="userSpaceOnUse"
+                >
                   <stop stopColor="#F97583" />
                   <stop offset="0.489583" stopColor="#F97583" />
                   <stop offset="1" stopColor="#F97583" stopOpacity="0.25" />
@@ -71,24 +113,41 @@ export const Complexity = () => {
           </div>
           <div className="lg:pr-16">
             <ul>
-              {content.features.map(({name, description, color}, index) => (
+              {content.features.map(({ name, description, color }, index) => (
                 <li key={index}>
-                  {index > 0 && <div className="h-3 w-px ml-[9px] bg-zinc-700" />}
-                  <button onClick={() => setCurrentIndex(index)} className="text-white flex gap-4 items-center text-left relative">
+                  {index > 0 && (
+                    <div className="h-3 w-px ml-[9px] bg-zinc-700" />
+                  )}
+                  <button
+                    onClick={() => setCurrentIndex(index)}
+                    className="text-white flex gap-4 items-center text-left relative"
+                  >
                     {currentIndex >= index && (
                       <>
-                        <div className="absolute -left-2 w-9 h-9 rounded-xl" style={{backgroundColor: color}} />
+                        <div
+                          className="absolute -left-2 w-9 h-9 rounded-xl"
+                          style={{ backgroundColor: color }}
+                        />
                         <div className="absolute -left-2 w-9 h-9 rounded-xl border border-white/10" />
                       </>
                     )}
                     <div className="relative bg-gradient-to-br from-zinc-100 to-zinc-500 h-5 w-5 rounded-md p-px">
-                      <div className={`rounded-[5px] h-full w-full flex items-center justify-center ${currentIndex >= index ? 'bg-white' : 'bg-black'}`}>
-                        <Icon name="check" className="ml-px h-3.5 text-black" />
+                      <div
+                        className={`rounded-[5px] h-full w-full flex items-center justify-center ${
+                          currentIndex >= index ? "bg-white" : "bg-black"
+                        }`}
+                      >
+                        <Icon
+                          name="check"
+                          className="ml-px h-3.5 text-black"
+                        />
                       </div>
                     </div>
                     <div>
                       <div>{name}</div>
-                      <div className="text-xs text-zinc-400">{description}</div>
+                      <div className="text-xs text-zinc-400">
+                        {description}
+                      </div>
                     </div>
                   </button>
                 </li>
@@ -98,13 +157,16 @@ export const Complexity = () => {
         </div>
         <div className="grid lg:grid-cols-2 gap-y-12 gap-x-6 pt-12">
           <div className="flex flex-col items-center gap-6">
-            <h4 className="font-display text-2xl text-white">Without Effect</h4>
+            <h4 className="font-display text-2xl text-white">
+              Without Effect
+            </h4>
             <Code
               tabs={[
                 {
                   name: content.features[currentIndex].withoutEffect.fileName,
                   content: content.features[currentIndex].withoutEffect.code,
-                  highlights: content.features[currentIndex].withoutEffect.highlights
+                  highlights:
+                    content.features[currentIndex].withoutEffect.highlights
                 }
               ]}
               fixedHeight={390}
@@ -120,7 +182,8 @@ export const Complexity = () => {
                 {
                   name: content.features[currentIndex].withEffect.fileName,
                   content: content.features[currentIndex].withEffect.code,
-                  highlights: content.features[currentIndex].withEffect.highlights
+                  highlights:
+                    content.features[currentIndex].withEffect.highlights
                 }
               ]}
               fixedHeight={390}
@@ -133,15 +196,15 @@ export const Complexity = () => {
 }
 
 const content = {
-  heading: 'Keep your code simple at high complexity',
+  heading: "Keep your code simple at high complexity",
   text: `As your application grows, Effect scales with it - keeping your code simple and maintainable.`,
   features: [
     {
-      name: 'Error Handling',
-      description: 'Keep track of possible errors and treat them as values.',
-      color: '#283413',
+      name: "Error Handling",
+      description: "Keep track of possible errors and treat them as values.",
+      color: "#283413",
       withoutEffect: {
-        fileName: 'index.ts',
+        fileName: "index.ts",
         code: `\
 async function getTodo(
   id: number
@@ -165,36 +228,37 @@ async function getTodo(
       `,
         highlights: [
           {
-            color: '#283413',
+            color: "#283413",
             lines: [4, 5, 9, 10, 12, 13, 14, 15, 16, 17]
-          },
+          }
         ]
       },
       withEffect: {
-        fileName: 'index.ts',
+        fileName: "index.ts",
         code: `\
 const getTodo = (
   id: number
 ): Effect.Effect<never, HttpClientError, unknown> =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
-    Effect.flatMap((response) => response.json),
+    Effect.andThen((response) => response.json),
   )\
       `,
         highlights: [
           {
-            color: '#283413',
+            color: "#283413",
             lines: [3]
-          },
+          }
         ]
       }
     },
     {
-      name: 'Retry',
-      description: 'If something fails, retry with an exponential backoff up to 3 times.',
-      color: '#39300D',
+      name: "Retry",
+      description:
+        "If something fails, retry with an exponential backoff up to 3 times.",
+      color: "#39300D",
       withoutEffect: {
-        fileName: 'index.ts',
+        fileName: "index.ts",
         code: `\
 function getTodo(
   id: number
@@ -243,20 +307,23 @@ function getTodo(
       `,
         highlights: [
           {
-            color: '#39300D',
-            lines: [3, 4, 5, 6, 12, 24, 25, 26, 30, 31, 32, 33, 34, 35, 36, 37, 38, 43]
-          },
+            color: "#39300D",
+            lines: [
+              3, 4, 5, 6, 12, 24, 25, 26, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+              43
+            ]
+          }
         ]
       },
       withEffect: {
-        fileName: 'index.ts',
+        fileName: "index.ts",
         code: `\
 const getTodo = (
   id: number
 ): Effect.Effect<never, HttpClientError, unknown> =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
-    Effect.flatMap((response) => response.json),
+    Effect.andThen((response) => response.json),
     Effect.retry(
       Schedule.exponential(1000).pipe(
         Schedule.compose(Schedule.recurs(3)),
@@ -266,18 +333,18 @@ const getTodo = (
       `,
         highlights: [
           {
-            color: '#39300D',
+            color: "#39300D",
             lines: [7, 8, 9, 10, 11]
-          },
+          }
         ]
       }
     },
     {
-      name: 'Interruption',
-      description: 'Abort the request after 1 second, cleaning up resources.',
-      color: '#28233B',
+      name: "Interruption",
+      description: "Abort the request after 1 second, cleaning up resources.",
+      color: "#28233B",
       withoutEffect: {
-        fileName: 'index.ts',
+        fileName: "index.ts",
         code: `\
 function getTodo(
   id: number
@@ -344,13 +411,13 @@ function getTodo(
       `,
         highlights: [
           {
-            color: '#28233B',
+            color: "#28233B",
             lines: [6, 10, 16, 23, 27, 28, 29, 30, 31, 33, 46, 47]
-          },
+          }
         ]
       },
       withEffect: {
-        fileName: 'index.ts',
+        fileName: "index.ts",
         code: `\
 const getTodo = (
   id: number
@@ -361,7 +428,7 @@ const getTodo = (
 > =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
-    Effect.flatMap((response) => response.json),
+    Effect.andThen((response) => response.json),
     Effect.timeout("1 seconds"),
     Effect.retry(
       Schedule.exponential(1000).pipe(
@@ -372,18 +439,18 @@ const getTodo = (
       `,
         highlights: [
           {
-            color: '#28233B',
+            color: "#28233B",
             lines: [5, 11]
-          },
+          }
         ]
       }
     },
     {
-      name: 'Observability',
-      description: 'Trace your requests and keep track of their status.',
-      color: '#10322E',
+      name: "Observability",
+      description: "Trace your requests and keep track of their status.",
+      color: "#10322E",
       withoutEffect: {
-        fileName: 'index.ts',
+        fileName: "index.ts",
         code: `\
 const tracer = Otel.trace.getTracer("todos")
 
@@ -471,13 +538,16 @@ function getTodo(
       `,
         highlights: [
           {
-            color: '#10322E',
-            lines: [1, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
-          },
+            color: "#10322E",
+            lines: [
+              1, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+              36, 37, 38, 39, 40
+            ]
+          }
         ]
       },
       withEffect: {
-        fileName: 'index.ts',
+        fileName: "index.ts",
         code: `\
 const getTodo = (
   id: number
@@ -488,7 +558,7 @@ const getTodo = (
 > =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
-    Effect.flatMap((response) => response.json),
+    Effect.andThen((response) => response.json),
     Effect.timeout("1 seconds"),
     Effect.retry(
       Schedule.exponential(1000).pipe(
@@ -500,11 +570,11 @@ const getTodo = (
       `,
         highlights: [
           {
-            color: '#10322E',
+            color: "#10322E",
             lines: [17]
-          },
+          }
         ]
       }
-    },
+    }
   ]
 }
