@@ -110,101 +110,91 @@ const examples = [
         name: "zod",
         withoutEffect: {
           fileName: "index.ts",
-          code: `\
-import { Effect } from "effect"
+          code: `import { z } from "zod"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const User = z.object({
+  username: z.string()
+})
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())
+User.parse({ username: "john_doe" })
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
-
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())
-
-class HttpError {
-  readonly _tag = "HttpError"
-}
-
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
-      `
+// extract the inferred type
+type User = z.infer<typeof User>`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `\
-import { Effect } from "effect"
+          code: `import * as S from "@effect/schema/Schema"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const User = S.struct({
+  username: S.string
+})
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
-      `
+S.parse(User)({ username: "john_doe" })
+
+// extract the inferred type
+type User = S.Schema.To<typeof User>`
         }
       },
       {
         name: "yup",
         withoutEffect: {
           fileName: "index.ts",
-          code: `\
-import { Effect } from "effect"
+          code: `import * as yup from "yup"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const User = yup.object({
+  username: yup.string().required()
+})
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
-      `
+User.validate({ username: "john_doe" })
+
+// extract the inferred type
+type User = yup.InferType<typeof User>`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `\
-import { Effect } from "effect"
+          code: `import * as S from "@effect/schema/Schema"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const User = S.struct({
+  username: S.string
+})
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
-      `
+S.parse(User)({ username: "john_doe" })
+
+// extract the inferred type
+type User = S.Schema.To<typeof User>`
         }
       },
       {
         name: "superjson",
         withoutEffect: {
           fileName: "index.ts",
-          code: `\
-import { Effect } from "effect"
+          code: `import superjson from "superjson"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+// encoding
+const jsonString = superjson.stringify({ date: new Date(0) })
+// '{"json":{"date":"1970-01-01T00:00:00.000Z"},"meta":{"values":{date:"Date"}}}'
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
-      `
+// decoding
+const object = superjson.parse<{ date: Date }>(jsonString)`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `\
-import { Effect } from "effect"
+          code: `import * as S from "@effect/schema/Schema"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const schema = S.ParseJson.pipe(
+  S.compose(
+    S.struct({
+      date: S.Date
+    })
+  )
+)
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
-      `
+// encoding
+const jsonString = S.encodeSync(schema)({ date: new Date(0) })
+// '{"date":"1970-01-01T00:00:00.000Z"}'
+
+// decoding
+const object = S.decodeSync(schema)(jsonString)`
         }
       }
     ]
