@@ -1,38 +1,59 @@
-'use client'
+"use client"
 
-import * as Tabs from '@radix-ui/react-tabs'
-import {Divider} from '../layout/divider'
-import {Logo} from '../atoms/logo'
-import {Code} from '../layout/code'
+import * as Tabs from "@radix-ui/react-tabs"
+import { Divider } from "../layout/divider"
+import { Logo } from "../atoms/logo"
+import { Code } from "../layout/code"
 
 export const BasicExamples = () => {
   return (
     <div className="flex flex-col items-start md:items-center pt-8">
-      <p className="mt-6 mb-6 md:mb-10 px-4 md:text-center">Effect helps you with handling errors, async code, concurrency, streams and much more.</p>
-      <Tabs.Root defaultValue={examples[0].name} className="w-full flex flex-col">
-        <Tabs.List className="flex relative z-10 items-center px-4 md:justify-center overflow-x-auto gap-4 -mb-px">
-          {examples.map(({name}, index) => (
-            <Tabs.Trigger
-              key={index}
-              value={name}
-              className="border-b whitespace-nowrap border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2"
-            >
-              {name}
-            </Tabs.Trigger>
-          ))}
-        </Tabs.List>
-        <Divider />
-        {examples.map(({name, withoutEffect, withEffect}, index) => (
+      <p className="mt-6 mb-6 md:mb-10 px-4 md:text-center">
+        Effect helps you with handling errors, async code, concurrency,
+        streams and much more.
+      </p>
+      <Tabs.Root
+        defaultValue={examples[0].name}
+        className="w-full flex flex-col"
+      >
+        <div className="relative">
+          <Tabs.List className="flex relative z-10 items-center px-4 md:justify-center overflow-x-auto gap-4 -mb-px hide-scrollbar">
+            {examples.map(({ name }, index) => (
+              <Tabs.Trigger
+                key={index}
+                value={name}
+                className="border-b whitespace-nowrap border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2"
+              >
+                {name}
+              </Tabs.Trigger>
+            ))}
+          </Tabs.List>
+          <Divider />
+          <div className="absolute inset-y-0 w-4 left-0 bg-gradient-to-r from-zinc-800 z-10" />
+          <div className="absolute inset-y-0 w-4 right-0 bg-gradient-to-l from-zinc-900 z-10" />
+        </div>
+        {examples.map(({ name, withoutEffect, withEffect }, index) => (
           <Tabs.Content
             key={index}
             value={name}
             className="grow p-4 pt-8 md:p-12 grid grid-cols-1 gap-y-10 md:grid-cols-2 gap-6 data-[state=inactive]:absolute"
           >
             <div className="flex flex-col items-center gap-6">
-              <h4 className="font-display text-2xl text-white">Without Effect</h4>
+              <h4 className="font-display text-2xl text-white">
+                Without Effect
+              </h4>
               <Code
-                tabs={[{name: withoutEffect.fileName, content: withoutEffect.code}]}
-                terminal={{run: 'Run snippet', command: withoutEffect.command, result: withoutEffect.result}}
+                tabs={[
+                  {
+                    name: withoutEffect.fileName,
+                    content: withoutEffect.code
+                  }
+                ]}
+                terminal={{
+                  run: "Run snippet",
+                  command: withoutEffect.command,
+                  result: withoutEffect.result
+                }}
               />
             </div>
             <div className="flex flex-col items-center gap-6">
@@ -41,8 +62,14 @@ export const BasicExamples = () => {
                 <Logo className="h-7 inline-block ml-1 -mt-1" />
               </h4>
               <Code
-                tabs={[{name: withEffect.fileName, content: withEffect.code}]}
-                terminal={{run: 'Run snippet', command: withEffect.command, result: withEffect.result}}
+                tabs={[
+                  { name: withEffect.fileName, content: withEffect.code }
+                ]}
+                terminal={{
+                  run: "Run snippet",
+                  command: withEffect.command,
+                  result: withEffect.result
+                }}
               />
             </div>
           </Tabs.Content>
@@ -58,9 +85,9 @@ function randomElement<A>(array: Array<A>): A {
 
 const examples = [
   {
-    name: 'Sync code',
+    name: "Sync code",
     withoutEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 const main = () => {
   console.log('Hello, World!')
@@ -68,11 +95,11 @@ const main = () => {
 
 main()\
       `,
-      command: 'bun src/index.ts',
-      result: 'Hello, World!'
+      command: "bun src/index.ts",
+      result: "Hello, World!"
     },
     withEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 import { Console, Effect } from 'effect'
 
@@ -80,14 +107,14 @@ const main = Console.log('Hello, World!')
 
 Effect.runSync(main)\
       `,
-      command: 'bun src/index.ts',
-      result: 'Hello, World!'
+      command: "bun src/index.ts",
+      result: "Hello, World!"
     }
   },
   {
-    name: 'Async code',
+    name: "Async code",
     withoutEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 const sleep = (ms: number) =>
   new Promise((resolve) =>
@@ -101,11 +128,11 @@ const main = async () => {
 
 await main()\
       `,
-      command: 'bun src/index.ts',
-      result: 'Hello, World!'
+      command: "bun src/index.ts",
+      result: "Hello, World!"
     },
     withEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 import { Effect } from 'effect'
 
@@ -115,14 +142,14 @@ const main = Effect.sleep(1000).pipe(
 
 await Effect.runPromise(main)\
       `,
-      command: 'bun src/index.ts',
-      result: 'Hello, World!'
+      command: "bun src/index.ts",
+      result: "Hello, World!"
     }
   },
   {
-    name: 'Error Handling',
+    name: "Error Handling",
     withoutEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 class CustomError extends Error {
   constructor(readonly value: number) {}
@@ -154,11 +181,11 @@ const main = () => {
 
 main()\
       `,
-      command: 'bun src/index.ts',
-      result: randomElement(['Oops! Got value 0.7'])
+      command: "bun src/index.ts",
+      result: randomElement(["Oops! Got value 0.7"])
     },
     withEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 import { Console, Effect } from 'effect'
 
@@ -192,14 +219,14 @@ const main = maybeFail.pipe(
 
 await Effect.runPromise(main)\
       `,
-      command: 'bun src/index.ts',
-      result: randomElement(['Got value 0.3'])
+      command: "bun src/index.ts",
+      result: randomElement(["Got value 0.3"])
     }
   },
   {
-    name: 'Interruption',
+    name: "Interruption",
     withoutEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 interface AbortablePromise<A> extends Promise<A> {
   readonly abort: () => void
@@ -235,11 +262,11 @@ interruptible
 
 setTimeout(() => interruptible.abort(), 1000)\
       `,
-      command: 'bun src/index.ts',
-      result: 'Interrupted!'
+      command: "bun src/index.ts",
+      result: "Interrupted!"
     },
     withEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 // Interruption is a first-class citizen in Effect
 // and is built right into the Effect runtime
@@ -258,66 +285,66 @@ const main = pipe(
 
 await Effect.runPromiseExit(program)\
       `,
-      command: 'bun src/index.ts',
-      result: 'Interrupted!'
+      command: "bun src/index.ts",
+      result: "Interrupted!"
     }
   },
   {
-    name: 'Retry',
+    name: "Retry",
     withoutEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 // TODO
       `,
-      command: 'bun src/index.ts',
-      result: 'TODO'
+      command: "bun src/index.ts",
+      result: "TODO"
     },
     withEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 // TODO
       `,
-      command: 'bun src/index.ts',
-      result: 'TODO'
+      command: "bun src/index.ts",
+      result: "TODO"
     }
   },
   {
-    name: 'Concurrency',
+    name: "Concurrency",
     withoutEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 // TODO
       `,
-      command: 'bun src/index.ts',
-      result: 'TODO'
+      command: "bun src/index.ts",
+      result: "TODO"
     },
     withEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 // TODO
       `,
-      command: 'bun src/index.ts',
-      result: 'TODO'
+      command: "bun src/index.ts",
+      result: "TODO"
     }
   },
   {
     // pipe, generators
-    name: 'Composition',
+    name: "Composition",
     withoutEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 // TODO
       `,
-      command: 'bun src/index.ts',
-      result: 'TODO'
+      command: "bun src/index.ts",
+      result: "TODO"
     },
     withEffect: {
-      fileName: 'index.ts',
+      fileName: "index.ts",
       code: `\
 // TODO
       `,
-      command: 'bun src/index.ts',
-      result: 'TODO'
+      command: "bun src/index.ts",
+      result: "TODO"
     }
   }
 ]

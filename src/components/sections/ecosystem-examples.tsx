@@ -1,23 +1,30 @@
-'use client'
+"use client"
 
-import * as Tabs from '@radix-ui/react-tabs'
-import {Divider} from '../layout/divider'
-import {Logo} from '../atoms/logo'
-import {Code} from '../layout/code'
+import * as Tabs from "@radix-ui/react-tabs"
+import { Divider } from "../layout/divider"
+import { Logo } from "../atoms/logo"
+import { Code } from "../layout/code"
 
 export const EcosystemExamples = () => {
   return (
     <div className="flex flex-col items-start md:items-center pt-8 pb-4 md:pb-12">
-      <p className="mt-6 mb-6 md:mb-16 px-4 md:text-center ">Effect provides a unified replacement for many one-off libraries.</p>
-      <Tabs.Root defaultValue={examples[0].examples[0].name} className="w-full relative md:pl-52">
+      <p className="mt-6 mb-6 md:mb-16 px-4 md:text-center ">
+        Effect provides a unified replacement for many one-off libraries.
+      </p>
+      <Tabs.Root
+        defaultValue={examples[0].examples[0].name}
+        className="w-full relative md:pl-52"
+      >
         <div className="hidden md:block absolute -top-32 -bottom-12 left-52 w-px -ml-px bg-gradient-to-b from-white/0 via-white/25 to-white/0" />
         <div className="hidden md:block absolute inset-y-0 left-0 pl-12 pt-14 ">
           <Tabs.List className="flex flex-col items-start gap-4 w-40 h-full overflow-y-auto">
-            {examples.map(({group, examples}, index) => (
+            {examples.map(({ group, examples }, index) => (
               <div key={index} className="w-full">
-                <h4 className="uppercase text-sm font-semibold text-white tracking-wider mb-1">{group}</h4>
+                <h4 className="uppercase text-sm font-semibold text-white tracking-wider mb-1">
+                  {group}
+                </h4>
                 <div className="flex flex-col items-start">
-                  {examples.map(({name}, index) => (
+                  {examples.map(({ name }, index) => (
                     <Tabs.Trigger
                       key={index}
                       value={name}
@@ -31,10 +38,10 @@ export const EcosystemExamples = () => {
             ))}
           </Tabs.List>
         </div>
-        <div className="md:hidden">
-          <Tabs.List className="flex relative z-10 items-center px-4 md:justify-center overflow-x-auto gap-4 -mb-px">
-            {examples.map(({examples}) =>
-              examples.map(({name}, index) => (
+        <div className="md:hidden relative">
+          <Tabs.List className="flex relative z-10 items-center px-4 md:justify-center overflow-x-auto gap-4 -mb-px hide-scrollbar">
+            {examples.map(({ examples }) =>
+              examples.map(({ name }, index) => (
                 <Tabs.Trigger
                   key={index}
                   value={name}
@@ -46,26 +53,44 @@ export const EcosystemExamples = () => {
             )}
           </Tabs.List>
           <Divider />
+          <div className="absolute inset-y-0 w-4 left-0 bg-gradient-to-r from-zinc-800 z-10" />
+          <div className="absolute inset-y-0 w-4 right-0 bg-gradient-to-l from-zinc-900 z-10" />
         </div>
         <div className="pt-8 md:pt-0">
-          {examples.map(({examples}, index) => (
+          {examples.map(({ examples }, index) => (
             <div key={index}>
-              {examples.map(({name, withoutEffect, withEffect}, index) => (
+              {examples.map(({ name, withoutEffect, withEffect }, index) => (
                 <Tabs.Content
                   key={index}
                   value={name}
                   className="grow grid grid-cols-1 md:grid-cols-2 px-4 md:px-12 gap-y-10 gap-6 data-[state=inactive]:absolute"
                 >
                   <div className="flex flex-col items-center gap-6">
-                    <h4 className="font-display text-2xl text-white">Using {name}</h4>
-                    <Code tabs={[{name: withoutEffect.fileName, content: withoutEffect.code}]} />
+                    <h4 className="font-display text-2xl text-white">
+                      Using {name}
+                    </h4>
+                    <Code
+                      tabs={[
+                        {
+                          name: withoutEffect.fileName,
+                          content: withoutEffect.code
+                        }
+                      ]}
+                    />
                   </div>
                   <div className="flex flex-col items-center gap-6">
                     <h4 className="font-display text-2xl text-white">
                       Using <span className="sr-only">Effect</span>
                       <Logo className="h-7 inline-block ml-1 -mt-1" />
                     </h4>
-                    <Code tabs={[{name: withEffect.fileName, content: withEffect.code}]} />
+                    <Code
+                      tabs={[
+                        {
+                          name: withEffect.fileName,
+                          content: withEffect.code
+                        }
+                      ]}
+                    />
                   </div>
                 </Tabs.Content>
               ))}
@@ -79,12 +104,12 @@ export const EcosystemExamples = () => {
 
 const examples = [
   {
-    group: 'Schema',
+    group: "Schema",
     examples: [
       {
-        name: 'zod',
+        name: "zod",
         withoutEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -111,7 +136,7 @@ const program = Effect.fail(new HttpError())\
       `
         },
         withEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -125,9 +150,9 @@ const program = Effect.fail(new HttpError())\
         }
       },
       {
-        name: 'yup',
+        name: "yup",
         withoutEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -140,7 +165,7 @@ const program = Effect.fail(new HttpError())\
       `
         },
         withEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -154,9 +179,9 @@ const program = Effect.fail(new HttpError())\
         }
       },
       {
-        name: 'superjson',
+        name: "superjson",
         withoutEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -169,7 +194,7 @@ const program = Effect.fail(new HttpError())\
       `
         },
         withEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -185,12 +210,12 @@ const program = Effect.fail(new HttpError())\
     ]
   },
   {
-    group: 'Streaming',
+    group: "Streaming",
     examples: [
       {
-        name: 'rxjs',
+        name: "rxjs",
         withoutEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -203,7 +228,7 @@ const program = Effect.fail(new HttpError())\
       `
         },
         withEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -219,12 +244,12 @@ const program = Effect.fail(new HttpError())\
     ]
   },
   {
-    group: 'Control Flow',
+    group: "Control Flow",
     examples: [
       {
-        name: 'p-queue',
+        name: "p-queue",
         withoutEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -237,7 +262,7 @@ const program = Effect.fail(new HttpError())\
       `
         },
         withEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -251,9 +276,9 @@ const program = Effect.fail(new HttpError())\
         }
       },
       {
-        name: 'ts-result',
+        name: "ts-result",
         withoutEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
@@ -266,7 +291,7 @@ const program = Effect.fail(new HttpError())\
       `
         },
         withEffect: {
-          fileName: 'index.ts',
+          fileName: "index.ts",
           code: `\
 import { Effect } from "effect"
 
