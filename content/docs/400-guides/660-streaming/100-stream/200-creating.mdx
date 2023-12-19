@@ -381,7 +381,6 @@ You might wonder about the difference between the `unfold` and `paginate` combin
 Imagine we have a paginated API that provides a substantial amount of data in a paginated manner. When we make a request to this API, it returns a `ResultPage` object containing the results for the current page and a flag indicating whether it's the last page or if there's more data to retrieve on the next page. Here's a simplified representation of our API:
 
 ```twoslash include domain
-// domain.ts
 import { Chunk, Effect } from "effect"
 
 export type RawData = string
@@ -422,7 +421,6 @@ Our goal is to convert this paginated API into a stream of `RowData` events. For
 
 // @filename: firstAttempt.ts
 // ---cut---
-// firstAttempt.ts
 import { Effect, Stream, Option } from "effect"
 import { RawData, listPaginated } from "./domain"
 
@@ -455,7 +453,6 @@ However, this approach has a drawback, it doesn't include the results from the l
 
 // @filename: firstAttempt.ts
 // ---cut---
-// secondAttempt.ts
 import { Effect, Stream, Option } from "effect"
 import { RawData, listPaginated } from "./domain"
 
@@ -496,7 +493,6 @@ This is where `Stream.paginate` comes to the rescue. It provides a more ergonomi
 
 // @filename: finalAttempt.ts
 // ---cut---
-// finalAttempt.ts
 import { Effect, Stream, Option } from "effect"
 import { RawData, listPaginated } from "./domain"
 
