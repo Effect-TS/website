@@ -17,7 +17,6 @@ It is very common in apps to depend on a number of external data sources like:
 Let's start with a fairly minimal model description:
 
 ```twoslash include Model
-// Model.ts
 import { Effect } from "effect"
 
 export interface User {
@@ -63,7 +62,6 @@ export class SendEmailError {
 Given such a model we usually write up functions to call some API (or database, etc.) like the following:
 
 ```twoslash include API
-// API.ts
 import { Effect } from "effect"
 import * as Model from "./Model"
 
@@ -171,7 +169,6 @@ Well **not anymore.**
 Let's rewrite our example to be as efficient as possible - we'll start by writing a model for the requests that our data sources support:
 
 ```twoslash include RequestModel
-// RequestModel.ts
 import { Request } from "effect"
 import * as Model from "./Model"
 
@@ -219,7 +216,6 @@ Here we will define a single resolver per query. There is no right or wrong answ
 but usually you will split up your resolvers based on which API calls can be batched.
 
 ```twoslash include Resolvers
-// Resolvers.ts
 import { Effect, RequestResolver, Request } from "effect"
 import * as API from "./API"
 import * as Model from "./Model"
@@ -502,7 +498,6 @@ Once we have such `Effect` we can directly use it in our request definition:
 
 // @filename: QueriesWithContext.ts
 // ---cut---
-// QueriesWithContext.ts
 import { Effect } from "effect"
 import * as Model from "./Model"
 import * as RequestModel from "./RequestModel"
@@ -539,7 +534,6 @@ For example:
 
 // @filename: QueriesFromLayers.ts
 // ---cut---
-// QueriesFromLayers.ts
 import { Effect, Context, Layer, RequestResolver } from "effect"
 import * as API from "./API"
 import * as Model from "./Model"
@@ -641,7 +635,6 @@ Fortunately we also have a primitive for caching in `Effect` and we use that to 
 
 // @filename: Queries.ts
 // ---cut---
-// Queries.ts
 import { Effect } from "effect"
 import * as RequestModel from "./RequestModel"
 import * as Resolvers from "./Resolvers"
@@ -675,7 +668,6 @@ Assuming you've wired everything up correctly:
 
 // @filename: index.ts
 // ---cut---
-// index.ts
 import { Effect, Schedule } from "effect"
 import * as Queries from "./Queries"
 
@@ -722,7 +714,6 @@ To cover those scenarios you'd create a custom cache like the following:
 
 // @filename: index.ts
 // ---cut---
-// index.ts
 import { Effect, Schedule, Layer, Request } from "effect"
 import * as Queries from "./Queries"
 
