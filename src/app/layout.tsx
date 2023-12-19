@@ -4,6 +4,7 @@ import localFont from "next/font/local"
 import "./globals.css"
 import "./hljs.css"
 import { Navigation } from "@/components/layout/navigation"
+import { WebContainerProvider } from "@/components/docs/components/webcontainer"
 import { Footer } from "@/components/layout/footer"
 import { ReactNode } from "react"
 import Script from "next/script"
@@ -49,7 +50,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
 
         <Navigation />
-        {children}
+        <WebContainerProvider>
+          {children}
+        </WebContainerProvider>
         <Footer />
       </body>
     </html>
