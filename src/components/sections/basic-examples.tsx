@@ -405,18 +405,187 @@ Effect.runPromise(main)\
     withoutEffect: {
       fileName: "index.ts",
       code: `\
-// TODO
+// configuration has to be added to the type signature
+const getTodos = (
+  ids: Iterable<number>,
+  concurrency: number,
+  signal?: AbortSignal,
+): Promise<any[]> =>
+  forEach(ids, concurrency, (id) =>
+    withRetries(3, () => getTodo(id, signal)),
+  )
+
+const getTodo = (
+  id: number,
+  signal?: AbortSignal,
+): Promise<any> =>
+  abortable(
+    (signal) =>
+      jsonOk(() =>
+        fetch(
+          \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
+          { signal },
+        ),
+      ),
+    mergeAbortSignal(
+      AbortSignal.timeout(1000),
+      signal,
+    ),
+  )
+
+async function main() {
+  const ids = Array.from(
+    { length: 10 },
+    (_, i) => i + 1,
+  )
+  const todos = await getTodos(
+    ids,
+    3,
+    AbortSignal.timeout(10000)
+  )
+  console.log("Got todos", todos)
+}
+
+main()
+
+// helpers
+
+async function jsonOk(
+  request: () => Promise<Response>,
+): Promise<any> {
+  const res = await request()
+  if (!res.ok) throw new Error("Response not ok")
+  return res.json()
+}
+
+function forEach<A, B>(
+  items: Iterable<A>,
+  concurrency: number,
+  f: (a: A) => Promise<B>,
+): Promise<Array<B>> {
+  let index = 0
+  const itemsArray = Array.from(items)
+  const results: Array<B> = new Array(
+    itemsArray.length,
+  )
+  async function process(index: number) {
+    const next = itemsArray[index]
+    results[index] = await f(next)
+  }
+  async function worker() {
+    while (index < itemsArray.length) {
+      await process(index++)
+    }
+  }
+  return Promise.all(
+    Array.from({ length: concurrency }, worker),
+  ).then(() => results)
+}
+
+async function withRetries<A>(
+  retries: number,
+  f: () => Promise<A>,
+): Promise<A> {
+  try {
+    return f()
+  } catch (error) {
+    if (retries === 0) {
+      throw error
+    }
+    return withRetries(retries - 1, f)
+  }
+}
+
+async function abortable<A>(
+  f: (signal: AbortSignal) => Promise<A>,
+  parentSignal?: AbortSignal,
+): Promise<A> {
+  if (parentSignal?.aborted) {
+    throw new DOMException(
+      "Aborted",
+      "AbortError",
+    )
+  }
+  const controller = new AbortController()
+  parentSignal?.addEventListener("abort", () =>
+    controller.abort(),
+  )
+  return await f(controller.signal)
+}
+
+function mergeAbortSignal(
+  childSignal: AbortSignal,
+  parentSignal?: AbortSignal,
+): AbortSignal {
+  if (parentSignal?.aborted) {
+    return parentSignal
+  } else if (childSignal.aborted) {
+    return childSignal
+  }
+
+  const controller = new AbortController()
+  parentSignal?.addEventListener("abort", () =>
+    controller.abort(),
+  )
+  childSignal.addEventListener("abort", () =>
+    controller.abort(),
+  )
+  return controller.signal
+}
+
       `,
       command: "bun src/index.ts",
-      result: "TODO"
+      result: "Got todos: [ ... ]"
     },
     withEffect: {
       fileName: "index.ts",
       code: `\
-// TODO
+// interuption and concurrency can be configured with
+// composition
+const getTodos = (
+  ids: Iterable<number>,
+): Effect.Effect<
+  never,
+  Http.error.HttpClientError,
+  unknown[]
+> =>
+  Effect.forEach(
+    ids,
+    (id) => getTodo(id).pipe(Effect.retryN(3)),
+    { concurrency: "inherit" },
+  )
+
+const getTodo = (
+  id: number,
+): Effect.Effect<
+  never,
+  Http.error.HttpClientError,
+  unknown
+> =>
+  Http.request
+    .get(
+      \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
+    )
+    .pipe(
+      Http.client.fetchOk(),
+      Effect.andThen((res) => res.json),
+      Effect.timeout(1000),
+    )
+
+const main = getTodos(
+  ReadonlyArray.range(1, 10),
+).pipe(
+  Effect.withConcurrency(3),
+  Effect.timeout("10 seconds"),
+  Effect.andThen((todos) =>
+    Console.log("Got todos", todos),
+  ),
+)
+
+Effect.runPromise(main)\
       `,
       command: "bun src/index.ts",
-      result: "TODO"
+      result: "Got todos: [ ... ]"
     }
   }
 ]
