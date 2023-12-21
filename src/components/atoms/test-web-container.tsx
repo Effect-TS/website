@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { useWebContainer } from "@/components/docs/components/webcontainer"
+import { useWebContainer } from "@/components/atoms/webcontainer"
 import { CodeMirror } from "./codemirror";
 
 export const files = {
