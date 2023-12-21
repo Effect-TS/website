@@ -8,6 +8,7 @@ import { MobileMenu } from "./mobile-menu"
 import { usePathname } from "next/navigation"
 import { ThemeSwitcher } from "../atoms/theme-switcher"
 import { LogoDark } from "../atoms/logo-dark"
+import { FC } from "react"
 
 const menu = [
   { name: "Docs", href: "/docs" },
@@ -21,13 +22,21 @@ const socials = [
   { name: "Discord", icon: "discord", href: "https://discord.gg/effect-ts" }
 ]
 
-export const Navigation = () => {
+export const Navigation: FC<{
+  wide?: boolean | false
+  searchBox?: boolean | false
+  themeSwitcher?: boolean | false
+}> = ({ wide, searchBox, themeSwitcher }) => {
   const pathname = usePathname()
 
   return (
     <div className={pathname === "/" ? "dark" : ""}>
       <header className="fixed top-0 inset-x-0 backdrop-blur z-30 bg-white/70 dark:bg-[#09090B]/70 text-zinc-700 dark:text-zinc-400">
-        <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 h-16 sm:h-24 flex justify-between items-center">
+        <div
+          className={`w-full ${
+            wide ? "max-w-screen-2xl" : "max-w-screen-xl"
+          } mx-auto px-4 sm:px-8 lg:px-16 h-16 sm:h-24 flex justify-between items-center`}
+        >
           <Link href="/" className="z-50">
             <Logo className="hidden dark:block h-7 sm:h-8" />
             <LogoDark className="dark:hidden h-7 sm:h-8" />
@@ -38,18 +47,36 @@ export const Navigation = () => {
               <Link
                 key={index}
                 href={href}
-                className={`flex items-start ${pathname.startsWith(href) ? "text-black font-normal dark:text-white dark:font-light" : ""}`}
+                className={`flex items-start ${
+                  pathname.startsWith(href)
+                    ? "text-black font-normal dark:text-white dark:font-light"
+                    : ""
+                }`}
               >
                 <span>{name}</span>
-                {href.startsWith("http") && <Icon name="arrow-up-right-light" className="h-3.5 mt-0.5 ml-0.5" />}
+                {href.startsWith("http") && (
+                  <Icon
+                    name="arrow-up-right-light"
+                    className="h-3.5 mt-0.5 ml-0.5"
+                  />
+                )}
               </Link>
             ))}
-            {pathname === "/" ? <Search className="w-56" /> : <ThemeSwitcher />}
+            {searchBox && <Search className="w-56" />}
+            {themeSwitcher && <ThemeSwitcher />}
+            {/* {pathname === "/" ? (
+              <Search className="w-56" />
+            ) : (
+              <ThemeSwitcher />
+            )} */}
             <div className="flex items-center gap-4">
               {socials.map(({ name, icon, href }, index) => (
                 <Link key={index} href={href}>
                   <span className="sr-only">{name}</span>
-                  <Icon name={icon as IconName} className="h-5 text-zinc-700 dark:text-zinc-400" />
+                  <Icon
+                    name={icon as IconName}
+                    className="h-5 text-zinc-700 dark:text-zinc-400"
+                  />
                 </Link>
               ))}
             </div>

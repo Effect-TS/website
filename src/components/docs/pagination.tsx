@@ -11,16 +11,32 @@ export const Pagination: FC<{ path: string }> = ({ path }) => {
     .slice(0, length - 1)
     .join("/")
   const pages = allDocsPages
-    .filter((page) => page.urlPath.startsWith(parentPath) && page.urlPath.split("/").length === length && page.order > 0)
-    .map((page) => ({ title: page.title, urlPath: page.urlPath, order: page.order }))
-  const prev = pages.filter((page) => page.order < currentPage.order).sort((pageA, pageB) => pageB.order - pageA.order)[0]
-  const next = pages.sort((pageA, pageB) => pageA.order - pageB.order).filter((page) => page.order > currentPage.order)[0]
+    .filter(
+      (page) =>
+        page.urlPath.startsWith(parentPath) &&
+        page.urlPath.split("/").length === length &&
+        page.order > 0
+    )
+    .map((page) => ({
+      title: page.title,
+      urlPath: page.urlPath,
+      order: page.order
+    }))
+  const prev = pages
+    .filter((page) => page.order < currentPage.order)
+    .sort((pageA, pageB) => pageB.order - pageA.order)[0]
+  const next = pages
+    .sort((pageA, pageB) => pageA.order - pageB.order)
+    .filter((page) => page.order > currentPage.order)[0]
 
   return (
-    <div className="flex w-full justify-between max-w-[65ch]">
+    <div className="pagination flex w-full justify-between">
       <div>
         {prev && (
-          <Link href={prev.urlPath} className="hover:bg-zinc-100 dark:hover:bg-zinc-900 p-3 -mr-3 -mt-3 block rounded-xl">
+          <Link
+            href={prev.urlPath}
+            className="hover:bg-zinc-100 dark:hover:bg-zinc-900 p-3 -mr-3 -mt-3 block rounded-xl"
+          >
             <div className="text-sm flex justify-start gap-1.5 items-center text-zinc-500 dark:text-zinc-400">
               <Icon name="arrow-right" className="h-3 rotate-180" />
               <span>Prev</span>
@@ -31,7 +47,10 @@ export const Pagination: FC<{ path: string }> = ({ path }) => {
       </div>
       <div>
         {next && (
-          <Link href={next.urlPath} className="hover:bg-zinc-100 dark:hover:bg-zinc-900 p-3 -mr-3 -mt-3 block rounded-xl">
+          <Link
+            href={next.urlPath}
+            className="hover:bg-zinc-100 dark:hover:bg-zinc-900 p-3 -mr-3 -mt-3 block rounded-xl"
+          >
             <div className="text-sm flex justify-end gap-1.5 items-center text-zinc-500 dark:text-zinc-400">
               <span>Next</span>
               <Icon name="arrow-right" className="h-3" />

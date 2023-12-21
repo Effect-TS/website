@@ -43,7 +43,7 @@ export default function Page({
 
   return (
     <>
-      <main className="relative z-10 shrink grow md:pl-12 xl:pr-12 pb-24 -mt-2">
+      <main className="relative z-10 shrink md:pl-12 xl:pr-12 pb-24 -mt-2">
         <Breadcrumbs elements={breadcrumbs} />
         <div className="flex items-start">
           <MobileNavigation className="mt-2 md:hidden" />

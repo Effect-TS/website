@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       lang="en"
       className={`relative ${inter.variable} ${calSans.variable}`}
     >
-      <body className="relative overflow-x-hidden relative antialiased font-light bg-white dark:bg-[#09090B] text-zinc-700 dark:text-zinc-400">
+      <body className="relative overflow-x-hidden antialiased font-light bg-white dark:bg-[#09090B] text-zinc-700 dark:text-zinc-400">
         <Script
           id="check-theme"
           strategy="beforeInteractive"
@@ -48,7 +48,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           }}
         />
 
-        <Navigation />
         {children}
         <Footer />
       </body>

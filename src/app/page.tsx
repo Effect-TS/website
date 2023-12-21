@@ -1,3 +1,4 @@
+import { Navigation } from "@/components/layout/navigation"
 import { Catch } from "@/components/sections/catch"
 import { Community } from "@/components/sections/community"
 import { Complexity } from "@/components/sections/complexity"
@@ -13,19 +14,22 @@ import { Tweets } from "@/components/sections/tweets"
 
 export default function HomePage() {
   return (
-    <main className="dark bg-[#09090B] text-zinc-400 w-full overflow-x-hidden min-h-screen relative pt-16 sm:pt-24">
-      <Hero />
-      <TechLogos />
-      <Complexity />
-      <JSSurvey />
-      <Features />
-      <Examples />
-      <Screenshots />
-      <Tweets />
-      <Catch />
-      <FAQ />
-      <Community />
-      <CTA />
-    </main>
+    <>
+      <Navigation searchBox />
+      <main className="dark bg-[#09090B] text-zinc-400 w-full overflow-x-hidden min-h-screen relative pt-16 sm:pt-24">
+        <Hero />
+        <TechLogos />
+        <Complexity />
+        <JSSurvey />
+        <Features />
+        <Examples />
+        <Screenshots />
+        <Tweets />
+        <Catch />
+        <FAQ />
+        <Community />
+        <CTA />
+      </main>
+    </>
   )
 }
