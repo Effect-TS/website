@@ -7,6 +7,7 @@ import { Navigation } from "@/components/layout/navigation"
 import { Footer } from "@/components/layout/footer"
 import { ReactNode } from "react"
 import Script from "next/script"
+import { Analytics } from "@vercel/analytics/react"
 import { ThemeWrapper } from "@/components/layout/theme-wrapper"
 
 const inter = Inter({
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
         {children}
         <Footer />
+        <Analytics />
       </body>
     </html>
   )

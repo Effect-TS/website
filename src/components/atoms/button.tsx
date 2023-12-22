@@ -7,7 +7,8 @@ export const Button: FC<{
   href: string
   children: ReactNode
   className?: string
-}> = ({ secondary, href, children, className = "" }) => {
+  external?: boolean
+}> = ({ secondary, href, children, className = "", external }) => {
   return (
     <Link
       href={href}
@@ -16,6 +17,7 @@ export const Button: FC<{
           ? "bg-gradient-to-br from-zinc-300 to-zinc-500"
           : "bg-gradient-to-b from-white to-zinc-300"
       } ${className}`}
+      {...(external && { rel: "noopener noreferrer", target: "_blank" })}
     >
       <div
         className={`flex items-center gap-1 px-6 font-medium rounded-[11px] whitespace-nowrap ${

@@ -67,7 +67,7 @@ export const Hero = () => {
             />
             <div className="mt-10 flex flex-col sm:flex-row items-start gap-3">
               <Button href="/docs/get-started">Get Started</Button>
-              <Button href="https://github.com/Effect-TS/examples" secondary>
+              <Button href="https://github.com/Effect-TS/examples" secondary external>
                 Explore Examples
               </Button>
             </div>

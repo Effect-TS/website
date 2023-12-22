@@ -4,6 +4,7 @@ import { FC, useState } from "react"
 import * as Tabs from "@radix-ui/react-tabs"
 import hljs from "highlight.js/lib/common"
 import { Icon } from "../icons"
+import { track } from "@vercel/analytics"
 
 export const Code: FC<{
   tabs: {
@@ -18,6 +19,7 @@ export const Code: FC<{
   const runSnippet = () => {
     setRunning(true)
     setTimeout(() => setRunning(false), 1000)
+    track("run-snippet", terminal)
   }
 
   return (
@@ -46,8 +48,10 @@ export const Code: FC<{
             </Tabs.List>
           </div>
           <div
-            style={{ height: fixedHeight}}
-            className={`${terminal ? "pb-8" : ""} ${fixedHeight ? "" : "max-h-96"} overflow-y-auto`}
+            style={{ height: fixedHeight }}
+            className={`${terminal ? "pb-8" : ""} ${
+              fixedHeight ? "" : "max-h-96"
+            } overflow-y-auto`}
           >
             {tabs.map(({ name, content, highlights }, index) => {
               const html = hljs.highlightAuto(content).value
