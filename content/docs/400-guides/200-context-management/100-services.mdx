@@ -181,6 +181,36 @@ Notice that the `R` type parameter of the `runnable` effect is now `never`. This
 
 By calling `Effect.runPromise(runnable){:ts}`, the program is executed, and the resulting output can be observed on the console.
 
+## Inferring the Shape
+
+A commonly used pattern to simplify the process of defining a tag involves inferring the shape of the service from the implementation constructor. Here's an example:
+
+```ts twoslash
+import { Effect, Context } from "effect"
+
+interface Random {
+  readonly _: unique symbol
+}
+
+const randomImpl = {
+  next: Effect.sync(() => Math.random())
+}
+
+const Random = Context.Tag<Random, typeof randomImpl>(
+  "MyRandomServiceIdentifier"
+)
+
+const program = Effect.gen(function* (_) {
+  const random = yield* _(Random)
+  const randomNumber = yield* _(random.next)
+  console.log(`random number: ${randomNumber}`)
+})
+
+const runnable = Effect.provideService(program, Random, randomImpl)
+```
+
+As you can see, the shape of the `Random` service is inferred from the implementation (`typeof randomImpl`), reducing the burden of explicitly defining it.
+
 ## Using Multiple Services
 
 When we require the usage of more than one service, the process remains similar to what we've learned in defining a service, repeated for each service needed. Let's examine an example where we need two services, namely `Random` and `Logger`:
