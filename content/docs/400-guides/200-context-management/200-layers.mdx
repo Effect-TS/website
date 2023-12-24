@@ -45,8 +45,8 @@ Layers are a way of separating implementation details from the service itself.
 <Idea>
   When a service has its own dependencies, it's best to separate
   implementation details into layers. Layers act as **constructors** for
-  creating the service, allowing us to handle dependencies at the
-  construction level rather than the service level.
+  creating the service, allowing us to handle dependencies at the construction
+  level rather than the service level.
 </Idea>
 
 A `Layer<RIn, E, ROut>` represents a blueprint for constructing a `Context<ROut>`. It takes a value of type `RIn` as input and may potentially produce an error of type `E` during the construction process.
@@ -54,8 +54,8 @@ A `Layer<RIn, E, ROut>` represents a blueprint for constructing a `Context<ROut>
 In our case, the `ROut` type represents the service we want to construct, while `RIn` represents the dependencies required for construction.
 
 <Info>
-  For simplicity, let's assume that we won't encounter any errors during
-  the value construction (meaning `E = never`).
+  For simplicity, let's assume that we won't encounter any errors during the
+  value construction (meaning `E = never`).
 </Info>
 
 Now, let's determine how many layers we need to implement our dependency graph:
@@ -68,9 +68,9 @@ Now, let's determine how many layers we need to implement our dependency graph:
 | `RecipeLive`       | The `Recipe` service depends on both `Flour` and `Sugar` services | `Layer<Flour \| Sugar, never, Recipe>` |
 
 <Idea>
-  A common convention when naming the `Layer` for a particular service is
-  to add a `Live` suffix for the "live" implementation and a `Test` suffix
-  for the "test" implementation. For example, for a `Database` service, the
+  A common convention when naming the `Layer` for a particular service is to
+  add a `Live` suffix for the "live" implementation and a `Test` suffix for
+  the "test" implementation. For example, for a `Database` service, the
   `DatabaseLive` would be the layer you provide in your application and the
   `DatabaseTest` would be the layer you provide in your tests.
 </Idea>
@@ -102,13 +102,9 @@ interface MeasuringCup {
 // Create a tag for the MeasuringCup service
 const MeasuringCup = Context.Tag<MeasuringCup>()
 
-const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) =>
-      Effect.succeed(`Measured ${amount} ${unit}(s)`)
-  })
-)
+const MeasuringCupLive = Layer.succeed(MeasuringCup, {
+  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+})
 ```
 
 Looking at the type of `MeasuringCupLive` we can observe:
@@ -124,8 +120,7 @@ implementation directly as a simple object:
 
 ```ts
 const MeasuringCupLive = Layer.succeed(MeasuringCup, {
-  measure: (amount, unit) =>
-    Effect.succeed(`Measured ${amount} ${unit}(s)`)
+  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
 })
 ```
 
@@ -149,13 +144,9 @@ interface MeasuringCup {
 
 const MeasuringCup = Context.Tag<MeasuringCup>()
 
-const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) =>
-      Effect.succeed(`Measured ${amount} ${unit}(s)`)
-  })
-)
+const MeasuringCupLive = Layer.succeed(MeasuringCup, {
+  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+})
 
 // ---cut---
 interface Sugar {
@@ -166,11 +157,9 @@ const Sugar = Context.Tag<Sugar>()
 
 const SugarLive = Layer.effect(
   Sugar,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    grams: (amount) => measuringCup.measure(amount, "gram")
+  }))
 )
 
 interface Flour {
@@ -181,11 +170,9 @@ const Flour = Context.Tag<Flour>()
 
 const FlourLive = Layer.effect(
   Flour,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    cups: (amount) => measuringCup.measure(amount, "cup")
+  }))
 )
 ```
 
@@ -214,13 +201,9 @@ interface MeasuringCup {
 
 const MeasuringCup = Context.Tag<MeasuringCup>()
 
-const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) =>
-      Effect.succeed(`Measured ${amount} ${unit}(s)`)
-  })
-)
+const MeasuringCupLive = Layer.succeed(MeasuringCup, {
+  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+})
 
 interface Sugar {
   readonly grams: (amount: number) => Effect.Effect<never, never, string>
@@ -230,11 +213,9 @@ const Sugar = Context.Tag<Sugar>()
 
 const SugarLive = Layer.effect(
   Sugar,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    grams: (amount) => measuringCup.measure(amount, "gram")
+  }))
 )
 
 interface Flour {
@@ -245,11 +226,9 @@ const Flour = Context.Tag<Flour>()
 
 const FlourLive = Layer.effect(
   Flour,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    cups: (amount) => measuringCup.measure(amount, "cup")
+  }))
 )
 
 // ---cut---
@@ -264,9 +243,9 @@ const RecipeLive = Layer.effect(
   Effect.gen(function* (_) {
     const sugar = yield* _(Sugar)
     const flour = yield* _(Flour)
-    return Recipe.of({
+    return {
       steps: Effect.all([sugar.grams(200), flour.cups(1)])
-    })
+    }
   })
 )
 ```
@@ -286,13 +265,9 @@ interface MeasuringCup {
 
 const MeasuringCup = Context.Tag<MeasuringCup>()
 
-const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) =>
-      Effect.succeed(`Measured ${amount} ${unit}(s)`)
-  })
-)
+const MeasuringCupLive = Layer.succeed(MeasuringCup, {
+  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+})
 
 interface Sugar {
   readonly grams: (amount: number) => Effect.Effect<never, never, string>
@@ -302,11 +277,9 @@ const Sugar = Context.Tag<Sugar>()
 
 const SugarLive = Layer.effect(
   Sugar,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    grams: (amount) => measuringCup.measure(amount, "gram")
+  }))
 )
 
 interface Flour {
@@ -317,11 +290,9 @@ const Flour = Context.Tag<Flour>()
 
 const FlourLive = Layer.effect(
   Flour,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    cups: (amount) => measuringCup.measure(amount, "cup")
+  }))
 )
 
 // ---cut---
@@ -334,11 +305,9 @@ const Recipe = Context.Tag<Recipe>()
 const RecipeLive = Layer.effect(
   Recipe,
   Effect.all([Sugar, Flour]).pipe(
-    Effect.map(([sugar, flour]) =>
-      Recipe.of({
-        steps: Effect.all([sugar.grams(200), flour.cups(1)])
-      })
-    )
+    Effect.map(([sugar, flour]) => ({
+      steps: Effect.all([sugar.grams(200), flour.cups(1)])
+    }))
   )
 )
 ```
@@ -382,13 +351,9 @@ interface MeasuringCup {
 
 const MeasuringCup = Context.Tag<MeasuringCup>()
 
-const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) =>
-      Effect.succeed(`Measured ${amount} ${unit}(s)`)
-  })
-)
+const MeasuringCupLive = Layer.succeed(MeasuringCup, {
+  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+})
 
 interface Sugar {
   readonly grams: (amount: number) => Effect.Effect<never, never, string>
@@ -398,11 +363,9 @@ const Sugar = Context.Tag<Sugar>()
 
 const SugarLive = Layer.effect(
   Sugar,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    grams: (amount) => measuringCup.measure(amount, "gram")
+  }))
 )
 
 interface Flour {
@@ -413,11 +376,9 @@ const Flour = Context.Tag<Flour>()
 
 const FlourLive = Layer.effect(
   Flour,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    cups: (amount) => measuringCup.measure(amount, "cup")
+  }))
 )
 
 // ---cut---
@@ -449,13 +410,9 @@ interface MeasuringCup {
 
 const MeasuringCup = Context.Tag<MeasuringCup>()
 
-const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) =>
-      Effect.succeed(`Measured ${amount} ${unit}(s)`)
-  })
-)
+const MeasuringCupLive = Layer.succeed(MeasuringCup, {
+  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+})
 
 interface Sugar {
   readonly grams: (amount: number) => Effect.Effect<never, never, string>
@@ -465,11 +422,9 @@ const Sugar = Context.Tag<Sugar>()
 
 const SugarLive = Layer.effect(
   Sugar,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    grams: (amount) => measuringCup.measure(amount, "gram")
+  }))
 )
 
 interface Flour {
@@ -480,11 +435,9 @@ const Flour = Context.Tag<Flour>()
 
 const FlourLive = Layer.effect(
   Flour,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    cups: (amount) => measuringCup.measure(amount, "cup")
+  }))
 )
 
 interface Recipe {
@@ -498,9 +451,9 @@ const RecipeLive = Layer.effect(
   Effect.gen(function* (_) {
     const sugar = yield* _(Sugar)
     const flour = yield* _(Flour)
-    return Recipe.of({
+    return {
       steps: Effect.all([sugar.grams(200), flour.cups(1)])
-    })
+    }
   })
 )
 
@@ -530,13 +483,9 @@ interface MeasuringCup {
 
 const MeasuringCup = Context.Tag<MeasuringCup>()
 
-const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) =>
-      Effect.succeed(`Measured ${amount} ${unit}(s)`)
-  })
-)
+const MeasuringCupLive = Layer.succeed(MeasuringCup, {
+  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+})
 
 interface Sugar {
   readonly grams: (amount: number) => Effect.Effect<never, never, string>
@@ -546,11 +495,9 @@ const Sugar = Context.Tag<Sugar>()
 
 const SugarLive = Layer.effect(
   Sugar,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    grams: (amount) => measuringCup.measure(amount, "gram")
+  }))
 )
 
 interface Flour {
@@ -561,11 +508,9 @@ const Flour = Context.Tag<Flour>()
 
 const FlourLive = Layer.effect(
   Flour,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    cups: (amount) => measuringCup.measure(amount, "cup")
+  }))
 )
 
 interface Recipe {
@@ -579,9 +524,9 @@ const RecipeLive = Layer.effect(
   Effect.gen(function* (_) {
     const sugar = yield* _(Sugar)
     const flour = yield* _(Flour)
-    return Recipe.of({
+    return {
       steps: Effect.all([sugar.grams(200), flour.cups(1)])
-    })
+    }
   })
 )
 
@@ -614,13 +559,9 @@ interface MeasuringCup {
 
 const MeasuringCup = Context.Tag<MeasuringCup>()
 
-const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) =>
-      Effect.succeed(`Measured ${amount} ${unit}(s)`)
-  })
-)
+const MeasuringCupLive = Layer.succeed(MeasuringCup, {
+  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+})
 
 interface Sugar {
   readonly grams: (amount: number) => Effect.Effect<never, never, string>
@@ -630,11 +571,9 @@ const Sugar = Context.Tag<Sugar>()
 
 const SugarLive = Layer.effect(
   Sugar,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    grams: (amount) => measuringCup.measure(amount, "gram")
+  }))
 )
 
 interface Flour {
@@ -645,11 +584,9 @@ const Flour = Context.Tag<Flour>()
 
 const FlourLive = Layer.effect(
   Flour,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    cups: (amount) => measuringCup.measure(amount, "cup")
+  }))
 )
 
 interface Recipe {
@@ -663,9 +600,9 @@ const RecipeLive = Layer.effect(
   Effect.gen(function* (_) {
     const sugar = yield* _(Sugar)
     const flour = yield* _(Flour)
-    return Recipe.of({
+    return {
       steps: Effect.all([sugar.grams(200), flour.cups(1)])
-    })
+    }
   })
 )
 
@@ -715,13 +652,9 @@ interface MeasuringCup {
 
 const MeasuringCup = Context.Tag<MeasuringCup>()
 
-const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) =>
-      Effect.succeed(`Measured ${amount} ${unit}(s)`)
-  })
-)
+const MeasuringCupLive = Layer.succeed(MeasuringCup, {
+  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+})
 
 interface Sugar {
   readonly grams: (amount: number) => Effect.Effect<never, never, string>
@@ -731,11 +664,9 @@ const Sugar = Context.Tag<Sugar>()
 
 const SugarLive = Layer.effect(
   Sugar,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    grams: (amount) => measuringCup.measure(amount, "gram")
+  }))
 )
 
 interface Flour {
@@ -746,11 +677,9 @@ const Flour = Context.Tag<Flour>()
 
 const FlourLive = Layer.effect(
   Flour,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    cups: (amount) => measuringCup.measure(amount, "cup")
+  }))
 )
 
 interface Recipe {
@@ -764,9 +693,9 @@ const RecipeLive = Layer.effect(
   Effect.gen(function* (_) {
     const sugar = yield* _(Sugar)
     const flour = yield* _(Flour)
-    return Recipe.of({
+    return {
       steps: Effect.all([sugar.grams(200), flour.cups(1)])
-    })
+    }
   })
 )
 

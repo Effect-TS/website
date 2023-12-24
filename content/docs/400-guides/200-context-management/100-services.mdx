@@ -29,22 +29,32 @@ Understanding how to manage services and provide the necessary context to effect
 
 Let's start by creating a service for a random number generator.
 
+To create a new service, three things are needed:
+
+- A unique identifier at the type level (`Random`).
+- An interface describing the possible operations of the service (`RandomShape`).
+- A unique identifier at the runtime level (`"MyRandomServiceIdentifier"`).
+
 ```twoslash include service
 import { Effect, Context } from "effect"
 
+// Define an interface named 'Random' to represent the service
 export interface Random {
+  readonly _: unique symbol // Unique symbol to ensure type-level uniqueness
+}
+
+// Define another interface 'RandomShape' to represent the operations of the 'Random' service
+export interface RandomShape {
   readonly next: Effect.Effect<never, never, number>
 }
 
-export const Random = Context.Tag<Random>()
+// Create a 'Tag' for the 'Random' service
+export const Random = Context.Tag<Random, RandomShape>("MyRandomServiceIdentifier")
 ```
 
 ```ts filename="service.ts" twoslash
 // @include: service
 ```
-
-The code above defines an interface called `Random`, which represents our service.
-It has a single operation called `next` that returns a random number.
 
 The `Random` value is what is referred to as a "Tag" in Effect.
 It serves as a representation of the `Random` service and allows Effect to locate and use this service at runtime.
@@ -57,39 +67,9 @@ Map<Tag, ServiceImpl>
 
 Where the Tag acts as the "key" to the service implementation within the context.
 
-<Idea>
-  Naming the interface the same as the value makes it easier to import in
-  TypeScript, so it's recommended that you name the interface the same as the
-  related Tag.
-</Idea>
-
-If desired, you can specify a unique `key` as shown below:
-
-```ts filename="service.ts" twoslash
-import { Effect, Context } from "effect"
-
-export interface Random {
-  readonly next: Effect.Effect<never, never, number>
-}
-
-export const Random = Context.Tag<Random>("myapp/Random")
-```
-
-When you specify the `key`, it makes the `Tag` global, which means that two tags with the same `key` will refer to the same instance:
-
-```ts twoslash
-import { Context } from "effect"
-
-console.log(Context.Tag() === Context.Tag()) // Output: false
-
-console.log(Context.Tag("PORT") === Context.Tag("PORT")) // Output: true
-```
-
-This feature comes in handy in scenarios where live reloads can occur, and you want to preserve the instance across reloads. It ensures that there is no duplication of instances (although it should not happen in the first place, some bundlers and frameworks can behave strangely, and we don't have control over them). Additionally, using a unique `key` allows for better printing of a tag. If you ever face "Service Not Found" or "Service Not Found: myapp/Random," the second is better and provides more helpful information to identify the issue.
-
 ## Using the Service
 
-Now that we have our service interface defined, let's see how we can use it by building a pipeline.
+Now that we have our service tag defined, let's see how we can use it by building a pipeline.
 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
@@ -110,9 +90,9 @@ const program = Effect.gen(function* (_) {
 })
 ```
 
-In the code above, we can observe that we are able to yield the `Random` Tag as if it were an Effect itself.
+In the code above, we can observe that we are able to yield the `Random` Tag as if it were an `Effect` itself.
 This allows us to access the `next` operation of the service.
-We then use the `Console.log` utility to log the generated random number.
+We then use the `console.log` utility to log the generated random number.
 
 </Tab>
 <Tab>
@@ -153,20 +133,13 @@ If we attempt to execute the effect without providing the necessary service we w
 
 ```ts twoslash
 // @errors: 2345
-import { Effect, Context, Console } from "effect"
+// @include: service
 
-export interface Random {
-  readonly next: Effect.Effect<never, never, number>
-}
-
-export const Random = Context.Tag<Random>()
-
-const program = Random.pipe(
-  Effect.flatMap((random) => random.next),
-  Effect.flatMap((randomNumber) =>
-    Console.log(`random number: ${randomNumber}`)
-  )
-)
+const program = Effect.gen(function* (_) {
+  const random = yield* _(Random)
+  const randomNumber = yield* _(random.next)
+  console.log(`random number: ${randomNumber}`)
+})
 
 // ---cut---
 Effect.runSync(program)
@@ -181,29 +154,18 @@ In the next section, we will explore how to implement and provide the `Random` s
 In order to provide an actual implementation of the `Random` service, we can utilize the `Effect.provideService` function.
 
 ```ts twoslash
-import { Effect, Context, Console } from "effect"
+// @include: service
 
-export interface Random {
-  readonly next: Effect.Effect<never, never, number>
-}
-
-export const Random = Context.Tag<Random>()
-
-const program = Random.pipe(
-  Effect.flatMap((random) => random.next),
-  Effect.flatMap((randomNumber) =>
-    Console.log(`random number: ${randomNumber}`)
-  )
-)
+const program = Effect.gen(function* (_) {
+  const random = yield* _(Random)
+  const randomNumber = yield* _(random.next)
+  console.log(`random number: ${randomNumber}`)
+})
 
 // ---cut---
-const runnable = Effect.provideService(
-  program,
-  Random,
-  Random.of({
-    next: Effect.sync(() => Math.random())
-  })
-)
+const runnable = Effect.provideService(program, Random, {
+  next: Effect.sync(() => Math.random())
+})
 
 Effect.runPromise(runnable)
 /*
@@ -213,120 +175,45 @@ random number: 0.8241872233134417
 ```
 
 In the code snippet above, we call the `program` that we defined earlier and provide it with an implementation of the `Random` service.
-We use the `Effect.provideService(effect, tag, implementation){:ts}` function to associate the `Random` service with its implementation, an object with a `next` operation that generates a random number passed to `Random.of(){:ts}` (a convenience function to construct and return the service with the correct type).
+We use the `Effect.provideService(effect, tag, implementation){:ts}` function to associate the `Random` tag with its implementation, an object with a `next` operation that generates a random number.
 
 Notice that the `R` type parameter of the `runnable` effect is now `never`. This indicates that the effect no longer requires any context to be provided. With the implementation of the `Random` service in place, we are able to run the program without any further dependencies.
 
 By calling `Effect.runPromise(runnable){:ts}`, the program is executed, and the resulting output can be observed on the console.
 
-## Using the Service multiple times
+## Inferring the Shape
 
-<Warning>
-  This section is relevant only if you are using the `pipe` syntax. If you are
-  not using `pipe`, you can skip this section.
-</Warning>
-
-In the `program` definition, we have used the `Random` service only once:
+A commonly used pattern to simplify the process of defining a tag involves inferring the shape of the service from the implementation constructor. Here's an example:
 
 ```ts twoslash
-// @filename: service.ts
-// @include: service
+import { Effect, Context } from "effect"
 
-// @filename: index.ts
-// ---cut---
-import { Effect, Console } from "effect"
-import { Random } from "./service"
+interface Random {
+  readonly _: unique symbol
+}
 
-const program = Random.pipe(
-  Effect.flatMap((random) => random.next),
-  Effect.flatMap((randomNumber) =>
-    Console.log(`random number: ${randomNumber}`)
-  )
+const randomImpl = {
+  next: Effect.sync(() => Math.random())
+}
+
+const Random = Context.Tag<Random, typeof randomImpl>(
+  "MyRandomServiceIdentifier"
 )
-```
-
-But what if we need to use it multiple times? In such cases, we need to ensure that the service handle (`random`) remains in scope.
-
-```ts twoslash
-// @filename: service.ts
-// @include: service
-
-// @filename: index.ts
-// ---cut---
-import { Effect, Console } from "effect"
-import { Random } from "./service"
-
-const program = Random.pipe(
-  Effect.flatMap((random) => random.next),
-  Effect.flatMap((randomNumber) =>
-    Console.log(`random number: ${randomNumber}`)
-  ),
-  // I can't access the random service here
-  Effect.flatMap(() => Console.log(`another random number: ???`))
-)
-```
-
-The solution depends on whether we are using `Effect.gen` or `pipe`:
-
-<Tabs items={["Using Effect.gen", "Using pipe"]}>
-<Tab>
-
-With `Effect.gen` our service handle is always in scope:
-
-```ts twoslash
-// @filename: service.ts
-// @include: service
-
-// @filename: index.ts
-// ---cut---
-import { Effect } from "effect"
-import { Random } from "./service"
 
 const program = Effect.gen(function* (_) {
   const random = yield* _(Random)
   const randomNumber = yield* _(random.next)
   console.log(`random number: ${randomNumber}`)
-  const anotherRandomNumber = yield* _(random.next)
-  console.log(`another random number: ${anotherRandomNumber}`)
 })
+
+const runnable = Effect.provideService(program, Random, randomImpl)
 ```
 
-</Tab>
-<Tab>
-
-We can use `flatMap` to create a second pipeline and keep our service handle in scope:
-
-```ts twoslash
-// @filename: service.ts
-// @include: service
-
-// @filename: index.ts
-// ---cut---
-import { Effect, Console } from "effect"
-import { Random } from "./service"
-
-const program = Random.pipe(
-  Effect.flatMap((random) =>
-    random.next.pipe(
-      Effect.flatMap((randomNumber) =>
-        Console.log(`random number: ${randomNumber}`)
-      ),
-      Effect.flatMap(() => random.next),
-      Effect.flatMap((randomNumber) =>
-        Console.log(`another random number: ${randomNumber}`)
-      )
-    )
-  )
-)
-```
-
-</Tab>
-</Tabs>
+As you can see, the shape of the `Random` service is inferred from the implementation (`typeof randomImpl`), reducing the burden of explicitly defining it.
 
 ## Using Multiple Services
 
-When we need to manage multiple services in our program, we can utilize the `Effect.all(tags){:ts}` function.
-By passing a tuple of tags, we can access the corresponding tuple of services:
+When we require the usage of more than one service, the process remains similar to what we've learned in defining a service, repeated for each service needed. Let's examine an example where we need two services, namely `Random` and `Logger`:
 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
@@ -335,60 +222,69 @@ By passing a tuple of tags, we can access the corresponding tuple of services:
 import { Effect, Context } from "effect"
 
 interface Random {
+  readonly _: unique symbol
+}
+
+interface RandomShape {
   readonly next: Effect.Effect<never, never, number>
 }
 
-const Random = Context.Tag<Random>()
+// Create a 'Tag' for the 'Random' service
+const Random = Context.Tag<Random, RandomShape>("MyRandomServiceIdentifier")
 
 interface Logger {
+  readonly _: unique symbol
+}
+
+interface LoggerShape {
   readonly log: (message: string) => Effect.Effect<never, never, void>
 }
 
-const Logger = Context.Tag<Logger>()
-
-const program = Effect.gen(function* (_) {
-  const random = yield* _(Random)
-  const logger = yield* _(Logger)
-  const randomNumber = yield* _(random.next)
-  return yield* _(logger.log(String(randomNumber)))
-})
+// Create a 'Tag' for the 'Logger' service
+const Logger = Context.Tag<Logger, LoggerShape>("MyLoggerServiceIdentifier")
 ```
 
 ```ts twoslash
 // @include: random-logger
+
+const program = Effect.gen(function* (_) {
+  // Acquire instances of the 'Random' and 'Logger' services
+  const random = yield* _(Random)
+  const logger = yield* _(Logger)
+
+  // Generate a random number using the 'Random' service
+  const randomNumber = yield* _(random.next)
+
+  // Log the random number using the 'Logger' service
+  return yield* _(logger.log(String(randomNumber)))
+})
 ```
 
 </Tab>
 <Tab>
 
 ```ts twoslash
-import { Effect, Context, Console } from "effect"
+// @include: random-logger
 
-interface Random {
-  readonly next: Effect.Effect<never, never, number>
-}
-
-const Random = Context.Tag<Random>()
-
-interface Logger {
-  readonly log: (message: string) => Effect.Effect<never, never, void>
-}
-
-const Logger = Context.Tag<Logger>()
-
-const program = Effect.all([Random, Logger]).pipe(
-  Effect.flatMap(([random, logger]) =>
-    random.next.pipe(
-      Effect.flatMap((randomNumber) => logger.log(String(randomNumber)))
+const program =
+  // Acquire instances of the 'Random' and 'Logger' services
+  Effect.all([Random, Logger]).pipe(
+    Effect.flatMap(([random, logger]) =>
+      // Generate a random number using the 'Random' service
+      random.next.pipe(
+        Effect.flatMap((randomNumber) =>
+          // Log the random number using the 'Logger' service
+          logger.log(String(randomNumber))
+        )
+      )
     )
   )
-)
 ```
 
 </Tab>
 </Tabs>
 
-In the code above, we define two service interfaces: `Random` and `Logger`. Each interface represents a different service with its own set of operations.
+In the code above, we define two service interfaces: `RandomShape` and `LoggerShape`. Each interface represents a different service with its own set of operations.
 
 The `program` effect now has an `R` type parameter of `Random | Logger`, indicating that it requires both the `Random` and `Logger` services to be provided.
 
@@ -400,22 +296,25 @@ To execute the `program`, we need to provide implementations for both services:
 
 ```ts twoslash
 // @include: random-logger
+
+const program = Effect.gen(function* (_) {
+  const random = yield* _(Random)
+  const logger = yield* _(Logger)
+  const randomNumber = yield* _(random.next)
+  return yield* _(logger.log(String(randomNumber)))
+})
+
 // ---cut---
 import { Console } from "effect"
 
+// Provide service implementations for 'Random' and 'Logger'
 const runnable1 = program.pipe(
-  Effect.provideService(
-    Random,
-    Random.of({
-      next: Effect.sync(() => Math.random())
-    })
-  ),
-  Effect.provideService(
-    Logger,
-    Logger.of({
-      log: Console.log
-    })
-  )
+  Effect.provideService(Random, {
+    next: Effect.sync(() => Math.random())
+  }),
+  Effect.provideService(Logger, {
+    log: Console.log
+  })
 )
 ```
 
@@ -423,19 +322,26 @@ Alternatively, instead of calling `provideService` multiple times, we can combin
 
 ```ts twoslash
 // @include: random-logger
+
+const program = Effect.gen(function* (_) {
+  const random = yield* _(Random)
+  const logger = yield* _(Logger)
+  const randomNumber = yield* _(random.next)
+  return yield* _(logger.log(String(randomNumber)))
+})
+
 // ---cut---
 import { Console } from "effect"
 
+// Combine service implementations into a single 'Context'
 const context = Context.empty().pipe(
-  Context.add(Random, Random.of({ next: Effect.sync(() => Math.random()) })),
-  Context.add(
-    Logger,
-    Logger.of({
-      log: Console.log
-    })
-  )
+  Context.add(Random, { next: Effect.sync(() => Math.random()) }),
+  Context.add(Logger, {
+    log: Console.log
+  })
 )
 
+// Provide the entire context to the 'program'
 const runnable2 = Effect.provide(program, context)
 ```
 
@@ -525,13 +431,9 @@ However, if we provide the `Random` service implementation:
 
 ```ts
 Effect.runPromise(
-  Effect.provideService(
-    program,
-    Random,
-    Random.of({
-      next: Effect.sync(() => Math.random())
-    })
-  )
+  Effect.provideService(program, Random, {
+    next: Effect.sync(() => Math.random())
+  })
 ).then(console.log)
 // Output: 0.9957979486841035
 ```

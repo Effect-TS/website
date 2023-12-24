@@ -269,13 +269,13 @@ const EmailService = Context.Tag<EmailService>()
 // ---cut---
 import { Console } from "effect"
 
-const LoggingServiceLive = LoggingService.of({
+const LoggingServiceLive: LoggingService = {
   log: Console.log
-})
+}
 
-const EmailServiceFake = EmailService.of({
+const EmailServiceFake: EmailService = {
   send: (user, content) => Console.log(`sending email to ${user}: ${content}`)
-})
+}
 ```
 
 Let's create a custom runtime that includes these two service implementations within its context:
@@ -295,13 +295,13 @@ interface EmailService {
 
 const EmailService = Context.Tag<EmailService>()
 
-const LoggingServiceLive = LoggingService.of({
+const LoggingServiceLive: LoggingService = {
   log: Console.log
-})
+}
 
-const EmailServiceFake = EmailService.of({
+const EmailServiceFake: EmailService = {
   send: (user, content) => Console.log(`sending email to ${user}: ${content}`)
-})
+}
 
 // ---cut---
 import { Runtime, FiberRefs } from "effect"
@@ -332,13 +332,13 @@ interface EmailService {
 
 const EmailService = Context.Tag<EmailService>()
 
-const LoggingServiceLive = LoggingService.of({
+const LoggingServiceLive: LoggingService = {
   log: Console.log
-})
+}
 
-const EmailServiceFake = EmailService.of({
+const EmailServiceFake: EmailService = {
   send: (user, content) => Console.log(`sending email to ${user}: ${content}`)
-})
+}
 
 const testableRuntime = Runtime.make({
   context: Context.make(LoggingService, LoggingServiceLive).pipe(
