@@ -298,14 +298,11 @@ const testData = [
 ]
 
 // Create a layer with test data
-const TodoRepositoryTest = Layer.succeed(
-  TodoRepository,
-  TodoRepository.of({
-    getTodos: Effect.succeed(testData),
-    getTodo: (id) =>
-      Effect.succeed(testData.find((todo) => todo.id === id) || null)
-  })
-)
+const TodoRepositoryTest = Layer.succeed(TodoRepository, {
+  getTodos: Effect.succeed(testData),
+  getTodo: (id) =>
+    Effect.succeed(testData.find((todo) => todo.id === id) || null)
+})
 
 const Test = AppLive.pipe(Layer.provide(TodoRepositoryTest))
 

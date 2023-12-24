@@ -874,7 +874,7 @@ const S3Test = Layer.effect(
   Services.S3,
   Effect.gen(function* (_) {
     const failureCase = yield* _(FailureCase)
-    return Services.S3.of({
+    return {
       createBucket: Effect.gen(function* (_) {
         console.log("[S3] creating bucket")
         if (failureCase === "S3") {
@@ -885,7 +885,7 @@ const S3Test = Layer.effect(
       }),
       deleteBucket: (bucket) =>
         Console.log(`[S3] delete bucket ${bucket.name}`)
-    })
+    }
   })
 )
 
@@ -895,7 +895,7 @@ const ElasticSearchTest = Layer.effect(
   Services.ElasticSearch,
   Effect.gen(function* (_) {
     const failureCase = yield* _(FailureCase)
-    return Services.ElasticSearch.of({
+    return {
       createIndex: Effect.gen(function* (_) {
         console.log("[ElasticSearch] creating index")
         if (failureCase === "ElasticSearch") {
@@ -906,7 +906,7 @@ const ElasticSearchTest = Layer.effect(
       }),
       deleteIndex: (index) =>
         Console.log(`[ElasticSearch] delete index ${index.id}`)
-    })
+    }
   })
 )
 
@@ -916,7 +916,7 @@ const DatabaseTest = Layer.effect(
   Services.Database,
   Effect.gen(function* (_) {
     const failureCase = yield* _(FailureCase)
-    return Services.Database.of({
+    return {
       createEntry: (bucket, index) =>
         Effect.gen(function* (_) {
           console.log(
@@ -930,7 +930,7 @@ const DatabaseTest = Layer.effect(
         }),
       deleteEntry: (entry) =>
         Console.log(`[Database] delete entry ${entry.id}`)
-    })
+    }
   })
 )
 
@@ -1013,60 +1013,52 @@ const FailureCase = Context.Tag<FailureCase>()
 
 const S3Test = Layer.effect(
   Services.S3,
-  Effect.map(FailureCase, (failureCase) =>
-    Services.S3.of({
-      createBucket: Console.log("[S3] creating bucket").pipe(
-        Effect.flatMap(() =>
-          failureCase === "S3"
-            ? Effect.fail(new Services.S3Error())
-            : Effect.succeed({ name: "<bucket.name>" })
-        )
-      ),
-      deleteBucket: (bucket) =>
-        Console.log(`[S3] delete bucket ${bucket.name}`)
-    })
-  )
+  Effect.map(FailureCase, (failureCase) => ({
+    createBucket: Console.log("[S3] creating bucket").pipe(
+      Effect.flatMap(() =>
+        failureCase === "S3"
+          ? Effect.fail(new Services.S3Error())
+          : Effect.succeed({ name: "<bucket.name>" })
+      )
+    ),
+    deleteBucket: (bucket) => Console.log(`[S3] delete bucket ${bucket.name}`)
+  }))
 )
 
 // Create a test layer for the ElasticSearch service
 
 const ElasticSearchTest = Layer.effect(
   Services.ElasticSearch,
-  Effect.map(FailureCase, (failureCase) =>
-    Services.ElasticSearch.of({
-      createIndex: Console.log("[ElasticSearch] creating index").pipe(
-        Effect.flatMap(() =>
-          failureCase === "ElasticSearch"
-            ? Effect.fail(new Services.ElasticSearchError())
-            : Effect.succeed({ id: "<index.id>" })
-        )
-      ),
-      deleteIndex: (index) =>
-        Console.log(`[ElasticSearch] delete index ${index.id}`)
-    })
-  )
+  Effect.map(FailureCase, (failureCase) => ({
+    createIndex: Console.log("[ElasticSearch] creating index").pipe(
+      Effect.flatMap(() =>
+        failureCase === "ElasticSearch"
+          ? Effect.fail(new Services.ElasticSearchError())
+          : Effect.succeed({ id: "<index.id>" })
+      )
+    ),
+    deleteIndex: (index) =>
+      Console.log(`[ElasticSearch] delete index ${index.id}`)
+  }))
 )
 
 // Create a test layer for the Database service
 
 const DatabaseTest = Layer.effect(
   Services.Database,
-  Effect.map(FailureCase, (failureCase) =>
-    Services.Database.of({
-      createEntry: (bucket, index) =>
-        Console.log(
-          `[Database] creating entry for bucket ${bucket.name} and index ${index.id}`
-        ).pipe(
-          Effect.flatMap(() =>
-            failureCase === "Database"
-              ? Effect.fail(new Services.DatabaseError())
-              : Effect.succeed({ id: "<entry.id>" })
-          )
-        ),
-      deleteEntry: (entry) =>
-        Console.log(`[Database] delete entry ${entry.id}`)
-    })
-  )
+  Effect.map(FailureCase, (failureCase) => ({
+    createEntry: (bucket, index) =>
+      Console.log(
+        `[Database] creating entry for bucket ${bucket.name} and index ${index.id}`
+      ).pipe(
+        Effect.flatMap(() =>
+          failureCase === "Database"
+            ? Effect.fail(new Services.DatabaseError())
+            : Effect.succeed({ id: "<entry.id>" })
+        )
+      ),
+    deleteEntry: (entry) => Console.log(`[Database] delete entry ${entry.id}`)
+  }))
 )
 
 // Merge all the test layers for S3, ElasticSearch, and Database services into a single layer
