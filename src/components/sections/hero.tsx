@@ -1,25 +1,29 @@
-'use client'
+"use client"
 
-import {AnimatePresence, motion} from 'framer-motion'
-import {Pill} from '../atoms/pill'
-import {useEffect, useState} from 'react'
-import {Checklist} from '../atoms/checklist'
-import {Button} from '../atoms/button'
-import {Video} from '../atoms/video'
+import { AnimatePresence, motion } from "framer-motion"
+import { Pill } from "../atoms/pill"
+import { useEffect, useState } from "react"
+import { Checklist } from "../atoms/checklist"
+import { Button } from "../atoms/button"
+import { Video } from "../atoms/video"
 
 export const headlines = [
-  {text: 'build robust apps', gradient: 'from-[#5B9EE9] to-[#2F74C0]'},
-  {text: 'handle errors', gradient: 'from-red-400 to-red-600'},
-  {text: 'manage complexity', gradient: 'from-emerald-400 to-emerald-600'},
-  {text: 'handle concurrency', gradient: 'from-orange-400 to-orange-600'},
-  {text: 'do observability', gradient: 'from-green-400 to-green-600'},
-  {text: 'ship faster', gradient: 'from-violet-400 to-violet-600'}
+  { text: "build robust apps", gradient: "from-[#5B9EE9] to-[#2F74C0]" },
+  { text: "handle errors", gradient: "from-red-400 to-red-600" },
+  { text: "manage complexity", gradient: "from-emerald-400 to-emerald-600" },
+  { text: "handle concurrency", gradient: "from-orange-400 to-orange-600" },
+  { text: "do observability", gradient: "from-green-400 to-green-600" },
+  { text: "ship faster", gradient: "from-violet-400 to-violet-600" }
 ]
 
 export const Hero = () => {
   const [currentIndex, setCurrentIndex] = useState<number>(0)
   useEffect(() => {
-    const id = setInterval(() => setCurrentIndex((id) => (id === headlines.length - 1 ? 0 : id + 1)), 2500)
+    const id = setInterval(
+      () =>
+        setCurrentIndex((id) => (id === headlines.length - 1 ? 0 : id + 1)),
+      2500
+    )
     return () => {
       clearInterval(id)
     }
@@ -32,15 +36,17 @@ export const Hero = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 mt-4">
           <div>
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl mb-8">
-              <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">The best way to</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">
+                The best way to
+              </span>
               <br />
               <span className="block relative">
                 <AnimatePresence initial={false}>
                   <motion.span
                     key={currentIndex}
-                    initial={{y: '-100%', opacity: 0}}
-                    animate={{y: 0, opacity: 1}}
-                    exit={{opacity: 0, transition: {duration: 0.2}}}
+                    initial={{ y: "-100%", opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ opacity: 0, transition: { duration: 0.2 } }}
                     className={`not-sr-only h-32 absolute block text-transparent bg-clip-text bg-gradient-to-br ${headlines[currentIndex].gradient}`}
                   >
                     {headlines[currentIndex].text}
@@ -48,7 +54,9 @@ export const Hero = () => {
                 </AnimatePresence>
               </span>
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">in Typescript</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">
+                in Typescript
+              </span>
             </h1>
             {/* <p className="mt-8 mb-4 max-w-md">
               Effect makes it easy to build typed, robust & scalable applications. Lorem ipsum dolor sit amet consectetur. Augue vitae rutrum felis neque
@@ -60,9 +68,9 @@ export const Hero = () => {
             </div>
             <Checklist
               items={[
-                'Maximum Type-safety (incl. error handling)',
-                'Makes your code more composable, reusable and testable',
-                'Extensive library and ecosystem packages'
+                "Maximum Type-safety (incl. error handling)",
+                "Makes your code more composable, reusable and testable",
+                "Extensive library and ecosystem packages"
               ]}
             />
             <div className="mt-10 flex flex-col sm:flex-row items-start gap-3">

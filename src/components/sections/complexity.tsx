@@ -37,9 +37,9 @@ export const Complexity = () => {
                     (1 / content.features.length) * (currentIndex + 1)
                 }}
                 x1="0.458313"
-                y1="186.502"
+                y1="176.502"
                 x2="502.458"
-                y2="144.502"
+                y2="134.502"
                 stroke="url(#paint1_linear_280_1304)"
               />
               <motion.path
@@ -49,7 +49,7 @@ export const Complexity = () => {
                     (currentIndex + 1) *
                     (currentIndex === content.features.length - 1 ? 1 : 0.93)
                 }}
-                d="M2.5 187C150.455 169.787 424 116 502.5 1"
+                d="M0.5 163.5C148.455 146.287 424 116 502.5 1"
                 stroke="url(#paint2_linear_280_1304)"
               />
               <defs>
