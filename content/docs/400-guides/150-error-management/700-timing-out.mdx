@@ -1,6 +1,6 @@
 ---
 title: Timing out
-excerpt: Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore.
+excerpt: Learn how to set time constraints on operations with `Effect.timeout`. Discover how to handle scenarios where tasks need to complete within a specified timeframe. Explore variations like `timeoutTo`, `timeoutFail`, and `timeoutFailCause` to customize behavior when a timeout occurs, providing more control and flexibility in managing time-sensitive operations.
 bottomNavigation: pagination
 ---
 
@@ -165,7 +165,8 @@ const main = program.pipe(
   Effect.timeoutTo({
     duration: "1 seconds",
     // let's return an Either instead of an Option
-    onSuccess: (result): Either.Either<string, string> => Either.right(result),
+    onSuccess: (result): Either.Either<string, string> =>
+      Either.right(result),
     onTimeout: (): Either.Either<string, string> => Either.left("timeout!")
   })
 )
