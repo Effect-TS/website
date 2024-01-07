@@ -39,12 +39,7 @@ const runnable1 = program.pipe(
 // Context<Random | Logger>
 const context = Context.empty().pipe(
   Context.add(Random, Random.of({ next: Effect.sync(() => Math.random()) })),
-  Context.add(
-    Logger,
-    Logger.of({
-      log: Console.log
-    })
-  )
+  Context.add(Logger, Logger.of({ log: Console.log }))
 )
 
 const runnable2 = Effect.provide(program, context)
