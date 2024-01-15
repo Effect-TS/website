@@ -44,14 +44,6 @@ const screenshots = [
     alt: "Short description of the screenshot",
     width: 1000,
     height: 633,
-    heading: "Powerful Logging Primitives",
-    text: "The built-in support for tracing & metrics is first-class. Effect integrates seamlessly with OpenTelemetry to give you full visibility over your application's performance."
-  },
-  {
-    src: "/images/screenshots/placeholder.jpg",
-    alt: "Short description of the screenshot",
-    width: 1000,
-    height: 633,
     heading: "Easy to refactor",
     text: "Lorem ipsum dolor sit amet consectetur. Egestas maecenas sed egestas eget arcu parturient purus bibendum viverra. Sed molestie et commodo habitant purus orci habitasse facilisis. Est tellus integer odio elit proin ultricies tortor."
   }
