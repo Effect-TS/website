@@ -11,8 +11,8 @@ import { IntegrationExamples } from "./integration-examples"
 
 const tabs = [
   { name: "Basics", component: BasicExamples },
-  { name: "Ecosystem", component: EcosystemExamples },
-  { name: "Integrations", component: IntegrationExamples }
+  { name: "Ecosystem", component: EcosystemExamples }
+  // { name: "Integrations", component: IntegrationExamples }
 ]
 
 export const Examples = () => {
