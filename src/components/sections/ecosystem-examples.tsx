@@ -207,27 +207,30 @@ const object = S.decodeSync(schema)(jsonString)`
         withoutEffect: {
           fileName: "index.ts",
           code: `\
-import { Effect } from "effect"
+import * as Rx from "rxjs"
+import * as RxOp from "rxjs/operators"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const counts$ = Rx.interval(1000).pipe(
+  RxOp.take(5),
+  RxOp.map((x) => x * 2),
+  RxOp.toArray(),
+)
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+Rx.firstValueFrom(counts$).then((x) => console.log(x))\
       `
         },
         withEffect: {
           fileName: "index.ts",
           code: `\
-import { Effect } from "effect"
+import { Effect, Schedule, Stream } from "effect"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+const counts = Stream.fromSchedule(Schedule.spaced(1000)).pipe(
+  Stream.take(5),
+  Stream.map((x) => x * 2),
+  Stream.runCollect,
+)
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+Effect.runPromise(counts).then((x) => console.log(x))\
       `
         }
       }
