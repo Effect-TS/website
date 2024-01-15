@@ -7,7 +7,6 @@ import { Card } from "../layout/card"
 import { Glow } from "../layout/glow"
 import { BasicExamples } from "./basic-examples"
 import { EcosystemExamples } from "./ecosystem-examples"
-import { IntegrationExamples } from "./integration-examples"
 
 const tabs = [
   { name: "Basics", component: BasicExamples },
