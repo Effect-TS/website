@@ -28,7 +28,7 @@ const screenshots = [
     alt: "Short description of the screenshot",
     width: 1000,
     height: 633,
-    heading: "Built-In Tracing (e.g. Otel)",
+    heading: "Built-In Tracing",
     text: "The built-in support for tracing & metrics is first-class. Effect integrates seamlessly with OpenTelemetry to give you full visibility over your application's performance."
   },
   {
@@ -36,16 +36,16 @@ const screenshots = [
     alt: "Short description of the screenshot",
     width: 1000,
     height: 633,
-    heading: "Coherent Building Blocks",
-    text: "Lorem ipsum dolor sit amet consectetur. Egestas maecenas sed egestas eget arcu parturient purus bibendum viverra. Sed molestie et commodo habitant purus orci habitasse facilisis. Est tellus integer odio elit proin ultricies tortor."
+    heading: "Built-In Metrics",
+    text: "The built-in support for tracing & metrics is first-class. Effect integrates seamlessly with OpenTelemetry to give you full visibility over your application's performance."
   },
   {
     src: "/images/screenshots/placeholder.jpg",
     alt: "Short description of the screenshot",
     width: 1000,
     height: 633,
-    heading: "Extensive Ecosystem",
-    text: "Whether you're building a web app, a CLI, or a UI, Effect has you covered. The ecosystem contains many high-quality libraries that are crafted to work seamlessly together."
+    heading: "Powerful Logging Primitives",
+    text: "The built-in support for tracing & metrics is first-class. Effect integrates seamlessly with OpenTelemetry to give you full visibility over your application's performance."
   },
   {
     src: "/images/screenshots/placeholder.jpg",
@@ -54,14 +54,6 @@ const screenshots = [
     height: 633,
     heading: "Easy to refactor",
     text: "Lorem ipsum dolor sit amet consectetur. Egestas maecenas sed egestas eget arcu parturient purus bibendum viverra. Sed molestie et commodo habitant purus orci habitasse facilisis. Est tellus integer odio elit proin ultricies tortor."
-  },
-  {
-    src: "/images/screenshots/placeholder.jpg",
-    alt: "Short description of the screenshot",
-    width: 1000,
-    height: 633,
-    heading: "High Performance",
-    text: "Effect makes it easy to create high-performance applications. Structured concurrency, async primitives, and a powerful runtime make writing fast code simple."
   }
 ]
 
