@@ -355,5 +355,87 @@ function readFile(path: string): Effect.Effect<never, "invalid path", string> {
         }
       }
     ]
+  },
+  {
+    group: "HTTP",
+    examples: [
+      {
+        name: "fetch",
+        withoutEffect: {
+          fileName: "index.ts",
+          code: `const fetchTodo = async (
+  id: number,
+  signal?: AbortSignal
+): Promise<unknown> => {
+  const res = await fetch(
+    \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
+    { signal }
+  );
+  if (!res.ok) throw new Error(res.statusText);
+  return res.json();
+};`
+        },
+        withEffect: {
+          fileName: "index.ts",
+          code: `import * as Http from "@effect/platform-node/HttpClient";
+import { Effect } from "effect";
+
+const fetchTodo = (
+  id: number
+): Effect.Effect<
+  never,
+  Http.error.HttpClientError,
+  unknown
+> =>
+  Http.request
+    .get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`)
+    .pipe(
+      Http.client.fetchOk(),
+      Effect.andThen((res) => res.json)
+    );`
+        }
+      },
+      {
+        name: "express",
+        withoutEffect: {
+          fileName: "index.ts",
+          code: `import Express from "express";
+
+const app = Express();
+
+app.get("/", (_req, res) => {
+  res.json({ message: "Hello World" });
+});
+
+app.listen(3000);`
+        },
+        withEffect: {
+          fileName: "index.ts",
+          code: `import * as Http from "@effect/platform-node/HttpServer";
+import { runMain } from "@effect/platform-node/Runtime";
+import { Layer } from "effect";
+import { createServer } from "node:http";
+
+const app = Http.router.empty.pipe(
+  Http.router.get(
+    "/",
+    Http.response.json({ message: "Hello World" })
+  )
+);
+
+const HttpLive = Http.server
+  .serve(app)
+  .pipe(
+    Layer.provide(
+      Http.server.layer(() => createServer(), {
+        port: 3000,
+      })
+    )
+  );
+
+runMain(Layer.launch(HttpLive));`
+        }
+      }
+    ]
   }
 ]
