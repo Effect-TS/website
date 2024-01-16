@@ -76,6 +76,7 @@ export const EcosystemExamples = () => {
                           content: withoutEffect.code
                         }
                       ]}
+                      fixedHeight={400}
                     />
                   </div>
                   <div className="flex flex-col items-center gap-6">
@@ -90,6 +91,7 @@ export const EcosystemExamples = () => {
                           content: withEffect.code
                         }
                       ]}
+                      fixedHeight={400}
                     />
                   </div>
                 </Tabs.Content>
