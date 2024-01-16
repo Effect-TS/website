@@ -38,13 +38,6 @@ export const Examples = () => {
             "Effect integrates deeply with your current tech stack."
           ]}
         />
-        <Button
-          href="https://github.com/Effect-TS/examples"
-          secondary
-          className="mt-10 mb-16"
-        >
-          See all examples on GitHub
-        </Button>
         <Card>
           <Tabs.Root defaultValue={tabs[0].name}>
             <Tabs.List className="flex flex-col md:flex-row items-start md:justify-center gap-x-6 pt-10 md:pt-16 px-4">
