@@ -1,7 +1,6 @@
 "use client"
 
 import * as Tabs from "@radix-ui/react-tabs"
-import { Button } from "../atoms/button"
 import { Checklist } from "../atoms/checklist"
 import { Card } from "../layout/card"
 import { Glow } from "../layout/glow"
@@ -32,6 +31,7 @@ export const Examples = () => {
           utilized in your next project.
         </p>
         <Checklist
+          className="mb-16"
           items={[
             "Effect helps you with handling errors, async code, concurrency, streams and much more.",
             "Effect provides a unified replacement for many one-off dependencies.",

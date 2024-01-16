@@ -74,10 +74,7 @@ export const Hero = () => {
               ]}
             />
             <div className="mt-10 flex flex-col sm:flex-row items-start gap-3">
-              <Button href="/docs/get-started">Get Started</Button>
-              <Button href="https://github.com/Effect-TS/examples" secondary>
-                Explore Examples
-              </Button>
+              <Button href="/docs/quickstart">Get Started</Button>
             </div>
           </div>
           <div className="hidden md:block pt-3">

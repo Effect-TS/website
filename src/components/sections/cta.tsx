@@ -51,11 +51,10 @@ export const CTA = () => {
           </h2>
           <p className="mt-8 mb-4 max-w-xl text-center mx-auto">
             Effect makes it easy to build typed, robust & scalable
-            applications. Lorem ipsum dolor sit amet consectetur. Augue vitae
-            rutrum felis neque.
+            applications. Check out our friendly documentation to get started.
           </p>
           <div className="mt-10 flex gap-3 justify-center">
-            <Button href="/docs/get-started">Get Started</Button>
+            <Button href="/docs/quickstart">Get Started</Button>
           </div>
         </div>
       </div>
