@@ -240,31 +240,79 @@ Effect.runPromise(counts).then((x) => console.log(x))\
     group: "Control Flow",
     examples: [
       {
-        name: "p-queue",
+        name: "p-*",
         withoutEffect: {
           fileName: "index.ts",
           code: `\
-import { Effect } from "effect"
+import pMap from "p-map";
+import pQueue from "p-queue";
+import pRetry from "p-retry";
 
-class HttpError {
-  readonly _tag = "HttpError"
+async function main() {
+  const queue = new pQueue({ concurrency: 10 });
+  const signal = AbortSignal.timeout(1000);
+  const todos = await pMap(
+    Array.from({ length: 100 }, (_, i) => i + 1),
+    (id) =>
+      queue.add(({ signal }) => fetchTodo(id, signal), {
+        signal,
+      })
+  );
+  console.log(todos);
 }
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+main().catch(console.error);
+
+//
+
+const fetchTodo = (
+  id: number,
+  signal?: AbortSignal
+): Promise<unknown> =>
+  pRetry(
+    async () => {
+      const res = await fetch(
+        \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
+        { signal }
+      );
+      if (!res.ok) throw new Error(res.statusText);
+      return res.json();
+    },
+    { retries: 3 }
+  );\
       `
         },
         withEffect: {
           fileName: "index.ts",
           code: `\
-import { Effect } from "effect"
+import { Effect } from "effect";
+import * as Http from "@effect/platform-node/HttpClient";
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+Effect.gen(function* (_) {
+  const semaphore = yield* _(Effect.makeSemaphore(10));
+  const todos = yield* _(
+    Effect.forEach(
+      Array.from({ length: 100 }, (_, i) => i + 1),
+      (id) => semaphore.withPermits(1)(fetchTodo(id)),
+      { concurrency: "unbounded" }
+    )
+  );
+  console.log(todos);
+}).pipe(Effect.timeout(1000), Effect.runPromise);
 
-// Effect<never, HttpError, never>
-const program = Effect.fail(new HttpError())\
+const fetchTodo = (
+  id: number
+): Effect.Effect<
+  never,
+  Http.error.HttpClientError,
+  unknown
+> =>
+  Http.request
+    .get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`)
+    .pipe(
+      Http.client.fetchOk(),
+      Effect.andThen((res) => res.json)
+    );\
       `
         }
       },
