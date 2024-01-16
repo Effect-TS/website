@@ -311,7 +311,12 @@ const fetchTodo = (
     .get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`)
     .pipe(
       Http.client.fetchOk(),
-      Effect.andThen((res) => res.json)
+      Effect.andThen((res) => res.json),
+      Effect.retry(
+        Schedule.exponential(1000).pipe(
+          Schedule.compose(Schedule.recurs(3))
+        )
+      )
     );\
       `
         }
