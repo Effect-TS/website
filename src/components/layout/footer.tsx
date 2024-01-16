@@ -17,18 +17,13 @@ const menus = [
     ]
   },
   {
-    name: "Examples",
-    items: [
-      { name: "React", href: "https://github.com/Effect-TS/examples" },
-      { name: "Bun", href: "https://github.com/Effect-TS/examples" },
-      { name: "Deno", href: "https://github.com/Effect-TS/examples" }
-    ]
-  },
-  {
     name: "Company",
     items: [
       { name: "Effectful", href: "https://www.effectful.co/" },
-      { name: "Effect Days", href: "https://effect.website/events/effect-days" }
+      {
+        name: "Effect Days",
+        href: "https://effect.website/events/effect-days"
+      }
     ]
   },
   {
@@ -60,13 +55,17 @@ export const Footer = () => {
             <p className="leading-relaxed my-6">
               MIT Licensed
               <br />
-              Copyright © {new Date().getFullYear()} Effectful Technologies Inc.
+              Copyright © {new Date().getFullYear()} Effectful Technologies
+              Inc.
             </p>
             <div className="flex items-center gap-4">
               {socials.map(({ name, icon, href }, index) => (
                 <Link key={index} href={href}>
                   <span className="sr-only">{name}</span>
-                  <Icon name={icon as IconName} className="h-5 text-zinc-700 dark:text-zinc-400" />
+                  <Icon
+                    name={icon as IconName}
+                    className="h-5 text-zinc-700 dark:text-zinc-400"
+                  />
                 </Link>
               ))}
             </div>
@@ -80,7 +79,12 @@ export const Footer = () => {
                     <li key={index}>
                       <Link href={href} className="flex items-start">
                         <span>{name}</span>
-                        {href.startsWith("http") && <Icon name="arrow-up-right-light" className="h-3 mt-0.5 ml-0.5" />}
+                        {href.startsWith("http") && (
+                          <Icon
+                            name="arrow-up-right-light"
+                            className="h-3 mt-0.5 ml-0.5"
+                          />
+                        )}
                       </Link>
                     </li>
                   ))}
