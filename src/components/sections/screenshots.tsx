@@ -8,8 +8,9 @@ import { Glow } from "../layout/glow"
 
 const screenshots = [
   {
-    src: "/images/screenshots/placeholder.jpg",
-    alt: "Short description of the screenshot",
+    video: true,
+    src: "/videos/composable.mp4",
+    alt: "",
     width: 1000,
     height: 633,
     heading: "Composable & Reusable",
@@ -63,13 +64,22 @@ export const Screenshots = () => {
             <div className="relative p-px overflow-hidden rounded-[2rem] bg-gradient-to-br from-zinc-700 to-zinc-800">
               <div className="rounded-[31px] overflow-hidden p-1.5 bg-gradient-to-br from-zinc-900 to-zinc-950">
                 <div className="rounded-[25px] border border-zinc-700 overflow-hidden">
-                  <Image
-                    src={screenshots[currentIndex].src}
-                    alt={screenshots[currentIndex].alt}
-                    width={screenshots[currentIndex].width}
-                    height={screenshots[currentIndex].height}
-                    className="-mb-px"
-                  />
+                  {screenshots[currentIndex].video ? (
+                    <video autoPlay loop muted playsInline>
+                      <source
+                        src={screenshots[currentIndex].src}
+                        type="video/mp4"
+                      />
+                    </video>
+                  ) : (
+                    <Image
+                      src={screenshots[currentIndex].src}
+                      alt={screenshots[currentIndex].alt}
+                      width={screenshots[currentIndex].width}
+                      height={screenshots[currentIndex].height}
+                      className="-mb-px"
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -78,7 +88,7 @@ export const Screenshots = () => {
             </p>
           </div>
           <div className="md:pl-16 relative space-y-6">
-            {screenshots.map(({ heading, text }, index) => (
+            {screenshots.map((item, index) => (
               <div
                 key={index}
                 onClick={() => setCurrentIndex(index)}
@@ -94,7 +104,7 @@ export const Screenshots = () => {
                       index === currentIndex ? "text-white" : ""
                     }`}
                   >
-                    {heading}
+                    {item.heading}
                   </h3>
                   <Icon
                     name="chevron-right"
@@ -111,13 +121,19 @@ export const Screenshots = () => {
                   <div className="relative p-px overflow-hidden rounded-[2rem] bg-gradient-to-br from-zinc-700 to-zinc-800">
                     <div className="rounded-[31px] overflow-hidden p-1.5 bg-gradient-to-br from-zinc-900 to-zinc-950">
                       <div className="rounded-[25px] border border-zinc-700 overflow-hidden">
-                        <Image
-                          src={screenshots[currentIndex].src}
-                          alt={screenshots[currentIndex].alt}
-                          width={screenshots[currentIndex].width}
-                          height={screenshots[currentIndex].height}
-                          className="-mb-px"
-                        />
+                        {item.video ? (
+                          <video autoPlay loop muted playsInline>
+                            <source src={item.src} type="video/mp4" />
+                          </video>
+                        ) : (
+                          <Image
+                            src={item.src}
+                            alt={item.alt}
+                            width={item.width}
+                            height={item.height}
+                            className="-mb-px"
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -128,7 +144,7 @@ export const Screenshots = () => {
                 <p
                   className={`${index === currentIndex ? "mt-3" : "sr-only"}`}
                 >
-                  {text}
+                  {item.text}
                 </p>
               </div>
             ))}
