@@ -5,7 +5,11 @@ const test = Effect.gen(function* (_) {
   // Create a fiber that sleeps for 5 minutes and then times out after 1 minute
   const fiber = yield* _(
     Effect.sleep("5 minutes"),
-    Effect.timeout("1 minutes"),
+    Effect.timeoutTo({
+      duration: "1 minutes",
+      onSuccess: Option.some,
+      onTimeout: () => Option.none<void>()
+    }),
     Effect.fork
   )
 

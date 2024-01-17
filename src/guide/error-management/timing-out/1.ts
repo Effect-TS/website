@@ -8,17 +8,13 @@ const program = Effect.gen(function* (_) {
   return "some result"
 })
 
-// $ExpectType Effect<never, never, Option<string>>
+// $ExpectType Effect<never, NoSuchElementException, string>
 const main = program.pipe(Effect.timeout("3 seconds"))
 
-Effect.runPromise(main).then(console.log)
+Effect.runPromise(main).then(console.log, console.error)
 /*
 Output:
 start doing something...
 my job is finished!
-{
-  _id: "Option",
-  _tag: "Some",
-  value: "some result"
-}
+some result
 */

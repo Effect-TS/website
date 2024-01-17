@@ -8,20 +8,24 @@ const program = Effect.gen(function* (_) {
   return "some result"
 })
 
-// $ExpectType Effect<never, never, Option<string>>
+// $ExpectType Effect<never, NoSuchElementException, string>
 const main = program.pipe(
   Effect.uninterruptible,
   Effect.disconnect,
   Effect.timeout("1 seconds")
 )
 
-Effect.runPromise(main).then(console.log)
+Effect.runPromise(main).then(console.log, console.error)
 /*
 Output:
 start doing something...
 {
-  _id: "Option",
-  _tag: "None"
+  _id: 'FiberFailure',
+  cause: {
+    _id: 'Cause',
+    _tag: 'Fail',
+    failure: { _tag: 'NoSuchElementException' }
+  }
 }
 my job is finished!
 */

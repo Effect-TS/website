@@ -5,7 +5,7 @@ import * as ReadLine from "./ReadLine"
 const getNames = Ref.make(Chunk.empty<string>()).pipe(
   Effect.flatMap((ref) =>
     ReadLine.readLine("Please enter a name or `q` to exit: ").pipe(
-      Effect.repeatWhileEffect((name) => {
+      Effect.repeat({ while: (name) => {
         if (name === "q") {
           return Effect.succeed(false)
         } else {
@@ -14,7 +14,7 @@ const getNames = Ref.make(Chunk.empty<string>()).pipe(
             Effect.as(true)
           )
         }
-      }),
+      } }),
       Effect.flatMap(() => Ref.get(ref))
     )
   )
