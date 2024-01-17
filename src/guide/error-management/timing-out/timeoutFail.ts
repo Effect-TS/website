@@ -16,9 +16,17 @@ const main = program.pipe(
   })
 )
 
-Effect.runPromise(main).then(console.log)
+Effect.runPromise(main).then(console.log, console.error)
 /*
 Output:
 start doing something...
-Error: timeout
+{
+  _id: 'FiberFailure',
+  cause: {
+    _id: 'Cause',
+    _tag: 'Fail',
+    failure: Error: timeout
+    ... stack trace ...
+  }
+}
 */

@@ -3,7 +3,11 @@ import * as assert from "node:assert"
 
 const test = pipe(
   Effect.sleep("5 minutes"),
-  Effect.timeout("1 minutes"),
+  Effect.timeoutTo({
+    duration: "1 minutes",
+    onSuccess: Option.some,
+    onTimeout: () => Option.none<void>()
+  }),
   Effect.fork,
   Effect.tap(() =>
     // Adjust the TestClock by 1 minute to simulate the passage of time

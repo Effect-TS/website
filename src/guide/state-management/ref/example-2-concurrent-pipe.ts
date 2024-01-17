@@ -7,7 +7,7 @@ const getNames = Ref.make(Chunk.empty<string>()).pipe(
     const fiber1 = ReadLine.readLine(
       "Please enter a name or `q` to exit: "
     ).pipe(
-      Effect.repeatWhileEffect((name) => {
+      Effect.repeat({ while: (name) => {
         if (name === "q") {
           return Effect.succeed(false)
         } else {
@@ -16,7 +16,7 @@ const getNames = Ref.make(Chunk.empty<string>()).pipe(
             Effect.as(true)
           )
         }
-      }),
+      } }),
       Effect.fork
     )
     const fiber2 = Effect.fork(

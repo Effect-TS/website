@@ -8,5 +8,5 @@ const program = Effect.gen(function* (_) {
   return "some result"
 })
 
-// $ExpectType Effect<never, never, Option<string>>
+// $ExpectType Effect<never, NoSuchElementException, string>
 const main = program.pipe(Effect.timeout("3 seconds"))

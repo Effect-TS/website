@@ -12,7 +12,7 @@ const program = Effect.gen(function* (_) {
 const main = program.pipe(
   Effect.timeoutTo({
     duration: "1 seconds",
-    // let's return an Either instead of an Option
+    // let's return an Either
     onSuccess: (result): Either.Either<string, string> => Either.right(result),
     onTimeout: (): Either.Either<string, string> => Either.left("timeout!")
   })
