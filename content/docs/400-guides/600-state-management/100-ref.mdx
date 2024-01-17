@@ -417,14 +417,16 @@ import * as ReadLine from "./ReadLine"
 const getNames = Ref.make(Chunk.empty<string>()).pipe(
   Effect.flatMap((ref) =>
     ReadLine.readLine("Please enter a name or `q` to exit: ").pipe(
-      Effect.repeatWhileEffect((name) => {
-        if (name === "q") {
-          return Effect.succeed(false)
-        } else {
-          return ref.pipe(
-            Ref.update((state) => Chunk.append(state, name)),
-            Effect.as(true)
-          )
+      Effect.repeat({
+        while: (name) => {
+          if (name === "q") {
+            return Effect.succeed(false)
+          } else {
+            return ref.pipe(
+              Ref.update((state) => Chunk.append(state, name)),
+              Effect.as(true)
+            )
+          }
         }
       }),
       Effect.flatMap(() => Ref.get(ref))
@@ -524,14 +526,16 @@ const getNames = Ref.make(Chunk.empty<string>()).pipe(
     const fiber1 = ReadLine.readLine(
       "Please enter a name or `q` to exit: "
     ).pipe(
-      Effect.repeatWhileEffect((name) => {
-        if (name === "q") {
-          return Effect.succeed(false)
-        } else {
-          return ref.pipe(
-            Ref.update((state) => Chunk.append(state, name)),
-            Effect.as(true)
-          )
+      Effect.repeat({
+        while: (name) => {
+          if (name === "q") {
+            return Effect.succeed(false)
+          } else {
+            return ref.pipe(
+              Ref.update((state) => Chunk.append(state, name)),
+              Effect.as(true)
+            )
+          }
         }
       }),
       Effect.fork
