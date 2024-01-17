@@ -17,8 +17,9 @@ const screenshots = [
     text: "Everything in the Effect ecosystem is designed to work together. Building applications with Effect feels like playing with Lego."
   },
   {
-    src: "/images/screenshots/placeholder.jpg",
-    alt: "Short description of the screenshot",
+    video: true,
+    src: "/videos/typeSafety.mp4",
+    alt: "",
     width: 1000,
     height: 633,
     heading: "Maximum Type-Safety",
@@ -65,12 +66,13 @@ export const Screenshots = () => {
               <div className="rounded-[31px] overflow-hidden p-1.5 bg-gradient-to-br from-zinc-900 to-zinc-950">
                 <div className="rounded-[25px] border border-zinc-700 overflow-hidden">
                   {screenshots[currentIndex].video ? (
-                    <video autoPlay loop muted playsInline>
-                      <source
-                        src={screenshots[currentIndex].src}
-                        type="video/mp4"
-                      />
-                    </video>
+                    <video
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      src={screenshots[currentIndex].src}
+                    />
                   ) : (
                     <Image
                       src={screenshots[currentIndex].src}
@@ -122,9 +124,13 @@ export const Screenshots = () => {
                     <div className="rounded-[31px] overflow-hidden p-1.5 bg-gradient-to-br from-zinc-900 to-zinc-950">
                       <div className="rounded-[25px] border border-zinc-700 overflow-hidden">
                         {item.video ? (
-                          <video autoPlay loop muted playsInline>
-                            <source src={item.src} type="video/mp4" />
-                          </video>
+                          <video
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            src={item.src}
+                          />
                         ) : (
                           <Image
                             src={item.src}
