@@ -26,16 +26,16 @@ const screenshots = [
     text: "Effect leverages the full power of Typescript to give you confidence in your code. From errors to managing dependencies — if it compiles, it works."
   },
   {
-    src: "/images/screenshots/placeholder.jpg",
-    alt: "Short description of the screenshot",
+    src: "/images/screenshots/tracing.png",
+    alt: "",
     width: 1000,
     height: 633,
     heading: "Built-In Tracing",
     text: "The built-in support for tracing is first-class. Effect integrates seamlessly with OpenTelemetry to give you full visibility over your application's performance."
   },
   {
-    src: "/images/screenshots/placeholder.jpg",
-    alt: "Short description of the screenshot",
+    src: "/images/screenshots/metrics.png",
+    alt: "",
     width: 1000,
     height: 633,
     heading: "Built-In Metrics",
