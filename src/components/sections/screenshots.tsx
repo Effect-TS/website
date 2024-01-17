@@ -42,8 +42,9 @@ const screenshots = [
     text: "Effect has built-in support for metrics. You can use the provided OpenTelemetry exporter to integrate with a wide range of dashboards."
   },
   {
-    src: "/images/screenshots/placeholder.jpg",
-    alt: "Short description of the screenshot",
+    video: true,
+    src: "/videos/refactor.mp4",
+    alt: "",
     width: 1000,
     height: 633,
     heading: "Easy to refactor",
