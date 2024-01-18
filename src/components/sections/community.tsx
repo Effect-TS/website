@@ -5,7 +5,6 @@ import { Glow } from "../layout/glow"
 import Image from "next/image"
 import { Icon } from "../icons"
 import { Button } from "../atoms/button"
-import { Badge } from "../atoms/badge"
 
 const content = {
   heading: "Join our welcoming community",
@@ -24,61 +23,51 @@ const content = {
     top: [
       {
         avatar: "https://avatars.githubusercontent.com/u/286577?s=150&v=4",
-        rank: 0,
         size: "sm",
         position: "center"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/878912?s=150&v=4",
-        rank: 4,
         size: "md",
         position: "top"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/40680?s=150&v=4",
-        rank: 1,
         size: "lg",
         position: "bottom"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/38051499?s=150&v=4",
-        rank: 0,
         size: "sm",
         position: "center"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/539577?s=150&v=4",
-        rank: 2,
         size: "lg",
         position: "top"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/24249610?s=150&v=4",
-        rank: 5,
         size: "md",
         position: "bottom"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/20319430?s=150&v=4",
-        rank: 0,
         size: "sm",
         position: "top"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/1172528?s=150&v=4",
-        rank: 0,
         size: "md",
         position: "bottom"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/13787614?s=150&v=4",
-        rank: 8,
         size: "md",
         position: "top"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/87831824?s=150&v=4",
-        rank: 0,
         size: "sm",
         position: "center"
       }
@@ -86,19 +75,16 @@ const content = {
     left: [
       {
         avatar: "https://avatars.githubusercontent.com/u/42661?s=150&v=4",
-        rank: 7,
         size: "md",
         position: "top"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/5595092?s=150&v=4",
-        rank: 0,
         size: "sm",
         position: "bottom"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/356257?s=150&v=4",
-        rank: 6,
         size: "md",
         position: "center"
       }
@@ -106,13 +92,11 @@ const content = {
     right: [
       {
         avatar: "https://avatars.githubusercontent.com/u/6271474?s=150&v=4",
-        rank: 3,
         size: "md",
         position: "center"
       },
       {
         avatar: "https://avatars.githubusercontent.com/u/22938931?s=150&v=4",
-        rank: 0,
         size: "sm",
         position: "top"
       }
@@ -120,7 +104,9 @@ const content = {
   }
 }
 
-export const Community = () => {
+export const Community = async () => {
+  const avatars = await discordAvatars(20)
+
   return (
     <section className="relative">
       <Glow direction="down" />
@@ -130,103 +116,81 @@ export const Community = () => {
         </h2>
         <div>
           <div className="h-28 flex justify-between">
-            {content.members.top.map(
-              ({ avatar, rank, size, position }, index) => (
+            {content.members.top.map(({ avatar, size, position }, index) => (
+              <div
+                key={index}
+                className={`${
+                  index > content.members.top.length / 2 - 1
+                    ? "hidden sm:flex"
+                    : ""
+                } h-full flex ${
+                  position === "top"
+                    ? "items-start"
+                    : position === "center"
+                      ? "items-center"
+                      : "items-end"
+                }`}
+              >
                 <div
-                  key={index}
-                  className={`${
-                    index > content.members.top.length / 2 - 1
-                      ? "hidden sm:flex"
-                      : ""
-                  } h-full flex ${
-                    position === "top"
-                      ? "items-start"
-                      : position === "center"
-                        ? "items-center"
-                        : "items-end"
+                  className={`relative ${
+                    size === "lg"
+                      ? "h-16 sm:h-20 w-16 sm:w-20"
+                      : size === "md"
+                        ? "h-14 w-14"
+                        : "h-8 w-8"
                   }`}
                 >
-                  <div
-                    className={`relative ${
-                      size === "lg"
-                        ? "h-16 sm:h-20 w-16 sm:w-20"
-                        : size === "md"
-                          ? "h-14 w-14"
-                          : "h-8 w-8"
-                    }`}
-                  >
-                    <div className="relative w-full h-full overflow-hidden rounded-full border border-white shadow-lg">
-                      <Image src={avatar} alt="Community member" fill />
-                    </div>
-                    {rank > 0 && (
-                      <Badge
-                        className={`absolute ${
-                          size === "lg"
-                            ? "-right-1 -top-1"
-                            : size === "md"
-                              ? "-right-2 -top-2"
-                              : "-right-4 -top-4"
-                        }`}
-                      >
-                        {rank}
-                      </Badge>
-                    )}
+                  <div className="relative w-full h-full overflow-hidden rounded-full border border-white shadow-lg">
+                    <Image
+                      src={avatars[index] ?? avatar}
+                      alt="Community member"
+                      fill
+                    />
                   </div>
                 </div>
-              )
-            )}
+              </div>
+            ))}
           </div>
           <div className="sm:hidden h-28 flex justify-between">
-            {content.members.top.map(
-              ({ avatar, rank, size, position }, index) => {
-                if (index > content.members.top.length / 2 - 1)
-                  return (
+            {content.members.top.map(({ avatar, size, position }, index) => {
+              if (index > content.members.top.length / 2 - 1)
+                return (
+                  <div
+                    key={index}
+                    className={`h-full flex ${
+                      position === "top"
+                        ? "items-start"
+                        : position === "center"
+                          ? "items-center"
+                          : "items-end"
+                    }`}
+                  >
                     <div
-                      key={index}
-                      className={`h-full flex ${
-                        position === "top"
-                          ? "items-start"
-                          : position === "center"
-                            ? "items-center"
-                            : "items-end"
+                      className={`relative ${
+                        size === "lg"
+                          ? "h-16 sm:h-20 w-16 sm:w-20"
+                          : size === "md"
+                            ? "h-14 w-14"
+                            : "h-8 w-8"
                       }`}
                     >
-                      <div
-                        className={`relative ${
-                          size === "lg"
-                            ? "h-16 sm:h-20 w-16 sm:w-20"
-                            : size === "md"
-                              ? "h-14 w-14"
-                              : "h-8 w-8"
-                        }`}
-                      >
-                        <div className="relative w-full h-full overflow-hidden rounded-full border border-white shadow-lg">
-                          <Image src={avatar} alt="Community member" fill />
-                        </div>
-                        {rank > 0 && (
-                          <Badge
-                            className={`absolute ${
-                              size === "lg"
-                                ? "-right-1 -top-1"
-                                : size === "md"
-                                  ? "-right-2 -top-2"
-                                  : "-right-4 -top-4"
-                            }`}
-                          >
-                            {rank}
-                          </Badge>
-                        )}
+                      <div className="relative w-full h-full overflow-hidden rounded-full border border-white shadow-lg">
+                        <Image
+                          src={avatars[index] ?? avatar}
+                          alt="Community member"
+                          fill
+                        />
                       </div>
                     </div>
-                  )
-              }
-            )}
+                  </div>
+                )
+            })}
           </div>
           <div className="flex mt-8 sm:mt-0">
             <div className="grow sm:w-1/3 lg:w-2/5">
               <div className="flex justify-around h-24">
                 {content.members.left.map(
-                  ({ avatar, rank, size, position }, index) => (
+                  ({ avatar, size, position }, index) => (
                     <div
                       key={index}
                       className={`h-full flex ${
@@ -247,21 +211,15 @@ export const Community = () => {
                         }`}
                       >
                         <div className="relative w-full h-full overflow-hidden rounded-full border border-white shadow-lg">
-                          <Image src={avatar} alt="Community member" fill />
+                          <Image
+                            src={
+                              avatars[index + content.members.top.length] ??
+                              avatar
+                            }
+                            alt="Community member"
+                            fill
+                          />
                         </div>
-                        {rank > 0 && (
-                          <Badge
-                            className={`absolute ${
-                              size === "lg"
-                                ? "-right-1 -top-1"
-                                : size === "md"
-                                  ? "-right-2 -top-2"
-                                  : "-right-4 -top-4"
-                            }`}
-                          >
-                            {rank}
-                          </Badge>
-                        )}
                       </div>
                     </div>
                   )
@@ -289,7 +247,7 @@ export const Community = () => {
             <div className="grow sm:w-1/3 lg:w-2/5">
               <div className="flex justify-around h-24">
                 {content.members.right.map(
-                  ({ avatar, rank, size, position }, index) => (
+                  ({ avatar, size, position }, index) => (
                     <div
                       key={index}
                       className={`h-full flex ${
@@ -310,21 +268,18 @@ export const Community = () => {
                         }`}
                       >
                         <div className="relative w-full h-full overflow-hidden rounded-full border border-white shadow-lg">
-                          <Image src={avatar} alt="Community member" fill />
+                          <Image
+                            src={
+                              avatars[
+                                index +
+                                  content.members.top.length +
+                                  content.members.left.length
+                              ] ?? avatar
+                            }
+                            alt="Community member"
+                            fill
+                          />
                         </div>
-                        {rank > 0 && (
-                          <Badge
-                            className={`absolute ${
-                              size === "lg"
-                                ? "-right-1 -top-1"
-                                : size === "md"
-                                  ? "-right-2 -top-2"
-                                  : "-right-4 -top-4"
-                            }`}
-                          >
-                            {rank}
-                          </Badge>
-                        )}
                       </div>
                     </div>
                   )
@@ -357,6 +312,21 @@ export const Community = () => {
 }
 
 async function DiscordStats() {
+  const guild = await discordStats()
+  return (
+    <>
+      <p>{guild.approximate_member_count}+ community members</p>
+      <p className="flex items-center gap-1">
+        <span className="animate-pulse h-3 w-3 bg-emerald-800 rounded-full flex items-center justify-center">
+          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+        </span>
+        {guild.approximate_presence_count} currently online
+      </p>
+    </>
+  )
+}
+
+async function discordStats() {
   let guild = {
     approximate_member_count: 2000,
     approximate_presence_count: 305
@@ -376,15 +346,29 @@ async function DiscordStats() {
     guild = await res.json()
   } catch (e) {}
 
-  return (
-    <>
-      <p>{guild.approximate_member_count}+ community members</p>
-      <p className="flex items-center gap-1">
-        <span className="animate-pulse h-3 w-3 bg-emerald-800 rounded-full flex items-center justify-center">
-          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
-        </span>
-        {guild.approximate_presence_count} currently online
-      </p>
-    </>
-  )
+  return guild
+}
+
+async function discordAvatars(count = 15) {
+  try {
+    const res = await fetch(
+      "https://discord.com/api/v10/guilds/795981131316985866/widget.json",
+      { next: { revalidate: 3600 } }
+    )
+    if (!res.ok) throw new Error()
+    const members = (await res.json()).members as Array<{
+      readonly id: string
+      readonly username: string
+      readonly discriminator: string
+      readonly avatar_url: string
+    }>
+
+    // shuffle and return
+    return members
+      .sort(() => Math.random() - 0.5)
+      .slice(0, count)
+      .map((member) => member.avatar_url)
+  } catch (e) {
+    return []
+  }
 }
