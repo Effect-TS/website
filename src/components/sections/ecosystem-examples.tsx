@@ -125,7 +125,7 @@ type User = z.infer<typeof User>`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import * as S from "@effect/schema/Schema"
+          code: `import { Schema as S } from "@effect/schema"
 
 const User = S.struct({
   username: S.string
@@ -154,7 +154,7 @@ type User = yup.InferType<typeof User>`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import * as S from "@effect/schema/Schema"
+          code: `import { Schema as S } from "@effect/schema"
 
 const User = S.struct({
   username: S.string
@@ -181,15 +181,9 @@ const object = superjson.parse<{ date: Date }>(jsonString)`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import * as S from "@effect/schema/Schema"
+          code: `import { Schema as S } from "@effect/schema"
 
-const schema = S.ParseJson.pipe(
-  S.compose(
-    S.struct({
-      date: S.Date
-    })
-  )
-)
+const schema = S.parseJson(S.struct({ date: S.Date }))
 
 // encoding
 const jsonString = S.encodeSync(schema)({ date: new Date(0) })
