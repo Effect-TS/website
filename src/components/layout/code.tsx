@@ -46,8 +46,10 @@ export const Code: FC<{
             </Tabs.List>
           </div>
           <div
-            style={{ height: fixedHeight}}
-            className={`${terminal ? "pb-8" : ""} ${fixedHeight ? "" : "max-h-96"} overflow-y-auto`}
+            style={{ height: fixedHeight }}
+            className={`${terminal ? "pb-8" : ""} ${
+              fixedHeight ? "" : "max-h-96"
+            } overflow-y-auto`}
           >
             {tabs.map(({ name, content, highlights }, index) => {
               const html = hljs.highlightAuto(content).value
@@ -56,7 +58,7 @@ export const Code: FC<{
                 <Tabs.Content
                   key={index}
                   value={name}
-                  className="relative font-mono text-sm flex data-[state=inactive]:absolute"
+                  className="relative font-mono text-sm flex flex-col min-h-full data-[state=inactive]:absolute"
                 >
                   <ul className="absolute inset-0 text-zinc-600 py-3">
                     {[...new Array(lineCount)].map((e, i) => {
@@ -79,8 +81,8 @@ export const Code: FC<{
                       )
                     })}
                   </ul>
-                  <div className="relative w-full py-3 pl-12">
-                    <div className="w-full overflow-x-auto ">
+                  <div className="relative w-full py-3 pl-12 grow flex flex-col">
+                    <div className="w-full overflow-x-auto grow">
                       {/* `contain: none` needed for horizontal scrolling to work */}
                       <pre style={{ contain: "none" }}>
                         <code
