@@ -36,11 +36,13 @@ import { GearIcon } from "./gear"
 import { CloseIcon } from "./close"
 import { ClipboardIcon } from "./clipboard"
 import { AlgoliaIcon } from "./algolia"
+import { ArrowDownIcon } from "./arrow-down"
 
 const icons = {
   alert: AlertIcon,
   algolia: AlgoliaIcon,
   amazon: AmazonIcon,
+  "arrow-down": ArrowDownIcon,
   "arrow-right": ArrowRightIcon,
   "arrow-up-right": ArrowUpRightIcon,
   "arrow-up-right-light": ArrowUpRightLightIcon,

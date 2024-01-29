@@ -116,7 +116,10 @@ export const Complexity = () => {
               {content.features.map(({ name, description, color }, index) => (
                 <li key={index}>
                   {index > 0 && (
-                    <div className="h-3 w-px ml-[9px] bg-zinc-700" />
+                    <Icon
+                      name="arrow-down"
+                      className="h-3 ml-2 text-zinc-600 -translate-x-px"
+                    />
                   )}
                   <button
                     onClick={() => setCurrentIndex(index)}
