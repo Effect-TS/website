@@ -35,9 +35,11 @@ import { DisplayIcon } from "./display"
 import { GearIcon } from "./gear"
 import { CloseIcon } from "./close"
 import { ClipboardIcon } from "./clipboard"
+import { AlgoliaIcon } from "./algolia"
 
 const icons = {
   alert: AlertIcon,
+  algolia: AlgoliaIcon,
   amazon: AmazonIcon,
   "arrow-right": ArrowRightIcon,
   "arrow-up-right": ArrowUpRightIcon,
@@ -77,7 +79,10 @@ const icons = {
 
 export type IconName = keyof typeof icons
 
-export const Icon: FC<{ name: IconName; className: string }> = ({ name, className }) => {
+export const Icon: FC<{ name: IconName; className: string }> = ({
+  name,
+  className
+}) => {
   const IconComponent = icons[name]
   return <IconComponent className={className} />
 }

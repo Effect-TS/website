@@ -93,6 +93,19 @@ export const Search: FC<{ className?: string }> = ({ className = "" }) => {
                 <div className="overflow-y-scroll p-4 pt-0">
                   <Hits />
                 </div>
+                <div className="flex gap-2 items-center px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 dark:text-zinc-500 text-sm">
+                  <Icon name="algolia" className="h-3.5" />
+                  <span>
+                    Search powered by{" "}
+                    <Link
+                      href="https://www.algolia.com/"
+                      className="underline"
+                    >
+                      Algolia
+                    </Link>
+                    .
+                  </span>
+                </div>
               </InstantSearch>
             </div>
           </div>
