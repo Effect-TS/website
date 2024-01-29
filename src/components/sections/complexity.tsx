@@ -36,10 +36,10 @@ export const Complexity = () => {
                   pathLength:
                     (1 / content.features.length) * (currentIndex + 1)
                 }}
-                x1="0.458313"
-                y1="176.502"
-                x2="502.458"
-                y2="134.502"
+                x1="0.957328"
+                y1="168.502"
+                x2="502.957"
+                y2="125.502"
                 stroke="url(#paint1_linear_280_1304)"
               />
               <motion.path
@@ -49,7 +49,7 @@ export const Complexity = () => {
                     (currentIndex + 1) *
                     (currentIndex === content.features.length - 1 ? 1 : 0.93)
                 }}
-                d="M0.5 163.5C148.455 146.287 424 116 502.5 1"
+                d="M1.5 177C149.455 159.787 424 116 502.5 1"
                 stroke="url(#paint2_linear_280_1304)"
               />
               <defs>
@@ -61,33 +61,33 @@ export const Complexity = () => {
                   y2="187.81"
                   gradientUnits="userSpaceOnUse"
                 >
-                  <stop stopColor="#18181B" />
-                  <stop offset="0.177083" stopColor="#71717A" />
-                  <stop offset="1" stopColor="#09090B" />
+                  <stop stop-color="#18181B" />
+                  <stop offset="0.177083" stop-color="#71717A" />
+                  <stop offset="1" stop-color="#09090B" />
                 </linearGradient>
                 <linearGradient
                   id="paint1_linear_280_1304"
-                  x1="0.5"
-                  y1="187"
-                  x2="502.5"
-                  y2="145"
+                  x1="1"
+                  y1="169"
+                  x2="503"
+                  y2="126"
                   gradientUnits="userSpaceOnUse"
                 >
-                  <stop stopColor="#3178C6" stopOpacity="0.25" />
-                  <stop offset="0.515625" stopColor="#3178C6" />
-                  <stop offset="1" stopColor="#3178C6" />
+                  <stop stop-color="#3178C6" stop-opacity="0.25" />
+                  <stop offset="0.515625" stop-color="#3178C6" />
+                  <stop offset="1" stop-color="#3178C6" />
                 </linearGradient>
                 <linearGradient
                   id="paint2_linear_280_1304"
                   x1="502.5"
-                  y1="0.99997"
-                  x2="2.5"
+                  y1="0.9998"
+                  x2="2.49996"
                   y2="187"
                   gradientUnits="userSpaceOnUse"
                 >
-                  <stop stopColor="#F97583" />
-                  <stop offset="0.489583" stopColor="#F97583" />
-                  <stop offset="1" stopColor="#F97583" stopOpacity="0.25" />
+                  <stop stop-color="#F97583" />
+                  <stop offset="0.489583" stop-color="#F97583" />
+                  <stop offset="1" stop-color="#F97583" stop-opacity="0.25" />
                 </linearGradient>
               </defs>
             </svg>
