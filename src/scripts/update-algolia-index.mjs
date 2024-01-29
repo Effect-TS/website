@@ -16,7 +16,9 @@ const updateAlgoliaIndex = async () => {
         objectID: page._id,
         title: page.title,
         excerpt: page.excerpt,
-        sections: page.sections,
+        content: `${page.excerpt}\n${page.sections
+          .map((section) => `${section.heading.title}\n${section.content}`)
+          .join("\n")}`,
         urlPath: page.urlPath,
         chapter,
         chapterOrder

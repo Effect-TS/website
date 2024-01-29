@@ -33,7 +33,8 @@ export const DocsPage = defineDocumentType(() => ({
     },
     bottomNavigation: {
       type: "enum",
-      description: "If and what bottom navigation should be shown on the page.",
+      description:
+        "If and what bottom navigation should be shown on the page.",
       options: ["none", "childCards", "pagination"],
       required: true,
       default: "none"

@@ -7,6 +7,7 @@ import {
   Highlight,
   InstantSearch,
   SearchBox,
+  Snippet,
   useHits
 } from "react-instantsearch"
 import Link from "next/link"
@@ -23,7 +24,6 @@ export const Search: FC<{ className?: string }> = ({ className = "" }) => {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      console.log(e)
       if (e.key === "Escape") setOpen(false)
       if (e.key === "k" && (e.ctrlKey || e.metaKey)) setOpen(true)
     }
@@ -90,10 +90,10 @@ export const Search: FC<{ className?: string }> = ({ className = "" }) => {
                     </div>
                   </div>
                 </div>
-                <div className="overflow-y-scroll p-4 pt-0">
+                <div className="overflow-y-scroll grow p-4 pt-0">
                   <Hits />
                 </div>
-                <div className="flex gap-2 items-center px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 dark:text-zinc-500 text-sm">
+                <div className="flex gap-2 items-center px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500 text-sm">
                   <Icon name="algolia" className="h-3.5" />
                   <span>
                     Search powered by{" "}
@@ -119,10 +119,11 @@ const Hits = (props: any) => {
   const { hits } = useHits(props)
   let chapter = ""
   return (
-    <ul>
+    <ul className="-mt-4">
       {hits.map((hit, index) => {
         const showChapter = hit.chapter !== chapter
         chapter = hit.chapter as string
+
         return (
           <Fragment key={index}>
             {showChapter && (
@@ -132,7 +133,7 @@ const Hits = (props: any) => {
             )}
             <Link
               href={hit.urlPath as string}
-              className="flex items-center justify-between gap-4 p-4 mt-2 rounded-lg border-2 border-transparent bg-zinc-100 dark:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700"
+              className="flex items-center justify-between gap-4 p-4 pt-3 pb-3.5 mt-2 rounded-lg border-2 border-transparent bg-zinc-100 dark:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 focus:outline-none focus:border-zinc-300 dark:focus:border-zinc-700"
             >
               <div>
                 <div>
@@ -142,16 +143,13 @@ const Hits = (props: any) => {
                     className="font-normal text-black dark:font-light dark:text-white"
                   />
                 </div>
-                {/* @ts-ignore */}
-                {hit._highlightResult?.excerpt.matchLevel !== "none" && (
-                  <div className="!leading-none !mt-2">
-                    <Highlight
-                      attribute="excerpt"
-                      hit={hit}
-                      className="text-sm text-zinc-700 dark:text-zinc-400"
-                    />
-                  </div>
-                )}
+                <div className="!leading-none !mt-1">
+                  <Snippet
+                    hit={hit}
+                    attribute="content"
+                    className="text-sm text-zinc-700 dark:text-zinc-400 line-clamp-1"
+                  />
+                </div>
               </div>
               <Icon
                 name="chevron-right"
