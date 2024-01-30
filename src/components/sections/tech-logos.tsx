@@ -12,36 +12,36 @@ export const TechLogos = () => {
             <Image
               src="/images/logos/node.png"
               alt="Node.js"
-              width="44"
-              height="51"
+              width="88"
+              height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
               src="/images/logos/deno.png"
               alt="Deno"
-              width="52"
-              height="51"
+              width="104"
+              height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
               src="/images/logos/bun.png"
               alt="Bun"
-              width="59"
-              height="51"
+              width="118"
+              height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
               src="/images/logos/logo-4.png"
               alt="Logo 4"
-              width="56"
-              height="51"
+              width="112"
+              height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
               src="/images/logos/chrome.png"
               alt="Chrome"
-              width="50"
-              height="51"
+              width="100"
+              height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
           </div>
@@ -52,36 +52,36 @@ export const TechLogos = () => {
             <Image
               src="/images/logos/react.png"
               alt="React"
-              width="57"
-              height="51"
+              width="114"
+              height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
               src="/images/logos/logo-2.png"
               alt="Logo 2"
-              width="55"
-              height="51"
+              width="110"
+              height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
               src="/images/logos/vite.png"
               alt="Vite"
-              width="51"
-              height="51"
+              width="102"
+              height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
               src="/images/logos/next.png"
               alt="Next.js"
-              width="51"
-              height="51"
+              width="102"
+              height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
               src="/images/logos/logo-5.png"
               alt="Node.js"
-              width="45"
-              height="51"
+              width="90"
+              height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
           </div>
