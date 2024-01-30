@@ -44,11 +44,17 @@ const socials = [
 
 export const Footer = () => {
   const pathname = usePathname()
+  const wide = pathname.startsWith("/docs")
+
   return (
     <div className={pathname === "/" ? "dark" : ""}>
-      <footer className="bg-zinc-50 dark:bg-black text-sm">
+      <footer className="bg-zinc-50 dark:bg-black text-zinc-700 dark:text-zinc-400 text-sm">
         <Divider />
-        <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 py-24 flex flex-col sm:flex-row gap-10 justify-between">
+        <div
+          className={`w-full ${
+            wide ? "max-w-screen-2xl" : "max-w-screen-xl"
+          } mx-auto px-4 sm:px-8 lg:px-16 py-24 flex flex-col sm:flex-row gap-10 justify-between`}
+        >
           <div>
             <Logo className="hidden dark:block h-7 sm:h-8" />
             <LogoDark className="dark:hidden h-7 sm:h-8" />
