@@ -38,7 +38,13 @@ const nextConfig = {
         permanent: true
       }
     ]
-  }
+  },
+  rewrites: () => [
+    {
+      source: "/events/:path*",
+      destination: "https://webflow.effect.website/events/:path*",
+    },
+  ],
 }
 
 module.exports = withContentlayer(nextConfig)
