@@ -5,7 +5,6 @@ import * as Tabs from "@radix-ui/react-tabs"
 import { track } from "@vercel/analytics"
 import hljs from "highlight.js/lib/common"
 import { Icon } from "../icons"
-import { track } from "@vercel/analytics"
 
 export const Code: FC<{
   tabs: {
