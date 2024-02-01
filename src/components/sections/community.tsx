@@ -237,7 +237,7 @@ export const Community = async () => {
                   className="h-3.5 mt-0.5 ml-0.5"
                 />
               </Link>
-              <Button href={content.cta.primary.href}>
+              <Button href={content.cta.primary.href} external>
                 {content.cta.primary.text}
               </Button>
               <div className="text-sm flex flex-col items-center mt-4">
@@ -298,7 +298,7 @@ export const Community = async () => {
                 className="h-3.5 mt-0.5 ml-0.5"
               />
             </Link>
-            <Button href={content.cta.primary.href}>
+            <Button href={content.cta.primary.href} external>
               {content.cta.primary.text}
             </Button>
             <div className="text-sm flex flex-col items-center mt-4">

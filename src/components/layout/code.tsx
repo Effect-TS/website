@@ -2,6 +2,7 @@
 
 import { FC, useState } from "react"
 import * as Tabs from "@radix-ui/react-tabs"
+import { track } from "@vercel/analytics"
 import hljs from "highlight.js/lib/common"
 import { Icon } from "../icons"
 
@@ -18,6 +19,7 @@ export const Code: FC<{
   const runSnippet = () => {
     setRunning(true)
     setTimeout(() => setRunning(false), 1000)
+    track("run-snippet", terminal)
   }
 
   return (

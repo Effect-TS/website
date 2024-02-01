@@ -48,7 +48,7 @@ export const FAQ = () => {
             <p className="mt-4 mb-4">
               Feel free to reach out in our Discord community!
             </p>
-            <Button href="https://discord.gg/effect-ts">
+            <Button href="https://discord.gg/effect-ts" external>
               Join our Discord
             </Button>
           </div>
