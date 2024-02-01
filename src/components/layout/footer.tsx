@@ -11,27 +11,24 @@ const menus = [
   {
     name: "Docs",
     items: [
-      { name: "Getting Started", href: "/docs/getting-started" },
-      { name: "Concepts", href: "/docs/concepts" },
-      { name: "API", href: "/docs/api" }
+      { name: "Getting Started", href: "/docs/quickstart" },
+      { name: "Guides", href: "/docs/guides" },
+      { name: "API", href: "/docs/other/api-reference" }
     ]
   },
   {
     name: "Company",
     items: [
-      { name: "Effectful", href: "https://www.effectful.co/" },
-      {
-        name: "Effect Days",
-        href: "https://effect.website/events/effect-days"
-      }
+      { name: "Effectful", href: "https://www.effectful.co/", blank: true },
+      { name: "Effect Days", href: "/events/effect-days", blank: true }
     ]
   },
   {
     name: "Legal",
     items: [
-      { name: "Legal Notice", href: "/" },
-      { name: "Privacy Policy", href: "/" },
-      { name: "Contact Us", href: "/" }
+      { name: "Terms & Conditions", href: "https://www.effectful.co/privacy-cookies", blank: true },
+      { name: "Privacy Policy", href: "https://www.effectful.co/terms-conditions", blank: true },
+      { name: "Contact Us", href: "mailto:contact@effectful.co" }
     ]
   }
 ]
@@ -81,9 +78,9 @@ export const Footer = () => {
               <div key={index} className="w-1/2 sm:w-auto">
                 <h3 className="text-white mb-4">{name}</h3>
                 <ul className="space-y-2">
-                  {items.map(({ name, href }, index) => (
+                  {items.map(({ name, href, blank }, index) => (
                     <li key={index}>
-                      <Link href={href} className="flex items-start">
+                      <Link href={href} className="flex items-start" target={blank === true ? "_blank" : "_self"}>
                         <span>{name}</span>
                         {href.startsWith("http") && (
                           <Icon

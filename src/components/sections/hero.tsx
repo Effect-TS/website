@@ -8,12 +8,14 @@ import { Button } from "../atoms/button"
 import { Video } from "../atoms/video"
 
 export const headlines = [
+  { text: "ship faster", gradient: "from-violet-400 to-violet-600" },
   { text: "build robust apps", gradient: "from-[#5B9EE9] to-[#2F74C0]" },
   { text: "handle errors", gradient: "from-red-400 to-red-600" },
+  { text: "do clustering", gradient: "from-orange-400 to-orange-600" },
+  { text: "build workflows", gradient: "from-violet-400 to-violet-600" },
   { text: "manage complexity", gradient: "from-emerald-400 to-emerald-600" },
-  { text: "handle concurrency", gradient: "from-orange-400 to-orange-600" },
   { text: "do observability", gradient: "from-green-400 to-green-600" },
-  { text: "ship faster", gradient: "from-violet-400 to-violet-600" }
+  { text: "deal with concurrency", gradient: "from-orange-400 to-orange-600" },
 ]
 
 export const Hero = () => {
@@ -70,7 +72,8 @@ export const Hero = () => {
               items={[
                 "Maximum Type-safety (incl. error handling)",
                 "Makes your code more composable, reusable and testable",
-                "Extensive library and ecosystem packages"
+                "Extensive library with a rich ecosystem of packages",
+                "Clustering and Workflows (Alpha)",
               ]}
             />
             <div className="mt-10 flex flex-col sm:flex-row items-start gap-3">

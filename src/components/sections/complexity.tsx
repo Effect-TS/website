@@ -7,7 +7,7 @@ import { Code } from "../layout/code"
 import { Logo } from "../atoms/logo"
 
 export const Complexity = () => {
-  const [currentIndex, setCurrentIndex] = useState<number>(0)
+  const [currentIndex, setCurrentIndex] = useState<number>(content.features.length - 1)
 
   return (
     <section className="relative">
@@ -61,9 +61,9 @@ export const Complexity = () => {
                   y2="187.81"
                   gradientUnits="userSpaceOnUse"
                 >
-                  <stop stop-color="#18181B" />
-                  <stop offset="0.177083" stop-color="#71717A" />
-                  <stop offset="1" stop-color="#09090B" />
+                  <stop stopColor="#18181B" />
+                  <stop offset="0.177083" stopColor="#71717A" />
+                  <stop offset="1" stopColor="#09090B" />
                 </linearGradient>
                 <linearGradient
                   id="paint1_linear_280_1304"
@@ -73,9 +73,9 @@ export const Complexity = () => {
                   y2="126"
                   gradientUnits="userSpaceOnUse"
                 >
-                  <stop stop-color="#3178C6" stop-opacity="0.25" />
-                  <stop offset="0.515625" stop-color="#3178C6" />
-                  <stop offset="1" stop-color="#3178C6" />
+                  <stop stopColor="#3178C6" stopOpacity="0.25" />
+                  <stop offset="0.515625" stopColor="#3178C6" />
+                  <stop offset="1" stopColor="#3178C6" />
                 </linearGradient>
                 <linearGradient
                   id="paint2_linear_280_1304"
@@ -85,9 +85,9 @@ export const Complexity = () => {
                   y2="187"
                   gradientUnits="userSpaceOnUse"
                 >
-                  <stop stop-color="#F97583" />
-                  <stop offset="0.489583" stop-color="#F97583" />
-                  <stop offset="1" stop-color="#F97583" stop-opacity="0.25" />
+                  <stop stopColor="#F97583" />
+                  <stop offset="0.489583" stopColor="#F97583" />
+                  <stop offset="1" stopColor="#F97583" stopOpacity="0.25" />
                 </linearGradient>
               </defs>
             </svg>
@@ -199,7 +199,7 @@ export const Complexity = () => {
 }
 
 const content = {
-  heading: "Keep your code simple at high complexity",
+  heading: "Make the hard things easy",
   text: `As your application grows, Effect scales with it - keeping your code simple and maintainable.`,
   features: [
     {
