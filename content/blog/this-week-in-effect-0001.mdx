@@ -1,0 +1,184 @@
+---
+title: This Week in Effect (2024-02-02)
+excerpt: This Week in Effect is a weekly blog post that makes a summary of what happened in the Effect Community and Ecosystem to help you keep track of all the news, features and changes!
+date: 2024-02-02
+authors:
+  - name: Davide Scognamiglio
+    description: Project Manager
+    avatar: https://pbs.twimg.com/profile_images/1329959878476111875/evHG8VX6_400x400.jpg
+    twitter: https://twitter.com/DadeSkoTV
+  - name: Mirela Prifti
+    description: Community Manager
+    avatar: https://pbs.twimg.com/profile_images/1728403785024770048/frKphayT_400x400.jpg
+    twitter: https://twitter.com/mirepri4
+  - name: Michael Arnaldi
+    description: Chief Executive Officer
+    avatar: https://pbs.twimg.com/profile_images/1232338149340319751/Ln9nNWyk_400x400.jpg
+    twitter: https://twitter.com/MichaelArnaldi
+---
+
+Hi Effecters, and welcome to the very first **T**his **W**eek **I**n **E**ffect (**TWIE**). 
+
+We’re so proud to present you this new format that we conceived to help you keep track of everything that is going on inside our Community and the Effect Ecosystem.
+
+If it’s your first time here, Effect is a powerful TypeScript library designed to help developers create complex, synchronous, and asynchronous programs. One of the key features that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you’ll find our quick-start guide and documentation that will be your first step in your Effect journey. Enjoy!
+
+Effect quick-start guide (https://effect.website/docs/quickstart)
+
+Effect docs (https://effect.website/docs/introduction)
+
+## Overview of TWIE
+
+Before we get into what happened in the last week in our Community, let’s spend a few words about TWIE. 
+
+We’re happy to witness the community growing so fast, with more and more people adopting Effect, and we understand  that it might not be that easy keeping up  with everything that is going on around the Effect Ecosystem:
+
+our Discord server reached 1800+ members a few days ago, and the activity is at all-time high;
+
+we’re approaching our very first Effect Days Conference in Vienna on Feb 23 (https://effect.website/events/effect-days) and a lot of new content is coming up;
+
+all projects around Effect are receiving key updates and there has been a lot of activity on GitHub too.
+
+So, we wanted to make easy for all our users to find all the info they need to fully enjoy their Effect journey
+
+And that’s why we created TWIE: a weekly update to inform you about key events about Effect in the previous week, both from the community (Discord discussions, X posts, YouTube contents etc.), and technical standpoint.
+
+In this way, we want to help you staying on track with everything that is going on and fully and being an active member of our community.
+
+So, let’s start!
+
+## Technology
+
+Lists all the features, bugfixes, and changes (sometimes breaking) of this week
+
+### General Chores
+
+https://github.com/Effect-TS/effect/pull/2019
+
+This adds provenance for publishing packages: https://docs.npmjs.com/generating-provenance-statements
+
+### Effect Core
+
+https://github.com/Effect-TS/effect/pull/2004 (Documentation)
+
+Add jsdoc documentation for Effect.intoDeferred
+
+https://github.com/Effect-TS/effect/pull/2007 (Optimization)
+
+Improves performance of computing a FiberId hash by caching the computation
+
+https://github.com/Effect-TS/effect/pull/1995 (Breaking, in next minor)
+
+Use TimeoutException for timeout, previously timeout used NoSuchElementException and it proved to be prone for errors as functions such as optionFromOptional recover such exception
+
+https://github.com/Effect-TS/effect/pull/2023 (Breaking, in next minor)
+
+Makes Equal.Equal and Hash implicit traits and removes the Data.Data type that made types more complex for no specific safety gain as extending Equal doesn't necessarily mean that the equality is by value. The value level behaviour of Data is unchanged but it now returns more clean Readonly types.
+
+https://github.com/Effect-TS/effect/pull/2024 (Breaking, in next minor)
+
+Improves naming of the ReadonlyRecord module, namely it renames upsert to set and update to replace , it also adds a new function add that can be used to add an entry to a record.
+
+### Effect Schema
+
+https://github.com/Effect-TS/effect/pull/1996 (Update Readme)
+
+Adds a new section to the project readme that explains the annotations feature by showing how to customize generation of `Arbitrary<A>` instances.
+
+https://github.com/Effect-TS/effect/pull/2005 (DX Improvement)
+
+Reorganizes overloads in Schema.optional to improve development experience when specifying defaults.
+
+https://github.com/Effect-TS/effect/pull/2017 (Bug Fix)
+
+Improves generation of Equivalence supporting cases where schemas includes transformations.
+
+https://github.com/Effect-TS/effect/pull/2011 (Improvement)
+
+Add option to preserve excess properties when parsing, the feature is described in detail in the issue: https://github.com/Effect-TS/effect/issues/2008
+
+https://github.com/Effect-TS/effect/pull/2026 (Breaking, in next minor)
+
+Swaps the order of type parameters to simplify explicit type definitions, namely `Schema<R, I, A>` becomes `Schema<A, I = A, R = never>` this change also enables us to specify defaults for type parameters.
+
+### Effect Platform
+
+https://github.com/Effect-TS/effect/pull/1999 (Bug Fix)
+
+Ensuring that fibers forked in layers for background work are interruptible regardless of the regions they are forked in.
+
+https://github.com/Effect-TS/effect/pull/2020 (Improvement)
+
+Use Proxy for platform schema Transferable
+
+https://github.com/Effect-TS/effect/pull/2016 
+
+Adds support for URL objects in HTTP Client
+
+https://github.com/Effect-TS/effect/pull/2025 (Breaking, in next minor)
+
+Removes re-exports from platform-x packages and improves naming of specialized modules, generic modules like HttpClient can now be imported only from @effect/platform and specific modules like NodeRuntime can be imported from the specific platform package, in this case @effect/platform-node.
+
+https://github.com/Effect-TS/effect/pull/2027 (Breaking, in next minor)
+
+Fixes encoding of Transferable schemas, breaking because it includes a type-level change.
+
+### Effect Experimental
+
+https://github.com/Effect-TS/effect/pull/1999 (Bug Fix)
+
+Ensuring that fibers forked in layers for background work are interruptible regardless of the regions they are forked in.
+
+### Effect CLI
+
+https://github.com/Effect-TS/effect/pull/2001 (Bug Fix)
+
+Ensures proper error reporting when a single input is provided to a variadic option, priorly the check was silently skipped
+
+https://github.com/Effect-TS/effect/pull/2003 (Update Readme)
+
+Fixes the readme to update:
+
+introduction of the executable parameter, CLI no longer needs to slice process.argv and automatically deals with executable path.
+
+adds missing options from the readme example.
+
+## Community
+
+Look who's here?! Our Discord community has grown by 22 new Effecters last week. As always, the entire team joins in welcoming the new members and invites you to be an active part of our ever growing family!
+
+### Effect Days Update
+
+Hear, hear! A big announcement from Vienna! 
+
+We've opened up 5 more spots for our Effect Days workshops on Feb 22nd! Both workshop and conference tickets are quickly running out, so don't miss the opportunity to grab your own!
+
+https://x.com/EffectTS_/status/1753044739773833579?s=20
+
+The Conference is quickly approaching, and we presented our final speaker: Tim Smart, Effect Core Contributor and founding engineer of Effectful Technologies!
+
+https://x.com/EffectTS_/status/1752300636719517899?s=20
+
+So, here you can find our full speakers lineup for Vienna: https://effect.website/events/effect-days#speakers
+
+Moreover, as the 23rd come closer, our speakers are giving a a short video sneak peek of their speeches.
+
+Here you'll discover the one from Antoine Coulon:
+
+https://x.com/EffectTS_/status/1750133279678742956?s=20
+
+and from Mattia Manzati:
+
+https://x.com/EffectTS_/status/1750807628995772490?s=20
+
+That's all for this week. We thank you for being part of our amazing community and we invite you to let us know if you have any feedback or request regarding this new format. We'll do our best to adapt it to our community needs.
+
+## Closing Notes
+
+See you next Friday!
+
+Have a nice week ahead, fellow Effecters!
+
+The Effect Community Team
