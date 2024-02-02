@@ -45,7 +45,7 @@ export const Examples = () => {
                 <Tabs.Trigger
                   key={index}
                   value={name}
-                  className="data-[state=inactive]:opacity-40 origin-left md:origin-center transition-transform duration-200"
+                  className="data-[state=inactive]:opacity-40 origin-left md:origin-center transition-transform duration-200 tab-hover-underline"
                 >
                   <h3 className="font-display text-3xl lg:text-4xl text-white">
                     {name}

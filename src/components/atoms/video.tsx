@@ -38,7 +38,7 @@ export const Video = () => {
                 }}
                 className="inline-flex h-10 rounded-xl p-px bg-gradient-to-br from-[#84B2E5] to-[#2F6EB1] shadow-lg"
               >
-                <div className="flex h-full items-center gap-2 px-6 font-medium rounded-[11px] bg-gradient-to-br from-[#4B91DE] to-[#276AB2] text-white">
+                <div className="flex h-full items-center gap-2 px-6 font-medium rounded-[11px] bg-gradient-to-br from-[#4B91DE] to-[#276AB2] text-white button-hover">
                   <Icon name="play" className="h-3.5" />
                   <span>Watch Video</span>
                 </div>

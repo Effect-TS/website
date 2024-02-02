@@ -14,7 +14,7 @@ export const Button: FC<{
   return (
     <Link
       href={href}
-      className={`inline-flex relative z-10 h-10 rounded-xl p-px shadow-lg ${
+      className={`inline-flex relative z-10 h-10 rounded-xl p-px shadow-lg button-hover ${
         secondary
           ? "bg-gradient-to-br from-zinc-300 to-zinc-500"
           : "bg-gradient-to-b from-white to-zinc-300"

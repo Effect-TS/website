@@ -26,8 +26,16 @@ const menus = [
   {
     name: "Legal",
     items: [
-      { name: "Terms & Conditions", href: "https://www.effectful.co/privacy-cookies", blank: true },
-      { name: "Privacy Policy", href: "https://www.effectful.co/terms-conditions", blank: true },
+      {
+        name: "Terms & Conditions",
+        href: "https://www.effectful.co/privacy-cookies",
+        blank: true
+      },
+      {
+        name: "Privacy Policy",
+        href: "https://www.effectful.co/terms-conditions",
+        blank: true
+      },
       { name: "Contact Us", href: "mailto:contact@effectful.co" }
     ]
   }
@@ -63,7 +71,7 @@ export const Footer = () => {
             </p>
             <div className="flex items-center gap-4">
               {socials.map(({ name, icon, href }, index) => (
-                <Link key={index} href={href}>
+                <Link key={index} href={href} className="generic-hover">
                   <span className="sr-only">{name}</span>
                   <Icon
                     name={icon as IconName}
@@ -80,7 +88,11 @@ export const Footer = () => {
                 <ul className="space-y-2">
                   {items.map(({ name, href, blank }, index) => (
                     <li key={index}>
-                      <Link href={href} className="flex items-start" target={blank === true ? "_blank" : "_self"}>
+                      <Link
+                        href={href}
+                        className={`flex items-start ${pathname.startsWith(href) ? "" : "button-hover"}`}
+                        target={blank === true ? "_blank" : "_self"}
+                      >
                         <span>{name}</span>
                         {href.startsWith("http") && (
                           <Icon

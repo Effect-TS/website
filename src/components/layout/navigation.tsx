@@ -14,7 +14,7 @@ const menu = [
   { name: "Docs", href: "/docs" },
   { name: "Blog", href: "/blog" },
   // { name: "Examples", href: "https://github.com/Effect-TS/examples" },
-  { name: "Effect Days", href: "https://effect.website/events/effect-days" }
+  { name: "Effect Days", href: "/events/effect-days", blank: true }
 ]
 
 const socials = [
@@ -43,14 +43,15 @@ export const Navigation: FC<{
           </Link>
           <MobileMenu menu={menu} socials={socials} />
           <div className="hidden md:flex items-center gap-8">
-            {menu.map(({ name, href }, index) => (
+            {menu.map(({ name, href, blank }, index) => (
               <Link
                 key={index}
                 href={href}
+                target={blank === true ? "_blank" : "_self"}
                 className={`flex items-start ${
                   pathname.startsWith(href)
                     ? "text-black font-normal dark:text-white dark:font-light"
-                    : ""
+                    : "button-hover"
                 }`}
               >
                 <span>{name}</span>
@@ -71,7 +72,7 @@ export const Navigation: FC<{
             )} */}
             <div className="flex items-center gap-4">
               {socials.map(({ name, icon, href }, index) => (
-                <Link key={index} href={href}>
+                <Link key={index} href={href} className="generic-hover">
                   <span className="sr-only">{name}</span>
                   <Icon
                     name={icon as IconName}

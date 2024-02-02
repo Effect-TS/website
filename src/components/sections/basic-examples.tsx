@@ -22,7 +22,7 @@ export const BasicExamples = () => {
               <Tabs.Trigger
                 key={index}
                 value={name}
-                className="border-b whitespace-nowrap border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2"
+                className="border-b whitespace-nowrap border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2 tab-hover"
               >
                 {name}
               </Tabs.Trigger>

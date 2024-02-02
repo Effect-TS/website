@@ -162,9 +162,9 @@ export const Complexity = () => {
         </div>
         <div className="grid lg:grid-cols-2 gap-y-12 gap-x-6 pt-12">
           <div className="flex flex-col items-center gap-6">
-            <h4 className="font-display text-2xl text-white">
+            <h3 className="font-display text-2xl text-white">
               Without Effect
-            </h4>
+            </h3>
             <Code
               tabs={[
                 {
@@ -178,10 +178,10 @@ export const Complexity = () => {
             />
           </div>
           <div className="flex flex-col items-center gap-6">
-            <h4 className="font-display text-2xl text-white">
+            <h3 className="font-display text-2xl text-white">
               With <span className="sr-only">Effect</span>
               <Logo className="h-7 inline-block ml-1 -mt-1" />
-            </h4>
+            </h3>
             <Code
               tabs={[
                 {
