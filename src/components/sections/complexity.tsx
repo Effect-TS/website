@@ -7,7 +7,9 @@ import { Code } from "../layout/code"
 import { Logo } from "../atoms/logo"
 
 export const Complexity = () => {
-  const [currentIndex, setCurrentIndex] = useState<number>(content.features.length - 1)
+  const [currentIndex, setCurrentIndex] = useState<number>(
+    content.features.length - 1
+  )
 
   return (
     <section className="relative">
@@ -426,7 +428,7 @@ const getTodo = (
   id: number
 ): Effect.Effect<
   never,
-  HttpClientError | NoSuchElementException,
+  HttpClientError | TimeoutException,
   unknown
 > =>
   Http.request.get(\`/todos/\${id}\`).pipe(
@@ -556,7 +558,7 @@ const getTodo = (
   id: number
 ): Effect.Effect<
   never,
-  HttpClientError | NoSuchElementException,
+  HttpClientError | TimeoutException,
   unknown
 > =>
   Http.request.get(\`/todos/\${id}\`).pipe(
