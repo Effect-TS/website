@@ -1,13 +1,16 @@
+"use client"
 import Link from "next/link"
 import { FC, ReactNode } from "react"
 import { Icon } from "../icons"
+import { track } from "@vercel/analytics"
 
 export const Button: FC<{
   secondary?: boolean | false
   href: string
   children: ReactNode
   className?: string
-}> = ({ secondary, href, children, className = "" }) => {
+  external?: boolean
+}> = ({ secondary, href, children, className = "", external }) => {
   return (
     <Link
       href={href}
@@ -16,6 +19,11 @@ export const Button: FC<{
           ? "bg-gradient-to-br from-zinc-300 to-zinc-500"
           : "bg-gradient-to-b from-white to-zinc-300"
       } ${className}`}
+      {...(external && {
+        rel: "noopener noreferrer",
+        target: "_blank",
+        onClick: () => track("click-external-link", { href })
+      })}
     >
       <div
         className={`flex items-center gap-1 px-6 font-medium rounded-[11px] whitespace-nowrap ${
