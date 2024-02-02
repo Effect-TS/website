@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default function Blog() {
   return (
     <>
-      <Navigation themeSwitcher />
+      <Navigation />
       <main className="docs-container relative w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pb-24 pt-32 sm:pt-40 min-h-screen">
         <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white">
           {content.heading}

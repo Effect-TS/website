@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={`relative ${inter.variable} ${calSans.variable}`}
+      className={`relative ${inter.variable} ${calSans.variable} dark`}
     >
       <body className="relative overflow-x-hidden antialiased font-light bg-white dark:bg-[#09090B] text-zinc-700 dark:text-zinc-400">
         <Script
@@ -40,11 +40,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              if ((!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches) || localStorage.theme === 'dark') {
-                document.documentElement.classList.add('dark')
-              } else {
-                document.documentElement.classList.remove('dark')
-              }
+              //if ((!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches) || localStorage.theme === 'dark') {
+              //  document.documentElement.classList.add('dark')
+              //} else {
+              //  document.documentElement.classList.remove('dark')
+              //}
             `
           }}
         />
