@@ -37,7 +37,7 @@ export const Hero = () => {
         <Pill href="https://effect.website/events/effect-days">{`Join "Effect Days" from Feb 22 to 24 in Vienna`}</Pill>
         <div className="grid grid-cols-1 md:grid-cols-2 mt-4">
           <div>
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl mb-8">
+            <h1 className="font-display text-4xl sm:text-4xl lg:text-5xl mb-8">
               <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">
                 The best way to
               </span>
