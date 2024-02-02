@@ -28,12 +28,11 @@ export const NavigationLink: FC<{
       element.children.length > 0 &&
       pathname.startsWith(element.urlPath)
     ) {
-      console.log(ref.current?.offsetTop)
       document
         .getElementById("docs-sidebar-navigation")
         ?.scrollTo({ top: ref.current!.offsetTop - 32, behavior: "smooth" })
     }
-  }, [element, pathname])
+  }, [element, pathname, level])
 
   return (
     <li ref={ref}>
@@ -48,6 +47,14 @@ export const NavigationLink: FC<{
             ? "text-black dark:text-white uppercase text-sm font-semibold mt-12"
             : "mt-3"
         }`}
+        onClick={(e) => {
+          if (element.children && element.children.length > 0) {
+            e.preventDefault()
+            if (element.collapsible) {
+              setCollapsed((collapsed) => !collapsed)
+            }
+          }
+        }}
         style={{ minHeight: "1.25rem" }}
       >
         <span
