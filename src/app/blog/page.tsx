@@ -8,7 +8,7 @@ import Link from "next/link"
 
 const content = {
   heading: "Effect Blog",
-  description: "The place to be always up to date with the latest and greatest in Effect!"
+  description: "Stay up-to-date with all the latest and greatest news coming from the Effect ecosystem!"
 }
 
 export const metadata: Metadata = {
