@@ -31,7 +31,7 @@ export default function Blog() {
               <Link
                 href={urlPath}
                 key={index}
-                className="bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900 rounded-2xl p-6"
+                className="bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900 rounded-2xl p-6 generic-hover"
               >
                 <div className="flex items-start justify-between">
                   <h3 className="font-display text-2xl text-black dark:text-white">
