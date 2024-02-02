@@ -7,7 +7,7 @@ export const urlFromFilePath = (page: DocumentGen, includeOrder?: boolean): stri
   if (!includeOrder)
     urlPath = urlPath
       .split('/')
-      .map((segment: string) => segment.replace(/^\d\d\d\-/, ''))
+      .map((segment: string) => segment.replace(/^\d\d\d\-|^\d\d\d\d\-/, ''))
       .join('/')
 
   return urlPath

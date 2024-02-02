@@ -8,8 +8,7 @@ import Link from "next/link"
 
 const content = {
   heading: "Effect Blog",
-  description:
-    "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum."
+  description: "Stay up-to-date with all the latest and greatest news coming from the Effect ecosystem!"
 }
 
 export const metadata: Metadata = {
@@ -20,7 +19,7 @@ export const metadata: Metadata = {
 export default function Blog() {
   return (
     <>
-      <Navigation themeSwitcher />
+      <Navigation />
       <main className="docs-container relative w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pb-24 pt-32 sm:pt-40 min-h-screen">
         <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-black dark:text-white">
           {content.heading}

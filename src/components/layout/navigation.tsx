@@ -12,7 +12,7 @@ import { FC } from "react"
 
 const menu = [
   { name: "Docs", href: "/docs" },
-  // { name: "Blog", href: "/blog" },
+  { name: "Blog", href: "/blog" },
   // { name: "Examples", href: "https://github.com/Effect-TS/examples" },
   { name: "Effect Days", href: "https://effect.website/events/effect-days" }
 ]

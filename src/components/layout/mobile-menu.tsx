@@ -53,9 +53,11 @@ export const MobileMenu: FC<{
               )}
             </Link>
           ))}
-          <div className="mt-8">
-            <ThemeSwitcher />
-          </div>
+          {/*
+            <div className="mt-8">
+              <ThemeSwitcher />
+            </div>
+           */}
           <div className="flex items-center gap-4 mt-8">
             {socials.map(({ name, icon, href }, index) => (
               <Link key={index} href={href}>
