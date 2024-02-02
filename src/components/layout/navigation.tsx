@@ -72,7 +72,7 @@ export const Navigation: FC<{
             )} */}
             <div className="flex items-center gap-4">
               {socials.map(({ name, icon, href }, index) => (
-                <Link key={index} href={href}>
+                <Link key={index} href={href} className="generic-hover">
                   <span className="sr-only">{name}</span>
                   <Icon
                     name={icon as IconName}
