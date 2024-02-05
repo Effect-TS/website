@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 }
 
 export default function Blog() {
-  const posts = allBlogPosts.toReversed()
+  const posts = Array.from(allBlogPosts).reverse()
   return (
     <>
       <Navigation />
