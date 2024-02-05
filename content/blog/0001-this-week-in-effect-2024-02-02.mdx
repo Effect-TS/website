@@ -73,7 +73,31 @@ Use `TimeoutException` for timeout, previously timeout used `NoSuchElementExcept
 
 https://github.com/Effect-TS/effect/pull/2023 (Breaking, in next minor)
 
-Makes `Equal` and `Hash` implicit traits and removes the `Data` type. `Data` made types more complex with no added benefit in terms of type safety. This is because a type that extended `Equal` did not necessarily mean that the computation of equality would be by value. The value level behavior of `Data` is unchanged but it now returns cleaner `Readonly` types.
+With this change we remove the `Data` type and we make `Equal` & `Hash` implicit traits.
+
+The main reason is that `Data<A>` was structurally equivalent to `A & Equal` but extending `Equal` doesn't mean that the equality is implemented by-value, so the type was simply adding noise without gaining any level of safety.
+
+The module `Data` remains unchanged at the value level, all the functions previously available are supposed to work in exactly the same manner.
+
+At the type level instead the functions return `Readonly` variants, so for example we have:
+
+```ts
+import { Data } from "effect";
+
+const obj = Data.struct({
+  a: 0,
+  b: 1,
+});
+```
+
+will have the `obj` typed as:
+
+```ts
+declare const obj: {
+  readonly a: number;
+  readonly b: number;
+};
+```
 
 https://github.com/Effect-TS/effect/pull/2024 (Breaking, in next minor)
 
@@ -91,11 +115,44 @@ Reorganizes overloads in `Schema.optional` to improve development experience whe
 
 https://github.com/Effect-TS/effect/pull/2017 (Bug Fix)
 
-Improves generation of `Equivalence` supporting cases where schemas include transformations.
+Improves generation of `Equivalence` supporting cases where schemas include transformations. Namely the following code:
+
+```ts
+import { Schema } from "@effect/schema"
+
+const schema = S.NumberFromString
+const equivalence = E.make(schema)
+```
+
+No longer throws an error.
 
 https://github.com/Effect-TS/effect/pull/2011 (Improvement)
 
-Add `option` to preserve excess properties when parsing, the feature is described in detail in [the issue](https://github.com/Effect-TS/effect/issues/2008).
+Add `option` to preserve excess properties when parsing, the feature is described in detail in [the issue](https://github.com/Effect-TS/effect/issues/2008) and can be summerized as:
+
+```ts
+const data = S.parseSync({
+  foo: S.string
+})({
+  foo: 'ok', 
+  bar: 'ok'
+})
+```
+
+The above code will strip the `bar` property as it is not defined in the schema, with the additional option as below:
+
+```ts
+const data = S.parseSync({
+  foo: S.string
+})({
+  foo: 'ok', 
+  bar: 'ok'
+}, {
+  onExcessProperty: "preserve"
+})
+```
+
+The excess property is no longer removed.
 
 https://github.com/Effect-TS/effect/pull/2026 (Breaking, in next minor)
 
