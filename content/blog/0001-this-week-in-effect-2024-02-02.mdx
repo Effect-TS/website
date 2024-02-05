@@ -170,11 +170,45 @@ Use `Proxy` for platform schema `Transferable`.
 
 https://github.com/Effect-TS/effect/pull/2016 (Feature)
 
-Adds support for URL objects in HTTP Client
+Adds support for URL objects in HTTP Client, the following code is now valid:
+
+```ts
+import { HttpClient } from "@effect/platform"
+import { Effect } from "effect"
+
+const request = HttpClient.request.get(
+  new URL("https://www.google.com/")
+).pipe(
+  HttpClient.client.fetchOk(),
+  Effect.flatMap((_) => _.text)
+)
+```
 
 https://github.com/Effect-TS/effect/pull/2025 (Breaking, in next minor)
 
 Removes re-exports from `@effect/platform-*` packages and improves naming of specialized modules, generic modules like `HttpClient` can now be imported only from `@effect/platform` and specific modules like `NodeRuntime` can be imported from the specific platform package (in this case `@effect/platform-node`).
+
+```ts
+import { Runtime } from "@effect/platform-node"
+```
+
+becomes:
+
+```ts
+import { NodeRuntime } from "@effect/platform-node"
+```
+
+and:
+
+```ts
+import { HttpClient } from "@effect/platform-node"
+```
+
+becomes:
+
+```ts
+import { HttpClient } from "@effect/platform"
+```
 
 https://github.com/Effect-TS/effect/pull/2027 (Breaking, in next minor)
 
