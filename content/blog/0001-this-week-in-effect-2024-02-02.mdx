@@ -71,6 +71,17 @@ Improves performance of computing a FiberId hash by caching the computation
 
 Use `TimeoutException` for timeout, previously timeout used `NoSuchElementException` and it proved to be confusing and error-prone when using combinators such as `Effect.optionFromOptional` to recover from such exceptions.
 
+The following code is now valid:
+
+```ts
+import { Effect } from "effect"
+
+const recoverFromTimeout = Effect.sleep("2 seconds").pipe(
+  Effect.timeout("1 seconds"),
+  Effect.catchTag("TimeoutException", () => Effect.log("The program timed out"))
+)
+```
+
 - [Make Equal & Hash Implicit](https://github.com/Effect-TS/effect/pull/2023) (Breaking)
 
 With this change we remove the `Data` type and we make `Equal` & `Hash` implicit traits.
