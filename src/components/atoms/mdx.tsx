@@ -10,6 +10,7 @@ import { Steps } from "@/components/docs/components/steps"
 import { Pre } from "../docs/components/pre"
 import { CodeOutput } from "../docs/components/code-output"
 // import { Mermaid } from "@theguild/remark-mermaid/mermaid"
+import { Tweet } from "react-tweet"
 
 export const MDX: FC<{ content: string }> = ({ content }) => {
   const Content = useMDXComponent(content)
@@ -27,7 +28,12 @@ export const MDX: FC<{ content: string }> = ({ content }) => {
           Steps,
           // Mermaid,
           ...Callouts,
-          CodeOutput
+          CodeOutput,
+          Tweet: ({ id }: { id: string }) => (
+            <div className="tweet">
+              <Tweet id={id} />
+            </div>
+          )
         }}
       />
     </div>
