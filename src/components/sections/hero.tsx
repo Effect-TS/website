@@ -15,7 +15,7 @@ export const headlines = [
   { text: "build workflows", gradient: "from-violet-400 to-violet-600" },
   { text: "manage complexity", gradient: "from-emerald-400 to-emerald-600" },
   { text: "do observability", gradient: "from-green-400 to-green-600" },
-  { text: "deal with concurrency", gradient: "from-orange-400 to-orange-600" },
+  { text: "deal with concurrency", gradient: "from-orange-400 to-orange-600" }
 ]
 
 export const Hero = () => {
@@ -35,8 +35,8 @@ export const Hero = () => {
     <section className="relative z-10">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-20">
         <Pill href="https://effect.website/events/effect-days">{`Join "Effect Days" from Feb 22 to 24 in Vienna`}</Pill>
-        <div className="grid grid-cols-1 md:grid-cols-2 mt-4">
-          <div>
+        <div className="flex flex-col md:flex-row md:gap-x-6 lg:gap-x-0 xl:grid xl:grid-cols-2 mt-4">
+          <div className="shrink-0 md:w-1/2 lg:w-7/12 xl:w-auto">
             <h1 className="font-display text-4xl sm:text-4xl lg:text-5xl mb-8">
               <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">
                 The best way to
@@ -73,14 +73,14 @@ export const Hero = () => {
                 "Maximum Type-safety (incl. error handling)",
                 "Makes your code more composable, reusable and testable",
                 "Extensive library with a rich ecosystem of packages",
-                "Clustering and Workflows (Alpha)",
+                "Clustering and Workflows (Alpha)"
               ]}
             />
             <div className="mt-10 flex flex-col sm:flex-row items-start gap-3">
               <Button href="/docs/quickstart">Get Started</Button>
             </div>
           </div>
-          <div className="hidden md:block pt-3">
+          <div className="hidden md:block pt-3 shrink grow">
             <Video />
           </div>
         </div>
