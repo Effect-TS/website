@@ -41,7 +41,7 @@ export const NavigationLink: FC<{
         className={`leading-tight flex items-center w-full justify-between px-4 border-l ${
           element.urlPath === pathname
             ? "border-black dark:border-white text-black font-normal dark:text-white dark:font-light"
-            : "border-transparent text-zinc-700 dark:text-zinc-400 dark:hover:text-white"
+            : "border-transparent text-zinc-700 dark:text-zinc-300 dark:hover:text-white"
         } ${
           level === 0 && element.children.length
             ? "text-black dark:text-white uppercase text-sm font-semibold mt-12"
