@@ -17,6 +17,7 @@ export const metadata: Metadata = {
 }
 
 export default function Blog() {
+  const posts = allBlogPosts.toReversed()
   return (
     <>
       <Navigation />
@@ -26,7 +27,7 @@ export default function Blog() {
         </h2>
         <p className="mt-6 mb-12 max-w-xl">{content.description}</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {allBlogPosts.map(
+          {posts.map(
             ({ title, excerpt, urlPath, authors, date }, index) => (
               <Link
                 href={urlPath}
