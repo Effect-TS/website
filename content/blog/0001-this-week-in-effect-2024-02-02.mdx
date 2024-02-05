@@ -53,25 +53,25 @@ Lists all the features, bug fixes, and changes (sometimes breaking) of this week
 
 ### General Chores
 
-https://github.com/Effect-TS/effect/pull/2019
+- [Add provenance publishing](https://github.com/Effect-TS/effect/pull/2019)
 
 This adds [provenance](https://docs.npmjs.com/generating-provenance-statements) for publishing packages.
 
 ### Effect Core
 
-https://github.com/Effect-TS/effect/pull/2004 (Documentation)
+- [Document intoDeferred](https://github.com/Effect-TS/effect/pull/2004)
 
-Add JSDoc documentation for `Effect.intoDeferred`.
+Add JSDoc documentation for `Effect.intoDeferred`
 
-https://github.com/Effect-TS/effect/pull/2007 (Optimization)
+- [Optimizes FiberId hashing](https://github.com/Effect-TS/effect/pull/2007)
 
 Improves performance of computing a FiberId hash by caching the computation
 
-https://github.com/Effect-TS/effect/pull/1995 (Breaking, in next minor)
+- [Use TimeoutException for timeout](https://github.com/Effect-TS/effect/pull/1995) (Breaking)
 
 Use `TimeoutException` for timeout, previously timeout used `NoSuchElementException` and it proved to be confusing and error-prone when using combinators such as `Effect.optionFromOptional` to recover from such exceptions.
 
-https://github.com/Effect-TS/effect/pull/2023 (Breaking, in next minor)
+- [Make Equal & Hash Implicit](https://github.com/Effect-TS/effect/pull/2023) (Breaking)
 
 With this change we remove the `Data` type and we make `Equal` & `Hash` implicit traits.
 
@@ -99,21 +99,21 @@ declare const obj: {
 };
 ```
 
-https://github.com/Effect-TS/effect/pull/2024 (Breaking, in next minor)
+- [Improve naming for ReadonlyRecord](https://github.com/Effect-TS/effect/pull/2024) (Breaking)
 
 Improves naming of methods within the `ReadonlyRecord` module. Specifically, it renames `ReadonlyRecord.upsert` to `ReadonlyRecord.set` and `ReadonlyRecord.update` to `ReadonlyRecord.replace`. It also adds a new `ReadonlyRecord.modify` combinator that can be used to apply a function to the value of a `ReadonlyRecord` at a specific key.
 
 ### Effect Schema
 
-https://github.com/Effect-TS/effect/pull/1996 (Update README)
+- [Add annotations to README](https://github.com/Effect-TS/effect/pull/1996)
 
 Adds a new section to the project README that explains the annotations feature by showing how to customize the generation of `Arbitrary<A>` instances.
 
-https://github.com/Effect-TS/effect/pull/2005 (DX Improvement)
+- [Reorganizes overloads in Schema.optional](https://github.com/Effect-TS/effect/pull/2005)
 
 Reorganizes overloads in `Schema.optional` to improve development experience when specifying defaults.
 
-https://github.com/Effect-TS/effect/pull/2017 (Bug Fix)
+- [Fix Equivalence with Transormations](https://github.com/Effect-TS/effect/pull/2017)
 
 Improves generation of `Equivalence` supporting cases where schemas include transformations. Namely the following code:
 
@@ -126,7 +126,7 @@ const equivalence = E.make(schema)
 
 No longer throws an error.
 
-https://github.com/Effect-TS/effect/pull/2011 (Improvement)
+- [Add option to preserve excess properties](https://github.com/Effect-TS/effect/pull/2011)
 
 Add `option` to preserve excess properties when parsing, the feature is described in detail in [the issue](https://github.com/Effect-TS/effect/issues/2008) and can be summerized as:
 
@@ -154,9 +154,33 @@ const data = S.parseSync({
 
 The excess property is no longer removed.
 
-https://github.com/Effect-TS/effect/pull/2026 (Breaking, in next minor)
+- [Reorder Schema Generics](https://github.com/Effect-TS/effect/pull/2026) (Breaking)
 
 Swaps the order of type parameters to simplify explicit type definitions, namely `Schema<R, I, A>` becomes `Schema<A, I = A, R = never>` this change also enables us to specify defaults for type parameters.
+
+This enables to type simple schemas as:
+
+```ts
+import { Schema } from "@effect/schema"
+
+declare const number: Schema<number>
+```
+
+and most importantly enables to ignore context when not needed like:
+
+```ts
+import { Schema } from "@effect/schema"
+
+declare const numberFromString: Schema<number, string>
+```
+
+instead of being forced to write every parameter always like:
+
+```ts
+import { Schema } from "@effect/schema"
+
+declare const number: Schema<never, number, number>
+```
 
 ### Effect Platform
 
