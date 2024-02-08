@@ -243,7 +243,7 @@ async function getTodo(
         code: `\
 const getTodo = (
   id: number
-): Effect.Effect<never, HttpClientError, unknown> =>
+): Effect.Effect<unknown, HttpClientError> =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
     Effect.andThen((response) => response.json),
@@ -325,7 +325,7 @@ function getTodo(
         code: `\
 const getTodo = (
   id: number
-): Effect.Effect<never, HttpClientError, unknown> =>
+): Effect.Effect<unknown, HttpClientError> =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
     Effect.andThen((response) => response.json),
@@ -427,9 +427,8 @@ function getTodo(
 const getTodo = (
   id: number
 ): Effect.Effect<
-  never,
-  HttpClientError | TimeoutException,
-  unknown
+  unknown,
+  HttpClientError | TimeoutException
 > =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),
@@ -557,9 +556,8 @@ function getTodo(
 const getTodo = (
   id: number
 ): Effect.Effect<
-  never,
-  HttpClientError | TimeoutException,
-  unknown
+  unknown,
+  HttpClientError | TimeoutException
 > =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk(),

@@ -195,9 +195,8 @@ class CustomError {
 }
 
 const maybeFail: Effect.Effect<
-  never,
-  CustomError, // type safety
-  number
+  number,
+  CustomError // type safety
 > = Effect.sync(() => Math.random()).pipe(
   Effect.andThen((value) =>
     value > 0.5
@@ -376,7 +375,7 @@ import { Console, Effect } from "effect"
 
 declare const getUser: (
   id: number,
-) => Effect.Effect<never, Error, unknown>
+) => Effect.Effect<unknown, Error>
 
 const ids = Array.from(
   { length: 10 },
@@ -545,9 +544,8 @@ function mergeAbortSignal(
 const getTodos = (
   ids: Iterable<number>,
 ): Effect.Effect<
-  never,
-  Http.error.HttpClientError,
-  unknown[]
+  Array<unknown>,
+  Http.error.HttpClientError
 > =>
   Effect.forEach(
     ids,
@@ -558,9 +556,8 @@ const getTodos = (
 const getTodo = (
   id: number,
 ): Effect.Effect<
-  never,
-  Http.error.HttpClientError,
-  unknown
+  unknown,
+  Http.error.HttpClientError
 > =>
   Http.request
     .get(

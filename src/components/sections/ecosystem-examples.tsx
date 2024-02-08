@@ -299,9 +299,8 @@ Effect.gen(function* (_) {
 const fetchTodo = (
   id: number
 ): Effect.Effect<
-  never,
-  Http.error.HttpClientError,
-  unknown
+  unknown,
+  Http.error.HttpClientError
 > =>
   Http.request
     .get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`)
@@ -338,7 +337,7 @@ function readFile(path: string): Result<string, "invalid path"> {
           code: `import { existsSync, readFileSync } from "fs"
 import { Effect } from "effect"
 
-function readFile(path: string): Effect.Effect<never, "invalid path", string> {
+function readFile(path: string): Effect.Effect<string, "invalid path"> {
   if (existsSync(path)) {
     return Effect.succeed(readFileSync(path, "utf8"))
   } else {
@@ -377,9 +376,8 @@ import { Effect } from "effect";
 const fetchTodo = (
   id: number
 ): Effect.Effect<
-  never,
-  Http.error.HttpClientError,
-  unknown
+  unknown,
+  Http.error.HttpClientError
 > =>
   Http.request
     .get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`)
@@ -405,8 +403,8 @@ app.listen(3000);`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import * as Http from "@effect/platform-node/HttpServer";
-import { runMain } from "@effect/platform-node/Runtime";
+          code: `import { HttpServer as Http, runMain } from "@effect/platform";
+import { NodeHttpServer } from "@effect/platform-node";
 import { Layer } from "effect";
 import { createServer } from "node:http";
 
@@ -421,7 +419,7 @@ const HttpLive = Http.server
   .serve(app)
   .pipe(
     Layer.provide(
-      Http.server.layer(() => createServer(), {
+      NodeHttpServer.server.layer(() => createServer(), {
         port: 3000,
       })
     )
