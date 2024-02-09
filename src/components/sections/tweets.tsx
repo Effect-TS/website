@@ -4,7 +4,7 @@ import Image from "next/image"
 
 const tweets = [
   {
-    text: `Effect is the 🐐 of Typescript
+    text: `Effect is the 🐐 of TypeScript
 
 - Rust style error handling
 - Retries, Concurrency, Steams, …

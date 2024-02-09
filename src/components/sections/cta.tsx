@@ -46,7 +46,7 @@ export const CTA = () => {
             </span>
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">
-              in Typescript
+              in TypeScript
             </span>
           </h2>
           <p className="mt-8 mb-4 max-w-xl text-center mx-auto">
