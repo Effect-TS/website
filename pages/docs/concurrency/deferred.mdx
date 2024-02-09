@@ -24,7 +24,7 @@ A `Deferred` in Effect is conceptually similar to JavaScript's `Promise`. The ke
 
 ### Creating
 
-You can create a `Deferred` using `Deferred.make<A, E>(){:ts}`. This returns an `Effect<never, never, Deferred<A, E>>`, which describes the creation of a `Deferred`. Note that `Deferred`s can only be created within an `Effect` because creating them involves effectful memory allocation, which must be managed safely within an `Effect`.
+You can create a `Deferred` using `Deferred.make<A, E>(){:ts}`. This returns an `Effect<Deferred<A, E>>`, which describes the creation of a `Deferred`. Note that `Deferred`s can only be created within an `Effect` because creating them involves effectful memory allocation, which must be managed safely within an `Effect`.
 
 ### Awaiting
 
@@ -55,7 +55,7 @@ Here's an example that demonstrates the usage of these completion methods:
 
 ```
 
-When you complete a `Deferred`, it results in an `Effect<never, never, boolean>`. This effect returns `true` if the `Deferred` value has been set and `false` if it was already set before completion. This can be useful for checking the state of the `Deferred`.
+When you complete a `Deferred`, it results in an `Effect<boolean>`. This effect returns `true` if the `Deferred` value has been set and `false` if it was already set before completion. This can be useful for checking the state of the `Deferred`.
 
 Here's an example demonstrating the state change of a `Deferred`:
 
@@ -71,7 +71,7 @@ Sometimes, you may want to check whether a `Deferred` has been completed without
   - If the `Deferred` is not yet completed, it returns `None`.
   - If the `Deferred` is completed, it returns `Some`, which contains the result or error.
 
-Additionally, you can use the `Deferred.isDone` method, which returns an `Effect<never, never, boolean>`. This effect evaluates to `true` if the `Deferred` is already completed, allowing you to quickly check the completion status.
+Additionally, you can use the `Deferred.isDone` method, which returns an `Effect<boolean>`. This effect evaluates to `true` if the `Deferred` is already completed, allowing you to quickly check the completion status.
 
 Here's a practical example:
 
