@@ -200,7 +200,7 @@ Let's see an example to better understand how `flatMap` works:
 ```ts twoslash
 import { pipe, Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+const divide = (a: number, b: number): Effect.Effect<number, Error> =>
   b === 0
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
@@ -251,7 +251,7 @@ Let's take a look at an updated code snippet that incorporates the `tap` API to 
 ```ts {3-5} twoslash
 import { pipe, Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+const divide = (a: number, b: number): Effect.Effect<number, Error> =>
   b === 0
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
@@ -330,7 +330,7 @@ import { pipe, Effect } from "effect"
 
 const increment = (x: number) => x + 1
 
-const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+const divide = (a: number, b: number): Effect.Effect<number, Error> =>
   b === 0
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
@@ -374,7 +374,7 @@ import { Effect } from "effect"
 
 const increment = (x: number) => x + 1
 
-const divide = (a: number, b: number): Effect.Effect<never, Error, number> =>
+const divide = (a: number, b: number): Effect.Effect<number, Error> =>
   b === 0
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
@@ -398,10 +398,10 @@ Let's summarize the transformation functions we have seen so far:
 
 | **Function** | **Input**                                 | **Output**                  |
 | ------------ | ----------------------------------------- | --------------------------- |
-| `map`        | `Effect<R, E, A>`, `A => B`               | `Effect<R, E, B>`           |
-| `flatMap`    | `Effect<R, E, A>`, `A => Effect<R, E, B>` | `Effect<R, E, B>`           |
-| `tap`        | `Effect<R, E, A>`, `A => Effect<R, E, B>` | `Effect<R, E, A>`           |
-| `all`        | `[Effect<R, E, A>, Effect<R, E, B>, ...]` | `Effect<R, E, [A, B, ...]>` |
+| `map`        | `Effect<A, E, R>`, `A => B`               | `Effect<R, E, B>`           |
+| `flatMap`    | `Effect<A, E, R>`, `A => Effect<R, E, B>` | `Effect<R, E, B>`           |
+| `tap`        | `Effect<A, E, R>`, `A => Effect<R, E, B>` | `Effect<A, E, R>`           |
+| `all`        | `[Effect<A, E, R>, Effect<R, E, B>, ...]` | `Effect<R, E, [A, B, ...]>` |
 
 These functions are powerful tools for transforming and chaining `Effect` computations. They allow you to apply functions to values inside `Effect` and build complex pipelines of computations.
 

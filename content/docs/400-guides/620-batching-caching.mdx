@@ -173,14 +173,14 @@ import { Request } from "effect"
 import * as Model from "./Model"
 
 export interface GetTodos
-  extends Request.Request<Model.GetTodosError, Array<Model.Todo>> {
+  extends Request.Request<Array<Model.Todo>, Model.GetTodosError> {
   readonly _tag: "GetTodos"
 }
 
 export const GetTodos = Request.tagged<GetTodos>("GetTodos")
 
 export interface GetUserById
-  extends Request.Request<Model.GetUserError, Model.User> {
+  extends Request.Request<Model.User, Model.GetUserError> {
   readonly _tag: "GetUserById"
   readonly id: number
 }
@@ -188,7 +188,7 @@ export interface GetUserById
 export const GetUserById = Request.tagged<GetUserById>("GetUserById")
 
 export interface SendEmail
-  extends Request.Request<Model.SendEmailError, void> {
+  extends Request.Request<void, Model.SendEmailError> {
   readonly _tag: "SendEmail"
   readonly address: string
   readonly text: string
@@ -326,9 +326,8 @@ import * as RequestModel from "./RequestModel"
 import * as Resolvers from "./Resolvers"
 
 export const getTodos: Effect.Effect<
-  never,
-  Model.GetTodosError,
-  Array<Model.Todo>
+  Array<Model.Todo>,
+  Model.GetTodosError
 > = Effect.request(RequestModel.GetTodos({}), Resolvers.GetTodosResolver)
 
 export const getUserById = (id: number) =>
@@ -424,22 +423,19 @@ import * as API from "./API"
 import * as Model from "./Model"
 import * as RequestModel from "./RequestModel"
 
-export interface HttpService {
-  fetch: typeof fetch
-}
-
-export const HttpService = Context.Tag<HttpService>(
-  Symbol.for("@app/services/HttpService")
-)
+export class HttpService extends Context.Tag("@app/services/HttpService")<
+  HttpService,
+  { fetch: typeof fetch }
+>() {}
 
 export const HttpServiceLive = Layer.sync(HttpService, () =>
   ({ fetch })
 )
 
 export const GetTodosResolver: Effect.Effect<
-  HttpService,
+  RequestResolver.RequestResolver<RequestModel.GetTodos, never>,
   never,
-  RequestResolver.RequestResolver<RequestModel.GetTodos, never>
+  HttpService
 > =
   // we create a normal resolver like we did before
   RequestResolver.fromEffect((request: RequestModel.GetTodos) =>
@@ -504,9 +500,9 @@ import * as RequestModel from "./RequestModel"
 import * as ResolversWithContext from "./ResolversWithContext"
 
 export const getTodos: Effect.Effect<
-  ResolversWithContext.HttpService,
+  Array<Model.Todo>,
   Model.GetTodosError,
-  Array<Model.Todo>
+  ResolversWithContext.HttpService
 > = Effect.request(
   RequestModel.GetTodos({}),
   ResolversWithContext.GetTodosResolver
@@ -540,13 +536,12 @@ import * as Model from "./Model"
 import * as RequestModel from "./RequestModel"
 import * as ResolversWithContext from "./ResolversWithContext"
 
-export interface TodosService {
-  getTodos: Effect.Effect<never, Model.GetTodosError, Array<Model.Todo>>
-}
-
-export const TodosService = Context.Tag<TodosService>(
-  Symbol.for("@app/services/TodosService")
-)
+export class TodosService extends Context.Tag("@app/services/TodosService")<
+  TodosService,
+  {
+    getTodos: Effect.Effect<Array<Model.Todo>, Model.GetTodosError>
+  }
+>() {}
 
 export const TodosServiceLive = Layer.effect(
   TodosService,
@@ -569,9 +564,9 @@ export const TodosServiceLive = Layer.effect(
 )
 
 export const getTodos: Effect.Effect<
-  TodosService,
+  Array<Model.Todo>,
   Model.GetTodosError,
-  Array<Model.Todo>
+  TodosService
 > = Effect.flatMap(TodosService, (service) => service.getTodos)
 ```
 
@@ -794,7 +789,7 @@ const nextStep = Effect.step(program).pipe(
 
 const shipRequestsToBeExecutedAndWait = <E, A>(
   requests: Effect.Blocked<E, A>["i0"]
-): Effect.Effect<never, E, void> => {
+): Effect.Effect<void, E> => {
   // go on mars and come back
   return Effect.unit
 }
@@ -806,7 +801,7 @@ on `requests` that should continue with `continuation`.
 
 ## Using Cache Directly
 
-There are many cases where you have functions `(key: Key) => Effect<R, E, A>{:ts}` that you would like to cache
+There are many cases where you have functions `(key: Key) => Effect<A, E, R>{:ts}` that you would like to cache
 and not necessarily every case is a good fit for the request model shown above. For example, non-batchable API
 calls or intensive work.
 
@@ -815,9 +810,7 @@ Let's see how we would go about using cache:
 ```ts twoslash
 import { Effect, Cache } from "effect"
 
-declare const intensiveWork: (
-  key: string
-) => Effect.Effect<never, never, string>
+declare const intensiveWork: (key: string) => Effect.Effect<string>
 
 const program = Effect.gen(function* ($) {
   const cache = yield* $(

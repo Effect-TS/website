@@ -15,13 +15,14 @@ bottomNavigation: pagination
 ```ts twoslash
 import { Effect, Context } from "effect"
 
-interface Random {
-  readonly next: () => Effect.Effect<never, never, number>
-}
+class Random extends Context.Tag("Random")<
+  Random,
+  {
+    readonly next: Effect.Effect<number>
+  }
+>() {}
 
-const Random = Context.Tag<Random>()
-
-declare const program: Effect.Effect<Random, string, number>
+declare const program: Effect.Effect<number, string, Random>
 
 // type R = Random
 type R = Effect.Effect.Context<typeof program>

@@ -10,11 +10,11 @@ Services often encapsulate common tasks or operations that are needed by differe
 
 Services are typically designed to be modular and decoupled from the rest of the application. This allows them to be easily maintained, tested, and replaced without affecting the overall functionality of the application.
 
-When working with services in Effect, it is important to understand the concept of context: in the type `Effect<R, E, A>`, the parameter `R` represents the contextual data required by the effect to be executed. This contextual data is stored in a collection called `Context`.
+When working with services in Effect, it is important to understand the concept of context: in the type `Effect<A, E, R>`, the parameter `R` represents the contextual data required by the effect to be executed. This contextual data is stored in a collection called `Context`.
 
 ## Managing Services with Effects
 
-So far, we have been working with effects that don't require any specific context. In those cases, the `R` parameter in the `Effect<R, E, A>` type has always been of type `never`.
+So far, we have been working with effects that don't require any specific context. In those cases, the `R` parameter in the `Effect<A, E, R>` type has always been of type `never`.
 However, there are situations where we need to work with effects that depend on specific services or contextual data.
 
 In this guide, we will learn how to:
@@ -38,34 +38,31 @@ To create a new service, three things are needed:
 ```twoslash include service
 import { Effect, Context } from "effect"
 
-// Define an interface named 'Random' to represent the service
-export interface Random {
-  readonly _: unique symbol // Unique symbol to ensure type-level uniqueness
-}
-
-// Define another interface 'RandomShape' to represent the operations of the 'Random' service
-export interface RandomShape {
-  readonly next: Effect.Effect<never, never, number>
-}
-
-// Create a 'Tag' for the 'Random' service
-export const Random = Context.Tag<Random, RandomShape>("MyRandomServiceIdentifier")
+export class Random extends Context.Tag("Random")<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>() {}
 ```
 
 ```ts filename="service.ts" twoslash
 // @include: service
 ```
 
-The `Random` value is what is referred to as a "Tag" in Effect.
-It serves as a representation of the `Random` service and allows Effect to locate and use this service at runtime.
+The code above defines a type which represents our service. It has a single operation called next that returns a random number.
 
-Conceptually, we can start building a mental model of the context of an effect by thinking of it as a `Map`:
+The `Random` value is what is referred to as a "Tag" in Effect. It serves as a representation of the service and allows Effect to locate and use this service at runtime.
+
+To understand this better, let's think of the context of an effect as a `Map`:
 
 ```ts
 Map<Tag, ServiceImpl>
 ```
 
-Where the Tag acts as the "key" to the service implementation within the context.
+Here, the Tag acts like the "key" to the service implementation within the context.
+
+Additionally, you need to specify an identifier (in this case, the string "Random") to make the `Tag` global. This means that two tags with the same identifier must refer to the same instance.
+
+This feature comes in handy in scenarios where live reloads can occur, and you want to preserve the instance across reloads. It ensures that there is no duplication of instances (although it should not happen in the first place, some bundlers and frameworks can behave strangely, and we don't have control over them). Additionally, using a unique identifier allows for better printing of a tag. If you ever face "Service Not Found" or "Service Not Found: Random," the second is better and provides more helpful information to identify the issue.
 
 ## Using the Service
 
@@ -181,36 +178,6 @@ Notice that the `R` type parameter of the `runnable` effect is now `never`. This
 
 By calling `Effect.runPromise(runnable){:ts}`, the program is executed, and the resulting output can be observed on the console.
 
-## Inferring the Shape
-
-A commonly used pattern to simplify the process of defining a tag involves inferring the shape of the service from the implementation constructor. Here's an example:
-
-```ts twoslash
-import { Effect, Context } from "effect"
-
-interface Random {
-  readonly _: unique symbol
-}
-
-const randomImpl = {
-  next: Effect.sync(() => Math.random())
-}
-
-const Random = Context.Tag<Random, typeof randomImpl>(
-  "MyRandomServiceIdentifier"
-)
-
-const program = Effect.gen(function* (_) {
-  const random = yield* _(Random)
-  const randomNumber = yield* _(random.next)
-  console.log(`random number: ${randomNumber}`)
-})
-
-const runnable = Effect.provideService(program, Random, randomImpl)
-```
-
-As you can see, the shape of the `Random` service is inferred from the implementation (`typeof randomImpl`), reducing the burden of explicitly defining it.
-
 ## Using Multiple Services
 
 When we require the usage of more than one service, the process remains similar to what we've learned in defining a service, repeated for each service needed. Let's examine an example where we need two services, namely `Random` and `Logger`:
@@ -221,27 +188,21 @@ When we require the usage of more than one service, the process remains similar 
 ```twoslash include random-logger
 import { Effect, Context } from "effect"
 
-interface Random {
-  readonly _: unique symbol
-}
-
-interface RandomShape {
-  readonly next: Effect.Effect<never, never, number>
-}
-
 // Create a 'Tag' for the 'Random' service
-const Random = Context.Tag<Random, RandomShape>("MyRandomServiceIdentifier")
-
-interface Logger {
-  readonly _: unique symbol
-}
-
-interface LoggerShape {
-  readonly log: (message: string) => Effect.Effect<never, never, void>
-}
+class Random extends Context.Tag("Random")<
+  Random,
+  {
+    readonly next: Effect.Effect<number>
+  }
+>() {}
 
 // Create a 'Tag' for the 'Logger' service
-const Logger = Context.Tag<Logger, LoggerShape>("MyLoggerServiceIdentifier")
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  {
+    readonly log: (message: string) => Effect.Effect<void>
+  }
+>() {}
 ```
 
 ```ts twoslash

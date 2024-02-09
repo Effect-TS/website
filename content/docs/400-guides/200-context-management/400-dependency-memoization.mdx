@@ -15,23 +15,11 @@ For example, assume we have the three services `A`, `B`, and `C`. The implementa
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-interface A {
-  readonly a: number
-}
+class A extends Context.Tag("A")<A, { readonly a: number }>() {}
 
-const A = Context.Tag<A>()
+class B extends Context.Tag("B")<B, { readonly b: string }>() {}
 
-interface B {
-  readonly b: string
-}
-
-const B = Context.Tag<B>()
-
-interface C {
-  readonly c: boolean
-}
-
-const C = Context.Tag<C>()
+class C extends Context.Tag("C")<C, { readonly c: boolean }>() {}
 
 const a = Layer.effect(
   A,
@@ -80,23 +68,11 @@ If we don't want to share a module, we should create a fresh, non-shared version
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-interface A {
-  readonly a: number
-}
+class A extends Context.Tag("A")<A, { readonly a: number }>() {}
 
-const A = Context.Tag<A>()
+class B extends Context.Tag("B")<B, { readonly b: string }>() {}
 
-interface B {
-  readonly b: string
-}
-
-const B = Context.Tag<B>()
-
-interface C {
-  readonly c: boolean
-}
-
-const C = Context.Tag<C>()
+class C extends Context.Tag("C")<C, { readonly c: boolean }>() {}
 
 const a = Layer.effect(
   A,
@@ -150,11 +126,7 @@ In the following example, we provided the `a` layer two times locally, and Effec
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-interface A {
-  readonly a: number
-}
-
-const A = Context.Tag<A>()
+class A extends Context.Tag("A")<A, { readonly a: number }>() {}
 
 const a = Layer.effect(
   A,
@@ -181,11 +153,7 @@ We can memoize the `a` layer manually using the `Layer.memoize` operator. It wil
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-interface A {
-  readonly a: number
-}
-
-const A = Context.Tag<A>()
+class A extends Context.Tag("A")<A, { readonly a: number }>() {}
 
 const a = Layer.effect(
   A,

@@ -18,8 +18,8 @@ const now = Effect.sync(() => new Date().getTime())
 
 // Prints the elapsed time occurred to `self` to execute
 const elapsed = <R, E, A>(
-  self: Effect.Effect<R, E, A>
-): Effect.Effect<R, E, A> =>
+  self: Effect.Effect<A, E, R>
+): Effect.Effect<A, E, R> =>
   now.pipe(
     Effect.flatMap((startMillis) =>
       self.pipe(
@@ -110,8 +110,8 @@ import { Effect, Console } from "effect"
 const now = Effect.sync(() => new Date().getTime())
 
 const elapsed = <R, E, A>(
-  self: Effect.Effect<R, E, A>
-): Effect.Effect<R, E, A> =>
+  self: Effect.Effect<A, E, R>
+): Effect.Effect<A, E, R> =>
   Effect.Do.pipe(
     Effect.bind("startMillis", () => now),
     Effect.bind("result", () => self),
@@ -152,8 +152,8 @@ const now = Effect.sync(() => new Date().getTime())
 
 // Prints the elapsed time occurred to `self` to execute
 const elapsed = <R, E, A>(
-  self: Effect.Effect<R, E, A>
-): Effect.Effect<R, E, A> =>
+  self: Effect.Effect<A, E, R>
+): Effect.Effect<A, E, R> =>
   Effect.gen(function* (_) {
     const startMillis = yield* _(now)
     const result = yield* _(self)
