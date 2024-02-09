@@ -48,7 +48,7 @@ Expected errors **are tracked at the type level** by the `Effect` data type in t
 It is evident from the type of `program` that can fail with an error of type `HttpError`:
 
 ```ts
-Effect<never, HttpError, never>
+Effect<never, HttpError>
 ```
 
 ## Error Tracking
@@ -131,7 +131,7 @@ In this case, we have `FooError` and `BarError` as the possible error types.
 The error channel of the `program` is specified as
 
 ```ts
-Effect<never, FooError | BarError, string>
+Effect<string, FooError | BarError>
 ```
 
 indicating that it can potentially fail with either a `FooError` or a `BarError`.
@@ -340,7 +340,7 @@ We can observe that the type in the error channel of our program has changed to 
 indicating that `FooError` has been handled.
 
 ```ts
-Effect<never, BarError, string>
+Effect<string, BarError>
 ```
 
 If we also want to handle `BarError`, we can easily add another case to our code:
@@ -426,7 +426,7 @@ We can observe that the type in the error channel of our program has changed to 
 indicating that `FooError` has been handled.
 
 ```ts
-Effect<never, BarError, string>
+Effect<string, BarError>
 ```
 
 If we also wanted to handle `BarError`, we can simply add another `catchTag`:
