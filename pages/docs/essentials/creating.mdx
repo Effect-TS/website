@@ -209,18 +209,18 @@ Let's explore some common scenarios where `Effect.suspend` proves useful:
 
 The table provides a summary of the available constructors, along with their input and output types, allowing you to choose the appropriate function based on your needs.
 
-| **Function**            | **Given**                               | **To**                               |
-| ----------------------- | --------------------------------------- | ------------------------------------ |
-| `succeed`               | `A`                                     | `Effect<never, never, A>`            |
-| `fail`                  | `E`                                     | `Effect<never, E, never>`            |
-| `sync`                  | `() => A`                               | `Effect<never, never, A>`            |
-| `try`                   | `() => A`                               | `Effect<never, UnknownException, A>` |
-| `try` (overload)        | `() => A`, `unknown => E`               | `Effect<never, E, A>`                |
-| `promise`               | `() => Promise<A>`                      | `Effect<never, never, A>`            |
-| `tryPromise`            | `() => Promise<A>`                      | `Effect<never, UnknownException, A>` |
-| `tryPromise` (overload) | `() => Promise<A>`, `unknown => E`      | `Effect<never, E, A>`                |
-| `async`                 | `(Effect<never, E, A> => void) => void` | `Effect<never, E, A>`                |
-| `suspend`               | `() => Effect<A, E, R>`                 | `Effect<A, E, R>`                    |
+| **Function**            | **Given**                          | **To**                        |
+| ----------------------- | ---------------------------------- | ----------------------------- |
+| `succeed`               | `A`                                | `Effect<A>`                   |
+| `fail`                  | `E`                                | `Effect<never, E>`            |
+| `sync`                  | `() => A`                          | `Effect<A>`                   |
+| `try`                   | `() => A`                          | `Effect<A, UnknownException>` |
+| `try` (overload)        | `() => A`, `unknown => E`          | `Effect<A, E>`                |
+| `promise`               | `() => Promise<A>`                 | `Effect<A>`                   |
+| `tryPromise`            | `() => Promise<A>`                 | `Effect<A, UnknownException>` |
+| `tryPromise` (overload) | `() => Promise<A>`, `unknown => E` | `Effect<A, E>`                |
+| `async`                 | `(Effect<A, E> => void) => void`   | `Effect<A, E>`                |
+| `suspend`               | `() => Effect<A, E, R>`            | `Effect<A, E, R>`             |
 
 You can find the complete list of constructors [here](https://effect-ts.github.io/effect/effect/Effect.ts.html#constructors).
 
