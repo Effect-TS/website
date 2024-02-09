@@ -1,6 +1,6 @@
 import { Effect, Console } from "effect"
 
-// $ExpectType Effect<never, never, void>
+// $ExpectType Effect<void, never, never>
 const result = Effect.forEach(
   [1, 2, 3, 4, 5],
   (n, index) =>

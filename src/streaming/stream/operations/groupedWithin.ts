@@ -1,6 +1,6 @@
 import { Stream, Schedule, Effect } from "effect"
 
-// $ExpectType Stream<never, never, Chunk<number>>
+// $ExpectType Stream<Chunk<number>, never, never>
 const stream = Stream.range(0, 10).pipe(
   Stream.repeat(Schedule.spaced("1 seconds")),
   Stream.groupedWithin(18, "1.5 seconds"),

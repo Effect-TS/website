@@ -1,9 +1,9 @@
 import { Data, Equal } from "effect"
 
-// $ExpectType Data<readonly [string, number]>
+// $ExpectType readonly [string, number]
 const alice = Data.tuple("Alice", 30)
 
-// $ExpectType Data<readonly [string, number]>
+// $ExpectType readonly [string, number]
 const bob = Data.tuple("Bob", 40)
 
 console.log(Equal.equals(alice, alice)) // Output: true

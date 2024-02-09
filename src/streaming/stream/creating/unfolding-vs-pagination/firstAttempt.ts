@@ -1,8 +1,9 @@
 import { Effect, Stream, Option } from "effect"
 import { RawData, listPaginated } from "./domain"
 
-const firstAttempt: Stream.Stream<never, Error, RawData> =
-  Stream.unfoldChunkEffect(0, (pageNumber) =>
+const firstAttempt: Stream.Stream<RawData, Error> = Stream.unfoldChunkEffect(
+  0,
+  (pageNumber) =>
     listPaginated(pageNumber).pipe(
       Effect.map((page) => {
         if (page.isLast) {
@@ -11,7 +12,7 @@ const firstAttempt: Stream.Stream<never, Error, RawData> =
         return Option.some([page.results, pageNumber + 1] as const)
       })
     )
-  )
+)
 
 Effect.runPromise(Stream.runCollect(firstAttempt)).then(console.log)
 /*

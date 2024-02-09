@@ -6,7 +6,7 @@ const effects = [
   Effect.succeed("Task3").pipe(Effect.tap(Console.log))
 ]
 
-// $ExpectType Effect<never, never, Either<string, string>[]>
+// $ExpectType Effect<Either<string, string>[], never, never>
 const program = Effect.all(effects, { mode: "either" })
 
 Effect.runPromiseExit(program).then(console.log)

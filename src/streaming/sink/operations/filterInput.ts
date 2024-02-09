@@ -1,6 +1,6 @@
 import { Stream, Sink, Effect } from "effect"
 
-// $ExpectType Stream<never, never, Chunk<number>>
+// $ExpectType Stream<Chunk<number>, never, never>
 const stream = Stream.make(1, -2, 0, 1, 3, -3, 4, 2, 0, 1, -3, 1, 1, 6).pipe(
   Stream.transduce(
     Sink.collectAllN<number>(3).pipe(Sink.filterInput((n) => n > 0))

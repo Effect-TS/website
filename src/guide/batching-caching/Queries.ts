@@ -4,9 +4,8 @@ import * as RequestModel from "./RequestModel"
 import * as Resolvers from "./Resolvers"
 
 export const getTodos: Effect.Effect<
-  never,
-  Model.GetTodosError,
-  Array<Model.Todo>
+  Array<Model.Todo>,
+  Model.GetTodosError
 > = Effect.request(RequestModel.GetTodos({}), Resolvers.GetTodosResolver)
 
 export const getUserById = (id: number) =>

@@ -4,9 +4,9 @@ import * as RequestModel from "./RequestModel"
 import * as ResolversWithContext from "./ResolversWithContext"
 
 export const getTodos: Effect.Effect<
-  ResolversWithContext.HttpService,
+  Array<Model.Todo>,
   Model.GetTodosError,
-  Array<Model.Todo>
+  ResolversWithContext.HttpService
 > = Effect.request(
   RequestModel.GetTodos({}),
   ResolversWithContext.GetTodosResolver

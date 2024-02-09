@@ -10,7 +10,7 @@ class BarError extends Data.TaggedError("Bar")<{
   randomNumber: number
 }> {}
 
-// $ExpectType Effect<never, never, string>
+// $ExpectType Effect<string, never, never>
 export const program = Effect.gen(function* (_) {
   const n = yield* _(Random.next)
   return n > 0.5

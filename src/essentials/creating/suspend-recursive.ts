@@ -1,13 +1,13 @@
 import { Effect } from "effect"
 
-const blowsUp = (n: number): Effect.Effect<never, never, number> =>
+const blowsUp = (n: number): Effect.Effect<number> =>
   n < 2
     ? Effect.succeed(1)
     : Effect.zipWith(blowsUp(n - 1), blowsUp(n - 2), (a, b) => a + b)
 
 // console.log(Effect.runSync(blowsUp(32))) // crash: JavaScript heap out of memory
 
-const allGood = (n: number): Effect.Effect<never, never, number> =>
+const allGood = (n: number): Effect.Effect<number> =>
   n < 2
     ? Effect.succeed(1)
     : Effect.zipWith(

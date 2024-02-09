@@ -2,7 +2,7 @@ import { Effect } from "effect"
 
 const validateWeightOrFail = (
   weight: number
-): Effect.Effect<never, string, number> => {
+): Effect.Effect<number, string> => {
   if (weight >= 0) {
     return Effect.succeed(weight)
   } else {

@@ -1,4 +1,4 @@
 import { SubscriptionRef } from "effect"
 
-// $ExpectType Effect<never, never, SubscriptionRef<number>>
+// $ExpectType Effect<SubscriptionRef<number>, never, never>
 const ref = SubscriptionRef.make(0)

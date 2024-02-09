@@ -2,7 +2,7 @@ import { Effect, Data } from "effect"
 
 class MyError extends Data.Error<{ message: string }> {}
 
-// $ExpectType Effect<never, MyError, void>
+// $ExpectType Effect<void, MyError, never>
 export const program = Effect.gen(function* (_) {
   yield* _(new MyError({ message: "Oh no!" })) // same as yield* _(Effect.fail(new MyError({ message: "Oh no!" })))
 })

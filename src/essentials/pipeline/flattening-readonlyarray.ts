@@ -1,6 +1,6 @@
 import { pipe, Effect, ReadonlyArray } from "effect"
 
-// $ExpectType Effect<never, never, number[]>
+// $ExpectType Effect<number[], never, never>
 pipe(
   Effect.succeed([
     [1, 2],

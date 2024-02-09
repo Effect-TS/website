@@ -3,7 +3,7 @@ import { Effect, Schedule } from "effect"
 let count = 0
 
 // Define an async effect that simulates an action with possible failures
-const action = Effect.async<never, Error, string>((resume) => {
+const action = Effect.async<string, Error>((resume) => {
   if (count > 1) {
     console.log("failure")
     resume(Effect.fail(new Error()))

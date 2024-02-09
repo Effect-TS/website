@@ -8,7 +8,7 @@ class BarError {
   readonly _tag = "BarError"
 }
 
-// $ExpectType Effect<never, FooError | BarError, string>
+// $ExpectType Effect<string, FooError | BarError, never>
 export const program = Effect.gen(function* (_) {
   const n1 = yield* _(Random.next)
   const n2 = yield* _(Random.next)

@@ -1,4 +1,4 @@
-import { Idea, Warning } from "@/components/Callout"
+import { Warning } from "@/components/Callout"
 import { Tabs, Tab } from "@/components/Code"
 
 # Managing Services
@@ -9,11 +9,11 @@ Services often encapsulate common tasks or operations that are needed by differe
 
 Services are typically designed to be modular and decoupled from the rest of the application. This allows them to be easily maintained, tested, and replaced without affecting the overall functionality of the application.
 
-When working with services in Effect, it is important to understand the concept of context: in the type `Effect<R, E, A>`, the parameter `R` represents the contextual data required by the effect to be executed. This contextual data is stored in a collection called `Context`.
+When working with services in Effect, it is important to understand the concept of context: in the type `Effect<A, E, R>`, the parameter `R` represents the contextual data required by the effect to be executed. This contextual data is stored in a collection called `Context`.
 
 ## Managing Services with Effects
 
-So far, we have been working with effects that don't require any specific context. In those cases, the `R` parameter in the `Effect<R, E, A>` type has always been of type `never`.
+So far, we have been working with effects that don't require any specific context. In those cases, the `R` parameter in the `Effect<A, E, R>` type has always been of type `never`.
 However, there are situations where we need to work with effects that depend on specific services or contextual data.
 
 In this guide, we will learn how to:
@@ -32,39 +32,25 @@ Let's start by creating a service for a random number generator.
 
 ```
 
-The code above defines an interface called `Random`, which represents our service.
+The code above defines a type which represents our service.
 It has a single operation called `next` that returns a random number.
 
 The `Random` value is what is referred to as a "Tag" in Effect.
-It serves as a representation of the `Random` service and allows Effect to locate and use this service at runtime.
+It serves as a representation of the service and allows Effect to locate and use this service at runtime.
 
-Conceptually, we can start building a mental model of the context of an effect by thinking of it as a `Map`:
+To understand this better, let's think of the context of an effect as a `Map`:
 
 ```ts
 Map<Tag, ServiceImpl>
 ```
 
-Where the Tag acts as the "key" to the service implementation within the context.
+Here, the Tag acts like the "key" to the service implementation within the context.
 
-<Idea>
-  Naming the interface the same as the value makes it easier to import in
-  TypeScript, so it's recommended that you name the interface the same as the
-  related Tag.
-</Idea>
+Additionally, you need to specify an identifier (in this case, the string "Random") to make the `Tag` global. This means that two tags with the same `key` must refer to the same instance.
 
-If desired, you can specify a unique `key` as shown below:
-
-```ts filename="service.ts" file=<rootDir>/src/context-management/services/service-with-key.ts#L7
-
-```
-
-When you specify the `key`, it makes the `Tag` global, which means that two tags with the same `key` will refer to the same instance:
-
-```ts file=<rootDir>/src/context-management/services/Tag.ts
-
-```
-
-This feature comes in handy in scenarios where live reloads can occur, and you want to preserve the instance across reloads. It ensures that there is no duplication of instances (although it should not happen in the first place, some bundlers and frameworks can behave strangely, and we don't have control over them). Additionally, using a unique `key` allows for better printing of a tag. If you ever face "Service Not Found" or "Service Not Found: myapp/Random," the second is better and provides more helpful information to identify the issue.
+This feature comes in handy in scenarios where live reloads can occur, and you want to preserve the instance across reloads.
+It ensures that there is no duplication of instances (although it should not happen in the first place, some bundlers and frameworks can behave strangely, and we don't have control over them).
+Additionally, using a unique identifier allows for better printing of a tag. If you ever face "Service Not Found" or "Service Not Found: Random," the second is better and provides more helpful information to identify the issue.
 
 ## Using the Service
 
@@ -98,7 +84,7 @@ We then use the `Console.log` utility to log the generated random number.
 It's worth noting that the type of the `program` variable includes `Random` in the `R` type parameter:
 
 ```ts /Random/
-Effect<Random, never, void>
+Effect<void, never, Random>
 ```
 
 This indicates that our program requires the `Random` service to be provided in order to execute successfully.
@@ -112,7 +98,7 @@ Effect.runSync(program)
 We will encounter a type-checking error similar to the following:
 
 ```
-Argument of type 'Effect<Random, never, void>' is not assignable to parameter of type 'Effect<never, never, void>'.
+Argument of type 'Effect<void, never, Random>' is not assignable to parameter of type 'Effect<void, never, never>'.
   Type 'Random' is not assignable to type 'never'.ts(2345)
 ```
 
@@ -129,7 +115,7 @@ In order to provide an actual implementation of the `Random` service, we can uti
 ```
 
 In the code snippet above, we call the `program` that we defined earlier and provide it with an implementation of the `Random` service.
-We use the `Effect.provideService(effect, tag, implementation){:ts}` function to associate the `Random` service with its implementation, an object with a `next` operation that generates a random number passed to `Random.of(){:ts}` (a convenience function to construct and return the service with the correct type).
+We use the `Effect.provideService(effect, tag, implementation){:ts}` function to associate the `Random` service with its implementation, an object with a `next` operation that generates a random number.
 
 Notice that the `R` type parameter of the `runnable` effect is now `never`. This indicates that the effect no longer requires any context to be provided. With the implementation of the `Random` service in place, we are able to run the program without any further dependencies.
 

@@ -1,6 +1,6 @@
 import { Stream, Sink, Effect } from "effect"
 
-// $ExpectType Effect<never, never, Option<number>>
+// $ExpectType Effect<Option<number>, never, never>
 const effect = Stream.make(1, 2, 3, 4).pipe(Stream.run(Sink.last()))
 
 Effect.runPromise(effect).then(console.log)

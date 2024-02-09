@@ -1,6 +1,6 @@
 import { Stream, Sink, Effect } from "effect"
 
-// $ExpectType Effect<never, never, number>
+// $ExpectType Effect<number, never, never>
 const effect = Stream.iterate(0, (n) => n + 1).pipe(
   Stream.run(
     Sink.fold(

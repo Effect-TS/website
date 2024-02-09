@@ -1,10 +1,6 @@
 import { Effect, Context, Layer } from "effect"
 
-interface A {
-  readonly a: number
-}
-
-const A = Context.Tag<A>()
+class A extends Context.Tag("A")<A, { readonly a: number }>() {}
 
 const a = Layer.effect(
   A,

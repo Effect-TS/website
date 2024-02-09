@@ -1,20 +1,22 @@
 import { Effect, Chunk, Ref } from "effect"
 import * as ReadLine from "./ReadLine"
 
-// $ExpectType Effect<never, never, Chunk<string>>
+// $ExpectType Effect<Chunk<string>, never, never>
 const getNames = Ref.make(Chunk.empty<string>()).pipe(
   Effect.flatMap((ref) =>
     ReadLine.readLine("Please enter a name or `q` to exit: ").pipe(
-      Effect.repeat({ while: (name) => {
-        if (name === "q") {
-          return Effect.succeed(false)
-        } else {
-          return ref.pipe(
-            Ref.update((state) => Chunk.append(state, name)),
-            Effect.as(true)
-          )
+      Effect.repeat({
+        while: (name) => {
+          if (name === "q") {
+            return Effect.succeed(false)
+          } else {
+            return ref.pipe(
+              Ref.update((state) => Chunk.append(state, name)),
+              Effect.as(true)
+            )
+          }
         }
-      } }),
+      }),
       Effect.flatMap(() => Ref.get(ref))
     )
   )

@@ -20,7 +20,7 @@ const flakyBar = Random.next.pipe(
   )
 )
 
-// $ExpectType Effect<never, FooError | BarError, string>
+// $ExpectType Effect<string, FooError | BarError, never>
 export const program = Effect.all([flakyFoo, flakyBar]).pipe(
   Effect.map(([foo, bar]) => foo + bar)
 )

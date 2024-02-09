@@ -12,7 +12,7 @@ const groupByKeyResult = Stream.fromIterable([
   "Peter"
 ]).pipe(Stream.groupBy((name) => Effect.succeed([name.substring(0, 1), name])))
 
-// $ExpectType Stream<never, never, readonly [string, number]>
+// $ExpectType Stream<readonly [string, number], never, never>
 const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
   Stream.fromEffect(
     Stream.runCollect(stream).pipe(

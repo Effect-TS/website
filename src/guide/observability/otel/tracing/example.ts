@@ -7,7 +7,7 @@ import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http"
 const task = (
   name: string,
   delay: number,
-  children: ReadonlyArray<Effect.Effect<never, never, void>> = []
+  children: ReadonlyArray<Effect.Effect<void>> = []
 ) =>
   Effect.gen(function* (_) {
     yield* _(Effect.log(name))

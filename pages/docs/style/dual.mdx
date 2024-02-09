@@ -18,9 +18,9 @@ The `Effect.map` function is defined with two TypeScript overloads. The terms "d
 ```ts /self/
 export declare const map: {
   // data-last
-  <A, B>(f: (a: A) => B): <R, E>(self: Effect<R, E, A>) => Effect<R, E, B>
+  <A, B>(f: (a: A) => B): <R, E>(self: Effect<A, E, R>) => Effect<R, E, B>
   // data-first
-  <R, E, A, B>(self: Effect<R, E, A>, f: (a: A) => B): Effect<R, E, B>
+  <R, E, A, B>(self: Effect<A, E, R>, f: (a: A) => B): Effect<R, E, B>
 }
 ```
 
@@ -29,7 +29,7 @@ export declare const map: {
 In the first overload, the `self` argument comes in the **last position**:
 
 ```ts /self/
-<A, B>(f: (a: A) => B): <R, E>(self: Effect<R, E, A>) => Effect<R, E, B>
+<A, B>(f: (a: A) => B): <R, E>(self: Effect<A, E, R>) => Effect<R, E, B>
 ```
 
 This is the variant we have been using with `pipe`. You pass the `Effect` as the first argument to the `pipe` function, followed by a call to `Effect.map`:
@@ -49,7 +49,7 @@ pipe(effect, Effect.map(func1), Effect.flatMap(func2), ...)
 In the second overload, the `self` argument comes in the **first position**:
 
 ```ts /self/
-<R, E, A, B>(self: Effect<R, E, A>, f: (a: A) => B): Effect<R, E, B>
+<R, E, A, B>(self: Effect<A, E, R>, f: (a: A) => B): Effect<R, E, B>
 ```
 
 This variant doesn't require the `pipe` function. Instead, you can directly pass the `Effect` as the first argument to the `Effect.map` function:

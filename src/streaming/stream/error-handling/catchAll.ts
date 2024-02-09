@@ -13,17 +13,14 @@ const s2 = Stream.make("a", "b", "c")
 // $expectType Stream<never, never, boolean>
 const s3 = Stream.make(true, false, false)
 
-const stream = Stream.catchAll(
-  s1,
-  (error): Stream.Stream<never, never, string | boolean> => {
-    switch (error) {
-      case "Uh Oh!":
-        return s2
-      case "Ouch":
-        return s3
-    }
+const stream = Stream.catchAll(s1, (error): Stream.Stream<string | boolean> => {
+  switch (error) {
+    case "Uh Oh!":
+      return s2
+    case "Ouch":
+      return s3
   }
-)
+})
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*

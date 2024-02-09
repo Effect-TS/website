@@ -1,11 +1,9 @@
 import { Effect } from "effect"
 
-const success: Effect.Effect<never, Error, number> = Effect.succeed(42)
-const failure: Effect.Effect<never, Error, number> = Effect.fail(
-  new Error("Uh oh!")
-)
+const success: Effect.Effect<number, Error> = Effect.succeed(42)
+const failure: Effect.Effect<number, Error> = Effect.fail(new Error("Uh oh!"))
 
-// $ExpectType Effect<never, never, string>
+// $ExpectType Effect<string, never, never>
 const program1 = Effect.matchEffect(success, {
   onFailure: (error) =>
     Effect.succeed(`failure: ${error.message}`).pipe(Effect.tap(Effect.log)),
@@ -20,7 +18,7 @@ Output:
 success: 42
 */
 
-// $ExpectType Effect<never, never, string>
+// $ExpectType Effect<string, never, never>
 const program2 = Effect.matchEffect(failure, {
   onFailure: (error) =>
     Effect.succeed(`failure: ${error.message}`).pipe(Effect.tap(Effect.log)),

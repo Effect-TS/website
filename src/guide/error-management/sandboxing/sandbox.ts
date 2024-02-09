@@ -1,12 +1,12 @@
 import { Effect, Console } from "effect"
 
-// $ExpectType Effect<never, string, string>
+// $ExpectType Effect<string, string, never>
 const effect = Effect.fail("Oh uh!").pipe(Effect.as("primary result"))
 
-// $ExpectType Effect<never, Cause<string>, string>
+// $ExpectType Effect<string, Cause<string>, never>
 const sandboxed = Effect.sandbox(effect)
 
-// $ExpectType Effect<never, Empty | Sequential<string> | Parallel<string>, string>
+// $ExpectType Effect<string, Empty | Sequential<string> | Parallel<string>, never>
 const program = Effect.catchTags(sandboxed, {
   Die: (cause) =>
     Console.log(`Caught a defect: ${cause.defect}`).pipe(
@@ -22,7 +22,7 @@ const program = Effect.catchTags(sandboxed, {
     )
 })
 
-// $ExpectType Effect<never, string, string>
+// $ExpectType Effect<string, string, never>
 const main = Effect.unsandbox(program)
 
 Effect.runPromise(main).then(console.log)

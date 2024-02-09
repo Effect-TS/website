@@ -29,7 +29,7 @@ Enter a number: 4
 }
 */
 
-const readLine = (message: string): Effect.Effect<never, never, string> =>
+const readLine = (message: string): Effect.Effect<string> =>
   Effect.promise(
     () =>
       new Promise((resolve) => {

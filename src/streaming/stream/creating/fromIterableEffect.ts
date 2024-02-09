@@ -2,14 +2,13 @@ import { Stream, Effect, Context } from "effect"
 
 interface User {}
 
-interface Database {
-  readonly getUsers: Effect.Effect<never, never, Array<User>>
-}
+class Database extends Context.Tag("Database")<
+  Database,
+  { readonly getUsers: Effect.Effect<Array<User>> }
+>() {}
 
-const Database = Context.Tag<Database>()
-
-// $ExpectType Effect<Database, never, User[]>
+// $ExpectType Effect<User[], never, Database>
 const getUsers = Database.pipe(Effect.flatMap((_) => _.getUsers))
 
-// $ExpectType Stream<Database, never, User>
+// $ExpectType Stream<User, never, Database>
 const users = Stream.fromIterableEffect(getUsers)

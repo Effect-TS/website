@@ -6,7 +6,7 @@ interface Config {
 
 const makeConfig = (/* ... */): Config => ({})
 
-const remoteConfig = (name: string): Effect.Effect<never, Error, Config> =>
+const remoteConfig = (name: string): Effect.Effect<Config, Error> =>
   Effect.gen(function* (_) {
     if (name === "node3") {
       yield* _(Console.log(`Config for ${name} found`))
@@ -17,13 +17,13 @@ const remoteConfig = (name: string): Effect.Effect<never, Error, Config> =>
     }
   })
 
-// $ExpectType Effect<never, Error, Config>
+// $ExpectType Effect<Config, Error, never>
 const masterConfig = remoteConfig("master")
 
-// $ExpectType Effect<never, Error, Config>[]
+// $ExpectType Effect<Config, Error, never>[]
 const nodeConfigs = ["node1", "node2", "node3", "node4"].map(remoteConfig)
 
-// $ExpectType Effect<never, Error, Config>
+// $ExpectType Effect<Config, Error, never>
 const config = Effect.firstSuccessOf([masterConfig, ...nodeConfigs])
 
 console.log(Effect.runSync(config))

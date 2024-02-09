@@ -1,6 +1,6 @@
 import { Stream, Schedule, Sink, Effect } from "effect"
 
-// $ExpectType Effect<never, never, Duration>
+// $ExpectType Effect<Duration, never, never>
 const effect = Stream.make(1, 2, 3, 4).pipe(
   Stream.schedule(Schedule.spaced("100 millis")),
   Stream.run(Sink.timed)

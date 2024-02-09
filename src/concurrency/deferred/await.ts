@@ -1,9 +1,9 @@
 import { Effect, Deferred } from "effect"
 
-// $ExpectType Effect<never, never, Deferred<Error, string>>
-const effectDeferred = Deferred.make<Error, string>()
+// $ExpectType Effect<Deferred<string, Error>, never, never>
+const effectDeferred = Deferred.make<string, Error>()
 
-// $ExpectType Effect<never, Error, string>
+// $ExpectType Effect<string, Error, never>
 const effectGet = effectDeferred.pipe(
   Effect.flatMap((deferred) => Deferred.await(deferred))
 )

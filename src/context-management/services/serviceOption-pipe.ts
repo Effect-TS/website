@@ -1,7 +1,7 @@
 import { Effect, Option, Console } from "effect"
 import { Random } from "./service"
 
-// $ExpectType Effect<never, never, void>
+// $ExpectType Effect<void, never, never>
 const program = Effect.serviceOption(Random).pipe(
   Effect.flatMap((maybeRandom) =>
     Option.match(maybeRandom, {
@@ -15,12 +15,8 @@ const program = Effect.serviceOption(Random).pipe(
 )
 
 Effect.runPromise(
-  Effect.provideService(
-    program,
-    Random,
-    Random.of({
-      next: Effect.sync(() => Math.random())
-    })
-  )
+  Effect.provideService(program, Random, {
+    next: Effect.sync(() => Math.random())
+  })
 ).then(console.log)
 // Output: 0.9957979486841035

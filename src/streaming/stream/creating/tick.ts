@@ -1,4 +1,4 @@
 import { Stream } from "effect"
 
-// $ExpectType Stream<never, never, void>
+// $ExpectType Stream<void, never, never>
 const stream = Stream.tick("2 seconds")

@@ -1,6 +1,6 @@
 import { Data } from "effect"
 
-interface Person extends Data.Case {
+interface Person {
   readonly _tag: "Person" // the tag
   readonly name: string
 }

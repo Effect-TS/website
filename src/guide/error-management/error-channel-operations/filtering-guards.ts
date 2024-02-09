@@ -8,7 +8,7 @@ interface User {
 // Assume an asynchronous authentication function
 declare const auth: () => Promise<User | null>
 
-// $ExpectType Effect<never, Error, string>
+// $ExpectType Effect<string, Error, never>
 const program = pipe(
   Effect.promise(() => auth()),
   Effect.filterOrFail(

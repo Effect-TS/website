@@ -3,22 +3,17 @@ import * as API from "./API"
 import * as Model from "./Model"
 import * as RequestModel from "./RequestModel"
 
-export interface HttpService {
-  fetch: typeof fetch
-}
+export class HttpService extends Context.Tag("@app/services/HttpService")<
+  HttpService,
+  { fetch: typeof fetch }
+>() {}
 
-export const HttpService = Context.Tag<HttpService>(
-  Symbol.for("@app/services/HttpService")
-)
-
-export const HttpServiceLive = Layer.sync(HttpService, () =>
-  HttpService.of({ fetch })
-)
+export const HttpServiceLive = Layer.sync(HttpService, () => ({ fetch }))
 
 export const GetTodosResolver: Effect.Effect<
-  HttpService,
+  RequestResolver.RequestResolver<RequestModel.GetTodos, never>,
   never,
-  RequestResolver.RequestResolver<RequestModel.GetTodos, never>
+  HttpService
 > =
   // we create a normal resolver like we did before
   RequestResolver.fromEffect((request: RequestModel.GetTodos) =>

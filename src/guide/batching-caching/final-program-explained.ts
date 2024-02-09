@@ -32,7 +32,7 @@ const nextStep = Effect.step(program).pipe(
 
 const shipRequestsToBeExecutedAndWait = <E, A>(
   requests: Effect.Blocked<E, A>["i0"]
-): Effect.Effect<never, E, void> => {
+): Effect.Effect<void, E> => {
   // go on mars and come back
   return Effect.unit
 }

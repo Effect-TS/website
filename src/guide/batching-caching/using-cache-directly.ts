@@ -1,8 +1,6 @@
 import { Effect, Cache } from "effect"
 
-declare const intensiveWork: (
-  key: string
-) => Effect.Effect<never, never, string>
+declare const intensiveWork: (key: string) => Effect.Effect<string>
 
 const program = Effect.gen(function* ($) {
   const cache = yield* $(

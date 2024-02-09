@@ -5,7 +5,7 @@ const struct = {
   b: Effect.succeed("Hello").pipe(Effect.tap(Console.log))
 }
 
-// $ExpectType Effect<never, never, { a: number; b: string; }>
+// $ExpectType Effect<{ a: number; b: string; }, never, never>
 const combinedEffect = Effect.all(struct)
 
 Effect.runPromise(combinedEffect).then(console.log)

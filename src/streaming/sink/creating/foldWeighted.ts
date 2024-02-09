@@ -1,6 +1,6 @@
 import { Stream, Sink, Chunk, Effect } from "effect"
 
-// $ExpectType Stream<never, never, Chunk<number>>
+// $ExpectType Stream<Chunk<number>, never, never>
 const stream = Stream.make(3, 2, 4, 1, 5, 6, 2, 1, 3, 5, 6).pipe(
   Stream.transduce(
     Sink.foldWeighted({

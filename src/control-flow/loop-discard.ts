@@ -1,6 +1,6 @@
 import { Effect, Console } from "effect"
 
-// $ExpectType Effect<never, never, void>
+// $ExpectType Effect<void, never, never>
 const result = Effect.loop(
   1, // Initial state
   {

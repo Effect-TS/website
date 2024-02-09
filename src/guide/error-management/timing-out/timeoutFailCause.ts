@@ -1,6 +1,6 @@
 import { Effect, Cause } from "effect"
 
-// $ExpectType Effect<never, never, string>
+// $ExpectType Effect<string, never, never>
 const program = Effect.gen(function* (_) {
   console.log("start doing something...")
   yield* _(Effect.sleep("2 seconds"))
@@ -8,7 +8,7 @@ const program = Effect.gen(function* (_) {
   return "some result"
 })
 
-// $ExpectType Effect<never, never, string>
+// $ExpectType Effect<string, never, never>
 const main = program.pipe(
   Effect.timeoutFailCause({
     duration: "1 seconds",

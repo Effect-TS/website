@@ -5,7 +5,7 @@ const tuple = [
   Effect.succeed("Hello").pipe(Effect.tap(Console.log))
 ] as const
 
-// $ExpectType Effect<never, never, [number, string]>
+// $ExpectType Effect<[number, string], never, never>
 const combinedEffect = Effect.all(tuple)
 
 Effect.runPromise(combinedEffect).then(console.log)

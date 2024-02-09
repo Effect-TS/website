@@ -8,7 +8,7 @@ export const simulatedValidation = async <A>(
   return promise.then((res) => res.json() as Promise<A>)
 }
 
-// $ExpectType Effect<never, GetTodosError, Todo[]>
+// $ExpectType Effect<Todo[], GetTodosError, never>
 export const getTodos = Effect.tryPromise({
   try: () =>
     simulatedValidation<Array<Model.Todo>>(
@@ -17,7 +17,7 @@ export const getTodos = Effect.tryPromise({
   catch: () => new Model.GetTodosError()
 })
 
-// $ExpectType (id: number) => Effect<never, GetUserError, User>
+// $ExpectType (id: number) => Effect<User, GetUserError, never>
 export const getUserById = (id: number) =>
   Effect.tryPromise({
     try: () =>
@@ -27,7 +27,7 @@ export const getUserById = (id: number) =>
     catch: () => new Model.GetUserError()
   })
 
-// $ExpectType (address: string, text: string) => Effect<never, SendEmailError, void>
+// $ExpectType (address: string, text: string) => Effect<void, SendEmailError, never>
 export const sendEmail = (address: string, text: string) =>
   Effect.tryPromise({
     try: () =>
@@ -43,11 +43,11 @@ export const sendEmail = (address: string, text: string) =>
     catch: () => new Model.SendEmailError()
   })
 
-// $ExpectType (id: number, message: string) => Effect<never, GetUserError | SendEmailError, void>
+// $ExpectType (id: number, message: string) => Effect<void, GetUserError | SendEmailError, never>
 export const sendEmailToUser = (id: number, message: string) =>
   Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
 
-// $ExpectType (todo: Todo) => Effect<never, GetUserError | SendEmailError, void>
+// $ExpectType (todo: Todo) => Effect<void, GetUserError | SendEmailError, never>
 export const notifyOwner = (todo: Model.Todo) =>
   Effect.flatMap(getUserById(todo.ownerId), (user) =>
     sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)

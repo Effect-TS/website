@@ -1,6 +1,6 @@
 import { Stream, Effect } from "effect"
 
-// $ExpectType Stream<never, never, Chunk<number>>
+// $ExpectType Stream<Chunk<number>, never, never>
 const stream = Stream.range(0, 8).pipe(Stream.grouped(3))
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)

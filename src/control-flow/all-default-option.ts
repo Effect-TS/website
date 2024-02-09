@@ -6,7 +6,7 @@ const effects = [
   Effect.succeed("Task3").pipe(Effect.tap(Console.log)) // this task won't be executed
 ]
 
-// $ExpectType Effect<never, string, string[]>
+// $ExpectType Effect<string[], string, never>
 const program = Effect.all(effects)
 
 Effect.runPromiseExit(program).then(console.log)

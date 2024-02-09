@@ -17,7 +17,7 @@ const groupByKeyResult = Stream.fromIterable(examResults).pipe(
   Stream.groupByKey((exam) => Math.floor(exam.score / 10) * 10)
 )
 
-// $ExpectType Stream<never, never, readonly [number, number]>
+// $ExpectType Stream<readonly [number, number], never, never>
 const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
   Stream.fromEffect(
     Stream.runCollect(stream).pipe(

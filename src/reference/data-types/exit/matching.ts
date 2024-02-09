@@ -1,6 +1,6 @@
 import { Effect, Exit } from "effect"
 
-// $ExpectType Exit<never, number>
+// $ExpectType Exit<number, never>
 const simulatedSuccess = Effect.runSyncExit(Effect.succeed(1))
 
 Exit.match(simulatedSuccess, {
@@ -10,7 +10,7 @@ Exit.match(simulatedSuccess, {
 })
 // Output: "Exited with success value: 1"
 
-// $ExpectType Exit<string, never>
+// $ExpectType Exit<never, string>
 const simulatedFailure = Effect.runSyncExit(Effect.fail("error"))
 
 Exit.match(simulatedFailure, {
