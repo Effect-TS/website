@@ -1,7 +1,7 @@
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Dev
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)]([https://gitpod.io/r](https://gitpod.io/from-referrer/))
+[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/from-referrer/)
 
 ## Getting Started
 
