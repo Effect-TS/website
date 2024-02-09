@@ -85,12 +85,10 @@ Much like the `Effect` data type, you can generate a `Stream` using the `fail` a
 import { Stream } from "effect"
 
 // Creating a stream that can emit errors
-const streamWithError: Stream.Stream<never, string, never> =
-  Stream.fail("Uh oh!")
+const streamWithError: Stream.Stream<never, string> = Stream.fail("Uh oh!")
 
 // Creating a stream that emits a numeric value
-const streamWithNumber: Stream.Stream<never, never, number> =
-  Stream.succeed(5)
+const streamWithNumber: Stream.Stream<number> = Stream.succeed(5)
 ```
 
 ## From Chunks
@@ -195,11 +193,10 @@ import { Stream, Effect, Context } from "effect"
 
 interface User {}
 
-interface Database {
-  readonly getUsers: Effect.Effect<never, never, Array<User>>
-}
-
-const Database = Context.Tag<Database>()
+class Database extends Context.Tag("Database")<
+  Database,
+  { readonly getUsers: Effect.Effect<Array<User>> }
+>() {}
 
 const getUsers = Database.pipe(Effect.flatMap((_) => _.getUsers))
 
@@ -272,7 +269,7 @@ In this example, we're draining an `Iterator` to create a stream from it:
 ```ts twoslash
 import { Stream, Effect, Option } from "effect"
 
-const drainIterator = <A>(it: Iterator<A>): Stream.Stream<never, never, A> =>
+const drainIterator = <A>(it: Iterator<A>): Stream.Stream<A> =>
   Stream.repeatEffectOption(
     Effect.sync(() => it.next()).pipe(
       Effect.flatMap((res) => {
@@ -397,7 +394,7 @@ const pageSize = 2
 
 export const listPaginated = (
   pageNumber: number
-): Effect.Effect<never, Error, PageResult> => {
+): Effect.Effect<PageResult, Error> => {
   return Effect.succeed(
     new PageResult(
       Chunk.map(
@@ -425,8 +422,9 @@ Our goal is to convert this paginated API into a stream of `RowData` events. For
 import { Effect, Stream, Option } from "effect"
 import { RawData, listPaginated } from "./domain"
 
-const firstAttempt: Stream.Stream<never, Error, RawData> =
-  Stream.unfoldChunkEffect(0, (pageNumber) =>
+const firstAttempt: Stream.Stream<RawData, Error> = Stream.unfoldChunkEffect(
+  0,
+  (pageNumber) =>
     listPaginated(pageNumber).pipe(
       Effect.map((page) => {
         if (page.isLast) {
@@ -435,7 +433,7 @@ const firstAttempt: Stream.Stream<never, Error, RawData> =
         return Option.some([page.results, pageNumber + 1] as const)
       })
     )
-  )
+)
 
 Effect.runPromise(Stream.runCollect(firstAttempt)).then(console.log)
 /*
@@ -457,8 +455,9 @@ However, this approach has a drawback, it doesn't include the results from the l
 import { Effect, Stream, Option } from "effect"
 import { RawData, listPaginated } from "./domain"
 
-const secondAttempt: Stream.Stream<never, Error, RawData> =
-  Stream.unfoldChunkEffect(Option.some(0), (pageNumber) =>
+const secondAttempt: Stream.Stream<RawData, Error> = Stream.unfoldChunkEffect(
+  Option.some(0),
+  (pageNumber) =>
     Option.match(pageNumber, {
       // We already hit the last page
       onNone: () => Effect.succeed(Option.none()),
@@ -473,7 +472,7 @@ const secondAttempt: Stream.Stream<never, Error, RawData> =
           )
         )
     })
-  )
+)
 
 Effect.runPromise(Stream.runCollect(secondAttempt)).then(console.log)
 /*
@@ -497,7 +496,7 @@ This is where `Stream.paginate` comes to the rescue. It provides a more ergonomi
 import { Effect, Stream, Option } from "effect"
 import { RawData, listPaginated } from "./domain"
 
-const finalAttempt: Stream.Stream<never, Error, RawData> =
+const finalAttempt: Stream.Stream<RawData, Error> =
   Stream.paginateChunkEffect(0, (pageNumber) =>
     listPaginated(pageNumber).pipe(
       Effect.map((page) => {

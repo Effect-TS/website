@@ -51,7 +51,7 @@ const users = [1, 2, 3, 4]
 const meanAge = Effect.gen(function* (_) {
   const ref = yield* _(SynchronizedRef.make(0))
 
-  const log = <R, E, A>(label: string, effect: Effect.Effect<R, E, A>) =>
+  const log = <R, E, A>(label: string, effect: Effect.Effect<A, E, R>) =>
     Effect.gen(function* (_) {
       const value = yield* _(SynchronizedRef.get(ref))
       yield* _(Effect.log(`${label} get: ${value}`))

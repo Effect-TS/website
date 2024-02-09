@@ -53,7 +53,7 @@ const program = Effect.unit.pipe(Effect.delay("100 millis"))
 const instrumented = program.pipe(Effect.withSpan("myspan"))
 ```
 
-It's important to note that instrumenting an effect doesn't change its type. You start with an `Effect<never, never, void>`, and you still get an `Effect<never, never, void>`.
+It's important to note that instrumenting an effect doesn't change its type. You start with an `Effect<void>`, and you still get an `Effect<void>`.
 
 ## Printing Spans
 
@@ -375,7 +375,7 @@ Now, let's simulate traces using a sample Node.js application. We'll provide you
    const task = (
      name: string,
      delay: number,
-     children: ReadonlyArray<Effect.Effect<never, never, void>> = []
+     children: ReadonlyArray<Effect.Effect<void>> = []
    ) =>
      Effect.gen(function* (_) {
        yield* _(Effect.log(name))

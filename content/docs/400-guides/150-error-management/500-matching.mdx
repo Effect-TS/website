@@ -13,10 +13,8 @@ The `Effect.match` function allows us to **handle both success and failure cases
 ```ts twoslash
 import { Effect } from "effect"
 
-const success: Effect.Effect<never, Error, number> = Effect.succeed(42)
-const failure: Effect.Effect<never, Error, number> = Effect.fail(
-  new Error("Uh oh!")
-)
+const success: Effect.Effect<number, Error> = Effect.succeed(42)
+const failure: Effect.Effect<number, Error> = Effect.fail(new Error("Uh oh!"))
 
 const program1 = Effect.match(success, {
   onFailure: (error) => `failure: ${error.message}`,
@@ -64,10 +62,8 @@ In addition to `Effect.match`, we have the `Effect.matchEffect` function, which 
 ```ts twoslash
 import { Effect } from "effect"
 
-const success: Effect.Effect<never, Error, number> = Effect.succeed(42)
-const failure: Effect.Effect<never, Error, number> = Effect.fail(
-  new Error("Uh oh!")
-)
+const success: Effect.Effect<number, Error> = Effect.succeed(42)
+const failure: Effect.Effect<number, Error> = Effect.fail(new Error("Uh oh!"))
 
 const program1 = Effect.matchEffect(success, {
   onFailure: (error) =>
@@ -107,7 +103,7 @@ Effect also provides `Effect.matchCause` and `Effect.matchCauseEffect` functions
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-declare const exceptionalEffect: Effect.Effect<never, Error, void>
+declare const exceptionalEffect: Effect.Effect<void, Error>
 
 const program = Effect.matchCauseEffect(exceptionalEffect, {
   onFailure: (cause) => {

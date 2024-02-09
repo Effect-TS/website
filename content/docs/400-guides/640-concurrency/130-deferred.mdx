@@ -4,7 +4,7 @@ excerpt: Explore the power of `Deferred` in Effect, a specialized subtype of `Ef
 bottomNavigation: pagination
 ---
 
-A `Deferred<E, A>` is a special subtype of `Effect` that acts as a variable, but with some unique characteristics. It can only be set once, making it a powerful synchronization tool for managing asynchronous operations.
+A `Deferred<A, E>` is a special subtype of `Effect` that acts as a variable, but with some unique characteristics. It can only be set once, making it a powerful synchronization tool for managing asynchronous operations.
 
 A `Deferred` is essentially a synchronization primitive that represents a value that may not be available immediately. When you create a `Deferred`, it starts with an empty value. Later on, you can complete it exactly once with either a success value (`A`) or a failure value (`E`). Once completed, a `Deferred` can never be modified or emptied again.
 
@@ -28,7 +28,7 @@ A `Deferred` in Effect is conceptually similar to JavaScript's `Promise`. The ke
 
 ### Creating
 
-You can create a `Deferred` using `Deferred.make<E, A>(){:ts}`. This returns an `Effect<never, never, Deferred<E, A>>`, which describes the creation of a `Deferred`. Note that `Deferred`s can only be created within an `Effect` because creating them involves effectful memory allocation, which must be managed safely within an `Effect`.
+You can create a `Deferred` using `Deferred.make<A, E>(){:ts}`. This returns an `Effect<never, never, Deferred<A, E>>`, which describes the creation of a `Deferred`. Note that `Deferred`s can only be created within an `Effect` because creating them involves effectful memory allocation, which must be managed safely within an `Effect`.
 
 ### Awaiting
 
@@ -37,7 +37,7 @@ To retrieve a value from a `Deferred`, you can use `Deferred.await`. This operat
 ```ts twoslash
 import { Effect, Deferred } from "effect"
 
-const effectDeferred = Deferred.make<Error, string>()
+const effectDeferred = Deferred.make<string, Error>()
 
 const effectGet = effectDeferred.pipe(
   Effect.flatMap((deferred) => Deferred.await(deferred))
@@ -46,14 +46,14 @@ const effectGet = effectDeferred.pipe(
 
 ### Completing
 
-You can complete a `Deferred`[E, A] in different ways:
+You can complete a `Deferred<A, E>` in different ways:
 
 There are several ways to complete a `Deferred`:
 
 - `Deferred.succeed`: Completes the `Deferred` successfully with a value of type `A`.
-- `Deferred.done`: Completes the `Deferred` with an `Exit<E, A>` type.
-- `Deferred.complete`: Completes the `Deferred` with the result of an effect `Effect<never, E, A>`.
-- `Deferred.completeWith`: Completes the `Deferred` with an effect `Effect<never, E, A>`. This effect will be executed by each waiting fiber, so use it carefully.
+- `Deferred.done`: Completes the `Deferred` with an `Exit<A, E>` type.
+- `Deferred.complete`: Completes the `Deferred` with the result of an effect `Effect<A, E>`.
+- `Deferred.completeWith`: Completes the `Deferred` with an effect `Effect<A, E>`. This effect will be executed by each waiting fiber, so use it carefully.
 - `Deferred.fail`: Fails the `Deferred` with an error of type `E`.
 - `Deferred.die`: Defects the `Deferred` with a user-defined error.
 - `Deferred.failCause`: Fails or defects the `Deferred` with a `Cause<E>`.
@@ -65,7 +65,7 @@ Here's an example that demonstrates the usage of these completion methods:
 import { Effect, Deferred, Exit, Cause } from "effect"
 
 const program = Effect.gen(function* (_) {
-  const deferred = yield* _(Deferred.make<string, number>())
+  const deferred = yield* _(Deferred.make<number, string>())
 
   // Completing the Deferred in various ways
   yield* _(Deferred.succeed(deferred, 1).pipe(Effect.fork))
@@ -97,7 +97,7 @@ Here's an example demonstrating the state change of a `Deferred`:
 import { Effect, Deferred } from "effect"
 
 const program = Effect.gen(function* (_) {
-  const deferred = yield* _(Deferred.make<string, number>())
+  const deferred = yield* _(Deferred.make<number, string>())
   const b1 = yield* _(Deferred.fail(deferred, "oh no!"))
   const b2 = yield* _(Deferred.succeed(deferred, 1))
   return [b1, b2]
@@ -110,7 +110,7 @@ Effect.runPromise(program).then(console.log) // Output: [ true, false ]
 
 Sometimes, you may want to check whether a `Deferred` has been completed without causing the fiber to suspend. To achieve this, you can use the `Deferred.poll` method. Here's how it works:
 
-- `Deferred.poll` returns an `Option<Effect<never, E, A>>`.
+- `Deferred.poll` returns an `Option<Effect<A, E>>`.
   - If the `Deferred` is not yet completed, it returns `None`.
   - If the `Deferred` is completed, it returns `Some`, which contains the result or error.
 
@@ -122,7 +122,7 @@ Here's a practical example:
 import { Effect, Deferred } from "effect"
 
 const program = Effect.gen(function* (_) {
-  const deferred = yield* _(Deferred.make<string, number>())
+  const deferred = yield* _(Deferred.make<number, string>())
 
   // Polling the Deferred
   const done1 = yield* _(Deferred.poll(deferred))

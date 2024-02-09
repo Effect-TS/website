@@ -52,7 +52,10 @@ This mirrors the classic ["Hello world example"](https://expressjs.com/en/starte
    import express from "express"
 
    // Define Express as a service
-   const Express = Context.Tag<ReturnType<typeof express>>()
+   class Express extends Context.Tag("Express")<
+     Express,
+     ReturnType<typeof express>
+   >() {}
 
    // Define the main route, IndexRouteLive, as a Layer
    const IndexRouteLive = Layer.effectDiscard(
@@ -113,7 +116,10 @@ Here's a breakdown of what's happening:
 
   ```ts
   // Define Express as a service
-  const Express = Context.Tag<ReturnType<typeof express>>()
+  class Express extends Context.Tag("Express")<
+    Express,
+    ReturnType<typeof express>
+  >() {}
   ```
 
 - **Main Route**. The main route, `IndexRouteLive`, is defined as a [Layer](context-management/layers.mdx).
@@ -190,7 +196,10 @@ import { Context, Layer, Effect, Runtime } from "effect"
 import express from "express"
 
 // Define Express as a service
-const Express = Context.Tag<ReturnType<typeof express>>()
+class Express extends Context.Tag("Express")<
+  Express,
+  ReturnType<typeof express>
+>() {}
 
 interface Todo {
   readonly id: number
@@ -198,14 +207,14 @@ interface Todo {
   readonly completed: boolean
 }
 
-// Define a interface with methods to get all todos and a todo by ID
-interface TodoRepository {
-  readonly getTodos: Effect.Effect<never, never, Array<Todo>>
-  readonly getTodo: (id: number) => Effect.Effect<never, never, Todo | null>
-}
-
 // Define the repository as a service
-const TodoRepository = Context.Tag<TodoRepository>()
+class TodoRepository extends Context.Tag("TodoRepository")<
+  TodoRepository,
+  {
+    readonly getTodos: Effect.Effect<Array<Todo>>
+    readonly getTodo: (id: number) => Effect.Effect<Todo | null>
+  }
+>() {}
 
 // Define a main route that returns all Todos
 const IndexRouteLive = Layer.effectDiscard(

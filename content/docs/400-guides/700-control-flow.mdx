@@ -16,7 +16,7 @@ import { Effect, Option } from "effect"
 
 const validateWeightOption = (
   weight: number
-): Effect.Effect<never, never, Option.Option<number>> => {
+): Effect.Effect<Option.Option<number>> => {
   if (weight >= 0) {
     return Effect.succeed(Option.some(weight))
   } else {
@@ -34,7 +34,7 @@ import { Effect } from "effect"
 
 const validateWeightOrFail = (
   weight: number
-): Effect.Effect<never, string, number> => {
+): Effect.Effect<number, string> => {
   if (weight >= 0) {
     return Effect.succeed(weight)
   } else {
@@ -54,7 +54,7 @@ import { Effect, Option } from "effect"
 
 const validateWeightOption = (
   weight: number
-): Effect.Effect<never, never, Option.Option<number>> =>
+): Effect.Effect<Option.Option<number>> =>
   Effect.succeed(weight).pipe(Effect.when(() => weight >= 0))
 ```
 
@@ -67,7 +67,7 @@ import { Effect, Option } from "effect"
 
 const validateWeightOption = (
   weight: number
-): Effect.Effect<never, never, Option.Option<number>> =>
+): Effect.Effect<Option.Option<number>> =>
   Effect.succeed(weight).pipe(Effect.when(() => weight >= 0))
 
 // ---cut---
@@ -351,8 +351,8 @@ Hello
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-const iterable: Iterable<Effect.Effect<never, never, number>> = [1, 2, 3].map(
-  (n) => Effect.succeed(n).pipe(Effect.tap(Console.log))
+const iterable: Iterable<Effect.Effect<number>> = [1, 2, 3].map((n) =>
+  Effect.succeed(n).pipe(Effect.tap(Console.log))
 )
 
 const combinedEffect = Effect.all(iterable)
@@ -393,7 +393,7 @@ Hello
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-const record: Record<string, Effect.Effect<never, never, number>> = {
+const record: Record<string, Effect.Effect<number>> = {
   key1: Effect.succeed(1).pipe(Effect.tap(Console.log)),
   key2: Effect.succeed(2).pipe(Effect.tap(Console.log))
 }

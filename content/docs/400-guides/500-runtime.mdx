@@ -42,7 +42,7 @@ So how does Effect actually run these workflows? This is where the Effect Runtim
 
 After the creation of the Fiber, it invokes the Fiber's runLoop, which follows the instructions described by the `Effect` and executes them step by step.
 
-To simplify, we can envision the Runtime System as a black box that takes both the effect ([`Effect<R, E, A>`](./essentials/effect-type)) and its associated context (`Context<R>`). It runs the effect and returns the result as an [`Exit<E, A>`](./data-types/exit) value.
+To simplify, we can envision the Runtime System as a black box that takes both the effect ([`Effect<A, E, R>`](./essentials/effect-type)) and its associated context (`Context<R>`). It runs the effect and returns the result as an [`Exit<A, E>`](./data-types/exit) value.
 
 ```mermaid
 flowchart LR
@@ -237,17 +237,15 @@ Suppose we have defined two services: `LoggingService` and `EmailService`:
 ```ts twoslash
 import { Effect, Context } from "effect"
 
-interface LoggingService {
-  log: (line: string) => Effect.Effect<never, never, void>
-}
+class LoggingService extends Context.Tag("LoggingService")<
+  LoggingService,
+  { log: (line: string) => Effect.Effect<void> }
+>() {}
 
-const LoggingService = Context.Tag<LoggingService>()
-
-interface EmailService {
-  send: (user: string, content: string) => Effect.Effect<never, never, void>
-}
-
-const EmailService = Context.Tag<EmailService>()
+class EmailService extends Context.Tag("EmailService")<
+  EmailService,
+  { send: (user: string, content: string) => Effect.Effect<void> }
+>() {}
 ```
 
 We plan to implement a live version of `LoggingService` and a fake version of `EmailService` for testing:
@@ -255,27 +253,25 @@ We plan to implement a live version of `LoggingService` and a fake version of `E
 ```ts twoslash
 import { Effect, Context } from "effect"
 
-interface LoggingService {
-  log: (line: string) => Effect.Effect<never, never, void>
-}
+class LoggingService extends Context.Tag("LoggingService")<
+  LoggingService,
+  { log: (line: string) => Effect.Effect<void> }
+>() {}
 
-const LoggingService = Context.Tag<LoggingService>()
-
-interface EmailService {
-  send: (user: string, content: string) => Effect.Effect<never, never, void>
-}
-
-const EmailService = Context.Tag<EmailService>()
+class EmailService extends Context.Tag("EmailService")<
+  EmailService,
+  { send: (user: string, content: string) => Effect.Effect<void> }
+>() {}
 // ---cut---
 import { Console } from "effect"
 
-const LoggingServiceLive: LoggingService = {
+const LoggingServiceLive = LoggingService.of({
   log: Console.log
-}
+})
 
-const EmailServiceFake: EmailService = {
+const EmailServiceFake = EmailService.of({
   send: (user, content) => Console.log(`sending email to ${user}: ${content}`)
-}
+})
 ```
 
 Let's create a custom runtime that includes these two service implementations within its context:
@@ -283,25 +279,23 @@ Let's create a custom runtime that includes these two service implementations wi
 ```ts twoslash
 import { Effect, Context, Console } from "effect"
 
-interface LoggingService {
-  log: (line: string) => Effect.Effect<never, never, void>
-}
+class LoggingService extends Context.Tag("LoggingService")<
+  LoggingService,
+  { log: (line: string) => Effect.Effect<void> }
+>() {}
 
-const LoggingService = Context.Tag<LoggingService>()
+class EmailService extends Context.Tag("EmailService")<
+  EmailService,
+  { send: (user: string, content: string) => Effect.Effect<void> }
+>() {}
 
-interface EmailService {
-  send: (user: string, content: string) => Effect.Effect<never, never, void>
-}
-
-const EmailService = Context.Tag<EmailService>()
-
-const LoggingServiceLive: LoggingService = {
+const LoggingServiceLive = LoggingService.of({
   log: Console.log
-}
+})
 
-const EmailServiceFake: EmailService = {
+const EmailServiceFake = EmailService.of({
   send: (user, content) => Console.log(`sending email to ${user}: ${content}`)
-}
+})
 
 // ---cut---
 import { Runtime, FiberRefs } from "effect"
@@ -320,25 +314,23 @@ Now we can execute our effects using this custom `Runtime<LoggingService | Email
 ```ts twoslash
 import { Effect, Context, Console, Runtime, FiberRefs } from "effect"
 
-interface LoggingService {
-  log: (line: string) => Effect.Effect<never, never, void>
-}
+class LoggingService extends Context.Tag("LoggingService")<
+  LoggingService,
+  { log: (line: string) => Effect.Effect<void> }
+>() {}
 
-const LoggingService = Context.Tag<LoggingService>()
+class EmailService extends Context.Tag("EmailService")<
+  EmailService,
+  { send: (user: string, content: string) => Effect.Effect<void> }
+>() {}
 
-interface EmailService {
-  send: (user: string, content: string) => Effect.Effect<never, never, void>
-}
-
-const EmailService = Context.Tag<EmailService>()
-
-const LoggingServiceLive: LoggingService = {
+const LoggingServiceLive = LoggingService.of({
   log: Console.log
-}
+})
 
-const EmailServiceFake: EmailService = {
+const EmailServiceFake = EmailService.of({
   send: (user, content) => Console.log(`sending email to ${user}: ${content}`)
-}
+})
 
 const testableRuntime = Runtime.make({
   context: Context.make(LoggingService, LoggingServiceLive).pipe(

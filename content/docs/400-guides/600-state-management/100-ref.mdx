@@ -24,9 +24,9 @@ Let's explore how to use the `Ref` data type with a simple example of a counter:
 import { Effect, Ref } from "effect"
 
 export class Counter {
-  inc: Effect.Effect<never, never, void>
-  dec: Effect.Effect<never, never, void>
-  get: Effect.Effect<never, never, number>
+  inc: Effect.Effect<void>
+  dec: Effect.Effect<void>
+  get: Effect.Effect<number>
 
   constructor(private value: Ref.Ref<number>) {
     this.inc = Ref.update(this.value, (n) => n + 1)
@@ -136,7 +136,7 @@ const program = Effect.gen(function* (_) {
 
   const logCounter = <R, E, A>(
     label: string,
-    effect: Effect.Effect<R, E, A>
+    effect: Effect.Effect<A, E, R>
   ) =>
     Effect.gen(function* (_) {
       const value = yield* _(counter.get)
@@ -182,7 +182,7 @@ const program = Counter.make.pipe(
   Effect.flatMap((counter) => {
     const logCounter = <R, E, A>(
       label: string,
-      effect: Effect.Effect<R, E, A>
+      effect: Effect.Effect<A, E, R>
     ) =>
       counter.get.pipe(
         Effect.flatMap((value) => Effect.log(`${label} get: ${value}`)),
@@ -225,11 +225,8 @@ You can also pass a `Ref` as a [service](../context-management/services) to shar
 ```ts twoslash
 import { Effect, Context, Ref } from "effect"
 
-// Define a custom type for our state
-interface MyState extends Ref.Ref<number> {}
-
 // Create a Tag for our state
-const MyState = Context.Tag<MyState>()
+class MyState extends Context.Tag("MyState")<MyState, Ref.Ref<number>>() {}
 
 // Subprogram 1: Increment the state value twice
 const subprogram1 = Effect.gen(function* (_) {
@@ -279,11 +276,8 @@ MyState has a value of 2.
 ```ts twoslash
 import { Effect, Context, Ref, Console } from "effect"
 
-// Define a custom type for our state
-interface MyState extends Ref.Ref<number> {}
-
 // Create a Tag for our state
-const MyState = Context.Tag<MyState>()
+class MyState extends Context.Tag("MyState")<MyState, Ref.Ref<number>>() {}
 
 // Subprogram 1: Increment the state value twice
 const subprogram1 = MyState.pipe(
@@ -341,7 +335,7 @@ import * as NodeReadLine from "node:readline"
 
 export const readLine = (
   message: string
-): Effect.Effect<never, never, string> =>
+): Effect.Effect<string> =>
   Effect.promise(
     () =>
       new Promise((resolve) => {

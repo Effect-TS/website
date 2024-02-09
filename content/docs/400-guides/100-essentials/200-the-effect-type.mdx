@@ -1,18 +1,18 @@
 ---
 title: The Effect Type
-excerpt: Explore the `Effect<Requirements, Error, Value>` type in the Effect ecosystem, representing an immutable, lazy description of a workflow or job. Understand its type parameters and conceptualize it as an effectful program. Learn how to interpret `Effect` values with the Effect Runtime System for effectful interactions with the external world.
+excerpt: Explore the `Effect<Value, Error, Requirements>` type in the Effect ecosystem, representing an immutable, lazy description of a workflow or job. Understand its type parameters and conceptualize it as an effectful program. Learn how to interpret `Effect` values with the Effect Runtime System for effectful interactions with the external world.
 bottomNavigation: pagination
 ---
 
-The `Effect<Requirements, Error, Value>` type represents an **immutable** value that **lazily** describes a workflow or job.
+The `Effect<Value, Error, Requirements>` type represents an **immutable** value that **lazily** describes a workflow or job.
 
 It encapsulates the logic of a program that requires a collection of contextual data `Context<Requirements>` to execute.
 This program can either fail, produce an error of type `Error`, or succeed, yielding a value of type `Value`.
 
-Conceptually, you can think of `Effect<Requirements, Error, Value>` as an effectful version of the following function type:
+Conceptually, you can think of `Effect<Value, Error, Requirements>` as an effectful version of the following function type:
 
 ```ts
-type Effect<Requirements, Error, Value> = (
+type Effect<Value, Error, Requirements> = (
   context: Context<Requirements>
 ) => Error | Value
 ```

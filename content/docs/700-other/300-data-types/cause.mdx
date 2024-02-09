@@ -4,7 +4,7 @@ excerpt: Explore the `Cause` data type in the `Effect` type, which stores compre
 bottomNavigation: pagination
 ---
 
-The [`Effect<R, E, A>`](../../guides/essentials/the-effect-type) type is polymorphic in values of type `E`, which means we can work with any error type we want. However, there is additional information related to failures that is not captured by the `E` value alone.
+The [`Effect<A, E, R>`](../../guides/essentials/the-effect-type) type is polymorphic in values of type `E`, which means we can work with any error type we want. However, there is additional information related to failures that is not captured by the `E` value alone.
 
 To preserve and provide comprehensive information about failures, Effect uses the `Cause<E>` data type. `Cause` is responsible for storing various details, such as:
 
@@ -22,9 +22,7 @@ We have the ability to create effects with specific causes using the `Effect.fai
 import { Effect, Cause } from "effect"
 
 // Create an effect that intentionally fails with an empty cause
-const effect: Effect.Effect<never, never, never> = Effect.failCause(
-  Cause.empty
-)
+const effect: Effect.Effect<never> = Effect.failCause(Cause.empty)
 ```
 
 To uncover the underlying cause of an effect, we can use the `Effect.cause(effect){:ts}` function:
