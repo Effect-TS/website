@@ -11,8 +11,8 @@ export interface Bucket {
 export class S3 extends Context.Tag("S3")<
   S3,
   {
-    createBucket: Effect.Effect<Bucket, S3Error>
-    deleteBucket: (bucket: Bucket) => Effect.Effect<void>
+    readonly createBucket: Effect.Effect<Bucket, S3Error>
+    readonly deleteBucket: (bucket: Bucket) => Effect.Effect<void>
   }
 >() {}
 
@@ -27,8 +27,8 @@ export interface Index {
 export class ElasticSearch extends Context.Tag("ElasticSearch")<
   ElasticSearch,
   {
-    createIndex: Effect.Effect<Index, ElasticSearchError>
-    deleteIndex: (index: Index) => Effect.Effect<void>
+    readonly createIndex: Effect.Effect<Index, ElasticSearchError>
+    readonly deleteIndex: (index: Index) => Effect.Effect<void>
   }
 >() {}
 
@@ -43,10 +43,10 @@ export interface Entry {
 export class Database extends Context.Tag("Database")<
   Database,
   {
-    createEntry: (
+    readonly createEntry: (
       bucket: Bucket,
       index: Index
     ) => Effect.Effect<Entry, DatabaseError>
-    deleteEntry: (entry: Entry) => Effect.Effect<void>
+    readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
   }
 >() {}

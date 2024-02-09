@@ -2,16 +2,12 @@ import { Effect, Context, Console, Runtime, FiberRefs } from "effect"
 
 class LoggingService extends Context.Tag("LoggingService")<
   LoggingService,
-  {
-    log: (line: string) => Effect.Effect<void>
-  }
+  { readonly log: (line: string) => Effect.Effect<void> }
 >() {}
 
 class EmailService extends Context.Tag("EmailService")<
   EmailService,
-  {
-    send: (user: string, content: string) => Effect.Effect<void>
-  }
+  { readonly send: (user: string, content: string) => Effect.Effect<void> }
 >() {}
 
 const LoggingServiceLive = LoggingService.of({

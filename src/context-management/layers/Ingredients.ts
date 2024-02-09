@@ -5,9 +5,7 @@ import { MeasuringCup } from "./MeasuringCup"
 
 export class Sugar extends Context.Tag("Sugar")<
   Sugar,
-  {
-    readonly grams: (amount: number) => Effect.Effect<string>
-  }
+  { readonly grams: (amount: number) => Effect.Effect<string> }
 >() {}
 
 // $ExpectType Layer<Sugar, never, MeasuringCup>
@@ -22,9 +20,7 @@ export const SugarLive = Layer.effect(
 
 export class Flour extends Context.Tag("Flour")<
   Flour,
-  {
-    readonly cups: (amount: number) => Effect.Effect<string>
-  }
+  { readonly cups: (amount: number) => Effect.Effect<string> }
 >() {}
 
 // $ExpectType Layer<Flour, never, MeasuringCup>

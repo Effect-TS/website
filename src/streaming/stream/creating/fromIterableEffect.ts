@@ -4,9 +4,7 @@ interface User {}
 
 class Database extends Context.Tag("Database")<
   Database,
-  {
-    readonly getUsers: Effect.Effect<Array<User>>
-  }
+  { readonly getUsers: Effect.Effect<Array<User>> }
 >() {}
 
 // $ExpectType Effect<User[], never, Database>

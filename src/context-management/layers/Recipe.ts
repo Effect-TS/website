@@ -3,9 +3,7 @@ import { Flour, Sugar } from "./Ingredients"
 
 export class Recipe extends Context.Tag("Recipe")<
   Recipe,
-  {
-    readonly steps: Effect.Effect<ReadonlyArray<string>>
-  }
+  { readonly steps: Effect.Effect<ReadonlyArray<string>> }
 >() {}
 
 // $ExpectType Layer<Recipe, never, Sugar | Flour>

@@ -2,16 +2,12 @@ import { Effect, Context, Console } from "effect"
 
 class Random extends Context.Tag("Random")<
   Random,
-  {
-    readonly next: Effect.Effect<number>
-  }
+  { readonly next: Effect.Effect<number> }
 >() {}
 
 class Logger extends Context.Tag("Logger")<
   Logger,
-  {
-    readonly log: (message: string) => Effect.Effect<void>
-  }
+  { readonly log: (message: string) => Effect.Effect<void> }
 >() {}
 
 // $ExpectType Effect<void, never, Random | Logger>

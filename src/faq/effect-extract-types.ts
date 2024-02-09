@@ -2,9 +2,7 @@ import { Effect, Context } from "effect"
 
 class Random extends Context.Tag("Random")<
   Random,
-  {
-    readonly next: () => Effect.Effect<number>
-  }
+  { readonly next: () => Effect.Effect<number> }
 >() {}
 
 declare const program: Effect.Effect<number, string, Random>

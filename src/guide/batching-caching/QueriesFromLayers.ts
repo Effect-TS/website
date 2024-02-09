@@ -6,9 +6,7 @@ import * as ResolversWithContext from "./ResolversWithContext"
 
 export class TodosService extends Context.Tag("@app/services/TodosService")<
   TodosService,
-  {
-    getTodos: Effect.Effect<Array<Model.Todo>, Model.GetTodosError>
-  }
+  { getTodos: Effect.Effect<Array<Model.Todo>, Model.GetTodosError> }
 >() {}
 
 export const TodosServiceLive = Layer.effect(
