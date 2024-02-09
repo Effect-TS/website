@@ -57,7 +57,7 @@ export const Hero = () => {
               </span>
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">
-                in Typescript
+                in TypeScript
               </span>
             </h1>
             {/* <p className="mt-8 mb-4 max-w-md">

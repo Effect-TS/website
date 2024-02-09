@@ -23,7 +23,7 @@ const screenshots = [
     width: 1000,
     height: 633,
     heading: "Maximum Type-Safety",
-    text: "Effect leverages the full power of Typescript to give you confidence in your code. From errors to managing dependencies — if it compiles, it works."
+    text: "Effect leverages the full power of TypeScript to give you confidence in your code. From errors to managing dependencies — if it compiles, it works."
   },
   {
     src: "/images/screenshots/tracing.png",
