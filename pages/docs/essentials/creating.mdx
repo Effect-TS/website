@@ -25,11 +25,11 @@ To create an effect that represents a successful computation, you can use the `E
 
 ```
 
-The `program` value has the type `Effect<never, never, number>` and can be interpreted as an effect that:
+The `program` value has the type `Effect<number>` and can be interpreted as an effect that:
 
-- does not require any context (`never`)
-- does not produce any expected error (`never`)
 - succeeds with a value of type `number`
+- does not produce any expected error (`never`)
+- does not require any context (`never`)
 
 ### `Effect.fail`
 
@@ -39,11 +39,11 @@ To create an effect that represents a failure, you can use the `Effect.fail` con
 
 ```
 
-The `program` value has the type `Effect<never, string, never>` and can be interpreted as an effect that:
+The `program` value has the type `Effect<never, string>` and can be interpreted as an effect that:
 
-- does not require any context (`never`)
-- fails with an expected error of type `string`
 - does not produce any value (`never`)
+- fails with an expected error of type `string`
+- does not require any context (`never`)
 
 With `Effect.succeed` and `Effect.fail`, you can explicitly handle success and failure cases and the type system will ensure that errors are tracked and accounted for.
 
@@ -77,7 +77,7 @@ If you're working with synchronous side effects and you're confident that they w
 
 In the above example, `Effect.sync` is used to defer the side-effect of writing to the console.
 
-The `program` value has the type `Effect<never, never, number>` because the thunk returns the value `42`.
+The `program` value has the type `Effect<number>` because the thunk returns the value `42`.
 
 Note that nothing is logged to the console yet when you inspect it.
 This is because `program` represents the action of writing to the console, but nothing happens until you explicitly [run your program](running.mdx).
@@ -123,11 +123,11 @@ If you're working with asynchronous side effects that return a `Promise` and you
 
 ```
 
-The `program` value has the type `Effect<never, never, string>` and can be interpreted as an effect that:
+The `program` value has the type `Effect<string>` and can be interpreted as an effect that:
 
-- does not require any context (`never`)
-- does not produce any expected error (`never`)
 - succeeds with a value of type `string`
+- does not produce any expected error (`never`)
+- does not require any context (`never`)
 
 <Error>
   The `Promise` within the thunk passed to `Effect.promise` should never reject.
