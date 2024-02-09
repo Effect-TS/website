@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 
-// $ExpectType Effect<never, never, number>
+// $ExpectType Effect<number, never, never>
 const result = Effect.iterate(
   1, // Initial result
   {

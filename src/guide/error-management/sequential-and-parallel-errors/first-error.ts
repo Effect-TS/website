@@ -3,7 +3,7 @@ import { Effect } from "effect"
 const fail = Effect.fail("Oh uh!")
 const die = Effect.dieMessage("Boom!")
 
-// $ExpectType Effect<never, string, void>
+// $ExpectType Effect<void, string, never>
 const program = Effect.all([fail, die]).pipe(
   Effect.zipRight(die),
   Effect.asUnit

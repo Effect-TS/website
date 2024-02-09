@@ -14,7 +14,7 @@ class Logger extends Context.Tag("Logger")<
   }
 >() {}
 
-// $ExpectType Effect<Random | Logger, never, void>
+// $ExpectType Effect<void, never, Random | Logger>
 const program = Effect.gen(function* (_) {
   const random = yield* _(Random)
   const logger = yield* _(Logger)

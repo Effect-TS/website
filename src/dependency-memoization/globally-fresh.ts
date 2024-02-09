@@ -27,13 +27,13 @@ const c = Layer.effect(
   })
 )
 
-// $ExpectType Effect<B | C, never, void>
+// $ExpectType Effect<void, never, B | C>
 const program = Effect.gen(function* (_) {
   yield* _(B)
   yield* _(C)
 })
 
-// $ExpectType Effect<never, never, void>
+// $ExpectType Effect<void, never, never>
 const runnable = Effect.provide(
   program,
   Layer.merge(

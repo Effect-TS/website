@@ -6,7 +6,7 @@ const effects = [
   Effect.succeed("Task3").pipe(Effect.tap(Console.log))
 ]
 
-// $ExpectType Effect<never, Option<string>[], string[]>
+// $ExpectType Effect<string[], Option<string>[], never>
 const program = Effect.all(effects, { mode: "validate" })
 
 Effect.runPromiseExit(program).then((result) => console.log("%o", result))

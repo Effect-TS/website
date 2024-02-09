@@ -5,7 +5,7 @@ const task2 = Effect.fail("Oh uh!").pipe(Effect.as(2))
 const task3 = Effect.succeed(3)
 const task4 = Effect.fail("Oh no!").pipe(Effect.as(4))
 
-// $ExpectType Effect<never, string, [[[number, number], number], number]>
+// $ExpectType Effect<[[[number, number], number], number], string, never>
 const program = task1.pipe(
   Effect.zip(task2),
   Effect.zip(task3),

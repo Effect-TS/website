@@ -1,4 +1,4 @@
 import { Stream, Random } from "effect"
 
-// $ExpectType Stream<never, never, number>
+// $ExpectType Stream<number, never, never>
 const randomNumbers = Stream.repeatEffect(Random.nextInt)

@@ -8,7 +8,7 @@ const s2 = Sink.forEach((s: string) => Console.log(`sink 2: ${s}`)).pipe(
   Sink.as(2)
 )
 
-// $ExpectType Sink<never, never, string, never, [number, number]>
+// $ExpectType Sink<[number, number], string, never, never, never>
 const sink = s1.pipe(Sink.zip(s2, { concurrent: true }))
 
 Effect.runPromise(

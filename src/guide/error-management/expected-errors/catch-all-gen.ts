@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect"
 import { program } from "./error-tracking"
 
-// $ExpectType Effect<never, never, string>
+// $ExpectType Effect<string, never, never>
 const recovered = Effect.gen(function* (_) {
   // $ExpectType Either<FooError | BarError, string>
   const failureOrSuccess = yield* _(Effect.either(program))

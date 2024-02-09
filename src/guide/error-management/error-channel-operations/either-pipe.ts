@@ -1,9 +1,9 @@
 import { Effect, Either, Console } from "effect"
 
-// $ExpectType Effect<never, string, number>
+// $ExpectType Effect<number, string, never>
 const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
-// $ExpectType Effect<never, never, number>
+// $ExpectType Effect<number, never, never>
 const program = Effect.either(simulatedTask).pipe(
   Effect.flatMap(
     (

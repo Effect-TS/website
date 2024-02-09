@@ -1,6 +1,6 @@
 import { Effect, Console } from "effect"
 
-// $ExpectType Effect<Scope, never, never>
+// $ExpectType Effect<never, never, Scope>
 const program = Effect.gen(function* (_) {
   yield* _(
     Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))

@@ -1,7 +1,7 @@
 import { Effect, Option } from "effect"
 import { program } from "./error-tracking"
 
-// $ExpectType Effect<never, FooError | BarError, string>
+// $ExpectType Effect<string, FooError | BarError, never>
 const recovered = program.pipe(
   Effect.catchSome((error) => {
     if (error._tag === "FooError") {

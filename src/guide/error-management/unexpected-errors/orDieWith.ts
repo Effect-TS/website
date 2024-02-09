@@ -5,7 +5,7 @@ const divide = (a: number, b: number): Effect.Effect<number, Error> =>
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-// $ExpectType Effect<never, never, number>
+// $ExpectType Effect<number, never, never>
 const program = Effect.orDieWith(
   divide(1, 0),
   (error) => new Error(`defect: ${error.message}`)

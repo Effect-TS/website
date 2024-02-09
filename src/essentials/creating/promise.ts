@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 
-// $ExpectType Effect<never, never, string>
+// $ExpectType Effect<string, never, never>
 const program = Effect.promise<string>(
   () =>
     new Promise((resolve) => {

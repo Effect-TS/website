@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 import * as Counter from "./Counter"
 
-// $ExpectType Effect<never, never, void>
+// $ExpectType Effect<void, never, never>
 const program = Effect.gen(function* (_) {
   const counter = yield* _(Counter.make)
 

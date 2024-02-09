@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 
-// $ExpectType Effect<never, never, number>
+// $ExpectType Effect<number, never, never>
 const program = Effect.sync(() => {
   console.log("Hello, World!")
   return 1

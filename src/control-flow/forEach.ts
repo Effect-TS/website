@@ -1,6 +1,6 @@
 import { Effect, Console } from "effect"
 
-// $ExpectType Effect<never, never, number[]>
+// $ExpectType Effect<number[], never, never>
 const result = Effect.forEach([1, 2, 3, 4, 5], (n, index) =>
   Console.log(`Currently at index ${index}`).pipe(Effect.as(n * 2))
 )

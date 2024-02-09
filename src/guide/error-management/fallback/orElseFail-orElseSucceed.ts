@@ -22,8 +22,8 @@ const validate = (
   }
 }
 
-// $ExpectType Effect<never, string, number>
+// $ExpectType Effect<number, string, never>
 const program1 = Effect.orElseFail(validate(3), () => "invalid age")
 
-// $ExpectType Effect<never, never, number>
+// $ExpectType Effect<number, never, never>
 const program2 = Effect.orElseSucceed(validate(3), () => 0)

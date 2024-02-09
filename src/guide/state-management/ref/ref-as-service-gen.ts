@@ -4,7 +4,7 @@ import { Effect, Context, Ref } from "effect"
 class MyState extends Context.Tag("MyState")<MyState, Ref.Ref<number>>() {}
 
 // Subprogram 1: Increment the state value twice
-// $ExpectType Effect<MyState, never, void>
+// $ExpectType Effect<void, never, MyState>
 const subprogram1 = Effect.gen(function* (_) {
   const state = yield* _(MyState)
   yield* _(Ref.update(state, (n) => n + 1))
@@ -12,7 +12,7 @@ const subprogram1 = Effect.gen(function* (_) {
 })
 
 // Subprogram 2: Decrement the state value and then increment it
-// $ExpectType Effect<MyState, never, void>
+// $ExpectType Effect<void, never, MyState>
 const subprogram2 = Effect.gen(function* (_) {
   const state = yield* _(MyState)
   yield* _(Ref.update(state, (n) => n - 1))
@@ -20,7 +20,7 @@ const subprogram2 = Effect.gen(function* (_) {
 })
 
 // Subprogram 3: Read and log the current value of the state
-// $ExpectType Effect<MyState, never, void>
+// $ExpectType Effect<void, never, MyState>
 const subprogram3 = Effect.gen(function* (_) {
   const state = yield* _(MyState)
   const value = yield* _(Ref.get(state))
@@ -28,7 +28,7 @@ const subprogram3 = Effect.gen(function* (_) {
 })
 
 // Compose subprograms 1, 2, and 3 to create the main program
-// $ExpectType Effect<MyState, never, void>
+// $ExpectType Effect<void, never, MyState>
 const program = Effect.gen(function* (_) {
   yield* _(subprogram1)
   yield* _(subprogram2)
@@ -36,11 +36,11 @@ const program = Effect.gen(function* (_) {
 })
 
 // Create a Ref instance with an initial value of 0
-// $ExpectType Effect<never, never, Ref<number>>
+// $ExpectType Effect<Ref<number>, never, never>
 const initialState = Ref.make(0)
 
 // Provide the Ref as a service
-// $ExpectType Effect<never, never, void>
+// $ExpectType Effect<void, never, never>
 const runnable = Effect.provideServiceEffect(program, MyState, initialState)
 
 // Run the program and observe the output

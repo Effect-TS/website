@@ -9,8 +9,8 @@ class Database extends Context.Tag("Database")<
   }
 >() {}
 
-// $ExpectType Effect<Database, never, User[]>
+// $ExpectType Effect<User[], never, Database>
 const getUsers = Database.pipe(Effect.flatMap((_) => _.getUsers))
 
-// $ExpectType Stream<Database, never, User>
+// $ExpectType Stream<User, never, Database>
 const users = Stream.fromIterableEffect(getUsers)

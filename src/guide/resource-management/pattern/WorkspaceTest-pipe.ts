@@ -17,7 +17,7 @@ class FailureCase extends Context.Tag("FailureCase")<
 
 // Create a test layer for the S3 service
 
-// $ExpectType Layer<FailureCase, never, S3>
+// $ExpectType Layer<S3, never, FailureCase>
 const S3Test = Layer.effect(
   Services.S3,
   Effect.map(FailureCase, (failureCase) => ({
@@ -34,7 +34,7 @@ const S3Test = Layer.effect(
 
 // Create a test layer for the ElasticSearch service
 
-// $ExpectType Layer<FailureCase, never, ElasticSearch>
+// $ExpectType Layer<ElasticSearch, never, FailureCase>
 const ElasticSearchTest = Layer.effect(
   Services.ElasticSearch,
   Effect.map(FailureCase, (failureCase) => ({
@@ -52,7 +52,7 @@ const ElasticSearchTest = Layer.effect(
 
 // Create a test layer for the Database service
 
-// $ExpectType Layer<FailureCase, never, Database>
+// $ExpectType Layer<Database, never, FailureCase>
 const DatabaseTest = Layer.effect(
   Services.Database,
   Effect.map(FailureCase, (failureCase) => ({
@@ -72,13 +72,13 @@ const DatabaseTest = Layer.effect(
 
 // Merge all the test layers for S3, ElasticSearch, and Database services into a single layer
 
-// $ExpectType Layer<FailureCase, never, S3 | ElasticSearch | Database>
+// $ExpectType Layer<S3 | ElasticSearch | Database, never, FailureCase>
 const layer = Layer.mergeAll(S3Test, ElasticSearchTest, DatabaseTest)
 
 // Create a runnable effect to test the Workspace code
 // The effect is provided with the test layer and a FailureCase service with undefined value (no failure case)
 
-// $ExpectType Effect<never, S3Error | ElasticSearchError | DatabaseError, Entry>
+// $ExpectType Effect<Entry, S3Error | ElasticSearchError | DatabaseError, never>
 const runnable = Workspace.make.pipe(
   Effect.provide(layer),
   Effect.provideService(FailureCase, undefined)

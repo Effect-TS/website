@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 import * as Queries from "./Queries"
 
-// $ExpectType Effect<never, GetTodosError | GetUserError | SendEmailError, void>
+// $ExpectType Effect<void, GetTodosError | GetUserError | SendEmailError, never>
 const program = Effect.gen(function* (_) {
   const todos = yield* _(Queries.getTodos)
   yield* _(

@@ -1,7 +1,7 @@
 import { Effect, Option, Console } from "effect"
 import { Random } from "./service"
 
-// $ExpectType Effect<never, never, void>
+// $ExpectType Effect<void, never, never>
 const program = Effect.serviceOption(Random).pipe(
   Effect.flatMap((maybeRandom) =>
     Option.match(maybeRandom, {

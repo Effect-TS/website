@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 
-// $ExpectType Effect<never, never, string>
+// $ExpectType Effect<string, never, never>
 const program = Effect.gen(function* (_) {
   console.log("start doing something...")
   yield* _(Effect.sleep("2 seconds"))
@@ -8,7 +8,7 @@ const program = Effect.gen(function* (_) {
   return "some result"
 })
 
-// $ExpectType Effect<never, NoSuchElementException, string>
+// $ExpectType Effect<string, TimeoutException, never>
 const main = program.pipe(Effect.uninterruptible, Effect.timeout("1 seconds"))
 
 Effect.runPromise(main).then(console.log, console.error)

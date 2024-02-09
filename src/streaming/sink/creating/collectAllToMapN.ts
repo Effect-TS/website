@@ -1,6 +1,6 @@
 import { Stream, Sink, Effect } from "effect"
 
-// $ExpectType Effect<never, never, HashMap<number, number>>
+// $ExpectType Effect<HashMap<number, number>, never, never>
 const effect = Stream.make(1, 3, 2, 3, 1, 5, 1).pipe(
   Stream.run(
     Sink.collectAllToMapN(

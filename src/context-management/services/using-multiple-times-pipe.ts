@@ -1,7 +1,7 @@
 import { Effect, Console } from "effect"
 import { Random } from "./service"
 
-// $ExpectType Effect<Random, never, void>
+// $ExpectType Effect<void, never, Random>
 const program = Random.pipe(
   Effect.flatMap((random) =>
     random.next.pipe(
@@ -16,7 +16,7 @@ const program = Random.pipe(
   )
 )
 
-// $ExpectType Effect<never, never, void>
+// $ExpectType Effect<void, never, never>
 const runnable = Effect.provideService(program, Random, {
   next: Effect.sync(() => Math.random())
 })

@@ -1,9 +1,9 @@
 import { Stream, Sink, Effect } from "effect"
 
-// $ExpectType Sink<never, never, number, never, number>
+// $ExpectType Sink<number, number, never, never, never>
 const numericSum = Sink.sum
 
-// $ExpectType Sink<never, never, string, never, number>
+// $ExpectType Sink<number, string, never, never, never>
 const stringSum = numericSum.pipe(
   Sink.mapInput((s: string) => Number.parseFloat(s))
 )

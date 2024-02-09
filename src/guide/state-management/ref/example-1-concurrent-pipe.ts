@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 import * as Counter from "./Counter"
 
-// $ExpectType Effect<never, never, void>
+// $ExpectType Effect<void, never, never>
 const program = Counter.make.pipe(
   Effect.flatMap((counter) => {
     const logCounter = <R, E, A>(

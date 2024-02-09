@@ -1,7 +1,7 @@
 import { Effect, Chunk, Ref } from "effect"
 import * as ReadLine from "./ReadLine"
 
-// $ExpectType Effect<never, never, Chunk<string>>
+// $ExpectType Effect<Chunk<string>, never, never>
 const getNames = Effect.gen(function* (_) {
   const ref = yield* _(Ref.make(Chunk.empty<string>()))
   while (true) {

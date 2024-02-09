@@ -1,18 +1,18 @@
 import { Effect, Console } from "effect"
 
-// $ExpectType Effect<Scope, never, void>
+// $ExpectType Effect<void, never, Scope>
 const task1 = Effect.gen(function* (_) {
   console.log("task 1")
   yield* _(Effect.addFinalizer(() => Console.log("finalizer after task 1")))
 })
 
-// $ExpectType Effect<Scope, never, void>
+// $ExpectType Effect<void, never, Scope>
 const task2 = Effect.gen(function* (_) {
   console.log("task 2")
   yield* _(Effect.addFinalizer(() => Console.log("finalizer after task 2")))
 })
 
-// $ExpectType Effect<Scope, never, void>
+// $ExpectType Effect<void, never, Scope>
 const program = Effect.gen(function* (_) {
   // Both of these scopes are merged into one
   yield* _(task1)

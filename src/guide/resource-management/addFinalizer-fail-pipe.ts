@@ -1,6 +1,6 @@
 import { Effect, Console } from "effect"
 
-// $ExpectType Effect<Scope, string, never>
+// $ExpectType Effect<never, string, Scope>
 const program = Effect.addFinalizer((exit) =>
   Console.log(`finalizer after ${exit._tag}`)
 ).pipe(Effect.flatMap(() => Effect.fail("Uh oh!")))

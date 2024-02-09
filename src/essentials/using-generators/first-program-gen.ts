@@ -7,12 +7,12 @@ const divide = (a: number, b: number): Effect.Effect<number, Error> =>
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-// $ExpectType Effect<never, never, number>
+// $ExpectType Effect<number, never, never>
 const task1 = Effect.promise(() => Promise.resolve(10))
-// $ExpectType Effect<never, never, number>
+// $ExpectType Effect<number, never, never>
 const task2 = Effect.promise(() => Promise.resolve(2))
 
-// $ExpectType Effect<never, Error, string>
+// $ExpectType Effect<string, Error, never>
 export const program = Effect.gen(function* (_) {
   const a = yield* _(task1)
   const b = yield* _(task2)

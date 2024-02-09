@@ -1,6 +1,6 @@
 import { Effect, Queue } from "effect"
 
-// $ExpectType Effect<never, never, Chunk<number>>
+// $ExpectType Effect<Chunk<number>, never, never>
 const polled = Effect.gen(function* (_) {
   const queue = yield* _(Queue.bounded<number>(100))
   yield* _(Queue.offer(queue, 10))

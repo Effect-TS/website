@@ -14,7 +14,7 @@ class Logger extends Context.Tag("Logger")<
   }
 >() {}
 
-// $ExpectType Effect<Random | Logger, never, void>
+// $ExpectType Effect<void, never, Random | Logger>
 const program = Effect.all([Random, Logger]).pipe(
   Effect.flatMap(([random, logger]) =>
     random.next.pipe(
