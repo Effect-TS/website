@@ -12,7 +12,7 @@ class IllegalAgeError {
 
 const validate = (
   age: number
-): Effect.Effect<never, NegativeAgeError | IllegalAgeError, number> => {
+): Effect.Effect<number, NegativeAgeError | IllegalAgeError> => {
   if (age < 0) {
     return Effect.fail(new NegativeAgeError(age))
   } else if (age < 18) {

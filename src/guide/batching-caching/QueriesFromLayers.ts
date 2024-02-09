@@ -4,13 +4,12 @@ import * as Model from "./Model"
 import * as RequestModel from "./RequestModel"
 import * as ResolversWithContext from "./ResolversWithContext"
 
-export interface TodosService {
-  getTodos: Effect.Effect<never, Model.GetTodosError, Array<Model.Todo>>
-}
-
-export const TodosService = Context.Tag<TodosService>(
-  Symbol.for("@app/services/TodosService")
-)
+export class TodosService extends Context.Tag("@app/services/TodosService")<
+  TodosService,
+  {
+    getTodos: Effect.Effect<Array<Model.Todo>, Model.GetTodosError>
+  }
+>() {}
 
 export const TodosServiceLive = Layer.effect(
   TodosService,
@@ -33,7 +32,7 @@ export const TodosServiceLive = Layer.effect(
 )
 
 export const getTodos: Effect.Effect<
-  TodosService,
+  Array<Model.Todo>,
   Model.GetTodosError,
-  Array<Model.Todo>
+  TodosService
 > = Effect.flatMap(TodosService, (service) => service.getTodos)

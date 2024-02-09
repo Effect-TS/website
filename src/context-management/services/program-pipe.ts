@@ -10,13 +10,9 @@ const program = Random.pipe(
 )
 
 // $ExpectType Effect<never, never, void>
-const runnable = Effect.provideService(
-  program,
-  Random,
-  Random.of({
-    next: Effect.sync(() => Math.random())
-  })
-)
+const runnable = Effect.provideService(program, Random, {
+  next: Effect.sync(() => Math.random())
+})
 
 Effect.runPromise(runnable)
 /*

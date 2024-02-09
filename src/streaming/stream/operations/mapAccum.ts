@@ -1,8 +1,6 @@
 import { Stream, Effect } from "effect"
 
-const runningTotal = (
-  stream: Stream.Stream<never, never, number>
-): Stream.Stream<never, never, number> =>
+const runningTotal = (stream: Stream.Stream<number>): Stream.Stream<number> =>
   stream.pipe(Stream.mapAccum(0, (s, a) => [s + a, s + a]))
 
 // input:  0, 1, 2, 3, 4, 5

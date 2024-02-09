@@ -2,7 +2,10 @@ import { Context, Layer, Effect, Runtime } from "effect"
 import express from "express"
 
 // Define Express as a service
-const Express = Context.Tag<ReturnType<typeof express>>()
+class Express extends Context.Tag("Express")<
+  Express,
+  ReturnType<typeof express>
+>() {}
 
 // Define the main route, IndexRouteLive, as a Layer
 const IndexRouteLive = Layer.effectDiscard(

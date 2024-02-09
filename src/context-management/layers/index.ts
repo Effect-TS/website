@@ -1,5 +1,5 @@
 import { Layer } from "effect"
 import { FlourLive, SugarLive } from "./Ingredients"
 
-// $ExpectType Layer<MeasuringCup, never, Sugar | Flour>
+// $ExpectType Layer<Sugar | Flour, never, MeasuringCup>
 const IngredientsLive = Layer.merge(FlourLive, SugarLive)

@@ -2,11 +2,12 @@ import { Stream, Effect, Context } from "effect"
 
 interface User {}
 
-interface Database {
-  readonly getUsers: Effect.Effect<never, never, Array<User>>
-}
-
-const Database = Context.Tag<Database>()
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    readonly getUsers: Effect.Effect<Array<User>>
+  }
+>() {}
 
 // $ExpectType Effect<Database, never, User[]>
 const getUsers = Database.pipe(Effect.flatMap((_) => _.getUsers))

@@ -3,36 +3,34 @@ import { MeasuringCup } from "./MeasuringCup"
 
 // Sugar
 
-export interface Sugar {
-  readonly grams: (amount: number) => Effect.Effect<never, never, string>
-}
+export class Sugar extends Context.Tag("Sugar")<
+  Sugar,
+  {
+    readonly grams: (amount: number) => Effect.Effect<string>
+  }
+>() {}
 
-export const Sugar = Context.Tag<Sugar>()
-
-// $ExpectType Layer<MeasuringCup, never, Sugar>
+// $ExpectType Layer<Sugar, never, MeasuringCup>
 export const SugarLive = Layer.effect(
   Sugar,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Sugar.of({
-      grams: (amount) => measuringCup.measure(amount, "gram")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    grams: (amount) => measuringCup.measure(amount, "gram")
+  }))
 )
 
 // Flour
 
-export interface Flour {
-  readonly cups: (amount: number) => Effect.Effect<never, never, string>
-}
+export class Flour extends Context.Tag("Flour")<
+  Flour,
+  {
+    readonly cups: (amount: number) => Effect.Effect<string>
+  }
+>() {}
 
-export const Flour = Context.Tag<Flour>()
-
-// $ExpectType Layer<MeasuringCup, never, Flour>
+// $ExpectType Layer<Flour, never, MeasuringCup>
 export const FlourLive = Layer.effect(
   Flour,
-  Effect.map(MeasuringCup, (measuringCup) =>
-    Flour.of({
-      cups: (amount) => measuringCup.measure(amount, "cup")
-    })
-  )
+  Effect.map(MeasuringCup, (measuringCup) => ({
+    cups: (amount) => measuringCup.measure(amount, "cup")
+  }))
 )

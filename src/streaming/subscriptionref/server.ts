@@ -3,7 +3,7 @@ import { Ref, Effect, Stream, Random, SubscriptionRef, Fiber } from "effect"
 const server = (ref: Ref.Ref<number>) =>
   Ref.update(ref, (n) => n + 1).pipe(Effect.forever)
 
-const client = (changes: Stream.Stream<never, never, number>) =>
+const client = (changes: Stream.Stream<number>) =>
   Effect.gen(function* (_) {
     const n = yield* _(Random.nextIntBetween(1, 10))
     const chunk = yield* _(Stream.runCollect(Stream.take(changes, n)))

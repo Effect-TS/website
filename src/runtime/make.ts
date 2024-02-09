@@ -1,16 +1,18 @@
 import { Effect, Context, Console, Runtime, FiberRefs } from "effect"
 
-interface LoggingService {
-  log: (line: string) => Effect.Effect<never, never, void>
-}
+class LoggingService extends Context.Tag("LoggingService")<
+  LoggingService,
+  {
+    log: (line: string) => Effect.Effect<void>
+  }
+>() {}
 
-const LoggingService = Context.Tag<LoggingService>()
-
-interface EmailService {
-  send: (user: string, content: string) => Effect.Effect<never, never, void>
-}
-
-const EmailService = Context.Tag<EmailService>()
+class EmailService extends Context.Tag("EmailService")<
+  EmailService,
+  {
+    send: (user: string, content: string) => Effect.Effect<void>
+  }
+>() {}
 
 const LoggingServiceLive = LoggingService.of({
   log: Console.log
@@ -29,7 +31,7 @@ const testableRuntime = Runtime.make({
   runtimeFlags: Runtime.defaultRuntimeFlags
 })
 
-// $ExpectType Effect<LoggingService | EmailService, never, void>
+// $ExpectType Effect<void, never, LoggingService | EmailService>
 const program = Effect.gen(function* (_) {
   const { log } = yield* _(LoggingService)
   const { send } = yield* _(EmailService)

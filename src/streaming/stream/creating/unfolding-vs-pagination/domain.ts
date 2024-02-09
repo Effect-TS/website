@@ -13,7 +13,7 @@ const pageSize = 2
 
 export const listPaginated = (
   pageNumber: number
-): Effect.Effect<never, Error, PageResult> => {
+): Effect.Effect<PageResult, Error> => {
   return Effect.succeed(
     new PageResult(
       Chunk.map(

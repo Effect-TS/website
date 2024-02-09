@@ -8,12 +8,13 @@ export interface Bucket {
   readonly name: string
 }
 
-export interface S3 {
-  createBucket: Effect.Effect<never, S3Error, Bucket>
-  deleteBucket: (bucket: Bucket) => Effect.Effect<never, never, void>
-}
-
-export const S3 = Context.Tag<S3>()
+export class S3 extends Context.Tag("S3")<
+  S3,
+  {
+    createBucket: Effect.Effect<Bucket, S3Error>
+    deleteBucket: (bucket: Bucket) => Effect.Effect<void>
+  }
+>() {}
 
 export class ElasticSearchError {
   readonly _tag = "ElasticSearchError"
@@ -23,12 +24,13 @@ export interface Index {
   readonly id: string
 }
 
-export interface ElasticSearch {
-  createIndex: Effect.Effect<never, ElasticSearchError, Index>
-  deleteIndex: (index: Index) => Effect.Effect<never, never, void>
-}
-
-export const ElasticSearch = Context.Tag<ElasticSearch>()
+export class ElasticSearch extends Context.Tag("ElasticSearch")<
+  ElasticSearch,
+  {
+    createIndex: Effect.Effect<Index, ElasticSearchError>
+    deleteIndex: (index: Index) => Effect.Effect<void>
+  }
+>() {}
 
 export class DatabaseError {
   readonly _tag = "DatabaseError"
@@ -38,12 +40,13 @@ export interface Entry {
   readonly id: string
 }
 
-export interface Database {
-  createEntry: (
-    bucket: Bucket,
-    index: Index
-  ) => Effect.Effect<never, DatabaseError, Entry>
-  deleteEntry: (entry: Entry) => Effect.Effect<never, never, void>
-}
-
-export const Database = Context.Tag<Database>()
+export class Database extends Context.Tag("Database")<
+  Database,
+  {
+    createEntry: (
+      bucket: Bucket,
+      index: Index
+    ) => Effect.Effect<Entry, DatabaseError>
+    deleteEntry: (entry: Entry) => Effect.Effect<void>
+  }
+>() {}

@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 import * as API from "./API"
 
-// $ExpectType Effect<never, GetTodosError | GetUserError | SendEmailError, void>
+// $ExpectType Effect<void, GetTodosError | GetUserError | SendEmailError, never>
 const program = Effect.gen(function* (_) {
   const todos = yield* _(API.getTodos)
   yield* _(

@@ -1,17 +1,14 @@
 import { Effect, Context, Layer } from "effect"
 
-// Define the interface for the MeasuringCup service
-export interface MeasuringCup {
-  readonly measure: (
-    amount: number,
-    unit: string
-  ) => Effect.Effect<never, never, string>
-}
-
 // Create a tag for the MeasuringCup service
-export const MeasuringCup = Context.Tag<MeasuringCup>()
+export class MeasuringCup extends Context.Tag("MeasuringCup")<
+  MeasuringCup,
+  {
+    readonly measure: (amount: number, unit: string) => Effect.Effect<string>
+  }
+>() {}
 
-// $ExpectType Layer<never, never, MeasuringCup>
+// $ExpectType Layer<MeasuringCup, never, never>
 export const MeasuringCupLive = Layer.succeed(
   MeasuringCup,
   MeasuringCup.of({

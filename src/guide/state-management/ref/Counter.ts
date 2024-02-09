@@ -1,9 +1,9 @@
 import { Effect, Ref } from "effect"
 
 export class Counter {
-  inc: Effect.Effect<never, never, void>
-  dec: Effect.Effect<never, never, void>
-  get: Effect.Effect<never, never, number>
+  inc: Effect.Effect<void>
+  dec: Effect.Effect<void>
+  get: Effect.Effect<number>
 
   constructor(private value: Ref.Ref<number>) {
     this.inc = Ref.update(this.value, (n) => n + 1)
@@ -12,5 +12,5 @@ export class Counter {
   }
 }
 
-// $ExpectType Effect<never, never, Counter>
+// $ExpectType Effect<Counter, never, never>
 export const make = Effect.map(Ref.make(0), (value) => new Counter(value))

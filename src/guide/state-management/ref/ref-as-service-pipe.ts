@@ -1,10 +1,7 @@
 import { Effect, Context, Ref, Console } from "effect"
 
-// Define a custom type for our state
-interface MyState extends Ref.Ref<number> {}
-
 // Create a Tag for our state
-const MyState = Context.Tag<MyState>()
+class MyState extends Context.Tag("MyState")<MyState, Ref.Ref<number>>() {}
 
 // Subprogram 1: Increment the state value twice
 // $ExpectType Effect<MyState, never, void>

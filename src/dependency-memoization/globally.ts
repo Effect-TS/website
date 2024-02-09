@@ -1,22 +1,10 @@
 import { Effect, Context, Layer } from "effect"
 
-interface A {
-  readonly a: number
-}
+class A extends Context.Tag("A")<A, { readonly a: number }>() {}
 
-const A = Context.Tag<A>()
+class B extends Context.Tag("B")<B, { readonly b: string }>() {}
 
-interface B {
-  readonly b: string
-}
-
-const B = Context.Tag<B>()
-
-interface C {
-  readonly c: boolean
-}
-
-const C = Context.Tag<C>()
+class C extends Context.Tag("C")<C, { readonly c: boolean }>() {}
 
 const a = Layer.effect(
   A,

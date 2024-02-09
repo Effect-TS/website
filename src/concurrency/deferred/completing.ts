@@ -1,7 +1,7 @@
 import { Effect, Deferred, Exit, Cause } from "effect"
 
 const program = Effect.gen(function* (_) {
-  const deferred = yield* _(Deferred.make<string, number>())
+  const deferred = yield* _(Deferred.make<number, string>())
 
   // Completing the Deferred in various ways
   yield* _(Deferred.succeed(deferred, 1).pipe(Effect.fork))

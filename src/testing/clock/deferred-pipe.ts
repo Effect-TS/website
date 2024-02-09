@@ -3,7 +3,7 @@ import * as assert from "node:assert"
 
 const test = pipe(
   // Create a deferred value
-  Deferred.make<void, number>(),
+  Deferred.make<number, void>(),
   Effect.tap((deferred) =>
     // Run two effects concurrently: sleep for 10 seconds and succeed the deferred with a value of 1
     Effect.fork(

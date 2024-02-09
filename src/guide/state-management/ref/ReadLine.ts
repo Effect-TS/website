@@ -1,9 +1,7 @@
 import { Effect } from "effect"
 import * as NodeReadLine from "node:readline"
 
-export const readLine = (
-  message: string
-): Effect.Effect<never, never, string> =>
+export const readLine = (message: string): Effect.Effect<string> =>
   Effect.promise(
     () =>
       new Promise((resolve) => {

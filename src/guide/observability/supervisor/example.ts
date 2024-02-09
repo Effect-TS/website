@@ -22,13 +22,13 @@ const program = Effect.gen(function* (_) {
 
 const monitorFibers = (
   supervisor: Supervisor.Supervisor<Array<Fiber.RuntimeFiber<any, any>>>
-): Effect.Effect<never, never, void> =>
+): Effect.Effect<void> =>
   Effect.gen(function* (_) {
     const fibers = yield* _(supervisor.value)
     console.log(`number of fibers: ${fibers.length}`)
   })
 
-const fib = (n: number): Effect.Effect<never, never, number> =>
+const fib = (n: number): Effect.Effect<number> =>
   Effect.gen(function* (_) {
     if (n <= 1) {
       return 1

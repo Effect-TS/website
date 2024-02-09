@@ -1,6 +1,6 @@
 import { Stream, Effect, Option } from "effect"
 
-const drainIterator = <A>(it: Iterator<A>): Stream.Stream<never, never, A> =>
+const drainIterator = <A>(it: Iterator<A>): Stream.Stream<A> =>
   Stream.repeatEffectOption(
     Effect.sync(() => it.next()).pipe(
       Effect.flatMap((res) => {

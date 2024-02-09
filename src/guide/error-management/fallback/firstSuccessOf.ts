@@ -6,7 +6,7 @@ interface Config {
 
 const makeConfig = (/* ... */): Config => ({})
 
-const remoteConfig = (name: string): Effect.Effect<never, Error, Config> =>
+const remoteConfig = (name: string): Effect.Effect<Config, Error> =>
   Effect.gen(function* (_) {
     if (name === "node3") {
       yield* _(Console.log(`Config for ${name} found`))

@@ -3,7 +3,7 @@ import * as assert from "node:assert"
 
 const test = Effect.gen(function* (_) {
   // Create a deferred value
-  const deferred = yield* _(Deferred.make<void, number>())
+  const deferred = yield* _(Deferred.make<number, void>())
 
   // Run two effects concurrently: sleep for 10 seconds and succeed the deferred with a value of 1
   yield* _(

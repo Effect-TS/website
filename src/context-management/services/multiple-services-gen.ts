@@ -1,16 +1,18 @@
 import { Effect, Context } from "effect"
 
-interface Random {
-  readonly next: Effect.Effect<never, never, number>
-}
+class Random extends Context.Tag("Random")<
+  Random,
+  {
+    readonly next: Effect.Effect<number>
+  }
+>() {}
 
-const Random = Context.Tag<Random>()
-
-interface Logger {
-  readonly log: (message: string) => Effect.Effect<never, never, void>
-}
-
-const Logger = Context.Tag<Logger>()
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  {
+    readonly log: (message: string) => Effect.Effect<void>
+  }
+>() {}
 
 // $ExpectType Effect<Random | Logger, never, void>
 const program = Effect.gen(function* (_) {

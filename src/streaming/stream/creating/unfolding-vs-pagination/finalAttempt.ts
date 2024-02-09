@@ -1,8 +1,9 @@
 import { Effect, Stream, Option } from "effect"
 import { RawData, listPaginated } from "./domain"
 
-const finalAttempt: Stream.Stream<never, Error, RawData> =
-  Stream.paginateChunkEffect(0, (pageNumber) =>
+const finalAttempt: Stream.Stream<RawData, Error> = Stream.paginateChunkEffect(
+  0,
+  (pageNumber) =>
     listPaginated(pageNumber).pipe(
       Effect.map((page) => {
         return [
@@ -11,7 +12,7 @@ const finalAttempt: Stream.Stream<never, Error, RawData> =
         ]
       })
     )
-  )
+)
 
 Effect.runPromise(Stream.runCollect(finalAttempt)).then(console.log)
 /*

@@ -2,15 +2,18 @@ import { Effect, Context, Layer, Console } from "effect"
 import * as Services from "./Services"
 import * as Workspace from "./Workspace"
 
-// The `FailureCase` type allows us to provide different error scenarios while testing our services.
+// The `FailureCaseLiterals` type allows us to provide different error scenarios while testing our services.
 // For example, by providing the value "S3", we can simulate an error scenario specific to the S3 service.
 // This helps us ensure that our program handle errors correctly and behave as expected in various situations.
 // Similarly, we can provide other values like "ElasticSearch" or "Database" to simulate error scenarios for those services.
 // In cases where we want to test the absence of errors, we can provide `undefined`.
 // By using this parameter, we can thoroughly test our services and verify their behavior under different error conditions.
-type FailureCase = "S3" | "ElasticSearch" | "Database" | undefined
+type FailureCaseLiterals = "S3" | "ElasticSearch" | "Database" | undefined
 
-const FailureCase = Context.Tag<FailureCase>()
+class FailureCase extends Context.Tag("FailureCase")<
+  FailureCase,
+  FailureCaseLiterals
+>() {}
 
 // Create a test layer for the S3 service
 
@@ -19,7 +22,7 @@ const S3Test = Layer.effect(
   Services.S3,
   Effect.gen(function* (_) {
     const failureCase = yield* _(FailureCase)
-    return Services.S3.of({
+    return {
       createBucket: Effect.gen(function* (_) {
         console.log("[S3] creating bucket")
         if (failureCase === "S3") {
@@ -29,7 +32,7 @@ const S3Test = Layer.effect(
         }
       }),
       deleteBucket: (bucket) => Console.log(`[S3] delete bucket ${bucket.name}`)
-    })
+    }
   })
 )
 
@@ -40,7 +43,7 @@ const ElasticSearchTest = Layer.effect(
   Services.ElasticSearch,
   Effect.gen(function* (_) {
     const failureCase = yield* _(FailureCase)
-    return Services.ElasticSearch.of({
+    return {
       createIndex: Effect.gen(function* (_) {
         console.log("[ElasticSearch] creating index")
         if (failureCase === "ElasticSearch") {
@@ -51,7 +54,7 @@ const ElasticSearchTest = Layer.effect(
       }),
       deleteIndex: (index) =>
         Console.log(`[ElasticSearch] delete index ${index.id}`)
-    })
+    }
   })
 )
 
@@ -62,7 +65,7 @@ const DatabaseTest = Layer.effect(
   Services.Database,
   Effect.gen(function* (_) {
     const failureCase = yield* _(FailureCase)
-    return Services.Database.of({
+    return {
       createEntry: (bucket, index) =>
         Effect.gen(function* (_) {
           console.log(
@@ -75,7 +78,7 @@ const DatabaseTest = Layer.effect(
           }
         }),
       deleteEntry: (entry) => Console.log(`[Database] delete entry ${entry.id}`)
-    })
+    }
   })
 )
 

@@ -15,12 +15,8 @@ const program = Effect.serviceOption(Random).pipe(
 )
 
 Effect.runPromise(
-  Effect.provideService(
-    program,
-    Random,
-    Random.of({
-      next: Effect.sync(() => Math.random())
-    })
-  )
+  Effect.provideService(program, Random, {
+    next: Effect.sync(() => Math.random())
+  })
 ).then(console.log)
 // Output: 0.9957979486841035
