@@ -2,15 +2,15 @@ import { Info } from "@/components/Callout"
 
 # The Effect Type
 
-The `Effect<Requirements, Error, Value>` type represents an **immutable** value that **lazily** describes a workflow or job.
+The `Effect<Value, Error, Requirements>` type represents an **immutable** value that **lazily** describes a workflow or job.
 
 It encapsulates the logic of a program that requires a collection of contextual data `Context<Requirements>` to execute.
 This program can either fail, produce an error of type `Error`, or succeed, yielding a value of type `Value`.
 
-Conceptually, you can think of `Effect<Requirements, Error, Value>` as an effectful version of the following function type:
+Conceptually, you can think of `Effect<Value, Error, Requirements>` as an effectful version of the following function type:
 
 ```ts
-type Effect<Requirements, Error, Value> = (
+type Effect<Value, Error, Requirements> = (
   context: Context<Requirements>
 ) => Error | Value
 ```
@@ -31,8 +31,9 @@ The `Effect` type has three type parameters with the following meanings:
 
 <Info>
   In the Effect ecosystem, you may often encounter the type parameters of
-  `Effect` abbreviated as `R`, `E`, and `A` respectively. This is just shorthand
-  for **R**equirements, **E**rror, and the success value of type **A**.
+  `Effect` abbreviated as `R`, `E`, and `A` respectively. This is just
+  shorthand for **R**equirements, **E**rror, and the success value of type
+  **A**.
 </Info>
 
 `Effect` values are immutable, and all Effect functions produce new `Effect` values.

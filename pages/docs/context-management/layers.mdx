@@ -48,7 +48,7 @@ Layers are a way of separating implementation details from the service itself.
   service level.
 </Idea>
 
-A `Layer<RIn, E, ROut>` represents a blueprint for constructing a `Context<ROut>`. It takes a value of type `RIn` as input and may potentially produce an error of type `E` during the construction process.
+A `Layer<ROut, E, RIn>` represents a blueprint for constructing a `Context<ROut>`. It takes a value of type `RIn` as input and may potentially produce an error of type `E` during the construction process.
 
 In our case, the `ROut` type represents the service we want to construct, while `RIn` represents the dependencies required for construction.
 
@@ -93,9 +93,9 @@ And because the service has no dependencies, we can create the layer directly us
 
 Looking at the type of `MeasuringCupLive` we can observe:
 
-- `RIn` is `never`, indicating that the layer has no dependencies
-- `E` is `never`, indicating that layer construction cannot fail
 - `ROut` is `MeasuringCup`, indicating that constructing the layer will produce a `MeasuringCup` service
+- `E` is `never`, indicating that layer construction cannot fail
+- `RIn` is `never`, indicating that the layer has no dependencies
 
 <Info>
   Note that, to construct `MeasuringCupLive`, we used the `MeasuringCup.of`
