@@ -7,7 +7,7 @@ const tweets = [
     text: `Effect is the 🐐 of TypeScript
 
 - Rust style error handling
-- Retries, Concurrency, Steams, …
+- Retries, Concurrency, Streams, …
 - Missing standard library
 `,
     user: {
