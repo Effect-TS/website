@@ -39,10 +39,10 @@ export default makeSource({
     remarkPlugins: [
       [codeImport as any, { rootDir: process.cwd() + "/content" }],
       // @ts-expect-error
-      [remarkShikiTwoslash.default, { theme: "github-dark" }],
+      [remarkShikiTwoslash.default, { themes: ["github-dark", "github-light"] }],
       // [conditionalShikiTwoslash, { theme: "github-dark" }],
       remarkGfm,
-      remarkMdxCodeMeta,
+      remarkMdxCodeMeta
     ],
     rehypePlugins: [
       [rehypeRaw, { passThrough: nodeTypes }],
