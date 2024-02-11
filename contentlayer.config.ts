@@ -1,12 +1,10 @@
-// TODO remove eslint-disable when fixed https://github.com/import-js/eslint-plugin-import/issues/1810
-// eslint-disable-next-line import/no-unresolved
 import { BlogPost } from "./src/contentlayer/schema/blog-post"
 import { DocsPage } from "./src/contentlayer/schema/docs-page"
 import { makeSource } from "contentlayer/source-files"
 import remarkGfm from "remark-gfm"
 import type { Options as RehypePrettyCodeOptions } from "rehype-pretty-code"
 import rehypePrettyCode from "rehype-pretty-code"
-// import { remarkMermaid } from "@theguild/remark-mermaid"
+import { remarkMermaid } from "@theguild/remark-mermaid"
 import remarkShikiTwoslash from "remark-shiki-twoslash"
 import rehypeRaw from "rehype-raw"
 import { nodeTypes } from "@mdx-js/mdx"
@@ -40,13 +38,13 @@ export default makeSource({
   documentTypes: [DocsPage, BlogPost],
   mdx: {
     remarkPlugins: [
-      // remarkMermaid as any,
+      [remarkMermaid as any],
       [codeImport, { rootDir: process.cwd() + "/content" }],
       // @ts-expect-error
       [remarkShikiTwoslash.default, { theme: "github-dark" }],
       // [conditionalShikiTwoslash, { theme: "github-dark" }],
       remarkGfm,
-      remarkMdxCodeMeta
+      remarkMdxCodeMeta,
     ],
     rehypePlugins: [
       [rehypeRaw, { passThrough: nodeTypes }],

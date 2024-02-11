@@ -9,7 +9,7 @@ import * as Callouts from "@/components/docs/components/callouts"
 import { Steps } from "@/components/docs/components/steps"
 import { Pre } from "../docs/components/pre"
 import { CodeOutput } from "../docs/components/code-output"
-// import { Mermaid } from "@theguild/remark-mermaid/mermaid"
+import { Mermaid } from "@theguild/remark-mermaid/mermaid"
 import { Tweet } from "react-tweet"
 
 export const MDX: FC<{ content: string }> = ({ content }) => {
@@ -26,7 +26,7 @@ export const MDX: FC<{ content: string }> = ({ content }) => {
           Tab,
           Tabs,
           Steps,
-          // Mermaid,
+          Mermaid,
           ...Callouts,
           CodeOutput,
           Tweet: ({ id }: { id: string }) => (
