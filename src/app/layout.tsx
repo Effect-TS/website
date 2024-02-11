@@ -1,14 +1,13 @@
+import { Footer } from "@/components/layout/footer"
+import { Analytics } from "@vercel/analytics/next"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import localFont from "next/font/local"
+import { ReactNode } from "react"
+import { Providers } from "./providers"
+
 import "./globals.css"
 import "./hljs.css"
-import { Navigation } from "@/components/layout/navigation"
-import { Footer } from "@/components/layout/footer"
-import { ReactNode } from "react"
-import Script from "next/script"
-import { Analytics } from "@vercel/analytics/next"
-import { ThemeWrapper } from "@/components/layout/theme-wrapper"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -32,25 +31,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={`relative ${inter.variable} ${calSans.variable} dark`}
+      className={`relative ${inter.variable} ${calSans.variable}`}
+      suppressHydrationWarning
     >
       <body className="relative overflow-x-hidden antialiased font-light bg-white dark:bg-[#09090B] text-zinc-700 dark:text-zinc-300">
-        <Script
-          id="check-theme"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              //if ((!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches) || localStorage.theme === 'dark') {
-              //  document.documentElement.classList.add('dark')
-              //} else {
-              //  document.documentElement.classList.remove('dark')
-              //}
-            `
-          }}
-        />
-        {children}
-        <Footer />
-        <Analytics />
+        <Providers>
+          {children}
+          <Footer />
+          <Analytics />
+        </Providers>
       </body>
     </html>
   )
