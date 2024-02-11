@@ -574,7 +574,7 @@ const getTodo = (
         highlights: [
           {
             color: "#10322E",
-            lines: [17]
+            lines: [16]
           }
         ]
       }
