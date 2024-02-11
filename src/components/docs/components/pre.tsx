@@ -3,9 +3,10 @@
 import { Icon } from "@/components/icons"
 import { FC, PropsWithChildren, useRef, useState } from "react"
 
-export const Pre: FC<PropsWithChildren<{ filename?: string }>> = ({
+export const Pre: FC<PropsWithChildren<{ filename?: string, className?: string }>> = ({
   children,
-  filename
+  filename,
+  className
 }) => {
   const container = useRef<HTMLPreElement>(null)
   const [copied, setCopied] = useState<boolean>(false)
@@ -18,9 +19,9 @@ export const Pre: FC<PropsWithChildren<{ filename?: string }>> = ({
   }
 
   return (
-    <div className="relative mt-7">
-      <div className="group w-full bg-gradient-to-br from-zinc-500 to-zinc-800 p-px rounded-xl overflow-hidden [.code-output_&]:rounded-b-none">
-        <div className="bg-zinc-950 rounded-[11px] [.code-output_&]:rounded-b-none">
+    <div className={`relative mt-7 ${className}`}>
+      <div className="group w-full dark:bg-gradient-to-br dark:from-zinc-500 dark:to-zinc-800 p-px rounded-xl overflow-hidden [.code-output_&]:rounded-b-none">
+        <div className="bg-zinc-100 dark:bg-zinc-950 rounded-[11px] [.code-output_&]:rounded-b-none">
           <div className="flex justify-start group-hover:justify-between items-center pr-2 border-b border-zinc-800">
             <div className="flex">
               <div className="h-10 flex items-center gap-2 px-3 border-r border-zinc-800">
@@ -29,7 +30,7 @@ export const Pre: FC<PropsWithChildren<{ filename?: string }>> = ({
                 <div className="h-3 w-3 rounded-full bg-zinc-700" />
               </div>
               {filename && (
-                <div className="h-10 px-3 flex items-center border-r border-zinc-800 font-mono text-sm text-zinc-300 dark:text-zinc-300">
+                <div className="h-10 px-3 flex items-center border-r border-zinc-800 font-mono text-sm text-zinc-850 dark:text-zinc-300">
                   {filename}
                 </div>
               )}
