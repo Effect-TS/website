@@ -65,11 +65,11 @@ export const Navigation: FC<{
             ))}
             {searchBox && <Search className="w-56" />}
             {themeSwitcher && <ThemeSwitcher />}
-            {/* {pathname === "/" ? (
-              <Search className="w-56" />
+            {pathname === "/" ? (
+              null
             ) : (
               <ThemeSwitcher />
-            )} */}
+            )}
             <div className="flex items-center gap-4">
               {socials.map(({ name, icon, href }, index) => (
                 <Link key={index} href={href} className="generic-hover">
