@@ -7,9 +7,7 @@ import { Code } from "../layout/code"
 import { Logo } from "../atoms/logo"
 
 export const Complexity = () => {
-  const [currentIndex, setCurrentIndex] = useState<number>(
-    content.features.length - 1
-  )
+  const [currentIndex, setCurrentIndex] = useState<number>(0)
 
   return (
     <section className="relative">
@@ -444,7 +442,7 @@ const getTodo = (
         highlights: [
           {
             color: "#28233B",
-            lines: [5, 11]
+            lines: [5, 10]
           }
         ]
       }
