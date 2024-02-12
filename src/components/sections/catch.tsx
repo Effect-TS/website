@@ -5,7 +5,7 @@ export const Catch = () => {
     <section className="relative">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-32">
         <h2 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white text-center mb-16">
-          Okay, so where&apos; the catch?
+          Okay, so what&apos;s the catch?
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
           <div>
