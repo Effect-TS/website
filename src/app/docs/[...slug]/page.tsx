@@ -51,12 +51,14 @@ export default function Page({
             {page.title}
           </h2>
         </div>
-        {page.lastEdited && (
+        {/*
+        page.lastEdited && (
           <div className="text-sm h-4 mt-1.5 mb-6">
             Last edited{" "}
             {formatDistance(new Date(), new Date(page.lastEdited))} ago.
           </div>
-        )}
+        )
+        */}
         <MobileTableOfContents
           elements={page.headings}
           pageFilePath={page._raw.sourceFilePath}
