@@ -40,7 +40,15 @@ const tweets = [
     user: {
       name: "Sebastian Lorenz",
       bio: "TypeScript Engineer",
-      avatar: "https://avatars.githubusercontent.com/u/1172528?v=4"
+      avatar: "https://pbs.twimg.com/profile_images/1719966024835973120/nK4FtRiU_400x400.jpg" 
+    }
+  },
+  {
+    text: `Best piece of TS tech I've seen in a while tbh. The only thing that can hold someone back is how you have to commit to it in order to use it correctly. But the DX, the safety, and how you can compose with it is UNREAL.`,
+    user: {
+      name: "Manu.ts",
+      bio: "Analyst Programmer",
+      avatar: "https://pbs.twimg.com/profile_images/1718365449866637312/fStiww1o_400x400.jpg" 
     }
   }
 ]
