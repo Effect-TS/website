@@ -14,7 +14,8 @@ export async function generateMetadata({
 }: {
   params: { slug: string[] }
 }) {
-  const post = allBlogPosts.find((post) => post.urlPath === `/blog/${slug}`)!
+  const post = allBlogPosts.find((post) => post.urlPath === `/blog/${slug}`)
+  if (!post) return
   return {
     title: `${post.title} – Effect Blog`,
     description: post.excerpt
