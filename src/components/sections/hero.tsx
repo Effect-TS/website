@@ -44,18 +44,20 @@ export const Hero = () => {
               <br />
               <span className="block relative">
                 <AnimatePresence initial={false}>
+                  <span className="relative opacity-0">
+                    {headlines[currentIndex].text}
+                  </span>
                   <motion.span
                     key={currentIndex}
                     initial={{ y: "-100%", opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ opacity: 0, transition: { duration: 0.2 } }}
-                    className={`not-sr-only h-32 absolute block text-transparent bg-clip-text bg-gradient-to-br ${headlines[currentIndex].gradient}`}
+                    className={`not-sr-only absolute top-0 -bottom-4 block text-transparent bg-clip-text bg-gradient-to-br ${headlines[currentIndex].gradient}`}
                   >
                     {headlines[currentIndex].text}
                   </motion.span>
                 </AnimatePresence>
               </span>
-              <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-300">
                 in TypeScript
               </span>
