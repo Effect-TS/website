@@ -1,19 +1,7 @@
 import { Search } from "@/components/atoms/search"
 import { Navigation } from "@/components/layout/navigation"
-import { Catch } from "@/components/sections/catch"
-import { Community } from "@/components/sections/community"
-import { Complexity } from "@/components/sections/complexity"
-import { CTA } from "@/components/sections/cta"
-import { Examples } from "@/components/sections/examples"
-import { FAQ } from "@/components/sections/faq"
-import { Features } from "@/components/sections/features"
-import { Hero } from "@/components/sections/hero"
-import { JSSurvey } from "@/components/sections/js-survey"
-import { Screenshots } from "@/components/sections/screenshots"
-import { TechLogos } from "@/components/sections/tech-logos"
-import { Tweets } from "@/components/sections/tweets"
 
-export default function HomePage() {
+export default function NotFound() {
   return (
     <>
       <Navigation />
