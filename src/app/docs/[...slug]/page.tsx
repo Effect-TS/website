@@ -23,7 +23,7 @@ export async function generateMetadata({
 }) {
   const page = allDocsPages.find(
     (page) => page.urlPath === `/docs/${slug.join("/")}`
-  )!
+  )
   if (!page) return
   return {
     title: `${page.title} – Effect Docs`,
