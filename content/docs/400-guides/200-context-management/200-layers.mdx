@@ -56,10 +56,10 @@ Now, let's determine how many layers we need to implement our dependency graph:
 
 | **Layer**          | **Dependencies**                                                  | **Type**                               |
 | ------------------ | ----------------------------------------------------------------- | -------------------------------------- |
-| `MeasuringCupLive` | The `MeasuringCup` service does not depend on any other services  | `Layer<never, never, MeasuringCup>`    |
-| `SugarLive`        | The `Sugar` service depends on the `MeasuringCup` service         | `Layer<MeasuringCup, never, Sugar>`    |
-| `FlourLive`        | The `Flour` service depends on the `MeasuringCup` service         | `Layer<MeasuringCup, never, Flour>`    |
-| `RecipeLive`       | The `Recipe` service depends on both `Flour` and `Sugar` services | `Layer<Flour \| Sugar, never, Recipe>` |
+| `MeasuringCupLive` | The `MeasuringCup` service does not depend on any other services  | `Layer<MeasuringCup>`                  |
+| `SugarLive`        | The `Sugar` service depends on the `MeasuringCup` service         | `Layer<Sugar, never, MeasuringCup>`    |
+| `FlourLive`        | The `Flour` service depends on the `MeasuringCup` service         | `Layer<Flour, never, MeasuringCup>`    |
+| `RecipeLive`       | The `Recipe` service depends on both `Flour` and `Sugar` services | `Layer<Recipe, never, Flour \| Sugar>` |
 
 <Idea>
   A common convention when naming the `Layer` for a particular service is to
@@ -73,7 +73,7 @@ When a service has multiple dependencies, they are represented as a **union type
 Therefore, the type for the `RecipeLive` layer will be:
 
 ```ts
-Layer<Flour | Sugar, never, Recipe>
+Layer<Recipe, never, Flour | Sugar>
 ```
 
 ### MeasuringCup
@@ -104,8 +104,8 @@ const MeasuringCupLive = Layer.succeed(
 Looking at the type of `MeasuringCupLive` we can observe:
 
 - `ROut` is `MeasuringCup`, indicating that constructing the layer will produce a `MeasuringCup` service
-- `RIn` is `never`, indicating that the layer has no dependencies
 - `E` is `never`, indicating that layer construction cannot fail
+- `RIn` is `never`, indicating that the layer has no dependencies
 
 Note that, to construct `MeasuringCupLive`, we used the `MeasuringCup.of`
 constructor. However, this is merely a helper to ensure correct type inference
@@ -172,9 +172,9 @@ const FlourLive = Layer.effect(
 
 Looking at the type of `SugarLive` and `FlourLive` we can observe:
 
-- `RIn` is `MeasuringCup`, indicating that the layer has a dependency
-- `E` is `never`, indicating that layer construction cannot fail
 - `ROut` is our ingredient
+- `E` is `never`, indicating that layer construction cannot fail
+- `RIn` is `MeasuringCup`, indicating that the layer has a dependency
 
 ### Recipe
 
