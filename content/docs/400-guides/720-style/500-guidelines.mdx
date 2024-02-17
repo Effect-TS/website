@@ -4,11 +4,39 @@ excerpt: Guidelines
 bottomNavigation: pagination
 ---
 
-## Should we do `runMain(program)`
+## Using `runMain`
 
-## Should we use `_` or `$` for generators
+In Effect, `runMain` serves as the primary entry point for running an Effect application on Node:
 
-## Avoid Tacit Function Calls like `map(f)` and Using `flow`
+```ts
+import { Effect, Console, Schedule, pipe } from "effect"
+import { NodeRuntime } from "@effect/platform-node"
+
+const program = pipe(
+  Effect.addFinalizer(() => Console.log("Application is about to exit!")),
+  Effect.andThen(Console.log("Application started!")),
+  Effect.andThen(
+    Effect.repeat(Console.log("still alive..."), {
+      schedule: Schedule.spaced("1 seconds")
+    })
+  ),
+  Effect.scoped
+)
+
+// Effect.runFork(program) // no graceful teardown with CTRL+C
+
+NodeRuntime.runMain(program) // graceful teardown with CTRL+C
+```
+
+The `runMain` function is responsible for finding all fibers and interrupting them. Internally, it adds an observer for the fiber by listening to `sigint` and interrupts all fibers.
+
+It's important to note that teardown should be on the main effect. If you kill the fiber that runs the application/server, the teardown of everything will occur. This is precisely what `runMain` from the `platform-node` package does.
+
+## Use "\_" or "$" for generators
+
+## Avoid Tacit usage
+
+> Avoid tacit function calls like `map(f)` and using `flow`
 
 In Effect, it's recommended not to use functions point-free, meaning avoiding tacit usage.
 
@@ -22,4 +50,4 @@ Additionally, stack traces may not be as clear when tacit usage is involved. It'
 
 It's worth trying without tacit usage, especially when dealing with generic functions with overloads, as using them tacitly can result in losing the generics.
 
-## Avoid `instanceof`
+## Avoid instanceof
