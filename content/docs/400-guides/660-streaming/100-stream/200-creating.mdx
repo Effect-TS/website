@@ -158,7 +158,7 @@ Output:
 */
 ```
 
-The `StreamEmit.Emit<R, E, A, void>` type represents an asynchronous callback that can be called multiple times. This callback takes a value of type `Effect<R, Option<E>, Chunk<A>>`. Here's what each of the possible outcomes means:
+The `StreamEmit.Emit<R, E, A, void>` type represents an asynchronous callback that can be called multiple times. This callback takes a value of type `Effect<Chunk<A>, Option<E>, R>`. Here's what each of the possible outcomes means:
 
 - When the value provided to the callback results in a `Chunk<A>` upon success, it signifies that the specified elements should be emitted as part of the stream.
 
@@ -310,7 +310,7 @@ The Stream module includes an `unfold` function defined as follows:
 declare const unfold: <S, A>(
   initialState: S,
   step: (s: S) => Option.Option<readonly [A, S]>
-) => Stream<never, never, A>
+) => Stream<A>
 ```
 
 Here's how it works:
