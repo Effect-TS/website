@@ -55,7 +55,7 @@ export default function Blog() {
                     <span>By </span>
                     {authors.map(({ name }, index) => (
                       <>
-                        {index === authors.length - 1 && <span>and </span>}
+                        {authors.length !== 1 && index === authors.length - 1 && <span>and </span>}
                         {index > 0 && index < authors.length - 1 && (
                           <span>, </span>
                         )}
