@@ -305,7 +305,7 @@ import { Console, Effect } from "effect"
 const getUser = (id: number) =>
   Http.request.get(\`/users/\${id}\`).pipe(
     Http.client.fetchOk(),
-    Effect.andThen((response) => response.json),
+    Http.response.json,
     Effect.retryN(3)
   )
 
@@ -565,7 +565,7 @@ const getTodo = (
     )
     .pipe(
       Http.client.fetchOk(),
-      Effect.andThen((res) => res.json),
+      Http.response.json,
       Effect.timeout(1000),
     )
 
