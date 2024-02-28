@@ -107,7 +107,7 @@ The `tag` function enables pattern matching against the tag within a [Discrimina
 ```ts twoslash
 import { Match, Either } from "effect"
 
-const match = Match.type<Either.Either<string, number>>().pipe(
+const match = Match.type<Either.Either<number, string>>().pipe(
   Match.tag("Right", (_) => _.right),
   Match.tag("Left", (_) => _.left),
   Match.exhaustive
@@ -171,7 +171,7 @@ console.log(result) // Output: { _id: 'Option', _tag: 'Some', value: 0 }
 
 ### either
 
-The `either` transformation might match a value, returning an [Either](../data-types/either) following the format `Either<NoMatchResult, MatchResult>`.
+The `either` transformation might match a value, returning an [Either](../data-types/either) following the format `Either<MatchResult, NoMatchResult>`.
 
 ```ts twoslash
 import { Match } from "effect"
