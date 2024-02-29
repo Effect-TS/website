@@ -4,6 +4,7 @@ import { Result, Rx, useRxSet, useRxValue } from "@effect-rx/rx-react"
 import CodeMirror from "@uiw/react-codemirror"
 import { workspaceRx } from "./rx"
 import { useEffect, useRef } from "react"
+import "xterm/css/xterm.css"
 
 export const effectWorkspace = new Workspace({
   name: "effect",

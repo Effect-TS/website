@@ -1,7 +1,6 @@
 "use client"
 import { FileWithContent } from "@/services/WebContainer"
 import { CodeEditor, effectWorkspace } from "./CodeEditor"
-import "xterm/css/xterm.css"
 
 const workspace = effectWorkspace.copyWith("basic", [
   new FileWithContent({
