@@ -192,8 +192,14 @@ Here's a breakdown of what's happening:
 In this example, we'll explore the basics of routing with Effect and Express. The goal is to create a simple web server with two routes: one that returns all todos and another that returns a todo by its ID.
 
 ```ts filename="basic-routing.ts"
-import { Context, Layer, Effect, Runtime } from "effect"
+import { Context, Effect, FiberSet, Layer } from "effect"
 import express from "express"
+
+//
+// Express
+//
+// NB: this is an example of an integration to a third party lib, not the suggested way of integrating express
+//
 
 // Define Express as a service
 class Express extends Context.Tag("Express")<
@@ -201,61 +207,18 @@ class Express extends Context.Tag("Express")<
   ReturnType<typeof express>
 >() {}
 
-interface Todo {
-  readonly id: number
-  readonly title: string
-  readonly completed: boolean
-}
-
-// Define the repository as a service
-class TodoRepository extends Context.Tag("TodoRepository")<
-  TodoRepository,
-  {
-    readonly getTodos: Effect.Effect<Array<Todo>>
-    readonly getTodo: (id: number) => Effect.Effect<Todo | null>
-  }
->() {}
-
-// Define a main route that returns all Todos
-const IndexRouteLive = Layer.effectDiscard(
+const get = <A, E, R>(
+  path: string,
+  body: (
+    req: express.Request,
+    res: express.Response
+  ) => Effect.Effect<A, E, R>
+) =>
   Effect.gen(function* (_) {
     const app = yield* _(Express)
-    const runFork = Runtime.runFork(
-      yield* _(Effect.runtime<TodoRepository>())
-    )
-
-    app.get("/", (_, res) => {
-      runFork(
-        Effect.gen(function* (_) {
-          const repo = yield* _(TodoRepository)
-          const todos = yield* _(repo.getTodos)
-          res.json(todos)
-        })
-      )
-    })
+    const run = yield* _(FiberSet.makeRuntime<R>())
+    app.get(path, (req, res) => run(body(req, res)))
   })
-)
-
-// Define a route that returns a Todo by its ID
-const TodoByIdRouteLive = Layer.effectDiscard(
-  Effect.gen(function* (_) {
-    const app = yield* _(Express)
-    const runFork = Runtime.runFork(
-      yield* _(Effect.runtime<TodoRepository>())
-    )
-
-    app.get("/todo/:id", (req, res) => {
-      const id = req.params.id
-      runFork(
-        Effect.gen(function* (_) {
-          const repo = yield* _(TodoRepository)
-          const todo = yield* _(repo.getTodo(Number(id)))
-          res.json(todo)
-        })
-      )
-    })
-  })
-)
 
 // Server Setup
 const ServerLive = Layer.scopedDiscard(
@@ -277,6 +240,62 @@ const ServerLive = Layer.scopedDiscard(
 
 // Setting Up Express
 const ExpressLive = Layer.sync(Express, () => express())
+
+//
+// Domain
+//
+
+interface Todo {
+  readonly id: number
+  readonly title: string
+  readonly completed: boolean
+}
+
+// Define the repository as a service
+class TodoRepository extends Context.Tag("TodoRepository")<
+  TodoRepository,
+  {
+    readonly getTodos: Effect.Effect<Array<Todo>>
+    readonly getTodo: (id: number) => Effect.Effect<Todo | null>
+  }
+>() {}
+
+//
+// App
+//
+
+// Define a main route that returns all Todos
+const IndexRouteLive = Layer.scopedDiscard(
+  Effect.gen(function* (_) {
+    const repo = yield* _(TodoRepository)
+
+    yield* _(
+      get("/", (_, res) =>
+        Effect.gen(function* (_) {
+          const todos = yield* _(repo.getTodos)
+          res.json(todos)
+        })
+      )
+    )
+  })
+)
+
+// Define a route that returns a Todo by its ID
+const TodoByIdRouteLive = Layer.scopedDiscard(
+  Effect.gen(function* (_) {
+    const repo = yield* _(TodoRepository)
+
+    yield* _(
+      get("/todo/:id", (req, res) =>
+        Effect.gen(function* (_) {
+          const id = req.params.id
+          const todo = yield* _(repo.getTodo(Number(id)))
+          res.json(todo)
+        })
+      )
+    )
+  })
+)
 
 // Merge routes into a single layer
 const RouterLive = Layer.mergeAll(IndexRouteLive, TodoByIdRouteLive)
