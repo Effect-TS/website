@@ -1,9 +1,10 @@
 import { FileWithContent, Workspace } from "@/services/WebContainer"
 import { javascript } from "@codemirror/lang-javascript"
 import { Result, Rx, useRxSet, useRxValue } from "@effect-rx/rx-react"
+import { MDX } from "@/components/atoms/mdx"
 import CodeMirror from "@uiw/react-codemirror"
 import { atomone } from '@uiw/codemirror-theme-atomone';
-import { Checklist } from "@/components/atoms/checklist"
+import { allTutorials } from "contentlayer/generated"
 import { workspaceRx } from "./rx"
 import { useEffect, useRef } from "react"
 import "xterm/css/xterm.css"
@@ -32,7 +33,7 @@ export function CodeEditor({ workspace }: { workspace: Workspace }) {
   return (
     <div className="grid grid-cols-2">
       <div>
-        <Checklist items={["Tutorial point 1", "Tutorial point 2"]} />
+        {allTutorials.map((tutorial) => <MDX key={tutorial._id} content={tutorial.body.code} />)[0]}
       </div>
       <div className="grid grid-rows-2">
         {files.map(([file, write]) => (
