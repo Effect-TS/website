@@ -6,11 +6,9 @@ bottomNavigation: pagination
 
 ## Effect
 
-### Extract the type parameters
+**Q: Is it possible to extract the types from an Effect?**
 
-**Question**. Is it possible to extract the types from an Effect?
-
-**Answer**. By using the utility types `Effect.Effect.Context`, `Effect.Effect.Error`, and `Effect.Effect.Success`, we can extract the corresponding types from the `program` Effect. In this example, we extract the context type (`R`), the error type (`E`), and the success type (`A`).
+A: By using the utility types `Effect.Effect.Context`, `Effect.Effect.Error`, and `Effect.Effect.Success`, we can extract the corresponding types from the `program` Effect. In this example, we extract the context type (`R`), the error type (`E`), and the success type (`A`).
 
 ```ts twoslash
 import { Effect, Context } from "effect"
@@ -34,11 +32,9 @@ type E = Effect.Effect.Error<typeof program>
 type A = Effect.Effect.Success<typeof program>
 ```
 
-### Sync / Async Behavior in Effects
+**Q: Is there a way to determine whether an Effect is synchronous or asynchronous in advance?**
 
-**Question:** Is there a way to determine whether an Effect is synchronous or asynchronous in advance?
-
-**Answer:** No, there isn't a straightforward way to statically determine if an Effect is synchronous or asynchronous. We did explore this idea in earlier versions of Effect, but we decided against it for a few important reasons:
+A: No, there isn't a straightforward way to statically determine if an Effect is synchronous or asynchronous. We did explore this idea in earlier versions of Effect, but we decided against it for a few important reasons:
 
 1. **Complexity:** Introducing this feature to track sync/async behavior in the type system would make Effect more complex to use and limit its composability.
 
@@ -46,26 +42,9 @@ type A = Effect.Effect.Success<typeof program>
 
 In practice, it's important to note that you should typically only run Effects at the edges of your application. If your application is entirely based on Effect, it usually involves a single call to the `main` effect. In such cases, the best approach is to use `runPromise` or `runFork` for most executions. Synchronous execution is a special case and should be considered an edge case, used only when asynchronous execution is not possible. So, our recommendation is to use `runPromise` or `runFork` whenever you can and resort to `runSync` only when absolutely necessary.
 
-### Comparison with fp-ts
+**Q: I'm familiar with `flatMap` in JavaScript/TypeScript from its usage on the `Array` prototype. Why do I see it in modules provided by Effect?**
 
-**Question**. What are the main differences between Effect and [fp-ts](https://github.com/gcanti/fp-ts)?
-
-**Answer**. The main differences between Effect and fp-ts are:
-
-- Effect offers more flexible and powerful dependency management.
-- Effect provides built-in services like `Clock`, `Random`, and `Tracer`, which fp-ts lacks.
-- Effect includes dedicated testing tools like `TestClock` and `TestRandom`, while fp-ts does not offer specific testing utilities.
-- Effect supports interruptions for canceling computations, whereas fp-ts does not have built-in interruption support.
-- Effect has built-in tools to handle defects and unexpected failures, while fp-ts lacks specific defect management features.
-- Effect leverages fiber-based concurrency for efficient and lightweight concurrent computations, which fp-ts does not provide.
-- Effect includes built-in support for customizable retrying of computations, while fp-ts does not have this feature.
-- Effect offers built-in logging, scheduling, caching, and more, which fp-ts does not provide.
-
-For a more detailed comparison, you can refer to the [Effect vs fp-ts](fp-ts) documentation.
-
-### A Closer Look at flatMap
-
-Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap). Therefore it may be confusing to see `flatMap` methods exported from many of the modules that Effect provides.
+A: Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap). Therefore it may be confusing to see `flatMap` methods exported from many of the modules that Effect provides.
 
 The `flatMap` operation can actually be used to describe a more generic data transformation. Let's consider for a moment a generic data type that we will call `F`. `F` will also be a container for elements, so we can further refine our representation of `F` to `F<A>` which states that `F` holds some information about some data of type `A`.
 
@@ -89,11 +68,9 @@ You can also see how this directly applies to `Array`'s `flatMap` if we replace 
 flatMap: <A, B>(fa: Array<A>, f: (a: A) => Array<B>) => Array<B>
 ```
 
-### Looking for ZIO Type Aliases?
+**Q: I can't seem to find any type aliases for Effect. Do any exist? I'm looking for something similar to ZIO's `UIO` / `URIO` / `RIO` / `Task` / `IO`. If not, have you considered adding them?**
 
-**Question**. I can't seem to find any type aliases for Effect. Do any exist? I'm looking for something similar to ZIO's `UIO` / `URIO` / `RIO` / `Task` / `IO`. If not, have you considered adding them?
-
-**Answer**. In Effect, there are no predefined type aliases such as `UIO`, `URIO`, `RIO`, `Task`, or `IO` like in ZIO.
+A: In Effect, there are no predefined type aliases such as `UIO`, `URIO`, `RIO`, `Task`, or `IO` like in ZIO.
 
 The reason for this is that type aliases are lost as soon as you compose them, which renders them somewhat useless unless you maintain **multiple** signatures for **every** function. In Effect, we have chosen not to go down this path. Instead, we utilize the `never` type to indicate unused types.
 
@@ -101,8 +78,35 @@ It's worth mentioning that the perception of type aliases being quicker to under
 
 ## Layer
 
-### Configuring Layers
+**Q: Is it common for layers to accept arguments that control how they construct a service?**
 
-**Question**: Is it common for layers to accept arguments that control how they construct a service?
+A: Yes, it is perfectly normal for `Layer`s to accept arguments that influence the way they construct a service. For example, a layer may require some configuration values in order to properly initialize the service. By passing these arguments to the layer, you can customize the behavior and characteristics of the resulting service instance.
 
-**Answer**: Yes, it is perfectly normal for `Layer`s to accept arguments that influence the way they construct a service. For example, a layer may require some configuration values in order to properly initialize the service. By passing these arguments to the layer, you can customize the behavior and characteristics of the resulting service instance.
+## Comparison with fp-ts
+
+**Q: What are the main differences between Effect and [fp-ts](https://github.com/gcanti/fp-ts)?**
+
+A: The main differences between Effect and fp-ts are:
+
+- Effect offers more flexible and powerful dependency management.
+- Effect provides built-in services like `Clock`, `Random`, and `Tracer`, which fp-ts lacks.
+- Effect includes dedicated testing tools like `TestClock` and `TestRandom`, while fp-ts does not offer specific testing utilities.
+- Effect supports interruptions for canceling computations, whereas fp-ts does not have built-in interruption support.
+- Effect has built-in tools to handle defects and unexpected failures, while fp-ts lacks specific defect management features.
+- Effect leverages fiber-based concurrency for efficient and lightweight concurrent computations, which fp-ts does not provide.
+- Effect includes built-in support for customizable retrying of computations, while fp-ts does not have this feature.
+- Effect offers built-in logging, scheduling, caching, and more, which fp-ts does not provide.
+
+For a more detailed comparison, you can refer to the [Effect vs fp-ts](fp-ts) documentation.
+
+### Bundle Size Comparison Between Effect and fp-ts
+
+**Q: I compared the bundle sizes of two simple programs using Effect and fp-ts. Why does Effect have a larger bundle size?**
+
+A: It's natural to observe different bundle sizes because Effect and fp-ts are distinct systems designed for different purposes.
+Effect's bundle size is larger due to its included fiber runtime, which is crucial for its functionality.
+While the initial bundle size may seem large, the overhead amortizes as you use Effect.
+
+**Q: Should I be concerned about the bundle size difference when choosing between Effect and fp-ts?**
+
+A: Not necessarily. Consider the specific requirements and benefits of each library for your project.
