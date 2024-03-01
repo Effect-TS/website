@@ -45,6 +45,7 @@ export const workspaceRx = Rx.family((ws: Workspace) => {
       const content = Rx.make(file.initialContent)
       const write = Rx.make((get) =>
         get.stream(content).pipe(
+          Stream.changes,
           Stream.debounce("1 seconds"),
           Stream.runForEach((_) => handle.write(file.file, _))
         )
