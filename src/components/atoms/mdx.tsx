@@ -11,6 +11,19 @@ import { Pre } from "../docs/components/pre"
 import { CodeOutput } from "../docs/components/code-output"
 import { Tweet } from "react-tweet"
 
+const YouTube = ({ url }: { url: string }) => (
+  <div className="video-container">
+    <iframe
+      className="video-responsive-iframe"
+      src={url}
+      title="YouTube video player"
+      frameBorder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowFullScreen
+    />
+  </div>
+)
+
 export const MDX: FC<{ content: string }> = ({ content }) => {
   const Content = useMDXComponent(content)
 
@@ -31,7 +44,8 @@ export const MDX: FC<{ content: string }> = ({ content }) => {
             <div className="tweet">
               <Tweet id={id} />
             </div>
-          )
+          ),
+          YouTube
         }}
       />
     </div>
