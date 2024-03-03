@@ -26,12 +26,8 @@ Effect.runPromise(program).then(console.log, console.error)
 /*
 Output:
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: "Oh uh!"
-  }
+  _id: 'FiberFailure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Oh uh!' }
 }
 */
 ```
@@ -53,12 +49,8 @@ Effect.runPromise(program).then(console.log, console.error)
 /*
 Output:
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: "4 is not less that 4"
-  }
+  _id: 'FiberFailure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: '4 is not less that 4' }
 }
 */
 ```
@@ -87,17 +79,12 @@ Effect.runPromise(program).then(console.log, console.error)
 /*
 Output:
 {
-  _id: "FiberFailure",
+  _id: 'FiberFailure',
   cause: {
-    _id: "Cause",
-    _tag: "Sequential",
-    errors: [
-      {
-        message: "Error: Oh uh!"
-      }, {
-        message: "Error: Oh no!"
-      }
-    ]
+    _id: 'Cause',
+    _tag: 'Sequential',
+    left: { _id: 'Cause', _tag: 'Fail', failure: 'Oh uh!' },
+    right: { _id: 'Cause', _tag: 'Fail', failure: 'Oh no!' }
   }
 }
 */
@@ -124,11 +111,11 @@ Effect.runPromise(program).then(console.log, console.error)
 /*
 Output:
 {
-  _id: "FiberFailure",
+  _id: 'FiberFailure',
   cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: [ "4 is not less that 4", "5 is not less that 4" ]
+    _id: 'Cause',
+    _tag: 'Fail',
+    failure: [ '4 is not less that 4', '5 is not less that 4' ]
   }
 }
 */
