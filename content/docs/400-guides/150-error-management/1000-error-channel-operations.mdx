@@ -161,10 +161,10 @@ const tapping2 = Effect.tapBoth(task, {
 
 ## Exposing Errors in The Success Channel
 
-You can use the `Effect.either` function to convert an `Effect<A, E, R>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<E, A>`](../data-types/either) data type:
+You can use the `Effect.either` function to convert an `Effect<A, E, R>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<A, E>`](../data-types/either) data type:
 
 ```ts
-Effect<A, E, R> -> Effect<R, never, Either<E, A>>
+Effect<A, E, R> -> Effect<Either<A, E>, never, R>
 ```
 
 The resulting effect is an unexceptional effect, which means it cannot fail, because the failure case has been exposed as part of the `Either` left case. Therefore, the error parameter of the returned Effect is `never`, as it is guaranteed that the effect does not model failure.

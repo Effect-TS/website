@@ -4,13 +4,13 @@ excerpt: Explore the `Either` data type in Effect for representing exclusive val
 bottomNavigation: pagination
 ---
 
-The `Either` data type represents two exclusive possible values: an `Either<E, A>` can be either a `Left` value or a `Right` value, where `E` represents the type of the `Left` value and `A` represents the type of the `Right` value.
+The `Either` data type represents two exclusive possible values: an `Either<R, L>` can be either a `Right` value or a `Left` value, where `R` represents the type of the `Right` value and `L` represents the type of the `Left` value.
 
 ## Creating Eithers
 
-You can create an `Either` using the `Either.left` and `Either.right` constructors.
+You can create an `Either` using the `Either.right` and `Either.left` constructors.
 
-- The `Either.right` function takes a value of type `A` and constructs a `Either<never, A>`:
+- The `Either.right` function takes a value of type `R` and constructs a `Either<R, never>`:
 
   ```ts twoslash
   import { Either } from "effect"
@@ -18,7 +18,7 @@ You can create an `Either` using the `Either.left` and `Either.right` constructo
   const rightValue = Either.right(42)
   ```
 
-- The `Either.left` function takes a value of type `E` and constructs a `Either<E, never>`:
+- The `Either.left` function takes a value of type `L` and constructs a `Either<never, L>`:
 
   ```ts twoslash
   import { Either } from "effect"
@@ -128,15 +128,15 @@ The `Either` type is a subtype of the `Effect` type, which means that it can be 
 
 In the context of `Effect`, the two members of the `Either` type are treated as follows:
 
-- `Left<E>` is equivalent to `Effect<never, E>`
-- `Right<A>` is equivalent to `Effect<A>`
+- `Left<L>` is equivalent to `Effect<never, L>`
+- `Right<R>` is equivalent to `Effect<R>`
 
 To illustrate this interoperability, let's consider the following example:
 
 ```ts twoslash
 import { Effect, Either } from "effect"
 
-const head = <A>(array: ReadonlyArray<A>): Either.Either<string, A> =>
+const head = <A>(array: ReadonlyArray<A>): Either.Either<A, string> =>
   array.length > 0 ? Either.right(array[0]) : Either.left("empty array")
 
 const foo = Effect.runSync(Effect.flatMap(Effect.succeed([1, 2, 3]), head))

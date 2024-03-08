@@ -226,13 +226,13 @@ In this specific example, `task3` is never executed because an error occurs in `
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-The `Effect.either` function converts an `Effect<A, E, R>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<E, A>`](../../other/data-types/either) data type:
+The `Effect.either` function converts an `Effect<A, E, R>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<A, E>`](../../other/data-types/either) data type:
 
 ```ts
-Effect<A, E, R> -> Effect<Either<E, A>, never, R>
+Effect<A, E, R> -> Effect<Either<A, E>, never, R>
 ```
 
-The [`Either<E, A>`](../../other/data-types/either) data type represents a value that can be either an error (`E`) or a successful result (`A`).
+The [`Either<R, L>`](../../other/data-types/either) data type represents a value that can be either a `Right` value (`R`) or a `Left` value (`L`).
 By yielding an `Either`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function.
 
 ```ts twoslash
@@ -300,7 +300,7 @@ const recovered = program.pipe(
 </Tabs>
 
 We can observe that the type in the error channel of our program has changed to `never`,
-indicating that all errors has been handled.
+indicating that all errors have been handled.
 
 ```ts
 Effect<string>
@@ -370,7 +370,7 @@ const recovered = Effect.gen(function* (_) {
 ```
 
 We can observe that the type in the error channel of our program has changed to `never`,
-indicating that all errors has been handled.
+indicating that all errors have been handled.
 
 </Tab>
 <Tab>
@@ -451,7 +451,7 @@ const recovered = program.pipe(
 ```
 
 We can observe that the type in the error channel of our program has changed to `never`,
-indicating that all errors has been handled.
+indicating that all errors have been handled.
 
 <Warning>
   It is important to ensure that the error type used with `catchTag` has a
