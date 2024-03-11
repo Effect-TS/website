@@ -34,7 +34,6 @@ export const Hero = () => {
   return (
     <section className="relative z-10">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-20">
-        <Pill href="https://effect.website/events/effect-days">{`Join "Effect Days" from Feb 22 to 24 in Vienna`}</Pill>
         <div className="flex flex-col md:flex-row md:gap-x-6 lg:gap-x-0 xl:grid xl:grid-cols-2 mt-4">
           <div className="shrink-0 md:w-1/2 lg:w-7/12 xl:w-auto">
             <h1 className="font-display text-4xl sm:text-4xl lg:text-5xl mb-8">

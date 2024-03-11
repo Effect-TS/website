@@ -19,8 +19,7 @@ const menus = [
   {
     name: "Company",
     items: [
-      { name: "Effectful", href: "https://www.effectful.co/", blank: true },
-      { name: "Effect Days", href: "/events/effect-days", blank: true }
+      { name: "Effectful", href: "https://www.effectful.co/", blank: true }
     ]
   },
   {

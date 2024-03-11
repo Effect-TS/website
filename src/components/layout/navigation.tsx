@@ -14,7 +14,6 @@ const menu = [
   { name: "Docs", href: "/docs" },
   { name: "Blog", href: "/blog" },
   // { name: "Examples", href: "https://github.com/Effect-TS/examples" },
-  { name: "Effect Days", href: "/events/effect-days", blank: true }
 ]
 
 const socials = [
