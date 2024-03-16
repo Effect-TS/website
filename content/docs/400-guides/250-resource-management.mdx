@@ -117,7 +117,7 @@ finalizer after Success
 Here, the `Effect.addFinalizer` operator adds a `Scope` to the context required by the workflow, as indicated by:
 
 ```ts
-Effect<Scope, never, void>
+Effect<void, never, Scope>
 ```
 
 This signifies that the workflow needs a `Scope` to execute. You can provide this `Scope` using the `Effect.scoped` operator. It creates a new `Scope`, supplies it to the workflow, and closes the `Scope` once the workflow is complete.
@@ -492,7 +492,7 @@ export const resource = Effect.acquireRelease(acquire, release)
 Notice that the `acquireRelease` operator added a `Scope` to the context required by the workflow:
 
 ```ts
-Effect<Scope, Error, MyResource>
+Effect<MyResource, Error, Scope>
 ```
 
 This indicates that the workflow needs a `Scope` to run and adds a finalizer that will close the resource when the scope is closed.
