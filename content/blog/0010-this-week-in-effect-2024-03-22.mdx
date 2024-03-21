@@ -16,7 +16,7 @@ authors:
     avatar: https://pbs.twimg.com/profile_images/1232338149340319751/Ln9nNWyk_400x400.jpg
     twitter: https://twitter.com/MichaelArnaldi
 relatedPosts:
-  - this-week-in-effect-2024-03-08
+  - this-week-in-effect-2024-03-15
 ---
 
 Hi Effecters! 
@@ -37,7 +37,7 @@ If you're new to TWIE, here are a few words on what TWIE is and what it aims for
 
 We’re happy to see the community growing so fast, with more and more people adopting Effect. At the same time, we understand that it might not be easy keeping up with everything that is going on in the Effect Ecosystem:
 
-- Our Discord server reached **2050+ members** a few days ago and the engagement is at an all-time high.
+- Our Discord server reached **2060+ members** a few days ago and the engagement is at an all-time high.
 - We just had our very first **[Effect Days Conference](/events/effect-days)** in Vienna on February 23, 2024. It's been an amazing experience connecting with our community in person. If you couldn't join us in Vienna, we've got plenty of exciting updates and content coming your way, so stay tuned!
 - All projects around Effect are receiving **key updates** and there has been a lot of activity on GitHub!
 
@@ -49,55 +49,73 @@ Now, back to business!
 
 ## Technology
 
+Big news of the week: **Schema 0.64** has been released! You'll find all the changes and improvements [here](https://effect.website/blog/schema-release-0.64).
+
 Below you may find the list of all changes that occurred the last week.
 
 ### Effect Core
-+ [Allow duration inputs to be singular](https://github.com/Effect-TS/effect/pull/2263) (Feature, next-minor)
-+ [Tap and andThen fallthrough function](https://github.com/Effect-TS/effect/pull/2264) (Bug Fix, next-minor)
-+ [Add Logger batching and structured logging](https://github.com/Effect-TS/effect/pull/2270) (Feature, next-minor)
-+ [Add ManagedRuntime module, to make incremental adoption easier](https://github.com/Effect-TS/effect/pull/2211) (Feature)
-+ [Added support for PromiseLike](https://github.com/Effect-TS/effect/pull/2280) (Feature)
-+ [Add support for AbortSignal's to runPromise](https://github.com/Effect-TS/effect/pull/2285) (Feature)
-+ [Performance improvements for RequestResolver](https://github.com/Effect-TS/effect/pull/2288) (Improvement)
-+ [Add AbortSignal support to ManagedRuntime](https://github.com/Effect-TS/effect/pull/2293) (Feature)
++ [Set unhandled log level to none for fibers in FiberSet/Map](https://github.com/Effect-TS/effect/pull/2328) (Improvement)
++ [Fix: Effect.Tag generated proxy functions to work with andThen/tap, or others that do function/isEffect checks](https://github.com/Effect-TS/effect/pull/2266) (Bug Fix)
++ [Added Predicate.isTruthy](https://github.com/Effect-TS/effect/pull/2336) (Feature)
++ [Prevent Effect.if from crashing when first argument is not an Effect](https://github.com/Effect-TS/effect/pull/2299) (Bug Fix)
++ [Fix metrics not using labels from fiber ref](https://github.com/Effect-TS/effect/pull/2351) (Bug Fix)
++ [Fix metrics not using labels from fiber ref](https://github.com/Effect-TS/effect/pull/2351) (Bug Fix)
++ [Add overload to Effect.filterOrFail that fails with NoSuchElementException](https://github.com/Effect-TS/effect/pull/2354) (Feature)
++ [Make more data types in /platform implement Inspectable](https://github.com/Effect-TS/effect/pull/2357) (Feature)
++ [Expose vitest helpers as @effect/vitest](https://github.com/Effect-TS/effect/pull/2369) (Improvement)
++ [Use incremental counters instead of up-down for runtime metrics](https://github.com/Effect-TS/effect/pull/2373) (Bug Fix)
++ [Make @effect/opentelemetry metrics conform to the spec](https://github.com/Effect-TS/effect/pull/2375) (Bug Fix)
+
+
+
 
 ### Effect Experimental
-+ [Add WebSocket support to /platform http server](https://github.com/Effect-TS/effect/pull/2261) (Feature, next-minor)
-+ [Improve Persistence error messages](https://github.com/Effect-TS/effect/pull/2274) (Improvement, next-minor)
-+ [Schema: next minor](https://github.com/Effect-TS/effect/pull/2172) (Refactor, Breaking Change, next-minor)
++ [Remove use of __proto__](https://github.com/Effect-TS/effect/pull/2352) (Refactor)
++ [Add clear API on ResultPersistence](https://github.com/Effect-TS/effect/pull/2355) (Feature)
+
 
 ### Effect Platform
-+ [Add WebSocket support to /platform http server](https://github.com/Effect-TS/effect/pull/2261) (Feature, next-minor)
-+ [Propogate Socket handler errors to .run Effect](https://github.com/Effect-TS/effect/pull/2267) (Feature, next-minor)
-+ [Add PlatformLogger module](https://github.com/Effect-TS/effect/pull/2269) (Feature, next-minor)
-+ [Remove log.txt](https://github.com/Effect-TS/effect/pull/2272) (Documentation Update, next-minor)
-+ [Fix /platform docgen](https://github.com/Effect-TS/effect/pull/2272) (Bug Fix, next-minor)
-+ [Improve /platform error messages](https://github.com/Effect-TS/effect/pull/2276) (Improvement)
-+ [Schema: next minor](https://github.com/Effect-TS/effect/pull/2172) (Refactor, Breaking Change, next-minor)
-+ [Add OpenTimeout & CloseEvent to Sockets](https://github.com/Effect-TS/effect/pull/2281) (Feature)
-+ [Add SocketCloseError with additional metadata](https://github.com/Effect-TS/effect/pull/2283) (Feature)
-+ [Use Schema.declare for http multipart PersistedFile schema](https://github.com/Effect-TS/effect/pull/2284) (Refactor)
-+ [Allow optional fields in http form schemas](https://github.com/Effect-TS/effect/pull/2286) (Feature)
-+ [Add option to /platform runMain to disable error reporting](https://github.com/Effect-TS/effect/pull/2287) (Feature)
++ [Ensure Socket fibers are interruptible](https://github.com/Effect-TS/effect/pull/2325) (Feature)
++ [Ensure websocket events are not missed](https://github.com/Effect-TS/effect/pull/232) (Feature)
++ [Use Deferred.unsafeDone for websocket onclose + onerror](https://github.com/Effect-TS/effect/pull/2330) (Improvement)
++ [Add .watch method to /platform FileSystem](https://github.com/Effect-TS/effect/pull/2334) (Feature)
++ [Make more data types in /platform implement Inspectable](https://github.com/Effect-TS/effect/pull/2357) (Feature)
++ [Add support for watching single files](https://github.com/Effect-TS/effect/pull/2360) (Feature)
++ [Fallback to node fs.watch if @parcel/watcher fails to import](https://github.com/Effect-TS/effect/pull/2368) (Bug Fix)
 
-### Effect RPC
-+ [Schema: next minor](https://github.com/Effect-TS/effect/pull/2172) (Refactor, Breaking Changes, next-minor)
+
+
+### Effect CLI
++ [Remove use of __proto__](https://github.com/Effect-TS/effect/pull/2352) (Refactor)
+
 
 ### Effect Schema
-+ [Uncurry sortedSet combinators](https://github.com/Effect-TS/effect/pull/2265) (Improvement, next-minor)
-+ [Schema: next minor](https://github.com/Effect-TS/effect/pull/2172) (Refactor, Breaking Changes, next-minor)
-+ [Refactor propertySignature and add propertySignatureAnnotations](https://github.com/Effect-TS/effect/pull/2282) (Refactor)
-+ [Schema annotations interfaces have been refactored into a namespace Annotations](https://github.com/Effect-TS/effect/pull/2289) (Refactor)
-+ [Move PropertySignatureAST to PropertySignature namespace](https://github.com/Effect-TS/effect/pull/2291) (Refactor)
-+ [AST: expose the getTemplateLiteralRegExp API](https://github.com/Effect-TS/effect/pull/2292) (Improvement)
-+ [Refactor pluck](https://github.com/Effect-TS/effect/pull/2294) (Refactor)
-+ [Remove propertySignatureAnnotations](https://github.com/Effect-TS/effect/pull/2295) (Refactor)
-+ [Add mutable API interface](https://github.com/Effect-TS/effect/pull/2297) (Feature)
-+ [Rename headOr to headOrElse](https://github.com/Effect-TS/effect/pull/2298) (Refactor)
-+ [Added Schema.sortedSet](https://github.com/Effect-TS/effect/pull/2241) (Feature, next-minor)
++ [Add missing Date api interfaces](https://github.com/Effect-TS/effect/pull/233) (Feature)
++ [JSONSchema: allow overrides through annotations](https://github.com/Effect-TS/effect/pull/2337) (Bug Fix)
++ [Use Simplify from effect/Types in TaggedClass, TaggedError and TaggedRequest](https://github.com/Effect-TS/effect/pull/2339) (Bug Fix)
++ [Use not from effect/Boolean](https://github.com/Effect-TS/effect/pull/2340) (Refactor)
++ [Use negate from effect/BigDecimal](https://github.com/Effect-TS/effect/pull/2341) (Refactor)
++ [Improve pick/omit and add support for Class](https://github.com/Effect-TS/effect/pull/2343) (Feature)
++ [Fix test on TS 5.5 that is able to infer guards](https://github.com/Effect-TS/effect/pull/2344) (Bug Fix)
++ [Add back BrandSchema](https://github.com/Effect-TS/effect/pull/2347) (Feature)
++ [Expose Class API identifiers](https://github.com/Effect-TS/effect/pull/2348) (Feature)
++ [Fix typeAST, encodedAST impl](https://github.com/Effect-TS/effect/pull/2349) (Bug Fix)
++ [Remove sorting, flattening, and unification](https://github.com/Effect-TS/effect/pull/2350) (Refactor)
++ [Make optional dual](https://github.com/Effect-TS/effect/pull/2353) (Feature)
++ [Make partial dual](https://github.com/Effect-TS/effect/pull/2356) (Feature)
++ [Make defensive copies of exports](https://github.com/Effect-TS/effect/pull/2363) (Refactor)
++[Update README](https://github.com/Effect-TS/effect/pull/2365) (Documentation Update)
++ [Improve All types to encompass additional any / never combinations](https://github.com/Effect-TS/effect/pull/2366) (Improvement)
++ [Schema template literal regex escape special characters](https://github.com/Effect-TS/effect/pull/2370) (Bug Fix)
++ [Enhance error messages by eliminating the internal TAG constant](https://github.com/Effect-TS/effect/pull/2379) (Refactor)
+
+
+
+
+
 
 ### General Chores
-+ [Better changesets](https://github.com/Effect-TS/effect/pull/2279)
+
 
 
 ## Community
