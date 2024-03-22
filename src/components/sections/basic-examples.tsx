@@ -306,7 +306,7 @@ const getUser = (id: number) =>
   Http.request.get(\`/users/\${id}\`).pipe(
     Http.client.fetchOk(),
     Http.response.json,
-    Effect.retryN(3)
+    Effect.retry({ times: 3 })
   )
 
 const main = getUser(1).pipe(
@@ -549,7 +549,7 @@ const getTodos = (
 > =>
   Effect.forEach(
     ids,
-    (id) => getTodo(id).pipe(Effect.retryN(3)),
+    (id) => getTodo(id).pipe(Effect.retry({ times: 3 })),
     { concurrency: "inherit" },
   )
 
