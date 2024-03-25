@@ -1,25 +1,23 @@
 "use client"
 
-import { getNodeText, sluggifyTitle } from "@/contentlayer/utils/sluggify"
 import Link from "next/link"
 import { FC, useEffect, useState } from "react"
 import { Icon } from "../icons"
 import { Divider } from "../layout/divider"
 
 export const TableOfContents: FC<{
-  elements: { level: number; title: string }[]
+  elements: DocHeading[]
   pageFilePath?: string
   pageTitle?: string
 }> = ({ elements, pageFilePath, pageTitle }) => {
   const [activeHeading, setActiveHeading] = useState("")
   const [showScrollToTopButton, setShowScrollToTopButton] =
     useState<boolean>(false)
-
+  console.log(elements)
   useEffect(() => {
     const handleScroll = () => {
       let current = ""
-      for (const { title } of elements) {
-        const slug = sluggifyTitle(getNodeText(title))
+      for (const { title, slug } of elements) {
         const element = document.getElementById(slug)
         if (element && element.getBoundingClientRect().top < 256)
           current = slug
@@ -53,8 +51,7 @@ export const TableOfContents: FC<{
         <ul className="relative grow overflow-y-auto py-9 text-sm">
           {elements
             .slice(1, elements.length)
-            .map(({ level, title }, index) => {
-              const slug = sluggifyTitle(getNodeText(title))
+            .map(({ level, title, slug }, index) => {
               return (
                 <li
                   key={index}
