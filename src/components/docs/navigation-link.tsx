@@ -68,20 +68,21 @@ export const NavigationLink: FC<{
           {element.title}
         </span>
         {element.children.length > 0 && element.collapsible && (
-          <button
-            className="h-5 w-5 flex items-center justify-center"
-            onClick={(e) => {
-              e.preventDefault()
-              setCollapsed((collapsed) => !collapsed)
-            }}
-          >
-            <Icon
-              name="chevron-right"
-              className={`h-3 -mt-0.5 transition-transform duration-200 ${
-                collapsed ? "rotate-0" : "rotate-90"
-              }`}
-            />
-          </button>
+          // <button
+          //   className="relative h-5 w-5 flex items-center justify-center"
+          //   onClick={(e) => {
+          //     e.preventDefault()
+          //     console.log(collapsed)
+          //     setCollapsed((collapsed) => !collapsed)
+          //   }}
+          // >
+          <Icon
+            name="chevron-right"
+            className={`h-3 -mt-0.5 transition-transform duration-200 ${
+              collapsed ? "rotate-0" : "rotate-90"
+            }`}
+          />
+          // </button>
         )}
       </Link>
       {element.children && !collapsed && (
