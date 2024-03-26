@@ -31,10 +31,10 @@ To create an effect that represents a successful computation, you can use the `E
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.succeed(42)
+const success = Effect.succeed(42)
 ```
 
-The `program` value has the type `Effect<number>` and can be interpreted as an effect that:
+The `success` value has the type `Effect<number>` and can be interpreted as an effect that:
 
 - succeeds with a value of type `number`
 - does not produce any expected error (`never`)
@@ -47,10 +47,10 @@ To create an effect that represents a failure, you can use the `Effect.fail` con
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.fail("my error")
+const failure = Effect.fail("my error")
 ```
 
-The `program` value has the type `Effect<never, string, never>` and can be interpreted as an effect that:
+The `failure` value has the type `Effect<never, string, never>` and can be interpreted as an effect that:
 
 - does not produce any value (`never`)
 - fails with an expected error of type `string`
@@ -90,15 +90,17 @@ If you're working with synchronous side effects and you're confident that they w
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.sync(() => {
-  console.log("Hello, World!") // side effect
-  return 42 // return value
-})
+const log = (message: string) =>
+  Effect.sync(() => {
+    console.log(message) // side effect
+  })
+
+const program = log("Hello, World!")
 ```
 
 In the above example, `Effect.sync` is used to defer the side-effect of writing to the console.
 
-The `program` value has the type `Effect<number>` because the thunk returns the value `42`.
+The `program` value has the type `Effect<void>` since the thunk doesn't return any value.
 
 Note that nothing is logged to the console yet when you inspect it.
 This is because `program` represents the action of writing to the console, but nothing happens until you explicitly [run your program](running-effects).
@@ -113,27 +115,33 @@ If an error is caught, it will be propagated to the error channel as `UnknownExc
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.try(
-  () => JSON.parse("") // JSON.parse may throw for bad input
-)
+const parse = (input: string) =>
+  Effect.try(
+    () => JSON.parse(input) // JSON.parse may throw for bad input
+  )
+
+const program = parse("")
 ```
 
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.try` that takes a remapping function:
 
-```ts {5} twoslash
+```ts {6} twoslash
 import { Effect } from "effect"
 
-const program = Effect.try({
-  try: () => JSON.parse(""), // JSON.parse may throw for bad input
-  catch: (unknown) => new Error(`something went wrong ${unknown}`) // remap the error
-})
+const parse = (input: string) =>
+  Effect.try({
+    try: () => JSON.parse(input), // JSON.parse may throw for bad input
+    catch: (unknown) => new Error(`something went wrong ${unknown}`) // remap the error
+  })
+
+const program = parse("")
 ```
 
 You can think of this as a similar pattern to the traditional try-catch block in JavaScript:
 
 ```ts
 try {
-  return JSON.parse("")
+  return JSON.parse(input)
 } catch (unknown) {
   throw new Error(`something went wrong ${unknown}`)
 }
@@ -152,14 +160,17 @@ If you're working with asynchronous side effects that return a `Promise` and you
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.promise<string>(
-  () =>
-    new Promise((resolve) => {
-      setTimeout(() => {
-        resolve("Async operation completed successfully!")
-      }, 2000)
-    })
-)
+const delay = (message: string) =>
+  Effect.promise<string>(
+    () =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(message)
+        }, 2000)
+      })
+  )
+
+const program = delay("Async operation completed successfully!")
 ```
 
 The `program` value has the type `Effect<string>` and can be interpreted as an effect that:
@@ -181,20 +192,26 @@ If an error is caught, it will be propagated to the error channel as `UnknownExc
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.tryPromise(() =>
-  fetch("https://jsonplaceholder.typicode.com/todos/1")
-)
+const getTodo = (id: number) =>
+  Effect.tryPromise(() =>
+    fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
+  )
+
+const program = getTodo(1)
 ```
 
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.tryPromise` that takes a remapping function:
 
-```ts {5} twoslash
+```ts {6} twoslash
 import { Effect } from "effect"
 
-const program = Effect.tryPromise({
-  try: () => fetch("https://jsonplaceholder.typicode.com/todos/1"),
-  catch: (unknown) => new Error(`something went wrong ${unknown}`) // remap the error
-})
+const getTodo = (id: number) =>
+  Effect.tryPromise({
+    try: () => fetch(`https://jsonplaceholder.typicode.com/todos/${id}`),
+    catch: (unknown) => new Error(`something went wrong ${unknown}`) // remap the error
+  })
+
+const program = getTodo(1)
 ```
 
 ## From a callback
@@ -209,15 +226,18 @@ For example, let's wrap the `readFile` async API from the Node.js `fs` module wi
 import { Effect } from "effect"
 import * as NodeFS from "node:fs"
 
-const program = Effect.async<Buffer, Error>((resume) => {
-  NodeFS.readFile("todos.txt", (error, data) => {
-    if (error) {
-      resume(Effect.fail(error))
-    } else {
-      resume(Effect.succeed(data))
-    }
+const readFile = (filename: string) =>
+  Effect.async<Buffer, Error>((resume) => {
+    NodeFS.readFile(filename, (error, data) => {
+      if (error) {
+        resume(Effect.fail(error))
+      } else {
+        resume(Effect.succeed(data))
+      }
+    })
   })
-})
+
+const program = readFile("todos.txt")
 ```
 
 In the above example, we manually annotate the types when calling `Effect.async` because TypeScript cannot infer the type parameters for a callback
