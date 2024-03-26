@@ -13,7 +13,7 @@ export const TableOfContents: FC<{
   const [activeHeading, setActiveHeading] = useState("")
   const [showScrollToTopButton, setShowScrollToTopButton] =
     useState<boolean>(false)
-  console.log(elements)
+
   useEffect(() => {
     const handleScroll = () => {
       let current = ""
