@@ -768,8 +768,8 @@ const nextStep = Effect.step(program).pipe(
     switch (step._op) {
       // the program is blocked on a number of requests
       case "Blocked": {
-        const requests = step.i0
-        const continuation = step.i1
+        const requests = step.effect_instruction_i0
+        const continuation = step.effect_instruction_i1
         return shipRequestsToBeExecutedAndWait(requests).pipe(
           Effect.flatMap(() => continuation)
         )
@@ -784,7 +784,7 @@ const nextStep = Effect.step(program).pipe(
 )
 
 const shipRequestsToBeExecutedAndWait = <E, A>(
-  requests: Effect.Blocked<E, A>["i0"]
+  requests: Effect.Blocked<E, A>["effect_instruction_i0"]
 ): Effect.Effect<void, E> => {
   // go on mars and come back
   return Effect.unit
