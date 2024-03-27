@@ -16,7 +16,7 @@ To make our application configurable, we need to understand three essential elem
 
 - **Config Frontend**: We utilize the instance of `Config<A>` to load the configuration data described by the instance (a `Config` is, in itself, an effect). This process leverages the current `ConfigProvider` to retrieve the configuration.
 
-- **Config Backend**: The `ConfigProvider` serves as the underlying engine that manages the configuration loading process. Effect comes with a default config provider as part of its default services. This default provider reads the configuration data from environment variables. If we want to use a custom config provider, we can utilize the `Effect.setConfigProvider` layer to configure the Effect runtime accordingly.
+- **Config Backend**: The `ConfigProvider` serves as the underlying engine that manages the configuration loading process. Effect comes with a default config provider as part of its default services. This default provider reads the configuration data from environment variables. If we want to use a custom config provider, we can utilize the `Layer.setConfigProvider` layer to configure the Effect runtime accordingly.
 
 ## Primitives
 
@@ -364,7 +364,7 @@ When testing services, there are scenarios where we need to provide specific con
 
 To accomplish this, we can use the `ConfigProvider.fromMap` constructor. This constructor takes a `Map<string, string>` that represents the configuration data, and it returns a config provider that reads the configuration from that map.
 
-Once we have the mock config provider, we can use `Effect.setConfigProvider` function. This function allows us to override the default config provider and provide our own custom config provider. It returns a `Layer` that can be used to configure the Effect runtime for our test specs.
+Once we have the mock config provider, we can use `Layer.setConfigProvider` function. This function allows us to override the default config provider and provide our own custom config provider. It returns a `Layer` that can be used to configure the Effect runtime for our test specs.
 
 Here's an example of how we can mock a config provider for testing purposes:
 
