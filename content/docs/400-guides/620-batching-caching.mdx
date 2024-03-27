@@ -432,11 +432,7 @@ export const HttpServiceLive = Layer.sync(HttpService, () =>
   ({ fetch })
 )
 
-export const GetTodosResolver: Effect.Effect<
-  RequestResolver.RequestResolver<RequestModel.GetTodos, never>,
-  never,
-  HttpService
-> =
+export const GetTodosResolver =
   // we create a normal resolver like we did before
   RequestResolver.fromEffect((request: RequestModel.GetTodos) =>
     Effect.flatMap(HttpService, (http) =>
@@ -472,7 +468,7 @@ export const GetTodosResolver: Effect.Effect<
 We can see now that the type of `GetTodosResolver` is no longer a `RequestResolver` but instead it is:
 
 ```ts
-Effect<HttpService, never, RequestResolver<GetTodos, never>>
+Effect<RequestResolver<GetTodos, never>, never, HttpService>
 ```
 
 which is an `Effect` that access the `HttpService` and returns a composed resolver that has the minimal context ready to use.
