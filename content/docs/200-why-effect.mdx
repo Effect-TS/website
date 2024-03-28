@@ -38,13 +38,13 @@ Here's the same divide function from above, but with the Effect pattern:
 ```ts twoslash
 import { Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
+const divide = (a: number, b: number): Effect.Effect<number, Error, never> =>
   b === 0
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 ```
 
-Notice how looking at the type signature tells you exactly what context the function needs (`never`, as in, no context required here), what error(s) it can throw (`Error`), and what success value(s) it returns (`number`). This function no longer throws an exception, and you can cleanly pass on the error to the caller of this function.
+Notice how looking at the type signature tells you exactly what success value(s) it returns (`number`), what error(s) it can throw (`Error`) and what context the function needs (`never`, as in, no context required here). This function no longer throws an exception, and you can cleanly pass on the error to the caller of this function.
 
 Errors now become values, just like your success values. Effect gives us many functions to make managing errors and success values ergonomic.
 
