@@ -1,0 +1,94 @@
+---
+title: Database Transactions
+excerpt: Database transactions are cool.
+bottomNavigation: pagination
+---
+
+At some point, it's highly likely that your application would greatly benefit from a database transaction. Just usually this would require you bend-over-backwards to colocate your logical blocks together to fit in some transaction util exposed by this or that lib. Or you like to raw-dog the sql server. Regardless of personal preferences, the concept of a transaction houses just enough complexity to be a brain-buster and just enough utility to be a must have.
+
+This section can be considered an extension or an elaboration on a specific case of **Pattern: Sequence of Operations with Compensating Actions on Failure**
+
+Generally, we would model 'rollbacks' as a concequence of cleanup. Either explicitly through something like `Effect.acquireRelease` or implicitly using an operator such as `Effect.addFinalizer`. Database transactions require a more elaborate approach due to how the database expects transactions to be described, plus we want a better experience than what we would usually get. They don't call effectitions [feinschmeckers](https://www.collinsdictionary.com/dictionary/german-english/feinschmecker) for nothing (or do they only call me that?).
+
+So we want to create a utility that fulfills these requirements:
+1. Transcation should be able to extend transactions nested within
+2. Transactions should manage a `Scope` that spans its lifetime
+3. Transactions should 'carry' arbitrary resources to accomodate any arbitrary logic
+4. Transactions should expose api that shares semantics with `Scope`
+
+These might read as 'advanced' or 'opaque', but these correlate to features that are relevant for our use case, so in order:
+1. allowing for meaningful composition and enabling expressions of nested transaction
+2. attaching to resources like a connection from a `Pool` for example
+3. exposing the actual functional component in charge of actually doing the work, like a database connection
+4. an api design choice to let users borrow their intuition from the `Scope`, to lower cognitive load
+
+```ts twoslash
+import { Console, Context, Effect, Exit, Option, Scope } from "effect";
+
+export const makeTx = <T, TE, TR, Id, AE, RR>(
+  acquire: Effect.Effect<T, TE, TR>,
+  options: {
+    readonly resourceTag: Context.Tag<Id, T>;
+    readonly onAcquire: (tx: Tx<T>) => Effect.Effect<void, AE>;
+    readonly onRelease: (
+      tx: Tx<T>,
+      exit: Exit.Exit<unknown, unknown>,
+    ) => Effect.Effect<void, never, RR>;
+  },
+) => {
+  const txTag = Context.GenericTag<Tx<T>>(`${options.resourceTag.key}/Tx`);
+  const acquireScoped = Effect.tap(
+    Effect.flatMap(
+      Effect.serviceOption(txTag),
+      Option.match({
+        onNone: () =>
+          Effect.flatMap(Scope.make(), scope =>
+            Effect.map(
+              Scope.extend(acquire, scope),
+              conn => [new Tx(conn), scope] as const,
+            )),
+        onSome: (tx): Effect.Effect<
+          readonly [Tx<T>, Scope.CloseableScope | undefined],
+          TE
+        > => {
+          const nextTx = new Tx(tx.resource, tx.id + 1);
+          return Effect.succeed([nextTx, undefined] as const);
+        },
+      }),
+    ),
+    ([tx]) => options.onAcquire(tx),
+  );
+  return <A, E, R>(
+    effect: Effect.Effect<A, E, R>,
+  ): Effect.Effect<A, TE | AE | E, RR | Exclude<TR, Scope.Scope> | R> =>
+    Effect.acquireUseRelease(
+      acquireScoped,
+      ([tx]) =>
+        effect.pipe(
+          Effect.provideService(options.resourceTag, tx.resource),
+          Effect.provideService(txTag, tx),
+        ),
+      ([tx, scope], exit) => {
+        const release = options.onRelease(tx, exit);
+        return scope !== undefined
+          ? Effect.ensuring(release, Scope.close(scope, exit))
+          : release;
+      },
+    );
+};
+
+export class Tx<T> {
+  constructor(
+    readonly resource: T,
+    readonly id = 0,
+  ) {}
+
+  get isRoot() {
+    return this.id === 0;
+  }
+
+  savepointId(): string {
+    return `tx_${this.id}`;
+  }
+}
+```
