@@ -158,7 +158,7 @@ export const Complexity = () => {
             </ul>
           </div>
         </div>
-        <div className="grid lg:grid-cols-2 gap-y-12 gap-x-6 pt-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-y-12 gap-x-6 pt-12">
           <div className="flex flex-col items-center gap-6">
             <h3 className="font-display text-2xl text-white">
               Without Effect
