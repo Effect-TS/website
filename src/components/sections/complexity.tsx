@@ -264,7 +264,7 @@ const getTodo = (
         fileName: "index.ts",
         code: `\
 function getTodo(
-  id: number
+  id: number,
   {
     retries = 3,
     retryBaseDelay = 1000,
@@ -350,7 +350,7 @@ const getTodo = (
         fileName: "index.ts",
         code: `\
 function getTodo(
-  id: number
+  id: number,
   {
     retries = 3,
     retryBaseDelay = 1000,
@@ -457,7 +457,7 @@ const getTodo = (
 const tracer = Otel.trace.getTracer("todos")
 
 function getTodo(
-  id: number
+  id: number,
   {
     retries = 3,
     retryBaseDelay = 1000,
