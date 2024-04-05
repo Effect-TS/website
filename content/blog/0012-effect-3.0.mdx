@@ -330,12 +330,18 @@ While the core `effect` library is now stable, the rest of the ecosystem such as
 
 Following that, we plan to keep iterating and develop higher and higher levels of abstraction to solve challenging issues in the development of Production-Grade TypeScript. 
 
-Our next goal for the near future is to build up [Effect Cluster](https://github.com/Effect-TS/cluster), the first real JavaScript solution that enables:
+Our next goal for the near future is to build up [Effect Cluster](https://github.com/Effect-TS/cluster), the first JavaScript solution that enables:
 - Clustering of Distributed Instances
 - Addressing of Processes by Name
 - Actors and Entities
 - Scheduling of Cluster Singletons
 - Execution of Durable Business Workflows
+
+While many current solutions for business workflows prescribe a specific way of doing things and pretend that all problems fit in that solution, Effect Cluster will provide a holistic framework that will enable users to write workflows that work for the problem they have, for example they will support:
+
+- Explicit event sourcing / actor model, a la Akka/Pekko in the JVM, ideal for real-time / multiplayer-like code where you model your system as a set of entities with their behaviors.
+- Implicit event sourcing / retried program, a la Temporal, ideal for short-lived transactions that spawn across different systems, for example a registration procedure that has to write to a database and send a confirmation email or a payment that has to be reconciled with the payment provider.
+- Explicit state machines, ideal for high-frequency scenarios that are state-first and require introspection, for example a trading system that has to constantly reassess the risk of a particular position and take decisions based on the assessment.
 
 ## The Company
 
