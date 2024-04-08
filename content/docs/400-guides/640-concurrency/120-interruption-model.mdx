@@ -106,22 +106,21 @@ const program = Effect.gen(function* (_) {
   yield* _(Effect.log("done"))
 })
 
-Effect.runPromise(program).catch((fiberFailure) =>
-  console.log(`interrupted: ${fiberFailure}`)
-)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message=start
-interrupted: {
-  "_id": "FiberFailure",
-  "cause": {
-    "_id": "Cause",
-    "_tag": "Interrupt",
-    "fiberId": {
-      "_id": "FiberId",
-      "_tag": "Runtime",
-      "id": 0,
-      "startTimeMillis": ...
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: {
+    _id: 'Cause',
+    _tag: 'Interrupt',
+    fiberId: {
+      _id: 'FiberId',
+      _tag: 'Runtime',
+      id: 0,
+      startTimeMillis: ...
     }
   }
 }
@@ -140,22 +139,21 @@ const program = Effect.log("start").pipe(
   Effect.flatMap(() => Effect.log("done"))
 )
 
-Effect.runPromise(program).catch((fiberFailure) =>
-  console.log(`interrupted: ${fiberFailure}`)
-)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message=start
-interrupted: {
-  "_id": "FiberFailure",
-  "cause": {
-    "_id": "Cause",
-    "_tag": "Interrupt",
-    "fiberId": {
-      "_id": "FiberId",
-      "_tag": "Runtime",
-      "id": 0,
-      "startTimeMillis": ...
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: {
+    _id: 'Cause',
+    _tag: 'Interrupt',
+    fiberId: {
+      _id: 'FiberId',
+      _tag: 'Runtime',
+      id: 0,
+      startTimeMillis: ...
     }
   }
 }
@@ -189,8 +187,8 @@ const program = Effect.forEach(
   { concurrency: "unbounded" }
 )
 
-Effect.runPromise(program).catch((fiberFailure) =>
-  console.log(`All fibers interrupted without errors: ${fiberFailure}`)
+Effect.runPromiseExit(program).then((exit) =>
+  console.log(JSON.stringify(exit, null, 2))
 )
 /*
 Output:
@@ -198,12 +196,40 @@ timestamp=... level=INFO fiber=#1 message="start #1"
 timestamp=... level=INFO fiber=#2 message="start #2"
 timestamp=... level=INFO fiber=#3 message="start #3"
 timestamp=... level=INFO fiber=#1 message="done #1"
-All fibers interrupted without errors: {
-  "_id": "FiberFailure",
+{
+  "_id": "Exit",
+  "_tag": "Failure",
   "cause": {
     "_id": "Cause",
     "_tag": "Parallel",
-    "errors": []
+    "left": {
+      "_id": "Cause",
+      "_tag": "Interrupt",
+      "fiberId": {
+        "_id": "FiberId",
+        "_tag": "Runtime",
+        "id": 3,
+        "startTimeMillis": 1712582275153
+      }
+    },
+    "right": {
+      "_id": "Cause",
+      "_tag": "Sequential",
+      "left": {
+        "_id": "Cause",
+        "_tag": "Empty"
+      },
+      "right": {
+        "_id": "Cause",
+        "_tag": "Interrupt",
+        "fiberId": {
+          "_id": "FiberId",
+          "_tag": "Runtime",
+          "id": 0,
+          "startTimeMillis": 1712582275147
+        }
+      }
+    }
   }
 }
 */
@@ -232,8 +258,8 @@ const program = Effect.forEach(
   { concurrency: "unbounded" }
 )
 
-Effect.runPromise(program).catch((fiberFailure) =>
-  console.log(`All fibers interrupted without errors: ${fiberFailure}`)
+Effect.runPromiseExit(program).then((exit) =>
+  console.log(JSON.stringify(exit, null, 2))
 )
 /*
 Output:
@@ -241,12 +267,40 @@ timestamp=... level=INFO fiber=#1 message="start #1"
 timestamp=... level=INFO fiber=#2 message="start #2"
 timestamp=... level=INFO fiber=#3 message="start #3"
 timestamp=... level=INFO fiber=#1 message="done #1"
-All fibers interrupted without errors: {
-  "_id": "FiberFailure",
+{
+  "_id": "Exit",
+  "_tag": "Failure",
   "cause": {
     "_id": "Cause",
     "_tag": "Parallel",
-    "errors": []
+    "left": {
+      "_id": "Cause",
+      "_tag": "Interrupt",
+      "fiberId": {
+        "_id": "FiberId",
+        "_tag": "Runtime",
+        "id": 3,
+        "startTimeMillis": 1712582275153
+      }
+    },
+    "right": {
+      "_id": "Cause",
+      "_tag": "Sequential",
+      "left": {
+        "_id": "Cause",
+        "_tag": "Empty"
+      },
+      "right": {
+        "_id": "Cause",
+        "_tag": "Interrupt",
+        "fiberId": {
+          "_id": "FiberId",
+          "_tag": "Runtime",
+          "id": 0,
+          "startTimeMillis": 1712582275147
+        }
+      }
+    }
   }
 }
 */

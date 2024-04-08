@@ -202,18 +202,15 @@ const program = Effect.gen(function* (_) {
   yield* _(Effect.fail("Something went wrong!"))
 })
 
-Effect.runPromise(program).then(console.log, console.error)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 Task1...
 Task2...
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: "Something went wrong!"
-  }
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Something went wrong!' }
 }
 */
 ```
@@ -245,12 +242,9 @@ Output:
 Task1...
 Task2...
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: "Something went wrong!"
-  }
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Something went wrong!' }
 }
 */
 ```

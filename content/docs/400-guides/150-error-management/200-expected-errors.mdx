@@ -164,17 +164,14 @@ const program = Effect.gen(function* (_) {
   yield* _(task3) // This computation won't be executed because the previous one fails
 })
 
-Effect.runPromise(program).then(console.log, console.error)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 Executing task1...
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: "Something went wrong!"
-  }
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Something went wrong!' }
 }
 */
 ```
@@ -198,17 +195,14 @@ const program = task1.pipe(
   Effect.flatMap(() => task3) // This computation won't be executed because the previous one fails
 )
 
-Effect.runPromise(program).then(console.log, console.error)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 Executing task1...
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: "Something went wrong!"
-  }
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Something went wrong!' }
 }
 */
 ```
