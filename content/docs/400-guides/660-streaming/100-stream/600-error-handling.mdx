@@ -354,15 +354,13 @@ const stream = Stream.fromEffect(Effect.never).pipe(
   Stream.timeoutFail(() => "timeout", "2 seconds")
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log, console.error)
+Effect.runPromiseExit(Stream.runCollect(stream)).then(console.log)
 /*
+Output:
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: "timeout"
-  }
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'timeout' }
 }
 */
 ```
@@ -378,15 +376,13 @@ const stream = Stream.fromEffect(Effect.never).pipe(
   Stream.timeoutFailCause(() => Cause.die("timeout"), "2 seconds")
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log, console.error)
+Effect.runPromiseExit(Stream.runCollect(stream)).then(console.log)
 /*
+Output:
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Die",
-    defect: "timeout"
-  }
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Die', defect: 'timeout' }
 }
 */
 ```

@@ -141,9 +141,8 @@ const NodeSdkLive = NodeSdk.layer(() => ({
   spanProcessor: new BatchSpanProcessor(new ConsoleSpanExporter())
 }))
 
-Effect.runPromise(program.pipe(Effect.provide(NodeSdkLive))).then(
-  console.log,
-  console.error
+Effect.runPromiseExit(program.pipe(Effect.provide(NodeSdkLive))).then(
+  console.log
 )
 /*
 Example Output:
@@ -161,7 +160,11 @@ Example Output:
   events: [],
   links: []
 }
-(FiberFailure) Error: Oh no!
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Oh no!' }
+}
 */
 ```
 

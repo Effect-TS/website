@@ -141,18 +141,16 @@ const program = Effect.gen(function* (_) {
 
 const runnable = Effect.scoped(program)
 
-Effect.runPromise(runnable).then(console.log, console.error)
+Effect.runPromiseExit(runnable).then(console.log)
 /*
 Output:
 finalizer after Failure
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: "Uh oh!"
-  }
-}*/
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Uh oh!' }
+}
+*/
 ```
 
 </Tab>
@@ -167,18 +165,16 @@ const program = Effect.addFinalizer((exit) =>
 
 const runnable = Effect.scoped(program)
 
-Effect.runPromise(runnable).then(console.log, console.error)
+Effect.runPromiseExit(runnable).then(console.log)
 /*
 Output:
 finalizer after Failure
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: "Uh oh!"
-  }
-}*/
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Uh oh!' }
+}
+*/
 ```
 
 </Tab>
@@ -201,18 +197,19 @@ const program = Effect.gen(function* (_) {
 
 const runnable = Effect.scoped(program)
 
-Effect.runPromise(runnable).then(console.log, console.error)
+Effect.runPromiseExit(runnable).then(console.log)
 /*
 Output:
 finalizer after Failure
 {
-  _id: "FiberFailure",
+  _id: 'Exit',
+  _tag: 'Failure',
   cause: {
-    _id: "Cause",
-    _tag: "Interrupt",
+    _id: 'Cause',
+    _tag: 'Interrupt',
     fiberId: {
-      _id: "FiberId",
-      _tag: "Runtime",
+      _id: 'FiberId',
+      _tag: 'Runtime',
       id: 0,
       startTimeMillis: ...
     }
@@ -233,18 +230,19 @@ const program = Effect.addFinalizer((exit) =>
 
 const runnable = Effect.scoped(program)
 
-Effect.runPromise(runnable).then(console.log, console.error)
+Effect.runPromiseExit(runnable).then(console.log)
 /*
 Output:
 finalizer after Failure
 {
-  _id: "FiberFailure",
+  _id: 'Exit',
+  _tag: 'Failure',
   cause: {
-    _id: "Cause",
-    _tag: "Interrupt",
+    _id: 'Cause',
+    _tag: 'Interrupt',
     fiberId: {
-      _id: "FiberId",
-      _tag: "Runtime",
+      _id: 'FiberId',
+      _tag: 'Runtime',
       id: 0,
       startTimeMillis: ...
     }

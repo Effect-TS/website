@@ -17,16 +17,13 @@ const program = Effect.all([fail, die]).pipe(
   Effect.asUnit
 )
 
-Effect.runPromise(program).then(console.log, console.error)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: "Oh uh!"
-  }
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Oh uh!' }
 }
 */
 ```
@@ -47,21 +44,17 @@ const program = Effect.all([fail, die], { concurrency: "unbounded" }).pipe(
   Effect.asUnit
 )
 
-Effect.runPromise(program).then(console.log, console.error)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 {
-  _id: "FiberFailure",
+  _id: 'Exit',
+  _tag: 'Failure',
   cause: {
-    _id: "Cause",
-    _tag: "Parallel",
-    errors: [
-      {
-        message: "Error: Oh uh!"
-      }, {
-        message: "Error: RuntimeException: Boom!"
-      }
-    ]
+    _id: 'Cause',
+    _tag: 'Parallel',
+    left: { _id: 'Cause', _tag: 'Fail', failure: 'Oh uh!' },
+    right: { _id: 'Cause', _tag: 'Die', defect: [Object] }
   }
 }
 */
@@ -84,16 +77,13 @@ const program = Effect.all([fail1, fail2, die], {
   concurrency: "unbounded"
 }).pipe(Effect.asUnit, Effect.parallelErrors)
 
-Effect.runPromise(program).then(console.log, console.error)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 {
-  _id: "FiberFailure",
-  cause: {
-    _id: "Cause",
-    _tag: "Fail",
-    failure: [ "Oh uh!", "Oh no!" ]
-  }
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: [ 'Oh uh!', 'Oh no!' ] }
 }
 */
 ```
@@ -117,21 +107,17 @@ const die = Effect.dieMessage("Boom!")
 
 const program = fail.pipe(Effect.ensuring(die))
 
-Effect.runPromise(program).then(console.log, console.error)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 {
-  _id: "FiberFailure",
+  _id: 'Exit',
+  _tag: 'Failure',
   cause: {
-    _id: "Cause",
-    _tag: "Sequential",
-    errors: [
-      {
-        message: "Error: Oh uh!"
-      }, {
-        message: "Error: RuntimeException: Boom!"
-      }
-    ]
+    _id: 'Cause',
+    _tag: 'Sequential',
+    left: { _id: 'Cause', _tag: 'Fail', failure: 'Oh uh!' },
+    right: { _id: 'Cause', _tag: 'Die', defect: [Object] }
   }
 }
 */
