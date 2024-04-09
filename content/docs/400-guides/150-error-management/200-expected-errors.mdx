@@ -48,7 +48,7 @@ Expected errors **are tracked at the type level** by the `Effect` data type in t
 It is evident from the type of `program` that can fail with an error of type `HttpError`:
 
 ```ts
-Effect<never, HttpError>
+Effect<never, HttpError, never>
 ```
 
 ## Error Tracking
@@ -61,11 +61,11 @@ The following program serves as an illustration of how errors are automatically 
 ```twoslash include error-tracking
 import { Effect, Random } from "effect"
 
-class FooError {
+export class FooError {
   readonly _tag = "FooError"
 }
 
-class BarError {
+export class BarError {
   readonly _tag = "BarError"
 }
 
@@ -95,11 +95,11 @@ In the above program, we compute two values: `foo` and `bar`, each representing 
 ```ts filename="error-tracking.ts" twoslash
 import { Effect, Random } from "effect"
 
-class FooError {
+export class FooError {
   readonly _tag = "FooError"
 }
 
-class BarError {
+export class BarError {
   readonly _tag = "BarError"
 }
 
@@ -131,7 +131,7 @@ In this case, we have `FooError` and `BarError` as the possible error types.
 The error channel of the `program` is specified as
 
 ```ts
-Effect<string, FooError | BarError>
+Effect<string, FooError | BarError, never>
 ```
 
 indicating that it can potentially fail with either a `FooError` or a `BarError`.
@@ -217,8 +217,7 @@ In this specific example, `task3` is never executed because an error occurs in `
 
 ## Catching all Errors
 
-<Tabs items={["Using Effect.gen", "Using pipe"]}>
-<Tab>
+### either
 
 The `Effect.either` function converts an `Effect<A, E, R>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [`Either<A, E>`](../../other/data-types/either) data type:
 
@@ -271,10 +270,9 @@ const recovered = Effect.gen(function* (_) {
 })
 ```
 
-</Tab>
-<Tab>
+### catchAll
 
-The `catchAll` function allows you to catch any error that occurs in the program and provide a fallback.
+The `Effect.catchAll` function allows you to catch any error that occurs in the program and provide a fallback.
 
 ```ts {5} twoslash
 // @filename: error-tracking.ts
@@ -290,22 +288,12 @@ const recovered = program.pipe(
 )
 ```
 
-</Tab>
-</Tabs>
-
 We can observe that the type in the error channel of our program has changed to `never`,
 indicating that all errors have been handled.
-
-```ts
-Effect<string>
-```
 
 ## Catching Some Errors
 
 Suppose we want to handle a specific error, such as `FooError`.
-
-<Tabs items={["Using Effect.gen", "Using pipe"]}>
-<Tab>
 
 ```ts {8-10} twoslash
 // @filename: error-tracking.ts
@@ -332,10 +320,6 @@ const recovered = Effect.gen(function* (_) {
 
 We can observe that the type in the error channel of our program has changed to only show `BarError`,
 indicating that `FooError` has been handled.
-
-```ts
-Effect<string, BarError>
-```
 
 If we also want to handle `BarError`, we can easily add another case to our code:
 
@@ -366,8 +350,7 @@ const recovered = Effect.gen(function* (_) {
 We can observe that the type in the error channel of our program has changed to `never`,
 indicating that all errors have been handled.
 
-</Tab>
-<Tab>
+### catchSome
 
 If we want to catch and recover from only some types of errors and effectfully attempt recovery, we can use the `Effect.catchSome` function:
 
@@ -392,9 +375,53 @@ const recovered = program.pipe(
 
 In the code above, `Effect.catchSome` takes a function that examines the error (`error`) and decides whether to attempt recovery or not. If the error matches a specific condition, recovery can be attempted by returning `Option.some(effect)`. If no recovery is possible, you can simply return `Option.none()`.
 
-It's essential to understand that while `Effect.catchSome` allows you to catch specific errors, it **cannot reduce or eliminate the error type** itself. In other words, the resulting effect (`recovered` in this case) will still have the same error type (`FooError | BarError`) as the original effect.
+It's important to note that while `Effect.catchSome` lets you catch specific errors, it **doesn't alter the error type** itself. Therefore, the resulting effect (`recovered` in this case) will still have the same error type (`FooError | BarError`) as the original effect.
 
-However, if your program's errors are all tagged with a `_tag` field that acts as a discriminator, there is a solution. You can use the `Effect.catchTag` function to catch and handle specific errors with precision.
+### catchIf
+
+Similar to `Effect.catchSome`, the function `Effect.catchIf` allows you to recover from specific errors based on a predicate:
+
+```ts twoslash
+// @filename: error-tracking.ts
+// @include: error-tracking
+
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import { program } from "./error-tracking"
+
+const recovered = program.pipe(
+  Effect.catchIf(
+    (error) => error._tag === "FooError",
+    () => Effect.succeed("Recovering from FooError")
+  )
+)
+```
+
+It's important to note that while `Effect.catchIf` lets you catch specific errors, it **doesn't alter the error type** itself. Therefore, the resulting effect (`recovered` in this case) will still have the same error type (`FooError | BarError`) as the original effect.
+
+However, if you provide a [user-defined type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) instead of a predicate, the resulting error type will be pruned, returning an `Effect<string, BarError, never>`:
+
+```ts {6} twoslash
+// @filename: error-tracking.ts
+// @include: error-tracking
+
+// @filename: index.ts
+// ---cut---
+import { Effect } from "effect"
+import { program, FooError } from "./error-tracking"
+
+const recovered = program.pipe(
+  Effect.catchIf(
+    (error): error is FooError => error._tag === "FooError",
+    () => Effect.succeed("Recovering from FooError")
+  )
+)
+```
+
+### catchTag
+
+If your program's errors are all tagged with a `_tag` field that acts as a discriminator you can use the `Effect.catchTag` function to catch and handle specific errors with precision.
 
 ```ts {5-7} twoslash
 // @filename: error-tracking.ts
@@ -418,10 +445,6 @@ and the program will proceed with the recovery logic specified within the handle
 
 We can observe that the type in the error channel of our program has changed to only show `BarError`,
 indicating that `FooError` has been handled.
-
-```ts
-Effect<string, BarError>
-```
 
 If we also wanted to handle `BarError`, we can simply add another `catchTag`:
 
@@ -453,6 +476,8 @@ indicating that all errors have been handled.
   and handling of specific error tags.
 </Warning>
 
+### catchTags
+
 Instead of using the `Effect.catchTag` function multiple times to handle individual error types, we have a more convenient option called `Effect.catchTags`. With `Effect.catchTags`, we can handle multiple errors in a single block of code.
 
 ```ts {5-8} twoslash
@@ -481,6 +506,3 @@ and the corresponding value is the error handler function to be executed when th
   `Effect.catchTags` have a `readonly _tag` discriminant field. This field is
   required for the matching and handling of specific error tags.
 </Warning>
-
-</Tab>
-</Tabs>
