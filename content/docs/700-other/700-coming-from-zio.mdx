@@ -66,7 +66,7 @@ In previous versions of Effect, intersections were used for representing an envi
 
 In ZIO 2.0, the _contravariant_ `R` type parameter of the `ZIO` type (representing the environment) became fully phantom, thus allowing for removal of the `Has` type. This significantly improved the clarity of type signatures as well as removing another "stumbling block" for new users.
 
-To faciliate removal of `Has` in Effect, we had to consider how types in the environment compose. By the rule of composition, contravariant parameters composed as an intersection (i.e. with `&`) are equivalent to covariant parameters composed together as a union (i.e. with `|`) for purposes of assignability. Based upon this fact, we decided to diverge from ZIO and make the `R` type parameter _covariant_ given `A | B` does not reduce to `never` if `A` and `B` have conflicts.
+To facilitate removal of `Has` in Effect, we had to consider how types in the environment compose. By the rule of composition, contravariant parameters composed as an intersection (i.e. with `&`) are equivalent to covariant parameters composed together as a union (i.e. with `|`) for purposes of assignability. Based upon this fact, we decided to diverge from ZIO and make the `R` type parameter _covariant_ given `A | B` does not reduce to `never` if `A` and `B` have conflicts.
 
 From our example above:
 
