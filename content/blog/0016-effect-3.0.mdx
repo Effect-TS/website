@@ -255,7 +255,7 @@ export const getTodo: (
   id: number
 ) =>
   HttpClient.request.get(`/todos/${id}`).pipe(
-    HttpClient.client.fetchOk(),
+    HttpClient.client.fetchOk,
     HttpClient.response.json,
     Effect.timeout("1 seconds"),
     Effect.retry(
@@ -279,7 +279,7 @@ const retryPolicy = Schedule.exponential(1000).pipe(
 
 const httpCall = (id: number) =>
   HttpClient.request.get(`/todos/${id}`).pipe(
-    HttpClient.client.fetchOk(),
+    HttpClient.client.fetchOk,
     HttpClient.response.json
   )
 
@@ -300,21 +300,25 @@ import { HttpClient } from "@effect/platform"
 import { Schema } from "@effect/schema"
 import { Effect, Schedule } from "effect"
 
+import { HttpClient } from "@effect/platform"
+import { Schema } from "@effect/schema"
+import { Effect, Schedule } from "effect"
+
 const retryPolicy = Schedule.exponential(1000).pipe(
   Schedule.compose(Schedule.recurs(3))
 )
 
 const httpCall = (id: number) =>
   HttpClient.request.get(`/todos/${id}`).pipe(
-    HttpClient.client.fetchOk(),
+    HttpClient.client.fetchOk,
     HttpClient.response.json
   )
 
 class Todo extends Schema.Class<Todo>("Todo")({
-  id: Schema.number,
-  userId: Schema.number,
-  title: Schema.string,
-  completed: Schema.boolean
+  id: Schema.Number,
+  userId: Schema.Number,
+  title: Schema.String,
+  completed: Schema.Boolean
 }) {}
 
 export const getTodo = (id: number) =>
