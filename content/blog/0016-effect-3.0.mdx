@@ -1,0 +1,359 @@
+---
+title: Effect 3.0
+excerpt: Production-Grade Software in TypeScript with Effect
+date: 2024-04-16
+authors:
+  - name: Michael Arnaldi
+    description: Chief Executive Officer
+    avatar: https://pbs.twimg.com/profile_images/1232338149340319751/Ln9nNWyk_400x400.jpg
+    twitter: https://twitter.com/MichaelArnaldi
+---
+
+## Announcement
+
+Effect is finally stable!
+
+<YouTube url="https://www.youtube.com/embed/ViSiXfBKElQ?si=65O07HfOc3qFzqAI" />
+
+I am pleased to announce that after 5 years of work and 3+ years of production usage we are ready to release Effect 3.0, the first stable release of the core of the Effect Ecosystem.
+
+Starting with 3.0 the main package `effect` will follow semantic versioning:
+
+1) major releases will include breaking changes
+2) minor releases will include new features and new modules
+3) patch releases will include bug-fixes
+
+We do not expect new major releases in the near future, we will release a new major when a significant number of API improvements have been made and after a substantial period of feedback.
+
+## Quickstart
+
+Effect is a TypeScript library that works in every runtime & project, to start using it you can:
+
+```bash
+npm install effect
+```
+
+And follow the quickstart guide in our [documentation](https://effect.website/docs/quickstart).
+
+If you prefer instead to have a look at a fully working & effect-native app we've prepared a [demo cli app](https://github.com/IMax153/effect-openai) that you can directly open in [Gitpod](https://gitpod.io/) or locally (if you prefer), you'll need to provide an OpenAI API Key in order to integrate with the OpenAI API. The demo app allows you to train a model via embeddings from a set of files and then allows you to prompt the trained model with questions.
+
+The same app was used in the [Advanced Workshop](https://github.com/IMax153/advanced-effect-workshop) held in Vienna by [Maxwell Brown](https://twitter.com/imax153), you can start to follow the workshop from the material knowing that recordings will be made public soon, together with the [Beginner/Intermediate Workshop](https://github.com/ethanniser/effect-workshop) held by [Ethan Niser](https://twitter.com/ethanniser).
+
+If you want to have a glimpse at the conference, we just published the opening keynote of the day by Johannes Schickling who tells us how he likes to write Production-Grade Software in TypeScript with Effect:
+
+<YouTube url="https://www.youtube.com/embed/PxIBWjiv3og?si=JoRFl-wtBxE1aHzA" />
+
+## The Problem
+
+TypeScript is quickly becoming the de-facto standard for writing business applications. Thanks to the evolution of JavaScript runtimes it is now very common to write 90% (or more) of your application code in TypeScript across both front-end and back-end.
+
+<Tweet id="1765083019973714292" />
+
+But the JavaScript (and TypeScript) we all know and love wasn't made for this, it started as a scripting language to automate a few simple UI tasks.
+
+When developing in TypeScript to write production-grade software we feel a lack of features, namely:
+
+### Error Management
+
+Painful. Even when using TS we often have to deal with `unknown` error types that make our handling logic a guessing game.
+
+### Dependency Injection 
+
+Totally missing. Which makes our code hard to test and testing becomes reliant on the monkey-patching of modules.
+
+### Data Modelling 
+
+Challenging and mostly unsafe. TypeScript types don't exist at runtime, and if we don't properly check the edges of our program (where data comes in and goes out) we rely on a lie. All seems good and safe but ready to explode at any point in time.
+
+### Interruption 
+
+Added to the language as an afterthought. Passing AbortSignal around manually makes our code a nightmere.
+
+### Tracing & Metrics
+
+Non-existent. When using libraries such as `opentelemetry` we have to compromise on code expressivity, and we end up wrapping everything with noisy try-catch statements that only hurt the readability of our code.
+
+### Logging
+
+Usually implemented as a few custom calls to `console.log` and doesn't consider different severity levels. Even when it does with `console.info` (and similar), there is no global switch to set the current log level of a program.
+
+### State of JS Survey
+
+When asked about the [Pain Points](https://2022.stateofjs.com/en-US/opinions/#top_js_pain_points) of JavaScript, in the latest [State of JS](https://2022.stateofjs.com/) survey people say:
+
+![Pain Points](https://i.imgur.com/7MSgUnL.png)
+
+And when asked about [What they feel missing](https://i.imgur.com/uqJutUl.png) they say:
+
+![What is missing in JS](https://i.imgur.com/uqJutUl.png)
+
+In short, TS doesn't have a strong standard library that addresses the problems of Production Grade Software. We end up with thousands of small npm packages that fill the holes in a way that doesn't quite compose, making our code horrendous (albeit working).
+
+## The Solution
+
+That's where Effect comes in! Made from day 1 with production grade software in mind, Effect is the missing piece in the TypeScript puzzle. It is meant to be the standard library that we all love and use to build our code.
+In other words, If TypeScript was created to be JavaScript that scales, Effect was created to be TypeScript that scales.
+
+In Effect everything that was mentioned so far is supported natively, without being an afterthought.
+
+Let's see some code, before and after Effect, by analyzing a single HTTP call.
+
+### Plain TS code
+
+```ts
+interface Todo {
+  readonly id: number
+  readonly userId: number
+  readonly title: string
+  readonly completed: boolean
+}
+
+const getTodo = async (id: number): Promise<Todo> => {
+  const response = await fetch(`/todos/${id}`)
+  const todo = await response.json()
+  return todo
+}
+```
+
+Even going beyond the fault of assuming the todo returned by the API necessarily matches the `Todo` interface, the code above is kind of unsafe for other less obvious reasons as well. For example, by calling it we have no idea for what reasons it may fail.
+
+If we were to add such a requirement our code would become:
+
+```ts
+async function getTodo(
+  id: number
+): Promise<
+  | { ok: true; todo: Todo }
+  | { ok: false; error: "InvalidJson" | "RequestFailed" }
+> {
+  try {
+    const response = await fetch(`/todos/${id}`)
+    if (!response.ok) throw new Error("Not OK!")
+    try {
+      const todo = await response.json()
+      return { ok: true, todo }
+    } catch (jsonError) {
+      return { ok: false, error: "InvalidJson" }
+    }
+  } catch (error) {
+    return { ok: false, error: "RequestFailed" }
+  }
+}
+```
+
+Lets say that it is good enough, this still does not represent the rest of the actual requirements that you see in the wild, so now without going step-by-step, a realistic feature set would also include:
+- the api call is retried using an exponential backoff policy, that avoids hurting an already faulty backend
+- the code should be instrumented for telemetry - such that a connected telemetry backend (such as Tempo / Jaeger / Honeycomb / Datadog / etc) can show exactly what fails, when it fails, why it fails and exactly how long every step takes.
+- the code should be compatible with interruption (aka graceful shutdown). When the response is no longer needed, we'd like our request to be interrupted.
+
+We'd end up with:
+
+```ts
+const tracer = Otel.trace.getTracer("todos")
+
+function getTodo(
+  id: number
+  {
+    retries = 3,
+    retryBaseDelay = 1000,
+    signal,
+  }: {
+    retries?: number
+    retryBaseDelay?: number
+    signal?: AbortSignal
+  },
+): Promise<
+  | { ok: true; todo: Todo }
+  | {
+      ok: false
+      error: "InvalidJson" | "RequestFailed" | "Timeout"
+    }
+> {
+  return tracer.startActiveSpan(
+    "getTodo",
+    { attributes: { id } },
+    async (span) => {
+      try {
+        const result = await execute(0)
+        if (result.ok) {
+          span.setStatus({ code: Otel.SpanStatusCode.OK })
+        } else {
+          span.setStatus({
+            code: Otel.SpanStatusCode.ERROR,
+            message: result.error,
+          })
+        }
+        return result
+      } finally {
+        span.end()
+      }
+    },
+  )
+
+  async function execute(attempt: number): Promise<
+    | { ok: true; todo: Todo }
+    | {
+        ok: false
+        error: "InvalidJson" | "RequestFailed" | "Timeout"
+      }
+  > {
+    try {
+      const controller = new AbortController()
+      setTimeout(() => controller.abort(), 1000)
+      signal?.addEventListener("abort", () =>
+        controller.abort(),
+      )
+      const response = await fetch(`/todos/${id}`, {
+        signal: controller.signal,
+      })
+      if (!response.ok) throw new Error("Not OK!")
+      try {
+        const todo = await response.json()
+        return { ok: true, todo }
+      } catch (jsonError) {
+        if (attempt < retries) {
+          throw jsonError // jump to retry
+        }
+        return { ok: false, error: "InvalidJson" }
+      }
+    } catch (error) {
+      if ((error as Error).name === "AbortError") {
+        return { ok: false, error: "Timeout" }
+      } else if (attempt < retries) {
+        const delayMs = retryBaseDelay * 2 ** attempt
+        return new Promise((resolve) =>
+          setTimeout(
+            () => resolve(execute(attempt + 1)),
+            delayMs,
+          ),
+        )
+      }
+      return { ok: false, error: "RequestFailed" }
+    }
+  }
+} 
+```
+
+By this time I challenge every human being to look at the code and tell me if it even works according to spec, let alone being confident in making any change to it. Also we still haven't solved the issue with data validation, for that we might want to add a dependency to Zod (or similar) and add a validation step (with subsequent typed error).
+
+### Effect code
+
+By using Effect the above mess becomes just 25 lines of highly declarative code (imports & formatting included):
+
+```ts
+import { HttpClient } from "@effect/platform"
+import type { Cause } from "effect"
+import { Effect, Schedule } from "effect"
+
+export const getTodo: (
+  id: number
+) => Effect.Effect<
+  unknown,
+  | HttpClient.error.HttpClientError
+  | Cause.TimeoutException
+> = (
+  id: number
+) =>
+  HttpClient.request.get(`/todos/${id}`).pipe(
+    HttpClient.client.fetchOk,
+    HttpClient.response.json,
+    Effect.timeout("1 seconds"),
+    Effect.retry(
+      Schedule.exponential(1000).pipe(
+        Schedule.compose(Schedule.recurs(3))
+      )
+    ),
+    Effect.withSpan("getTodo", { attributes: { id } })
+  )
+```
+
+If we unpack each piece in its own code block and allow for type inference it becomes even simpler to read and understand:
+
+```ts
+import { HttpClient } from "@effect/platform"
+import { Effect, Schedule } from "effect"
+
+const retryPolicy = Schedule.exponential(1000).pipe(
+  Schedule.compose(Schedule.recurs(3))
+)
+
+const httpCall = (id: number) =>
+  HttpClient.request.get(`/todos/${id}`).pipe(
+    HttpClient.client.fetchOk,
+    HttpClient.response.json
+  )
+
+export const getTodo = (id: number) =>
+  httpCall(id).pipe(
+    Effect.timeout("1 seconds"),
+    Effect.retry(retryPolicy),
+    Effect.withSpan("getTodo", { attributes: { id } })
+  )
+```
+
+In this example we can truly see the power of composition, each block of Effect cares about a specific thing (such as schedule definitions, http client, etc) and it does so in such a way that the single pieces compose together.
+
+The last problem we wanted to solve with our code is checking the types at the edge, accounting for that our full example code becomes:
+
+```ts
+import { HttpClient } from "@effect/platform"
+import { Schema } from "@effect/schema"
+import { Effect, Schedule } from "effect"
+
+const retryPolicy = Schedule.exponential(1000).pipe(
+  Schedule.compose(Schedule.recurs(3))
+)
+
+const httpCall = (id: number) =>
+  HttpClient.request.get(`/todos/${id}`).pipe(
+    HttpClient.client.fetchOk,
+    HttpClient.response.json
+  )
+
+class Todo extends Schema.Class<Todo>("Todo")({
+  id: Schema.Number,
+  userId: Schema.Number,
+  title: Schema.String,
+  completed: Schema.Boolean
+}) {}
+
+export const getTodo = (id: number) =>
+  httpCall(id).pipe(
+    Effect.timeout("1 seconds"),
+    Effect.retry(retryPolicy),
+    Effect.flatMap(Schema.decodeUnknown(Todo)),
+    Effect.withSpan("getTodo", { attributes: { id } })
+  )
+```
+
+## The Future
+
+While the core `effect` library is now stable, the rest of the ecosystem such as `@effect/platform` and `@effect/schema` aren't yet. It will be our first priority to make the ecosystem libraries stable, together with adding tons of documentation and examples.
+
+Following that, we plan to keep iterating and develop higher and higher levels of abstraction to solve challenging issues in the development of Production-Grade TypeScript. 
+
+Our next goal for the near future is to build up [Effect Cluster](https://github.com/Effect-TS/cluster), the first JavaScript solution that enables:
+- Clustering of Distributed Instances
+- Addressing of Processes by Name
+- Actors and Entities
+- Scheduling of Cluster Singletons
+- Execution of Durable Business Workflows
+
+While many current solutions for business workflows prescribe a specific way of doing things and pretend that all problems fit in that solution, Effect Cluster will provide a holistic framework that will enable users to write workflows that work for the problem they have, for example they will support:
+
+- Explicit event sourcing / actor model, a la Akka/Pekko in the JVM, ideal for real-time / multiplayer-like code where you model your system as a set of entities with their behaviors.
+- Implicit event sourcing / retried program, a la Temporal, ideal for short-lived transactions that spawn across different systems, for example a registration procedure that has to write to a database and send a confirmation email or a payment that has to be reconciled with the payment provider.
+- Explicit state machines, ideal for high-frequency scenarios that are state-first and require introspection, for example a trading system that has to constantly reassess the risk of a particular position and take decisions based on the assessment.
+
+## The Company
+
+A year ago with the objective of making Effect as easy to use and as feature complete as possible we:
+- Incorporated [Effectful Technologies Inc](https://effectful.co/).
+- Raised a Seed Round of 2.275.000$ led by [Amplify Partners](https://www.amplifypartners.com/) with participation from Early Adopters. 
+- Hired an amazing Founding Team.
+
+As a VC-backed company that deals with Free Open Source Software, especially in recent times, we are aware of our responsibility of being absolutely clear about what is OSS and what isn't.
+
+So to make it very clear, **everything that is released under MIT license will remain MIT licensed** and we don't require CLAs. The Effect organization is fully managed by the Community.
+
+To make money Effectful Technologies will house and build its own Effect-powered products and services that you can choose to use as you see fit.
