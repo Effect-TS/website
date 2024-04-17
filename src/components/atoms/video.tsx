@@ -15,7 +15,7 @@ export const Video = () => {
             <iframe
               width="100%"
               height="100%"
-              src={`https://www.youtube-nocookie.com/embed/SloZE4i4Zfk?&autoplay=1`}
+              src={`https://www.youtube-nocookie.com/embed/ViSiXfBKElQ?&autoplay=1`}
               loading="lazy"
               allowFullScreen
               title="Effect: Next-Generation TypeScript"
