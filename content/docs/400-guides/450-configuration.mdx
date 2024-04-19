@@ -18,7 +18,7 @@ To make our application configurable, we need to understand three essential elem
 
 - **Config Backend**: The `ConfigProvider` serves as the underlying engine that manages the configuration loading process. Effect comes with a default config provider as part of its default services. This default provider reads the configuration data from environment variables. If we want to use a custom config provider, we can utilize the `Layer.setConfigProvider` layer to configure the Effect runtime accordingly.
 
-## Primitives
+## Getting Started
 
 Effect provides a set of primitives for the most common types like `string`, `number`, `boolean`, `integer`, etc.
 
@@ -62,7 +62,7 @@ Effect.runSync(program)
 
 If we run this application we will get the following output:
 
-```
+```bash
 (Missing data at HOST: "Expected HOST to exist in the process context")
 ```
 
@@ -74,11 +74,27 @@ HOST=localhost PORT=8080 ts-node primitives.ts
 
 Now we get the following output:
 
-```
+```bash
 Application started: localhost:8080
 ```
 
-## Fallback Values
+## Primitives
+
+Effect offers these basic types out of the box:
+
+- `string`: Constructs a config for a string value.
+- `number`: Constructs a config for a float value.
+- `boolean`: Constructs a config for a boolean value.
+- `integer`: Constructs a config for a integer value.
+- `date`: Constructs a config for a date value.
+- `literal`: Constructs a config for a literal (\*) value.
+- `logLevel`: Constructs a config for a [LogLevel](observability/logging#log-levels) value.
+- `duration`: Constructs a config for a duration value.
+- `secret`: Constructs a config for a secret value.
+
+(\*) `string | number | boolean | null | bigint`
+
+## Default Values
 
 In some cases, you may encounter situations where an environment variable is not set, leading to a missing value in the configuration. To handle such scenarios, Effect provides the `Config.withDefault` function. This function allows you to specify a fallback or default value to use when an environment variable is not present.
 
@@ -92,7 +108,7 @@ import { Effect, Config } from "effect"
 
 const program = Effect.gen(function* (_) {
   const host = yield* _(Config.string("HOST"))
-  const port = yield* _(Config.withDefault(Config.number("PORT"), 8080))
+  const port = yield* _(Config.number("PORT").pipe(Config.withDefault(8080)))
   console.log(`Application started: ${host}:${port}`)
 })
 
@@ -107,7 +123,7 @@ import { Effect, Config, Console } from "effect"
 
 const program = Effect.all([
   Config.string("HOST"),
-  Config.withDefault(Config.number("PORT"), 8080)
+  Config.number("PORT").pipe(Config.withDefault(8080))
 ]).pipe(
   Effect.flatMap(([host, port]) =>
     Console.log(`Application started: ${host}:${port}`)
@@ -128,15 +144,97 @@ HOST=localhost ts-node withDefault.ts
 
 you will see the following output:
 
-```
+```bash
 Application started: localhost:8080
 ```
 
 Even though the `PORT` environment variable is not set, the fallback value of `8080` is used, ensuring that the program continues to run smoothly with a default value.
 
+## Constructors
+
+Effect provides several built-in constructors. These are functions that take a `Config` as input and produce another `Config`.
+
+- `array`: Constructs a config for an array of values.
+- `chunk`: Constructs a config for a sequence of values.
+- `option`: Returns an optional version of this config, which will be `None` if the data is missing from configuration, and `Some` otherwise.
+- `repeat`: Returns a config that describes a sequence of values, each of which has the structure of this config.
+- `hashSet`: Constructs a config for a sequence of values.
+- `hashMap`: Constructs a config for a sequence of values.
+
+In addition to the basic ones, there are three special constructors you might find useful:
+
+- `succeed`: Constructs a config which contains the specified value.
+- `fail`: Constructs a config that fails with the specified message.
+- `all`: Constructs a config from a tuple / struct / arguments of configs.
+
+**Example**
+
+```ts filename="array.ts" twoslash
+import { Effect, Config } from "effect"
+
+const program = Effect.gen(function* (_) {
+  const config = yield* _(Config.array(Config.string(), "MY_ARRAY"))
+  console.log(config)
+})
+
+Effect.runSync(program)
+```
+
+```bash filename="Terminal"
+MY_ARRAY=a,b,c ts-node array.ts
+
+[ 'a', 'b', 'c' ]
+```
+
+## Operators
+
+Effect comes with a set of built-in operators to help you manipulate and handle configurations.
+
+### Transforming Operators
+
+These operators allow you to transform a config into a new one:
+
+- `validate`: Returns a config that describes the same structure as this one, but which performs validation during loading.
+- `map`: Creates a new config with the same structure as the original but with values transformed using a given function.
+- `mapAttempt`: Similar to `map`, but if the function throws an error, it's caught and turned into a validation error.
+- `mapOrFail`: Like `map`, but allows for functions that might fail. If the function fails, it results in a validation error.
+
+### Fallback Operators
+
+These operators help you set up fallbacks in case of errors or missing data:
+
+- `orElse`: Sets up a config that tries to use this config first. If there's an issue, it falls back to another specified config.
+- `orElseIf`: This one also tries to use the main config first but switches to a fallback config if there's an error that matches a specific condition.
+
+**Example**
+
+```ts filename="validate.ts" twoslash
+import { Effect, Config } from "effect"
+
+const program = Effect.gen(function* (_) {
+  const config = yield* _(
+    Config.string("NAME").pipe(
+      Config.validate({
+        message: "Expected a string at least 4 characters long",
+        validation: (s) => s.length >= 4
+      })
+    )
+  )
+  console.log(config)
+})
+
+Effect.runSync(program)
+```
+
+```bash filename="Terminal"
+NAME=foo ts-node validate.ts
+
+[(Invalid data at NAME: "Expected a string at least 4 characters long")]
+```
+
 ## Custom Configurations
 
-In addition to primitive types, we can also define configurations for custom types. To achieve this, we use primitive configs and combine them using `Config` operators (`zip`, `orElse`, `map`, etc.) and constructors (`setOf`, `arrayOf`, `table`, etc.).
+In addition to primitive types, we can also define configurations for custom types. To achieve this, we use primitive configs and combine them using `Config` operators (`zip`, `orElse`, `map`, etc.) and constructors (`array`, `hashSet`, etc.).
 
 Let's consider the `HostPort` data type, which consists of two fields: `host` and `port`.
 
