@@ -1,6 +1,6 @@
 ---
 title: This Week in Effect - 2024-04-19
-excerpt: Technical updates in Effect, effect/schema talk by Jess Martin, a new video about Effect by Lucas Barake, and Effect Paris Meetup update.
+excerpt: Effect 3.0 Announcement and Reactions, Technical updates in Effect.
 date: 2024-04-19
 authors:
   - name: Davide Scognamiglio
@@ -38,7 +38,7 @@ If you're new to TWIE, here are a few words on what TWIE is and what it aims for
 We’re happy to see the community growing so fast, with more and more people adopting Effect. At the same time, we understand that it might not be easy keeping up with everything that is going on in the Effect Ecosystem:
 
 - Effect became API stable with the Effect 3.0 release.
-- Our Discord server reached **2270+ members** a few days ago and the engagement is at an all-time high.
+- Our Discord server reached **2280+ members** a few days ago and the engagement is at an all-time high.
 - We've begun publishing the talks from Effect Days every week. Make sure you don't miss any by [subscribing to our YouTube channel](https://www.youtube.com/@effect-ts).
 - All projects around Effect are receiving **key updates** and there has been a lot of activity on GitHub!
 
@@ -49,8 +49,21 @@ We want to make it easy for you to find all the info you need to fully enjoy you
 Now, back to business!
 
 ## Technology
+We can't beat around the bush, so let's get straight to the big news of the week: we've released Effect 3.0, and with it, the core package of Effect is effectively stable. This release is the result of 5 years of work by the team and community support.
 
-Below you may find the list of all changes that occurred last week.
+<YouTube url="https://www.youtube.com/embed/ViSiXfBKElQ?si=65O07HfOc3qFzqAI" />
+
+Starting with 3.0 the main package "effect" will follow semantic versioning:
+
+1) major releases will include breaking changes
+2) minor releases will include new features and new modules
+3) patch releases will include bug-fixes
+
+Our commitment for the future will be to make also the other libraries in the Effect Ecosystem stable.
+
+You can read the full [Effect 3.0 Annoucement here.](https://effect.website/blog/effect-3.0)
+
+Now, let's take a look to all the changes that occurred last week.
 
 ### Effect Core
 + [Ensure correct value is passed to mapping function in mapAccum loop](https://github.com/Effect-TS/effect/pull/2507) (Bug Fix)
@@ -63,6 +76,7 @@ Below you may find the list of all changes that occurred last week.
 + [Re-enable provenance publishing](https://github.com/Effect-TS/effect/pull/2562) (Feature)
 + [Added Stream.fromEventListener](https://github.com/Effect-TS/effect/pull/2513) (Feature, next-minor)
 + [Add Effect.timeoutOption](https://github.com/Effect-TS/effect/pull/2541) (Feature, next-minor)
++ [Add Match.withReturnType api](https://github.com/Effect-TS/effect/pull/2568) (Feature)
 
 ### Effect SQL
 + [Move sqlfx/sql into the @effect/sql package](https://github.com/Effect-TS/effect/pull/2104) (Feature)
@@ -72,6 +86,7 @@ Below you may find the list of all changes that occurred last week.
 + [Add sqlfx migration notes to /sql](https://github.com/Effect-TS/effect/pull/2544) (Improvement)
 + [Update sql.in examples in README](https://github.com/Effect-TS/effect/pull/2545) (Documentation Update)
 + [Re-enable provenance publishing](https://github.com/Effect-TS/effect/pull/2562) (Feature)
++ [Use op-sqlite for sqlite react native](https://github.com/Effect-TS/effect/pull/2569) (Feature)
 
 ### Effect Platform
 + [Allow http handlers to be uninterruptible](https://github.com/Effect-TS/effect/pull/2515) (Feature)
@@ -83,6 +98,7 @@ Below you may find the list of all changes that occurred last week.
 + [Re-enable provenance publishing](https://github.com/Effect-TS/effect/pull/2562) (Feature)
 + [Added Stream.fromEventListener](https://github.com/Effect-TS/effect/pull/2513) (Feature, next-minor)
 + [Add Http.response.void helper, for creating a http request that returns void](https://github.com/Effect-TS/effect/pull/2565) (Feature)
++ [Add more span attributes to http traces](https://github.com/Effect-TS/effect/pull/2567) (Feature)
 
 ### Effect RPC
 + [Ensure context is available in rpc http stream](https://github.com/Effect-TS/effect/pull/2516) (Feature)
@@ -92,10 +108,13 @@ Below you may find the list of all changes that occurred last week.
 ### Effect Typeclass
 + [Rename ReadonlyArray and ReadonlyRecord modules](https://github.com/Effect-TS/effect/pull/2529) (Refactor)
 + [Re-enable provenance publishing](https://github.com/Effect-TS/effect/pull/2562) (Feature)
++ [Update README for the typeclass package](https://github.com/Effect-TS/effect/pull/2571) (Documentation Update)
 
 ### Effect Opentelemetry
 + [Rename ReadonlyArray and ReadonlyRecord modules](https://github.com/Effect-TS/effect/pull/2529) (Refactor)
 + [Re-enable provenance publishing](https://github.com/Effect-TS/effect/pull/2562) (Feature)
++ [Update @opentelemetry/* peer dependencies to ensure allowed versions include used import](https://github.com/Effect-TS/effect/pull/2572) (Bug Fix)
++ [Add otel Resource.layerFromEnv, for constructing a resource from env variables](https://github.com/Effect-TS/effect/pull/2575) (Feature)
 
 ### Effect Experimental
 + [Rename ReadonlyArray and ReadonlyRecord modules](https://github.com/Effect-TS/effect/pull/2529) (Refactor)
@@ -117,6 +136,7 @@ Below you may find the list of all changes that occurred last week.
 + [Schema: refactor test filenames to align with new naming conventions](https://github.com/Effect-TS/effect/pull/2560) (Refactor)
 + [Schema: expand the Zod comparison section to include a list of code comparisons that can serve as a useful migration guide](https://github.com/Effect-TS/effect/pull/2563) (Documentation Update)
 + [Re-enable provenance publishing](https://github.com/Effect-TS/effect/pull/2562) (Feature)
++ [Schema: partial / required: add support for renaming property keys in property signature transformations](https://github.com/Effect-TS/effect/pull/2577) (Bug Fix)
 
 ### Effect Vitest
 + [Re-enable provenance publishing](https://github.com/Effect-TS/effect/pull/2562) (Feature)
@@ -126,43 +146,65 @@ Below you may find the list of all changes that occurred last week.
 + [Re-enable provenance publishing](https://github.com/Effect-TS/effect/pull/2562) (Feature)
 
 ### General Chores
++ [Add Effect 3.0 changeset](https://github.com/Effect-TS/effect/pull/2526)
 + [Refine package descriptions](https://github.com/Effect-TS/effect/pull/2532)
 + [Fix typo in AsyncFiberException](https://github.com/Effect-TS/effect/pull/2533)
 + [Update devDependencies](https://github.com/Effect-TS/effect/pull/2534)
 + [Remove leftovers](https://github.com/Effect-TS/effect/pull/2536)
 + [Update intro video](https://github.com/Effect-TS/effect/pull/2549)
 + [Use JSONC for code example language](https://github.com/Effect-TS/effect/pull/2554)
++ [Bump pnpm version](https://github.com/Effect-TS/effect/pull/2574)
 
 ## Community
 
-In the last week, we welcomed +70 new Effecters to our [Discord server](https://discord.gg/effect-ts)! Thank you all for joining the Effect community, we're excited to have you on board!
+In the last week, we welcomed +80 new Effecters to our [Discord server](https://discord.gg/effect-ts)! Thank you all for joining the Effect community, we're excited to have you on board!
 
-Before we dive into this week's content, we're happy to announce the date of the first [Effect Paris Meetup](https://www.meetup.com/effect-paris/events/300307442/) hosted by [Evryg](https://www.evryg.com). The meetup will be on **Tuesday, April 23, 2024, at 7 p.m.**, and we'd like to remind everyone that it will be in French. Thanks again to the Evryg team, in particular [Jean-Baptiste Musso](https://twitter.com/jbmusso) and [Antoine Coulon](https://twitter.com/c9antoine) for organizing!
+We'd like to remind all of our french-speaking members that the first [Effect Paris Meetup](https://www.meetup.com/effect-paris/events/300307442/), hosted by [Evryg](https://www.evryg.com), will be on **Tuesday, April 23, 2024, at 7 p.m.**. Thanks again to the Evryg team, in particular [Jean-Baptiste Musso](https://twitter.com/jbmusso) and [Antoine Coulon](https://twitter.com/c9antoine) for organizing!
 
 
 ### Content Update
 
-A new talk has been released from the Effect Days conference: "Solving the distributed schema problem with @effect/schema" by [Jess Martin](https://twitter.com/jessmartin). In this talk, Jess discusses the concept of local-first software and a new shape of software architecture that involves a peer-to-peer system and moves away from the traditional client-server model. He demonstrates a simple piece of software that follows this architecture, allowing for offline support and real-time collaboration. Check out the video below:
+The unveiling of Effect 3.0 and the incorporation of [Effectful Technologies](https://www.effectful.co) has ignited a flurry of excitement within our community, with many of our longstanding partners and community members eager to express their enthusiasm for the news.
 
-<YouTube url="https://www.youtube.com/embed/o-SvvUA7hik?si=Ir7MlXbe-P72wEWu" />
+Starting with [Amplify Partners](https://www.amplifypartners.com), who led the Seed Round for Effectful Tech. Special thanks to [Lenny Pruss](https://twitter.com/lennypruss) and [Renee Shah](https://twitter.com/reneeshah123) for your support. We're looking forward to reshape the future together!
 
-You can find other talks and content from the conference at the [Effect Days playlist](https://www.youtube.com/playlist?list=PLDf3uQLaK2B9a4tbMgGd9wFeEnMA50z4w) on our YouTube channel.
+<Tweet id="1780267488300970296" />
 
-On another note, Lucas Barake has published a video introducing Effect as ["The TypeScript Library You've Been Waiting For"](https://www.youtube.com/watch?v=X98vwMYxRXw&ab_channel=LucasBarake). Among other things, Lucas demonstrates how to integrate the library into existing code, and shows examples of error handling and HTTP requests. We highly recommend checking out Lucas' video, and are happy to see the community creating educational content and spreading the word about Effect!
+[Jean-Baptiste Musso](https://twitter.com/jbmusso), co-founder of Evryg, and his team are using Effect in production for 2 years now:
 
-<YouTube url="https://www.youtube.com/embed/X98vwMYxRXw?si=vO60NCsRLhRRXjMi" />
+<Tweet id="1780255106916651116" />
 
-This week [Milad Vafaeifard](https://twitter.com/signlanguagete1) showed us how to sign for "Dual" in Effect using sign language. We appreciate Milad's support to the Effect community and his YouTube channel is a great resource for learning web development in sign language.
+[Attila Večerek](https://twitter.com/attilavecerek), Tech Lead of [Zendesk](www.zendesk.com), also is using Effect in production for 6 months:
 
-<Tweet id="1777434202125791354" />
+<Tweet id="1780843170864972069" />
 
-[Sebastian](https://twitter.com/thefubhy), self-proclaimed as the janitor at Effect, seems to enjoy dropping spoilers. Could there be a big announcement just around the corner? 👀
+[Tobias Lins](https://twitter.com/linstobias), founder of [Splitbee](https://splitbee.io/), and Tech Lead @ [Vercel](vercel.com):
 
-<Tweet id="1778327330735132848" />
+<Tweet id="1780292758843916763" />
 
-To wrap up this week's update, we'd like to share this stunning photo sent to us by one of our community members. Our journey is taking us to far places, but it's just the beginning.
+[David Peter](https://twitter.com/daviddotpeter), founder of [Type Driven](https://type-driven.com/):
 
-<Tweet id="1777302932850946203" />
+<Tweet id="1781319935647498533" />
+
+[Federico Biccheddu](https://twitter.com/Fredrik_Kedduh), CTO @ [Parcy](https://www.parcy.co):
+
+<Tweet id="1780235240889299236" />
+
+[Paul Gray](https://twitter.com/PaulGrizzay), author of [Sift, Mock, CASA node.js](https://paulgray.net/):
+
+<Tweet id="1780761229981573582" />
+
+[Petr Huřťák](https://twitter.com/PetrHurtak), Software Engeneer & Teacher @ Czech Technical University in Prague:
+
+<Tweet id="1780699475557965964" />
+
+Moving on, our author & CEO,[Michael Arnaldi](https://twitter.com/MichaelArnaldi) is going to give a talk @ [LambdaConf 2024](https://www.lambdaconf.us). If you're around, feel free to drop by and say hello!
+
+<Tweet id="1779419386882752952" />
+
+Even this week [Milad Vafaeifard](https://twitter.com/signlanguagete1) dropped a tip for peaople learning how to use Effect. In this video shows how to improve readability of the repository in your local compiler:
+
+<Tweet id="1779123150329942225" />
 
 ## Closing Notes
 
