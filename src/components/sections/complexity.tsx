@@ -243,7 +243,7 @@ const getTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
   Http.request.get(\`/todos/\${id}\`).pipe(
-    Http.client.fetchOk(),
+    Http.client.fetchOk,
     Http.response.json,
   )\
       `,
@@ -325,7 +325,7 @@ const getTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
   Http.request.get(\`/todos/\${id}\`).pipe(
-    Http.client.fetchOk(),
+    Http.client.fetchOk,
     Http.response.json,
     Effect.retry(
       Schedule.exponential(1000).pipe(
@@ -429,7 +429,7 @@ const getTodo = (
   HttpClientError | TimeoutException
 > =>
   Http.request.get(\`/todos/\${id}\`).pipe(
-    Http.client.fetchOk(),
+    Http.client.fetchOk,
     Http.response.json,
     Effect.timeout("1 seconds"),
     Effect.retry(
@@ -558,7 +558,7 @@ const getTodo = (
   HttpClientError | TimeoutException
 > =>
   Http.request.get(\`/todos/\${id}\`).pipe(
-    Http.client.fetchOk(),
+    Http.client.fetchOk,
     Http.response.json,
     Effect.timeout("1 seconds"),
     Effect.retry(
