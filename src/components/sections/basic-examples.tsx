@@ -304,7 +304,7 @@ import { Console, Effect } from "effect"
 
 const getUser = (id: number) =>
   Http.request.get(\`/users/\${id}\`).pipe(
-    Http.client.fetchOk(),
+    Http.client.fetchOk,
     Http.response.json,
     Effect.retry({ times: 3 })
   )
@@ -564,7 +564,7 @@ const getTodo = (
       \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
     )
     .pipe(
-      Http.client.fetchOk(),
+      Http.client.fetchOk,
       Http.response.json,
       Effect.timeout(1000),
     )

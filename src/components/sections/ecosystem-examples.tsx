@@ -305,7 +305,7 @@ const fetchTodo = (
   Http.request
     .get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`)
     .pipe(
-      Http.client.fetchOk(),
+      Http.client.fetchOk,
       Http.response.json,
       Effect.retry(
         Schedule.exponential(1000).pipe(
@@ -382,7 +382,7 @@ const fetchTodo = (
   Http.request
     .get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`)
     .pipe(
-      Http.client.fetchOk(),
+      Http.client.fetchOk,
       Http.response.json,
     );`
         }
