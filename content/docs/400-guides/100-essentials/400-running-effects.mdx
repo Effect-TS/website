@@ -8,7 +8,7 @@ To execute an `Effect`, we can utilize a variety of "run" functions provided by 
 
 ## runSync
 
-The `runSync` function is used to execute an Effect synchronously, which means it runs immediately and returns the result.
+The `Effect.runSync` function is used to execute an Effect synchronously, which means it runs immediately and returns the result.
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -28,7 +28,7 @@ console.log(result)
 If you check the console, you will see the message `"Hello, World!"` printed.
 
 <Warning>
-  `runSync` will throw an error if your Effect fails or performs any
+  `Effect.runSync` will throw an error if your Effect fails or performs any
   asynchronous tasks. In the latter case, the execution will not proceed
   beyond that asynchronous task.
 </Warning>
@@ -43,7 +43,7 @@ Effect.runSync(Effect.promise(() => Promise.resolve(1))) // throws
 
 ## runSyncExit
 
-The `runSyncExit` function is used to execute an Effect synchronously, which means it runs immediately and returns the result as an [`Exit`](../data-types/exit)
+The `Effect.runSyncExit` function is used to execute an Effect synchronously, which means it runs immediately and returns the result as an [Exit](../../other/data-types/exit)
 (a data type used to describe the result of executing an `Effect` workflow).
 
 ```ts twoslash
@@ -77,8 +77,9 @@ Output:
 ```
 
 <Warning>
-  `runSyncExit` will throw an error if your Effect performs any asynchronous
-  tasks and the execution will not proceed beyond that asynchronous task.
+  `Effect.runSyncExit` will throw an error if your Effect performs any
+  asynchronous tasks and the execution will not proceed beyond that
+  asynchronous task.
 </Warning>
 
 ```ts twoslash
@@ -89,7 +90,7 @@ Effect.runSyncExit(Effect.promise(() => Promise.resolve(1))) // throws
 
 ## runPromise
 
-The `runPromise` function is used to execute an Effect and obtain the result as a `Promise`.
+The `Effect.runPromise` function is used to execute an Effect and obtain the result as a `Promise`.
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -97,7 +98,9 @@ import { Effect } from "effect"
 Effect.runPromise(Effect.succeed(1)).then(console.log) // Output: 1
 ```
 
-<Warning>`runPromise` will reject with an error if your Effect fails</Warning>
+<Warning>
+  `Effect.runPromise` will reject with an error if your Effect fails
+</Warning>
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -107,7 +110,7 @@ Effect.runPromise(Effect.fail("my error")) // rejects
 
 ## runPromiseExit
 
-The `runPromiseExit` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an [`Exit`](../data-types/exit)
+The `Effect.runPromiseExit` function is used to execute an Effect and obtain the result as a `Promise` that resolves to an [Exit](../../other/data-types/exit)
 (a data type used to describe the result of executing an `Effect` workflow).
 
 ```ts twoslash
@@ -138,6 +141,31 @@ Output:
 */
 ```
 
+## runFork
+
+The `Effect.runFork` function serves as a foundational building block for running effects. In fact, all other run functions are built upon it. Unless you have a specific need for a Promise or a synchronous operation, `Effect.runFork` is the recommended choice. It returns a fiber that you can observe or interrupt as needed.
+
+```ts twoslash
+import { Effect, Console, Schedule, Fiber } from "effect"
+
+const program = Effect.repeat(
+  Console.log("running..."),
+  Schedule.spaced("200 millis")
+)
+
+const fiber = Effect.runFork(program)
+
+setTimeout(() => {
+  Effect.runFork(Fiber.interrupt(fiber))
+}, 500)
+```
+
+In this example, the `program` continuously logs "running..." with each repetition spaced 200 milliseconds apart. You can learn more about repetitions and scheduling in our [Introduction to Scheduling](../scheduling/introduction) guide.
+
+To stop the execution of the program, we use `Fiber.interrupt` on the fiber returned by `Effect.runFork`. This allows you to control the execution flow and terminate it when necessary.
+
+For a deeper understanding of how fibers work and how to handle interruptions, check out our guides on [Fibers](../concurrency/fibers) and [Interruptions](../concurrency/interruption-model).
+
 ## Cheatsheet
 
 <Design>
@@ -155,5 +183,6 @@ The table provides a summary of the available `run*` functions, along with their
 | `runSyncExit`    | `Effect<A, E>` | `Exit<A, E>`          |
 | `runPromise`     | `Effect<A, E>` | `Promise<A>`          |
 | `runPromiseExit` | `Effect<A, E>` | `Promise<Exit<A, E>>` |
+| `runFork`        | `Effect<A, E>` | `RuntimeFiber<A, E>`  |
 
 You can find the complete list of `run*` functions [here](https://effect-ts.github.io/effect/effect/Effect.ts.html#execution).
