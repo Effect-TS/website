@@ -358,9 +358,9 @@ const program = Effect.gen(function* (_) {
   yield* _(task2, Scope.extend(scope2))
 
   // Close scope1 and scope2 manually
-  yield* _(Scope.close(scope1, Exit.unit))
+  yield* _(Scope.close(scope1, Exit.void))
   yield* _(Console.log("doing something else"))
-  yield* _(Scope.close(scope2, Exit.unit))
+  yield* _(Scope.close(scope2, Exit.void))
 })
 
 Effect.runPromise(program.pipe(Effect.scoped))
@@ -396,9 +396,9 @@ const program = Effect.all([Scope.make(), Scope.make()]).pipe(
   Effect.flatMap(([scope1, scope2]) =>
     Scope.extend(task1, scope1).pipe(
       Effect.flatMap(() => Scope.extend(task2, scope2)),
-      Effect.flatMap(() => Scope.close(scope1, Exit.unit)),
+      Effect.flatMap(() => Scope.close(scope1, Exit.void)),
       Effect.flatMap(() => Console.log("doing something else")),
-      Effect.flatMap(() => Scope.close(scope2, Exit.unit))
+      Effect.flatMap(() => Scope.close(scope2, Exit.void))
     )
   )
 )

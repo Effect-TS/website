@@ -93,8 +93,8 @@ const createBucket = Effect.gen(function* (_) {
       // The release function for the Effect.acquireRelease operation is responsible for handling the acquired resource (bucket) after the main effect has completed.
       // It is called regardless of whether the main effect succeeded or failed.
       // If the main effect failed, Exit.isFailure(exit) will be true, and the function will perform a rollback by calling deleteBucket(bucket).
-      // If the main effect succeeded, Exit.isFailure(exit) will be false, and the function will return Effect.unit, representing a successful, but do-nothing effect.
-      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.unit
+      // If the main effect succeeded, Exit.isFailure(exit) will be false, and the function will return Effect.void, representing a successful, but do-nothing effect.
+      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.void
     )
   )
 })
@@ -104,7 +104,7 @@ const createIndex = Effect.gen(function* (_) {
   const { createIndex, deleteIndex } = yield* _(Services.ElasticSearch)
   return yield* _(
     Effect.acquireRelease(createIndex, (index, exit) =>
-      Exit.isFailure(exit) ? deleteIndex(index) : Effect.unit
+      Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
     )
   )
 })
@@ -115,7 +115,7 @@ const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
     const { createEntry, deleteEntry } = yield* _(Services.Database)
     return yield* _(
       Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
-        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.unit
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
       )
     )
   })
@@ -148,8 +148,8 @@ const createBucket = Services.S3.pipe(
       // The release function for the Effect.acquireRelease operation is responsible for handling the acquired resource (bucket) after the main effect has completed.
       // It is called regardless of whether the main effect succeeded or failed.
       // If the main effect failed, Exit.isFailure(exit) will be true, and the function will perform a rollback by calling deleteBucket(bucket).
-      // If the main effect succeeded, Exit.isFailure(exit) will be false, and the function will return Effect.unit, representing a successful, but do-nothing effect.
-      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.unit
+      // If the main effect succeeded, Exit.isFailure(exit) will be false, and the function will return Effect.void, representing a successful, but do-nothing effect.
+      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.void
     )
   )
 )
@@ -158,7 +158,7 @@ const createBucket = Services.S3.pipe(
 const createIndex = Services.ElasticSearch.pipe(
   Effect.flatMap(({ createIndex, deleteIndex }) =>
     Effect.acquireRelease(createIndex, (index, exit) =>
-      Exit.isFailure(exit) ? deleteIndex(index) : Effect.unit
+      Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
     )
   )
 )
@@ -168,7 +168,7 @@ const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
   Services.Database.pipe(
     Effect.flatMap(({ createEntry, deleteEntry }) =>
       Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
-        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.unit
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
       )
     )
   )
@@ -203,7 +203,7 @@ import * as Services from "./Services"
 const createBucket = Services.S3.pipe(
   Effect.flatMap(({ createBucket, deleteBucket }) =>
     Effect.acquireRelease(createBucket, (bucket, exit) =>
-      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.unit
+      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.void
     )
   )
 )
@@ -211,7 +211,7 @@ const createBucket = Services.S3.pipe(
 const createIndex = Services.ElasticSearch.pipe(
   Effect.flatMap(({ createIndex, deleteIndex }) =>
     Effect.acquireRelease(createIndex, (index, exit) =>
-      Exit.isFailure(exit) ? deleteIndex(index) : Effect.unit
+      Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
     )
   )
 )
@@ -220,7 +220,7 @@ const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
   Services.Database.pipe(
     Effect.flatMap(({ createEntry, deleteEntry }) =>
       Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
-        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.unit
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
       )
     )
   )
@@ -347,7 +347,7 @@ import * as Services from "./Services"
 const createBucket = Services.S3.pipe(
   Effect.flatMap(({ createBucket, deleteBucket }) =>
     Effect.acquireRelease(createBucket, (bucket, exit) =>
-      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.unit
+      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.void
     )
   )
 )
@@ -355,7 +355,7 @@ const createBucket = Services.S3.pipe(
 const createIndex = Services.ElasticSearch.pipe(
   Effect.flatMap(({ createIndex, deleteIndex }) =>
     Effect.acquireRelease(createIndex, (index, exit) =>
-      Exit.isFailure(exit) ? deleteIndex(index) : Effect.unit
+      Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
     )
   )
 )
@@ -364,7 +364,7 @@ const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
   Services.Database.pipe(
     Effect.flatMap(({ createEntry, deleteEntry }) =>
       Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
-        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.unit
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
       )
     )
   )
