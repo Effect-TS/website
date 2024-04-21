@@ -53,8 +53,8 @@ export class SendEmailError {
 <Idea>
   In a real world scenario we may want to use a more precise types instead of
   directly using primitives for identifiers (see [Branded
-  Types](style/branded-types)). We may also want to include more information in
-  the errors.
+  Types](style/branded-types)). We may also want to include more information
+  in the errors.
 </Idea>
 
 ## Classic Approach
@@ -282,7 +282,7 @@ export const SendEmailResolver = RequestResolver.makeBatched(
     }).pipe(
       Effect.flatMap(() =>
         Effect.forEach(requests, (request) =>
-          Request.completeEffect(request, Effect.unit)
+          Request.completeEffect(request, Effect.void)
         )
       ),
       Effect.catchAll((error) =>
@@ -787,7 +787,7 @@ const shipRequestsToBeExecutedAndWait = <E, A>(
   requests: Effect.Blocked<E, A>["effect_instruction_i0"]
 ): Effect.Effect<void, E> => {
   // go on mars and come back
-  return Effect.unit
+  return Effect.void
 }
 ```
 

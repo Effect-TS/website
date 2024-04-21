@@ -48,7 +48,7 @@ You can instrument an effect with a Span using the `Effect.withSpan` API. Here's
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.unit.pipe(Effect.delay("100 millis"))
+const program = Effect.void.pipe(Effect.delay("100 millis"))
 
 const instrumented = program.pipe(Effect.withSpan("myspan"))
 ```
@@ -77,7 +77,7 @@ import {
   BatchSpanProcessor
 } from "@opentelemetry/sdk-trace-base"
 
-const program = Effect.unit.pipe(Effect.delay("100 millis"))
+const program = Effect.void.pipe(Effect.delay("100 millis"))
 
 const instrumented = program.pipe(Effect.withSpan("myspan"))
 
@@ -181,7 +181,7 @@ import {
   BatchSpanProcessor
 } from "@opentelemetry/sdk-trace-base"
 
-const program = Effect.unit.pipe(
+const program = Effect.void.pipe(
   Effect.delay("100 millis"),
   Effect.tap(() => Effect.annotateCurrentSpan("key", "value")),
   Effect.withSpan("myspan")
@@ -275,7 +275,7 @@ import {
   BatchSpanProcessor
 } from "@opentelemetry/sdk-trace-base"
 
-const child = Effect.unit.pipe(
+const child = Effect.void.pipe(
   Effect.delay("100 millis"),
   Effect.withSpan("child")
 )
