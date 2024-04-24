@@ -26,10 +26,9 @@ Let's look at an example of how to test `Effect.timeout` using the `TestClock`:
 import { Effect, TestClock, Fiber, Option, TestContext } from "effect"
 import * as assert from "node:assert"
 
-const test = Effect.gen(function* (_) {
+const test = Effect.gen(function* () {
   // Create a fiber that sleeps for 5 minutes and then times out after 1 minute
-  const fiber = yield* _(
-    Effect.sleep("5 minutes"),
+  const fiber = yield* Effect.sleep("5 minutes").pipe(
     Effect.timeoutTo({
       duration: "1 minute",
       onSuccess: Option.some,
@@ -39,10 +38,10 @@ const test = Effect.gen(function* (_) {
   )
 
   // Adjust the TestClock by 1 minute to simulate the passage of time
-  yield* _(TestClock.adjust("1 minute"))
+  yield* TestClock.adjust("1 minute")
 
   // Get the result of the fiber
-  const result = yield* _(Fiber.join(fiber))
+  const result = yield* Fiber.join(fiber)
 
   // Check if the result is None, indicating a timeout
   assert.ok(Option.isNone(result))
@@ -112,11 +111,10 @@ Let's explore an example demonstrating how to test an effect that runs at fixed 
 import { Effect, Queue, TestClock, Option, TestContext } from "effect"
 import * as assert from "node:assert"
 
-const test = Effect.gen(function* (_) {
-  const q = yield* _(Queue.unbounded())
+const test = Effect.gen(function* () {
+  const q = yield* Queue.unbounded()
 
-  yield* _(
-    Queue.offer(q, undefined),
+  yield* Queue.offer(q, undefined).pipe(
     // Delay the effect for 60 minutes and repeat it forever
     Effect.delay("60 minutes"),
     Effect.forever,
@@ -124,23 +122,23 @@ const test = Effect.gen(function* (_) {
   )
 
   // Check if no effect is performed before the recurrence period
-  const a = yield* _(Queue.poll(q), Effect.map(Option.isNone))
+  const a = yield* Queue.poll(q).pipe(Effect.map(Option.isNone))
 
   // Adjust the TestClock by 60 minutes to simulate the passage of time
-  yield* _(TestClock.adjust("60 minutes"))
+  yield* TestClock.adjust("60 minutes")
 
   // Check if an effect is performed after the recurrence period
-  const b = yield* _(Queue.take(q), Effect.as(true))
+  const b = yield* Queue.take(q).pipe(Effect.as(true))
 
   // Check if the effect is performed exactly once
-  const c = yield* _(Queue.poll(q), Effect.map(Option.isNone))
+  const c = yield* Queue.poll(q).pipe(Effect.map(Option.isNone))
 
   // Adjust the TestClock by another 60 minutes
-  yield* _(TestClock.adjust("60 minutes"))
+  yield* TestClock.adjust("60 minutes")
 
   // Check if another effect is performed
-  const d = yield* _(Queue.take(q), Effect.as(true))
-  const e = yield* _(Queue.poll(q), Effect.map(Option.isNone))
+  const d = yield* Queue.take(q).pipe(Effect.as(true))
+  const e = yield* Queue.poll(q).pipe(Effect.map(Option.isNone))
 
   // Ensure that all conditions are met
   assert.ok(a && b && c && d && e)
@@ -225,15 +223,15 @@ Let's explore an example that demonstrates how to test the behavior of the `Cloc
 import { Effect, Clock, TestClock, TestContext } from "effect"
 import * as assert from "node:assert"
 
-const test = Effect.gen(function* (_) {
+const test = Effect.gen(function* () {
   // Get the current time using the Clock
-  const startTime = yield* _(Clock.currentTimeMillis)
+  const startTime = yield* Clock.currentTimeMillis
 
   // Adjust the TestClock by 1 minute to simulate the passage of time
-  yield* _(TestClock.adjust("1 minute"))
+  yield* _(TestClock.adjust("1 minutes"))
 
   // Get the current time again
-  const endTime = yield* _(Clock.currentTimeMillis)
+  const endTime = yield* Clock.currentTimeMillis
 
   // Check if the time difference is at least 60,000 milliseconds (1 minute)
   assert.ok(endTime - startTime >= 60_000)
@@ -285,23 +283,20 @@ Effect.runPromise(test)
 import { Effect, Deferred, TestClock, TestContext } from "effect"
 import * as assert from "node:assert"
 
-const test = Effect.gen(function* (_) {
+const test = Effect.gen(function* () {
   // Create a deferred value
-  const deferred = yield* _(Deferred.make<number, void>())
+  const deferred = yield* Deferred.make<number, void>()
 
   // Run two effects concurrently: sleep for 10 seconds and succeed the deferred with a value of 1
-  yield* _(
-    Effect.all([Effect.sleep("10 seconds"), Deferred.succeed(deferred, 1)], {
-      concurrency: "unbounded"
-    }),
-    Effect.fork
-  )
+  yield* Effect.all([Effect.sleep("10 seconds"), Deferred.succeed(deferred, 1)], {
+    concurrency: "unbounded"
+  }).pipe(Effect.fork)
 
   // Adjust the TestClock by 10 seconds
-  yield* _(TestClock.adjust("10 seconds"))
+  yield* TestClock.adjust("10 seconds")
 
   // Await the value from the deferred
-  const readRef = yield* _(Deferred.await(deferred))
+  const readRef = yield* Deferred.await(deferred)
 
   assert.ok(1 === readRef)
 }).pipe(Effect.provide(TestContext.TestContext))

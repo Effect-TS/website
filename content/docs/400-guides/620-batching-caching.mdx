@@ -142,13 +142,11 @@ When using the utilities we defined it is normal to end up with code that looks 
 import { Effect } from "effect"
 import * as API from "./API"
 
-const program = Effect.gen(function* (_) {
-  const todos = yield* _(API.getTodos)
-  yield* _(
-    Effect.forEach(todos, (todo) => API.notifyOwner(todo), {
-      concurrency: "unbounded"
-    })
-  )
+const program = Effect.gen(function* () {
+  const todos = yield* API.getTodos
+  yield* Effect.forEach(todos, (todo) => API.notifyOwner(todo), {
+    concurrency: "unbounded"
+  })
 })
 ```
 
@@ -394,13 +392,11 @@ But now the following program:
 import { Effect } from "effect"
 import * as Queries from "./Queries"
 
-const program = Effect.gen(function* (_) {
-  const todos = yield* _(Queries.getTodos)
-  yield* _(
-    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
-      batching: true
-    })
-  )
+const program = Effect.gen(function* () {
+  const todos = yield* Queries.getTodos
+  yield* Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
+    batching: true
+  })
 })
 ```
 
@@ -541,8 +537,8 @@ export class TodosService extends Context.Tag("@app/services/TodosService")<
 
 export const TodosServiceLive = Layer.effect(
   TodosService,
-  Effect.gen(function* ($) {
-    const http = yield* $(ResolversWithContext.HttpService)
+  Effect.gen(function* () {
+    const http = yield* ResolversWithContext.HttpService
     const resolver = RequestResolver.fromEffect(
       (request: RequestModel.GetTodos) =>
         Effect.tryPromise({
@@ -593,13 +589,11 @@ Batching can be locally disabled using the `Effect.withRequestBatching` utility 
 import { Effect } from "effect"
 import * as Queries from "./Queries"
 
-const program = Effect.gen(function* (_) {
-  const todos = yield* _(Queries.getTodos)
-  yield* _(
-    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
-      concurrency: "unbounded"
-    })
-  )
+const program = Effect.gen(function* () {
+  const todos = yield* Queries.getTodos
+  yield* Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
+    concurrency: "unbounded"
+  })
 }).pipe(Effect.withRequestBatching(false))
 ```
 
@@ -662,13 +656,11 @@ Assuming you've wired everything up correctly:
 import { Effect, Schedule } from "effect"
 import * as Queries from "./Queries"
 
-const program = Effect.gen(function* (_) {
-  const todos = yield* _(Queries.getTodos)
-  yield* _(
-    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
-      concurrency: "unbounded"
-    })
-  )
+const program = Effect.gen(function* () {
+  const todos = yield* Queries.getTodos
+  yield* Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
+    concurrency: "unbounded"
+  })
 }).pipe(Effect.repeat(Schedule.fixed("10 seconds")))
 ```
 
@@ -708,13 +700,11 @@ To cover those scenarios you'd create a custom cache like the following:
 import { Effect, Schedule, Layer, Request } from "effect"
 import * as Queries from "./Queries"
 
-const program = Effect.gen(function* (_) {
-  const todos = yield* _(Queries.getTodos)
-  yield* _(
-    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
-      concurrency: "unbounded"
-    })
-  )
+const program = Effect.gen(function* () {
+  const todos = yield* Queries.getTodos
+  yield* Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
+    concurrency: "unbounded"
+  })
 }).pipe(
   Effect.repeat(Schedule.fixed("10 seconds")),
   Effect.provide(
@@ -754,13 +744,11 @@ We recently introduced a new key primitive in the fiber that enables an executio
 import { Effect } from "effect"
 import * as Queries from "./Queries"
 
-const program = Effect.gen(function* (_) {
-  const todos = yield* _(Queries.getTodos)
-  yield* _(
-    Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
-      concurrency: "unbounded"
-    })
-  )
+const program = Effect.gen(function* () {
+  const todos = yield* Queries.getTodos
+  yield* Effect.forEach(todos, (todo) => Queries.notifyOwner(todo), {
+    concurrency: "unbounded"
+  })
 })
 
 const nextStep = Effect.step(program).pipe(
@@ -808,19 +796,17 @@ import { Effect, Cache } from "effect"
 
 declare const intensiveWork: (key: string) => Effect.Effect<string>
 
-const program = Effect.gen(function* ($) {
-  const cache = yield* $(
-    Cache.make({
-      capacity: Number.MAX_SAFE_INTEGER,
-      timeToLive: Infinity,
-      lookup: intensiveWork
-    })
-  )
+const program = Effect.gen(function* () {
+  const cache = yield* Cache.make({
+    capacity: Number.MAX_SAFE_INTEGER,
+    timeToLive: Infinity,
+    lookup: intensiveWork
+  })
 
-  const a0 = yield* $(cache.get("key0"))
-  const b0 = yield* $(cache.get("key1"))
-  const a1 = yield* $(cache.get("key0"))
-  const b1 = yield* $(cache.get("key1"))
+  const a0 = yield* cache.get("key0")
+  const b0 = yield* cache.get("key1")
+  const a1 = yield* cache.get("key0")
+  const b1 = yield* cache.get("key1")
 
   if (a0 === a1 && b0 === b1) {
     console.log("I'll always end up here....")

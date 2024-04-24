@@ -179,15 +179,15 @@ import { Effect, Either, Console } from "effect"
 
 const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
-const program = Effect.gen(function* (_) {
-  const failureOrSuccess = yield* _(Effect.either(simulatedTask))
+const program = Effect.gen(function* () {
+  const failureOrSuccess = yield* Effect.either(simulatedTask)
   if (Either.isLeft(failureOrSuccess)) {
     const error = failureOrSuccess.left
-    yield* _(Console.log(`failure: ${error}`))
+    yield* Console.log(`failure: ${error}`)
     return 0
   } else {
     const value = failureOrSuccess.right
-    yield* _(Console.log(`success: ${value}`))
+    yield* Console.log(`success: ${value}`)
     return value
   }
 })
@@ -227,9 +227,9 @@ import { Effect, Console } from "effect"
 
 const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
-const program = Effect.gen(function* (_) {
-  const cause = yield* _(Effect.cause(simulatedTask))
-  yield* _(Console.log(cause))
+const program = Effect.gen(function* () {
+  const cause = yield* Effect.cause(simulatedTask)
+  yield* Console.log(cause)
 })
 ```
 

@@ -15,8 +15,8 @@ import { Effect, Data } from "effect"
 
 class MyError extends Data.Error<{ message: string }> {}
 
-export const program = Effect.gen(function* (_) {
-  yield* _(new MyError({ message: "Oh no!" })) // same as yield* _(Effect.fail(new MyError({ message: "Oh no!" })))
+export const program = Effect.gen(function* () {
+  yield* new MyError({ message: "Oh no!" }) // same as yield* Effect.fail(new MyError({ message: "Oh no!" })
 })
 
 Effect.runPromiseExit(program).then(console.log)
@@ -47,13 +47,13 @@ class BarError extends Data.TaggedError("Bar")<{
   randomNumber: number
 }> {}
 
-export const program = Effect.gen(function* (_) {
-  const n = yield* _(Random.next)
+export const program = Effect.gen(function* () {
+  const n = yield* Random.next
   return n > 0.5
     ? "yay!"
     : n < 0.2
-      ? yield* _(new FooError({ message: "Oh no!" }))
-      : yield* _(new BarError({ randomNumber: n }))
+      ? yield* new FooError({ message: "Oh no!" })
+      : yield* new BarError({ randomNumber: n })
 }).pipe(
   Effect.catchTags({
     Foo: (error) => Effect.succeed(`Foo error: ${error.message}`),

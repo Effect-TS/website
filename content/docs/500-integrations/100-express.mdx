@@ -59,9 +59,9 @@ This mirrors the classic ["Hello world example"](https://expressjs.com/en/starte
 
    // Define the main route, IndexRouteLive, as a Layer
    const IndexRouteLive = Layer.effectDiscard(
-     Effect.gen(function* (_) {
-       const app = yield* _(Express)
-       const runFork = Runtime.runFork(yield* _(Effect.runtime<never>()))
+     Effect.gen(function* () {
+       const app = yield* Express
+       const runFork = Runtime.runFork(yield* Effect.runtime<never>())
 
        app.get("/", (_, res) => {
          runFork(Effect.sync(() => res.send("Hello World!")))
@@ -71,19 +71,17 @@ This mirrors the classic ["Hello world example"](https://expressjs.com/en/starte
 
    // Server Setup
    const ServerLive = Layer.scopedDiscard(
-     Effect.gen(function* (_) {
+     Effect.gen(function* () {
        const port = 3001
-       const app = yield* _(Express)
-       yield* _(
-         Effect.acquireRelease(
-           Effect.sync(() =>
-             app.listen(port, () =>
-               console.log(`Example app listening on port ${port}`)
-             )
-           ),
-           (server) => Effect.sync(() => server.close())
-         )
-       )
+       const app = yield* Express
+       yield* Effect.acquireRelease(
+          Effect.sync(() =>
+            app.listen(port, () =>
+              console.log(`Example app listening on port ${port}`)
+            )
+          ),
+          (server) => Effect.sync(() => server.close())
+        )
      })
    )
 
@@ -127,9 +125,9 @@ Here's a breakdown of what's happening:
   ```ts
   // Define the main route, IndexRouteLive, as a Layer
   const IndexRouteLive = Layer.effectDiscard(
-    Effect.gen(function* (_) {
-      const app = yield* _(Express)
-      const runFork = Runtime.runFork(yield* _(Effect.runtime<never>()))
+    Effect.gen(function* () {
+      const app = yield* Express
+      const runFork = Runtime.runFork(yield* Effect.runtime<never>())
 
       app.get("/", (_, res) => {
         runFork(Effect.sync(() => res.send("Hello World!")))
@@ -146,18 +144,16 @@ Here's a breakdown of what's happening:
   ```ts
   // Server Setup
   const ServerLive = Layer.scopedDiscard(
-    Effect.gen(function* (_) {
+    Effect.gen(function* () {
       const port = 3001
-      const app = yield* _(Express)
-      yield* _(
-        Effect.acquireRelease(
-          Effect.sync(() =>
-            app.listen(port, () =>
-              console.log(`Example app listening on port ${port}`)
-            )
-          ),
-          (server) => Effect.sync(() => server.close())
-        )
+      const app = yield* Express
+      yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          app.listen(port, () =>
+            console.log(`Example app listening on port ${port}`)
+          )
+        ),
+        (server) => Effect.sync(() => server.close())
       )
     })
   )
@@ -214,26 +210,24 @@ const get = <A, E, R>(
     res: express.Response
   ) => Effect.Effect<A, E, R>
 ) =>
-  Effect.gen(function* (_) {
-    const app = yield* _(Express)
-    const run = yield* _(FiberSet.makeRuntime<R>())
+  Effect.gen(function* () {
+    const app = yield* Express
+    const run = yield* FiberSet.makeRuntime<R>()
     app.get(path, (req, res) => run(body(req, res)))
   })
 
 // Server Setup
 const ServerLive = Layer.scopedDiscard(
-  Effect.gen(function* (_) {
+  Effect.gen(function* () {
     const port = 3001
-    const app = yield* _(Express)
-    yield* _(
-      Effect.acquireRelease(
-        Effect.sync(() =>
-          app.listen(port, () =>
-            console.log(`Example app listening on port ${port}`)
-          )
-        ),
-        (server) => Effect.sync(() => server.close())
-      )
+    const app = yield* Express
+    yield* Effect.acquireRelease(
+      Effect.sync(() =>
+        app.listen(port, () =>
+          console.log(`Example app listening on port ${port}`)
+        )
+      ),
+      (server) => Effect.sync(() => server.close())
     )
   })
 )
@@ -266,33 +260,29 @@ class TodoRepository extends Context.Tag("TodoRepository")<
 
 // Define a main route that returns all Todos
 const IndexRouteLive = Layer.scopedDiscard(
-  Effect.gen(function* (_) {
-    const repo = yield* _(TodoRepository)
+  Effect.gen(function* () {
+    const repo = yield* TodoRepository
 
-    yield* _(
-      get("/", (_, res) =>
-        Effect.gen(function* (_) {
-          const todos = yield* _(repo.getTodos)
-          res.json(todos)
-        })
-      )
+    yield* get("/", (_, res) =>
+      Effect.gen(function* () {
+        const todos = yield* repo.getTodos
+        res.json(todos)
+      })
     )
   })
 )
 
 // Define a route that returns a Todo by its ID
 const TodoByIdRouteLive = Layer.scopedDiscard(
-  Effect.gen(function* (_) {
-    const repo = yield* _(TodoRepository)
+  Effect.gen(function* () {
+    const repo = yield* TodoRepository
 
-    yield* _(
-      get("/todo/:id", (req, res) =>
-        Effect.gen(function* (_) {
-          const id = req.params.id
-          const todo = yield* _(repo.getTodo(Number(id)))
-          res.json(todo)
-        })
-      )
+    yield* get("/todo/:id", (req, res) =>
+      Effect.gen(function* () {
+        const id = req.params.id
+        const todo = yield* repo.getTodo(Number(id))
+        res.json(todo)
+      })
     )
   })
 )

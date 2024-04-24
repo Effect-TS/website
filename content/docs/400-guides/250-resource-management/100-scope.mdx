@@ -74,10 +74,8 @@ Let's observe how things behave in the event of success:
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-const program = Effect.gen(function* (_) {
-  yield* _(
-    Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
-  )
+const program = Effect.gen(function* () {
+  yield* Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
   return 1
 })
 
@@ -132,11 +130,9 @@ Next, let's explore how things behave in the event of a failure:
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-const program = Effect.gen(function* (_) {
-  yield* _(
-    Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
-  )
-  return yield* _(Effect.fail("Uh oh!"))
+const program = Effect.gen(function* () {
+  yield* Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
+  return yield* Effect.fail("Uh oh!")
 })
 
 const runnable = Effect.scoped(program)
@@ -188,11 +184,9 @@ Finally, let's explore the behavior in the event of an interruption:
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-const program = Effect.gen(function* (_) {
-  yield* _(
-    Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
-  )
-  return yield* _(Effect.interrupt)
+const program = Effect.gen(function* () {
+  yield* Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
+  return yield* Effect.interrupt
 })
 
 const runnable = Effect.scoped(program)
@@ -266,20 +260,20 @@ Let's start by looking at how scopes are merged by default. Take a look at this 
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-const task1 = Effect.gen(function* (_) {
+const task1 = Effect.gen(function* () {
   console.log("task 1")
-  yield* _(Effect.addFinalizer(() => Console.log("finalizer after task 1")))
+  yield* Effect.addFinalizer(() => Console.log("finalizer after task 1"))
 })
 
-const task2 = Effect.gen(function* (_) {
+const task2 = Effect.gen(function* () {
   console.log("task 2")
-  yield* _(Effect.addFinalizer(() => Console.log("finalizer after task 2")))
+  yield* Effect.addFinalizer(() => Console.log("finalizer after task 2"))
 })
 
-const program = Effect.gen(function* (_) {
+const program = Effect.gen(function* () {
   // Both of these scopes are merged into one
-  yield* _(task1)
-  yield* _(task2)
+  yield* task1
+  yield* task2
 })
 
 Effect.runPromise(program.pipe(Effect.scoped))
@@ -337,30 +331,30 @@ If you want more control over when each scope is closed, you can manually create
 ```ts twoslash
 import { Console, Effect, Exit, Scope } from "effect"
 
-const task1 = Effect.gen(function* (_) {
+const task1 = Effect.gen(function* () {
   console.log("task 1")
-  yield* _(Effect.addFinalizer(() => Console.log("finalizer after task 1")))
+  yield* Effect.addFinalizer(() => Console.log("finalizer after task 1"))
 })
 
-const task2 = Effect.gen(function* (_) {
+const task2 = Effect.gen(function* () {
   console.log("task 2")
-  yield* _(Effect.addFinalizer(() => Console.log("finalizer after task 2")))
+  yield* Effect.addFinalizer(() => Console.log("finalizer after task 2"))
 })
 
-const program = Effect.gen(function* (_) {
-  const scope1 = yield* _(Scope.make())
-  const scope2 = yield* _(Scope.make())
+const program = Effect.gen(function* () {
+  const scope1 = yield* Scope.make()
+  const scope2 = yield* Scope.make()
 
   // Extend the scope of task1 into scope1
-  yield* _(task1, Scope.extend(scope1))
+  yield* task1, Scope.extend(scope1)
 
   // Extend the scope of task2 into scope2
-  yield* _(task2, Scope.extend(scope2))
+  yield* task2, Scope.extend(scope2)
 
   // Close scope1 and scope2 manually
-  yield* _(Scope.close(scope1, Exit.void))
-  yield* _(Console.log("doing something else"))
-  yield* _(Scope.close(scope2, Exit.void))
+  yield* Scope.close(scope1, Exit.void)
+  yield* Console.log("doing something else")
+  yield* Scope.close(scope2, Exit.void)
 })
 
 Effect.runPromise(program)
@@ -509,8 +503,8 @@ We can continue working with the resource for as long as we want by using `flatM
 import { Effect } from "effect"
 import { resource } from "./resource"
 
-const program = Effect.gen(function* (_) {
-  const res = yield* _(resource)
+const program = Effect.gen(function* () {
+  const res = yield* resource
   console.log(`content is ${res.contents}`)
 })
 ```
@@ -550,8 +544,8 @@ import { Effect } from "effect"
 import { resource } from "./resource"
 
 const program = Effect.scoped(
-  Effect.gen(function* (_) {
-    const res = yield* _(resource)
+  Effect.gen(function* () {
+    const res = yield* resource
     console.log(`content is ${res.contents}`)
   })
 )

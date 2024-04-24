@@ -27,11 +27,9 @@ In the following example, we will periodically monitor the number of fibers thro
 ```ts twoslash
 import { Effect, Supervisor, Schedule, Fiber, FiberStatus } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const supervisor = yield* _(Supervisor.track)
-  const fibFiber = yield* _(
-    fib(20).pipe(Effect.supervised(supervisor), Effect.fork)
-  )
+const program = Effect.gen(function* () {
+  const supervisor = yield* Supervisor.track
+  const fibFiber = yield* fib(20).pipe(Effect.supervised(supervisor), Effect.fork)
   const policy = Schedule.spaced("500 millis").pipe(
     Schedule.whileInputEffect((_) =>
       Fiber.status(fibFiber).pipe(
@@ -39,32 +37,30 @@ const program = Effect.gen(function* (_) {
       )
     )
   )
-  const monitorFiber = yield* _(
-    monitorFibers(supervisor).pipe(Effect.repeat(policy), Effect.fork)
-  )
-  yield* _(Fiber.join(monitorFiber))
-  const result = yield* _(Fiber.join(fibFiber))
+  const monitorFiber = yield* monitorFibers(supervisor).pipe(Effect.repeat(policy), Effect.fork)
+  yield* Fiber.join(monitorFiber)
+  const result = yield* Fiber.join(fibFiber)
   console.log(`fibonacci result: ${result}`)
 })
 
 const monitorFibers = (
   supervisor: Supervisor.Supervisor<Array<Fiber.RuntimeFiber<any, any>>>
 ): Effect.Effect<void> =>
-  Effect.gen(function* (_) {
-    const fibers = yield* _(supervisor.value)
+  Effect.gen(function* () {
+    const fibers = yield* supervisor.value
     console.log(`number of fibers: ${fibers.length}`)
   })
 
 const fib = (n: number): Effect.Effect<number> =>
-  Effect.gen(function* (_) {
+  Effect.gen(function* () {
     if (n <= 1) {
       return 1
     }
-    yield* _(Effect.sleep("500 millis"))
-    const fiber1 = yield* _(Effect.fork(fib(n - 2)))
-    const fiber2 = yield* _(Effect.fork(fib(n - 1)))
-    const v1 = yield* _(Fiber.join(fiber1))
-    const v2 = yield* _(Fiber.join(fiber2))
+    yield* Effect.sleep("500 millis")
+    const fiber1 = yield* Effect.fork(fib(n - 2))
+    const fiber2 = yield* Effect.fork(fib(n - 1))
+    const v1 = yield* Fiber.join(fiber1)
+    const v2 = yield* Fiber.join(fiber2)
     return v1 + v2
   })
 

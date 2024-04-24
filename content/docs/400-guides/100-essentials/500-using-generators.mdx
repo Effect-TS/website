@@ -32,10 +32,10 @@ const task1 = Effect.promise(() => Promise.resolve(10))
 
 const task2 = Effect.promise(() => Promise.resolve(2))
 
-export const program = Effect.gen(function* (_) {
-  const a = yield* _(task1)
-  const b = yield* _(task2)
-  const n1 = yield* _(divide(a, b))
+export const program = Effect.gen(function* () {
+  const a = yield* task1
+  const b = yield* task2
+  const n1 = yield* divide(a, b)
   const n2 = increment(n1)
   return `Result is: ${n2}`
 })
@@ -65,10 +65,10 @@ const task1 = Effect.promise(() => Promise.resolve(10))
 
 const task2 = Effect.promise(() => Promise.resolve(2))
 // ---cut---
-export const program = Effect.gen(function* (_) {
-  const a = yield* _(task1)
-  const b = yield* _(task2)
-  const n1 = yield* _(divide(a, b))
+export const program = Effect.gen(function* () {
+  const a = yield* task1
+  const b = yield* task2
+  const n1 = yield* divide(a, b)
   const n2 = increment(n1)
   return `Result is: ${n2}`
 })
@@ -107,10 +107,10 @@ const task1 = Effect.promise(() => Promise.resolve(10))
 
 const task2 = Effect.promise(() => Promise.resolve(2))
 
-export const program = Effect.gen(function* (_) {
-  const a = yield* _(task1)
-  const b = yield* _(task2)
-  const n1 = yield* _(divide(a, b))
+export const program = Effect.gen(function* () {
+  const a = yield* task1
+  const b = yield* task2
+  const n1 = yield* divide(a, b)
   const n2 = increment(n1)
   return `Result is: ${n2}`
 })
@@ -163,7 +163,7 @@ const divide = (a: number, b: number): Effect.Effect<number, Error> =>
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-const program = Effect.gen(function* (_) {
+const program = Effect.gen(function* () {
   let i = 1
 
   while (true) {
@@ -171,7 +171,7 @@ const program = Effect.gen(function* (_) {
       break
     } else {
       if (i % 2 === 0) {
-        console.log(yield* _(divide(12, i)))
+        console.log(yield* divide(12, i))
       }
       i++
       continue
@@ -196,10 +196,10 @@ Within the realm of the `Effect.gen` API, you have the capability to introduce e
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.gen(function* (_) {
+const program = Effect.gen(function* () {
   console.log("Task1...")
   console.log("Task2...")
-  yield* _(Effect.fail("Something went wrong!"))
+  yield* Effect.fail("Something went wrong!")
 })
 
 Effect.runPromiseExit(program).then(console.log)
@@ -229,10 +229,10 @@ In simpler terms, the short-circuiting behavior ensures that if something goes w
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.gen(function* (_) {
+const program = Effect.gen(function* () {
   console.log("Task1...")
   console.log("Task2...")
-  yield* _(Effect.fail("Something went wrong!"))
+  yield* Effect.fail("Something went wrong!")
   console.log("This won't be executed")
 })
 
@@ -255,44 +255,6 @@ Task2...
   section.
 </Info>
 
-## Using the helper as a pipe
-
-The `_` helper can also be used as a `pipe` function (see [Building Pipelines](./pipeline) for more information), allowing you to mix and match different styles of writing code within `Effect.gen` if needed.
-
-In the following example, the `Random.next()` effect is piped into the `Effect.map` function:
-
-```ts twoslash {5-6}
-import { Effect, Random } from "effect"
-
-const program = Effect.gen(function* (_) {
-  const n = yield* _(
-    Random.next,
-    Effect.map((n) => n * 2)
-  )
-  if (n > 0.5) {
-    return "yay!"
-  } else {
-    return yield* _(Effect.fail("oh no!"))
-  }
-})
-```
-
-This approach is useful to avoid excessive notation by using both the `_` helper and the `pipe` function. Instead, you can directly pass the `Random.next()` effect to `Effect.map` within the `_` helper, eliminating the need for an additional `pipe` function:
-
-```ts twoslash
-import { Effect, Random, pipe } from "effect"
-// ---cut---
-const program = Effect.gen(function* (_) {
-  const n = yield* _(
-    pipe(
-      Random.next,
-      Effect.map((n) => n * 2)
-    )
-  )
-  // ...
-})
-```
-
 ## Passing this
 
 In some cases, you might need to pass a reference to the current object (`this`) into the body of your generator function. You can achieve this by utilizing an overload that accepts the reference as the first argument:
@@ -303,8 +265,8 @@ import { Effect } from "effect"
 class MyService {
   readonly local = 1
   compute() {
-    return Effect.gen(this, function* (_) {
-      return yield* _(Effect.succeed(this.local + 1))
+    return Effect.gen(this, function* () {
+      return yield* Effect.succeed(this.local + 1)
     })
   }
 }

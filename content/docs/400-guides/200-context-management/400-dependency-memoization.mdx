@@ -28,23 +28,23 @@ const a = Layer.effect(
 
 const b = Layer.effect(
   B,
-  Effect.gen(function* (_) {
-    const { a } = yield* _(A)
+  Effect.gen(function* () {
+    const { a } = yield* A
     return { b: String(a) }
   })
 )
 
 const c = Layer.effect(
   C,
-  Effect.gen(function* (_) {
-    const { a } = yield* _(A)
+  Effect.gen(function* () {
+    const { a } = yield* A
     return { c: a > 0 }
   })
 )
 
-const program = Effect.gen(function* (_) {
-  yield* _(B)
-  yield* _(C)
+const program = Effect.gen(function* () {
+  yield* B
+  yield* C
 })
 
 const runnable = Effect.provide(
@@ -81,23 +81,23 @@ const a = Layer.effect(
 
 const b = Layer.effect(
   B,
-  Effect.gen(function* (_) {
-    const { a } = yield* _(A)
+  Effect.gen(function* () {
+    const { a } = yield* A
     return { b: String(a) }
   })
 )
 
 const c = Layer.effect(
   C,
-  Effect.gen(function* (_) {
-    const { a } = yield* _(A)
+  Effect.gen(function* () {
+    const { a } = yield* A
     return { c: a > 0 }
   })
 )
 
-const program = Effect.gen(function* (_) {
-  yield* _(B)
-  yield* _(C)
+const program = Effect.gen(function* () {
+  yield* B
+  yield* C
 })
 
 // ---cut---
@@ -133,9 +133,9 @@ const a = Layer.effect(
   Effect.succeed({ a: 5 }).pipe(Effect.tap(() => Effect.log("initialized")))
 )
 
-const program = Effect.gen(function* (_) {
-  yield* _(A, Effect.provide(a))
-  yield* _(A, Effect.provide(a))
+const program = Effect.gen(function* () {
+  yield* A.pipe(Effect.provide(a))
+  yield* A.pipe(Effect.provide(a))
 })
 
 Effect.runPromise(program)
@@ -163,9 +163,9 @@ const a = Layer.effect(
 const program = Effect.scoped(
   Layer.memoize(a).pipe(
     Effect.flatMap((memoized) =>
-      Effect.gen(function* (_) {
-        yield* _(A, Effect.provide(memoized))
-        yield* _(A, Effect.provide(memoized))
+      Effect.gen(function* () {
+        yield* A.pipe(Effect.provide(memoized))
+        yield* A.pipe(Effect.provide(memoized))
       })
     )
   )

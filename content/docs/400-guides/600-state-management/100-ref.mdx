@@ -56,13 +56,13 @@ Here is the usage example of the `Counter`:
 import { Effect } from "effect"
 import * as Counter from "./Counter"
 
-const program = Effect.gen(function* (_) {
-  const counter = yield* _(Counter.make)
-  yield* _(counter.inc)
-  yield* _(counter.inc)
-  yield* _(counter.dec)
-  yield* _(counter.inc)
-  const value = yield* _(counter.get)
+const program = Effect.gen(function* () {
+  const counter = yield* Counter.make
+  yield* counter.inc
+  yield* counter.inc
+  yield* counter.dec
+  yield* counter.inc
+  const value = yield* counter.get
   console.log(`This counter has a value of ${value}.`)
 })
 
@@ -131,28 +131,26 @@ For this example, let's update the counter concurrently:
 import { Effect } from "effect"
 import * as Counter from "./Counter"
 
-const program = Effect.gen(function* (_) {
-  const counter = yield* _(Counter.make)
+const program = Effect.gen(function* () {
+  const counter = yield* Counter.make
 
   const logCounter = <R, E, A>(
     label: string,
     effect: Effect.Effect<A, E, R>
   ) =>
-    Effect.gen(function* (_) {
-      const value = yield* _(counter.get)
-      yield* _(Effect.log(`${label} get: ${value}`))
-      return yield* _(effect)
+    Effect.gen(function* () {
+      const value = yield* counter.get
+      yield* Effect.log(`${label} get: ${value}`)
+      return yield* effect
     })
 
-  yield* _(
-    logCounter("task 1", counter.inc).pipe(
-      Effect.zip(logCounter("task 2", counter.inc), { concurrent: true }),
-      Effect.zip(logCounter("task 3", counter.dec), { concurrent: true }),
-      Effect.zip(logCounter("task 4", counter.inc), { concurrent: true })
-    )
+  yield* logCounter("task 1", counter.inc).pipe(
+    Effect.zip(logCounter("task 2", counter.inc), { concurrent: true }),
+    Effect.zip(logCounter("task 3", counter.dec), { concurrent: true }),
+    Effect.zip(logCounter("task 4", counter.inc), { concurrent: true })
   )
-  const value = yield* _(counter.get)
-  yield* _(Effect.log(`This counter has a value of ${value}.`))
+  const value = yield* counter.get
+  yield* Effect.log(`This counter has a value of ${value}.`)
 })
 
 Effect.runPromise(program)
@@ -229,31 +227,31 @@ import { Effect, Context, Ref } from "effect"
 class MyState extends Context.Tag("MyState")<MyState, Ref.Ref<number>>() {}
 
 // Subprogram 1: Increment the state value twice
-const subprogram1 = Effect.gen(function* (_) {
-  const state = yield* _(MyState)
-  yield* _(Ref.update(state, (n) => n + 1))
-  yield* _(Ref.update(state, (n) => n + 1))
+const subprogram1 = Effect.gen(function* () {
+  const state = yield* MyState
+  yield* Ref.update(state, (n) => n + 1)
+  yield* Ref.update(state, (n) => n + 1)
 })
 
 // Subprogram 2: Decrement the state value and then increment it
-const subprogram2 = Effect.gen(function* (_) {
-  const state = yield* _(MyState)
-  yield* _(Ref.update(state, (n) => n - 1))
-  yield* _(Ref.update(state, (n) => n + 1))
+const subprogram2 = Effect.gen(function* () {
+  const state = yield* MyState
+  yield* Ref.update(state, (n) => n - 1)
+  yield* Ref.update(state, (n) => n + 1)
 })
 
 // Subprogram 3: Read and log the current value of the state
-const subprogram3 = Effect.gen(function* (_) {
-  const state = yield* _(MyState)
-  const value = yield* _(Ref.get(state))
+const subprogram3 = Effect.gen(function* () {
+  const state = yield* MyState
+  const value = yield* Ref.get(state)
   console.log(`MyState has a value of ${value}.`)
 })
 
 // Compose subprograms 1, 2, and 3 to create the main program
-const program = Effect.gen(function* (_) {
-  yield* _(subprogram1)
-  yield* _(subprogram2)
-  yield* _(subprogram3)
+const program = Effect.gen(function* () {
+  yield* subprogram1
+  yield* subprogram2
+  yield* subprogram3
 })
 
 // Create a Ref instance with an initial value of 0
@@ -369,18 +367,16 @@ Now, let's take a look at the main program:
 import { Effect, Chunk, Ref } from "effect"
 import * as ReadLine from "./ReadLine"
 
-const getNames = Effect.gen(function* (_) {
-  const ref = yield* _(Ref.make(Chunk.empty<string>()))
+const getNames = Effect.gen(function* () {
+  const ref = yield* Ref.make(Chunk.empty<string>())
   while (true) {
-    const name = yield* _(
-      ReadLine.readLine("Please enter a name or `q` to exit: ")
-    )
+    const name = yield* ReadLine.readLine("Please enter a name or `q` to exit: ")
     if (name === "q") {
       break
     }
-    yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
+    yield* Ref.update(ref, (state) => Chunk.append(state, name))
   }
-  return yield* _(Ref.get(ref))
+  return yield* Ref.get(ref)
 })
 
 Effect.runPromise(getNames).then(console.log)
@@ -458,36 +454,30 @@ Now that we have learned how to use the `Ref` data type, we can use it to manage
 import { Effect, Chunk, Ref, Fiber } from "effect"
 import * as ReadLine from "./ReadLine"
 
-const getNames = Effect.gen(function* (_) {
-  const ref = yield* _(Ref.make(Chunk.empty<string>()))
-  const fiber1 = yield* _(
-    Effect.fork(
-      Effect.gen(function* (_) {
-        while (true) {
-          const name = yield* _(
-            ReadLine.readLine("Please enter a name or `q` to exit: ")
-          )
-          if (name === "q") {
-            break
-          }
-          yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
+const getNames = Effect.gen(function* () {
+  const ref = yield* Ref.make(Chunk.empty<string>())
+  const fiber1 = yield* Effect.fork(
+    Effect.gen(function* () {
+      while (true) {
+        const name = yield* ReadLine.readLine("Please enter a name or `q` to exit: ")
+        if (name === "q") {
+          break
         }
-      })
-    )
+        yield* Ref.update(ref, (state) => Chunk.append(state, name))
+      }
+    })
   )
-  const fiber2 = yield* _(
-    Effect.fork(
-      Effect.gen(function* (_) {
-        for (const name of ["John", "Jane", "Joe", "Tom"]) {
-          yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
-          yield* _(Effect.sleep("1 second"))
-        }
-      })
-    )
+  const fiber2 = yield* Effect.fork(
+    Effect.gen(function* () {
+      for (const name of ["John", "Jane", "Joe", "Tom"]) {
+        yield* Ref.update(ref, (state) => Chunk.append(state, name))
+        yield* Effect.sleep("1 second")
+      }
+    })
   )
-  yield* _(Fiber.join(fiber1))
-  yield* _(Fiber.join(fiber2))
-  return yield* _(Ref.get(ref))
+  yield* Fiber.join(fiber1)
+  yield* Fiber.join(fiber2)
+  return yield* Ref.get(ref)
 })
 
 Effect.runPromise(getNames).then(console.log)

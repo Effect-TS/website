@@ -284,14 +284,12 @@ const fetchTodo = (
 import { Effect } from "effect";
 import * as Http from "@effect/platform-node/HttpClient";
 
-Effect.gen(function* (_) {
-  const semaphore = yield* _(Effect.makeSemaphore(10));
-  const todos = yield* _(
-    Effect.forEach(
-      Array.from({ length: 100 }, (_, i) => i + 1),
-      (id) => semaphore.withPermits(1)(fetchTodo(id)),
-      { concurrency: "unbounded" }
-    )
+Effect.gen(function* () {
+  const semaphore = yield* Effect.makeSemaphore(10);
+  const todos = yield* Effect.forEach(
+    Array.from({ length: 100 }, (_, i) => i + 1),
+    (id) => semaphore.withPermits(1)(fetchTodo(id)),
+    { concurrency: "unbounded" }
   );
   console.log(todos);
 }).pipe(Effect.timeout(1000), Effect.runPromise);

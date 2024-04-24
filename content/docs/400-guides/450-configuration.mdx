@@ -30,9 +30,9 @@ Let's start with a simple example of how to read configuration from environment 
 ```ts filename="primitives.ts" twoslash
 import { Effect, Config } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const host = yield* _(Config.string("HOST"))
-  const port = yield* _(Config.number("PORT"))
+const program = Effect.gen(function* () {
+  const host = yield* Config.string("HOST")
+  const port = yield* Config.number("PORT")
   console.log(`Application started: ${host}:${port}`)
 })
 
@@ -106,9 +106,9 @@ Here's how you can use `Config.withDefault` to handle fallback values:
 ```ts filename="withDefault.ts" twoslash
 import { Effect, Config } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const host = yield* _(Config.string("HOST"))
-  const port = yield* _(Config.number("PORT").pipe(Config.withDefault(8080)))
+const program = Effect.gen(function* () {
+  const host = yield* Config.string("HOST")
+  const port = yield* Config.number("PORT").pipe(Config.withDefault(8080))
   console.log(`Application started: ${host}:${port}`)
 })
 
@@ -172,8 +172,8 @@ In addition to the basic ones, there are three special constructors you might fi
 ```ts filename="array.ts" twoslash
 import { Effect, Config } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const config = yield* _(Config.array(Config.string(), "MY_ARRAY"))
+const program = Effect.gen(function* () {
+  const config = yield* Config.array(Config.string(), "MY_ARRAY")
   console.log(config)
 })
 
@@ -211,14 +211,12 @@ These operators help you set up fallbacks in case of errors or missing data:
 ```ts filename="validate.ts" twoslash
 import { Effect, Config } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const config = yield* _(
-    Config.string("NAME").pipe(
-      Config.validate({
-        message: "Expected a string at least 4 characters long",
-        validation: (s) => s.length >= 4
-      })
-    )
+const program = Effect.gen(function* () {
+  const config = yield* Config.string("NAME").pipe(
+    Config.validate({
+      message: "Expected a string at least 4 characters long",
+      validation: (s) => s.length >= 4
+    })
   )
   console.log(config)
 })
@@ -305,8 +303,8 @@ export const config = Config.map(
 import { Effect } from "effect"
 import * as HostPort from "./HostPort"
 
-export const program = Effect.gen(function* (_) {
-  const hostPort = yield* _(HostPort.config)
+export const program = Effect.gen(function* () {
+  const hostPort = yield* HostPort.config
   console.log(`Application started: ${hostPort.url}`)
 })
 ```

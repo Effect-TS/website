@@ -209,10 +209,10 @@ class ApiLimiter extends Context.Tag("@services/ApiLimiter")<
   )
 }
 
-const program = Effect.gen(function*($) {
-  const rateLimit = yield* $(ApiLimiter)
+const program = Effect.gen(function* () {
+  const rateLimit = yield* ApiLimiter
   for (let n = 0; n < 100; n++) {
-    yield* $(rateLimit(Effect.log("Calling RateLimited Effect")))
+    yield* rateLimit(Effect.log("Calling RateLimited Effect"))
   }
 })
 

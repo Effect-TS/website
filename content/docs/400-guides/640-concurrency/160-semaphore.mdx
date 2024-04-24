@@ -15,10 +15,10 @@ Let's take a look at an example using asynchronous tasks:
 ```ts filename="mutex.ts" twoslash
 import { Effect } from "effect"
 
-const task = Effect.gen(function* (_) {
-  yield* _(Effect.log("start"))
-  yield* _(Effect.sleep("2 seconds"))
-  yield* _(Effect.log("end"))
+const task = Effect.gen(function* () {
+  yield* Effect.log("start")
+  yield* Effect.sleep("2 seconds")
+  yield* Effect.log("end")
 })
 
 const semTask = (sem: Effect.Semaphore) => sem.withPermits(1)(task)
@@ -26,9 +26,9 @@ const semTask = (sem: Effect.Semaphore) => sem.withPermits(1)(task)
 const semTaskSeq = (sem: Effect.Semaphore) =>
   [1, 2, 3].map(() => semTask(sem).pipe(Effect.withLogSpan("elapsed")))
 
-const program = Effect.gen(function* (_) {
-  const mutex = yield* _(Effect.makeSemaphore(1))
-  yield* _(Effect.all(semTaskSeq(mutex), { concurrency: "unbounded" }))
+const program = Effect.gen(function* () {
+  const mutex = yield* Effect.makeSemaphore(1)
+  yield* Effect.all(semTaskSeq(mutex), { concurrency: "unbounded" })
 })
 
 Effect.runPromise(program)
@@ -50,20 +50,18 @@ In another scenario, we create a semaphore with five permits. We then utilize `w
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const sem = yield* _(Effect.makeSemaphore(5))
+const program = Effect.gen(function* () {
+  const sem = yield* Effect.makeSemaphore(5)
 
-  yield* _(
-    Effect.forEach(
-      [1, 2, 3, 4, 5],
-      (n) =>
-        sem
-          .withPermits(n)(
-            Effect.delay(Effect.log(`process: ${n}`), "2 seconds")
-          )
-          .pipe(Effect.withLogSpan("elasped")),
-      { concurrency: "unbounded" }
-    )
+  yield* Effect.forEach(
+    [1, 2, 3, 4, 5],
+    (n) =>
+      sem
+        .withPermits(n)(
+          Effect.delay(Effect.log(`process: ${n}`), "2 seconds")
+        )
+        .pipe(Effect.withLogSpan("elasped")),
+    { concurrency: "unbounded" }
   )
 })
 
