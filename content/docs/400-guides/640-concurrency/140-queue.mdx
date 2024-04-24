@@ -19,10 +19,10 @@ Here's an example demonstrating these basic operations:
 ```ts twoslash
 import { Effect, Queue } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.bounded<number>(100))
-  yield* _(Queue.offer(queue, 1)) // Add 1 to the queue
-  const value = yield* _(Queue.take(queue)) // Retrieve and remove the oldest value
+const program = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<number>(100)
+  yield* Queue.offer(queue, 1) // Add 1 to the queue
+  const value = yield* Queue.take(queue) // Retrieve and remove the oldest value
   return value
 })
 
@@ -84,9 +84,9 @@ To add a value to the queue, you can use the `Queue.offer` operation:
 ```ts twoslash
 import { Effect, Queue } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.bounded<number>(100))
-  yield* _(Queue.offer(queue, 1)) // put 1 in the queue
+const program = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<number>(100)
+  yield* Queue.offer(queue, 1) // put 1 in the queue
 })
 ```
 
@@ -95,12 +95,12 @@ If you're using a back-pressured queue and it's full, the `offer` operation migh
 ```ts twoslash
 import { Effect, Queue, Fiber } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.bounded<number>(1))
-  yield* _(Queue.offer(queue, 1))
-  const fiber = yield* _(Effect.fork(Queue.offer(queue, 2))) // will be suspended because the queue is full
-  yield* _(Queue.take(queue))
-  yield* _(Fiber.join(fiber))
+const program = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<number>(1)
+  yield* Queue.offer(queue, 1)
+  const fiber = yield* Effect.fork(Queue.offer(queue, 2)) // will be suspended because the queue is full
+  yield* Queue.take(queue)
+  yield* Fiber.join(fiber)
 })
 ```
 
@@ -109,11 +109,11 @@ You can also add multiple values at once using `Queue.offerAll`:
 ```ts twoslash
 import { Effect, Queue, ReadonlyArray } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.bounded<number>(100))
+const program = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<number>(100)
   const items = ReadonlyArray.range(1, 10)
-  yield* _(Queue.offerAll(queue, items))
-  return yield* _(Queue.size(queue))
+  yield* Queue.offerAll(queue, items)
+  return yield* Queue.size(queue)
 })
 
 Effect.runPromise(program).then(console.log) // Output: 10
@@ -126,11 +126,11 @@ The `Queue.take` operation removes the oldest item from the queue and returns it
 ```ts twoslash
 import { Effect, Queue, Fiber } from "effect"
 
-const oldestItem = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.bounded<string>(100))
-  const fiber = yield* _(Effect.fork(Queue.take(queue))) // will be suspended because the queue is empty
-  yield* _(Queue.offer(queue, "something"))
-  const value = yield* _(Fiber.join(fiber))
+const oldestItem = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<string>(100)
+  const fiber = yield* Effect.fork(Queue.take(queue)) // will be suspended because the queue is empty
+  yield* Queue.offer(queue, "something")
+  const value = yield* Fiber.join(fiber)
   return value
 })
 
@@ -142,11 +142,11 @@ You can retrieve the first item using `Queue.poll`. If the queue is empty, you'l
 ```ts twoslash
 import { Effect, Queue } from "effect"
 
-const polled = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.bounded<number>(100))
-  yield* _(Queue.offer(queue, 10))
-  yield* _(Queue.offer(queue, 20))
-  const head = yield* _(Queue.poll(queue))
+const polled = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<number>(100)
+  yield* Queue.offer(queue, 10)
+  yield* Queue.offer(queue, 20)
+  const head = yield* Queue.poll(queue)
   return head
 })
 
@@ -166,12 +166,12 @@ You can retrieve multiple items at once using `Queue.takeUpTo`. If the queue doe
 ```ts twoslash
 import { Effect, Queue } from "effect"
 
-const polled = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.bounded<number>(100))
-  yield* _(Queue.offer(queue, 10))
-  yield* _(Queue.offer(queue, 20))
-  yield* _(Queue.offer(queue, 30))
-  const chunk = yield* _(Queue.takeUpTo(queue, 2))
+const polled = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<number>(100)
+  yield* Queue.offer(queue, 10)
+  yield* Queue.offer(queue, 20)
+  yield* Queue.offer(queue, 30)
+  const chunk = yield* Queue.takeUpTo(queue, 2)
   return chunk
 })
 
@@ -190,12 +190,12 @@ Similarly, you can retrieve all items at once using `Queue.takeAll`. It returns 
 ```ts twoslash
 import { Effect, Queue } from "effect"
 
-const polled = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.bounded<number>(100))
-  yield* _(Queue.offer(queue, 10))
-  yield* _(Queue.offer(queue, 20))
-  yield* _(Queue.offer(queue, 30))
-  const chunk = yield* _(Queue.takeAll(queue))
+const polled = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<number>(100)
+  yield* Queue.offer(queue, 10)
+  yield* Queue.offer(queue, 20)
+  yield* Queue.offer(queue, 30)
+  const chunk = yield* Queue.takeAll(queue)
   return chunk
 })
 
@@ -216,11 +216,11 @@ With `Queue.shutdown`, you can interrupt all fibers that are suspended on `offer
 ```ts twoslash
 import { Effect, Queue, Fiber } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.bounded<number>(3))
-  const fiber = yield* _(Effect.fork(Queue.take(queue)))
-  yield* _(Queue.shutdown(queue)) // will interrupt fiber
-  yield* _(Fiber.join(fiber)) // will terminate
+const program = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<number>(3)
+  const fiber = yield* Effect.fork(Queue.take(queue))
+  yield* Queue.shutdown(queue) // will interrupt fiber
+  yield* Fiber.join(fiber) // will terminate
 })
 ```
 
@@ -229,17 +229,15 @@ You can use `Queue.awaitShutdown` to execute an effect when the queue is shut do
 ```ts twoslash
 import { Effect, Queue, Fiber, Console } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.bounded<number>(3))
-  const fiber = yield* _(
-    Effect.fork(
-      Queue.awaitShutdown(queue).pipe(
-        Effect.flatMap(() => Console.log("shutting down"))
-      )
+const program = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<number>(3)
+  const fiber = yield* Effect.fork(
+    Queue.awaitShutdown(queue).pipe(
+      Effect.flatMap(() => Console.log("shutting down"))
     )
   )
-  yield* _(Queue.shutdown(queue))
-  yield* _(Fiber.join(fiber))
+  yield* Queue.shutdown(queue)
+  yield* Fiber.join(fiber)
 })
 
 Effect.runPromise(program) // Output: shutting down
@@ -294,16 +292,16 @@ const receive = (takeOnlyQueue: Queue.Dequeue<number>) => {
   return Queue.take(takeOnlyQueue)
 }
 
-const program = Effect.gen(function* (_) {
-  const queue = yield* _(Queue.unbounded<number>())
+const program = Effect.gen(function* () {
+  const queue = yield* Queue.unbounded<number>()
 
   // Offer values to the queue
-  yield* _(send(queue, 1))
-  yield* _(send(queue, 2))
+  yield* send(queue, 1)
+  yield* send(queue, 2)
 
   // Take values from the queue
-  console.log(yield* _(receive(queue)))
-  console.log(yield* _(receive(queue)))
+  console.log(yield* receive(queue))
+  console.log(yield* receive(queue))
 })
 
 Effect.runPromise(program)

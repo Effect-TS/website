@@ -47,10 +47,10 @@ const barJob = Effect.repeat(
   Schedule.fixed("1 seconds")
 )
 
-const fooJob = Effect.gen(function* (_) {
+const fooJob = Effect.gen(function* () {
   console.log("Foo: started!")
-  yield* _(Effect.fork(barJob))
-  yield* _(Effect.sleep("3 seconds"))
+  yield* Effect.fork(barJob)
+  yield* Effect.sleep("3 seconds")
   console.log("Foo: finished!")
 })
 
@@ -81,10 +81,10 @@ const barJob = Effect.repeat(
   Schedule.fixed("1 seconds")
 )
 
-const fooJob = Effect.gen(function* (_) {
+const fooJob = Effect.gen(function* () {
   console.log("Foo: started!")
-  yield* _(Effect.forkDaemon(barJob))
-  yield* _(Effect.sleep("3 seconds"))
+  yield* Effect.forkDaemon(barJob)
+  yield* Effect.sleep("3 seconds")
   console.log("Foo: finished!")
 })
 
@@ -117,17 +117,17 @@ const barJob = Effect.repeat(
   Schedule.fixed("1 seconds")
 )
 
-const fooJob = Effect.gen(function* (_) {
+const fooJob = Effect.gen(function* () {
   console.log("Foo: started!")
-  yield* _(Effect.forkDaemon(barJob))
-  yield* _(Effect.sleep("3 seconds"))
+  yield* Effect.forkDaemon(barJob)
+  yield* Effect.sleep("3 seconds")
   console.log("Foo: finished!")
 }).pipe(Effect.onInterrupt(() => Console.log("Foo: interrupted!")))
 
-const program = Effect.gen(function* (_) {
-  const f = yield* _(Effect.fork(fooJob))
-  yield* _(Effect.sleep("2 seconds"))
-  yield* _(Fiber.interrupt(f))
+const program = Effect.gen(function* () {
+  const f = yield* Effect.fork(fooJob)
+  yield* Effect.sleep("2 seconds")
+  yield* Fiber.interrupt(f)
 })
 
 Effect.runPromise(program)
@@ -160,18 +160,18 @@ const barJob = Effect.repeat(
   Schedule.fixed("1 seconds")
 )
 
-const fooJob = Effect.gen(function* (_) {
+const fooJob = Effect.gen(function* () {
   console.log("Foo: started!")
-  yield* _(Effect.forkScoped(barJob))
-  yield* _(Effect.sleep("3 seconds"))
+  yield* Effect.forkScoped(barJob)
+  yield* Effect.sleep("3 seconds")
   console.log("Foo: finished!")
 })
 
 const program = Effect.scoped(
-  Effect.gen(function* (_) {
+  Effect.gen(function* () {
     console.log("Local scope started!")
-    yield* _(Effect.fork(fooJob))
-    yield* _(Effect.sleep("5 seconds"))
+    yield* Effect.fork(fooJob)
+    yield* Effect.sleep("5 seconds")
     console.log("Leaving the local scope!")
   })
 )
@@ -208,18 +208,16 @@ const barJob = Effect.repeat(
 )
 
 const program = Effect.scoped(
-  Effect.gen(function* (_) {
-    const scope = yield* _(Effect.scope)
-    yield* _(
-      Effect.scoped(
-        Effect.gen(function* (_) {
-          yield* _(Effect.forkIn(barJob, scope))
-          yield* _(Effect.sleep("3 seconds"))
-          console.log("The innermost scope is about to be closed.")
-        })
-      )
+  Effect.gen(function* () {
+    const scope = yield* Effect.scope
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        yield* Effect.forkIn(barJob, scope)
+        yield* Effect.sleep("3 seconds")
+        console.log("The innermost scope is about to be closed.")
+      })
     )
-    yield* _(Effect.sleep("5 seconds"))
+    yield* Effect.sleep("5 seconds")
     console.log("The outer scope is about to be closed.")
   })
 )
@@ -252,16 +250,15 @@ In the following example the `SubscriptionRef` `changes` stream only contains a 
 ```ts twoslash
 import { Effect, SubscriptionRef, Stream, Console } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const ref = yield* _(SubscriptionRef.make(0))
-  yield* _(
-    ref.changes,
+const program = Effect.gen(function* () {
+  const ref = yield* SubscriptionRef.make(0)
+  yield* ref.changes.pipe(
     Stream.tap((n) => Console.log(`SubscriptionRef changed to ${n}`)),
     Stream.runDrain,
     Effect.fork
   )
-  yield* _(SubscriptionRef.set(ref, 1))
-  yield* _(SubscriptionRef.set(ref, 2))
+  yield* SubscriptionRef.set(ref, 1)
+  yield* SubscriptionRef.set(ref, 2)
 })
 
 Effect.runPromise(program)
@@ -276,17 +273,16 @@ If we add `Effect.yieldNow()` to force the current fiber to yield then the strea
 ```ts twoslash
 import { Effect, SubscriptionRef, Stream, Console } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const ref = yield* _(SubscriptionRef.make(0))
-  yield* _(
-    ref.changes,
+const program = Effect.gen(function* () {
+  const ref = yield* SubscriptionRef.make(0)
+  yield* ref.changes.pipe(
     Stream.tap((n) => Console.log(`SubscriptionRef changed to ${n}`)),
     Stream.runDrain,
     Effect.fork
   )
-  yield* _(Effect.yieldNow())
-  yield* _(SubscriptionRef.set(ref, 1))
-  yield* _(SubscriptionRef.set(ref, 2))
+  yield* Effect.yieldNow()
+  yield* SubscriptionRef.set(ref, 1)
+  yield* SubscriptionRef.set(ref, 2)
 })
 
 Effect.runPromise(program)

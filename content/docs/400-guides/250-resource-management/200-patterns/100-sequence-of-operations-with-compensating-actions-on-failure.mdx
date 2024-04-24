@@ -86,45 +86,39 @@ import { Effect, Exit } from "effect"
 import * as Services from "./Services"
 
 // Create a bucket, and define the release function that deletes the bucket if the operation fails.
-const createBucket = Effect.gen(function* (_) {
-  const { createBucket, deleteBucket } = yield* _(Services.S3)
-  return yield* _(
-    Effect.acquireRelease(createBucket, (bucket, exit) =>
-      // The release function for the Effect.acquireRelease operation is responsible for handling the acquired resource (bucket) after the main effect has completed.
-      // It is called regardless of whether the main effect succeeded or failed.
-      // If the main effect failed, Exit.isFailure(exit) will be true, and the function will perform a rollback by calling deleteBucket(bucket).
-      // If the main effect succeeded, Exit.isFailure(exit) will be false, and the function will return Effect.void, representing a successful, but do-nothing effect.
-      Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.void
-    )
+const createBucket = Effect.gen(function* () {
+  const { createBucket, deleteBucket } = yield* Services.S3
+  return yield* Effect.acquireRelease(createBucket, (bucket, exit) =>
+    // The release function for the Effect.acquireRelease operation is responsible for handling the acquired resource (bucket) after the main effect has completed.
+    // It is called regardless of whether the main effect succeeded or failed.
+    // If the main effect failed, Exit.isFailure(exit) will be true, and the function will perform a rollback by calling deleteBucket(bucket).
+    // If the main effect succeeded, Exit.isFailure(exit) will be false, and the function will return Effect.void, representing a successful, but do-nothing effect.
+    Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.void
   )
 })
 
 // Create an index, and define the release function that deletes the index if the operation fails.
-const createIndex = Effect.gen(function* (_) {
-  const { createIndex, deleteIndex } = yield* _(Services.ElasticSearch)
-  return yield* _(
-    Effect.acquireRelease(createIndex, (index, exit) =>
-      Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
-    )
+const createIndex = Effect.gen(function* () {
+  const { createIndex, deleteIndex } = yield* Services.ElasticSearch
+  return yield* Effect.acquireRelease(createIndex, (index, exit) =>
+    Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
   )
 })
 
 // Create an entry in the database, and define the release function that deletes the entry if the operation fails.
 const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
-  Effect.gen(function* (_) {
-    const { createEntry, deleteEntry } = yield* _(Services.Database)
-    return yield* _(
-      Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
-        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
-      )
+  Effect.gen(function* () {
+    const { createEntry, deleteEntry } = yield* Services.Database
+    return yield* Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
+      Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
     )
   })
 
 export const make = Effect.scoped(
-  Effect.gen(function* (_) {
-    const bucket = yield* _(createBucket)
-    const index = yield* _(createIndex)
-    return yield* _(createEntry(bucket, index))
+  Effect.gen(function* () {
+    const bucket = yield* createBucket
+    const index = yield* createIndex
+    return yield* createEntry(bucket, index)
   })
 )
 ```
@@ -256,13 +250,13 @@ class FailureCase extends Context.Tag("FailureCase")<
 
 const S3Test = Layer.effect(
   Services.S3,
-  Effect.gen(function* (_) {
-    const failureCase = yield* _(FailureCase)
+  Effect.gen(function* () {
+    const failureCase = yield* FailureCase
     return {
-      createBucket: Effect.gen(function* (_) {
+      createBucket: Effect.gen(function* () {
         console.log("[S3] creating bucket")
         if (failureCase === "S3") {
-          return yield* _(Effect.fail(new Services.S3Error()))
+          return yield* Effect.fail(new Services.S3Error())
         } else {
           return { name: "<bucket.name>" }
         }
@@ -277,13 +271,13 @@ const S3Test = Layer.effect(
 
 const ElasticSearchTest = Layer.effect(
   Services.ElasticSearch,
-  Effect.gen(function* (_) {
-    const failureCase = yield* _(FailureCase)
+  Effect.gen(function* () {
+    const failureCase = yield* FailureCase
     return {
-      createIndex: Effect.gen(function* (_) {
+      createIndex: Effect.gen(function* () {
         console.log("[ElasticSearch] creating index")
         if (failureCase === "ElasticSearch") {
-          return yield* _(Effect.fail(new Services.ElasticSearchError()))
+          return yield* Effect.fail(new Services.ElasticSearchError())
         } else {
           return { id: "<index.id>" }
         }
@@ -298,16 +292,16 @@ const ElasticSearchTest = Layer.effect(
 
 const DatabaseTest = Layer.effect(
   Services.Database,
-  Effect.gen(function* (_) {
-    const failureCase = yield* _(FailureCase)
+  Effect.gen(function* () {
+    const failureCase = yield* FailureCase
     return {
       createEntry: (bucket, index) =>
-        Effect.gen(function* (_) {
+        Effect.gen(function* () {
           console.log(
             `[Database] creating entry for bucket ${bucket.name} and index ${index.id}`
           )
           if (failureCase === "Database") {
-            return yield* _(Effect.fail(new Services.DatabaseError()))
+            return yield* Effect.fail(new Services.DatabaseError())
           } else {
             return { id: "<entry.id>" }
           }

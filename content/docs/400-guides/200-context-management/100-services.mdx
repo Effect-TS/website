@@ -80,9 +80,9 @@ Now that we have our service tag defined, let's see how we can use it by buildin
 import { Effect } from "effect"
 import { Random } from "./service"
 
-const program = Effect.gen(function* (_) {
-  const random = yield* _(Random)
-  const randomNumber = yield* _(random.next)
+const program = Effect.gen(function* () {
+  const random = yield* Random
+  const randomNumber = yield* random.next
   console.log(`random number: ${randomNumber}`)
 })
 ```
@@ -132,9 +132,9 @@ If we attempt to execute the effect without providing the necessary service we w
 // @errors: 2345
 // @include: service
 
-const program = Effect.gen(function* (_) {
-  const random = yield* _(Random)
-  const randomNumber = yield* _(random.next)
+const program = Effect.gen(function* () {
+  const random = yield* Random
+  const randomNumber = yield* random.next
   console.log(`random number: ${randomNumber}`)
 })
 
@@ -153,9 +153,9 @@ In order to provide an actual implementation of the `Random` service, we can uti
 ```ts twoslash
 // @include: service
 
-const program = Effect.gen(function* (_) {
-  const random = yield* _(Random)
-  const randomNumber = yield* _(random.next)
+const program = Effect.gen(function* () {
+  const random = yield* Random
+  const randomNumber = yield* random.next
   console.log(`random number: ${randomNumber}`)
 })
 
@@ -208,16 +208,16 @@ class Logger extends Context.Tag("Logger")<
 ```ts twoslash
 // @include: random-logger
 
-const program = Effect.gen(function* (_) {
+const program = Effect.gen(function* () {
   // Acquire instances of the 'Random' and 'Logger' services
-  const random = yield* _(Random)
-  const logger = yield* _(Logger)
+  const random = yield* Random
+  const logger = yield* Logger
 
   // Generate a random number using the 'Random' service
-  const randomNumber = yield* _(random.next)
+  const randomNumber = yield* random.next
 
   // Log the random number using the 'Logger' service
-  return yield* _(logger.log(String(randomNumber)))
+  return yield* logger.log(String(randomNumber))
 })
 ```
 
@@ -256,11 +256,11 @@ To execute the `program`, we need to provide implementations for both services:
 ```ts twoslash
 // @include: random-logger
 
-const program = Effect.gen(function* (_) {
-  const random = yield* _(Random)
-  const logger = yield* _(Logger)
-  const randomNumber = yield* _(random.next)
-  return yield* _(logger.log(String(randomNumber)))
+const program = Effect.gen(function* () {
+  const random = yield* Random
+  const logger = yield* Logger
+  const randomNumber = yield* random.next
+  return yield* logger.log(String(randomNumber))
 })
 
 // ---cut---
@@ -282,11 +282,11 @@ Alternatively, instead of calling `provideService` multiple times, we can combin
 ```ts twoslash
 // @include: random-logger
 
-const program = Effect.gen(function* (_) {
-  const random = yield* _(Random)
-  const logger = yield* _(Logger)
-  const randomNumber = yield* _(random.next)
-  return yield* _(logger.log(String(randomNumber)))
+const program = Effect.gen(function* () {
+  const random = yield* Random
+  const logger = yield* Logger
+  const randomNumber = yield* random.next
+  return yield* logger.log(String(randomNumber))
 })
 
 // ---cut---
@@ -332,13 +332,13 @@ To determine what action to take, we can use the `Option.isNone` function provid
 import { Effect, Option } from "effect"
 import { Random } from "./service"
 
-const program = Effect.gen(function* (_) {
-  const maybeRandom = yield* _(Effect.serviceOption(Random))
+const program = Effect.gen(function* () {
+  const maybeRandom = yield* Effect.serviceOption(Random)
   const randomNumber = Option.isNone(maybeRandom)
     ? // the service is not available, return a default value
       -1
     : // the service is available
-      yield* _(maybeRandom.value.next)
+      yield* maybeRandom.value.next
   console.log(randomNumber)
 })
 ```

@@ -101,9 +101,9 @@ export const task = new Promise<number>((resolve, reject) => {
 ```ts twoslash
 import { Effect } from "effect"
 
-export const task = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("300 millis"))
-  return Math.random() > 0.5 ? 2 : yield* _(Effect.fail("Uh oh!"))
+export const task = Effect.gen(function* () {
+  yield* Effect.sleep("300 millis")
+  return Math.random() > 0.5 ? 2 : yield* Effect.fail("Uh oh!")
 })
 ```
 
@@ -213,10 +213,10 @@ const task1 = Effect.promise(() => Promise.resolve(10))
 
 const task2 = Effect.promise(() => Promise.resolve(2))
 
-export const program = Effect.gen(function* (_) {
-  const a = yield* _(task1)
-  const b = yield* _(task2)
-  const n1 = yield* _(divide(a, b))
+export const program = Effect.gen(function* () {
+  const a = yield* task1
+  const b = yield* task2
+  const n1 = yield* divide(a, b)
   const n2 = increment(n1)
   return `Result is: ${n2}`
 })
@@ -282,23 +282,23 @@ task3 done
 ```ts twoslash
 import { Effect } from "effect"
 
-const task1 = Effect.gen(function* (_) {
+const task1 = Effect.gen(function* () {
   console.log("Executing task1...")
-  yield* _(Effect.sleep("100 millis"))
+  yield* Effect.sleep("100 millis")
   console.log("task1 done")
   return 1
 })
 
-const task2 = Effect.gen(function* (_) {
+const task2 = Effect.gen(function* () {
   console.log("Executing task2...")
-  yield* _(Effect.sleep("200 millis"))
+  yield* Effect.sleep("200 millis")
   console.log("task2 done")
-  return yield* _(Effect.fail("Uh oh!"))
+  return yield* Effect.fail("Uh oh!")
 })
 
-const task3 = Effect.gen(function* (_) {
+const task3 = Effect.gen(function* () {
   console.log("Executing task3...")
-  yield* _(Effect.sleep("300 millis"))
+  yield* Effect.sleep("300 millis")
   console.log("task3 done")
   return 3
 })
@@ -377,23 +377,23 @@ task3 done
 ```ts twoslash
 import { Effect } from "effect"
 
-const task1 = Effect.gen(function* (_) {
+const task1 = Effect.gen(function* () {
   console.log("Executing task1...")
-  yield* _(Effect.sleep("100 millis"))
+  yield* Effect.sleep("100 millis")
   console.log("task1 done")
   return 1
 })
 
-const task2 = Effect.gen(function* (_) {
+const task2 = Effect.gen(function* () {
   console.log("Executing task2...")
-  yield* _(Effect.sleep("200 millis"))
+  yield* Effect.sleep("200 millis")
   console.log("task2 done")
-  return yield* _(Effect.fail("Uh oh!"))
+  return yield* Effect.fail("Uh oh!")
 })
 
-const task3 = Effect.gen(function* (_) {
+const task3 = Effect.gen(function* () {
   console.log("Executing task3...")
-  yield* _(Effect.sleep("300 millis"))
+  yield* Effect.sleep("300 millis")
   console.log("task3 done")
   return 3
 })
@@ -487,25 +487,25 @@ task3 done
 ```ts twoslash
 import { Effect } from "effect"
 
-const task1 = Effect.gen(function* (_) {
+const task1 = Effect.gen(function* () {
   console.log("Executing task1...")
-  yield* _(Effect.sleep("100 millis"))
+  yield* Effect.sleep("100 millis")
   console.log("task1 done")
-  return yield* _(Effect.fail("Something went wrong!"))
+  return yield* Effect.fail("Something went wrong!")
 })
 
-const task2 = Effect.gen(function* (_) {
+const task2 = Effect.gen(function* () {
   console.log("Executing task2...")
-  yield* _(Effect.sleep("200 millis"))
+  yield* Effect.sleep("200 millis")
   console.log("task2 done")
   return 2
 })
 
-const task3 = Effect.gen(function* (_) {
+const task3 = Effect.gen(function* () {
   console.log("Executing task3...")
-  yield* _(Effect.sleep("300 millis"))
+  yield* Effect.sleep("300 millis")
   console.log("task3 done")
-  return yield* _(Effect.fail("Uh oh!"))
+  return yield* Effect.fail("Uh oh!")
 })
 
 export const program = Effect.raceAll([task1, task2, task3])
@@ -576,23 +576,23 @@ task3 done
 ```ts twoslash
 import { Effect } from "effect"
 
-const task1 = Effect.gen(function* (_) {
+const task1 = Effect.gen(function* () {
   console.log("Executing task1...")
-  yield* _(Effect.sleep("100 millis"))
+  yield* Effect.sleep("100 millis")
   console.log("task1 done")
-  return yield* _(Effect.fail("Something went wrong!"))
+  return yield* Effect.fail("Something went wrong!")
 })
 
-const task2 = Effect.gen(function* (_) {
+const task2 = Effect.gen(function* () {
   console.log("Executing task2...")
-  yield* _(Effect.sleep("200 millis"))
+  yield* Effect.sleep("200 millis")
   console.log("task2 done")
-  return yield* _(Effect.fail("Uh oh!"))
+  return yield* Effect.fail("Uh oh!")
 })
 
-const task3 = Effect.gen(function* (_) {
+const task3 = Effect.gen(function* () {
   console.log("Executing task3...")
-  yield* _(Effect.sleep("300 millis"))
+  yield* Effect.sleep("300 millis")
   console.log("task3 done")
   return 3
 })
@@ -659,20 +659,20 @@ long running task done
 import { Effect, Fiber } from "effect"
 
 const task = (delay: number, name: string) =>
-  Effect.gen(function* (_) {
-    yield* _(Effect.sleep(delay))
+  Effect.gen(function* () {
+    yield* Effect.sleep(delay)
     console.log(`${name} done`)
     return name
   })
 
-const program = Effect.gen(function* (_) {
-  const r0 = yield* _(Effect.fork(task(2_000, "long running task")))
-  const r1 = yield* _(task(200, "task 2"))
-  const r2 = yield* _(task(100, "task 3"))
+const program = Effect.gen(function* () {
+  const r0 = yield* Effect.fork(task(2_000, "long running task"))
+  const r1 = yield* task(200, "task 2")
+  const r2 = yield* task(100, "task 3")
   return {
     r1,
     r2,
-    r0: yield* _(Fiber.join(r0))
+    r0: yield* Fiber.join(r0)
   }
 })
 

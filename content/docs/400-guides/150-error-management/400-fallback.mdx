@@ -86,13 +86,13 @@ interface Config {
 const makeConfig = (/* ... */): Config => ({})
 
 const remoteConfig = (name: string): Effect.Effect<Config, Error> =>
-  Effect.gen(function* (_) {
+  Effect.gen(function* () {
     if (name === "node3") {
-      yield* _(Console.log(`Config for ${name} found`))
+      yield* Console.log(`Config for ${name} found`)
       return makeConfig()
     } else {
-      yield* _(Console.log(`Unavailable config for ${name}`))
-      return yield* _(Effect.fail(new Error()))
+      yield* Console.log(`Unavailable config for ${name}`)
+      return yield* Effect.fail(new Error())
     }
   })
 

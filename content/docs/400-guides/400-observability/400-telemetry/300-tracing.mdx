@@ -280,10 +280,10 @@ const child = Effect.void.pipe(
   Effect.withSpan("child")
 )
 
-const parent = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("20 millis"))
-  yield* _(child)
-  yield* _(Effect.sleep("10 millis"))
+const parent = Effect.gen(function* () {
+  yield* Effect.sleep("20 millis")
+  yield* child
+  yield* Effect.sleep("10 millis")
 }).pipe(Effect.withSpan("parent"))
 
 const NodeSdkLive = NodeSdk.layer(() => ({
@@ -387,13 +387,13 @@ Now, let's simulate traces using a sample Node.js application. We'll provide you
      delay: number,
      children: ReadonlyArray<Effect.Effect<void>> = []
    ) =>
-     Effect.gen(function* (_) {
-       yield* _(Effect.log(name))
-       yield* _(Effect.sleep(`${delay} millis`))
+     Effect.gen(function* () {
+       yield* Effect.log(name)
+       yield* Effect.sleep(`${delay} millis`)
        for (const child of children) {
-         yield* _(child)
+         yield* child
        }
-       yield* _(Effect.sleep(`${delay} millis`))
+       yield* Effect.sleep(`${delay} millis`)
      }).pipe(Effect.withSpan(name))
 
    const poll = task("/poll", 1)

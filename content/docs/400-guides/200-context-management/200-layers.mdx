@@ -233,9 +233,9 @@ export class Recipe extends Context.Tag("Recipe")<
 
 const RecipeLive = Layer.effect(
   Recipe,
-  Effect.gen(function* (_) {
-    const sugar = yield* _(Sugar)
-    const flour = yield* _(Flour)
+  Effect.gen(function* () {
+    const sugar = yield* Sugar
+    const flour = yield* Flour
     return {
       steps: Effect.all([sugar.grams(200), flour.cups(1)])
     }
@@ -439,9 +439,9 @@ export class Recipe extends Context.Tag("Recipe")<
 
 const RecipeLive = Layer.effect(
   Recipe,
-  Effect.gen(function* (_) {
-    const sugar = yield* _(Sugar)
-    const flour = yield* _(Flour)
+  Effect.gen(function* () {
+    const sugar = yield* Sugar
+    const flour = yield* Flour
     return {
       steps: Effect.all([sugar.grams(200), flour.cups(1)])
     }
@@ -511,9 +511,9 @@ export class Recipe extends Context.Tag("Recipe")<
 
 const RecipeLive = Layer.effect(
   Recipe,
-  Effect.gen(function* (_) {
-    const sugar = yield* _(Sugar)
-    const flour = yield* _(Flour)
+  Effect.gen(function* () {
+    const sugar = yield* Sugar
+    const flour = yield* Flour
     return {
       steps: Effect.all([sugar.grams(200), flour.cups(1)])
     }
@@ -586,9 +586,9 @@ export class Recipe extends Context.Tag("Recipe")<
 
 const RecipeLive = Layer.effect(
   Recipe,
-  Effect.gen(function* (_) {
-    const sugar = yield* _(Sugar)
-    const flour = yield* _(Flour)
+  Effect.gen(function* () {
+    const sugar = yield* Sugar
+    const flour = yield* Flour
     return {
       steps: Effect.all([sugar.grams(200), flour.cups(1)])
     }
@@ -605,15 +605,13 @@ const MainLive = RecipeLive.pipe(
 // ---cut---
 import { Console } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const recipe = yield* _(Recipe)
-  const steps = yield* _(recipe.steps)
-  return yield* _(
-    Effect.forEach(steps, (step) => Console.log(step), {
-      concurrency: "unbounded",
-      discard: true
-    })
-  )
+const program = Effect.gen(function* () {
+  const recipe = yield* Recipe
+  const steps = yield* recipe.steps
+  return yield* Effect.forEach(steps, (step) => Console.log(step), {
+    concurrency: "unbounded",
+    discard: true
+  })
 })
 
 const runnable = Effect.provide(program, MainLive)
@@ -678,9 +676,9 @@ export class Recipe extends Context.Tag("Recipe")<
 
 const RecipeLive = Layer.effect(
   Recipe,
-  Effect.gen(function* (_) {
-    const sugar = yield* _(Sugar)
-    const flour = yield* _(Flour)
+  Effect.gen(function* () {
+    const sugar = yield* Sugar
+    const flour = yield* Flour
     return {
       steps: Effect.all([sugar.grams(200), flour.cups(1)])
     }
