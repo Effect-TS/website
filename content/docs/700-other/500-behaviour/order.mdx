@@ -41,14 +41,14 @@ console.log(Order.bigint(2n, 1n))
 
 ## Sorting Arrays
 
-Once you have your comparators, you can sort arrays. The ReadonlyArray module provides a handy function called `sort` that allows you to sort arrays without modifying the original array. Here's an example:
+Once you have your comparators, you can sort arrays. The Array module provides a handy function called `sort` that allows you to sort arrays without modifying the original array. Here's an example:
 
 ```ts twoslash
-import { Order, ReadonlyArray } from "effect"
+import { Order, Array } from "effect"
 
 const strings = ["b", "a", "d", "c"]
 
-const result = ReadonlyArray.sort(strings, Order.string)
+const result = Array.sort(strings, Order.string)
 
 console.log(strings)
 console.log(result)
@@ -72,7 +72,7 @@ console.log(strings)
 // Output: [ 'a', 'b', 'c', 'd' ]
 ```
 
-Please note that when using `Array#sort`, you modify the original array. So, be cautious if you want to keep the original order. If you don't want to alter the original array, consider using `ReadonlyArray.sort` as shown earlier.
+Please note that when using `Array#sort`, you modify the original array. So, be cautious if you want to keep the original order. If you don't want to alter the original array, consider using `Array.sort` as shown earlier.
 
 ## Deriving Orders
 
@@ -85,7 +85,7 @@ To achieve this, you can create a custom `Order`.
 Here's how you can do it:
 
 ```ts twoslash
-import { Order, ReadonlyArray } from "effect"
+import { Order, Array } from "effect"
 
 // Define the Person interface
 interface Person {
@@ -108,7 +108,7 @@ The `mapInput` function takes two arguments:
 Once you have defined your custom sorting rule, you can apply it to sort a list of `Person` objects:
 
 ```ts twoslash
-import { Order, ReadonlyArray } from "effect"
+import { Order, Array } from "effect"
 
 interface Person {
   readonly name: string
@@ -125,7 +125,7 @@ const persons: ReadonlyArray<Person> = [
 ]
 
 // Use your custom sorting rule to sort the persons array
-const sortedPersons = ReadonlyArray.sort(persons, byName)
+const sortedPersons = Array.sort(persons, byName)
 
 console.log(sortedPersons)
 /*
@@ -149,7 +149,7 @@ Imagine you have a list of people, each represented by an object with a `name` a
 Here's how you can achieve this using the Order module:
 
 ```ts twoslash
-import { Order, ReadonlyArray } from "effect"
+import { Order, Array } from "effect"
 
 // Define the structure of a person
 interface Person {
@@ -166,7 +166,7 @@ const byAge = Order.mapInput(Order.number, (person: Person) => person.age)
 // Combine the two Orders to create a complex sorting logic
 const byNameAge = Order.combine(byName, byAge)
 
-const result = ReadonlyArray.sort(
+const result = Array.sort(
   [
     { name: "Bob", age: 20 },
     { name: "Alice", age: 18 },
@@ -190,7 +190,7 @@ In the code above, we first create two separate `Order` instances: `byName` and 
 
 Next, we use the `combine` function to merge these two orders into a single `byNameAge` order. This combined order first sorts people by name and then, for those with the same name, by age.
 
-Finally, we apply this combined order to the array of people using `ReadonlyArray.sort`. The result is an array of people sorted according to the specified criteria.
+Finally, we apply this combined order to the array of people using `Array.sort`. The result is an array of people sorted according to the specified criteria.
 
 ## Additional Useful Functions
 

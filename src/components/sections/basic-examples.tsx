@@ -570,7 +570,7 @@ const getTodo = (
     )
 
 const main = getTodos(
-  ReadonlyArray.range(1, 10),
+  Array.range(1, 10),
 ).pipe(
   Effect.withConcurrency(3),
   Effect.timeout("10 seconds"),
