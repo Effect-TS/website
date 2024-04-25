@@ -28,7 +28,7 @@ export default async function Image({params: {slug}}: {params: {slug: string}}) 
           padding: '0px 128px'
         }}
       >
-        <img src="https://i.imgur.com/aGMJKsB.png" alt="Effect Logotype" width="298" height="64" />
+        <img src="https://i.imgur.com/aGMJKsB.png" alt="Effect Logotype" height="64" />
         <div style={{color: 'white', fontSize: 64, fontFamily: 'CalSans'}}>{post.title}</div>
         <div style={{color: '#A1A1AB', fontSize: 32}}>{post.excerpt}</div>
         {/* <div style={{fontFamily: 'Cal Sans', color: '#ffffff', fontSize: 64}}>Test</div> */}
