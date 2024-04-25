@@ -273,10 +273,10 @@ HistogramState {
 This example demonstrates the use of a timer metric to track workflow durations. It generates random values, simulates waiting times, records durations in the timer metric, and displays the histogram's state.
 
 ```ts twoslash
-import { Metric, ReadonlyArray, Random, Effect } from "effect"
+import { Metric, Array, Random, Effect } from "effect"
 
 // Metric<Histogram, Duration, Histogram>
-const timer = Metric.timerWithBoundaries("timer", ReadonlyArray.range(1, 10))
+const timer = Metric.timerWithBoundaries("timer", Array.range(1, 10))
 
 const program = Random.nextIntBetween(1, 10).pipe(
   Effect.flatMap((n) => Effect.sleep(`${n} millis`)),
