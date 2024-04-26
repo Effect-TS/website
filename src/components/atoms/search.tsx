@@ -39,7 +39,7 @@ export const Search: FC<{ className?: string }> = ({ className = "" }) => {
       setTimeout(
         //@ts-ignore
         () => document.querySelector(".ais-SearchBox-input")?.focus(),
-        1
+        100
       )
     } else {
       document.body.classList.remove("no-scroll")
