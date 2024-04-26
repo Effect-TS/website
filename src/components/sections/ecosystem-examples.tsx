@@ -203,16 +203,16 @@ const object = S.decodeSync(schema)(jsonString)`
         withoutEffect: {
           fileName: "index.ts",
           code: `\
-import * as Rx from "rxjs"
-import * as RxOp from "rxjs/operators"
+import { interval, firstValueFrom } from "rxjs"
+import { take, map, toArray } from "rxjs/operators"
 
-const counts$ = Rx.interval(1000).pipe(
-  RxOp.take(5),
-  RxOp.map((x) => x * 2),
-  RxOp.toArray(),
+const counts$ = interval(1000).pipe(
+  take(5),
+  map((x) => x * 2),
+  toArray(),
 )
 
-Rx.firstValueFrom(counts$).then((x) => console.log(x))\
+firstValueFrom(counts$).then((x) => console.log(x))\
       `
         },
         withEffect: {
