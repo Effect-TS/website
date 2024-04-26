@@ -313,7 +313,7 @@ Looking at the type of `RecipeLive` we can observe that the `RIn` type is `Flour
 
 Layers can be combined in two primary ways: merging and composing.
 
-### Merging
+### Merging Layers
 
 Layers can be combined through merging using the `Layer.merge` combinator:
 
@@ -377,16 +377,21 @@ const FlourLive = Layer.effect(
 const IngredientsLive = Layer.merge(FlourLive, SugarLive)
 ```
 
-### Composing
+### Composing Layers
 
 Layers can be composed using the `Layer.provide` combinator:
 
-```ts
-first.pipe(Layer.provide(second))
+```ts twoslash
+import { Layer } from "effect"
+
+declare const inner: Layer.Layer<"OutInner", never, "InInner">
+declare const outer: Layer.Layer<"InInner", never, "InOuter">
+
+const composition = inner.pipe(Layer.provide(outer))
 ```
 
-Sequential composition of layers implies that the output of one layer (`first`) is used as input for the subsequent layer (`second`),
-resulting in one layer with the requirement of the first, and the output of the second.
+Sequential composition of layers implies that the output of one layer (`outer`) is supplied as the input for the inner layer (`inner`),
+resulting in a single layer with the requirements of the first layer and the output of the second.
 
 Now we can compose the `MeasuringCupLive` layer with the `IngredientsLive` layer, and then compose the result with the `RecipeLive` layer:
 
@@ -457,7 +462,7 @@ const MainLive = RecipeLive.pipe(
 )
 ```
 
-### Merging and Composing
+### Merging and Composing Layers
 
 Let's say we want our `MainLive` layer to return both the `MeasuringCup` and `Recipe` services.
 We can achieve this with `Layer.provideMerge`:
