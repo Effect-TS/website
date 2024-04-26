@@ -1,8 +1,6 @@
 import { FileWithContent, Workspace } from "@/services/WebContainer"
-import { javascript } from "@codemirror/lang-javascript"
 import { Result, Rx, useRx, useRxSet, useRxValue } from "@effect-rx/rx-react"
-import CodeMirror from "@uiw/react-codemirror"
-import { atomone } from "@uiw/codemirror-theme-atomone"
+import Editor from "@monaco-editor/react"
 import { workspaceRx } from "./rx"
 import React, { useEffect, useRef } from "react"
 import "xterm/css/xterm.css"
@@ -76,14 +74,12 @@ function FileEditor({
 }) {
   const setContent = useRxSet(write)
   return (
-    <CodeMirror
-      minHeight="100%"
-      value={file.initialContent}
-      theme={atomone}
-      extensions={[javascript({ typescript: true })]}
-      onChange={(value) => {
-        setContent(value)
-      }}
+    <Editor
+      height="100%"
+      theme="vs-dark"
+      path={file.file}
+      defaultValue={file.initialContent}
+      defaultLanguage="typescript"
     />
   )
 }
