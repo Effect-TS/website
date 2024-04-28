@@ -21,8 +21,10 @@ export const MobileMenu: FC<{
     }
   }, [open])
 
+  const closeMenu = () => setOpen(false);
+
   useEffect(() => {
-    setOpen(false)
+    closeMenu();
   }, [pathname])
 
   return (
@@ -43,6 +45,7 @@ export const MobileMenu: FC<{
               key={index}
               href={href}
               className="flex items-start text-black dark:text-white"
+              onClick={() => closeMenu()}
             >
               <span>{name}</span>
               {href.startsWith("http") && (
