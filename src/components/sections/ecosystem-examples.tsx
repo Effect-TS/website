@@ -296,19 +296,14 @@ Effect.gen(function* () {
 
 const fetchTodo = (
   id: number
-): Effect.Effect<
-  unknown,
-  Http.error.HttpClientError
-> =>
+): Effect.Effect<unknown, Http.error.HttpClientError> =>
   Http.request
     .get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`)
     .pipe(
       Http.client.fetchOk,
       Http.response.json,
       Effect.retry(
-        Schedule.exponential(1000).pipe(
-          Schedule.compose(Schedule.recurs(3))
-        )
+        Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3))
       )
     );\
       `

@@ -1,6 +1,6 @@
 ---
 title: Using Generators in Effect
-excerpt: Explore the syntax of using generators in Effect to write effectful code. Learn about the `Effect.gen` function and its `_` helper, which facilitates yielding effects. Compare `Effect.gen` with `async`/`await` for writing asynchronous code. Understand how generators enhance control flow, handle errors, and utilize short-circuiting in effectful programs. Discover the flexibility of using the `_` helper as a pipe function and passing references to `this` in generator functions.
+excerpt: Explore the syntax of using generators in Effect to write effectful code. Learn about the `Effect.gen` function. Compare `Effect.gen` with `async`/`await` for writing asynchronous code. Understand how generators enhance control flow, handle errors, and utilize short-circuiting in effectful programs. Discover passing references to `this` in generator functions.
 bottomNavigation: pagination
 ---
 
@@ -75,14 +75,6 @@ export const program = Effect.gen(function* () {
 ```
 
 ...TypeScript can accurately infer the types associated with that effect. This ensures that your code is type-safe and helps prevent potential errors.
-
-Additionally, the `_` function acts as an adapter between Effect and the JavaScript world, particularly the [iterable protocol](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols). This adapter allows you to seamlessly leverage the [`yield*`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/yield*) keyword from JavaScript's generator syntax within Effect's generator functions.
-
-<Info>
-  The `_` symbol is just a convention for the argument name and is not a
-  special symbol in Effect. You are free to use any name you prefer (e.g.,
-  `$`, etc...). The current convention is to use `_` as the argument name.
-</Info>
 
 ## Comparing Effect.gen with async/await
 
@@ -264,14 +256,12 @@ import { Effect } from "effect"
 
 class MyService {
   readonly local = 1
-  compute() {
-    return Effect.gen(this, function* () {
-      return yield* Effect.succeed(this.local + 1)
-    })
-  }
+  compute = Effect.gen(this, function* () {
+    return yield* Effect.succeed(this.local + 1)
+  })
 }
 
-console.log(Effect.runSync(new MyService().compute())) // Output: 2
+console.log(Effect.runSync(new MyService().compute)) // Output: 2
 ```
 
 In this example, we have a `MyService` class with a property called `local`. By passing `this` as the first argument to `Effect.gen`, we make the `local` property available within the generator.
