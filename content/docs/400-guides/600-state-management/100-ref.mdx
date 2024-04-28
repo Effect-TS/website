@@ -480,7 +480,7 @@ const getNames = Effect.gen(function* (_) {
       Effect.gen(function* (_) {
         for (const name of ["John", "Jane", "Joe", "Tom"]) {
           yield* _(Ref.update(ref, (state) => Chunk.append(state, name)))
-          yield* _(Effect.sleep("1 seconds"))
+          yield* _(Effect.sleep("1 second"))
         }
       })
     )
@@ -540,7 +540,7 @@ const getNames = Ref.make(Chunk.empty<string>()).pipe(
         (name) =>
           ref.pipe(
             Ref.update((state) => Chunk.append(state, name)),
-            Effect.flatMap(() => Effect.sleep("1 seconds"))
+            Effect.flatMap(() => Effect.sleep("1 second"))
           ),
         { concurrency: "unbounded", discard: true }
       )

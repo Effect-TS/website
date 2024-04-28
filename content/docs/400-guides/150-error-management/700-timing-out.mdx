@@ -67,20 +67,13 @@ When we apply `Effect.timeout` to `program`, it behaves in one of the following 
      return "some result"
    })
 
-   const main = program.pipe(Effect.timeout("1 seconds"))
+   const main = program.pipe(Effect.timeout("1 second"))
 
    Effect.runPromise(main).then(console.log, console.error)
    /*
    Output:
-   start doing something...
-   {
-     _id: 'FiberFailure',
-     cause: {
-       _id: 'Cause',
-       _tag: 'Fail',
-       failure: { _tag: 'TimeoutException' }
-     }
-   }
+   (FiberFailure) TimeoutException
+      ... stack trace ...
    */
    ```
 
@@ -98,7 +91,7 @@ When we apply `Effect.timeout` to `program`, it behaves in one of the following 
 
    const main = program.pipe(
      Effect.uninterruptible,
-     Effect.timeout("1 seconds")
+     Effect.timeout("1 second")
    )
 
    Effect.runPromise(main).then(console.log, console.error)
@@ -106,14 +99,8 @@ When we apply `Effect.timeout` to `program`, it behaves in one of the following 
    Output:
    start doing something...
    my job is finished!
-   {
-     _id: 'FiberFailure',
-     cause: {
-       _id: 'Cause',
-       _tag: 'Fail',
-       failure: { _tag: 'TimeoutException' }
-     }
-   }
+   (FiberFailure) TimeoutException
+      ... stack trace ...
    */
    ```
 
@@ -132,21 +119,15 @@ When we apply `Effect.timeout` to `program`, it behaves in one of the following 
    const main = program.pipe(
      Effect.uninterruptible,
      Effect.disconnect,
-     Effect.timeout("1 seconds")
+     Effect.timeout("1 second")
    )
 
    Effect.runPromise(main).then(console.log, console.error)
    /*
    Output:
    start doing something...
-   {
-     _id: 'FiberFailure',
-     cause: {
-       _id: 'Cause',
-       _tag: 'Fail',
-       failure: { _tag: 'TimeoutException' }
-     }
-   }
+   (FiberFailure) TimeoutException
+      ... stack trace ...
    my job is finished!
    */
    ```
@@ -171,7 +152,7 @@ const program = Effect.gen(function* (_) {
 
 const main = program.pipe(
   Effect.timeoutTo({
-    duration: "1 seconds",
+    duration: "1 second",
     // let's return an Either
     onSuccess: (result): Either.Either<string, string> =>
       Either.right(result),
@@ -207,7 +188,7 @@ const program = Effect.gen(function* (_) {
 
 const main = program.pipe(
   Effect.timeoutFail({
-    duration: "1 seconds",
+    duration: "1 second",
     onTimeout: () => new Error("timeout")
   })
 )
@@ -216,15 +197,7 @@ Effect.runPromise(main).then(console.log, console.error)
 /*
 Output:
 start doing something...
-{
-  _id: 'FiberFailure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Fail',
-    failure: Error: timeout
-    ... stack trace ...
-  }
-}
+(FiberFailure) Error: timeout
 */
 ```
 
@@ -244,7 +217,7 @@ const program = Effect.gen(function* (_) {
 
 const main = program.pipe(
   Effect.timeoutFailCause({
-    duration: "1 seconds",
+    duration: "1 second",
     onTimeout: () => Cause.die("timeout")
   })
 )

@@ -431,7 +431,7 @@ const getTodo = (
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk,
     Http.response.json,
-    Effect.timeout("1 seconds"),
+    Effect.timeout("1 second"),
     Effect.retry(
       Schedule.exponential(1000).pipe(
         Schedule.compose(Schedule.recurs(3)),
@@ -560,7 +560,7 @@ const getTodo = (
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk,
     Http.response.json,
-    Effect.timeout("1 seconds"),
+    Effect.timeout("1 second"),
     Effect.retry(
       Schedule.exponential(1000).pipe(
         Schedule.compose(Schedule.recurs(3)),

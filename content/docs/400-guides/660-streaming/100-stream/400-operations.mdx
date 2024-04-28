@@ -131,13 +131,9 @@ Output:
 { _id: 'Chunk', values: [ 1, 2 ] }
 { _id: 'Chunk', values: [ 3, 4 ] }
 { _id: 'Chunk', values: [ 5 ] }
-{
-  _id: 'FiberFailure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Fail',
-    failure: { _id: 'Option', _tag: 'None' }
-  }
+(FiberFailure) {
+  "_id": "Option",
+  "_tag": "None"
 }
 */
 ```
@@ -533,7 +529,7 @@ Sometimes, you might have two streams producing elements at different speeds. If
 import { Stream, Schedule, Effect } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
-  Stream.schedule(Schedule.spaced("1 seconds"))
+  Stream.schedule(Schedule.spaced("1 second"))
 )
 
 const s2 = Stream.make("a", "b", "c", "d").pipe(
@@ -863,7 +859,7 @@ The `Stream.groupedWithin` function provides more flexibility by allowing you to
 import { Stream, Schedule, Effect } from "effect"
 
 const stream = Stream.range(0, 10).pipe(
-  Stream.repeat(Schedule.spaced("1 seconds")),
+  Stream.repeat(Schedule.spaced("1 second")),
   Stream.groupedWithin(18, "1.5 seconds"),
   Stream.take(3)
 )
@@ -1200,7 +1196,7 @@ const numbers = Effect.scoped(
         )
         const fiber2 = yield* _(
           second.pipe(
-            Stream.schedule(Schedule.spaced("1 seconds")),
+            Stream.schedule(Schedule.spaced("1 second")),
             Stream.runForEach((n) =>
               Console.log(`Logging to the Console: ${n}`)
             ),
