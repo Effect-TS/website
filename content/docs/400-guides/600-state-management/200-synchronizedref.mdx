@@ -17,12 +17,12 @@ The distinctive function in `SynchronizedRef` is `updateEffect`. This function t
 ```ts twoslash
 import { Effect, SynchronizedRef } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const ref = yield* _(SynchronizedRef.make("current"))
+const program = Effect.gen(function* () {
+  const ref = yield* SynchronizedRef.make("current")
   // Simulating an effectful update operation
   const updateEffect = Effect.succeed("update")
-  yield* _(SynchronizedRef.updateEffect(ref, () => updateEffect))
-  const value = yield* _(SynchronizedRef.get(ref))
+  yield* SynchronizedRef.updateEffect(ref, () => updateEffect)
+  const value = yield* SynchronizedRef.get(ref)
   return value
 })
 
@@ -48,36 +48,34 @@ const getAge = (userId: number) =>
 
 const users = [1, 2, 3, 4]
 
-const meanAge = Effect.gen(function* (_) {
-  const ref = yield* _(SynchronizedRef.make(0))
+const meanAge = Effect.gen(function* () {
+  const ref = yield* SynchronizedRef.make(0)
 
   const log = <R, E, A>(label: string, effect: Effect.Effect<A, E, R>) =>
-    Effect.gen(function* (_) {
-      const value = yield* _(SynchronizedRef.get(ref))
-      yield* _(Effect.log(`${label} get: ${value}`))
-      return yield* _(effect)
+    Effect.gen(function* () {
+      const value = yield* SynchronizedRef.get(ref)
+      yield* Effect.log(`${label} get: ${value}`)
+      return yield* effect
     })
 
   const task = (id: number) =>
     log(
       `task ${id}`,
       SynchronizedRef.updateEffect(ref, (sumOfAges) =>
-        Effect.gen(function* (_) {
-          const user = yield* _(getAge(id))
+        Effect.gen(function* () {
+          const user = yield* getAge(id)
           return sumOfAges + user.age
         })
       )
     )
 
-  yield* _(
-    task(1).pipe(
-      Effect.zip(task(2), { concurrent: true }),
-      Effect.zip(task(3), { concurrent: true }),
-      Effect.zip(task(4), { concurrent: true })
-    )
+  yield* task(1).pipe(
+    Effect.zip(task(2), { concurrent: true }),
+    Effect.zip(task(3), { concurrent: true }),
+    Effect.zip(task(4), { concurrent: true })
   )
 
-  const value = yield* _(SynchronizedRef.get(ref))
+  const value = yield* SynchronizedRef.get(ref)
   return value / users.length
 })
 

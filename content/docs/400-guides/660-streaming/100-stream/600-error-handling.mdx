@@ -255,11 +255,11 @@ import * as NodeReadLine from "node:readline"
 const stream = Stream.make(1, 2, 3).pipe(
   Stream.concat(
     Stream.fromEffect(
-      Effect.gen(function* (_) {
-        const s = yield* _(readLine("Enter a number: "))
+      Effect.gen(function* () {
+        const s = yield* readLine("Enter a number: ")
         const n = parseInt(s)
         if (Number.isNaN(n)) {
-          return yield* _(Effect.fail("NaN"))
+          return yield* Effect.fail("NaN")
         }
         return n
       })

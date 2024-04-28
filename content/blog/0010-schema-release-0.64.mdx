@@ -635,8 +635,8 @@ class Messages extends Context.Tag("Messages")<
 
 const Name = S.NonEmpty.pipe(
   S.message(() =>
-    Effect.gen(function* (_) {
-      const service = yield* _(Effect.serviceOption(Messages))
+    Effect.gen(function* () {
+      const service = yield* Effect.serviceOption(Messages)
       return Option.match(service, {
         onNone: () => "Invalid string",
         onSome: (messages) => messages.NonEmpty

@@ -64,25 +64,21 @@ Here's an example that demonstrates the usage of these completion methods:
 ```ts twoslash
 import { Effect, Deferred, Exit, Cause } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const deferred = yield* _(Deferred.make<number, string>())
+const program = Effect.gen(function* () {
+  const deferred = yield* Deferred.make<number, string>()
 
   // Completing the Deferred in various ways
-  yield* _(Deferred.succeed(deferred, 1).pipe(Effect.fork))
-  yield* _(Deferred.complete(deferred, Effect.succeed(2)).pipe(Effect.fork))
-  yield* _(
-    Deferred.completeWith(deferred, Effect.succeed(3)).pipe(Effect.fork)
-  )
-  yield* _(Deferred.done(deferred, Exit.succeed(4)).pipe(Effect.fork))
-  yield* _(Deferred.fail(deferred, "5").pipe(Effect.fork))
-  yield* _(
-    Deferred.failCause(deferred, Cause.die(new Error("6"))).pipe(Effect.fork)
-  )
-  yield* _(Deferred.die(deferred, new Error("7")).pipe(Effect.fork))
-  yield* _(Deferred.interrupt(deferred).pipe(Effect.fork))
+  yield* Deferred.succeed(deferred, 1).pipe(Effect.fork)
+  yield* Deferred.complete(deferred, Effect.succeed(2)).pipe(Effect.fork)
+  yield* Deferred.completeWith(deferred, Effect.succeed(3)).pipe(Effect.fork)
+  yield* Deferred.done(deferred, Exit.succeed(4)).pipe(Effect.fork)
+  yield* Deferred.fail(deferred, "5").pipe(Effect.fork)
+  yield* Deferred.failCause(deferred, Cause.die(new Error("6"))).pipe(Effect.fork)
+  yield* Deferred.die(deferred, new Error("7")).pipe(Effect.fork)
+  yield* Deferred.interrupt(deferred).pipe(Effect.fork)
 
   // Awaiting the Deferred to get its value
-  const value = yield* _(Deferred.await(deferred))
+  const value = yield* Deferred.await(deferred)
   return value
 })
 
@@ -96,10 +92,10 @@ Here's an example demonstrating the state change of a `Deferred`:
 ```ts twoslash
 import { Effect, Deferred } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const deferred = yield* _(Deferred.make<number, string>())
-  const b1 = yield* _(Deferred.fail(deferred, "oh no!"))
-  const b2 = yield* _(Deferred.succeed(deferred, 1))
+const program = Effect.gen(function* () {
+  const deferred = yield* Deferred.make<number, string>()
+  const b1 = yield* Deferred.fail(deferred, "oh no!")
+  const b2 = yield* Deferred.succeed(deferred, 1)
   return [b1, b2]
 })
 
@@ -121,14 +117,14 @@ Here's a practical example:
 ```ts twoslash
 import { Effect, Deferred } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const deferred = yield* _(Deferred.make<number, string>())
+const program = Effect.gen(function* () {
+  const deferred = yield* Deferred.make<number, string>()
 
   // Polling the Deferred
-  const done1 = yield* _(Deferred.poll(deferred))
+  const done1 = yield* Deferred.poll(deferred)
 
   // Checking if the Deferred is already completed
-  const done2 = yield* _(Deferred.isDone(deferred))
+  const done2 = yield* Deferred.isDone(deferred)
 
   return [done1, done2]
 })
@@ -145,28 +141,28 @@ Here's a scenario where we use a `Deferred` to hand over a value between two fib
 ```ts twoslash
 import { Effect, Deferred, Fiber } from "effect"
 
-const program = Effect.gen(function* (_) {
-  const deferred = yield* _(Deferred.make<string, string>())
+const program = Effect.gen(function* () {
+  const deferred = yield* Deferred.make<string, string>()
 
   // Fiber A: Set the Deferred value after waiting for 1 second
-  const sendHelloWorld = Effect.gen(function* (_) {
-    yield* _(Effect.sleep("1 second"))
-    return yield* _(Deferred.succeed(deferred, "hello world"))
+  const sendHelloWorld = Effect.gen(function* () {
+    yield* Effect.sleep("1 second")
+    return yield* Deferred.succeed(deferred, "hello world")
   })
 
   // Fiber B: Wait for the Deferred and print the value
-  const getAndPrint = Effect.gen(function* (_) {
-    const s = yield* _(Deferred.await(deferred))
+  const getAndPrint = Effect.gen(function* () {
+    const s = yield* Deferred.await(deferred)
     console.log(s)
     return s
   })
 
   // Run both fibers concurrently
-  const fiberA = yield* _(Effect.fork(sendHelloWorld))
-  const fiberB = yield* _(Effect.fork(getAndPrint))
+  const fiberA = yield* Effect.fork(sendHelloWorld)
+  const fiberB = yield* Effect.fork(getAndPrint)
 
   // Wait for both fibers to complete
-  return yield* _(Fiber.join(Fiber.zip(fiberA, fiberB)))
+  return yield* Fiber.join(Fiber.zip(fiberA, fiberB))
 })
 
 Effect.runPromise(program).then(console.log, console.error)

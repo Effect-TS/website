@@ -154,10 +154,10 @@ const now = Effect.sync(() => new Date().getTime())
 const elapsed = <R, E, A>(
   self: Effect.Effect<A, E, R>
 ): Effect.Effect<A, E, R> =>
-  Effect.gen(function* (_) {
-    const startMillis = yield* _(now)
-    const result = yield* _(self)
-    const endMillis = yield* _(now)
+  Effect.gen(function* () {
+    const startMillis = yield* now
+    const result = yield* self
+    const endMillis = yield* now
     // Calculate the elapsed time in milliseconds
     const elapsed = endMillis - startMillis
     // Log the elapsed time

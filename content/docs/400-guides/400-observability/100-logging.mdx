@@ -62,21 +62,21 @@ Here's an example that demonstrates how to enable `DEBUG` messages for a specifi
 ```ts twoslash
 import { Effect, Logger, LogLevel } from "effect"
 
-const task1 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("2 seconds"))
-  yield* _(Effect.logDebug("task1 done"))
+const task1 = Effect.gen(function* () {
+  yield* Effect.sleep("2 seconds")
+  yield* Effect.logDebug("task1 done")
 }).pipe(Logger.withMinimumLogLevel(LogLevel.Debug))
 
-const task2 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("1 second"))
-  yield* _(Effect.logDebug("task2 done"))
+const task2 = Effect.gen(function* () {
+  yield* Effect.sleep("1 second")
+  yield* Effect.logDebug("task2 done")
 })
 
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.log("start"))
-  yield* _(task1)
-  yield* _(task2)
-  yield* _(Effect.log("done"))
+const program = Effect.gen(function* () {
+  yield* Effect.log("start")
+  yield* task1
+  yield* task2
+  yield* Effect.log("done")
 })
 
 Effect.runPromise(program)
@@ -135,11 +135,11 @@ By default, `INFO` messages are printed.
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.logInfo("start"))
-  yield* _(Effect.sleep("2 seconds"))
-  yield* _(Effect.sleep("1 second"))
-  yield* _(Effect.logInfo("done"))
+const program = Effect.gen(function* () {
+  yield* Effect.logInfo("start")
+  yield* Effect.sleep("2 seconds")
+  yield* Effect.sleep("1 second")
+  yield* Effect.logInfo("done")
 })
 
 Effect.runPromise(program)
@@ -187,10 +187,10 @@ import { Effect, Either } from "effect"
 
 const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
-const program = Effect.gen(function* (_) {
-  const failureOrSuccess = yield* _(Effect.either(task))
+const program = Effect.gen(function* () {
+  const failureOrSuccess = yield* Effect.either(task)
   if (Either.isLeft(failureOrSuccess)) {
-    yield* _(Effect.logWarning(failureOrSuccess.left))
+    yield* Effect.logWarning(failureOrSuccess.left)
     return 0
   } else {
     return failureOrSuccess.right
@@ -238,10 +238,10 @@ import { Effect, Either } from "effect"
 
 const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
-const program = Effect.gen(function* (_) {
-  const failureOrSuccess = yield* _(Effect.either(task))
+const program = Effect.gen(function* () {
+  const failureOrSuccess = yield* Effect.either(task)
   if (Either.isLeft(failureOrSuccess)) {
-    yield* _(Effect.logError(failureOrSuccess.left))
+    yield* Effect.logError(failureOrSuccess.left)
     return 0
   } else {
     return failureOrSuccess.right
@@ -289,10 +289,10 @@ import { Effect, Either } from "effect"
 
 const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
-const program = Effect.gen(function* (_) {
-  const failureOrSuccess = yield* _(Effect.either(task))
+const program = Effect.gen(function* () {
+  const failureOrSuccess = yield* Effect.either(task)
   if (Either.isLeft(failureOrSuccess)) {
-    yield* _(Effect.logFatal(failureOrSuccess.left))
+    yield* Effect.logFatal(failureOrSuccess.left)
     return 0
   } else {
     return failureOrSuccess.right
@@ -338,9 +338,9 @@ Effect also provides support for spans, allowing you to measure the duration of 
 ```ts twoslash
 import { Effect } from "effect"
 
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("1 second"))
-  yield* _(Effect.log("The job is finished!"))
+const program = Effect.gen(function* () {
+  yield* Effect.sleep("1 second")
+  yield* Effect.log("The job is finished!")
 }).pipe(Effect.withLogSpan("myspan"))
 
 Effect.runPromise(program)
@@ -384,9 +384,9 @@ Effect provides a convenient function called `withMinimumLogLevel` that allows y
 ```ts twoslash
 import { Effect, Logger, LogLevel } from "effect"
 
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.log("Executing task..."))
-  yield* _(Effect.sleep("100 millis"))
+const program = Effect.gen(function* () {
+  yield* Effect.log("Executing task...")
+  yield* Effect.sleep("100 millis")
   console.log("task done")
 })
 
@@ -415,9 +415,9 @@ Another approach to disable logging is by creating a layer that sets the minimum
 ```ts twoslash
 import { Effect, Logger, LogLevel } from "effect"
 
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.log("Executing task..."))
-  yield* _(Effect.sleep("100 millis"))
+const program = Effect.gen(function* () {
+  yield* Effect.log("Executing task...")
+  yield* Effect.sleep("100 millis")
   console.log("task done")
 })
 
@@ -438,9 +438,9 @@ You can also disable logging by creating a custom runtime that includes the conf
 ```ts twoslash
 import { Effect, Logger, LogLevel, Runtime, Layer } from "effect"
 
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.log("Executing task..."))
-  yield* _(Effect.sleep("100 millis"))
+const program = Effect.gen(function* () {
+  yield* Effect.log("Executing task...")
+  yield* Effect.sleep("100 millis")
   console.log("task done")
 })
 
@@ -475,11 +475,11 @@ import {
 } from "effect"
 
 // Simulate a program with logs
-const program = Effect.gen(function* (_) {
-  yield* _(Effect.logError("ERROR!"))
-  yield* _(Effect.logWarning("WARNING!"))
-  yield* _(Effect.logInfo("INFO!"))
-  yield* _(Effect.logDebug("DEBUG!"))
+const program = Effect.gen(function* () {
+  yield* Effect.logError("ERROR!")
+  yield* Effect.logWarning("WARNING!")
+  yield* Effect.logInfo("INFO!")
+  yield* Effect.logDebug("DEBUG!")
 })
 
 // Load the log level from the configuration as a layer
@@ -535,21 +535,21 @@ Assuming we have defined the following program:
 ```twoslash include program
 import { Effect } from "effect"
 
-const task1 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("2 seconds"))
-  yield* _(Effect.logDebug("task1 done"))
+const task1 = Effect.gen(function* () {
+  yield* Effect.sleep("2 seconds")
+  yield* Effect.logDebug("task1 done")
 })
 
-const task2 = Effect.gen(function* (_) {
-  yield* _(Effect.sleep("1 second"))
-  yield* _(Effect.logDebug("task2 done"))
+const task2 = Effect.gen(function* () {
+  yield* Effect.sleep("1 second")
+  yield* Effect.logDebug("task2 done")
 })
 
-export const program = Effect.gen(function* (_) {
-  yield* _(Effect.log("start"))
-  yield* _(task1)
-  yield* _(task2)
-  yield* _(Effect.log("done"))
+export const program = Effect.gen(function* () {
+  yield* Effect.log("start")
+  yield* task1
+  yield* task2
+  yield* Effect.log("done")
 })
 ```
 

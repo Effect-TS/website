@@ -69,13 +69,13 @@ export class BarError {
   readonly _tag = "BarError"
 }
 
-export const program = Effect.gen(function* (_) {
-  const n1 = yield* _(Random.next)
-  const n2 = yield* _(Random.next)
+export const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
 
-  const foo = n1 > 0.5 ? "yay!" : yield* _(Effect.fail(new FooError()))
+  const foo = n1 > 0.5 ? "yay!" : yield* Effect.fail(new FooError())
 
-  const bar = n2 > 0.5 ? "yay!" : yield* _(Effect.fail(new BarError()))
+  const bar = n2 > 0.5 ? "yay!" : yield* Effect.fail(new BarError())
 
   return foo + bar
 })
@@ -158,10 +158,10 @@ const task3 = Console.log("Executing task3...")
 
 // Compose the three tasks to run them in sequence.
 // If one of the tasks fails, the subsequent tasks won't be executed.
-const program = Effect.gen(function* (_) {
-  yield* _(task1)
-  yield* _(task2) // After task1, task2 is executed, but it fails with an error
-  yield* _(task3) // This computation won't be executed because the previous one fails
+const program = Effect.gen(function* () {
+  yield* task1
+  yield* task2 // After task1, task2 is executed, but it fails with an error
+  yield* task3 // This computation won't be executed because the previous one fails
 })
 
 Effect.runPromiseExit(program).then(console.log)
@@ -237,8 +237,8 @@ By yielding an `Either`, we gain the ability to "pattern match" on this type to 
 import { Effect, Either } from "effect"
 import { program } from "./error-tracking"
 
-const recovered = Effect.gen(function* (_) {
-  const failureOrSuccess = yield* _(Effect.either(program))
+const recovered = Effect.gen(function* () {
+  const failureOrSuccess = yield* Effect.either(program)
   if (Either.isLeft(failureOrSuccess)) {
     // failure case: you can extract the error from the `left` property
     const error = failureOrSuccess.left
@@ -261,8 +261,8 @@ We can make the code less verbose by using the `Either.match` function, which di
 import { Effect, Either } from "effect"
 import { program } from "./error-tracking"
 
-const recovered = Effect.gen(function* (_) {
-  const failureOrSuccess = yield* _(Effect.either(program))
+const recovered = Effect.gen(function* () {
+  const failureOrSuccess = yield* Effect.either(program)
   return Either.match(failureOrSuccess, {
     onLeft: (error) => `Recovering from ${error._tag}`,
     onRight: (value) => value // do nothing in case of success
@@ -304,14 +304,14 @@ Suppose we want to handle a specific error, such as `FooError`.
 import { Effect, Either } from "effect"
 import { program } from "./error-tracking"
 
-const recovered = Effect.gen(function* (_) {
-  const failureOrSuccess = yield* _(Effect.either(program))
+const recovered = Effect.gen(function* () {
+  const failureOrSuccess = yield* Effect.either(program)
   if (Either.isLeft(failureOrSuccess)) {
     const error = failureOrSuccess.left
     if (error._tag === "FooError") {
       return "Recovering from FooError"
     }
-    return yield* _(Effect.fail(error))
+    return yield* Effect.fail(error)
   } else {
     return failureOrSuccess.right
   }
@@ -332,8 +332,8 @@ If we also want to handle `BarError`, we can easily add another case to our code
 import { Effect, Either } from "effect"
 import { program } from "./error-tracking"
 
-const recovered = Effect.gen(function* (_) {
-  const failureOrSuccess = yield* _(Effect.either(program))
+const recovered = Effect.gen(function* () {
+  const failureOrSuccess = yield* Effect.either(program)
   if (Either.isLeft(failureOrSuccess)) {
     const error = failureOrSuccess.left
     if (error._tag === "FooError") {

@@ -88,9 +88,9 @@ const taskCount = Metric.counter("task_count").pipe(
 const task1 = Effect.succeed(1).pipe(Effect.delay("100 millis"))
 const task2 = Effect.succeed(2).pipe(Effect.delay("200 millis"))
 
-const program = Effect.gen(function* (_) {
-  const a = yield* _(taskCount(task1))
-  const b = yield* _(taskCount(task2))
+const program = Effect.gen(function* () {
+  const a = yield* taskCount(task1)
+  const b = yield* taskCount(task2)
   return a + b
 })
 
@@ -157,17 +157,17 @@ import { Metric, Effect, Random, Console } from "effect"
 
 const temperature = Metric.gauge("temperature")
 
-const getTemperature = Effect.gen(function* (_) {
-  const n = yield* _(Random.nextIntBetween(-10, 10))
+const getTemperature = Effect.gen(function* () {
+  const n = yield* Random.nextIntBetween(-10, 10)
   console.log(`variation: ${n}`)
   return n
 })
 
-const program = Effect.gen(function* (_) {
+const program = Effect.gen(function* () {
   const series: Array<number> = []
-  series.push(yield* _(temperature(getTemperature)))
-  series.push(yield* _(temperature(getTemperature)))
-  series.push(yield* _(temperature(getTemperature)))
+  series.push(yield* temperature(getTemperature))
+  series.push(yield* temperature(getTemperature))
+  series.push(yield* temperature(getTemperature))
   return series
 })
 
