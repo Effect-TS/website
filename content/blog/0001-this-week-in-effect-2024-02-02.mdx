@@ -19,7 +19,7 @@ relatedPosts:
   - this-week-in-effect-2024-02-09
 ---
 
-Hi Effecters! Welcome to the very first **T**his **W**eek **I**n **E**ffect (**TWIE**). 
+Hi Effecters! Welcome to the very first **T**his **W**eek **I**n **E**ffect (**TWIE**).
 
 We’re proud to present you with this new format created to help you keep track of everything that is going on inside our Community and the Effect Ecosystem.
 
@@ -33,7 +33,7 @@ To get started, below you’ll find our quick-start guide and documentation that
 
 ## Overview of TWIE
 
-Before we get into what happened in the last week in our Community, we would like to say a few words about TWIE. 
+Before we get into what happened in the last week in our Community, we would like to say a few words about TWIE.
 
 We’re happy to witness the community growing so fast, with more and more people adopting Effect, and we understand that it might not be that easy keeping up with everything that is going on in the Effect Ecosystem:
 
@@ -79,8 +79,10 @@ The following code is now valid:
 import { Effect } from "effect"
 
 const recoverFromTimeout = Effect.sleep("2 seconds").pipe(
-  Effect.timeout("1 seconds"),
-  Effect.catchTag("TimeoutException", () => Effect.log("The program timed out"))
+  Effect.timeout("1 second"),
+  Effect.catchTag("TimeoutException", () =>
+    Effect.log("The program timed out")
+  )
 )
 ```
 
@@ -95,21 +97,21 @@ The module `Data` remains unchanged at the value level, all the functions previo
 At the type level instead the functions return `Readonly` variants, so for example we have:
 
 ```ts
-import { Data } from "effect";
+import { Data } from "effect"
 
 const obj = Data.struct({
   a: 0,
-  b: 1,
-});
+  b: 1
+})
 ```
 
 will have the `obj` typed as:
 
 ```ts
 declare const obj: {
-  readonly a: number;
-  readonly b: number;
-};
+  readonly a: number
+  readonly b: number
+}
 ```
 
 - [Improve naming for ReadonlyRecord](https://github.com/Effect-TS/effect/pull/2024) (Breaking)
@@ -147,8 +149,8 @@ Add `option` to preserve excess properties when parsing, the feature is describe
 const data = S.parseSync({
   foo: S.string
 })({
-  foo: 'ok', 
-  bar: 'ok'
+  foo: "ok",
+  bar: "ok"
 })
 ```
 
@@ -157,12 +159,15 @@ The above code will strip the `bar` property as it is not defined in the schema,
 ```ts
 const data = S.parseSync({
   foo: S.string
-})({
-  foo: 'ok', 
-  bar: 'ok'
-}, {
-  onExcessProperty: "preserve"
-})
+})(
+  {
+    foo: "ok",
+    bar: "ok"
+  },
+  {
+    onExcessProperty: "preserve"
+  }
+)
 ```
 
 The excess property is no longer removed.
@@ -213,12 +218,12 @@ Adds support for URL objects in HTTP Client, the following code is now valid:
 import { HttpClient } from "@effect/platform"
 import { Effect } from "effect"
 
-const request = HttpClient.request.get(
-  new URL("https://www.google.com/")
-).pipe(
-  HttpClient.client.fetchOk(),
-  Effect.flatMap((_) => _.text)
-)
+const request = HttpClient.request
+  .get(new URL("https://www.google.com/"))
+  .pipe(
+    HttpClient.client.fetchOk(),
+    Effect.flatMap((_) => _.text)
+  )
 ```
 
 - [Remove re-exports and rename packages](https://github.com/Effect-TS/effect/pull/2025) (Breaking)
@@ -266,6 +271,7 @@ Ensures proper error reporting when a single input is provided to a variadic opt
 - [Update README](https://github.com/Effect-TS/effect/pull/2003)
 
 Fixes the README to update:
+
 - introduction of the executable parameter as CLI no longer needs to slice `process.argv` and automatically deals with executable path;
 - adds missing `Args` from the README example.
 
@@ -275,7 +281,7 @@ Guess what?! We welcomed 22 new Effecters last week! Thank you for joining the c
 
 ### Effect Days Update
 
-Hear, hear! A big announcement from Vienna! 
+Hear, hear! A big announcement from Vienna!
 
 We've opened up 5 more spots for our Effect Days workshops on Feb 22nd! Both workshop and conference tickets are quickly running out, so don't miss the opportunity to grab your own!
 

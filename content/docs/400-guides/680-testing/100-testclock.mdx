@@ -31,7 +31,7 @@ const test = Effect.gen(function* (_) {
   const fiber = yield* _(
     Effect.sleep("5 minutes"),
     Effect.timeoutTo({
-      duration: "1 minutes",
+      duration: "1 minute",
       onSuccess: Option.some,
       onTimeout: () => Option.none<void>()
     }),
@@ -39,7 +39,7 @@ const test = Effect.gen(function* (_) {
   )
 
   // Adjust the TestClock by 1 minute to simulate the passage of time
-  yield* _(TestClock.adjust("1 minutes"))
+  yield* _(TestClock.adjust("1 minute"))
 
   // Get the result of the fiber
   const result = yield* _(Fiber.join(fiber))
@@ -62,14 +62,14 @@ import * as assert from "node:assert"
 const test = pipe(
   Effect.sleep("5 minutes"),
   Effect.timeoutTo({
-    duration: "1 minutes",
+    duration: "1 minute",
     onSuccess: Option.some,
     onTimeout: () => Option.none<void>()
   }),
   Effect.fork,
   Effect.tap(() =>
     // Adjust the TestClock by 1 minute to simulate the passage of time
-    TestClock.adjust("1 minutes")
+    TestClock.adjust("1 minute")
   ),
   Effect.flatMap((fiber) =>
     // Get the result of the fiber
@@ -230,7 +230,7 @@ const test = Effect.gen(function* (_) {
   const startTime = yield* _(Clock.currentTimeMillis)
 
   // Adjust the TestClock by 1 minute to simulate the passage of time
-  yield* _(TestClock.adjust("1 minutes"))
+  yield* _(TestClock.adjust("1 minute"))
 
   // Get the current time again
   const endTime = yield* _(Clock.currentTimeMillis)
@@ -255,7 +255,7 @@ const test = pipe(
   Clock.currentTimeMillis,
   Effect.flatMap((startTime) =>
     // Adjust the TestClock by 1 minute to simulate the passage of time
-    TestClock.adjust("1 minutes").pipe(
+    TestClock.adjust("1 minute").pipe(
       // Get the current time again
       Effect.flatMap(() => Clock.currentTimeMillis),
       Effect.map((endTime) => {

@@ -19,9 +19,9 @@ I am pleased to announce that after 5 years of work and 3+ years of production u
 
 Starting with 3.0 the main package `effect` will follow semantic versioning:
 
-1) major releases will include breaking changes
-2) minor releases will include new features and new modules
-3) patch releases will include bug-fixes
+1. major releases will include breaking changes
+2. minor releases will include new features and new modules
+3. patch releases will include bug-fixes
 
 We do not expect new major releases in the near future, we will release a new major when a significant number of API improvements have been made and after a substantial period of feedback.
 
@@ -57,15 +57,15 @@ When developing in TypeScript to write production-grade software we feel a lack 
 
 Painful. Even when using TS we often have to deal with `unknown` error types that make our handling logic a guessing game.
 
-### Dependency Injection 
+### Dependency Injection
 
 Totally missing. Which makes our code hard to test and testing becomes reliant on the monkey-patching of modules.
 
-### Data Modelling 
+### Data Modelling
 
 Challenging and mostly unsafe. TypeScript types don't exist at runtime, and if we don't properly check the edges of our program (where data comes in and goes out) we rely on a lie. All seems good and safe but ready to explode at any point in time.
 
-### Interruption 
+### Interruption
 
 Added to the language as an afterthought. Passing AbortSignal around manually makes our code a nightmare.
 
@@ -142,6 +142,7 @@ async function getTodo(
 ```
 
 Lets say that it is good enough, this still does not represent the rest of the actual requirements that you see in the wild, so now without going step-by-step, a realistic feature set would also include:
+
 - the api call is retried using an exponential backoff policy, that avoids hurting an already faulty backend
 - the code should be instrumented for telemetry - such that a connected telemetry backend (such as Tempo / Jaeger / Honeycomb / Datadog / etc) can show exactly what fails, when it fails, why it fails and exactly how long every step takes.
 - the code should be compatible with interruption (aka graceful shutdown). When the response is no longer needed, we'd like our request to be interrupted.
@@ -231,7 +232,7 @@ function getTodo(
       return { ok: false, error: "RequestFailed" }
     }
   }
-} 
+}
 ```
 
 By this time I challenge every human being to look at the code and tell me if it even works according to spec, let alone being confident in making any change to it. Also we still haven't solved the issue with data validation, for that we might want to add a dependency to Zod (or similar) and add a validation step (with subsequent typed error).
@@ -249,22 +250,19 @@ export const getTodo: (
   id: number
 ) => Effect.Effect<
   unknown,
-  | HttpClient.error.HttpClientError
-  | Cause.TimeoutException
-> = (
-  id: number
-) =>
-  HttpClient.request.get(`/todos/${id}`).pipe(
-    HttpClient.client.fetchOk,
-    HttpClient.response.json,
-    Effect.timeout("1 seconds"),
-    Effect.retry(
-      Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3))
-      )
-    ),
-    Effect.withSpan("getTodo", { attributes: { id } })
-  )
+  HttpClient.error.HttpClientError | Cause.TimeoutException
+> = (id: number) =>
+  HttpClient.request
+    .get(`/todos/${id}`)
+    .pipe(
+      HttpClient.client.fetchOk,
+      HttpClient.response.json,
+      Effect.timeout("1 second"),
+      Effect.retry(
+        Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3)))
+      ),
+      Effect.withSpan("getTodo", { attributes: { id } })
+    )
 ```
 
 If we unpack each piece in its own code block and allow for type inference it becomes even simpler to read and understand:
@@ -278,14 +276,13 @@ const retryPolicy = Schedule.exponential(1000).pipe(
 )
 
 const httpCall = (id: number) =>
-  HttpClient.request.get(`/todos/${id}`).pipe(
-    HttpClient.client.fetchOk,
-    HttpClient.response.json
-  )
+  HttpClient.request
+    .get(`/todos/${id}`)
+    .pipe(HttpClient.client.fetchOk, HttpClient.response.json)
 
 export const getTodo = (id: number) =>
   httpCall(id).pipe(
-    Effect.timeout("1 seconds"),
+    Effect.timeout("1 second"),
     Effect.retry(retryPolicy),
     Effect.withSpan("getTodo", { attributes: { id } })
   )
@@ -305,10 +302,9 @@ const retryPolicy = Schedule.exponential(1000).pipe(
 )
 
 const httpCall = (id: number) =>
-  HttpClient.request.get(`/todos/${id}`).pipe(
-    HttpClient.client.fetchOk,
-    HttpClient.response.json
-  )
+  HttpClient.request
+    .get(`/todos/${id}`)
+    .pipe(HttpClient.client.fetchOk, HttpClient.response.json)
 
 class Todo extends Schema.Class<Todo>("Todo")({
   id: Schema.Number,
@@ -319,7 +315,7 @@ class Todo extends Schema.Class<Todo>("Todo")({
 
 export const getTodo = (id: number) =>
   httpCall(id).pipe(
-    Effect.timeout("1 seconds"),
+    Effect.timeout("1 second"),
     Effect.retry(retryPolicy),
     Effect.flatMap(Schema.decodeUnknown(Todo)),
     Effect.withSpan("getTodo", { attributes: { id } })
@@ -330,9 +326,10 @@ export const getTodo = (id: number) =>
 
 While the core `effect` library is now stable, the rest of the ecosystem such as `@effect/platform` and `@effect/schema` aren't yet. It will be our first priority to make the ecosystem libraries stable, together with adding tons of documentation and examples.
 
-Following that, we plan to keep iterating and develop higher and higher levels of abstraction to solve challenging issues in the development of Production-Grade TypeScript. 
+Following that, we plan to keep iterating and develop higher and higher levels of abstraction to solve challenging issues in the development of Production-Grade TypeScript.
 
 Our next goal for the near future is to build up [Effect Cluster](https://github.com/Effect-TS/cluster), the first JavaScript solution that enables:
+
 - Clustering of Distributed Instances
 - Addressing of Processes by Name
 - Actors and Entities
@@ -348,8 +345,9 @@ While many current solutions for business workflows prescribe a specific way of 
 ## The Company
 
 A year ago with the objective of making Effect as easy to use and as feature complete as possible we:
+
 - Incorporated [Effectful Technologies Inc](https://effectful.co/).
-- Raised a Seed Round of 2.275.000$ led by [Amplify Partners](https://www.amplifypartners.com/) with participation from Early Adopters. 
+- Raised a Seed Round of 2.275.000$ led by [Amplify Partners](https://www.amplifypartners.com/) with participation from Early Adopters.
 - Hired an amazing Founding Team.
 
 As a VC-backed company that deals with Free Open Source Software, especially in recent times, we are aware of our responsibility of being absolutely clear about what is OSS and what isn't.
