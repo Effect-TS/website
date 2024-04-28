@@ -288,9 +288,10 @@ const test = Effect.gen(function* () {
   const deferred = yield* Deferred.make<number, void>()
 
   // Run two effects concurrently: sleep for 10 seconds and succeed the deferred with a value of 1
-  yield* Effect.all([Effect.sleep("10 seconds"), Deferred.succeed(deferred, 1)], {
-    concurrency: "unbounded"
-  }).pipe(Effect.fork)
+  yield* Effect.all(
+    [Effect.sleep("10 seconds"), Deferred.succeed(deferred, 1)],
+    { concurrency: "unbounded" }
+  ).pipe(Effect.fork)
 
   // Adjust the TestClock by 10 seconds
   yield* TestClock.adjust("10 seconds")

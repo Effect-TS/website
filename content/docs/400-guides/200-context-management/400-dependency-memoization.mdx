@@ -134,8 +134,8 @@ const a = Layer.effect(
 )
 
 const program = Effect.gen(function* () {
-  yield* A.pipe(Effect.provide(a))
-  yield* A.pipe(Effect.provide(a))
+  yield* Effect.provide(A, a)
+  yield* Effect.provide(A, a)
 })
 
 Effect.runPromise(program)
@@ -164,8 +164,8 @@ const program = Effect.scoped(
   Layer.memoize(a).pipe(
     Effect.flatMap((memoized) =>
       Effect.gen(function* () {
-        yield* A.pipe(Effect.provide(memoized))
-        yield* A.pipe(Effect.provide(memoized))
+        yield* Effect.provide(A, memoized)
+        yield* Effect.provide(A, memoized)
       })
     )
   )
