@@ -166,7 +166,7 @@ Effect.runPromiseExit(runnable).then(console.log)
 Output:
 finalizer after Failure
 {
-  _id: 'Exit',
+  id: 'Exit',
   _tag: 'Failure',
   cause: { _id: 'Cause', _tag: 'Fail', failure: 'Uh oh!' }
 }
@@ -346,10 +346,10 @@ const program = Effect.gen(function* () {
   const scope2 = yield* Scope.make()
 
   // Extend the scope of task1 into scope1
-  yield* task1, Scope.extend(scope1)
+  yield* task1.pipe(Scope.extend(scope1))
 
   // Extend the scope of task2 into scope2
-  yield* task2, Scope.extend(scope2)
+  yield* task2.pipe(Scope.extend(scope2))
 
   // Close scope1 and scope2 manually
   yield* Scope.close(scope1, Exit.void)
