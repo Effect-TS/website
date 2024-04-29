@@ -1,0 +1,103 @@
+---
+title: Effect 3.1 (Release)
+excerpt: Release post highlighting new additions and breaking changes
+date: 2024-04-29
+authors:
+  - name: Tim Smart
+    description: Founding Engineer
+    avatar: https://pbs.twimg.com/profile_images/3642301555/77cc6dab66dc94fdd77e503fd6d1c1cf_400x400.jpeg
+    twitter: https://twitter.com/tim_smart
+---
+
+Effect 3.1.0 has been released! This release includes a number of new features and improvements, as well as some breaking changes. Here's a summary of what's new:
+
+### `Stream.addEventListener`
+
+This new api allows you to create a `Stream` from an `EventTarget`:
+
+```ts
+import { Stream } from "effect/Stream"
+
+Stream.fromEventListener(window, "click")
+```
+
+`@effect/platform-browser/BrowserStream` has also been added, with `fromEventListenerWindow` & `fromEventListenerDocument` apis.
+
+### `Effect.timeoutOption`
+
+A new timeout api has been added, which returns the result of the wrapped Effect as an `Option`.
+
+If the wrapped Effect times out, a `Option.None` is returned - otherwise the result is wrapped with `Option.Some`.
+
+### `kind` field has been added to spans
+
+Tracing spans now include a `kind` field, which is used to indicate the type of system that generated the span.
+
+For example, `@effect/platform/HttpServer` will generate spans with a `kind` of `server`. While `@effect/platform/HttpClient` will generate spans with a `kind` of `client`.
+
+### `@effect/platform/Http/Multipart` schema changes
+
+- `Http.multipart.filesSchema` has been renamed to `Http.multipart.FileSchema`
+- `Http.multipart.FileSchema` is now exported
+- `Http.multipart.SingleFileSchema` has been added
+
+### `Effect.annotateLogsScoped`
+
+A new api has been added to `Effect` which allows you to annotate logs during the lifetime of a Scope.
+
+```ts
+import { Effect } from "effect"
+
+Effect.gen(function* () {
+  yield* Effect.log("no annotations")
+  yield* Effect.annotateLogsScoped({ foo: "bar" })
+  yield* Effect.log("annotated with foo=bar")
+}).pipe(Effect.scoped, Effect.andThen(Effect.log("no annotations again")))
+```
+
+### `Data.TaggedEnum` helpers
+
+`$is` & `$match` helpers have been added to `Data.TaggedEnum` constructors.
+
+```ts
+import { Data } from "effect"
+
+type HttpError = Data.TaggedEnum<{
+  NotFound: {}
+  InternalServerError: { reason: string }
+}>
+const { $is, $match, InternalServerError, NotFound } =
+  Data.taggedEnum<HttpError>()
+
+// create a matcher
+const matcher = $match({
+  NotFound: () => 0,
+  InternalServerError: () => 1
+})
+
+// use the guard
+$is("NotFound")(NotFound()) // true
+$is("NotFound")(InternalServerError({ reason: "fail" })) // false
+```
+
+### `Types.DeepMutable`
+
+A type helper has been added, which transforms a type into a deeply mutable version.
+
+```ts
+import { Types } from "effect"
+
+type Values<A> = {
+  readonly _tag: string
+  readonly value: ReadonlyArray<A>
+}
+
+// { _tag: string, value: Array<A> }
+type MutableValues<A> = Types.DeepMutable<Values<A>>
+```
+
+## Other changes
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [Changelog](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
