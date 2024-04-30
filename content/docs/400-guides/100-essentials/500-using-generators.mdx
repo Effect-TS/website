@@ -48,34 +48,6 @@ Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
   or with a `target` of `"es2015"` or higher in your `tsconfig.json` file
 </Warning>
 
-When working with generators in Effect, the `_` helper plays a crucial role when yielding an effect.
-By passing the effect you want to yield to the `_` function...
-
-```ts twoslash
-import { Effect } from "effect"
-
-const increment = (x: number) => x + 1
-
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
-
-const task1 = Effect.promise(() => Promise.resolve(10))
-
-const task2 = Effect.promise(() => Promise.resolve(2))
-// ---cut---
-export const program = Effect.gen(function* () {
-  const a = yield* task1
-  const b = yield* task2
-  const n1 = yield* divide(a, b)
-  const n2 = increment(n1)
-  return `Result is: ${n2}`
-})
-```
-
-...TypeScript can accurately infer the types associated with that effect. This ensures that your code is type-safe and helps prevent potential errors.
-
 ## Comparing Effect.gen with async/await
 
 If you are familiar with `async`/`await`, you may notice that the flow of writing code is similar.
@@ -183,7 +155,7 @@ Output:
 
 ## Raising Errors
 
-Within the realm of the `Effect.gen` API, you have the capability to introduce errors into your program by using a failed effect as an argument to the `_` helper function. This can be effectively achieved, for instance, by using `Effect.fail`. Let's take a closer look at an example:
+Within the realm of the `Effect.gen` API, you have the capability to introduce errors into your program by yielding a failed effect. This can be effectively achieved, for instance, by using `Effect.fail`. Let's take a closer look at an example:
 
 ```ts twoslash
 import { Effect } from "effect"
