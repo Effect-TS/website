@@ -1,0 +1,29 @@
+---
+title: Cost / Benefit
+excerpt: The payload may be too big for your library
+bottomNavigation: pagination
+---
+
+## Some bundle costs
+
+- Effect's core fiber runtime comes in at about 30kb minified
+- Effect schema comes in at about another 40kb
+
+
+### What do these costs mean
+
+While these numbers mean nothing on the backend, and very little for effect powered frontend applications,
+using Effect schema may not be a great choice for a general frontend library.
+
+
+### How to deal with it?
+
+- For basic parsing inside clients we recommend to build json-schema from Schemas, and e.g use the `json-schema` library instead.
+- It might be enough to include the hash of the schema in the response, and accept the response in your client if this hash matches
+
+in both cases you will loose the rich decoding features from Schema, but you might not need them as much in your library.
+everyone can convert ISO string to Dates, right?
+
+## Some processing costs
+
+- Effect is not built to replace well optimised and purely algorithmic code. This will always be slower than native. But the good news is that Effect code happily embeds/calls such code.
