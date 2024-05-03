@@ -10,7 +10,7 @@ import {
   Equal,
   Hash,
   Layer,
-  ReadonlyArray,
+  Array,
   Scope,
   ScopedCache,
   identity,
@@ -89,10 +89,10 @@ export class WebContainerError extends Data.TaggedError("WebContainerError")<{
 
 export class Workspace extends Data.Class<{
   name: string
-  files: ReadonlyArray<FileWithContent>
-  filesOfInterest: ReadonlyArray<FileWithContent>
+  files: Array<FileWithContent>
+  filesOfInterest: Array<FileWithContent>
 }> {
-  copyWith(name: string, files: ReadonlyArray<FileWithContent>) {
+  copyWith(name: string, files: Array<FileWithContent>) {
     return new Workspace({
       name,
       files: this.files.concat(files),
@@ -100,7 +100,7 @@ export class Workspace extends Data.Class<{
     })
   }
   get tree() {
-    return ReadonlyArray.reduce(
+    return Array.reduce(
       this.files,
       <FileSystemTree>{},
       (tree, file) => {
