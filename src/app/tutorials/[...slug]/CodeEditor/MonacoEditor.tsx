@@ -192,14 +192,14 @@ export const MonacoEditor: React.FC<MonacoEditor.Props> = ({
 
   useEffect(() => {
     const script = document.createElement("script")
-    script.src = "http://localhost:3000/vendor/vs.loader.js"
+    script.src = "/vendor/vs.loader.js"
     script.async = true
     script.onload = () => {
       const require = globalThis.require as any
 
       require.config({
         paths: {
-          vs: "http://localhost:3000/vendor/vs",
+          vs: "/vendor/vs",
         },
         // This is something you need for monaco to work
         ignoreDuplicateModules: ["vs/editor/editor.main"],
