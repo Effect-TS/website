@@ -27,12 +27,12 @@ const menus = [
     items: [
       {
         name: "Terms & Conditions",
-        href: "https://www.effectful.co/privacy-cookies",
+        href: "https://www.effectful.co/terms-conditions",
         blank: true
       },
       {
         name: "Privacy Policy",
-        href: "https://www.effectful.co/terms-conditions",
+        href: "https://www.effectful.co/privacy-cookies",
         blank: true
       },
       { name: "Contact Us", href: "mailto:contact@effectful.co" }
