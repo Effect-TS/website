@@ -1,25 +1,18 @@
-import React, { useEffect, useState } from "react"
-import { useRxSet, useRxValue, Rx } from "@effect-rx/rx-react"
+import React from "react"
+import { useRxValue } from "@effect-rx/rx-react"
 import { setupTypeAcquisition } from "@typescript/ata"
-import { FileWithContent } from "@/services/WebContainer"
 import { useFiles } from "../context/workspace"
 import { selectedFileRx } from "../rx/workspace"
 import { MonacoEditor } from "./MonacoEditor"
 
 declare namespace FileEditor {
-  export interface Props {
-    // readonly file: FileWithContent
-    // readonly write: Rx.RxResultFn<string, void>
-  }
+  export interface Props { }
 }
 
 export const FileEditor: React.FC<FileEditor.Props> = () => {
+  // TODO: fix all these hacks :)
   const files = useFiles()
   const selected = useRxValue(selectedFileRx)
-  console.log(files)
-
-  // const [file, write] = files[selected]
-  // const setContent = useRxSet(write) // TODO
   return files.length === 0
     ? <div>No files</div>
     : (
