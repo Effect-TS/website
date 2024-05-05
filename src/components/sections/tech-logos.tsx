@@ -31,8 +31,8 @@ export const TechLogos = () => {
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
-              src="/images/logos/logo-4.png"
-              alt="Logo 4"
+              src="/images/logos/cloudflare-workers.png"
+              alt="Cloudflare workers"
               width="112"
               height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
@@ -57,8 +57,8 @@ export const TechLogos = () => {
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
-              src="/images/logos/logo-2.png"
-              alt="Logo 2"
+              src="/images/logos/solid.png"
+              alt="Solid.js"
               width="110"
               height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
@@ -78,8 +78,8 @@ export const TechLogos = () => {
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
             />
             <Image
-              src="/images/logos/logo-5.png"
-              alt="Node.js"
+              src="/images/logos/tauri.png"
+              alt="Tauri"
               width="90"
               height="102"
               className="h-10 w-auto sm:h-12 saturate-0 hover:saturate-100 transition-all duration-300"
