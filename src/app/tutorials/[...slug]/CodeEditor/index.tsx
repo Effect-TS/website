@@ -1,7 +1,7 @@
 import React from "react"
 import { Workspace } from "@/services/WebContainer"
 import { WorkspaceContext } from "../context/workspace"
-import { FileEditors } from "./FileEditors"
+import { FileEditor } from "./FileEditor"
 import { TabBar } from "./TabBar"
 import { Terminal } from "./Terminal"
 
@@ -14,14 +14,12 @@ export declare namespace CodeEditor {
 export const CodeEditor: React.FC<CodeEditor.Props> = ({ workspace }) => {
   return (
     <WorkspaceContext.Provider value={workspace}>
-      <div className="flex flex-col">
-        <div className="h-2/3">
-          <TabBar />
-          <FileEditors />
-        </div>
-        <div className="h-1/3 flex">
-          <Terminal workspace={workspace} />
-        </div>
+      <div className="h-2/3 flex flex-col">
+        <TabBar />
+        <FileEditor />
+      </div>
+      <div className="h-1/3">
+        <Terminal workspace={workspace} />
       </div>
     </WorkspaceContext.Provider>
   )

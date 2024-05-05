@@ -1,24 +1,31 @@
 import React from "react"
-import { useRxSet, Rx } from "@effect-rx/rx-react"
+import { useRxSet, useRxValue, Rx } from "@effect-rx/rx-react"
 import { setupTypeAcquisition } from "@typescript/ata"
 import { FileWithContent } from "@/services/WebContainer"
+import { useFiles } from "../context/workspace"
+import { selectedFileRx } from "../rx/workspace"
 import { MonacoEditor } from "./MonacoEditor"
 
 declare namespace FileEditor {
   export interface Props {
-    readonly file: FileWithContent
-    readonly write: Rx.RxResultFn<string, void>
+    // readonly file: FileWithContent
+    // readonly write: Rx.RxResultFn<string, void>
   }
 }
 
-export const FileEditor: React.FC<FileEditor.Props> = ({ file, write }) => {
-  const setContent = useRxSet(write) // TODO
+export const FileEditor: React.FC<FileEditor.Props> = () => {
+  const files = useFiles()
+  const selected = useRxValue(selectedFileRx)
+  console.log(files)
+  // const [file, write] = files[selected]
+  // const setContent = useRxSet(write) // TODO
   return (
     <MonacoEditor
       theme="vs-dark"
-      path={file.file}
-      defaultValue={file.initialContent}
-      defaultLanguage={file.file.endsWith(".json") ? "json" : "typescript"}
+      path="/index.ts"
+      defaultPath="/index.ts"
+      defaultValue=""
+      defaultLanguage="typescript"
       onMount={async (editor, monaco) => {
         monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true)
 
@@ -47,7 +54,7 @@ export const FileEditor: React.FC<FileEditor.Props> = ({ file, write }) => {
         })
 
         // Acquire initial types
-        const model = monaco.editor.getModel(monaco.Uri.parse(file.file))!
+        const model = monaco.editor.getModel(monaco.Uri.parse("index.ts"))!
         const code = model.getValue()
         ata(code)
 

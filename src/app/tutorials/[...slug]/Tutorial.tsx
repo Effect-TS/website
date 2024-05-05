@@ -13,9 +13,13 @@ export declare namespace Tutorial {
 export const Tutorial: React.FC<Tutorial.Props> = ({ workspace, children }) => {
   const Editor = editor(workspace)
   return (
-    <div className="h-full w-full grid grid-cols-2 gap-2">
-      <div className="flex flex-col">{children}</div>
-      <Editor />
+    <div className="h-full flex flex-row">
+      <div className="basis-1/2">
+        {children}
+      </div>
+      <div className="basis-1/2">
+        <Editor />
+      </div>
     </div>
   )
 }

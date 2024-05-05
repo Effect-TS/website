@@ -142,7 +142,7 @@ const createModel = (monaco: Monaco, value: string, language?: string, path?: st
 
 const createModelUri = (monaco: Monaco, path: string) => monaco.Uri.parse(path)
 
-export const MonacoEditor: React.FC<MonacoEditor.Props> = ({
+export const MonacoEditor: React.FC<MonacoEditor.Props> = React.memo(({
   defaultValue,
   defaultLanguage,
   defaultPath,
@@ -389,24 +389,21 @@ export const MonacoEditor: React.FC<MonacoEditor.Props> = ({
 
       return () => {
         changeMarkersListener?.dispose()
-      };
+      }
     }
-    return () => {
-      // eslint happy
-    };
-  }, [isEditorReady, onValidate]);
+  }, [isEditorReady, onValidate])
 
   return (
-    <section className="h-full w-full flex relative">
+    <section className="h-full flex flex-col">
       {!isEditorReady && (
-        <div className="flex flex-col flex-grow items-center justify-center">
+        <div className="h-full flex flex-col items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-gray-400" />
           <p className="mt-4 text-gray-500 dark:text-gray-400">{loading}</p>
         </div>
       )}
-      <div ref={containerRef} className={clsx("w-full", !isEditorReady && "hidden", className)} />
+      <div ref={containerRef} className={clsx("flex-grow w-full", !isEditorReady && "hidden", className)} />
     </section>
   )
-}
+})
 
 MonacoEditor.displayName = "MonacoEditor"

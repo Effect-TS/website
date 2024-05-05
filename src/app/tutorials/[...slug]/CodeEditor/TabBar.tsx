@@ -2,17 +2,20 @@ import React from "react"
 import { useRx } from "@effect-rx/rx-react"
 import { useFiles } from "../context/workspace"
 import { selectedFileRx } from "../rx/workspace"
+import clsx from "clsx"
 
 declare namespace TabBar {
-  export interface Props { }
+  export interface Props {
+    readonly className?: string
+  }
 }
 
-export const TabBar: React.FC<TabBar.Props> = () => {
+export const TabBar: React.FC<TabBar.Props> = ({ className }) => {
   const files = useFiles()
   const [selected, setSelected] = useRx(selectedFileRx)
 
   return (
-    <nav className="flex pt-2 pl-2 pb-1 gap-2">
+    <nav className={clsx("flex pt-2 pl-2 pb-1 gap-2", className)}>
       {files.map(([file], index) => (
         <button
           key={file.file}

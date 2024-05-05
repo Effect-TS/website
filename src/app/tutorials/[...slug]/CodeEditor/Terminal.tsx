@@ -19,5 +19,5 @@ export const Terminal: React.FC<Terminal.Props> = ({ workspace }) => {
     }
   }, [terminal])
 
-  return <div ref={ref} id="terminal" className="flex-grow" />
+  return <div ref={ref} id="terminal" className="h-full w-full overflow-auto" />
 }
