@@ -1,5 +1,5 @@
 import { Workspace } from "@/domain/Workspace"
-import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
+import { useRxSet, useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import React, { Suspense } from "react"
 import { WorkspaceContext } from "../context/workspace"
 import { workspaceHandleRx } from "../rx/workspace"
@@ -7,6 +7,8 @@ import { FileEditor } from "./CodeEditor/FileEditor"
 import { Terminal } from "./CodeEditor/Terminal"
 import { TabBar } from "./CodeEditor/TabBar"
 import { LoadingSpinner } from "./LoadingSpinner"
+import { Panel, PanelGroup } from "react-resizable-panels"
+import { PanelResizeHandle } from "./PanelResizeHandle"
 
 export function CodeEditor({ workspace }: { readonly workspace: Workspace }) {
   return (
@@ -22,15 +24,19 @@ function CodeEditorSuspended({
   readonly workspace: Workspace
 }) {
   const handle = useRxSuspenseSuccess(workspaceHandleRx(workspace))
+  const setSize = useRxSet(handle.value.size)
   return (
     <WorkspaceContext.Provider value={handle.value}>
-      <div className="h-2/3 flex flex-col">
-        <TabBar />
-        <FileEditor />
-      </div>
-      <div className="h-1/3">
-        <Terminal />
-      </div>
+      <PanelGroup autoSaveId="editor" direction="vertical">
+        <Panel>
+          <TabBar />
+          <FileEditor />
+        </Panel>
+        <PanelResizeHandle direction="horizontal" />
+        <Panel onResize={setSize} defaultSize={30}>
+          <Terminal />
+        </Panel>
+      </PanelGroup>
     </WorkspaceContext.Provider>
   )
 }

@@ -2,7 +2,9 @@ import { Workspace } from "@/domain/Workspace"
 import { Terminal } from "@/services/Terminal"
 import { WebContainer } from "@/services/WebContainer"
 import { Rx } from "@effect-rx/rx-react"
-import { Effect, Layer } from "effect"
+import { sign } from "crypto"
+import { Effect, Layer, Stream } from "effect"
+import { get } from "http"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WebContainer.Live, Terminal.Live)
@@ -16,10 +18,12 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
       const { spawn } = yield* Terminal
       const handle = yield* WebContainer.workspace(workspace)
 
-      const terminal = Rx.make(
+      const size = Rx.make(0)
+
+      const terminal = Rx.make((get) =>
         Effect.gen(function* (_) {
           const shell = yield* handle.shell
-          const terminal = yield* spawn
+          const { terminal, resize } = yield* spawn
           shell.output.pipeTo(
             new WritableStream({
               write(data) {
@@ -34,11 +38,18 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
           input.write(
             `cd "${workspace.name}" && pnpm install && tsx --watch "${workspace.filesOfInterest[0].file}"\n`
           )
+
+          yield* get.stream(size).pipe(
+            Stream.debounce(250),
+            Stream.runForEach(() => resize),
+            Effect.forkScoped
+          )
+
           return terminal
         })
       )
 
-      return { workspace, handle, terminal } as const
+      return { workspace, handle, terminal, size } as const
     })
   )
 )

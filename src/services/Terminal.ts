@@ -1,7 +1,6 @@
-import { BrowserStream } from "@effect/platform-browser"
 import { FitAddon } from "@xterm/addon-fit"
 import { Terminal as XTerm } from "@xterm/xterm"
-import { Effect, Layer, Stream } from "effect"
+import { Effect, Layer } from "effect"
 
 const make = Effect.gen(function* () {
   const spawn = Effect.gen(function* () {
@@ -18,13 +17,12 @@ const make = Effect.gen(function* () {
       fitAddon.fit()
     }
 
-    yield* BrowserStream.fromEventListenerWindow("resize").pipe(
-      Stream.debounce(500),
-      Stream.runForEach(() => Effect.sync(() => fitAddon.fit())),
-      Effect.forkScoped
-    )
-
-    return terminal
+    return {
+      terminal,
+      resize: Effect.sync(() => {
+        fitAddon.fit()
+      })
+    }
   })
 
   return { spawn } as const

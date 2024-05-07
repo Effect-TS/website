@@ -2,26 +2,29 @@
 
 import dynamic from "next/dynamic"
 import React from "react"
+import { Panel, PanelGroup } from "react-resizable-panels"
+import { PanelResizeHandle } from "./PanelResizeHandle"
 
-export declare namespace Tutorial {
-  export interface Props {
-    readonly workspace: string
-    readonly children: React.ReactNode
-  }
-}
-
-export const Tutorial: React.FC<Tutorial.Props> = ({
+export function Tutorial({
   workspace,
   children
-}) => {
+}: {
+  readonly workspace: string
+  readonly children: React.ReactNode
+}) {
   const Editor = editor(workspace)
   return (
-    <div className="flex-1 flex flex-row overflow-hidden">
-      <div className="basis-1/2">{children}</div>
-      <div className="basis-1/2">
+    <PanelGroup
+      autoSaveId="tutorial"
+      direction="horizontal"
+      className="flex-1 flex flex-row overflow-hidden"
+    >
+      <Panel>{children}</Panel>
+      <PanelResizeHandle direction="vertical" />
+      <Panel>
         <Editor />
-      </div>
-    </div>
+      </Panel>
+    </PanelGroup>
   )
 }
 
