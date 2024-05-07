@@ -1,6 +1,7 @@
 import { Result, useRxValue } from "@effect-rx/rx-react"
 import React, { useEffect, useRef } from "react"
-import "xterm/css/xterm.css"
+import "@xterm/xterm/css/xterm.css"
+import "./Terminal.css"
 import { useWorkspace } from "../../context/workspace"
 
 export function Terminal() {
@@ -13,7 +14,5 @@ export function Terminal() {
     }
   }, [terminal])
 
-  return (
-    <div ref={ref} id="terminal" className="h-full w-full overflow-auto" />
-  )
+  return <div ref={ref} id="terminal" className="h-full w-full bg-black" />
 }

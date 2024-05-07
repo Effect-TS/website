@@ -61,7 +61,6 @@ const make = Effect.gen(function* (_) {
     }
   ) =>
     Effect.gen(function* (_) {
-      console.log(options)
       const editor = yield* _(
         Effect.acquireRelease(
           Effect.sync(() =>
@@ -72,7 +71,9 @@ const make = Effect.gen(function* (_) {
             })
           ),
           (editor) => Effect.sync(() => editor.dispose())
-        )
+        ),
+        Effect.tapErrorCause(Effect.log),
+        Effect.withSpan("acquire editor")
       )
       if (options.theme) {
         monaco.editor.setTheme(options.theme)
@@ -117,7 +118,10 @@ const make = Effect.gen(function* (_) {
     })
 
   return { monaco, makeEditor } as const
-})
+}).pipe(
+  Effect.withSpan("Monaco.make"),
+  Effect.annotateLogs("service", "Monaco")
+)
 
 export class Monaco extends Effect.Tag("app/Monaco")<
   Monaco,
