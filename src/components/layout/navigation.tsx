@@ -12,7 +12,7 @@ import { FC } from "react"
 
 const menu = [
   { name: "Docs", href: "/docs" },
-  { name: "Blog", href: "/blog" },
+  { name: "Blog", href: "/blog" }
   // { name: "Examples", href: "https://github.com/Effect-TS/examples" },
 ]
 
@@ -42,11 +42,10 @@ export const Navigation: FC<{
           </Link>
           <MobileMenu menu={menu} socials={socials} />
           <div className="hidden md:flex items-center gap-8">
-            {menu.map(({ name, href, blank }, index) => (
+            {menu.map(({ name, href }, index) => (
               <Link
                 key={index}
                 href={href}
-                target={blank === true ? "_blank" : "_self"}
                 className={`flex items-start ${
                   pathname.startsWith(href)
                     ? "text-black font-normal dark:text-white dark:font-light"
@@ -64,11 +63,7 @@ export const Navigation: FC<{
             ))}
             {searchBox && <Search className="w-56" />}
             {themeSwitcher && <ThemeSwitcher />}
-            {pathname === "/" ? (
-              null
-            ) : (
-              <ThemeSwitcher />
-            )}
+            {pathname === "/" ? null : <ThemeSwitcher />}
             <div className="flex items-center gap-4">
               {socials.map(({ name, icon, href }, index) => (
                 <Link key={index} href={href} className="generic-hover">

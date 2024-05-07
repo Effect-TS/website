@@ -15,6 +15,7 @@ export async function generateMetadata({
   params: { slug: string[] }
 }) {
   const post = allBlogPosts.find((post) => post.urlPath === `/blog/${slug}`)
+  // @ts-ignore
   if (!post) return
   return {
     title: `${post.title} – Effect Blog`,
