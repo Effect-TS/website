@@ -1,9 +1,10 @@
+import { Workspace } from "@/domain/Workspace"
+import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import React from "react"
-import { Workspace } from "@/services/WebContainer"
 import { WorkspaceContext } from "../context/workspace"
-import { FileEditor } from "./FileEditor"
-import { TabBar } from "./TabBar"
-import { Terminal } from "./Terminal"
+import { workspaceHandleRx } from "../rx/workspace"
+import { FileEditor } from "./CodeEditor/FileEditor"
+import { Terminal } from "./CodeEditor/Terminal"
 
 export declare namespace CodeEditor {
   export interface Props {
@@ -12,14 +13,14 @@ export declare namespace CodeEditor {
 }
 
 export const CodeEditor: React.FC<CodeEditor.Props> = ({ workspace }) => {
+  const handle = useRxSuspenseSuccess(workspaceHandleRx(workspace))
   return (
-    <WorkspaceContext.Provider value={workspace}>
+    <WorkspaceContext.Provider value={handle.value}>
       <div className="h-2/3 flex flex-col">
-        <TabBar />
         <FileEditor />
       </div>
       <div className="h-1/3">
-        <Terminal workspace={workspace} />
+        <Terminal />
       </div>
     </WorkspaceContext.Provider>
   )

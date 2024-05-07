@@ -1,4 +1,4 @@
-import { FileWithContent } from "@/services/WebContainer"
+import { FileWithContent } from "@/domain/Workspace"
 import { effectWorkspace } from "../effect"
 
 export default effectWorkspace.copyWith("step-01", [

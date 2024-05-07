@@ -31,7 +31,7 @@ export default function Page({
   const page = allTutorials.find(
     (page) => page.urlPath === `/tutorials/${slug.join("/")}`
   )
-  if (!page) notFound()
+  if (!page) return notFound()
 
   return (
     <>

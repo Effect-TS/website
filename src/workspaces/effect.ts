@@ -1,4 +1,4 @@
-import { FileWithContent, Workspace } from "@/services/WebContainer"
+import { FileWithContent, Workspace } from "@/domain/Workspace"
 
 export const effectWorkspace = new Workspace({
   name: "effect",
