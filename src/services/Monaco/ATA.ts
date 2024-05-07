@@ -1,8 +1,7 @@
-import { Effect, Layer, flow } from "effect"
-import { Monaco } from "../Monaco"
 import { setupTypeAcquisition } from "@typescript/ata"
+import { Effect, Layer, flow } from "effect"
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api"
-import { FileWithContent } from "@/domain/Workspace"
+import { Monaco } from "../Monaco"
 
 const make = Effect.gen(function* () {
   const { monaco, makeEditor } = yield* Monaco

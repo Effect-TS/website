@@ -1,5 +1,5 @@
 import { FileWithContent } from "@/domain/Workspace"
-import { ConfigError, Data, Effect, GlobalValue, Layer, Stream } from "effect"
+import { Data, Effect, GlobalValue, Layer, Stream } from "effect"
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 
 export type MonacoApi = typeof monaco

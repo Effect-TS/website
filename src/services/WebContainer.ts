@@ -1,13 +1,26 @@
 import { Workspace } from "@/domain/Workspace"
 import { WebContainer as WC, WebContainerProcess } from "@webcontainer/api"
-import { Data, Effect, Layer, Scope, ScopedCache, identity } from "effect"
+import {
+  Data,
+  Effect,
+  GlobalValue,
+  Layer,
+  Scope,
+  ScopedCache,
+  identity
+} from "effect"
+
+const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
+  Effect.unsafeMakeSemaphore(1)
+)
 
 const make = Effect.gen(function* (_) {
-  const container = yield* _(
-    Effect.acquireRelease(
-      Effect.promise(() => WC.boot()),
-      (_) => Effect.sync(() => _.teardown())
-    )
+  // you can only have one container running at a time
+  yield* Effect.acquireRelease(semaphore.take(1), () => semaphore.release(1))
+
+  const container = yield* Effect.acquireRelease(
+    Effect.promise(() => WC.boot()),
+    (_) => Effect.sync(() => _.teardown())
   )
   const makeWorkspace = (workspace: Workspace) =>
     Effect.gen(function* (_) {

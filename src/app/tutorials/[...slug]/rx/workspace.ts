@@ -1,8 +1,8 @@
 import { Workspace } from "@/domain/Workspace"
-import { WebContainer } from "@/app/tutorials/[...slug]/services/WebContainer"
+import { Terminal } from "@/services/Terminal"
+import { WebContainer } from "@/services/WebContainer"
 import { Rx } from "@effect-rx/rx-react"
 import { Effect, Layer } from "effect"
-import { Terminal } from "../services/Terminal"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WebContainer.Live, Terminal.Live)

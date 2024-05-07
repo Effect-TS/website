@@ -25,15 +25,24 @@ export const Navigation: FC<{
   wide?: boolean | false
   searchBox?: boolean | false
   themeSwitcher?: boolean | false
-}> = ({ wide, searchBox, themeSwitcher }) => {
+  relative?: boolean
+}> = ({ wide, searchBox, themeSwitcher, relative = false }) => {
   const pathname = usePathname()
 
   return (
     <div className={pathname === "/" ? "dark" : ""}>
-      <header className="fixed top-0 inset-x-0 backdrop-blur z-30 bg-white/70 dark:bg-[#09090B]/70 text-zinc-700 dark:text-zinc-400">
+      <header
+        className={`${
+          relative ? "" : "fixed top-0 inset-x-0"
+        } backdrop-blur z-30 bg-white/70 dark:bg-[#09090B]/70 text-zinc-700 dark:text-zinc-400`}
+      >
         <div
           className={`w-full ${
-            wide ? "max-w-screen-2xl" : "max-w-screen-xl"
+            relative
+              ? "border-b"
+              : wide
+                ? "max-w-screen-2xl"
+                : "max-w-screen-xl"
           } mx-auto px-4 sm:px-8 lg:px-16 h-16 sm:h-24 flex justify-between items-center`}
         >
           <Link href="/" className="z-50">

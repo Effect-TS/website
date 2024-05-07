@@ -5,6 +5,7 @@ import { WorkspaceContext } from "../context/workspace"
 import { workspaceHandleRx } from "../rx/workspace"
 import { FileEditor } from "./CodeEditor/FileEditor"
 import { Terminal } from "./CodeEditor/Terminal"
+import { TabBar } from "./CodeEditor/TabBar"
 
 export declare namespace CodeEditor {
   export interface Props {
@@ -17,6 +18,7 @@ export const CodeEditor: React.FC<CodeEditor.Props> = ({ workspace }) => {
   return (
     <WorkspaceContext.Provider value={handle.value}>
       <div className="h-2/3 flex flex-col">
+        <TabBar />
         <FileEditor />
       </div>
       <div className="h-1/3">

@@ -16,7 +16,7 @@ export const Tutorial: React.FC<Tutorial.Props> = ({
 }) => {
   const Editor = editor(workspace)
   return (
-    <div className="h-full flex flex-row">
+    <div className="flex-1 flex flex-row">
       <div className="basis-1/2">{children}</div>
       <div className="basis-1/2">
         <Editor />
@@ -29,7 +29,7 @@ const editor = (workspace: string) =>
   dynamic(
     async () => {
       const ws = (await import(`@/workspaces/${workspace}`)).default
-      const Editor = (await import("./components/CodeEditor")).CodeEditor
+      const Editor = (await import("./CodeEditor")).CodeEditor
       return () => (<Editor workspace={ws} />) as any
     },
     { ssr: false }
