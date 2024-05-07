@@ -1,7 +1,7 @@
 ---
 title: Schema 0.67 (Release)
 excerpt: Release post highlighting new additions and breaking changes
-date: 2024-05-06
+date: 2024-05-07
 authors:
   - name: Giulio Canti
     description: Founding Engineer
@@ -39,12 +39,12 @@ Let's dive into each of them with some examples to understand better how they wo
 ```ts
 import { Schema } from "@effect/schema"
 
-const Struct = Schema.Struct({
+const MyStruct = Schema.Struct({
   name: Schema.NonEmpty
 })
 
-Struct.make({ name: "a" }) // ok
-Struct.make({ name: "" })
+MyStruct.make({ name: "a" }) // ok
+MyStruct.make({ name: "" })
 /*
 throws
 Error: { name: NonEmpty }
@@ -78,14 +78,14 @@ Error: a number between 1 and 10
 ```ts
 import { Schema } from "@effect/schema"
 
-const BrandedNumberSchema = Schema.Number.pipe(
+const MyBrand = Schema.Number.pipe(
   Schema.between(1, 10),
   Schema.brand("MyNumber")
 )
 
 // const n: number & Brand<"MyNumber">
-const n = BrandedNumberSchema.make(5) // ok
-BrandedNumberSchema.make(20)
+const n = MyBrand.make(5) // ok
+MyBrand.make(20)
 /*
 throws
 Error: a number between 1 and 10
@@ -94,7 +94,7 @@ Error: a number between 1 and 10
 */
 ```
 
-When utilizing our default constructors, it's important to grasp the type of value they generate. In the `BrandedNumberSchema` example, the return type of the constructor is `number & Brand<"MyNumber">`, indicating that the resulting value is a number with the added branding "MyNumber".
+When utilizing our default constructors, it's important to grasp the type of value they generate. In the `MyBrand` example, the return type of the constructor is `number & Brand<"MyNumber">`, indicating that the resulting value is a `number` with the added branding "MyNumber".
 
 This differs from the filter example where the return type is simply `number`. The branding offers additional insights about the type, facilitating the identification and manipulation of your data.
 
@@ -175,18 +175,18 @@ console.log(new Person({ name: "name2" }))
 
 Our new `Schema.withDecodingDefault` combinator makes it easy to handle the optionality of a field during the **decoding process**.
 
-```typescript
+```ts
 import { Schema } from "@effect/schema"
 
-const schema = Schema.Struct({
+const MySchema = Schema.Struct({
   a: Schema.optional(Schema.String).pipe(Schema.withDecodingDefault(() => ""))
 })
 
-console.log(Schema.decodeUnknownSync(schema)({}))
+console.log(Schema.decodeUnknownSync(MySchema)({}))
 // => { a: '' }
-console.log(Schema.decodeUnknownSync(schema)({ a: undefined }))
+console.log(Schema.decodeUnknownSync(MySchema)({ a: undefined }))
 // => { a: '' }
-console.log(Schema.decodeUnknownSync(schema)({ a: "a" }))
+console.log(Schema.decodeUnknownSync(MySchema)({ a: "a" }))
 // => { a: 'a' }
 ```
 
@@ -195,7 +195,7 @@ If you want to set default values both for the decoding phase and for the defaul
 ```ts
 import { Schema } from "@effect/schema"
 
-const schema = Schema.Struct({
+const MySchema = Schema.Struct({
   a: Schema.optional(Schema.String).pipe(
     Schema.withDefaults({
       decoding: () => "",
@@ -204,15 +204,15 @@ const schema = Schema.Struct({
   )
 })
 
-console.log(Schema.decodeUnknownSync(schema)({}))
+console.log(Schema.decodeUnknownSync(MySchema)({}))
 // => { a: '' }
-console.log(Schema.decodeUnknownSync(schema)({ a: undefined }))
+console.log(Schema.decodeUnknownSync(MySchema)({ a: undefined }))
 // => { a: '' }
-console.log(Schema.decodeUnknownSync(schema)({ a: "a" }))
+console.log(Schema.decodeUnknownSync(MySchema)({ a: "a" }))
 // => { a: 'a' }
 
-console.log(schema.make({})) // => { a: '-' }
-console.log(schema.make({ a: "a" })) // => { a: 'a' }
+console.log(MySchema.make({})) // => { a: '-' }
+console.log(MySchema.make({ a: "a" })) // => { a: 'a' }
 ```
 
 ## Introducing Schemas as Classes
@@ -224,31 +224,31 @@ Let's look at how you can define and use schemas as classes.
 ```ts
 import { Schema } from "@effect/schema"
 
-class Person extends Schema.Struct({
+class PersonSchema extends Schema.Struct({
   name: Schema.String
 }) {}
 
-class Group extends Schema.Struct({
-  person: Person
+class GroupSchema extends Schema.Struct({
+  person: PersonSchema
 }) {}
 
-// const MyUnion: S.Union<[typeof Person, typeof Group]>
-export const MyUnion = Schema.Union(Person, Group)
+// const MyUnion: S.Union<[typeof PersonSchema, typeof GroupSchema]>
+export const MyUnion = Schema.Union(PersonSchema, GroupSchema)
 ```
 
-Notice how the inferred type for `MyUnion` now refers only to the class types (`typeof Person`, `typeof Group`),
+Notice how the inferred type for `MyUnion` now refers only to the class types (`typeof PersonSchema`, `typeof GroupSchema`),
 removing the detailed structure, which can sometimes be overwhelming to comprehend.
-Compare this with the previous method of defining schemas (the old method **still works** if you prefer it!)
+Compare this with the previous method of defining schemas (the old method **still works** if you prefer it!):
 
 ```ts
 import { Schema } from "@effect/schema"
 
-const Person = Schema.Struct({
+const PersonSchema = Schema.Struct({
   name: Schema.String
 })
 
-const Group = Schema.Struct({
-  person: Person
+const GroupSchema = Schema.Struct({
+  person: PersonSchema
 })
 
 /*
@@ -260,7 +260,7 @@ const MyUnion: Schema.Union<[Schema.Struct<{
     }>;
 }>]>
 */
-export const MyUnion = Schema.Union(Person, Group)
+export const MyUnion = Schema.Union(PersonSchema, GroupSchema)
 ```
 
 The new system brings in new opportunities for implementing different patterns.
@@ -271,19 +271,19 @@ For instance, we can add a decoding function attached directly to the schema for
 ```ts
 import { Schema } from "@effect/schema"
 
-class Person extends Schema.Struct({
+class PersonSchema extends Schema.Struct({
   name: Schema.String
 }) {}
 
-class Group extends Schema.Struct({
-  person: Person
+class GroupSchema extends Schema.Struct({
+  person: PersonSchema
 }) {
   static decodeUnknownSync(u: unknown) {
     return Schema.decodeUnknownSync(this)(u)
   }
 }
 
-console.log(Group.decodeUnknownSync({}))
+console.log(GroupSchema.decodeUnknownSync({}))
 /*
 Error: { person: { name: string } }
 └─ ["person"]
@@ -370,22 +370,19 @@ We've introduced a new API interface to the `filter` API. This allows you to acc
 ```ts
 import { Schema } from "@effect/schema"
 
-const schema = Schema.Struct({
+const MyFilter = Schema.Struct({
   a: Schema.String
 }).pipe(Schema.filter(() => /* some filter... */ true))
 
 // const aField: typeof Schema.String
-const aField = schema.from.fields.a
+const aField = MyFilter.from.fields.a
 ```
 
 The signature of the `filter` function has been simplified and streamlined to be more ergonomic when setting a default message. In the new signature of `filter`, the type of the predicate passed as an argument is as follows:
 
 ```ts
-predicate: (
-  a: Types.NoInfer<Schema.Type<S>>,
-  options: ParseOptions,
-  self: AST.Refinement
-) => undefined | boolean | string | ParseResult.ParseIssue
+predicate: (a: A, options: ParseOptions, self: AST.Refinement) =>
+  undefined | boolean | string | ParseResult.ParseIssue
 ```
 
 with the following semantics:
@@ -422,14 +419,14 @@ Let's see an example:
 ```ts
 import { JSONSchema, Schema } from "@effect/schema"
 
-const schema = Schema.Struct({
+const MySchema = Schema.Struct({
   foo: Schema.String.pipe(Schema.minLength(2)),
   bar: Schema.optional(Schema.NumberFromString, {
     default: () => 0
   })
 })
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(JSONSchema.make(MySchema), null, 2))
 ```
 
 Now, let's compare the JSON Schemas produced in both the previous and new versions.
@@ -467,7 +464,7 @@ As you can see, the JSON Schema produced has:
 This happens because in the previous version, the `JSONSchema.make` API by default produces a JSON Schema for the `Type` part of the schema. That is:
 
 ```ts
-type Type = Schema.Schema.Type<typeof schema>
+type Type = Schema.Schema.Type<typeof MySchema>
 /*
 type Type = {
     readonly foo: string;
@@ -479,7 +476,7 @@ type Type = {
 However, typically, we are interested in generating a JSON Schema for the input part of the decoding process, i.e., in this case for:
 
 ```ts
-type Encoded = Schema.Schema.Encoded<typeof schema>
+type Encoded = Schema.Schema.Encoded<typeof MySchema>
 /*
 type Encoded = {
     readonly foo: string;
@@ -492,7 +489,7 @@ At first glance, a possible solution might be to generate the JSON Schema of `Sc
 
 ```ts
 console.log(
-  JSON.stringify(JSONSchema.make(Schema.encodedSchema(schema)), null, 2)
+  JSON.stringify(JSONSchema.make(Schema.encodedSchema(MySchema)), null, 2)
 )
 ```
 
