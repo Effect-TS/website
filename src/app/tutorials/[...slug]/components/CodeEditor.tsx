@@ -1,19 +1,26 @@
 import { Workspace } from "@/domain/Workspace"
 import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
-import React from "react"
+import React, { Suspense } from "react"
 import { WorkspaceContext } from "../context/workspace"
 import { workspaceHandleRx } from "../rx/workspace"
 import { FileEditor } from "./CodeEditor/FileEditor"
 import { Terminal } from "./CodeEditor/Terminal"
 import { TabBar } from "./CodeEditor/TabBar"
+import { LoadingSpinner } from "./LoadingSpinner"
 
-export declare namespace CodeEditor {
-  export interface Props {
-    readonly workspace: Workspace
-  }
+export function CodeEditor({ workspace }: { readonly workspace: Workspace }) {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <CodeEditorSuspended workspace={workspace} />
+    </Suspense>
+  )
 }
 
-export const CodeEditor: React.FC<CodeEditor.Props> = ({ workspace }) => {
+function CodeEditorSuspended({
+  workspace
+}: {
+  readonly workspace: Workspace
+}) {
   const handle = useRxSuspenseSuccess(workspaceHandleRx(workspace))
   return (
     <WorkspaceContext.Provider value={handle.value}>
@@ -27,5 +34,3 @@ export const CodeEditor: React.FC<CodeEditor.Props> = ({ workspace }) => {
     </WorkspaceContext.Provider>
   )
 }
-
-CodeEditor.displayName = "Editor"

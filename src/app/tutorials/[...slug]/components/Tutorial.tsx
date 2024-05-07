@@ -1,7 +1,7 @@
 "use client"
 
-import React from "react"
 import dynamic from "next/dynamic"
+import React from "react"
 
 export declare namespace Tutorial {
   export interface Props {
@@ -16,7 +16,7 @@ export const Tutorial: React.FC<Tutorial.Props> = ({
 }) => {
   const Editor = editor(workspace)
   return (
-    <div className="flex-1 flex flex-row">
+    <div className="flex-1 flex flex-row overflow-hidden">
       <div className="basis-1/2">{children}</div>
       <div className="basis-1/2">
         <Editor />
