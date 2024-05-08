@@ -41,7 +41,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
             input.write(data)
           })
           input.write(
-            `cd "${workspace.name}" && pnpm install${
+            `cd "${workspace.name}" && pnpm install && clear${
               workspace.command ? ` && ${workspace.command}` : ""
             }\n`
           )
