@@ -1,5 +1,4 @@
-import { FileSystemTree } from "@webcontainer/api"
-import { Array, Data, Equal, Hash, pipe } from "effect"
+import { Data, Equal, Hash, pipe } from "effect"
 
 export class Workspace extends Data.Class<{
   name: string
