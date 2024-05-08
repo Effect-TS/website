@@ -16,11 +16,14 @@ export const FileExplorer: React.FC<FileExplorer.Props> = () => {
   const { selectedFile, workspace } = useWorkspace()
   const setFile = useRxSet(selectedFile)
 
-  const handleClick = useCallback<FileExplorer.OnClick>((_event, node) => {
-    if (node._tag === "File") {
-      setFile(node)
-    }
-  }, [setFile])
+  const handleClick = useCallback<FileExplorer.OnClick>(
+    (_event, node) => {
+      if (node._tag === "File") {
+        setFile(node)
+      }
+    },
+    [setFile]
+  )
 
   return (
     <aside className="min-h-full sm:max-w-xs p-2 px-4 overflow-auto">
