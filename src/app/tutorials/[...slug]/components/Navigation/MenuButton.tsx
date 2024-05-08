@@ -17,7 +17,7 @@ export function MenuButton({
 
   return (
     <nav
-      className="bg-gray-100 dark:bg-neutral-900 dark:border-gray-600 p-2 rounded border flex-1 mx-2 flex items-center cursor-pointer relative"
+      className="bg-gray-100 dark:bg-neutral-900 dark:border-neutral-600 p-2 rounded border flex-1 mx-2 flex items-center cursor-pointer relative"
       onClick={() => setVisible((_) => !_)}
     >
       <strong className="font-medium">{tutorial.section}</strong>
@@ -45,9 +45,9 @@ function Menu({
 }) {
   return (
     <div
-      className={`absolute transition-all bg-white z-10 p-4 rounded-xl shadow-2xl border leading-loose top-0 left-0 w-full mt-12 ${
+      className={`absolute transition-all bg-white dark:bg-neutral-800 z-10 p-4 rounded-xl shadow-2xl border dark:border-neutral-700 leading-loose top-0 left-0 w-full mt-12 ${
         visible ? "visible opacity-100" : "invisible opacity-0"
-      } max-h-96 overflow-y-scroll`}
+      } max-h-96 overflow-y-auto`}
     >
       {Object.entries(grouped).map(([slug, tutorials]) => (
         <div key={slug}>
