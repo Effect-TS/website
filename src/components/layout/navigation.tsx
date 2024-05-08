@@ -39,7 +39,7 @@ export const Navigation: FC<{
         <div
           className={`w-full ${
             relative
-              ? "border-b"
+              ? "border-b dark:border-gray-600"
               : wide
                 ? "max-w-screen-2xl"
                 : "max-w-screen-xl"

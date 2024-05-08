@@ -18,11 +18,13 @@ export async function Navigation({
     <div className="px-4 flex items-center">
       <Link
         href={previous?.urlPath ?? "#"}
-        className={`h-4 ${previous ? "" : "text-gray-400"}`}
+        className={`h-4 ${
+          previous ? "" : "text-gray-400 dark:text-gray-500"
+        }`}
       >
         <Icon name="arrow-right" className="h-full rotate-180" />
       </Link>
-      <nav className="bg-gray-100 dark:bg-gray-900 dark:border-gray-600 p-2 rounded border flex-1 mx-2 flex items-center cursor-pointer">
+      <nav className="bg-gray-100 dark:bg-neutral-900 dark:border-gray-600 p-2 rounded border flex-1 mx-2 flex items-center cursor-pointer">
         <strong className="font-medium">{tutorial.section}</strong>
         <Separator />
         <span>{tutorial.title}</span>
@@ -31,7 +33,7 @@ export async function Navigation({
       </nav>
       <Link
         href={next?.urlPath ?? "#"}
-        className={`h-4 ${next ? "" : "text-gray-400"}`}
+        className={`h-4 ${next ? "" : "text-gray-400 dark:text-gray-500"}`}
       >
         <Icon name="arrow-right" className="h-full" />
       </Link>
