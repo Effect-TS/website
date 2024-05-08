@@ -5,7 +5,11 @@ import { useWorkspace } from "../../context/WorkspaceContext"
 import { editorRx } from "../../rx/editor"
 import { LoadingSpinner } from "../LoadingSpinner"
 
-export function FileEditor() {
+export declare namespace FileEditor {
+  export interface Props {}
+}
+
+export const FileEditor: React.FC<FileEditor.Props> = () => {
   const workspace = useWorkspace()
   const containerRef = useRef(null)
   const rx = editorRx(workspace)

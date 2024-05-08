@@ -4,7 +4,11 @@ import "@xterm/xterm/css/xterm.css"
 import { useWorkspace } from "../../context/WorkspaceContext"
 import "./Terminal.css"
 
-export function Terminal() {
+export declare namespace Terminal {
+  export interface Props {}
+}
+
+export const Terminal: React.FC<Terminal.Props> = () => {
   const terminal = useRxValue(useWorkspace().terminal)
   const ref = useRef<HTMLDivElement>(null)
 

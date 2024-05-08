@@ -15,17 +15,17 @@ const make = Effect.gen(function* () {
       // and then uncomment it
       receivedFile: (code: string, _path: string) => {
         const path = `file://${_path}`
-        console.log(`[ATA] Adding ${path} to runtime`, { code })
+        // console.log(`[ATA] Adding ${path} to runtime`, { code })
         monaco.languages.typescript.typescriptDefaults.addExtraLib(code, path)
       },
       started: () => {
-        console.log("[ATA]: Beginning automatic type acquisition...")
+        // console.log("[ATA]: Beginning automatic type acquisition...")
       },
       errorMessage: (message) => {
         console.error(message)
       },
       finished: () => {
-        console.log("[ATA]: Finished automatic type acquisition")
+        // console.log("[ATA]: Finished automatic type acquisition")
       }
     }
   })

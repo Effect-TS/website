@@ -7,6 +7,7 @@ import { FileEditor } from "./CodeEditor/FileEditor"
 import { Terminal } from "./CodeEditor/Terminal"
 import { LoadingSpinner } from "./LoadingSpinner"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
+import { FileExplorer } from "./FileExplorer"
 
 export function CodeEditor({ workspace }: { readonly workspace: Workspace }) {
   return (
@@ -27,7 +28,15 @@ function CodeEditorSuspended({
     <WorkspaceContext.Provider value={handle.value}>
       <PanelGroup autoSaveId="editor" direction="vertical">
         <Panel>
-          <FileEditor />
+          <PanelGroup autoSaveId="sidebar" direction="horizontal">
+            <Panel>
+              <FileExplorer />
+            </Panel>
+            <PanelResizeHandle />
+            <Panel>
+              <FileEditor />
+            </Panel>
+          </PanelGroup>
         </Panel>
         <PanelResizeHandle />
         <Panel onResize={setSize} defaultSize={30}>
