@@ -23,7 +23,7 @@ export const FileTree: React.FC<FileTree.Props> = ({
     <div>
       {directories.map((node) => (
         <DirectoryNode
-          key={node.name}
+          key={prefix + node.name}
           prefix={prefix + node.name}
           nodes={node.children}
           depth={depth}
@@ -32,8 +32,8 @@ export const FileTree: React.FC<FileTree.Props> = ({
       {files.map((node) => (
         <FileNode
           type="file"
-          key={node.name}
-          path={node.name}
+          key={prefix + node.name}
+          path={prefix + node.name}
           depth={depth}
         />
       ))}

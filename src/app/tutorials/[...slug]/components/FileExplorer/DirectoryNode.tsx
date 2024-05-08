@@ -20,16 +20,24 @@ export const DirectoryNode: React.FC<DirectoryNode.Props> = ({
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
 
+  const pathPrefix = prefix + "/"
+
   return (
     <div>
       <FileNode
         type="directory"
-        path={prefix + "/"}
+        path={pathPrefix}
         depth={depth}
         isOpen={open}
         onClick={toggle}
       />
-      {open && <FileTree tree={nodes} depth={depth + 1} />}
+      {open && (
+        <FileTree
+          tree={nodes}
+          prefix={pathPrefix}
+          depth={depth + 1}
+        />
+      )}
     </div>
   )
 }
