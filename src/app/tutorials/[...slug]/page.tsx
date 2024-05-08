@@ -5,7 +5,7 @@ import { Navigation } from "./components/Navigation"
 import { Tutorial } from "./components/Tutorial"
 
 export const generateStaticParams = () =>
-  allTutorials.map((page, index) => ({
+  allTutorials.map((page) => ({
     slug: page.urlPath.replace("/tutorials/", "").split("/")
   }))
 
