@@ -30,7 +30,7 @@ export function Tutorial({
     >
       <Panel className="pt-4 min-w-[450px] flex flex-col" defaultSize={30}>
         {navigation}
-        <div className="p-6 prose flex-1 overflow-y-auto pb-14">
+        <div className="p-6 prose dark:prose-invert flex-1 overflow-y-auto pb-14">
           {children}
           {next && (
             <p>
