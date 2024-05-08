@@ -7,7 +7,6 @@ import { useMemo } from "react"
 export async function Navigation({
   tutorial
 }: {
-  readonly slug: ReadonlyArray<string>
   readonly tutorial: Tutorial
 }) {
   const index = useMemo(() => allTutorials.indexOf(tutorial), [tutorial])

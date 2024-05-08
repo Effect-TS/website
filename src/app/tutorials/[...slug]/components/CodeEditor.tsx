@@ -29,7 +29,7 @@ function CodeEditorSuspended({
       <PanelGroup autoSaveId="editor" direction="vertical">
         <Panel>
           <PanelGroup autoSaveId="sidebar" direction="horizontal">
-            <Panel>
+            <Panel defaultSize={20}>
               <FileExplorer />
             </Panel>
             <PanelResizeHandle />

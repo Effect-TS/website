@@ -22,9 +22,7 @@ export const editorRx = Rx.family((workspace: WorkspaceHandle) => {
       const el = yield* _(Option.fromNullable(get(element)))
       const monaco = yield* MonacoATA
       console.log(workspace.workspace)
-      const editor = yield* monaco.makeEditorWithATA(el, {
-        initialFile: workspace.workspace.initialFile
-      })
+      const editor = yield* monaco.makeEditorWithATA(el)
       yield* get.stream(editorThemeRx).pipe(
         Stream.runForEach((theme) =>
           Effect.sync(() => editor.editor.updateOptions({ theme }))

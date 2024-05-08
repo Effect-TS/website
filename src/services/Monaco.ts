@@ -139,5 +139,5 @@ export class Monaco extends Effect.Tag("app/Monaco")<
   Monaco,
   Effect.Effect.Success<typeof make>
 >() {
-  static Live = Layer.effect(this, make)
+  static Live = Layer.scoped(this, make)
 }
