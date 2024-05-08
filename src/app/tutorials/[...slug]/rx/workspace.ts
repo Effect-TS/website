@@ -2,15 +2,11 @@ import { Workspace } from "@/domain/Workspace"
 import { Terminal } from "@/services/Terminal"
 import { WebContainer } from "@/services/WebContainer"
 import { Rx } from "@effect-rx/rx-react"
-import { sign } from "crypto"
 import { Effect, Layer, Stream } from "effect"
-import { get } from "http"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WebContainer.Live, Terminal.Live)
 ).pipe(Rx.setIdleTTL("5 seconds"))
-
-export const selectedFileRx = Rx.make(0)
 
 export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
   runtime.rx(
@@ -19,6 +15,8 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
       const handle = yield* WebContainer.workspace(workspace)
 
       const size = Rx.make(0)
+
+      const selectedFile = Rx.make(workspace.initialFile)
 
       const terminal = Rx.make((get) =>
         Effect.gen(function* (_) {
@@ -36,7 +34,9 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
             input.write(data)
           })
           input.write(
-            `cd "${workspace.name}" && pnpm install && tsx --watch "${workspace.filesOfInterest[0].file}"\n`
+            `cd "${workspace.name}" && pnpm install${
+              workspace.command ? ` && ${workspace.command}` : ""
+            }\n`
           )
 
           yield* get.stream(size).pipe(
@@ -49,7 +49,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         })
       )
 
-      return { workspace, handle, terminal, size } as const
+      return { workspace, handle, terminal, size, selectedFile } as const
     })
   )
 )

@@ -1,5 +1,9 @@
 import { Workspace } from "@/domain/Workspace"
-import { WebContainer as WC, WebContainerProcess } from "@webcontainer/api"
+import {
+  FileSystemTree,
+  WebContainer as WC,
+  WebContainerProcess
+} from "@webcontainer/api"
 import {
   Data,
   Effect,
@@ -34,7 +38,9 @@ const make = Effect.gen(function* (_) {
       yield* _(
         Effect.acquireRelease(
           Effect.promise(() =>
-            container.mount(workspace.tree, { mountPoint: workspace.name })
+            container.mount(treeFromWorkspace(workspace), {
+              mountPoint: workspace.name
+            })
           ),
           () =>
             Effect.promise(() =>
@@ -88,4 +94,23 @@ export class WebContainerError extends Data.TaggedError("WebContainerError")<{
 export interface WorkspaceHandle {
   readonly write: (file: string, data: string) => Effect.Effect<void>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
+}
+
+function treeFromWorkspace(workspace: Workspace): FileSystemTree {
+  function walk(children: Workspace["tree"]): FileSystemTree {
+    const tree: FileSystemTree = {}
+    children.forEach((child) => {
+      if (child._tag === "File") {
+        tree[child.name] = {
+          file: { contents: child.initialContent }
+        }
+      } else {
+        tree[child.name] = {
+          directory: walk(child.children)
+        }
+      }
+    })
+    return tree
+  }
+  return walk(workspace.tree)
 }

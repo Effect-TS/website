@@ -1,17 +1,19 @@
-import { FileWithContent } from "@/domain/Workspace"
-import { effectWorkspace } from "../effect"
+/* eslint-disable import/no-anonymous-default-export */
+import { Directory, File, Workspace } from "@/domain/Workspace"
+import { effectPackageJson } from "../common"
 
-export default effectWorkspace.copyWith("step-01", [
-  new FileWithContent({
-    file: "index.ts",
-    initialContent: `import { Effect } from "effect"
+export default new Workspace({
+  name: "step-01",
+  command: "tsx --watch src/index.ts",
+  tree: [
+    effectPackageJson,
+    new Directory("src", [
+      new File({
+        name: "index.ts",
+        initialContent: `import { Effect } from "effect"
 
 Effect.runFork(Effect.log("Hello, world!"))`
-  }),
-  new FileWithContent({
-    file: "test.ts",
-    initialContent: `import { Effect } from "effect"
-
-Effect.runFork(Effect.log("Hello, test!"))`
-  })
-])
+      })
+    ])
+  ]
+})

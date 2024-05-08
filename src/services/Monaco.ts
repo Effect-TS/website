@@ -1,4 +1,4 @@
-import { FileWithContent } from "@/domain/Workspace"
+import { File } from "@/domain/Workspace"
 import { Data, Effect, GlobalValue, Layer, Stream } from "effect"
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 
@@ -56,7 +56,7 @@ const make = Effect.gen(function* (_) {
   const makeEditor = (
     el: HTMLElement,
     options: {
-      readonly initialFile?: FileWithContent
+      readonly initialFile?: File
       readonly theme?: string
     }
   ) =>
@@ -83,9 +83,9 @@ const make = Effect.gen(function* (_) {
         string,
         monaco.editor.ICodeEditorViewState | null
       >()
-      const load = (file: FileWithContent) =>
+      const load = (file: File) =>
         Effect.gen(function* () {
-          const uri = monaco.Uri.parse(file.file)
+          const uri = monaco.Uri.parse(file.name)
           const model =
             monaco.editor.getModel(uri) ||
             monaco.editor.createModel(file.initialContent, file.language, uri)
@@ -94,11 +94,11 @@ const make = Effect.gen(function* (_) {
             return model
           }
           if (current) {
-            viewStates.set(file.file, editor.saveViewState())
+            viewStates.set(file.name, editor.saveViewState())
           }
           editor.setModel(model)
-          if (viewStates.has(file.file)) {
-            editor.restoreViewState(viewStates.get(file.file)!)
+          if (viewStates.has(file.name)) {
+            editor.restoreViewState(viewStates.get(file.name)!)
           }
           return model
         })

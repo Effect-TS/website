@@ -3,24 +3,31 @@ import { Array, Data, Equal, Hash, pipe } from "effect"
 
 export class Workspace extends Data.Class<{
   name: string
-  files: Array<FileWithContent>
-  filesOfInterest: Array<FileWithContent>
+  tree: ReadonlyArray<Directory | File>
+  command?: string
 }> {
-  copyWith(name: string, files: Array<FileWithContent>) {
-    return new Workspace({
-      name,
-      files: this.files.concat(files),
-      filesOfInterest: files
-    })
+  _filesOfInterest: Array<File> | undefined
+  get filesOfInterest() {
+    if (this._filesOfInterest) {
+      return this._filesOfInterest
+    }
+    const files: Array<File> = []
+    function walk(children: ReadonlyArray<Directory | File>) {
+      children.forEach((child) => {
+        if (child._tag === "File") {
+          if (child.interesting) {
+            files.push(child)
+          }
+        } else {
+          walk(child.children)
+        }
+      })
+    }
+    walk(this.tree)
+    return (this._filesOfInterest = files)
   }
   get initialFile() {
     return this.filesOfInterest[0]
-  }
-  get tree() {
-    return Array.reduce(this.files, <FileSystemTree>{}, (tree, file) => {
-      tree[file.file] = { file: { contents: file.initialContent } }
-      return tree
-    })
   }
   [Hash.symbol]() {
     return Hash.string(this.name)
@@ -30,17 +37,40 @@ export class Workspace extends Data.Class<{
   }
 }
 
-export class FileWithContent extends Data.Class<{
-  file: string
-  initialContent: string
+export class Directory extends Data.TaggedClass("Directory")<{
+  name: string
+  children: ReadonlyArray<Directory | File>
 }> {
-  get language() {
-    return "typescript"
+  constructor(name: string, children: ReadonlyArray<Directory | File>) {
+    super({
+      name,
+      children: Data.array(children)
+    })
+  }
+}
+
+export class File extends Data.TaggedClass("File")<{
+  name: string
+  initialContent: string
+  interesting: boolean
+  language: string
+}> {
+  constructor(options: {
+    name: string
+    initialContent: string
+    interesting?: boolean
+    language?: string
+  }) {
+    super({
+      ...options,
+      interesting: options.interesting ?? true,
+      language: options.language ?? "typescript"
+    })
   }
   [Hash.symbol]() {
-    return pipe(Hash.string(this.file), Hash.cached(this))
+    return pipe(Hash.string(this.name), Hash.cached(this))
   }
   [Equal.symbol](that: this) {
-    return this.file === that.file
+    return this.name === that.name
   }
 }

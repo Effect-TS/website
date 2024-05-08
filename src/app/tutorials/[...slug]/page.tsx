@@ -1,6 +1,7 @@
 import { MDX } from "@/components/atoms/mdx"
 import { allTutorials } from "contentlayer/generated"
 import { notFound } from "next/navigation"
+import { Navigation } from "./components/Navigation"
 import { Tutorial } from "./components/Tutorial"
 
 export const generateStaticParams = () =>
@@ -34,10 +35,11 @@ export default function Page({
   if (!page) return notFound()
 
   return (
-    <>
-      <Tutorial workspace={page.workspace}>
-        <MDX content={page.body.code} />
-      </Tutorial>
-    </>
+    <Tutorial
+      workspace={page.workspace}
+      navigation={<Navigation slug={slug} />}
+    >
+      <MDX content={page.body.code} />
+    </Tutorial>
   )
 }

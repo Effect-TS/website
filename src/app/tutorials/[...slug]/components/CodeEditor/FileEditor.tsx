@@ -1,7 +1,7 @@
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 import clsx from "clsx"
 import { useEffect, useRef } from "react"
-import { useWorkspace } from "../../context/workspace"
+import { useWorkspace } from "../../context/WorkspaceContext"
 import { editorRx } from "../../rx/editor"
 import { LoadingSpinner } from "../LoadingSpinner"
 

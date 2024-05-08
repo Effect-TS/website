@@ -1,11 +1,10 @@
 import { Workspace } from "@/domain/Workspace"
 import { useRxSet, useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import React, { Suspense } from "react"
-import { WorkspaceContext } from "../context/workspace"
+import { WorkspaceContext } from "../context/WorkspaceContext"
 import { workspaceHandleRx } from "../rx/workspace"
 import { FileEditor } from "./CodeEditor/FileEditor"
 import { Terminal } from "./CodeEditor/Terminal"
-import { TabBar } from "./CodeEditor/TabBar"
 import { LoadingSpinner } from "./LoadingSpinner"
 import { Panel, PanelGroup } from "react-resizable-panels"
 import { PanelResizeHandle } from "./PanelResizeHandle"
@@ -29,7 +28,6 @@ function CodeEditorSuspended({
     <WorkspaceContext.Provider value={handle.value}>
       <PanelGroup autoSaveId="editor" direction="vertical">
         <Panel>
-          <TabBar />
           <FileEditor />
         </Panel>
         <PanelResizeHandle direction="horizontal" />

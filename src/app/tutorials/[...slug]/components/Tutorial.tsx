@@ -7,9 +7,11 @@ import { PanelResizeHandle } from "./PanelResizeHandle"
 
 export function Tutorial({
   workspace,
+  navigation,
   children
 }: {
   readonly workspace: string
+  readonly navigation: React.ReactNode
   readonly children: React.ReactNode
 }) {
   const Editor = editor(workspace)
@@ -19,7 +21,10 @@ export function Tutorial({
       direction="horizontal"
       className="flex-1 flex flex-row overflow-hidden"
     >
-      <Panel>{children}</Panel>
+      <Panel>
+        {navigation}
+        <div className="p-6">{children}</div>
+      </Panel>
       <PanelResizeHandle direction="vertical" />
       <Panel>
         <Editor />

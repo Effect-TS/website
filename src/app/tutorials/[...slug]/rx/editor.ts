@@ -1,7 +1,7 @@
 import { MonacoATA } from "@/services/Monaco/ATA"
 import { Rx } from "@effect-rx/rx-react"
 import { Data, Effect, Option, Stream } from "effect"
-import { WorkspaceHandle, selectedFileRx } from "./workspace"
+import { WorkspaceHandle } from "./workspace"
 
 const runtime = Rx.runtime(MonacoATA.Live).pipe(Rx.setIdleTTL("30 seconds"))
 
@@ -28,8 +28,7 @@ export const editorRx = Rx.family((workspace: WorkspaceHandle) => {
         ),
         Effect.forkScoped
       )
-      yield* get.stream(selectedFileRx).pipe(
-        Stream.map((i) => workspace.workspace.filesOfInterest[i]),
+      yield* get.stream(workspace.selectedFile).pipe(
         Stream.flatMap(
           (file) =>
             editor.load(file).pipe(
@@ -37,7 +36,7 @@ export const editorRx = Rx.family((workspace: WorkspaceHandle) => {
               Stream.unwrap,
               Stream.debounce("1 second"),
               Stream.runForEach((content) =>
-                workspace.handle.write(file.file, content)
+                workspace.handle.write(file.name, content)
               )
             ),
           { switch: true }
