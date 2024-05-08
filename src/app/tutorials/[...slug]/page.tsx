@@ -29,15 +29,24 @@ export default function Page({
 }: {
   params: { slug: string[] }
 }) {
-  const page = allTutorials.find(
+  const index = allTutorials.findIndex(
     (page) => page.urlPath === `/tutorials/${slug.join("/")}`
   )
+  const page = allTutorials[index]
   if (!page) return notFound()
+
+  const next = allTutorials[index + 1]
 
   return (
     <Tutorial
       workspace={page.workspace}
       navigation={<Navigation tutorial={page} />}
+      next={
+        next && {
+          title: next.title,
+          url: next.urlPath
+        }
+      }
     >
       <MDX content={page.body.code} />
     </Tutorial>

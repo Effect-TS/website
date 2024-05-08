@@ -3,7 +3,7 @@ import { Directory, File, Workspace } from "@/domain/Workspace"
 import { defaultCommand, effectPackageJson } from "../common"
 
 export default new Workspace({
-  name: "step-03",
+  name: "100-welcome",
   command: defaultCommand,
   tree: [
     effectPackageJson,
@@ -12,7 +12,7 @@ export default new Workspace({
         name: "index.ts",
         initialContent: `import { Effect } from "effect"
 
-Effect.runFork(Effect.log("Hello, world x3!"))`
+Effect.runFork(Effect.log("Welcome to Effect!"))`
       })
     ])
   ]
