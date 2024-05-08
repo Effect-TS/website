@@ -11,6 +11,11 @@ export const Tutorial = defineDocumentType(() => ({
       description: "The title of the page.",
       required: true
     },
+    section: {
+      type: "string",
+      description: "The name of the section.",
+      required: true
+    },
     excerpt: {
       type: "string",
       description: "A brief description of the tutorial.",

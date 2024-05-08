@@ -38,11 +38,7 @@ export const Navigation: FC<{
       >
         <div
           className={`w-full ${
-            relative
-              ? "border-b"
-              : wide
-                ? "max-w-screen-2xl"
-                : "max-w-screen-xl"
+            relative ? "" : wide ? "max-w-screen-2xl" : "max-w-screen-xl"
           } mx-auto px-4 sm:px-8 lg:px-16 h-16 sm:h-24 flex justify-between items-center`}
         >
           <Link href="/" className="z-50">

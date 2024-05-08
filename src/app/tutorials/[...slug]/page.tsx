@@ -37,7 +37,7 @@ export default function Page({
   return (
     <Tutorial
       workspace={page.workspace}
-      navigation={<Navigation slug={slug} />}
+      navigation={<Navigation slug={slug} tutorial={page} />}
     >
       <MDX content={page.body.code} />
     </Tutorial>
