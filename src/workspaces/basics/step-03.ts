@@ -1,10 +1,10 @@
 /* eslint-disable import/no-anonymous-default-export */
 import { Directory, File, Workspace } from "@/domain/Workspace"
-import { effectPackageJson } from "../common"
+import { defaultCommand, effectPackageJson } from "../common"
 
 export default new Workspace({
   name: "step-03",
-  command: "tsx --watch src/index.ts",
+  command: defaultCommand,
   tree: [
     effectPackageJson,
     new Directory("src", [

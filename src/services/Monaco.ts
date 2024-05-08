@@ -112,6 +112,7 @@ const make = Effect.gen(function* (_) {
         const cancel = editor.onDidChangeModelContent((e) => {
           emit.single(editor.getValue())
         })
+        emit.single(editor.getValue())
         return Effect.sync(() => cancel.dispose())
       })
 

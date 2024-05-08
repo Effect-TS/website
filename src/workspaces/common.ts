@@ -1,5 +1,7 @@
 import { File } from "@/domain/Workspace"
 
+export const defaultCommand = "tsx --watch src/index.ts"
+
 export const effectPackageJson = new File({
   name: "package.json",
   language: "json",
