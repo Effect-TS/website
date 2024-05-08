@@ -18,7 +18,7 @@ export async function Navigation({
       {previous && <Link href={previous.urlPath}>Prev</Link>}
       <nav className="bg-gray-100 dark:bg-gray-900 dark:border-gray-600 p-2 rounded border">
         <strong className="font-medium">{tutorial.section}</strong>
-        <Seperator />
+        <Separator />
         <span>{tutorial.title}</span>
       </nav>
       {next && <Link href={next.urlPath}>Next</Link>}
@@ -26,6 +26,6 @@ export async function Navigation({
   )
 }
 
-function Seperator() {
+function Separator() {
   return <span className="text-lg p-2">/</span>
 }

@@ -1,41 +1,43 @@
-import { Directory, File } from "@/domain/Workspace"
+import type { Directory, File } from "@/domain/Workspace"
 import React, { useCallback, useState } from "react"
 import { FileNode } from "./FileNode"
 import { FileTree } from "./FileTree"
 
 export declare namespace DirectoryNode {
   export interface Props {
-    readonly nodes: ReadonlyArray<Directory | File>
-    readonly prefix: string
+    readonly node: Directory
     readonly depth: number
+    readonly onClick?: OnClick
+  }
+
+  export interface OnClick {
+    (event: React.MouseEvent<HTMLButtonElement>, node: File | Directory): void
   }
 }
 
 export const DirectoryNode: React.FC<DirectoryNode.Props> = ({
-  nodes,
-  prefix,
-  depth
+  node,
+  depth,
+  onClick
 }) => {
   const [open, setOpen] = useState(false)
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
 
-  const pathPrefix = prefix + "/"
-
   return (
     <div>
       <FileNode
         type="directory"
-        path={pathPrefix}
+        node={node}
         depth={depth}
         isOpen={open}
         onClick={toggle}
       />
       {open && (
         <FileTree
-          tree={nodes}
-          prefix={pathPrefix}
+          tree={node.children}
           depth={depth + 1}
+          onClick={onClick}
         />
       )}
     </div>

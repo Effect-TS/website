@@ -6,15 +6,19 @@ import { FileNode } from "./FileNode"
 export declare namespace FileTree {
   export interface Props {
     readonly tree: ReadonlyArray<Directory | File>
-    readonly prefix?: string
     readonly depth?: number
+    readonly onClick?: OnClick
+  }
+
+  export interface OnClick {
+    (event: React.MouseEvent<HTMLButtonElement>, node: File | Directory): void
   }
 }
 
 export const FileTree: React.FC<FileTree.Props> = ({
   tree,
-  prefix = "/",
-  depth = 0
+  depth = 0,
+  onClick
 }) => {
   const files = tree.filter((node): node is File => node._tag === "File")
   const directories = tree.filter((node): node is Directory => node._tag === "Directory")
@@ -23,18 +27,19 @@ export const FileTree: React.FC<FileTree.Props> = ({
     <div>
       {directories.map((node) => (
         <DirectoryNode
-          key={prefix + node.name}
-          prefix={prefix + node.name}
-          nodes={node.children}
+          key={node.name}
+          node={node}
           depth={depth}
+          onClick={onClick}
         />
       ))}
       {files.map((node) => (
         <FileNode
+          key={node.name}
           type="file"
-          key={prefix + node.name}
-          path={prefix + node.name}
+          node={node}
           depth={depth}
+          onClick={onClick}
         />
       ))}
     </div>
