@@ -12,6 +12,9 @@ export default new Workspace({
         name: "index.ts",
         initialContent: `import { Effect } from "effect"
 
+Effect.log("Welcome to Effect!")`,
+        solution: `import { Effect } from "effect"
+
 Effect.runFork(Effect.log("Welcome to Effect!"))`
       })
     ])

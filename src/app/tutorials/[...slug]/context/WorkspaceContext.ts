@@ -8,7 +8,3 @@ export const WorkspaceContext = React.createContext<WorkspaceHandle>(
 export const useWorkspace = () => {
   return React.useContext(WorkspaceContext)
 }
-
-export const useFiles = () => {
-  return useWorkspace().workspace.filesOfInterest
-}

@@ -72,12 +72,14 @@ export class Directory extends Data.TaggedClass("Directory")<{
 export class File extends Data.TaggedClass("File")<{
   name: string
   initialContent: string
+  solution?: string
   interesting: boolean
   language: string
 }> {
   constructor(options: {
     name: string
     initialContent: string
+    solution?: string
     interesting?: boolean
     language?: string
   }) {

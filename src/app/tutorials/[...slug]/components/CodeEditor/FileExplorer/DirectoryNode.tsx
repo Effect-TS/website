@@ -4,22 +4,20 @@ import { FileNode } from "./FileNode"
 import { FileTree } from "./FileTree"
 
 export declare namespace DirectoryNode {
-  export interface Props {
-    readonly node: Directory
-    readonly depth: number
-    readonly onClick?: OnClick
-  }
-
   export interface OnClick {
     (event: React.MouseEvent<HTMLButtonElement>, node: File | Directory): void
   }
 }
 
-export const DirectoryNode: React.FC<DirectoryNode.Props> = ({
+export function DirectoryNode({
   node,
   depth,
   onClick
-}) => {
+}: {
+  readonly node: Directory
+  readonly depth: number
+  readonly onClick?: DirectoryNode.OnClick
+}) {
   const [open, setOpen] = useState(true)
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])

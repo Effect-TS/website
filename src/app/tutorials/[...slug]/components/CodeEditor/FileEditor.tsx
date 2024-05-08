@@ -1,24 +1,22 @@
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 import clsx from "clsx"
 import { useEffect, useRef } from "react"
-import { useWorkspace } from "../../context/WorkspaceContext"
-import { editorRx } from "../../rx/editor"
+import { editorElementRx, editorRx } from "../../rx/editor"
 import { LoadingSpinner } from "../LoadingSpinner"
+import { Option } from "effect"
 
 export declare namespace FileEditor {
   export interface Props {}
 }
 
 export const FileEditor: React.FC<FileEditor.Props> = () => {
-  const workspace = useWorkspace()
-  const containerRef = useRef(null)
-  const rx = editorRx(workspace)
-  const setElement = useRxSet(rx.element)
-  const editor = useRxValue(rx.editor)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const setElement = useRxSet(editorElementRx)
+  const editor = useRxValue(editorRx)
 
   useEffect(() => {
     if (containerRef.current) {
-      setElement(containerRef.current)
+      setElement(Option.some(containerRef.current))
     }
   }, [containerRef, setElement])
 
@@ -29,7 +27,7 @@ export const FileEditor: React.FC<FileEditor.Props> = () => {
       {!isReady && <LoadingSpinner />}
       <div
         ref={containerRef}
-        className={clsx("flex-grow w-full", !isReady && "hidden")}
+        className={clsx("h-full", !isReady && "hidden")}
       />
     </section>
   )

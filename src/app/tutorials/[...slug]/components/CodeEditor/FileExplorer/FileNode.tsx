@@ -4,7 +4,7 @@ import * as Equal from "effect/Equal"
 import { useRxValue } from "@effect-rx/rx-react"
 import { Directory, File } from "@/domain/Workspace"
 import { DirectoryIconClosed, DirectoryIconOpen, FileIcon } from "./Icons"
-import { useWorkspace } from "../../context/WorkspaceContext"
+import { useWorkspace } from "../../../context/WorkspaceContext"
 
 export declare namespace FileNode {
   export type Props = FileProps | DirectoryProps
@@ -30,12 +30,7 @@ export declare namespace FileNode {
   }
 }
 
-export const FileNode: React.FC<FileNode.Props> = ({
-  depth,
-  node,
-  onClick,
-  ...props
-}) => {
+export function FileNode({ depth, node, onClick, ...props }: FileNode.Props) {
   const { selectedFile } = useWorkspace()
   const selected = useRxValue(selectedFile)
   const fileName = node.name.split("/").filter(Boolean).pop()
@@ -55,7 +50,13 @@ export const FileNode: React.FC<FileNode.Props> = ({
       )}
       onClick={(event) => onClick?.(event, node)}
     >
-      {props.type === "file" ? <FileIcon /> : props.isOpen ? <DirectoryIconOpen /> : <DirectoryIconClosed />}
+      {props.type === "file" ? (
+        <FileIcon />
+      ) : props.isOpen ? (
+        <DirectoryIconOpen />
+      ) : (
+        <DirectoryIconClosed />
+      )}
       <span>{fileName}</span>
     </button>
   )

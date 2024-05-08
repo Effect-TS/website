@@ -1,45 +1,66 @@
 import { Workspace } from "@/domain/Workspace"
 import { useRxSet, useRxSuspenseSuccess } from "@effect-rx/rx-react"
-import React, { Suspense } from "react"
+import { Option } from "effect"
+import { Suspense, useEffect } from "react"
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { WorkspaceContext } from "../context/WorkspaceContext"
-import { workspaceHandleRx } from "../rx/workspace"
+import {
+  terminalSizeRx,
+  workspaceHandleRx,
+  workspaceRx
+} from "../rx/workspace"
 import { FileEditor } from "./CodeEditor/FileEditor"
 import { Terminal } from "./CodeEditor/Terminal"
+import { FileExplorer } from "./CodeEditor/FileExplorer"
 import { LoadingSpinner } from "./LoadingSpinner"
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
-import { FileExplorer } from "./FileExplorer"
+import { SolveButton } from "./CodeEditor/SolveButton"
 
-export function CodeEditor({ workspace }: { readonly workspace: Workspace }) {
+export function CodeEditor({
+  workspace,
+  disableExplorer
+}: {
+  readonly workspace: Workspace
+  readonly disableExplorer?: boolean
+}) {
+  const setWorkspace = useRxSet(workspaceRx)
+  useEffect(() => {
+    setWorkspace(Option.some(workspace))
+  }, [workspace, setWorkspace])
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <CodeEditorSuspended workspace={workspace} />
+      <CodeEditorSuspended disableExplorer={disableExplorer} />
     </Suspense>
   )
 }
 
 function CodeEditorSuspended({
-  workspace
+  disableExplorer
 }: {
-  readonly workspace: Workspace
+  readonly disableExplorer?: boolean
 }) {
-  const handle = useRxSuspenseSuccess(workspaceHandleRx(workspace))
-  const setSize = useRxSet(handle.value.size)
+  const setSize = useRxSet(terminalSizeRx)
+  const handle = useRxSuspenseSuccess(workspaceHandleRx)
   return (
     <WorkspaceContext.Provider value={handle.value}>
       <PanelGroup autoSaveId="editor" direction="vertical">
         <Panel>
-          <PanelGroup autoSaveId="sidebar" direction="horizontal">
-            <Panel
-              defaultSize={20}
-              className="bg-gray-50 dark:bg-neutral-900 min-w-[200px]"
-            >
-              <FileExplorer />
-            </Panel>
-            <PanelResizeHandle />
-            <Panel>
-              <FileEditor />
-            </Panel>
-          </PanelGroup>
+          {disableExplorer === true ? (
+            <FileExplorer />
+          ) : (
+            <PanelGroup autoSaveId="sidebar" direction="horizontal">
+              <Panel
+                defaultSize={20}
+                className="bg-gray-50 dark:bg-neutral-900 min-w-[200px] flex flex-col"
+              >
+                <SolveButton />
+                <FileExplorer />
+              </Panel>
+              <PanelResizeHandle />
+              <Panel>
+                <FileEditor />
+              </Panel>
+            </PanelGroup>
+          )}
         </Panel>
         <PanelResizeHandle />
         <Panel onResize={setSize} defaultSize={30}>

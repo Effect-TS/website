@@ -1,5 +1,5 @@
 import { File } from "@/domain/Workspace"
-import { Data, Effect, GlobalValue, Layer, ScopedCache, Stream } from "effect"
+import { Data, Effect, GlobalValue, Layer, Stream } from "effect"
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 
 export type MonacoApi = typeof monaco
@@ -53,9 +53,14 @@ const loadApi = GlobalValue.globalValue("app/Monaco/loadApi", () =>
 const make = Effect.gen(function* (_) {
   const monaco = yield* loadApi
 
-  const editorCache = yield* ScopedCache.make({
-    lookup: (el: HTMLElement) =>
-      Effect.acquireRelease(
+  const makeEditor = (
+    el: HTMLElement,
+    options?: {
+      readonly theme?: string
+    }
+  ) =>
+    Effect.gen(function* (_) {
+      const editor = yield* Effect.acquireRelease(
         Effect.sync(() =>
           monaco.editor.create(el, {
             automaticLayout: true,
@@ -67,19 +72,7 @@ const make = Effect.gen(function* (_) {
       ).pipe(
         Effect.tapErrorCause(Effect.log),
         Effect.withSpan("acquire editor")
-      ),
-    capacity: 2,
-    timeToLive: "30 seconds"
-  })
-
-  const makeEditor = (
-    el: HTMLElement,
-    options?: {
-      readonly theme?: string
-    }
-  ) =>
-    Effect.gen(function* (_) {
-      const editor = yield* editorCache.get(el)
+      )
       if (options?.theme) {
         monaco.editor.setTheme(options.theme)
       }

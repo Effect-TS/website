@@ -1,18 +1,16 @@
-import React, { useCallback } from "react"
-import { useRx, useRxSet } from "@effect-rx/rx-react"
-import { FileTree } from "./FileExplorer/FileTree"
-import { useWorkspace } from "../context/WorkspaceContext"
 import type { Directory, File } from "@/domain/Workspace"
+import { useRxSet } from "@effect-rx/rx-react"
+import React, { useCallback } from "react"
+import { useWorkspace } from "../../context/WorkspaceContext"
+import { FileTree } from "./FileExplorer/FileTree"
 
 export declare namespace FileExplorer {
-  export interface Props {}
-
   export interface OnClick {
     (event: React.MouseEvent<HTMLButtonElement>, node: File | Directory): void
   }
 }
 
-export const FileExplorer: React.FC<FileExplorer.Props> = () => {
+export function FileExplorer() {
   const { selectedFile, workspace } = useWorkspace()
   const setFile = useRxSet(selectedFile)
 
@@ -31,5 +29,3 @@ export const FileExplorer: React.FC<FileExplorer.Props> = () => {
     </aside>
   )
 }
-
-FileExplorer.displayName = "FileExplorer"
