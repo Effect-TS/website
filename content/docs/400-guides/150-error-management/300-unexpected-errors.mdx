@@ -6,13 +6,19 @@ bottomNavigation: pagination
 
 There are situations where you may encounter unexpected errors, and you need to decide how to handle them. Effect provides functions to help you deal with such scenarios, allowing you to take appropriate actions when errors occur during the execution of your effects.
 
-## Handling Unrecoverable Errors
+## Creating Unrecoverable Errors
 
-When you encounter an unrecoverable error, meaning an error that cannot be handled or anticipated in advance, you can use the following functions to terminate the execution of the effect:
+In the same way it is possible to leverage combinators such as `fail` to create values of type `Effect<never, E, never>` the Effect library provides tools to create defects.
+
+Creating defects is a common necessity when dealing with errors from which it is not possible to recover from a business logic perspective, such as attempting to establish a connection that is refused after multiple retries.
+
+In those cases terminating the execution of the effect and moving into reporting, through an output such as stdout or some external monitoring service, might be the best solution.
+
+The following functions and combinators allow for termination of the effect and are often used to convert values of type `Effect<A, E, R>` into values of type `Effect<A, never, R>` allowing the programmer an escape hatch from having to handle and recover from errors for which there is no sensible way to recover.
 
 ### die / dieMessage
 
-The `Effect.die` function returns an effect that dies a specified error, while `Effect.dieMessage` throws a `RuntimeException` with a specified text message. These functions are useful for terminating a fiber when a defect, a critical and unexpected error, is detected in the code.
+The `Effect.die` function returns an effect that throws a specified error, while `Effect.dieMessage` throws a `RuntimeException` with a specified text message. These functions are useful for terminating a fiber when a defect, a critical and unexpected error, is detected in the code.
 
 Example using `die`:
 
