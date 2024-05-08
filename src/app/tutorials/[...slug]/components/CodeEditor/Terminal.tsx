@@ -2,6 +2,7 @@ import { Result, useRxValue } from "@effect-rx/rx-react"
 import React, { useEffect, useRef } from "react"
 import "@xterm/xterm/css/xterm.css"
 import { useWorkspace } from "../../context/WorkspaceContext"
+import "./Terminal.css"
 
 export function Terminal() {
   const terminal = useRxValue(useWorkspace().terminal)

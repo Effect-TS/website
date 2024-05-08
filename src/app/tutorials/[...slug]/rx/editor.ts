@@ -1,3 +1,4 @@
+import { themeRx } from "@/rx/theme"
 import { MonacoATA } from "@/services/Monaco/ATA"
 import { Rx } from "@effect-rx/rx-react"
 import { Data, Effect, Option, Stream } from "effect"
@@ -10,7 +11,9 @@ export class EditorContext extends Data.Class<{
   readonly workspace: WorkspaceHandle
 }> {}
 
-export const editorThemeRx = Rx.make("vs-dark")
+export const editorThemeRx = Rx.map(themeRx, (theme) =>
+  theme === "dark" ? "vs-dark" : "vs"
+)
 
 export const editorRx = Rx.family((workspace: WorkspaceHandle) => {
   const element = Rx.make<HTMLElement | null>(null)
@@ -19,8 +22,7 @@ export const editorRx = Rx.family((workspace: WorkspaceHandle) => {
       const el = yield* _(Option.fromNullable(get(element)))
       const monaco = yield* MonacoATA
       const editor = yield* monaco.makeEditorWithATA(el, {
-        initialFile: workspace.workspace.initialFile,
-        theme: get.once(editorThemeRx)
+        initialFile: workspace.workspace.initialFile
       })
       yield* get.stream(editorThemeRx).pipe(
         Stream.runForEach((theme) =>
@@ -29,14 +31,18 @@ export const editorRx = Rx.family((workspace: WorkspaceHandle) => {
         Effect.forkScoped
       )
       yield* get.stream(workspace.selectedFile).pipe(
+        Stream.bindTo("file"),
+        Stream.bindEffect("path", ({ file }) =>
+          workspace.workspace.pathTo(file)
+        ),
         Stream.flatMap(
-          (file) =>
+          ({ file, path }) =>
             editor.load(file).pipe(
               Effect.as(editor.content),
               Stream.unwrap,
               Stream.debounce("1 second"),
               Stream.runForEach((content) =>
-                workspace.handle.write(file.name, content)
+                workspace.handle.write(path, content)
               )
             ),
           { switch: true }

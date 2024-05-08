@@ -1,14 +1,14 @@
-import { Data, Equal, Hash, pipe } from "effect"
+import { Data, Equal, Hash, Option, pipe } from "effect"
 
 export class Workspace extends Data.Class<{
   name: string
   tree: ReadonlyArray<Directory | File>
   command?: string
 }> {
-  _filesOfInterest: Array<File> | undefined
+  #filesOfInterest: Array<File> | undefined
   get filesOfInterest() {
-    if (this._filesOfInterest) {
-      return this._filesOfInterest
+    if (this.#filesOfInterest) {
+      return this.#filesOfInterest
     }
     const files: Array<File> = []
     function walk(children: ReadonlyArray<Directory | File>) {
@@ -23,10 +23,31 @@ export class Workspace extends Data.Class<{
       })
     }
     walk(this.tree)
-    return (this._filesOfInterest = files)
+    return (this.#filesOfInterest = files)
   }
   get initialFile() {
     return this.filesOfInterest[0]
+  }
+  #filePaths: Map<File, string> | undefined
+  get filePaths() {
+    if (this.#filePaths) {
+      return this.#filePaths
+    }
+    const paths = new Map<File, string>()
+    function walk(prefix: string, children: Workspace["tree"]) {
+      children.forEach((child) => {
+        if (child._tag === "File") {
+          paths.set(child, `${prefix}${child.name}`)
+        } else {
+          walk(`${prefix}${child.name}/`, child.children)
+        }
+      })
+    }
+    walk("", this.tree)
+    return (this.#filePaths = paths)
+  }
+  pathTo(file: File) {
+    return Option.fromNullable(this.filePaths.get(file))
   }
   [Hash.symbol]() {
     return Hash.string(this.name)

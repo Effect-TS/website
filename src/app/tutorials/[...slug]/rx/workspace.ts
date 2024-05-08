@@ -1,5 +1,6 @@
 import { Workspace } from "@/domain/Workspace"
-import { MonokaiSoda, Terminal } from "@/services/Terminal"
+import { themeRx } from "@/rx/theme"
+import { GithubTheme, MonokaiSodaTheme, Terminal } from "@/services/Terminal"
 import { WebContainer } from "@/services/WebContainer"
 import { Rx } from "@effect-rx/rx-react"
 import { Effect, Layer, Stream } from "effect"
@@ -7,6 +8,10 @@ import { Effect, Layer, Stream } from "effect"
 const runtime = Rx.runtime(
   Layer.mergeAll(WebContainer.Live, Terminal.Live)
 ).pipe(Rx.setIdleTTL("5 seconds"))
+
+const terminalTheme = Rx.map(themeRx, (theme) =>
+  theme === "light" ? GithubTheme : MonokaiSodaTheme
+)
 
 export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
   runtime.rx(
@@ -21,7 +26,9 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
       const terminal = Rx.make((get) =>
         Effect.gen(function* (_) {
           const shell = yield* handle.shell
-          const { terminal, resize } = yield* spawn({ theme: MonokaiSoda })
+          const { terminal, resize } = yield* spawn({
+            theme: get.once(terminalTheme)
+          })
           shell.output.pipeTo(
             new WritableStream({
               write(data) {
@@ -38,6 +45,13 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
               workspace.command ? ` && ${workspace.command}` : ""
             }\n`
           )
+
+          get.subscribe(terminalTheme, (theme) => {
+            console.log(theme)
+            terminal.options = {
+              theme
+            }
+          })
 
           yield* get.stream(size).pipe(
             Stream.debounce(250),

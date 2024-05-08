@@ -11,7 +11,7 @@ export async function Navigation({
 }) {
   return (
     <div className="px-4">
-      <nav className="bg-white p-2 rounded border">
+      <nav className="bg-gray-100 dark:bg-gray-900 dark:border-gray-600 p-2 rounded border">
         <strong className="font-medium">{tutorial.section}</strong>
         <Seperator />
         <span>{tutorial.title}</span>
