@@ -21,6 +21,7 @@ export const editorRx = Rx.family((workspace: WorkspaceHandle) => {
     Effect.gen(function* (_) {
       const el = yield* _(Option.fromNullable(get(element)))
       const monaco = yield* MonacoATA
+      console.log(workspace.workspace)
       const editor = yield* monaco.makeEditorWithATA(el, {
         initialFile: workspace.workspace.initialFile
       })
@@ -37,7 +38,7 @@ export const editorRx = Rx.family((workspace: WorkspaceHandle) => {
         ),
         Stream.flatMap(
           ({ file, path }) =>
-            editor.load(file).pipe(
+            editor.load(`${workspace.workspace.name}/${path}`, file).pipe(
               Effect.as(editor.content),
               Stream.unwrap,
               Stream.debounce("1 second"),

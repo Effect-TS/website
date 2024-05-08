@@ -1,11 +1,11 @@
 import { MDX } from "@/components/atoms/mdx"
-import { allTutorials } from "contentlayer/generated"
+import { Tutorial as ITutorial, allTutorials } from "contentlayer/generated"
 import { notFound } from "next/navigation"
 import { Navigation } from "./components/Navigation"
 import { Tutorial } from "./components/Tutorial"
 
 export const generateStaticParams = () =>
-  allTutorials.map((page) => ({
+  allTutorials.map((page, index) => ({
     slug: page.urlPath.replace("/tutorials/", "").split("/")
   }))
 

@@ -1,5 +1,5 @@
 import { File } from "@/domain/Workspace"
-import { Data, Effect, GlobalValue, Layer, Stream } from "effect"
+import { Data, Effect, GlobalValue, Layer, ScopedCache, Stream } from "effect"
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 
 export type MonacoApi = typeof monaco
@@ -53,29 +53,34 @@ const loadApi = GlobalValue.globalValue("app/Monaco/loadApi", () =>
 const make = Effect.gen(function* (_) {
   const monaco = yield* loadApi
 
+  const editorCache = yield* ScopedCache.make({
+    lookup: (el: HTMLElement) =>
+      Effect.acquireRelease(
+        Effect.sync(() =>
+          monaco.editor.create(el, {
+            automaticLayout: true,
+            minimap: { enabled: false },
+            fontSize: 16
+          })
+        ),
+        (editor) => Effect.sync(() => editor.dispose())
+      ).pipe(
+        Effect.tapErrorCause(Effect.log),
+        Effect.withSpan("acquire editor")
+      ),
+    capacity: 2,
+    timeToLive: "30 seconds"
+  })
+
   const makeEditor = (
     el: HTMLElement,
-    options: {
-      readonly initialFile?: File
+    options?: {
       readonly theme?: string
     }
   ) =>
     Effect.gen(function* (_) {
-      const editor = yield* _(
-        Effect.acquireRelease(
-          Effect.sync(() =>
-            monaco.editor.create(el, {
-              automaticLayout: true,
-              minimap: { enabled: false },
-              fontSize: 16
-            })
-          ),
-          (editor) => Effect.sync(() => editor.dispose())
-        ),
-        Effect.tapErrorCause(Effect.log),
-        Effect.withSpan("acquire editor")
-      )
-      if (options.theme) {
+      const editor = yield* editorCache.get(el)
+      if (options?.theme) {
         monaco.editor.setTheme(options.theme)
       }
 
@@ -83,9 +88,9 @@ const make = Effect.gen(function* (_) {
         string,
         monaco.editor.ICodeEditorViewState | null
       >()
-      const load = (file: File) =>
+      const load = (path: string, file: File) =>
         Effect.gen(function* () {
-          const uri = monaco.Uri.parse(file.name)
+          const uri = monaco.Uri.parse(path)
           const model =
             monaco.editor.getModel(uri) ||
             monaco.editor.createModel(file.initialContent, file.language, uri)
@@ -94,18 +99,14 @@ const make = Effect.gen(function* (_) {
             return model
           }
           if (current) {
-            viewStates.set(file.name, editor.saveViewState())
+            viewStates.set(path, editor.saveViewState())
           }
           editor.setModel(model)
-          if (viewStates.has(file.name)) {
-            editor.restoreViewState(viewStates.get(file.name)!)
+          if (viewStates.has(path)) {
+            editor.restoreViewState(viewStates.get(path)!)
           }
           return model
         })
-
-      if (options.initialFile) {
-        yield* load(options.initialFile)
-      }
 
       const content = Stream.async<string>((emit) => {
         const cancel = editor.onDidChangeModelContent((e) => {
