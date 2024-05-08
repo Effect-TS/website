@@ -1,5 +1,5 @@
 import React, { useCallback } from "react"
-import { useRxSet } from "@effect-rx/rx-react"
+import { useRx, useRxSet } from "@effect-rx/rx-react"
 import { FileTree } from "./FileExplorer/FileTree"
 import { useWorkspace } from "../context/WorkspaceContext"
 import type { Directory, File } from "@/domain/Workspace"
@@ -26,7 +26,7 @@ export const FileExplorer: React.FC<FileExplorer.Props> = () => {
   )
 
   return (
-    <aside className="min-h-full sm:max-w-xs p-2 px-4 overflow-auto">
+    <aside className="min-h-full sm:max-w-xs py-2 overflow-auto">
       <FileTree tree={workspace.tree} onClick={handleClick} />
     </aside>
   )
