@@ -155,7 +155,8 @@ To overcome these limitations, Effect introduces dedicated constructors for crea
 
 ### promise
 
-If you're working with asynchronous side effects that return a `Promise` and you're confident that the `Promise` will **never reject**, you can use the `Effect.promise` constructor:
+This constructor is similar to a regular `Promise`, where you're confident that the asynchronous operation will **always succeed**.
+It allows you to create an `Effect` that represents successful completion without considering potential errors. However, it's essential to ensure that the underlying Promise never rejects.
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -173,7 +174,7 @@ const delay = (message: string) =>
 const program = delay("Async operation completed successfully!")
 ```
 
-The `program` value has the type `Effect<string>` and can be interpreted as an effect that:
+The `program` value has the type `Effect<string, never, never>` and can be interpreted as an effect that:
 
 - succeeds with a value of type `string`
 - does not produce any expected error (`never`)
@@ -184,10 +185,13 @@ The `program` value has the type `Effect<string>` and can be interpreted as an e
   reject.
 </Error>
 
+If, despite precautions, the thunk passed to `Effect.promise` does reject, an `Effect` containing a ["defect"](../error-management/unexpected-errors) is created, similar to what happens when using the [Effect.die](../error-management/unexpected-errors#die-diemessage) function.
+
 ### tryPromise
 
-If the `Promise` within the thunk may reject, you can use the `Effect.tryPromise` constructor.
-If an error is caught, it will be propagated to the error channel as `UnknownException`:
+Unlike `Effect.promise`, this constructor is suitable when the underlying `Promise` **might reject**.
+It provides a way to catch errors and handle them appropriately.
+By default if an error occurs, it will be caught and propagated to the error channel as as an `UnknownException`.
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -200,6 +204,12 @@ const getTodo = (id: number) =>
 const program = getTodo(1)
 ```
 
+The `program` value has the type `Effect<Response, UnknownException, never>` and can be interpreted as an effect that:
+
+- succeeds with a value of type `Response`
+- might produce an error (`UnknownException`)
+- does not require any context (`never`)
+
 If you want more control over what gets propagated to the error channel, you can use an overload of `Effect.tryPromise` that takes a remapping function:
 
 ```ts {6} twoslash
@@ -208,7 +218,8 @@ import { Effect } from "effect"
 const getTodo = (id: number) =>
   Effect.tryPromise({
     try: () => fetch(`https://jsonplaceholder.typicode.com/todos/${id}`),
-    catch: (unknown) => new Error(`something went wrong ${unknown}`) // remap the error
+    // remap the error
+    catch: (unknown) => new Error(`something went wrong ${unknown}`)
   })
 
 const program = getTodo(1)
