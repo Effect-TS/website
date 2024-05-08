@@ -20,7 +20,7 @@ export function Tutorial({
       direction="horizontal"
       className="flex-1 flex flex-row overflow-hidden"
     >
-      <Panel>
+      <Panel className="pt-4">
         {navigation}
         <div className="p-6">{children}</div>
       </Panel>
