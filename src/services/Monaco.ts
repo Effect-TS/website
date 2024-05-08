@@ -117,7 +117,18 @@ const make = Effect.gen(function* (_) {
       return { editor, load, content } as const
     })
 
-  return { monaco, makeEditor } as const
+  function listen<A>(event: monaco.IEvent<A>) {
+    return Stream.async<A>((emit) => {
+      const disposable = event(function (a) {
+        emit.single(a)
+      })
+      return Effect.sync(() => {
+        disposable.dispose()
+      })
+    })
+  }
+
+  return { monaco, makeEditor, listen } as const
 }).pipe(
   Effect.withSpan("Monaco.make"),
   Effect.annotateLogs("service", "Monaco")

@@ -1,12 +1,10 @@
 import { setupTypeAcquisition } from "@typescript/ata"
-import { Effect, Layer, flow } from "effect"
+import { Effect, Layer, Stream, flow } from "effect"
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 import { Monaco } from "../Monaco"
 
 const make = Effect.gen(function* () {
-  const { monaco, makeEditor } = yield* Monaco
-
-  monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true)
+  const { monaco, makeEditor, listen } = yield* Monaco
 
   const ata = setupTypeAcquisition({
     projectName: "Effect Playground",
@@ -42,19 +40,21 @@ const make = Effect.gen(function* () {
     outDir: "lib"
   })
 
-  const install = (editor: monaco.editor.IStandaloneCodeEditor) =>
-    Effect.acquireRelease(
-      Effect.sync(() => {
-        function onChange() {
-          const model = editor.getModel()
-          if (!model) return
-          ata(model.getValue())
-        }
-        onChange()
-        return editor.onWillChangeModel(onChange)
-      }),
-      (_) => Effect.sync(() => _.dispose())
+  const install = (editor: monaco.editor.IStandaloneCodeEditor) => {
+    function onChange() {
+      const model = editor.getModel()
+      if (!model) return
+      ata(model.getValue())
+    }
+    onChange()
+    return listen(editor.onDidChangeModel).pipe(
+      Stream.merge(listen(editor.onDidChangeModelContent)),
+      Stream.debounce(1000),
+      Stream.runForEach(() => Effect.sync(onChange)),
+      Effect.forkScoped,
+      Effect.asVoid
     )
+  }
 
   const makeEditorWithATA = flow(
     makeEditor,

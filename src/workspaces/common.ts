@@ -7,6 +7,7 @@ export const effectPackageJson = new File({
       effect: "latest",
       "@effect/platform": "latest",
       "@effect/platform-node": "latest",
+      "@effect/schema": "latest",
       tsx: "latest"
     }
   }),
