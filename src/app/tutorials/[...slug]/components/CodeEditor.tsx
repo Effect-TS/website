@@ -31,7 +31,7 @@ function CodeEditorSuspended({
           <PanelGroup autoSaveId="sidebar" direction="horizontal">
             <Panel
               defaultSize={20}
-              className="bg-gray-50 dark:bg-neutral-900"
+              className="bg-gray-50 dark:bg-neutral-900 min-w-[200px]"
             >
               <FileExplorer />
             </Panel>
