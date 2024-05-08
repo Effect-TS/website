@@ -2,8 +2,7 @@
 
 import dynamic from "next/dynamic"
 import React from "react"
-import { Panel, PanelGroup } from "react-resizable-panels"
-import { PanelResizeHandle } from "./PanelResizeHandle"
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 
 export function Tutorial({
   workspace,
@@ -25,7 +24,7 @@ export function Tutorial({
         {navigation}
         <div className="p-6">{children}</div>
       </Panel>
-      <PanelResizeHandle direction="vertical" />
+      <PanelResizeHandle />
       <Panel>
         <Editor />
       </Panel>

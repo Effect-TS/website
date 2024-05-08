@@ -6,8 +6,7 @@ import { workspaceHandleRx } from "../rx/workspace"
 import { FileEditor } from "./CodeEditor/FileEditor"
 import { Terminal } from "./CodeEditor/Terminal"
 import { LoadingSpinner } from "./LoadingSpinner"
-import { Panel, PanelGroup } from "react-resizable-panels"
-import { PanelResizeHandle } from "./PanelResizeHandle"
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 
 export function CodeEditor({ workspace }: { readonly workspace: Workspace }) {
   return (
@@ -30,7 +29,7 @@ function CodeEditorSuspended({
         <Panel>
           <FileEditor />
         </Panel>
-        <PanelResizeHandle direction="horizontal" />
+        <PanelResizeHandle />
         <Panel onResize={setSize} defaultSize={30}>
           <Terminal />
         </Panel>

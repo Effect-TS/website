@@ -1,5 +1,5 @@
 import { Workspace } from "@/domain/Workspace"
-import { Terminal } from "@/services/Terminal"
+import { MonokaiSoda, Terminal } from "@/services/Terminal"
 import { WebContainer } from "@/services/WebContainer"
 import { Rx } from "@effect-rx/rx-react"
 import { Effect, Layer, Stream } from "effect"
@@ -21,7 +21,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
       const terminal = Rx.make((get) =>
         Effect.gen(function* (_) {
           const shell = yield* handle.shell
-          const { terminal, resize } = yield* spawn
+          const { terminal, resize } = yield* spawn({ theme: MonokaiSoda })
           shell.output.pipeTo(
             new WritableStream({
               write(data) {
