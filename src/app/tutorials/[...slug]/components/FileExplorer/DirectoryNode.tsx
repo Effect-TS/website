@@ -20,7 +20,7 @@ export const DirectoryNode: React.FC<DirectoryNode.Props> = ({
   depth,
   onClick
 }) => {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
 
@@ -34,15 +34,10 @@ export const DirectoryNode: React.FC<DirectoryNode.Props> = ({
         onClick={toggle}
       />
       {open && (
-        <FileTree
-          tree={node.children}
-          depth={depth + 1}
-          onClick={onClick}
-        />
+        <FileTree tree={node.children} depth={depth + 1} onClick={onClick} />
       )}
     </div>
   )
 }
 
 DirectoryNode.displayName = "DirectoryNode"
-
