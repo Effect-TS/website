@@ -2,6 +2,7 @@ import { File } from "@/domain/Workspace"
 
 export const effectPackageJson = new File({
   name: "package.json",
+  language: "json",
   initialContent: JSON.stringify({
     dependencies: {
       effect: "latest",
