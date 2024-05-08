@@ -16,7 +16,7 @@ export const DirectoryNode: React.FC<DirectoryNode.Props> = ({
   prefix,
   depth
 }) => {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
 
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
 

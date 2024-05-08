@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useCallback } from "react"
 import { DirectoryIconClosed, DirectoryIconOpen, FileIcon } from "./Icons"
 
 export declare namespace FileNode {
@@ -25,14 +25,26 @@ export declare namespace FileNode {
 export const FileNode: React.FC<FileNode.Props> = ({
   depth,
   path,
+  onClick,
   ...props
 }) => {
   const fileName = path.split("/").filter(Boolean).pop()
   // Tailwind cannot dynamically generate styles, so we resort to the `style` prop here
   const styles = { paddingLeft: `${18 * depth}px` }
 
+  const handleClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    if (onClick) {
+      onClick(event)
+    }
+  }, [onClick])
+
   return (
-    <button type="button" style={styles} className="flex items-center mb-1 [&_svg]:mr-1 text-sm">
+    <button
+      type="button"
+      style={styles}
+      className="flex items-center mb-1 [&_svg]:mr-1 text-sm"
+      onClick={handleClick}
+    >
       {props.type === "file" ? <FileIcon /> : props.isOpen ? <DirectoryIconOpen /> : <DirectoryIconClosed />}
       <span>{fileName}</span>
     </button>
