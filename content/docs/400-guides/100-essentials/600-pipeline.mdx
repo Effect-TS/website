@@ -99,10 +99,12 @@ The syntax for `map` is as follows:
 ```ts
 import { pipe, Effect } from "effect"
 
-const mappedEffect = pipe(effect, Effect.map(func))
+const mappedEffect = pipe(myEffect, Effect.map(func))
+// or
+const mappedEffect = Effect.map(myEffect, func)
 ```
 
-In the code above, `func` represents the transformation function to be applied, and `effect` is the input `Effect`.
+In the code above, `func` represents the transformation function to be applied, and `myEffect` is the input `Effect`.
 
 Let's see an example to better understand how `map` works:
 
@@ -110,11 +112,9 @@ Let's see an example to better understand how `map` works:
 import { pipe, Effect } from "effect"
 
 const increment = (x: number) => x + 1
+const myEffect = Effect.succeed(5)
 
-const mappedEffect = pipe(
-  Effect.succeed(5),
-  Effect.map((x) => increment(x))
-)
+const mappedEffect = pipe(myEffect, Effect.map(increment))
 
 Effect.runPromise(mappedEffect).then(console.log) // Output: 6
 ```
@@ -123,9 +123,9 @@ In the example above:
 
 - We define a simple `increment` function that adds `1` to its input.
 - We create an `Effect` using `Effect.succeed` with an initial value of `5`.
-- We use `map` to apply the `increment` function to the value inside the `effect`.
+- We use `Effect.map` to apply the `increment` function to the value inside the `myEffect`.
 
-The resulting `Effect` contains the transformed value of `6`.
+The resulting `mappedEffect` contains the transformed value of `6`.
 
 If you simply want to replace the value with a constant, you can use `Effect.as`:
 
@@ -139,7 +139,7 @@ Effect.runPromise(program).then(console.log) // Output: "new value"
 
 ## flatMap
 
-In the previous example, we saw how to transform an `Effect` using the `map` function when the transformation function returns a regular value. But what if we want to transform an `Effect` using a function that itself returns another `Effect`?
+In the previous example, we saw how to transform an `Effect` using the `Effect.map` function when the transformation function returns a regular value. But what if we want to transform an `Effect` using a function that itself returns another `Effect`?
 
 Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap). However, `flatMap` can actually be used to describe a more generic data transformation. While this section will focus specifically on explaining how one can use `flatMap` from the `Effect` module, we provide a more detailed explanation of `flatMap` [in the FAQ](../../other/faq#a-closer-look-at-flatmap).
 
@@ -187,12 +187,14 @@ The syntax for `flatMap` is as follows:
 ```ts
 import { pipe, Effect } from "effect"
 
-const flatMappedEffect = pipe(effect, Effect.flatMap(func))
+const flatMappedEffect = pipe(myEffect, Effect.flatMap(func))
+// or
+const flatMappedEffect = Effect.flatMap(myEffect, func)
 ```
 
-In the code above, `func` represents the transformation function that returns a new `Effect`, and `effect` is the input `Effect` that we want to transform.
+In the code above, `func` represents the transformation function that returns a new `Effect`, and `myEffect` is the input `Effect` that we want to transform.
 
-Let's see an example to better understand how `flatMap` works:
+Let's see an example to better understand how `Effect.flatMap` works:
 
 ```ts twoslash
 import { pipe, Effect } from "effect"
@@ -201,9 +203,10 @@ const divide = (a: number, b: number): Effect.Effect<number, Error> =>
   b === 0
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
+const myEffect = Effect.succeed([10, 2])
 
 const flatMappedEffect = pipe(
-  Effect.succeed([10, 2]),
+  myEffect,
   Effect.flatMap(([a, b]) => divide(a, b))
 )
 
@@ -214,7 +217,7 @@ In the example above:
 
 - We define a function called `divide` that takes two numbers `a` and `b` and returns an `Effect` that can potentially succeed with the result of the division or fail with an error if `b` is zero.
 - We create an `Effect` using `Effect.succeed` with a tuple containing the values `10` and `2`.
-- We use `flatMap` to apply the `divide` function to the values inside the `effect`.
+- We use `Effect.flatMap` to apply the `divide` function to the values inside the `myEffect`.
 
 The resulting `Effect` contains the transformed value of `5`.
 
@@ -234,6 +237,61 @@ The problem here is that the effect returned by `Effect.sync` will be ignored an
 To ensure correct behavior, make sure that any effect you want to include in the computation is explicitly chained using `flatMap` or combined with other `Effect` values using the appropriate functions provided by the Effect library.
 
 In the next section, we will explore how to address this problem using the `tap` API.
+
+## andThen
+
+Both the `Effect.map` and `Effect.flatMap` functions serve to transform an `Effect` into another `Effect` in two different scenarios.
+In the first scenario, `Effect.map` is used when the transformation function does not return an `Effect`, while in the second scenario,
+`Effect.flatMap` is used when the transformation function still returns an `Effect`.
+However, since both scenarios involve transformations, the Effect module also exposes a convenient all-in-one solution to use: `Effect.andThen`.
+
+The `Effect.andThen` function executes a sequence of two actions, typically two `Effect`s, where the second action can depend on the result of the first action.
+
+```ts
+import { pipe, Effect } from "effect"
+
+const transformedEffect = pipe(self, Effect.andThen(that))
+// or
+const transformedEffect = Effect.andThen(self, that)
+```
+
+The `that` action can take various forms:
+
+- a value
+- a function returning a value (i.e. same functionality of `Effect.map`)
+- a `Promise`
+- a function returning a `Promise`
+- an `Effect`
+- a function returning an `Effect`(i.e. same functionality of `Effect.flatMap`)
+
+Let's see an example where we can compare the use of `Effect.andThen` instead of `Effect.map` and `Effect.flatMap`:
+
+```ts
+import { pipe, Effect } from "effect"
+
+const divide = (a: number, b: number): Effect.Effect<number, Error> =>
+  b === 0
+    ? Effect.fail(new Error("Cannot divide by zero"))
+    : Effect.succeed(a / b)
+
+// Using Effect.map, Effect.flatMap
+const result1 = pipe(
+  Effect.succeed(3),
+  Effect.map((n) => [n + 1, n - 1] as const),
+  Effect.flatMap(([a, b]) => divide(a, b))
+)
+
+console.log(Effect.runSync(result1)) // Output: 2
+
+// Using Effect.andThen
+const result2 = pipe(
+  Effect.succeed(3),
+  Effect.andThen((n) => [n + 1, n - 1] as const),
+  Effect.andThen(([a, b]) => divide(a, b))
+)
+
+console.log(Effect.runSync(result2)) // Output: 2
+```
 
 ## tap
 
