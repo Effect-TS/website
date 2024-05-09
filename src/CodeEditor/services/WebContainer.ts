@@ -20,9 +20,7 @@ const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
 
 const make = Effect.gen(function* (_) {
   // you can only have one container running at a time
-  yield* _(
-    Effect.acquireRelease(semaphore.take(1), () => semaphore.release(1))
-  )
+  yield* Effect.acquireRelease(semaphore.take(1), () => semaphore.release(1))
 
   const container = yield* _(
     Effect.acquireRelease(
@@ -57,7 +55,8 @@ const make = Effect.gen(function* (_) {
         Effect.promise(() =>
           container.spawn("jsh", [], {
             env: {
-              PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
+              PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin",
+              NODE_NO_WARNINGS: "1"
             }
           })
         ),
