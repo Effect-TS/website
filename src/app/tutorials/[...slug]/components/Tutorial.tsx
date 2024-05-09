@@ -1,7 +1,7 @@
 "use client"
 
 import { Directory, File, Workspace } from "@/domain/Workspace"
-import { effectPackageJson } from "@/tutorials/common"
+import { tutorialPackageJson } from "@/tutorials/common"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import React from "react"
@@ -31,10 +31,10 @@ export function Tutorial({
 }) {
   const workspace = new Workspace({
     name,
-    command: "clear && tsx --watch src/main.ts",
+    command: "tsx --watch src/main.ts",
     initialFilePath: "src/main.ts",
     tree: [
-      effectPackageJson,
+      tutorialPackageJson,
       new Directory(
         "src",
         files.map(

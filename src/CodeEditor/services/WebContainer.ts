@@ -20,11 +20,15 @@ const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
 
 const make = Effect.gen(function* (_) {
   // you can only have one container running at a time
-  yield* Effect.acquireRelease(semaphore.take(1), () => semaphore.release(1))
+  yield* _(
+    Effect.acquireRelease(semaphore.take(1), () => semaphore.release(1))
+  )
 
-  const container = yield* Effect.acquireRelease(
-    Effect.promise(() => WC.boot()),
-    (_) => Effect.sync(() => _.teardown())
+  const container = yield* _(
+    Effect.acquireRelease(
+      Effect.promise(() => WC.boot()),
+      (_) => Effect.sync(() => _.teardown())
+    )
   )
   const makeWorkspace = (workspace: Workspace) =>
     Effect.gen(function* (_) {
@@ -59,6 +63,22 @@ const make = Effect.gen(function* (_) {
         ),
         (process) => Effect.sync(() => process.kill())
       )
+      const run = (command: string) =>
+        Effect.acquireUseRelease(
+          Effect.promise(() =>
+            container.spawn(
+              "jsh",
+              ["-c", `cd ${workspace.name} && ${command}`],
+              {
+                env: {
+                  PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
+                }
+              }
+            )
+          ),
+          (process) => Effect.promise(() => process.exit),
+          (process) => Effect.sync(() => process.kill())
+        )
 
       const writeFile = (file: string, data: string) =>
         Effect.promise(() => container.fs.writeFile(path(file), data))
@@ -71,6 +91,7 @@ const make = Effect.gen(function* (_) {
       return identity<WorkspaceHandle>({
         write: writeFile,
         read: readFile,
+        run,
         shell
       })
     })
@@ -101,6 +122,7 @@ export interface WorkspaceHandle {
   readonly write: (file: string, data: string) => Effect.Effect<void>
   readonly read: (file: string) => Effect.Effect<string>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
+  readonly run: (command: string) => Effect.Effect<number>
 }
 
 function treeFromWorkspace(workspace: Workspace): FileSystemTree {

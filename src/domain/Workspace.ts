@@ -4,6 +4,7 @@ export class Workspace extends Data.Class<{
   name: string
   tree: ReadonlyArray<Directory | File>
   initialFilePath?: string
+  prepare?: string
   command?: string
 }> {
   get initialFile() {

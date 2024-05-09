@@ -1,8 +1,6 @@
 import { File } from "@/domain/Workspace"
 
-export const defaultCommand = "clear && tsx --watch src/index.ts"
-
-export const effectPackageJson = new File({
+export const tutorialPackageJson = new File({
   name: "package.json",
   language: "json",
   initialContent: JSON.stringify(
@@ -18,8 +16,7 @@ export const effectPackageJson = new File({
     },
     null,
     2
-  ),
-  interesting: false
+  )
 })
 
 export const emptyPackageJson = new File({
@@ -34,6 +31,5 @@ export const emptyPackageJson = new File({
     },
     null,
     2
-  ),
-  interesting: false
+  )
 })

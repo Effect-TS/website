@@ -23,6 +23,10 @@ export const workspaceHandleRx = runtime.rx((get) =>
     const { spawn } = yield* Terminal
     const handle = yield* WebContainer.workspace(workspace)
 
+    const prepare = yield* handle
+      .run(workspace.prepare ?? "pnpm install")
+      .pipe(Effect.forkScoped)
+
     const selectedFile = Rx.make(workspace.initialFile)
 
     const solved = Rx.make(false)
@@ -44,11 +48,15 @@ export const workspaceHandleRx = runtime.rx((get) =>
         terminal.onData((data) => {
           input.write(data)
         })
-        input.write(
-          `cd "${workspace.name}" && pnpm install${
-            workspace.command ? ` && ${workspace.command}` : ""
-          }\n`
-        )
+
+        yield* Effect.gen(function* () {
+          input.write(`cd "${workspace.name}" && clear\n`)
+          if (workspace.command) {
+            yield* prepare.await
+            yield* Effect.sleep(1000)
+            input.write(`${workspace.command}\n`)
+          }
+        }).pipe(Effect.forkScoped)
 
         get.subscribe(terminalTheme, (theme) => {
           terminal.options = {
