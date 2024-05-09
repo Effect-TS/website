@@ -36,9 +36,10 @@ export const editorRx = runtime.rx((get) =>
     yield* get.stream(selectedFile).pipe(
       Stream.bindTo("file"),
       Stream.bindEffect("path", ({ file }) => workspace.pathTo(file)),
+      Stream.bindEffect("content", ({ path }) => handle.read(path)),
       Stream.flatMap(
-        ({ file, path }) =>
-          editor.load(`${workspace.name}/${path}`, file).pipe(
+        ({ file, path, content }) =>
+          editor.load(`${workspace.name}/${path}`, file, content).pipe(
             Effect.as(editor.content),
             Stream.unwrap,
             Stream.filter((content) => content !== file.solution),

@@ -81,16 +81,17 @@ const make = Effect.gen(function* (_) {
         string,
         monaco.editor.ICodeEditorViewState | null
       >()
-      const load = (path: string, file: File) =>
+      const load = (path: string, file: File, content: string) =>
         Effect.gen(function* () {
           const uri = monaco.Uri.parse(path)
           const model =
             monaco.editor.getModel(uri) ||
-            monaco.editor.createModel(file.initialContent, file.language, uri)
+            monaco.editor.createModel(content, file.language, uri)
           const current = editor.getModel()
           if (current && current === model) {
             return model
           }
+          model.setValue(content)
           if (current) {
             viewStates.set(path, editor.saveViewState())
           }

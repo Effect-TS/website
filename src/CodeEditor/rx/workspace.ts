@@ -48,7 +48,7 @@ export const workspaceHandleRx = runtime
             input.write(data)
           })
           input.write(
-            `cd "${workspace.name}" && pnpm install && clear${
+            `cd "${workspace.name}" && pnpm install${
               workspace.command ? ` && ${workspace.command}` : ""
             }\n`
           )

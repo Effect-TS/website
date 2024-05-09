@@ -1,10 +1,10 @@
 import { workspaceHandleRx } from "@/CodeEditor/rx/workspace"
+import { File, Workspace } from "@/domain/Workspace"
+import { emptyPackageJson } from "@/tutorials/common"
 import { Rx } from "@effect-rx/rx-react"
+import { Clipboard } from "@effect/platform-browser"
 import { Effect, Layer } from "effect"
 import { WorkspaceCompression } from "../services/Compression/Workspace"
-import { File, Workspace } from "@/domain/Workspace"
-import { Clipboard } from "@effect/platform-browser"
-import { effectPackageJson } from "@/tutorials/common"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
@@ -37,11 +37,22 @@ export const shareRx = runtime.fn((_: void, get) =>
   }).pipe(Effect.ensuring(get.set(shareStateRx, "idle")))
 )
 
+const defaultPackages = [
+  "effect",
+  "@effect/platform",
+  "@effect/platform-node",
+  "@effect/schema",
+  "@effect/vitest",
+  "vitest"
+]
+
 const defaultWorkspace = new Workspace({
   name: "playground",
-  command: "tsx --watch main.ts",
+  command: `pnpm add ${defaultPackages.join(
+    " "
+  )} && clear && tsx --watch main.ts`,
   tree: [
-    effectPackageJson,
+    emptyPackageJson,
     new File({
       name: "main.ts",
       initialContent: `import { Effect } from "effect"
