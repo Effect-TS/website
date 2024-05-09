@@ -1,0 +1,163 @@
+# The Effect Tax
+
+It's been over a year now since I took the effect pill and I'll probably never develop the same way as I did before. I love effect, and I am absolutely a power-user.
+
+But I am in my core a frontend oriented developer. I care about bundle size and perceived performance, and while the latter was never a concern to me as I've seen in my own eyes very complex application running at 120FPS powered by effect and react, the former was just a fact of matter-- effect is *large*
+
+A couple of weeks ago I inherited a `create-react-app` project, yes, shudder.
+It had all the classics, AnyScript, class components, esoteric 1-off deps preventing updates,
+a million lint violations of the `==` kind, multiple overlapping component libraries,
+and multiple style solutions.
+
+My task was to add 4 pages and a whole bunch of features.
+Using the existing material was out of the question, I **had** to create my own lib from scratch
+if I wanted to have any semblence of confidence in the app.
+
+I started hacking at it. It didn't take a full hour before I had to wrangle untyped garbage from the legacy
+side of the fence. It was an http call, it wasn't parsed, there was no `zod` or something. It wasn't
+even typed `Promise<Something>`, it was proudly `Promise<any>` and then just consumed like thing.
+I wasn't there at the dawn of creation, I had no idea what the previous dev thought the shape was
+I could only follow function names and see the properties being arbitrarily accessed. So I did research to
+find out what the shape was supposed to be and created a util:
+
+```ts
+const UnsafeTypeId: unique symbol = Symbol.for("@types/Unsafe");
+
+/**
+ * Brands `A` as an unsafe type.
+ * An unsafe type is a type that was cast but never validated.
+ *
+ * @example
+ * ```ts
+ * const response = await axios.get(...)
+ *
+ * const data = response.data as Unsafe<Todo>
+ * ```
+ *
+ * @author Datner<contact@datner.me>
+ */
+export type Unsafe<A> = A & {
+  readonly [UnsafeTypeId]?: "Unsafe";
+};
+```
+
+Now I can give a proper shape and acknowledge that it is infact a bullshit promise, I never made sure that
+The shape is actually that, but it's more than `any`.
+Then I encountered another situation that prompted a different util, and then another, and then
+even more, I found myself building all the
+inftrastructure and utils for the basic essentials of just making usable software.
+I tried coping, letting go, but it just kept coming back and it dawned on me. I'm just reimplemeting effect.
+
+Worse, I'm reimplemeting effect by trying to hot-glue libs together. Oh the axios client needs the current
+tenant so it needs access to the context but it can change in the lifetime of the application and it also
+needs the bearer token but it might need revalidation or even a relog oh but I make too many requests
+for the same thing I need some caching--- It's been nearly a month
+now and I've only been building inftrastructure!
+The boring kind too! Plus I hate the result and it's full of bugs I won't see until they pop up in production!
+
+I gave up. Whatever the effect tax is, it's worth it.
+From what we've seen, the effect tax is about 50kb. Depending on what you feel this can be
+a lot or very little, but considering that I added around 20k LOC to the project, plus new dependencies
+It was not worth considering.
+
+```sh
+$ npm i effect @effect/schema @effect/platform @effect/platform-browser
+```
+
+(yes this project used npm, no I don't recommend)
+
+I've started replacing all my imitations with the utils from effect.
+To scare ya a bit, heres a `combine` function I used for a particular `useQueries`
+from the great `@tanstack/react-query` (which I also added a week ago)
+
+```ts
+import { Array, Predicate, Option, pipe } from "effect"
+
+// further down....
+const combine = (
+  queries: [
+    UseSuspenseQueryResult<User[], Error>,
+    UseSuspenseQueryResult<Recipient[], Error>,
+  ],
+) => {
+  const [users, recipients] = queries;
+
+  const initialRows = pipe(
+    users.data,
+    Array.filter((_) => Option.isSome(_.emailAddress)),
+    Array.appendAll(recipients.data),
+    Schema.decodeSync(Schema.Array(NormalizedRow)),
+    Array.dedupeWith((a, b) => a.Email === b.Email && a.fromISP),
+  );
+
+  const isRecipient = Predicate.or(RecipientRow.isRecipient, (_) =>
+    recipients.data.some((r) => r.recepientId === _.id),
+  );
+  return {
+    pending: queries.some((_) => _.isPending),
+    initialRows,
+    initialSelected: Array.filterMap(initialRows, (_) =>
+      isRecipient(_) ? Option.some(_.id) : Option.none(),
+    ),
+  };
+};
+```
+
+This function takes the result of two collections that have some possible overlap,
+cleans up `users` from members that don't have an email,
+concatenates it to the `recipients` into a nice wholesome `(User | Recipient)[]` thats unusable,
+uses an effect schema `NormalizedRow` to homogenize it into a useful `RecipientRow[]`, and remove duplicate
+rows, keeping only the `User`-originated ones.
+
+Then also make a collection derived from it thats just the ids of the `RecipientRows` that either represent
+a `Recipient` *or* representa `User` *that has a corresponding `Recipient`* (remember we deduped them)
+
+You could glue a solution that does this using `lodash`, `zod`, and some hand-crafted stuff, but it won't
+be this elegant considering the definition above. Especially the normalization part and the types.
+In this snippet it looks like it's trivial-- It's not. This function was over 100LOC before.
+
+In social media I see effect being bashed called "a different language" or "hard to learn" or "unreadable"
+mainly by people who never used the lib or have used it in bad faith to affirm their preconcived notions.
+Effect is a full toolkit for develpoing enterprise-grade applications. Not an RxJS simulator or a cool way
+to use `Result` from rust.
+
+I also have a ton of `Effect`-effect usage.
+With all the bells and whistles! From a quick search heres a partial list of modules I use in this project
+
+- `Effect`
+- `Layer`
+- `Context`
+- `Predicate`
+- `Array`
+- `Cause`
+- `Option`
+- `Config`
+- `Scope`
+- `ManagedRuntime`
+- `GlobalValue`
+- `String`
+- `HttpClient`
+- `ClientRequest`
+- `ClientResponse`
+- `Schema`
+- `Data`
+
+"Oh no! Egad! Thats too much to learn!" You're saying right now, totally ignoring that you learned
+all of this, and much more, piece-meal from scratch on every project according to whatever 30-or-so packages
+are included in the project.
+
+Don't worry dear reader, you don't have to learn any of these, you can be dangerous
+even with just a single module and use the rest at your own pace. For me its the missing standard library
+that is internally consistent and interopable.
+
+Cut to yesterday, I've finally finished implementing all the features I needed.
+80 changed files (mostly new files), around 12K lines of code added by yours truly
+(trimmed a lot of fat thanks to effect, but react theres still a lot of react code + css).
+So, nows the money time. How much did I pay for my hubris?
+
+[net 50kb difference](/public/images/datner-bundle-50kb.png)
+
+net 50kb.
+effect, schema, platform + platform-browser, and react-query to boot.
+80 files, 4 new routes, nearly all new code.
+
