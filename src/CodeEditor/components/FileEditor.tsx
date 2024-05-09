@@ -1,9 +1,9 @@
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 import clsx from "clsx"
-import { useEffect, useRef } from "react"
-import { editorElementRx, editorRx } from "../../rx/editor"
-import { LoadingSpinner } from "../LoadingSpinner"
 import { Option } from "effect"
+import { useEffect, useRef } from "react"
+import { editorElementRx, editorRx } from "../rx/editor"
+import { LoadingSpinner } from "./LoadingSpinner"
 
 export declare namespace FileEditor {
   export interface Props {}

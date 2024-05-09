@@ -3,17 +3,17 @@ import { useRxSet, useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import { Option } from "effect"
 import { Suspense, useEffect } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
-import { WorkspaceContext } from "../context/WorkspaceContext"
+import { WorkspaceContext } from "./context/WorkspaceContext"
 import {
   terminalSizeRx,
   workspaceHandleRx,
   workspaceRx
-} from "../rx/workspace"
-import { FileEditor } from "./CodeEditor/FileEditor"
-import { Terminal } from "./CodeEditor/Terminal"
-import { FileExplorer } from "./CodeEditor/FileExplorer"
-import { LoadingSpinner } from "./LoadingSpinner"
-import { SolveButton } from "./CodeEditor/SolveButton"
+} from "./rx/workspace"
+import { FileEditor } from "./components/FileEditor"
+import { Terminal } from "./components/Terminal"
+import { FileExplorer } from "./components/FileExplorer"
+import { SolveButton } from "./components/SolveButton"
+import { LoadingSpinner } from "./components/LoadingSpinner"
 
 export function CodeEditor({
   workspace,
@@ -26,7 +26,6 @@ export function CodeEditor({
   useEffect(() => {
     setWorkspace(Option.some(workspace))
   }, [workspace, setWorkspace])
-  console.log(workspace)
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <CodeEditorSuspended disableExplorer={disableExplorer} />

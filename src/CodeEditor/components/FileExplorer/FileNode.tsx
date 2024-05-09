@@ -1,10 +1,10 @@
-import React from "react"
+import { Directory, File } from "@/domain/Workspace"
+import { useRxValue } from "@effect-rx/rx-react"
 import clsx from "clsx"
 import * as Equal from "effect/Equal"
-import { useRxValue } from "@effect-rx/rx-react"
-import { Directory, File } from "@/domain/Workspace"
+import React from "react"
+import { useWorkspace } from "../../context/WorkspaceContext"
 import { DirectoryIconClosed, DirectoryIconOpen, FileIcon } from "./Icons"
-import { useWorkspace } from "../../../context/WorkspaceContext"
 
 export declare namespace FileNode {
   export type Props = FileProps | DirectoryProps

@@ -1,9 +1,9 @@
 import { Workspace } from "@/domain/Workspace"
 import { themeRx } from "@/rx/theme"
-import { GithubTheme, MonokaiSodaTheme, Terminal } from "@/services/Terminal"
-import { WebContainer } from "@/services/WebContainer"
 import { Rx } from "@effect-rx/rx-react"
 import { Effect, Layer, Option, Stream } from "effect"
+import { GithubTheme, MonokaiSodaTheme, Terminal } from "../services/Terminal"
+import { WebContainer } from "../services/WebContainer"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WebContainer.Live, Terminal.Live)

@@ -75,7 +75,7 @@ export function Tutorial({
 const editor = (workspace: Workspace) =>
   dynamic(
     async () => {
-      const Editor = (await import("./CodeEditor")).CodeEditor
+      const Editor = (await import("@/CodeEditor/CodeEditor")).CodeEditor
       return () => (<Editor workspace={workspace} />) as any
     },
     { ssr: false }

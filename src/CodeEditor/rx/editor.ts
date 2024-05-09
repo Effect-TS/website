@@ -1,5 +1,5 @@
 import { themeRx } from "@/rx/theme"
-import { MonacoATA } from "@/services/Monaco/ATA"
+import { MonacoATA } from "@/CodeEditor/services/Monaco/ATA"
 import { Rx } from "@effect-rx/rx-react"
 import { Data, Effect, Option, Stream } from "effect"
 import { WorkspaceHandle, workspaceHandleRx } from "./workspace"
