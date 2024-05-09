@@ -1,3 +1,3 @@
 import { Effect } from "effect"
 
-Effect.runFork(Effect.log("Welcome to Effect!"))
+Effect.runPromise(Effect.log("Hello world!"))

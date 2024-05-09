@@ -3,7 +3,7 @@ import { PlaygroundDynamic } from "./components/PlaygroundDynamic"
 export async function generateMetadata() {
   return {
     title: "Effect Playground",
-    description: ""
+    description: "Try Effect in your browser!"
   }
 }
 
