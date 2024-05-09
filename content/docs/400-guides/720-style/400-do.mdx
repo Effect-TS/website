@@ -30,7 +30,7 @@ const elapsed = <R, E, A>(
               const elapsed = endMillis - startMillis
               // Log the elapsed time
               return Console.log(`Elapsed: ${elapsed}`).pipe(
-                Effect.andThen(result)
+                Effect.map(() => result)
               )
             })
           )
@@ -121,7 +121,7 @@ const elapsed = <R, E, A>(
       ({ startMillis, endMillis }) => endMillis - startMillis // Calculate the elapsed time in milliseconds
     ),
     Effect.tap(({ elapsed }) => Console.log(`Elapsed: ${elapsed}`)), // Log the elapsed time
-    Effect.andThen(({ result }) => result)
+    Effect.map(({ result }) => result)
   )
 
 // Simulates a successful computation with a delay of 200 milliseconds
