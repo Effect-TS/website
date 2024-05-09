@@ -4,7 +4,7 @@ import { ReactNode } from "react"
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <div className="h-screen flex flex-col">
-      <Navigation relative />
+      <Navigation inline />
       {children}
     </div>
   )

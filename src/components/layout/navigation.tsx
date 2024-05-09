@@ -15,7 +15,6 @@ const menu = [
   { name: "Blog", href: "/blog" },
   { name: "Tutorials", href: "/tutorials/basics/welcome" },
   { name: "Play", href: "/play" }
-  // { name: "Examples", href: "https://github.com/Effect-TS/examples" },
 ]
 
 const socials = [
@@ -27,20 +26,20 @@ export const Navigation: FC<{
   wide?: boolean | false
   searchBox?: boolean | false
   themeSwitcher?: boolean | false
-  relative?: boolean
-}> = ({ wide, searchBox, themeSwitcher, relative = false }) => {
+  inline?: boolean
+}> = ({ wide, searchBox, themeSwitcher, inline = false }) => {
   const pathname = usePathname()
 
   return (
     <div className={pathname === "/" ? "dark" : ""}>
       <header
         className={`${
-          relative ? "" : "fixed top-0 inset-x-0"
+          inline ? "relative" : "fixed top-0 inset-x-0"
         } backdrop-blur z-30 bg-white/70 dark:bg-[#09090B]/70 text-zinc-700 dark:text-zinc-400`}
       >
         <div
           className={`w-full ${
-            relative
+            inline
               ? "border-b dark:border-gray-600"
               : wide
                 ? "max-w-screen-2xl"
