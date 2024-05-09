@@ -6,6 +6,7 @@ import dynamic from "next/dynamic"
 import Link from "next/link"
 import React from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
+import { SolveButton } from "./SolveButton"
 
 export function Tutorial({
   name,
@@ -31,6 +32,7 @@ export function Tutorial({
 }) {
   const workspace = new Workspace({
     name,
+    command: "tsx --watch src/index.ts",
     tree: [
       effectPackageJson,
       new Directory(
@@ -76,7 +78,10 @@ const editor = (workspace: Workspace) =>
   dynamic(
     async () => {
       const Editor = (await import("@/CodeEditor/CodeEditor")).CodeEditor
-      return () => (<Editor workspace={workspace} />) as any
+      return () =>
+        (
+          <Editor workspace={workspace} aboveExplorer={<SolveButton />} />
+        ) as any
     },
     { ssr: false }
   )

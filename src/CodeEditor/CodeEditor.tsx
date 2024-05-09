@@ -1,7 +1,7 @@
 import { Workspace } from "@/domain/Workspace"
 import { useRxSet, useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import { Option } from "effect"
-import { Suspense, useEffect } from "react"
+import { ReactNode, Suspense, useEffect } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { WorkspaceContext } from "./context/WorkspaceContext"
 import {
@@ -12,15 +12,16 @@ import {
 import { FileEditor } from "./components/FileEditor"
 import { Terminal } from "./components/Terminal"
 import { FileExplorer } from "./components/FileExplorer"
-import { SolveButton } from "./components/SolveButton"
-import { LoadingSpinner } from "./components/LoadingSpinner"
+import { SolveButton } from "../app/tutorials/[...slug]/components/SolveButton"
+import { LoadingSpinner } from "../components/LoadingSpinner"
 
 export function CodeEditor({
   workspace,
-  disableExplorer
+  ...props
 }: {
   readonly workspace: Workspace
   readonly disableExplorer?: boolean
+  readonly aboveExplorer?: ReactNode
 }) {
   const setWorkspace = useRxSet(workspaceRx)
   useEffect(() => {
@@ -28,15 +29,17 @@ export function CodeEditor({
   }, [workspace, setWorkspace])
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <CodeEditorSuspended disableExplorer={disableExplorer} />
+      <CodeEditorSuspended {...props} />
     </Suspense>
   )
 }
 
 function CodeEditorSuspended({
-  disableExplorer
+  disableExplorer,
+  aboveExplorer
 }: {
   readonly disableExplorer?: boolean
+  readonly aboveExplorer?: ReactNode
 }) {
   const setSize = useRxSet(terminalSizeRx)
   const handle = useRxSuspenseSuccess(workspaceHandleRx)
@@ -52,7 +55,7 @@ function CodeEditorSuspended({
                 defaultSize={20}
                 className="bg-gray-50 dark:bg-neutral-900 min-w-[200px] flex flex-col"
               >
-                <SolveButton />
+                {aboveExplorer}
                 <FileExplorer />
               </Panel>
               <PanelResizeHandle />

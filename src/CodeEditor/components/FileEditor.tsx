@@ -3,7 +3,7 @@ import clsx from "clsx"
 import { Option } from "effect"
 import { useEffect, useRef } from "react"
 import { editorElementRx, editorRx } from "../rx/editor"
-import { LoadingSpinner } from "./LoadingSpinner"
+import { LoadingSpinner } from "../../components/LoadingSpinner"
 
 export declare namespace FileEditor {
   export interface Props {}

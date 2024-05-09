@@ -63,8 +63,14 @@ const make = Effect.gen(function* (_) {
       const writeFile = (file: string, data: string) =>
         Effect.promise(() => container.fs.writeFile(path(file), data))
 
+      const readFile = (file: string) =>
+        Effect.promise(() => container.fs.readFile(path(file))).pipe(
+          Effect.map((_) => new TextDecoder().decode(_))
+        )
+
       return identity<WorkspaceHandle>({
         write: writeFile,
+        read: readFile,
         shell
       })
     })
@@ -93,6 +99,7 @@ export class WebContainerError extends Data.TaggedError("WebContainerError")<{
 
 export interface WorkspaceHandle {
   readonly write: (file: string, data: string) => Effect.Effect<void>
+  readonly read: (file: string) => Effect.Effect<string>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
 }
 
