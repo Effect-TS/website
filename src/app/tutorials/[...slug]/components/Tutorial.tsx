@@ -31,7 +31,8 @@ export function Tutorial({
 }) {
   const workspace = new Workspace({
     name,
-    command: "clear && tsx --watch src/index.ts",
+    command: "clear && tsx --watch src/main.ts",
+    initialFilePath: "src/main.ts",
     tree: [
       effectPackageJson,
       new Directory(

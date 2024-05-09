@@ -1,32 +1,21 @@
-import { Data, Equal, Hash, Option, pipe } from "effect"
+import { Data, Equal, Hash, Iterable, Option, pipe } from "effect"
 
 export class Workspace extends Data.Class<{
   name: string
   tree: ReadonlyArray<Directory | File>
+  initialFilePath?: string
   command?: string
 }> {
-  #filesOfInterest: Array<File> | undefined
-  get filesOfInterest() {
-    if (this.#filesOfInterest) {
-      return this.#filesOfInterest
-    }
-    const files: Array<File> = []
-    function walk(children: ReadonlyArray<Directory | File>) {
-      children.forEach((child) => {
-        if (child._tag === "File") {
-          if (child.interesting) {
-            files.push(child)
-          }
-        } else {
-          walk(child.children)
-        }
-      })
-    }
-    walk(this.tree)
-    return (this.#filesOfInterest = files)
-  }
   get initialFile() {
-    return this.filesOfInterest[0]
+    if (this.initialFilePath) {
+      return Option.getOrThrow(
+        Iterable.findFirst(
+          this.filePaths,
+          ([_, path]) => path === this.initialFilePath
+        )
+      )[0]
+    }
+    return Option.getOrThrow(Iterable.head(this.filePaths.keys()))
   }
   #filePaths: Map<File, string> | undefined
   get filePaths() {
@@ -73,19 +62,16 @@ export class File extends Data.TaggedClass("File")<{
   name: string
   initialContent: string
   solution?: string
-  interesting: boolean
   language: string
 }> {
   constructor(options: {
     name: string
     initialContent: string
     solution?: string
-    interesting?: boolean
     language?: string
   }) {
     super({
       ...options,
-      interesting: options.interesting ?? true,
       language: options.language ?? "typescript"
     })
   }

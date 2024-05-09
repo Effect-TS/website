@@ -46,17 +46,16 @@ export default async function Page({
   const files = await FS.readdir(directory)
   const filesWithContent = await Promise.all(
     files.flatMap((file) => {
-      if (!file.endsWith(".initial.ts")) return []
-      const name = file.replace(".initial.ts", ".ts")
+      if (file.endsWith(".solution.ts")) return []
       const initial = FS.readFile(Path.join(directory, file), "utf8")
       const solution = FS.readFile(
-        Path.join(directory, file.replace(".initial.ts", ".solution.ts")),
+        Path.join(directory, file.replace(".ts", ".solution.ts")),
         "utf8"
       ).catch(() => undefined)
       return Promise.all([initial, solution]).then(
         ([initial, solution]) =>
           ({
-            name,
+            name: file,
             initial,
             solution
           }) as const
