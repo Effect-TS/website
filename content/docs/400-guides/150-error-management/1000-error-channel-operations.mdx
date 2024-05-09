@@ -116,7 +116,7 @@ const program = pipe(
     (user): user is User => user !== null,
     () => new Error("Unauthorized")
   ),
-  Effect.map((user) => user.name) // The 'user' here has type `User`, not `User | null`
+  Effect.andThen((user) => user.name) // The 'user' here has type `User`, not `User | null`
 )
 ```
 
@@ -202,7 +202,7 @@ import { Effect, Either, Console } from "effect"
 const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
 const program = Effect.either(simulatedTask).pipe(
-  Effect.flatMap((failureOrSuccess) =>
+  Effect.andThen((failureOrSuccess) =>
     Either.match(failureOrSuccess, {
       onLeft: (error) => Console.log(`failure: ${error}`).pipe(Effect.as(0)),
       onRight: (value) =>
@@ -242,7 +242,7 @@ import { Effect, Console } from "effect"
 const simulatedTask = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
 const program = Effect.cause(simulatedTask).pipe(
-  Effect.flatMap((cause) => Console.log(cause))
+  Effect.andThen((cause) => Console.log(cause))
 )
 ```
 

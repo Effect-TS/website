@@ -40,7 +40,7 @@ import { Effect, Deferred } from "effect"
 const effectDeferred = Deferred.make<string, Error>()
 
 const effectGet = effectDeferred.pipe(
-  Effect.flatMap((deferred) => Deferred.await(deferred))
+  Effect.andThen((deferred) => Deferred.await(deferred))
 )
 ```
 
@@ -73,7 +73,9 @@ const program = Effect.gen(function* () {
   yield* Deferred.completeWith(deferred, Effect.succeed(3)).pipe(Effect.fork)
   yield* Deferred.done(deferred, Exit.succeed(4)).pipe(Effect.fork)
   yield* Deferred.fail(deferred, "5").pipe(Effect.fork)
-  yield* Deferred.failCause(deferred, Cause.die(new Error("6"))).pipe(Effect.fork)
+  yield* Deferred.failCause(deferred, Cause.die(new Error("6"))).pipe(
+    Effect.fork
+  )
   yield* Deferred.die(deferred, new Error("7")).pipe(Effect.fork)
   yield* Deferred.interrupt(deferred).pipe(Effect.fork)
 

@@ -94,7 +94,7 @@ const program = Effect.gen(function* () {
   return a + b
 })
 
-const showMetric = Metric.value(taskCount).pipe(Effect.flatMap(Console.log))
+const showMetric = Metric.value(taskCount).pipe(Effect.andThen(Console.log))
 
 Effect.runPromise(program.pipe(Effect.tap(() => showMetric))).then(
   console.log
@@ -171,7 +171,7 @@ const program = Effect.gen(function* () {
   return series
 })
 
-const showMetric = Metric.value(temperature).pipe(Effect.flatMap(Console.log))
+const showMetric = Metric.value(temperature).pipe(Effect.andThen(Console.log))
 
 Effect.runPromise(program.pipe(Effect.tap(() => showMetric))).then(
   console.log
@@ -240,7 +240,7 @@ const program = latencyHistogram(Random.nextIntBetween(1, 120)).pipe(
 )
 
 Effect.runPromise(
-  program.pipe(Effect.flatMap(() => Metric.value(latencyHistogram)))
+  program.pipe(Effect.andThen(Metric.value(latencyHistogram)))
 ).then((histogramState) => console.log("%o", histogramState))
 /*
 Output:
@@ -279,14 +279,14 @@ import { Metric, Array, Random, Effect } from "effect"
 const timer = Metric.timerWithBoundaries("timer", Array.range(1, 10))
 
 const program = Random.nextIntBetween(1, 10).pipe(
-  Effect.flatMap((n) => Effect.sleep(`${n} millis`)),
+  Effect.andThen((n) => Effect.sleep(`${n} millis`)),
   Metric.trackDuration(timer),
   Effect.repeatN(99)
 )
 
-Effect.runPromise(
-  program.pipe(Effect.flatMap(() => Metric.value(timer)))
-).then((histogramState) => console.log("%o", histogramState))
+Effect.runPromise(program.pipe(Effect.andThen(Metric.value(timer)))).then(
+  (histogramState) => console.log("%o", histogramState)
+)
 /*
 Output:
 HistogramState {
@@ -361,7 +361,7 @@ const program = responseTimeSummary(Random.nextIntBetween(1, 120)).pipe(
 )
 
 Effect.runPromise(
-  program.pipe(Effect.flatMap(() => Metric.value(responseTimeSummary)))
+  program.pipe(Effect.andThen(Metric.value(responseTimeSummary)))
 ).then((summaryState) => console.log("%o", summaryState))
 /*
 Output:
@@ -403,11 +403,11 @@ import { Metric, Random, Effect } from "effect"
 const errorFrequency = Metric.frequency("error_frequency")
 
 const program = errorFrequency(
-  Random.nextIntBetween(1, 10).pipe(Effect.map((n) => `Error-${n}`))
+  Random.nextIntBetween(1, 10).pipe(Effect.andThen((n) => `Error-${n}`))
 ).pipe(Effect.repeatN(99))
 
 Effect.runPromise(
-  program.pipe(Effect.flatMap(() => Metric.value(errorFrequency)))
+  program.pipe(Effect.andThen(Metric.value(errorFrequency)))
 ).then((frequencyState) => console.log("%o", frequencyState))
 /*
 Output:

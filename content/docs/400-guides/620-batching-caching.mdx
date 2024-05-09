@@ -105,10 +105,10 @@ export const sendEmail = (address: string, text: string) =>
   })
 
 export const sendEmailToUser = (id: number, message: string) =>
-  Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
+  Effect.andThen(getUserById(id), (user) => sendEmail(user.email, message))
 
 export const notifyOwner = (todo: Model.Todo) =>
-  Effect.flatMap(getUserById(todo.ownerId), (user) =>
+  Effect.andThen(getUserById(todo.ownerId), (user) =>
     sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
   )
 ```
@@ -249,7 +249,7 @@ export const GetUserByIdResolver = RequestResolver.makeBatched(
         ),
       catch: () => new Model.GetUserError()
     }).pipe(
-      Effect.flatMap((users) =>
+      Effect.andThen((users) =>
         Effect.forEach(requests, (request, index) =>
           Request.completeEffect(request, Effect.succeed(users[index]))
         )
@@ -278,7 +278,7 @@ export const SendEmailResolver = RequestResolver.makeBatched(
         }).then((_) => _.json()),
       catch: () => new Model.SendEmailError()
     }).pipe(
-      Effect.flatMap(() =>
+      Effect.andThen(
         Effect.forEach(requests, (request) =>
           Request.completeEffect(request, Effect.void)
         )
@@ -341,10 +341,10 @@ export const sendEmail = (address: string, text: string) =>
   )
 
 export const sendEmailToUser = (id: number, message: string) =>
-  Effect.flatMap(getUserById(id), (user) => sendEmail(user.email, message))
+  Effect.andThen(getUserById(id), (user) => sendEmail(user.email, message))
 
 export const notifyOwner = (todo: Model.Todo) =>
-  Effect.flatMap(getUserById(todo.ownerId), (user) =>
+  Effect.andThen(getUserById(todo.ownerId), (user) =>
     sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)
   )
 ```
@@ -431,7 +431,7 @@ export const HttpServiceLive = Layer.sync(HttpService, () =>
 export const GetTodosResolver =
   // we create a normal resolver like we did before
   RequestResolver.fromEffect((request: RequestModel.GetTodos) =>
-    Effect.flatMap(HttpService, (http) =>
+    Effect.andThen(HttpService, (http) =>
       Effect.tryPromise({
         try: () =>
           API.simulatedValidation<Array<Model.Todo>>(
@@ -559,7 +559,7 @@ export const getTodos: Effect.Effect<
   Array<Model.Todo>,
   Model.GetTodosError,
   TodosService
-> = Effect.flatMap(TodosService, (service) => service.getTodos)
+> = Effect.andThen(TodosService, (service) => service.getTodos)
 ```
 
 This way is probably the best for most of the cases given that layers are the natural primitive where to wire services together.
@@ -752,14 +752,14 @@ const program = Effect.gen(function* () {
 })
 
 const nextStep = Effect.step(program).pipe(
-  Effect.flatMap((step) => {
+  Effect.andThen((step) => {
     switch (step._op) {
       // the program is blocked on a number of requests
       case "Blocked": {
         const requests = step.effect_instruction_i0
         const continuation = step.effect_instruction_i1
         return shipRequestsToBeExecutedAndWait(requests).pipe(
-          Effect.flatMap(() => continuation)
+          Effect.andThen(() => continuation)
         )
       }
       // the program completed

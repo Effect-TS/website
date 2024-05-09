@@ -198,7 +198,7 @@ class Database extends Context.Tag("Database")<
   { readonly getUsers: Effect.Effect<Array<User>> }
 >() {}
 
-const getUsers = Database.pipe(Effect.flatMap((_) => _.getUsers))
+const getUsers = Database.pipe(Effect.andThen((_) => _.getUsers))
 
 const users = Stream.fromIterableEffect(getUsers)
 ```
@@ -272,7 +272,7 @@ import { Stream, Effect, Option } from "effect"
 const drainIterator = <A>(it: Iterator<A>): Stream.Stream<A> =>
   Stream.repeatEffectOption(
     Effect.sync(() => it.next()).pipe(
-      Effect.flatMap((res) => {
+      Effect.andThen((res) => {
         if (res.done) {
           return Effect.fail(Option.none())
         }
@@ -499,7 +499,7 @@ import { RawData, listPaginated } from "./domain"
 const finalAttempt: Stream.Stream<RawData, Error> =
   Stream.paginateChunkEffect(0, (pageNumber) =>
     listPaginated(pageNumber).pipe(
-      Effect.map((page) => {
+      Effect.andThen((page) => {
         return [
           page.results,
           page.isLast ? Option.none<number>() : Option.some(pageNumber + 1)

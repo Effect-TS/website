@@ -35,7 +35,7 @@ export class Counter {
   }
 }
 
-export const make = Effect.map(Ref.make(0), (value) => new Counter(value))
+export const make = Effect.andThen(Ref.make(0), (value) => new Counter(value))
 ```
 
 ```ts filename="Counter.ts" twoslash
@@ -86,13 +86,13 @@ import { Effect, Console } from "effect"
 import * as Counter from "./Counter"
 
 const program = Counter.make.pipe(
-  Effect.flatMap((counter) =>
+  Effect.andThen((counter) =>
     counter.inc.pipe(
-      Effect.flatMap(() => counter.inc),
-      Effect.flatMap(() => counter.dec),
-      Effect.flatMap(() => counter.inc),
-      Effect.flatMap(() => counter.get),
-      Effect.flatMap((value) =>
+      Effect.andThen(counter.inc),
+      Effect.andThen(counter.dec),
+      Effect.andThen(counter.inc),
+      Effect.andThen(counter.get),
+      Effect.andThen((value) =>
         Console.log(`This counter has a value of ${value}.`)
       )
     )
@@ -177,22 +177,22 @@ import { Effect } from "effect"
 import * as Counter from "./Counter"
 
 const program = Counter.make.pipe(
-  Effect.flatMap((counter) => {
+  Effect.andThen((counter) => {
     const logCounter = <R, E, A>(
       label: string,
       effect: Effect.Effect<A, E, R>
     ) =>
       counter.get.pipe(
-        Effect.flatMap((value) => Effect.log(`${label} get: ${value}`)),
-        Effect.flatMap(() => effect)
+        Effect.andThen((value) => Effect.log(`${label} get: ${value}`)),
+        Effect.andThen(effect)
       )
 
     return logCounter("task 1", counter.inc).pipe(
       Effect.zip(logCounter("task 2", counter.inc), { concurrent: true }),
       Effect.zip(logCounter("task 3", counter.dec), { concurrent: true }),
       Effect.zip(logCounter("task 4", counter.inc), { concurrent: true }),
-      Effect.flatMap(() => counter.get),
-      Effect.flatMap((value) =>
+      Effect.andThen(counter.get),
+      Effect.andThen((value) =>
         Effect.log(`This counter has a value of ${value}.`)
       )
     )
@@ -280,25 +280,25 @@ class MyState extends Context.Tag("MyState")<MyState, Ref.Ref<number>>() {}
 // Subprogram 1: Increment the state value twice
 const subprogram1 = MyState.pipe(
   Effect.tap((state) => Ref.update(state, (n) => n + 1)),
-  Effect.flatMap((state) => Ref.update(state, (n) => n + 1))
+  Effect.andThen((state) => Ref.update(state, (n) => n + 1))
 )
 
 // Subprogram 2: Decrement the state value and then increment it
 const subprogram2 = MyState.pipe(
   Effect.tap((state) => Ref.update(state, (n) => n - 1)),
-  Effect.flatMap((state) => Ref.update(state, (n) => n + 1))
+  Effect.andThen((state) => Ref.update(state, (n) => n + 1))
 )
 
 // Subprogram 3: Read and log the current value of the state
 const subprogram3 = MyState.pipe(
-  Effect.flatMap((state) => Ref.get(state)),
-  Effect.flatMap((value) => Console.log(`MyState has a value of ${value}.`))
+  Effect.andThen((state) => Ref.get(state)),
+  Effect.andThen((value) => Console.log(`MyState has a value of ${value}.`))
 )
 
 // Compose subprograms 1, 2, and 3 to create the main program
 const program = subprogram1.pipe(
-  Effect.flatMap(() => subprogram2),
-  Effect.flatMap(() => subprogram3)
+  Effect.andThen(subprogram2),
+  Effect.andThen(subprogram3)
 )
 
 // Create a Ref instance with an initial value of 0
@@ -370,7 +370,9 @@ import * as ReadLine from "./ReadLine"
 const getNames = Effect.gen(function* () {
   const ref = yield* Ref.make(Chunk.empty<string>())
   while (true) {
-    const name = yield* ReadLine.readLine("Please enter a name or `q` to exit: ")
+    const name = yield* ReadLine.readLine(
+      "Please enter a name or `q` to exit: "
+    )
     if (name === "q") {
       break
     }
@@ -405,7 +407,7 @@ import { Effect, Chunk, Ref } from "effect"
 import * as ReadLine from "./ReadLine"
 
 const getNames = Ref.make(Chunk.empty<string>()).pipe(
-  Effect.flatMap((ref) =>
+  Effect.andThen((ref) =>
     ReadLine.readLine("Please enter a name or `q` to exit: ").pipe(
       Effect.repeat({
         while: (name) => {
@@ -419,7 +421,7 @@ const getNames = Ref.make(Chunk.empty<string>()).pipe(
           }
         }
       }),
-      Effect.flatMap(() => Ref.get(ref))
+      Effect.andThen(Ref.get(ref))
     )
   )
 )
@@ -459,7 +461,9 @@ const getNames = Effect.gen(function* () {
   const fiber1 = yield* Effect.fork(
     Effect.gen(function* () {
       while (true) {
-        const name = yield* ReadLine.readLine("Please enter a name or `q` to exit: ")
+        const name = yield* ReadLine.readLine(
+          "Please enter a name or `q` to exit: "
+        )
         if (name === "q") {
           break
         }
@@ -506,7 +510,7 @@ import { Effect, Chunk, Ref, Fiber } from "effect"
 import * as ReadLine from "./ReadLine"
 
 const getNames = Ref.make(Chunk.empty<string>()).pipe(
-  Effect.flatMap((ref) => {
+  Effect.andThen((ref) => {
     const fiber1 = ReadLine.readLine(
       "Please enter a name or `q` to exit: "
     ).pipe(
@@ -530,16 +534,16 @@ const getNames = Ref.make(Chunk.empty<string>()).pipe(
         (name) =>
           ref.pipe(
             Ref.update((state) => Chunk.append(state, name)),
-            Effect.flatMap(() => Effect.sleep("1 second"))
+            Effect.andThen(Effect.sleep("1 second"))
           ),
         { concurrency: "unbounded", discard: true }
       )
     )
     return Effect.all([fiber1, fiber2]).pipe(
-      Effect.flatMap(([f1, f2]) =>
-        Fiber.join(f1).pipe(Effect.flatMap(() => Fiber.join(f2)))
+      Effect.andThen(([f1, f2]) =>
+        Fiber.join(f1).pipe(Effect.andThen(Fiber.join(f2)))
       ),
-      Effect.flatMap(() => Ref.get(ref))
+      Effect.andThen(Ref.get(ref))
     )
   })
 )

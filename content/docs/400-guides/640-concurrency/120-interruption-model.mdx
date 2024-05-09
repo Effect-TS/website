@@ -74,8 +74,8 @@ timestamp=... level=INFO fiber=#0 message=done
 import { Effect } from "effect"
 
 const program = Effect.log("start").pipe(
-  Effect.flatMap(() => Effect.sleep("2 seconds")),
-  Effect.flatMap(() => Effect.log("done"))
+  Effect.andThen(Effect.sleep("2 seconds")),
+  Effect.andThen(Effect.log("done"))
 )
 
 Effect.runPromise(program).catch((error) =>
@@ -134,9 +134,9 @@ timestamp=... level=INFO fiber=#0 message=start
 import { Effect } from "effect"
 
 const program = Effect.log("start").pipe(
-  Effect.flatMap(() => Effect.sleep("2 seconds")),
-  Effect.flatMap(() => Effect.interrupt),
-  Effect.flatMap(() => Effect.log("done"))
+  Effect.andThen(Effect.sleep("2 seconds")),
+  Effect.andThen(Effect.interrupt),
+  Effect.andThen(Effect.log("done"))
 )
 
 Effect.runPromiseExit(program).then(console.log)
@@ -245,15 +245,15 @@ const program = Effect.forEach(
   [1, 2, 3],
   (n) =>
     Effect.log(`start #${n}`).pipe(
-      Effect.flatMap(() => {
+      Effect.andThen(() => {
         const effect = Effect.sleep(`${n} seconds`)
         if (n > 1) {
-          return Effect.flatMap(effect, () => Effect.interrupt)
+          return Effect.andThen(effect, () => Effect.interrupt)
         } else {
           return effect
         }
       }),
-      Effect.flatMap(() => Effect.log(`done #${n}`))
+      Effect.andThen(Effect.log(`done #${n}`))
     ),
   { concurrency: "unbounded" }
 )

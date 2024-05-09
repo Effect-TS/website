@@ -104,15 +104,15 @@ import { Effect, Console } from "effect"
 import { Random } from "./service"
 
 const program = Random.pipe(
-  Effect.flatMap((random) => random.next),
-  Effect.flatMap((randomNumber) =>
+  Effect.andThen((random) => random.next),
+  Effect.andThen((randomNumber) =>
     Console.log(`random number: ${randomNumber}`)
   )
 )
 ```
 
 In the code above, we can observe that we are able to flat-map over the `Random` Tag as if it were an Effect itself.
-This allows us to access the `next` operation of the service within the `flatMap` callback.
+This allows us to access the `next` operation of the service within the `Effect.andThen` callback.
 We then use the `Console.log` utility to log the generated random number.
 
 </Tab>
@@ -230,10 +230,10 @@ const program = Effect.gen(function* () {
 const program =
   // Acquire instances of the 'Random' and 'Logger' services
   Effect.all([Random, Logger]).pipe(
-    Effect.flatMap(([random, logger]) =>
+    Effect.andThen(([random, logger]) =>
       // Generate a random number using the 'Random' service
       random.next.pipe(
-        Effect.flatMap((randomNumber) =>
+        Effect.andThen((randomNumber) =>
           // Log the random number using the 'Logger' service
           logger.log(String(randomNumber))
         )
@@ -358,7 +358,7 @@ import { Effect, Option, Console } from "effect"
 import { Random } from "./service"
 
 const program = Effect.serviceOption(Random).pipe(
-  Effect.flatMap((maybeRandom) =>
+  Effect.andThen((maybeRandom) =>
     Option.match(maybeRandom, {
       // the service is not available, return a default value
       onNone: () => Effect.succeed(-1),
@@ -366,7 +366,7 @@ const program = Effect.serviceOption(Random).pipe(
       onSome: (random) => random.next
     })
   ),
-  Effect.flatMap((randomNumber) => Console.log(`${randomNumber}`))
+  Effect.andThen((randomNumber) => Console.log(`${randomNumber}`))
 )
 ```
 

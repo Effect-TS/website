@@ -233,7 +233,7 @@ const program = Effect.gen(function* () {
   const queue = yield* Queue.bounded<number>(3)
   const fiber = yield* Effect.fork(
     Queue.awaitShutdown(queue).pipe(
-      Effect.flatMap(() => Console.log("shutting down"))
+      Effect.andThen(Console.log("shutting down"))
     )
   )
   yield* Queue.shutdown(queue)

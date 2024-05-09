@@ -41,7 +41,7 @@ const program =
       Scope.addFinalizer(scope, Console.log("finalizer 2"))
     ),
     // close the scope
-    Effect.flatMap((scope) =>
+    Effect.andThen((scope) =>
       Scope.close(scope, Exit.succeed("scope closed successfully"))
     )
   )
@@ -75,7 +75,9 @@ Let's observe how things behave in the event of success:
 import { Effect, Console } from "effect"
 
 const program = Effect.gen(function* () {
-  yield* Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
+  yield* Effect.addFinalizer((exit) =>
+    Console.log(`finalizer after ${exit._tag}`)
+  )
   return 1
 })
 
@@ -97,7 +99,7 @@ import { Effect, Console } from "effect"
 
 const program = Effect.addFinalizer((exit) =>
   Console.log(`finalizer after ${exit._tag}`)
-).pipe(Effect.flatMap(() => Effect.succeed(1)))
+).pipe(Effect.andThen(Effect.succeed(1)))
 
 const runnable = Effect.scoped(program)
 
@@ -131,7 +133,9 @@ Next, let's explore how things behave in the event of a failure:
 import { Effect, Console } from "effect"
 
 const program = Effect.gen(function* () {
-  yield* Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
+  yield* Effect.addFinalizer((exit) =>
+    Console.log(`finalizer after ${exit._tag}`)
+  )
   return yield* Effect.fail("Uh oh!")
 })
 
@@ -157,7 +161,7 @@ import { Effect, Console } from "effect"
 
 const program = Effect.addFinalizer((exit) =>
   Console.log(`finalizer after ${exit._tag}`)
-).pipe(Effect.flatMap(() => Effect.fail("Uh oh!")))
+).pipe(Effect.andThen(Effect.fail("Uh oh!")))
 
 const runnable = Effect.scoped(program)
 
@@ -185,7 +189,9 @@ Finally, let's explore the behavior in the event of an interruption:
 import { Effect, Console } from "effect"
 
 const program = Effect.gen(function* () {
-  yield* Effect.addFinalizer((exit) => Console.log(`finalizer after ${exit._tag}`))
+  yield* Effect.addFinalizer((exit) =>
+    Console.log(`finalizer after ${exit._tag}`)
+  )
   return yield* Effect.interrupt
 })
 
@@ -220,7 +226,7 @@ import { Effect, Console } from "effect"
 
 const program = Effect.addFinalizer((exit) =>
   Console.log(`finalizer after ${exit._tag}`)
-).pipe(Effect.flatMap(() => Effect.interrupt))
+).pipe(Effect.andThen(Effect.interrupt))
 
 const runnable = Effect.scoped(program)
 
@@ -387,12 +393,12 @@ const task2 = Console.log("task 2").pipe(
 )
 
 const program = Effect.all([Scope.make(), Scope.make()]).pipe(
-  Effect.flatMap(([scope1, scope2]) =>
+  Effect.andThen(([scope1, scope2]) =>
     Scope.extend(task1, scope1).pipe(
-      Effect.flatMap(() => Scope.extend(task2, scope2)),
-      Effect.flatMap(() => Scope.close(scope1, Exit.void)),
-      Effect.flatMap(() => Console.log("doing something else")),
-      Effect.flatMap(() => Scope.close(scope2, Exit.void))
+      Effect.andThen(Scope.extend(task2, scope2)),
+      Effect.andThen(Scope.close(scope1, Exit.void)),
+      Effect.andThen(Console.log("doing something else")),
+      Effect.andThen(Scope.close(scope2, Exit.void))
     )
   )
 )
@@ -489,7 +495,7 @@ Effect<MyResource, Error, Scope>
 
 This indicates that the workflow needs a `Scope` to run and adds a finalizer that will close the resource when the scope is closed.
 
-We can continue working with the resource for as long as we want by using `flatMap` or other Effect operators. For example, here's how we can read the contents:
+We can continue working with the resource for as long as we want by using `Effect.andThen` or other Effect operators. For example, here's how we can read the contents:
 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
@@ -522,7 +528,7 @@ import { Effect, Console } from "effect"
 import { resource } from "./resource"
 
 const program = resource.pipe(
-  Effect.flatMap((res) => Console.log(`content is ${res.contents}`))
+  Effect.andThen((res) => Console.log(`content is ${res.contents}`))
 )
 ```
 
@@ -565,7 +571,7 @@ import { resource } from "./resource"
 
 const program = Effect.scoped(
   resource.pipe(
-    Effect.flatMap((res) => Console.log(`content is ${res.contents}`))
+    Effect.andThen((res) => Console.log(`content is ${res.contents}`))
   )
 )
 ```

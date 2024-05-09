@@ -162,7 +162,7 @@ const a = Layer.effect(
 
 const program = Effect.scoped(
   Layer.memoize(a).pipe(
-    Effect.flatMap((memoized) =>
+    Effect.andThen((memoized) =>
       Effect.gen(function* () {
         yield* Effect.provide(A, memoized)
         yield* Effect.provide(A, memoized)

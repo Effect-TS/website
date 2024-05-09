@@ -72,7 +72,7 @@ Once you have an `Either`, there are several operations you can perform on it.
 ### Mapping over the Right Value
 
 You can use the `Either.map` function to transform the `Right` value of an `Either`.
-The `map` function takes a transformation function that maps the `Right` value.
+The `Either.map` function takes a transformation function that maps the `Right` value.
 
 If the `Either` value is a `Left` value, the transformation function is **ignored**, and the `Left` value is returned unchanged.
 
@@ -139,8 +139,8 @@ import { Effect, Either } from "effect"
 const head = <A>(array: ReadonlyArray<A>): Either.Either<A, string> =>
   array.length > 0 ? Either.right(array[0]) : Either.left("empty array")
 
-const foo = Effect.runSync(Effect.flatMap(Effect.succeed([1, 2, 3]), head))
+const foo = Effect.runSync(Effect.andThen(Effect.succeed([1, 2, 3]), head))
 console.log(foo) // Output: 1
 
-const bar = Effect.runSync(Effect.flatMap(Effect.succeed([]), head)) // throws "empty array"
+const bar = Effect.runSync(Effect.andThen(Effect.succeed([]), head)) // throws "empty array"
 ```
