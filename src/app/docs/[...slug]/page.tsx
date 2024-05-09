@@ -8,7 +8,6 @@ import { TableOfContents } from "@/components/docs/table-of-contents"
 import { Divider } from "@/components/layout/divider"
 import { getBreadcrumbs } from "@/contentlayer/utils/get-breadcrumbs"
 import { allDocsPages } from "contentlayer/generated"
-import { formatDistance } from "date-fns"
 import { notFound } from "next/navigation"
 
 export const generateStaticParams = () =>

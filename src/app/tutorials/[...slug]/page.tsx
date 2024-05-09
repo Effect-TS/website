@@ -1,11 +1,11 @@
 import { MDX } from "@/components/atoms/mdx"
 import { allTutorials } from "contentlayer/generated"
-import { Array, String } from "effect"
 import * as FS from "fs/promises"
 import { notFound } from "next/navigation"
 import * as Path from "path"
 import { Navigation } from "./components/Navigation"
 import { Tutorial } from "./components/Tutorial"
+import { groupedTutorials, tutorialSection } from "../grouped"
 
 export const generateStaticParams = () =>
   allTutorials.map((page) => ({
@@ -32,17 +32,23 @@ export default async function Page({
 }: {
   params: { slug: string[] }
 }) {
-  const index = allTutorials.findIndex(
+  const page = allTutorials.find(
     (page) => page.urlPath === `/tutorials/${slug.join("/")}`
   )
-  const page = allTutorials[index]
   if (!page) return notFound()
 
-  const next = allTutorials[index + 1]
+  const group = groupedTutorials[tutorialSection(page)]
+  const index = group.children.indexOf(page)
+  const next = group.children[index + 1]
 
-  const filePrefix = page._raw.flattenedPath.replace("tutorials/", "")
-  const name = filePrefix.replace("/", "-")
-  const directory = `src/tutorials/${filePrefix}`
+  const name = page._raw.flattenedPath
+    .replace("tutorials/", "")
+    .replace("/", "-")
+  const directory = Path.join(
+    "src/tutorials",
+    page._raw.sourceFileDir.replace("tutorials/", ""),
+    `${page.order}`
+  )
   const files = await FS.readdir(directory)
   const filesWithContent = await Promise.all(
     files.flatMap((file) => {

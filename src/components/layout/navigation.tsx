@@ -13,7 +13,7 @@ import { FC } from "react"
 const menu = [
   { name: "Docs", href: "/docs" },
   { name: "Blog", href: "/blog" },
-  { name: "Tutorials", href: "/tutorials/basics/welcome" },
+  { name: "Tutorials", href: "/tutorials/basics" },
   { name: "Play", href: "/play" }
 ]
 

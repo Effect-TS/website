@@ -14,7 +14,7 @@ export const Tutorial = defineDocumentType(() => ({
     section: {
       type: "string",
       description: "The name of the section.",
-      required: true
+      required: false
     },
     excerpt: {
       type: "string",
