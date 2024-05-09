@@ -26,6 +26,7 @@ export function CodeEditor({
   useEffect(() => {
     setWorkspace(Option.some(workspace))
   }, [workspace, setWorkspace])
+  console.log(workspace)
   return (
     <Suspense fallback={<LoadingSpinner />}>
       <CodeEditorSuspended disableExplorer={disableExplorer} />

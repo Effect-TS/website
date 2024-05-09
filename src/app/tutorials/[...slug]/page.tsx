@@ -1,6 +1,9 @@
 import { MDX } from "@/components/atoms/mdx"
-import { Tutorial as ITutorial, allTutorials } from "contentlayer/generated"
+import { allTutorials } from "contentlayer/generated"
+import { Array, String } from "effect"
+import * as FS from "fs/promises"
 import { notFound } from "next/navigation"
+import * as Path from "path"
 import { Navigation } from "./components/Navigation"
 import { Tutorial } from "./components/Tutorial"
 
@@ -24,7 +27,7 @@ export async function generateMetadata({
   }
 }
 
-export default function Page({
+export default async function Page({
   params: { slug }
 }: {
   params: { slug: string[] }
@@ -37,9 +40,34 @@ export default function Page({
 
   const next = allTutorials[index + 1]
 
+  const filePrefix = page._raw.flattenedPath.replace("tutorials/", "")
+  const name = filePrefix.replace("/", "-")
+  const directory = `src/tutorials/${filePrefix}`
+  const files = await FS.readdir(directory)
+  const filesWithContent = await Promise.all(
+    files.flatMap((file) => {
+      if (!file.endsWith(".initial.ts")) return []
+      const name = file.replace(".initial.ts", ".ts")
+      const initial = FS.readFile(Path.join(directory, file), "utf8")
+      const solution = FS.readFile(
+        Path.join(directory, file.replace(".initial.ts", ".solution.ts")),
+        "utf8"
+      ).catch(() => undefined)
+      return Promise.all([initial, solution]).then(
+        ([initial, solution]) =>
+          ({
+            name,
+            initial,
+            solution
+          }) as const
+      )
+    })
+  )
+
   return (
     <Tutorial
-      workspace={page.workspace}
+      name={name}
+      files={filesWithContent}
       navigation={<Navigation tutorial={page} />}
       next={
         next && {

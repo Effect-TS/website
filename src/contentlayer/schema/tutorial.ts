@@ -20,11 +20,6 @@ export const Tutorial = defineDocumentType(() => ({
       type: "string",
       description: "A brief description of the tutorial.",
       required: true
-    },
-    workspace: {
-      type: "string",
-      description: "The code workspace to load",
-      required: true
     }
   },
   computedFields: {

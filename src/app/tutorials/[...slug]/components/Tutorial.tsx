@@ -1,17 +1,25 @@
 "use client"
 
+import { Directory, File, Workspace } from "@/domain/Workspace"
+import { effectPackageJson } from "@/tutorials/common"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import React from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 
 export function Tutorial({
-  workspace,
+  name,
+  files,
   navigation,
   next,
   children
 }: {
-  readonly workspace: string
+  readonly name: string
+  readonly files: ReadonlyArray<{
+    readonly name: string
+    readonly initial: string
+    readonly solution: string | undefined
+  }>
   readonly navigation: React.ReactNode
   readonly children: React.ReactNode
   readonly next:
@@ -21,6 +29,23 @@ export function Tutorial({
       }
     | undefined
 }) {
+  const workspace = new Workspace({
+    name,
+    tree: [
+      effectPackageJson,
+      new Directory(
+        "src",
+        files.map(
+          (file) =>
+            new File({
+              name: file.name,
+              initialContent: file.initial,
+              solution: file.solution
+            })
+        )
+      )
+    ]
+  })
   const Editor = editor(workspace)
   return (
     <PanelGroup
@@ -47,12 +72,11 @@ export function Tutorial({
   )
 }
 
-const editor = (workspace: string) =>
+const editor = (workspace: Workspace) =>
   dynamic(
     async () => {
-      const ws = (await import(`@/workspaces/${workspace}`)).default
       const Editor = (await import("./CodeEditor")).CodeEditor
-      return () => (<Editor workspace={ws} />) as any
+      return () => (<Editor workspace={workspace} />) as any
     },
     { ssr: false }
   )
