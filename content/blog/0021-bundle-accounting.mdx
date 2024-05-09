@@ -92,8 +92,7 @@ const combine = (
 
 This function takes the result of two collections that have some possible overlap, cleans up `users` from members that don't have an email, concatenates it to the `recipients` into a nice wholesome `(User | Recipient)[]` that is unusable, uses an `@effect/schema` `NormalizedRow` schema to homogenize it into a useful `RecipientRow[]`, and remove duplicate rows, keeping only the `User`-originated ones.
 
-Then also make a collection derived from it thats just the ids of the `RecipientRows` that either represent
-a `Recipient` *or* representa `User` *that has a corresponding `Recipient`* (remember we deduped them)
+This utility also then creates a derived collection that is just the ids of the `RecipientRows` that either represent a `Recipient` *or* represent a `User` *that has a corresponding `Recipient`* (remember we deduped them).
 
 You could glue a solution that does this using `lodash`, `zod`, and some hand-crafted stuff, but it won't
 be this elegant considering the definition above. Especially the normalization part and the types.
