@@ -7,6 +7,7 @@ export const effectPackageJson = new File({
   language: "json",
   initialContent: JSON.stringify(
     {
+      type: "module",
       dependencies: {
         effect: "latest",
         "@effect/platform": "latest",
@@ -26,6 +27,7 @@ export const emptyPackageJson = new File({
   language: "json",
   initialContent: JSON.stringify(
     {
+      type: "module",
       dependencies: {
         tsx: "latest"
       }

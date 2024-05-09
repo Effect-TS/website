@@ -41,9 +41,7 @@ const defaultPackages = [
   "effect",
   "@effect/platform",
   "@effect/platform-node",
-  "@effect/schema",
-  "@effect/vitest",
-  "vitest"
+  "@effect/schema"
 ]
 
 const defaultWorkspace = new Workspace({
@@ -56,8 +54,12 @@ const defaultWorkspace = new Workspace({
     new File({
       name: "main.ts",
       initialContent: `import { Effect } from "effect"
+import assert from "assert"
 
-Effect.runFork(Effect.log("Welcome to the playground!"))
+Effect.gen(function* () {
+  const result = yield* Effect.succeed("Effect is ...")
+  assert.strictEqual(result, "Effect is awesome!!")
+}).pipe(Effect.runPromise)
 `
     })
   ]
