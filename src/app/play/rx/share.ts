@@ -61,6 +61,7 @@ export const importRx = runtime.rx(
       .decompress({
         name: "playground",
         command: "tsx --watch main.ts",
+        whitelist: ["package.json", "main.ts"],
         compressed: hash
       })
       .pipe(Effect.orElseSucceed(() => defaultWorkspace))

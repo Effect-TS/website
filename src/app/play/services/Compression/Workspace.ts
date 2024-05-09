@@ -27,19 +27,22 @@ const make = Effect.gen(function* () {
     name: string
     command?: string | undefined
     compressed: string
+    whitelist: ReadonlyArray<string>
   }) =>
     compression.decompressBase64(options.compressed).pipe(
       Effect.map(JSON.parse),
       Effect.map((files: Array<any>) =>
-        files.map(
-          (file) =>
-            new File({
-              name: file.name,
-              initialContent: file.content,
-              interesting: file.interesting,
-              language: file.language
-            })
-        )
+        files
+          .map(
+            (file) =>
+              new File({
+                name: file.name,
+                initialContent: file.content,
+                interesting: file.interesting,
+                language: file.language
+              })
+          )
+          .filter((file) => options.whitelist.includes(file.name))
       ),
       Effect.map((files) => new Workspace({ ...options, tree: files }))
     )
