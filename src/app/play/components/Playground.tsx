@@ -1,12 +1,11 @@
 "use client"
 
+import { CodeEditor } from "@/CodeEditor/CodeEditor"
 import { LoadingSpinner } from "@/components/LoadingSpinner"
-import { Workspace } from "@/domain/Workspace"
-import dynamic from "next/dynamic"
-import { Suspense } from "react"
-import { ShareButton } from "./ShareButton"
 import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
+import { Suspense } from "react"
 import { importRx } from "../rx/share"
+import { ShareButton } from "./ShareButton"
 
 export function Playground() {
   return (
@@ -18,22 +17,9 @@ export function Playground() {
 
 function PlaygroundLoader() {
   const workspace = useRxSuspenseSuccess(importRx).value
-  const Editor = editor(workspace)
   return (
     <main className="flex flex-col h-full">
-      <Editor />
+      <CodeEditor workspace={workspace} aboveExplorer={<ShareButton />} />
     </main>
   )
 }
-
-const editor = (workspace: Workspace) =>
-  dynamic(
-    async () => {
-      const Editor = (await import("@/CodeEditor/CodeEditor")).CodeEditor
-      return () =>
-        (
-          <Editor workspace={workspace} aboveExplorer={<ShareButton />} />
-        ) as any
-    },
-    { ssr: false }
-  )

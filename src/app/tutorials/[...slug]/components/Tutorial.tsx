@@ -6,7 +6,6 @@ import dynamic from "next/dynamic"
 import Link from "next/link"
 import React from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
-import { SolveButton } from "./SolveButton"
 
 export function Tutorial({
   name,
@@ -77,6 +76,7 @@ export function Tutorial({
 const editor = (workspace: Workspace) =>
   dynamic(
     async () => {
+      const { SolveButton } = await import("./SolveButton")
       const Editor = (await import("@/CodeEditor/CodeEditor")).CodeEditor
       return () =>
         (

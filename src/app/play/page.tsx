@@ -1,4 +1,4 @@
-import { Playground } from "./components/Playground"
+import { PlaygroundDynamic } from "./components/PlaygroundDynamic"
 
 export async function generateMetadata() {
   return {
@@ -8,5 +8,5 @@ export async function generateMetadata() {
 }
 
 export default async function Page() {
-  return <Playground />
+  return <PlaygroundDynamic />
 }
