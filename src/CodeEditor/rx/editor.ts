@@ -43,7 +43,7 @@ export const editorRx = runtime.rx((get) =>
             Stream.unwrap,
             Stream.filter((content) => content !== file.solution),
             Stream.tap(() => get.set(solved, false)),
-            Stream.debounce("1 second"),
+            Stream.debounce("3 second"),
             Stream.runForEach((content) => handle.write(path, content))
           ),
         { switch: true }
