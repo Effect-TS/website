@@ -8,12 +8,12 @@ A couple of weeks ago I inherited a `create-react-app` project. It had many of t
 
 My task was to add four pages to the app as well as a whole bunch of features. Using the existing material was absolutely out of the question - I would have **had** to create my own lib from scratch if I wanted to have any shred of confidence in the app.
 
-I started hacking at it. It didn't take a full hour before I had to wrangle untyped garbage from the legacy
-side of the fence. It was an http call, it wasn't parsed, there was no `zod` or something. It wasn't
-even typed `Promise<Something>`, it was proudly `Promise<any>` and then just consumed like thing.
-I wasn't there at the dawn of creation, I had no idea what the previous dev thought the shape was
-I could only follow function names and see the properties being arbitrarily accessed. So I did research to
-find out what the shape was supposed to be and created a util:
+I started hacking, and it didn't even take a full hour before I had to wrangle untyped garbage from the legacy side of the fence for a simple HTTP call. Here were some of the problems I found almost immediately: 
+- It wasn't parsed (i.e. there was no `zod` or other schema solution)
+- It wasn't even typed `Promise<Something>`, it was proudly typed as `Promise<any>` and then just consumed the untyped result
+- I wasn't there at the dawn of creation of the app, so I had no idea what the shape of the result even was - I could only follow function names and see the properties being arbitrarily accessed.
+
+So I did research to find out what the shape was supposed to be and created a little utility:
 
 ```ts
 const UnsafeTypeId: unique symbol = Symbol.for("@types/Unsafe");
