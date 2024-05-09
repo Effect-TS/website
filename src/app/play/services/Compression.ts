@@ -12,7 +12,7 @@ const make = Effect.gen(function* () {
         const blob = new Blob([content], { type: "text/plain" })
         const stream = blob
           .stream()
-          .pipeThrough(new CompressionStream("gzip"))
+          .pipeThrough(new CompressionStream("deflate-raw"))
         return await new Response(stream).arrayBuffer()
       },
       catch: (cause) => new CompressionError({ method: "compress", cause })
@@ -27,7 +27,7 @@ const make = Effect.gen(function* () {
         const blob = new Blob([buffer], { type: "application/gzip" })
         const stream = blob
           .stream()
-          .pipeThrough(new DecompressionStream("gzip"))
+          .pipeThrough(new DecompressionStream("deflate-raw"))
         return await new Response(stream).text()
       },
       catch: (cause) => new CompressionError({ method: "decompress", cause })
