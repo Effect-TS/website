@@ -19,9 +19,7 @@ export const editorElementRx = Rx.make(Option.none<HTMLElement>())
 
 export const editorRx = runtime.rx((get) =>
   Effect.gen(function* (_) {
-    const el = yield* get(editorElementRx).pipe(
-      Effect.orElse(() => Effect.never)
-    )
+    const el = yield* get.some(editorElementRx)
     const { workspace, handle, selectedFile, solved } =
       yield* get.result(workspaceHandleRx)
     const monaco = yield* MonacoATA
@@ -32,6 +30,13 @@ export const editorRx = runtime.rx((get) =>
       (theme) => editor.editor.updateOptions({ theme }),
       { immediate: true }
     )
+
+    const save = Effect.suspend(() => {
+      const file = get(selectedFile)
+      const path = workspace.pathTo(file)
+      if (path._tag === "None") return Effect.void
+      return handle.write(path.value, editor.editor.getValue())
+    })
 
     yield* get.stream(selectedFile).pipe(
       Stream.bindTo("file"),
@@ -61,6 +66,6 @@ export const editorRx = runtime.rx((get) =>
       }
     })
 
-    return editor
+    return { ...editor, save } as const
   })
 )

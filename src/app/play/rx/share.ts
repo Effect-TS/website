@@ -5,6 +5,7 @@ import { Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
 import { Effect, Layer } from "effect"
 import { WorkspaceCompression } from "../services/Compression/Workspace"
+import { editorRx } from "@/CodeEditor/rx/editor"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
@@ -18,9 +19,11 @@ export const shareRx = runtime.fn((_: void, get) =>
 
     const compression = yield* WorkspaceCompression
     const clipboard = yield* Clipboard.Clipboard
-    const handle = yield* get
-      .result(workspaceHandleRx)
-      .pipe(Effect.orElse(() => Effect.never))
+    const handle = yield* get.result(workspaceHandleRx)
+    const editor = yield* get.result(editorRx)
+
+    yield* editor.save
+
     const hash = yield* compression.compress(
       handle.workspace,
       handle.handle.read
@@ -73,7 +76,7 @@ export const importRx = runtime.rx(
     return yield* compression
       .decompress({
         name: "playground",
-        command: "tsx --watch main.ts",
+        command: "clear && tsx --watch main.ts",
         whitelist: ["package.json", "main.ts"],
         compressed: hash
       })
