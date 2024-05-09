@@ -21,7 +21,6 @@ export const workspaceHandleRx = runtime.rx((get) =>
   Effect.gen(function* () {
     const workspace = yield* get.some(workspaceRx)
     const { spawn } = yield* Terminal
-    console.log("workspaceHandleRx")
     const handle = yield* WebContainer.workspace(workspace)
 
     const selectedFile = Rx.make(workspace.initialFile)
