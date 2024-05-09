@@ -49,7 +49,7 @@ const defaultPackages = [
 
 const defaultWorkspace = new Workspace({
   name: "playground",
-  command: `pnpm add ${defaultPackages.join(
+  command: `pnpm add -E ${defaultPackages.join(
     " "
   )} && clear && tsx --watch main.ts`,
   initialFilePath: "main.ts",
