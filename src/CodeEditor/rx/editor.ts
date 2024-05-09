@@ -32,7 +32,7 @@ export const editorRx = runtime.rx((get) =>
     )
 
     const save = Effect.suspend(() => {
-      const file = get(selectedFile)
+      const file = get.once(selectedFile)
       const path = workspace.pathTo(file)
       if (path._tag === "None") return Effect.void
       return handle.write(path.value, editor.editor.getValue())
