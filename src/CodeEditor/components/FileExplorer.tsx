@@ -24,7 +24,7 @@ export function FileExplorer() {
   )
 
   return (
-    <aside className="min-h-full sm:max-w-xs py-2 overflow-auto">
+    <aside className="min-h-full w-full py-2 overflow-auto">
       <FileTree tree={workspace.tree} onClick={handleClick} />
     </aside>
   )
