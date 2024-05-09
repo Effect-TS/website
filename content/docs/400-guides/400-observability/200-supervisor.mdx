@@ -29,15 +29,21 @@ import { Effect, Supervisor, Schedule, Fiber, FiberStatus } from "effect"
 
 const program = Effect.gen(function* () {
   const supervisor = yield* Supervisor.track
-  const fibFiber = yield* fib(20).pipe(Effect.supervised(supervisor), Effect.fork)
+  const fibFiber = yield* fib(20).pipe(
+    Effect.supervised(supervisor),
+    Effect.fork
+  )
   const policy = Schedule.spaced("500 millis").pipe(
     Schedule.whileInputEffect((_) =>
       Fiber.status(fibFiber).pipe(
-        Effect.map((status) => status !== FiberStatus.done)
+        Effect.andThen((status) => status !== FiberStatus.done)
       )
     )
   )
-  const monitorFiber = yield* monitorFibers(supervisor).pipe(Effect.repeat(policy), Effect.fork)
+  const monitorFiber = yield* monitorFibers(supervisor).pipe(
+    Effect.repeat(policy),
+    Effect.fork
+  )
   yield* Fiber.join(monitorFiber)
   const result = yield* Fiber.join(fibFiber)
   console.log(`fibonacci result: ${result}`)

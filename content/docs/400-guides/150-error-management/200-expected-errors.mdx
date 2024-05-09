@@ -104,19 +104,19 @@ export class BarError {
 }
 
 const flakyFoo = Random.next.pipe(
-  Effect.flatMap((n1) =>
+  Effect.andThen((n1) =>
     n1 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new FooError())
   )
 )
 
 const flakyBar = Random.next.pipe(
-  Effect.flatMap((n2) =>
+  Effect.andThen((n2) =>
     n2 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new BarError())
   )
 )
 
 export const program = Effect.all([flakyFoo, flakyBar]).pipe(
-  Effect.map(([foo, bar]) => foo + bar)
+  Effect.andThen(([foo, bar]) => foo + bar)
 )
 ```
 
@@ -138,7 +138,7 @@ indicating that it can potentially fail with either a `FooError` or a `BarError`
 
 ## Short-Circuiting
 
-When working with APIs like `Effect.gen`, `Effect.map`, `Effect.flatMap`, and `Effect.all`, it's important to understand how they handle errors.
+When working with APIs like `Effect.gen`, `Effect.map`, `Effect.flatMap`, `Effect.andThen` and `Effect.all`, it's important to understand how they handle errors.
 These APIs are designed to **short-circuit the execution** upon encountering the **first error**.
 
 What does this mean for you as a developer? Well, let's say you have a chain of operations or a collection of effects to be executed in sequence. If any error occurs during the execution of one of these effects, the remaining computations will be skipped, and the error will be propagated to the final result.
@@ -187,12 +187,12 @@ const task1 = Console.log("Executing task1...")
 const task2 = Effect.fail("Something went wrong!")
 const task3 = Console.log("Executing task3...")
 
-// Compose the three tasks using `Effect.flatMap` to run them in sequence.
-// The `Effect.flatMap` function allows us to chain effects together.
+// Compose the three tasks using `Effect.andThen` to run them in sequence.
+// The `Effect.andThen` function allows us to chain effects together.
 // If one of the tasks fails, the subsequent tasks won't be executed.
 const program = task1.pipe(
-  Effect.flatMap(() => task2), // After task1, task2 is executed, but it fails with an error
-  Effect.flatMap(() => task3) // This computation won't be executed because the previous one fails
+  Effect.andThen(task2), // After task1, task2 is executed, but it fails with an error
+  Effect.andThen(task3) // This computation won't be executed because the previous one fails
 )
 
 Effect.runPromiseExit(program).then(console.log)

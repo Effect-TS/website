@@ -21,16 +21,16 @@ const elapsed = <R, E, A>(
   self: Effect.Effect<A, E, R>
 ): Effect.Effect<A, E, R> =>
   now.pipe(
-    Effect.flatMap((startMillis) =>
+    Effect.andThen((startMillis) =>
       self.pipe(
-        Effect.flatMap((result) =>
+        Effect.andThen((result) =>
           now.pipe(
-            Effect.flatMap((endMillis) => {
+            Effect.andThen((endMillis) => {
               // Calculate the elapsed time in milliseconds
               const elapsed = endMillis - startMillis
               // Log the elapsed time
               return Console.log(`Elapsed: ${elapsed}`).pipe(
-                Effect.map(() => result)
+                Effect.andThen(result)
               )
             })
           )
@@ -92,10 +92,10 @@ Here's how the do simulation works:
 - `variableName` is the name you give to the variable. Like before, it must be unique within the scope.
 - `simpleValue` is the value you want to assign to the variable. It can be a simple value like a `number`, `string`, or `boolean`.
 
-5. Regular Effect functions like `Effect.flatMap`, `Effect.tap`, and `Effect.map` can still be used within the do simulation. These functions will receive the accumulated variables as arguments within the scope:
+5. Regular Effect functions like `Effect.andThen`, `Effect.flatMap`, `Effect.tap`, and `Effect.map` can still be used within the do simulation. These functions will receive the accumulated variables as arguments within the scope:
 
    ```ts
-   Effect.flatMap(({ variable1, variable2 }) => {
+   Effect.andThen(({ variable1, variable2 }) => {
      // Perform operations using variable1 and variable2
      // Return an `Effect` value as the result
    })
@@ -121,7 +121,7 @@ const elapsed = <R, E, A>(
       ({ startMillis, endMillis }) => endMillis - startMillis // Calculate the elapsed time in milliseconds
     ),
     Effect.tap(({ elapsed }) => Console.log(`Elapsed: ${elapsed}`)), // Log the elapsed time
-    Effect.map(({ result }) => result)
+    Effect.andThen(({ result }) => result)
   )
 
 // Simulates a successful computation with a delay of 200 milliseconds

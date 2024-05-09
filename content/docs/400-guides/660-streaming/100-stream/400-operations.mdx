@@ -219,7 +219,7 @@ Output:
 
 ### Stateful Mapping
 
-The `Stream.mapAccum` operation is similar to `map`, but it transforms elements statefully and allows you to map and accumulate in a single operation. Let's see how you can use it to calculate the running total of an input stream:
+The `Stream.mapAccum` operation is similar to `Stream.map`, but it transforms elements statefully and allows you to map and accumulate in a single operation. Let's see how you can use it to calculate the running total of an input stream:
 
 ```ts twoslash
 import { Stream, Effect } from "effect"
@@ -752,7 +752,7 @@ const groupByKeyResult = Stream.fromIterable(examResults).pipe(
 const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
   Stream.fromEffect(
     Stream.runCollect(stream).pipe(
-      Effect.map((chunk) => [key, Chunk.size(chunk)] as const)
+      Effect.andThen((chunk) => [key, Chunk.size(chunk)] as const)
     )
   )
 )
@@ -796,7 +796,7 @@ const groupByKeyResult = Stream.fromIterable([
 const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
   Stream.fromEffect(
     Stream.runCollect(stream).pipe(
-      Effect.map((chunk) => [key, Chunk.size(chunk)] as const)
+      Effect.andThen((chunk) => [key, Chunk.size(chunk)] as const)
     )
   )
 )
@@ -1188,8 +1188,10 @@ const numbers = Effect.scoped(
     Stream.broadcast(2, 5),
     Stream.flatMap(([first, second]) =>
       Effect.gen(function* () {
-        const fiber1 = yield* Stream.runFold(first, 0, (acc, e) => Math.max(acc, e)).pipe(
-          Effect.flatMap((max) => Console.log(`Maximum: ${max}`)),
+        const fiber1 = yield* Stream.runFold(first, 0, (acc, e) =>
+          Math.max(acc, e)
+        ).pipe(
+          Effect.andThen((max) => Console.log(`Maximum: ${max}`)),
           Effect.fork
         )
         const fiber2 = yield* second.pipe(

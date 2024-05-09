@@ -34,16 +34,16 @@ In the first overload, the `self` argument comes in the **last position**:
 <A, B>(f: (a: A) => B): <E, R>(self: Effect<A, E, R>) => Effect<B, E, R>
 ```
 
-This is the variant we have been using with `pipe`. You pass the `Effect` as the first argument to the `pipe` function, followed by a call to `Effect.map`:
+This is the variant we have been using with `pipe`. You pass the `Effect` as the first argument to the `pipe` function, followed by a call to `Effect.andThen`:
 
 ```ts
-const mappedEffect = pipe(effect, Effect.map(func))
+const mappedEffect = pipe(effect, Effect.andThen(func))
 ```
 
 This variant is useful when you need to chain multiple computations in a long pipeline. You can continue the pipeline by adding more computations after the initial transformation:
 
 ```ts
-pipe(effect, Effect.map(func1), Effect.flatMap(func2), ...)
+pipe(effect, Effect.andThen(func1), Effect.andThen(func2), ...)
 ```
 
 ## data-first
@@ -54,10 +54,10 @@ In the second overload, the `self` argument comes in the **first position**:
 <A, E, R, B>(self: Effect<A, E, R>, f: (a: A) => B): Effect<B, E, R>
 ```
 
-This variant doesn't require the `pipe` function. Instead, you can directly pass the `Effect` as the first argument to the `Effect.map` function:
+This variant doesn't require the `pipe` function. Instead, you can directly pass the `Effect` as the first argument to the `Effect.andThen` function:
 
 ```ts
-const mappedEffect = Effect.map(effect, func)
+const mappedEffect = Effect.andThen(effect, func)
 ```
 
 This variant is convenient when you only need to perform a single operation on the `Effect`.

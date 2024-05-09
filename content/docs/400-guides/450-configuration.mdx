@@ -49,7 +49,7 @@ const program = Effect.all([
   Config.string("HOST"),
   Config.number("PORT")
 ]).pipe(
-  Effect.flatMap(([host, port]) =>
+  Effect.andThen(([host, port]) =>
     Console.log(`Application started: ${host}:${port}`)
   )
 )
@@ -125,7 +125,7 @@ const program = Effect.all([
   Config.string("HOST"),
   Config.number("PORT").pipe(Config.withDefault(8080))
 ]).pipe(
-  Effect.flatMap(([host, port]) =>
+  Effect.andThen(([host, port]) =>
     Console.log(`Application started: ${host}:${port}`)
   )
 )
@@ -340,7 +340,7 @@ import { Effect, Console } from "effect"
 import * as HostPort from "./HostPort"
 
 export const program = HostPort.config.pipe(
-  Effect.flatMap((hostPort) =>
+  Effect.andThen((hostPort) =>
     Console.log(`Application started: ${hostPort.url}`)
   )
 )
@@ -491,7 +491,7 @@ import { Effect, Console } from "effect"
 import * as HostPort from "./HostPort"
 
 export const program = HostPort.config.pipe(
-  Effect.flatMap((hostPort) =>
+  Effect.andThen((hostPort) =>
     Console.log(`Application started: ${hostPort.url}`)
   )
 )

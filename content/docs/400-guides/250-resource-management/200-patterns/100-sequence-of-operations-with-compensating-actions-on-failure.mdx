@@ -109,8 +109,10 @@ const createIndex = Effect.gen(function* () {
 const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
   Effect.gen(function* () {
     const { createEntry, deleteEntry } = yield* Services.Database
-    return yield* Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
-      Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
+    return yield* Effect.acquireRelease(
+      createEntry(bucket, index),
+      (entry, exit) =>
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
     )
   })
 
@@ -137,7 +139,7 @@ import * as Services from "./Services"
 
 // Create a bucket, and define the release function that deletes the bucket if the operation fails.
 const createBucket = Services.S3.pipe(
-  Effect.flatMap(({ createBucket, deleteBucket }) =>
+  Effect.andThen(({ createBucket, deleteBucket }) =>
     Effect.acquireRelease(createBucket, (bucket, exit) =>
       // The release function for the Effect.acquireRelease operation is responsible for handling the acquired resource (bucket) after the main effect has completed.
       // It is called regardless of whether the main effect succeeded or failed.
@@ -150,7 +152,7 @@ const createBucket = Services.S3.pipe(
 
 // Create an index, and define the release function that deletes the index if the operation fails.
 const createIndex = Services.ElasticSearch.pipe(
-  Effect.flatMap(({ createIndex, deleteIndex }) =>
+  Effect.andThen(({ createIndex, deleteIndex }) =>
     Effect.acquireRelease(createIndex, (index, exit) =>
       Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
     )
@@ -160,7 +162,7 @@ const createIndex = Services.ElasticSearch.pipe(
 // Create an entry in the database, and define the release function that deletes the entry if the operation fails.
 const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
   Services.Database.pipe(
-    Effect.flatMap(({ createEntry, deleteEntry }) =>
+    Effect.andThen(({ createEntry, deleteEntry }) =>
       Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
         Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
       )
@@ -171,7 +173,7 @@ export const make = Effect.scoped(
   Effect.Do.pipe(
     Effect.bind("bucket", () => createBucket),
     Effect.bind("index", () => createIndex),
-    Effect.flatMap(({ bucket, index }) => createEntry(bucket, index))
+    Effect.andThen(({ bucket, index }) => createEntry(bucket, index))
   )
 )
 ```
@@ -195,7 +197,7 @@ import { Effect, Exit } from "effect"
 import * as Services from "./Services"
 
 const createBucket = Services.S3.pipe(
-  Effect.flatMap(({ createBucket, deleteBucket }) =>
+  Effect.andThen(({ createBucket, deleteBucket }) =>
     Effect.acquireRelease(createBucket, (bucket, exit) =>
       Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.void
     )
@@ -203,7 +205,7 @@ const createBucket = Services.S3.pipe(
 )
 
 const createIndex = Services.ElasticSearch.pipe(
-  Effect.flatMap(({ createIndex, deleteIndex }) =>
+  Effect.andThen(({ createIndex, deleteIndex }) =>
     Effect.acquireRelease(createIndex, (index, exit) =>
       Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
     )
@@ -212,7 +214,7 @@ const createIndex = Services.ElasticSearch.pipe(
 
 const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
   Services.Database.pipe(
-    Effect.flatMap(({ createEntry, deleteEntry }) =>
+    Effect.andThen(({ createEntry, deleteEntry }) =>
       Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
         Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
       )
@@ -223,7 +225,7 @@ export const make = Effect.scoped(
   Effect.Do.pipe(
     Effect.bind("bucket", () => createBucket),
     Effect.bind("index", () => createIndex),
-    Effect.flatMap(({ bucket, index }) => createEntry(bucket, index))
+    Effect.andThen(({ bucket, index }) => createEntry(bucket, index))
   )
 )
 
@@ -339,7 +341,7 @@ import { Effect, Exit } from "effect"
 import * as Services from "./Services"
 
 const createBucket = Services.S3.pipe(
-  Effect.flatMap(({ createBucket, deleteBucket }) =>
+  Effect.andThen(({ createBucket, deleteBucket }) =>
     Effect.acquireRelease(createBucket, (bucket, exit) =>
       Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.void
     )
@@ -347,7 +349,7 @@ const createBucket = Services.S3.pipe(
 )
 
 const createIndex = Services.ElasticSearch.pipe(
-  Effect.flatMap(({ createIndex, deleteIndex }) =>
+  Effect.andThen(({ createIndex, deleteIndex }) =>
     Effect.acquireRelease(createIndex, (index, exit) =>
       Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
     )
@@ -356,7 +358,7 @@ const createIndex = Services.ElasticSearch.pipe(
 
 const createEntry = (bucket: Services.Bucket, index: Services.Index) =>
   Services.Database.pipe(
-    Effect.flatMap(({ createEntry, deleteEntry }) =>
+    Effect.andThen(({ createEntry, deleteEntry }) =>
       Effect.acquireRelease(createEntry(bucket, index), (entry, exit) =>
         Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
       )
@@ -367,7 +369,7 @@ export const make = Effect.scoped(
   Effect.Do.pipe(
     Effect.bind("bucket", () => createBucket),
     Effect.bind("index", () => createIndex),
-    Effect.flatMap(({ bucket, index }) => createEntry(bucket, index))
+    Effect.andThen(({ bucket, index }) => createEntry(bucket, index))
   )
 )
 
@@ -394,9 +396,9 @@ class FailureCase extends Context.Tag("FailureCase")<
 
 const S3Test = Layer.effect(
   Services.S3,
-  Effect.map(FailureCase, (failureCase) => ({
+  Effect.andThen(FailureCase, (failureCase) => ({
     createBucket: Console.log("[S3] creating bucket").pipe(
-      Effect.flatMap(() =>
+      Effect.andThen(
         failureCase === "S3"
           ? Effect.fail(new Services.S3Error())
           : Effect.succeed({ name: "<bucket.name>" })
@@ -410,9 +412,9 @@ const S3Test = Layer.effect(
 
 const ElasticSearchTest = Layer.effect(
   Services.ElasticSearch,
-  Effect.map(FailureCase, (failureCase) => ({
+  Effect.andThen(FailureCase, (failureCase) => ({
     createIndex: Console.log("[ElasticSearch] creating index").pipe(
-      Effect.flatMap(() =>
+      Effect.andThen(
         failureCase === "ElasticSearch"
           ? Effect.fail(new Services.ElasticSearchError())
           : Effect.succeed({ id: "<index.id>" })
@@ -427,12 +429,12 @@ const ElasticSearchTest = Layer.effect(
 
 const DatabaseTest = Layer.effect(
   Services.Database,
-  Effect.map(FailureCase, (failureCase) => ({
+  Effect.andThen(FailureCase, (failureCase) => ({
     createEntry: (bucket, index) =>
       Console.log(
         `[Database] creating entry for bucket ${bucket.name} and index ${index.id}`
       ).pipe(
-        Effect.flatMap(() =>
+        Effect.andThen(
           failureCase === "Database"
             ? Effect.fail(new Services.DatabaseError())
             : Effect.succeed({ id: "<entry.id>" })

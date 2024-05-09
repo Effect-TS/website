@@ -63,7 +63,7 @@ const program = application.pipe(
   Stream.concat(
     Stream.finalizer(
       deleteDir("tmp").pipe(
-        Effect.flatMap(() => Console.log("Temporary directory was deleted."))
+        Effect.andThen(Console.log("Temporary directory was deleted."))
       )
     )
   )

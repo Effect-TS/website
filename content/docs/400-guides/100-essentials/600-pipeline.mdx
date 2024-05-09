@@ -1,6 +1,6 @@
 ---
 title: Building Pipelines
-excerpt: Explore the power of Effect pipelines for composing and sequencing operations on values. Learn about key functions like `pipe`, `map`, `flatMap`, `tap`, and `all` for building modular and concise transformations. Understand the advantages of using functions over methods in the Effect ecosystem for tree shakeability and extendibility.
+excerpt: Explore the power of Effect pipelines for composing and sequencing operations on values. Learn about key functions like `pipe`, `Effect.map`, `Effect.flatMap`, `Effect.andThen`, `Effect.tap`, and `Effect.all` for building modular and concise transformations. Understand the advantages of using functions over methods in the Effect ecosystem for tree shakeability and extendibility.
 bottomNavigation: pagination
 ---
 
@@ -90,11 +90,11 @@ It takes a function and applies it to the value contained within the `Effect`, c
 
 <Info>
   It's important to note that `Effect`s are immutable, meaning that when you
-  use `map` on an `Effect`, it doesn't modify the original data type. Instead,
-  it returns a new copy of the `Effect` with the transformed value.
+  use `Effect.map` on an `Effect`, it doesn't modify the original data type.
+  Instead, it returns a new copy of the `Effect` with the transformed value.
 </Info>
 
-The syntax for `map` is as follows:
+The syntax for `Effect.map` is as follows:
 
 ```ts
 import { pipe, Effect } from "effect"
@@ -141,7 +141,8 @@ Effect.runPromise(program).then(console.log) // Output: "new value"
 
 In the previous example, we saw how to transform an `Effect` using the `Effect.map` function when the transformation function returns a regular value. But what if we want to transform an `Effect` using a function that itself returns another `Effect`?
 
-Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap). However, `flatMap` can actually be used to describe a more generic data transformation. While this section will focus specifically on explaining how one can use `flatMap` from the `Effect` module, we provide a more detailed explanation of `flatMap` [in the FAQ](../../other/faq#a-closer-look-at-flatmap).
+Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap).
+However, `flatMap` can actually be used to describe a more generic data transformation. While this section will focus specifically on explaining how one can use `flatMap` from the `Effect` module, we provide a more detailed explanation of `flatMap` [in the FAQ](../../other/faq#a-closer-look-at-flatmap).
 
 <Info>
   If you're just looking for how to flatten a nested `Array`s within an Effect:
@@ -178,11 +179,12 @@ The `Effect.flatMap` function allows us to chain computations that produce `Effe
 
 <Info>
   It's important to note that `Effect`s are immutable, meaning that when you
-  use `flatMap` on an `Effect`, it doesn't modify the original data type.
-  Instead, it returns a new copy of the `Effect` with the transformed value.
+  use `Effect.flatMap` on an `Effect`, it doesn't modify the original data
+  type. Instead, it returns a new copy of the `Effect` with the transformed
+  value.
 </Info>
 
-The syntax for `flatMap` is as follows:
+The syntax for `Effect.flatMap` is as follows:
 
 ```ts
 import { pipe, Effect } from "effect"
@@ -221,7 +223,7 @@ In the example above:
 
 The resulting `Effect` contains the transformed value of `5`.
 
-When using `Effect.flatMap`, it is crucial to ensure that **all effects** are properly considered in the computation. If you ignore an effect returned by a computation within `flatMap`, it can result in unexpected behavior and incorrect program logic.
+When using `Effect.flatMap`, it is crucial to ensure that **all effects** are properly considered in the computation. If you ignore an effect returned by a computation within `Effect.flatMap`, it can result in unexpected behavior and incorrect program logic.
 
 Let's take a look at the following code snippet:
 
@@ -234,7 +236,7 @@ Effect.flatMap(([a, b]) => {
 
 The problem here is that the effect returned by `Effect.sync` will be ignored and not included in the resulting computation. It will not be chained or combined with the effect returned by`divide(a, b)`. As a result, you may encounter unexpected program behavior and obtain incorrect results.
 
-To ensure correct behavior, make sure that any effect you want to include in the computation is explicitly chained using `flatMap` or combined with other `Effect` values using the appropriate functions provided by the Effect library.
+To ensure correct behavior, make sure that any effect you want to include in the computation is explicitly chained using `Effect.flatMap` or combined with other `Effect` values using the appropriate functions provided by the Effect library.
 
 In the next section, we will explore how to address this problem using the `tap` API.
 
@@ -298,10 +300,10 @@ console.log(Effect.runSync(result2)) // Output: 2
 In the previous section, we discussed the problem of ignoring effects in a computation.
 To address this issue, we can use the `tap` API, which allows us to execute side effects without affecting the computation flow.
 
-The `tap` API has a similar signature to `flatMap`, but the result of the transformation function is **ignored**.
+The `Effect.tap` API has a similar signature to `Effect.flatMap`, but the result of the transformation function is **ignored**.
 This means that the value returned by the previous computation (i.e. `[a, b]`) will still be available for the next computation (i.e. `divide`).
 
-Let's take a look at an updated code snippet that incorporates the `tap` API to fix the problem:
+Let's take a look at an updated code snippet that incorporates the `Effect.tap` API to fix the problem:
 
 ```ts {3-5} twoslash
 import { pipe, Effect } from "effect"
@@ -317,7 +319,7 @@ const program = pipe(
     Effect.sync(() => console.log(`Performing division: ${a} / ${b}`))
   ),
   // [a, b] is still available!
-  Effect.flatMap(([a, b]) => divide(a, b))
+  Effect.andThen(([a, b]) => divide(a, b))
 )
 
 Effect.runPromise(program).then(console.log)
@@ -378,7 +380,7 @@ In this example, `foo` and `bar` are two separate effects. Using `Effect.all`, w
 
 ## Build your first pipeline
 
-Now, let's combine all four functions (`pipe`, `map`, `flatMap` and `all`) to build a pipeline that performs a series of transformations:
+Now, let's combine all threee functions (`pipe`, `andThen` and `all`) to build a pipeline that performs a series of transformations:
 
 ```ts twoslash
 import { pipe, Effect } from "effect"
@@ -396,9 +398,9 @@ const task2 = Effect.promise(() => Promise.resolve(2))
 
 const program = pipe(
   Effect.all([task1, task2]),
-  Effect.flatMap(([a, b]) => divide(a, b)),
-  Effect.map((n1) => increment(n1)),
-  Effect.map((n2) => `Result is: ${n2}`)
+  Effect.andThen(([a, b]) => divide(a, b)),
+  Effect.andThen((n1) => increment(n1)),
+  Effect.andThen((n2) => `Result is: ${n2}`)
 )
 
 Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
@@ -439,9 +441,9 @@ const task1 = Effect.promise(() => Promise.resolve(10))
 const task2 = Effect.promise(() => Promise.resolve(2))
 
 const program = Effect.all([task1, task2]).pipe(
-  Effect.flatMap(([a, b]) => divide(a, b)),
-  Effect.map((n1) => increment(n1)),
-  Effect.map((n2) => `Result is: ${n2}`)
+  Effect.andThen(([a, b]) => divide(a, b)),
+  Effect.andThen((n1) => increment(n1)),
+  Effect.andThen((n2) => `Result is: ${n2}`)
 )
 
 Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
@@ -455,9 +457,8 @@ Let's summarize the transformation functions we have seen so far:
 | ------------ | ----------------------------------------- | --------------------------- |
 | `map`        | `Effect<A, E, R>`, `A => B`               | `Effect<B, E, R>`           |
 | `flatMap`    | `Effect<A, E, R>`, `A => Effect<B, E, R>` | `Effect<B, E, R>`           |
+| `andThen`    | `Effect<A, E, R>`, \*                     | `Effect<B, E, R>`           |
 | `tap`        | `Effect<A, E, R>`, `A => Effect<B, E, R>` | `Effect<A, E, R>`           |
 | `all`        | `[Effect<A, E, R>, Effect<B, E, R>, ...]` | `Effect<[A, B, ...], E, R>` |
 
 These functions are powerful tools for transforming and chaining `Effect` computations. They allow you to apply functions to values inside `Effect` and build complex pipelines of computations.
-
-Remember to choose the appropriate function based on the type of transformation you want to perform. If you have a function that directly returns a value without wrapping it in an `Effect`, you can use `map`. If you have a function that returns an `Effect` itself, you can use `flatMap` to chain computations.

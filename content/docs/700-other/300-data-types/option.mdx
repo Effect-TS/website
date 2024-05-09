@@ -1,6 +1,6 @@
 ---
 title: Option
-excerpt: Master the versatile `Option` data type for handling optional values. Learn to create, model optional properties, and utilize guards. Discover powerful functions like `map`, `flatMap`, and explore seamless interop with nullable types and the Effect module. Also, delve into fallback strategies, working with nullable types, combining options, and much more.
+excerpt: Master the versatile `Option` data type for handling optional values. Learn to create, model optional properties, and utilize guards. Discover powerful functions like `Option.map`, `Option.flatMap`, and explore seamless interop with nullable types and the Effect module. Also, delve into fallback strategies, working with nullable types, combining options, and much more.
 bottomNavigation: pagination
 ---
 
@@ -138,7 +138,7 @@ const maybeIncremented = Option.map(Option.none(), (n) => n + 1) // none()
 
 Despite having `None` as the input, we can still operate on the `Option` without encountering errors. The mapping function `(n) => n + 1` is not executed when the `Option` is `None`, and the result remains `none` representing the absence of a value.
 
-The `flatMap` function works similarly to `map`, but with an additional feature. It allows us to sequence computations that depend on the absence or presence of a value in an `Option`.
+The `Option.flatMap` function works similarly to `Option.map`, but with an additional feature. It allows us to sequence computations that depend on the absence or presence of a value in an `Option`.
 
 Let's explore an example that involves a **nested** optional property. We have a `User` model with an optional `address` field of type `Option<Address>`:
 
@@ -199,7 +199,7 @@ const user: User = {
   })
 }
 
-const street = user.address.pipe(Option.flatMap((address) => address.street))
+const street = user.address.pipe(Option.andThen((address) => address.street))
 ```
 
 Here's how it works: if the `address` is `Some`, meaning it has a value, the mapping function `(addr) => addr.street` is applied to retrieve the `street` value. On the other hand, if the `address` is `None`, indicating the absence of a value, the mapping function is not executed, and the result is also `None`.
@@ -324,10 +324,10 @@ const head = <A>(as: ReadonlyArray<A>): Option.Option<A> =>
   as.length > 0 ? Option.some(as[0]) : Option.none()
 
 console.log(
-  Effect.runSync(Effect.succeed([1, 2, 3]).pipe(Effect.flatMap(head)))
+  Effect.runSync(Effect.succeed([1, 2, 3]).pipe(Effect.andThen(head)))
 ) // Output: 1
 
-Effect.runSync(Effect.succeed([]).pipe(Effect.flatMap(head))) // throws NoSuchElementException: undefined
+Effect.runSync(Effect.succeed([]).pipe(Effect.andThen(head))) // throws NoSuchElementException: undefined
 ```
 
 ## Combining Two or More Options

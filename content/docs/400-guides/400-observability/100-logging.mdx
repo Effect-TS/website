@@ -95,18 +95,18 @@ Output:
 import { Effect, Logger, LogLevel } from "effect"
 
 const task1 = Effect.sleep("2 seconds").pipe(
-  Effect.flatMap(() => Effect.logDebug("task1 done")),
+  Effect.andThen(Effect.logDebug("task1 done")),
   Logger.withMinimumLogLevel(LogLevel.Debug)
 )
 
 const task2 = Effect.sleep("1 second").pipe(
-  Effect.flatMap(() => Effect.logDebug("task2 done"))
+  Effect.andThen(Effect.logDebug("task2 done"))
 )
 
 const program = Effect.log("start").pipe(
-  Effect.flatMap(() => task1),
-  Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.log("done"))
+  Effect.andThen(task1),
+  Effect.andThen(task2),
+  Effect.andThen(Effect.log("done"))
 )
 
 Effect.runPromise(program)
@@ -157,9 +157,9 @@ Output:
 import { Effect } from "effect"
 
 const program = Effect.logInfo("start").pipe(
-  Effect.flatMap(() => Effect.sleep("2 seconds")),
-  Effect.flatMap(() => Effect.sleep("1 second")),
-  Effect.flatMap(() => Effect.logInfo("done"))
+  Effect.andThen(Effect.sleep("2 seconds")),
+  Effect.andThen(Effect.sleep("1 second")),
+  Effect.andThen(Effect.logInfo("done"))
 )
 
 Effect.runPromise(program)
@@ -357,7 +357,7 @@ Output:
 import { Effect } from "effect"
 
 const program = Effect.sleep("1 second").pipe(
-  Effect.flatMap(() => Effect.log("The job is finished!")),
+  Effect.andThen(Effect.log("The job is finished!")),
   Effect.withLogSpan("myspan")
 )
 
@@ -484,7 +484,7 @@ const program = Effect.gen(function* () {
 
 // Load the log level from the configuration as a layer
 const LogLevelLive = Config.logLevel("LOG_LEVEL").pipe(
-  Effect.map((level) => Logger.minimumLogLevel(level)),
+  Effect.andThen((level) => Logger.minimumLogLevel(level)),
   Layer.unwrapEffect
 )
 
@@ -564,17 +564,17 @@ export const program = Effect.gen(function* () {
 import { Effect } from "effect"
 
 const task1 = Effect.sleep("2 seconds").pipe(
-  Effect.flatMap(() => Effect.logDebug("task1 done"))
+  Effect.andThen(Effect.logDebug("task1 done"))
 )
 
 const task2 = Effect.sleep("1 second").pipe(
-  Effect.flatMap(() => Effect.logDebug("task2 done"))
+  Effect.andThen(Effect.logDebug("task2 done"))
 )
 
 export const program = Effect.log("start").pipe(
-  Effect.flatMap(() => task1),
-  Effect.flatMap(() => task2),
-  Effect.flatMap(() => Effect.log("done"))
+  Effect.andThen(task1),
+  Effect.andThen(task2),
+  Effect.andThen(Effect.log("done"))
 )
 ```
 
