@@ -426,7 +426,7 @@ const firstAttempt: Stream.Stream<RawData, Error> = Stream.unfoldChunkEffect(
   0,
   (pageNumber) =>
     listPaginated(pageNumber).pipe(
-      Effect.andThen((page) => {
+      Effect.map((page) => {
         if (page.isLast) {
           return Option.none()
         }
@@ -464,7 +464,7 @@ const secondAttempt: Stream.Stream<RawData, Error> = Stream.unfoldChunkEffect(
       // We did not hit the last page yet
       onSome: (pageNumber) =>
         listPaginated(pageNumber).pipe(
-          Effect.andThen((page) =>
+          Effect.map((page) =>
             Option.some([
               page.results,
               page.isLast ? Option.none() : Option.some(pageNumber + 1)
