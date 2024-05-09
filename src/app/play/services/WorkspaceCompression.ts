@@ -1,12 +1,13 @@
 import { File, Workspace } from "@/domain/Workspace"
 import { Effect, Layer } from "effect"
-import { Compression } from "../Compression"
+import { Compression } from "./Compression"
 
 const make = Effect.gen(function* () {
   const compression = yield* Compression
 
   const compress = <E, R>(
     workspace: Workspace,
+    name: string,
     read: (file: string) => Effect.Effect<string, E, R>
   ) =>
     Effect.forEach(workspace.filePaths, ([file, path]) =>
@@ -18,12 +19,16 @@ const make = Effect.gen(function* () {
         }))
       )
     ).pipe(
-      Effect.map(JSON.stringify),
+      Effect.map((files) =>
+        JSON.stringify({
+          name,
+          files
+        })
+      ),
       Effect.andThen(compression.compressBase64)
     )
 
   const decompress = <E, R>(options: {
-    name: string
     command?: string | undefined
     initialFilePath?: string | undefined
     compressed: string
@@ -31,19 +36,33 @@ const make = Effect.gen(function* () {
   }) =>
     compression.decompressBase64(options.compressed).pipe(
       Effect.map(JSON.parse),
-      Effect.map((files: Array<any>) =>
-        files
-          .map(
-            (file) =>
-              new File({
-                name: file.name,
-                initialContent: file.content,
-                language: file.language
-              })
-          )
-          .filter((file) => options.whitelist.includes(file.name))
-      ),
-      Effect.map((files) => new Workspace({ ...options, tree: files }))
+      Effect.map(
+        ({
+          name,
+          files
+        }: {
+          readonly name: string
+          readonly files: ReadonlyArray<{
+            readonly name: string
+            readonly content: string
+            readonly language: string
+          }>
+        }) =>
+          new Workspace({
+            ...options,
+            name,
+            tree: files
+              .map(
+                (file) =>
+                  new File({
+                    name: file.name,
+                    initialContent: file.content,
+                    language: file.language
+                  })
+              )
+              .filter((file) => options.whitelist.includes(file.name))
+          })
+      )
     )
 
   return { compress, decompress } as const

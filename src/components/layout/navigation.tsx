@@ -14,7 +14,7 @@ const menu = [
   { name: "Docs", href: "/docs" },
   { name: "Blog", href: "/blog" },
   { name: "Tutorials", href: "/tutorials/basics" },
-  { name: "Play", href: "/play" }
+  { name: "Play", href: "/play", reload: true }
 ]
 
 const socials = [
@@ -52,10 +52,19 @@ export const Navigation: FC<{
           </Link>
           <MobileMenu menu={menu} socials={socials} />
           <div className="hidden md:flex items-center gap-8">
-            {menu.map(({ name, href }, index) => (
+            {menu.map(({ name, href, reload }, index) => (
               <Link
                 key={index}
                 href={href}
+                onClick={
+                  reload === true
+                    ? function () {
+                        if (location.pathname === href) {
+                          location.href = href
+                        }
+                      }
+                    : undefined
+                }
                 className={`flex items-start ${
                   pathname.startsWith(href)
                     ? "text-black font-normal dark:text-white dark:font-light"

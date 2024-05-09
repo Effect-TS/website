@@ -1,11 +1,12 @@
 import { workspaceHandleRx } from "@/CodeEditor/rx/workspace"
 import { File, Workspace } from "@/domain/Workspace"
 import { emptyPackageJson } from "@/tutorials/common"
-import { Rx } from "@effect-rx/rx-react"
+import { Result, Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
 import { Effect, Layer } from "effect"
-import { WorkspaceCompression } from "../services/Compression/Workspace"
+import { WorkspaceCompression } from "../services/WorkspaceCompression"
 import { editorRx } from "@/CodeEditor/rx/editor"
+import { hashRx } from "@/rx/location"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
@@ -19,13 +20,14 @@ export const shareRx = runtime.fn((_: void, get) =>
 
     const compression = yield* WorkspaceCompression
     const clipboard = yield* Clipboard.Clipboard
-    const handle = yield* get.result(workspaceHandleRx)
-    const editor = yield* get.result(editorRx)
+    const handle = yield* Result.toExit(get.once(workspaceHandleRx))
+    const editor = yield* Result.toExit(get.once(editorRx))
 
     yield* editor.save
 
     const hash = yield* compression.compress(
       handle.workspace,
+      `playground-${Date.now()}`,
       handle.handle.read
     )
     const url = new URL(location.href)
@@ -33,7 +35,6 @@ export const shareRx = runtime.fn((_: void, get) =>
     const urlString = url.toString()
 
     yield* clipboard.writeString(urlString)
-    location.hash = hash
 
     get.setSync(shareStateRx, "success")
     yield* Effect.sleep(2000)
@@ -68,18 +69,17 @@ Effect.gen(function* () {
   ]
 })
 
-export const importRx = runtime.rx(
+export const importRx = runtime.rx((get) =>
   Effect.gen(function* () {
-    const hash = location.hash.slice(1)
-    if (!hash) return defaultWorkspace
+    const hash = get(hashRx)
+    if (hash._tag === "None") return defaultWorkspace
     const compression = yield* WorkspaceCompression
     return yield* compression
       .decompress({
-        name: "playground",
-        command: "clear && tsx --watch main.ts",
+        command: "tsx --watch main.ts",
         initialFilePath: "main.ts",
         whitelist: ["package.json", "main.ts"],
-        compressed: hash
+        compressed: hash.value
       })
       .pipe(Effect.orElseSucceed(() => defaultWorkspace))
   })

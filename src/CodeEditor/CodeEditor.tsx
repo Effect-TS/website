@@ -12,7 +12,6 @@ import {
 import { FileEditor } from "./components/FileEditor"
 import { Terminal } from "./components/Terminal"
 import { FileExplorer } from "./components/FileExplorer"
-import { SolveButton } from "../app/tutorials/[...slug]/components/SolveButton"
 import { LoadingSpinner } from "../components/LoadingSpinner"
 
 export function CodeEditor({
