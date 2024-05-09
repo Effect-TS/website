@@ -1,10 +1,11 @@
 "use client"
 
 import { Icon } from "@/components/icons"
+import { useClickOutside } from "@/hooks/useClickOutside"
 import { Tutorial } from "contentlayer/generated"
 import { NonEmptyArray } from "effect/Array"
 import Link from "next/link"
-import { useState } from "react"
+import { useCallback, useRef, useState } from "react"
 
 export function MenuButton({
   tutorial,
@@ -15,10 +16,23 @@ export function MenuButton({
 }) {
   const [visible, setVisible] = useState(false)
 
+  const onClick = useCallback(
+    function () {
+      setVisible((_) => !_)
+    },
+    [setVisible]
+  )
+
+  const ref = useRef<HTMLElement>(null)
+  useClickOutside(ref, function () {
+    setVisible(false)
+  })
+
   return (
     <nav
+      ref={ref}
       className="bg-gray-100 dark:bg-neutral-900 dark:border-neutral-600 p-2 rounded border flex-1 mx-2 flex items-center cursor-pointer relative"
-      onClick={() => setVisible((_) => !_)}
+      onClick={onClick}
     >
       <strong className="font-medium">{tutorial.section}</strong>
       <Separator />
