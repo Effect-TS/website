@@ -14,7 +14,6 @@ const make = Effect.gen(function* () {
         Effect.map((content) => ({
           name: file.name,
           language: file.language,
-          interesting: file.interesting,
           content
         }))
       )
@@ -26,6 +25,7 @@ const make = Effect.gen(function* () {
   const decompress = <E, R>(options: {
     name: string
     command?: string | undefined
+    initialFilePath?: string | undefined
     compressed: string
     whitelist: ReadonlyArray<string>
   }) =>
@@ -38,7 +38,6 @@ const make = Effect.gen(function* () {
               new File({
                 name: file.name,
                 initialContent: file.content,
-                interesting: file.interesting,
                 language: file.language
               })
           )

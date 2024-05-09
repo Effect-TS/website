@@ -52,6 +52,7 @@ const defaultWorkspace = new Workspace({
   command: `pnpm add ${defaultPackages.join(
     " "
   )} && clear && tsx --watch main.ts`,
+  initialFilePath: "main.ts",
   tree: [
     emptyPackageJson,
     new File({
@@ -77,6 +78,7 @@ export const importRx = runtime.rx(
       .decompress({
         name: "playground",
         command: "clear && tsx --watch main.ts",
+        initialFilePath: "main.ts",
         whitelist: ["package.json", "main.ts"],
         compressed: hash
       })
