@@ -337,7 +337,7 @@ import { Stream, Random, Effect, Option } from "effect"
 
 const ints = Stream.unfoldEffect(1, (n) =>
   Random.nextBoolean.pipe(
-    Effect.andThen((b) => (b ? Option.some([n, -n]) : Option.some([n, n])))
+    Effect.map((b) => (b ? Option.some([n, -n]) : Option.some([n, n])))
   )
 )
 ```
