@@ -37,24 +37,30 @@ export const workspaceHandleRx = runtime.rx((get) =>
         const { terminal, resize } = yield* spawn({
           theme: get.once(terminalTheme)
         })
-        shell.output.pipeTo(
-          new WritableStream({
-            write(data) {
-              terminal.write(data)
-            }
-          })
-        )
         const input = shell.input.getWriter()
-        terminal.onData((data) => {
-          input.write(data)
+
+        const mount = Effect.sync(() => {
+          shell.output.pipeTo(
+            new WritableStream({
+              write(data) {
+                terminal.write(data)
+              }
+            })
+          )
+          terminal.onData((data) => {
+            input.write(data)
+          })
         })
 
         yield* Effect.gen(function* () {
           input.write(`cd "${workspace.name}" && clear\n`)
+          yield* prepare.await
           if (workspace.command) {
-            yield* prepare.await
-            yield* Effect.sleep(1000)
+            yield* Effect.sleep(3000)
+            yield* mount
             input.write(`${workspace.command}\n`)
+          } else {
+            yield* mount
           }
         }).pipe(Effect.forkScoped)
 
