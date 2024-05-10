@@ -44,10 +44,7 @@ export const editorRx = Rx.family((workspace: Workspace) => {
             switch: true
           }),
           Stream.debounce("3 second"),
-          Stream.tap((content) => {
-            console.log("write", path, content)
-            return handle.write(path, content)
-          }),
+          Stream.tap((content) => handle.write(path, content)),
           Stream.ensuring(
             Effect.suspend(() => {
               const content = editor.editor.getValue()
