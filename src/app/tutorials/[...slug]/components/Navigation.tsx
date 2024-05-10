@@ -24,7 +24,7 @@ export async function Navigation({
       <div className="px-4 flex items-center">
         <Link
           href={previous?.urlPath ?? "#"}
-          className={`h-4 ${
+          className={`h-4 pr-3 ${
             previous ? "" : "text-gray-400 dark:text-gray-500"
           }`}
         >
@@ -35,7 +35,9 @@ export async function Navigation({
         </MenuButton>
         <Link
           href={next?.urlPath ?? "#"}
-          className={`h-4 ${next ? "" : "text-gray-400 dark:text-gray-500"}`}
+          className={`h-4 pl-3 ${
+            next ? "" : "text-gray-400 dark:text-gray-500"
+          }`}
         >
           <Icon name="arrow-right" className="h-full" />
         </Link>

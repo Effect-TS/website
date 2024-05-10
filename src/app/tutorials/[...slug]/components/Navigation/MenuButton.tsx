@@ -30,7 +30,7 @@ export function MenuButton({
   return (
     <nav
       ref={ref}
-      className="bg-gray-100 dark:bg-neutral-900 dark:border-neutral-600 p-2 rounded border flex-1 mx-2 flex items-center cursor-pointer relative"
+      className="bg-gray-100 dark:bg-neutral-900 dark:border-neutral-600 p-2 rounded border flex-1 flex items-center cursor-pointer relative"
       onClick={onClick}
     >
       <strong className="font-medium">{section}</strong>
