@@ -2,17 +2,15 @@ import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 import clsx from "clsx"
 import { Option } from "effect"
 import { useEffect, useRef } from "react"
-import { editorElementRx, editorRx } from "../rx/editor"
 import { LoadingSpinner } from "../../components/LoadingSpinner"
+import { useWorkspace } from "../context/WorkspaceContext"
+import { editorRx } from "../rx/editor"
 
-export declare namespace FileEditor {
-  export interface Props {}
-}
-
-export const FileEditor: React.FC<FileEditor.Props> = () => {
+export function FileEditor() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const setElement = useRxSet(editorElementRx)
-  const editor = useRxValue(editorRx)
+  const rx = editorRx(useWorkspace())
+  const setElement = useRxSet(rx.element)
+  const editor = useRxValue(rx.editor)
 
   useEffect(() => {
     if (containerRef.current) {

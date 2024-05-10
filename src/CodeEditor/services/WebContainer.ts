@@ -32,7 +32,13 @@ const make = Effect.gen(function* () {
       const path = (_: string) => `${workspace.name}/${_}`
 
       yield* Effect.acquireRelease(
-        Effect.promise(() => container.fs.mkdir(workspace.name)),
+        Effect.promise(async () => {
+          await container.fs.rm(workspace.name, {
+            recursive: true,
+            force: true
+          })
+          return container.fs.mkdir(workspace.name)
+        }),
         () =>
           Effect.promise(() => {
             console.log("removing workspace", workspace.name)
@@ -93,13 +99,7 @@ const make = Effect.gen(function* () {
       })
     })
 
-  const cache = yield* ScopedCache.make({
-    lookup: workspace,
-    capacity: 2,
-    timeToLive: "30 seconds"
-  })
-
-  return { workspace: (_: Workspace) => cache.get(_) } as const
+  return { workspace } as const
 })
 
 export class WebContainer extends Effect.Tag("WebContainer")<
