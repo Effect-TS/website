@@ -19,7 +19,7 @@ export async function Navigation({
 
   return (
     <>
-      <div className="px-4 flex items-center">
+      <div className="px-4 pb-4 flex items-center">
         <Link
           href={previous?.urlPath ?? "#"}
           className={`h-4 pr-3 ${

@@ -1,7 +1,7 @@
+import { useWorkspaceHandle } from "@/CodeEditor/context/WorkspaceContext"
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 import { useCallback, useMemo } from "react"
 import { shareRx } from "../rx/share"
-import { useWorkspaceHandle } from "@/CodeEditor/context/WorkspaceContext"
 
 export function ShareButton() {
   const handle = useWorkspaceHandle()

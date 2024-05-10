@@ -3,7 +3,7 @@
 import { Directory, File, Workspace } from "@/domain/Workspace"
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import React from "react"
+import React, { useMemo } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 
 export function Tutorial({
@@ -30,30 +30,33 @@ export function Tutorial({
       }
     | undefined
 }) {
-  const workspace = new Workspace({
-    name,
-    command: "tsx --watch src/main.ts",
-    initialFilePath: "src/main.ts",
-    tree: [
-      new File({
-        name: "package.json",
-        language: "json",
-        initialContent: packageJson
-      }),
-      new Directory(
-        "src",
-        files.map(
-          (file) =>
-            new File({
-              name: file.name,
-              initialContent: file.initial,
-              solution: file.solution
-            })
+  const Editor = useMemo(() => {
+    const workspace = new Workspace({
+      name,
+      command: "tsx --watch src/main.ts",
+      initialFilePath: "src/main.ts",
+      tree: [
+        new File({
+          name: "package.json",
+          language: "json",
+          initialContent: packageJson
+        }),
+        new Directory(
+          "src",
+          files.map(
+            (file) =>
+              new File({
+                name: file.name,
+                initialContent: file.initial,
+                solution: file.solution
+              })
+          )
         )
-      )
-    ]
-  })
-  const Editor = editor(workspace)
+      ]
+    })
+    return editor(workspace)
+  }, [packageJson, files, name])
+
   return (
     <PanelGroup
       autoSaveId="tutorial"

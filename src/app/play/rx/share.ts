@@ -20,7 +20,9 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
 
       const compression = yield* WorkspaceCompression
       const clipboard = yield* Clipboard.Clipboard
-      const editor = yield* Result.toExit(get.once(editorRx(workspace).editor))
+      const editor = yield* Result.toExit(
+        get.once(editorRx(workspace).editor)
+      )
 
       yield* editor.save
 
@@ -37,7 +39,7 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
 
       get.setSync(state, "success")
       yield* Effect.sleep(2000)
-    }).pipe(Effect.ensuring(get.set(state, "idle")), Effect.onExit(Effect.log))
+    }).pipe(Effect.ensuring(get.set(state, "idle")))
   )
   return { state, share } as const
 })

@@ -28,24 +28,26 @@ export function MenuButton({
   })
 
   return (
-    <nav
-      ref={ref}
-      className="bg-gray-100 dark:bg-neutral-900 dark:border-neutral-600 p-2 rounded border flex-1 flex items-center cursor-pointer relative"
-      onClick={onClick}
-    >
-      <strong className="font-medium">{section}</strong>
-      <Separator />
-      <span>{title}</span>
-      <div className="flex-1" aria-hidden />
-      <Icon name="chevron-right" className="h-4 rotate-90" />
-      <div
-        className={`absolute transition-all z-10 top-0 left-0 w-full mt-12 ${
-          visible ? "visible opacity-100" : "invisible opacity-0"
-        } max-h-96 overflow-y-auto`}
+    <div className="flex-1 bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-600 dark:to-zinc-900 rounded-lg p-px cursor-pointer">
+      <nav
+        ref={ref}
+        className="bg-gray-100 dark:bg-neutral-900 p-2 rounded-lg flex items-center relative"
+        onClick={onClick}
       >
-        {children}
-      </div>
-    </nav>
+        <strong className="font-medium">{section}</strong>
+        <Separator />
+        <span>{title}</span>
+        <div className="flex-1" aria-hidden />
+        <Icon name="chevron-right" className="h-4 rotate-90" />
+        <div
+          className={`absolute transition-all z-10 top-0 left-0 w-full mt-12 ${
+            visible ? "visible opacity-100" : "invisible opacity-0"
+          } max-h-96 overflow-y-auto`}
+        >
+          {children}
+        </div>
+      </nav>
+    </div>
   )
 }
 
