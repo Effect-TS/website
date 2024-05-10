@@ -84,8 +84,9 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
           })
         )
 
-        yield* get.stream(solved).pipe(
-          Stream.drop(1),
+        yield* get.stream(solved, {
+          withoutInitialValue: true
+        }).pipe(
           Stream.runForEach((solve) =>
             Effect.forEach(workspace.filePaths, ([file, path]) =>
               handle.write(
