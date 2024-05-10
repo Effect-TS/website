@@ -1,4 +1,4 @@
-import { workspaceHandleRx } from "@/CodeEditor/rx/workspace"
+import { WorkspaceHandle, workspaceHandleRx } from "@/CodeEditor/rx/workspace"
 import { File, Workspace } from "@/domain/Workspace"
 import { emptyPackageJson } from "@/tutorials/common"
 import { Result, Rx } from "@effect-rx/rx-react"
@@ -14,14 +14,13 @@ const runtime = Rx.runtime(
 
 export const shareStateRx = Rx.make<"idle" | "loading" | "success">("idle")
 
-export const shareRx = runtime.fn((_: void, get) =>
+export const shareRx = runtime.fn((handle: WorkspaceHandle, get) =>
   Effect.gen(function* () {
     get.setSync(shareStateRx, "loading")
 
     const compression = yield* WorkspaceCompression
     const clipboard = yield* Clipboard.Clipboard
-    const handle = yield* Result.toExit(get.once(workspaceHandleRx))
-    const editor = yield* Result.toExit(get.once(editorRx))
+    const editor = yield* Result.toExit(get.once(editorRx(handle).editor))
 
     yield* editor.save
 
