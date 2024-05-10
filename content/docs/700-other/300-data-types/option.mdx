@@ -120,6 +120,8 @@ console.log(result) // Output: "Option has a value: 1"
 
 ## Working with Option
 
+### map
+
 The `Option.map` function allows you to transform the value inside an `Option` without having to unwrap and wrap the underlying value. Let's see an example:
 
 ```ts twoslash
@@ -137,6 +139,8 @@ const maybeIncremented = Option.map(Option.none(), (n) => n + 1) // none()
 ```
 
 Despite having `None` as the input, we can still operate on the `Option` without encountering errors. The mapping function `(n) => n + 1` is not executed when the `Option` is `None`, and the result remains `none` representing the absence of a value.
+
+### flatMap
 
 The `Option.flatMap` function works similarly to `Option.map`, but with an additional feature. It allows us to sequence computations that depend on the absence or presence of a value in an `Option`.
 
@@ -199,12 +203,42 @@ const user: User = {
   })
 }
 
-const street = user.address.pipe(Option.andThen((address) => address.street))
+const street = user.address.pipe(Option.flatMap((address) => address.street))
 ```
 
 Here's how it works: if the `address` is `Some`, meaning it has a value, the mapping function `(addr) => addr.street` is applied to retrieve the `street` value. On the other hand, if the `address` is `None`, indicating the absence of a value, the mapping function is not executed, and the result is also `None`.
 
-Here's a summary of the two functions:
+### filter
+
+The `Option.filter` function is used to filter an `Option` using a predicate. If the predicate is not satisfied or the `Option` is `None`, it returns `None`.
+
+Let's see an example where we refactor some code to a more idiomatic version:
+
+Original Code
+
+```ts twoslash
+import { Option } from "effect"
+
+const removeEmptyString = (input: Option.Option<string>) => {
+  if (Option.isSome(input) && input.value === "") {
+    return Option.none()
+  }
+  return input
+}
+
+console.log(removeEmptyString(Option.none())) // { _id: 'Option', _tag: 'None' }
+console.log(removeEmptyString(Option.some(""))) // { _id: 'Option', _tag: 'None' }
+console.log(removeEmptyString(Option.some("a"))) // { _id: 'Option', _tag: 'Some', value: 'a' }
+```
+
+Idiomatic Code
+
+```ts twoslash
+import { Option } from "effect"
+
+const removeEmptyString = (input: Option.Option<string>) =>
+  Option.filter(input, (value) => value !== "")
+```
 
 ## Getting the Value from an Option
 
