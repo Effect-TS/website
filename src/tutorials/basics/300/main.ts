@@ -1,3 +1,6 @@
 import { Effect } from "effect"
 
-Effect.runFork(Effect.log("Welcome to Effect!"))
+Effect.succeed(42).pipe(
+  Effect.andThen((value) => Effect.log(value)),
+  Effect.runPromise
+)
