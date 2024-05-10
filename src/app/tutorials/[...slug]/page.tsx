@@ -3,10 +3,10 @@ import { allTutorials } from "contentlayer/generated"
 import * as FS from "fs/promises"
 import { notFound } from "next/navigation"
 import * as Path from "path"
+import Package from "../../../../package.json"
+import { groupedTutorials, tutorialSection } from "../grouped"
 import { Navigation } from "./components/Navigation"
 import { Tutorial } from "./components/Tutorial"
-import { groupedTutorials, tutorialSection } from "../grouped"
-import Package from "../../../../package.json"
 
 export const generateStaticParams = () =>
   allTutorials.map((page) => ({
