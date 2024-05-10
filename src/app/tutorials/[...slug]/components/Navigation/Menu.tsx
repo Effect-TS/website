@@ -7,7 +7,7 @@ import Link from "next/link"
 export async function Menu({ selected }: { readonly selected: Tutorial }) {
   return (
     <div
-      className={`bg-white dark:bg-neutral-800 p-4 rounded-xl shadow-2xl border dark:border-neutral-700 leading-loose w-full`}
+      className={`bg-white dark:bg-neutral-800 p-4 rounded-xl shadow-2xl border dark:border-neutral-700 leading-loose w-full max-h-96 overflow-y-auto`}
     >
       {Object.entries(groupedTutorials).map(([slug, tutorials]) => (
         <div key={slug}>

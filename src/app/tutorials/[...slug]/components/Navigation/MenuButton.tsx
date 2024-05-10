@@ -42,7 +42,7 @@ export function MenuButton({
         <div
           className={`absolute transition-all z-10 top-0 left-0 w-full mt-12 ${
             visible ? "visible opacity-100" : "invisible opacity-0"
-          } max-h-96 overflow-y-auto`}
+          }`}
         >
           {children}
         </div>
