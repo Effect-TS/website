@@ -1,7 +1,7 @@
 import { Workspace } from "@/domain/Workspace"
 import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
-import { Effect, Layer, Option, Stream } from "effect"
+import { Effect, Layer, Stream } from "effect"
 import {
   MonokaiSodaTheme,
   NightOwlishLightTheme,

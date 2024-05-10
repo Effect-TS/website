@@ -31,9 +31,9 @@ function CodeEditorSuspended({
   readonly aboveExplorer?: ReactNode
 }) {
   const setSize = useRxSet(terminalSizeRx)
-  const handle = useRxSuspenseSuccess(workspaceHandleRx(workspace))
+  const handle = useRxSuspenseSuccess(workspaceHandleRx(workspace)).value
   return (
-    <WorkspaceContext.Provider value={handle.value}>
+    <WorkspaceContext.Provider value={handle}>
       <PanelGroup autoSaveId="editor" direction="vertical">
         <Panel>
           {disableExplorer === true ? (

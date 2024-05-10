@@ -1,8 +1,8 @@
 import { useRx } from "@effect-rx/rx-react"
-import { useWorkspace } from "@/CodeEditor/context/WorkspaceContext"
+import { useWorkspaceHandle } from "@/CodeEditor/context/WorkspaceContext"
 
 export function SolveButton() {
-  const [solved, setSolved] = useRx(useWorkspace().solved)
+  const [solved, setSolved] = useRx(useWorkspaceHandle().solved)
   return (
     <button
       type="button"

@@ -5,6 +5,8 @@ export const WorkspaceContext = React.createContext<WorkspaceHandle>(
   null as any
 )
 
-export const useWorkspace = () => {
+export const useWorkspaceHandle = () => {
   return React.useContext(WorkspaceContext)
 }
+
+export const useWorkspace = () => useWorkspaceHandle().workspace

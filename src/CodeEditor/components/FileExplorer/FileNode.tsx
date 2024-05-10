@@ -3,7 +3,7 @@ import { useRxValue } from "@effect-rx/rx-react"
 import clsx from "clsx"
 import * as Equal from "effect/Equal"
 import React from "react"
-import { useWorkspace } from "../../context/WorkspaceContext"
+import { useWorkspaceHandle } from "../../context/WorkspaceContext"
 import { DirectoryIconClosed, DirectoryIconOpen, FileIcon } from "./Icons"
 
 export declare namespace FileNode {
@@ -31,7 +31,7 @@ export declare namespace FileNode {
 }
 
 export function FileNode({ depth, node, onClick, ...props }: FileNode.Props) {
-  const { selectedFile } = useWorkspace()
+  const { selectedFile } = useWorkspaceHandle()
   const selected = useRxValue(selectedFile)
   const fileName = node.name.split("/").filter(Boolean).pop()
   // Tailwind cannot dynamically generate styles, so we resort to the `style` prop here

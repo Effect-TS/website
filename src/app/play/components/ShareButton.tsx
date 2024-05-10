@@ -1,18 +1,16 @@
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
-import { useCallback } from "react"
-import { shareRx, shareStateRx } from "../rx/share"
-import { useWorkspace } from "@/CodeEditor/context/WorkspaceContext"
+import { useCallback, useMemo } from "react"
+import { shareRx } from "../rx/share"
+import { useWorkspaceHandle } from "@/CodeEditor/context/WorkspaceContext"
 
 export function ShareButton() {
-  const workspace = useWorkspace()
-  const state = useRxValue(shareStateRx)
-  const share = useRxSet(shareRx)
-  const onClick = useCallback(
-    function () {
-      share(workspace)
-    },
-    [share, workspace]
-  )
+  const handle = useWorkspaceHandle()
+  const rx = useMemo(() => shareRx(handle), [handle])
+  const state = useRxValue(rx.state)
+  const share = useRxSet(rx.share)
+  const onClick = useCallback(() => {
+    share()
+  }, [share])
   return (
     <button
       type="button"

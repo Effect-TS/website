@@ -1,14 +1,15 @@
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 import clsx from "clsx"
 import { Option } from "effect"
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { LoadingSpinner } from "../../components/LoadingSpinner"
 import { useWorkspace } from "../context/WorkspaceContext"
 import { editorRx } from "../rx/editor"
 
 export function FileEditor() {
+  const workspace = useWorkspace()
   const containerRef = useRef<HTMLDivElement>(null)
-  const rx = editorRx(useWorkspace())
+  const rx = useMemo(() => editorRx(workspace), [workspace])
   const setElement = useRxSet(rx.element)
   const editor = useRxValue(rx.editor)
 

@@ -1,4 +1,4 @@
-import { WorkspaceHandle, workspaceHandleRx } from "@/CodeEditor/rx/workspace"
+import { WorkspaceHandle } from "@/CodeEditor/rx/workspace"
 import { File, Workspace } from "@/domain/Workspace"
 import { emptyPackageJson } from "@/tutorials/common"
 import { Result, Rx } from "@effect-rx/rx-react"
@@ -12,33 +12,35 @@ const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
 )
 
-export const shareStateRx = Rx.make<"idle" | "loading" | "success">("idle")
+export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
+  const state = Rx.make<"idle" | "loading" | "success">("idle")
+  const share = runtime.fn((_: void, get) =>
+    Effect.gen(function* () {
+      get.setSync(state, "loading")
 
-export const shareRx = runtime.fn((handle: WorkspaceHandle, get) =>
-  Effect.gen(function* () {
-    get.setSync(shareStateRx, "loading")
+      const compression = yield* WorkspaceCompression
+      const clipboard = yield* Clipboard.Clipboard
+      const editor = yield* Result.toExit(get.once(editorRx(workspace).editor))
 
-    const compression = yield* WorkspaceCompression
-    const clipboard = yield* Clipboard.Clipboard
-    const editor = yield* Result.toExit(get.once(editorRx(handle).editor))
+      yield* editor.save
 
-    yield* editor.save
+      const hash = yield* compression.compress(
+        workspace,
+        `playground-${Date.now()}`,
+        handle.read
+      )
+      const url = new URL(location.href)
+      url.hash = hash
+      const urlString = url.toString()
 
-    const hash = yield* compression.compress(
-      handle.workspace,
-      `playground-${Date.now()}`,
-      handle.handle.read
-    )
-    const url = new URL(location.href)
-    url.hash = hash
-    const urlString = url.toString()
+      yield* clipboard.writeString(urlString)
 
-    yield* clipboard.writeString(urlString)
-
-    get.setSync(shareStateRx, "success")
-    yield* Effect.sleep(2000)
-  }).pipe(Effect.ensuring(get.set(shareStateRx, "idle")))
-)
+      get.setSync(state, "success")
+      yield* Effect.sleep(2000)
+    }).pipe(Effect.ensuring(get.set(state, "idle")), Effect.onExit(Effect.log))
+  )
+  return { state, share } as const
+})
 
 const defaultPackages = [
   "effect",

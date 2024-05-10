@@ -1,9 +1,9 @@
 import { MonacoATA } from "@/CodeEditor/services/Monaco/ATA"
-import { File } from "@/domain/Workspace"
+import { File, Workspace } from "@/domain/Workspace"
 import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
 import { Effect, Option, Stream } from "effect"
-import { WorkspaceHandle } from "./workspace"
+import { workspaceHandleRx } from "./workspace"
 
 const runtime = Rx.runtime(MonacoATA.Live).pipe(Rx.setIdleTTL("30 seconds"))
 
@@ -12,12 +12,13 @@ export const editorThemeRx = Rx.map(themeRx, (theme) =>
 )
 
 export const editorRx = Rx.family(
-  ({ workspace, handle, selectedFile, solved }: WorkspaceHandle) => {
+  (workspace: Workspace) => {
     const element = Rx.make(Option.none<HTMLElement>()).pipe(
-      Rx.debounce("100 millis")
+      Rx.debounce("500 millis")
     )
     const editor = runtime.rx((get) =>
       Effect.gen(function* (_) {
+        const {handle, solved, selectedFile} = yield* get.result(workspaceHandleRx(workspace))
         const el = yield* get.some(element)
         const monaco = yield* MonacoATA
         const editor = yield* monaco.makeEditorWithATA(el)
