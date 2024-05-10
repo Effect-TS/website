@@ -18,37 +18,35 @@ const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
 )
 
-const make = Effect.gen(function* (_) {
+const make = Effect.gen(function* () {
   // you can only have one container running at a time
   yield* Effect.acquireRelease(semaphore.take(1), () => semaphore.release(1))
 
-  const container = yield* _(
-    Effect.acquireRelease(
-      Effect.promise(() => WC.boot()),
-      (_) => Effect.sync(() => _.teardown())
-    )
+  const container = yield* Effect.acquireRelease(
+    Effect.promise(() => WC.boot()),
+    (_) => Effect.sync(() => _.teardown())
   )
-  const makeWorkspace = (workspace: Workspace) =>
-    Effect.gen(function* (_) {
+
+  const workspace = (workspace: Workspace) =>
+    Effect.gen(function* () {
       const path = (_: string) => `${workspace.name}/${_}`
 
-      yield* _(
-        Effect.tryPromise(() => container.fs.mkdir(workspace.name)),
-        Effect.ignore
+      yield* Effect.acquireRelease(
+        Effect.promise(() => container.fs.mkdir(workspace.name)),
+        () =>
+          Effect.promise(() => {
+            console.log("removing workspace", workspace.name)
+            return container.fs.rm(workspace.name, {
+              recursive: true,
+              force: true
+            })
+          })
       )
 
-      yield* _(
-        Effect.acquireRelease(
-          Effect.promise(() =>
-            container.mount(treeFromWorkspace(workspace), {
-              mountPoint: workspace.name
-            })
-          ),
-          () =>
-            Effect.promise(() =>
-              container.fs.rm(workspace.name, { recursive: true })
-            )
-        )
+      yield* Effect.promise(() =>
+        container.mount(treeFromWorkspace(workspace), {
+          mountPoint: workspace.name
+        })
       )
 
       const shell = Effect.acquireRelease(
@@ -95,13 +93,11 @@ const make = Effect.gen(function* (_) {
       })
     })
 
-  const cache = yield* _(
-    ScopedCache.make({
-      lookup: makeWorkspace,
-      capacity: 100,
-      timeToLive: "1 minutes"
-    })
-  )
+  const cache = yield* ScopedCache.make({
+    lookup: workspace,
+    capacity: 2,
+    timeToLive: "30 seconds"
+  })
 
   return { workspace: (_: Workspace) => cache.get(_) } as const
 })

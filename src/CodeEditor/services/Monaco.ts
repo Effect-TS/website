@@ -50,16 +50,11 @@ const loadApi = GlobalValue.globalValue("app/Monaco/loadApi", () =>
   }).pipe(Effect.cached, Effect.runSync)
 )
 
-const make = Effect.gen(function* (_) {
+const make = Effect.gen(function* () {
   const monaco = yield* loadApi
 
-  const makeEditor = (
-    el: HTMLElement,
-    options?: {
-      readonly theme?: string
-    }
-  ) =>
-    Effect.gen(function* (_) {
+  const makeEditor = (el: HTMLElement) =>
+    Effect.gen(function* () {
       const editor = yield* Effect.acquireRelease(
         Effect.sync(() =>
           monaco.editor.create(el, {
@@ -73,9 +68,9 @@ const make = Effect.gen(function* (_) {
         Effect.tapErrorCause(Effect.log),
         Effect.withSpan("acquire editor")
       )
-      if (options?.theme) {
-        monaco.editor.setTheme(options.theme)
-      }
+
+      const theme = (theme: string) =>
+        Effect.sync(() => monaco.editor.setTheme(theme))
 
       const viewStates = new Map<
         string,
@@ -110,7 +105,7 @@ const make = Effect.gen(function* (_) {
         return Effect.sync(() => cancel.dispose())
       })
 
-      return { editor, load, content } as const
+      return { editor, load, content, theme } as const
     })
 
   function listen<A>(event: monaco.IEvent<A>) {

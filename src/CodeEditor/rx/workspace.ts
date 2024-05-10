@@ -65,9 +65,7 @@ export const workspaceHandleRx = runtime.rx((get) =>
         }).pipe(Effect.forkScoped)
 
         get.subscribe(terminalTheme, (theme) => {
-          terminal.options = {
-            theme
-          }
+          terminal.options.theme = theme
         })
 
         yield* get.stream(terminalSizeRx).pipe(
