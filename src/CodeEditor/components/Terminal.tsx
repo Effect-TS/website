@@ -4,11 +4,7 @@ import React, { useEffect, useRef } from "react"
 import { useWorkspace } from "../context/WorkspaceContext"
 import "./Terminal.css"
 
-export declare namespace Terminal {
-  export interface Props {}
-}
-
-export const Terminal: React.FC<Terminal.Props> = () => {
+export function Terminal() {
   const terminal = useRxSuspenseSuccess(useWorkspace().terminal).value
   const ref = useRef<HTMLDivElement>(null)
 

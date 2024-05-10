@@ -1,0 +1,51 @@
+---
+title: Returning values
+excerpt: Learn the basics of Effect
+---
+
+Congratulations on running your first Effect!
+
+Next, let's take a look at the different ways you can return values from your
+Effects.
+
+### Effect.succeed
+
+To create an effect that returns the same value everytime, you can use the
+`Effect.succeed` constructor. It takes a value as input and produces an effect
+that succeeds with that value. Here's an example:
+
+```ts
+Effect.succeed(42)
+```
+
+This effect will always succeed with the value `42`.
+
+### Effect.sync
+
+If you want to create an effect that runs a synchronous function for each run,
+you can use the `Effect.sync` constructor. It takes a function as with no
+arguments as input, and calls the function for each run. Here's an example:
+
+```ts
+Effect.sync(() => Date.now())
+```
+
+This effect will return the current date for each run. Note that if we used
+`Effect.succeed(Date.now())` instead, the date would be fixed to the time when
+the effect was created.
+
+### Effect.promise
+
+If you want to create an effect from an asynchronous function that returns a
+Promise, you can use the `Effect.promise` constructor. The resulting effect will
+resolve the returned Promise and succeed with the value. Here's an example:
+
+```ts
+Effect.promise(() => fetch('https://api.github.com/users/octocat'))
+```
+
+This effect will fetch the GitHub user `octocat` and succeed with the response.
+
+### Exercise
+
+Using the Effect functions we just learned, complete the TODO's in the editor.

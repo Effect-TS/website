@@ -47,8 +47,10 @@ export const editorRx = runtime.rx((get) =>
           editor.load(`${workspace.name}/${path}`, file, content).pipe(
             Effect.as(editor.content),
             Stream.unwrap,
-            Stream.filter((content) => content !== file.solution),
-            Stream.tap(() => get.set(solved, false)),
+            Stream.filter(
+              (content) =>
+                content !== file.solution || content !== file.initialContent
+            ),
             Stream.debounce("3 second"),
             Stream.runForEach((content) => handle.write(path, content))
           ),
@@ -59,11 +61,10 @@ export const editorRx = runtime.rx((get) =>
     )
 
     get.subscribe(solved, (solved) => {
-      if (!solved) return
       const file = get(selectedFile)
-      if (file.solution) {
-        editor.editor.setValue(file.solution)
-      }
+      editor.editor.setValue(
+        solved ? file.solution ?? file.initialContent : file.initialContent
+      )
     })
 
     return { ...editor, save } as const

@@ -79,10 +79,13 @@ export const workspaceHandleRx = runtime.rx((get) =>
     )
 
     yield* get.stream(solved).pipe(
-      Stream.filter((solved) => solved),
-      Stream.runForEach(() =>
+      Stream.drop(1),
+      Stream.runForEach((solve) =>
         Effect.forEach(workspace.filePaths, ([file, path]) =>
-          file.solution ? handle.write(path, file.solution) : Effect.void
+          handle.write(
+            path,
+            solve ? file.solution ?? file.initialContent : file.initialContent
+          )
         )
       ),
       Effect.forkScoped

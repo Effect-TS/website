@@ -6,11 +6,10 @@ export function SolveButton() {
   return (
     <button
       type="button"
-      onClick={() => setSolved(true)}
-      disabled={solved}
+      onClick={() => setSolved((_) => !_)}
       className="bg-neutral-700 disabled:bg-neutral-500 dark:bg-neutral-200 text-white dark:text-neutral-800 dark:disabled:bg-neutral-400 font-display text-lg leading-none py-4"
     >
-      {solved ? "Solved!" : "Solve"}
+      {solved ? "Reset" : "Solve"}
     </button>
   )
 }
