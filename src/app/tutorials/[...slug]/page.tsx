@@ -52,12 +52,12 @@ export default async function Page({
   const files = await FS.readdir(directory)
   const filesWithContent = await Promise.all(
     files.flatMap((file) => {
-      if (file.endsWith(".solution.ts")) return []
-      const initial = FS.readFile(Path.join(directory, file), "utf8")
-      const solution = FS.readFile(
-        Path.join(directory, file.replace(".ts", ".solution.ts")),
+      if (!file.endsWith(".ts")) return []
+      const solution = FS.readFile(Path.join(directory, file), "utf8")
+      const initial = FS.readFile(
+        Path.join(directory, file.replace(".ts", ".initial.txt")),
         "utf8"
-      ).catch(() => undefined)
+      ).catch(() => solution)
       return Promise.all([initial, solution]).then(
         ([initial, solution]) =>
           ({

@@ -1,4 +1,3 @@
 import { Effect } from "effect"
 
-// TODO: Run the effect
-Effect.log("Hello world!")
+Effect.runPromise(Effect.log("Hello world!"))

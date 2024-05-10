@@ -9,16 +9,13 @@ async function asyncFooFunc(): Promise<string> {
 }
 
 async function main() {
-  // @ts-expect-error
-  let foo = await Effect.runPromise(/* TODO: succeed with "foo" */)
+  let foo = await Effect.runPromise(Effect.succeed("foo"))
   console.log("A", foo)
 
-  // @ts-expect-error
-  foo = await Effect.runPromise(/* TODO: wrap sync function `fooFunc` */)
+  foo = await Effect.runPromise(Effect.sync(fooFunc))
   console.log("B", foo)
 
-  // @ts-expect-error
-  foo = await Effect.runPromise(/* TODO: wrap `asyncFooFunc` */)
+  foo = await Effect.runPromise(Effect.promise(asyncFooFunc))
   console.log("C", foo)
 }
 
