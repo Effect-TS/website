@@ -1,7 +1,6 @@
 "use client"
 
 import { Directory, File, Workspace } from "@/domain/Workspace"
-import { tutorialPackageJson } from "@/tutorials/common"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import React from "react"
@@ -11,6 +10,7 @@ export function Tutorial({
   name,
   files,
   navigation,
+  packageJson,
   next,
   children
 }: {
@@ -20,6 +20,7 @@ export function Tutorial({
     readonly initial: string
     readonly solution: string | undefined
   }>
+  readonly packageJson: string
   readonly navigation: React.ReactNode
   readonly children: React.ReactNode
   readonly next:
@@ -34,7 +35,11 @@ export function Tutorial({
     command: "tsx --watch src/main.ts",
     initialFilePath: "src/main.ts",
     tree: [
-      tutorialPackageJson,
+      new File({
+        name: "package.json",
+        language: "json",
+        initialContent: packageJson
+      }),
       new Directory(
         "src",
         files.map(

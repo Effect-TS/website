@@ -6,6 +6,7 @@ import * as Path from "path"
 import { Navigation } from "./components/Navigation"
 import { Tutorial } from "./components/Tutorial"
 import { groupedTutorials, tutorialSection } from "../grouped"
+import Package from "../../../../package.json"
 
 export const generateStaticParams = () =>
   allTutorials.map((page) => ({
@@ -73,6 +74,7 @@ export default async function Page({
     <Tutorial
       name={name}
       files={filesWithContent}
+      packageJson={JSON.stringify(tutorialPackageJson, null, 2)}
       navigation={<Navigation tutorial={page} />}
       next={
         next && {
@@ -84,4 +86,24 @@ export default async function Page({
       <MDX content={page.body.code} />
     </Tutorial>
   )
+}
+
+// package.json
+
+const allDeps = {
+  ...Package.dependencies,
+  ...Package.devDependencies
+}
+const version = (name: keyof typeof allDeps) =>
+  allDeps[name].replace(/^\^/, "")
+
+const tutorialPackageJson = {
+  type: "module",
+  dependencies: {
+    effect: version("effect"),
+    "@effect/platform": version("@effect/platform"),
+    "@effect/platform-node": version("@effect/platform-node"),
+    "@effect/schema": version("@effect/schema"),
+    tsx: "latest"
+  }
 }
