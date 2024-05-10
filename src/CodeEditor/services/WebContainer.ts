@@ -4,15 +4,7 @@ import {
   WebContainer as WC,
   WebContainerProcess
 } from "@webcontainer/api"
-import {
-  Data,
-  Effect,
-  GlobalValue,
-  Layer,
-  Scope,
-  ScopedCache,
-  identity
-} from "effect"
+import { Data, Effect, GlobalValue, Layer, Scope, identity } from "effect"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
