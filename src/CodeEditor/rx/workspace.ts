@@ -2,7 +2,11 @@ import { Workspace } from "@/domain/Workspace"
 import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
 import { Effect, Layer, Option, Stream } from "effect"
-import { GithubTheme, MonokaiSodaTheme, Terminal } from "../services/Terminal"
+import {
+  MonokaiSodaTheme,
+  NightOwlishLightTheme,
+  Terminal
+} from "../services/Terminal"
 import { WebContainer } from "../services/WebContainer"
 
 const runtime = Rx.runtime(
@@ -10,7 +14,7 @@ const runtime = Rx.runtime(
 ).pipe(Rx.setIdleTTL("30 seconds"))
 
 const terminalTheme = Rx.map(themeRx, (theme) =>
-  theme === "light" ? GithubTheme : MonokaiSodaTheme
+  theme === "light" ? NightOwlishLightTheme : MonokaiSodaTheme
 )
 
 export const workspaceRx = Rx.make(Option.none<Workspace>())

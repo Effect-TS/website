@@ -70,32 +70,25 @@ export const MonokaiSodaTheme = {
   brightWhite: "#f6f6ef"
 }
 
-export const GithubTheme = {
-  foreground: "#3e3e3e",
+export const NightOwlishLightTheme = {
+  black: "#011627",
+  red: "#d3423e",
+  green: "#2aa298",
+  yellow: "#daaa01",
+  blue: "#4876d6",
+  magenta: "#403f53",
+  cyan: "#08916a",
+  white: "#7a8181",
+  brightBlack: "#7a8181",
+  brightRed: "#f76e6e",
+  brightGreen: "#49d0c5",
+  brightYellow: "#dac26b",
+  brightBlue: "#5ca7e4",
+  brightMagenta: "#697098",
+  brightCyan: "#00c990",
+  brightWhite: "#989fb1",
+  // background: "#ffffff",
   background: "#f4f4f4",
-  cursor: "#3f3f3f",
-
-  black: "#3e3e3e",
-  brightBlack: "#666666",
-
-  red: "#970b16",
-  brightRed: "#de0000",
-
-  green: "#07962a",
-  brightGreen: "#87d5a2",
-
-  yellow: "#f8eec7",
-  brightYellow: "#f1d007",
-
-  blue: "#003e8a",
-  brightBlue: "#2e6cba",
-
-  magenta: "#e94691",
-  brightMagenta: "#ffa29f",
-
-  cyan: "#89d1ec",
-  brightCyan: "#1cfafe",
-
-  white: "#ffffff",
-  brightWhite: "#ffffff"
+  foreground: "#403f53",
+  cursor: "#3f3f3f"
 }
