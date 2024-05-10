@@ -1,4 +1,12 @@
 import { File } from "@/domain/Workspace"
+import * as Package from "../../package.json"
+
+const allDeps = {
+  ...Package.dependencies,
+  ...Package.devDependencies
+}
+const version = (name: keyof typeof allDeps) =>
+  allDeps[name].replace(/^\^/, "")
 
 export const tutorialPackageJson = new File({
   name: "package.json",
@@ -7,10 +15,10 @@ export const tutorialPackageJson = new File({
     {
       type: "module",
       dependencies: {
-        effect: "latest",
-        "@effect/platform": "latest",
-        "@effect/platform-node": "latest",
-        "@effect/schema": "latest",
+        effect: version("effect"),
+        "@effect/platform": version("@effect/platform"),
+        "@effect/platform-node": version("@effect/platform-node"),
+        "@effect/schema": version("@effect/schema"),
         tsx: "latest"
       }
     },

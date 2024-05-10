@@ -82,11 +82,11 @@ const make = Effect.gen(function* () {
           const model =
             monaco.editor.getModel(uri) ||
             monaco.editor.createModel(content, file.language, uri)
+          model.setValue(content)
           const current = editor.getModel()
           if (current && current === model) {
             return model
           }
-          model.setValue(content)
           if (current) {
             viewStates.set(path, editor.saveViewState())
           }
@@ -98,10 +98,9 @@ const make = Effect.gen(function* () {
         })
 
       const content = Stream.async<string>((emit) => {
-        const cancel = editor.onDidChangeModelContent((e) => {
+        const cancel = editor.onDidChangeModelContent(() => {
           emit.single(editor.getValue())
         })
-        emit.single(editor.getValue())
         return Effect.sync(() => cancel.dispose())
       })
 

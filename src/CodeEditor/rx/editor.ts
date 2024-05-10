@@ -3,6 +3,7 @@ import { MonacoATA } from "@/CodeEditor/services/Monaco/ATA"
 import { Rx } from "@effect-rx/rx-react"
 import { Data, Effect, Option, Stream } from "effect"
 import { WorkspaceHandle, workspaceHandleRx } from "./workspace"
+import { File } from "@/domain/Workspace"
 
 const runtime = Rx.runtime(MonacoATA.Live).pipe(Rx.setIdleTTL("30 seconds"))
 
@@ -38,34 +39,34 @@ export const editorRx = runtime.rx((get) =>
       return handle.write(path.value, editor.editor.getValue())
     })
 
+    const sync = (path: string, file: File) =>
+      content(path, file).pipe(
+        Stream.tap((content) => editor.load(path, file, content)),
+        Stream.flatMap((_) => editor.content, { switch: true }),
+        Stream.debounce("3 second"),
+        Stream.tap((content) => handle.write(path, content)),
+        Stream.ensuring(
+          Effect.suspend(() => handle.write(path, editor.editor.getValue()))
+        )
+      )
+    const content = (path: string, file: File) =>
+      handle.read(path).pipe(Stream.concat(solvedContent(file)))
+    const solvedContent = (file: File) =>
+      get.stream(solved).pipe(
+        Stream.drop(1),
+        Stream.map((solved) =>
+          solved ? file.solution ?? file.initialContent : file.initialContent
+        )
+      )
+
     yield* get.stream(selectedFile).pipe(
       Stream.bindTo("file"),
       Stream.bindEffect("path", ({ file }) => workspace.pathTo(file)),
-      Stream.bindEffect("content", ({ path }) => handle.read(path)),
-      Stream.flatMap(
-        ({ file, path, content }) =>
-          editor.load(`${workspace.name}/${path}`, file, content).pipe(
-            Effect.as(editor.content),
-            Stream.unwrap,
-            Stream.filter(
-              (content) =>
-                content !== file.solution || content !== file.initialContent
-            ),
-            Stream.debounce("3 second"),
-            Stream.runForEach((content) => handle.write(path, content))
-          ),
-        { switch: true }
-      ),
+      Stream.flatMap(({ file, path }) => sync(path, file), { switch: true }),
       Stream.runDrain,
+      Effect.catchAllCause(Effect.log),
       Effect.forkScoped
     )
-
-    get.subscribe(solved, (solved) => {
-      const file = get(selectedFile)
-      editor.editor.setValue(
-        solved ? file.solution ?? file.initialContent : file.initialContent
-      )
-    })
 
     return { ...editor, save } as const
   })

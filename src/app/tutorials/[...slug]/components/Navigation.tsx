@@ -1,13 +1,11 @@
 "use server"
 
 import { Icon } from "@/components/icons"
-import { Tutorial, allTutorials } from "contentlayer/generated"
+import { Tutorial } from "contentlayer/generated"
 import Link from "next/link"
-import { useMemo } from "react"
-import { MenuButton } from "./Navigation/MenuButton"
-import { DeepMutable } from "effect/Types"
-import { Menu } from "./Navigation/Menu"
 import { groupedTutorials, tutorialSection } from "../../grouped"
+import { Menu } from "./Navigation/Menu"
+import { MenuButton } from "./Navigation/MenuButton"
 
 export async function Navigation({
   tutorial
