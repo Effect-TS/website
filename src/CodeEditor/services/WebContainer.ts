@@ -146,6 +146,7 @@ const runProgram = `#!/usr/bin/env node
 const CP = require("child_process")
 
 function run() {
+  console.log('\\033[2J');
   CP.spawn("tsx", ["--watch", ...process.argv.slice(2)], {
     stdio: "inherit"
   }).on("exit", run)
