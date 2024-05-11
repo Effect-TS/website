@@ -19,6 +19,11 @@ const make = Effect.gen(function* () {
     (_) => Effect.sync(() => _.teardown())
   )
 
+  yield* Effect.promise(async () => {
+    await container.fs.writeFile("run", runProgram)
+    await container.spawn("chmod", ["+x", "run"])
+  })
+
   const workspace = (workspace: Workspace) =>
     Effect.gen(function* () {
       const path = (_: string) => `${workspace.name}/${_}`
@@ -130,3 +135,15 @@ function treeFromWorkspace(workspace: Workspace): FileSystemTree {
   }
   return walk(workspace.tree)
 }
+
+const runProgram = `#!/usr/bin/env node
+const CP = require("child_process")
+
+function run() {
+  CP.spawn("tsx", ["--watch", ...process.argv.slice(2)], {
+    stdio: "inherit"
+  }).on("exit", run)
+}
+
+run()
+`

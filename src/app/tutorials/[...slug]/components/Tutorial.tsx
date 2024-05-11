@@ -33,7 +33,7 @@ export function Tutorial({
   const Editor = useMemo(() => {
     const workspace = new Workspace({
       name,
-      command: "tsx --watch src/main.ts",
+      command: "../run src/main.ts",
       initialFilePath: "src/main.ts",
       tree: [
         new File({
