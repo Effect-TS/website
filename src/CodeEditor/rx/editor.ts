@@ -56,8 +56,7 @@ export const editorRx = Rx.family((workspace: Workspace) => {
       const content = (path: string, file: File) =>
         handle.read(path).pipe(Stream.concat(solvedContent(file)))
       const solvedContent = (file: File) =>
-        get.stream(solved).pipe(
-          Stream.drop(1),
+        get.stream(solved, { withoutInitialValue: true }).pipe(
           Stream.map((solved) =>
             solved
               ? file.solution ?? file.initialContent

@@ -24,7 +24,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
     .rx((get) =>
       Effect.gen(function* () {
         const { spawn } = yield* Terminal
-        console.log("building workspace", workspace.name)
+        yield* Effect.log("building")
         const handle = yield* WebContainer.workspace(workspace)
 
         const prepare = yield* handle
@@ -36,7 +36,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         const solved = Rx.make(false)
 
         const terminal = Rx.make((get) =>
-          Effect.gen(function* (_) {
+          Effect.gen(function* () {
             const shell = yield* handle.shell
             const { terminal, resize } = yield* spawn({
               theme: get.once(terminalTheme)
@@ -107,7 +107,10 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
           selectedFile,
           solved
         } as const
-      })
+      }).pipe(Effect.annotateLogs({
+        workspace: workspace.name,
+        rx: "workspaceHandleRx"
+      }))
     )
     .pipe(Rx.setIdleTTL("20 seconds"))
 )
