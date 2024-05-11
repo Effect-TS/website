@@ -2,7 +2,7 @@ import { MonacoATA } from "@/CodeEditor/services/Monaco/ATA"
 import { File, Workspace } from "@/domain/Workspace"
 import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
-import { Effect, Option, Stream } from "effect"
+import { Effect, Option, pipe, Stream } from "effect"
 import { workspaceHandleRx } from "./workspace"
 
 const runtime = Rx.runtime(MonacoATA.Live).pipe(Rx.setIdleTTL("30 seconds"))
@@ -43,7 +43,7 @@ export const editorRx = Rx.family((workspace: Workspace) => {
           Stream.flatMap((_) => editor.content.pipe(Stream.drop(1)), {
             switch: true
           }),
-          Stream.debounce("3 second"),
+          Stream.debounce("2 second"),
           Stream.tap((content) => handle.write(path, content)),
           Stream.ensuring(
             Effect.suspend(() => {
@@ -56,7 +56,8 @@ export const editorRx = Rx.family((workspace: Workspace) => {
       const content = (path: string, file: File) =>
         handle.read(path).pipe(Stream.concat(solvedContent(file)))
       const solvedContent = (file: File) =>
-        get.stream(solved, { withoutInitialValue: true }).pipe(
+        pipe(
+          get.stream(solved, { withoutInitialValue: true }),
           Stream.map((solved) =>
             solved
               ? file.solution ?? file.initialContent
