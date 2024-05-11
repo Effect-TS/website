@@ -37,13 +37,15 @@ const make = Effect.gen(function* () {
           return container.fs.mkdir(workspace.name)
         }),
         () =>
-          Effect.promise(() => {
-            console.log("removing workspace", workspace.name)
-            return container.fs.rm(workspace.name, {
-              recursive: true,
-              force: true
-            })
-          })
+          Effect.andThen(
+            Effect.log("removing"),
+            Effect.promise(() =>
+              container.fs.rm(workspace.name, {
+                recursive: true,
+                force: true
+              })
+            )
+          )
       )
 
       yield* Effect.promise(() =>
@@ -94,10 +96,14 @@ const make = Effect.gen(function* () {
         run,
         shell
       })
-    })
+    }).pipe(Effect.annotateLogs({ workspace: workspace.name }))
 
   return { workspace } as const
-})
+}).pipe(
+  Effect.annotateLogs({
+    service: "WebContainer"
+  })
+)
 
 export class WebContainer extends Effect.Tag("WebContainer")<
   WebContainer,

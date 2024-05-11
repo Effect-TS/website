@@ -84,9 +84,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
           })
         )
 
-        yield* get.stream(solved, {
-          withoutInitialValue: true
-        }).pipe(
+        yield* get.stream(solved, { withoutInitialValue: true }).pipe(
           Stream.runForEach((solve) =>
             Effect.forEach(workspace.filePaths, ([file, path]) =>
               handle.write(
@@ -107,10 +105,12 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
           selectedFile,
           solved
         } as const
-      }).pipe(Effect.annotateLogs({
-        workspace: workspace.name,
-        rx: "workspaceHandleRx"
-      }))
+      }).pipe(
+        Effect.annotateLogs({
+          workspace: workspace.name,
+          rx: "workspaceHandleRx"
+        })
+      )
     )
     .pipe(Rx.setIdleTTL("20 seconds"))
 )
