@@ -7,20 +7,54 @@ bottomNavigation: pagination
 To demonstrate the functionality of different schedules, we will be working with the following helper:
 
 ```twoslash include Delay
-import { Effect } from "effect"
+import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
 
-let start = new Date().getTime()
+let start = 0
+let i = 0
 
-export const log = Effect.sync(() => {
-  const now = new Date().getTime()
-  console.log(`delay: ${now - start}`)
-  start = now
-})
+export const log = <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+) => {
+  Effect.gen(function* () {
+    const fiber = yield* Effect.gen(function* () {
+      yield* action
+      const now = yield* TestClock.currentTimeMillis
+      console.log(
+        i === 0
+          ? `delay: ${now - start}`
+          : i === 10
+            ? "..."
+            : `#${i} delay: ${now - start}`
+      )
+      i++
+      start = now
+    }).pipe(
+      Effect.repeat(schedule.pipe(Schedule.intersect(Schedule.recurs(10)))),
+      Effect.fork
+    )
+    yield* TestClock.adjust(Infinity)
+    yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+}
 ```
+
+```ts
+declare const log: <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+) => void
+```
+
+<br/>
+<details>
+  <summary>Click to see the implementation</summary>
 
 ```ts filename="Delay.ts" twoslash
 // @include: Delay
 ```
+
+</details>
 
 The `log` helper logs the time delay between each execution. We will use this helper to showcase the behavior of various built-in schedules.
 
@@ -34,22 +68,24 @@ A schedule that always recurs and produces number of recurrence at each run.
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.forever
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 3
-delay: 7 < forever
-delay: 5
-delay: 1
-delay: 1
-delay: 1
-delay: 1
-delay: 1
+delay: 0
+#1 delay: 0 < forever
+#2 delay: 0
+#3 delay: 0
+#4 delay: 0
+#5 delay: 0
+#6 delay: 0
+#7 delay: 0
+#8 delay: 0
+#9 delay: 0
 ...
 */
 ```
@@ -64,16 +100,16 @@ A schedule that recurs one time.
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.once
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 3
-delay: 8 < once
+delay: 0
+#1 delay: 0 < once
 */
 ```
 
@@ -87,20 +123,20 @@ A schedule that only recurs the specified number of times.
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.recurs(5)
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 5
-delay: 8 < recurs
-delay: 6
-delay: 2
-delay: 1
-delay: 1
+delay: 0
+#1 delay: 0 < recurs
+#2 delay: 0
+#3 delay: 0
+#4 delay: 0
+#5 delay: 0
 */
 ```
 
@@ -122,21 +158,24 @@ A schedule that recurs continuously, each repetition spaced the specified durati
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.spaced("200 millis")
-
-const action = Effect.delay(Delay.log, "100 millis")
-
-Effect.runPromise(Effect.repeat(action, schedule))
+const action = Effect.delay(Effect.void, "100 millis")
+log(action, schedule)
 /*
 Output:
-delay: 109
-delay: 316 < spaced
-delay: 302
-delay: 306
-delay: 306
+delay: 100
+#1 delay: 300 < spaced
+#2 delay: 300
+#3 delay: 300
+#4 delay: 300
+#5 delay: 300
+#6 delay: 300
+#7 delay: 300
+#8 delay: 300
+#9 delay: 300
 ...
 */
 ```
@@ -153,21 +192,24 @@ A schedule that recurs on a fixed interval. Returns the number of repetitions of
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.fixed("200 millis")
-
-const action = Effect.delay(Delay.log, "100 millis")
-
-Effect.runPromise(Effect.repeat(action, schedule))
+const action = Effect.delay(Effect.void, "100 millis")
+log(action, schedule)
 /*
 Output:
-delay: 109
-delay: 316 < fixed
-delay: 202
-delay: 202
-delay: 203
+delay: 100
+#1 delay: 300 < fixed
+#2 delay: 200
+#3 delay: 200
+#4 delay: 200
+#5 delay: 200
+#6 delay: 200
+#7 delay: 200
+#8 delay: 200
+#9 delay: 200
 ...
 */
 ```
@@ -184,23 +226,24 @@ A schedule that recurs using exponential backoff
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.exponential("10 millis")
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 4
-delay: 17 < exponential
-delay: 21
-delay: 40
-delay: 85
-delay: 168
-delay: 324
-delay: 644
-delay: 1287
+delay: 0
+#1 delay: 10 < exponential
+#2 delay: 20
+#3 delay: 40
+#4 delay: 80
+#5 delay: 160
+#6 delay: 320
+#7 delay: 640
+#8 delay: 1280
+#9 delay: 2560
 ...
 */
 ```
@@ -215,26 +258,24 @@ A schedule that always recurs, increasing delays by summing the preceding two de
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.fibonacci("10 millis")
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 3
-delay: 17 < fibonacci
-delay: 11
-delay: 23
-delay: 32
-delay: 52
-delay: 84
-delay: 132
-delay: 212
-delay: 342
-delay: 556
-delay: 892
+delay: 0
+#1 delay: 10 < fibonacci
+#2 delay: 10
+#3 delay: 20
+#4 delay: 30
+#5 delay: 50
+#6 delay: 80
+#7 delay: 130
+#8 delay: 210
+#9 delay: 340
 ...
 */
 ```
