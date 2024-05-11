@@ -6,25 +6,59 @@ bottomNavigation: pagination
 
 Schedules define stateful, possibly effectful, recurring schedules of events, and compose in a variety of ways. Combinators allow us to take schedules and combine them together to get other schedules.
 
-To demonstrate the functionality of different combinators, we will be working with the following helper:
+To demonstrate the functionality of different schedules, we will be working with the following helper:
 
 ```twoslash include Delay
-import { Effect } from "effect"
+import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
 
-let start = new Date().getTime()
+let start = 0
+let i = 0
 
-export const log = Effect.sync(() => {
-  const now = new Date().getTime()
-  console.log(`delay: ${now - start}`)
-  start = now
-})
+export const log = <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+) => {
+  Effect.gen(function* () {
+    const fiber = yield* Effect.gen(function* () {
+      yield* action
+      const now = yield* TestClock.currentTimeMillis
+      console.log(
+        i === 0
+          ? `delay: ${now - start}`
+          : i === 10
+            ? "..."
+            : `#${i} delay: ${now - start}`
+      )
+      i++
+      start = now
+    }).pipe(
+      Effect.repeat(schedule.pipe(Schedule.intersect(Schedule.recurs(10)))),
+      Effect.fork
+    )
+    yield* TestClock.adjust(Infinity)
+    yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+}
 ```
+
+```ts
+declare const log: <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+) => void
+```
+
+<br/>
+<details>
+  <summary>Click to see the implementation</summary>
 
 ```ts filename="Delay.ts" twoslash
 // @include: Delay
 ```
 
-The `logDelay` helper logs the time delay between each execution. We will use this effect to showcase the behavior of various built-in combinators.
+</details>
+
+The `log` helper logs the time delay between each execution. We will use this helper to showcase the behavior of various built-in schedules.
 
 ## Composition
 
@@ -44,27 +78,27 @@ Combines two schedules through union, by recurring if either schedule wants to r
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.union(
   Schedule.exponential("100 millis"),
   Schedule.spaced("1 second")
 )
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 3
-delay: 115  < exponential
-delay: 202
-delay: 404
-delay: 802
-delay: 1002 < spaced
-delay: 1006
-delay: 1006
-delay: 1006
-delay: 1006
+delay: 0
+#1 delay: 100  < exponential
+#2 delay: 200
+#3 delay: 400
+#4 delay: 800
+#5 delay: 1000 < spaced
+#6 delay: 1000
+#7 delay: 1000
+#8 delay: 1000
+#9 delay: 1000
 ...
 */
 ```
@@ -81,23 +115,24 @@ Combines two schedules through the intersection, by recurring only if both sched
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.intersect(
   Schedule.exponential("10 millis"),
   Schedule.recurs(5)
 )
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 4
-delay: 18  < recurs
-delay: 22
-delay: 45
-delay: 84
-delay: 166
+delay: 0
+#1 delay: 10  < exponential
+#2 delay: 20
+#3 delay: 40
+#4 delay: 80
+#5 delay: 160
+(end)         < recurs
 */
 ```
 
@@ -113,28 +148,27 @@ Combines two schedules sequentially, by following the first policy until it ends
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.andThen(
   Schedule.recurs(5),
   Schedule.spaced("1 second")
 )
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 4
-delay: 8    < recurs
-delay: 4
-delay: 2
 delay: 0
-delay: 2
-delay: 1005 < spaced
-delay: 1007
-delay: 1006
-delay: 1007
-delay: 1005
+#1 delay: 0    < recurs
+#2 delay: 0
+#3 delay: 0
+#4 delay: 0
+#5 delay: 0
+#6 delay: 1000 < spaced
+#7 delay: 1000
+#8 delay: 1000
+#9 delay: 1000
 ...
 */
 ```
@@ -155,24 +189,24 @@ When a resource is out of service due to overload or contention, retrying and ba
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.jittered(Schedule.exponential("10 millis"))
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 3
-delay: 18
-delay: 24
-delay: 48
-delay: 92
-delay: 184
-delay: 351
-delay: 620
-delay: 1129
-delay: 2576
+delay: 0
+#1 delay: 9.006765
+#2 delay: 20.549507999999996
+#3 delay: 45.86659000000001
+#4 delay: 77.055037
+#5 delay: 178.06722299999998
+#6 delay: 376.056965
+#7 delay: 728.732785
+#8 delay: 1178.174953
+#9 delay: 2331.4659370000004
 ...
 */
 ```
@@ -189,19 +223,19 @@ We can filter inputs or outputs of a schedule with `whileInput` and `whileOutput
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.whileOutput(Schedule.recurs(5), (n) => n <= 2)
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 2
-delay: 11 < recurs
-delay: 1
-delay: 1
-(end)     < whileOutput
+delay: 0
+#1 delay: 0 < recurs
+#2 delay: 0
+#3 delay: 0
+(end)       < whileOutput
 */
 ```
 
@@ -217,22 +251,27 @@ Modifies the delay of a schedule.
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.modifyDelay(
   Schedule.spaced("1 second"),
   (_) => "100 millis"
 )
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 4
-delay: 110 < modifyDelay
-delay: 103
-delay: 103
-delay: 106
+delay: 0
+#1 delay: 100 < modifyDelay
+#2 delay: 100
+#3 delay: 100
+#4 delay: 100
+#5 delay: 100
+#6 delay: 100
+#7 delay: 100
+#8 delay: 100
+#9 delay: 100
 ...
 */
 ```
@@ -249,21 +288,21 @@ We can use these two functions for logging purposes:
 
 // @filename: index.ts
 // ---cut---
-import { Effect, Schedule, Console } from "effect"
-import * as Delay from "./Delay"
+import { Schedule, Effect, Console } from "effect"
+import { log } from "./Delay"
 
 const schedule = Schedule.tapOutput(Schedule.recurs(2), (n) =>
   Console.log(`repeating ${n}`)
 )
-
-Effect.runPromise(Effect.repeat(Delay.log, schedule))
+const action = Effect.void
+log(action, schedule)
 /*
 Output:
-delay: 2
+delay: 0
 repeating 0
-delay: 8
+#1 delay: 0
 repeating 1
-delay: 5
+#2 delay: 0
 repeating 2
 */
 ```
