@@ -43,7 +43,7 @@ export const editorRx = Rx.family((workspace: Workspace) => {
           Stream.flatMap((_) => editor.content.pipe(Stream.drop(1)), {
             switch: true
           }),
-          Stream.debounce("2 second"),
+          Stream.debounce("2 seconds"),
           Stream.tap((content) => handle.write(path, content)),
           Stream.ensuring(
             Effect.suspend(() => {

@@ -17,7 +17,7 @@ const terminalTheme = Rx.map(themeRx, (theme) =>
   theme === "light" ? NightOwlishLightTheme : MonokaiSodaTheme
 )
 
-export const terminalSizeRx = Rx.make(0)
+export const terminalSizeRx = Rx.make(0).pipe(Rx.debounce(250))
 
 export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
   runtime
@@ -75,7 +75,6 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
             })
 
             yield* get.stream(terminalSizeRx).pipe(
-              Stream.debounce(250),
               Stream.runForEach(() => resize),
               Effect.forkScoped
             )
