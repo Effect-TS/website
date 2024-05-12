@@ -5,6 +5,7 @@ import {
   WebContainerProcess
 } from "@webcontainer/api"
 import { Data, Effect, GlobalValue, Layer, Scope, identity } from "effect"
+import * as Http from "@effect/platform/HttpClient"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
@@ -47,6 +48,18 @@ const make = Effect.gen(function* () {
             )
           )
       )
+
+      if (workspace.snapshot) {
+        const snapshot = yield* Http.request
+          .get(`/snapshots/${workspace.snapshot}`)
+          .pipe(Http.client.fetchOk, Http.response.arrayBuffer)
+
+        yield* Effect.promise(async () => {
+          await container.mount(snapshot, {
+            mountPoint: workspace.name
+          })
+        })
+      }
 
       yield* Effect.promise(() =>
         container.mount(treeFromWorkspace(workspace), {

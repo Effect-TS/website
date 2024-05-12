@@ -28,7 +28,7 @@ const make = Effect.gen(function* () {
       Effect.andThen(compression.compressBase64)
     )
 
-  const decompress = <E, R>(options: {
+  const decompress = (options: {
     command?: string | undefined
     initialFilePath?: string | undefined
     compressed: string

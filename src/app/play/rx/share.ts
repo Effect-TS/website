@@ -1,6 +1,6 @@
 import { WorkspaceHandle } from "@/CodeEditor/rx/workspace"
 import { File, Workspace } from "@/domain/Workspace"
-import { emptyPackageJson } from "@/tutorials/common"
+import { tutorialsPackageJson } from "@/tutorials/common"
 import { Result, Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
 import { Effect, Layer } from "effect"
@@ -44,20 +44,14 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
   return { state, share } as const
 })
 
-const defaultPackages = [
-  "effect",
-  "@effect/platform",
-  "@effect/platform-node",
-  "@effect/schema"
-]
-
 const defaultWorkspace = new Workspace({
   name: "playground",
-  prepare: `pnpm add -E ${defaultPackages.join(" ")}`,
+  prepare: "pnpm add tsx",
   command: `../run main.ts`,
   initialFilePath: "main.ts",
+  snapshot: "tutorials",
   tree: [
-    emptyPackageJson,
+    tutorialsPackageJson,
     new File({
       name: "main.ts",
       initialContent: `import { Effect } from "effect"

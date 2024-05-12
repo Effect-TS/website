@@ -33,8 +33,10 @@ export function Tutorial({
   const Editor = useMemo(() => {
     const workspace = new Workspace({
       name,
+      prepare: "pnpm add tsx",
       command: "../run src/main.ts",
       initialFilePath: "src/main.ts",
+      snapshot: "tutorials",
       tree: [
         new File({
           name: "package.json",

@@ -1,14 +1,13 @@
 import { File } from "@/domain/Workspace"
+import content from "../../snapshots/tutorials/package.json"
 
-export const emptyPackageJson = new File({
+export const tutorialsPackageJson = new File({
   name: "package.json",
   language: "json",
   initialContent: JSON.stringify(
     {
-      type: "module",
-      dependencies: {
-        tsx: "latest"
-      }
+      ...content,
+      packageManager: undefined
     },
     null,
     2

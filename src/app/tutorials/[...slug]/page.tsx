@@ -3,7 +3,7 @@ import { allTutorials } from "contentlayer/generated"
 import * as FS from "fs/promises"
 import { notFound } from "next/navigation"
 import * as Path from "path"
-import Package from "../../../../package.json"
+import tutorialPackageJson from "../../../../snapshots/tutorials/package.json"
 import { groupedTutorials, tutorialSection } from "../grouped"
 import { Navigation } from "./components/Navigation"
 import { Tutorial } from "./components/Tutorial"
@@ -86,24 +86,4 @@ export default async function Page({
       <MDX content={page.body.code} />
     </Tutorial>
   )
-}
-
-// package.json
-
-const allDeps = {
-  ...Package.dependencies,
-  ...Package.devDependencies
-}
-const version = (name: keyof typeof allDeps) =>
-  allDeps[name].replace(/^\^/, "")
-
-const tutorialPackageJson = {
-  type: "module",
-  dependencies: {
-    effect: version("effect"),
-    "@effect/platform": version("@effect/platform"),
-    "@effect/platform-node": version("@effect/platform-node"),
-    "@effect/schema": version("@effect/schema"),
-    tsx: "latest"
-  }
 }

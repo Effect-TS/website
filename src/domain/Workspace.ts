@@ -6,6 +6,7 @@ export class Workspace extends Data.Class<{
   initialFilePath?: string
   prepare?: string
   command?: string
+  snapshot?: string
 }> {
   get initialFile() {
     if (this.initialFilePath) {
