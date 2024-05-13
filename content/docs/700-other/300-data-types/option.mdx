@@ -371,8 +371,8 @@ The `Option.zipWith` function allows you to combine two `Option` values using a 
 ```ts twoslash
 import { Option } from "effect"
 
-const maybeName = Option.some("John")
-const maybeAge = Option.some(25)
+const maybeName: Option.Option<string> = Option.some("John")
+const maybeAge: Option.Option<number> = Option.some(25)
 
 const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
   name,
@@ -397,8 +397,8 @@ It's important to note that if either of the two `Option` values is `None`, the 
 ```ts {4} twoslash
 import { Option } from "effect"
 
-const maybeName = Option.some("John")
-const maybeAge = Option.none()
+const maybeName: Option.Option<string> = Option.some("John")
+const maybeAge: Option.Option<number> = Option.none()
 
 const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
   name,
@@ -421,8 +421,8 @@ Let's revisit the previous example, this time using `Option.gen` instead of `Opt
 ```ts twoslash
 import { Option } from "effect"
 
-const maybeName = Option.some("John")
-const maybeAge = Option.some(25)
+const maybeName: Option.Option<string> = Option.some("John")
+const maybeAge: Option.Option<number> = Option.some(25)
 
 const person = Option.gen(function* () {
   const name = yield* maybeName
@@ -442,8 +442,8 @@ Once again, if either of the two `Option` values is `None`, the resulting `Optio
 ```ts twoslash
 import { Option } from "effect"
 
-const maybeName = Option.some("John")
-const maybeAge = Option.none()
+const maybeName: Option.Option<string> = Option.some("John")
+const maybeAge: Option.Option<number> = Option.none()
 
 const person = Option.gen(function* () {
   const name = yield* maybeName
