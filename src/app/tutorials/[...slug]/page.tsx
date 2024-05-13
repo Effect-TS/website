@@ -75,6 +75,7 @@ export default async function Page({
       name={name}
       files={filesWithContent}
       packageJson={JSON.stringify(tutorialPackageJson, null, 2)}
+      shellLayout={page.shellLayout}
       navigation={<Navigation tutorial={page} />}
       next={
         next && {

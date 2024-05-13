@@ -1,4 +1,4 @@
-import { File, Workspace } from "@/domain/Workspace"
+import { File, Workspace, WorkspaceShell } from "@/domain/Workspace"
 import { Effect, Layer } from "effect"
 import { Compression } from "./Compression"
 
@@ -29,7 +29,7 @@ const make = Effect.gen(function* () {
     )
 
   const decompress = (options: {
-    command?: string | undefined
+    shells: ReadonlyArray<WorkspaceShell>
     initialFilePath?: string | undefined
     compressed: string
     whitelist: ReadonlyArray<string>

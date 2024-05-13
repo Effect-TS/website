@@ -1,5 +1,5 @@
 import { WorkspaceHandle } from "@/CodeEditor/rx/workspace"
-import { File, Workspace } from "@/domain/Workspace"
+import { File, Workspace, WorkspaceShell } from "@/domain/Workspace"
 import { tutorialsPackageJson } from "@/tutorials/common"
 import { Result, Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
@@ -47,7 +47,11 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
 const defaultWorkspace = new Workspace({
   name: "playground",
   prepare: "pnpm add -E tsx",
-  command: `../run main.ts`,
+  shells: [
+    new WorkspaceShell({
+      command: "../run main.ts"
+    })
+  ],
   initialFilePath: "main.ts",
   snapshot: "tutorials",
   tree: [
@@ -73,7 +77,7 @@ export const importRx = runtime.rx((get) =>
     const compression = yield* WorkspaceCompression
     return yield* compression
       .decompress({
-        command: "../run main.ts",
+        shells: [new WorkspaceShell({ command: "../run main.ts" })],
         initialFilePath: "main.ts",
         whitelist: ["package.json", "main.ts"],
         compressed: hash.value

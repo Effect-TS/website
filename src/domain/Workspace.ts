@@ -5,7 +5,7 @@ export class Workspace extends Data.Class<{
   tree: ReadonlyArray<Directory | File>
   initialFilePath?: string
   prepare?: string
-  command?: string
+  shells: ReadonlyArray<WorkspaceShell>
   snapshot?: string
 }> {
   get initialFile() {
@@ -47,6 +47,11 @@ export class Workspace extends Data.Class<{
     return this.name === that.name
   }
 }
+
+export class WorkspaceShell extends Data.Class<{
+  command?: string
+  label?: string
+}> {}
 
 export class Directory extends Data.TaggedClass("Directory")<{
   name: string

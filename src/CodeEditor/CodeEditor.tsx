@@ -1,13 +1,13 @@
 import { Workspace } from "@/domain/Workspace"
 import { useRxSet, useRxSuspenseSuccess } from "@effect-rx/rx-react"
-import { ReactNode, Suspense } from "react"
+import { ReactNode, Suspense, useCallback } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { LoadingSpinner } from "../components/LoadingSpinner"
 import { FileEditor } from "./components/FileEditor"
 import { FileExplorer } from "./components/FileExplorer"
 import { Terminal } from "./components/Terminal"
 import { WorkspaceContext } from "./context/WorkspaceContext"
-import { terminalSizeRx, workspaceHandleRx } from "./rx/workspace"
+import { workspaceHandleRx } from "./rx/workspace"
 
 export function CodeEditor(props: {
   readonly workspace: Workspace
@@ -30,8 +30,14 @@ function CodeEditorSuspended({
   readonly disableExplorer?: boolean
   readonly aboveExplorer?: ReactNode
 }) {
-  const setSize = useRxSet(terminalSizeRx)
   const handle = useRxSuspenseSuccess(workspaceHandleRx(workspace)).value
+  const setSize = useRxSet(handle.terminalSize)
+  const onResize = useCallback(
+    function (..._: any) {
+      setSize()
+    },
+    [setSize]
+  )
   return (
     <WorkspaceContext.Provider value={handle}>
       <PanelGroup autoSaveId="editor" direction="vertical">
@@ -55,8 +61,17 @@ function CodeEditorSuspended({
           )}
         </Panel>
         <PanelResizeHandle />
-        <Panel onResize={setSize} defaultSize={30}>
-          <Terminal />
+        <Panel onResize={onResize} defaultSize={30}>
+          <PanelGroup autoSaveId="terminal" direction="horizontal">
+            {workspace.shells.map((shell, index) => (
+              <>
+                {index > 0 && <PanelResizeHandle />}
+                <Panel key={index} onResize={onResize}>
+                  <Terminal shell={shell} />
+                </Panel>
+              </>
+            ))}
+          </PanelGroup>
         </Panel>
       </PanelGroup>
     </WorkspaceContext.Provider>

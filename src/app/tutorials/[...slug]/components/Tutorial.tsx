@@ -1,16 +1,30 @@
 "use client"
 
-import { Directory, File, Workspace } from "@/domain/Workspace"
+import {
+  Directory,
+  File,
+  Workspace,
+  WorkspaceShell
+} from "@/domain/Workspace"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import React, { useMemo } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
+
+const shellLayouts = {
+  watch: [new WorkspaceShell({ command: "../run src/main.ts" })],
+  server: [
+    new WorkspaceShell({ label: "Server", command: "../run src/main.ts" }),
+    new WorkspaceShell({ label: "Client" })
+  ]
+}
 
 export function Tutorial({
   name,
   files,
   navigation,
   packageJson,
+  shellLayout,
   next,
   children
 }: {
@@ -21,6 +35,7 @@ export function Tutorial({
     readonly solution: string | undefined
   }>
   readonly packageJson: string
+  readonly shellLayout: "watch" | "server"
   readonly navigation: React.ReactNode
   readonly children: React.ReactNode
   readonly next:
@@ -34,7 +49,7 @@ export function Tutorial({
     const workspace = new Workspace({
       name,
       prepare: "pnpm add tsx",
-      command: "../run src/main.ts",
+      shells: shellLayouts[shellLayout],
       initialFilePath: "src/main.ts",
       snapshot: "tutorials",
       tree: [

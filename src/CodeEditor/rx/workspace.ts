@@ -1,4 +1,4 @@
-import { Workspace } from "@/domain/Workspace"
+import { Workspace, WorkspaceShell } from "@/domain/Workspace"
 import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
 import { Effect, Layer, Stream } from "effect"
@@ -17,8 +17,6 @@ const terminalTheme = Rx.map(themeRx, (theme) =>
   theme === "light" ? NightOwlishLightTheme : MonokaiSodaTheme
 )
 
-export const terminalSizeRx = Rx.make(0).pipe(Rx.debounce(250))
-
 export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
   runtime
     .rx((get) =>
@@ -35,52 +33,62 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
 
         const solved = Rx.make(false)
 
-        const terminal = Rx.make((get) =>
-          Effect.gen(function* () {
-            const shell = yield* handle.shell
-            const { terminal, resize } = yield* spawn({
-              theme: get.once(terminalTheme)
-            })
-            const input = shell.input.getWriter()
+        let size = 0
+        const terminalSize = Rx.writable(
+          () => size,
+          function (ctx, _value: void) {
+            ctx.setSelf(size++)
+          }
+        ).pipe(Rx.debounce(250))
 
-            const mount = Effect.sync(() => {
-              shell.output.pipeTo(
-                new WritableStream({
-                  write(data) {
-                    terminal.write(data)
-                  }
-                })
-              )
-              terminal.onData((data) => {
-                input.write(data)
+        const terminal = Rx.family((env: WorkspaceShell) =>
+          Rx.make((get) =>
+            Effect.gen(function* () {
+              const shell = yield* handle.shell
+              const { terminal, resize } = yield* spawn({
+                theme: get.once(terminalTheme)
               })
+              const input = shell.input.getWriter()
+
+              const mount = Effect.sync(() => {
+                shell.output.pipeTo(
+                  new WritableStream({
+                    write(data) {
+                      terminal.write(data)
+                    }
+                  })
+                )
+                terminal.onData((data) => {
+                  input.write(data)
+                })
+              })
+
+              terminal.write("Loading workspace...\n")
+
+              yield* Effect.gen(function* () {
+                input.write(`cd "${workspace.name}" && clear\n`)
+                yield* prepare.await
+                if (env.command) {
+                  yield* Effect.sleep(3000)
+                  yield* mount
+                  input.write(`${env.command}\n`)
+                } else {
+                  yield* mount
+                }
+              }).pipe(Effect.forkScoped)
+
+              get.subscribe(terminalTheme, (theme) => {
+                terminal.options.theme = theme
+              })
+
+              yield* get.stream(terminalSize).pipe(
+                Stream.runForEach(() => resize),
+                Effect.forkScoped
+              )
+
+              return terminal
             })
-
-            terminal.write("Loading workspace...\n")
-
-            yield* Effect.gen(function* () {
-              input.write(`cd "${workspace.name}" && clear\n`)
-              yield* prepare.await
-              if (workspace.command) {
-                yield* Effect.sleep(3000)
-                yield* mount
-                input.write(`${workspace.command}\n`)
-              } else {
-                yield* mount
-              }
-            }).pipe(Effect.forkScoped)
-
-            get.subscribe(terminalTheme, (theme) => {
-              terminal.options.theme = theme
-            })
-
-            yield* get.stream(terminalSizeRx).pipe(
-              Stream.runForEach(() => resize),
-              Effect.forkScoped
-            )
-
-            return terminal
-          })
+          )
         )
 
         yield* get.stream(solved, { withoutInitialValue: true }).pipe(
@@ -101,6 +109,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
           workspace,
           handle,
           terminal,
+          terminalSize,
           selectedFile,
           solved
         } as const
