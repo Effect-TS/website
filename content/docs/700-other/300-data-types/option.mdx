@@ -375,14 +375,14 @@ const maybeName: Option.Option<string> = Option.some("John")
 const maybeAge: Option.Option<number> = Option.some(25)
 
 const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
-  name,
+  name: name.toUpperCase(),
   age
 }))
 
 console.log(person)
 /*
 Output:
-{ _id: 'Option', _tag: 'Some', value: { name: 'John', age: 25 } }
+{ _id: 'Option', _tag: 'Some', value: { name: 'JOHN', age: 25 } }
 */
 ```
 
@@ -401,7 +401,7 @@ const maybeName: Option.Option<string> = Option.some("John")
 const maybeAge: Option.Option<number> = Option.none()
 
 const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
-  name,
+  name: name.toUpperCase(),
   age
 }))
 
@@ -410,6 +410,23 @@ console.log(person)
 Output:
 { _id: 'Option', _tag: 'None' }
 */
+```
+
+If you need to combine two or more `Option`s without transforming the values they hold, you can use `Option.all`, which takes a collection of `Option`s and returns an `Option` with the same structure.
+
+- If a tuple is provided, the returned `Option` will contain a tuple with the same length.
+- If a struct is provided, the returned `Option` will contain a struct with the same keys.
+- If an iterable is provided, the returned `Option` will contain an array.
+
+```ts twoslash
+import { Option } from "effect"
+
+const maybeName: Option.Option<string> = Option.some("John")
+const maybeAge: Option.Option<number> = Option.some(25)
+
+const tuple = Option.all([maybeName, maybeAge])
+
+const struct = Option.all({ name: maybeName, age: maybeAge })
 ```
 
 ## gen
@@ -425,7 +442,7 @@ const maybeName: Option.Option<string> = Option.some("John")
 const maybeAge: Option.Option<number> = Option.some(25)
 
 const person = Option.gen(function* () {
-  const name = yield* maybeName
+  const name = (yield* maybeName).toUpperCase()
   const age = yield* maybeAge
   return { name, age }
 })
@@ -433,7 +450,7 @@ const person = Option.gen(function* () {
 console.log(person)
 /*
 Output:
-{ _id: 'Option', _tag: 'Some', value: { name: 'John', age: 25 } }
+{ _id: 'Option', _tag: 'Some', value: { name: 'JOHN', age: 25 } }
 */
 ```
 
@@ -446,7 +463,7 @@ const maybeName: Option.Option<string> = Option.some("John")
 const maybeAge: Option.Option<number> = Option.none()
 
 const person = Option.gen(function* () {
-  const name = yield* maybeName
+  const name = (yield* maybeName).toUpperCase()
   const age = yield* maybeAge
   return { name, age }
 })
