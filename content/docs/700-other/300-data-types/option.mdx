@@ -382,14 +382,7 @@ const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
 console.log(person)
 /*
 Output:
-{
-  _id: "Option",
-  _tag: "Some",
-  value: {
-    name: "John",
-    age: 25
-  }
-}
+{ _id: 'Option', _tag: 'Some', value: { name: 'John', age: 25 } }
 */
 ```
 
@@ -415,9 +408,52 @@ const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
 console.log(person)
 /*
 Output:
-{
-  _id: "Option",
-  _tag: "None"
-}
+{ _id: 'Option', _tag: 'None' }
+*/
+```
+
+## gen
+
+Similar to [`Effect.gen`](../../guides/essentials/using-generators), there's also `Option.gen`, which provides a convenient syntax, akin to async/await, for writing code involving `Option` and using generators.
+
+Let's revisit the previous example, this time using `Option.gen` instead of `Option.zipWith`:
+
+```ts twoslash
+import { Option } from "effect"
+
+const maybeName = Option.some("John")
+const maybeAge = Option.some(25)
+
+const person = Option.gen(function* () {
+  const name = yield* maybeName
+  const age = yield* maybeAge
+  return { name, age }
+})
+
+console.log(person)
+/*
+Output:
+{ _id: 'Option', _tag: 'Some', value: { name: 'John', age: 25 } }
+*/
+```
+
+Once again, if either of the two `Option` values is `None`, the resulting `Option` will also be `None`:
+
+```ts twoslash
+import { Option } from "effect"
+
+const maybeName = Option.some("John")
+const maybeAge = Option.none()
+
+const person = Option.gen(function* () {
+  const name = yield* maybeName
+  const age = yield* maybeAge
+  return { name, age }
+})
+
+console.log(person)
+/*
+Output:
+{ _id: 'Option', _tag: 'None' }
 */
 ```
