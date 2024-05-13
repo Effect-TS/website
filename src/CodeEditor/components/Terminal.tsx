@@ -18,7 +18,7 @@ export function Terminal({ shell }: { readonly shell: WorkspaceShell }) {
   return (
     <div className="relative z-0 h-full">
       {shell.label && (
-        <div className="bg-neutral-600 text-white leading-none px-2 py-1 font-display text-sm absolute top-2 right-5 z-10 rounded">
+        <div className="bg-neutral-600 text-white leading-none px-2 py-1 font-display text-sm absolute top-2 right-5 z-10 rounded-full">
           {shell.label}
         </div>
       )}
