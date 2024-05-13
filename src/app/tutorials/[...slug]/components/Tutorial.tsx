@@ -1,23 +1,12 @@
 "use client"
 
-import {
-  Directory,
-  File,
-  Workspace,
-  WorkspaceShell
-} from "@/domain/Workspace"
+import { Directory, File, Workspace } from "@/domain/Workspace"
+import { shellLayouts } from "@/tutorials/common"
+import { Tutorial as ITutorial } from "contentlayer/generated"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import React, { useMemo } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
-
-const shellLayouts = {
-  watch: [new WorkspaceShell({ command: "../run src/main.ts" })],
-  server: [
-    new WorkspaceShell({ label: "Server", command: "../run src/main.ts" }),
-    new WorkspaceShell({ label: "Client" })
-  ]
-}
 
 export function Tutorial({
   name,
@@ -35,7 +24,7 @@ export function Tutorial({
     readonly solution: string | undefined
   }>
   readonly packageJson: string
-  readonly shellLayout: "watch" | "server"
+  readonly shellLayout: ITutorial["shellLayout"]
   readonly navigation: React.ReactNode
   readonly children: React.ReactNode
   readonly next:
