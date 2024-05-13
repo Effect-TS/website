@@ -144,3 +144,139 @@ console.log(foo) // Output: 1
 
 const bar = Effect.runSync(Effect.andThen(Effect.succeed([]), head)) // throws "empty array"
 ```
+
+## Combining Two or More Eithers
+
+The `Either.zipWith` function allows you to combine two `Either` values using a provided function. It creates a new `Either` that holds the combined value of both original `Either` values.
+
+```ts twoslash
+import { Either } from "effect"
+
+const maybeName: Either.Either<string, Error> = Either.right("John")
+const maybeAge: Either.Either<number, Error> = Either.right(25)
+
+const person = Either.zipWith(maybeName, maybeAge, (name, age) => ({
+  name: name.toUpperCase(),
+  age
+}))
+
+console.log(person)
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: { name: 'JOHN', age: 25 } }
+*/
+```
+
+The `Either.zipWith` function takes three arguments:
+
+- The first `Either` you want to combine
+- The second `Either` you want to combine
+- A function that takes two arguments, which are the values held by the two `Either`, and returns the combined value
+
+It's important to note that if either of the two `Either` values is `Left`, the resulting `Either` will also be `Left`, containing the value of the first encountered `Left`:
+
+```ts {4-6} twoslash
+import { Either } from "effect"
+
+const maybeName: Either.Either<string, Error> = Either.right("John")
+const maybeAge: Either.Either<number, Error> = Either.left(
+  new Error("Oh no!")
+)
+
+const person = Either.zipWith(maybeName, maybeAge, (name, age) => ({
+  name: name.toUpperCase(),
+  age
+}))
+
+console.log(person)
+/*
+Output:
+{ _id: 'Either', _tag: 'Left', left: new Error("Oh no!") }
+*/
+```
+
+If you need to combine two or more `Either`s without transforming the values they hold, you can use `Either.all`, which takes a collection of `Either`s and returns an `Either` with the same structure.
+
+- If a tuple is provided, the returned `Either` will contain a tuple with the same length.
+- If a struct is provided, the returned `Either` will contain a struct with the same keys.
+- If an iterable is provided, the returned `Either` will contain an array.
+
+```ts twoslash
+import { Either } from "effect"
+
+const maybeName: Either.Either<string, Error> = Either.right("John")
+const maybeAge: Either.Either<number, Error> = Either.right(25)
+
+const tuple = Either.all([maybeName, maybeAge])
+
+const struct = Either.all({ name: maybeName, age: maybeAge })
+```
+
+Note that if one or more `Either` is a `Left`, then the first encountered `Left` will be returned:
+
+```ts
+import { Either } from "effect"
+
+const maybeName: Either.Either<string, Error> = Either.left(
+  new Error("name not found")
+)
+const maybeAge: Either.Either<number, Error> = Either.left(
+  new Error("age not found")
+)
+
+const tuple = Either.all([maybeName, maybeAge])
+
+console.log(tuple)
+/*
+Output:
+{ _id: 'Either', _tag: 'Left', left: new Error("name not found") }
+*/
+```
+
+## gen
+
+Similar to [`Effect.gen`](../../guides/essentials/using-generators), there's also `Either.gen`, which provides a convenient syntax, akin to async/await, for writing code involving `Either` and using generators.
+
+Let's revisit the previous example, this time using `Either.gen` instead of `Either.zipWith`:
+
+```ts twoslash
+import { Either } from "effect"
+
+const maybeName: Either.Either<string, Error> = Either.right("John")
+const maybeAge: Either.Either<number, Error> = Either.right(25)
+
+const person = Either.gen(function* () {
+  const name = (yield* maybeName).toUpperCase()
+  const age = yield* maybeAge
+  return { name, age }
+})
+
+console.log(person)
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: { name: 'JOHN', age: 25 } }
+*/
+```
+
+Once again, if either of the two `Either` values is `Left`, the resulting `Either` will also be `Left`:
+
+```ts twoslash
+import { Either } from "effect"
+
+const maybeName: Either.Either<string, Error> = Either.right("John")
+const maybeAge: Either.Either<number, Error> = Either.left(
+  new Error("Oh no!")
+)
+
+const person = Either.gen(function* () {
+  const name = (yield* maybeName).toUpperCase()
+  const age = yield* maybeAge
+  return { name, age }
+})
+
+console.log(person)
+/*
+Output:
+{ _id: 'Either', _tag: 'Left', left: new Error("Oh no!") }
+*/
+```
