@@ -33,7 +33,9 @@ export function Terminal({ shell }: { readonly shell: WorkspaceShell }) {
           )}
         </span>
       </div>
-      <div ref={ref} id="terminal" className="bg-black flex-1" />
+      <div className="flex-1 overflow-hidden">
+        <div ref={ref} id="terminal" className="h-full" />
+      </div>
     </div>
   )
 }
