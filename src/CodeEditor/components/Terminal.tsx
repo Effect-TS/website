@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef } from "react"
 import { useWorkspaceHandle } from "../context/WorkspaceContext"
 import "./Terminal.css"
 import { WorkspaceShell } from "@/domain/Workspace"
+import { Icon } from "@/components/icons"
 
 export function Terminal({ shell }: { readonly shell: WorkspaceShell }) {
   const workspace = useWorkspaceHandle()
@@ -16,13 +17,23 @@ export function Terminal({ shell }: { readonly shell: WorkspaceShell }) {
   }, [terminal])
 
   return (
-    <div className="relative z-0 h-full">
-      {shell.label && (
-        <div className="bg-neutral-600 text-white leading-none px-2 py-1 font-display text-sm absolute top-2 right-5 z-10 rounded-full">
-          {shell.label}
-        </div>
-      )}
-      <div ref={ref} id="terminal" className="h-full bg-black" />
+    <div className="relative z-0 h-full flex flex-col">
+      <div className="font-mono font-bold text-xs border-y border-neutral-300 dark:border-neutral-700 flex px-2 items-center">
+        <Icon name="display" className="h-3 pr-2" />
+        <span className="py-1">
+          Terminal
+          {shell.label && (
+            <>
+              {" "}
+              &mdash;{" "}
+              <span className="bg-neutral-600 px-2 py-0.5 text-white rounded-full">
+                {shell.label}
+              </span>
+            </>
+          )}
+        </span>
+      </div>
+      <div ref={ref} id="terminal" className="bg-black flex-1" />
     </div>
   )
 }

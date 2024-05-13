@@ -47,11 +47,7 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
 const defaultWorkspace = new Workspace({
   name: "playground",
   prepare: "pnpm add -E tsx",
-  shells: [
-    new WorkspaceShell({
-      command: "../run main.ts"
-    })
-  ],
+  shells: [new WorkspaceShell({ command: "../run main.ts" })],
   initialFilePath: "main.ts",
   snapshot: "tutorials",
   tree: [

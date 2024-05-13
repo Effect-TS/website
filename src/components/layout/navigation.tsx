@@ -40,7 +40,7 @@ export const Navigation: FC<{
         <div
           className={`w-full ${
             inline
-              ? "border-b dark:border-gray-600"
+              ? "border-b dark:border-neutral-700"
               : wide
                 ? "max-w-screen-2xl"
                 : "max-w-screen-xl"
