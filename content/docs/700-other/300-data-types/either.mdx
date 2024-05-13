@@ -144,3 +144,101 @@ console.log(foo) // Output: 1
 
 const bar = Effect.runSync(Effect.andThen(Effect.succeed([]), head)) // throws "empty array"
 ```
+
+## Combining Two or More Eithers
+
+The `Either.zipWith` function allows you to combine two `Either` values using a provided function. It creates a new `Either` that holds the combined value of both original `Either` values.
+
+```ts twoslash
+import { Either } from "effect"
+
+const maybeName: Either.Either<string, Error> = Either.right("John")
+const maybeAge: Either.Either<number, Error> = Either.right(25)
+
+const person = Either.zipWith(maybeName, maybeAge, (name, age) => ({
+  name,
+  age
+}))
+
+console.log(person)
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: { name: 'John', age: 25 } }
+*/
+```
+
+The `Either.zipWith` function takes three arguments:
+
+- The first `Either` you want to combine
+- The second `Either` you want to combine
+- A function that takes two arguments, which are the values held by the two `Either`, and returns the combined value
+
+It's important to note that if either of the two `Either` values is `Left`, the resulting `Either` will also be `Left`:
+
+```ts {4-6} twoslash
+import { Either } from "effect"
+
+const maybeName: Either.Either<string, Error> = Either.right("John")
+const maybeAge: Either.Either<number, Error> = Either.left(
+  new Error("Oh no!")
+)
+
+const person = Either.zipWith(maybeName, maybeAge, (name, age) => ({
+  name,
+  age
+}))
+
+console.log(person)
+/*
+Output:
+{ _id: 'Either', _tag: 'Left', left: new Error("Oh no!") }
+*/
+```
+
+## gen
+
+Similar to [`Effect.gen`](../../guides/essentials/using-generators), there's also `Either.gen`, which provides a convenient syntax, akin to async/await, for writing code involving `Either` and using generators.
+
+Let's revisit the previous example, this time using `Either.gen` instead of `Either.zipWith`:
+
+```ts twoslash
+import { Either } from "effect"
+
+const maybeName: Either.Either<string, Error> = Either.right("John")
+const maybeAge: Either.Either<number, Error> = Either.right(25)
+
+const person = Either.gen(function* () {
+  const name = yield* maybeName
+  const age = yield* maybeAge
+  return { name, age }
+})
+
+console.log(person)
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: { name: 'John', age: 25 } }
+*/
+```
+
+Once again, if either of the two `Either` values is `Left`, the resulting `Either` will also be `Left`:
+
+```ts twoslash
+import { Either } from "effect"
+
+const maybeName: Either.Either<string, Error> = Either.right("John")
+const maybeAge: Either.Either<number, Error> = Either.left(
+  new Error("Oh no!")
+)
+
+const person = Either.gen(function* () {
+  const name = yield* maybeName
+  const age = yield* maybeAge
+  return { name, age }
+})
+
+console.log(person)
+/*
+Output:
+{ _id: 'Either', _tag: 'Left', left: new Error("Oh no!") }
+*/
+```
