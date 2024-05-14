@@ -22,19 +22,10 @@ export const editorRx = Rx.family((workspace: Workspace) => {
         workspaceHandleRx(workspace)
       )
       const el = yield* get.some(element)
-      const { monaco } = yield* Monaco
-      const { makeEditorWithATA } = yield* MonacoATA
-      const editor = yield* makeEditorWithATA(el)
+      const monaco = yield* MonacoATA
+      const editor = yield* monaco.makeEditorWithATA(el)
 
-      yield* Effect.forEach(workspace.filePaths, ([file, path]) => {
-        if (file.language === "typescript") {
-          const uri = monaco.Uri.parse(path)
-          if (monaco.editor.getModel(uri) === null) {
-            monaco.editor.createModel(file.initialContent, file.language, uri)
-          }
-        }
-        return Effect.void
-      })
+      yield* editor.preload(workspace)
 
       get.subscribe(
         editorThemeRx,
