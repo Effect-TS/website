@@ -1,6 +1,6 @@
 import { Workspace } from "@/domain/Workspace"
 import { useRxSet, useRxSuspenseSuccess } from "@effect-rx/rx-react"
-import { ReactNode, Suspense, useCallback } from "react"
+import { Fragment, ReactNode, Suspense, useCallback } from "react"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { LoadingSpinner } from "../components/LoadingSpinner"
 import { FileEditor } from "./components/FileEditor"
@@ -64,12 +64,12 @@ function CodeEditorSuspended({
         <Panel onResize={onResize} defaultSize={30}>
           <PanelGroup autoSaveId="terminal" direction="horizontal">
             {workspace.shells.map((shell, index) => (
-              <>
+              <Fragment key={index}>
                 {index > 0 && <PanelResizeHandle />}
-                <Panel key={index} onResize={onResize}>
+                <Panel onResize={onResize}>
                   <Terminal shell={shell} />
                 </Panel>
-              </>
+              </Fragment>
             ))}
           </PanelGroup>
         </Panel>

@@ -61,7 +61,7 @@ export function Tutorial({
       ]
     })
     return editor(workspace)
-  }, [packageJson, files, name])
+  }, [packageJson, files, name, shellLayout])
 
   return (
     <PanelGroup
