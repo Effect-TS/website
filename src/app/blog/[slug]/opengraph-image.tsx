@@ -1,6 +1,6 @@
+import { allBlogPosts } from "contentlayer/generated"
 import { ImageResponse } from "next/og"
 
-export const runtime = "edge"
 export const alt = "Effect"
 export const size = {
   width: 1200,
@@ -14,7 +14,6 @@ export default async function Image({
 }: {
   params: { slug: string }
 }) {
-  const { allBlogPosts } = await import("contentlayer/generated")
   const post = allBlogPosts.find((post) => post.urlPath === `/blog/${slug}`)!
 
   return new ImageResponse(
