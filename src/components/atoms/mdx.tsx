@@ -10,6 +10,8 @@ import { Steps } from "@/components/docs/components/steps"
 import { Pre } from "../docs/components/pre"
 import { CodeOutput } from "../docs/components/code-output"
 import { Tweet } from "react-tweet"
+import { TwitchClip } from "react-twitch-embed"
+import {TwitchPlayerNonInteractive}  from "react-twitch-embed"
 
 const YouTube = ({ url }: { url: string }) => (
   <div className="video-container">
@@ -23,6 +25,8 @@ const YouTube = ({ url }: { url: string }) => (
     />
   </div>
 )
+
+
 
 export const MDX: FC<{ content: string }> = ({ content }) => {
   const Content = useMDXComponent(content)
@@ -45,7 +49,17 @@ export const MDX: FC<{ content: string }> = ({ content }) => {
               <Tweet id={id} />
             </div>
           ),
-          YouTube
+          YouTube,
+          TwitchClip: ({ clip }: { clip: string })=> (
+            <div>
+              <TwitchClip clip={clip} />
+            </div>
+          ),
+          TwitchPlayerNonInteractive: ({ video }: { video: string })=> (
+            <div>
+              <TwitchPlayerNonInteractive video={video} />
+            </div>
+          )
         }}
       />
     </div>
