@@ -46,7 +46,10 @@ export const tutorialWorkspaces: ReadonlyRecord<
           {
             ...content,
             packageManager: undefined,
-            express: "latest"
+            dependencies: {
+              ...content.dependencies,
+              express: "latest"
+            }
           },
           null,
           2
