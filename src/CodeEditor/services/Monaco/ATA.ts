@@ -32,12 +32,11 @@ const make = Effect.gen(function* () {
 
   monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
     allowNonTsExtensions: true,
+    allowSyntheticDefaultImports: true,
+    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
     strict: true,
     target: monaco.languages.typescript.ScriptTarget.ESNext,
-    strictNullChecks: true,
-    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    allowSyntheticDefaultImports: true,
-    outDir: "lib"
+    strictNullChecks: true
   })
 
   const install = (editor: monaco.editor.IStandaloneCodeEditor) => {
