@@ -1,7 +1,7 @@
 "use client"
 
 import { Directory, File, Workspace } from "@/domain/Workspace"
-import { shellLayouts } from "@/tutorials/common"
+import { tutorialWorkspaces } from "@/tutorials/common"
 import { Tutorial as ITutorial } from "contentlayer/generated"
 import dynamic from "next/dynamic"
 import Link from "next/link"
@@ -12,8 +12,7 @@ export function Tutorial({
   name,
   files,
   navigation,
-  packageJson,
-  shellLayout,
+  workspace,
   next,
   children
 }: {
@@ -23,8 +22,7 @@ export function Tutorial({
     readonly initial: string
     readonly solution: string | undefined
   }>
-  readonly packageJson: string
-  readonly shellLayout: ITutorial["shellLayout"]
+  readonly workspace: ITutorial["workspace"]
   readonly navigation: React.ReactNode
   readonly children: React.ReactNode
   readonly next:
@@ -34,34 +32,25 @@ export function Tutorial({
       }
     | undefined
 }) {
-  const Editor = useMemo(() => {
-    const workspace = new Workspace({
-      name,
-      prepare: "pnpm add tsx",
-      shells: shellLayouts[shellLayout],
-      initialFilePath: "src/main.ts",
-      snapshot: "tutorials",
-      tree: [
-        new File({
-          name: "package.json",
-          language: "json",
-          initialContent: packageJson
-        }),
-        new Directory(
-          "src",
-          files.map(
-            (file) =>
-              new File({
-                name: file.name,
-                initialContent: file.initial,
-                solution: file.solution
-              })
+  const Editor = useMemo(
+    () =>
+      editor(
+        tutorialWorkspaces[workspace].withName(name).append(
+          new Directory(
+            "src",
+            files.map(
+              (file) =>
+                new File({
+                  name: file.name,
+                  initialContent: file.initial,
+                  solution: file.solution
+                })
+            )
           )
         )
-      ]
-    })
-    return editor(workspace)
-  }, [packageJson, files, name, shellLayout])
+      ),
+    [files, name, workspace]
+  )
 
   return (
     <PanelGroup

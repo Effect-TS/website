@@ -11,6 +11,18 @@ export class Workspace extends Data.Class<{
   shells: ReadonlyArray<WorkspaceShell>
   snapshot?: string
 }> {
+  withName(name: string) {
+    return new Workspace({
+      ...this,
+      name
+    })
+  }
+  append(...children: Workspace["tree"]) {
+    return new Workspace({
+      ...this,
+      tree: [...this.tree, ...children]
+    })
+  }
   get initialFile() {
     if (this.initialFilePath) {
       return Option.getOrThrow(

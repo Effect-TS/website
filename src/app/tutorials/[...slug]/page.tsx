@@ -3,7 +3,6 @@ import { allTutorials } from "contentlayer/generated"
 import * as FS from "fs/promises"
 import { notFound } from "next/navigation"
 import * as Path from "path"
-import tutorialPackageJson from "../../../../snapshots/tutorials/package.json"
 import { groupedTutorials, tutorialSection } from "../grouped"
 import { Navigation } from "./components/Navigation"
 import { Tutorial } from "./components/Tutorial"
@@ -74,8 +73,7 @@ export default async function Page({
     <Tutorial
       name={name}
       files={filesWithContent}
-      packageJson={JSON.stringify(tutorialPackageJson, null, 2)}
-      shellLayout={page.shellLayout}
+      workspace={page.workspace}
       navigation={<Navigation tutorial={page} />}
       next={
         next && {

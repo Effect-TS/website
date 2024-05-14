@@ -21,10 +21,10 @@ export const Tutorial = defineDocumentType(() => ({
       description: "A brief description of the tutorial.",
       required: true
     },
-    shellLayout: {
+    workspace: {
       type: "enum",
-      options: ["watch", "server"],
-      default: "watch"
+      options: ["default", "express"],
+      default: "default"
     }
   },
   computedFields: {
