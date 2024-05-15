@@ -36,3 +36,5 @@ export const groupedTutorials = (function () {
   }
   return grouped
 })()
+
+export type TutorialGroup = (typeof groupedTutorials)[string]
