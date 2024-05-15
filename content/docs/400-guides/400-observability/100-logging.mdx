@@ -34,7 +34,7 @@ const program = Effect.log("Application started")
 Effect.runSync(program)
 /*
 Output:
-timestamp=2023-07-05T09:14:53.275Z level=INFO fiber=#0 message="Application started"
+timestamp=... level=INFO fiber=#0 message="Application started"
 */
 ```
 
@@ -45,6 +45,25 @@ The log message contains the following information:
 - `fiber`: The identifier of the [fiber](../concurrency/fibers.mdx#what-is-a-fiber) executing the program.
 - `message`: The content of the log message.
 - `span`: (Optional) The duration of the span in milliseconds.
+
+Additionally, you can pass one or more [Cause](../../other/data-types/cause) instances after the main message. These will provide further context under an additional `cause` information:
+
+```ts twoslash
+import { Effect, Cause } from "effect"
+
+const program = Effect.log(
+  "message...",
+  Cause.die("Oh no!"),
+  Cause.die("Oh uh!")
+)
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=message... cause="Error: Oh no!
+Error: Oh uh!"
+*/
+```
 
 ## Log Levels
 
