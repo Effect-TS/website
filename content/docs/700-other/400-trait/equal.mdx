@@ -6,21 +6,21 @@ bottomNavigation: pagination
 
 The Equal module provides a simple and convenient way to define and check for equality between two values in TypeScript.
 
-Here are some key reasons why Effect exports an `Equal` module:
+Here are some key reasons why Effect exports an Equal module:
 
-1. **Value-Based Equality**: JavaScript's native equality operators (`===` and `==`) check for equality by reference, meaning they compare objects based on their memory addresses rather than their content. This behavior can be problematic when you want to compare objects with the same values but different references. The `Equal` module offers a solution by allowing developers to define custom equality checks based on the values of objects.
+1. **Value-Based Equality**: JavaScript's native equality operators (`===` and `==`) check for equality by reference, meaning they compare objects based on their memory addresses rather than their content. This behavior can be problematic when you want to compare objects with the same values but different references. The Equal module offers a solution by allowing developers to define custom equality checks based on the values of objects.
 
-2. **Custom Equality**: The `Equal` module enables developers to implement custom equality checks for their data types and classes. This is crucial when you have specific requirements for determining when two objects should be considered equal. By implementing the `Equal` interface, developers can define their own equality logic.
+2. **Custom Equality**: The Equal module enables developers to implement custom equality checks for their data types and classes. This is crucial when you have specific requirements for determining when two objects should be considered equal. By implementing the `Equal` interface, developers can define their own equality logic.
 
 3. **Data Integrity**: In some applications, maintaining data integrity is crucial. The ability to perform value-based equality checks ensures that identical data is not duplicated within collections like sets or maps. This can lead to more efficient memory usage and more predictable behavior.
 
-4. **Predictable Behavior**: The `Equal` module promotes more predictable behavior when comparing objects. By explicitly defining equality criteria, developers can avoid unexpected results that may occur with JavaScript's default reference-based equality checks.
+4. **Predictable Behavior**: The Equal module promotes more predictable behavior when comparing objects. By explicitly defining equality criteria, developers can avoid unexpected results that may occur with JavaScript's default reference-based equality checks.
 
 ## How to Perform Equality Checking in Effect
 
 In Effect it's advisable to **stop using** JavaScript's `===` and `==` operators and instead rely on the `Equal.equals` function.
 This function can work with any data type that implements the `Equal` trait.
-Some examples of such data types include `Option`, `Either`, `HashSet`, and `HashMap`.
+Some examples of such data types include [Option](../data-types/option), [Either](../data-types/either), [HashSet](https://effect-ts.github.io/effect/effect/HashSet.ts.html), and [HashMap](https://effect-ts.github.io/effect/effect/HashMap.ts.html).
 
 When you use `Equal.equals` and your objects do not implement the `Equal` trait, it defaults to using the `===` operator for object comparison:
 
@@ -137,7 +137,7 @@ console.log(set.size) // Output: 2
 
 Even though the two elements in the set have the same values, the set contains two elements. Why? JavaScript's `Set` checks for equality by reference, not by values.
 
-To perform value-based equality checks, you'll need to use the `Hash*` collection types available in the `effect` package. These collection types, such as [`HashSet`](https://effect-ts.github.io/effect/effect/HashSet.ts.html) and [`HashMap`](https://effect-ts.github.io/effect/effect/HashMap.ts.html), provide support for the `Equal` trait.
+To perform value-based equality checks, you'll need to use the `Hash*` collection types available in the `effect` package. These collection types, such as [HashSet](https://effect-ts.github.io/effect/effect/HashSet.ts.html) and [HashMap](https://effect-ts.github.io/effect/effect/HashMap.ts.html), provide support for the `Equal` trait.
 
 Let's take a closer look at how to use `HashSet` for value-based equality checks:
 
