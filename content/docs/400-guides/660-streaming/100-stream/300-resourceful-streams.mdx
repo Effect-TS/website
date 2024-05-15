@@ -1,16 +1,16 @@
 ---
 title: Resourceful Streams
-excerpt: Discover how to manage resources effectively in Effect's `Stream` module. Explore constructors tailored for lifting scoped resources, ensuring safe acquisition and release within streams. Dive into examples illustrating the use of `acquireRelease` for file operations, finalization for cleanup tasks, and `ensuring` for post-finalization actions. Master the art of resource management in streaming applications with Effect.
+excerpt: Discover how to manage resources effectively in Effect's `Stream` module. Explore constructors tailored for lifting scoped resources, ensuring safe acquisition and release within streams. Dive into examples illustrating the use of `Stream.acquireRelease` for file operations, finalization for cleanup tasks, and `ensuring` for post-finalization actions. Master the art of resource management in streaming applications with Effect.
 bottomNavigation: pagination
 ---
 
 In the Stream module, you'll find that most of the constructors offer a special variant designed for lifting a scoped resource into a `Stream`. When you use these specific constructors, you're essentially creating streams that are inherently safe with regards to resource management. These constructors, before creating the stream, handle the resource acquisition, and after the stream's usage, they ensure its proper closure.
 
-Stream also provides us with `acquireRelease` and `finalizer` constructors that share similarities with `Effect.acquireRelease` and `Effect.addFinalizer`. These tools empower us to perform cleanup or finalization tasks before the stream concludes its operation.
+Stream also provides us with `Stream.acquireRelease` and `Stream.finalizer` constructors that share similarities with `Effect.acquireRelease` and `Effect.addFinalizer`. These tools empower us to perform cleanup or finalization tasks before the stream concludes its operation.
 
 ## Acquire Release
 
-In this section, we'll explore an example that demonstrates the use of `acquireRelease` when working with file operations.
+In this section, we'll explore an example that demonstrates the use of `Stream.acquireRelease` when working with file operations.
 
 ```ts twoslash
 import { Stream, Console, Effect } from "effect"
@@ -44,7 +44,7 @@ Closing file.txt
 */
 ```
 
-In this code snippet, we're simulating file operations using the `open` function. The `acquireRelease` method is employed to ensure that the file is correctly opened and closed, and we then process the lines of the file using the acquired resource.
+In this code snippet, we're simulating file operations using the `open` function. The `Stream.acquireRelease` function is employed to ensure that the file is correctly opened and closed, and we then process the lines of the file using the acquired resource.
 
 ## Finalization
 

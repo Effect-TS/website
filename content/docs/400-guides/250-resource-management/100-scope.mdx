@@ -440,10 +440,10 @@ Every acquire release requires three actions:
 - **Using Resource**. An effect describing the actual process to produce a result. For example, counting the number of lines in a file.
 - **Releasing Resource**. An effect describing the final step of releasing or cleaning up the resource. For example, closing a file.
 
-The `acquireRelease` operator performs the `acquire` workflow **uninterruptibly**.
+The `Effect.acquireRelease` operator performs the `acquire` workflow **uninterruptibly**.
 This is important because if we allowed interruption during resource acquisition we could be interrupted when the resource was partially acquired.
 
-The guarantee of the `acquireRelease` operator is that if the `acquire` workflow successfully completes execution then the `release` workflow is guaranteed to be run when the `Scope` is closed.
+The guarantee of the `Effect.acquireRelease` operator is that if the `acquire` workflow successfully completes execution then the `release` workflow is guaranteed to be run when the `Scope` is closed.
 
 For example, let's define a simple resource:
 
@@ -487,7 +487,7 @@ export const resource = Effect.acquireRelease(acquire, release)
 // @include: resource
 ```
 
-Notice that the `acquireRelease` operator added a `Scope` to the context required by the workflow:
+Notice that the `Effect.acquireRelease` operator added a `Scope` to the context required by the workflow:
 
 ```ts
 Effect<MyResource, Error, Scope>
@@ -594,7 +594,7 @@ Resource released
 
 ## acquireUseRelease
 
-The `Effect.acquireUseRelease(acquire, use, release){:ts}` function is a specialized version of the `acquireRelease` function that simplifies resource management by automatically handling the scoping of resources.
+The `Effect.acquireUseRelease(acquire, use, release){:ts}` function is a specialized version of the `Effect.acquireRelease` function that simplifies resource management by automatically handling the scoping of resources.
 
 The main difference is that `acquireUseRelease` eliminates the need to manually call `Effect.scoped` to manage the resource's scope. It has additional knowledge about when you are done using the resource created with the `acquire` step. This is achieved by providing a `use` argument, which represents the function that operates on the acquired resource. As a result, `acquireUseRelease` can automatically determine when it should execute the release step.
 

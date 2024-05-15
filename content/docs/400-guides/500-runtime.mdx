@@ -42,7 +42,7 @@ So how does Effect actually run these workflows? This is where the Effect Runtim
 
 After the creation of the Fiber, it invokes the Fiber's runLoop, which follows the instructions described by the `Effect` and executes them step by step.
 
-To simplify, we can envision the Runtime System as a black box that takes both the effect ([`Effect<A, E, R>`](./essentials/effect-type)) and its associated context (`Context<R>`). It runs the effect and returns the result as an [`Exit<A, E>`](./data-types/exit) value.
+To simplify, we can envision the Runtime System as a black box that takes both the effect [Effect&lt;A, E, R&gt;](essentials/the-effect-type) and its associated context `Context<R>`. It runs the effect and returns the result as an [Exit&lt;A, E&gt;](../other/data-types/exit) value.
 
 ![Runtime](/images/mmd/runtime.svg)
 
@@ -58,7 +58,7 @@ Runtime Systems have a lot of responsibilities:
 
 4. **Cooperatively yield to other fibers**. They have to cooperatively yield to other fibers so that fibers that are sort of hogging the spotlight, don't get to monopolize all the CPU resources.
 
-5. **Ensure finalizers are run appropriately**. They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed that clean-up logic is executed. This is the feature that powers [`Scope`](./resource-management) and all the other resource-safe constructs in Effect.
+5. **Ensure finalizers are run appropriately**. They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed that clean-up logic is executed. This is the feature that powers [Scope](./resource-management/scope) and all the other resource-safe constructs in Effect.
 
 6. **Handle asynchronous callback**. They have to handle this messy job of dealing with asynchronous callbacks. So we don't have to deal with async code. When we are using Effect, everything can be interpreted as async or sync out of the box.
 
@@ -150,8 +150,12 @@ const program = Effect.gen(function* () {
   yield* Effect.log("Application started!")
   yield* Effect.gen(function* () {
     yield* Effect.log("I'm not going to be logged!")
-    yield* Effect.log("I will be logged by the simple logger.").pipe(Effect.provide(addSimpleLogger))
-    yield* Effect.log("Reset back to the previous configuration, so I won't be logged.")
+    yield* Effect.log("I will be logged by the simple logger.").pipe(
+      Effect.provide(addSimpleLogger)
+    )
+    yield* Effect.log(
+      "Reset back to the previous configuration, so I won't be logged."
+    )
   }).pipe(Effect.provide(Logger.remove(Logger.defaultLogger)))
   yield* Effect.log("Application is about to exit!")
 })
