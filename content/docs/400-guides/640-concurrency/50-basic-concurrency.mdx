@@ -4,21 +4,25 @@ excerpt: Basic Concurrency
 bottomNavigation: pagination
 ---
 
-Effect is a highly concurrent framework powered by fibers. Fibers are lightweight virtual threads with resource-safe cancellation capabilities, enabling many features in Effect.
+Effect is a highly concurrent framework powered by fibers. Fibers are lightweight **virtual threads** with resource-safe cancellation capabilities, enabling many features in Effect.
 
 In this section, you will learn the basics of fibers and get familiar with some of the powerful high-level operators that utilize fibers.
 
+## What Are Virtual Threads?
+
+JavaScript is inherently single-threaded, meaning it executes code in a single sequence of instructions. However, modern JavaScript environments use an event loop to manage asynchronous operations, creating the illusion of multitasking. In this context, virtual threads, or fibers, are logical threads simulated by the Effect runtime. They allow concurrent execution without relying on true multi-threading, which is not natively supported in JavaScript.
+
 ## Fibers
 
-All effects in Effect are executed by fibers. If you didn't create the fiber yourself, it was created by an operation you're using (if it's concurrent or parallel) or by the Effect runtime system.
+All effects in Effect are executed by fibers. If you didn't create the fiber yourself, it was created by an operation you're using (if it's concurrent) or by the Effect runtime system.
 
-Even if you write "single-threaded" code with no parallel or concurrent operations, there will always be at least one fiber: the "main" fiber that executes your effect.
+Even if you write "single-threaded" code with no concurrent operations, there will always be at least one fiber: the "main" fiber that executes your effect.
 
-Similar to operating system-level threads, Effect fibers have a well-defined lifecycle based on the effect they are executing.
+Effect fibers have a well-defined lifecycle based on the effect they are executing.
 
 Every fiber exits with either a failure or success, depending on whether the effect it is executing fails or succeeds.
 
-Like operating system threads, Effect fibers have unique identities, local state, and a status (such as done, running, or suspended).
+Effect fibers have unique identities, local state, and a status (such as done, running, or suspended).
 
 ### The Fiber Data Type
 
@@ -212,7 +216,7 @@ Hurray!
 
 Effect provides many functions that accept [Concurrency Options](concurrency-options) to help you identify opportunities to parallelize your code.
 
-For example, the standard `Effect.zip` function combines two effects sequentially. However, there is also a concurrent version, `Effect.zip({_, _, { concurrent: true })`, which combines two effects in parallel.
+For example, the standard `Effect.zip` function combines two effects sequentially. However, there is also a concurrent version, `Effect.zip({_, _, { concurrent: true })`, which combines two effects concurrently.
 
 In the following example, we use `Effect.zip` to run two tasks sequentially. The first task takes 1 second, and the second task takes 2 seconds, resulting in a total duration of approximately 3 seconds:
 
@@ -235,7 +239,7 @@ Duration(3s 5ms 369875ns)
 */
 ```
 
-In this example, we use the concurrent version of `Effect.zip` to run two tasks in parallel. The total duration will be approximately equal to the duration of the longest task, which is 2 seconds:
+In this example, we use the concurrent version of `Effect.zip` to run two tasks concurrently. The total duration will be approximately equal to the duration of the longest task, which is 2 seconds:
 
 ```ts twoslash
 import { Effect, Console } from "effect"
