@@ -1,4 +1,7 @@
-import { Data, Equal, Hash, Iterable, Option, pipe } from "effect"
+import { Brand, Data, Equal, Hash, Iterable, Option, pipe } from "effect"
+
+export type FullPath = Brand.Branded<string, "FullPath">
+export const FullPath = Brand.nominal<FullPath>()
 
 export class Workspace extends Data.Class<{
   name: string
@@ -39,6 +42,11 @@ export class Workspace extends Data.Class<{
   }
   pathTo(file: File) {
     return Option.fromNullable(this.filePaths.get(file))
+  }
+  fullPathTo(file: File) {
+    return this.pathTo(file).pipe(
+      Option.map((path) => FullPath(`${this.name}/${path}`))
+    )
   }
   [Hash.symbol]() {
     return Hash.string(this.name)

@@ -1,5 +1,5 @@
 import { MonacoATA } from "@/CodeEditor/services/Monaco/ATA"
-import { File, Workspace } from "@/domain/Workspace"
+import { File, FullPath, Workspace } from "@/domain/Workspace"
 import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
 import { Effect, Option, pipe, Stream } from "effect"
@@ -37,9 +37,9 @@ export const editorRx = Rx.family((workspace: Workspace) => {
         return handle.write(path.value, editor.editor.getValue())
       })
 
-      const sync = (path: string, file: File) =>
+      const sync = (fullPath: FullPath, path: string, file: File) =>
         content(path, file).pipe(
-          Stream.tap((content) => editor.load(path, file, content)),
+          Stream.tap((content) => editor.load(fullPath, file, content)),
           Stream.flatMap((_) => editor.content.pipe(Stream.drop(1)), {
             switch: true
           }),
@@ -68,9 +68,15 @@ export const editorRx = Rx.family((workspace: Workspace) => {
       yield* get.stream(selectedFile).pipe(
         Stream.bindTo("file"),
         Stream.bindEffect("path", ({ file }) => workspace.pathTo(file)),
-        Stream.flatMap(({ file, path }) => sync(path, file), {
-          switch: true
-        }),
+        Stream.bindEffect("fullPath", ({ file }) =>
+          workspace.fullPathTo(file)
+        ),
+        Stream.flatMap(
+          ({ file, path, fullPath }) => sync(fullPath, path, file),
+          {
+            switch: true
+          }
+        ),
         Stream.runDrain,
         Effect.catchAllCause(Effect.log),
         Effect.forkScoped

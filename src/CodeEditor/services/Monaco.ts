@@ -1,4 +1,4 @@
-import { File } from "@/domain/Workspace"
+import { File, FullPath, Workspace } from "@/domain/Workspace"
 import { Data, Effect, GlobalValue, Layer, Stream } from "effect"
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 
@@ -76,7 +76,7 @@ const make = Effect.gen(function* () {
         string,
         monaco.editor.ICodeEditorViewState | null
       >()
-      const load = (path: string, file: File, content: string) =>
+      const load = (path: FullPath, file: File, content: string) =>
         Effect.gen(function* () {
           const uri = monaco.Uri.parse(path)
           const model =
@@ -97,6 +97,24 @@ const make = Effect.gen(function* () {
           return model
         })
 
+      const preload = (workspace: Workspace) =>
+        Effect.forEach(
+          workspace.filePaths,
+          ([file, path]) =>
+            Effect.sync(() => {
+              const uri = monaco.Uri.parse(`${workspace.name}/${path}`)
+              if (monaco.editor.getModel(uri)) {
+                return
+              }
+              monaco.editor.createModel(
+                file.initialContent,
+                file.language,
+                uri
+              )
+            }),
+          { discard: true }
+        )
+
       const content = Stream.async<string>((emit) => {
         const cancel = editor.onDidChangeModelContent(() => {
           emit.single(editor.getValue())
@@ -104,7 +122,7 @@ const make = Effect.gen(function* () {
         return Effect.sync(() => cancel.dispose())
       })
 
-      return { editor, load, content, theme } as const
+      return { editor, load, preload, content, theme } as const
     })
 
   function listen<A>(event: monaco.IEvent<A>) {
