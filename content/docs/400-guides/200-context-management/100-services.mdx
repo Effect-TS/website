@@ -4,81 +4,92 @@ excerpt: Understand the concept of services in Effect programming, reusable comp
 bottomNavigation: pagination
 ---
 
-In the context of programming, a service refers to a reusable component or functionality that can be used by different parts of an application. Services are designed to provide specific capabilities and can be shared across multiple modules or components.
+In the context of programming, a **service** refers to a reusable component or functionality that can be used by different parts of an application.
+Services are designed to provide specific capabilities and can be shared across multiple modules or components.
 
-Services often encapsulate common tasks or operations that are needed by different parts of an application. They can handle complex operations, interact with external systems or APIs, manage data, or perform other specialized tasks.
+Services often encapsulate common tasks or operations that are needed by different parts of an application.
+They can handle complex operations, interact with external systems or APIs, manage data, or perform other specialized tasks.
 
-Services are typically designed to be modular and decoupled from the rest of the application. This allows them to be easily maintained, tested, and replaced without affecting the overall functionality of the application.
+Services are typically designed to be modular and decoupled from the rest of the application.
+This allows them to be easily maintained, tested, and replaced without affecting the overall functionality of the application.
 
-When working with services in Effect, it is important to understand the concept of context: in the type `Effect<A, E, R>`, the parameter `R` represents the contextual data required by the effect to be executed. This contextual data is stored in a collection called `Context`.
+When working with services in Effect, it is important to understand the concept of **context**: in the type `Effect<Success, Error, Requirements>`, the parameter `Requirements` represents the services required by the effect to be executed.
+These services are stored in a collection called `Context`.
 
 ## Managing Services with Effects
 
-So far, we have been working with effects that don't require any specific context. In those cases, the `R` parameter in the `Effect<A, E, R>` type has always been of type `never`.
-However, there are situations where we need to work with effects that depend on specific services or contextual data.
+So far, we have been working with effects that don't require any specific service. In those cases, the `Requirements` parameter in the `Effect<Success, Error, Requirements>` type has always been of type `never`.
+
+However, there are situations where we need to work with effects that depend on specific services.
+
+These services are stored in a collection called `Context`.
+
+The `Context` acts as a container for all the services an effect might need. By leveraging this context, you can manage requirements effectively, ensuring that each part of your application has access to the necessary services without tight coupling.
 
 In this guide, we will learn how to:
 
 - Create Effects that depend on a specific context.
-- Work with Effects that require a context or service dependencies.
+- Work with Effects that require a context.
 - Provide the required context to the Effect.
-
-Understanding how to manage services and provide the necessary context to effects is essential for building more complex and customizable programs. Let's dive in and explore these concepts in detail.
 
 ## Creating a Simple Service
 
-Let's start by creating a service for a random number generator.
+Let's start by creating a service for generating random numbers.
 
-To create a new service, three things are needed:
+To create a new service, you need two things:
 
-- A unique identifier at the runtime level (the `"Random"` string).
-- A unique identifier at the type level (the `Random` class type).
-- A type describing the possible operations of the service .
+- A unique identifier.
+- A type describing the possible operations of the service.
 
-```twoslash include service
+Let's define our first service:
+
+- We'll use the string `"MyRandomService"` as the unique identifier.
+- The service type will have a single operation called `next` that returns a random number.
+
+```ts twoslash
 import { Effect, Context } from "effect"
 
-export class Random extends Context.Tag("Random")<
+class Random extends Context.Tag("MyRandomService")<
   Random,
   { readonly next: Effect.Effect<number> }
 >() {}
 ```
 
-```ts filename="service.ts" twoslash
-// @include: service
-```
+The exported `Random` value is known as a **tag** in Effect. It acts as a representation of the service and allows Effect to locate and use this service at runtime.
 
-The code above defines a type which represents our service. It has a single operation called `next` that returns a random number.
+The service will be stored in a collection called `Context`, which can be thought of as a `Map` where the keys are tags and the values are services: `Context = Map<Tag, Service>`.
 
-The `Random` value is what is referred to as a "Tag" in Effect. It serves as a representation of the service and allows Effect to locate and use this service at runtime.
+<Info>
+You need to specify an identifier (in this case, the string `"MyRandomService"`) to make the tag global. This ensures that two tags with the same identifier refer to the same instance.
 
-To understand this better, let's think of the context of an effect as a `Map`:
+Using a unique identifier is particularly useful in scenarios where live reloads can occur, as it helps preserve the instance across reloads. It ensures there is no duplication of instances (although it shouldn't happen, some bundlers and frameworks can behave unpredictably)
 
-```ts
-Map<Tag, ServiceImpl>
-```
+</Info>
 
-Here, the Tag acts like the "key" to the service implementation within the context.
+**Summary**
 
-Additionally, you need to specify an identifier (in this case, the string `"Random"`) to make the Tag global. This means that two tags with the same identifier must refer to the same instance.
+In the Effect, understanding services, tags, and context is essential for managing requirements and building modular applications.
 
-This feature comes in handy in scenarios where live reloads can occur, and you want to preserve the instance across reloads. It ensures that there is no duplication of instances (although it should not happen in the first place, some bundlers and frameworks can behave strangely, and we don't have control over them). Additionally, using a unique identifier allows for better printing of a tag. If you ever face "Service Not Found" or "Service Not Found: Random," the second is better and provides more helpful information to identify the issue.
+| **Concept** | **Description**                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------- |
+| **Service** | A reusable component providing specific functionality, used across different parts of an application.   |
+| **Tag**     | A unique identifier representing a **service**, allowing Effect to locate and use it.                   |
+| **Context** | A collection storing services, functioning like a map with **tags** as keys and **services** as values. |
 
 ## Using the Service
 
-Now that we have our service tag defined, let's see how we can use it by building a pipeline.
+Now that we have our service tag defined, let's see how we can use it by building a simple program.
 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
 ```ts twoslash
-// @filename: service.ts
-// @include: service
+import { Effect, Context } from "effect"
 
-// @filename: index.ts
-// ---cut---
-import { Effect } from "effect"
-import { Random } from "./service"
+class Random extends Context.Tag("MyRandomService")<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>() {}
 
 const program = Effect.gen(function* () {
   const random = yield* Random
@@ -87,21 +98,19 @@ const program = Effect.gen(function* () {
 })
 ```
 
-In the code above, we can observe that we are able to yield the `Random` Tag as if it were an `Effect` itself.
+In the code above, we can observe that we are able to yield the `Random` tag as if it were an `Effect` itself.
 This allows us to access the `next` operation of the service.
-We then use the `console.log` utility to log the generated random number.
 
 </Tab>
 <Tab>
 
 ```ts twoslash
-// @filename: service.ts
-// @include: service
+import { Effect, Context, Console } from "effect"
 
-// @filename: index.ts
-// ---cut---
-import { Effect, Console } from "effect"
-import { Random } from "./service"
+class Random extends Context.Tag("MyRandomService")<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>() {}
 
 const program = Random.pipe(
   Effect.andThen((random) => random.next),
@@ -118,11 +127,7 @@ We then use the `Console.log` utility to log the generated random number.
 </Tab>
 </Tabs>
 
-It's worth noting that the type of the `program` variable includes `Random` in the `R` type parameter:
-
-```ts
-Effect<void, never, Random>
-```
+It's worth noting that the type of the `program` variable includes `Random` in the `Requirements` type parameter: `Effect<void, never, Random>`.
 
 This indicates that our program requires the `Random` service to be provided in order to execute successfully.
 
@@ -130,7 +135,12 @@ If we attempt to execute the effect without providing the necessary service we w
 
 ```ts twoslash
 // @errors: 2345
-// @include: service
+import { Effect, Context } from "effect"
+
+class Random extends Context.Tag("MyRandomService")<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>() {}
 
 const program = Effect.gen(function* () {
   const random = yield* Random
@@ -151,7 +161,12 @@ In the next section, we will explore how to implement and provide the `Random` s
 In order to provide an actual implementation of the `Random` service, we can utilize the `Effect.provideService` function.
 
 ```ts twoslash
-// @include: service
+import { Effect, Context } from "effect"
+
+class Random extends Context.Tag("MyRandomService")<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>() {}
 
 const program = Effect.gen(function* () {
   const random = yield* Random
@@ -172,11 +187,9 @@ random number: 0.8241872233134417
 ```
 
 In the code snippet above, we call the `program` that we defined earlier and provide it with an implementation of the `Random` service.
-We use the `Effect.provideService(effect, tag, implementation){:ts}` function to associate the `Random` tag with its implementation, an object with a `next` operation that generates a random number.
+We use the `Effect.provideService` function to associate the `Random` tag with its implementation, an object with a `next` operation that generates a random number.
 
-Notice that the `R` type parameter of the `runnable` effect is now `never`. This indicates that the effect no longer requires any context to be provided. With the implementation of the `Random` service in place, we are able to run the program without any further dependencies.
-
-By calling `Effect.runPromise(runnable){:ts}`, the program is executed, and the resulting output can be observed on the console.
+Notice that the `Requirements` type parameter of the `runnable` effect is now `never`. This indicates that the effect no longer requires any service to be provided. With the implementation of the `Random` service in place, we are able to run the program without any further requirements.
 
 ## Using Multiple Services
 
@@ -185,28 +198,24 @@ When we require the usage of more than one service, the process remains similar 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```twoslash include random-logger
+```ts twoslash
 import { Effect, Context } from "effect"
 
-// Create a 'Tag' for the 'Random' service
-class Random extends Context.Tag("Random")<
+// Create a tag for the 'Random' service
+class Random extends Context.Tag("MyRandomService")<
   Random,
   {
     readonly next: Effect.Effect<number>
   }
 >() {}
 
-// Create a 'Tag' for the 'Logger' service
-class Logger extends Context.Tag("Logger")<
+// Create a tag for the 'Logger' service
+class Logger extends Context.Tag("MyLoggerService")<
   Logger,
   {
     readonly log: (message: string) => Effect.Effect<void>
   }
 >() {}
-```
-
-```ts twoslash
-// @include: random-logger
 
 const program = Effect.gen(function* () {
   // Acquire instances of the 'Random' and 'Logger' services
@@ -225,7 +234,23 @@ const program = Effect.gen(function* () {
 <Tab>
 
 ```ts twoslash
-// @include: random-logger
+import { Effect, Context } from "effect"
+
+// Create a tag for the 'Random' service
+class Random extends Context.Tag("MyRandomService")<
+  Random,
+  {
+    readonly next: Effect.Effect<number>
+  }
+>() {}
+
+// Create a tag for the 'Logger' service
+class Logger extends Context.Tag("MyLoggerService")<
+  Logger,
+  {
+    readonly log: (message: string) => Effect.Effect<void>
+  }
+>() {}
 
 const program =
   // Acquire instances of the 'Random' and 'Logger' services
@@ -245,16 +270,26 @@ const program =
 </Tab>
 </Tabs>
 
-The `program` effect now has an `R` type parameter of `Random | Logger`, indicating that it requires both the `Random` and `Logger` services to be provided.
-
-```ts
-Effect<void, never, Random | Logger>
-```
+The `program` effect now has a `Requirements` type parameter of `Random | Logger`, indicating that it requires both the `Random` and `Logger` services to be provided.
 
 To execute the `program`, we need to provide implementations for both services:
 
 ```ts twoslash
-// @include: random-logger
+import { Effect, Context } from "effect"
+
+class Random extends Context.Tag("MyRandomService")<
+  Random,
+  {
+    readonly next: Effect.Effect<number>
+  }
+>() {}
+
+class Logger extends Context.Tag("MyLoggerService")<
+  Logger,
+  {
+    readonly log: (message: string) => Effect.Effect<void>
+  }
+>() {}
 
 const program = Effect.gen(function* () {
   const random = yield* Random
@@ -264,15 +299,13 @@ const program = Effect.gen(function* () {
 })
 
 // ---cut---
-import { Console } from "effect"
-
 // Provide service implementations for 'Random' and 'Logger'
 const runnable1 = program.pipe(
   Effect.provideService(Random, {
     next: Effect.sync(() => Math.random())
   }),
   Effect.provideService(Logger, {
-    log: Console.log
+    log: (message) => Effect.sync(() => console.log(message))
   })
 )
 ```
@@ -280,7 +313,21 @@ const runnable1 = program.pipe(
 Alternatively, instead of calling `provideService` multiple times, we can combine the service implementations into a single `Context` and then provide the entire context using the `Effect.provide` function:
 
 ```ts twoslash
-// @include: random-logger
+import { Effect, Context } from "effect"
+
+class Random extends Context.Tag("MyRandomService")<
+  Random,
+  {
+    readonly next: Effect.Effect<number>
+  }
+>() {}
+
+class Logger extends Context.Tag("MyLoggerService")<
+  Logger,
+  {
+    readonly log: (message: string) => Effect.Effect<void>
+  }
+>() {}
 
 const program = Effect.gen(function* () {
   const random = yield* Random
@@ -290,12 +337,12 @@ const program = Effect.gen(function* () {
 })
 
 // ---cut---
-import { Console } from "effect"
-
 // Combine service implementations into a single 'Context'
 const context = Context.empty().pipe(
   Context.add(Random, { next: Effect.sync(() => Math.random()) }),
-  Context.add(Logger, { log: Console.log })
+  Context.add(Logger, {
+    log: (message) => Effect.sync(() => console.log(message))
+  })
 )
 
 // Provide the entire context to the 'program'
@@ -307,30 +354,25 @@ By providing the necessary implementations for each service, we ensure that the 
 ## Optional Services
 
 There are situations where we may want to access a service implementation only if it is available.
-In such cases, we can use the `Effect.serviceOption(tag){:ts}` function to handle this scenario.
+In such cases, we can use the `Effect.serviceOption` function to handle this scenario.
 
-The `serviceOption` function returns an implementation that can is available only if it is actually provided before executing this effect.
-To represent this optionality it returns an `Option` of the implementation:
-
-```ts
-Effect<Option<Random>>
-```
+The `Effect.serviceOption` function returns an implementation that can is available only if it is actually provided before executing this effect.
+To represent this optionality it returns an [Option](../../other/data-types/option) of the implementation.
 
 Let's take a look at an example that demonstrates the usage of optional services:
 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-To determine what action to take, we can use the `Option.isNone` function provided by the `Option` module. This function allows us to check if the service is available or not by returning `true` when the service is not available.
+To determine what action to take, we can use the `Option.isNone` function provided by the Option module. This function allows us to check if the service is available or not by returning `true` when the service is not available.
 
 ```ts twoslash
-// @filename: service.ts
-// @include: service
+import { Effect, Context, Option } from "effect"
 
-// @filename: index.ts
-// ---cut---
-import { Effect, Option } from "effect"
-import { Random } from "./service"
+class Random extends Context.Tag("MyRandomService")<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>() {}
 
 const program = Effect.gen(function* () {
   const maybeRandom = yield* Effect.serviceOption(Random)
@@ -349,13 +391,12 @@ const program = Effect.gen(function* () {
 To determine if we can use the service, we can use the `Option.match` function provided by the `Option` module. This function allows us to perform different actions based on whether the service is available or not. It takes two callbacks as arguments: one for the case when the service is not available, and another for the case when it is available.
 
 ```ts twoslash
-// @filename: service.ts
-// @include: service
+import { Effect, Context, Option, Console } from "effect"
 
-// @filename: index.ts
-// ---cut---
-import { Effect, Option, Console } from "effect"
-import { Random } from "./service"
+class Random extends Context.Tag("MyRandomService")<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>() {}
 
 const program = Effect.serviceOption(Random).pipe(
   Effect.andThen((maybeRandom) =>
@@ -373,7 +414,7 @@ const program = Effect.serviceOption(Random).pipe(
 </Tab>
 </Tabs>
 
-In the code above, we can observe that the `R` type parameter of the `program` effect is `never`, even though we are working with a service. This allows us to access something from the context only if it is actually provided before executing this effect.
+In the code above, we can observe that the `Requirements` type parameter of the `program` effect is `never`, even though we are working with a service. This allows us to access something from the context only if it is actually provided before executing this effect.
 
 When we run the `program` effect without providing the `Random` service:
 
@@ -398,5 +439,3 @@ Effect.runPromise(
 We can observe that the log message now contains a random number generated by the `next` operation of the `Random` service.
 
 By using the `Effect.serviceOption` function, we can gracefully handle scenarios where a service may or may not be available, providing flexibility in our programs.
-
-In the upcoming section, we will delve into the topic of [Layers](layers). Layers are powerful constructs for creating services and composing them together, enabling us to build complex dependency graphs that can be seamlessly provided to Effects.

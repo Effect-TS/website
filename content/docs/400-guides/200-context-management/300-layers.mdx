@@ -1,20 +1,29 @@
 ---
-title: Managing Service Dependencies (Layers)
+title: Managing Layers
 excerpt: Learn how to use Layers to control the construction of service dependencies and manage the "dependency graph" of your program more effectively.
 bottomNavigation: pagination
 ---
 
-In the [previous section](services), you learned how to create effects which depend on some context to be provided in order to execute, as well as how to provide that context to an Effect.
+In the previous sections, you learned how to create effects which depend on some service to be provided in order to execute, as well as how to provide that service to an Effect.
 
-However, what if we have a service within our effect program that has dependencies on other services in order to be built? We want to **avoid leaking these implementation details** into the service interface.
+However, what if we have a service within our effect program that has dependencies on other services in order to be built? We want to avoid leaking these implementation details into the service interface.
 
-To represent the "dependency graph" of our program and manage these dependencies more effectively, we can utilize a powerful abstraction called `Layer`.
+To represent the "dependency graph" of our program and manage these dependencies more effectively, we can utilize a powerful abstraction called **Layer**.
+
+Layers act as **constructors** for creating services, allowing us to manage dependencies during construction rather than at the service level. This approach helps to keep our service interfaces clean and focused.
+
+| **Concept** | **Description**                                                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Service** | A reusable component providing specific functionality, used across different parts of an application.                     |
+| **Tag**     | A unique identifier representing a **service**, allowing Effect to locate and use it.                                     |
+| **Context** | A collection storing services, functioning like a map with **tags** as keys and **services** as values.                   |
+| **Layer**   | An abstraction for constructing **services**, managing dependencies during construction rather than at the service level. |
 
 In this guide, we will cover the following topics:
 
-- Using `Layer`s to control the construction of dependencies.
-- Building a dependency graph with `Layer`s.
-- Providing a `Layer` to an effect.
+- Using Layers to control the construction of services.
+- Building a dependency graph with Layers.
+- Providing a Layer to an effect.
 
 ## Designing the Dependency Graph
 
@@ -33,23 +42,24 @@ Now let's take our dependency graph and translate it into code.
 
 ## Creating Layers
 
-We will use `Layer`s to construct the `Recipe` service instead of providing a service implementation directly as we did in the [Managing Services](services) guide.
+We will use Layers to construct the `Recipe` service instead of providing a service implementation directly as we did in the [Managing Services](services) guide.
 Layers are a way of separating implementation details from the service itself.
 
 <Idea>
-  When a service has its own dependencies, it's best to separate
+  When a service has its own requirements, it's best to separate
   implementation details into layers. Layers act as **constructors** for
   creating the service, allowing us to handle dependencies at the construction
   level rather than the service level.
 </Idea>
 
-A `Layer<ROut, E, RIn>` represents a blueprint for constructing a `Context<ROut>`. It takes a value of type `RIn` as input and may potentially produce an error of type `E` during the construction process.
+A `Layer<RequirementsOut, Error, RequirementsIn>` represents a blueprint for constructing a `RequirementsOut`.
+It takes a value of type `RequirementsIn` as input and may potentially produce an error of type `Error` during the construction process.
 
-In our case, the `ROut` type represents the service we want to construct, while `RIn` represents the dependencies required for construction.
+In our case, the `RequirementsOut` type represents the service we want to construct, while `RequirementsIn` represents the dependencies required for construction.
 
 <Info>
   For simplicity, let's assume that we won't encounter any errors during the
-  value construction (meaning `E = never`).
+  value construction (meaning `Error = never`).
 </Info>
 
 Now, let's determine how many layers we need to implement our dependency graph:
@@ -70,17 +80,13 @@ Now, let's determine how many layers we need to implement our dependency graph:
 </Idea>
 
 When a service has multiple dependencies, they are represented as a **union type**. In our case, the `Recipe` service depends on both the `Flour` and `Sugar` services.
-Therefore, the type for the `RecipeLive` layer will be:
-
-```ts
-Layer<Recipe, never, Flour | Sugar>
-```
+Therefore, the type for the `RecipeLive` layer will be `Layer<Recipe, never, Flour | Sugar>`.
 
 ### MeasuringCup
 
 The `MeasuringCup` service does not depend on any other services, so `MeasuringCupLive` will be the simplest layer to implement.
 Just like in the [Managing Services](services) guide, we must create a `Tag` for the service.
-And because the service has no dependencies, we can create the layer directly using `Layer.succeed(tag, service){:ts}`:
+And because the service has no dependencies, we can create the layer directly using `Layer.succeed`:
 
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
@@ -103,9 +109,9 @@ const MeasuringCupLive = Layer.succeed(
 
 Looking at the type of `MeasuringCupLive` we can observe:
 
-- `ROut` is `MeasuringCup`, indicating that constructing the layer will produce a `MeasuringCup` service
-- `E` is `never`, indicating that layer construction cannot fail
-- `RIn` is `never`, indicating that the layer has no dependencies
+- `RequirementsOut` is `MeasuringCup`, indicating that constructing the layer will produce a `MeasuringCup` service
+- `Error` is `never`, indicating that layer construction cannot fail
+- `RequirementsIn` is `never`, indicating that the layer has no dependencies
 
 Note that, to construct `MeasuringCupLive`, we used the `MeasuringCup.of`
 constructor. However, this is merely a helper to ensure correct type inference
@@ -122,9 +128,9 @@ const MeasuringCupLive = Layer.succeed(MeasuringCup, {
 
 Now we can move on to the implementation of the `Sugar` and `Flour` services, both of which depend on the `MeasuringCup` service to measure the proper amount of the ingredient.
 
-Just like we did in the [Services](services#using-the-service) guide, we can map over the `MeasuringCup` Tag to "extract" the service from the context and make use of it within our ingredient services.
+Just like we did in the [Managing Services](services#using-the-service) guide, we can map over the `MeasuringCup` tag to "extract" the service from the context and make use of it within our ingredient services.
 
-Given that mapping over a Tag is an effectful operation, we use `Layer.effect(tag, effect){:ts}` to create a `Layer` from the resulting `Effect`.
+Given that mapping over a tag is an effectful operation, we use `Layer.effect` to create a `Layer` from the resulting `Effect`.
 
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
@@ -172,9 +178,9 @@ const FlourLive = Layer.effect(
 
 Looking at the type of `SugarLive` and `FlourLive` we can observe:
 
-- `ROut` is our ingredient
-- `E` is `never`, indicating that layer construction cannot fail
-- `RIn` is `MeasuringCup`, indicating that the layer has a dependency
+- `RequirementsOut` is our ingredient
+- `Error` is `never`, indicating that layer construction cannot fail
+- `RequirementsIn` is `MeasuringCup`, indicating that the layer has a requirement
 
 ### Recipe
 
@@ -307,7 +313,7 @@ const RecipeLive = Layer.effect(
 </Tab>
 </Tabs>
 
-Looking at the type of `RecipeLive` we can observe that the `RIn` type is `Flour | Sugar`, i.e. the `Recipe` service requires both `Flour` and `Sugar` services.
+Looking at the type of `RecipeLive` we can observe that the `RequirementsIn` type is `Flour | Sugar`, i.e. the `Recipe` service requires both `Flour` and `Sugar` services.
 
 ## Combining Layers
 
@@ -537,7 +543,7 @@ const MainLive = RecipeLive.pipe(
 ## Providing a Layer to an Effect
 
 Now that we have assembled the fully resolved `MainLive` for our application,
-we can provide it to our program to satisfy the program's requirements using `Effect.provide(effect, layer){:ts}`:
+we can provide it to our program to satisfy the program's requirements using `Effect.provide`:
 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
@@ -723,4 +729,4 @@ Measured 1 cup(s)
 </Tab>
 </Tabs>
 
-The `Effect.forEach` function is used to iterate over a collection of values (`steps`) and perform a side effect on each element (`Console.log`), discarding the result (`void`).
+The `Effect.forEach` function is used to iterate over a collection of values and perform a side effect on each element, discarding the result.
