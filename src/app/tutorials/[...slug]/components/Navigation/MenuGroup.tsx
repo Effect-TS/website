@@ -28,7 +28,7 @@ export function MenuGroup({
           <Icon
             name="chevron-right"
             className={clsx(
-              "h-3 leading-none",
+              "h-3 leading-none transition-transform",
               expanded ? "rotate-90" : "rotate-0"
             )}
           />
