@@ -13,33 +13,43 @@ export class TodoRepository {
     { id: 5, text: "Pay bills", completed: false }
   ]
 
-  get(id: number): Todo | undefined {
-    return this.todos.find((todo) => todo.id === id)
+  get(id: number): Promise<Todo | undefined> {
+    const todo = this.todos.find((todo) => todo.id === id)
+    return Promise.resolve(todo)
   }
 
-  getAll(): ReadonlyArray<Todo> {
-    return this.todos
+  getAll(): Promise<ReadonlyArray<Todo>> {
+    return Promise.resolve(this.todos)
   }
 
-  create(text: string): Todo {
-    const maxId = this.todos.reduce((max, todo) => todo.id > max ? todo.id : max, 0)
+  async create(text: string): Promise<Todo> {
+    const todos = await this.getAll()
+    const maxId = todos.reduce((max, todo) =>
+      todo.id > max ? todo.id : max,
+    0)
     const newTodo = { id: maxId + 1, text, completed: false }
     this.todos.push(newTodo)
-    return newTodo
+    return Promise.resolve(newTodo)
   }
 
-  update(id: number, props: Partial<Omit<Todo, "id">>): Todo | undefined {
-    const todo = this.todos.find((todo) => todo.id === id)
+  async update(
+    id: number,
+    props: Partial<Omit<Todo, "id">>
+  ): Promise<Todo | undefined> {
+    const todo = await this.get(id)
     if (todo) {
       Object.assign(todo, props)
-      return todo
+      return Promise.resolve(todo)
     }
-    return undefined
+    return Promise.resolve(undefined)
   }
 
-  delete(id: number): boolean {
-    const initialLength = this.todos.length
-    this.todos.filter((todo) => todo.id !== id)
-    return this.todos.length < initialLength
+  delete(id: number): Promise<boolean> {
+    const index = this.todos.findIndex((todo) => todo.id === id)
+    if (index !== -1) {
+      this.todos.splice(index, 1)
+      return Promise.resolve(true)
+    }
+    return Promise.resolve(false)
   }
 }
