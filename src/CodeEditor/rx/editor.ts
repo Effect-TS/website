@@ -30,26 +30,38 @@ export const editorRx = Rx.family((workspace: Workspace) => {
         { immediate: true }
       )
 
+      const prevContent = new Map<string, string>()
+      const write = (path: string, content: string) =>
+        Effect.gen(function* (_) {
+          const prev = prevContent.get(path)
+          if (prev === content) return
+          prevContent.set(path, content)
+          yield* handle.write(path, content)
+        })
+
       const save = Effect.suspend(() => {
         const file = get.once(selectedFile)
         const path = workspace.pathTo(file)
         if (path._tag === "None") return Effect.void
-        return handle.write(path.value, editor.editor.getValue())
+        return write(path.value, editor.editor.getValue())
       })
 
       const sync = (fullPath: FullPath, path: string, file: File) =>
         content(path, file).pipe(
-          Stream.tap((content) => editor.load(fullPath, file, content)),
+          Stream.tap((content) => {
+            prevContent.set(path, content)
+            return editor.load(fullPath, file, content)
+          }),
           Stream.flatMap((_) => editor.content.pipe(Stream.drop(1)), {
             switch: true
           }),
           Stream.debounce("2 seconds"),
-          Stream.tap((content) => handle.write(path, content)),
+          Stream.tap((content) => write(path, content)),
           Stream.ensuring(
             Effect.suspend(() => {
               const content = editor.editor.getValue()
               if (!content.trim()) return Effect.void
-              return handle.write(path, content)
+              return write(path, content)
             })
           )
         )
