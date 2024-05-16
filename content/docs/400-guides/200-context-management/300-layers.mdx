@@ -27,23 +27,19 @@ In this guide, we will cover the following topics:
 
 ## Designing the Dependency Graph
 
-Let's imagine that we want to bake a cake! We could imagine that the dependency graph for an application where we are creating a recipe for a cake might look something like:
+Let's imagine that we are building a web application! We could imagine that the dependency graph for an application where we need to manage configuration, logging, and database access might look something like this:
 
-<img src="/images/mmd/layers.svg" style={{ width: "50%", margin: "auto" }} />
+- The `Config` service provides application configuration.
+- The `Logger` service depends on the `Config` service.
+- The `Database` service depends on both the `Config` and `Logger` services.
 
-From the dependency graph above, we can observe the following:
-
-- Both the `Flour` and `Sugar` services depend on the `MeasuringCup` service.
-- The `Recipe` service depends on its ingredients, which in this case are `Flour` and `Sugar`.
-
-Our goal is to build the `Recipe` service along with its direct and indirect dependencies. This means we need to ensure that the `MeasuringCup` service is available for both `Flour` and `Sugar`, and then provide the ingredients to the `Recipe` service.
+Our goal is to build the `Database` service along with its direct and indirect dependencies. This means we need to ensure that the `Config` service is available for both `Logger` and `Database`, and then provide these dependencies to the `Database` service.
 
 Now let's take our dependency graph and translate it into code.
 
 ## Creating Layers
 
-We will use Layers to construct the `Recipe` service instead of providing a service implementation directly as we did in the [Managing Services](services) guide.
-Layers are a way of separating implementation details from the service itself.
+We will use Layers to construct the `Database` service instead of providing a service implementation directly as we did in the [Managing Services](services) guide. Layers are a way of separating implementation details from the service itself.
 
 <Idea>
   When a service has its own requirements, it's best to separate
@@ -64,12 +60,11 @@ In our case, the `RequirementsOut` type represents the service we want to constr
 
 Now, let's determine how many layers we need to implement our dependency graph:
 
-| **Layer**          | **Dependencies**                                                  | **Type**                               |
-| ------------------ | ----------------------------------------------------------------- | -------------------------------------- |
-| `MeasuringCupLive` | The `MeasuringCup` service does not depend on any other services  | `Layer<MeasuringCup>`                  |
-| `SugarLive`        | The `Sugar` service depends on the `MeasuringCup` service         | `Layer<Sugar, never, MeasuringCup>`    |
-| `FlourLive`        | The `Flour` service depends on the `MeasuringCup` service         | `Layer<Flour, never, MeasuringCup>`    |
-| `RecipeLive`       | The `Recipe` service depends on both `Flour` and `Sugar` services | `Layer<Recipe, never, Flour \| Sugar>` |
+| **Layer**      | **Dependencies**                                           | **Type**                                   |
+| -------------- | ---------------------------------------------------------- | ------------------------------------------ |
+| `ConfigLive`   | The `Config` service does not depend on any other services | `Layer<Config>`                            |
+| `LoggerLive`   | The `Logger` service depends on the `Config` service       | `Layer<Logger, never, Config>`             |
+| `DatabaseLive` | The `Database` service depends on `Config` and `Logger`    | `Layer<Database, never, Config \| Logger>` |
 
 <Idea>
   A common convention when naming the `Layer` for a particular service is to
@@ -79,241 +74,164 @@ Now, let's determine how many layers we need to implement our dependency graph:
   `DatabaseTest` would be the layer you provide in your tests.
 </Idea>
 
-When a service has multiple dependencies, they are represented as a **union type**. In our case, the `Recipe` service depends on both the `Flour` and `Sugar` services.
-Therefore, the type for the `RecipeLive` layer will be `Layer<Recipe, never, Flour | Sugar>`.
+When a service has multiple dependencies, they are represented as a **union type**. In our case, the `Database` service depends on both the `Config` and `Logger` services. Therefore, the type for the `DatabaseLive` layer will be `Layer<Database, never, Config | Logger>`.
 
-### MeasuringCup
+### Config
 
-The `MeasuringCup` service does not depend on any other services, so `MeasuringCupLive` will be the simplest layer to implement.
-Just like in the [Managing Services](services) guide, we must create a `Tag` for the service.
-And because the service has no dependencies, we can create the layer directly using `Layer.succeed`:
+The `Config` service does not depend on any other services, so `ConfigLive` will be the simplest layer to implement. Just like in the [Managing Services](services) guide, we must create a `Tag` for the service. And because the service has no dependencies, we can create the layer directly using `Layer.succeed`:
 
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-// Create a tag for the MeasuringCup service
-class MeasuringCup extends Context.Tag("MeasuringCup")<
-  MeasuringCup,
+// Create a tag for the Config service
+class Config extends Context.Tag("Config")<
+  Config,
   {
-    readonly measure: (amount: number, unit: string) => Effect.Effect<string>
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
   }
 >() {}
 
-const MeasuringCupLive = Layer.succeed(
-  MeasuringCup,
-  MeasuringCup.of({
-    measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+const ConfigLive = Layer.succeed(
+  Config,
+  Config.of({
+    getConfig: Effect.succeed({
+      logLevel: "INFO",
+      connection: "mysql://username:password@hostname:port/database_name"
+    })
   })
 )
 ```
 
-Looking at the type of `MeasuringCupLive` we can observe:
+Looking at the type of `ConfigLive` we can observe:
 
-- `RequirementsOut` is `MeasuringCup`, indicating that constructing the layer will produce a `MeasuringCup` service
+- `RequirementsOut` is `Config`, indicating that constructing the layer will produce a `Config` service
 - `Error` is `never`, indicating that layer construction cannot fail
 - `RequirementsIn` is `never`, indicating that the layer has no dependencies
 
-Note that, to construct `MeasuringCupLive`, we used the `MeasuringCup.of`
+Note that, to construct `ConfigLive`, we used the `Config.of`
 constructor. However, this is merely a helper to ensure correct type inference
 for the implementation. It's possible to skip this helper and construct the
 implementation directly as a simple object:
 
-```ts
-const MeasuringCupLive = Layer.succeed(MeasuringCup, {
-  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
+```ts twoslash
+import { Effect, Context, Layer } from "effect"
+
+class Config extends Context.Tag("Config")<
+  Config,
+  {
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
+  }
+>() {}
+
+// ---cut---
+const ConfigLive = Layer.succeed(Config, {
+  getConfig: Effect.succeed({
+    logLevel: "INFO",
+    connection: "mysql://username:password@hostname:port/database_name"
+  })
 })
 ```
 
-### Sugar & Flour
+### Logger
 
-Now we can move on to the implementation of the `Sugar` and `Flour` services, both of which depend on the `MeasuringCup` service to measure the proper amount of the ingredient.
+Now we can move on to the implementation of the `Logger` service, which depends on the `Config` service to retrieve some configuration.
 
-Just like we did in the [Managing Services](services#using-the-service) guide, we can map over the `MeasuringCup` tag to "extract" the service from the context and make use of it within our ingredient services.
+Just like we did in the [Managing Services](services#using-the-service) guide, we can map over the `Config` tag to "extract" the service from the context.
 
-Given that mapping over a tag is an effectful operation, we use `Layer.effect` to create a `Layer` from the resulting `Effect`.
+Given that using the `Config` tag is an effectful operation, we use `Layer.effect` to create a `Layer` from the resulting `Effect`.
 
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-class MeasuringCup extends Context.Tag("MeasuringCup")<
-  MeasuringCup,
+class Config extends Context.Tag("Config")<
+  Config,
   {
-    readonly measure: (amount: number, unit: string) => Effect.Effect<string>
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
   }
 >() {}
-
-const MeasuringCupLive = Layer.succeed(MeasuringCup, {
-  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
-})
 
 // ---cut---
-export class Sugar extends Context.Tag("Sugar")<
-  Sugar,
-  {
-    readonly grams: (amount: number) => Effect.Effect<string>
-  }
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
 >() {}
 
-const SugarLive = Layer.effect(
-  Sugar,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    grams: (amount) => measuringCup.measure(amount, "gram")
-  }))
-)
-
-export class Flour extends Context.Tag("Flour")<
-  Flour,
-  {
-    readonly cups: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const FlourLive = Layer.effect(
-  Flour,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    cups: (amount) => measuringCup.measure(amount, "cup")
-  }))
-)
-```
-
-Looking at the type of `SugarLive` and `FlourLive` we can observe:
-
-- `RequirementsOut` is our ingredient
-- `Error` is `never`, indicating that layer construction cannot fail
-- `RequirementsIn` is `MeasuringCup`, indicating that the layer has a requirement
-
-### Recipe
-
-Finally, we can use our ingredients to assemble the final recipe:
-
-<Tabs items={["Using Effect.gen", "Using pipe"]}>
-<Tab>
-
-```ts twoslash
-import { Effect, Context, Layer } from "effect"
-
-class MeasuringCup extends Context.Tag("MeasuringCup")<
-  MeasuringCup,
-  {
-    readonly measure: (amount: number, unit: string) => Effect.Effect<string>
-  }
->() {}
-
-const MeasuringCupLive = Layer.succeed(MeasuringCup, {
-  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
-})
-
-export class Sugar extends Context.Tag("Sugar")<
-  Sugar,
-  {
-    readonly grams: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const SugarLive = Layer.effect(
-  Sugar,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    grams: (amount) => measuringCup.measure(amount, "gram")
-  }))
-)
-
-export class Flour extends Context.Tag("Flour")<
-  Flour,
-  {
-    readonly cups: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const FlourLive = Layer.effect(
-  Flour,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    cups: (amount) => measuringCup.measure(amount, "cup")
-  }))
-)
-
-// ---cut---
-export class Recipe extends Context.Tag("Recipe")<
-  Recipe,
-  { readonly steps: Effect.Effect<ReadonlyArray<string>> }
->() {}
-
-const RecipeLive = Layer.effect(
-  Recipe,
+const LoggerLive = Layer.effect(
+  Logger,
   Effect.gen(function* () {
-    const sugar = yield* Sugar
-    const flour = yield* Flour
+    const config = yield* Config
     return {
-      steps: Effect.all([sugar.grams(200), flour.cups(1)])
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
     }
   })
 )
 ```
 
-</Tab>
-<Tab>
+Looking at the type of `LoggerLive` we can observe:
+
+- `RequirementsOut` is `Logger`
+- `Error` is `never`, indicating that layer construction cannot fail
+- `RequirementsIn` is `Config`, indicating that the layer has a requirement
+
+### Database
+
+Finally, we can use our `Config` and `Logger` services to implement the `Database` service.
 
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-class MeasuringCup extends Context.Tag("MeasuringCup")<
-  MeasuringCup,
+class Config extends Context.Tag("Config")<
+  Config,
   {
-    readonly measure: (amount: number, unit: string) => Effect.Effect<string>
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
   }
 >() {}
 
-const MeasuringCupLive = Layer.succeed(MeasuringCup, {
-  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
-})
-
-export class Sugar extends Context.Tag("Sugar")<
-  Sugar,
-  {
-    readonly grams: (amount: number) => Effect.Effect<string>
-  }
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
 >() {}
-
-const SugarLive = Layer.effect(
-  Sugar,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    grams: (amount) => measuringCup.measure(amount, "gram")
-  }))
-)
-
-export class Flour extends Context.Tag("Flour")<
-  Flour,
-  {
-    readonly cups: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const FlourLive = Layer.effect(
-  Flour,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    cups: (amount) => measuringCup.measure(amount, "cup")
-  }))
-)
 
 // ---cut---
-export class Recipe extends Context.Tag("Recipe")<
-  Recipe,
-  { readonly steps: Effect.Effect<ReadonlyArray<string>> }
+class Database extends Context.Tag("Database")<
+  Database,
+  { readonly query: (sql: string) => Effect.Effect<unknown> }
 >() {}
 
-const RecipeLive = Layer.effect(
-  Recipe,
-  Effect.all([Sugar, Flour]).pipe(
-    Effect.andThen(([sugar, flour]) => ({
-      steps: Effect.all([sugar.grams(200), flour.cups(1)])
-    }))
-  )
+const DatabaseLive = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const config = yield* Config
+    const logger = yield* Logger
+    return {
+      query: (sql: string) =>
+        Effect.gen(function* () {
+          yield* logger.log(`Executing query: ${sql}`)
+          const { connection } = yield* config.getConfig
+          return { result: `Results from ${connection}` }
+        })
+    }
+  })
 )
 ```
 
-</Tab>
-</Tabs>
-
-Looking at the type of `RecipeLive` we can observe that the `RequirementsIn` type is `Flour | Sugar`, i.e. the `Recipe` service requires both `Flour` and `Sugar` services.
+Looking at the type of `DatabaseLive` we can observe that the `RequirementsIn` type is `Config | Logger`, i.e., the `Database` service requires both `Config` and `Logger` services.
 
 ## Combining Layers
 
@@ -332,60 +250,57 @@ When we merge two layers, the resulting layer:
 - requires all the services that both of them require.
 - produces all services that both of them produce.
 
-Merging is useful when we combine layers that don't have any relationship with each other.
-
-For example, in our cake recipe application above, we can merge our `FlourLive` and `SugarLive` layers
-into a single `IngredientsLive` layer, which retains the requirements of both layers (`MeasuringCup`) and the outputs of both layers (`Flour | Sugar`):
+For example, in our web application above, we can merge our `ConfigLive` and `LoggerLive` layers into a single `AppConfigLive` layer, which retains the requirements of both layers (`never | Config = Config`) and the outputs of both layers (`Config | Logger`):
 
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-class MeasuringCup extends Context.Tag("MeasuringCup")<
-  MeasuringCup,
+class Config extends Context.Tag("Config")<
+  Config,
   {
-    readonly measure: (amount: number, unit: string) => Effect.Effect<string>
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
   }
 >() {}
 
-const MeasuringCupLive = Layer.succeed(MeasuringCup, {
-  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
-})
-
-export class Sugar extends Context.Tag("Sugar")<
-  Sugar,
-  {
-    readonly grams: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const SugarLive = Layer.effect(
-  Sugar,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    grams: (amount) => measuringCup.measure(amount, "gram")
-  }))
+const ConfigLive = Layer.succeed(
+  Config,
+  Config.of({
+    getConfig: Effect.succeed({
+      logLevel: "INFO",
+      connection: "mysql://username:password@hostname:port/database_name"
+    })
+  })
 )
 
-export class Flour extends Context.Tag("Flour")<
-  Flour,
-  {
-    readonly cups: (amount: number) => Effect.Effect<string>
-  }
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
 >() {}
 
-const FlourLive = Layer.effect(
-  Flour,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    cups: (amount) => measuringCup.measure(amount, "cup")
-  }))
+const LoggerLive = Layer.effect(
+  Logger,
+  Effect.gen(function* () {
+    const config = yield* Config
+    return {
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
+    }
+  })
 )
 
 // ---cut---
-const IngredientsLive = Layer.merge(FlourLive, SugarLive)
+const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
 ```
 
 ### Composing Layers
 
-Layers can be composed using the `Layer.provide` combinator:
+Layers can be composed using the `Layer.provide` function:
 
 ```ts twoslash
 import { Layer } from "effect"
@@ -399,144 +314,155 @@ const composition = inner.pipe(Layer.provide(outer))
 Sequential composition of layers implies that the output of one layer (`outer`) is supplied as the input for the inner layer (`inner`),
 resulting in a single layer with the requirements of the first layer and the output of the second.
 
-Now we can compose the `MeasuringCupLive` layer with the `IngredientsLive` layer, and then compose the result with the `RecipeLive` layer:
+Now we can compose the `AppConfigLive` layer with the `DatabaseLive` layer:
 
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-class MeasuringCup extends Context.Tag("MeasuringCup")<
-  MeasuringCup,
+class Config extends Context.Tag("Config")<
+  Config,
   {
-    readonly measure: (amount: number, unit: string) => Effect.Effect<string>
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
   }
 >() {}
 
-const MeasuringCupLive = Layer.succeed(MeasuringCup, {
-  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
-})
-
-export class Sugar extends Context.Tag("Sugar")<
-  Sugar,
-  {
-    readonly grams: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const SugarLive = Layer.effect(
-  Sugar,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    grams: (amount) => measuringCup.measure(amount, "gram")
-  }))
+const ConfigLive = Layer.succeed(
+  Config,
+  Config.of({
+    getConfig: Effect.succeed({
+      logLevel: "INFO",
+      connection: "mysql://username:password@hostname:port/database_name"
+    })
+  })
 )
 
-export class Flour extends Context.Tag("Flour")<
-  Flour,
-  {
-    readonly cups: (amount: number) => Effect.Effect<string>
-  }
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
 >() {}
 
-const FlourLive = Layer.effect(
-  Flour,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    cups: (amount) => measuringCup.measure(amount, "cup")
-  }))
-)
-
-export class Recipe extends Context.Tag("Recipe")<
-  Recipe,
-  { readonly steps: Effect.Effect<ReadonlyArray<string>> }
->() {}
-
-const RecipeLive = Layer.effect(
-  Recipe,
+const LoggerLive = Layer.effect(
+  Logger,
   Effect.gen(function* () {
-    const sugar = yield* Sugar
-    const flour = yield* Flour
+    const config = yield* Config
     return {
-      steps: Effect.all([sugar.grams(200), flour.cups(1)])
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
+    }
+  })
+)
+
+class Database extends Context.Tag("Database")<
+  Database,
+  { readonly query: (sql: string) => Effect.Effect<unknown> }
+>() {}
+
+const DatabaseLive = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const config = yield* Config
+    const logger = yield* Logger
+    return {
+      query: (sql: string) =>
+        Effect.gen(function* () {
+          yield* logger.log(`Executing query: ${sql}`)
+          const { connection } = yield* config.getConfig
+          return { result: `Results from ${connection}` }
+        })
     }
   })
 )
 
 // ---cut---
-const IngredientsLive = Layer.merge(FlourLive, SugarLive)
+const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
 
-const MainLive = RecipeLive.pipe(
-  Layer.provide(IngredientsLive), // provides the ingredients to the recipe
-  Layer.provide(MeasuringCupLive) // provides the MeasuringCup to the ingredients
+const MainLive = DatabaseLive.pipe(
+  // provides the config and logger to the database
+  Layer.provide(AppConfigLive),
+  // provides the config to AppConfigLive
+  Layer.provide(ConfigLive)
 )
 ```
 
 ### Merging and Composing Layers
 
-Let's say we want our `MainLive` layer to return both the `MeasuringCup` and `Recipe` services.
-We can achieve this with `Layer.provideMerge`:
+Let's say we want our `MainLive` layer to return both the `Config` and `Database` services. We can achieve this with `Layer.provideMerge`:
 
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-class MeasuringCup extends Context.Tag("MeasuringCup")<
-  MeasuringCup,
+class Config extends Context.Tag("Config")<
+  Config,
   {
-    readonly measure: (amount: number, unit: string) => Effect.Effect<string>
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
   }
 >() {}
 
-const MeasuringCupLive = Layer.succeed(MeasuringCup, {
-  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
-})
-
-export class Sugar extends Context.Tag("Sugar")<
-  Sugar,
-  {
-    readonly grams: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const SugarLive = Layer.effect(
-  Sugar,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    grams: (amount) => measuringCup.measure(amount, "gram")
-  }))
+const ConfigLive = Layer.succeed(
+  Config,
+  Config.of({
+    getConfig: Effect.succeed({
+      logLevel: "INFO",
+      connection: "mysql://username:password@hostname:port/database_name"
+    })
+  })
 )
 
-export class Flour extends Context.Tag("Flour")<
-  Flour,
-  {
-    readonly cups: (amount: number) => Effect.Effect<string>
-  }
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
 >() {}
 
-const FlourLive = Layer.effect(
-  Flour,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    cups: (amount) => measuringCup.measure(amount, "cup")
-  }))
-)
-
-export class Recipe extends Context.Tag("Recipe")<
-  Recipe,
-  { readonly steps: Effect.Effect<ReadonlyArray<string>> }
->() {}
-
-const RecipeLive = Layer.effect(
-  Recipe,
+const LoggerLive = Layer.effect(
+  Logger,
   Effect.gen(function* () {
-    const sugar = yield* Sugar
-    const flour = yield* Flour
+    const config = yield* Config
     return {
-      steps: Effect.all([sugar.grams(200), flour.cups(1)])
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
+    }
+  })
+)
+
+class Database extends Context.Tag("Database")<
+  Database,
+  { readonly query: (sql: string) => Effect.Effect<unknown> }
+>() {}
+
+const DatabaseLive = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const config = yield* Config
+    const logger = yield* Logger
+    return {
+      query: (sql: string) =>
+        Effect.gen(function* () {
+          yield* logger.log(`Executing query: ${sql}`)
+          const { connection } = yield* config.getConfig
+          return { result: `Results from ${connection}` }
+        })
     }
   })
 )
 
 // ---cut---
-const IngredientsLive = Layer.merge(FlourLive, SugarLive)
+const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
 
-const MainLive = RecipeLive.pipe(
-  Layer.provide(IngredientsLive),
-  Layer.provideMerge(MeasuringCupLive)
+const MainLive = DatabaseLive.pipe(
+  Layer.provide(AppConfigLive),
+  Layer.provideMerge(ConfigLive)
 )
 ```
 
@@ -545,188 +471,91 @@ const MainLive = RecipeLive.pipe(
 Now that we have assembled the fully resolved `MainLive` for our application,
 we can provide it to our program to satisfy the program's requirements using `Effect.provide`:
 
-<Tabs items={["Using Effect.gen", "Using pipe"]}>
-<Tab>
-
 ```ts twoslash
 import { Effect, Context, Layer } from "effect"
 
-class MeasuringCup extends Context.Tag("MeasuringCup")<
-  MeasuringCup,
+class Config extends Context.Tag("Config")<
+  Config,
   {
-    readonly measure: (amount: number, unit: string) => Effect.Effect<string>
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
   }
 >() {}
 
-const MeasuringCupLive = Layer.succeed(MeasuringCup, {
-  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
-})
-
-export class Sugar extends Context.Tag("Sugar")<
-  Sugar,
-  {
-    readonly grams: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const SugarLive = Layer.effect(
-  Sugar,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    grams: (amount) => measuringCup.measure(amount, "gram")
-  }))
-)
-
-export class Flour extends Context.Tag("Flour")<
-  Flour,
-  {
-    readonly cups: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const FlourLive = Layer.effect(
-  Flour,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    cups: (amount) => measuringCup.measure(amount, "cup")
-  }))
-)
-
-export class Recipe extends Context.Tag("Recipe")<
-  Recipe,
-  { readonly steps: Effect.Effect<ReadonlyArray<string>> }
->() {}
-
-const RecipeLive = Layer.effect(
-  Recipe,
-  Effect.gen(function* () {
-    const sugar = yield* Sugar
-    const flour = yield* Flour
-    return {
-      steps: Effect.all([sugar.grams(200), flour.cups(1)])
-    }
-  })
-)
-
-const IngredientsLive = Layer.merge(FlourLive, SugarLive)
-
-const MainLive = RecipeLive.pipe(
-  Layer.provide(IngredientsLive),
-  Layer.provide(MeasuringCupLive)
-)
-
-// ---cut---
-import { Console } from "effect"
-
-const program = Effect.gen(function* () {
-  const recipe = yield* Recipe
-  const steps = yield* recipe.steps
-  return yield* Effect.forEach(steps, (step) => Console.log(step), {
-    concurrency: "unbounded",
-    discard: true
-  })
-})
-
-const runnable = Effect.provide(program, MainLive)
-
-Effect.runPromise(runnable)
-/*
-Output:
-Measured 200 gram(s)
-Measured 1 cup(s)
-*/
-```
-
-</Tab>
-<Tab>
-
-```ts twoslash
-import { Effect, Context, Layer } from "effect"
-
-class MeasuringCup extends Context.Tag("MeasuringCup")<
-  MeasuringCup,
-  {
-    readonly measure: (amount: number, unit: string) => Effect.Effect<string>
-  }
->() {}
-
-const MeasuringCupLive = Layer.succeed(MeasuringCup, {
-  measure: (amount, unit) => Effect.succeed(`Measured ${amount} ${unit}(s)`)
-})
-
-export class Sugar extends Context.Tag("Sugar")<
-  Sugar,
-  {
-    readonly grams: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const SugarLive = Layer.effect(
-  Sugar,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    grams: (amount) => measuringCup.measure(amount, "gram")
-  }))
-)
-
-export class Flour extends Context.Tag("Flour")<
-  Flour,
-  {
-    readonly cups: (amount: number) => Effect.Effect<string>
-  }
->() {}
-
-const FlourLive = Layer.effect(
-  Flour,
-  Effect.andThen(MeasuringCup, (measuringCup) => ({
-    cups: (amount) => measuringCup.measure(amount, "cup")
-  }))
-)
-
-export class Recipe extends Context.Tag("Recipe")<
-  Recipe,
-  { readonly steps: Effect.Effect<ReadonlyArray<string>> }
->() {}
-
-const RecipeLive = Layer.effect(
-  Recipe,
-  Effect.gen(function* () {
-    const sugar = yield* Sugar
-    const flour = yield* Flour
-    return {
-      steps: Effect.all([sugar.grams(200), flour.cups(1)])
-    }
-  })
-)
-
-const IngredientsLive = Layer.merge(FlourLive, SugarLive)
-
-const MainLive = RecipeLive.pipe(
-  Layer.provide(IngredientsLive),
-  Layer.provide(MeasuringCupLive)
-)
-
-// ---cut---
-import { Console } from "effect"
-
-const program = Recipe.pipe(
-  Effect.andThen((recipe) => recipe.steps),
-  Effect.andThen((steps) =>
-    Effect.forEach(steps, (step) => Console.log(step), {
-      concurrency: "unbounded",
-      discard: true
+const ConfigLive = Layer.succeed(
+  Config,
+  Config.of({
+    getConfig: Effect.succeed({
+      logLevel: "INFO",
+      connection: "mysql://username:password@hostname:port/database_name"
     })
-  )
+  })
 )
+
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
+>() {}
+
+const LoggerLive = Layer.effect(
+  Logger,
+  Effect.gen(function* () {
+    const config = yield* Config
+    return {
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
+    }
+  })
+)
+
+class Database extends Context.Tag("Database")<
+  Database,
+  { readonly query: (sql: string) => Effect.Effect<unknown> }
+>() {}
+
+const DatabaseLive = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const config = yield* Config
+    const logger = yield* Logger
+    return {
+      query: (sql: string) =>
+        Effect.gen(function* () {
+          yield* logger.log(`Executing query: ${sql}`)
+          const { connection } = yield* config.getConfig
+          return { result: `Results from ${connection}` }
+        })
+    }
+  })
+)
+
+const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
+
+const MainLive = DatabaseLive.pipe(
+  Layer.provide(AppConfigLive),
+  Layer.provide(ConfigLive)
+)
+
+// ---cut---
+const program = Effect.gen(function* () {
+  const database = yield* Database
+  const result = yield* database.query("SELECT * FROM users")
+  return yield* Effect.succeed(result)
+})
 
 const runnable = Effect.provide(program, MainLive)
 
-Effect.runPromise(runnable)
+Effect.runPromise(runnable).then(console.log)
 /*
 Output:
-Measured 200 gram(s)
-Measured 1 cup(s)
+[INFO] Executing query: SELECT * FROM users
+{
+  result: 'Results from mysql://username:password@hostname:port/database_name'
+}
 */
 ```
-
-</Tab>
-</Tabs>
-
-The `Effect.forEach` function is used to iterate over a collection of values and perform a side effect on each element, discarding the result.
