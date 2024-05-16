@@ -1,3 +1,5 @@
+import { Effect } from "effect"
+
 export interface Todo {
   readonly id: number
   readonly text: string
@@ -22,14 +24,17 @@ export class TodoRepository {
     return Promise.resolve(this.todos)
   }
 
-  async create(text: string): Promise<Todo> {
-    const todos = await this.getAll()
-    const maxId = todos.reduce((max, todo) =>
-      todo.id > max ? todo.id : max,
-    0)
-    const newTodo = { id: maxId + 1, text, completed: false }
-    this.todos.push(newTodo)
-    return Promise.resolve(newTodo)
+  create(text: string): Effect.Effect<Todo> {
+    const self = this
+    return Effect.gen(function*() {
+      const todos = yield* Effect.promise(() => self.getAll())
+      const maxId = todos.reduce((max, todo) =>
+        todo.id > max ? todo.id : max,
+      0)
+      const newTodo = { id: maxId + 1, text, completed: false }
+      self.todos.push(newTodo)
+      return newTodo
+    })
   }
 
   async update(

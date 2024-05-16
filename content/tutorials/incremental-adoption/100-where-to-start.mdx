@@ -5,32 +5,43 @@ section: Incremental Adoption
 workspace: express
 ---
 
-### Picking a Place to Start
+### Where to Start
 
-The first question one might ask when adopting Effect into an existing codebase is: "Where should I start?".
+When adopting Effect into an existing codebase, it's often best to start with discrete, self-contained pieces of code. You can then use features of Effect to easily interop with your existing code and gradually continue to adopt Effect at your own pace.
 
-There are several valid answers to this question, but one of the easiest ways to get started is to consider any `await`-ed `Promise` a potential starting point. This is because Effect has excellent interop with `Promise`-based code.
+One of the easiest ways to get started is by replacing `Promise`-based code with Effect. This allows you to immediately benefit from the features of Effect, such as detailed error tracking and interruption.
 
-Anywhere you previously did:
+<Idea>
+  To learn more about Effect vs. Promises, checkout the corresponding FAQ page in the documentation<br/>
+  <a href="/docs/other/effect-vs-promise" target="_blank">Effect vs. Promise</a>
+</Idea>
 
-```ts
+### Refactoring from Promise
 
-```
-
-Our recommendation is to start by converting small, discrete, and self-contained pieces of code
-
-one of the easiest ways to get started is to consider any `await`-ed `Promise` a candidate for Effect-ification.
-
-Anywhere you previously did this:
+Let's say that in our application we have a function `getMessage` which takes a numeric `id` as a parameter and returns a `Promise<string>`. We want to re-implement all the logic inside `getMessage` with Effect.
 
 ```ts twoslash
-declare const func: () => Promise<string>
-const result = func()
+declare function getMessage(id: number): Promise<string>
+
+async function main() {
+  const result = await getMessage(1)
+}
 ```
 
+Because Effect has excellent interop with `Promise`-based code, you can freely re-factor `getMessage` to use Effect and use `Effect.runPromise` elsewhere in your application where `getMessage` is `await`ed.
 
+```ts twoslash
+import { Effect } from "effect"
 
-Easiest to start by converting small parts of your application, for example a function that returns a promise
+declare function getMessage(id: number): Effect.Effect<string>
 
-- Since Effect also allows you to properly model the error domain of your application, determine what errors are expected to be thrown by said function
-- Determine the signature the function should return
+async function main() {
+  const result = await Effect.runPromise(getMessage(1))
+}
+```
+
+### Exercise
+
+The team in charge of the `TodoRepository` has re-factored the `create` method from promises to Effect. The method now returns an `Effect<Todo>` instead of a `Promise<Todo>`.
+
+Your job is to fix the `POST /todos` route of our Express API. In the editor to the right, modify the code to restore functionality to our server.
