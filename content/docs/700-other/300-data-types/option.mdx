@@ -15,7 +15,9 @@ The `Option` type is versatile and can be applied in various scenarios, includin
 
 ## Creating Options
 
-The `some` constructor takes a value of type `A` and returns an `Option<A>` that holds that value:
+### some
+
+The `Option.some` constructor takes a value of type `A` and returns an `Option<A>` that holds that value:
 
 ```ts twoslash
 import { Option } from "effect"
@@ -23,12 +25,39 @@ import { Option } from "effect"
 const value = Option.some(1) // An Option holding the number 1
 ```
 
-On the other hand, the `none` constructor returns an `Option<never>`, representing the absence of a value:
+### none
+
+On the other hand, the `Option.none` constructor returns an `Option<never>`, representing the absence of a value:
 
 ```ts twoslash
 import { Option } from "effect"
 
 const noValue = Option.none() // An Option holding no value
+```
+
+### liftPredicate
+
+Sometimes you need to create an `Option` based on a predicate, such as checking if a value is positive.
+
+Here's how you can do this explicitly using `Option.none` and `Option.some`
+
+```ts twoslash
+import { Option } from "effect"
+
+const isPositive = (n: number) => n > 0
+
+const parsePositive = (n: number): Option.Option<number> =>
+  isPositive(n) ? Option.some(n) : Option.none()
+```
+
+The same result can be achieved more concisely using `Option.liftPredicate`
+
+```ts twoslash
+import { Option } from "effect"
+
+const isPositive = (n: number) => n > 0
+
+const parsePositive = Option.liftPredicate(isPositive)
 ```
 
 ## Modeling Optional Properties
