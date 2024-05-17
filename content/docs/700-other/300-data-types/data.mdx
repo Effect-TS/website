@@ -238,7 +238,9 @@ console.log(mike.upperName) // Output: MIKE
 If you're looking to create a disjoint union of tagged structs, you can easily achieve this using `Data.TaggedEnum` and `Data.taggedEnum`.
 This feature simplifies the process of defining and working with unions of plain objects.
 
-Let's walk through an example:
+### Definition
+
+Let's walk through an example to see how this works:
 
 ```ts twoslash
 import { Data, Equal } from "effect"
@@ -268,9 +270,17 @@ console.log(state2) // Output: { data: 'test', _tag: 'Success' }
 console.log(state4) // Output: { reason: 'not found', _tag: 'Failure' }
 ```
 
+In this example:
+
+- We define a `RemoteData` union type with three states: `Loading`, `Success`, and `Failure`.
+- We use `Data.taggedEnum` to create constructors for these states.
+- We create instances of each state and check for equality using `Equal.equals`.
+
 Note that it follows the convention within the Effect ecosystem of naming the tag field with `"_tag"`.
 
-You can also pass a `TaggedEnum.WithGenerics` if you want to add generics to the constructors:
+### Adding Generics
+
+You can also create tagged unions with generics using `TaggedEnum.WithGenerics`. This allows for more flexible and reusable type definitions.
 
 ```ts twoslash
 import { Data } from "effect"
@@ -292,6 +302,38 @@ const loading = Loading()
 const failure = Failure({ reason: "not found" })
 
 const success = Success({ data: 1 })
+```
+
+### $is and $match
+
+The `Data.taggedEnum` also provides `$is` and `$match` functions for type guards and pattern matching, respectively.
+
+```ts twoslash
+import { Data } from "effect"
+
+type RemoteData = Data.TaggedEnum<{
+  Loading: {}
+  Success: { readonly data: string }
+  Failure: { readonly reason: string }
+}>
+
+const { $is, $match, Loading, Success, Failure } =
+  Data.taggedEnum<RemoteData>()
+
+// Create a type guard
+const isLoading = $is("Loading")
+
+console.log(isLoading(Loading())) // true
+console.log(isLoading(Success({ data: "test" }))) // false
+
+// Create a matcher
+const matcher = $match({
+  Loading: () => "this is a Loading",
+  Success: ({ data }) => `this is a Success: ${data}`,
+  Failure: ({ reason }) => `this is a Failre: ${reason}`
+})
+
+console.log(matcher(Success({ data: "test" }))) // "this is a Success: test"
 ```
 
 ## Errors
