@@ -1,6 +1,5 @@
 "use client"
 
-// import React, { FC } from "react"
 import { FC } from "react"
 import { useMDXComponent } from "next-contentlayer/hooks"
 import { H2, H3, H4 } from "@/components/atoms/headings"
@@ -9,7 +8,8 @@ import * as Callouts from "@/components/docs/components/callouts"
 import { Steps } from "@/components/docs/components/steps"
 import { Pre } from "../docs/components/pre"
 import { CodeOutput } from "../docs/components/code-output"
-import { Tweet } from "react-tweet"
+import * as ReactTweet from "react-tweet"
+import * as ReactTwitchEmbed from "react-twitch-embed"
 
 const YouTube = ({ url }: { url: string }) => (
   <div className="video-container">
@@ -21,6 +21,24 @@ const YouTube = ({ url }: { url: string }) => (
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
       allowFullScreen
     />
+  </div>
+)
+
+const Tweet = ({ id }: { id: string }) => (
+  <div className="tweet">
+    <ReactTweet.Tweet id={id} />
+  </div>
+)
+
+const TwitchClip = ({ clip }: { clip: string }) => (
+  <div>
+    <ReactTwitchEmbed.TwitchClip clip={clip} />
+  </div>
+)
+
+const TwitchPlayerNonInteractive = ({ video }: { video: string }) => (
+  <div>
+    <ReactTwitchEmbed.TwitchPlayerNonInteractive video={video} />
   </div>
 )
 
@@ -40,12 +58,10 @@ export const MDX: FC<{ content: string }> = ({ content }) => {
           Steps,
           ...Callouts,
           CodeOutput,
-          Tweet: ({ id }: { id: string }) => (
-            <div className="tweet">
-              <Tweet id={id} />
-            </div>
-          ),
-          YouTube
+          Tweet,
+          YouTube,
+          TwitchClip,
+          TwitchPlayerNonInteractive
         }}
       />
     </div>
