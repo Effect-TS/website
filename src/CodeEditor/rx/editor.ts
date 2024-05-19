@@ -5,7 +5,7 @@ import { Rx } from "@effect-rx/rx-react"
 import { Effect, Option, pipe, Stream } from "effect"
 import { workspaceHandleRx } from "./workspace"
 
-const runtime = Rx.runtime(MonacoATA.Live).pipe(Rx.setIdleTTL("30 seconds"))
+const runtime = Rx.runtime(MonacoATA.Live).pipe(Rx.setIdleTTL("10 seconds"))
 
 export const editorThemeRx = Rx.map(themeRx, (theme) =>
   theme === "dark" ? "vs-dark" : "vs"

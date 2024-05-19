@@ -9,9 +9,7 @@ import {
 } from "../services/Terminal"
 import { WebContainer } from "../services/WebContainer"
 
-const runtime = Rx.runtime(
-  Layer.mergeAll(WebContainer.Live, Terminal.Live)
-).pipe(Rx.setIdleTTL("30 seconds"))
+const runtime = Rx.runtime(Layer.mergeAll(WebContainer.Live, Terminal.Live))
 
 const terminalTheme = Rx.map(themeRx, (theme) =>
   theme === "light" ? NightOwlishLightTheme : MonokaiSodaTheme
@@ -120,7 +118,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         })
       )
     )
-    .pipe(Rx.setIdleTTL("20 seconds"))
+    .pipe(Rx.setIdleTTL("10 seconds"))
 )
 
 export interface WorkspaceHandle
