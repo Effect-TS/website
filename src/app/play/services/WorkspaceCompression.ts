@@ -2,6 +2,16 @@ import { File, Workspace, WorkspaceShell } from "@/domain/Workspace"
 import { Effect, Layer } from "effect"
 import { Compression } from "./Compression"
 
+type WorkspaceCompressed = [
+  name: string,
+  files: ReadonlyArray<WorkspaceCompressedFile>
+]
+type WorkspaceCompressedFile = [
+  name: string,
+  language: string,
+  content: string
+]
+
 const make = Effect.gen(function* () {
   const compression = yield* Compression
 
@@ -12,19 +22,16 @@ const make = Effect.gen(function* () {
   ) =>
     Effect.forEach(workspace.filePaths, ([file, path]) =>
       read(path).pipe(
-        Effect.map((content) => ({
-          name: file.name,
-          language: file.language,
-          content
-        }))
+        Effect.map(
+          (content): WorkspaceCompressedFile => [
+            file.name,
+            file.language,
+            content
+          ]
+        )
       )
     ).pipe(
-      Effect.map((files) =>
-        JSON.stringify({
-          name,
-          files
-        })
-      ),
+      Effect.map((files) => JSON.stringify([name, files])),
       Effect.andThen(compression.compressBase64)
     )
 
@@ -37,27 +44,17 @@ const make = Effect.gen(function* () {
     compression.decompressBase64(options.compressed).pipe(
       Effect.map(JSON.parse),
       Effect.map(
-        ({
-          name,
-          files
-        }: {
-          readonly name: string
-          readonly files: ReadonlyArray<{
-            readonly name: string
-            readonly content: string
-            readonly language: string
-          }>
-        }) =>
+        ([name, files]: WorkspaceCompressed) =>
           new Workspace({
             ...options,
             name,
             tree: files
               .map(
-                (file) =>
+                ([name, language, initialContent]) =>
                   new File({
-                    name: file.name,
-                    initialContent: file.content,
-                    language: file.language
+                    name,
+                    initialContent,
+                    language
                   })
               )
               .filter((file) => options.whitelist.includes(file.name))

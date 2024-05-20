@@ -55,11 +55,9 @@ const defaultWorkspace = new Workspace({
     new File({
       name: "main.ts",
       initialContent: `import { Effect } from "effect"
-import assert from "assert"
 
 Effect.gen(function* () {
-  const result = yield* Effect.succeed("Effect is ...")
-  assert.strictEqual(result, "Effect is awesome!!")
+  yield* Effect.log("Welcome to the Effect Playground!")
 }).pipe(Effect.runPromise)
 `
     })
