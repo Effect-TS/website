@@ -38,6 +38,32 @@ Effect.log("Hello World").pipe(
 )
 ```
 
+## Cause.prettyErrors
+
+You can use this to extract Error instances from a Cause, that have clean stack
+traces and have had span information added to them.
+
+This can be useful when integrating Effect with other libraries that expect
+Error instances.
+
+## Effect.functionWithSpan
+
+This api allows you to define an effectful function that is wrapped with a span.
+
+You can also use the function arguments to generate the span options.
+
+```ts
+import { Effect } from "effect";
+
+const getTodo = Effect.functionWithSpan({
+  body: (id: number) => Effect.succeed(`Got todo ${id}!`),
+  options: (id) => ({
+    name: `getTodo-${id}`,
+    attributes: { id },
+  }),
+});
+```
+
 ## Array.Do notation
 
 Do notation has been added to the `Array` module, for building up arrays in a
