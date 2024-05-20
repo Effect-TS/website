@@ -39,7 +39,10 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
 
       get.setSync(state, "success")
       yield* Effect.sleep(2000)
-    }).pipe(Effect.ensuring(get.set(state, "idle")))
+    }).pipe(
+      Effect.ensuring(get.set(state, "idle")),
+      Effect.tapErrorCause(Effect.log)
+    )
   )
   return { state, share } as const
 })
