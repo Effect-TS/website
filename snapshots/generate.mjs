@@ -8,10 +8,10 @@ const dirname = Path.dirname(fileURLToPath(import.meta.url))
 
 async function processDir(name) {
   const directory = Path.join(dirname, name)
-  await FS.rm(`${directory}/.pnpm-store`, { recursive: true, force: true })
-  await FS.rm(`${directory}/pnpm-lock.yaml`, { force: true })
+  await FS.rm(`${directory}/.npm-cache`, { recursive: true, force: true })
+  await FS.rm(`${directory}/package-lock.json`, { force: true })
 
-  execSync("corepack pnpm install", { cwd: directory })
+  execSync("corepack npm install", { cwd: directory })
 
   await FS.rm(`${directory}/node_modules`, { recursive: true, force: true })
   const buf = await snapshot(directory)

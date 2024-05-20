@@ -18,7 +18,6 @@ export const tutorialsPackageJson = new File({
 
 const baseWorkspace = new Workspace({
   name: "default",
-  prepare: "pnpm add tsx",
   shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
   snapshot: "tutorials",
   initialFilePath: "src/main.ts",

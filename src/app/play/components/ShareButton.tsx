@@ -1,15 +1,24 @@
 import { useWorkspaceHandle } from "@/CodeEditor/context/WorkspaceContext"
-import { useRxSet, useRxValue } from "@effect-rx/rx-react"
+import { useRxSetPromise, useRxValue } from "@effect-rx/rx-react"
 import { useCallback, useMemo } from "react"
 import { shareRx } from "../rx/share"
+import { Cause } from "effect"
 
 export function ShareButton() {
   const handle = useWorkspaceHandle()
   const rx = useMemo(() => shareRx(handle), [handle])
   const state = useRxValue(rx.state)
-  const share = useRxSet(rx.share)
+  const share = useRxSetPromise(rx.share)
   const onClick = useCallback(() => {
-    share()
+    const item = new ClipboardItem({
+      "text/plain": share().then((exit) => {
+        if (exit._tag === "Success") {
+          return new Blob([exit.value], { type: "text/plain" })
+        }
+        throw Cause.prettyErrors(exit.cause)[0]
+      })
+    })
+    navigator.clipboard.write([item])
   }, [share])
   return (
     <button

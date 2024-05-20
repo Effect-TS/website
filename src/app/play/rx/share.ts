@@ -19,7 +19,6 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
       get.setSync(state, "loading")
 
       const compression = yield* WorkspaceCompression
-      const clipboard = yield* Clipboard.Clipboard
       const editor = yield* Result.toExit(
         get.once(editorRx(workspace).editor)
       )
@@ -35,13 +34,19 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
       url.hash = hash
       const urlString = url.toString()
 
-      yield* clipboard.writeString(urlString)
-
       get.setSync(state, "success")
-      yield* Effect.sleep(2000)
+
+      yield* Effect.sleep(2000).pipe(
+        Effect.andThen(get.set(state, "idle")),
+        Effect.forkScoped
+      )
+
+      return urlString
     }).pipe(
-      Effect.ensuring(get.set(state, "idle")),
-      Effect.tapErrorCause(Effect.log)
+      Effect.tapErrorCause((cause) => {
+        get.setSync(state, "idle")
+        return Effect.log(cause)
+      })
     )
   )
   return { state, share } as const
@@ -49,7 +54,7 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
 
 const defaultWorkspace = new Workspace({
   name: "playground",
-  prepare: "pnpm add -E tsx",
+  prepare: "npm install",
   shells: [new WorkspaceShell({ command: "../run main.ts" })],
   initialFilePath: "main.ts",
   snapshot: "tutorials",
