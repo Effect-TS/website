@@ -1,7 +1,9 @@
 "use client"
-import { useEffect, useState } from "react"
+
+import React from "react"
 import * as RadioGroup from "@radix-ui/react-radio-group"
 import { Icon, IconName } from "../icons"
+import { useTheme } from "next-themes"
 
 const themes = [
   { id: "light", name: "Light Mode", icon: "sun" },
@@ -9,24 +11,12 @@ const themes = [
   { id: "system", name: "System Preference", icon: "gear" }
 ]
 
-export const ThemeSwitcher = () => {
-  const [theme, setTheme] = useState<string>()
+export declare namespace ThemeSwitcher {
+  export interface Props {}
+}
 
-  useEffect(() => {
-    const handleEvent = () => setTheme(localStorage?.theme || "system")
-    handleEvent()
-    window.addEventListener("storage", handleEvent)
-    return () => window.removeEventListener("storage", handleEvent)
-  }, [])
-
-  useEffect(() => {
-    if (!theme) return
-    if (theme === "system") localStorage.removeItem("theme")
-    else localStorage.theme = theme
-    if (theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches))
-      document.documentElement.classList.add("dark")
-    else document.documentElement.classList.remove("dark")
-  }, [theme])
+export const ThemeSwitcher: React.FC<ThemeSwitcher.Props> = () => {
+  const { theme, setTheme } = useTheme()
 
   return (
     <div className="h-8 bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-600 dark:to-zinc-900 rounded-lg p-px">
@@ -56,3 +46,5 @@ export const ThemeSwitcher = () => {
     </div>
   )
 }
+
+ThemeSwitcher.displayName = "ThemeSwitcher"
