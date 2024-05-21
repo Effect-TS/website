@@ -3,7 +3,6 @@ import { useRxSetPromise, useRxValue } from "@effect-rx/rx-react"
 import { useCallback, useMemo } from "react"
 import { shareRx } from "../rx/share"
 import { Cause } from "effect"
-import { shortenUrl } from "../actions"
 
 export function ShareButton() {
   const handle = useWorkspaceHandle()
@@ -11,21 +10,15 @@ export function ShareButton() {
   const state = useRxValue(rx.state)
   const share = useRxSetPromise(rx.share)
   const onClick = useCallback(() => {
-    share().then((exit) => {
-      if (exit._tag === "Success") {
-        return shortenUrl(exit.value).then(console.log)
-      }
-      throw Cause.prettyErrors(exit.cause)[0]
+    const item = new ClipboardItem({
+      "text/plain": share().then((exit) => {
+        if (exit._tag === "Success") {
+          return new Blob([exit.value], { type: "text/plain" })
+        }
+        throw Cause.prettyErrors(exit.cause)[0]
+      })
     })
-    // const item = new ClipboardItem({
-    //   "text/plain": share().then((exit) => {
-    //     if (exit._tag === "Success") {
-    //       return new Blob([exit.value], { type: "text/plain" })
-    //     }
-    //     throw Cause.prettyErrors(exit.cause)[0]
-    //   })
-    // })
-    // navigator.clipboard.write([item])
+    navigator.clipboard.write([item])
   }, [share])
   return (
     <button
