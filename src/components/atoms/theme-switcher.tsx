@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import * as RadioGroup from "@radix-ui/react-radio-group"
 import { Icon, IconName } from "../icons"
 import { useTheme } from "next-themes"
@@ -11,19 +11,28 @@ const themes = [
   { id: "system", name: "System Preference", icon: "gear" }
 ]
 
-export declare namespace ThemeSwitcher {
-  export interface Props {}
-}
+export function ThemeSwitcher() {
+  const { theme: initialTheme, setTheme: persistTheme } = useTheme()
+  const [theme, setTheme] = useState<string>()
 
-export const ThemeSwitcher: React.FC<ThemeSwitcher.Props> = () => {
-  const { theme, setTheme } = useTheme()
+  useEffect(() => {
+    setTheme(initialTheme)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const setThemeAndPersist = useCallback(
+    (theme: string) => {
+      persistTheme(theme)
+      setTheme(theme)
+    },
+    [setTheme, persistTheme]
+  )
 
   return (
     <div className="h-8 bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-600 dark:to-zinc-900 rounded-lg p-px">
       <RadioGroup.Root
         className="flex items-center p-1 bg-zinc-100 dark:bg-zinc-900 h-full rounded-[7px]"
         value={theme}
-        onValueChange={setTheme}
+        onValueChange={setThemeAndPersist}
         aria-label="Theme"
       >
         {themes.map(({ id, name, icon }) => (
@@ -35,7 +44,9 @@ export const ThemeSwitcher: React.FC<ThemeSwitcher.Props> = () => {
           >
             <div
               className={`${
-                theme === id ? "bg-zinc-200 dark:bg-zinc-700" : "bg-transparent"
+                theme === id
+                  ? "bg-zinc-200 dark:bg-zinc-700"
+                  : "bg-transparent"
               } h-full flex items-center justify-center text-black dark:text-white w-6 py-0.5 rounded-[3px]`}
             >
               <Icon name={icon as IconName} className="h-3.5" />
@@ -46,5 +57,3 @@ export const ThemeSwitcher: React.FC<ThemeSwitcher.Props> = () => {
     </div>
   )
 }
-
-ThemeSwitcher.displayName = "ThemeSwitcher"
