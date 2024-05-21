@@ -25,6 +25,10 @@ export const editorRx = Rx.family((workspace: Workspace) => {
       const editor = yield* monaco.makeEditorWithATA(el)
 
       yield* editor.preload(workspace)
+      const dependencies = Object.keys(workspace.dependencies)
+        .map((dep) => `import {} from "${dep}"`)
+        .join("\n")
+      monaco.acquireTypes(dependencies)
 
       get.subscribe(
         editorThemeRx,

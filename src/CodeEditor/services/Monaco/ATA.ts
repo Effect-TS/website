@@ -53,7 +53,7 @@ const make = Effect.gen(function* () {
     Effect.tap((editor) => install(editor.editor))
   )
 
-  return { makeEditorWithATA } as const
+  return { acquireTypes: ata, makeEditorWithATA } as const
 })
 
 export class MonacoATA extends Effect.Tag("app/Monaco/ATA")<

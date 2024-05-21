@@ -44,23 +44,26 @@ const make = Effect.gen(function* () {
     compression.decompressBase64(options.compressed).pipe(
       Effect.map(JSON.parse),
       Effect.map(
-        ([name, files]: WorkspaceCompressed) =>
-          new Workspace({
+        ([name, files]: WorkspaceCompressed) => {
+          console.log({files})
+          const [,, packageJson] = files.find(([name]) => name === "package.json")!
+          console.log({ packageJson })
+          return new Workspace({
             name,
+            dependencies: JSON.parse(packageJson)["dependencies"],
             initialFilePath: options.initialFilePath,
             shells: options.shells,
             tree: files
               .map(
-                ([name, language, initialContent]) =>
-                  new File({
-                    name,
-                    initialContent,
-                    language
-                  })
+                ([name, language, initialContent]) => new File({
+                  name,
+                  initialContent,
+                  language
+                })
               )
               .filter((file) => options.whitelist.includes(file.name))
           })
-      )
+        })
     )
 
   return { compress, decompress } as const

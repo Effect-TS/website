@@ -5,6 +5,7 @@ export const FullPath = Brand.nominal<FullPath>()
 
 export class Workspace extends Data.Class<{
   name: string
+  dependencies: Record<string, string>,
   tree: ReadonlyArray<Directory | File>
   initialFilePath?: string
   prepare?: string
@@ -49,8 +50,27 @@ export class Workspace extends Data.Class<{
         }
       })
     }
-    walk("", this.tree)
+    walk("", this.fileSystem)
     return (this.#filePaths = paths)
+  }
+  #packageJson: File | undefined
+  get packageJson(): File {
+    if (this.#packageJson) {
+      return this.#packageJson
+    }
+    const packageJson = new File({
+      name: "package.json",
+      language: "json",
+      initialContent: JSON.stringify({
+        name: this.name,
+        type: "module",
+        dependencies: this.dependencies
+      }, undefined, 2)
+    })
+    return (this.#packageJson = packageJson)
+  }
+  get fileSystem(): ReadonlyArray<File | Directory> {
+    return [this.packageJson, ...this.tree]
   }
   pathTo(file: File) {
     return Option.fromNullable(this.filePaths.get(file))
