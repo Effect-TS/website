@@ -167,9 +167,9 @@ export class Monaco extends Effect.Tag("app/Monaco")<
 
 
 /**
- * Note: the completion item provider has to be setup after the initial ATA run
- * on the editor models and the packages in `package.json`, otherwise it will
- * not be setup properly.
+ * Note: for auto-import completions to work properly, automatic type
+ * acquisition needs to be run on both the editor models **and** the packages in
+ * the `package.json`
  */
 const setupCompletionItemProviders = (monaco: MonacoApi) => {
   const previousRegistrationProvider = monaco.languages.registerCompletionItemProvider
