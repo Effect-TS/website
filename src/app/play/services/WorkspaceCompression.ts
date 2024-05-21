@@ -46,8 +46,9 @@ const make = Effect.gen(function* () {
       Effect.map(
         ([name, files]: WorkspaceCompressed) =>
           new Workspace({
-            ...options,
             name,
+            initialFilePath: options.initialFilePath,
+            shells: options.shells,
             tree: files
               .map(
                 ([name, language, initialContent]) =>

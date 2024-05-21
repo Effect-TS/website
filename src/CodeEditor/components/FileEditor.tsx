@@ -11,15 +11,13 @@ export function FileEditor() {
   const containerRef = useRef<HTMLDivElement>(null)
   const rx = useMemo(() => editorRx(workspace), [workspace])
   const setElement = useRxSet(rx.element)
-  const editor = useRxValue(rx.editor)
+  const isReady = useRxValue(rx.editor, (_) => _._tag === "Success")
 
   useEffect(() => {
     if (containerRef.current) {
       setElement(Option.some(containerRef.current))
     }
   }, [containerRef, setElement])
-
-  const isReady = editor._tag === "Success"
 
   return (
     <section className="h-full flex flex-col">
