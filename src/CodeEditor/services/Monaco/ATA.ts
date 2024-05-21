@@ -30,16 +30,9 @@ const make = Effect.gen(function* () {
     }
   })
 
-  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-    allowNonTsExtensions: true,
-    allowSyntheticDefaultImports: true,
-    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    strict: true,
-    target: monaco.languages.typescript.ScriptTarget.ESNext,
-    strictNullChecks: true
-  })
-
   const install = (editor: monaco.editor.IStandaloneCodeEditor) => {
+    // TODO: auto-load from package json in addition to editor
+    ata(`import * as Schema from "@effect/schema/Schema"`)
     function onChange() {
       const model = editor.getModel()
       if (!model) return

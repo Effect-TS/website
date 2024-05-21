@@ -102,3 +102,4 @@ export const editorRx = Rx.family((workspace: Workspace) => {
 
   return { element, editor } as const
 })
+
