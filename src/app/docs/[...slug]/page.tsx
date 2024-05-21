@@ -70,9 +70,7 @@ export default function Page({
         </div>
         {page.bottomNavigation !== "none" && (
           <div className="w-full">
-            <div className="-mx-12">
-              <Divider className="my-16" />
-            </div>
+            <Divider className="my-16" />
           </div>
         )}
         {page.bottomNavigation === "childCards" && (
