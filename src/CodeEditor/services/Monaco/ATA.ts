@@ -1,6 +1,6 @@
 import { setupTypeAcquisition } from "@typescript/ata"
 import { Effect, Layer, Stream, flow } from "effect"
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api"
+import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 import { Monaco } from "../Monaco"
 
 const make = Effect.gen(function* () {

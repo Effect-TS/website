@@ -1,3 +1,5 @@
+import "@/styles/globals.css"
+
 import { Footer } from "@/components/layout/footer"
 import { Analytics } from "@vercel/analytics/next"
 import type { Metadata } from "next"
@@ -6,16 +8,14 @@ import localFont from "next/font/local"
 import { ReactNode } from "react"
 import { Providers } from "./providers"
 
-import "./globals.css"
-import "./hljs.css"
-
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter"
 })
+
 const calSans = localFont({
-  src: "./cal-sans-semibold.woff2",
+  src: "../assets/cal-sans-semibold.woff2",
   weight: "600",
   display: "swap",
   variable: "--font-cal-sans"

@@ -54,7 +54,7 @@ export const Search: FC<{ className?: string }> = ({ className = "" }) => {
     <>
       <button
         onClick={() => setOpen(true)}
-        className={`h-8 bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-600 dark:to-zinc-900 rounded-lg p-px focus:outline-none ${className}`}
+        className={`h-8 bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-600 dark:to-zinc-900 hover:text-black hover:dark:text-white rounded-lg p-px focus:outline-none ${className}`}
       >
         <div className="flex items-center gap-2 pr-1 pl-3 bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-800 dark:to-zinc-950 h-full rounded-[7px]">
           <Icon
