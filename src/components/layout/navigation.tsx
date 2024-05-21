@@ -13,7 +13,8 @@ import { FC } from "react"
 const menu = [
   { name: "Docs", href: "/docs" },
   { name: "Blog", href: "/blog" },
-  // { name: "Examples", href: "https://github.com/Effect-TS/examples" },
+  // { name: "Tutorials", href: "/tutorials/basics" },
+  { name: "Play", href: "/play", reload: true }
 ]
 
 const socials = [
@@ -25,15 +26,24 @@ export const Navigation: FC<{
   wide?: boolean | false
   searchBox?: boolean | false
   themeSwitcher?: boolean | false
-}> = ({ wide, searchBox, themeSwitcher }) => {
+  inline?: boolean
+}> = ({ wide, searchBox, themeSwitcher, inline = false }) => {
   const pathname = usePathname()
 
   return (
     <div className={pathname === "/" ? "dark" : ""}>
-      <header className="fixed top-0 inset-x-0 backdrop-blur z-30 bg-white/70 dark:bg-[#09090B]/70 text-zinc-700 dark:text-zinc-400">
+      <header
+        className={`${
+          inline ? "relative" : "fixed top-0 inset-x-0"
+        } backdrop-blur z-30 bg-white/70 dark:bg-[#09090B]/70 text-zinc-700 dark:text-zinc-400`}
+      >
         <div
           className={`w-full ${
-            wide ? "max-w-screen-2xl" : "max-w-screen-xl"
+            inline
+              ? "border-b dark:border-neutral-700"
+              : wide
+                ? "max-w-screen-2xl"
+                : "max-w-screen-xl"
           } mx-auto px-4 sm:px-8 lg:px-16 h-16 sm:h-24 flex justify-between items-center`}
         >
           <Link href="/" className="z-50">
@@ -42,11 +52,19 @@ export const Navigation: FC<{
           </Link>
           <MobileMenu menu={menu} socials={socials} />
           <div className="hidden md:flex items-center gap-8">
-            {menu.map(({ name, href, blank }, index) => (
+            {menu.map(({ name, href, reload }, index) => (
               <Link
                 key={index}
                 href={href}
-                target={blank === true ? "_blank" : "_self"}
+                onClick={
+                  reload === true
+                    ? function () {
+                        if (location.pathname === href) {
+                          location.href = href
+                        }
+                      }
+                    : undefined
+                }
                 className={`flex items-start ${
                   pathname.startsWith(href)
                     ? "text-black font-normal dark:text-white dark:font-light"
@@ -64,11 +82,7 @@ export const Navigation: FC<{
             ))}
             {searchBox && <Search className="w-56" />}
             {themeSwitcher && <ThemeSwitcher />}
-            {pathname === "/" ? (
-              null
-            ) : (
-              <ThemeSwitcher />
-            )}
+            {pathname === "/" ? null : <ThemeSwitcher />}
             <div className="flex items-center gap-4">
               {socials.map(({ name, icon, href }, index) => (
                 <Link key={index} href={href} className="generic-hover">

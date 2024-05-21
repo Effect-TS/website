@@ -30,6 +30,7 @@
             bun
             nodejs_20
             corepackEnable
+            nodePackages.json
           ];
         };
       };

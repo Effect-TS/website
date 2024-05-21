@@ -82,7 +82,7 @@ export const DocsPage = defineDocumentType(() => ({
           mdxOptions: (opts) => {
             opts.remarkPlugins = [
               ...(opts.remarkPlugins ?? []),
-              tocPlugin(headings)
+              tocPlugin(headings) as any
             ]
             return opts
           }
@@ -99,7 +99,7 @@ export const DocsPage = defineDocumentType(() => ({
           mdxOptions: (opts) => {
             opts.remarkPlugins = [
               ...(opts.remarkPlugins ?? []),
-              sectionsPlugin(sections)
+              sectionsPlugin(sections) as any
             ]
             return opts
           }

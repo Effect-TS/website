@@ -1,0 +1,39 @@
+---
+title: Combining Effects
+excerpt: Learn the basics of Effect
+---
+
+Now that you can create and run effects, let's take a look at how you can
+combine them together.
+
+### Effect.andThen
+
+To combine two effects together, you can use `Effect.andThen`. It can be used
+inside a `pipe` to run the first effect, and then run another effect if the
+first one succeeds. Here's an example:
+
+```ts
+Effect.succeed(42).pipe(
+  Effect.andThen((value) => Effect.succeed(value * 2))
+)
+```
+
+The result of this effect will be the equivilent of `Effect.succeed(42 * 2)`.
+
+### Effect.tap
+
+If you want to combine two effects together without altering the return value,
+you can use `Effect.tap`. Like `Effect.andThen`, it can be used in a pipeline.
+Here's an example:
+
+```ts
+Effect.succeed(42).pipe(
+  Effect.tap((value) => Effect.log(value))
+)
+```
+
+The result of this effect will be `42`, which will additionally be logged to the console.
+
+### Exercise
+
+Using `Effect.andThen` & `Effect.tap`, complete the TODOs in the editor.

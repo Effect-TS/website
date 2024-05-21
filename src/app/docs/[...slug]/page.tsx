@@ -8,7 +8,6 @@ import { TableOfContents } from "@/components/docs/table-of-contents"
 import { Divider } from "@/components/layout/divider"
 import { getBreadcrumbs } from "@/contentlayer/utils/get-breadcrumbs"
 import { allDocsPages } from "contentlayer/generated"
-import { formatDistance } from "date-fns"
 import { notFound } from "next/navigation"
 
 export const generateStaticParams = () =>
@@ -24,6 +23,7 @@ export async function generateMetadata({
   const page = allDocsPages.find(
     (page) => page.urlPath === `/docs/${slug.join("/")}`
   )
+  // @ts-ignore
   if (!page) return
   return {
     title: `${page.title} – Effect Docs`,
