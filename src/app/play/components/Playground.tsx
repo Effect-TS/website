@@ -1,44 +1,36 @@
 "use client"
 
-import { CodeEditor } from "@/CodeEditor/CodeEditor"
-import { LoadingSpinner } from "@/components/LoadingSpinner"
+import { CodeEditor } from "@/components/editor"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import { Suspense } from "react"
-import { importRx } from "../rx/share"
-import { ShareButton } from "./ShareButton"
+import { importRx } from "@/components/editor/rx/share"
 
-export function Playground() {
+export declare namespace Playground {
+  export interface Props {}
+}
+
+export const Playground: React.FC<Playground.Props> = () => {
   return (
-    <Suspense fallback={<LoadingSpinner />}>
+    <Suspense fallback={<LoadingSpinner message="Loading playground..." />}>
       <PlaygroundLoader />
     </Suspense>
   )
 }
 
-function PlaygroundLoader() {
+Playground.displayName = "Playground"
+
+export declare namespace PlaygroundLoader {
+  export interface Props {}
+}
+
+const PlaygroundLoader: React.FC<PlaygroundLoader.Props> = () => {
   const workspace = useRxSuspenseSuccess(importRx).value
   return (
     <main className="flex flex-col h-full">
-      <CodeEditor
-        workspace={workspace}
-        aboveExplorer={
-          <>
-            <ShareButton />
-            <PlaygroundHeader />
-          </>
-        }
-      />
+      <CodeEditor layout="playground" workspace={workspace} />
     </main>
   )
 }
 
-function PlaygroundHeader() {
-  return (
-    <h3 className="px-3 pb-0 pt-3 uppercase font-bold text-xs text-slate-500 relative">
-      Effect Playground
-      <span className="font-mono normal-case absolute ml-2 mt-[-3px] text-slate-400 dark:text-slate-600 text-[10px]">
-        Alpha
-      </span>
-    </h3>
-  )
-}
+PlaygroundLoader.displayName = "PlaygroundLoader"

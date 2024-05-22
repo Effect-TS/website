@@ -1,11 +1,13 @@
-import { FC } from "react"
+import React from "react"
+import type { Icon } from "@/components/icons"
+import { cn } from "@/lib/utils"
 
-export const ArrowDownIcon: FC<{ className: string }> = ({ className }) => {
+export const ArrowDownIcon: React.FC<Icon.CommonProps> = ({ className }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 8 16"
-      className={`fill-current ${className}`}
+      className={cn("fill-current", className)}
     >
       <path
         fillRule="evenodd"
@@ -15,3 +17,5 @@ export const ArrowDownIcon: FC<{ className: string }> = ({ className }) => {
     </svg>
   )
 }
+
+ArrowDownIcon.displayName = "ArrowDownIcon"

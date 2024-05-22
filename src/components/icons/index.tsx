@@ -1,42 +1,48 @@
-import { FC } from "react"
-import { DiscordIcon } from "./discord"
-import { GithubIcon } from "./github"
-import { ArrowUpRightLightIcon } from "./arrow-up-right-light"
-import { SearchIcon } from "./search"
-import { TwitterIcon } from "./twitter"
-import { ArrowRightIcon } from "./arrow-right"
-import { CheckCircleIcon } from "./check-circle"
-import { ArrowUpRightIcon } from "./arrow-up-right"
-import { PlayIcon } from "./play"
-import { BlocksIcon } from "./blocks"
-import { PlugsIcon } from "./plugs"
-import { ShieldIcon } from "./shield"
-import { NodeIcon } from "./node"
-import { BunIcon } from "./bun"
-import { DenoIcon } from "./deno"
-import { CloudflareIcon } from "./cloudflare"
-import { GraphQLIcon } from "./graphql"
-import { OpenAPIIcon } from "./open-api"
-import { ReactIcon } from "./react"
-import { NextIcon } from "./next"
-import { AmazonIcon } from "./amazon"
-import { ChevronRightIcon } from "./chevron-right"
-import { TrendUpIcon } from "./trend-up"
-import { LightBulbIcon } from "./lightbulb"
-import { CheckIcon } from "./check"
-import { BarsIcon } from "./bars"
+import React from "react"
 import { AlertIcon } from "./alert"
-import { LightbulbSolidIcon } from "./lightbulb-solid"
-import { InfoIcon } from "./info"
-import { ErrorIcon } from "./error"
-import { SunIcon } from "./sun"
-import { MoonIcon } from "./moon"
-import { DisplayIcon } from "./display"
-import { GearIcon } from "./gear"
-import { CloseIcon } from "./close"
-import { ClipboardIcon } from "./clipboard"
 import { AlgoliaIcon } from "./algolia"
+import { AmazonIcon } from "./amazon"
 import { ArrowDownIcon } from "./arrow-down"
+import { ArrowRightIcon } from "./arrow-right"
+import { ArrowUpRightIcon } from "./arrow-up-right"
+import { ArrowUpRightLightIcon } from "./arrow-up-right-light"
+import { ArrowsUpDownIcon } from "./arrows-up-down"
+import { BarsIcon } from "./bars"
+import { BlocksIcon } from "./blocks"
+import { BunIcon } from "./bun"
+import { CheckIcon } from "./check"
+import { CheckCircleIcon } from "./check-circle"
+import { ChevronRightIcon } from "./chevron-right"
+import { ClipboardIcon } from "./clipboard"
+import { CloseIcon } from "./close"
+import { CloudflareIcon } from "./cloudflare"
+import { DenoIcon } from "./deno"
+import { DirectoryClosedIcon } from "./directory-closed"
+import { DirectoryOpenIcon } from "./directory-open"
+import { DiscordIcon } from "./discord"
+import { DisplayIcon } from "./display"
+import { DotSolid } from "./dot-solid"
+import { DragHandleDotsIcon } from "./drag-handle-dots"
+import { ErrorIcon } from "./error"
+import { FileIcon } from "./file"
+import { GearIcon } from "./gear"
+import { GitHubIcon } from "./github"
+import { GraphQLIcon } from "./graphql"
+import { InfoIcon } from "./info"
+import { LightbulbIcon } from "./lightbulb"
+import { LightbulbSolidIcon } from "./lightbulb-solid"
+import { MoonIcon } from "./moon"
+import { NextIcon } from "./next"
+import { NodeIcon } from "./node"
+import { OpenAPIIcon } from "./open-api"
+import { PlayIcon } from "./play"
+import { PlugsIcon } from "./plugs"
+import { ReactIcon } from "./react"
+import { SearchIcon } from "./search"
+import { ShieldIcon } from "./shield"
+import { SunIcon } from "./sun"
+import { TrendUpIcon } from "./trend-up"
+import { TwitterIcon } from "./twitter"
 
 const icons = {
   alert: AlertIcon,
@@ -46,6 +52,7 @@ const icons = {
   "arrow-right": ArrowRightIcon,
   "arrow-up-right": ArrowUpRightIcon,
   "arrow-up-right-light": ArrowUpRightLightIcon,
+  "arrows-up-down": ArrowsUpDownIcon,
   bars: BarsIcon,
   blocks: BlocksIcon,
   bun: BunIcon,
@@ -56,14 +63,19 @@ const icons = {
   close: CloseIcon,
   cloudflare: CloudflareIcon,
   deno: DenoIcon,
+  "directory-closed": DirectoryClosedIcon,
+  "directory-open": DirectoryOpenIcon,
   discord: DiscordIcon,
   display: DisplayIcon,
+  "dot-solid": DotSolid,
+  "drag-handle-dots": DragHandleDotsIcon,
   error: ErrorIcon,
+  file: FileIcon,
   gear: GearIcon,
-  github: GithubIcon,
+  github: GitHubIcon,
   graphql: GraphQLIcon,
   info: InfoIcon,
-  lightbulb: LightBulbIcon,
+  lightbulb: LightbulbIcon,
   "lightbulb-solid": LightbulbSolidIcon,
   moon: MoonIcon,
   next: NextIcon,
@@ -79,12 +91,21 @@ const icons = {
   twitter: TwitterIcon
 }
 
-export type IconName = keyof typeof icons
+export declare namespace Icon {
+  export interface Props extends CommonProps {
+    readonly name: Name
+  }
 
-export const Icon: FC<{ name: IconName; className: string }> = ({
-  name,
-  className
-}) => {
+  export interface CommonProps {
+    readonly className?: string
+  }
+
+  export type Name = keyof typeof icons
+}
+
+export const Icon: React.FC<Icon.Props> = ({ name, className }) => {
   const IconComponent = icons[name]
   return <IconComponent className={className} />
 }
+
+Icon.displayName = "Icon"
