@@ -9,6 +9,7 @@ import { FileEditor } from "./components/common/file-editor"
 import { FileExplorer } from "./components/common/file-explorer"
 import { Terminal } from "./components/common/terminal"
 import { Toolbar as PlaygroundToolbar } from "./components/playground/toolbar"
+import { Toolbar as TutorialToolbar } from "./components/tutorial/toolbar"
 
 export declare namespace CodeEditor {
   export interface Props {
@@ -17,7 +18,7 @@ export declare namespace CodeEditor {
     readonly workspace: Workspace
   }
 
-  export type Layout = "playground" | "tutorials"
+  export type Layout = "playground" | "tutorial"
 }
 
 export const CodeEditor: React.FC<CodeEditor.Props> = (props) => {
@@ -48,12 +49,12 @@ const CodeEditorSuspended: React.FC<CodeEditor.Props> = ({
     <WorkspaceContext.Provider value={handle}>
       {getToolbar(layout)}
 
-      <ResizablePanelGroup autoSaveId="editor" direction="vertical">
+      <ResizablePanelGroup autoSaveId={`${layout}-editor`} direction="vertical">
         <ResizablePanel>
           {disableExplorer === true ? (
             <FileExplorer />
           ) : (
-            <ResizablePanelGroup autoSaveId="sidebar" direction="horizontal">
+            <ResizablePanelGroup autoSaveId={`${layout}-sidebar`} direction="horizontal">
               <ResizablePanel
                 defaultSize={20}
                 className="bg-gray-50 dark:bg-neutral-900 min-w-[200px] flex flex-col"
@@ -69,7 +70,7 @@ const CodeEditorSuspended: React.FC<CodeEditor.Props> = ({
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel onResize={onResize} defaultSize={30}>
-          <ResizablePanelGroup autoSaveId="terminal" direction="horizontal">
+          <ResizablePanelGroup autoSaveId={`${layout}-terminal`} direction="horizontal">
             {workspace.shells.map((shell, index) => (
               <Fragment key={index}>
                 {index > 0 && <ResizableHandle />}
@@ -91,6 +92,9 @@ const getToolbar = (layout: CodeEditor.Layout) => {
   switch (layout) {
     case "playground": {
       return <PlaygroundToolbar />
+    }
+    case "tutorial": {
+      return <TutorialToolbar />
     }
   }
 }

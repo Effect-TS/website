@@ -12,6 +12,7 @@ import { BlocksIcon } from "./blocks"
 import { BunIcon } from "./bun"
 import { CheckIcon } from "./check"
 import { CheckCircleIcon } from "./check-circle"
+import { ChevronDownIcon } from "./chevron-down"
 import { ChevronRightIcon } from "./chevron-right"
 import { ClipboardIcon } from "./clipboard"
 import { CloseIcon } from "./close"
@@ -59,6 +60,7 @@ const icons = {
   check: CheckIcon,
   "check-circle": CheckCircleIcon,
   "chevron-right": ChevronRightIcon,
+  "chevron-down": ChevronDownIcon,
   clipboard: ClipboardIcon,
   close: CloseIcon,
   cloudflare: CloudflareIcon,

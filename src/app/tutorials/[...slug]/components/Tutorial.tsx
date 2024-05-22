@@ -1,14 +1,22 @@
 "use client"
 
-import { Directory, File, Workspace } from "@/domain/Workspace"
-import { tutorialWorkspaces } from "@/tutorials/common"
-import { Tutorial as ITutorial } from "contentlayer/generated"
+import React, { useMemo } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import React, { useMemo } from "react"
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
+import {
+  Directory,
+  File,
+  Workspace
+} from "@/components/editor/domain/workspace"
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup
+} from "@/components/ui/resizable"
+import { tutorialWorkspaces } from "@/tutorials/common"
+import { Tutorial as ITutorial } from "contentlayer/generated"
 
-export function Tutorial({
+export const Tutorial = ({
   name,
   files,
   navigation,
@@ -31,7 +39,7 @@ export function Tutorial({
         readonly url: string
       }
     | undefined
-}) {
+}) => {
   const Editor = useMemo(
     () =>
       editor(
@@ -53,12 +61,15 @@ export function Tutorial({
   )
 
   return (
-    <PanelGroup
+    <ResizablePanelGroup
       autoSaveId="tutorial"
       direction="horizontal"
       className="flex-1 flex flex-row overflow-hidden"
     >
-      <Panel className="pt-4 min-w-[450px] flex flex-col" defaultSize={30}>
+      <ResizablePanel
+        className="pt-4 min-w-[450px] flex flex-col"
+        defaultSize={30}
+      >
         {navigation}
         <div className="px-8 py-2 prose dark:prose-invert flex-1 overflow-y-auto pb-14">
           {children}
@@ -68,24 +79,20 @@ export function Tutorial({
             </p>
           )}
         </div>
-      </Panel>
-      <PanelResizeHandle />
-      <Panel>
+      </ResizablePanel>
+      <ResizableHandle />
+      <ResizablePanel>
         <Editor />
-      </Panel>
-    </PanelGroup>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   )
 }
 
 const editor = (workspace: Workspace) =>
   dynamic(
     async () => {
-      const { SolveButton } = await import("./SolveButton")
-      const Editor = (await import("@/CodeEditor/CodeEditor")).CodeEditor
-      return () =>
-        (
-          <Editor workspace={workspace} aboveExplorer={<SolveButton />} />
-        ) as any
+      const Editor = (await import("@/components/editor")).CodeEditor
+      return () => (<Editor layout="tutorial" workspace={workspace} />) as any
     },
     { ssr: false }
   )

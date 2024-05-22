@@ -1,5 +1,5 @@
 import { Tutorial, allTutorials } from "contentlayer/generated"
-import { DeepMutable } from "effect/Types"
+import type { DeepMutable } from "effect/Types"
 
 export type GroupedTutorials = Record<
   string,

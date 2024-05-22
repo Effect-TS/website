@@ -44,7 +44,7 @@ export const ShareButton: React.FC<ShareButton.Props> = () => {
   }, [link])
 
   return (
-    <Popover>
+    <Popover onOpenChange={(open) => !open && setCopied(false)}>
       <PopoverTrigger asChild>
         <Button variant="secondary" onClick={handleGenerateLink}>
           Share
