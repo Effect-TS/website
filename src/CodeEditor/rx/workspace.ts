@@ -24,7 +24,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         const handle = yield* WebContainer.workspace(workspace)
 
         const prepare = yield* handle
-          .run(workspace.prepare ?? "npm install")
+          .run(workspace.prepare)
           .pipe(Effect.forkScoped)
 
         const selectedFile = Rx.make(workspace.initialFile)

@@ -152,7 +152,7 @@ function treeFromWorkspace(workspace: Workspace): FileSystemTree {
     })
     return tree
   }
-  return walk(workspace.fileSystem)
+  return walk(workspace.tree)
 }
 
 const runProgram = `#!/usr/bin/env node

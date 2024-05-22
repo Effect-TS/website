@@ -5,13 +5,52 @@ export const FullPath = Brand.nominal<FullPath>()
 
 export class Workspace extends Data.Class<{
   name: string
-  dependencies: Record<string, string>
   tree: ReadonlyArray<Directory | File>
   initialFilePath?: string
-  prepare?: string
+  prepare: string
   shells: ReadonlyArray<WorkspaceShell>
   snapshot?: string
 }> {
+  readonly filePaths: Map<File, string>
+
+  constructor(options: {
+    name: string
+    dependencies?: Record<string, string>
+    tree?: ReadonlyArray<Directory | File>
+    initialFilePath?: string
+    prepare?: string
+    shells: ReadonlyArray<WorkspaceShell>
+    snapshot?: string
+  }) {
+    super({
+      name: options.name,
+      initialFilePath: options.initialFilePath,
+      prepare: options.prepare ?? "npm install",
+      shells: options.shells,
+      snapshot: options.snapshot,
+      tree: [
+        ...(options.dependencies
+          ? [
+              new File({
+                name: "package.json",
+                language: "json",
+                initialContent: JSON.stringify(
+                  {
+                    type: "module",
+                    dependencies: options.dependencies
+                  },
+                  undefined,
+                  2
+                )
+              })
+            ]
+          : []),
+        ...(options.tree ?? [])
+      ]
+    })
+    this.filePaths = makeFilePaths(this.tree)
+  }
+
   withName(name: string) {
     return new Workspace({
       ...this,
@@ -24,57 +63,22 @@ export class Workspace extends Data.Class<{
       tree: [...this.tree, ...children]
     })
   }
+  findFile(name: string) {
+    return Iterable.findFirst(this.filePaths, ([_, path]) => path === name)
+  }
   get initialFile() {
     if (this.initialFilePath) {
-      return Option.getOrThrow(
-        Iterable.findFirst(
-          this.filePaths,
-          ([_, path]) => path === this.initialFilePath
-        )
-      )[0]
+      return Option.getOrThrow(this.findFile(this.initialFilePath))[0]
     }
     return Option.getOrThrow(Iterable.head(this.filePaths.keys()))
   }
-  #filePaths: Map<File, string> | undefined
-  get filePaths() {
-    if (this.#filePaths) {
-      return this.#filePaths
-    }
-    const paths = new Map<File, string>()
-    function walk(prefix: string, children: Workspace["tree"]) {
-      children.forEach((child) => {
-        if (child._tag === "File") {
-          paths.set(child, `${prefix}${child.name}`)
-        } else {
-          walk(`${prefix}${child.name}/`, child.children)
-        }
-      })
-    }
-    walk("", this.fileSystem)
-    return (this.#filePaths = paths)
-  }
-  #packageJson: File | undefined
-  get packageJson(): File {
-    if (this.#packageJson) {
-      return this.#packageJson
-    }
-    const packageJson = new File({
-      name: "package.json",
-      language: "json",
-      initialContent: JSON.stringify(
-        {
-          name: this.name,
-          type: "module",
-          dependencies: this.dependencies
-        },
-        undefined,
-        2
-      )
-    })
-    return (this.#packageJson = packageJson)
-  }
-  get fileSystem(): ReadonlyArray<File | Directory> {
-    return [this.packageJson, ...this.tree]
+  get dependencies(): Record<string, string> {
+    const parse = Option.liftThrowable(JSON.parse)
+    return this.findFile("package.json").pipe(
+      Option.flatMap(([file]) => parse(file.initialContent)),
+      Option.map((json) => json.dependencies),
+      Option.getOrElse(() => ({}))
+    )
   }
   pathTo(file: File) {
     return Option.fromNullable(this.filePaths.get(file))
@@ -132,4 +136,21 @@ export class File extends Data.TaggedClass("File")<{
   [Equal.symbol](that: this) {
     return this.name === that.name
   }
+}
+
+// helper functions
+
+function makeFilePaths(tree: Workspace["tree"]) {
+  const paths = new Map<File, string>()
+  function walk(prefix: string, children: Workspace["tree"]) {
+    children.forEach((child) => {
+      if (child._tag === "File") {
+        paths.set(child, `${prefix}${child.name}`)
+      } else {
+        walk(`${prefix}${child.name}/`, child.children)
+      }
+    })
+  }
+  walk("", tree)
+  return paths
 }
