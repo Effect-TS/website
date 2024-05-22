@@ -1,9 +1,9 @@
 import { WorkspaceHandle } from "@/CodeEditor/rx/workspace"
 import { File, Workspace, WorkspaceShell } from "@/domain/Workspace"
-import { tutorialsPackageJson } from "@/tutorials/common"
 import { Result, Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
 import { Effect, Layer } from "effect"
+import packageJson from "../../../../snapshots/tutorials/package.json"
 import { WorkspaceCompression } from "../services/WorkspaceCompression"
 import { editorRx } from "@/CodeEditor/rx/editor"
 import { hashRx } from "@/rx/location"
@@ -54,12 +54,11 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
 
 const defaultWorkspace = new Workspace({
   name: "playground",
-  prepare: "npm install",
+  dependencies: packageJson.dependencies,
   shells: [new WorkspaceShell({ command: "../run main.ts" })],
   initialFilePath: "main.ts",
   snapshot: "tutorials",
   tree: [
-    tutorialsPackageJson,
     new File({
       name: "main.ts",
       initialContent: `import { Effect } from "effect"

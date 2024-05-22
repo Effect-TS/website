@@ -1,27 +1,15 @@
-import { File, Workspace, WorkspaceShell } from "@/domain/Workspace"
-import content from "../../snapshots/tutorials/package.json"
+import { Workspace, WorkspaceShell } from "@/domain/Workspace"
+import packageJson from "../../snapshots/tutorials/package.json"
 import { Tutorial } from "contentlayer/generated"
 import { ReadonlyRecord } from "effect/Record"
 
-export const tutorialsPackageJson = new File({
-  name: "package.json",
-  language: "json",
-  initialContent: JSON.stringify(
-    {
-      ...content,
-      packageManager: undefined
-    },
-    null,
-    2
-  )
-})
-
 const baseWorkspace = new Workspace({
   name: "default",
+  dependencies: packageJson.dependencies,
   shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
   snapshot: "tutorials",
   initialFilePath: "src/main.ts",
-  tree: [tutorialsPackageJson]
+  tree: []
 })
 
 export const tutorialWorkspaces: ReadonlyRecord<
@@ -33,27 +21,14 @@ export const tutorialWorkspaces: ReadonlyRecord<
   express: new Workspace({
     ...baseWorkspace,
     name: "express",
+    dependencies: {
+      ...packageJson.dependencies,
+      express: "latest"
+    },
     shells: [
       new WorkspaceShell({ label: "Server", command: "../run src/main.ts" }),
       new WorkspaceShell({ label: "Client" })
     ],
-    tree: [
-      new File({
-        name: "package.json",
-        language: "json",
-        initialContent: JSON.stringify(
-          {
-            ...content,
-            packageManager: undefined,
-            dependencies: {
-              ...content.dependencies,
-              express: "latest"
-            }
-          },
-          null,
-          2
-        )
-      })
-    ]
+    tree: []
   })
 }
