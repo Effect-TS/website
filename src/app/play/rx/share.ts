@@ -54,7 +54,6 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
 
 const defaultWorkspace = new Workspace({
   name: "playground",
-  prepare: "npm install",
   dependencies: packageJson.dependencies,
   shells: [new WorkspaceShell({ command: "../run main.ts" })],
   initialFilePath: "main.ts",

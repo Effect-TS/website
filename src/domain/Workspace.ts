@@ -5,7 +5,7 @@ export const FullPath = Brand.nominal<FullPath>()
 
 export class Workspace extends Data.Class<{
   name: string
-  dependencies: Record<string, string>,
+  dependencies: Record<string, string>
   tree: ReadonlyArray<Directory | File>
   initialFilePath?: string
   prepare?: string
@@ -61,11 +61,15 @@ export class Workspace extends Data.Class<{
     const packageJson = new File({
       name: "package.json",
       language: "json",
-      initialContent: JSON.stringify({
-        name: this.name,
-        type: "module",
-        dependencies: this.dependencies
-      }, undefined, 2)
+      initialContent: JSON.stringify(
+        {
+          name: this.name,
+          type: "module",
+          dependencies: this.dependencies
+        },
+        undefined,
+        2
+      )
     })
     return (this.#packageJson = packageJson)
   }

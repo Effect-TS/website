@@ -165,16 +165,13 @@ export class Monaco extends Effect.Tag("app/Monaco")<
   static Live = Layer.scoped(this, make)
 }
 
+// auto import helpers
 
-/**
- * Note: for auto-import completions to work properly, automatic type
- * acquisition needs to be run on both the editor models **and** the packages in
- * the `package.json`
- */
 const setupCompletionItemProviders = (monaco: MonacoApi) => {
-  const previousRegistrationProvider = monaco.languages.registerCompletionItemProvider
+  const previousRegistrationProvider =
+    monaco.languages.registerCompletionItemProvider
 
-  monaco.languages.registerCompletionItemProvider = function(
+  monaco.languages.registerCompletionItemProvider = function (
     language: monaco.languages.LanguageSelector,
     provider: monaco.languages.CompletionItemProvider
   ): monaco.IDisposable {
@@ -185,17 +182,17 @@ const setupCompletionItemProviders = (monaco: MonacoApi) => {
     }
 
     // Implementation adapted from https://github.com/microsoft/monaco-editor/blob/a845ff6b278c76183a9cf969260fc3e1396b2b0b/src/language/typescript/languageFeatures.ts#L435
-    provider.provideCompletionItems = async function(
+    provider.provideCompletionItems = async function (
       model: monaco.editor.ITextModel,
       position: monaco.Position,
-      context: monaco.languages.CompletionContext,
-      token: monaco.CancellationToken
+      _context: monaco.languages.CompletionContext,
+      _token: monaco.CancellationToken
     ) {
       // Hack required for converting a `ts.TextChange` to a `ts.TextEdit` - see
       // toTextEdit function defined below
-      (this as any).__model = model
+      ;(this as any).__model = model
 
-      const wordInfo = model.getWordUntilPosition(position);
+      const wordInfo = model.getWordUntilPosition(position)
       const wordRange = new monaco.Range(
         position.lineNumber,
         wordInfo.startColumn,
@@ -211,10 +208,8 @@ const setupCompletionItemProviders = (monaco: MonacoApi) => {
         return
       }
 
-      const info: ts.CompletionInfo | undefined = await worker.getCompletionsAtPosition(
-        resource.toString(),
-        offset
-      )
+      const info: ts.CompletionInfo | undefined =
+        await worker.getCompletionsAtPosition(resource.toString(), offset)
 
       if (!info || model.isDisposed()) {
         return
@@ -231,7 +226,7 @@ const setupCompletionItemProviders = (monaco: MonacoApi) => {
             p1.lineNumber,
             p1.column,
             p2.lineNumber,
-            p2.column,
+            p2.column
           )
         }
 
@@ -252,7 +247,7 @@ const setupCompletionItemProviders = (monaco: MonacoApi) => {
           tags,
           data: entry.data,
           hasAction: entry.hasAction,
-          source: entry.source,
+          source: entry.source
         }
       })
 
@@ -267,21 +262,22 @@ const setupCompletionItemProviders = (monaco: MonacoApi) => {
       readonly data?: ts.CompletionEntryData | undefined
     }
 
-    provider.resolveCompletionItem = async function(
+    provider.resolveCompletionItem = async function (
       item: CustomCompletionItem,
-      token: monaco.CancellationToken
+      _token: monaco.CancellationToken
     ) {
       const worker = await (this as any)._worker(item.uri)
 
-      const details: ts.CompletionEntryDetails | undefined = await worker.getCompletionEntryDetails(
-        item.uri.toString(),
-        item.offset,
-        item.label,
-        {},
-        item.uri.toString(),
-        undefined,
-        item.data
-      )
+      const details: ts.CompletionEntryDetails | undefined =
+        await worker.getCompletionEntryDetails(
+          item.uri.toString(),
+          item.offset,
+          item.label,
+          {},
+          item.uri.toString(),
+          undefined,
+          item.data
+        )
 
       if (!details) {
         return item
@@ -294,10 +290,14 @@ const setupCompletionItemProviders = (monaco: MonacoApi) => {
         position: item.position,
         label: details.name,
         kind: (provider.constructor as any).convertKind(details.kind),
-        detail: autoImports?.detailText || displayPartsToString(details.displayParts),
+        detail:
+          autoImports?.detailText ||
+          displayPartsToString(details.displayParts),
         additionalTextEdits: autoImports?.textEdits,
         documentation: {
-          value: (provider.constructor as any).createDocumentationString(details)
+          value: (provider.constructor as any).createDocumentationString(
+            details
+          )
         }
       } as CustomCompletionItem
     }
@@ -306,11 +306,13 @@ const setupCompletionItemProviders = (monaco: MonacoApi) => {
   }
 }
 
-function displayPartsToString(displayParts: Array<ts.SymbolDisplayPart> | undefined): string {
-	if (displayParts) {
-		return displayParts.map((displayPart) => displayPart.text).join("")
-	}
-	return ""
+function displayPartsToString(
+  displayParts: Array<ts.SymbolDisplayPart> | undefined
+): string {
+  if (displayParts) {
+    return displayParts.map((displayPart) => displayPart.text).join("")
+  }
+  return ""
 }
 
 interface AutoImport {
@@ -336,12 +338,16 @@ function getAutoImports(
     const specifier = codeAction.description.match(/from ["'](.+)["']/)![1]
     return {
       detailText: `Auto import from '${specifier}'`,
-      textEdits: textChanges.map((textChange) => toTextEdit(provider, textChange))
+      textEdits: textChanges.map((textChange) =>
+        toTextEdit(provider, textChange)
+      )
     }
   }
 
   if (details.kind === "interface" || details.kind === "type") {
-    const specifier = codeAction.description.match(/from module ["'](.+)["']/)![1]
+    const specifier = codeAction.description.match(
+      /from module ["'](.+)["']/
+    )![1]
     return {
       detailText: `Auto import from '${specifier}'`,
       textEdits: textChanges.map((textChange) =>
@@ -360,7 +366,9 @@ function getAutoImports(
 
   return {
     detailText: codeAction.description,
-    textEdits: textChanges.map((textChange: any) => toTextEdit(provider, textChange))
+    textEdits: textChanges.map((textChange: any) =>
+      toTextEdit(provider, textChange)
+    )
   }
 }
 
@@ -378,7 +386,7 @@ function toTextEdit(
     text: textChange.newText,
     range: (provider as any)._textSpanToRange(
       (provider as any).__model,
-      textChange.span,
-    ),
-  };
+      textChange.span
+    )
+  }
 }

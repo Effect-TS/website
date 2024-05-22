@@ -2,6 +2,7 @@ import { setupTypeAcquisition } from "@typescript/ata"
 import { Effect, Layer, Stream, flow } from "effect"
 import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 import { Monaco } from "../Monaco"
+import { Workspace } from "@/domain/Workspace"
 
 const make = Effect.gen(function* () {
   const { monaco, makeEditor, listen } = yield* Monaco
@@ -31,8 +32,6 @@ const make = Effect.gen(function* () {
   })
 
   const install = (editor: monaco.editor.IStandaloneCodeEditor) => {
-    // TODO: auto-load from package json in addition to editor
-    ata(`import * as Schema from "@effect/schema/Schema"`)
     function onChange() {
       const model = editor.getModel()
       if (!model) return
@@ -50,10 +49,22 @@ const make = Effect.gen(function* () {
 
   const makeEditorWithATA = flow(
     makeEditor,
-    Effect.tap((editor) => install(editor.editor))
+    Effect.tap((editor) => install(editor.editor)),
+    Effect.map((editor) => ({
+      ...editor,
+      preload: (workspace: Workspace) =>
+        Effect.gen(function* (_) {
+          yield* editor.preload(workspace)
+          const dependencies = Object.keys(workspace.dependencies)
+            .filter((dep) => !["typescript", "tsc-watch"].includes(dep))
+            .map((dep) => `import {} from "${dep}"`)
+            .join("\n")
+          ata(dependencies)
+        })
+    }))
   )
 
-  return { acquireTypes: ata, makeEditorWithATA } as const
+  return { makeEditorWithATA } as const
 })
 
 export class MonacoATA extends Effect.Tag("app/Monaco/ATA")<
