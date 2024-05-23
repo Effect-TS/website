@@ -6,11 +6,7 @@ import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import { Suspense } from "react"
 import { importRx } from "@/components/editor/rx/share"
 
-export declare namespace Playground {
-  export interface Props {}
-}
-
-export const Playground: React.FC<Playground.Props> = () => {
+export function Playground() {
   return (
     <Suspense fallback={<LoadingSpinner message="Loading playground..." />}>
       <PlaygroundLoader />
@@ -18,13 +14,7 @@ export const Playground: React.FC<Playground.Props> = () => {
   )
 }
 
-Playground.displayName = "Playground"
-
-export declare namespace PlaygroundLoader {
-  export interface Props {}
-}
-
-const PlaygroundLoader: React.FC<PlaygroundLoader.Props> = () => {
+function PlaygroundLoader() {
   const workspace = useRxSuspenseSuccess(importRx).value
   return (
     <main className="flex flex-col h-full">
@@ -32,5 +22,3 @@ const PlaygroundLoader: React.FC<PlaygroundLoader.Props> = () => {
     </main>
   )
 }
-
-PlaygroundLoader.displayName = "PlaygroundLoader"

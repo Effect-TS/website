@@ -11,7 +11,6 @@ import * as GlobalValue from "effect/GlobalValue"
 import * as Layer from "effect/Layer"
 import * as Scope from "effect/Scope"
 import { Workspace } from "../domain/workspace"
-import { Cache, Duration } from "effect"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
@@ -20,15 +19,6 @@ const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
 const make = Effect.gen(function* () {
   // you can only have one container running at a time
   yield* Effect.acquireRelease(semaphore.take(1), () => semaphore.release(1))
-
-  const snapshots = yield* Cache.make({
-    lookup: (snapshot: string) =>
-      Http.request
-        .get(`/snapshots/${snapshot}`)
-        .pipe(Http.client.fetchOk, Http.response.arrayBuffer),
-    capacity: 10,
-    timeToLive: Duration.infinity
-  })
 
   const container = yield* Effect.acquireRelease(
     Effect.promise(() => WC.boot()),
@@ -65,7 +55,9 @@ const make = Effect.gen(function* () {
       )
 
       if (workspace.snapshot) {
-        const snapshot = yield* snapshots.get(workspace.snapshot)
+        const snapshot = yield* Http.request
+          .get(`/snapshots/${workspace.snapshot}`)
+          .pipe(Http.client.fetchOk, Http.response.arrayBuffer)
         yield* Effect.promise(async () => {
           await container.mount(snapshot, {
             mountPoint: workspace.name

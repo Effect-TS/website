@@ -27,14 +27,10 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) =>
 
       yield* editor.save
 
-      const hash = yield* compression.compress(
-        workspace,
-        "playground",
-        handle.read
-      )
-      const shortHash = yield* Effect.promise(() => shortenHash(hash))
+      const compressed = yield* compression.compress(workspace, handle.read)
+      const hash = yield* Effect.promise(() => shortenHash(compressed))
       const url = new URL(location.href)
-      url.hash = shortHash
+      url.hash = hash
       return url.toString()
     }).pipe(Effect.tapErrorCause(Effect.logError))
   )
@@ -64,7 +60,7 @@ const makeDefaultWorkspace = () =>
 
 export const importRx = runtime
   .rx((get) =>
-    Effect.gen(function* () {
+    Effect.gen(function* (_) {
       const hash = get(hashRx)
       if (hash._tag === "None") return makeDefaultWorkspace()
       const compressed = yield* Effect.promise(() =>
@@ -72,14 +68,15 @@ export const importRx = runtime
       )
       if (!compressed) return makeDefaultWorkspace()
       const compression = yield* WorkspaceCompression
-      return yield* compression
-        .decompress({
+      return yield* _(
+        compression.decompress({
           shells: [new WorkspaceShell({ command: "../run main.ts" })],
           initialFilePath: "main.ts",
           whitelist: ["package.json", "main.ts"],
           compressed
-        })
-        .pipe(Effect.orElseSucceed(makeDefaultWorkspace))
+        }),
+        Effect.orElseSucceed(makeDefaultWorkspace)
+      )
     })
   )
-  .pipe(Rx.keepAlive)
+  .pipe(Rx.setIdleTTL("10 seconds"))
