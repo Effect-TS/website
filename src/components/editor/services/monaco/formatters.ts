@@ -42,7 +42,6 @@ const make = Effect.gen(function* () {
 
       monaco.languages.registerDocumentFormattingEditProvider("typescript", {
         provideDocumentFormattingEdits(model, _options, _token) {
-          console.log("FORMATTING")
           return [
             {
               text: formatter.formatText(
