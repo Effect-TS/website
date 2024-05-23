@@ -8,6 +8,10 @@ import packageJson from "../../../../snapshots/tutorials/package.json"
 import { WorkspaceCompression } from "../services/workspace-compression"
 import { editorRx } from "./editor"
 import { hashRx } from "@/rx/location"
+import {
+  retrieveCompressed,
+  shortenHash
+} from "../services/actions/shortenHash"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
@@ -25,19 +29,13 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) =>
 
       const hash = yield* compression.compress(
         workspace,
-        `playground-${Date.now()}`,
+        "playground",
         handle.read
       )
+      const shortHash = yield* Effect.promise(() => shortenHash(hash))
       const url = new URL(location.href)
-      url.hash = hash
-      const urlString = url.toString()
-
-      yield* Effect.sleep(5000)
-
-      // TODO: send hash to whatever for shortening
-      // yield* Effect.promise(() => shortenHash(urlString))
-
-      return urlString
+      url.hash = shortHash
+      return url.toString()
     }).pipe(Effect.tapErrorCause(Effect.logError))
   )
 )
@@ -61,18 +59,25 @@ Effect.gen(function* () {
   ]
 })
 
+const makeDefaultWorkspace = () =>
+  defaultWorkspace.withName(`playground-${Date.now()}`)
+
 export const importRx = runtime.rx((get) =>
   Effect.gen(function* () {
     const hash = get(hashRx)
-    if (hash._tag === "None") return defaultWorkspace
+    if (hash._tag === "None") return makeDefaultWorkspace()
+    const compressed = yield* Effect.promise(() =>
+      retrieveCompressed(hash.value)
+    )
+    if (!compressed) return makeDefaultWorkspace()
     const compression = yield* WorkspaceCompression
     return yield* compression
       .decompress({
         shells: [new WorkspaceShell({ command: "../run main.ts" })],
         initialFilePath: "main.ts",
         whitelist: ["package.json", "main.ts"],
-        compressed: hash.value
+        compressed
       })
-      .pipe(Effect.orElseSucceed(() => defaultWorkspace))
+      .pipe(Effect.orElseSucceed(makeDefaultWorkspace))
   })
 )
