@@ -4,11 +4,11 @@ import { effectAction } from "@/lib/actions"
 import { Shorten } from "@/services/Shorten"
 import { Effect, Option } from "effect"
 
-export const shortenHash = (hash: string) =>
+export const shortenHash = (value: string) =>
   effectAction(
     Effect.gen(function* (_) {
       const shorten = yield* Shorten
-      return yield* shorten.generate(hash)
+      return yield* shorten.shorten(value)
     })
   )
 

@@ -18,7 +18,6 @@ const make = Effect.gen(function* () {
 
   const compress = <E, R>(
     workspace: Workspace,
-    name: string,
     read: (file: string) => Effect.Effect<string, E, R>
   ) =>
     Effect.forEach(workspace.filePaths, ([file, path]) =>
@@ -32,7 +31,7 @@ const make = Effect.gen(function* () {
         )
       )
     ).pipe(
-      Effect.map((files) => JSON.stringify([name, files])),
+      Effect.map((files) => JSON.stringify([workspace.name, files])),
       Effect.andThen(compression.compressBase64)
     )
 
