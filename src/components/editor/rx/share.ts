@@ -12,6 +12,7 @@ import {
   retrieveCompressed,
   shortenHash
 } from "../services/actions/shortenHash"
+import { pipe } from "effect"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
@@ -60,7 +61,7 @@ const makeDefaultWorkspace = () =>
 
 export const importRx = runtime
   .rx((get) =>
-    Effect.gen(function* (_) {
+    Effect.gen(function* () {
       const hash = get(hashRx)
       if (hash._tag === "None") return makeDefaultWorkspace()
       const compressed = yield* Effect.promise(() =>
@@ -68,7 +69,7 @@ export const importRx = runtime
       )
       if (!compressed) return makeDefaultWorkspace()
       const compression = yield* WorkspaceCompression
-      return yield* _(
+      return yield* pipe(
         compression.decompress({
           shells: [new WorkspaceShell({ command: "../run main.ts" })],
           initialFilePath: "main.ts",
