@@ -1,6 +1,6 @@
 import { setupTypeAcquisition } from "@typescript/ata"
 import { Effect, Layer, Stream, flow } from "effect"
-import type {} from "monaco-editor/esm/vs/editor/editor.api"
+import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 import { Workspace } from "../../domain/workspace"
 import { Monaco } from "../monaco"
 
