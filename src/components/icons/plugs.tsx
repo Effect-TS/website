@@ -1,8 +1,14 @@
-import {FC} from 'react'
+import React from "react"
+import type { Icon } from "@/components/icons"
+import { cn } from "@/lib/utils"
 
-export const PlugsIcon: FC<{className: string}> = ({className}) => {
+export const PlugsIcon: React.FC<Icon.CommonProps> = ({ className }) => {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" className={`fill-current ${className}`}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 32 32"
+      className={cn("fill-current", className)}
+    >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
@@ -11,3 +17,5 @@ export const PlugsIcon: FC<{className: string}> = ({className}) => {
     </svg>
   )
 }
+
+PlugsIcon.displayName = "PlugsIcon"

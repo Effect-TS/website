@@ -7,7 +7,7 @@ app.use(Express.json() as Express.NextFunction)
 
 const repo = new TodoRepository()
 
-// Creat Todo
+// Create Todo
 app.post("/todos", (req, res) => {
   repo.create(req.body.text).then((todo) => res.json(todo))
 })

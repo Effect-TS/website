@@ -1,8 +1,14 @@
-import {FC} from 'react'
+import React from "react"
+import type { Icon } from "@/components/icons"
+import { cn } from "@/lib/utils"
 
-export const DenoIcon: FC<{className: string}> = ({className}) => {
+export const DenoIcon: React.FC<Icon.CommonProps> = ({ className }) => {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17 16" className={`fill-current ${className}`}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 17 16"
+      className={cn("fill-current", className)}
+    >
       <path d="M8.84379 5.99015C8.75002 5.89638 8.62284 5.8437 8.49023 5.8437C8.35763 5.8437 8.23045 5.89638 8.13668 5.99015C8.04291 6.08392 7.99023 6.21109 7.99023 6.3437C7.99023 6.47631 8.04291 6.60349 8.13668 6.69726C8.23045 6.79102 8.35763 6.8437 8.49023 6.8437C8.62284 6.8437 8.75002 6.79102 8.84379 6.69726C8.93756 6.60349 8.99023 6.47631 8.99023 6.3437C8.99023 6.21109 8.93756 6.08392 8.84379 5.99015Z" />
       <path
         fillRule="evenodd"
@@ -12,3 +18,5 @@ export const DenoIcon: FC<{className: string}> = ({className}) => {
     </svg>
   )
 }
+
+DenoIcon.displayName = "DenoIcon"

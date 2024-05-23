@@ -1,8 +1,14 @@
-import {FC} from 'react'
+import React from "react"
+import type { Icon } from "@/components/icons"
+import { cn } from "@/lib/utils"
 
-export const GraphQLIcon: FC<{className: string}> = ({className}) => {
+export const GraphQLIcon: React.FC<Icon.CommonProps> = ({ className }) => {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15 16" className={`fill-current ${className}`}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 15 16"
+      className={cn("fill-current", className)}
+    >
       <path d="M1.02611 11.6064L1.60114 11.9384L8.00714 0.843208L7.43211 0.511208L1.02611 11.6064Z" />
       <path d="M13.7064 10.72H0.894434V11.384H13.7064V10.72Z" />
       <path d="M1.14795 11.093L7.55635 14.793L7.88835 14.218L1.47995 10.518L1.14795 11.093Z" />
@@ -21,3 +27,5 @@ export const GraphQLIcon: FC<{className: string}> = ({className}) => {
     </svg>
   )
 }
+
+GraphQLIcon.displayName = "GraphQLIcon"

@@ -1,4 +1,4 @@
-import { PlaygroundDynamic } from "./components/PlaygroundDynamic"
+import { PlaygroundDynamic } from "./components/playground-dynamic"
 
 export async function generateMetadata() {
   return {

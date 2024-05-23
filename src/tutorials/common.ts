@@ -1,7 +1,10 @@
-import { Workspace, WorkspaceShell } from "@/domain/Workspace"
-import packageJson from "../../snapshots/tutorials/package.json"
+import {
+  Workspace,
+  WorkspaceShell
+} from "@/components/editor/domain/workspace"
 import { Tutorial } from "contentlayer/generated"
-import { ReadonlyRecord } from "effect/Record"
+import type { ReadonlyRecord } from "effect/Record"
+import packageJson from "../../snapshots/tutorials/package.json"
 
 const baseWorkspace = new Workspace({
   name: "default",

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Logo } from "../atoms/logo"
-import { Icon, IconName } from "../icons"
+import { Icon } from "../icons"
 import { Search } from "../atoms/search"
 import { MobileMenu } from "./mobile-menu"
 import { usePathname } from "next/navigation"
@@ -88,7 +88,7 @@ export const Navigation: FC<{
                 <Link key={index} href={href} className="generic-hover">
                   <span className="sr-only">{name}</span>
                   <Icon
-                    name={icon as IconName}
+                    name={icon as Icon.Name}
                     className="h-5 text-zinc-700 dark:text-zinc-400"
                   />
                 </Link>
