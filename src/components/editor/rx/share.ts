@@ -62,22 +62,24 @@ Effect.gen(function* () {
 const makeDefaultWorkspace = () =>
   defaultWorkspace.withName(`playground-${Date.now()}`)
 
-export const importRx = runtime.rx((get) =>
-  Effect.gen(function* () {
-    const hash = get(hashRx)
-    if (hash._tag === "None") return makeDefaultWorkspace()
-    const compressed = yield* Effect.promise(() =>
-      retrieveCompressed(hash.value)
-    )
-    if (!compressed) return makeDefaultWorkspace()
-    const compression = yield* WorkspaceCompression
-    return yield* compression
-      .decompress({
-        shells: [new WorkspaceShell({ command: "../run main.ts" })],
-        initialFilePath: "main.ts",
-        whitelist: ["package.json", "main.ts"],
-        compressed
-      })
-      .pipe(Effect.orElseSucceed(makeDefaultWorkspace))
-  })
-)
+export const importRx = runtime
+  .rx((get) =>
+    Effect.gen(function* () {
+      const hash = get(hashRx)
+      if (hash._tag === "None") return makeDefaultWorkspace()
+      const compressed = yield* Effect.promise(() =>
+        retrieveCompressed(hash.value)
+      )
+      if (!compressed) return makeDefaultWorkspace()
+      const compression = yield* WorkspaceCompression
+      return yield* compression
+        .decompress({
+          shells: [new WorkspaceShell({ command: "../run main.ts" })],
+          initialFilePath: "main.ts",
+          whitelist: ["package.json", "main.ts"],
+          compressed
+        })
+        .pipe(Effect.orElseSucceed(makeDefaultWorkspace))
+    })
+  )
+  .pipe(Rx.keepAlive)
