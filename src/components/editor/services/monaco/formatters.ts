@@ -33,9 +33,7 @@ const make = Effect.gen(function* () {
   function setupTypeScriptFormatter(monaco: MonacoApi) {
     return Effect.gen(function* () {
       const formatter = yield* Effect.promise(() =>
-        createStreaming(
-          fetch("https://plugins.dprint.dev/typescript-0.90.5.wasm")
-        )
+        createStreaming(fetch("/vendor/dprint-0.90.5.wasm"))
       )
 
       formatter.setConfig(globalConfig, typescriptPluginConfig)
