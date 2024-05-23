@@ -1,6 +1,5 @@
-import React, { useCallback, useMemo, useState } from "react"
-import { useWorkspaceHandle } from "@/components/editor/context/workspace"
-import { shareRx } from "@/components/editor/rx/share"
+import React, { useCallback, useEffect, useState } from "react"
+import { useShareRx } from "@/components/editor/context/workspace"
 import { Icon } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,77 +9,106 @@ import {
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/popover"
-import { useRxSetPromise, useRxValue } from "@effect-rx/rx-react"
-import * as Cause from "effect/Cause"
+import { Result, useRxSet, useRxValue } from "@effect-rx/rx-react"
 
 export declare namespace ShareButton {
   export interface Props {}
 }
 
 export const ShareButton: React.FC<ShareButton.Props> = () => {
-  const handle = useWorkspaceHandle()
-  const rx = useMemo(() => shareRx(handle), [handle])
-  const state = useRxValue(rx.state)
-  const share = useRxSetPromise(rx.share)
-  const [copied, setCopied] = useState(false)
-  const [link, setLink] = useState("")
+  const rx = useShareRx()
+  const share = useRxSet(rx)
 
-  const handleGenerateLink = useCallback(() => {
-    share().then((exit) => {
-      if (exit._tag === "Success") {
-        setLink(exit.value)
-      } else {
-        throw Cause.prettyErrors(exit.cause)[0]
-      }
-    })
-  }, [share])
-
-  const handleCopyLink = useCallback(() => {
-    const item = new ClipboardItem({
-      "text/plain": new Blob([link], { type: "text/plain" })
-    })
-    navigator.clipboard.write([item])
-    setCopied(true)
-  }, [link])
+  const onOpen = useCallback(
+    (open: boolean) => {
+      if (!open) return
+      share()
+    },
+    [share]
+  )
 
   return (
-    <Popover onOpenChange={(open) => !open && setCopied(false)}>
+    <Popover onOpenChange={onOpen}>
       <PopoverTrigger asChild>
-        <Button variant="secondary" onClick={handleGenerateLink}>
-          Share
-        </Button>
+        <Button variant="secondary">Share</Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[520px]">
-        <div className="flex flex-col space-y-2 text-center sm:text-left">
-          <h3 className="text-lg font-semibold">Share Playground</h3>
-          <p className="text-sm font-medium text-muted-foreground">
-            Use this link to share this playground with others.
-          </p>
-        </div>
-        <div className="flex items-center space-x-2 pt-4">
-          <div className="grid flex-1 gap-2">
-            <Label htmlFor="link" className="sr-only">
-              Link
-            </Label>
-            <Input id="link" defaultValue={link} readOnly className="h-9" />
-          </div>
-          <Button
-            size="sm"
-            className="px-3"
-            disabled={state !== "idle"}
-            onClick={handleCopyLink}
-          >
-            <span className="sr-only">Copy</span>
-            {copied ? (
-              <Icon name="check" className="h-4 w-4" />
-            ) : (
-              <Icon name="clipboard" className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
+      <PopoverContent align="end" className="w-[400px]">
+        <ModalContent />
       </PopoverContent>
     </Popover>
   )
 }
 
 ShareButton.displayName = "ShareButton"
+
+function ModalContent() {
+  const rx = useShareRx()
+  const result = useRxValue(rx, (result) =>
+    !result.waiting && Result.isSuccess(result)
+      ? ({
+          link: result.value,
+          loading: false
+        } as const)
+      : ({
+          link: "",
+          loading: true
+        } as const)
+  )
+
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const timeout = setTimeout(() => {
+      setCopied(false)
+    }, 2000)
+    return () => {
+      clearTimeout(timeout)
+    }
+  }, [copied, setCopied])
+  const handleCopyLink = useCallback(() => {
+    navigator.clipboard.writeText(result.link)
+    setCopied(true)
+  }, [setCopied, result.link])
+
+  return (
+    <>
+      <div className="flex flex-col space-y-2 text-center sm:text-left">
+        <h3 className="text-lg font-semibold">Share</h3>
+        <p className="text-sm font-medium text-muted-foreground">
+          Use the link to share this playground with others.
+        </p>
+      </div>
+      <div className="flex items-center space-x-2 pt-4">
+        <div className="grid flex-1 gap-2">
+          <Label htmlFor="link" className="sr-only">
+            Link
+          </Label>
+          <Input
+            id="link"
+            placeholder="Loading..."
+            value={result.link}
+            readOnly
+            className="h-9"
+          />
+        </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="px-3"
+          disabled={result.loading}
+          onClick={handleCopyLink}
+        >
+          <span className="sr-only">Copy</span>
+          {copied ? (
+            <Icon name="check" className="h-4 w-4" />
+          ) : (
+            <Icon
+              name={result.loading ? "loading" : "clipboard"}
+              className={`h-4 w-4 ${result.loading ? "animate-spin" : ""}`}
+            />
+          )}
+        </Button>
+      </div>
+    </>
+  )
+}

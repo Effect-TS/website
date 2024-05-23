@@ -44,6 +44,7 @@ import { ShieldIcon } from "./shield"
 import { SunIcon } from "./sun"
 import { TrendUpIcon } from "./trend-up"
 import { TwitterIcon } from "./twitter"
+import { LoadingIcon } from "./loading"
 
 const icons = {
   alert: AlertIcon,
@@ -79,6 +80,7 @@ const icons = {
   info: InfoIcon,
   lightbulb: LightbulbIcon,
   "lightbulb-solid": LightbulbSolidIcon,
+  loading: LoadingIcon,
   moon: MoonIcon,
   next: NextIcon,
   node: NodeIcon,

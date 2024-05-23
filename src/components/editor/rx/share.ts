@@ -13,12 +13,9 @@ const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
 )
 
-export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
-  const state = Rx.make<"idle" | "loading" | "success">("idle")
-  const share = runtime.fn((_: void, get) =>
+export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) =>
+  runtime.fn((_: void, get) =>
     Effect.gen(function* () {
-      get.setSync(state, "loading")
-
       const compression = yield* WorkspaceCompression
       const editor = yield* Result.toExit(
         get.once(editorRx(workspace).editor)
@@ -35,23 +32,15 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) => {
       url.hash = hash
       const urlString = url.toString()
 
-      get.setSync(state, "success")
+      yield* Effect.sleep(5000)
 
-      yield* Effect.sleep(2000).pipe(
-        Effect.andThen(get.set(state, "idle")),
-        Effect.forkScoped
-      )
+      // TODO: send hash to whatever for shortening
+      // yield* Effect.promise(() => shortenHash(urlString))
 
       return urlString
-    }).pipe(
-      Effect.tapErrorCause((cause) => {
-        get.setSync(state, "idle")
-        return Effect.log(cause)
-      })
-    )
+    }).pipe(Effect.tapErrorCause(Effect.logError))
   )
-  return { state, share } as const
-})
+)
 
 const defaultWorkspace = new Workspace({
   name: "playground",

@@ -8,7 +8,7 @@ export declare namespace Toolbar {
 
 export const Toolbar: React.FC<Toolbar.Props> = () => {
   return (
-    <div className="w-full px-4 flex flex-col items-start justify-between sm:flex-row sm:items-center sm:space-y-0 md:h-16">
+    <div className="w-full border-b dark:border-neutral-700 px-4 flex flex-col items-start justify-between sm:flex-row sm:items-center sm:space-y-0 md:h-16">
       <ToolbarHeader />
 
       <div className="w-full ml-auto flex space-x-2 sm:justify-end">
@@ -48,4 +48,3 @@ const ToolbarHeader: React.FC<ToolbarHeader.Props> = () => {
     </h2>
   )
 }
-
