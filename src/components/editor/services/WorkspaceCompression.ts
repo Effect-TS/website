@@ -1,7 +1,7 @@
 import { File, Workspace, WorkspaceShell } from "../domain/workspace"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import { Compression } from "./compression"
+import { Compression } from "./Compression"
 
 type WorkspaceCompressed = [
   name: string,

@@ -5,13 +5,10 @@ import { Clipboard } from "@effect/platform-browser"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import packageJson from "../../../../snapshots/tutorials/package.json"
-import { WorkspaceCompression } from "../services/workspace-compression"
+import { WorkspaceCompression } from "../services/WorkspaceCompression"
 import { editorRx } from "./editor"
 import { hashRx } from "@/rx/location"
-import {
-  retrieveCompressed,
-  shortenHash
-} from "../services/actions/shortenHash"
+import { retrieveCompressed, shortenHash } from "../actions/shortenHash"
 import { pipe } from "effect"
 
 const runtime = Rx.runtime(
@@ -59,25 +56,23 @@ Effect.gen(function* () {
 const makeDefaultWorkspace = () =>
   defaultWorkspace.withName(`playground-${Date.now()}`)
 
-export const importRx = runtime
-  .rx((get) =>
-    Effect.gen(function* () {
-      const hash = get(hashRx)
-      if (hash._tag === "None") return makeDefaultWorkspace()
-      const compressed = yield* Effect.promise(() =>
-        retrieveCompressed(hash.value)
-      )
-      if (!compressed) return makeDefaultWorkspace()
-      const compression = yield* WorkspaceCompression
-      return yield* pipe(
-        compression.decompress({
-          shells: [new WorkspaceShell({ command: "../run main.ts" })],
-          initialFilePath: "main.ts",
-          whitelist: ["package.json", "main.ts"],
-          compressed
-        }),
-        Effect.orElseSucceed(makeDefaultWorkspace)
-      )
-    })
-  )
-  .pipe(Rx.setIdleTTL("10 seconds"))
+export const importRx = runtime.rx((get) =>
+  Effect.gen(function* () {
+    const hash = get(hashRx)
+    if (hash._tag === "None") return makeDefaultWorkspace()
+    const compressed = yield* Effect.promise(() =>
+      retrieveCompressed(hash.value)
+    )
+    if (!compressed) return makeDefaultWorkspace()
+    const compression = yield* WorkspaceCompression
+    return yield* pipe(
+      compression.decompress({
+        shells: [new WorkspaceShell({ command: "../run main.ts" })],
+        initialFilePath: "main.ts",
+        whitelist: ["package.json", "main.ts"],
+        compressed
+      }),
+      Effect.orElseSucceed(makeDefaultWorkspace)
+    )
+  })
+)

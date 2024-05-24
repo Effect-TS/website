@@ -5,8 +5,8 @@ import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
 import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 import { File, FullPath, Workspace } from "../domain/workspace"
-import { MonacoFormatters } from "./monaco/formatters"
-import { MonacoCompleters } from "./monaco/completers"
+import { MonacoFormatters } from "./Monaco/formatters"
+import { MonacoCompleters } from "./Monaco/completers"
 
 export type MonacoApi = typeof monaco
 

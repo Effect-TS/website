@@ -8,8 +8,9 @@ import {
   MonokaiSodaTheme,
   NightOwlishLightTheme,
   Terminal
-} from "../services/terminal"
-import { WebContainer } from "../services/web-container"
+} from "../services/Terminal"
+import { WebContainer } from "../services/WebContainer"
+import { pipe } from "effect"
 
 const runtime = Rx.runtime(Layer.mergeAll(WebContainer.Live, Terminal.Live))
 
@@ -18,8 +19,8 @@ const terminalTheme = Rx.map(themeRx, (theme) =>
 )
 
 export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
-  runtime
-    .rx((get) =>
+  pipe(
+    runtime.rx((get) =>
       Effect.gen(function* () {
         const { spawn } = yield* Terminal
         yield* Effect.log("building")
@@ -119,8 +120,9 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
           rx: "workspaceHandleRx"
         })
       )
-    )
-    .pipe(Rx.setIdleTTL("10 seconds"))
+    ),
+    Rx.setIdleTTL("10 seconds")
+  )
 )
 
 export interface WorkspaceHandle

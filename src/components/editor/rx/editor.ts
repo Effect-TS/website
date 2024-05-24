@@ -5,10 +5,10 @@ import { pipe } from "effect/Function"
 import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
 import { File, FullPath, Workspace } from "../domain/workspace"
-import { MonacoATA } from "../services/monaco/ata"
+import { MonacoATA } from "../services/Monaco/ata"
 import { workspaceHandleRx } from "./workspace"
 
-const runtime = Rx.runtime(MonacoATA.Live).pipe(Rx.setIdleTTL("10 seconds"))
+const runtime = Rx.runtime(MonacoATA.Live)
 
 export const editorThemeRx = Rx.map(themeRx, (theme) =>
   theme === "dark" ? "vs-dark" : "vs"
@@ -20,6 +20,9 @@ export const editorRx = Rx.family((workspace: Workspace) => {
   )
   const editor = runtime.rx((get) =>
     Effect.gen(function* (_) {
+      yield* Effect.acquireRelease(Effect.log("building"), () =>
+        Effect.log("releasing")
+      )
       const { handle, solved, selectedFile } = yield* get.result(
         workspaceHandleRx(workspace)
       )
@@ -100,7 +103,7 @@ export const editorRx = Rx.family((workspace: Workspace) => {
       )
 
       return { ...editor, save } as const
-    })
+    }).pipe(Effect.annotateLogs("rx", "editorRx"))
   )
 
   return { element, editor } as const

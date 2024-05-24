@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect"
 import { createStreaming, type GlobalConfiguration } from "@dprint/formatter"
-import { type MonacoApi } from "../monaco"
+import { type MonacoApi } from "../Monaco"
 
 const globalConfig: GlobalConfiguration = {
   indentWidth: 2,
