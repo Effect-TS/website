@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect"
 import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
-import { type MonacoApi } from "../monaco"
+import { type MonacoApi } from "../Monaco"
 import type ts from "typescript"
 
 export const make = Effect.gen(function* () {

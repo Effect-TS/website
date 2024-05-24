@@ -2,19 +2,22 @@
 
 import React from "react"
 import Link from "next/link"
-import { TutorialGroup } from "@/app/tutorials/grouped"
-import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import {
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from "@/components/ui/accordion"
 import { cn } from "@/lib/utils"
 import { Tutorial } from "contentlayer/generated"
+import { TutorialGroup } from "@/components/editor/domain/tutorial"
 
-export declare namespace MenuGroup {
-  export interface Props {
-    readonly group: TutorialGroup
-    readonly selected: Tutorial
-  }
-}
-
-export const MenuGroup: React.FC<MenuGroup.Props> = ({ group, selected }) => {
+export function MenuGroup({
+  group,
+  selected
+}: {
+  readonly group: TutorialGroup
+  readonly selected: Tutorial
+}) {
   return (
     <AccordionItem value={group.index._id}>
       <AccordionTrigger className="py-2">
