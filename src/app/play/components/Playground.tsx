@@ -4,7 +4,7 @@ import { CodeEditor } from "@/components/editor/CodeEditor"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import { Suspense } from "react"
-import { importRx } from "@/components/editor/rx/share"
+import { importRx } from "../rx"
 
 export function Playground() {
   return (
@@ -18,7 +18,7 @@ function PlaygroundLoader() {
   const workspace = useRxSuspenseSuccess(importRx).value
   return (
     <main className="flex flex-col h-full">
-      <CodeEditor layout="playground" workspace={workspace} />
+      <CodeEditor workspace={workspace} />
     </main>
   )
 }

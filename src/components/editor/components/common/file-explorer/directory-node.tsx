@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react"
-import type { Directory, File } from "@/components/editor/domain/workspace"
+import type { Directory, File } from "@/workspaces/domain/workspace"
 import { FileNode } from "./file-node"
 import { FileTree } from "./file-tree"
 

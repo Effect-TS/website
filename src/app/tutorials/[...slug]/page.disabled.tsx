@@ -1,6 +1,6 @@
 import { MDX } from "@/components/atoms/mdx"
 import { Navigation } from "@/components/editor/components/tutorial/navigation"
-import { groupedTutorials, tutorialSection } from "@/components/editor/domain/tutorial"
+import { groupedTutorials, tutorialSection } from "@/workspaces/domain/tutorial"
 import { allTutorials } from "contentlayer/generated"
 import * as FS from "fs/promises"
 import { notFound } from "next/navigation"

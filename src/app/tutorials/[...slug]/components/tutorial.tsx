@@ -3,11 +3,7 @@
 import React, { useMemo } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import {
-  Directory,
-  File,
-  Workspace
-} from "@/components/editor/domain/workspace"
+import { Directory, File, Workspace } from "@/workspaces/domain/workspace"
 import {
   ResizableHandle,
   ResizablePanel,
@@ -93,7 +89,7 @@ const editor = (workspace: Workspace) =>
     async () => {
       const Editor = (await import("@/components/editor/CodeEditor"))
         .CodeEditor
-      return () => (<Editor layout="tutorial" workspace={workspace} />) as any
+      return () => (<Editor workspace={workspace} />) as any
     },
     { ssr: false }
   )

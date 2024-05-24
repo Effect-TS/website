@@ -1,5 +1,5 @@
 import React from "react"
-import { Directory, File } from "@/components/editor/domain/workspace"
+import { Directory, File } from "@/workspaces/domain/workspace"
 import { DirectoryNode } from "./directory-node"
 import { FileNode } from "./file-node"
 

@@ -4,11 +4,11 @@ import * as Effect from "effect/Effect"
 import { pipe } from "effect/Function"
 import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
-import { File, FullPath, Workspace } from "../domain/workspace"
-import { MonacoATA } from "../services/Monaco/ata"
-import { workspaceHandleRx } from "./workspace"
+import { File, FullPath, Workspace } from "@/workspaces/domain/workspace"
+import { MonacoATA } from "./services/Monaco/ata"
+import { workspaceHandleRx } from "@/workspaces/rx"
 
-const runtime = Rx.runtime(MonacoATA.Live)
+const runtime = Rx.runtime(MonacoATA.Live).pipe(Rx.setIdleTTL("10 seconds"))
 
 export const editorThemeRx = Rx.map(themeRx, (theme) =>
   theme === "dark" ? "vs-dark" : "vs"

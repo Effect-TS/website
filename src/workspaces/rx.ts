@@ -3,13 +3,13 @@ import { Rx } from "@effect-rx/rx-react"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
-import { Workspace, WorkspaceShell } from "../domain/workspace"
+import { Workspace, WorkspaceShell } from "./domain/workspace"
 import {
   MonokaiSodaTheme,
   NightOwlishLightTheme,
   Terminal
-} from "../services/Terminal"
-import { WebContainer } from "../services/WebContainer"
+} from "./services/Terminal"
+import { WebContainer } from "./services/WebContainer"
 import { pipe } from "effect"
 
 const runtime = Rx.runtime(Layer.mergeAll(WebContainer.Live, Terminal.Live))

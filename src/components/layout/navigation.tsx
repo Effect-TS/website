@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { Logo } from "../atoms/logo"
 import { Icon } from "../icons"
 import { Search } from "../atoms/search"
@@ -59,7 +58,7 @@ export const Navigation: React.FC<{
           </Link>
           <MobileMenu menu={links} socials={socials} />
           <div className="hidden md:flex items-center gap-8">
-            <NavigationLinks links={links} />
+            <NavigationMenu />
             {searchBox && <Search className="w-56" />}
             {themeSwitcher && <ThemeSwitcher />}
             {pathname === "/" ? null : <ThemeSwitcher />}
@@ -79,6 +78,10 @@ export const Navigation: React.FC<{
       </header>
     </div>
   )
+}
+
+function NavigationMenu() {
+  return <NavigationLinks links={links} />
 }
 
 const NavigationLinks: React.FC<{ links: ReadonlyArray<NavigationLink> }> = (

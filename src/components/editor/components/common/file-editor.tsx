@@ -1,21 +1,18 @@
 import React, { useEffect, useMemo, useRef } from "react"
-import { useWorkspace } from "@/components/editor/context/workspace"
-import { editorRx } from "@/components/editor/rx/editor"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { cn } from "@/lib/utils"
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 import * as Option from "effect/Option"
+import { useWorkspace } from "@/workspaces/context"
+import { editorRx } from "../../rx"
 
-export declare namespace FileEditor {
-  export interface Props {}
-}
-
-export const FileEditor: React.FC<FileEditor.Props> = () => {
+export function FileEditor() {
   const workspace = useWorkspace()
   const containerRef = useRef<HTMLDivElement>(null)
   const rx = useMemo(() => editorRx(workspace), [workspace])
   const setElement = useRxSet(rx.element)
-  const isReady = useRxValue(rx.editor, (_) => _._tag === "Success")
+  const result = useRxValue(rx.editor)
+  const isReady = result._tag === "Success"
 
   useEffect(() => {
     if (containerRef.current) {
@@ -33,5 +30,3 @@ export const FileEditor: React.FC<FileEditor.Props> = () => {
     </section>
   )
 }
-
-FileEditor.displayName = "FileEditor"

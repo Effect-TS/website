@@ -1,19 +1,13 @@
 import React, { useEffect, useMemo, useRef } from "react"
-import { useWorkspaceHandle } from "@/components/editor/context/workspace"
-import { WorkspaceShell } from "@/components/editor/domain/workspace"
 import { Icon } from "@/components/icons"
 import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
 
 import "@xterm/xterm/css/xterm.css"
 import "./terminal.css"
+import { WorkspaceShell } from "@/workspaces/domain/workspace"
+import { useWorkspaceHandle } from "@/workspaces/context"
 
-export declare namespace Terminal {
-  export interface Props {
-    readonly shell: WorkspaceShell
-  }
-}
-
-export const Terminal: React.FC<Terminal.Props> = ({ shell }) => {
+export function Terminal({ shell }: { readonly shell: WorkspaceShell }) {
   const workspace = useWorkspaceHandle()
   const rx = useMemo(() => workspace.terminal(shell), [workspace, shell])
   const terminal = useRxSuspenseSuccess(rx).value
@@ -46,5 +40,3 @@ export const Terminal: React.FC<Terminal.Props> = ({ shell }) => {
     </div>
   )
 }
-
-Terminal.displayName = "Terminal"
