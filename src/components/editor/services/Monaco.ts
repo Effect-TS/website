@@ -5,7 +5,6 @@ import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
 import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 import { File, FullPath, Workspace } from "@/workspaces/domain/workspace"
-import { MonacoFormatters } from "./Monaco/formatters"
 import { MonacoCompleters } from "./Monaco/completers"
 
 export type MonacoApi = typeof monaco
@@ -59,10 +58,9 @@ const loadApi = GlobalValue.globalValue("app/Monaco/loadApi", () =>
 const make = Effect.gen(function* () {
   const monaco = yield* loadApi
   const completers = yield* MonacoCompleters
-  const formatters = yield* MonacoFormatters
 
   completers.install(monaco)
-  yield* formatters.install(monaco)
+  // yield* formatters.install(monaco)
 
   monaco.languages.typescript.typescriptDefaults.setWorkerOptions({
     customWorkerPath: `${new URL(window.location.origin)}vendor/ts.worker.js`
@@ -171,7 +169,7 @@ export class Monaco extends Effect.Tag("app/Monaco")<
   Effect.Effect.Success<typeof make>
 >() {
   static Live = Layer.scoped(this, make).pipe(
-    Layer.provide(MonacoCompleters.Live),
-    Layer.provide(MonacoFormatters.Live)
+    Layer.provide(MonacoCompleters.Live)
+    // Layer.provide(MonacoFormatters.Live)
   )
 }

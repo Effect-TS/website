@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from "effect"
+<<<<<<< Updated upstream:src/components/editor/services/Monaco/formatters.ts
 import { createStreaming, type GlobalConfiguration } from "@dprint/formatter"
 import { type MonacoApi } from "../Monaco"
 
@@ -14,24 +15,30 @@ const typescriptPluginConfig = {
   operatorPosition: "maintain",
   "arrowFunction.useParentheses": "force"
 }
+=======
+import { createStreaming } from "@dprint/formatter"
+import { type MonacoApi, Monaco } from "@/components/editor/services/Monaco"
+>>>>>>> Stashed changes:src/components/editor/services/monaco/formatters.ts
 
 const make = Effect.gen(function* () {
-  function setupCodeActions(monaco: MonacoApi) {
-    monaco.editor.addEditorAction({
-      id: "format",
-      label: "Format",
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
-      run: (editor) => {
-        const action = editor.getAction("editor.action.formatDocument")
-        if (action) {
-          action.run()
-        }
+  const { monaco } = yield* Monaco
+
+  // Setup the format document code action to be triggered with CtrlCmd+S
+  monaco.editor.addEditorAction({
+    id: "format",
+    label: "Format",
+    keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+    run: (editor) => {
+      const action = editor.getAction("editor.action.formatDocument")
+      if (action) {
+        action.run()
       }
-    })
-  }
+    }
+  })
 
   function setupTypeScriptFormatter(monaco: MonacoApi) {
     return Effect.gen(function* () {
+<<<<<<< Updated upstream:src/components/editor/services/Monaco/formatters.ts
       const formatter = yield* Effect.promise(() =>
         createStreaming(fetch("/vendor/dprint-0.90.5.wasm"))
       )
@@ -51,11 +58,14 @@ const make = Effect.gen(function* () {
           ]
         }
       })
+=======
+
+>>>>>>> Stashed changes:src/components/editor/services/monaco/formatters.ts
     })
   }
 
   const install = (monaco: MonacoApi) => {
-    setupCodeActions(monaco)
+    // setupCodeActions(monaco)
     return setupTypeScriptFormatter(monaco)
   }
 

@@ -23,6 +23,7 @@ import { DirectoryOpenIcon } from "./directory-open"
 import { DiscordIcon } from "./discord"
 import { DisplayIcon } from "./display"
 import { DotSolid } from "./dot-solid"
+import { DotsHorizontal } from "./dots-horizontal"
 import { DragHandleDotsIcon } from "./drag-handle-dots"
 import { ErrorIcon } from "./error"
 import { FileIcon } from "./file"
@@ -32,6 +33,7 @@ import { GraphQLIcon } from "./graphql"
 import { InfoIcon } from "./info"
 import { LightbulbIcon } from "./lightbulb"
 import { LightbulbSolidIcon } from "./lightbulb-solid"
+import { LoadingIcon } from "./loading"
 import { MoonIcon } from "./moon"
 import { NextIcon } from "./next"
 import { NodeIcon } from "./node"
@@ -44,7 +46,7 @@ import { ShieldIcon } from "./shield"
 import { SunIcon } from "./sun"
 import { TrendUpIcon } from "./trend-up"
 import { TwitterIcon } from "./twitter"
-import { LoadingIcon } from "./loading"
+import { WandIcon } from "./wand"
 
 const icons = {
   alert: AlertIcon,
@@ -71,6 +73,7 @@ const icons = {
   discord: DiscordIcon,
   display: DisplayIcon,
   "dot-solid": DotSolid,
+  "dots-horizontal": DotsHorizontal,
   "drag-handle-dots": DragHandleDotsIcon,
   error: ErrorIcon,
   file: FileIcon,
@@ -92,7 +95,8 @@ const icons = {
   shield: ShieldIcon,
   sun: SunIcon,
   "trend-up": TrendUpIcon,
-  twitter: TwitterIcon
+  twitter: TwitterIcon,
+  wand: WandIcon
 }
 
 export declare namespace Icon {
