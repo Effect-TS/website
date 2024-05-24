@@ -1,8 +1,8 @@
 import React, { useCallback } from "react"
-import { useWorkspaceHandle } from "@/components/editor/context/workspace"
-import type { Directory, File } from "@/components/editor/domain/workspace"
+import type { Directory, File } from "@/workspaces/domain/workspace"
 import { useRxSet } from "@effect-rx/rx-react"
 import { FileTree } from "./file-explorer/file-tree"
+import { useWorkspaceHandle } from "@/workspaces/context"
 
 export declare namespace FileExplorer {
   export interface Props {}

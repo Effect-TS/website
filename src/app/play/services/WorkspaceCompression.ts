@@ -1,4 +1,8 @@
-import { File, Workspace, WorkspaceShell } from "../domain/workspace"
+import {
+  File,
+  Workspace,
+  WorkspaceShell
+} from "@/workspaces/domain/workspace"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { Compression } from "./Compression"

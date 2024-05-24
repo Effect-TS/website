@@ -1,7 +1,4 @@
-import {
-  Workspace,
-  WorkspaceShell
-} from "@/components/editor/domain/workspace"
+import { Workspace, WorkspaceShell } from "@/workspaces/domain/workspace"
 import { Tutorial } from "contentlayer/generated"
 import type { ReadonlyRecord } from "effect/Record"
 import packageJson from "../../snapshots/tutorials/package.json"

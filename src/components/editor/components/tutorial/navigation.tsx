@@ -7,7 +7,7 @@ import { Tutorial } from "contentlayer/generated"
 import { Menu } from "./navigation/menu"
 import { MenuButton } from "./navigation/menu-button"
 import { cn } from "@/lib/utils"
-import { groupedTutorials, tutorialSection } from "@/components/editor/domain/tutorial"
+import { groupedTutorials, tutorialSection } from "@/workspaces/domain/tutorial"
 
 export declare namespace Navigation {
   export interface Props {

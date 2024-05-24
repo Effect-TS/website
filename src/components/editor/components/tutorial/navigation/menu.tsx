@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { groupedTutorials } from "@/components/editor/domain/tutorial"
+import { groupedTutorials } from "@/workspaces/domain/tutorial"
 import { Accordion } from "@/components/ui/accordion"
 import { Tutorial } from "contentlayer/generated"
 import { MenuGroup } from "./menu-group"

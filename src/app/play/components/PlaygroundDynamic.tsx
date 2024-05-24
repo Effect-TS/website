@@ -4,7 +4,7 @@ import dynamic from "next/dynamic"
 
 export const PlaygroundDynamic = dynamic(
   async () => {
-    return (await import("./playground")).Playground
+    return (await import("./Playground")).Playground
   },
   { ssr: false }
 )

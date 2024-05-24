@@ -1,6 +1,6 @@
 import React from "react"
-import { useWorkspaceHandle } from "@/components/editor/context/workspace"
-import { Directory, File } from "@/components/editor/domain/workspace"
+import { useWorkspaceHandle } from "@/workspaces/context"
+import { Directory, File } from "@/workspaces/domain/workspace"
 import { Icon } from "@/components/icons"
 import { cn } from "@/lib/utils"
 import { useRxValue } from "@effect-rx/rx-react"

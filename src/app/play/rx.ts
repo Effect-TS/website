@@ -1,15 +1,19 @@
-import { WorkspaceHandle } from "./workspace"
-import { File, Workspace, WorkspaceShell } from "../domain/workspace"
+import {
+  File,
+  Workspace,
+  WorkspaceShell
+} from "@/workspaces/domain/workspace"
 import { Result, Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import packageJson from "../../../../snapshots/tutorials/package.json"
-import { WorkspaceCompression } from "../services/WorkspaceCompression"
-import { editorRx } from "./editor"
+import { editorRx } from "@/components/editor/rx"
 import { hashRx } from "@/rx/location"
-import { retrieveCompressed, shortenHash } from "../actions/shortenHash"
+import { retrieveCompressed, shortenHash } from "./actions/shortenHash"
 import { pipe } from "effect"
+import { WorkspaceHandle } from "@/workspaces/rx"
+import { WorkspaceCompression } from "./services/WorkspaceCompression"
+import packageJson from "../../../snapshots/tutorials/package.json"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)

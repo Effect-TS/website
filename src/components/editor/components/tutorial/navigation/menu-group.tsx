@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/accordion"
 import { cn } from "@/lib/utils"
 import { Tutorial } from "contentlayer/generated"
-import { TutorialGroup } from "@/components/editor/domain/tutorial"
+import { TutorialGroup } from "@/workspaces/domain/tutorial"
 
 export function MenuGroup({
   group,
