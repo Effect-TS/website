@@ -6,7 +6,7 @@ import {
 } from "@webcontainer/api"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
-import { identity } from "effect/Function"
+import { identity, pipe } from "effect/Function"
 import * as GlobalValue from "effect/GlobalValue"
 import * as Layer from "effect/Layer"
 import * as Scope from "effect/Scope"
@@ -55,9 +55,11 @@ const make = Effect.gen(function* () {
       )
 
       if (workspace.snapshot) {
-        const snapshot = yield* Http.request
-          .get(`/snapshots/${workspace.snapshot}`)
-          .pipe(Http.client.fetchOk, Http.response.arrayBuffer)
+        const snapshot = yield* pipe(
+          Http.request.get(`/snapshots/${workspace.snapshot}`),
+          Http.client.fetchOk,
+          Http.response.arrayBuffer
+        )
         yield* Effect.promise(async () => {
           await container.mount(snapshot, {
             mountPoint: workspace.name
