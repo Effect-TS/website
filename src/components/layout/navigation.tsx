@@ -11,10 +11,10 @@ import { LogoDark } from "../atoms/logo-dark"
 import { FC } from "react"
 
 const menu = [
-  { name: "Docs", href: "/docs" },
-  { name: "Blog", href: "/blog" },
+  { name: "Docs", prefetch: true, href: "/docs" },
+  { name: "Blog", prefetch: true, href: "/blog" },
   // { name: "Tutorials", href: "/tutorials/basics" },
-  { name: "Play", href: "/play", reload: true }
+  { name: "Play", href: "/play", prefetch: false, reload: true }
 ]
 
 const socials = [
@@ -80,6 +80,17 @@ export const Navigation: FC<{
                 )}
               </Link>
             ))}
+            {/* TODO: remove and fix */}
+            <a
+              href="/play"
+              className={`flex items-start ${
+                pathname.startsWith("/play")
+                  ? "text-black font-normal dark:text-white dark:font-light"
+                  : "button-hover"
+              }`}
+            >
+              <span>Play with &lt;a&gt;</span>
+            </a>
             {searchBox && <Search className="w-56" />}
             {themeSwitcher && <ThemeSwitcher />}
             {pathname === "/" ? null : <ThemeSwitcher />}
