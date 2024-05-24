@@ -31,7 +31,8 @@ export class Workspace extends Data.Class<{
     super({
       name: options.name,
       initialFilePath: options.initialFilePath,
-      prepare: options.prepare ?? "npm install",
+      prepare:
+        options.prepare ?? "npm install -E typescript tsc-watch @types/node",
       shells: options.shells,
       snapshot: options.snapshot,
       tree: [
