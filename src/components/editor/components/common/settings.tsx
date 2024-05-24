@@ -36,7 +36,7 @@ export const Settings: React.FC<Settings.Props> = ({}) => {
           <DropdownMenuGroup>
             <DropdownMenuItem onSelect={() => setIsOpen(true)}>
               <Icon name="wand" className="h-4 w-4 mr-2" />
-              <span>Formatter</span>
+              <span>Formatting</span>
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>

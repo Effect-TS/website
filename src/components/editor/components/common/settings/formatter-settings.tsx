@@ -30,7 +30,10 @@ import {
 import { effectTsResolver } from "@hookform/resolvers/effect-ts"
 import { SubmitHandler, useForm } from "react-hook-form"
 
-import { Settings, type EncodedSettings } from "@/components/editor/services/Monaco/formatters/typescript"
+import {
+  Settings,
+  type EncodedSettings
+} from "@/components/editor/services/Monaco/formatters/typescript"
 
 export declare namespace FormatterSettings {
   export interface Props {
@@ -87,10 +90,7 @@ export const FormatterSettings: React.FC<FormatterSettings.Props> = ({
                   <FormItem className="grid grid-cols-4 grid-rows-2 items-center gap-x-4">
                     <FormLabel className="text-right">Line Width</FormLabel>
                     <FormControl>
-                      <Input
-                        className="col-span-3"
-                        {...field}
-                      />
+                      <Input className="col-span-3" {...field} />
                     </FormControl>
                     <FormDescription className="col-start-2 col-span-3">
                       The width of a line the printer will try to stay under.
@@ -108,10 +108,7 @@ export const FormatterSettings: React.FC<FormatterSettings.Props> = ({
                   <FormItem className="grid grid-cols-4 grid-rows-2 items-center gap-x-4">
                     <FormLabel className="text-right">Indent Width</FormLabel>
                     <FormControl>
-                      <Input
-                        className="col-span-3"
-                        {...field}
-                      />
+                      <Input className="col-span-3" {...field} />
                     </FormControl>
                     <FormDescription className="col-start-2 col-span-3">
                       The number of columns for an indent.
@@ -124,128 +121,69 @@ export const FormatterSettings: React.FC<FormatterSettings.Props> = ({
                 name="operatorPosition"
                 control={form.control}
                 render={({ field }) => (
-                  <FormItem className="grid grid-cols-4 grid-rows-2 items-center gap-x-4">
-                    <FormLabel className="text-right">
-                      Operator Position
-                    </FormLabel>
-                    <Select
-                      defaultValue={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="col-start-2 col-span-3">
-                          <SelectValue placeholder="Select a value" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="maintain">Maintain</SelectItem>
-                        <SelectItem value="nextLine">Next Line</SelectItem>
-                        <SelectItem value="sameLine">Same Line</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription className="col-start-2 col-span-3">
-                      Where to place the operator for expressions that span
-                      multiple lines.
-                    </FormDescription>
-                    <FormMessage className="col-start-2 col-span-3" />
-                  </FormItem>
+                  <SettingsSelector
+                    title="Operator Position"
+                    description="Where to place the operator for expressions that span multiple lines."
+                    value={field.value}
+                    onChange={field.onChange}
+                    choices={[
+                      { label: "Maintain", value: "maintain" },
+                      { label: "Next Line", value: "nextLine" },
+                      { label: "Same Line", value: "sameLine" }
+                    ]}
+                  />
                 )}
               />
               <FormField
                 name="quoteStyle"
                 control={form.control}
                 render={({ field }) => (
-                  <FormItem className="grid grid-cols-4 grid-rows-2 items-center gap-x-4">
-                    <FormLabel className="text-right">Quote Style</FormLabel>
-                    <Select
-                      defaultValue={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="col-start-2 col-span-3">
-                          <SelectValue placeholder="Select a value" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="alwaysDouble">
-                          Always Double
-                        </SelectItem>
-                        <SelectItem value="alwaysSingle">
-                          Always Single
-                        </SelectItem>
-                        <SelectItem value="preferDouble">
-                          Prefer Double
-                        </SelectItem>
-                        <SelectItem value="preferSingle">
-                          Prefer Single
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription className="col-start-2 col-span-3">
-                      How to use single or double quotes.
-                    </FormDescription>
-                    <FormMessage className="col-start-2 col-span-3" />
-                  </FormItem>
+                  <SettingsSelector
+                    title="Quote Style"
+                    description="How to use single or double quotes."
+                    value={field.value}
+                    onChange={field.onChange}
+                    choices={[
+                      { label: "Always Double", value: "alwaysDouble" },
+                      { label: "Always Single", value: "alwaysSingle" },
+                      { label: "Prefer Double", value: "preferDouble" },
+                      { label: "Prefer Single", value: "preferSingle" }
+                    ]}
+                  />
                 )}
               />
               <FormField
                 name="semiColons"
                 control={form.control}
                 render={({ field }) => (
-                  <FormItem className="grid grid-cols-4 grid-rows-2 items-center gap-x-4">
-                    <FormLabel className="text-right">Semicolons</FormLabel>
-                    <Select
-                      defaultValue={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="col-start-2 col-span-3">
-                          <SelectValue placeholder="Select a value" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="always">Always</SelectItem>
-                        <SelectItem value="asi">Automatic</SelectItem>
-                        <SelectItem value="prefer">Prefer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription className="col-start-2 col-span-3">
-                      How semi-colons should be used.
-                    </FormDescription>
-                    <FormMessage className="col-start-2 col-span-3" />
-                  </FormItem>
+                  <SettingsSelector
+                    title="Semicolons"
+                    description="How semi-colons should be used."
+                    value={field.value}
+                    onChange={field.onChange}
+                    choices={[
+                      { label: "Always", value: "always" },
+                      { label: "Automatic", value: "asi" },
+                      { label: "Prefer", value: "prefer" }
+                    ]}
+                  />
                 )}
               />
               <FormField
                 name="trailingCommas"
                 control={form.control}
                 render={({ field }) => (
-                  <FormItem className="grid grid-cols-4 grid-rows-2 items-center gap-x-4">
-                    <FormLabel className="text-right">
-                      Trailing Commas
-                    </FormLabel>
-                    <Select
-                      defaultValue={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="col-start-2 col-span-3">
-                          <SelectValue placeholder="Select a value" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="always">Always</SelectItem>
-                        <SelectItem value="never">Never</SelectItem>
-                        <SelectItem value="onlyMultiline">
-                          Only Multiline
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription className="col-start-2 col-span-3">
-                      If trailing commas should be used.
-                    </FormDescription>
-                    <FormMessage className="col-start-2 col-span-3" />
-                  </FormItem>
+                  <SettingsSelector
+                    title="Trailing Commas"
+                    description="If trailing commas should be used."
+                    value={field.value}
+                    onChange={field.onChange}
+                    choices={[
+                      { label: "Always", value: "always" },
+                      { label: "Never", value: "never" },
+                      { label: "Only MultiLine", value: "onlyMultiLine" }
+                    ]}
+                  />
                 )}
               />
             </div>
@@ -262,3 +200,41 @@ export const FormatterSettings: React.FC<FormatterSettings.Props> = ({
 }
 
 FormatterSettings.displayName = "FormatterSettings"
+
+function SettingsSelector({
+  title,
+  description,
+  value,
+  choices,
+  onChange
+}: {
+  title: string
+  description: string
+  value: string
+  choices: ReadonlyArray<{ label: string; value: string }>
+  onChange: (...event: any[]) => void
+}) {
+  return (
+    <FormItem className="grid grid-cols-4 grid-rows-2 items-center gap-x-4">
+      <FormLabel className="text-right">{title}</FormLabel>
+      <Select defaultValue={value} onValueChange={onChange}>
+        <FormControl>
+          <SelectTrigger className="col-start-2 col-span-3">
+            <SelectValue placeholder="Select a value" />
+          </SelectTrigger>
+        </FormControl>
+        <SelectContent>
+          {choices.map(({ label, value }) => (
+            <SelectItem key={value} value={value}>
+              {label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FormDescription className="col-start-2 col-span-3">
+        {description}
+      </FormDescription>
+      <FormMessage className="col-start-2 col-span-3" />
+    </FormItem>
+  )
+}
