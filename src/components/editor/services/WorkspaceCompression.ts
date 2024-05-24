@@ -47,6 +47,7 @@ const make = Effect.gen(function* () {
         ([name, files]: WorkspaceCompressed) =>
           new Workspace({
             name,
+            prepare: "npm install",
             initialFilePath: options.initialFilePath,
             shells: options.shells,
             tree: files
