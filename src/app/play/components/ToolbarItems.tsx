@@ -18,12 +18,16 @@ import { useCallback, useEffect, useState } from "react"
 import { useShareRx } from "../context"
 import { importRx } from "../rx"
 import { WorkspaceProvider } from "@/workspaces/WorkspaceProvider"
+import { ThemeSwitcher } from "@/components/atoms/theme-switcher"
 
 export function ToolbarItems() {
   const workspace = useRxSuspenseSuccess(importRx).value
   return (
     <WorkspaceProvider workspace={workspace}>
-      <ShareButton />
+      <div className="flex items-center gap-5">
+        <ThemeSwitcher />
+        <ShareButton />
+      </div>
     </WorkspaceProvider>
   )
 }
