@@ -7,7 +7,7 @@ import { NavigationMenu } from "@/components/layout/navigation"
 
 export function Toolbar() {
   return (
-    <div className="border-b dark:border-neutral-700 px-4 flex sm:flex-row sm:items-center sm:space-y-0 md:h-16">
+    <div className="border-b dark:border-neutral-700 px-4 flex items-center space-y-0 h-16">
       <ToolbarHeader />
 
       <div aria-hidden className="flex-1" />
