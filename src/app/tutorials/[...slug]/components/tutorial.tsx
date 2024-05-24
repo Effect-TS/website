@@ -91,7 +91,8 @@ export const Tutorial = ({
 const editor = (workspace: Workspace) =>
   dynamic(
     async () => {
-      const Editor = (await import("@/components/editor")).CodeEditor
+      const Editor = (await import("@/components/editor/CodeEditor"))
+        .CodeEditor
       return () => (<Editor layout="tutorial" workspace={workspace} />) as any
     },
     { ssr: false }

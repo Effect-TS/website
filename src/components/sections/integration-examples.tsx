@@ -3,7 +3,7 @@
 import * as Tabs from "@radix-ui/react-tabs"
 import { Divider } from "../layout/divider"
 import { Code } from "../layout/code"
-import { Icon, IconName } from "../icons"
+import { Icon } from "../icons"
 
 export const IntegrationExamples = () => {
   return (
@@ -24,7 +24,7 @@ export const IntegrationExamples = () => {
                 className="flex whitespace-nowrap items-center gap-1.5 border-b border-transparent data-[state=active]:border-white data-[state=active]:text-white pb-2"
               >
                 {icon && (
-                  <Icon name={icon as IconName} className="h-4 shrink-0" />
+                  <Icon name={icon as Icon.Name} className="h-4 shrink-0" />
                 )}
                 <span>{name}</span>
               </Tabs.Trigger>

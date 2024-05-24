@@ -1,7 +1,7 @@
 "use client"
 
 import { FC, useEffect, useState } from "react"
-import { Icon, IconName } from "../icons"
+import { Icon } from "../icons"
 import { usePathname } from "next/navigation"
 import { Navigation } from "./navigation"
 

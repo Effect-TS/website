@@ -1,7 +1,7 @@
 "use client"
 
 import { FC, useEffect, useState } from "react"
-import { Icon, IconName } from "../icons"
+import { Icon } from "../icons"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { ThemeSwitcher } from "../atoms/theme-switcher"
@@ -21,10 +21,10 @@ export const MobileMenu: FC<{
     }
   }, [open])
 
-  const closeMenu = () => setOpen(false);
+  const closeMenu = () => setOpen(false)
 
   useEffect(() => {
-    closeMenu();
+    closeMenu()
   }, [pathname])
 
   return (
@@ -65,7 +65,10 @@ export const MobileMenu: FC<{
             {socials.map(({ name, icon, href }, index) => (
               <Link key={index} href={href}>
                 <span className="sr-only">{name}</span>
-                <Icon name={icon as IconName} className="h-5 text-zinc-400" />
+                <Icon
+                  name={icon as Icon.Name}
+                  className="h-5 text-zinc-400"
+                />
               </Link>
             ))}
           </div>
