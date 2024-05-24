@@ -1,6 +1,6 @@
 "use client"
 
-import { CodeEditor } from "@/components/editor"
+import { CodeEditor } from "@/components/editor/CodeEditor"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import { Suspense } from "react"

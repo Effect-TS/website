@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Logo } from "../atoms/logo"
 import { Divider } from "./divider"
-import { Icon, IconName } from "../icons"
+import { Icon } from "../icons"
 import { usePathname } from "next/navigation"
 import { LogoDark } from "../atoms/logo-dark"
 
@@ -73,7 +73,7 @@ export const Footer = () => {
                 <Link key={index} href={href} className="generic-hover">
                   <span className="sr-only">{name}</span>
                   <Icon
-                    name={icon as IconName}
+                    name={icon as Icon.Name}
                     className="h-5 text-zinc-700 dark:text-zinc-400"
                   />
                 </Link>

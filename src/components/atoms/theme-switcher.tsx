@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react"
 import * as RadioGroup from "@radix-ui/react-radio-group"
-import { Icon, IconName } from "../icons"
+import { Icon } from "../icons"
 import { useTheme } from "next-themes"
 
 const themes = [
@@ -49,7 +49,7 @@ export function ThemeSwitcher() {
                   : "bg-transparent"
               } h-full flex items-center justify-center text-black dark:text-white w-6 py-0.5 rounded-[3px]`}
             >
-              <Icon name={icon as IconName} className="h-3.5" />
+              <Icon name={icon as Icon.Name} className="h-3.5" />
             </div>
           </RadioGroup.Item>
         ))}
