@@ -48,7 +48,7 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: "/(.*)",
+        source: "/play",
         headers: [
           {
             key: "Cross-Origin-Embedder-Policy",
