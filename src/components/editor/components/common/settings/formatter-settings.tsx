@@ -28,7 +28,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { effectTsResolver } from "@hookform/resolvers/effect-ts"
-import { SubmitErrorHandler, SubmitHandler, useForm } from "react-hook-form"
+import { SubmitHandler, useForm } from "react-hook-form"
 
 import { Settings, type EncodedSettings } from "@/components/editor/services/Monaco/formatters/typescript"
 

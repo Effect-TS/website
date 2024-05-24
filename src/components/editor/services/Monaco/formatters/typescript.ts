@@ -1,14 +1,14 @@
-import { type MonacoApi } from "@/components/editor/services/Monaco"
 import { createStreaming } from "@dprint/formatter"
 import * as Schema from "@effect/schema/Schema"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
+import { identity } from "effect/Function"
 import * as Layer from "effect/Layer"
 import * as Ref from "effect/Ref"
-import * as Formatter from "./formatter"
+import { Formatter } from "./formatter"
 
 const PositiveInt = Schema.String.pipe(
-  Schema.nonEmpty({ message: () => "Please enter a value"}),
+  Schema.nonEmpty({ message: () => "Please enter a value" }),
   Schema.parseNumber,
   Schema.message(() => "Expected a number"),
   Schema.int({ message: () => "Expected an integer" }),
@@ -34,8 +34,8 @@ export type Settings = Schema.Schema.Type<typeof Settings>
 
 const make = Effect.gen(function* () {
   const language = "typescript" as const
-
-  const defaultSettings: Settings = {
+  const storageKey = `playground:${language}:formatter:config`
+  const defaultConfig: Formatter.Config = {
     indentWidth: 2,
     lineWidth: 120,
     operatorPosition: "maintain",
@@ -44,49 +44,34 @@ const make = Effect.gen(function* () {
     trailingCommas: "never"
   }
 
-  const ref = yield* Ref.make(defaultSettings)
+  const loadConfig = Effect.suspend(() =>
+    Effect.fromNullable(localStorage.getItem(storageKey))
+  )
+  const saveConfig = (config: Formatter.Config) =>
+    Effect.sync(() =>
+      localStorage.setItem(storageKey, JSON.stringify(config))
+    )
+
+  const initialConfig = yield* loadConfig.pipe(
+    Effect.flatMap(Effect.fromNullable),
+    Effect.map((serialized) => JSON.parse(serialized) as Formatter.Config),
+    Effect.catchTag("NoSuchElementException", () =>
+      saveConfig(defaultConfig).pipe(Effect.as(defaultConfig))
+    )
+  )
+
+  const ref = yield* Ref.make<Formatter.Config>(initialConfig)
 
   const formatter = yield* Effect.promise(() =>
     createStreaming(fetch("/vendor/dprint-0.90.5.wasm"))
   )
 
-  const setConfig = (settings: Settings): void =>
-    formatter.setConfig(
-      {},
-      {
-        ...settings,
-        "arrowFunction.useParentheses": "force"
-      }
-    )
-
-  setConfig(defaultSettings)
-
-  const install = (monaco: MonacoApi) =>
-    Effect.sync(() => {
-      monaco.languages.registerDocumentFormattingEditProvider(language, {
-        provideDocumentFormattingEdits(model, _options, _token) {
-          return [
-            {
-              text: formatter.formatText(
-                model.id.toString(),
-                model.getValue()
-              ),
-              range: model.getFullModelRange()
-            }
-          ]
-        }
-      })
-    })
-
-  return Formatter.make({
+  return identity<Formatter>({
     language,
-    install,
-    schema: Settings,
-    getSettings: Ref.get(ref),
-    updateSettings: (settings) =>
-      Ref.setAndGet(ref, settings).pipe(
-        Effect.flatMap((settings) => Effect.sync(() => setConfig(settings)))
-      )
+    getConfig: Ref.get(ref),
+    setConfig: (config) =>
+      Ref.set(ref, config).pipe(Effect.zipLeft(saveConfig(config))),
+    format: (model) => formatter.formatText(model.id, model.getValue())
   })
 })
 
