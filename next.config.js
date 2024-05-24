@@ -48,7 +48,20 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: "/(.*)",
+        source: "/vendor/(.*)",
+        headers: [
+          {
+            key: "Cross-Origin-Embedder-Policy",
+            value: "require-corp"
+          },
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin"
+          }
+        ]
+      },
+      {
+        source: "/play",
         headers: [
           {
             key: "Cross-Origin-Embedder-Policy",

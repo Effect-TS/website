@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { Logo } from "../atoms/logo"
 import { Icon } from "../icons"
 import { Search } from "../atoms/search"
@@ -8,9 +9,15 @@ import { MobileMenu } from "./mobile-menu"
 import { usePathname } from "next/navigation"
 import { ThemeSwitcher } from "../atoms/theme-switcher"
 import { LogoDark } from "../atoms/logo-dark"
-import { FC } from "react"
+import React from "react"
 
-const menu = [
+export interface NavigationLink {
+  readonly name: string
+  readonly href: string
+  readonly reload?: boolean
+}
+
+const links: Array<NavigationLink> = [
   { name: "Docs", href: "/docs" },
   { name: "Blog", href: "/blog" },
   // { name: "Tutorials", href: "/tutorials/basics" },
@@ -22,7 +29,7 @@ const socials = [
   { name: "Discord", icon: "discord", href: "https://discord.gg/effect-ts" }
 ]
 
-export const Navigation: FC<{
+export const Navigation: React.FC<{
   wide?: boolean | false
   searchBox?: boolean | false
   themeSwitcher?: boolean | false
@@ -50,36 +57,9 @@ export const Navigation: FC<{
             <Logo className="hidden dark:block h-7 sm:h-8" />
             <LogoDark className="dark:hidden h-7 sm:h-8" />
           </Link>
-          <MobileMenu menu={menu} socials={socials} />
+          <MobileMenu menu={links} socials={socials} />
           <div className="hidden md:flex items-center gap-8">
-            {menu.map(({ name, href, reload }, index) => (
-              <Link
-                key={index}
-                href={href}
-                onClick={
-                  reload === true
-                    ? function () {
-                        if (location.pathname === href) {
-                          location.href = href
-                        }
-                      }
-                    : undefined
-                }
-                className={`flex items-start ${
-                  pathname.startsWith(href)
-                    ? "text-black font-normal dark:text-white dark:font-light"
-                    : "button-hover"
-                }`}
-              >
-                <span>{name}</span>
-                {href.startsWith("http") && (
-                  <Icon
-                    name="arrow-up-right-light"
-                    className="h-3.5 mt-0.5 ml-0.5"
-                  />
-                )}
-              </Link>
-            ))}
+            <NavigationLinks links={links} />
             {searchBox && <Search className="w-56" />}
             {themeSwitcher && <ThemeSwitcher />}
             {pathname === "/" ? null : <ThemeSwitcher />}
@@ -98,5 +78,46 @@ export const Navigation: FC<{
         </div>
       </header>
     </div>
+  )
+}
+
+const NavigationLinks: React.FC<{ links: ReadonlyArray<NavigationLink> }> = (
+  props
+) => {
+  const pathname = usePathname()
+
+  const shouldReload = props.links.some(
+    (link) => link.href === pathname && link.reload
+  )
+  const links = shouldReload
+    ? props.links.map((link) => ({ ...link, reload: true }))
+    : props.links
+
+  return (
+    <>
+      {links.map((link, index) => (
+        <NavigationLink key={index} {...link} />
+      ))}
+    </>
+  )
+}
+
+function NavigationLink({ name, href, reload }: NavigationLink) {
+  const pathname = usePathname()
+  const Component = reload ? "a" : Link
+  return (
+    <Component
+      href={href}
+      className={`flex items-start ${
+        pathname.startsWith(href)
+          ? "text-black font-normal dark:text-white dark:font-light"
+          : "button-hover"
+      }`}
+    >
+      <span>{name}</span>
+      {href.startsWith("http") && (
+        <Icon name="arrow-up-right-light" className="h-3.5 mt-0.5 ml-0.5" />
+      )}
+    </Component>
   )
 }
