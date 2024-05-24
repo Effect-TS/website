@@ -32,7 +32,7 @@ export class Workspace extends Data.Class<{
       name: options.name,
       initialFilePath: options.initialFilePath,
       prepare:
-        options.prepare ?? "npm install -E typescript tsc-watch @types/node",
+        options.prepare ?? "npm install -E typescript@next tsc-watch @types/node",
       shells: options.shells,
       snapshot: options.snapshot,
       tree: [
