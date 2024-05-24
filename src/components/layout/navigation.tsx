@@ -80,7 +80,7 @@ export const Navigation: React.FC<{
   )
 }
 
-function NavigationMenu() {
+export function NavigationMenu() {
   return <NavigationLinks links={links} />
 }
 

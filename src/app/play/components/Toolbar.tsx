@@ -26,7 +26,7 @@ function ToolbarHeader() {
     <header className="flex items-center">
       <Link href="/" className="z-50 -mr-3">
         <Logo className="hidden dark:block h-6" />
-        <LogoDark className="dark:hidden h-5" />
+        <LogoDark className="dark:hidden h-6" />
       </Link>
 
       <h2 className="relative text-lg font-semibold text-nowrap">
