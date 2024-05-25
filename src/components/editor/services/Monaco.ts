@@ -71,6 +71,7 @@ const make = Effect.gen(function* () {
   monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
     allowNonTsExtensions: true,
     allowSyntheticDefaultImports: true,
+    exactOptionalPropertyTypes: true,
     moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
     strict: true,
     target: monaco.languages.typescript.ScriptTarget.ESNext,
