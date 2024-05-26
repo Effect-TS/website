@@ -1,28 +1,11 @@
-import { Cache, Context, Effect, Layer, Option } from "effect"
-import {
-  createStreaming,
-  type Formatter,
-  type GlobalConfiguration
-} from "@dprint/formatter"
-import { Monaco } from "../Monaco"
+import { Cache, Context, Effect, Layer, Option, Record, pipe } from "effect"
+import { createStreaming, type Formatter } from "@dprint/formatter"
 import { Workspace } from "@/workspaces/domain/workspace"
-
-const globalConfig: GlobalConfiguration = {
-  indentWidth: 2,
-  lineWidth: 120
-}
-
-const typescriptPluginConfig = {
-  semiColons: "asi",
-  quoteStyle: "alwaysDouble",
-  trailingCommas: "never",
-  operatorPosition: "maintain",
-  "arrowFunction.useParentheses": "force"
-}
+import { Monaco } from "../Monaco"
 
 export interface FormatterPlugin {
   readonly language: string
-  readonly plugin: Formatter
+  readonly formatter: Formatter
 }
 
 const make = Effect.gen(function* () {
@@ -42,6 +25,8 @@ const make = Effect.gen(function* () {
     })
   })
 
+  const formatters = new Map<string, Formatter>()
+
   const pluginCache = yield* Cache.make({
     capacity: 10,
     timeToLive: Number.MAX_SAFE_INTEGER,
@@ -59,7 +44,7 @@ const make = Effect.gen(function* () {
   function loadPlugin(plugin: string): Effect.Effect<FormatterPlugin> {
     return Effect.all({
       language: Effect.fromNullable(extractLanguage(plugin)),
-      plugin: Effect.promise(() => createStreaming(fetch(plugin)))
+      formatter: Effect.promise(() => createStreaming(fetch(plugin)))
     }).pipe(Effect.orDie)
   }
 
@@ -72,13 +57,13 @@ const make = Effect.gen(function* () {
   function installPlugins(plugins: Array<FormatterPlugin>) {
     return Effect.forEach(
       plugins,
-      ({ language, plugin }) =>
+      ({ language, formatter }) =>
         Effect.sync(() => {
           monaco.languages.registerDocumentFormattingEditProvider(language, {
             provideDocumentFormattingEdits(model) {
               return [
                 {
-                  text: plugin.formatText(model.id, model.getValue()),
+                  text: formatter.formatText(model.id, model.getValue()),
                   range: model.getFullModelRange()
                 }
               ]
@@ -89,17 +74,44 @@ const make = Effect.gen(function* () {
     )
   }
 
+  function installConfig(language: string, config: any) {
+    const formatter = formatters.get(language)
+    if (formatter) {
+      formatter.setConfig({}, config)
+    }
+  }
+
   function preload(workspace: Workspace) {
     const parse = Option.liftThrowable(JSON.parse)
     return workspace.findFile("dprint.json").pipe(
       Effect.flatMap(([file]) => parse(file.initialContent)),
       Effect.flatMap((json) => loadPlugins(json.plugins as Array<string>)),
-      Effect.flatMap((plugins) => installPlugins(plugins)),
+      Effect.tap((plugins) => installPlugins(plugins)),
+      Effect.map((plugins) =>
+        plugins.forEach(({ language, formatter }) => {
+          formatters.set(language, formatter)
+        })
+      ),
       Effect.orDie
     )
   }
 
-  return { preload } as const
+  function configure(workspace: Workspace) {
+    const parse = Option.liftThrowable(JSON.parse)
+    return workspace.findFile("dprint.json").pipe(
+      Effect.flatMap(([file]) => parse(file.initialContent)),
+      Effect.flatMap((json) =>
+        Effect.sync(() => {
+          const { plugins, ...rest } = json
+          return Record.toEntries(rest).forEach(([language, config]) => {
+            installConfig(language, config)
+          })
+        })
+      )
+    )
+  }
+
+  return { configure, preload } as const
 }).pipe(
   Effect.withSpan("MonacoFormatters.make"),
   Effect.annotateLogs("service", "MonacoFormatters")

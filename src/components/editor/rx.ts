@@ -1,6 +1,5 @@
 import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
-import * as Console from "effect/Console"
 import * as Effect from "effect/Effect"
 import { pipe } from "effect/Function"
 import * as Option from "effect/Option"
@@ -90,6 +89,8 @@ export const editorRx = Rx.family((workspace: Workspace) => {
           )
         )
 
+      yield* formatters.configure(workspace)
+
       yield* get.stream(selectedFile).pipe(
         Stream.bindTo("file"),
         Stream.bindEffect("path", ({ file }) => workspace.pathTo(file)),
@@ -102,21 +103,6 @@ export const editorRx = Rx.family((workspace: Workspace) => {
             switch: true
           }
         ),
-        Stream.runDrain,
-        Effect.catchAllCause(Effect.log),
-        Effect.forkScoped
-      )
-
-      // Doesn't work since I'm only streaming the selected file, but instead
-      // I want to subscribe to the `dprint.json`
-      yield* get.stream(selectedFile).pipe(
-        Stream.bindTo("file"),
-        Stream.bind("path", ({ file }) => workspace.pathTo(file)),
-        Stream.filter(({ file }) => file.name === "dprint.json"),
-        Stream.flatMap(({ file, path }) => content(path, file), {
-          switch: true
-        }),
-        Stream.tap((a) => Console.log(a)),
         Stream.runDrain,
         Effect.catchAllCause(Effect.log),
         Effect.forkScoped
