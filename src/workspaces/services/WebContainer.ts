@@ -11,6 +11,7 @@ import * as GlobalValue from "effect/GlobalValue"
 import * as Layer from "effect/Layer"
 import * as Scope from "effect/Scope"
 import { Workspace } from "../domain/workspace"
+import { Stream } from "effect"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
@@ -24,6 +25,9 @@ const make = Effect.gen(function* () {
     Effect.promise(() => WC.boot()),
     (_) => Effect.sync(() => _.teardown())
   )
+
+  const activeWorkspaces = new Set<WorkspaceHandle>()
+  const plugins = new Set<WorkspacePlugin>()
 
   yield* Effect.promise(async () => {
     await container.fs.writeFile("run", runProgram)
@@ -109,15 +113,53 @@ const make = Effect.gen(function* () {
           Effect.map((_) => new TextDecoder().decode(_))
         )
 
-      return identity<WorkspaceHandle>({
+      const watchFile = (file: string) => {
+        const changes = Stream.async<void>((emit) => {
+          const watcher = container.fs.watch(path(file), (_event) => {
+            emit.single(void 0)
+          })
+          return Effect.sync(() => watcher.close())
+        }).pipe(
+          Stream.debounce(500),
+          Stream.mapEffect(() => readFile(file))
+        )
+        return readFile(file).pipe(Stream.concat(changes))
+      }
+
+      const scope = yield* Effect.scope
+      let handle: WorkspaceHandle
+      handle = identity<WorkspaceHandle>({
+        workspace,
+        addPlugin: (plugin) => plugin.setup(handle).pipe(Scope.extend(scope)),
         write: writeFile,
         read: readFile,
+        watch: watchFile,
         run,
         shell
       })
+
+      activeWorkspaces.add(handle)
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => activeWorkspaces.delete(handle))
+      )
+      yield* Effect.forEach(plugins, (plugin) => plugin.setup(handle), {
+        discard: true
+      })
+
+      return handle
     }).pipe(Effect.annotateLogs({ workspace: workspace.name }))
 
-  return { workspace } as const
+  const registerPlugin = (plugin: WorkspacePlugin) =>
+    Effect.suspend(() => {
+      plugins.add(plugin)
+      return Effect.forEach(
+        activeWorkspaces,
+        (workspace) => plugin.setup(workspace),
+        { discard: true }
+      )
+    })
+
+  return { workspace, registerPlugin } as const
 }).pipe(
   Effect.annotateLogs({
     service: "WebContainer"
@@ -136,10 +178,19 @@ export class WebContainerError extends Data.TaggedError("WebContainerError")<{
 }> {}
 
 export interface WorkspaceHandle {
+  readonly workspace: Workspace
+  readonly addPlugin: (plugin: WorkspacePlugin) => Effect.Effect<void>
   readonly write: (file: string, data: string) => Effect.Effect<void>
   readonly read: (file: string) => Effect.Effect<string>
+  readonly watch: (file: string) => Stream.Stream<string>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
   readonly run: (command: string) => Effect.Effect<number>
+}
+
+export interface WorkspacePlugin {
+  readonly setup: (
+    handle: WorkspaceHandle
+  ) => Effect.Effect<void, never, Scope.Scope>
 }
 
 function treeFromWorkspace(workspace: Workspace): FileSystemTree {

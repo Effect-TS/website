@@ -1,7 +1,8 @@
-import { Cache, Context, Effect, Layer, Option, Record, pipe } from "effect"
+import { Cache, Context, Effect, Layer, Option, Record, Stream } from "effect"
 import { createStreaming, type Formatter } from "@dprint/formatter"
 import { Workspace } from "@/workspaces/domain/workspace"
 import { Monaco } from "../Monaco"
+import { WebContainer } from "@/workspaces/services/WebContainer"
 
 export interface FormatterPlugin {
   readonly language: string
@@ -10,6 +11,7 @@ export interface FormatterPlugin {
 
 const make = Effect.gen(function* () {
   const { monaco } = yield* Monaco
+  const { registerPlugin } = yield* WebContainer
 
   yield* Effect.sync(() => {
     monaco.editor.addEditorAction({
@@ -81,6 +83,17 @@ const make = Effect.gen(function* () {
     }
   }
 
+  yield* registerPlugin({
+    setup: (handle) =>
+      handle
+        .watch("dprint.json")
+        .pipe(
+          Stream.runForEach(Effect.log),
+          Effect.forkScoped,
+          Effect.ignoreLogged
+        )
+  })
+
   function preload(workspace: Workspace) {
     const parse = Option.liftThrowable(JSON.parse)
     return workspace.findFile("dprint.json").pipe(
@@ -121,5 +134,8 @@ export class MonacoFormatters extends Context.Tag("app/Monaco/Formatters")<
   MonacoFormatters,
   Effect.Effect.Success<typeof make>
 >() {
-  static Live = Layer.effect(this, make).pipe(Layer.provideMerge(Monaco.Live))
+  static Live = Layer.effect(this, make).pipe(
+    Layer.provideMerge(Monaco.Live),
+    Layer.provide(WebContainer.Live)
+  )
 }
