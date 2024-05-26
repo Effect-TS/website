@@ -15,9 +15,7 @@ export const editorThemeRx = Rx.map(themeRx, (theme) =>
 )
 
 export const editorRx = Rx.family((workspace: Workspace) => {
-  const element = Rx.make(Option.none<HTMLElement>()).pipe(
-    Rx.debounce("500 millis")
-  )
+  const element = Rx.make(Option.none<HTMLElement>())
   const editor = runtime.rx((get) =>
     Effect.gen(function* (_) {
       yield* Effect.acquireRelease(Effect.log("building"), () =>
