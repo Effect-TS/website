@@ -49,6 +49,29 @@ export class Workspace extends Data.Class<{
                   undefined,
                   2
                 )
+              }),
+              new File({
+                name: "dprint.json",
+                language: "json",
+                initialContent: JSON.stringify({
+                  json: {
+                    indentWidth: 2,
+                    lineWidth: 120,
+                    trailingCommas: "never"
+                  },
+                  typescript: {
+                    indentWidth: 2,
+                    lineWidth: 120,
+                    operatorPosition: "maintain",
+                    semiColons: "asi",
+                    quoteStyle: "alwaysDouble",
+                    trailingCommas: "never"
+                  },
+                  plugins: [
+                    "/vendor/dprint/plugins/json-0.19.2.wasm",
+                    "/vendor/dprint/plugins/typescript-0.90.5.wasm"
+                  ]
+                }, undefined, 2)
               })
             ]
           : []),

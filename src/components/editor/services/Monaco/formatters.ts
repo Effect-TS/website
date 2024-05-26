@@ -1,6 +1,11 @@
-import { Context, Effect, Layer } from "effect"
-import { createStreaming, type GlobalConfiguration } from "@dprint/formatter"
-import { type MonacoApi } from "../Monaco"
+import { Cache, Context, Effect, Layer, Option } from "effect"
+import {
+  createStreaming,
+  type Formatter,
+  type GlobalConfiguration
+} from "@dprint/formatter"
+import { Monaco } from "../Monaco"
+import { Workspace } from "@/workspaces/domain/workspace"
 
 const globalConfig: GlobalConfiguration = {
   indentWidth: 2,
@@ -15,8 +20,15 @@ const typescriptPluginConfig = {
   "arrowFunction.useParentheses": "force"
 }
 
+export interface FormatterPlugin {
+  readonly language: string
+  readonly plugin: Formatter
+}
+
 const make = Effect.gen(function* () {
-  function setupCodeActions(monaco: MonacoApi) {
+  const { monaco } = yield* Monaco
+
+  yield* Effect.sync(() => {
     monaco.editor.addEditorAction({
       id: "format",
       label: "Format",
@@ -28,43 +40,74 @@ const make = Effect.gen(function* () {
         }
       }
     })
+  })
+
+  const pluginCache = yield* Cache.make({
+    capacity: 10,
+    timeToLive: Number.MAX_SAFE_INTEGER,
+    lookup: (plugin: string) => loadPlugin(plugin)
+  })
+
+  const LANGUAGE_REGEX =
+    /^\/vendor\/dprint\/plugins\/([a-zA-Z0-9_-]+)-.*\.wasm$/
+
+  function extractLanguage(input: string) {
+    const match = input.match(LANGUAGE_REGEX)
+    return match ? match[1] : null
   }
 
-  function setupTypeScriptFormatter(monaco: MonacoApi) {
-    return Effect.gen(function* () {
-      const formatter = yield* Effect.promise(() =>
-        createStreaming(fetch("/vendor/dprint-0.90.5.wasm"))
-      )
+  function loadPlugin(plugin: string): Effect.Effect<FormatterPlugin> {
+    return Effect.all({
+      language: Effect.fromNullable(extractLanguage(plugin)),
+      plugin: Effect.promise(() => createStreaming(fetch(plugin)))
+    }).pipe(Effect.orDie)
+  }
 
-      formatter.setConfig(globalConfig, typescriptPluginConfig)
-
-      monaco.languages.registerDocumentFormattingEditProvider("typescript", {
-        provideDocumentFormattingEdits(model, _options, _token) {
-          return [
-            {
-              text: formatter.formatText(
-                model.id.toString(),
-                model.getValue()
-              ),
-              range: model.getFullModelRange()
-            }
-          ]
-        }
-      })
+  function loadPlugins(plugins: Array<string>) {
+    return Effect.forEach(plugins, (plugin) => pluginCache.get(plugin), {
+      concurrency: plugins.length
     })
   }
 
-  const install = (monaco: MonacoApi) => {
-    setupCodeActions(monaco)
-    return setupTypeScriptFormatter(monaco)
+  function installPlugins(plugins: Array<FormatterPlugin>) {
+    return Effect.forEach(
+      plugins,
+      ({ language, plugin }) =>
+        Effect.sync(() => {
+          monaco.languages.registerDocumentFormattingEditProvider(language, {
+            provideDocumentFormattingEdits(model) {
+              return [
+                {
+                  text: plugin.formatText(model.id, model.getValue()),
+                  range: model.getFullModelRange()
+                }
+              ]
+            }
+          })
+        }),
+      { concurrency: plugins.length, discard: true }
+    )
   }
 
-  return { install } as const
-})
+  function preload(workspace: Workspace) {
+    const parse = Option.liftThrowable(JSON.parse)
+    return workspace.findFile("dprint.json").pipe(
+      Effect.flatMap(([file]) => parse(file.initialContent)),
+      Effect.flatMap((json) => loadPlugins(json.plugins as Array<string>)),
+      Effect.flatMap((plugins) => installPlugins(plugins)),
+      Effect.orDie
+    )
+  }
+
+  return { preload } as const
+}).pipe(
+  Effect.withSpan("MonacoFormatters.make"),
+  Effect.annotateLogs("service", "MonacoFormatters")
+)
 
 export class MonacoFormatters extends Context.Tag("app/Monaco/Formatters")<
   MonacoFormatters,
   Effect.Effect.Success<typeof make>
 >() {
-  static Live = Layer.effect(this, make)
+  static Live = Layer.effect(this, make).pipe(Layer.provideMerge(Monaco.Live))
 }

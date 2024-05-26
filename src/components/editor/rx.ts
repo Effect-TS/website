@@ -1,14 +1,19 @@
 import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
+import * as Console from "effect/Console"
 import * as Effect from "effect/Effect"
 import { pipe } from "effect/Function"
 import * as Option from "effect/Option"
+import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
 import { File, FullPath, Workspace } from "@/workspaces/domain/workspace"
 import { MonacoATA } from "./services/Monaco/ata"
 import { workspaceHandleRx } from "@/workspaces/rx"
+import { MonacoFormatters } from "./services/Monaco/formatters"
 
-const runtime = Rx.runtime(MonacoATA.Live).pipe(Rx.setIdleTTL("10 seconds"))
+const runtime = Rx.runtime(
+  Layer.mergeAll(MonacoATA.Live, MonacoFormatters.Live)
+).pipe(Rx.setIdleTTL("10 seconds"))
 
 export const editorThemeRx = Rx.map(themeRx, (theme) =>
   theme === "dark" ? "vs-dark" : "vs"
@@ -26,9 +31,11 @@ export const editorRx = Rx.family((workspace: Workspace) => {
       )
       const el = yield* get.some(element)
       const monaco = yield* MonacoATA
+      const formatters = yield* MonacoFormatters
       const editor = yield* monaco.makeEditorWithATA(el)
 
       yield* editor.preload(workspace)
+      yield* formatters.preload(workspace)
 
       get.subscribe(
         editorThemeRx,
@@ -95,6 +102,21 @@ export const editorRx = Rx.family((workspace: Workspace) => {
             switch: true
           }
         ),
+        Stream.runDrain,
+        Effect.catchAllCause(Effect.log),
+        Effect.forkScoped
+      )
+
+      // Doesn't work since I'm only streaming the selected file, but instead
+      // I want to subscribe to the `dprint.json`
+      yield* get.stream(selectedFile).pipe(
+        Stream.bindTo("file"),
+        Stream.bind("path", ({ file }) => workspace.pathTo(file)),
+        Stream.filter(({ file }) => file.name === "dprint.json"),
+        Stream.flatMap(({ file, path }) => content(path, file), {
+          switch: true
+        }),
+        Stream.tap((a) => Console.log(a)),
         Stream.runDrain,
         Effect.catchAllCause(Effect.log),
         Effect.forkScoped
