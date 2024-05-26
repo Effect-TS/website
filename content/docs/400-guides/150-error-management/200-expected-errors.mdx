@@ -398,9 +398,9 @@ const recovered = program.pipe(
 )
 ```
 
-It's important to note that while `Effect.catchIf` lets you catch specific errors, it **doesn't alter the error type** itself. Therefore, the resulting effect (`recovered` in this case) will still have the same error type (`FooError | BarError`) as the original effect.
+It's important to note that for TypeScript versions < 5.5, while `Effect.catchIf` lets you catch specific errors, it **doesn't alter the error type** itself. Therefore, the resulting effect (`recovered` in this case) will still have the same error type (`FooError | BarError`) as the original effect. In TypeScript versions >= 5.5, improved type narrowing causes the resulting error type to be inferred as `BarError`.
 
-However, if you provide a [user-defined type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) instead of a predicate, the resulting error type will be pruned, returning an `Effect<string, BarError, never>`:
+For TypeScript versions < 5.5, if you provide a [user-defined type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) instead of a predicate, the resulting error type will be pruned, returning an `Effect<string, BarError, never>`:
 
 ```ts {6} twoslash
 // @filename: error-tracking.ts
