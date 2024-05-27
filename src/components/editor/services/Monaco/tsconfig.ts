@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option, Stream, pipe } from "effect"
+import { Console, Context, Effect, Layer, Option, Stream, pipe } from "effect"
 import { WebContainer } from "@/workspaces/services/WebContainer"
 import { Monaco } from "../Monaco"
 
@@ -11,7 +11,7 @@ const make = Effect.gen(function* () {
   function configureTypeScript(config: string) {
     return parseJson(config).pipe(
       Effect.flatMap((json) =>
-        Effect.sync(() => {
+        Effect.suspend(() => {
           console.log({ json }) // TODO: remove
           const ts = (window as any).ts
           const cfg = ts.convertCompilerOptionsFromJson(
@@ -19,14 +19,16 @@ const make = Effect.gen(function* () {
             ""
           )
           if (cfg.errors.length > 0) {
-            throw new Error(
-              cfg.errors.map((d: any) => d.messageText).join("\n")
-            )
+            const message = cfg.errors
+              .map((diagnostic: any) => diagnostic.messageText)
+              .join("\n")
+            return Console.error(message)
           }
-          console.log(cfg.options)
-          monaco.languages.typescript.typescriptDefaults.setCompilerOptions(
-            cfg.options
-          )
+          monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+            ...cfg.options,
+            allowNonTsExtensions: true
+          })
+          return Effect.void
         })
       )
     )

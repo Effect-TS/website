@@ -78,7 +78,6 @@ export class Workspace extends Data.Class<{
                 language: "json",
                 initialContent: JSON.stringify({
                   compilerOptions: {
-                    allowNonTsExtensions: true,
                     allowSyntheticDefaultImports: true,
                     exactOptionalPropertyTypes: true,
                     moduleResolution: "NodeNext",
