@@ -200,25 +200,25 @@ Leaving the local scope!
 There are some cases where we need more fine-grained control, so we want to fork a fiber in a specific scope. We can use the `Effect.forkIn` operator which takes the target scope as an argument:
 
 ```ts twoslash
-import { Effect, Console, Schedule } from "effect"
+import { Console, Effect, Schedule } from "effect"
 
-const barJob = Effect.repeat(
-  Console.log("Still running!"),
+const barJob = Console.log("Bar: still running!").pipe(Effect.repeat(
   Schedule.fixed("1 second")
-)
+))
 
 const program = Effect.scoped(
-  Effect.gen(function* () {
-    const scope = yield* Effect.scope
-    yield* Effect.scoped(
-      Effect.gen(function* () {
-        yield* Effect.forkIn(barJob, scope)
-        yield* Effect.sleep("3 seconds")
-        console.log("The innermost scope is about to be closed.")
-      })
-    )
+  Effect.gen(function*() {
+    yield* Effect.addFinalizer(() => Console.log("The outer scope is about to be closed!"))
+
+    const outerScope = yield* Effect.scope
+
+    yield* Effect.scoped(Effect.gen(function*() {
+      yield* Effect.addFinalizer(() => Console.log("The inner scope is about to be closed!"))
+      yield* Effect.forkIn(barJob, outerScope)
+      yield* Effect.sleep("3 seconds")
+    }))
+
     yield* Effect.sleep("5 seconds")
-    console.log("The outer scope is about to be closed.")
   })
 )
 
