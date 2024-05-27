@@ -199,13 +199,6 @@ These operators allow you to transform a config into a new one:
 - `mapAttempt`: Similar to `map`, but if the function throws an error, it's caught and turned into a validation error.
 - `mapOrFail`: Like `map`, but allows for functions that might fail. If the function fails, it results in a validation error.
 
-### Fallback Operators
-
-These operators help you set up fallbacks in case of errors or missing data:
-
-- `orElse`: Sets up a config that tries to use this config first. If there's an issue, it falls back to another specified config.
-- `orElseIf`: This one also tries to use the main config first but switches to a fallback config if there's an error that matches a specific condition.
-
 **Example**
 
 ```ts filename="validate.ts" twoslash
@@ -229,6 +222,57 @@ NAME=foo ts-node validate.ts
 
 [(Invalid data at NAME: "Expected a string at least 4 characters long")]
 ```
+
+### Fallback Operators
+
+These operators help you set up fallbacks in case of errors or missing data:
+
+- `orElse`: Sets up a config that tries to use this config first. If there's an issue, it falls back to another specified config.
+- `orElseIf`: This one also tries to use the main config first but switches to a fallback config if there's an error that matches a specific condition.
+
+**Example**
+
+In this example, we have a program that requires two configurations: `A` and `B`. We will use two configuration providers, where each provider has only one of the configurations. We will demonstrate how to set up fallbacks using the `orElse` operator.
+
+```ts filename="orElse.ts" twoslash
+import { Config, ConfigProvider, Effect, Layer } from "effect"
+
+// A program that requires two configurations: A and B
+const program = Effect.gen(function*() {
+  const A = yield* Config.string("A")
+  const B = yield* Config.string("B")
+  console.log(`A: ${A}`, `B: ${B}`)
+})
+
+const provider1 = ConfigProvider.fromMap(
+  new Map([
+    ["A", "A"]
+    // B is missing
+  ])
+)
+
+const provider2 = ConfigProvider.fromMap(
+  new Map([
+    // A is missing
+    ["B", "B"]
+  ])
+)
+
+const layer = Layer.setConfigProvider(provider1.pipe(ConfigProvider.orElse(() => provider2)))
+
+Effect.runSync(Effect.provide(program, layer))
+```
+
+```bash filename="Terminal"
+ts-node orElse.ts
+
+A: A B: B
+```
+
+<Info>
+  The `ConfigProvider.fromMap` method used in this example creates a configuration provider from a `Map`. This behavior is explained in more detail in the [Testing Services](#testing-services) section.
+</Info>
+
 
 ## Custom Configurations
 
