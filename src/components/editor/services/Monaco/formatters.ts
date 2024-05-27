@@ -1,6 +1,7 @@
 import {
   Cache,
   Context,
+  Deferred,
   Effect,
   Layer,
   Option,
@@ -85,26 +86,40 @@ const make = Effect.gen(function* () {
     )
   }
 
-  function installConfig(language: string, config: any) {
+  function setLanguageConfig(language: string, config: any) {
     const formatter = formatters.get(language)
     if (formatter) {
       formatter.setConfig({}, config)
     }
   }
 
+  const parseJson = Option.liftThrowable(JSON.parse)
+
+  function configurePlugin(config: string) {
+    return parseJson(config).pipe(
+      Effect.flatMap((json) =>
+        Effect.sync(() => {
+          const { plugins, ...rest } = json
+          return Record.toEntries(rest).forEach(([language, config]) => {
+            setLanguageConfig(language, config)
+          })
+        })
+      )
+    )
+  }
+
   yield* registerPlugin((handle) =>
     pipe(
       handle.watch("dprint.json"),
-      Stream.runForEach(Effect.log),
+      Stream.runForEach(configurePlugin),
       Effect.forkScoped,
       Effect.ignoreLogged
     )
   )
 
   function preload(workspace: Workspace) {
-    const parse = Option.liftThrowable(JSON.parse)
     return workspace.findFile("dprint.json").pipe(
-      Effect.flatMap(([file]) => parse(file.initialContent)),
+      Effect.flatMap(([file]) => parseJson(file.initialContent)),
       Effect.flatMap((json) => loadPlugins(json.plugins as Array<string>)),
       Effect.tap((plugins) => installPlugins(plugins)),
       Effect.map((plugins) =>
@@ -116,22 +131,7 @@ const make = Effect.gen(function* () {
     )
   }
 
-  function configure(workspace: Workspace) {
-    const parse = Option.liftThrowable(JSON.parse)
-    return workspace.findFile("dprint.json").pipe(
-      Effect.flatMap(([file]) => parse(file.initialContent)),
-      Effect.flatMap((json) =>
-        Effect.sync(() => {
-          const { plugins, ...rest } = json
-          return Record.toEntries(rest).forEach(([language, config]) => {
-            installConfig(language, config)
-          })
-        })
-      )
-    )
-  }
-
-  return { configure, preload } as const
+  return { preload } as const
 }).pipe(
   Effect.withSpan("MonacoFormatters.make"),
   Effect.annotateLogs("service", "MonacoFormatters")
@@ -142,7 +142,7 @@ export class MonacoFormatters extends Context.Tag("app/Monaco/Formatters")<
   Effect.Effect.Success<typeof make>
 >() {
   static Live = Layer.scoped(this, make).pipe(
-    Layer.provideMerge(Monaco.Live),
+    Layer.provide(Monaco.Live),
     Layer.provide(WebContainer.Live)
   )
 }

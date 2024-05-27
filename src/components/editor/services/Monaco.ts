@@ -57,22 +57,9 @@ const loadApi = GlobalValue.globalValue("app/Monaco/loadApi", () =>
 
 const make = Effect.gen(function* () {
   const monaco = yield* loadApi
-  const completers = yield* MonacoCompleters
-
-  completers.install(monaco)
 
   monaco.languages.typescript.typescriptDefaults.setWorkerOptions({
     customWorkerPath: `${new URL(window.location.origin)}vendor/ts.worker.js`
-  })
-
-  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-    allowNonTsExtensions: true,
-    allowSyntheticDefaultImports: true,
-    exactOptionalPropertyTypes: true,
-    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    strict: true,
-    target: monaco.languages.typescript.ScriptTarget.ESNext,
-    strictNullChecks: true
   })
 
   const makeEditor = (el: HTMLElement) =>
@@ -168,7 +155,5 @@ export class Monaco extends Effect.Tag("app/Monaco")<
   Monaco,
   Effect.Effect.Success<typeof make>
 >() {
-  static Live = Layer.scoped(this, make).pipe(
-    Layer.provide(MonacoCompleters.Live)
-  )
+  static Live = Layer.scoped(this, make)
 }

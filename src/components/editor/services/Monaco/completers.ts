@@ -1,21 +1,26 @@
+import { Workspace } from "@/workspaces/domain/workspace"
 import { Context, Effect, Layer } from "effect"
 import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
-import { type MonacoApi } from "../Monaco"
 import type ts from "typescript"
+import { Monaco, type MonacoApi } from "../Monaco"
 
 export const make = Effect.gen(function* () {
-  const install = (monaco: MonacoApi) => {
-    setupCompletionItemProviders(monaco)
-  }
+  const { monaco } = yield* Monaco
 
-  return { install } as const
+  const preload = (_workspace: Workspace) => Effect.sync(() => {
+    setupCompletionItemProviders(monaco)
+  })
+
+  return { preload } as const
 })
 
 export class MonacoCompleters extends Context.Tag("app/Monaco/Completers")<
   MonacoCompleters,
   Effect.Effect.Success<typeof make>
 >() {
-  static Live = Layer.effect(this, make)
+  static Live = Layer.effect(this, make).pipe(
+    Layer.provide(Monaco.Live),
+  )
 }
 
 function setupCompletionItemProviders(monaco: MonacoApi) {

@@ -72,6 +72,22 @@ export class Workspace extends Data.Class<{
                     "/vendor/dprint/plugins/typescript-0.90.5.wasm"
                   ]
                 }, undefined, 2)
+              }),
+              new File({
+                name: "tsconfig.json",
+                language: "json",
+                initialContent: JSON.stringify({
+                  compilerOptions: {
+                    allowNonTsExtensions: true,
+                    allowSyntheticDefaultImports: true,
+                    exactOptionalPropertyTypes: true,
+                    moduleResolution: "NodeNext",
+                    strict: true,
+                    target: "esnext",
+                    strictNullChecks: true
+                  },
+                  include: ["src"]
+                }, undefined, 2)
               })
             ]
           : []),

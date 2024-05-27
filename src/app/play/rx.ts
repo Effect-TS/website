@@ -1,12 +1,12 @@
 import {
+  Directory,
   File,
   Workspace,
   WorkspaceShell
 } from "@/workspaces/domain/workspace"
 import { Result, Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
-import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
+import { Effect, Layer, String } from "effect"
 import { editorRx } from "@/components/editor/rx"
 import { hashRx } from "@/rx/location"
 import { retrieveCompressed, shortenHash } from "./actions/shortenHash"
@@ -41,19 +41,23 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) =>
 const defaultWorkspace = new Workspace({
   name: "playground",
   dependencies: packageJson.dependencies,
-  shells: [new WorkspaceShell({ command: "../run main.ts" })],
-  initialFilePath: "main.ts",
+  shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
+  initialFilePath: "src/main.ts",
   snapshot: "tutorials",
   tree: [
-    new File({
-      name: "main.ts",
-      initialContent: `import { Effect } from "effect"
-
-Effect.gen(function* () {
-  yield* Effect.log("Welcome to the Effect Playground!")
-}).pipe(Effect.runPromise)
-`
-    })
+    new Directory("src", [
+      new File({
+        name: "main.ts",
+        initialContent: String.stripMargin(
+          `|import { Effect } from "effect"
+           |
+           |Effect.gen(function* () {
+           |  yield* Effect.log("Welcome to the Effect Playground!")
+           |}).pipe(Effect.runPromise)
+           |`
+        )
+      })
+    ])
   ]
 })
 

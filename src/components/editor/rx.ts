@@ -9,9 +9,16 @@ import { File, FullPath, Workspace } from "@/workspaces/domain/workspace"
 import { MonacoATA } from "./services/Monaco/ata"
 import { workspaceHandleRx } from "@/workspaces/rx"
 import { MonacoFormatters } from "./services/Monaco/formatters"
+import { MonacoCompleters } from "./services/Monaco/completers"
+import { MonacoTSConfig } from "./services/Monaco/tsconfig"
 
 const runtime = Rx.runtime(
-  Layer.mergeAll(MonacoATA.Live, MonacoFormatters.Live)
+  Layer.mergeAll(
+    MonacoATA.Live,
+    MonacoCompleters.Live,
+    MonacoFormatters.Live,
+    MonacoTSConfig.Live
+  )
 ).pipe(Rx.setIdleTTL("10 seconds"))
 
 export const editorThemeRx = Rx.map(themeRx, (theme) =>
@@ -27,6 +34,7 @@ export const editorRx = Rx.family((workspace: Workspace) => {
       )
       const el = yield* get.some(element)
       const monaco = yield* MonacoATA
+      const completers = yield* MonacoCompleters
       const formatters = yield* MonacoFormatters
       yield* Effect.acquireRelease(Effect.log("building"), () =>
         Effect.log("releasing")
@@ -34,6 +42,7 @@ export const editorRx = Rx.family((workspace: Workspace) => {
       const editor = yield* monaco.makeEditorWithATA(el)
 
       yield* editor.preload(workspace)
+      yield* completers.preload(workspace)
       yield* formatters.preload(workspace)
 
       get.subscribe(
@@ -88,8 +97,6 @@ export const editorRx = Rx.family((workspace: Workspace) => {
               : file.initialContent
           )
         )
-
-      yield* formatters.configure(workspace)
 
       yield* get.stream(selectedFile).pipe(
         Stream.bindTo("file"),
