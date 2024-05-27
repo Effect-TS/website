@@ -22,15 +22,15 @@ export const editorRx = Rx.family((workspace: Workspace) => {
   const element = Rx.make(Option.none<HTMLElement>())
   const editor = runtime.rx((get) =>
     Effect.gen(function* (_) {
-      yield* Effect.acquireRelease(Effect.log("building"), () =>
-        Effect.log("releasing")
-      )
       const { handle, solved, selectedFile } = yield* get.result(
         workspaceHandleRx(workspace)
       )
       const el = yield* get.some(element)
       const monaco = yield* MonacoATA
       const formatters = yield* MonacoFormatters
+      yield* Effect.acquireRelease(Effect.log("building"), () =>
+        Effect.log("releasing")
+      )
       const editor = yield* monaco.makeEditorWithATA(el)
 
       yield* editor.preload(workspace)
