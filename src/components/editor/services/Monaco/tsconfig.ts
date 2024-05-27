@@ -12,7 +12,6 @@ const make = Effect.gen(function* () {
     return parseJson(config).pipe(
       Effect.flatMap((json) =>
         Effect.suspend(() => {
-          console.log({ json }) // TODO: remove
           const ts = (window as any).ts
           const cfg = ts.convertCompilerOptionsFromJson(
             json.compilerOptions,
