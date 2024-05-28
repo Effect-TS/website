@@ -24,7 +24,7 @@ export function Toolbar() {
 function ToolbarHeader() {
   return (
     <header className="flex items-center">
-      <Link href="/" className="z-50 -mr-3">
+      <Link href="/" className="z-50 -mr-5">
         <Logo className="hidden dark:block h-6" />
         <LogoDark className="dark:hidden h-6" />
       </Link>
