@@ -62,19 +62,15 @@ Effect.runSync(program)
 
 If we run this application we will get the following output:
 
-```bash
+```bash filename="Terminal"
+npx ts-node primitives.ts
 (Missing data at HOST: "Expected HOST to exist in the process context")
 ```
 
 This is because we have not provided any configuration. Let's try running it with the following environment variables:
 
 ```bash filename="Terminal"
-HOST=localhost PORT=8080 ts-node primitives.ts
-```
-
-Now we get the following output:
-
-```bash
+HOST=localhost PORT=8080 npx ts-node primitives.ts
 Application started: localhost:8080
 ```
 
@@ -139,7 +135,7 @@ Effect.runSync(program)
 When running the program with the command:
 
 ```bash filename="Terminal"
-HOST=localhost ts-node withDefault.ts
+HOST=localhost npx ts-node withDefault.ts
 ```
 
 you will see the following output:
@@ -181,7 +177,7 @@ Effect.runSync(program)
 ```
 
 ```bash filename="Terminal"
-MY_ARRAY=a,b,c ts-node array.ts
+MY_ARRAY=a,b,c npx ts-node array.ts
 
 [ 'a', 'b', 'c' ]
 ```
@@ -218,7 +214,7 @@ Effect.runSync(program)
 ```
 
 ```bash filename="Terminal"
-NAME=foo ts-node validate.ts
+NAME=foo npx ts-node validate.ts
 
 [(Invalid data at NAME: "Expected a string at least 4 characters long")]
 ```
@@ -264,7 +260,7 @@ Effect.runSync(Effect.provide(program, layer))
 ```
 
 ```bash filename="Terminal"
-ts-node orElse.ts
+ts-node npx orElse.ts
 
 A: A B: B
 ```
@@ -396,7 +392,7 @@ export const program = HostPort.config.pipe(
 when you run the program using `Effect.runSync(program){:ts}`, it will attempt to read the corresponding values from environment variables (`HOST` and `PORT`):
 
 ```bash filename="Terminal"
-HOST=localhost PORT=8080 ts-node HostPort.ts
+HOST=localhost PORT=8080 npx ts-node HostPort.ts
 
 Application started: localhost:8080
 ```
