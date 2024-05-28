@@ -503,3 +503,86 @@ Output:
 { _id: 'Option', _tag: 'None' }
 */
 ```
+
+## Comparing Option Values with Equivalence
+
+You can compare `Option` values using the `Option.getEquivalence` function.
+This function lets you define rules for comparing the contents of `Option` types by providing an `Equivalence` for the type of value they might contain.
+
+**Example: Checking Equivalence of Optional Numbers**
+
+Imagine you have optional numbers and you want to check if they are equivalent. Here’s how you can do it:
+
+```ts twoslash
+import { Option, Equivalence } from "effect"
+
+const myEquivalence = Option.getEquivalence(Equivalence.number)
+
+console.log(myEquivalence(Option.some(1), Option.some(1))) // Output: true, because both options contain the number 1
+console.log(myEquivalence(Option.some(1), Option.some(2))) // Output: false, because the numbers are different
+console.log(myEquivalence(Option.some(1), Option.none()))  // Output: false, because one is a number and the other is empty
+```
+
+## Sorting Option Values with Order
+
+Sorting a collection of `Option` values can be done using the `Option.getOrder` function.
+This function helps you sort `Option` values by providing a custom sorting rule for the type of value they might contain.
+
+**Example: Sorting Optional Numbers**
+
+Suppose you have a list of optional numbers and you want to sort them in ascending order, considering empty values as the lowest:
+
+```ts twoslash
+import { Option, Array, Order } from "effect"
+
+const items = [
+  Option.some(1),
+  Option.none(),
+  Option.some(2)
+]
+
+const myOrder = Option.getOrder(Order.number)
+
+console.log(Array.sort(myOrder)(items))
+/*
+Output:
+[
+  { _id: 'Option', _tag: 'None' },           // None appears first because it's considered the lowest
+  { _id: 'Option', _tag: 'Some', value: 1 }, // Sorted in ascending order
+  { _id: 'Option', _tag: 'Some', value: 2 }
+]
+*/
+```
+
+In this example, `Option.none()` is treated as the lowest value, allowing `Option.some(1)` and `Option.some(2)` to be sorted in ascending order based on their numerical value. This method ensures that all `Option` values are sorted logically according to their content, with empty values (`Option.none()`) being placed before non-empty values (`Option.some()`).
+
+**Advanced Example: Sorting Optional Dates in Reverse Order**
+
+Now, let's consider a more complex scenario where you have a list of objects containing optional dates, and you want to sort them in descending order, with any empty optional values placed at the end:
+
+```ts
+import { Option, Array, Order } from "effect"
+
+const items = [
+  { data: Option.some(new Date(10)) },
+  { data: Option.some(new Date(20)) },
+  { data: Option.none() }
+]
+
+// Define the order to sort dates within Option values in reverse
+const sorted = Array.sortWith(
+  items,
+  item => item.data,
+  Order.reverse(Option.getOrder(Order.Date))
+)
+
+console.log(sorted)
+/*
+Output:
+[
+  { data: { _id: 'Option', _tag: 'Some', value: '1970-01-01T00:00:00.020Z' } },
+  { data: { _id: 'Option', _tag: 'Some', value: '1970-01-01T00:00:00.010Z' } },
+  { data: { _id: 'Option', _tag: 'None' } } // None placed last
+]
+*/
+```
