@@ -1,4 +1,4 @@
-import { Console, Context, Effect, Layer, Option, Stream, pipe } from "effect"
+import { Console, Effect, Layer, Option, Stream, pipe } from "effect"
 import { WebContainer } from "@/workspaces/services/WebContainer"
 import { Monaco } from "../Monaco"
 
@@ -46,12 +46,7 @@ const make = Effect.gen(function* () {
   Effect.annotateLogs("service", "MonacoTSConfig")
 )
 
-export class MonacoTSConfig extends Context.Tag("app/Monaco/TSConfig")<
-  MonacoTSConfig,
-  Effect.Effect.Success<typeof make>
->() {
-  static Live = Layer.scoped(this, make).pipe(
-    Layer.provide(Monaco.Live),
-    Layer.provide(WebContainer.Live)
-  )
-}
+export const MonacoTSConfigLive = Layer.scopedDiscard(make).pipe(
+  Layer.provide(Monaco.Live),
+  Layer.provide(WebContainer.Live)
+)

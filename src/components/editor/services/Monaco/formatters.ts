@@ -1,16 +1,5 @@
-import {
-  Cache,
-  Context,
-  Deferred,
-  Effect,
-  Layer,
-  Option,
-  pipe,
-  Record,
-  Stream
-} from "effect"
+import { Cache, Effect, Layer, Option, pipe, Record, Stream } from "effect"
 import { createStreaming, type Formatter } from "@dprint/formatter"
-import { Workspace } from "@/workspaces/domain/workspace"
 import { Monaco } from "../Monaco"
 import { WebContainer } from "@/workspaces/services/WebContainer"
 
@@ -109,40 +98,36 @@ const make = Effect.gen(function* () {
   }
 
   yield* registerPlugin((handle) =>
-    pipe(
-      handle.watch("dprint.json"),
-      Stream.runForEach(configurePlugin),
-      Effect.forkScoped,
-      Effect.ignoreLogged
-    )
+    Effect.gen(function* () {
+      const config = handle.workspace.findFile("dprint.json")
+      if (Option.isNone(config)) {
+        return
+      }
+
+      yield* parseJson(config.value[0].initialContent).pipe(
+        Effect.flatMap((json) => loadPlugins(json.plugins as Array<string>)),
+        Effect.tap((plugins) => installPlugins(plugins)),
+        Effect.map((plugins) =>
+          plugins.forEach(({ language, formatter }) => {
+            formatters.set(language, formatter)
+          })
+        ),
+        Effect.orDie
+      )
+
+      yield* pipe(
+        handle.watch("dprint.json"),
+        Stream.runForEach(configurePlugin),
+        Effect.forkScoped
+      )
+    })
   )
-
-  function preload(workspace: Workspace) {
-    return workspace.findFile("dprint.json").pipe(
-      Effect.flatMap(([file]) => parseJson(file.initialContent)),
-      Effect.flatMap((json) => loadPlugins(json.plugins as Array<string>)),
-      Effect.tap((plugins) => installPlugins(plugins)),
-      Effect.map((plugins) =>
-        plugins.forEach(({ language, formatter }) => {
-          formatters.set(language, formatter)
-        })
-      ),
-      Effect.orDie
-    )
-  }
-
-  return { preload } as const
 }).pipe(
   Effect.withSpan("MonacoFormatters.make"),
   Effect.annotateLogs("service", "MonacoFormatters")
 )
 
-export class MonacoFormatters extends Context.Tag("app/Monaco/Formatters")<
-  MonacoFormatters,
-  Effect.Effect.Success<typeof make>
->() {
-  static Live = Layer.scoped(this, make).pipe(
-    Layer.provide(Monaco.Live),
-    Layer.provide(WebContainer.Live)
-  )
-}
+export const MonacoFormattersLive = Layer.scopedDiscard(make).pipe(
+  Layer.provide(Monaco.Live),
+  Layer.provide(WebContainer.Live)
+)

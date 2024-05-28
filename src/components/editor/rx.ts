@@ -8,18 +8,19 @@ import * as Stream from "effect/Stream"
 import { File, FullPath, Workspace } from "@/workspaces/domain/workspace"
 import { MonacoATA } from "./services/Monaco/ata"
 import { workspaceHandleRx } from "@/workspaces/rx"
-import { MonacoFormatters } from "./services/Monaco/formatters"
-import { MonacoCompleters } from "./services/Monaco/completers"
-import { MonacoTSConfig } from "./services/Monaco/tsconfig"
+import { MonacoFormattersLive } from "./services/Monaco/formatters"
+import { MonacoCompletersLive } from "./services/Monaco/completers"
+import { MonacoTSConfigLive } from "./services/Monaco/tsconfig"
 
-const runtime = Rx.runtime(
-  Layer.mergeAll(
-    MonacoATA.Live,
-    MonacoCompleters.Live,
-    MonacoFormatters.Live,
-    MonacoTSConfig.Live
-  )
-).pipe(Rx.setIdleTTL("10 seconds"))
+const MonacoWithPlugins = MonacoATA.Live.pipe(
+  Layer.provide(MonacoCompletersLive),
+  Layer.provide(MonacoFormattersLive),
+  Layer.provide(MonacoTSConfigLive)
+)
+
+const runtime = Rx.runtime(MonacoWithPlugins).pipe(
+  Rx.setIdleTTL("10 seconds")
+)
 
 export const editorThemeRx = Rx.map(themeRx, (theme) =>
   theme === "dark" ? "vs-dark" : "vs"
@@ -34,16 +35,12 @@ export const editorRx = Rx.family((workspace: Workspace) => {
       )
       const el = yield* get.some(element)
       const monaco = yield* MonacoATA
-      const completers = yield* MonacoCompleters
-      const formatters = yield* MonacoFormatters
       yield* Effect.acquireRelease(Effect.log("building"), () =>
         Effect.log("releasing")
       )
       const editor = yield* monaco.makeEditorWithATA(el)
 
       yield* editor.preload(workspace)
-      yield* completers.preload(workspace)
-      yield* formatters.preload(workspace)
 
       get.subscribe(
         editorThemeRx,
