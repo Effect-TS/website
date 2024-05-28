@@ -19,19 +19,21 @@ export const log = <A, Out>(
   schedule: Schedule.Schedule<Out, void>
 ) => {
   Effect.gen(function* () {
-    const fiber = yield* Effect.gen(function* () {
-      yield* action
-      const now = yield* TestClock.currentTimeMillis
-      console.log(
-        i === 0
-          ? `delay: ${now - start}`
-          : i === 10
-            ? "..."
-            : `#${i} delay: ${now - start}`
-      )
-      i++
-      start = now
-    }).pipe(
+    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
+      function* () {
+        yield* action
+        const now = yield* TestClock.currentTimeMillis
+        console.log(
+          i === 0
+            ? `delay: ${now - start}`
+            : i === 10
+              ? "..."
+              : `#${i} delay: ${now - start}`
+        )
+        i++
+        start = now
+      }
+    ).pipe(
       Effect.repeat(schedule.pipe(Schedule.intersect(Schedule.recurs(10)))),
       Effect.fork
     )
@@ -59,6 +61,10 @@ declare const log: <A, Out>(
 </details>
 
 The `log` helper logs the time delay between each execution. We will use this helper to showcase the behavior of various built-in schedules.
+
+<Warning>
+The `log` helper accelerates time using [TestClock](../testing/testclock), which means it simulates the passing of time that would normally occur in a real-world application.
+</Warning>
 
 ## Composition
 
