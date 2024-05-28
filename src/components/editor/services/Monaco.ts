@@ -58,7 +58,7 @@ const make = Effect.gen(function* () {
   const monaco = yield* loadApi
 
   monaco.languages.typescript.typescriptDefaults.setWorkerOptions({
-    customWorkerPath: `${new URL(window.location.origin)}vendor/ts.worker.js`
+    customWorkerPath: `${new URL(window.location.origin)}vendor/ts.worker.js`,
   })
 
   const makeEditor = (el: HTMLElement) =>
@@ -68,7 +68,12 @@ const make = Effect.gen(function* () {
           monaco.editor.create(el, {
             automaticLayout: true,
             minimap: { enabled: false },
-            fontSize: 16
+            fontSize: 16,
+            quickSuggestions: {
+              comments: false,
+              other: true,
+              strings: true
+            }
           })
         ),
         (editor) => Effect.sync(() => editor.dispose())

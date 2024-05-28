@@ -27,7 +27,8 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
     }
 
     // Implementation adapted from https://github.com/microsoft/monaco-editor/blob/a845ff6b278c76183a9cf969260fc3e1396b2b0b/src/language/typescript/languageFeatures.ts#L435
-    provider.provideCompletionItems = async function (
+    async function provideCompletionItems(
+      this: monaco.languages.CompletionItemProvider,
       model: monaco.editor.ITextModel,
       position: monaco.Position,
       _context: monaco.languages.CompletionContext,
@@ -88,7 +89,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
           label: entry.name,
           insertText: entry.name,
           sortText: entry.sortText,
-          kind: (provider.constructor as any).convertKind(entry.kind),
+          kind: (this.constructor as any).convertKind(entry.kind),
           tags,
           data: entry.data,
           hasAction: entry.hasAction,
@@ -107,7 +108,8 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
       readonly data?: ts.CompletionEntryData | undefined
     }
 
-    provider.resolveCompletionItem = async function (
+    async function resolveCompletionItem(
+      this: monaco.languages.CompletionItemProvider,
       item: CustomCompletionItem,
       _token: monaco.CancellationToken
     ) {
@@ -128,31 +130,28 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
         return item
       }
 
-      const autoImports = getAutoImports(provider, details)
+      const autoImports = getAutoImports(this, details)
 
       return {
         uri: item.uri,
         position: item.position,
         label: details.name,
-        kind: (provider.constructor as any).convertKind(details.kind),
+        kind: (this.constructor as any).convertKind(details.kind),
         detail:
           autoImports?.detailText ||
           displayPartsToString(details.displayParts),
         additionalTextEdits: autoImports?.textEdits,
         documentation: {
-          value: (provider.constructor as any).createDocumentationString(
-            details
-          )
+          value: (this.constructor as any).createDocumentationString(details)
         }
       } as CustomCompletionItem
     }
-    Object.defineProperty(provider, "triggerCharacters", {
-      get() {
-        return [".", '"', "'", "`", "/", "@", "<", "#", " "]
-      }
-    })
 
-    return previousRegistrationProvider(language, provider)
+    return previousRegistrationProvider(language, {
+      triggerCharacters: [".", '"', "'", "`", "/", "@", "<", "#", " "],
+      provideCompletionItems: provideCompletionItems.bind(provider),
+      resolveCompletionItem: resolveCompletionItem.bind(provider)
+    })
   }
 }
 
