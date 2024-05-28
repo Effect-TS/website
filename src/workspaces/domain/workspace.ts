@@ -65,11 +65,12 @@ export class Workspace extends Data.Class<{
                     operatorPosition: "maintain",
                     semiColons: "asi",
                     quoteStyle: "alwaysDouble",
-                    trailingCommas: "never"
+                    trailingCommas: "never",
+                    "arrowFunction.useParentheses": "force"
                   },
                   plugins: [
                     "/vendor/dprint/plugins/json-0.19.2.wasm",
-                    "/vendor/dprint/plugins/typescript-0.90.5.wasm"
+                    "/vendor/dprint/plugins/typescript-0.91.0.wasm"
                   ]
                 }, undefined, 2)
               }),

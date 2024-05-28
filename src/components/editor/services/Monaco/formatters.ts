@@ -64,7 +64,10 @@ const make = Effect.gen(function* () {
             provideDocumentFormattingEdits(model) {
               return [
                 {
-                  text: formatter.formatText(model.id, model.getValue()),
+                  text: formatter.formatText(
+                    model.uri.toString(),
+                    model.getValue()
+                  ),
                   range: model.getFullModelRange()
                 }
               ]
