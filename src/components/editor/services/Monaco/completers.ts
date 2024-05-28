@@ -146,6 +146,11 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
         }
       } as CustomCompletionItem
     }
+    Object.defineProperty(provider, "triggerCharacters", {
+      get() {
+        return [".", '"', "'", "`", "/", "@", "<", "#", " "]
+      }
+    })
 
     return previousRegistrationProvider(language, provider)
   }
