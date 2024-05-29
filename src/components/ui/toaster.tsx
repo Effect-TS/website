@@ -1,6 +1,6 @@
 "use client"
 
-import { Result, useRxValue } from "@effect-rx/rx-react"
+import { useRxValue } from "@effect-rx/rx-react"
 import { toastsRx } from "@/rx/toasts"
 import {
   Toast,
@@ -14,13 +14,9 @@ import {
 export function Toaster() {
   const toasts = useRxValue(toastsRx)
 
-  if (!Result.isSuccess(toasts)) {
-    return null
-  }
-
   return (
     <ToastProvider>
-      {toasts.value.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function ({ id, title, description, action, ...props }) {
         return (
           <Toast key={id} {...props}>
             <div className="grid gap-1">

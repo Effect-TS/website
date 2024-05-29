@@ -1,6 +1,6 @@
 import React, { useCallback } from "react"
 import type { Directory, File } from "@/workspaces/domain/workspace"
-import { useRxRef, useRxRefProp, useRxSet } from "@effect-rx/rx-react"
+import { useRxRefPropValue, useRxSet } from "@effect-rx/rx-react"
 import { FileTree } from "./file-explorer/file-tree"
 import { useWorkspaceHandle } from "@/workspaces/context"
 
@@ -14,7 +14,7 @@ export declare namespace FileExplorer {
 
 export const FileExplorer: React.FC<FileExplorer.Props> = () => {
   const { selectedFile, workspace } = useWorkspaceHandle()
-  const tree = useRxRef(useRxRefProp(workspace, "tree"))
+  const tree = useRxRefPropValue(workspace, "tree")
   const setFile = useRxSet(selectedFile)
 
   const handleClick = useCallback<FileExplorer.OnClick>(
