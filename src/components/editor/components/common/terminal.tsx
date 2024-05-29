@@ -34,8 +34,8 @@ export function Terminal({ shell }: { readonly shell: WorkspaceShell }) {
             </>
           )}
         </span>
-        <div className="flex-1" />
-        <AddRemoveButton shell={shell} />
+        {/*<div className="flex-1" />
+        <AddRemoveButton shell={shell} />*/}
       </div>
       <Suspense fallback={null}>
         <div className="flex-1 overflow-hidden">

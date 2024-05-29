@@ -1,4 +1,12 @@
-import { Effect, Layer, Queue, Ref, Array, SubscriptionRef, pipe } from "effect"
+import {
+  Effect,
+  Layer,
+  Queue,
+  Ref,
+  Array,
+  SubscriptionRef,
+  pipe
+} from "effect"
 import { ToastActionElement, ToastProps } from "@/components/ui/toast"
 
 export interface Toast extends ToastProps {
@@ -27,7 +35,6 @@ const make = Effect.gen(function* () {
   }
 
   function addToast(toast: Omit<Toast, "id">) {
-    console.log({ toast })
     return nextId.pipe(
       Effect.flatMap((id) =>
         Ref.update(toasts, Array.prepend(createToast(id, toast)))
@@ -54,11 +61,7 @@ const make = Effect.gen(function* () {
 
   yield* Queue.take(removeQueue).pipe(
     Effect.flatMap((id) =>
-      pipe(
-        removeToast(id),
-        Effect.delay("5 seconds"),
-        Effect.fork
-      )
+      pipe(removeToast(id), Effect.delay("5 seconds"), Effect.fork)
     ),
     Effect.forever,
     Effect.forkScoped,

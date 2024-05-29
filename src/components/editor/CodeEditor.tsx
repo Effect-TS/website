@@ -9,6 +9,7 @@ import { WorkspaceProvider } from "@/workspaces/WorkspaceProvider"
 import { FileEditor } from "./components/common/file-editor"
 import { FileExplorer } from "./components/common/file-explorer"
 import { Terminal } from "./components/common/terminal"
+import { PanelResizeHandleVertical } from "../ui/resizable"
 
 export declare namespace CodeEditor {
   export interface Props {
@@ -60,7 +61,7 @@ function CodeEditorSuspended({
             >
               <FileExplorer />
             </Panel>
-            <PanelResizeHandle className="w-px bg-neutral-200" />
+            <PanelResizeHandleVertical />
             <Panel>
               <FileEditor />
             </Panel>
@@ -92,10 +93,7 @@ function WorkspaceShells() {
       {shells.map((shell, index) => (
         <Fragment key={Hash.hash(shell)}>
           {index > 0 && (
-            <PanelResizeHandle
-              id={`${Hash.hash(shell)}`}
-              className="w-px bg-neutral-200"
-            />
+            <PanelResizeHandleVertical id={`${Hash.hash(shell)}`} />
           )}
           <Panel id={`${Hash.hash(shell)}`} onResize={onResize} order={index}>
             <Terminal shell={shell} />

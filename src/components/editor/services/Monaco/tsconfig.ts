@@ -31,7 +31,8 @@ const make = Effect.gen(function* () {
           })
           return Effect.void
         })
-      )
+      ),
+      Effect.ignore
     )
   }
 
@@ -40,12 +41,12 @@ const make = Effect.gen(function* () {
       const [initial, updates] = yield* handle
         .watch("tsconfig.json")
         .pipe(Stream.peel(Sink.head()))
+      if (Option.isNone(initial)) {
+        return
+      }
 
       // Perform initial plugin configuration
-      yield* initial.pipe(
-        Effect.flatMap(configureTypeScript),
-        Effect.ignoreLogged
-      )
+      yield* configureTypeScript(initial.value)
 
       // Handle updates to plugin configuration
       yield* pipe(
@@ -60,7 +61,7 @@ const make = Effect.gen(function* () {
         Effect.forkScoped,
         Effect.ignoreLogged
       )
-    })
+    }).pipe(Effect.annotateLogs("service", "MonacoTSConfig"))
   )
 }).pipe(
   Effect.withSpan("MonacoTSConfig.make"),

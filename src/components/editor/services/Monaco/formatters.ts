@@ -1,4 +1,13 @@
-import { Cache, Effect, Layer, Option, pipe, Record, Sink, Stream } from "effect"
+import {
+  Cache,
+  Effect,
+  Layer,
+  Option,
+  pipe,
+  Record,
+  Sink,
+  Stream
+} from "effect"
 import { createStreaming, type Formatter } from "@dprint/formatter"
 import { Toaster } from "@/services/Toaster"
 import { WebContainer } from "@/workspaces/services/WebContainer"
@@ -98,7 +107,8 @@ const make = Effect.gen(function* () {
             setLanguageConfig(language, config)
           })
         })
-      )
+      ),
+      Effect.ignore
     )
   }
 
@@ -117,18 +127,19 @@ const make = Effect.gen(function* () {
             formatters.set(language, formatter)
           })
         ),
-        Effect.orDie
+        Effect.ignore
       )
 
-      const [initial, updates] = yield* handle.watch("dprint.json").pipe(
+      const [initial, updates] = yield* pipe(
+        handle.watch("dprint.json"),
         Stream.peel(Sink.head())
       )
+      if (Option.isNone(initial)) {
+        return
+      }
 
       // Perform initial plugin configuration
-      yield* initial.pipe(
-        Effect.flatMap(configurePlugin),
-        Effect.orDie
-      )
+      yield* configurePlugin(initial.value)
 
       // Handle updates to plugin configuration
       yield* pipe(
@@ -142,7 +153,7 @@ const make = Effect.gen(function* () {
         Stream.runForEach(configurePlugin),
         Effect.forkScoped
       )
-    })
+    }).pipe(Effect.annotateLogs("service", "MonacoFormatters"))
   )
 }).pipe(
   Effect.withSpan("MonacoFormatters.make"),
