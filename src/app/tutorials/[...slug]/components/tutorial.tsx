@@ -3,7 +3,7 @@
 import React, { useMemo } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import { Directory, File, Workspace } from "@/workspaces/domain/workspace"
+import { File, makeDirectory, Workspace } from "@/workspaces/domain/workspace"
 import {
   ResizableHandle,
   ResizablePanel,
@@ -40,7 +40,7 @@ export const Tutorial = ({
     () =>
       editor(
         tutorialWorkspaces[workspace].withName(name).append(
-          new Directory(
+          makeDirectory(
             "src",
             files.map(
               (file) =>

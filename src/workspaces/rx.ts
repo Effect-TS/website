@@ -1,5 +1,5 @@
 import { themeRx } from "@/rx/theme"
-import { Rx } from "@effect-rx/rx-react"
+import { Rx, RxRef } from "@effect-rx/rx-react"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
@@ -45,6 +45,8 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         const terminal = Rx.family((env: WorkspaceShell) =>
           Rx.make((get) =>
             Effect.gen(function* () {
+              yield* Effect.log("building")
+              yield* Effect.addFinalizer(() => Effect.log("releasing"))
               const shell = yield* handle.shell
               const { terminal, resize } = yield* spawn({
                 theme: get.once(terminalTheme)
@@ -88,7 +90,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
               )
 
               return terminal
-            })
+            }).pipe(Effect.annotateLogs({ rx: "terminalRx" }))
           )
         )
 
@@ -107,7 +109,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         )
 
         return {
-          workspace,
+          workspace: RxRef.make(workspace),
           handle,
           terminal,
           terminalSize,

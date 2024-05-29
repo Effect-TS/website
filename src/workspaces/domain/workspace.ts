@@ -1,22 +1,80 @@
 import * as Brand from "effect/Brand"
-import * as Data from "effect/Data"
-import * as Equal from "effect/Equal"
-import { pipe } from "effect/Function"
 import * as Hash from "effect/Hash"
 import * as Iterable from "effect/Iterable"
 import * as Option from "effect/Option"
+import * as Schema from "@effect/schema/Schema"
+import { Effect } from "effect"
 
 export type FullPath = Brand.Branded<string, "FullPath">
 export const FullPath = Brand.nominal<FullPath>()
 
-export class Workspace extends Data.Class<{
-  name: string
-  tree: ReadonlyArray<Directory | File>
-  initialFilePath?: string
-  prepare: string
-  shells: ReadonlyArray<WorkspaceShell>
-  snapshot?: string
-}> {
+export class File extends Schema.TaggedClass<File>()("File", {
+  name: Schema.String,
+  initialContent: Schema.String,
+  solution: Schema.optional(Schema.String),
+  language: Schema.String.pipe(
+    Schema.optional({ default: () => "typescript" })
+  )
+}) {
+  withContent(content: string) {
+    return new File({
+      ...this,
+      initialContent: content
+    })
+  }
+}
+
+export interface Directory {
+  readonly _tag: "Directory"
+  readonly name: string
+  readonly children: ReadonlyArray<Directory | File>
+}
+const Directory_: Schema.Struct<{
+  _tag: Schema.tag<"Directory">
+  name: typeof Schema.String
+  children: Schema.Array$<
+    Schema.Union<[typeof File, Schema.Schema<Directory>]>
+  >
+}> = Schema.Struct({
+  _tag: Schema.tag("Directory"),
+  name: Schema.String,
+  children: Schema.Array(
+    Schema.Union(
+      File,
+      Schema.suspend(() => Directory_) as Schema.Schema<Directory>
+    )
+  )
+})
+export const Directory: Schema.Schema<
+  Directory,
+  Schema.Schema.Encoded<typeof Directory_>
+> = Directory_
+export const makeDirectory = (
+  name: string,
+  children: ReadonlyArray<File | Directory>
+): Directory => Directory_.make({ name, children })
+
+export const FileTree = Schema.Array(Schema.Union(File, Directory))
+
+export class WorkspaceShell extends Schema.Class<WorkspaceShell>(
+  "WorkspaceShell"
+)({
+  command: Schema.optional(Schema.String),
+  label: Schema.optional(Schema.String)
+}) {
+  [Hash.symbol]() {
+    return Hash.random(this)
+  }
+}
+
+export class Workspace extends Schema.Class<Workspace>("Workspace")({
+  name: Schema.String,
+  tree: FileTree,
+  initialFilePath: Schema.optional(Schema.String),
+  prepare: Schema.String,
+  shells: Schema.Array(WorkspaceShell),
+  snapshot: Schema.optional(Schema.String)
+}) {
   readonly filePaths: Map<File, string>
 
   constructor(options: {
@@ -66,6 +124,18 @@ export class Workspace extends Data.Class<{
       name
     })
   }
+  withPrepare(prepare: string) {
+    return new Workspace({
+      ...this,
+      prepare
+    })
+  }
+  get withNoSnapshot() {
+    return new Workspace({
+      ...this,
+      snapshot: undefined
+    })
+  }
   append(...children: Workspace["tree"]) {
     return new Workspace({
       ...this,
@@ -97,53 +167,42 @@ export class Workspace extends Data.Class<{
       Option.map((path) => FullPath(`${this.name}/${path}`))
     )
   }
+  updateFiles<E, R>(
+    f: (item: File, path: string) => Effect.Effect<File, E, R>
+  ) {
+    const walk = (
+      tree: ReadonlyArray<Directory | File>
+    ): Effect.Effect<ReadonlyArray<Directory | File>, E, R> =>
+      Effect.gen(this, function* () {
+        const out: Array<Directory | File> = []
+        for (const node of tree) {
+          if (node._tag === "File") {
+            out.push(yield* f(node, this.filePaths.get(node)!))
+          } else {
+            out.push(makeDirectory(node.name, yield* walk(node.children)))
+          }
+        }
+        return out
+      })
+    return Effect.map(
+      walk(this.tree),
+      (tree) => new Workspace({ ...this, tree })
+    )
+  }
+  addShell(shell: WorkspaceShell) {
+    return new Workspace({
+      ...this,
+      shells: [...this.shells, shell]
+    })
+  }
+  removeShell(shell: WorkspaceShell) {
+    return new Workspace({
+      ...this,
+      shells: this.shells.filter((s) => s !== shell)
+    })
+  }
   [Hash.symbol]() {
     return Hash.string(this.name)
-  }
-  [Equal.symbol](that: this) {
-    return this.name === that.name
-  }
-}
-
-export class WorkspaceShell extends Data.Class<{
-  command?: string
-  label?: string
-}> {}
-
-export class Directory extends Data.TaggedClass("Directory")<{
-  name: string
-  children: ReadonlyArray<Directory | File>
-}> {
-  constructor(name: string, children: ReadonlyArray<Directory | File>) {
-    super({
-      name,
-      children: Data.array(children)
-    })
-  }
-}
-
-export class File extends Data.TaggedClass("File")<{
-  name: string
-  initialContent: string
-  solution?: string
-  language: string
-}> {
-  constructor(options: {
-    name: string
-    initialContent: string
-    solution?: string
-    language?: string
-  }) {
-    super({
-      ...options,
-      language: options.language ?? "typescript"
-    })
-  }
-  [Hash.symbol]() {
-    return pipe(Hash.string(this.name), Hash.cached(this))
-  }
-  [Equal.symbol](that: this) {
-    return this.name === that.name
   }
 }
 

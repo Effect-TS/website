@@ -1,6 +1,6 @@
 import {
-  Directory,
   File,
+  makeDirectory,
   Workspace,
   WorkspaceShell
 } from "@/workspaces/domain/workspace"
@@ -19,17 +19,21 @@ const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
 )
 
-export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) =>
+export const shareRx = Rx.family((handle: WorkspaceHandle) =>
   runtime.fn((_: void, get) =>
     Effect.gen(function* () {
       const compression = yield* WorkspaceCompression
+      const workspace = handle.workspace.value
       const editor = yield* Result.toExit(
         get.once(editorRx(workspace).editor)
       )
 
       yield* editor.save
 
-      const compressed = yield* compression.compress(workspace, handle.read)
+      const compressed = yield* compression.compress(
+        workspace,
+        handle.handle.read
+      )
       const hash = yield* Effect.promise(() => shortenHash(compressed))
       const url = new URL(location.href)
       url.hash = hash
@@ -45,7 +49,7 @@ const defaultWorkspace = new Workspace({
   initialFilePath: "src/main.ts",
   snapshot: "tutorials",
   tree: [
-    new Directory("src", [
+    makeDirectory("src", [
       new File({
         name: "main.ts",
         initialContent: String.stripMargin(
@@ -74,12 +78,7 @@ export const importRx = runtime.rx((get) =>
     if (!compressed) return makeDefaultWorkspace()
     const compression = yield* WorkspaceCompression
     return yield* pipe(
-      compression.decompress({
-        shells: [new WorkspaceShell({ command: "../run main.ts" })],
-        initialFilePath: "main.ts",
-        whitelist: ["package.json", "main.ts"],
-        compressed
-      }),
+      compression.decompress(compressed),
       Effect.orElseSucceed(makeDefaultWorkspace)
     )
   })
