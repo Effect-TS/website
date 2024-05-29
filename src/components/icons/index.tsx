@@ -45,6 +45,7 @@ import { SunIcon } from "./sun"
 import { TrendUpIcon } from "./trend-up"
 import { TwitterIcon } from "./twitter"
 import { LoadingIcon } from "./loading"
+import { PlusIcon } from "./plus"
 
 const icons = {
   alert: AlertIcon,
@@ -87,6 +88,7 @@ const icons = {
   "open-api": OpenAPIIcon,
   play: PlayIcon,
   plugs: PlugsIcon,
+  plus: PlusIcon,
   react: ReactIcon,
   search: SearchIcon,
   shield: ShieldIcon,

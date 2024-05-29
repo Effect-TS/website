@@ -5,8 +5,6 @@ import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
 import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 import { File, FullPath, Workspace } from "@/workspaces/domain/workspace"
-import { MonacoFormatters } from "./Monaco/formatters"
-import { MonacoCompleters } from "./Monaco/completers"
 
 export type MonacoApi = typeof monaco
 
@@ -58,24 +56,9 @@ const loadApi = GlobalValue.globalValue("app/Monaco/loadApi", () =>
 
 const make = Effect.gen(function* () {
   const monaco = yield* loadApi
-  const completers = yield* MonacoCompleters
-  const formatters = yield* MonacoFormatters
-
-  completers.install(monaco)
-  yield* formatters.install(monaco)
 
   monaco.languages.typescript.typescriptDefaults.setWorkerOptions({
-    customWorkerPath: `${new URL(window.location.origin)}vendor/ts.worker.js`
-  })
-
-  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-    allowNonTsExtensions: true,
-    allowSyntheticDefaultImports: true,
-    exactOptionalPropertyTypes: true,
-    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    strict: true,
-    target: monaco.languages.typescript.ScriptTarget.ESNext,
-    strictNullChecks: true
+    customWorkerPath: `${new URL(window.location.origin)}vendor/ts.worker.js`,
   })
 
   const makeEditor = (el: HTMLElement) =>
@@ -85,7 +68,12 @@ const make = Effect.gen(function* () {
           monaco.editor.create(el, {
             automaticLayout: true,
             minimap: { enabled: false },
-            fontSize: 16
+            fontSize: 16,
+            quickSuggestions: {
+              comments: false,
+              other: true,
+              strings: true
+            }
           })
         ),
         (editor) => Effect.sync(() => editor.dispose())
@@ -171,8 +159,5 @@ export class Monaco extends Effect.Tag("app/Monaco")<
   Monaco,
   Effect.Effect.Success<typeof make>
 >() {
-  static Live = Layer.scoped(this, make).pipe(
-    Layer.provide(MonacoCompleters.Live),
-    Layer.provide(MonacoFormatters.Live)
-  )
+  static Live = Layer.scoped(this, make)
 }

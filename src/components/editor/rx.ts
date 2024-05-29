@@ -3,12 +3,24 @@ import { Rx } from "@effect-rx/rx-react"
 import * as Effect from "effect/Effect"
 import { pipe } from "effect/Function"
 import * as Option from "effect/Option"
+import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
 import { File, FullPath, Workspace } from "@/workspaces/domain/workspace"
 import { MonacoATA } from "./services/Monaco/ata"
 import { workspaceHandleRx } from "@/workspaces/rx"
+import { MonacoFormattersLive } from "./services/Monaco/formatters"
+import { MonacoCompletersLive } from "./services/Monaco/completers"
+import { MonacoTSConfigLive } from "./services/Monaco/tsconfig"
 
-const runtime = Rx.runtime(MonacoATA.Live).pipe(Rx.setIdleTTL("10 seconds"))
+const MonacoWithPlugins = MonacoATA.Live.pipe(
+  Layer.provide(MonacoCompletersLive),
+  Layer.provide(MonacoFormattersLive),
+  Layer.provide(MonacoTSConfigLive)
+)
+
+const runtime = Rx.runtime(MonacoWithPlugins).pipe(
+  Rx.setIdleTTL("10 seconds")
+)
 
 export const editorThemeRx = Rx.map(themeRx, (theme) =>
   theme === "dark" ? "vs-dark" : "vs"
@@ -18,14 +30,14 @@ export const editorRx = Rx.family((workspace: Workspace) => {
   const element = Rx.make(Option.none<HTMLElement>())
   const editor = runtime.rx((get) =>
     Effect.gen(function* (_) {
-      yield* Effect.acquireRelease(Effect.log("building"), () =>
-        Effect.log("releasing")
-      )
       const { handle, solved, selectedFile } = yield* get.result(
         workspaceHandleRx(workspace)
       )
       const el = yield* get.some(element)
       const monaco = yield* MonacoATA
+      yield* Effect.acquireRelease(Effect.log("building"), () =>
+        Effect.log("releasing")
+      )
       const editor = yield* monaco.makeEditorWithATA(el)
 
       yield* editor.preload(workspace)

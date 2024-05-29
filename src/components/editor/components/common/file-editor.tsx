@@ -3,13 +3,13 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { cn } from "@/lib/utils"
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 import * as Option from "effect/Option"
-import { useWorkspace } from "@/workspaces/context"
+import { useWorkspaceHandle } from "@/workspaces/context"
 import { editorRx } from "../../rx"
 
 export function FileEditor() {
-  const workspace = useWorkspace()
+  const handle = useWorkspaceHandle()
   const containerRef = useRef<HTMLDivElement>(null)
-  const rx = useMemo(() => editorRx(workspace), [workspace])
+  const rx = useMemo(() => editorRx(handle.workspace.value), [handle])
   const setElement = useRxSet(rx.element)
   const result = useRxValue(rx.editor)
   const isReady = result._tag === "Success"

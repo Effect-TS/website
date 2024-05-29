@@ -1,12 +1,12 @@
 import {
   File,
+  makeDirectory,
   Workspace,
   WorkspaceShell
 } from "@/workspaces/domain/workspace"
 import { Result, Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
-import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
+import { Effect, Layer, String } from "effect"
 import { editorRx } from "@/components/editor/rx"
 import { hashRx } from "@/rx/location"
 import { retrieveCompressed, shortenHash } from "./actions/shortenHash"
@@ -19,17 +19,21 @@ const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
 )
 
-export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) =>
+export const shareRx = Rx.family((handle: WorkspaceHandle) =>
   runtime.fn((_: void, get) =>
     Effect.gen(function* () {
       const compression = yield* WorkspaceCompression
+      const workspace = handle.workspace.value
       const editor = yield* Result.toExit(
         get.once(editorRx(workspace).editor)
       )
 
       yield* editor.save
 
-      const compressed = yield* compression.compress(workspace, handle.read)
+      const compressed = yield* compression.compress(
+        workspace,
+        handle.handle.read
+      )
       const hash = yield* Effect.promise(() => shortenHash(compressed))
       const url = new URL(location.href)
       url.hash = hash
@@ -41,19 +45,23 @@ export const shareRx = Rx.family(({ handle, workspace }: WorkspaceHandle) =>
 const defaultWorkspace = new Workspace({
   name: "playground",
   dependencies: packageJson.dependencies,
-  shells: [new WorkspaceShell({ command: "../run main.ts" })],
-  initialFilePath: "main.ts",
+  shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
+  initialFilePath: "src/main.ts",
   snapshot: "tutorials",
   tree: [
-    new File({
-      name: "main.ts",
-      initialContent: `import { Effect } from "effect"
-
-Effect.gen(function* () {
-  yield* Effect.log("Welcome to the Effect Playground!")
-}).pipe(Effect.runPromise)
-`
-    })
+    makeDirectory("src", [
+      new File({
+        name: "main.ts",
+        initialContent: String.stripMargin(
+          `|import { Effect } from "effect"
+           |
+           |Effect.gen(function* () {
+           |  yield* Effect.log("Welcome to the Effect Playground!")
+           |}).pipe(Effect.runPromise)
+           |`
+        )
+      })
+    ])
   ]
 })
 
@@ -70,12 +78,7 @@ export const importRx = runtime.rx((get) =>
     if (!compressed) return makeDefaultWorkspace()
     const compression = yield* WorkspaceCompression
     return yield* pipe(
-      compression.decompress({
-        shells: [new WorkspaceShell({ command: "../run main.ts" })],
-        initialFilePath: "main.ts",
-        whitelist: ["package.json", "main.ts"],
-        compressed
-      }),
+      compression.decompress(compressed),
       Effect.orElseSucceed(makeDefaultWorkspace)
     )
   })

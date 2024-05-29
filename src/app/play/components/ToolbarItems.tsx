@@ -24,7 +24,7 @@ export function ToolbarItems() {
   const workspace = useRxSuspenseSuccess(importRx).value
   return (
     <WorkspaceProvider workspace={workspace}>
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-4">
         <ThemeSwitcher />
         <ShareButton />
       </div>

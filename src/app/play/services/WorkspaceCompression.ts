@@ -1,21 +1,12 @@
-import {
-  File,
-  Workspace,
-  WorkspaceShell
-} from "@/workspaces/domain/workspace"
+import { Workspace } from "@/workspaces/domain/workspace"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { Compression } from "./Compression"
+import * as Schema from "@effect/schema/Schema"
+import { pipe } from "effect"
 
-type WorkspaceCompressed = [
-  name: string,
-  files: ReadonlyArray<WorkspaceCompressedFile>
-]
-type WorkspaceCompressedFile = [
-  name: string,
-  language: string,
-  content: string
-]
+const decodeWorkspace = Schema.decode(Schema.parseJson(Workspace))
+const encodeWorkspace = Schema.encode(Schema.parseJson(Workspace))
 
 const make = Effect.gen(function* () {
   const compression = yield* Compression
@@ -23,49 +14,22 @@ const make = Effect.gen(function* () {
   const compress = <E, R>(
     workspace: Workspace,
     read: (file: string) => Effect.Effect<string, E, R>
-  ) =>
-    Effect.forEach(workspace.filePaths, ([file, path]) =>
-      read(path).pipe(
-        Effect.map(
-          (content): WorkspaceCompressedFile => [
-            file.name,
-            file.language,
-            content
-          ]
-        )
-      )
-    ).pipe(
-      Effect.map((files) => JSON.stringify([workspace.name, files])),
+  ) => {
+    return pipe(
+      workspace
+        .withPrepare("npm install")
+        .withNoSnapshot.updateFiles((file, path) =>
+          read(path).pipe(Effect.map((content) => file.withContent(content)))
+        ),
+      Effect.andThen(encodeWorkspace),
       Effect.andThen(compression.compressBase64)
     )
+  }
 
-  const decompress = (options: {
-    shells: ReadonlyArray<WorkspaceShell>
-    initialFilePath?: string | undefined
-    compressed: string
-    whitelist: ReadonlyArray<string>
-  }) =>
-    compression.decompressBase64(options.compressed).pipe(
-      Effect.map(JSON.parse),
-      Effect.map(
-        ([name, files]: WorkspaceCompressed) =>
-          new Workspace({
-            name,
-            prepare: "npm install",
-            initialFilePath: options.initialFilePath,
-            shells: options.shells,
-            tree: files
-              .map(
-                ([name, language, initialContent]) =>
-                  new File({
-                    name,
-                    initialContent,
-                    language
-                  })
-              )
-              .filter((file) => options.whitelist.includes(file.name))
-          })
-      )
+  const decompress = (compressed: string) =>
+    pipe(
+      compression.decompressBase64(compressed),
+      Effect.andThen(decodeWorkspace)
     )
 
   return { compress, decompress } as const

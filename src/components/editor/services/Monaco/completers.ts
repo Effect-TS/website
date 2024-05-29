@@ -1,22 +1,16 @@
-import { Context, Effect, Layer } from "effect"
+import { Effect, Layer } from "effect"
 import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
-import { type MonacoApi } from "../Monaco"
 import type ts from "typescript"
+import { Monaco, type MonacoApi } from "../Monaco"
 
 export const make = Effect.gen(function* () {
-  const install = (monaco: MonacoApi) => {
-    setupCompletionItemProviders(monaco)
-  }
-
-  return { install } as const
+  const { monaco } = yield* Monaco
+  setupCompletionItemProviders(monaco)
 })
 
-export class MonacoCompleters extends Context.Tag("app/Monaco/Completers")<
-  MonacoCompleters,
-  Effect.Effect.Success<typeof make>
->() {
-  static Live = Layer.effect(this, make)
-}
+export const MonacoCompletersLive = Layer.effectDiscard(make).pipe(
+  Layer.provide(Monaco.Live)
+)
 
 function setupCompletionItemProviders(monaco: MonacoApi) {
   const previousRegistrationProvider =
@@ -33,7 +27,8 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
     }
 
     // Implementation adapted from https://github.com/microsoft/monaco-editor/blob/a845ff6b278c76183a9cf969260fc3e1396b2b0b/src/language/typescript/languageFeatures.ts#L435
-    provider.provideCompletionItems = async function (
+    async function provideCompletionItems(
+      this: monaco.languages.CompletionItemProvider,
       model: monaco.editor.ITextModel,
       position: monaco.Position,
       _context: monaco.languages.CompletionContext,
@@ -94,7 +89,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
           label: entry.name,
           insertText: entry.name,
           sortText: entry.sortText,
-          kind: (provider.constructor as any).convertKind(entry.kind),
+          kind: (this.constructor as any).convertKind(entry.kind),
           tags,
           data: entry.data,
           hasAction: entry.hasAction,
@@ -113,7 +108,8 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
       readonly data?: ts.CompletionEntryData | undefined
     }
 
-    provider.resolveCompletionItem = async function (
+    async function resolveCompletionItem(
+      this: monaco.languages.CompletionItemProvider,
       item: CustomCompletionItem,
       _token: monaco.CancellationToken
     ) {
@@ -134,26 +130,28 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
         return item
       }
 
-      const autoImports = getAutoImports(provider, details)
+      const autoImports = getAutoImports(this, details)
 
       return {
         uri: item.uri,
         position: item.position,
         label: details.name,
-        kind: (provider.constructor as any).convertKind(details.kind),
+        kind: (this.constructor as any).convertKind(details.kind),
         detail:
           autoImports?.detailText ||
           displayPartsToString(details.displayParts),
         additionalTextEdits: autoImports?.textEdits,
         documentation: {
-          value: (provider.constructor as any).createDocumentationString(
-            details
-          )
+          value: (this.constructor as any).createDocumentationString(details)
         }
       } as CustomCompletionItem
     }
 
-    return previousRegistrationProvider(language, provider)
+    return previousRegistrationProvider(language, {
+      triggerCharacters: [".", '"', "'", "`", "/", "@", "<", "#", " "],
+      provideCompletionItems: provideCompletionItems.bind(provider),
+      resolveCompletionItem: resolveCompletionItem.bind(provider)
+    })
   }
 }
 
