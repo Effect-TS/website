@@ -32,7 +32,8 @@ export class Workspace extends Data.Class<{
       name: options.name,
       initialFilePath: options.initialFilePath,
       prepare:
-        options.prepare ?? "npm install -E typescript@next tsc-watch @types/node",
+        options.prepare ??
+        "npm install -E typescript@next tsc-watch @types/node",
       shells: options.shells,
       snapshot: options.snapshot,
       tree: [
@@ -50,45 +51,7 @@ export class Workspace extends Data.Class<{
                   2
                 )
               }),
-              new File({
-                name: "dprint.json",
-                language: "json",
-                initialContent: JSON.stringify({
-                  json: {
-                    indentWidth: 2,
-                    lineWidth: 120,
-                    trailingCommas: "never"
-                  },
-                  typescript: {
-                    indentWidth: 2,
-                    lineWidth: 120,
-                    operatorPosition: "maintain",
-                    semiColons: "asi",
-                    quoteStyle: "alwaysDouble",
-                    trailingCommas: "never",
-                    "arrowFunction.useParentheses": "force"
-                  },
-                  plugins: [
-                    "/vendor/dprint/plugins/json-0.19.2.wasm",
-                    "/vendor/dprint/plugins/typescript-0.91.0.wasm"
-                  ]
-                }, undefined, 2)
-              }),
-              new File({
-                name: "tsconfig.json",
-                language: "json",
-                initialContent: JSON.stringify({
-                  compilerOptions: {
-                    allowSyntheticDefaultImports: true,
-                    exactOptionalPropertyTypes: true,
-                    moduleResolution: "NodeNext",
-                    strict: true,
-                    target: "esnext",
-                    strictNullChecks: true
-                  },
-                  include: ["src"]
-                }, undefined, 2)
-              })
+              ...defaultFiles
             ]
           : []),
         ...(options.tree ?? [])
@@ -200,3 +163,53 @@ function makeFilePaths(tree: Workspace["tree"]) {
   walk("", tree)
   return paths
 }
+
+export const defaultFiles = [
+  new File({
+    name: "dprint.json",
+    language: "json",
+    initialContent: JSON.stringify(
+      {
+        json: {
+          indentWidth: 2,
+          lineWidth: 120,
+          trailingCommas: "never"
+        },
+        typescript: {
+          indentWidth: 2,
+          lineWidth: 120,
+          operatorPosition: "maintain",
+          semiColons: "asi",
+          quoteStyle: "alwaysDouble",
+          trailingCommas: "never",
+          "arrowFunction.useParentheses": "force"
+        },
+        plugins: [
+          "/vendor/dprint/plugins/json-0.19.2.wasm",
+          "/vendor/dprint/plugins/typescript-0.91.0.wasm"
+        ]
+      },
+      undefined,
+      2
+    )
+  }),
+  new File({
+    name: "tsconfig.json",
+    language: "json",
+    initialContent: JSON.stringify(
+      {
+        compilerOptions: {
+          allowSyntheticDefaultImports: true,
+          exactOptionalPropertyTypes: true,
+          moduleResolution: "NodeNext",
+          strict: true,
+          target: "esnext",
+          strictNullChecks: true
+        },
+        include: ["src"]
+      },
+      undefined,
+      2
+    )
+  })
+]
