@@ -1,9 +1,11 @@
-import { Console, Effect, Layer, Option, Stream, pipe } from "effect"
+import { Console, Effect, Layer, Option, Sink, Stream, pipe } from "effect"
+import { Toaster } from "@/services/Toaster"
 import { WebContainer } from "@/workspaces/services/WebContainer"
 import { Monaco } from "../Monaco"
 
 const make = Effect.gen(function* () {
   const { monaco } = yield* Monaco
+  const { toast } = yield* Toaster
   const { registerPlugin } = yield* WebContainer
 
   const parseJson = Option.liftThrowable(JSON.parse)
@@ -34,12 +36,31 @@ const make = Effect.gen(function* () {
   }
 
   yield* registerPlugin((handle) =>
-    pipe(
-      handle.watch("tsconfig.json"),
-      Stream.runForEach(configureTypeScript),
-      Effect.forkScoped,
-      Effect.ignoreLogged
-    )
+    Effect.gen(function* () {
+      const [initial, updates] = yield* handle
+        .watch("tsconfig.json")
+        .pipe(Stream.peel(Sink.head()))
+
+      // Perform initial plugin configuration
+      yield* initial.pipe(
+        Effect.flatMap(configureTypeScript),
+        Effect.ignoreLogged
+      )
+
+      // Handle updates to plugin configuration
+      yield* pipe(
+        updates,
+        Stream.tap(() =>
+          toast({
+            title: "Effect Playground",
+            description: "Updated TypeScript configuration!"
+          })
+        ),
+        Stream.runForEach(configureTypeScript),
+        Effect.forkScoped,
+        Effect.ignoreLogged
+      )
+    })
   )
 }).pipe(
   Effect.withSpan("MonacoTSConfig.make"),
@@ -48,5 +69,6 @@ const make = Effect.gen(function* () {
 
 export const MonacoTSConfigLive = Layer.scopedDiscard(make).pipe(
   Layer.provide(Monaco.Live),
+  Layer.provide(Toaster.Live),
   Layer.provide(WebContainer.Live)
 )

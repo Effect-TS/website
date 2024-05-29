@@ -1,14 +1,14 @@
 import React, { Fragment, Suspense, useCallback } from "react"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Hash } from "effect"
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { useRxSet } from "@effect-rx/rx-react"
-import { FileEditor } from "./components/common/file-editor"
-import { FileExplorer } from "./components/common/file-explorer"
-import { Terminal } from "./components/common/terminal"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Workspace } from "@/workspaces/domain/workspace"
 import { useWorkspaceHandle, useWorkspaceShells } from "@/workspaces/context"
 import { WorkspaceProvider } from "@/workspaces/WorkspaceProvider"
-import { Hash } from "effect"
+import { FileEditor } from "./components/common/file-editor"
+import { FileExplorer } from "./components/common/file-explorer"
+import { Terminal } from "./components/common/terminal"
 
 export declare namespace CodeEditor {
   export interface Props {

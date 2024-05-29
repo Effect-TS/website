@@ -10,8 +10,8 @@ export function PlusIcon({ className }: Icon.CommonProps) {
       xmlns="http://www.w3.org/2000/svg"
       className={cn("stroke-current", className)}
     >
-      <path d="M9 2V16" stroke-linecap="round" stroke-linejoin="round" />
-      <path d="M2 9H16" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M9 2V16" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2 9H16" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

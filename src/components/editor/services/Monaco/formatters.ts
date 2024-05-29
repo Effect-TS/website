@@ -1,7 +1,8 @@
-import { Cache, Effect, Layer, Option, pipe, Record, Stream } from "effect"
+import { Cache, Effect, Layer, Option, pipe, Record, Sink, Stream } from "effect"
 import { createStreaming, type Formatter } from "@dprint/formatter"
-import { Monaco } from "../Monaco"
+import { Toaster } from "@/services/Toaster"
 import { WebContainer } from "@/workspaces/services/WebContainer"
+import { Monaco } from "../Monaco"
 
 export interface FormatterPlugin {
   readonly language: string
@@ -10,6 +11,7 @@ export interface FormatterPlugin {
 
 const make = Effect.gen(function* () {
   const { monaco } = yield* Monaco
+  const { toast } = yield* Toaster
   const { registerPlugin } = yield* WebContainer
 
   yield* Effect.sync(() => {
@@ -118,8 +120,25 @@ const make = Effect.gen(function* () {
         Effect.orDie
       )
 
+      const [initial, updates] = yield* handle.watch("dprint.json").pipe(
+        Stream.peel(Sink.head())
+      )
+
+      // Perform initial plugin configuration
+      yield* initial.pipe(
+        Effect.flatMap(configurePlugin),
+        Effect.orDie
+      )
+
+      // Handle updates to plugin configuration
       yield* pipe(
-        handle.watch("dprint.json"),
+        updates,
+        Stream.tap(() =>
+          toast({
+            title: "Effect Playground",
+            description: "Updated formatter settings!"
+          })
+        ),
         Stream.runForEach(configurePlugin),
         Effect.forkScoped
       )
@@ -132,5 +151,6 @@ const make = Effect.gen(function* () {
 
 export const MonacoFormattersLive = Layer.scopedDiscard(make).pipe(
   Layer.provide(Monaco.Live),
+  Layer.provide(Toaster.Live),
   Layer.provide(WebContainer.Live)
 )
