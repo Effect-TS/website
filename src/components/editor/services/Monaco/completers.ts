@@ -1,15 +1,69 @@
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Option, Record, Sink, Stream, pipe } from "effect"
 import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 import type ts from "typescript"
+import { WebContainer } from "@/workspaces/services/WebContainer"
 import { Monaco, type MonacoApi } from "../Monaco"
 
 export const make = Effect.gen(function* () {
   const { monaco } = yield* Monaco
+  const { registerPlugin } = yield* WebContainer
+
   setupCompletionItemProviders(monaco)
+
+  const parseJson = Option.liftThrowable(JSON.parse)
+
+  function registerDependencies(packageJson: string) {
+    return parseJson(packageJson).pipe(
+      Effect.map((json) => json.dependencies),
+      Effect.map(
+        Record.filter((_, dep) => !["typescript", "tsc-watch"].includes(dep))
+      ),
+      Effect.flatMap((dependencies) =>
+        Effect.sync(() => {
+          monaco.languages.typescript.typescriptDefaults.addExtraLib(
+            JSON.stringify({ dependencies }, undefined, 2),
+            "file:///package.json"
+          )
+        })
+      ),
+      Effect.ignoreLogged
+    )
+  }
+
+  // Load the `package.json` dependencies into a `package.json` to allow
+  // the editor to provide import completions when doing `import X from "|"`
+  yield* registerPlugin((handle) =>
+    Effect.gen(function* () {
+      const packageJson = handle.workspace.findFile("package.json")
+      if (Option.isNone(packageJson)) {
+        return
+      }
+
+      const [initial, updates] = yield* pipe(
+        handle.watch("package.json"),
+        Stream.peel(Sink.head())
+      )
+      if (Option.isNone(initial)) {
+        return
+      }
+
+      // Perform initial registration of dependencies
+      yield* registerDependencies(initial.value)
+
+      // Handle updates to the `package.json` dependencies (i.e. from a user
+      // running `npm install <package>`)
+      yield* pipe(
+        updates,
+        Stream.runForEach(registerDependencies),
+        Effect.forkScoped
+      )
+    }).pipe(Effect.annotateLogs("service", "MonacoCompleters"))
+  )
 })
 
 export const MonacoCompletersLive = Layer.effectDiscard(make).pipe(
-  Layer.provide(Monaco.Live)
+  Layer.provide(Monaco.Live),
+  Layer.provide(WebContainer.Live)
 )
 
 function setupCompletionItemProviders(monaco: MonacoApi) {
