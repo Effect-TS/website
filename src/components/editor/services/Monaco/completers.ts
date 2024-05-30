@@ -61,41 +61,43 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
         return
       }
 
-      const suggestions = info.entries.map((entry) => {
-        let range = wordRange
-        if (entry.replacementSpan) {
-          const p1 = model.getPositionAt(entry.replacementSpan.start)
-          const p2 = model.getPositionAt(
-            entry.replacementSpan.start + entry.replacementSpan.length
-          )
-          range = new monaco.Range(
-            p1.lineNumber,
-            p1.column,
-            p2.lineNumber,
-            p2.column
-          )
-        }
+      const suggestions = info.entries
+        .filter(pruneNodeBuiltIns)
+        .map((entry) => {
+          let range = wordRange
+          if (entry.replacementSpan) {
+            const p1 = model.getPositionAt(entry.replacementSpan.start)
+            const p2 = model.getPositionAt(
+              entry.replacementSpan.start + entry.replacementSpan.length
+            )
+            range = new monaco.Range(
+              p1.lineNumber,
+              p1.column,
+              p2.lineNumber,
+              p2.column
+            )
+          }
 
-        const tags: Array<monaco.languages.CompletionItemTag> = []
-        if (entry.kindModifiers?.indexOf("deprecated") !== -1) {
-          tags.push(monaco.languages.CompletionItemTag.Deprecated)
-        }
+          const tags: Array<monaco.languages.CompletionItemTag> = []
+          if (entry.kindModifiers?.indexOf("deprecated") !== -1) {
+            tags.push(monaco.languages.CompletionItemTag.Deprecated)
+          }
 
-        return {
-          uri: resource,
-          position,
-          offset,
-          range,
-          label: entry.name,
-          insertText: entry.name,
-          sortText: entry.sortText,
-          kind: (this.constructor as any).convertKind(entry.kind),
-          tags,
-          data: entry.data,
-          hasAction: entry.hasAction,
-          source: entry.source
-        }
-      })
+          return {
+            uri: resource,
+            position,
+            offset,
+            range,
+            label: entry.name,
+            insertText: entry.name,
+            sortText: entry.sortText,
+            kind: (this.constructor as any).convertKind(entry.kind),
+            tags,
+            data: entry.data,
+            hasAction: entry.hasAction,
+            source: entry.source
+          }
+        })
 
       return { suggestions }
     }
@@ -238,4 +240,69 @@ function toTextEdit(
       textChange.span
     )
   }
+}
+
+// in node repl:
+// > require("module").builtinModules
+const builtInNodeModules = [
+  "assert",
+  "assert/strict",
+  "async_hooks",
+  "buffer",
+  "child_process",
+  "cluster",
+  "console",
+  "constants",
+  "crypto",
+  "dgram",
+  "diagnostics_channel",
+  "dns",
+  "dns/promises",
+  "domain",
+  "events",
+  "fs",
+  "fs/promises",
+  "http",
+  "http2",
+  "https",
+  "inspector",
+  "module",
+  "net",
+  "os",
+  "path",
+  "path/posix",
+  "path/win32",
+  "perf_hooks",
+  "process",
+  "punycode",
+  "querystring",
+  "readline",
+  "readline/promises",
+  "repl",
+  "stream",
+  "stream/consumers",
+  "stream/promises",
+  "stream/web",
+  "string_decoder",
+  "sys",
+  "timers",
+  "timers/promises",
+  "tls",
+  "trace_events",
+  "tty",
+  "url",
+  "util",
+  "util/types",
+  "v8",
+  "vm",
+  "wasi",
+  "worker_threads",
+  "zlib"
+]
+
+function pruneNodeBuiltIns(entry: ts.CompletionEntry): boolean {
+  return (
+    entry.kind === (window as any).ts.ScriptElementKind.externalModuleName &&
+    !builtInNodeModules.includes(entry.name)
+  )
 }
