@@ -260,6 +260,7 @@ export const defaultFiles = [
         compilerOptions: {
           allowSyntheticDefaultImports: true,
           exactOptionalPropertyTypes: true,
+          module: "NodeNext",
           moduleResolution: "NodeNext",
           strict: true,
           target: "esnext",
