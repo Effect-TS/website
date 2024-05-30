@@ -58,7 +58,7 @@ const make = Effect.gen(function* () {
   const monaco = yield* loadApi
 
   monaco.languages.typescript.typescriptDefaults.setWorkerOptions({
-    customWorkerPath: `${new URL(window.location.origin)}vendor/ts.worker.js`,
+    customWorkerPath: `${new URL(window.location.origin)}vendor/ts.worker.js`
   })
 
   const makeEditor = (el: HTMLElement) =>
@@ -111,22 +111,38 @@ const make = Effect.gen(function* () {
         })
 
       const preload = (workspace: Workspace) =>
-        Effect.forEach(
-          workspace.filePaths,
-          ([file, path]) =>
-            Effect.sync(() => {
-              const uri = monaco.Uri.parse(`${workspace.name}/${path}`)
-              if (monaco.editor.getModel(uri)) {
-                return
-              }
-              monaco.editor.createModel(
-                file.initialContent,
-                file.language,
-                uri
-              )
-            }),
-          { discard: true }
-        )
+        Effect.all([
+          // Load the `package.json` dependencies into a `package.json` to allow
+          // the editor to provide import suggestions when doing `import X from "|"`
+          Effect.sync(() => {
+            monaco.languages.typescript.typescriptDefaults.addExtraLib(
+              JSON.stringify(
+                { dependencies: workspace.dependencies },
+                undefined,
+                2
+              ),
+              "file:///package.json"
+            )
+          }),
+          // Ensure that all workspace file paths are loaded to avoid type
+          // errors on initial load when importing from other files
+          Effect.forEach(
+            workspace.filePaths,
+            ([file, path]) =>
+              Effect.sync(() => {
+                const uri = monaco.Uri.parse(`${workspace.name}/${path}`)
+                if (monaco.editor.getModel(uri)) {
+                  return
+                }
+                monaco.editor.createModel(
+                  file.initialContent,
+                  file.language,
+                  uri
+                )
+              }),
+            { discard: true }
+          )
+        ]).pipe(Effect.asVoid)
 
       const content = Stream.async<string>((emit) => {
         const cancel = editor.onDidChangeModelContent(() => {
