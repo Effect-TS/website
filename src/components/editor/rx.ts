@@ -11,6 +11,7 @@ import { workspaceHandleRx } from "@/workspaces/rx"
 import { MonacoFormattersLive } from "./services/Monaco/formatters"
 import { MonacoCompletersLive } from "./services/Monaco/completers"
 import { MonacoTSConfigLive } from "./services/Monaco/tsconfig"
+import { Schedule } from "effect"
 
 const MonacoWithPlugins = MonacoATA.Live.pipe(
   Layer.provide(MonacoCompletersLive),
@@ -103,12 +104,10 @@ export const editorRx = Rx.family((workspace: Workspace) => {
         ),
         Stream.flatMap(
           ({ file, path, fullPath }) => sync(fullPath, path, file),
-          {
-            switch: true
-          }
+          { switch: true }
         ),
         Stream.runDrain,
-        Effect.catchAllCause(Effect.log),
+        Effect.retry(Schedule.spaced(200)),
         Effect.forkScoped
       )
 
