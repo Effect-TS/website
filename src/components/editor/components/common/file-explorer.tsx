@@ -27,7 +27,7 @@ export const FileExplorer: React.FC<FileExplorer.Props> = () => {
   )
 
   return (
-    <aside className="min-h-full w-full py-2 overflow-auto">
+    <aside className="min-h-full w-full overflow-auto">
       <FileTree tree={tree} onClick={handleClick} />
     </aside>
   )

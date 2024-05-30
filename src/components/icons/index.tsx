@@ -20,32 +20,34 @@ import { CloudflareIcon } from "./cloudflare"
 import { DenoIcon } from "./deno"
 import { DirectoryClosedIcon } from "./directory-closed"
 import { DirectoryOpenIcon } from "./directory-open"
+import { DirectoryPlusIcon } from "./directory-plus"
 import { DiscordIcon } from "./discord"
 import { DisplayIcon } from "./display"
 import { DotSolid } from "./dot-solid"
 import { DragHandleDotsIcon } from "./drag-handle-dots"
 import { ErrorIcon } from "./error"
 import { FileIcon } from "./file"
+import { FilePlusIcon } from "./file-plus"
 import { GearIcon } from "./gear"
 import { GitHubIcon } from "./github"
 import { GraphQLIcon } from "./graphql"
 import { InfoIcon } from "./info"
 import { LightbulbIcon } from "./lightbulb"
 import { LightbulbSolidIcon } from "./lightbulb-solid"
+import { LoadingIcon } from "./loading"
 import { MoonIcon } from "./moon"
 import { NextIcon } from "./next"
 import { NodeIcon } from "./node"
 import { OpenAPIIcon } from "./open-api"
 import { PlayIcon } from "./play"
 import { PlugsIcon } from "./plugs"
+import { PlusIcon } from "./plus"
 import { ReactIcon } from "./react"
 import { SearchIcon } from "./search"
 import { ShieldIcon } from "./shield"
 import { SunIcon } from "./sun"
 import { TrendUpIcon } from "./trend-up"
 import { TwitterIcon } from "./twitter"
-import { LoadingIcon } from "./loading"
-import { PlusIcon } from "./plus"
 
 const icons = {
   alert: AlertIcon,
@@ -69,12 +71,14 @@ const icons = {
   deno: DenoIcon,
   "directory-closed": DirectoryClosedIcon,
   "directory-open": DirectoryOpenIcon,
+  "directory-plus": DirectoryPlusIcon,
   discord: DiscordIcon,
   display: DisplayIcon,
   "dot-solid": DotSolid,
   "drag-handle-dots": DragHandleDotsIcon,
   error: ErrorIcon,
   file: FileIcon,
+  "file-plus": FilePlusIcon,
   gear: GearIcon,
   github: GitHubIcon,
   graphql: GraphQLIcon,
