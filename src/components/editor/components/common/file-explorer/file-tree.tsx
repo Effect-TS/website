@@ -7,42 +7,22 @@ export declare namespace FileTree {
   export interface Props {
     readonly tree: ReadonlyArray<Directory | File>
     readonly depth?: number
-    readonly onClick?: FileTree.OnClick
-  }
-
-  export interface OnClick {
-    (event: React.MouseEvent<HTMLButtonElement>, node: File | Directory): void
   }
 }
 
-export const FileTree: React.FC<FileTree.Props> = ({
-  tree,
-  depth = 0,
-  onClick
-}) => {
+export const FileTree: React.FC<FileTree.Props> = ({ tree, depth = 0 }) => {
   const files = tree.filter((node): node is File => node._tag === "File")
   const directories = tree.filter(
     (node): node is Directory => node._tag === "Directory"
   )
 
   return (
-    <div>
+    <div className="text-sm">
       {directories.map((node) => (
-        <DirectoryNode
-          key={node.name}
-          node={node}
-          depth={depth}
-          onClick={onClick}
-        />
+        <DirectoryNode key={node.name} node={node} depth={depth} />
       ))}
       {files.map((node) => (
-        <FileNode
-          key={node.name}
-          type="file"
-          node={node}
-          depth={depth}
-          onClick={onClick}
-        />
+        <FileNode key={node.name} type="file" node={node} depth={depth} />
       ))}
     </div>
   )
