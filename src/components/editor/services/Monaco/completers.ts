@@ -355,8 +355,5 @@ const builtInNodeModules = [
 ]
 
 function pruneNodeBuiltIns(entry: ts.CompletionEntry): boolean {
-  return (
-    entry.kind === (window as any).ts.ScriptElementKind.externalModuleName &&
-    !builtInNodeModules.includes(entry.name)
-  )
+  return  !builtInNodeModules.includes(entry.name)
 }
