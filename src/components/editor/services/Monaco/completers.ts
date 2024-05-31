@@ -61,7 +61,7 @@ export const make = Effect.gen(function* () {
   )
 })
 
-export const MonacoCompletersLive = Layer.effectDiscard(make).pipe(
+export const MonacoCompletersLive = Layer.scopedDiscard(make).pipe(
   Layer.provide(Monaco.Live),
   Layer.provide(WebContainer.Live)
 )

@@ -22,9 +22,8 @@ export declare namespace DirectoryNode {
 
 export const DirectoryNode: React.FC<DirectoryNode.Props> = ({
   depth,
-  node,
+  node
 }) => {
-
   const [open, setOpen] = useState(true)
 
   const handleToggle = useCallback(() => setOpen((prev) => !prev), [])
@@ -49,10 +48,7 @@ export const DirectoryNode: React.FC<DirectoryNode.Props> = ({
             </span>
             <Input className="h-6 p-0 mr-1 rounded-none" />
           </div>
-          <FileTree
-            tree={node.children}
-            depth={depth + 1}
-          />
+          <FileTree tree={node.children} depth={depth + 1} />
         </React.Fragment>
       )}
     </>

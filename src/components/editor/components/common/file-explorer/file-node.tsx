@@ -1,12 +1,11 @@
 import React, { useCallback } from "react"
 import { Equal } from "effect"
-import { useRxValue } from "@effect-rx/rx-react"
+import { useRx } from "@effect-rx/rx-react"
 import { Icon } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "@/workspaces/context"
 import { Directory, File } from "@/workspaces/domain/workspace"
-import { useFileExplorer } from "../file-explorer"
 
 export declare namespace FileNode {
   export type Props = FileProps | DirectoryProps
@@ -35,13 +34,14 @@ export declare namespace FileNode {
   }
 }
 
-export const FileNode: React.FC<FileNode.Props> = ({
+export function FileNode({
   depth,
   node,
   onClick,
   ...props
-}) => {
-  const { selectedFile, setSelectedFile } = useFileExplorer()
+}: FileNode.Props) {
+  const handle = useWorkspaceHandle()
+  const [selectedFile, setSelectedFile] = useRx(handle.selectedFile)
   const isSelected = Equal.equals(selectedFile, node)
 
   const handleClick = useCallback<FileNode.OnClick>((event, node) => {
@@ -65,8 +65,6 @@ export const FileNode: React.FC<FileNode.Props> = ({
     </FileNodeRoot>
   )
 }
-
-FileNode.displayName = "FileNode"
 
 function FileNodeRoot({
   children,
@@ -139,7 +137,6 @@ function FileNodeName({ node }: { readonly node: File | Directory }) {
 }
 
 function FileNodeControls() {
-  const {} = useFileExplorer()
   return (
     <div className="flex items-center gap-2 mr-2">
       <Button variant="ghost" className="h-full p-0 rounded-none">
