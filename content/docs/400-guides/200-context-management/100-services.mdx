@@ -13,26 +13,60 @@ They can handle complex operations, interact with external systems or APIs, mana
 Services are typically designed to be modular and decoupled from the rest of the application.
 This allows them to be easily maintained, tested, and replaced without affecting the overall functionality of the application.
 
-When working with services in Effect, it is important to understand the concept of **context**: in the type `Effect<Success, Error, Requirements>`, the parameter `Requirements` represents the services required by the effect to be executed.
-These services are stored in a collection called `Context`.
+## Overview
+
+When diving into services and their integration in application development, it helps to start from the basic principles of function management and dependency handling without relying on advanced constructs. Imagine having to manually pass a service around to every function that needs it:
+
+```ts
+const processData = (data: Data, databaseService: DatabaseService) => {
+  // Operations using the database service
+}
+```
+
+This approach becomes cumbersome and unmanageable as your application grows, with services needing to be passed through multiple layers of functions.
+
+To streamline this, you might consider using an environment object that bundles various services:
+
+```ts
+type Context = {
+  databaseService: DatabaseService,
+  loggingService: LoggingService
+}
+
+const processData = (data: Data, context: Context) => {
+  // Using multiple services from the context
+}
+```
+
+However, this introduces a new complexity: you must ensure that the environment is correctly set up with all necessary services before it's used, which can lead to tightly coupled code and makes functional composition and testing more difficult.
+
+The Effect library simplifies managing these dependencies by leveraging the type system.
+Instead of manually passing services or environment objects around, Effect allows you to declare service dependencies directly in the function's type signature using the `Requirements` parameter in the `Effect<Success, Error, Requirements>` type.
+
+- **Dependency Declaration**: You specify what services a function needs directly in its type, pushing the complexity of dependency management into the type system.
+- **Service Provision**: `Effect.provideService` is used to make a service implementation available to the functions that need it. By providing services at the start, you ensure that all parts of your application have consistent access to the required services, thus maintaining a clean and decoupled architecture.
+
+This method abstracts the manual handling of services and dependencies, allowing developers to focus on business logic while the compiler ensures that all dependencies are correctly managed.
+This approach not only simplifies code but also enhances its maintainability and scalability.
+
+Let's explore how services are managed in Effect, step by step. You'll learn the essentials:
+
+1. **Creating a Service**: Define a service with its unique functionality and interface.
+2. **Using the Service**: Access and utilize the service within your application’s functions.
+3. **Providing a Service Implementation**: Supply an actual implementation of the service to fulfill the declared requirements.
 
 ## Managing Services with Effects
 
-So far, we have been working with effects that don't require any specific service. In those cases, the `Requirements` parameter in the `Effect<Success, Error, Requirements>` type has always been of type `never`.
+Up to this point, our examples with the Effect framework have dealt with effects that operate independently of external services. This means the `Requirements` parameter in our `Effect<Success, Error, Requirements>` type signature has been set to `never`, indicating no dependencies.
 
-However, there are situations where we need to work with effects that depend on specific services.
+However, real-world applications often need effects that rely on specific services to function correctly. These services are managed and accessed through a construct known as `Context`.
 
-These services are stored in a collection called `Context`.
+Context serves as a repository or container for all services an effect may require. It acts like a store that maintains these services, allowing various parts of your application to access and use them as needed.
 
-The `Context` acts as a container for all the services an effect might need. By leveraging this context, you can manage requirements effectively, ensuring that each part of your application has access to the necessary services without tight coupling.
+The services stored within the Context are directly reflected in the `Requirements` parameter of the `Effect` type.
+Each service within the Context is identified by a unique "tag," which is essentially a unique identifier for the service. When an effect needs to use a specific service, the service's tag is included in the `Requirements` type parameter.
 
-In this guide, we will learn how to:
-
-- Create Effects that depend on a specific context.
-- Work with Effects that require a context.
-- Provide the required context to the Effect.
-
-## Creating a Simple Service
+### Creating a Service
 
 Let's start by creating a service for generating random numbers.
 
@@ -76,7 +110,7 @@ In the Effect, understanding services, tags, and context is essential for managi
 | **Tag**     | A unique identifier representing a **service**, allowing Effect to locate and use it.                   |
 | **Context** | A collection storing services, functioning like a map with **tags** as keys and **services** as values. |
 
-## Using the Service
+### Using the Service
 
 Now that we have our service tag defined, let's see how we can use it by building a simple program.
 
@@ -156,7 +190,7 @@ To resolve this error and successfully execute the program, we need to provide a
 
 In the next section, we will explore how to implement and provide the `Random` service to our program, enabling us to run it successfully.
 
-## Providing a Service implementation
+### Providing a Service Implementation
 
 In order to provide an actual implementation of the `Random` service, we can utilize the `Effect.provideService` function.
 
@@ -437,5 +471,3 @@ Effect.runPromise(
 ```
 
 We can observe that the log message now contains a random number generated by the `next` operation of the `Random` service.
-
-By using the `Effect.serviceOption` function, we can gracefully handle scenarios where a service may or may not be available, providing flexibility in our programs.
