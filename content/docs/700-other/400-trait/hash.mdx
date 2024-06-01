@@ -4,6 +4,58 @@ excerpt: Hash trait documentation
 bottomNavigation: pagination
 ---
 
-**This page is a stub. Help us expand it by contributing!**
+The `Hash` trait in Effect is closely tied to the [Equal](equal) trait and serves a supportive role in optimizing equality checks by providing a mechanism for hashing. Hashing is a crucial step in the efficient determination of equality between two values, particularly when used with data structures like hash tables.
 
-To contribute to the documentation, please join our Discord community at [the Docs channel](https://discord.com/channels/795981131316985866/848185224356691978) and let us know which part of the documentation you would like to contribute to. We appreciate your help in improving our library's documentation. Thank you!
+## Role of Hash in Equality Checking
+
+The main function of the `Hash` trait is to provide a quick and efficient way to determine if two values are definitely not equal, thereby complementing the [Equal](equal) trait. When two values implement the [Equal](equal) trait, their hash values (computed using the `Hash` trait) are compared first:
+
+- **Different Hash Values**: If the hash values are different, it is guaranteed that the values themselves are different. This quick check allows the system to avoid a potentially expensive equality check.
+- **Same Hash Values**: If the hash values are the same, it does not guarantee that the values are equal, only that they might be. In this case, a more thorough comparison using the [Equal](equal) trait is performed to determine actual equality.
+
+This method dramatically speeds up the equality checking process, especially in collections where quick look-up and insertion times are crucial, such as in hash sets or hash maps.
+
+## Practical Example and Explanation
+
+Consider a scenario where you have a custom `Person` class, and you want to check if two instances are equal based on their properties.
+By implementing both the `Equal` and `Hash` traits, you can efficiently manage these checks:
+
+```ts twoslash
+import { Equal, Hash } from "effect"
+
+class Person implements Equal.Equal {
+  constructor(
+    readonly id: number,  // Unique identifier for each person
+    readonly name: string,
+    readonly age: number
+  ) {}
+
+  // Defines equality based on id, name, and age
+  [Equal.symbol](that: Equal.Equal): boolean {
+    if (that instanceof Person) {
+      return (
+        Equal.equals(this.id, that.id) &&
+        Equal.equals(this.name, that.name) &&
+        Equal.equals(this.age, that.age)
+      )
+    }
+    return false
+  }
+
+  // Generates a hash code based primarily on the unique id
+  [Hash.symbol](): number {
+    return Hash.hash(this.id)
+  }
+}
+
+const alice = new Person(1, "Alice", 30)
+console.log(Equal.equals(alice, new Person(1, "Alice", 30))) // Output: true
+
+const bob = new Person(2, "Bob", 40)
+console.log(Equal.equals(alice, bob)) // Output: false
+```
+
+In this code snippet:
+- The `[Equal.symbol]` method determines equality by comparing the `id`, `name`, and `age` fields of `Person` instances. This approach ensures that the equality check is comprehensive and considers all relevant attributes.
+- The `[Hash.symbol]` method computes a hash code using the `id` of the person. This value is used to quickly differentiate between instances in hashing operations, optimizing the performance of data structures that utilize hashing.
+- The equality check returns `true` when comparing `alice` to a new `Person` object with identical property values and `false` when comparing `alice` to `bob` due to their differing property values.
