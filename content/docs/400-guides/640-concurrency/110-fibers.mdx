@@ -37,97 +37,102 @@ When we fork fibers, depending on how we fork them we can have four different li
 
 Effect employs a **structured concurrency** model where the lifetimes of fibers are neatly nested. Simply put, the lifespan of a fiber depends on the lifespan of its parent fiber.
 
-To help clarify this concept, let's explore the following example. In this scenario, the `foo` fiber spawns the `bar` fiber. The `bar` fiber is engaged in a long-running task that never completes. What's important to note here is that Effect ensures the `bar` fiber will not outlive the `foo` fiber:
+To help clarify this concept, let's explore the following example.
+In this scenario, the `parent` fiber spawns the `child` fiber.
+The `child` fiber is engaged in a long-running task that never completes.
+What's important to note here is that Effect ensures the `child` fiber will not outlive the `parent` fiber:
 
 ```ts twoslash
 import { Effect, Console, Schedule } from "effect"
 
-const barJob = Effect.repeat(
-  Console.log("Bar: still running!"),
+const child = Effect.repeat(
+  Console.log("child: still running!"),
   Schedule.fixed("1 second")
 )
 
-const fooJob = Effect.gen(function* () {
-  console.log("Foo: started!")
-  yield* Effect.fork(barJob)
+const parent = Effect.gen(function* () {
+  console.log("parent: started!")
+  yield* Effect.fork(child)
   yield* Effect.sleep("3 seconds")
-  console.log("Foo: finished!")
+  console.log("parent: finished!")
 })
 
-Effect.runPromise(fooJob)
+Effect.runPromise(parent)
 ```
 
 When you run the above program, you'll see the following output:
 
-```
-Foo: started!
-Bar: still running!
-Bar: still running!
-Bar: still running!
-Foo: finished!
+```sh filename="Terminal"
+parent: started!
+child: still running!
+child: still running!
+child: still running!
+parent: finished!
 ```
 
 This pattern can be extended to any level of nested fibers.
 
 ### Fork in Global Scope (Daemon)
 
-Using `Effect.forkDaemon` we can create a daemon fiber from an effect. Its lifetime is tied to the global scope. So if the parent fiber terminates, the daemon fiber will not be terminated. It will only will be terminated when the global scope is closed, or its life end naturally.
+Using `Effect.forkDaemon` we can create a daemon fiber from an effect. Its lifetime is tied to the global scope.
+So if the parent fiber terminates, the daemon fiber will not be terminated.
+It will only will be terminated when the global scope is closed, or its life end naturally.
 
 ```ts twoslash
 import { Effect, Console, Schedule } from "effect"
 
-const barJob = Effect.repeat(
-  Console.log("Bar: still running!"),
+const daemon = Effect.repeat(
+  Console.log("daemon: still running!"),
   Schedule.fixed("1 second")
 )
 
-const fooJob = Effect.gen(function* () {
-  console.log("Foo: started!")
-  yield* Effect.forkDaemon(barJob)
+const parent = Effect.gen(function* () {
+  console.log("parent: started!")
+  yield* Effect.forkDaemon(daemon)
   yield* Effect.sleep("3 seconds")
-  console.log("Foo: finished!")
+  console.log("parent: finished!")
 })
 
-Effect.runPromise(fooJob)
+Effect.runPromise(parent)
 ```
 
-If we run the above program, we will see the following output which shows that while the lifetime of the `foo` fiber ends after 3 seconds, the daemon fiber (`bar`) is still running:
+If we run the above program, we will see the following output which shows that while the lifetime of the `parent` fiber ends after 3 seconds, the `daemon` fiber is still running:
 
-```
-Foo: started!
-Bar: still running!
-Bar: still running!
-Bar: still running!
-Foo: finished!
-Bar: still running!
-Bar: still running!
-Bar: still running!
-Bar: still running!
-Bar: still running!
+```sh filename="Terminal"
+parent: started!
+daemon: still running!
+daemon: still running!
+daemon: still running!
+parent: finished!
+daemon: still running!
+daemon: still running!
+daemon: still running!
+daemon: still running!
+daemon: still running!
 ...etc...
 ```
 
-Even if we interrupt the `foo` fiber, the daemon fiber (`bar`) will not be interrupted:
+Even if we interrupt the `parent` fiber, the `daemon` fiber will not be interrupted:
 
 ```ts twoslash
 import { Effect, Console, Schedule, Fiber } from "effect"
 
-const barJob = Effect.repeat(
-  Console.log("Bar: still running!"),
+const daemon = Effect.repeat(
+  Console.log("daemon: still running!"),
   Schedule.fixed("1 second")
 )
 
-const fooJob = Effect.gen(function* () {
-  console.log("Foo: started!")
-  yield* Effect.forkDaemon(barJob)
+const parent = Effect.gen(function* () {
+  console.log("parent: started!")
+  yield* Effect.forkDaemon(daemon)
   yield* Effect.sleep("3 seconds")
-  console.log("Foo: finished!")
-}).pipe(Effect.onInterrupt(() => Console.log("Foo: interrupted!")))
+  console.log("parent: finished!")
+}).pipe(Effect.onInterrupt(() => Console.log("parent: interrupted!")))
 
 const program = Effect.gen(function* () {
-  const f = yield* Effect.fork(fooJob)
+  const fiber = yield* Effect.fork(parent)
   yield* Effect.sleep("2 seconds")
-  yield* Fiber.interrupt(f)
+  yield* Fiber.interrupt(fiber)
 })
 
 Effect.runPromise(program)
@@ -135,42 +140,43 @@ Effect.runPromise(program)
 
 The output:
 
-```
-Foo: started!
-Bar: still running!
-Bar: still running!
-Foo: interrupted!
-Bar: still running!
-Bar: still running!
-Bar: still running!
-Bar: still running!
-Bar: still running!
+```sh filename="Terminal"
+parent: started!
+daemon: still running!
+daemon: still running!
+parent: interrupted!
+daemon: still running!
+daemon: still running!
+daemon: still running!
+daemon: still running!
+daemon: still running!
 ...etc...
 ```
 
 ### Fork in Local Scope
 
-Sometimes we want to attach fiber to a local scope. In such cases, we can use the `Effect.forkScoped` operator. By using this operator, the lifetime of the forked fiber can be outlived the lifetime of its parent fiber, and it will be terminated when the local scope is closed:
+Sometimes we want to attach fiber to a local scope. In such cases, we can use the `Effect.forkScoped` operator.
+By using this operator, the lifetime of the forked fiber can be outlived the lifetime of its parent fiber, and it will be terminated when the local scope is closed:
 
 ```ts twoslash
 import { Effect, Console, Schedule } from "effect"
 
-const barJob = Effect.repeat(
-  Console.log("Bar: still running!"),
+const child = Effect.repeat(
+  Console.log("child: still running!"),
   Schedule.fixed("1 second")
 )
 
-const fooJob = Effect.gen(function* () {
-  console.log("Foo: started!")
-  yield* Effect.forkScoped(barJob)
+const parent = Effect.gen(function* () {
+  console.log("parent: started!")
+  yield* Effect.forkScoped(child)
   yield* Effect.sleep("3 seconds")
-  console.log("Foo: finished!")
+  console.log("parent: finished!")
 })
 
 const program = Effect.scoped(
   Effect.gen(function* () {
     console.log("Local scope started!")
-    yield* Effect.fork(fooJob)
+    yield* Effect.fork(parent)
     yield* Effect.sleep("5 seconds")
     console.log("Leaving the local scope!")
   })
@@ -179,44 +185,51 @@ const program = Effect.scoped(
 Effect.runPromise(program)
 ```
 
-In the above example, the `bar` fiber forked in the local scope has bigger lifetime than its parent fiber (`foo`).
-So, when its parent fiber (`foo`) is terminated, the `bar` fiber still running in the local scope until the local scope is closed.
+In the above example, the `child` fiber forked in the local scope has bigger lifetime than its `parent` fiber.
+So, when its `parent` fiber is terminated, the `child` fiber still running in the local scope until the local scope is closed.
 Let's see the output:
 
-```
+```sh filename="Terminal"
 Local scope started!
-Foo: started!
-Bar: still running!
-Bar: still running!
-Bar: still running!
-Foo: finished!
-Bar: still running!
-Bar: still running!
+parent: started!
+child: still running!
+child: still running!
+child: still running!
+parent: finished!
+child: still running!
+child: still running!
 Leaving the local scope!
 ```
 
 ### Fork in Specific Scope
 
-There are some cases where we need more fine-grained control, so we want to fork a fiber in a specific scope. We can use the `Effect.forkIn` operator which takes the target scope as an argument:
+There are some cases where we need more fine-grained control, so we want to fork a fiber in a specific scope.
+We can use the `Effect.forkIn` operator which takes the target scope as an argument:
 
 ```ts twoslash
 import { Console, Effect, Schedule } from "effect"
 
-const barJob = Console.log("Bar: still running!").pipe(Effect.repeat(
-  Schedule.fixed("1 second")
-))
+const child = Console.log("child: still running!").pipe(
+  Effect.repeat(Schedule.fixed("1 second"))
+)
 
 const program = Effect.scoped(
-  Effect.gen(function*() {
-    yield* Effect.addFinalizer(() => Console.log("The outer scope is about to be closed!"))
+  Effect.gen(function* () {
+    yield* Effect.addFinalizer(() =>
+      Console.log("The outer scope is about to be closed!")
+    )
 
     const outerScope = yield* Effect.scope
 
-    yield* Effect.scoped(Effect.gen(function*() {
-      yield* Effect.addFinalizer(() => Console.log("The inner scope is about to be closed!"))
-      yield* Effect.forkIn(barJob, outerScope)
-      yield* Effect.sleep("3 seconds")
-    }))
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        yield* Effect.addFinalizer(() =>
+          Console.log("The inner scope is about to be closed!")
+        )
+        yield* Effect.forkIn(child, outerScope)
+        yield* Effect.sleep("3 seconds")
+      })
+    )
 
     yield* Effect.sleep("5 seconds")
   })
@@ -227,17 +240,17 @@ Effect.runPromise(program)
 
 The output:
 
-```
-Bar: still running!
-Bar: still running!
-Bar: still running!
+```sh filename="Terminal"
+child: still running!
+child: still running!
+child: still running!
 The inner scope is about to be closed!
-Bar: still running!
-Bar: still running!
-Bar: still running!
-Bar: still running!
-Bar: still running!
-Bar: still running!
+child: still running!
+child: still running!
+child: still running!
+child: still running!
+child: still running!
+child: still running!
 The outer scope is about to be closed!
 ```
 
