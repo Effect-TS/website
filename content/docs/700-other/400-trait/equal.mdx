@@ -53,19 +53,27 @@ Here's an example of implementing the `Equal` interface for a `Person` class:
 import { Equal, Hash } from "effect"
 
 export class Person implements Equal.Equal {
-  constructor(readonly name: string, readonly age: number) {}
+  constructor(
+    readonly id: number,  // Unique identifier for each person
+    readonly name: string,
+    readonly age: number
+  ) {}
 
+  // Defines equality based on id, name, and age
   [Equal.symbol](that: Equal.Equal): boolean {
     if (that instanceof Person) {
       return (
-        Equal.equals(this.name, that.name) && Equal.equals(this.age, that.age)
+        Equal.equals(this.id, that.id) &&
+        Equal.equals(this.name, that.name) &&
+        Equal.equals(this.age, that.age)
       )
     }
     return false
   }
 
+  // Generates a hash code based primarily on the unique id
   [Hash.symbol](): number {
-    return this.name.length + this.age
+    return Hash.hash(this.id)
   }
 }
 ```
@@ -87,12 +95,10 @@ Once you've implemented the `Equal` interface, you can utilize the `Equal.equals
 import { Equal } from "effect"
 import { Person } from "./Person"
 
-const alice = new Person("Alice", 30)
-const bob = new Person("Bob", 40)
+const alice = new Person(1, "Alice", 30)
+console.log(Equal.equals(alice, new Person(1, "Alice", 30))) // Output: true
 
-console.log(Equal.equals(alice, alice)) // Output: true
-console.log(Equal.equals(alice, new Person("Alice", 30))) // Output: true
-
+const bob = new Person(2, "Bob", 40)
 console.log(Equal.equals(alice, bob)) // Output: false
 ```
 
