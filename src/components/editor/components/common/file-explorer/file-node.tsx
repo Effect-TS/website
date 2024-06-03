@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "@/workspaces/context"
 import { Directory, File } from "@/workspaces/domain/workspace"
+import { Action, useExplorerDispatch } from "../file-explorer"
 
 export declare namespace FileNode {
   export type Props = FileProps | DirectoryProps
@@ -23,20 +24,21 @@ export declare namespace FileNode {
 
   export interface CommonProps {
     readonly depth: number
+    readonly path: string
+    readonly className?: string
     readonly onClick?: OnClick
   }
 
   export interface OnClick {
-    (
-      event: React.MouseEvent<HTMLButtonElement>,
-      node: File | Directory
-    ): void
+    (event: React.MouseEvent<HTMLButtonElement>, node: File | Directory): void
   }
 }
 
 export function FileNode({
   depth,
   node,
+  path,
+  className,
   onClick,
   ...props
 }: FileNode.Props) {
@@ -44,12 +46,15 @@ export function FileNode({
   const [selectedFile, setSelectedFile] = useRx(handle.selectedFile)
   const isSelected = Equal.equals(selectedFile, node)
 
-  const handleClick = useCallback<FileNode.OnClick>((event, node) => {
-    if (node._tag === "File") {
-      setSelectedFile(node)
-    }
-    onClick?.(event, node)
-  }, [onClick, setSelectedFile])
+  const handleClick = useCallback<FileNode.OnClick>(
+    (event, node) => {
+      if (node._tag === "File") {
+        setSelectedFile(node)
+      }
+      onClick?.(event, node)
+    },
+    [onClick, setSelectedFile]
+  )
 
   return (
     <FileNodeRoot isSelected={isSelected}>
@@ -61,7 +66,7 @@ export function FileNode({
         <FileNodeIcon {...props} />
         <FileNodeName node={node} />
       </FileNodeTrigger>
-      {props.type === "directory" && <FileNodeControls />}
+      {props.type === "directory" && <FileNodeControls path={path} />}
     </FileNodeRoot>
   )
 }
@@ -136,14 +141,38 @@ function FileNodeName({ node }: { readonly node: File | Directory }) {
   return <span>{fileName}</span>
 }
 
-function FileNodeControls() {
+function FileNodeControls({ path }: { readonly path: string }) {
+  const dispatch = useExplorerDispatch()
+
   return (
     <div className="flex items-center gap-2 mr-2">
-      <Button variant="ghost" className="h-full p-0 rounded-none">
+      <Button
+        variant="ghost"
+        className="h-full p-0 rounded-none"
+        onClick={() =>
+          dispatch(
+            Action.ShowInput({
+              type: "file",
+              path
+            })
+          )
+        }
+      >
         <span className="sr-only">Add File</span>
         <Icon name="file-plus" />
       </Button>
-      <Button variant="ghost" className="h-full p-0 rounded-none">
+      <Button
+        variant="ghost"
+        className="h-full p-0 rounded-none"
+        onClick={() =>
+          dispatch(
+            Action.ShowInput({
+              type: "directory",
+              path
+            })
+          )
+        }
+      >
         <span className="sr-only">Add Directory</span>
         <Icon name="directory-plus" />
       </Button>

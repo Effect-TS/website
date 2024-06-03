@@ -1,31 +1,47 @@
 import React from "react"
+import { Array } from "effect"
 import { Directory, File } from "@/workspaces/domain/workspace"
 import { DirectoryNode } from "./directory-node"
 import { FileNode } from "./file-node"
 
-export declare namespace FileTree {
-  export interface Props {
-    readonly tree: ReadonlyArray<Directory | File>
-    readonly depth?: number
-  }
-}
+const isFile = (node: File | Directory): node is File => node._tag === "File"
 
-export const FileTree: React.FC<FileTree.Props> = ({ tree, depth = 0 }) => {
-  const files = tree.filter((node): node is File => node._tag === "File")
-  const directories = tree.filter(
-    (node): node is Directory => node._tag === "Directory"
-  )
+export function FileTree({
+  tree,
+  depth = 0,
+  path = ""
+}: {
+  readonly tree: ReadonlyArray<File | Directory>
+  readonly depth?: number
+  readonly path?: string
+}) {
+  const [directories, files] = Array.partition(tree, isFile)
 
   return (
     <div className="text-sm">
-      {directories.map((node) => (
-        <DirectoryNode key={node.name} node={node} depth={depth} />
-      ))}
-      {files.map((node) => (
-        <FileNode key={node.name} type="file" node={node} depth={depth} />
-      ))}
+      {directories.map((node) => {
+        const fullPath = `${path}/${node.name}`
+        return (
+          <DirectoryNode
+            key={fullPath}
+            node={node}
+            depth={depth}
+            path={fullPath}
+          />
+        )
+      })}
+      {files.map((node) => {
+        const fullPath = `${path}/${node.name}`
+        return (
+          <FileNode
+            key={fullPath}
+            type="file"
+            node={node}
+            depth={depth}
+            path={fullPath}
+          />
+        )
+      })}
     </div>
   )
 }
-
-FileTree.displayName = "FileTree"

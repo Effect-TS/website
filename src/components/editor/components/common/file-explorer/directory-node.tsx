@@ -1,14 +1,19 @@
 import React, { useCallback, useState } from "react"
-import { Icon } from "@/components/icons"
-import { Input } from "@/components/ui/input"
 import type { Directory } from "@/workspaces/domain/workspace"
+import {
+  FileExplorer,
+  CreationMode,
+  useExplorerState
+} from "../file-explorer"
 import { FileNode } from "./file-node"
 import { FileTree } from "./file-tree"
+import { AddFile } from "./add-file"
 
 export declare namespace DirectoryNode {
   export interface Props {
     readonly node: Directory
     readonly depth: number
+    readonly path: string
   }
 
   export interface OnCreateFile {
@@ -20,39 +25,41 @@ export declare namespace DirectoryNode {
   }
 }
 
-export const DirectoryNode: React.FC<DirectoryNode.Props> = ({
-  depth,
-  node
-}) => {
+export function DirectoryNode({ depth, node, path }: DirectoryNode.Props) {
   const [open, setOpen] = useState(true)
+  const state = useExplorerState()
 
   const handleToggle = useCallback(() => setOpen((prev) => !prev), [])
 
-  const paddingLeft = 16 + depth + 1 * 8
-  const styles = { paddingLeft: `${paddingLeft}px` }
+  function isCreatingFile(mode: FileExplorer.CreationMode) {
+    return CreationMode.$is("CreatingFile")(mode) && mode.path === path
+  }
+
+  function isCreatingDirectory(mode: FileExplorer.CreationMode) {
+    return CreationMode.$is("CreatingDirectory")(mode) && mode.path === path
+  }
 
   return (
-    <>
+    <React.Fragment>
       <FileNode
         type="directory"
         node={node}
         depth={depth}
+        path={path}
         isOpen={open}
         onClick={handleToggle}
       />
       {open && (
         <React.Fragment>
-          <div style={styles} className="flex items-center py-1">
-            <span className="flex items-center h-4 w-4 mr-1">
-              <Icon name="file" />
-            </span>
-            <Input className="h-6 p-0 mr-1 rounded-none" />
-          </div>
-          <FileTree tree={node.children} depth={depth + 1} />
+          {isCreatingDirectory(state.creationMode) && (
+            <AddFile type="directory" depth={depth} path={path} />
+          )}
+          <FileTree tree={node.children} depth={depth + 1} path={path} />
+          {isCreatingFile(state.creationMode) && (
+            <AddFile type="file" depth={depth} path={path} />
+          )}
         </React.Fragment>
       )}
-    </>
+    </React.Fragment>
   )
 }
-
-DirectoryNode.displayName = "DirectoryNode"
