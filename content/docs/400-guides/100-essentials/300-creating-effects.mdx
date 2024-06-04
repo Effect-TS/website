@@ -34,7 +34,7 @@ import { Effect } from "effect"
 const success = Effect.succeed(42)
 ```
 
-In this example, `success` is an instance of `Effect<number>`. This means it's an effect that:
+In this example, `success` is an instance of `Effect<number, never, never>`. This means it's an effect that:
 
 - Always succeeds, yielding a value of type `number`.
 - Does not generate any errors (`never` indicates that no errors are expected).
@@ -54,7 +54,7 @@ const failure = Effect.fail(new Error("Operation failed due to network error"))
 The type of `failure` is `Effect<never, Error, never>`, which means
 
 - It never produces a successful value (`never`).
-- t fails with an error, specifically an `Error`.
+- It fails with an error, specifically an `Error`.
 - It does not depend on any external context to execute (`never`).
 
 You're not limited to using only `Error` objects with `Effect.fail`. You can also use strings, numbers, or more complex objects depending on what fits best with your error handling strategy:
