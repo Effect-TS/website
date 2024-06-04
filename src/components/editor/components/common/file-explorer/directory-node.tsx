@@ -52,11 +52,11 @@ export function DirectoryNode({ depth, node, path }: DirectoryNode.Props) {
       {open && (
         <React.Fragment>
           {isCreatingDirectory(state.creationMode) && (
-            <AddFile type="directory" depth={depth} path={path} />
+            <AddFile type="directory" depth={depth + 1} path={path} />
           )}
           <FileTree tree={node.children} depth={depth + 1} path={path} />
           {isCreatingFile(state.creationMode) && (
-            <AddFile type="file" depth={depth} path={path} />
+            <AddFile type="file" depth={depth + 1} path={path} />
           )}
         </React.Fragment>
       )}

@@ -113,6 +113,8 @@ const make = Effect.gen(function* () {
         Effect.promise(() => container.fs.readFile(path(file))).pipe(
           Effect.map((_) => new TextDecoder().decode(_))
         )
+      const makeDirectory = (directory: string) =>
+        Effect.promise(() => container.fs.mkdir(path(directory)))
 
       const watchFile = (file: string) => {
         const changes = Stream.async<void>((emit) => {
@@ -129,6 +131,7 @@ const make = Effect.gen(function* () {
         write: writeFile,
         read: readFile,
         watch: watchFile,
+        mkdir: makeDirectory,
         run,
         shell
       })
@@ -189,6 +192,7 @@ export interface WorkspaceHandle {
   readonly workspace: Workspace
   readonly write: (file: string, data: string) => Effect.Effect<void>
   readonly read: (file: string) => Effect.Effect<string>
+  readonly mkdir: (directory: string) => Effect.Effect<void>
   readonly watch: (file: string) => Stream.Stream<string>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
   readonly run: (command: string) => Effect.Effect<number>

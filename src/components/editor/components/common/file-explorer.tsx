@@ -1,7 +1,18 @@
-import React, { createContext, useContext, useReducer } from "react"
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer
+} from "react"
 import { Data } from "effect"
-import { useWorkspaceTree } from "@/workspaces/context"
+import {
+  useWorkspaceHandle,
+  useWorkspaceRef,
+  useWorkspaceTree
+} from "@/workspaces/context"
 import { FileTree } from "./file-explorer/file-tree"
+import { makeDirectory, Workspace } from "@/workspaces/domain/workspace"
+import { RxRef } from "@effect-rx/rx-react"
 
 export declare namespace FileExplorer {
   export type Reducer = React.Reducer<State, Action>
@@ -13,20 +24,14 @@ export declare namespace FileExplorer {
   export type Dispatch = React.Dispatch<Action>
 
   export type Action = Data.TaggedEnum<{
-    readonly CreateFile: {
-      readonly fileName: string
-      readonly path: string
-    }
-    readonly CreateDirectory: {
-      readonly fileName: string
-      readonly path: string
-    }
     readonly ShowInput: {
-      readonly type: "file" | "directory"
+      readonly type: InputType
       readonly path: string
     }
     readonly HideInput: {}
   }>
+
+  export type InputType = "file" | "directory"
 
   export type CreationMode = Data.TaggedEnum<{
     Idle: {}
@@ -51,23 +56,6 @@ function reducer(
   action: FileExplorer.Action
 ): FileExplorer.State {
   switch (action._tag) {
-    case "CreateFile": {
-      console.log("CREATING FILE AT ", action.path + "/" + action.fileName)
-      return {
-        ...state,
-        creationMode: CreationMode.Idle()
-      }
-    }
-    case "CreateDirectory": {
-      console.log(
-        "CREATING DIRECTORY AT ",
-        action.path + "/" + action.fileName
-      )
-      return {
-        ...state,
-        creationMode: CreationMode.Idle()
-      }
-    }
     case "ShowInput": {
       const creationMode =
         action.type === "file"

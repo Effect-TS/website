@@ -1,9 +1,5 @@
-import * as Brand from "effect/Brand"
-import * as Hash from "effect/Hash"
-import * as Iterable from "effect/Iterable"
-import * as Option from "effect/Option"
+import { Brand, Effect, Hash, Iterable, Option } from "effect"
 import * as Schema from "@effect/schema/Schema"
-import { Effect } from "effect"
 
 export type FullPath = Brand.Branded<string, "FullPath">
 export const FullPath = Brand.nominal<FullPath>()
@@ -142,6 +138,60 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       tree: [...this.tree, ...children]
     })
   }
+  mkdir(path: string) {
+    function walk(
+      prefix: ReadonlyArray<string>,
+      tree: ReadonlyArray<File | Directory>
+    ) {
+      // Create the directory if there are no more path components to process
+      if (prefix.length === 1) {
+        const directory = makeDirectory(prefix[0], [])
+        return [directory, ...tree]
+      }
+      // Walk the file tree if there are still path components to process
+      const out: Array<File | Directory> = []
+      for (const node of tree) {
+        if (node._tag === "Directory" && node.name === prefix[0]) {
+          const children = walk(prefix.slice(1), node.children)
+          out.push(makeDirectory(node.name, children))
+        } else {
+          out.push(node)
+        }
+      }
+      return out
+    }
+    return new Workspace({
+      ...this,
+      tree: walk(path.replace(/^\//, "").split("/"), this.tree)
+    })
+  }
+  createFile(path: string) {
+    function walk(
+      prefix: ReadonlyArray<string>,
+      tree: ReadonlyArray<File | Directory>
+    ) {
+      // Create the file if there are no more path components to process
+      if (prefix.length === 1) {
+        const file = new File({ name: prefix[0], initialContent: "" })
+        return [file, ...tree]
+      }
+      // Walk the file tree if there are still path components to process
+      const out: Array<File | Directory> = []
+      for (const node of tree) {
+        if (node._tag === "Directory" && node.name === prefix[0]) {
+          const children = walk(prefix.slice(1), node.children)
+          out.push(makeDirectory(node.name, children))
+        } else {
+          out.push(node)
+        }
+      }
+      return out
+    }
+    return new Workspace({
+      ...this,
+      tree: walk(path.replace(/^\//, "").split("/"), this.tree)
+    })
+  }
   findFile(name: string) {
     return Iterable.findFirst(this.filePaths, ([_, path]) => path === name)
   }
@@ -171,10 +221,10 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     f: (item: File, path: string) => Effect.Effect<File, E, R>
   ) {
     const walk = (
-      tree: ReadonlyArray<Directory | File>
+      tree: ReadonlyArray<File | Directory>
     ): Effect.Effect<ReadonlyArray<Directory | File>, E, R> =>
       Effect.gen(this, function* () {
-        const out: Array<Directory | File> = []
+        const out: Array<File | Directory> = []
         for (const node of tree) {
           if (node._tag === "File") {
             out.push(yield* f(node, this.filePaths.get(node)!))

@@ -10,7 +10,9 @@ export const useWorkspaceHandle = () => {
   return React.useContext(WorkspaceContext)
 }
 
-export const useWorkspace = () => useRxRef(useWorkspaceHandle().workspace)
+export const useWorkspaceRef = () => useWorkspaceHandle().workspace
+
+export const useWorkspace = () => useRxRef(useWorkspaceRef())
 
 export const useWorkspaceShellsRef = () =>
   useRxRefProp(useWorkspaceHandle().workspace, "shells")

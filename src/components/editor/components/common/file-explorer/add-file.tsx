@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
+import { Effect } from "effect"
 import { Icon } from "@/components/icons"
 import { Input } from "@/components/ui/input"
 import { useClickOutside } from "@/hooks/useClickOutside"
+import { cn } from "@/lib/utils"
+import { useWorkspaceHandle, useWorkspaceRef } from "@/workspaces/context"
 import {
   Action,
+  FileExplorer,
   useExplorerDispatch,
 } from "../file-explorer"
-import { cn } from "@/lib/utils"
 
 export function AddFile({
   depth,
@@ -15,13 +18,15 @@ export function AddFile({
 }: {
   readonly depth: number
   readonly path: string
-  readonly type: "file" | "directory"
+  readonly type: FileExplorer.InputType
 }) {
+  const workspace = useWorkspaceRef()
+  const handle = useWorkspaceHandle()
   const dispatch = useExplorerDispatch()
   const inputRef = useRef<HTMLInputElement>(null)
   const [fileName, setFileName] = useState("")
 
-  const paddingLeft = 16 + depth + 1 * 8
+  const paddingLeft = 16 + depth * 8
   const styles = { paddingLeft: `${paddingLeft}px` }
 
   const handleChange = useCallback<
@@ -31,14 +36,19 @@ export function AddFile({
   const handleSubmit = useCallback<React.FormEventHandler<HTMLFormElement>>(
     (event) => {
       event.preventDefault()
-      if (type === "file") {
-        dispatch(Action.CreateFile({ fileName, path }))
-      } else {
-        dispatch(Action.CreateDirectory({ fileName, path }))
-      }
       setFileName("")
+      dispatch(Action.HideInput())
+
+      const fullPath = `${path}/${fileName}`
+      if (type === "file") {
+        workspace.update((workspace) => workspace.createFile(fullPath))
+        Effect.runPromise(handle.handle.write(fullPath, ""))
+      } else {
+        workspace.update((workspace) => workspace.mkdir(fullPath))
+        Effect.runPromise(handle.handle.mkdir(fullPath))
+      }
     },
-    [dispatch, fileName, setFileName, path, type]
+    [dispatch, fileName, handle, path, setFileName, type, workspace]
   )
 
   // Close the input when the user clicks outside
