@@ -1,18 +1,21 @@
 import * as Http from "@effect/platform/HttpClient"
 import {
+  Data,
+  Effect,
+  GlobalValue,
+  Layer,
+  Scope,
+  Stream,
+  SubscriptionRef,
+  identity,
+  pipe
+} from "effect"
+import {
   FileSystemTree,
   WebContainer as WC,
   WebContainerProcess
 } from "@webcontainer/api"
-import * as Data from "effect/Data"
-import * as Effect from "effect/Effect"
-import { identity, pipe } from "effect/Function"
-import * as GlobalValue from "effect/GlobalValue"
-import * as Layer from "effect/Layer"
-import * as Scope from "effect/Scope"
-import { FileTree, Workspace } from "../domain/workspace"
-import * as Stream from "effect/Stream"
-import { SubscriptionRef } from "effect"
+import { Directory, File, FileTree, Workspace } from "../domain/workspace"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
@@ -43,32 +46,46 @@ const make = Effect.gen(function* () {
       const path = (_: string) => `${workspace.name}/${_}`
 
       function mount(workspace: Workspace) {
-        function walk(prefix: ReadonlyArray<string>, tree: FileTree): Effect.Effect<void> {
-          return Effect.forEach(tree, (node) => {
-            const fullPath = `${prefix.join("/")}/${node.name}`
-            if (node._tag === "Directory") {
+        function walk(
+          prefix: ReadonlyArray<string>,
+          tree: FileTree
+        ): Effect.Effect<void> {
+          return Effect.forEach(
+            tree,
+            (node) => {
+              const fullPath = `${prefix.join("/")}/${node.name}`
+              if (node._tag === "Directory") {
+                return Effect.tryPromise(() =>
+                  container.fs.mkdir(fullPath)
+                ).pipe(
+                  Effect.ignoreLogged,
+                  Effect.flatMap(() =>
+                    walk([...prefix, node.name], node.children)
+                  )
+                )
+              }
               return Effect.tryPromise(() =>
-                container.fs.mkdir(fullPath)
+                container.fs.readFile(fullPath)
               ).pipe(
-                Effect.ignoreLogged,
-                Effect.flatMap(() =>
-                  walk([...prefix, node.name], node.children)
-                )
+                Effect.catchAll(() =>
+                  Effect.tryPromise(() =>
+                    container.fs.writeFile(fullPath, node.initialContent)
+                  )
+                ),
+                Effect.ignoreLogged
               )
-            }
-            return Effect.tryPromise(() =>
-              container.fs.readFile(fullPath)
-            ).pipe(
-              Effect.catchAll(() =>
-                Effect.tryPromise(() =>
-                  container.fs.writeFile(fullPath, node.initialContent)
-                )
-              ),
-              Effect.ignoreLogged
-            )
-          }, { discard: true })
+            },
+            { discard: true }
+          )
         }
-        return walk([workspace.name], workspace.tree)
+        // Clear all files under src to ensure we only re-mount files that
+        // exist in the current workspace tree
+        return Effect.promise(() =>
+          container.fs.rm(`${workspace.name}/src`, {
+            recursive: true,
+            force: true
+          })
+        ).pipe(Effect.zipRight(walk([workspace.name], workspace.tree)))
       }
 
       yield* Effect.acquireRelease(
