@@ -10,8 +10,9 @@ import { identity, pipe } from "effect/Function"
 import * as GlobalValue from "effect/GlobalValue"
 import * as Layer from "effect/Layer"
 import * as Scope from "effect/Scope"
-import { Workspace } from "../domain/workspace"
+import { FileTree, Workspace } from "../domain/workspace"
 import * as Stream from "effect/Stream"
+import { SubscriptionRef } from "effect"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
@@ -37,7 +38,38 @@ const make = Effect.gen(function* () {
 
   const workspace = (workspace: Workspace) =>
     Effect.gen(function* () {
+      const workspaceRef = yield* SubscriptionRef.make(workspace)
+
       const path = (_: string) => `${workspace.name}/${_}`
+
+      function mount(workspace: Workspace) {
+        function walk(prefix: ReadonlyArray<string>, tree: FileTree): Effect.Effect<void> {
+          return Effect.forEach(tree, (node) => {
+            const fullPath = `${prefix.join("/")}/${node.name}`
+            if (node._tag === "Directory") {
+              return Effect.tryPromise(() =>
+                container.fs.mkdir(fullPath)
+              ).pipe(
+                Effect.ignoreLogged,
+                Effect.flatMap(() =>
+                  walk([...prefix, node.name], node.children)
+                )
+              )
+            }
+            return Effect.tryPromise(() =>
+              container.fs.readFile(fullPath)
+            ).pipe(
+              Effect.catchAll(() =>
+                Effect.tryPromise(() =>
+                  container.fs.writeFile(fullPath, node.initialContent)
+                )
+              ),
+              Effect.ignoreLogged
+            )
+          }, { discard: true })
+        }
+        return walk([workspace.name], workspace.tree)
+      }
 
       yield* Effect.acquireRelease(
         Effect.promise(async () => {
@@ -76,6 +108,14 @@ const make = Effect.gen(function* () {
         container.mount(treeFromWorkspace(workspace), {
           mountPoint: workspace.name
         })
+      )
+
+      yield* workspaceRef.changes.pipe(
+        Stream.drop(1),
+        Stream.flatMap(mount, { switch: true }),
+        Stream.runDrain,
+        Effect.forkScoped,
+        Effect.interruptible
       )
 
       const shell = Effect.acquireRelease(
@@ -127,7 +167,7 @@ const make = Effect.gen(function* () {
       }
 
       const handle = identity<WorkspaceHandle>({
-        workspace,
+        workspace: workspaceRef,
         write: writeFile,
         read: readFile,
         watch: watchFile,
@@ -189,7 +229,7 @@ export class WebContainerError extends Data.TaggedError("WebContainerError")<{
 }> {}
 
 export interface WorkspaceHandle {
-  readonly workspace: Workspace
+  readonly workspace: SubscriptionRef.SubscriptionRef<Workspace>
   readonly write: (file: string, data: string) => Effect.Effect<void>
   readonly read: (file: string) => Effect.Effect<string>
   readonly mkdir: (directory: string) => Effect.Effect<void>

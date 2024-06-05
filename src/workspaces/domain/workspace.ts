@@ -10,7 +10,8 @@ export class File extends Schema.TaggedClass<File>()("File", {
   solution: Schema.optional(Schema.String),
   language: Schema.String.pipe(
     Schema.optional({ default: () => "typescript" })
-  )
+  ),
+  userManaged: Schema.Boolean.pipe(Schema.optional({ default: () => false }))
 }) {
   withContent(content: string) {
     return new File({
@@ -23,17 +24,25 @@ export class File extends Schema.TaggedClass<File>()("File", {
 export interface Directory {
   readonly _tag: "Directory"
   readonly name: string
+  readonly userManaged: boolean
   readonly children: ReadonlyArray<Directory | File>
 }
 const Directory_: Schema.Struct<{
   _tag: Schema.tag<"Directory">
   name: typeof Schema.String
+  userManaged: Schema.optionalWithOptions<
+    typeof Schema.Boolean,
+    {
+      default: () => false
+    }
+  >
   children: Schema.Array$<
     Schema.Union<[typeof File, Schema.Schema<Directory>]>
   >
 }> = Schema.Struct({
   _tag: Schema.tag("Directory"),
   name: Schema.String,
+  userManaged: Schema.Boolean.pipe(Schema.optional({ default: () => false })),
   children: Schema.Array(
     Schema.Union(
       File,
@@ -47,10 +56,12 @@ export const Directory: Schema.Schema<
 > = Directory_
 export const makeDirectory = (
   name: string,
-  children: ReadonlyArray<File | Directory>
-): Directory => Directory_.make({ name, children })
+  children: ReadonlyArray<File | Directory>,
+  userManaged: boolean = false
+): Directory => Directory_.make({ name, userManaged, children })
 
 export const FileTree = Schema.Array(Schema.Union(File, Directory))
+export type FileTree = typeof FileTree.Type
 
 export class WorkspaceShell extends Schema.Class<WorkspaceShell>(
   "WorkspaceShell"
@@ -138,14 +149,14 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       tree: [...this.tree, ...children]
     })
   }
+  setTree(tree: FileTree) {
+    return new Workspace({ ...this, tree })
+  }
   mkdir(path: string) {
-    function walk(
-      prefix: ReadonlyArray<string>,
-      tree: ReadonlyArray<File | Directory>
-    ) {
+    function walk(prefix: ReadonlyArray<string>, tree: FileTree) {
       // Create the directory if there are no more path components to process
       if (prefix.length === 1) {
-        const directory = makeDirectory(prefix[0], [])
+        const directory = makeDirectory(prefix[0], [], true)
         return [directory, ...tree]
       }
       // Walk the file tree if there are still path components to process
@@ -153,7 +164,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       for (const node of tree) {
         if (node._tag === "Directory" && node.name === prefix[0]) {
           const children = walk(prefix.slice(1), node.children)
-          out.push(makeDirectory(node.name, children))
+          out.push(makeDirectory(node.name, children, node.userManaged))
         } else {
           out.push(node)
         }
@@ -166,13 +177,14 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     })
   }
   createFile(path: string) {
-    function walk(
-      prefix: ReadonlyArray<string>,
-      tree: ReadonlyArray<File | Directory>
-    ) {
+    function walk(prefix: ReadonlyArray<string>, tree: FileTree) {
       // Create the file if there are no more path components to process
       if (prefix.length === 1) {
-        const file = new File({ name: prefix[0], initialContent: "" })
+        const file = new File({
+          name: prefix[0],
+          initialContent: "",
+          userManaged: true
+        })
         return [file, ...tree]
       }
       // Walk the file tree if there are still path components to process
@@ -180,7 +192,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       for (const node of tree) {
         if (node._tag === "Directory" && node.name === prefix[0]) {
           const children = walk(prefix.slice(1), node.children)
-          out.push(makeDirectory(node.name, children))
+          out.push(makeDirectory(node.name, children, node.userManaged))
         } else {
           out.push(node)
         }

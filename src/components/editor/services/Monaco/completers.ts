@@ -34,7 +34,8 @@ export const make = Effect.gen(function* () {
   // the editor to provide import completions when doing `import X from "|"`
   yield* registerPlugin((handle) =>
     Effect.gen(function* () {
-      const packageJson = handle.workspace.findFile("package.json")
+      const workspace = yield* handle.workspace.get
+      const packageJson = workspace.findFile("package.json")
       if (Option.isNone(packageJson)) {
         return
       }

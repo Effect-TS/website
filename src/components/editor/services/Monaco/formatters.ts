@@ -114,7 +114,8 @@ const make = Effect.gen(function* () {
 
   yield* registerPlugin((handle) =>
     Effect.gen(function* () {
-      const config = handle.workspace.findFile("dprint.json")
+      const workspace = yield* handle.workspace.get
+      const config = workspace.findFile("dprint.json")
       if (Option.isNone(config)) {
         return
       }

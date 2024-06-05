@@ -1,18 +1,8 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useReducer
-} from "react"
+import React, { createContext, useContext, useEffect, useMemo, useReducer } from "react"
 import { Data } from "effect"
-import {
-  useWorkspaceHandle,
-  useWorkspaceRef,
-  useWorkspaceTree
-} from "@/workspaces/context"
-import { FileTree } from "./file-explorer/file-tree"
-import { makeDirectory, Workspace } from "@/workspaces/domain/workspace"
 import { RxRef } from "@effect-rx/rx-react"
+import { useWorkspace, useWorkspaceTree } from "@/workspaces/context"
+import { FileTree } from "./file-explorer/file-tree"
 
 export declare namespace FileExplorer {
   export type Reducer = React.Reducer<State, Action>
@@ -77,14 +67,20 @@ const initialState: FileExplorer.State = {
 }
 
 export function FileExplorer() {
+  const workspace = useWorkspace()
   const tree = useWorkspaceTree()
+  const ref = useMemo(() => RxRef.make(tree), [tree])
   const [state, dispatch] = useReducer(reducer, initialState)
+
+  useEffect(() => {
+    ref.subscribe((tree) => workspace.setTree(tree))
+  }, [ref, workspace])
 
   return (
     <StateContext.Provider value={state}>
       <DispatchContext.Provider value={dispatch}>
         <aside className="min-h-full w-full overflow-auto">
-          <FileTree tree={tree} />
+          <FileTree tree={ref} />
         </aside>
       </DispatchContext.Provider>
     </StateContext.Provider>

@@ -23,9 +23,9 @@ export const shareRx = Rx.family((handle: WorkspaceHandle) =>
   runtime.fn((_: void, get) =>
     Effect.gen(function* () {
       const compression = yield* WorkspaceCompression
-      const workspace = handle.workspace.value
+      const workspace = get.once(handle.workspace)
       const editor = yield* Result.toExit(
-        get.once(editorRx(workspace).editor)
+        get.once(editorRx(handle).editor)
       )
 
       yield* editor.save

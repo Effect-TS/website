@@ -1,27 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
-import { Effect } from "effect"
 import { Icon } from "@/components/icons"
 import { Input } from "@/components/ui/input"
 import { useClickOutside } from "@/hooks/useClickOutside"
 import { cn } from "@/lib/utils"
-import { useWorkspaceHandle, useWorkspaceRef } from "@/workspaces/context"
-import {
-  Action,
-  FileExplorer,
-  useExplorerDispatch,
-} from "../file-explorer"
+import { Action, FileExplorer, useExplorerDispatch } from "../file-explorer"
 
 export function AddFile({
   depth,
-  path,
-  type
+  type,
+  onSubmit
 }: {
   readonly depth: number
-  readonly path: string
   readonly type: FileExplorer.InputType
+  readonly onSubmit: (path: string) => void
 }) {
-  const workspace = useWorkspaceRef()
-  const handle = useWorkspaceHandle()
   const dispatch = useExplorerDispatch()
   const inputRef = useRef<HTMLInputElement>(null)
   const [fileName, setFileName] = useState("")
@@ -38,17 +30,10 @@ export function AddFile({
       event.preventDefault()
       setFileName("")
       dispatch(Action.HideInput())
-
-      const fullPath = `${path}/${fileName}`
-      if (type === "file") {
-        workspace.update((workspace) => workspace.createFile(fullPath))
-        Effect.runPromise(handle.handle.write(fullPath, ""))
-      } else {
-        workspace.update((workspace) => workspace.mkdir(fullPath))
-        Effect.runPromise(handle.handle.mkdir(fullPath))
-      }
+      // onSubmit(`${path}/${fileName}`)
+      onSubmit(fileName)
     },
-    [dispatch, fileName, handle, path, setFileName, type, workspace]
+    [dispatch, fileName, onSubmit, setFileName]
   )
 
   // Close the input when the user clicks outside

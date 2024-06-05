@@ -1,5 +1,10 @@
 import React, { useCallback, useState } from "react"
-import type { Directory } from "@/workspaces/domain/workspace"
+import { RxRef } from "@effect-rx/rx-react"
+import {
+  File,
+  makeDirectory,
+  type Directory
+} from "@/workspaces/domain/workspace"
 import {
   FileExplorer,
   CreationMode,
@@ -11,7 +16,7 @@ import { AddFile } from "./add-file"
 
 export declare namespace DirectoryNode {
   export interface Props {
-    readonly node: Directory
+    readonly node: RxRef.RxRef<Directory>
     readonly depth: number
     readonly path: string
   }
@@ -43,7 +48,7 @@ export function DirectoryNode({ depth, node, path }: DirectoryNode.Props) {
     <React.Fragment>
       <FileNode
         type="directory"
-        node={node}
+        node={node.value}
         depth={depth}
         path={path}
         isOpen={open}
@@ -52,11 +57,45 @@ export function DirectoryNode({ depth, node, path }: DirectoryNode.Props) {
       {open && (
         <React.Fragment>
           {isCreatingDirectory(state.creationMode) && (
-            <AddFile type="directory" depth={depth + 1} path={path} />
+            <AddFile
+              type="directory"
+              depth={depth + 1}
+              onSubmit={(name) =>
+                node.update((node) => {
+                  const newDirectory = makeDirectory(name, [], true)
+                  return makeDirectory(
+                    node.name,
+                    [...node.children, newDirectory],
+                    node.userManaged
+                  )
+                })
+              }
+            />
           )}
-          <FileTree tree={node.children} depth={depth + 1} path={path} />
+          <FileTree
+            tree={node.prop("children")}
+            depth={depth + 1}
+            path={path}
+          />
           {isCreatingFile(state.creationMode) && (
-            <AddFile type="file" depth={depth + 1} path={path} />
+            <AddFile
+              type="file"
+              depth={depth + 1}
+              onSubmit={(name) =>
+                node.update((node) => {
+                  const newFile = new File({
+                    name,
+                    initialContent: "",
+                    userManaged: true
+                  })
+                  return makeDirectory(
+                    node.name,
+                    [...node.children, newFile],
+                    node.userManaged
+                  )
+                })
+              }
+            />
           )}
         </React.Fragment>
       )}

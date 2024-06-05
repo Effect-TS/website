@@ -109,7 +109,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         )
 
         return {
-          workspace: RxRef.make(workspace),
+          workspace: Rx.subscriptionRef(handle.workspace),
           handle,
           terminal,
           terminalSize,

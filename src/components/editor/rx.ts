@@ -7,7 +7,7 @@ import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
 import { File, FullPath, Workspace } from "@/workspaces/domain/workspace"
 import { MonacoATA } from "./services/Monaco/ata"
-import { workspaceHandleRx } from "@/workspaces/rx"
+import { WorkspaceHandle, workspaceHandleRx } from "@/workspaces/rx"
 import { MonacoFormattersLive } from "./services/Monaco/formatters"
 import { MonacoCompletersLive } from "./services/Monaco/completers"
 import { MonacoTSConfigLive } from "./services/Monaco/tsconfig"
@@ -27,13 +27,10 @@ export const editorThemeRx = Rx.map(themeRx, (theme) =>
   theme === "dark" ? "vs-dark" : "vs"
 )
 
-export const editorRx = Rx.family((workspace: Workspace) => {
+export const editorRx = Rx.family(({ handle, solved, selectedFile, workspace }: WorkspaceHandle) => {
   const element = Rx.make(Option.none<HTMLElement>())
   const editor = runtime.rx((get) =>
     Effect.gen(function* (_) {
-      const { handle, solved, selectedFile } = yield* get.result(
-        workspaceHandleRx(workspace)
-      )
       const el = yield* get.some(element)
       const monaco = yield* MonacoATA
       yield* Effect.acquireRelease(Effect.log("building"), () =>
@@ -41,7 +38,7 @@ export const editorRx = Rx.family((workspace: Workspace) => {
       )
       const editor = yield* monaco.makeEditorWithATA(el)
 
-      yield* editor.preload(workspace)
+      yield* editor.preload(get.once(workspace))
 
       get.subscribe(
         editorThemeRx,
@@ -58,7 +55,7 @@ export const editorRx = Rx.family((workspace: Workspace) => {
           yield* handle.write(path, content)
         })
 
-      const save = Effect.suspend(() => {
+      const save = Effect.flatMap(handle.workspace.get, (workspace) => {
         const file = get.once(selectedFile)
         const path = workspace.pathTo(file)
         if (path._tag === "None") return Effect.void
@@ -98,8 +95,11 @@ export const editorRx = Rx.family((workspace: Workspace) => {
 
       yield* get.stream(selectedFile).pipe(
         Stream.bindTo("file"),
-        Stream.bindEffect("path", ({ file }) => workspace.pathTo(file)),
-        Stream.bindEffect("fullPath", ({ file }) =>
+        Stream.bindEffect("workspace", () => handle.workspace.get),
+        Stream.bindEffect("path", ({ file, workspace }) =>
+          workspace.pathTo(file)
+        ),
+        Stream.bindEffect("fullPath", ({ file, workspace }) =>
           workspace.fullPathTo(file)
         ),
         Stream.flatMap(

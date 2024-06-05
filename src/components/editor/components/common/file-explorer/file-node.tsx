@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "@/workspaces/context"
 import { Directory, File } from "@/workspaces/domain/workspace"
-import { Action, useExplorerDispatch } from "../file-explorer"
+import { Action, FileExplorer, useExplorerDispatch } from "../file-explorer"
 
 export declare namespace FileNode {
   export type Props = FileProps | DirectoryProps
@@ -66,7 +66,11 @@ export function FileNode({
         <FileNodeIcon {...props} />
         <FileNodeName node={node} />
       </FileNodeTrigger>
-      {props.type === "directory" && <FileNodeControls path={path} />}
+      <FileNodeControls
+        isUserManaged={node.userManaged}
+        path={path}
+        type={props.type}
+      />
     </FileNodeRoot>
   )
 }
@@ -141,41 +145,59 @@ function FileNodeName({ node }: { readonly node: File | Directory }) {
   return <span>{fileName}</span>
 }
 
-function FileNodeControls({ path }: { readonly path: string }) {
+function FileNodeControls({
+  isUserManaged,
+  path,
+  type
+}: {
+  readonly isUserManaged: boolean
+  readonly path: string
+  readonly type: FileExplorer.InputType
+}) {
   const dispatch = useExplorerDispatch()
 
   return (
     <div className="flex items-center gap-2 mr-2">
-      <Button
-        variant="ghost"
-        className="h-full p-0 rounded-none"
-        onClick={() =>
-          dispatch(
-            Action.ShowInput({
-              type: "file",
-              path
-            })
-          )
-        }
-      >
-        <span className="sr-only">Add File</span>
-        <Icon name="file-plus" />
-      </Button>
-      <Button
-        variant="ghost"
-        className="h-full p-0 rounded-none"
-        onClick={() =>
-          dispatch(
-            Action.ShowInput({
-              type: "directory",
-              path
-            })
-          )
-        }
-      >
-        <span className="sr-only">Add Directory</span>
-        <Icon name="directory-plus" />
-      </Button>
+      {type === "directory" && (
+        <>
+          <Button
+            variant="ghost"
+            className="h-full p-0 rounded-none"
+            onClick={() =>
+              dispatch(
+                Action.ShowInput({
+                  type: "file",
+                  path
+                })
+              )
+            }
+          >
+            <span className="sr-only">Add File</span>
+            <Icon name="file-plus" />
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-full p-0 rounded-none"
+            onClick={() =>
+              dispatch(
+                Action.ShowInput({
+                  type: "directory",
+                  path
+                })
+              )
+            }
+          >
+            <span className="sr-only">Add Directory</span>
+            <Icon name="directory-plus" />
+          </Button>
+        </>
+      )}
+      {isUserManaged && (
+        <Button variant="ghost" className="h-full p-0 rounded-none">
+          <span className="sr-only">Delete</span>
+          <Icon name="close" className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   )
 }
