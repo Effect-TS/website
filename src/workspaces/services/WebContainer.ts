@@ -78,14 +78,7 @@ const make = Effect.gen(function* () {
             { discard: true }
           )
         }
-        // Clear all files under src to ensure we only re-mount files that
-        // exist in the current workspace tree
-        return Effect.promise(() =>
-          container.fs.rm(`${workspace.name}/src`, {
-            recursive: true,
-            force: true
-          })
-        ).pipe(Effect.zipRight(walk([workspace.name], workspace.tree)))
+        return walk([workspace.name], workspace.tree)
       }
 
       yield* Effect.acquireRelease(
