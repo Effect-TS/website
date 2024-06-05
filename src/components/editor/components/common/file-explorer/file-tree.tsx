@@ -9,8 +9,6 @@ import { DirectoryNode } from "./directory-node"
 import { FileNode } from "./file-node"
 import { RxRef, useRxRef } from "@effect-rx/rx-react"
 
-const isFile = (node: File | Directory): node is File => node._tag === "File"
-
 export function FileTree({
   tree,
   depth = 0,
@@ -39,6 +37,9 @@ export function FileTree({
             node={node}
             depth={depth}
             path={fullPath}
+            onRemove={() => {
+              tree.update((tree) => tree.filter((_) => _ !== node.value))
+            }}
           />
         )
       })}
@@ -48,9 +49,12 @@ export function FileTree({
           <FileNode
             key={fullPath}
             type="file"
-            node={node.value}
+            node={node}
             depth={depth}
             path={fullPath}
+            onRemove={() => {
+              tree.update((tree) => tree.filter((_) => _ !== node.value))
+            }}
           />
         )
       })}

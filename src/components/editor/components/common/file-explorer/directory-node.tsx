@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react"
-import { RxRef } from "@effect-rx/rx-react"
+import { RxRef, useRxRefProp } from "@effect-rx/rx-react"
 import {
   File,
   makeDirectory,
@@ -19,6 +19,7 @@ export declare namespace DirectoryNode {
     readonly node: RxRef.RxRef<Directory>
     readonly depth: number
     readonly path: string
+    readonly onRemove: () => void
   }
 
   export interface OnCreateFile {
@@ -30,9 +31,15 @@ export declare namespace DirectoryNode {
   }
 }
 
-export function DirectoryNode({ depth, node, path }: DirectoryNode.Props) {
+export function DirectoryNode({
+  depth,
+  node,
+  path,
+  onRemove
+}: DirectoryNode.Props) {
   const [open, setOpen] = useState(true)
   const state = useExplorerState()
+  const children = useRxRefProp(node, "children")
 
   const handleToggle = useCallback(() => setOpen((prev) => !prev), [])
 
@@ -45,17 +52,18 @@ export function DirectoryNode({ depth, node, path }: DirectoryNode.Props) {
   }
 
   return (
-    <React.Fragment>
+    <>
       <FileNode
         type="directory"
-        node={node.value}
+        node={node}
         depth={depth}
         path={path}
         isOpen={open}
         onClick={handleToggle}
+        onRemove={onRemove}
       />
       {open && (
-        <React.Fragment>
+        <>
           {isCreatingDirectory(state.creationMode) && (
             <AddFile
               type="directory"
@@ -72,11 +80,7 @@ export function DirectoryNode({ depth, node, path }: DirectoryNode.Props) {
               }
             />
           )}
-          <FileTree
-            tree={node.prop("children")}
-            depth={depth + 1}
-            path={path}
-          />
+          <FileTree tree={children} depth={depth + 1} path={path} />
           {isCreatingFile(state.creationMode) && (
             <AddFile
               type="file"
@@ -97,8 +101,8 @@ export function DirectoryNode({ depth, node, path }: DirectoryNode.Props) {
               }
             />
           )}
-        </React.Fragment>
+        </>
       )}
-    </React.Fragment>
+    </>
   )
 }

@@ -14,8 +14,8 @@ const make = Effect.gen(function* () {
   const compress = <E, R>(
     workspace: Workspace,
     read: (file: string) => Effect.Effect<string, E, R>
-  ) => {
-    return pipe(
+  ) =>
+    pipe(
       workspace
         .withPrepare("npm install")
         .withNoSnapshot.updateFiles((file, path) =>
@@ -24,7 +24,6 @@ const make = Effect.gen(function* () {
       Effect.andThen(encodeWorkspace),
       Effect.andThen(compression.compressBase64)
     )
-  }
 
   const decompress = (compressed: string) =>
     pipe(

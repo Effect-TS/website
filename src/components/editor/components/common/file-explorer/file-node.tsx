@@ -1,6 +1,6 @@
 import React, { useCallback } from "react"
 import { Equal } from "effect"
-import { useRx } from "@effect-rx/rx-react"
+import { RxRef, useRx, useRxRef } from "@effect-rx/rx-react"
 import { Icon } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -13,12 +13,12 @@ export declare namespace FileNode {
 
   export interface FileProps extends CommonProps {
     readonly type: "file"
-    readonly node: File
+    readonly node: RxRef.RxRef<File>
   }
 
   export interface DirectoryProps extends CommonProps {
     readonly type: "directory"
-    readonly node: Directory
+    readonly node: RxRef.RxRef<Directory>
     readonly isOpen: boolean
   }
 
@@ -27,6 +27,7 @@ export declare namespace FileNode {
     readonly path: string
     readonly className?: string
     readonly onClick?: OnClick
+    readonly onRemove: () => void
   }
 
   export interface OnClick {
@@ -36,12 +37,14 @@ export declare namespace FileNode {
 
 export function FileNode({
   depth,
-  node,
+  node: nodeRef,
   path,
   className,
   onClick,
+  onRemove,
   ...props
 }: FileNode.Props) {
+  const node = useRxRef(nodeRef as RxRef.RxRef<File | Directory>)
   const handle = useWorkspaceHandle()
   const [selectedFile, setSelectedFile] = useRx(handle.selectedFile)
   const isSelected = Equal.equals(selectedFile, node)
@@ -70,6 +73,7 @@ export function FileNode({
         isUserManaged={node.userManaged}
         path={path}
         type={props.type}
+        onRemove={onRemove}
       />
     </FileNodeRoot>
   )
@@ -148,11 +152,13 @@ function FileNodeName({ node }: { readonly node: File | Directory }) {
 function FileNodeControls({
   isUserManaged,
   path,
-  type
+  type,
+  onRemove
 }: {
   readonly isUserManaged: boolean
   readonly path: string
   readonly type: FileExplorer.InputType
+  readonly onRemove: () => void
 }) {
   const dispatch = useExplorerDispatch()
 
@@ -193,7 +199,11 @@ function FileNodeControls({
         </>
       )}
       {isUserManaged && (
-        <Button variant="ghost" className="h-full p-0 rounded-none">
+        <Button
+          variant="ghost"
+          className="h-full p-0 rounded-none"
+          onClick={onRemove}
+        >
           <span className="sr-only">Delete</span>
           <Icon name="close" className="h-4 w-4" />
         </Button>

@@ -32,9 +32,7 @@ const Directory_: Schema.Struct<{
   name: typeof Schema.String
   userManaged: Schema.optionalWithOptions<
     typeof Schema.Boolean,
-    {
-      default: () => false
-    }
+    { default: () => false }
   >
   children: Schema.Array$<
     Schema.Union<[typeof File, Schema.Schema<Directory>]>
@@ -152,58 +150,6 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   setTree(tree: FileTree) {
     return new Workspace({ ...this, tree })
   }
-  mkdir(path: string) {
-    function walk(prefix: ReadonlyArray<string>, tree: FileTree) {
-      // Create the directory if there are no more path components to process
-      if (prefix.length === 1) {
-        const directory = makeDirectory(prefix[0], [], true)
-        return [directory, ...tree]
-      }
-      // Walk the file tree if there are still path components to process
-      const out: Array<File | Directory> = []
-      for (const node of tree) {
-        if (node._tag === "Directory" && node.name === prefix[0]) {
-          const children = walk(prefix.slice(1), node.children)
-          out.push(makeDirectory(node.name, children, node.userManaged))
-        } else {
-          out.push(node)
-        }
-      }
-      return out
-    }
-    return new Workspace({
-      ...this,
-      tree: walk(path.replace(/^\//, "").split("/"), this.tree)
-    })
-  }
-  createFile(path: string) {
-    function walk(prefix: ReadonlyArray<string>, tree: FileTree) {
-      // Create the file if there are no more path components to process
-      if (prefix.length === 1) {
-        const file = new File({
-          name: prefix[0],
-          initialContent: "",
-          userManaged: true
-        })
-        return [file, ...tree]
-      }
-      // Walk the file tree if there are still path components to process
-      const out: Array<File | Directory> = []
-      for (const node of tree) {
-        if (node._tag === "Directory" && node.name === prefix[0]) {
-          const children = walk(prefix.slice(1), node.children)
-          out.push(makeDirectory(node.name, children, node.userManaged))
-        } else {
-          out.push(node)
-        }
-      }
-      return out
-    }
-    return new Workspace({
-      ...this,
-      tree: walk(path.replace(/^\//, "").split("/"), this.tree)
-    })
-  }
   findFile(name: string) {
     return Iterable.findFirst(this.filePaths, ([_, path]) => path === name)
   }
@@ -241,7 +187,13 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
           if (node._tag === "File") {
             out.push(yield* f(node, this.filePaths.get(node)!))
           } else {
-            out.push(makeDirectory(node.name, yield* walk(node.children)))
+            out.push(
+              makeDirectory(
+                node.name,
+                yield* walk(node.children),
+                node.userManaged
+              )
+            )
           }
         }
         return out
