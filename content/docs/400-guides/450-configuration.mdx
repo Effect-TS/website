@@ -60,7 +60,7 @@ Effect.runSync(program)
 </Tab>
 </Tabs>
 
-If we run this application we will get the following output:
+If we run this program we will get the following output:
 
 ```bash filename="Terminal"
 npx ts-node primitives.ts
@@ -86,7 +86,7 @@ Effect offers these basic types out of the box:
 - `literal`: Constructs a config for a literal (\*) value.
 - `logLevel`: Constructs a config for a [LogLevel](observability/logging#log-levels) value.
 - `duration`: Constructs a config for a duration value.
-- `secret`: Constructs a config for a secret value.
+- `redacted`: Constructs a config for a secret value.
 
 (\*) `string | number | boolean | null | bigint`
 
@@ -234,7 +234,7 @@ In this example, we have a program that requires two configurations: `A` and `B`
 import { Config, ConfigProvider, Effect, Layer } from "effect"
 
 // A program that requires two configurations: A and B
-const program = Effect.gen(function*() {
+const program = Effect.gen(function* () {
   const A = yield* Config.string("A")
   const B = yield* Config.string("B")
   console.log(`A: ${A}`, `B: ${B}`)
@@ -254,7 +254,9 @@ const provider2 = ConfigProvider.fromMap(
   ])
 )
 
-const layer = Layer.setConfigProvider(provider1.pipe(ConfigProvider.orElse(() => provider2)))
+const layer = Layer.setConfigProvider(
+  provider1.pipe(ConfigProvider.orElse(() => provider2))
+)
 
 Effect.runSync(Effect.provide(program, layer))
 ```
@@ -266,9 +268,10 @@ A: A B: B
 ```
 
 <Info>
-  The `ConfigProvider.fromMap` method used in this example creates a configuration provider from a `Map`. This behavior is explained in more detail in the [Testing Services](#testing-services) section.
+  The `ConfigProvider.fromMap` method used in this example creates a
+  configuration provider from a `Map`. This behavior is explained in more
+  detail in the [Testing Services](#testing-services) section.
 </Info>
-
 
 ## Custom Configurations
 
@@ -559,44 +562,60 @@ Effect.runSync(Effect.provide(App.program, layer))
 
 By using this approach, we can easily mock the configuration data and test our services with different configurations in a controlled manner.
 
-## Secret
+## Redacted
 
-What sets `Config.secret` apart from `Config.string` is its handling of sensitive information.
-It parses the Config value and wraps it in a `Secret`, a data type designed for holding secrets.
+What sets `Config.redacted` apart from `Config.string` is its handling of sensitive information.
+It parses the config value and wraps it in a `Redacted<string>`, a data type designed for holding secrets.
 
-When you use `console.log` on a secret, the actual value remains hidden, providing an added layer of security. The only way to access the value is by using `Secret.value(secret)`.
+When you use `Console.log` on a redacted, the actual value remains hidden, providing an added layer of security.
+The only way to access the value is by using `Redacted.value`.
 
-Here's a simple example to illustrate:
+```ts filename="Redacted.ts" twoslash
+import { Effect, Config, Console, Redacted } from "effect"
 
-```ts twoslash
-import {
-  Effect,
-  Config,
-  ConfigProvider,
-  Layer,
-  Console,
-  Secret
-} from "effect"
-
-const program = Config.secret("API_KEY").pipe(
-  Effect.tap((secret) => Console.log(`console.log: ${secret}`)),
-  Effect.tap((secret) => Console.log(`Secret.value: ${Secret.value(secret)}`))
-)
-
-Effect.runSync(
-  program.pipe(
-    Effect.provide(
-      Layer.setConfigProvider(
-        ConfigProvider.fromMap(new Map([["API_KEY", "my-api-key"]]))
-      )
-    )
+const program = Config.redacted("API_KEY").pipe(
+  Effect.tap((redacted) => Console.log(`Console output: ${redacted}`)),
+  Effect.tap((redacted) =>
+    Console.log(`Actual value: ${Redacted.value(redacted)}`)
   )
 )
-/*
-Output:
-console.log: Secret(<redacted>)
-Secret.value: my-api-key
-*/
+
+Effect.runSync(program)
 ```
 
-In this example, you can see that when logging the secret using `console.log`, the actual value is replaced with `<redacted>`, ensuring that sensitive information is not exposed. The `Secret.value` function, on the other hand, provides a controlled way to retrieve the original secret value.
+If we run this program we will get the following output:
+
+```bash filename="Terminal"
+API_KEY=my-api-key tsx Redacted.ts
+Console output: <redacted>
+Actual value: my-api-key
+```
+
+In this example, you can see that when logging the redacted using `Console.log`, the actual value is replaced with `<redacted>`, ensuring that sensitive information is not exposed.
+The `Redacted.value` function, on the other hand, provides a controlled way to retrieve the original secret value.
+
+## Secret
+
+<Warning>Deprecated: use [Config.redacted](#redacted) instead.</Warning>
+
+`Config.secret` functions similarly to `Config.redacted` by securing sensitive information.
+It wraps configuration values in a `Secret` type, which also obscures details when logged but allows access through the `Secret.value` method.
+
+```ts filename="Secret.ts" twoslash
+import { Effect, Config, Console, Secret } from "effect"
+
+const program = Config.secret("API_KEY").pipe(
+  Effect.tap((secret) => Console.log(`Console output: ${secret}`)),
+  Effect.tap((secret) => Console.log(`Secret value: ${Secret.value(secret)}`))
+)
+
+Effect.runSync(program)
+```
+
+If we run this program we will get the following output:
+
+```bash filename="Terminal"
+API_KEY=my-api-key tsx Secret.ts
+Console output: Secret(<redacted>)
+Secret value: my-api-key
+```
