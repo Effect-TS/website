@@ -39,18 +39,7 @@ export const shareRx = Rx.family((handle: WorkspaceHandle) =>
       const url = new URL(location.href)
       url.hash = hash
       return url.toString()
-    }).pipe(
-      Effect.tapErrorCause(Effect.logError),
-      Effect.catchTags({
-        CompressionError: () => Effect.fail("Failed to compress workspace"),
-        ShortenError: (err) =>
-          Effect.fail(
-            err.reason === "TooLarge"
-              ? "Workspace is too large to share"
-              : "Failed to shorten URL"
-          )
-      })
-    )
+    }).pipe(Effect.tapErrorCause(Effect.logError))
   )
 )
 

@@ -20,7 +20,7 @@ import { importRx } from "../rx"
 import { WorkspaceProvider } from "@/workspaces/WorkspaceProvider"
 import { ThemeSwitcher } from "@/components/atoms/theme-switcher"
 import { cn } from "@/lib/utils"
-import { Cause } from "effect"
+import { Cause, Match } from "effect"
 
 export function ToolbarItems() {
   const workspace = useRxSuspenseSuccess(importRx).value
@@ -166,9 +166,16 @@ function ShareContent() {
           <Input
             id="link"
             placeholder="Loading..."
-            value={Result.match(result, {
-              onInitial: (_) => "",
-              onFailure: (_) => String(Cause.squash(_.cause)),
+            value={Result.matchRefinedWaiting(result, {
+              onWaiting: (_) => "",
+              onError: Match.valueTags({
+                CompressionError: () => "Could not compress the workspace.",
+                ShortenError: (err) =>
+                  err.reason === "TooLarge"
+                    ? "The workspace is too large to share."
+                    : "An unexpected error occurred."
+              }),
+              onDefect: (_) => "An unexpected error occurred.",
               onSuccess: ({ value }) => value
             })}
             readOnly
