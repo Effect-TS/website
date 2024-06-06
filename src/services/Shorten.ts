@@ -1,7 +1,8 @@
 import * as KVS from "@effect/platform/KeyValueStore"
-import { Context, Effect, Layer } from "effect"
+import { Effect, Layer, Option } from "effect"
 import { VercelOrMemoryKVS as VercelOrMemoryKVSLive } from "./VercelKVS"
 import * as Crypto from "node:crypto"
+import { ShortenError } from "./Shorten/domain"
 
 const make = Effect.gen(function* (_) {
   const kvs = yield* KVS.KeyValueStore
@@ -18,14 +19,32 @@ const make = Effect.gen(function* (_) {
       }
       yield* store.set(hash, thing)
       return hash
-    })
+    }).pipe(
+      Effect.mapError(
+        (_) =>
+          new ShortenError({
+            reason: "Unknown",
+            method: "shorten"
+          })
+      )
+    )
 
-  const retrieve = (hash: string) => store.get(hash)
+  const retrieve = (hash: string) =>
+    store.get(hash).pipe(
+      Effect.map(Option.getOrNull),
+      Effect.mapError(
+        (_) =>
+          new ShortenError({
+            reason: "Unknown",
+            method: "retrieve"
+          })
+      )
+    )
 
   return { shorten, retrieve } as const
 })
 
-export class Shorten extends Context.Tag("app/Shorten")<
+export class Shorten extends Effect.Tag("app/Shorten")<
   Shorten,
   Effect.Effect.Success<typeof make>
 >() {
