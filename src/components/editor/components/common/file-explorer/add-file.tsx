@@ -30,7 +30,6 @@ export function AddFile({
       event.preventDefault()
       setFileName("")
       dispatch(Action.HideInput())
-      // onSubmit(`${path}/${fileName}`)
       onSubmit(fileName)
     },
     [dispatch, fileName, onSubmit, setFileName]
