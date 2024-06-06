@@ -13,11 +13,9 @@ const handler = Router.toHandlerEffect(router)
 
 export default function rpc(req: NextApiRequest, res: NextApiResponse) {
   return handler(req.body).pipe(
-    Effect.flatMap((body) =>
-      Effect.sync(() => {
-        res.status(200).json(body)
-      })
-    ),
+    Effect.andThen((body) => {
+      res.status(200).json(body)
+    }),
     runtime.runPromise
   )
 }

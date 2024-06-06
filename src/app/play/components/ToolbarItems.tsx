@@ -20,7 +20,7 @@ import { importRx } from "../rx"
 import { WorkspaceProvider } from "@/workspaces/WorkspaceProvider"
 import { ThemeSwitcher } from "@/components/atoms/theme-switcher"
 import { cn } from "@/lib/utils"
-import { Cause, Match } from "effect"
+import { Match } from "effect"
 
 export function ToolbarItems() {
   const workspace = useRxSuspenseSuccess(importRx).value
@@ -166,7 +166,7 @@ function ShareContent() {
           <Input
             id="link"
             placeholder="Loading..."
-            value={Result.matchRefinedWaiting(result, {
+            value={Result.matchWithWaiting(result, {
               onWaiting: (_) => "",
               onError: Match.valueTags({
                 CompressionError: () => "Could not compress the workspace.",

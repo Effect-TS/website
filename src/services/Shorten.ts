@@ -1,5 +1,5 @@
 import * as KVS from "@effect/platform/KeyValueStore"
-import { Effect, Layer, Option } from "effect"
+import { Effect, Layer } from "effect"
 import { VercelOrMemoryKVS as VercelOrMemoryKVSLive } from "./VercelKVS"
 import * as Crypto from "node:crypto"
 import { ShortenError } from "./Shorten/domain"
