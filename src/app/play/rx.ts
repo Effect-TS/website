@@ -6,7 +6,7 @@ import {
 } from "@/workspaces/domain/workspace"
 import { Result, Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
-import { Effect, Layer, String } from "effect"
+import { Effect, Layer } from "effect"
 import { editorRx } from "@/components/editor/rx"
 import { hashRx } from "@/rx/location"
 import { pipe } from "effect"
@@ -53,14 +53,15 @@ const defaultWorkspace = new Workspace({
     makeDirectory("src", [
       new File({
         name: "main.ts",
-        initialContent: String.stripMargin(
-          `|import { Effect } from "effect"
-           |
-           |Effect.gen(function* () {
-           |  yield* Effect.log("Welcome to the Effect Playground!")
-           |}).pipe(Effect.runPromise)
-           |`
-        )
+        initialContent: `import { Effect } from "effect"
+import { NodeRuntime } from "@effect/platform-node"
+
+const program = Effect.gen(function* () {
+  yield* Effect.log("Welcome to the Effect Playground!")
+})
+
+NodeRuntime.runMain(program)
+`
       })
     ])
   ]
@@ -76,10 +77,10 @@ export const importRx = runtime.rx((get) =>
     const compressed = yield* rpcClient(
       new RetrieveRequest({ hash: hash.value })
     )
-    if (!compressed) return makeDefaultWorkspace()
+    if (compressed._tag === "None") return makeDefaultWorkspace()
     const compression = yield* WorkspaceCompression
     return yield* pipe(
-      compression.decompress(compressed),
+      compression.decompress(compressed.value),
       Effect.orElseSucceed(makeDefaultWorkspace)
     )
   })

@@ -15,6 +15,6 @@ export class ShortenRequest extends Schema.TaggedRequest<ShortenRequest>()(
 export class RetrieveRequest extends Schema.TaggedRequest<RetrieveRequest>()(
   "RetrieveRequest",
   ShortenError,
-  Schema.NullOr(Schema.String),
+  Schema.Option(Schema.String),
   { hash: Schema.String }
 ) {}

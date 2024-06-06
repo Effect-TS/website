@@ -40,7 +40,6 @@ const make = Effect.gen(function* (_) {
 
   const retrieve = (hash: string) =>
     store.get(hash).pipe(
-      Effect.map(Option.getOrNull),
       Effect.mapError(
         (_) =>
           new ShortenError({
