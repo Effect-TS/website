@@ -22,9 +22,9 @@ streams to produce a result.
 import { Stream, Schedule, Console, Effect } from "effect"
 
 const stream = Stream.zipLatestAll(
-  Stream.fromSchedule(Schedule.spaced('1 millis')),
-  Stream.fromSchedule(Schedule.spaced('2 millis')),
-  Stream.fromSchedule(Schedule.spaced('4 millis')),
+  Stream.fromSchedule(Schedule.spaced("1 millis")),
+  Stream.fromSchedule(Schedule.spaced("2 millis")),
+  Stream.fromSchedule(Schedule.spaced("4 millis"))
 ).pipe(Stream.take(6), Stream.tap(Console.log))
 
 Effect.runPromise(Stream.runDrain(stream))
@@ -75,7 +75,7 @@ on the `targetUtilization`.
 Another strategy is `"creation"`, which invalidates pool items based on the time
 they were created.
 
-## STM.gen, Either.gen & Option.gen now support passing `this`
+## STM.gen, Either.gen & Option.gen now support passing this
 
 The value to bind to `this` can be passed as the first argument to the .gen function.
 
@@ -85,7 +85,7 @@ import { Option } from "effect"
 class MyClass {
   readonly value = 1
 
-  readonly option = Option.gen(this, function*() {
+  readonly option = Option.gen(this, function* () {
     // you can now access `this.value`
   })
 }
@@ -118,10 +118,12 @@ populate the url parameters & hash of the request.
 
 ```ts
 // create a request to https://example.com/foo?foo=bar&baz=qux#hash
-Http.request.get(new URL("https://example.com/?foo=bar#hash")).pipe(
-  Http.request.appendUrl("/foo"),
-  Http.request.setUrlParam("baz", "qux")
-)
+Http.request
+  .get(new URL("https://example.com/?foo=bar#hash"))
+  .pipe(
+    Http.request.appendUrl("/foo"),
+    Http.request.setUrlParam("baz", "qux")
+  )
 ```
 
 ## Tuple type guards
