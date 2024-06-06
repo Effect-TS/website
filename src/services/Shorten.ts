@@ -4,12 +4,20 @@ import { VercelOrMemoryKVS as VercelOrMemoryKVSLive } from "./VercelKVS"
 import * as Crypto from "node:crypto"
 import { ShortenError } from "./Shorten/domain"
 
+const constMaxSize = 128 * 1024
+
 const make = Effect.gen(function* (_) {
   const kvs = yield* KVS.KeyValueStore
   const store = KVS.prefix(kvs, "shorten/")
 
   const shorten = (thing: string) =>
     Effect.gen(function* (_) {
+      if (thing.length > constMaxSize) {
+        return yield* new ShortenError({
+          reason: "TooLarge",
+          method: "shorten"
+        })
+      }
       const hash = Crypto.createHash("sha256")
         .update(thing)
         .digest("hex")
@@ -20,7 +28,8 @@ const make = Effect.gen(function* (_) {
       yield* store.set(hash, thing)
       return hash
     }).pipe(
-      Effect.mapError(
+      Effect.catchIf(
+        (err) => err._tag !== "ShortenError",
         (_) =>
           new ShortenError({
             reason: "Unknown",

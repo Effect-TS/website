@@ -20,6 +20,7 @@ import { importRx } from "../rx"
 import { WorkspaceProvider } from "@/workspaces/WorkspaceProvider"
 import { ThemeSwitcher } from "@/components/atoms/theme-switcher"
 import { cn } from "@/lib/utils"
+import { Cause } from "effect"
 
 export function ToolbarItems() {
   const workspace = useRxSuspenseSuccess(importRx).value
@@ -166,13 +167,14 @@ function ShareContent() {
             id="link"
             placeholder="Loading..."
             value={Result.match(result, {
-              onInitial: () => "",
-              onFailure: () => "There was an error sharing the playground!",
+              onInitial: (_) => "",
+              onFailure: (_) => String(Cause.squash(_.cause)),
               onSuccess: ({ value }) => value
             })}
             readOnly
             className={cn(
-              Result.isFailure(result) && "border-destructive focus-visible:ring-destructive",
+              Result.isFailure(result) &&
+                "border-destructive focus-visible:ring-destructive",
               "h-9"
             )}
           />

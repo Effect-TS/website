@@ -25,7 +25,9 @@ export const shareRx = Rx.family((handle: WorkspaceHandle) =>
     Effect.gen(function* () {
       const compression = yield* WorkspaceCompression
       const workspace = get.once(handle.workspace)
-      const editor = yield* Result.toExit(get.once(editorRx(handle).editor))
+      const editor = yield* Result.toExit(
+        get.once(editorRx(handle).editor)
+      ).pipe(Effect.orDie)
 
       yield* editor.save
 
@@ -37,7 +39,18 @@ export const shareRx = Rx.family((handle: WorkspaceHandle) =>
       const url = new URL(location.href)
       url.hash = hash
       return url.toString()
-    }).pipe(Effect.tapErrorCause(Effect.logError))
+    }).pipe(
+      Effect.tapErrorCause(Effect.logError),
+      Effect.catchTags({
+        CompressionError: () => Effect.fail("Failed to compress workspace"),
+        ShortenError: (err) =>
+          Effect.fail(
+            err.reason === "TooLarge"
+              ? "Workspace is too large to share"
+              : "Failed to shorten URL"
+          )
+      })
+    )
   )
 )
 
