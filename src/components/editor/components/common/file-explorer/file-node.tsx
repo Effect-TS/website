@@ -7,6 +7,11 @@ import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "@/workspaces/context"
 import { Directory, File } from "@/workspaces/domain/workspace"
 import { Action, FileExplorer, useExplorerDispatch } from "../file-explorer"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip"
 
 export declare namespace FileNode {
   export type Props = FileProps | DirectoryProps
@@ -166,47 +171,68 @@ function FileNodeControls({
     <div className="flex items-center gap-2 mr-2">
       {type === "directory" && (
         <>
-          <Button
-            variant="ghost"
-            className="h-full p-0 rounded-none"
-            onClick={() =>
-              dispatch(
-                Action.ShowInput({
-                  type: "file",
-                  path
-                })
-              )
-            }
-          >
-            <span className="sr-only">Add File</span>
-            <Icon name="file-plus" />
-          </Button>
-          <Button
-            variant="ghost"
-            className="h-full p-0 rounded-none"
-            onClick={() =>
-              dispatch(
-                Action.ShowInput({
-                  type: "directory",
-                  path
-                })
-              )
-            }
-          >
-            <span className="sr-only">Add Directory</span>
-            <Icon name="directory-plus" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-full p-0 rounded-none"
+                onClick={() =>
+                  dispatch(
+                    Action.ShowInput({
+                      type: "file",
+                      path
+                    })
+                  )
+                }
+              >
+                <span className="sr-only">Add File</span>
+                <Icon name="file-plus" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>New File...</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-full p-0 rounded-none"
+                onClick={() =>
+                  dispatch(
+                    Action.ShowInput({
+                      type: "directory",
+                      path
+                    })
+                  )
+                }
+              >
+                <span className="sr-only">Add Directory</span>
+                <Icon name="directory-plus" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>New Folder...</p>
+            </TooltipContent>
+          </Tooltip>
         </>
       )}
       {isUserManaged && (
-        <Button
-          variant="ghost"
-          className="h-full p-0 rounded-none"
-          onClick={onRemove}
-        >
-          <span className="sr-only">Delete</span>
-          <Icon name="close" className="h-4 w-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              className="h-full p-0 rounded-none"
+              onClick={onRemove}
+            >
+              <span className="sr-only">Delete</span>
+              <Icon name="trash" className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Delete</p>
+          </TooltipContent>
+        </Tooltip>
       )}
     </div>
   )

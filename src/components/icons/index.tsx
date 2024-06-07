@@ -48,6 +48,7 @@ import { ShieldIcon } from "./shield"
 import { SunIcon } from "./sun"
 import { TrendUpIcon } from "./trend-up"
 import { TwitterIcon } from "./twitter"
+import { TrashIcon } from "./trash"
 
 const icons = {
   alert: AlertIcon,
@@ -97,6 +98,7 @@ const icons = {
   search: SearchIcon,
   shield: ShieldIcon,
   sun: SunIcon,
+  trash: TrashIcon,
   "trend-up": TrendUpIcon,
   twitter: TwitterIcon
 }
