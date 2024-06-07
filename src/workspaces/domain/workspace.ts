@@ -96,7 +96,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       initialFilePath: options.initialFilePath,
       prepare:
         options.prepare ??
-        "npm install -E typescript@next tsc-watch @types/node",
+        "npm install -E esbuild typescript@next tsc-watch @types/node",
       shells: options.shells,
       snapshot: options.snapshot,
       tree: [
@@ -274,11 +274,11 @@ export const defaultFiles = [
         compilerOptions: {
           allowSyntheticDefaultImports: true,
           exactOptionalPropertyTypes: true,
-          module: "NodeNext",
-          moduleResolution: "NodeNext",
+          module: "esnext",
+          moduleDetection: "force",
+          moduleResolution: "bundler",
           strict: true,
-          target: "esnext",
-          strictNullChecks: true
+          target: "esnext"
         },
         include: ["src"]
       },

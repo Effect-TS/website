@@ -154,7 +154,10 @@ const make = Effect.gen(function* () {
         Stream.runForEach(configurePlugin),
         Effect.forkScoped
       )
-    }).pipe(Effect.annotateLogs("service", "MonacoFormatters"))
+    }).pipe(
+      Effect.ignoreLogged,
+      Effect.annotateLogs("service", "MonacoFormatters")
+    )
   )
 }).pipe(
   Effect.withSpan("MonacoFormatters.make"),

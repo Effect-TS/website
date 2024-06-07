@@ -112,7 +112,7 @@ function NavigationLink({ name, href, reload }: NavigationLink) {
     <Component
       href={href}
       className={`flex items-start ${
-        pathname.startsWith(href)
+        pathname?.startsWith(href)
           ? "text-black font-normal dark:text-white dark:font-light"
           : "button-hover"
       }`}

@@ -15,7 +15,7 @@ import {
   WebContainer as WC,
   WebContainerProcess
 } from "@webcontainer/api"
-import { Directory, File, FileTree, Workspace } from "../domain/workspace"
+import { FileTree, Workspace } from "../domain/workspace"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
@@ -35,6 +35,8 @@ const make = Effect.gen(function* () {
   const plugins = new Set<WorkspacePlugin>()
 
   yield* Effect.promise(async () => {
+    await container.fs.writeFile("bundle", bundleProgram)
+    await container.spawn("chmod", ["+x", "bundle"])
     await container.fs.writeFile("run", runProgram)
     await container.spawn("chmod", ["+x", "run"])
   })
@@ -160,9 +162,10 @@ const make = Effect.gen(function* () {
         Effect.promise(() => container.fs.writeFile(path(file), data))
 
       const readFile = (file: string) =>
-        Effect.promise(() => container.fs.readFile(path(file))).pipe(
-          Effect.map((_) => new TextDecoder().decode(_))
-        )
+        Effect.tryPromise({
+          try: () => container.fs.readFile(path(file)),
+          catch: () => new FileNotFoundError({ file })
+        }).pipe(Effect.map((bytes) => new TextDecoder().decode(bytes)))
       const makeDirectory = (directory: string) =>
         Effect.promise(() => container.fs.mkdir(path(directory)))
 
@@ -234,6 +237,10 @@ export class WebContainer extends Effect.Tag("WebContainer")<
   static Live = Layer.scoped(this, make)
 }
 
+export class FileNotFoundError extends Data.TaggedError("FileNotFoundError")<{
+  readonly file: string
+}> {}
+
 export class WebContainerError extends Data.TaggedError("WebContainerError")<{
   readonly message: string
 }> {}
@@ -241,9 +248,9 @@ export class WebContainerError extends Data.TaggedError("WebContainerError")<{
 export interface WorkspaceHandle {
   readonly workspace: SubscriptionRef.SubscriptionRef<Workspace>
   readonly write: (file: string, data: string) => Effect.Effect<void>
-  readonly read: (file: string) => Effect.Effect<string>
+  readonly read: (file: string) => Effect.Effect<string, FileNotFoundError>
   readonly mkdir: (directory: string) => Effect.Effect<void>
-  readonly watch: (file: string) => Stream.Stream<string>
+  readonly watch: (file: string) => Stream.Stream<string, FileNotFoundError>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
   readonly run: (command: string) => Effect.Effect<number>
 }
@@ -271,16 +278,43 @@ function treeFromWorkspace(workspace: Workspace): FileSystemTree {
   return walk(workspace.tree)
 }
 
+// tsc-watch does not allow executing multiple programs as part of its
+// `onSuccess` hook, so we extract `esbuild` and `node` to a separate script
+const bundleProgram = `#!/usr/bin/env jsh
+cwd="$2"
+entrypoint="$3"
+outdir="$cwd/dist"
+outfile="$outdir/main.js"
+
+mkdir -p $outdir
+
+esbuild "$cwd/$entrypoint" \\
+  --bundle \\
+  --format=esm \\
+  --keep-names \\
+  --log-level=silent \\
+  --minify-whitespace \\
+  --outfile=$outfile \\
+  --platform=node \\
+  --target=node18 \\
+  --packages=external
+
+node $outfile
+`
+
 const runProgram = `#!/usr/bin/env node
 const CP = require("child_process")
 
+const workspaceRoot = process.env.PWD
+const cwd = process.cwd()
 const program = process.argv[2]
-const programJs = program.replace(/\.ts$/, ".js")
 
 function run() {
-  CP.spawn("tsc-watch", ["-m", "nodenext", "-t", "esnext", program, "--onSuccess", \`node \${programJs}\`], {
-    stdio: "inherit"
-  }).on("exit", function() {
+  CP.spawn("tsc-watch", [
+    "--noEmit",
+    "--project", "tsconfig.json",
+    "--onSuccess", \`jsh \${workspaceRoot}/bundle \${cwd} \${program}\`
+  ], { stdio: "inherit" }).on("exit", () => {
     console.clear()
     run()
   })

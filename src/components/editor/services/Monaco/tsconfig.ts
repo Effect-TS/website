@@ -61,7 +61,10 @@ const make = Effect.gen(function* () {
         Effect.forkScoped,
         Effect.ignoreLogged
       )
-    }).pipe(Effect.annotateLogs("service", "MonacoTSConfig"))
+    }).pipe(
+      Effect.ignoreLogged,
+      Effect.annotateLogs("service", "MonacoTSConfig")
+    )
   )
 }).pipe(
   Effect.withSpan("MonacoTSConfig.make"),

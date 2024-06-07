@@ -58,7 +58,10 @@ export const make = Effect.gen(function* () {
         Stream.runForEach(registerDependencies),
         Effect.forkScoped
       )
-    }).pipe(Effect.annotateLogs("service", "MonacoCompleters"))
+    }).pipe(
+      Effect.ignoreLogged,
+      Effect.annotateLogs("service", "MonacoCompleters")
+    )
   )
 })
 

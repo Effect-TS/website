@@ -1,10 +1,6 @@
 import React, { useCallback, useState } from "react"
 import { RxRef, useRxRefProp, useRxSet } from "@effect-rx/rx-react"
-import {
-  File,
-  makeDirectory,
-  type Directory
-} from "@/workspaces/domain/workspace"
+import { File, makeDirectory, Directory } from "@/workspaces/domain/workspace"
 import {
   FileExplorer,
   CreationMode,
@@ -14,6 +10,7 @@ import { FileNode } from "./file-node"
 import { FileTree } from "./file-tree"
 import { AddFile } from "./add-file"
 import { toasterRx } from "@/rx/toasts"
+import { useWorkspaceHandle } from "@/workspaces/context"
 
 export declare namespace DirectoryNode {
   export interface Props {
@@ -38,6 +35,8 @@ export function DirectoryNode({
   path,
   onRemove
 }: DirectoryNode.Props) {
+  const handle = useWorkspaceHandle()
+  const setSelectedFile = useRxSet(handle.selectedFile)
   const toast = useRxSet(toasterRx)
   const [open, setOpen] = useState(true)
   const state = useExplorerState()
@@ -53,7 +52,7 @@ export function DirectoryNode({
     return CreationMode.$is("CreatingDirectory")(mode) && mode.path === path
   }
 
-  function handleSubmitFile(name: string) {
+  const handleSubmitFile = useCallback((name: string) => {
     if (name.includes("/")) {
       return toast({
         title: "Invalid File Name",
@@ -65,24 +64,26 @@ export function DirectoryNode({
     if (!name.endsWith(".ts")) {
       return toast({
         title: "Unsupported File Type",
-        description: "The playground currently only supports creation of `.ts` files.",
+        description:
+          "The playground currently only supports creation of `.ts` files.",
         variant: "destructive",
         duration: 5000
       })
     }
-    return node.update((node) => {
-      const newFile = new File({
-        name,
-        initialContent: "",
-        userManaged: true
-      })
+    const newFile = new File({
+      name,
+      initialContent: "",
+      userManaged: true
+    })
+    node.update((node) => {
       return makeDirectory(
         node.name,
         [...node.children, newFile],
         node.userManaged
       )
     })
-  }
+    setSelectedFile(newFile)
+  }, [node, setSelectedFile, toast])
 
   function handleSubmitDirectory(name: string) {
     if (name.length === 0) {

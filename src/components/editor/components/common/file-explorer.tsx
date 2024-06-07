@@ -7,11 +7,7 @@ import React, {
 } from "react"
 import { Data } from "effect"
 import { RxRef } from "@effect-rx/rx-react"
-import {
-  useSetWorkspace,
-  useWorkspace,
-  useWorkspaceTree
-} from "@/workspaces/context"
+import { useSetWorkspace, useWorkspaceTree } from "@/workspaces/context"
 import { FileTree } from "./file-explorer/file-tree"
 
 export declare namespace FileExplorer {

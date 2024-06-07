@@ -67,8 +67,9 @@ const make = Effect.gen(function* () {
         Effect.sync(() =>
           monaco.editor.create(el, {
             automaticLayout: true,
-            minimap: { enabled: false },
+            fixedOverflowWidgets: true,
             fontSize: 16,
+            minimap: { enabled: false },
             quickSuggestions: {
               comments: false,
               other: true,

@@ -1,4 +1,4 @@
-import { Toast, Toaster } from "@/services/Toaster"
+import { Toaster } from "@/services/Toaster"
 import { Result, Rx } from "@effect-rx/rx-react"
 import { pipe } from "effect"
 
