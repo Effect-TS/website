@@ -1,4 +1,4 @@
-import React, { useCallback } from "react"
+import React, { useCallback, useState } from "react"
 import { Equal } from "effect"
 import { RxRef, useRx, useRxRef, useRxSet } from "@effect-rx/rx-react"
 import { Icon } from "@/components/icons"
@@ -62,6 +62,7 @@ export function FileNode({
   const handle = useWorkspaceHandle()
   const state = useExplorerState()
   const [selectedFile, setSelectedFile] = useRx(handle.selectedFile)
+  const [showControls, setShowControls] = useState(false)
   const isEditing =
     Mode.$is("EditingNode")(state.mode) && Equal.equals(state.mode.node, node)
   const isSelected = Equal.equals(selectedFile, node)
@@ -135,7 +136,11 @@ export function FileNode({
       onSubmit={handleUpdate}
     />
   ) : (
-    <FileNodeRoot isSelected={isSelected}>
+    <FileNodeRoot
+      isSelected={isSelected}
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
+    >
       <FileNodeTrigger
         depth={depth}
         isSelected={isSelected}
@@ -144,22 +149,28 @@ export function FileNode({
         <FileNodeIcon {...props} />
         <FileNodeName node={node} />
       </FileNodeTrigger>
-      <FileNodeControls
-        node={node}
-        path={path}
-        type={props.type}
-        onRemove={onRemove}
-        isUserManaged={node.userManaged}
-      />
+      {showControls && (
+        <FileNodeControls
+          node={node}
+          path={path}
+          type={props.type}
+          onRemove={onRemove}
+          isUserManaged={node.userManaged}
+        />
+      )}
     </FileNodeRoot>
   )
 }
 
 function FileNodeRoot({
   children,
-  isSelected
+  isSelected,
+  onMouseEnter,
+  onMouseLeave
 }: React.PropsWithChildren<{
-  isSelected: boolean
+  readonly isSelected: boolean
+  readonly onMouseEnter: () => void
+  readonly onMouseLeave: () => void
 }>) {
   return (
     <div
@@ -169,6 +180,8 @@ function FileNodeRoot({
           ? "bg-gray-200 dark:bg-zinc-800"
           : "hover:bg-gray-200/50 dark:hover:bg-zinc-800/50"
       )}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {children}
     </div>
