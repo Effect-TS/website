@@ -2,32 +2,39 @@
 
 import { sluggifyTitle, getNodeText } from "@/contentlayer/utils/sluggify"
 
-export const H2: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
-  const slug = sluggifyTitle(getNodeText(children))
+export const H2: React.FC<React.PropsWithChildren<{id?: string}>> = ({ id, children }) => {
+
   return (
-    <h2 id={slug} onClick={() => (window.location.hash = `#${slug}`)} className="group cursor-pointer">
-      <span className="absolute -left-6 hidden font-normal text-zinc-400 lg:group-hover:inline">#</span>
-      {children}
-    </h2>
+    <>
+      <a className="block invisible relative -top-28" id={id}/>
+      <h2 onClick={() => (window.location.hash = `#${id}`)} className="group cursor-pointer">
+        <span className="absolute -left-6 hidden font-normal text-zinc-400 lg:group-hover:inline">#</span>
+        {children}
+      </h2>
+    </>
   )
 }
 
-export const H3: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
+export const H3: React.FC<React.PropsWithChildren<{id?:string}>> = ({ id, children }) => {
   const slug = sluggifyTitle(getNodeText(children))
   return (
-    <h3 id={slug} onClick={() => (window.location.hash = `#${slug}`)} className="group cursor-pointer">
+     <>
+      <a className="block invisible relative -top-28" id={id}/>
+    <h3 onClick={() => (window.location.hash = `#${id}`)} className="group cursor-pointer">
       <span className="absolute -left-6 hidden font-normal text-zinc-400 lg:group-hover:inline">#</span>
       {children}
-    </h3>
+    </h3></>
   )
 }
 
-export const H4: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
+export const H4: React.FC<React.PropsWithChildren<{id?: string}>> = ({ id, children }) => {
   const slug = sluggifyTitle(getNodeText(children))
   return (
-    <h4 id={slug} onClick={() => (window.location.hash = `#${slug}`)} className="group cursor-pointer">
+     <>
+      <a className="block invisible relative -top-28" id={id}/>
+    <h4 onClick={() => (window.location.hash = `#${id}`)} className="group cursor-pointer">
       <span className="absolute -left-6 hidden font-normal text-zinc-400 lg:group-hover:inline">#</span>
       {children}
-    </h4>
+    </h4></>
   )
 }
