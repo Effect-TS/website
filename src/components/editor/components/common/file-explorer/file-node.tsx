@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "@/workspaces/context"
 import { Directory, File } from "@/workspaces/domain/workspace"
-import { Action, FileExplorer, useExplorerDispatch } from "../file-explorer"
+import { Action, CreationMode, FileExplorer, useExplorerDispatch, useExplorerState } from "../file-explorer"
 import {
   Tooltip,
   TooltipContent,
@@ -165,13 +165,16 @@ function FileNodeControls({
   readonly type: FileExplorer.InputType
   readonly onRemove: () => void
 }) {
+  const state = useExplorerState()
   const dispatch = useExplorerDispatch()
+
+  const isIdle = CreationMode.$is("Idle")(state.creationMode)
 
   return (
     <div className="flex items-center gap-2 mr-2">
       {type === "directory" && (
         <>
-          <Tooltip>
+          <Tooltip disableHoverableContent={!isIdle}>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
@@ -193,7 +196,7 @@ function FileNodeControls({
               <p>New File...</p>
             </TooltipContent>
           </Tooltip>
-          <Tooltip>
+          <Tooltip disableHoverableContent={!isIdle}>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
@@ -218,7 +221,7 @@ function FileNodeControls({
         </>
       )}
       {isUserManaged && (
-        <Tooltip>
+        <Tooltip disableHoverableContent={!isIdle}>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
