@@ -5,18 +5,20 @@ import { useClickOutside } from "@/hooks/useClickOutside"
 import { cn } from "@/lib/utils"
 import { Action, FileExplorer, useExplorerDispatch } from "../file-explorer"
 
-export function AddFile({
+export function FileInput({
   depth,
   type,
-  onSubmit
+  onSubmit,
+  initialValue = ""
 }: {
   readonly depth: number
   readonly type: FileExplorer.InputType
+  readonly initialValue?: string
   readonly onSubmit: (path: string) => void
 }) {
   const dispatch = useExplorerDispatch()
   const inputRef = useRef<HTMLInputElement>(null)
-  const [fileName, setFileName] = useState("")
+  const [fileName, setFileName] = useState(initialValue)
 
   const paddingLeft = 16 + depth * 8
   const styles = { paddingLeft: `${paddingLeft}px` }
@@ -29,19 +31,19 @@ export function AddFile({
     (event) => {
       event.preventDefault()
       setFileName("")
-      dispatch(Action.HideInput())
+      dispatch(Action.SetIdle())
       onSubmit(fileName)
     },
     [dispatch, fileName, onSubmit, setFileName]
   )
 
   // Close the input when the user clicks outside
-  useClickOutside(inputRef, () => dispatch(Action.HideInput()))
+  useClickOutside(inputRef, () => dispatch(Action.SetIdle()))
 
   // Close the input when the user hits the escape key
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") dispatch(Action.HideInput())
+      if (e.key === "Escape") dispatch(Action.SetIdle())
     }
     document.addEventListener("keydown", onKeyDown)
     return () => {

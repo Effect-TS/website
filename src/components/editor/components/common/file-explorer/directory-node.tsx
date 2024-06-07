@@ -1,14 +1,10 @@
 import React, { useCallback, useState } from "react"
 import { RxRef, useRxRefProp, useRxSet } from "@effect-rx/rx-react"
 import { File, makeDirectory, Directory } from "@/workspaces/domain/workspace"
-import {
-  FileExplorer,
-  CreationMode,
-  useExplorerState
-} from "../file-explorer"
+import { FileExplorer, Mode, useExplorerState } from "../file-explorer"
 import { FileNode } from "./file-node"
 import { FileTree } from "./file-tree"
-import { AddFile } from "./add-file"
+import { FileInput } from "./file-input"
 import { toasterRx } from "@/rx/toasts"
 import { useWorkspaceHandle } from "@/workspaces/context"
 
@@ -44,73 +40,91 @@ export function DirectoryNode({
 
   const handleToggle = useCallback(() => setOpen((prev) => !prev), [])
 
-  function isCreatingFile(mode: FileExplorer.CreationMode) {
-    return CreationMode.$is("CreatingFile")(mode) && mode.path === path
+  function isCreatingFile(
+    mode: FileExplorer.Mode
+  ): mode is FileExplorer.CreatingNode {
+    return (
+      Mode.$is("CreatingNode")(mode) &&
+      mode.type === "file" &&
+      mode.path === path
+    )
   }
 
-  function isCreatingDirectory(mode: FileExplorer.CreationMode) {
-    return CreationMode.$is("CreatingDirectory")(mode) && mode.path === path
+  function isCreatingDirectory(
+    mode: FileExplorer.Mode
+  ): mode is FileExplorer.CreatingNode {
+    return (
+      Mode.$is("CreatingNode")(mode) &&
+      mode.type === "directory" &&
+      mode.path === path
+    )
   }
 
-  const handleSubmitFile = useCallback((name: string) => {
-    if (name.includes("/")) {
-      return toast({
-        title: "Invalid File Name",
-        description: "Creating nested files is currently unsupported.",
-        variant: "destructive",
-        duration: 5000
+  const handleCreateFile = useCallback(
+    (name: string) => {
+      if (name.includes("/")) {
+        return toast({
+          title: "Invalid File Name",
+          description: "Creating nested files is currently unsupported.",
+          variant: "destructive",
+          duration: 5000
+        })
+      }
+      if (!/[a-zA-Z0-9]{1}.*\.ts/.test(name)) {
+        return toast({
+          title: "Unsupported File Type",
+          description:
+            "The playground currently only supports creation of `.ts` files.",
+          variant: "destructive",
+          duration: 5000
+        })
+      }
+      const newFile = new File({
+        name,
+        initialContent: "",
+        userManaged: true
       })
-    }
-    if (!name.endsWith(".ts")) {
-      return toast({
-        title: "Unsupported File Type",
-        description:
-          "The playground currently only supports creation of `.ts` files.",
-        variant: "destructive",
-        duration: 5000
+      node.update((node) => {
+        return makeDirectory(
+          node.name,
+          [...node.children, newFile],
+          node.userManaged
+        )
       })
-    }
-    const newFile = new File({
-      name,
-      initialContent: "",
-      userManaged: true
-    })
-    node.update((node) => {
-      return makeDirectory(
-        node.name,
-        [...node.children, newFile],
-        node.userManaged
-      )
-    })
-    setSelectedFile(newFile)
-  }, [node, setSelectedFile, toast])
+      setSelectedFile(newFile)
+    },
+    [node, setSelectedFile, toast]
+  )
 
-  function handleSubmitDirectory(name: string) {
-    if (name.length === 0) {
-      return toast({
-        title: "Invalid Directory Name",
-        description: "Directory names cannot be empty.",
-        variant: "destructive",
-        duration: 5000
+  const handleCreateDirectory = useCallback(
+    (name: string) => {
+      if (name.length === 0) {
+        return toast({
+          title: "Invalid Directory Name",
+          description: "Directory names cannot be empty.",
+          variant: "destructive",
+          duration: 5000
+        })
+      }
+      if (name.includes("/")) {
+        return toast({
+          title: "Invalid File Name",
+          description: "Creating nested directories is currently unsupported",
+          variant: "destructive",
+          duration: 5000
+        })
+      }
+      return node.update((node) => {
+        const newDirectory = makeDirectory(name, [], true)
+        return makeDirectory(
+          node.name,
+          [...node.children, newDirectory],
+          node.userManaged
+        )
       })
-    }
-    if (name.includes("/")) {
-      return toast({
-        title: "Invalid File Name",
-        description: "Creating nested directories is currently unsupported",
-        variant: "destructive",
-        duration: 5000
-      })
-    }
-    return node.update((node) => {
-      const newDirectory = makeDirectory(name, [], true)
-      return makeDirectory(
-        node.name,
-        [...node.children, newDirectory],
-        node.userManaged
-      )
-    })
-  }
+    },
+    [node, toast]
+  )
 
   return (
     <>
@@ -125,19 +139,19 @@ export function DirectoryNode({
       />
       {open && (
         <>
-          {isCreatingDirectory(state.creationMode) && (
-            <AddFile
-              type="directory"
+          {isCreatingDirectory(state.mode) && (
+            <FileInput
+              type={state.mode.type}
               depth={depth + 1}
-              onSubmit={handleSubmitDirectory}
+              onSubmit={handleCreateDirectory}
             />
           )}
           <FileTree tree={children} depth={depth + 1} path={path} />
-          {isCreatingFile(state.creationMode) && (
-            <AddFile
-              type="file"
+          {isCreatingFile(state.mode) && (
+            <FileInput
+              type={state.mode.type}
               depth={depth + 1}
-              onSubmit={handleSubmitFile}
+              onSubmit={handleCreateFile}
             />
           )}
         </>

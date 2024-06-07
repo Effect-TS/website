@@ -49,6 +49,7 @@ import { SunIcon } from "./sun"
 import { TrendUpIcon } from "./trend-up"
 import { TwitterIcon } from "./twitter"
 import { TrashIcon } from "./trash"
+import { EditIcon } from "./edit"
 
 const icons = {
   alert: AlertIcon,
@@ -77,6 +78,7 @@ const icons = {
   display: DisplayIcon,
   "dot-solid": DotSolid,
   "drag-handle-dots": DragHandleDotsIcon,
+  edit: EditIcon,
   error: ErrorIcon,
   file: FileIcon,
   "file-plus": FilePlusIcon,

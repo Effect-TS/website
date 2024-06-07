@@ -1,4 +1,4 @@
-import React, { useMemo } from "react"
+import React, { useCallback, useMemo } from "react"
 import { Array } from "effect"
 import {
   Directory,
@@ -27,6 +27,10 @@ export function FileTree({
     )
   }, [treeValue, tree])
 
+  const handleRemove = useCallback((node: RxRef.RxRef<File> | RxRef.RxRef<Directory>) => {
+    tree.update((tree) => tree.filter((_) => _ !== node.value))
+  }, [tree])
+
   return (
     <div className="text-sm">
       {directories.map((node) => {
@@ -37,9 +41,7 @@ export function FileTree({
             node={node}
             depth={depth}
             path={fullPath}
-            onRemove={() => {
-              tree.update((tree) => tree.filter((_) => _ !== node.value))
-            }}
+            onRemove={() => handleRemove(node)}
           />
         )
       })}
@@ -52,9 +54,7 @@ export function FileTree({
             node={node}
             depth={depth}
             path={fullPath}
-            onRemove={() => {
-              tree.update((tree) => tree.filter((_) => _ !== node.value))
-            }}
+            onRemove={() => handleRemove(node)}
           />
         )
       })}

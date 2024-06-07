@@ -9,35 +9,46 @@ import { Data } from "effect"
 import { RxRef } from "@effect-rx/rx-react"
 import { useSetWorkspace, useWorkspaceTree } from "@/workspaces/context"
 import { FileTree } from "./file-explorer/file-tree"
+import { File, Directory } from "@/workspaces/domain/workspace"
 
 export declare namespace FileExplorer {
   export type Reducer = React.Reducer<State, Action>
 
   export interface State {
-    readonly creationMode: CreationMode
+    readonly mode: Mode
   }
 
   export type Dispatch = React.Dispatch<Action>
 
   export type Action = Data.TaggedEnum<{
-    readonly ShowInput: {
+    readonly CreateNode: {
       readonly type: InputType
       readonly path: string
     }
-    readonly HideInput: {}
+    readonly EditNode: {
+      readonly node: File | Directory
+    }
+    readonly SetIdle: {}
   }>
 
   export type InputType = "file" | "directory"
 
-  export type CreationMode = Data.TaggedEnum<{
-    Idle: {}
-    CreatingFile: { readonly path: string }
-    CreatingDirectory: { readonly path: string }
+  export type Mode = Data.TaggedEnum<{
+    readonly Idle: {}
+    readonly CreatingNode: {
+      readonly type: InputType
+      readonly path: string
+    }
+    readonly EditingNode: {
+      readonly node: File | Directory
+    }
   }>
+
+  export type CreatingNode = Extract<Mode, { _tag: "CreatingNode" }>
 }
 
 export const Action = Data.taggedEnum<FileExplorer.Action>()
-export const CreationMode = Data.taggedEnum<FileExplorer.CreationMode>()
+export const Mode = Data.taggedEnum<FileExplorer.Mode>()
 
 // See here for why we are using this pattern:
 // https://react.dev/learn/scaling-up-with-reducer-and-context#combining-a-reducer-with-context
@@ -52,24 +63,30 @@ function reducer(
   action: FileExplorer.Action
 ): FileExplorer.State {
   switch (action._tag) {
-    case "ShowInput": {
-      const creationMode =
-        action.type === "file"
-          ? CreationMode.CreatingFile({ path: action.path })
-          : CreationMode.CreatingDirectory({ path: action.path })
-      return { ...state, creationMode }
+    case "CreateNode": {
+      const mode = Mode.CreatingNode({
+        type: action.type,
+        path: action.path
+      })
+      return { ...state, mode }
     }
-    case "HideInput": {
+    case "EditNode": {
+      const mode = Mode.EditingNode({
+        node: action.node
+      })
+      return { ...state, mode }
+    }
+    case "SetIdle": {
       return {
         ...state,
-        creationMode: CreationMode.Idle()
+        mode: Mode.Idle()
       }
     }
   }
 }
 
 const initialState: FileExplorer.State = {
-  creationMode: CreationMode.Idle()
+  mode: Mode.Idle()
 }
 
 export function FileExplorer() {
