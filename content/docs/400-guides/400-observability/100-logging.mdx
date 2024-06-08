@@ -61,7 +61,7 @@ timestamp=... level=INFO fiber=#0 message=message1 message=message2 message=mess
 ```
 
 For added context, you can also include one or more [Cause](../../other/data-types/cause) instances in your logs,
-which provide detailed error information under an additional `cause` label:
+which provide detailed error information under an additional `cause` annotation:
 
 ```ts twoslash
 import { Effect, Cause } from "effect"
@@ -362,6 +362,47 @@ Output:
 
 </Tab>
 </Tabs>
+
+## Custom Annotations
+
+Enhance your log outputs by incorporating custom annotations with the `Effect.annotateLogs` function.
+This function allows you to append additional metadata to each log entry of an effect, enhancing traceability and context.
+
+Here's how to apply a single annotation as a key/value pair:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  yield* Effect.log("message1")
+  yield* Effect.log("message2")
+}).pipe(Effect.annotateLogs("key", "value")) // Annotation as key/value pair
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=message1 key=value
+timestamp=... level=INFO fiber=#0 message=message2 key=value
+*/
+```
+
+To apply multiple annotations at once, you can pass an object containing several key/value pairs:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  yield* Effect.log("message1")
+  yield* Effect.log("message2")
+}).pipe(Effect.annotateLogs({ key1: "value1", key2: "value2" }))
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=message1 key2=value2 key1=value1
+timestamp=... level=INFO fiber=#0 message=message2 key2=value2 key1=value1
+*/
+```
 
 ## Spans
 
