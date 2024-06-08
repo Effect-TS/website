@@ -171,14 +171,16 @@ timestamp=... level=INFO fiber=#0 message="Application is about to exit!"
 
 ## Top-level Runtime Configuration
 
-When developing an Effect application and executing it using `Effect.run*` functions, the application is automatically run using the default runtime behind the scenes. While we can adjust and customize specific aspects of our Effect application by providing locally scoped configuration layers using `Effect.provide` operations, there are scenarios where we need to customize the runtime configuration for the entire application from the top level.
+When developing an Effect application and executing it using `Effect.run*` functions, the application is automatically run using the default runtime behind the scenes.
+While we can adjust and customize specific aspects of our Effect application by providing locally scoped configuration layers using `Effect.provide` operations,
+there are scenarios where we need to customize the runtime configuration for the entire application from the top level.
 
-In such situations, we can create a top-level runtime by converting a configuration layer into a runtime using the `Layer.toRuntime` operator:
+In such situations, we can create a top-level runtime by converting a configuration layer into a runtime using the `ManagedRuntime.make` constructor.
+
+### ManagedRuntime
 
 ```ts twoslash
-// @module: esnext
-// @target: es2017
-import { Logger, Scope, Layer, Effect, Runtime, Exit } from "effect"
+import { Effect, ManagedRuntime, Logger } from "effect"
 
 // Define a configuration layer
 const appLayer = Logger.replace(
@@ -186,164 +188,50 @@ const appLayer = Logger.replace(
   Logger.make(({ message }) => console.log(message))
 )
 
-// Create a scope for resources used in the configuration layer
-const scope = Effect.runSync(Scope.make())
-
 // Transform the configuration layer into a runtime
-const runtime = await Effect.runPromise(
-  Layer.toRuntime(appLayer).pipe(Scope.extend(scope))
-)
-
-// Define a custom running function
-const runSync = Runtime.runSync(runtime)
+const runtime = ManagedRuntime.make(appLayer)
 
 const program = Effect.log("Application started!")
 
 // Execute the program using the custom runtime
-runSync(program)
+runtime.runSync(program)
+
+// Cleaning up any resources used by the configuration layer
+Effect.runFork(runtime.disposeEffect)
 /*
 Output:
 Application started!
 */
-
-// Cleaning up any resources used by the configuration layer
-Effect.runFork(Scope.close(scope, Exit.void))
 ```
 
-In this example, we first create a custom configuration layer called `appLayer`, which includes modifications to the logger configuration. Next, we transform this configuration layer into a runtime using `Layer.toRuntime`. This results in a top-level runtime that encapsulates the desired configuration for the entire Effect application.
-
-We then define a custom runtime function named `myrunSync` using `Runtime.runSync(runtime)`. Finally, we create our Effect program and execute it using the custom runtime, which applies the top-level configuration.
+In this example, we first create a custom configuration layer called `appLayer`, which includes modifications to the logger configuration.
+Next, we transform this configuration layer into a runtime using `ManagedRuntime.make`.
+This results in a top-level runtime that encapsulates the desired configuration for the entire Effect application.
 
 By customizing the top-level runtime configuration, we can tailor the behavior of our entire Effect application to meet our specific needs and requirements.
 
-## Providing Context to the Runtime System
+### Integrations
 
-Custom runtimes can simplify the execution of multiple effects that require the same environment. This eliminates the need to use `Effect.provide*` on each individual effect before running them.
+The `ManagedRuntime` simplifies the integration of services and layers with other frameworks or tools, particularly in environments where Effect is not the primary framework and access to the main entry point is restricted.
 
-Let's break down this concept with an example. Imagine we want to create a `Runtime` tailored for testing purposes, where services don't interact with real external APIs. In such cases, we can design a custom runtime specifically for testing.
+For instance, `ManagedRuntime` can be particularly useful in environments like React or other frameworks where control over the main application entry point is limited. Here's how you can use `ManagedRuntime` to manage service lifecycle within an external framework:
 
-Suppose we have defined two services: `LoggingService` and `EmailService`:
+```ts
+import { Effect, ManagedRuntime, Layer, Console } from "effect"
 
-```ts twoslash
-import { Effect, Context } from "effect"
+class Notifications extends Effect.Tag("Notifications")<
+  Notifications,
+  { readonly notify: (message: string) => Effect.Effect<void> }
+>() {
+  static Live = Layer.succeed(this, {
+    notify: (message) => Console.log(message)
+  })
+}
 
-class LoggingService extends Context.Tag("LoggingService")<
-  LoggingService,
-  { log: (line: string) => Effect.Effect<void> }
->() {}
-
-class EmailService extends Context.Tag("EmailService")<
-  EmailService,
-  { send: (user: string, content: string) => Effect.Effect<void> }
->() {}
+// Example entry point for an external framework
+async function main() {
+  const runtime = ManagedRuntime.make(Notifications.Live)
+  await runtime.runPromise(Notifications.notify("Hello, world!"))
+  await runtime.dispose()
+}
 ```
-
-We plan to implement a live version of `LoggingService` and a fake version of `EmailService` for testing:
-
-```ts twoslash
-import { Effect, Context } from "effect"
-
-class LoggingService extends Context.Tag("LoggingService")<
-  LoggingService,
-  { log: (line: string) => Effect.Effect<void> }
->() {}
-
-class EmailService extends Context.Tag("EmailService")<
-  EmailService,
-  { send: (user: string, content: string) => Effect.Effect<void> }
->() {}
-// ---cut---
-import { Console } from "effect"
-
-const LoggingServiceLive = LoggingService.of({
-  log: Console.log
-})
-
-const EmailServiceFake = EmailService.of({
-  send: (user, content) => Console.log(`sending email to ${user}: ${content}`)
-})
-```
-
-Let's create a custom runtime that includes these two service implementations within its context:
-
-```ts twoslash
-import { Effect, Context, Console } from "effect"
-
-class LoggingService extends Context.Tag("LoggingService")<
-  LoggingService,
-  { log: (line: string) => Effect.Effect<void> }
->() {}
-
-class EmailService extends Context.Tag("EmailService")<
-  EmailService,
-  { send: (user: string, content: string) => Effect.Effect<void> }
->() {}
-
-const LoggingServiceLive = LoggingService.of({
-  log: Console.log
-})
-
-const EmailServiceFake = EmailService.of({
-  send: (user, content) => Console.log(`sending email to ${user}: ${content}`)
-})
-
-// ---cut---
-import { Runtime, FiberRefs } from "effect"
-
-const testableRuntime = Runtime.make({
-  context: Context.make(LoggingService, LoggingServiceLive).pipe(
-    Context.add(EmailService, EmailServiceFake)
-  ),
-  fiberRefs: FiberRefs.empty(),
-  runtimeFlags: Runtime.defaultRuntimeFlags
-})
-```
-
-Now we can execute our effects using this custom `Runtime<LoggingService | EmailService>`:
-
-```ts twoslash
-import { Effect, Context, Console, Runtime, FiberRefs } from "effect"
-
-class LoggingService extends Context.Tag("LoggingService")<
-  LoggingService,
-  { log: (line: string) => Effect.Effect<void> }
->() {}
-
-class EmailService extends Context.Tag("EmailService")<
-  EmailService,
-  { send: (user: string, content: string) => Effect.Effect<void> }
->() {}
-
-const LoggingServiceLive = LoggingService.of({
-  log: Console.log
-})
-
-const EmailServiceFake = EmailService.of({
-  send: (user, content) => Console.log(`sending email to ${user}: ${content}`)
-})
-
-const testableRuntime = Runtime.make({
-  context: Context.make(LoggingService, LoggingServiceLive).pipe(
-    Context.add(EmailService, EmailServiceFake)
-  ),
-  fiberRefs: FiberRefs.empty(),
-  runtimeFlags: Runtime.defaultRuntimeFlags
-})
-
-// ---cut---
-const program = Effect.gen(function* () {
-  const { log } = yield* LoggingService
-  const { send } = yield* EmailService
-  yield* log("sending newsletter")
-  yield* send("David", "Hi! Here is today's newsletter.")
-})
-
-Runtime.runPromise(testableRuntime)(program)
-/*
-Output:
-sending newsletter
-sending email to David: Hi! Here is today's newsletter.
-*/
-```
-
-By providing context to the runtime system, we create a specialized environment for our effects, making it easier to test and control their behavior as needed.
