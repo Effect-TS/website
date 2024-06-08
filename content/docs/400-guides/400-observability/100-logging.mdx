@@ -24,7 +24,7 @@ Now, let's dive into the specific logging utilities provided by Effect.
 
 ## log
 
-The `Effect.log` function is used to print a message at the current log level, which is `INFO` by default.
+The `Effect.log` function outputs a log message at the default `INFO` level.
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -38,21 +38,37 @@ timestamp=... level=INFO fiber=#0 message="Application started"
 */
 ```
 
-The log message contains the following information:
+Details included in a log message:
 
 - `timestamp`: The timestamp when the log message was generated.
 - `level`: The log level at which the message is logged.
 - `fiber`: The identifier of the [fiber](../concurrency/fibers) executing the program.
-- `message`: The content of the log message.
-- `span`: (Optional) The duration of the span in milliseconds.
+- `message`: The log content, which can include multiple items.
+- `span`: (Optional) The duration of the [span](#spans) in milliseconds.
 
-Additionally, you can pass one or more [Cause](../../other/data-types/cause) instances after the main message. These will provide further context under an additional `cause` information:
+You can log multiple messages simultaneously:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const program = Effect.log("message1", "message2", "message3")
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=message1 message=message2 message=message3
+*/
+```
+
+For added context, you can also include one or more [Cause](../../other/data-types/cause) instances in your logs,
+which provide detailed error information under an additional `cause` label:
 
 ```ts twoslash
 import { Effect, Cause } from "effect"
 
 const program = Effect.log(
-  "message...",
+  "message1",
+  "message2",
   Cause.die("Oh no!"),
   Cause.die("Oh uh!")
 )
@@ -60,7 +76,7 @@ const program = Effect.log(
 Effect.runSync(program)
 /*
 Output:
-timestamp=... level=INFO fiber=#0 message=message... cause="Error: Oh no!
+timestamp=... level=INFO fiber=#0 message=message1 message=message2 cause="Error: Oh no!
 Error: Oh uh!"
 */
 ```
@@ -142,7 +158,7 @@ Output:
 
 In the above example, we enable `DEBUG` messages specifically for `task1` by using the `Logger.withMinimumLogLevel` function.
 
-By using `Logger.withMinimumLogLevel(effect, level){:ts}`, you have the flexibility to selectively enable different log levels for specific effects in your program. This allows you to control the level of detail in your logs and focus on the information that is most relevant to your debugging and troubleshooting needs.
+By using `Logger.withMinimumLogLevel(effect, level)`, you have the flexibility to selectively enable different log levels for specific effects in your program. This allows you to control the level of detail in your logs and focus on the information that is most relevant to your debugging and troubleshooting needs.
 
 ### logInfo
 

@@ -432,7 +432,7 @@ So, finalizers run when the scope is closed, not necessarily when the effect fin
 
 ## Defining Resources
 
-We can define a resource using operators like `Effect.acquireRelease(acquire, release){:ts}`, which allows us to create a scoped value from an `acquire` and `release` workflow.
+We can define a resource using operators like `Effect.acquireRelease(acquire, release)`, which allows us to create a scoped value from an `acquire` and `release` workflow.
 
 Every acquire release requires three actions:
 
@@ -594,7 +594,7 @@ Resource released
 
 ## acquireUseRelease
 
-The `Effect.acquireUseRelease(acquire, use, release){:ts}` function is a specialized version of the `Effect.acquireRelease` function that simplifies resource management by automatically handling the scoping of resources.
+The `Effect.acquireUseRelease(acquire, use, release)` function is a specialized version of the `Effect.acquireRelease` function that simplifies resource management by automatically handling the scoping of resources.
 
 The main difference is that `acquireUseRelease` eliminates the need to manually call `Effect.scoped` to manage the resource's scope. It has additional knowledge about when you are done using the resource created with the `acquire` step. This is achieved by providing a `use` argument, which represents the function that operates on the acquired resource. As a result, `acquireUseRelease` can automatically determine when it should execute the release step.
 
