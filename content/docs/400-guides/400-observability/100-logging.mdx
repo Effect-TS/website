@@ -404,9 +404,32 @@ timestamp=... level=INFO fiber=#0 message=message2 key2=value2 key1=value1
 */
 ```
 
-## Spans
+Annotations can also be applied with a scoped lifetime using `Effect.annotateLogsScoped`.
+This method confines the application of annotations to logs within a specific [Scope](../resource-management/scope) of your effect computation:
 
-Effect also provides support for spans, allowing you to measure the duration of specific operations or tasks within your program.
+```ts twoslash
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  yield* Effect.log("no annotations")
+  yield* Effect.annotateLogsScoped({ key: "value" })
+  yield* Effect.log("message1") // Annotation is applied to this log
+  yield* Effect.log("message2") // Annotation is applied to this log
+}).pipe(Effect.scoped, Effect.andThen(Effect.log("no annotations again")))
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message="no annotations"
+timestamp=... level=INFO fiber=#0 message=message1 key=value
+timestamp=... level=INFO fiber=#0 message=message2 key=value
+timestamp=... level=INFO fiber=#0 message="no annotations again"
+*/
+```
+
+## Log Spans
+
+Effect also provides support for log spans, allowing you to measure the duration of specific operations or tasks within your program.
 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
@@ -422,7 +445,7 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 Output:
-... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
+timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
 */
 ```
 
@@ -440,14 +463,16 @@ const program = Effect.sleep("1 second").pipe(
 Effect.runPromise(program)
 /*
 Output:
-... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
+timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
 */
 ```
 
 </Tab>
 </Tabs>
 
-In the above example, a span is created using the `Effect.withLogSpan` function. It measures the duration of the code block within the span and logs an `INFO` message with the content "The job is finished!" along with the span duration of 1011ms (`myspan=1011ms`).
+In the above example, a log span is created using the `Effect.withLogSpan(label)` function.
+It measures the duration of the code block within the span.
+The resulting duration is then automatically recorded as an annotation within the log message.
 
 ## Disabling Default Logging
 
