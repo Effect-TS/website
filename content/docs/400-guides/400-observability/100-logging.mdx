@@ -24,7 +24,7 @@ Now, let's dive into the specific logging utilities provided by Effect.
 
 ## log
 
-The `log` function is used to print a message at the current log level, which is `INFO` by default.
+The `Effect.log` function outputs a log message at the default `INFO` level.
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -38,21 +38,37 @@ timestamp=... level=INFO fiber=#0 message="Application started"
 */
 ```
 
-The log message contains the following information:
+Details included in a log message:
 
 - `timestamp`: The timestamp when the log message was generated.
 - `level`: The log level at which the message is logged.
-- `fiber`: The identifier of the [fiber](../concurrency/fibers.mdx#what-is-a-fiber) executing the program.
-- `message`: The content of the log message.
-- `span`: (Optional) The duration of the span in milliseconds.
+- `fiber`: The identifier of the [fiber](../concurrency/fibers) executing the program.
+- `message`: The log content, which can include multiple items.
+- `span`: (Optional) The duration of the [span](#spans) in milliseconds.
 
-Additionally, you can pass one or more [Cause](../../other/data-types/cause) instances after the main message. These will provide further context under an additional `cause` information:
+You can log multiple messages simultaneously:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const program = Effect.log("message1", "message2", "message3")
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=message1 message=message2 message=message3
+*/
+```
+
+For added context, you can also include one or more [Cause](../../other/data-types/cause) instances in your logs,
+which provide detailed error information under an additional `cause` annotation:
 
 ```ts twoslash
 import { Effect, Cause } from "effect"
 
 const program = Effect.log(
-  "message...",
+  "message1",
+  "message2",
   Cause.die("Oh no!"),
   Cause.die("Oh uh!")
 )
@@ -60,7 +76,7 @@ const program = Effect.log(
 Effect.runSync(program)
 /*
 Output:
-timestamp=... level=INFO fiber=#0 message=message... cause="Error: Oh no!
+timestamp=... level=INFO fiber=#0 message=message1 message=message2 cause="Error: Oh no!
 Error: Oh uh!"
 */
 ```
@@ -101,9 +117,9 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 Output:
-... level=INFO message=start
-... level=DEBUG message="task1 done" <-- 2 seconds later
-... level=INFO message=done <-- 1 second later
+timestamp=... level=INFO message=start
+timestamp=... level=DEBUG message="task1 done" <-- 2 seconds later
+timestamp=... level=INFO message=done <-- 1 second later
 */
 ```
 
@@ -131,9 +147,9 @@ const program = Effect.log("start").pipe(
 Effect.runPromise(program)
 /*
 Output:
-... level=INFO message=start
-... level=DEBUG message="task1 done" <-- 2 seconds later
-... level=INFO message=done <-- 1 second later
+timestamp=... level=INFO message=start
+timestamp=... level=DEBUG message="task1 done" <-- 2 seconds later
+timestamp=... level=INFO message=done <-- 1 second later
 */
 ```
 
@@ -142,7 +158,7 @@ Output:
 
 In the above example, we enable `DEBUG` messages specifically for `task1` by using the `Logger.withMinimumLogLevel` function.
 
-By using `Logger.withMinimumLogLevel(effect, level){:ts}`, you have the flexibility to selectively enable different log levels for specific effects in your program. This allows you to control the level of detail in your logs and focus on the information that is most relevant to your debugging and troubleshooting needs.
+By using `Logger.withMinimumLogLevel(effect, level)`, you have the flexibility to selectively enable different log levels for specific effects in your program. This allows you to control the level of detail in your logs and focus on the information that is most relevant to your debugging and troubleshooting needs.
 
 ### logInfo
 
@@ -164,8 +180,8 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 Output:
-... level=INFO message=start
-... level=INFO message=done <-- 3 seconds later
+timestamp=... level=INFO message=start
+timestamp=... level=INFO message=done <-- 3 seconds later
 */
 ```
 
@@ -184,8 +200,8 @@ const program = Effect.logInfo("start").pipe(
 Effect.runPromise(program)
 /*
 Output:
-... level=INFO message=start
-... level=INFO message=done <-- 3 seconds later
+timestamp=... level=INFO message=start
+timestamp=... level=INFO message=done <-- 3 seconds later
 */
 ```
 
@@ -219,7 +235,7 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 Output:
-... level=WARN fiber=#0 message="Oh uh!"
+timestamp=... level=WARN fiber=#0 message="Oh uh!"
 */
 ```
 
@@ -238,7 +254,7 @@ const program = task.pipe(
 Effect.runPromise(program)
 /*
 Output:
-... level=WARN fiber=#0 message="Oh uh!"
+timestamp=... level=WARN fiber=#0 message="Oh uh!"
 */
 ```
 
@@ -270,7 +286,7 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 Output:
-... level=ERROR fiber=#0 message="Oh uh!"
+timestamp=... level=ERROR fiber=#0 message="Oh uh!"
 */
 ```
 
@@ -289,7 +305,7 @@ const program = task.pipe(
 Effect.runPromise(program)
 /*
 Output:
-... level=ERROR fiber=#0 message="Oh uh!"
+timestamp=... level=ERROR fiber=#0 message="Oh uh!"
 */
 ```
 
@@ -321,7 +337,7 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 Output:
-... level=FATAL fiber=#0 message="Oh uh!"
+timestamp=... level=FATAL fiber=#0 message="Oh uh!"
 */
 ```
 
@@ -340,16 +356,80 @@ const program = task.pipe(
 Effect.runPromise(program)
 /*
 Output:
-... level=FATAL fiber=#0 message="Oh uh!"
+timestamp=... level=FATAL fiber=#0 message="Oh uh!"
 */
 ```
 
 </Tab>
 </Tabs>
 
-## Spans
+## Custom Annotations
 
-Effect also provides support for spans, allowing you to measure the duration of specific operations or tasks within your program.
+Enhance your log outputs by incorporating custom annotations with the `Effect.annotateLogs` function.
+This function allows you to append additional metadata to each log entry of an effect, enhancing traceability and context.
+
+Here's how to apply a single annotation as a key/value pair:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  yield* Effect.log("message1")
+  yield* Effect.log("message2")
+}).pipe(Effect.annotateLogs("key", "value")) // Annotation as key/value pair
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=message1 key=value
+timestamp=... level=INFO fiber=#0 message=message2 key=value
+*/
+```
+
+To apply multiple annotations at once, you can pass an object containing several key/value pairs:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  yield* Effect.log("message1")
+  yield* Effect.log("message2")
+}).pipe(Effect.annotateLogs({ key1: "value1", key2: "value2" }))
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=message1 key2=value2 key1=value1
+timestamp=... level=INFO fiber=#0 message=message2 key2=value2 key1=value1
+*/
+```
+
+Annotations can also be applied with a scoped lifetime using `Effect.annotateLogsScoped`.
+This method confines the application of annotations to logs within a specific [Scope](../resource-management/scope) of your effect computation:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  yield* Effect.log("no annotations")
+  yield* Effect.annotateLogsScoped({ key: "value" })
+  yield* Effect.log("message1") // Annotation is applied to this log
+  yield* Effect.log("message2") // Annotation is applied to this log
+}).pipe(Effect.scoped, Effect.andThen(Effect.log("no annotations again")))
+
+Effect.runSync(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message="no annotations"
+timestamp=... level=INFO fiber=#0 message=message1 key=value
+timestamp=... level=INFO fiber=#0 message=message2 key=value
+timestamp=... level=INFO fiber=#0 message="no annotations again"
+*/
+```
+
+## Log Spans
+
+Effect also provides support for log spans, allowing you to measure the duration of specific operations or tasks within your program.
 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
@@ -365,7 +445,7 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 Output:
-... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
+timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
 */
 ```
 
@@ -383,14 +463,16 @@ const program = Effect.sleep("1 second").pipe(
 Effect.runPromise(program)
 /*
 Output:
-... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
+timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
 */
 ```
 
 </Tab>
 </Tabs>
 
-In the above example, a span is created using the `Effect.withLogSpan` function. It measures the duration of the code block within the span and logs an `INFO` message with the content "The job is finished!" along with the span duration of 1011ms (`myspan=1011ms`).
+In the above example, a log span is created using the `Effect.withLogSpan(label)` function.
+It measures the duration of the code block within the span.
+The resulting duration is then automatically recorded as an annotation within the log message.
 
 ## Disabling Default Logging
 

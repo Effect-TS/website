@@ -33,10 +33,10 @@ console.log(match({ b: "hello" })) // Output: "hello"
 
 Let's dissect what's happening:
 
-- `Match.type<{ a: number } | { b: string }>(){:ts}`: This creates a `Matcher` for objects that are either of type `{ a: number }` or `{ b: string }`.
-- `Match.when({ a: Match.number }, (_) => _.a){:ts}`: This sets up a condition to match an object with a property `a` containing a number. If matched, it returns the value of property `a`.
-- `Match.when({ b: Match.string }, (_) => _.b){:ts}`: This condition matches an object with a property `b` containing a string. If found, it returns the value of property `b`.
-- `Match.exhaustive{:ts}`: This function ensures that all possible cases are considered and matched, making sure that no other unaccounted cases exist. It helps to prevent overlooking any potential scenario.
+- `Match.type<{ a: number } | { b: string }>()`: This creates a `Matcher` for objects that are either of type `{ a: number }` or `{ b: string }`.
+- `Match.when({ a: Match.number }, (_) => _.a)`: This sets up a condition to match an object with a property `a` containing a number. If matched, it returns the value of property `a`.
+- `Match.when({ b: Match.string }, (_) => _.b)`: This condition matches an object with a property `b` containing a string. If found, it returns the value of property `b`.
+- `Match.exhaustive`: This function ensures that all possible cases are considered and matched, making sure that no other unaccounted cases exist. It helps to prevent overlooking any potential scenario.
 
 Finally, the `match` function is applied to test two different objects, `{ a: 0 }` and `{ b: "hello" }`. As per the defined conditions within the `Matcher`, it correctly matches the objects and provides the expected output based on the defined conditions.
 
