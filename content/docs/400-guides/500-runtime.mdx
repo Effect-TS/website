@@ -210,13 +210,46 @@ This results in a top-level runtime that encapsulates the desired configuration 
 
 By customizing the top-level runtime configuration, we can tailor the behavior of our entire Effect application to meet our specific needs and requirements.
 
+### Effect.Tag
+
+When you utilize a runtime that you pass around, you can use `Effect.Tag` to define a new tag and simplify access to a service. This incorporates the service shape directly into the static side of the tag class.
+
+You can define a new tag using `Effect.Tag` as shown below:
+
+```ts twoslash
+import { Effect } from "effect"
+
+class Notifications extends Effect.Tag("Notifications")<
+  Notifications,
+  { readonly notify: (message: string) => Effect.Effect<void> }
+>() {}
+```
+
+In this setup, every field of the service shape is converted into a static property of the `Notifications` class.
+
+This allows you to access the service shape directly:
+
+```ts twoslash
+import { Effect } from "effect"
+
+class Notifications extends Effect.Tag("Notifications")<
+  Notifications,
+  { readonly notify: (message: string) => Effect.Effect<void> }
+>() {}
+
+// ---cut---
+const action = Notifications.notify("Hello, world!")
+```
+
+As you can see, `action` depends on `Notifications`, but this isn't a problem because you can later construct a `Layer` that provides `Notifications` and build a `ManagedRuntime` with it.
+
 ### Integrations
 
 The `ManagedRuntime` simplifies the integration of services and layers with other frameworks or tools, particularly in environments where Effect is not the primary framework and access to the main entry point is restricted.
 
 For instance, `ManagedRuntime` can be particularly useful in environments like React or other frameworks where control over the main application entry point is limited. Here's how you can use `ManagedRuntime` to manage service lifecycle within an external framework:
 
-```ts
+```ts twoslash
 import { Effect, ManagedRuntime, Layer, Console } from "effect"
 
 class Notifications extends Effect.Tag("Notifications")<
