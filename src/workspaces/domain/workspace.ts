@@ -188,7 +188,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   pathTo(file: File | Directory) {
     return Option.fromNullable(this.filePaths.get(file))
   }
-  fullPathTo(file: File) {
+  fullPathTo(file: File | Directory) {
     return this.pathTo(file).pipe(
       Option.map((path) => FullPath(`${this.name}/${path}`))
     )

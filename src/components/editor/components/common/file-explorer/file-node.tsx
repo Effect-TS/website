@@ -2,7 +2,23 @@ import React, { useCallback, useMemo, useState } from "react"
 import { Equal } from "effect"
 import { useRx } from "@effect-rx/rx-react"
 import { Icon } from "@/components/icons"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "@/workspaces/context"
 import { Directory, File } from "@/workspaces/domain/workspace"
@@ -13,11 +29,6 @@ import {
   useRemove,
   useRename
 } from "../file-explorer"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from "@/components/ui/tooltip"
 import { FileInput } from "./file-input"
 
 export declare namespace FileNode {
@@ -252,21 +263,39 @@ function FileNodeControls({ node }: { readonly node: File | Directory }) {
         </>
       )}
       {node.userManaged && (
-        <Tooltip disableHoverableContent={!isIdle}>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              className="h-full p-0 rounded-none"
-              onClick={() => remove(node)}
-            >
-              <span className="sr-only">Delete</span>
-              <Icon name="trash" className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>Delete</p>
-          </TooltipContent>
-        </Tooltip>
+        <AlertDialog>
+          <Tooltip disableHoverableContent={!isIdle}>
+            <AlertDialogTrigger asChild>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" className="h-full p-0 rounded-none">
+                  <span className="sr-only">Delete</span>
+                  <Icon name="trash" className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete
+                  the {node._tag.toLowerCase()}.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="border-destructive bg-destructive hover:bg-destructive/80 text-destructive-foreground"
+                  onClick={() => remove(node)}
+                >
+                  Confirm
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+            <TooltipContent side="bottom">
+              <p>Delete</p>
+            </TooltipContent>
+          </Tooltip>
+        </AlertDialog>
       )}
     </div>
   )
