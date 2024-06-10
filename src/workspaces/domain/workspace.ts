@@ -1,4 +1,4 @@
-import { Brand, Effect, Hash, Iterable, Option } from "effect"
+import { Brand, Effect, Hash, Iterable, Option, pipe } from "effect"
 import * as Schema from "@effect/schema/Schema"
 
 export type FullPath = Brand.Branded<string, "FullPath">
@@ -171,11 +171,16 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       ([_, path]) => _._tag === "File" && path === name
     ) as Option.Option<[File, string]>
   }
-  get initialFile() {
+  get initialFile(): File {
     if (this.initialFilePath) {
       return Option.getOrThrow(this.findFile(this.initialFilePath))[0]
     }
-    return Option.getOrThrow(Iterable.head(this.filePaths.keys()))
+    return pipe(
+      this.filePaths.keys(),
+      Iterable.filter((_) => _._tag === "File"),
+      Iterable.head,
+      Option.getOrThrow
+    )
   }
   get dependencies(): Record<string, string> {
     const parse = Option.liftThrowable(JSON.parse)

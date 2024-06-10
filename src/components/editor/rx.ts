@@ -99,7 +99,6 @@ export const editorRx = Rx.family(
           )
 
         yield* get.stream(selectedFile).pipe(
-          Stream.filter((file): file is File => file._tag === "File"),
           Stream.bindTo("file"),
           Stream.bindEffect("workspace", () => handle.workspace.get),
           Stream.bindEffect("path", ({ file, workspace }) =>
