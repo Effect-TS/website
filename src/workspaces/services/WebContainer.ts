@@ -393,13 +393,22 @@ function treeFromWorkspace(workspace: Workspace): FileSystemTree {
 }
 
 const runProgram = `#!/usr/bin/env node
-const CP = require("child_process")
+const ChildProcess = require("node:child_process")
+const Path = require("node:path")
 
+const outDir = "dist"
 const program = process.argv[2]
 const programJs = program.replace(/\.ts$/, ".js")
+const compiledProgram = Path.join(outDir, Path.basename(programJs))
 
 function run() {
-  CP.spawn("tsc-watch", ["-m", "nodenext", "-t", "esnext", program, "--onSuccess", \`node \${programJs}\`], {
+  ChildProcess.spawn("tsc-watch", [
+    "--module", "nodenext",
+    "--outDir", outDir,
+    "--target", "esnext",
+    program,
+    "--onSuccess", \`node \${compiledProgram}\`
+  ], {
     stdio: "inherit"
   }).on("exit", function() {
     console.clear()
