@@ -2,7 +2,23 @@ import React, { useCallback, useMemo, useState } from "react"
 import { Equal } from "effect"
 import { useRx } from "@effect-rx/rx-react"
 import { Icon } from "@/components/icons"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "@/workspaces/context"
 import { Directory, File } from "@/workspaces/domain/workspace"
@@ -13,11 +29,6 @@ import {
   useRemove,
   useRename
 } from "../file-explorer"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from "@/components/ui/tooltip"
 import { FileInput } from "./file-input"
 
 export declare namespace FileNode {
@@ -254,14 +265,12 @@ function FileNodeControls({ node }: { readonly node: File | Directory }) {
       {node.userManaged && (
         <Tooltip disableHoverableContent={!isIdle}>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              className="h-full p-0 rounded-none"
-              onClick={() => remove(node)}
-            >
-              <span className="sr-only">Delete</span>
-              <Icon name="trash" className="h-4 w-4" />
-            </Button>
+            <DeleteNode
+              title="Are you sure?"
+              description={`This action cannot be undone. This will permanently delete the ${node._tag.toLowerCase()}.`}
+              onCancel={() => void 0}
+              onConfirm={() => remove(node)}
+            />
           </TooltipTrigger>
           <TooltipContent side="bottom">
             <p>Delete</p>
@@ -269,5 +278,43 @@ function FileNodeControls({ node }: { readonly node: File | Directory }) {
         </Tooltip>
       )}
     </div>
+  )
+}
+
+function DeleteNode({
+  title,
+  description,
+  onCancel,
+  onConfirm
+}: {
+  readonly title: string
+  readonly description: string
+  readonly onCancel?: () => void
+  readonly onConfirm?: () => void
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" className="h-full p-0 rounded-none">
+          <span className="sr-only">Delete</span>
+          <Icon name="trash" className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="border-destructive bg-destructive hover:bg-destructive/80 text-destructive-foreground"
+            onClick={onConfirm}
+          >
+            Confirm
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
