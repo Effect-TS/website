@@ -56,7 +56,7 @@ export const makeDirectory = (
   name: string,
   children: ReadonlyArray<File | Directory>,
   userManaged: boolean = false
-): Directory => Directory_.make({ name, userManaged, children })
+): Directory => ({ _tag: "Directory", name, userManaged, children })
 
 export const FileTree = Schema.Array(Schema.Union(File, Directory))
 export type FileTree = typeof FileTree.Type
@@ -91,34 +91,37 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     shells: ReadonlyArray<WorkspaceShell>
     snapshot?: string
   }) {
-    super({
-      name: options.name,
-      initialFilePath: options.initialFilePath,
-      prepare:
-        options.prepare ??
-        "npm install -E esbuild typescript@next tsc-watch @types/node",
-      shells: options.shells,
-      snapshot: options.snapshot,
-      tree: [
-        ...(options.dependencies
-          ? [
-              new File({
-                name: "package.json",
-                language: "json",
-                initialContent: JSON.stringify(
-                  {
-                    dependencies: options.dependencies
-                  },
-                  undefined,
-                  2
-                )
-              }),
-              ...defaultFiles
-            ]
-          : []),
-        ...(options.tree ?? [])
-      ]
-    })
+    super(
+      {
+        name: options.name,
+        initialFilePath: options.initialFilePath,
+        prepare:
+          options.prepare ??
+          "npm install -E esbuild typescript@next tsc-watch @types/node",
+        shells: options.shells,
+        snapshot: options.snapshot,
+        tree: [
+          ...(options.dependencies
+            ? [
+                new File({
+                  name: "package.json",
+                  language: "json",
+                  initialContent: JSON.stringify(
+                    {
+                      dependencies: options.dependencies
+                    },
+                    undefined,
+                    2
+                  )
+                }),
+                ...defaultFiles
+              ]
+            : []),
+          ...(options.tree ?? [])
+        ]
+      },
+      { disableValidation: true }
+    )
     this.filePaths = makeFilePaths(this.tree)
   }
 
