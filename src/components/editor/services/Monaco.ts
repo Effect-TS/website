@@ -118,6 +118,7 @@ const make = Effect.gen(function* () {
           workspace.filePaths,
           ([file, path]) =>
             Effect.sync(() => {
+              if (file._tag === "Directory") return
               const uri = monaco.Uri.parse(`${workspace.name}/${path}`)
               if (monaco.editor.getModel(uri)) {
                 return

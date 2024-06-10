@@ -10,7 +10,7 @@ import { Effect, Layer } from "effect"
 import { editorRx } from "@/components/editor/rx"
 import { hashRx } from "@/rx/location"
 import { pipe } from "effect"
-import { WorkspaceHandle } from "@/workspaces/rx"
+import { RxWorkspaceHandle } from "@/workspaces/rx"
 import { WorkspaceCompression } from "./services/WorkspaceCompression"
 import packageJson from "../../../snapshots/tutorials/package.json"
 import { rpcClient } from "@/rpc/client"
@@ -20,7 +20,7 @@ const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
 )
 
-export const shareRx = Rx.family((handle: WorkspaceHandle) =>
+export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
   runtime.fn((_: void, get) =>
     Effect.gen(function* () {
       const compression = yield* WorkspaceCompression

@@ -3,7 +3,7 @@ import { Icon } from "@/components/icons"
 import { Input } from "@/components/ui/input"
 import { useClickOutside } from "@/hooks/useClickOutside"
 import { cn } from "@/lib/utils"
-import { Action, FileExplorer, useExplorerDispatch } from "../file-explorer"
+import { FileExplorer, State, useExplorerDispatch } from "../file-explorer"
 
 export function FileInput({
   depth,
@@ -31,19 +31,18 @@ export function FileInput({
     (event) => {
       event.preventDefault()
       setFileName("")
-      dispatch(Action.SetIdle())
       onSubmit(fileName)
     },
-    [dispatch, fileName, onSubmit, setFileName]
+    [fileName, onSubmit, setFileName]
   )
 
   // Close the input when the user clicks outside
-  useClickOutside(inputRef, () => dispatch(Action.SetIdle()))
+  useClickOutside(inputRef, () => dispatch(State.Idle()))
 
   // Close the input when the user hits the escape key
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") dispatch(Action.SetIdle())
+      if (e.key === "Escape") dispatch(State.Idle())
     }
     document.addEventListener("keydown", onKeyDown)
     return () => {
@@ -55,8 +54,8 @@ export function FileInput({
     <div style={styles} className="flex items-center py-1">
       <span className="flex items-center h-4 w-4 mr-1">
         <Icon
-          name={type === "file" ? "file" : "directory-closed"}
-          className={cn(type === "directory" && "[&_path]:fill-none")}
+          name={type === "File" ? "file" : "directory-closed"}
+          className={cn(type === "Directory" && "[&_path]:fill-none")}
         />
       </span>
       <form className="grow mr-1" onSubmit={handleSubmit}>

@@ -1,17 +1,17 @@
-import React, { useCallback, useState } from "react"
+import React, { useCallback, useMemo, useState } from "react"
 import { Equal } from "effect"
-import { RxRef, useRx, useRxRef, useRxSet } from "@effect-rx/rx-react"
+import { useRx } from "@effect-rx/rx-react"
 import { Icon } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "@/workspaces/context"
-import { Directory, File, makeDirectory } from "@/workspaces/domain/workspace"
+import { Directory, File } from "@/workspaces/domain/workspace"
 import {
-  Action,
-  Mode,
-  FileExplorer,
+  State,
   useExplorerDispatch,
-  useExplorerState
+  useExplorerState,
+  useRemove,
+  useRename
 } from "../file-explorer"
 import {
   Tooltip,
@@ -19,19 +19,18 @@ import {
   TooltipTrigger
 } from "@/components/ui/tooltip"
 import { FileInput } from "./file-input"
-import { toasterRx } from "@/rx/toasts"
 
 export declare namespace FileNode {
   export type Props = FileProps | DirectoryProps
 
   export interface FileProps extends CommonProps {
     readonly type: "file"
-    readonly node: RxRef.RxRef<File>
+    readonly node: File
   }
 
   export interface DirectoryProps extends CommonProps {
     readonly type: "directory"
-    readonly node: RxRef.RxRef<Directory>
+    readonly node: Directory
     readonly isOpen: boolean
   }
 
@@ -40,7 +39,6 @@ export declare namespace FileNode {
     readonly path: string
     readonly className?: string
     readonly onClick?: OnClick
-    readonly onRemove: () => void
   }
 
   export interface OnClick {
@@ -50,21 +48,21 @@ export declare namespace FileNode {
 
 export function FileNode({
   depth,
-  node: nodeRef,
+  node,
   path,
   className,
   onClick,
-  onRemove,
   ...props
 }: FileNode.Props) {
-  const node = useRxRef(nodeRef as RxRef.RxRef<File | Directory>)
-  const toast = useRxSet(toasterRx)
   const handle = useWorkspaceHandle()
   const state = useExplorerState()
   const [selectedFile, setSelectedFile] = useRx(handle.selectedFile)
   const [showControls, setShowControls] = useState(false)
-  const isEditing =
-    Mode.$is("EditingNode")(state.mode) && Equal.equals(state.mode.node, node)
+  const rename = useRename()
+  const isEditing = useMemo(
+    () => state._tag === "Editing" && Equal.equals(state.node, node),
+    [state, node]
+  )
   const isSelected = Equal.equals(selectedFile, node)
 
   const handleClick = useCallback<FileNode.OnClick>(
@@ -77,63 +75,12 @@ export function FileNode({
     [onClick, setSelectedFile]
   )
 
-  const handleUpdate = useCallback(
-    (name: string) => {
-      nodeRef.update(((node) => {
-        switch (node._tag) {
-          case "File": {
-            if (name.includes("/")) {
-              return toast({
-                title: "Invalid File Name",
-                description:
-                  "Creating nested files is currently unsupported.",
-                variant: "destructive",
-                duration: 5000
-              })
-            }
-            if (!/[a-zA-Z0-9]{1}.*\.ts/.test(name)) {
-              return toast({
-                title: "Unsupported File Type",
-                description:
-                  "The playground currently only supports creation of `.ts` files.",
-                variant: "destructive",
-                duration: 5000
-              })
-            }
-            return new File({ ...node, name })
-          }
-          case "Directory": {
-            if (name.length === 0) {
-              return toast({
-                title: "Invalid Directory Name",
-                description: "Directory names cannot be empty.",
-                variant: "destructive",
-                duration: 5000
-              })
-            }
-            if (name.includes("/")) {
-              return toast({
-                title: "Invalid File Name",
-                description:
-                  "Creating nested directories is currently unsupported",
-                variant: "destructive",
-                duration: 5000
-              })
-            }
-            return makeDirectory(name, node.children, node.userManaged)
-          }
-        }
-      }) as ((value: File) => File) & ((value: Directory) => Directory))
-    },
-    [nodeRef, toast]
-  )
-
   return isEditing ? (
     <FileInput
-      type={node._tag === "File" ? "file" : "directory"}
+      type={node._tag}
       depth={depth}
       initialValue={node.name}
-      onSubmit={handleUpdate}
+      onSubmit={(name) => rename(node, name)}
     />
   ) : (
     <FileNodeRoot
@@ -149,15 +96,7 @@ export function FileNode({
         <FileNodeIcon {...props} />
         <FileNodeName node={node} />
       </FileNodeTrigger>
-      {showControls && (
-        <FileNodeControls
-          node={node}
-          path={path}
-          type={props.type}
-          onRemove={onRemove}
-          isUserManaged={node.userManaged}
-        />
-      )}
+      {showControls && <FileNodeControls node={node} />}
     </FileNodeRoot>
   )
 }
@@ -238,33 +177,22 @@ function FileNodeName({ node }: { readonly node: File | Directory }) {
   return <span>{fileName}</span>
 }
 
-function FileNodeControls({
-  node,
-  path,
-  type,
-  isUserManaged,
-  onRemove
-}: {
-  readonly node: File | Directory
-  readonly path: string
-  readonly type: FileExplorer.InputType
-  readonly isUserManaged: boolean
-  readonly onRemove: () => void
-}) {
+function FileNodeControls({ node }: { readonly node: File | Directory }) {
   const state = useExplorerState()
   const dispatch = useExplorerDispatch()
+  const remove = useRemove()
 
-  const isIdle = Mode.$is("Idle")(state.mode)
+  const isIdle = state._tag === "Idle"
 
   return (
     <div className="flex items-center gap-2 mr-2">
-      {isUserManaged && (
+      {node.userManaged && (
         <Tooltip disableHoverableContent={!isIdle}>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               className="h-full p-0 rounded-none"
-              onClick={() => dispatch(Action.EditNode({ node }))}
+              onClick={() => dispatch(State.Editing({ node }))}
             >
               <span className="sr-only">Edit</span>
               <Icon name="edit" className="h-4 w-4" />
@@ -275,7 +203,7 @@ function FileNodeControls({
           </TooltipContent>
         </Tooltip>
       )}
-      {type === "directory" && (
+      {node._tag === "Directory" && (
         <>
           <Tooltip disableHoverableContent={!isIdle}>
             <TooltipTrigger asChild>
@@ -284,9 +212,9 @@ function FileNodeControls({
                 className="h-full p-0 rounded-none"
                 onClick={() =>
                   dispatch(
-                    Action.CreateNode({
-                      type: "file",
-                      path
+                    State.Creating({
+                      parent: node,
+                      type: "File"
                     })
                   )
                 }
@@ -306,9 +234,9 @@ function FileNodeControls({
                 className="h-full p-0 rounded-none"
                 onClick={() =>
                   dispatch(
-                    Action.CreateNode({
-                      type: "directory",
-                      path
+                    State.Creating({
+                      parent: node,
+                      type: "Directory"
                     })
                   )
                 }
@@ -323,13 +251,13 @@ function FileNodeControls({
           </Tooltip>
         </>
       )}
-      {isUserManaged && (
+      {node.userManaged && (
         <Tooltip disableHoverableContent={!isIdle}>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               className="h-full p-0 rounded-none"
-              onClick={onRemove}
+              onClick={() => remove(node)}
             >
               <span className="sr-only">Delete</span>
               <Icon name="trash" className="h-4 w-4" />

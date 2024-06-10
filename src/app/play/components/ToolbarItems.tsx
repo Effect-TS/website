@@ -169,6 +169,7 @@ function ShareContent() {
             value={Result.matchWithWaiting(result, {
               onWaiting: (_) => "",
               onError: Match.valueTags({
+                FileNotFoundError: () => "The workspace could not be found.",
                 CompressionError: () => "Could not compress the workspace.",
                 ShortenError: (err) =>
                   err.reason === "TooLarge"

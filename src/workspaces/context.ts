@@ -1,8 +1,8 @@
 import React from "react"
-import { WorkspaceHandle } from "./rx"
+import { RxWorkspaceHandle } from "./rx"
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 
-export const WorkspaceContext = React.createContext<WorkspaceHandle>(
+export const WorkspaceContext = React.createContext<RxWorkspaceHandle>(
   null as any
 )
 

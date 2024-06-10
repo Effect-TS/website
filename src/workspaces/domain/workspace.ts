@@ -80,7 +80,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   shells: Schema.Array(WorkspaceShell),
   snapshot: Schema.optional(Schema.String)
 }) {
-  readonly filePaths: Map<File, string>
+  readonly filePaths: Map<File | Directory, string>
 
   constructor(options: {
     name: string
@@ -107,7 +107,6 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
                 language: "json",
                 initialContent: JSON.stringify(
                   {
-                    type: "module",
                     dependencies: options.dependencies
                   },
                   undefined,
@@ -150,8 +149,24 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   setTree(tree: FileTree) {
     return new Workspace({ ...this, tree })
   }
+  filterMap(f: (item: File | Directory) => Option.Option<File | Directory>) {
+    return this.setTree(filterMapTree(this.tree, f))
+  }
+  replaceNode(node: File | Directory, replacement: File | Directory) {
+    return this.filterMap((item) =>
+      item === node ? Option.some(replacement) : Option.some(item)
+    )
+  }
+  removeNode(node: File | Directory) {
+    return this.filterMap((item) =>
+      item === node ? Option.none() : Option.some(item)
+    )
+  }
   findFile(name: string) {
-    return Iterable.findFirst(this.filePaths, ([_, path]) => path === name)
+    return Iterable.findFirst(
+      this.filePaths,
+      ([_, path]) => _._tag === "File" && path === name
+    ) as Option.Option<[File, string]>
   }
   get initialFile() {
     if (this.initialFilePath) {
@@ -167,7 +182,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       Option.getOrElse(() => ({}))
     )
   }
-  pathTo(file: File) {
+  pathTo(file: File | Directory) {
     return Option.fromNullable(this.filePaths.get(file))
   }
   fullPathTo(file: File) {
@@ -223,12 +238,11 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
 // helper functions
 
 function makeFilePaths(tree: Workspace["tree"]) {
-  const paths = new Map<File, string>()
+  const paths = new Map<File | Directory, string>()
   function walk(prefix: string, children: Workspace["tree"]) {
     children.forEach((child) => {
-      if (child._tag === "File") {
-        paths.set(child, `${prefix}${child.name}`)
-      } else {
+      paths.set(child, `${prefix}${child.name}`)
+      if (child._tag === "Directory") {
         walk(`${prefix}${child.name}/`, child.children)
       }
     })
@@ -274,9 +288,8 @@ export const defaultFiles = [
         compilerOptions: {
           allowSyntheticDefaultImports: true,
           exactOptionalPropertyTypes: true,
-          module: "esnext",
-          moduleDetection: "force",
-          moduleResolution: "bundler",
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
           strict: true,
           target: "esnext"
         },
@@ -287,3 +300,28 @@ export const defaultFiles = [
     )
   })
 ]
+
+function filterMapTree(
+  tree: FileTree,
+  f: (node: File | Directory) => Option.Option<File | Directory>
+): FileTree {
+  const out: Array<File | Directory> = []
+  for (const node of tree) {
+    const result = f(node)
+    if (result._tag === "None") {
+      continue
+    }
+    if (result.value === node && result.value._tag === "Directory") {
+      out.push(
+        makeDirectory(
+          result.value.name,
+          filterMapTree(result.value.children, f),
+          result.value.userManaged
+        )
+      )
+    } else {
+      out.push(result.value)
+    }
+  }
+  return out
+}

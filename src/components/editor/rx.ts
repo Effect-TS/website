@@ -2,7 +2,7 @@ import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
 import { File, FullPath } from "@/workspaces/domain/workspace"
 import { MonacoATA } from "./services/Monaco/ata"
-import { WorkspaceHandle } from "@/workspaces/rx"
+import { RxWorkspaceHandle } from "@/workspaces/rx"
 import { MonacoFormattersLive } from "./services/Monaco/formatters"
 import { MonacoCompletersLive } from "./services/Monaco/completers"
 import { MonacoTSConfigLive } from "./services/Monaco/tsconfig"
@@ -23,7 +23,7 @@ export const editorThemeRx = Rx.map(themeRx, (theme) =>
 )
 
 export const editorRx = Rx.family(
-  ({ handle, solved, selectedFile, workspace }: WorkspaceHandle) => {
+  ({ handle, solved, selectedFile, workspace }: RxWorkspaceHandle) => {
     const element = Rx.make(Option.none<HTMLElement>())
     const editor = runtime.rx((get) =>
       Effect.gen(function* (_) {

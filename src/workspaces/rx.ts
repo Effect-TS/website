@@ -1,9 +1,14 @@
 import { themeRx } from "@/rx/theme"
-import { Rx, RxRef } from "@effect-rx/rx-react"
+import { Rx } from "@effect-rx/rx-react"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
-import { Workspace, WorkspaceShell } from "./domain/workspace"
+import {
+  Directory,
+  File,
+  Workspace,
+  WorkspaceShell
+} from "./domain/workspace"
 import {
   MonokaiSodaTheme,
   NightOwlishLightTheme,
@@ -97,12 +102,14 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         yield* get.stream(solved, { withoutInitialValue: true }).pipe(
           Stream.runForEach((solve) =>
             Effect.forEach(workspace.filePaths, ([file, path]) =>
-              handle.write(
-                path,
-                solve
-                  ? file.solution ?? file.initialContent
-                  : file.initialContent
-              )
+              file._tag === "Directory"
+                ? Effect.void
+                : handle.write(
+                    path,
+                    solve
+                      ? file.solution ?? file.initialContent
+                      : file.initialContent
+                  )
             )
           ),
           Effect.forkScoped
@@ -114,7 +121,26 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
           terminal,
           terminalSize,
           selectedFile,
-          solved
+          solved,
+          create: Rx.fn((params: Parameters<typeof handle.create>, get) =>
+            Effect.gen(function* () {
+              const node = yield* handle.create(...params)
+              if (node._tag === "Some" && node.value._tag === "File") {
+                yield* get.set(selectedFile, node.value)
+              }
+            })
+          ),
+          rename: Rx.fn((params: Parameters<typeof handle.rename>) =>
+            handle.rename(...params)
+          ),
+          remove: Rx.fn((node: File | Directory) =>
+            Effect.gen(function* () {
+              yield* handle.remove(node)
+              if (node === get.once(selectedFile)) {
+                yield* get.set(selectedFile, workspace.initialFile)
+              }
+            })
+          )
         } as const
       }).pipe(
         Effect.annotateLogs({
@@ -127,5 +153,5 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
   )
 )
 
-export interface WorkspaceHandle
+export interface RxWorkspaceHandle
   extends Rx.Rx.InferSuccess<ReturnType<typeof workspaceHandleRx>> {}
