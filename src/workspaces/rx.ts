@@ -125,18 +125,28 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
           create: Rx.fn((params: Parameters<typeof handle.create>, get) =>
             Effect.gen(function* () {
               const node = yield* handle.create(...params)
-              if (node._tag === "Some" && node.value._tag === "File") {
-                yield* get.set(selectedFile, node.value)
+              if (node._tag === "File") {
+                yield* get.set(selectedFile, node)
               }
             })
           ),
           rename: Rx.fn((params: Parameters<typeof handle.rename>) =>
-            handle.rename(...params)
+            Effect.gen(function* () {
+              const node = yield* handle.rename(...params)
+              if (node._tag === "Directory") {
+                return
+              }
+              const workspace = yield* handle.workspace.get
+              if (workspace.pathTo(get.once(selectedFile))._tag === "None") {
+                yield* get.set(selectedFile, node)
+              }
+            })
           ),
           remove: Rx.fn((node: File | Directory) =>
             Effect.gen(function* () {
               yield* handle.remove(node)
-              if (node === get.once(selectedFile)) {
+              const workspace = yield* handle.workspace.get
+              if (workspace.pathTo(get.once(selectedFile))._tag === "None") {
                 yield* get.set(selectedFile, workspace.initialFile)
               }
             })

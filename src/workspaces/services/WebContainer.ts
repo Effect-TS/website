@@ -148,11 +148,11 @@ const make = Effect.gen(function* () {
           (process) => Effect.sync(() => process.kill())
         )
 
-      const validateName = (name: string) =>
+      const validateName = (name: string, type: "File" | "Directory") =>
         Effect.gen(function* () {
           if (name.length === 0 || name.includes("/")) {
             return yield* new FileValidationError({ reason: "InvalidName" })
-          } else if (!name.endsWith(".ts")) {
+          } else if (type === "File" && !name.endsWith(".ts")) {
             return yield* new FileValidationError({
               reason: "UnsupportedType"
             })
@@ -166,7 +166,7 @@ const make = Effect.gen(function* () {
       ) =>
         Effect.gen(function* () {
           yield* Effect.log("creating")
-          yield* validateName(name)
+          yield* validateName(name, type)
 
           const workspace = yield* workspaceRef.get
           const newPath =
@@ -201,7 +201,6 @@ const make = Effect.gen(function* () {
             toast(error.asToast)
           ),
           Effect.tapErrorCause(Effect.log),
-          Effect.option,
           Effect.annotateLogs({
             service: "WebContainer",
             name,
@@ -212,7 +211,7 @@ const make = Effect.gen(function* () {
       const rename = (file: File | Directory, newName: string) =>
         Effect.gen(function* () {
           yield* Effect.log("renaming")
-          yield* validateName(newName)
+          yield* validateName(newName, file._tag)
           const workspace = yield* workspaceRef.get
           const newNode =
             file._tag === "Directory"
@@ -225,8 +224,9 @@ const make = Effect.gen(function* () {
             container.fs.rename(path(oldPath), path(newPath))
           )
           yield* SubscriptionRef.set(workspaceRef, newWorkspace)
+          return newNode
         }).pipe(
-          Effect.catchTag("FileValidationError", (error) =>
+          Effect.tapErrorTag("FileValidationError", (error) =>
             toast(error.asToast)
           ),
           Effect.tapErrorCause(Effect.log),
@@ -356,11 +356,11 @@ export interface WorkspaceHandle {
     parent: Option.Option<Directory>,
     name: string,
     type: "File" | "Directory"
-  ) => Effect.Effect<Option.Option<File | Directory>>
+  ) => Effect.Effect<File | Directory, FileValidationError>
   readonly rename: (
     node: File | Directory,
     newName: string
-  ) => Effect.Effect<void>
+  ) => Effect.Effect<File | Directory, FileValidationError>
   readonly remove: (node: File | Directory) => Effect.Effect<void>
   readonly write: (file: string, data: string) => Effect.Effect<void>
   readonly read: (file: string) => Effect.Effect<string, FileNotFoundError>
