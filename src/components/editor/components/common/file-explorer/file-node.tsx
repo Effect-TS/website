@@ -263,58 +263,40 @@ function FileNodeControls({ node }: { readonly node: File | Directory }) {
         </>
       )}
       {node.userManaged && (
-        <Tooltip disableHoverableContent={!isIdle}>
-          <TooltipTrigger asChild>
-            <DeleteNode
-              title="Are you sure?"
-              description={`This action cannot be undone. This will permanently delete the ${node._tag.toLowerCase()}.`}
-              onCancel={() => void 0}
-              onConfirm={() => remove(node)}
-            />
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>Delete</p>
-          </TooltipContent>
-        </Tooltip>
+        <AlertDialog>
+          <Tooltip disableHoverableContent={!isIdle}>
+            <AlertDialogTrigger asChild>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" className="h-full p-0 rounded-none">
+                  <span className="sr-only">Delete</span>
+                  <Icon name="trash" className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete
+                  the {node._tag.toLowerCase()}.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="border-destructive bg-destructive hover:bg-destructive/80 text-destructive-foreground"
+                  onClick={() => remove(node)}
+                >
+                  Confirm
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+            <TooltipContent side="bottom">
+              <p>Delete</p>
+            </TooltipContent>
+          </Tooltip>
+        </AlertDialog>
       )}
     </div>
-  )
-}
-
-function DeleteNode({
-  title,
-  description,
-  onCancel,
-  onConfirm
-}: {
-  readonly title: string
-  readonly description: string
-  readonly onCancel?: () => void
-  readonly onConfirm?: () => void
-}) {
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="ghost" className="h-full p-0 rounded-none">
-          <span className="sr-only">Delete</span>
-          <Icon name="trash" className="h-4 w-4" />
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            className="border-destructive bg-destructive hover:bg-destructive/80 text-destructive-foreground"
-            onClick={onConfirm}
-          >
-            Confirm
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   )
 }
