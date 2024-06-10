@@ -246,11 +246,6 @@ const make = Effect.gen(function* () {
           yield* Effect.promise(() =>
             container.fs.rm(path(nodePath), { recursive: true })
           )
-          if (node.name.endsWith(".ts")) {
-            yield* Effect.tryPromise(() =>
-              container.fs.rm(path(nodePath.replace(".ts", ".js")))
-            ).pipe(Effect.ignore)
-          }
           yield* SubscriptionRef.set(workspaceRef, newWorkspace)
         }).pipe(
           Effect.tapErrorCause(Effect.log),
