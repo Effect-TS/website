@@ -39,7 +39,13 @@ self.customTSWorkerFactory = (TypeScriptWorker) => {
         entryName,
         formatOptions,
         source,
-        preferences,
+        {
+          ...preferences,
+          // enable auto-imports to be included in the completion list
+          // https://github.com/microsoft/TypeScript/blob/1e2c77e728a601b92f18a7823412466fea1be913/lib/protocol.d.ts#L2619-L2623
+          includeCompletionsForModuleExports: true,
+          includeCompletionsForImportStatements: true
+        },
         data,
       );
     }

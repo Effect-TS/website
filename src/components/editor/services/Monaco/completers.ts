@@ -113,7 +113,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
       }
 
       const info: ts.CompletionInfo | undefined =
-        await worker.getCompletionsAtPosition(resource.toString(), offset)
+        await worker.getCompletionsAtPosition(resource.toString(), offset, {})
 
       if (!info || model.isDisposed()) {
         return
@@ -165,6 +165,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
       readonly uri: monaco.Uri
       readonly position: monaco.Position
       readonly offset: number
+      readonly source: string | undefined
       readonly data?: ts.CompletionEntryData | undefined
     }
 
@@ -181,8 +182,8 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
           item.offset,
           item.label,
           {},
-          item.uri.toString(),
-          undefined,
+          item.source,
+          {},
           item.data
         )
 
@@ -359,5 +360,5 @@ const builtInNodeModules = [
 ]
 
 function pruneNodeBuiltIns(entry: ts.CompletionEntry): boolean {
-  return  !builtInNodeModules.includes(entry.name)
+  return !builtInNodeModules.includes(entry.name)
 }
