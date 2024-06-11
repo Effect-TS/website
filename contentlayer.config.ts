@@ -10,6 +10,7 @@ import rehypeRaw from "rehype-raw"
 import { nodeTypes } from "@mdx-js/mdx"
 import codeImport from "remark-code-import"
 import remarkMdxCodeMeta from "remark-mdx-code-meta"
+import rehypeSlug from "rehype-slug"
 
 export const CODE_BLOCK_FILENAME_REGEX = /filename="([^"]+)"/
 
@@ -50,7 +51,8 @@ export default makeSource({
       [
         rehypePrettyCode,
         { ...DEFAULT_REHYPE_PRETTY_CODE_OPTIONS, theme: "github-dark" }
-      ] as any
+      ] as any,
+      [rehypeSlug]
     ]
   }
 })
