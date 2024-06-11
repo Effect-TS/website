@@ -1,12 +1,21 @@
-import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
+import {
+  Console,
+  Effect,
+  Option,
+  Layer,
+  Schedule,
+  Stream,
+  pipe
+} from "effect"
+import { themeRx } from "@/rx/theme"
 import { File, FullPath } from "@/workspaces/domain/workspace"
-import { MonacoATA } from "./services/Monaco/ata"
 import { RxWorkspaceHandle } from "@/workspaces/rx"
-import { MonacoFormattersLive } from "./services/Monaco/formatters"
+import { MonacoATA } from "./services/Monaco/ata"
 import { MonacoCompletersLive } from "./services/Monaco/completers"
+import { MonacoFormattersLive } from "./services/Monaco/formatters"
 import { MonacoTSConfigLive } from "./services/Monaco/tsconfig"
-import { Effect, Option, Layer, Schedule, Stream, pipe } from "effect"
+import { FileSystemEvent } from "@/workspaces/services/WebContainer"
 
 const MonacoWithPlugins = MonacoATA.Live.pipe(
   Layer.provide(MonacoCompletersLive),
@@ -113,6 +122,23 @@ export const editorRx = Rx.family(
           ),
           Stream.runDrain,
           Effect.retry(Schedule.spaced(200)),
+          Effect.forkScoped
+        )
+
+        yield* handle.fsEvents.pipe(
+          Stream.runForEach(
+            FileSystemEvent.$match({
+              NodeCreated: () =>
+                Effect.sync(() => {
+                  editor.editor.focus()
+                }),
+              NodeRenamed: ({ node, oldPath, newPath }) =>
+                node._tag === "Directory"
+                  ? Effect.void
+                  : editor.renameFile(node, oldPath, newPath),
+              NodeRemoved: ({ path }) => editor.removeFile(path)
+            })
+          ),
           Effect.forkScoped
         )
 

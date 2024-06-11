@@ -1,32 +1,51 @@
-import * as Http from "@effect/platform/HttpClient"
 import {
   Data,
   Effect,
   GlobalValue,
   Layer,
   Option,
+  PubSub,
   Scope,
   Stream,
   SubscriptionRef,
   identity,
   pipe
 } from "effect"
+import * as Http from "@effect/platform/HttpClient"
 import {
   FileSystemTree,
   WebContainer as WC,
   WebContainerProcess
 } from "@webcontainer/api"
+import { Toast, Toaster } from "@/services/Toaster"
 import {
   Directory,
   File,
-  makeDirectory,
-  Workspace
+  FullPath,
+  Workspace,
+  makeDirectory
 } from "../domain/workspace"
-import { Toast, Toaster } from "@/services/Toaster"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
 )
+
+export type FileSystemEvent = Data.TaggedEnum<{
+  readonly NodeCreated: {
+    readonly node: File | Directory
+    readonly path: FullPath
+  }
+  readonly NodeRenamed: {
+    readonly node: File | Directory
+    readonly oldPath: FullPath
+    readonly newPath: FullPath
+  }
+  readonly NodeRemoved: {
+    readonly node: File | Directory
+    readonly path: FullPath
+  }
+}>
+export const FileSystemEvent = Data.taggedEnum<FileSystemEvent>()
 
 class FileValidationError extends Data.TaggedError("FileValidationError")<{
   readonly reason: "InvalidName" | "UnsupportedType"
@@ -77,6 +96,11 @@ const make = Effect.gen(function* () {
 
   const workspace = (workspace: Workspace) =>
     Effect.gen(function* () {
+      const fsEvents = yield* Effect.acquireRelease(
+        PubSub.unbounded<FileSystemEvent>(),
+        (pubsub) => PubSub.shutdown(pubsub)
+      )
+
       const workspaceRef = yield* SubscriptionRef.make(workspace)
 
       const path = (_: string) => `${workspace.name}/${_}`
@@ -195,6 +219,16 @@ const make = Effect.gen(function* () {
                 )
               : workspace.append(node)
           )
+          yield* PubSub.publish(
+            fsEvents,
+            FileSystemEvent.NodeCreated({
+              node,
+              path:
+                directory._tag === "None"
+                  ? FullPath(name)
+                  : FullPath(`${Option.getOrThrow(workspace.fullPathTo(directory.value))}/${name}`)
+            })
+          )
           return node
         }).pipe(
           Effect.tapErrorTag("FileValidationError", (error) =>
@@ -224,6 +258,14 @@ const make = Effect.gen(function* () {
             container.fs.rename(path(oldPath), path(newPath))
           )
           yield* SubscriptionRef.set(workspaceRef, newWorkspace)
+          yield* PubSub.publish(
+            fsEvents,
+            FileSystemEvent.NodeRenamed({
+              node: newNode,
+              oldPath: yield* Effect.orDie(workspace.fullPathTo(file)),
+              newPath: yield* Effect.orDie(newWorkspace.fullPathTo(newNode))
+            })
+          )
           return newNode
         }).pipe(
           Effect.tapErrorTag("FileValidationError", (error) =>
@@ -247,6 +289,13 @@ const make = Effect.gen(function* () {
             container.fs.rm(path(nodePath), { recursive: true })
           )
           yield* SubscriptionRef.set(workspaceRef, newWorkspace)
+          yield* PubSub.publish(
+            fsEvents,
+            FileSystemEvent.NodeRemoved({
+              node,
+              path: yield* Effect.orDie(workspace.fullPathTo(node))
+            })
+          )
         }).pipe(
           Effect.tapErrorCause(Effect.log),
           Effect.annotateLogs({
@@ -285,6 +334,9 @@ const make = Effect.gen(function* () {
         write: writeFile,
         read: readFile,
         watch: watchFile,
+        fsEvents: Stream.unwrapScoped(
+          Stream.fromPubSub(fsEvents, { scoped: true })
+        ),
         run,
         shell
       })
@@ -360,6 +412,7 @@ export interface WorkspaceHandle {
   readonly write: (file: string, data: string) => Effect.Effect<void>
   readonly read: (file: string) => Effect.Effect<string, FileNotFoundError>
   readonly watch: (file: string) => Stream.Stream<string, FileNotFoundError>
+  readonly fsEvents: Stream.Stream<FileSystemEvent>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
   readonly run: (command: string) => Effect.Effect<number>
 }
