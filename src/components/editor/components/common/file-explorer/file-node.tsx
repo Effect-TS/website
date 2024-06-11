@@ -1,10 +1,35 @@
-import React from "react"
+import React, { useCallback, useMemo, useState } from "react"
+import { Equal } from "effect"
+import { useRx } from "@effect-rx/rx-react"
+import { Icon } from "@/components/icons"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 import { useWorkspaceHandle } from "@/workspaces/context"
 import { Directory, File } from "@/workspaces/domain/workspace"
-import { Icon } from "@/components/icons"
-import { cn } from "@/lib/utils"
-import { useRxValue } from "@effect-rx/rx-react"
-import * as Equal from "effect/Equal"
+import {
+  State,
+  useExplorerDispatch,
+  useExplorerState,
+  useRemove,
+  useRename
+} from "../file-explorer"
+import { FileInput } from "./file-input"
 
 export declare namespace FileNode {
   export type Props = FileProps | DirectoryProps
@@ -17,11 +42,13 @@ export declare namespace FileNode {
   export interface DirectoryProps extends CommonProps {
     readonly type: "directory"
     readonly node: Directory
-    readonly isOpen?: boolean
+    readonly isOpen: boolean
   }
 
   export interface CommonProps {
     readonly depth: number
+    readonly path: string
+    readonly className?: string
     readonly onClick?: OnClick
   }
 
@@ -30,15 +57,97 @@ export declare namespace FileNode {
   }
 }
 
-export const FileNode: React.FC<FileNode.Props> = ({
+export function FileNode({
   depth,
   node,
+  path,
+  className,
   onClick,
   ...props
-}) => {
-  const { selectedFile } = useWorkspaceHandle()
-  const selected = useRxValue(selectedFile)
-  const fileName = node.name.split("/").filter(Boolean).pop()
+}: FileNode.Props) {
+  const handle = useWorkspaceHandle()
+  const state = useExplorerState()
+  const [selectedFile, setSelectedFile] = useRx(handle.selectedFile)
+  const [showControls, setShowControls] = useState(false)
+  const rename = useRename()
+  const isEditing = useMemo(
+    () => state._tag === "Editing" && Equal.equals(state.node, node),
+    [state, node]
+  )
+  const isSelected = Equal.equals(selectedFile, node)
+
+  const handleClick = useCallback<FileNode.OnClick>(
+    (event, node) => {
+      if (node._tag === "File") {
+        setSelectedFile(node)
+      }
+      onClick?.(event, node)
+    },
+    [onClick, setSelectedFile]
+  )
+
+  return isEditing ? (
+    <FileInput
+      type={node._tag}
+      depth={depth}
+      initialValue={node.name}
+      onSubmit={(name) => rename(node, name)}
+    />
+  ) : (
+    <FileNodeRoot
+      isSelected={isSelected}
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
+    >
+      <FileNodeTrigger
+        depth={depth}
+        isSelected={isSelected}
+        onClick={(event) => handleClick(event, node)}
+      >
+        <FileNodeIcon {...props} />
+        <FileNodeName node={node} />
+      </FileNodeTrigger>
+      {showControls && <FileNodeControls node={node} />}
+    </FileNodeRoot>
+  )
+}
+
+function FileNodeRoot({
+  children,
+  isSelected,
+  onMouseEnter,
+  onMouseLeave
+}: React.PropsWithChildren<{
+  readonly isSelected: boolean
+  readonly onMouseEnter: () => void
+  readonly onMouseLeave: () => void
+}>) {
+  return (
+    <div
+      className={cn(
+        "flex items-center transition-colors",
+        isSelected
+          ? "bg-gray-200 dark:bg-zinc-800"
+          : "hover:bg-gray-200/50 dark:hover:bg-zinc-800/50"
+      )}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {children}
+    </div>
+  )
+}
+
+function FileNodeTrigger({
+  children,
+  depth,
+  isSelected,
+  onClick
+}: React.PropsWithChildren<{
+  readonly depth: number
+  readonly isSelected: boolean
+  readonly onClick: React.MouseEventHandler<HTMLButtonElement>
+}>) {
   // Tailwind cannot dynamically generate styles, so we resort to the `style` prop here
   const paddingLeft = 16 + depth * 8
   const styles = { paddingLeft: `${paddingLeft}px` }
@@ -48,23 +157,146 @@ export const FileNode: React.FC<FileNode.Props> = ({
       type="button"
       style={styles}
       className={cn(
-        "w-full flex items-center py-1 text-sm transition-colors [&_svg]:mr-1 [&_span]:truncate",
-        Equal.equals(selected, node)
-          ? "text-blue-500 dark:text-sky-500 bg-gray-200 dark:bg-zinc-800"
-          : "hover:text-blue-500 dark:hover:text-sky-500 hover:bg-gray-200/50 dark:hover:bg-zinc-800/50"
+        "flex grow items-center py-1 [&_svg]:mr-1 [&_span]:truncate",
+        isSelected
+          ? "text-blue-500 dark:text-sky-500"
+          : "hover:text-blue-500 dark:hover:text-sky-500"
       )}
-      onClick={(event) => onClick?.(event, node)}
+      onClick={onClick}
     >
-      {props.type === "file" ? (
-        <Icon name="file" />
-      ) : props.isOpen ? (
-        <Icon name="directory-open" />
-      ) : (
-        <Icon name="directory-closed" />
-      )}
-      <span>{fileName}</span>
+      {children}
     </button>
   )
 }
 
-FileNode.displayName = "FileNode"
+function FileNodeIcon(
+  props:
+    | { readonly type: "file" }
+    | { readonly type: "directory"; readonly isOpen: boolean }
+) {
+  return props.type === "file" ? (
+    <Icon name="file" />
+  ) : props.isOpen ? (
+    <Icon name="directory-open" />
+  ) : (
+    <Icon name="directory-closed" />
+  )
+}
+
+function FileNodeName({ node }: { readonly node: File | Directory }) {
+  const fileName = node.name.split("/").filter(Boolean).pop()
+  return <span>{fileName}</span>
+}
+
+function FileNodeControls({ node }: { readonly node: File | Directory }) {
+  const state = useExplorerState()
+  const dispatch = useExplorerDispatch()
+  const remove = useRemove()
+
+  const isIdle = state._tag === "Idle"
+
+  return (
+    <div className="flex items-center gap-2 mr-2">
+      {node.userManaged && (
+        <Tooltip disableHoverableContent={!isIdle}>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              className="h-full p-0 rounded-none"
+              onClick={() => dispatch(State.Editing({ node }))}
+            >
+              <span className="sr-only">Edit</span>
+              <Icon name="edit" className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Edit</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+      {node._tag === "Directory" && (
+        <>
+          <Tooltip disableHoverableContent={!isIdle}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-full p-0 rounded-none"
+                onClick={() =>
+                  dispatch(
+                    State.Creating({
+                      parent: node,
+                      type: "File"
+                    })
+                  )
+                }
+              >
+                <span className="sr-only">Add File</span>
+                <Icon name="file-plus" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>New File...</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip disableHoverableContent={!isIdle}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-full p-0 rounded-none"
+                onClick={() =>
+                  dispatch(
+                    State.Creating({
+                      parent: node,
+                      type: "Directory"
+                    })
+                  )
+                }
+              >
+                <span className="sr-only">Add Directory</span>
+                <Icon name="directory-plus" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>New Folder...</p>
+            </TooltipContent>
+          </Tooltip>
+        </>
+      )}
+      {node.userManaged && (
+        <AlertDialog>
+          <Tooltip disableHoverableContent={!isIdle}>
+            <AlertDialogTrigger asChild>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" className="h-full p-0 rounded-none">
+                  <span className="sr-only">Delete</span>
+                  <Icon name="trash" className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete
+                  the {node._tag.toLowerCase()}.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="border-destructive bg-destructive hover:bg-destructive/80 text-destructive-foreground"
+                  onClick={() => remove(node)}
+                >
+                  Confirm
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+            <TooltipContent side="bottom">
+              <p>Delete</p>
+            </TooltipContent>
+          </Tooltip>
+        </AlertDialog>
+      )}
+    </div>
+  )
+}

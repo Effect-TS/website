@@ -1,8 +1,4 @@
-import * as Data from "effect/Data"
-import * as Effect from "effect/Effect"
-import * as GlobalValue from "effect/GlobalValue"
-import * as Layer from "effect/Layer"
-import * as Stream from "effect/Stream"
+import { Data, Effect, GlobalValue, Layer, Stream, pipe } from "effect"
 import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 import { File, FullPath, Workspace } from "@/workspaces/domain/workspace"
 
@@ -57,6 +53,8 @@ const loadApi = GlobalValue.globalValue("app/Monaco/loadApi", () =>
 const make = Effect.gen(function* () {
   const monaco = yield* loadApi
 
+  monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true)
+
   monaco.languages.typescript.typescriptDefaults.setWorkerOptions({
     customWorkerPath: `${new URL(window.location.origin)}vendor/ts.worker.js`
   })
@@ -67,8 +65,9 @@ const make = Effect.gen(function* () {
         Effect.sync(() =>
           monaco.editor.create(el, {
             automaticLayout: true,
-            minimap: { enabled: false },
+            fixedOverflowWidgets: true,
             fontSize: 16,
+            minimap: { enabled: false },
             quickSuggestions: {
               comments: false,
               other: true,
@@ -91,7 +90,7 @@ const make = Effect.gen(function* () {
       >()
       const load = (path: FullPath, file: File, content: string) =>
         Effect.gen(function* () {
-          const uri = monaco.Uri.parse(path)
+          const uri = monaco.Uri.file(path)
           const model =
             monaco.editor.getModel(uri) ||
             monaco.editor.createModel(content, file.language, uri)
@@ -117,7 +116,8 @@ const make = Effect.gen(function* () {
           workspace.filePaths,
           ([file, path]) =>
             Effect.sync(() => {
-              const uri = monaco.Uri.parse(`${workspace.name}/${path}`)
+              if (file._tag === "Directory") return
+              const uri = monaco.Uri.file(`${workspace.name}/${path}`)
               if (monaco.editor.getModel(uri)) {
                 return
               }
@@ -137,7 +137,50 @@ const make = Effect.gen(function* () {
         return Effect.sync(() => cancel.dispose())
       })
 
-      return { editor, load, preload, content, theme } as const
+      const refresh = () => {
+        const currentModel = editor.getModel()
+        if (currentModel) {
+          currentModel.setValue(currentModel.getValue())
+        }
+      }
+
+      const renameFile = (node: File, oldPath: FullPath, newPath: FullPath) =>
+        pipe(
+          Effect.fromNullable(
+            monaco.editor.getModel(monaco.Uri.file(oldPath))
+          ),
+          Effect.map((model) => model.getValue()),
+          Effect.zipLeft(removeFile(oldPath)),
+          Effect.andThen((content) => {
+            monaco.editor.createModel(
+              content,
+              node.language,
+              monaco.Uri.file(newPath)
+            )
+            refresh()
+          }),
+          Effect.ignore
+        )
+
+      const removeFile = (path: FullPath) =>
+        Effect.sync(() => {
+          const uri = monaco.Uri.file(path)
+          const model = monaco.editor.getModel(uri)
+          if (model) {
+            model.dispose()
+            refresh()
+          }
+        })
+
+      return {
+        editor,
+        load,
+        preload,
+        content,
+        renameFile,
+        removeFile,
+        theme
+      } as const
     })
 
   function listen<A>(event: monaco.IEvent<A>) {

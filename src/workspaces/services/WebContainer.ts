@@ -1,25 +1,84 @@
+import {
+  Data,
+  Effect,
+  GlobalValue,
+  Layer,
+  Option,
+  PubSub,
+  Scope,
+  Stream,
+  SubscriptionRef,
+  identity,
+  pipe
+} from "effect"
 import * as Http from "@effect/platform/HttpClient"
 import {
   FileSystemTree,
   WebContainer as WC,
   WebContainerProcess
 } from "@webcontainer/api"
-import * as Data from "effect/Data"
-import * as Effect from "effect/Effect"
-import { identity, pipe } from "effect/Function"
-import * as GlobalValue from "effect/GlobalValue"
-import * as Layer from "effect/Layer"
-import * as Scope from "effect/Scope"
-import { Workspace } from "../domain/workspace"
-import * as Stream from "effect/Stream"
+import { Toast, Toaster } from "@/services/Toaster"
+import {
+  Directory,
+  File,
+  FullPath,
+  Workspace,
+  makeDirectory
+} from "../domain/workspace"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
 )
 
+export type FileSystemEvent = Data.TaggedEnum<{
+  readonly NodeCreated: {
+    readonly node: File | Directory
+    readonly path: FullPath
+  }
+  readonly NodeRenamed: {
+    readonly node: File | Directory
+    readonly oldPath: FullPath
+    readonly newPath: FullPath
+  }
+  readonly NodeRemoved: {
+    readonly node: File | Directory
+    readonly path: FullPath
+  }
+}>
+export const FileSystemEvent = Data.taggedEnum<FileSystemEvent>()
+
+class FileValidationError extends Data.TaggedError("FileValidationError")<{
+  readonly reason: "InvalidName" | "UnsupportedType"
+}> {
+  get message(): string {
+    switch (this.reason) {
+      case "InvalidName": {
+        return "Directory names cannot be empty or contain '/'."
+      }
+      case "UnsupportedType": {
+        return "The playground currently only supports creation of `.ts` files."
+      }
+    }
+  }
+
+  get asToast(): Omit<Toast, "id"> {
+    return {
+      title:
+        this.reason === "InvalidName"
+          ? "Invalid Name"
+          : "Unsupported File Type",
+      description: this.message,
+      variant: "destructive",
+      duration: 5000
+    }
+  }
+}
+
 const make = Effect.gen(function* () {
   // you can only have one container running at a time
   yield* Effect.acquireRelease(semaphore.take(1), () => semaphore.release(1))
+
+  const { toast } = yield* Toaster
 
   const container = yield* Effect.acquireRelease(
     Effect.promise(() => WC.boot()),
@@ -37,6 +96,13 @@ const make = Effect.gen(function* () {
 
   const workspace = (workspace: Workspace) =>
     Effect.gen(function* () {
+      const fsEvents = yield* Effect.acquireRelease(
+        PubSub.unbounded<FileSystemEvent>(),
+        (pubsub) => PubSub.shutdown(pubsub)
+      )
+
+      const workspaceRef = yield* SubscriptionRef.make(workspace)
+
       const path = (_: string) => `${workspace.name}/${_}`
 
       yield* Effect.acquireRelease(
@@ -106,13 +172,149 @@ const make = Effect.gen(function* () {
           (process) => Effect.sync(() => process.kill())
         )
 
+      const validateName = (name: string, type: "File" | "Directory") =>
+        Effect.gen(function* () {
+          if (name.length === 0 || name.includes("/")) {
+            return yield* new FileValidationError({ reason: "InvalidName" })
+          } else if (type === "File" && !name.endsWith(".ts")) {
+            return yield* new FileValidationError({
+              reason: "UnsupportedType"
+            })
+          }
+        })
+
+      const create = (
+        directory: Option.Option<Directory>,
+        name: string,
+        type: "File" | "Directory"
+      ) =>
+        Effect.gen(function* () {
+          yield* Effect.log("creating")
+          yield* validateName(name, type)
+
+          const workspace = yield* workspaceRef.get
+          const newPath =
+            directory._tag === "None"
+              ? name
+              : `${Option.getOrThrow(workspace.pathTo(directory.value))}/${name}`
+          yield* type === "File" ? writeFile(newPath, "") : mkdir(newPath)
+          const node =
+            type === "File"
+              ? new File({
+                  name,
+                  userManaged: true,
+                  initialContent: ""
+                })
+              : makeDirectory(name, [], true)
+          yield* SubscriptionRef.set(
+            workspaceRef,
+            directory._tag === "Some"
+              ? workspace.replaceNode(
+                  directory.value,
+                  makeDirectory(
+                    directory.value.name,
+                    [...directory.value.children, node],
+                    directory.value.userManaged
+                  )
+                )
+              : workspace.append(node)
+          )
+          yield* PubSub.publish(
+            fsEvents,
+            FileSystemEvent.NodeCreated({
+              node,
+              path:
+                directory._tag === "None"
+                  ? FullPath(name)
+                  : FullPath(`${Option.getOrThrow(workspace.fullPathTo(directory.value))}/${name}`)
+            })
+          )
+          return node
+        }).pipe(
+          Effect.tapErrorTag("FileValidationError", (error) =>
+            toast(error.asToast)
+          ),
+          Effect.tapErrorCause(Effect.log),
+          Effect.annotateLogs({
+            service: "WebContainer",
+            name,
+            type
+          })
+        )
+
+      const rename = (file: File | Directory, newName: string) =>
+        Effect.gen(function* () {
+          yield* Effect.log("renaming")
+          yield* validateName(newName, file._tag)
+          const workspace = yield* workspaceRef.get
+          const newNode =
+            file._tag === "Directory"
+              ? makeDirectory(newName, file.children, file.userManaged)
+              : new File({ ...file, name: newName })
+          const newWorkspace = workspace.replaceNode(file, newNode)
+          const oldPath = yield* Effect.orDie(workspace.pathTo(file))
+          const newPath = yield* Effect.orDie(newWorkspace.pathTo(newNode))
+          yield* Effect.promise(() =>
+            container.fs.rename(path(oldPath), path(newPath))
+          )
+          yield* SubscriptionRef.set(workspaceRef, newWorkspace)
+          yield* PubSub.publish(
+            fsEvents,
+            FileSystemEvent.NodeRenamed({
+              node: newNode,
+              oldPath: yield* Effect.orDie(workspace.fullPathTo(file)),
+              newPath: yield* Effect.orDie(newWorkspace.fullPathTo(newNode))
+            })
+          )
+          return newNode
+        }).pipe(
+          Effect.tapErrorTag("FileValidationError", (error) =>
+            toast(error.asToast)
+          ),
+          Effect.tapErrorCause(Effect.log),
+          Effect.annotateLogs({
+            service: "WebContainer",
+            file,
+            newName
+          })
+        )
+
+      const remove = (node: File | Directory) =>
+        Effect.gen(function* () {
+          yield* Effect.log("removing")
+          const workspace = yield* workspaceRef.get
+          const newWorkspace = workspace.removeNode(node)
+          const nodePath = yield* Effect.orDie(workspace.pathTo(node))
+          yield* Effect.promise(() =>
+            container.fs.rm(path(nodePath), { recursive: true })
+          )
+          yield* SubscriptionRef.set(workspaceRef, newWorkspace)
+          yield* PubSub.publish(
+            fsEvents,
+            FileSystemEvent.NodeRemoved({
+              node,
+              path: yield* Effect.orDie(workspace.fullPathTo(node))
+            })
+          )
+        }).pipe(
+          Effect.tapErrorCause(Effect.log),
+          Effect.annotateLogs({
+            service: "WebContainer",
+            node
+          })
+        )
+
       const writeFile = (file: string, data: string) =>
         Effect.promise(() => container.fs.writeFile(path(file), data))
 
       const readFile = (file: string) =>
-        Effect.promise(() => container.fs.readFile(path(file))).pipe(
-          Effect.map((_) => new TextDecoder().decode(_))
-        )
+        Effect.tryPromise({
+          try: () => container.fs.readFile(path(file)),
+          catch: () => new FileNotFoundError({ file })
+        }).pipe(Effect.map((bytes) => new TextDecoder().decode(bytes)))
+
+      const mkdir = (directory: string) =>
+        Effect.promise(() => container.fs.mkdir(path(directory)))
 
       const watchFile = (file: string) => {
         const changes = Stream.async<void>((emit) => {
@@ -125,10 +327,16 @@ const make = Effect.gen(function* () {
       }
 
       const handle = identity<WorkspaceHandle>({
-        workspace,
+        workspace: workspaceRef,
+        create,
+        rename,
+        remove,
         write: writeFile,
         read: readFile,
         watch: watchFile,
+        fsEvents: Stream.unwrapScoped(
+          Stream.fromPubSub(fsEvents, { scoped: true })
+        ),
         run,
         shell
       })
@@ -178,18 +386,33 @@ export class WebContainer extends Effect.Tag("WebContainer")<
   WebContainer,
   Effect.Effect.Success<typeof make>
 >() {
-  static Live = Layer.scoped(this, make)
+  static Live = Layer.scoped(this, make).pipe(Layer.provide(Toaster.Live))
 }
+
+export class FileNotFoundError extends Data.TaggedError("FileNotFoundError")<{
+  readonly file: string
+}> {}
 
 export class WebContainerError extends Data.TaggedError("WebContainerError")<{
   readonly message: string
 }> {}
 
 export interface WorkspaceHandle {
-  readonly workspace: Workspace
+  readonly workspace: SubscriptionRef.SubscriptionRef<Workspace>
+  readonly create: (
+    parent: Option.Option<Directory>,
+    name: string,
+    type: "File" | "Directory"
+  ) => Effect.Effect<File | Directory, FileValidationError>
+  readonly rename: (
+    node: File | Directory,
+    newName: string
+  ) => Effect.Effect<File | Directory, FileValidationError>
+  readonly remove: (node: File | Directory) => Effect.Effect<void>
   readonly write: (file: string, data: string) => Effect.Effect<void>
-  readonly read: (file: string) => Effect.Effect<string>
-  readonly watch: (file: string) => Stream.Stream<string>
+  readonly read: (file: string) => Effect.Effect<string, FileNotFoundError>
+  readonly watch: (file: string) => Stream.Stream<string, FileNotFoundError>
+  readonly fsEvents: Stream.Stream<FileSystemEvent>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
   readonly run: (command: string) => Effect.Effect<number>
 }
@@ -218,13 +441,22 @@ function treeFromWorkspace(workspace: Workspace): FileSystemTree {
 }
 
 const runProgram = `#!/usr/bin/env node
-const CP = require("child_process")
+const ChildProcess = require("node:child_process")
+const Path = require("node:path")
 
+const outDir = "dist"
 const program = process.argv[2]
 const programJs = program.replace(/\.ts$/, ".js")
+const compiledProgram = Path.join(outDir, Path.basename(programJs))
 
 function run() {
-  CP.spawn("tsc-watch", ["-m", "nodenext", "-t", "esnext", program, "--onSuccess", \`node \${programJs}\`], {
+  ChildProcess.spawn("tsc-watch", [
+    "--module", "nodenext",
+    "--outDir", outDir,
+    "--target", "esnext",
+    program,
+    "--onSuccess", \`node \${compiledProgram}\`
+  ], {
     stdio: "inherit"
   }).on("exit", function() {
     console.clear()

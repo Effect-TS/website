@@ -34,7 +34,8 @@ export const make = Effect.gen(function* () {
   // the editor to provide import completions when doing `import X from "|"`
   yield* registerPlugin((handle) =>
     Effect.gen(function* () {
-      const packageJson = handle.workspace.findFile("package.json")
+      const workspace = yield* handle.workspace.get
+      const packageJson = workspace.findFile("package.json")
       if (Option.isNone(packageJson)) {
         return
       }
@@ -57,11 +58,14 @@ export const make = Effect.gen(function* () {
         Stream.runForEach(registerDependencies),
         Effect.forkScoped
       )
-    }).pipe(Effect.annotateLogs("service", "MonacoCompleters"))
+    }).pipe(
+      Effect.ignoreLogged,
+      Effect.annotateLogs("service", "MonacoCompleters")
+    )
   )
 })
 
-export const MonacoCompletersLive = Layer.effectDiscard(make).pipe(
+export const MonacoCompletersLive = Layer.scopedDiscard(make).pipe(
   Layer.provide(Monaco.Live),
   Layer.provide(WebContainer.Live)
 )
@@ -109,7 +113,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
       }
 
       const info: ts.CompletionInfo | undefined =
-        await worker.getCompletionsAtPosition(resource.toString(), offset)
+        await worker.getCompletionsAtPosition(resource.toString(), offset, {})
 
       if (!info || model.isDisposed()) {
         return
@@ -161,6 +165,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
       readonly uri: monaco.Uri
       readonly position: monaco.Position
       readonly offset: number
+      readonly source: string | undefined
       readonly data?: ts.CompletionEntryData | undefined
     }
 
@@ -177,8 +182,8 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
           item.offset,
           item.label,
           {},
-          item.uri.toString(),
-          undefined,
+          item.source,
+          {},
           item.data
         )
 
@@ -355,5 +360,5 @@ const builtInNodeModules = [
 ]
 
 function pruneNodeBuiltIns(entry: ts.CompletionEntry): boolean {
-  return  !builtInNodeModules.includes(entry.name)
+  return !builtInNodeModules.includes(entry.name)
 }

@@ -1,9 +1,5 @@
-import * as Brand from "effect/Brand"
-import * as Hash from "effect/Hash"
-import * as Iterable from "effect/Iterable"
-import * as Option from "effect/Option"
+import { Brand, Effect, Hash, Iterable, Option, pipe } from "effect"
 import * as Schema from "@effect/schema/Schema"
-import { Effect } from "effect"
 
 export type FullPath = Brand.Branded<string, "FullPath">
 export const FullPath = Brand.nominal<FullPath>()
@@ -14,7 +10,8 @@ export class File extends Schema.TaggedClass<File>()("File", {
   solution: Schema.optional(Schema.String),
   language: Schema.String.pipe(
     Schema.optional({ default: () => "typescript" })
-  )
+  ),
+  userManaged: Schema.Boolean.pipe(Schema.optional({ default: () => false }))
 }) {
   withContent(content: string) {
     return new File({
@@ -27,17 +24,23 @@ export class File extends Schema.TaggedClass<File>()("File", {
 export interface Directory {
   readonly _tag: "Directory"
   readonly name: string
+  readonly userManaged: boolean
   readonly children: ReadonlyArray<Directory | File>
 }
 const Directory_: Schema.Struct<{
   _tag: Schema.tag<"Directory">
   name: typeof Schema.String
+  userManaged: Schema.optionalWithOptions<
+    typeof Schema.Boolean,
+    { default: () => false }
+  >
   children: Schema.Array$<
     Schema.Union<[typeof File, Schema.Schema<Directory>]>
   >
 }> = Schema.Struct({
   _tag: Schema.tag("Directory"),
   name: Schema.String,
+  userManaged: Schema.Boolean.pipe(Schema.optional({ default: () => false })),
   children: Schema.Array(
     Schema.Union(
       File,
@@ -51,10 +54,12 @@ export const Directory: Schema.Schema<
 > = Directory_
 export const makeDirectory = (
   name: string,
-  children: ReadonlyArray<File | Directory>
-): Directory => Directory_.make({ name, children })
+  children: ReadonlyArray<File | Directory>,
+  userManaged: boolean = false
+): Directory => ({ _tag: "Directory", name, userManaged, children })
 
 export const FileTree = Schema.Array(Schema.Union(File, Directory))
+export type FileTree = typeof FileTree.Type
 
 export class WorkspaceShell extends Schema.Class<WorkspaceShell>(
   "WorkspaceShell"
@@ -75,7 +80,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   shells: Schema.Array(WorkspaceShell),
   snapshot: Schema.optional(Schema.String)
 }) {
-  readonly filePaths: Map<File, string>
+  readonly filePaths: Map<File | Directory, string>
 
   constructor(options: {
     name: string
@@ -86,35 +91,37 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     shells: ReadonlyArray<WorkspaceShell>
     snapshot?: string
   }) {
-    super({
-      name: options.name,
-      initialFilePath: options.initialFilePath,
-      prepare:
-        options.prepare ??
-        "npm install -E typescript@next tsc-watch @types/node",
-      shells: options.shells,
-      snapshot: options.snapshot,
-      tree: [
-        ...(options.dependencies
-          ? [
-              new File({
-                name: "package.json",
-                language: "json",
-                initialContent: JSON.stringify(
-                  {
-                    type: "module",
-                    dependencies: options.dependencies
-                  },
-                  undefined,
-                  2
-                )
-              }),
-              ...defaultFiles
-            ]
-          : []),
-        ...(options.tree ?? [])
-      ]
-    })
+    super(
+      {
+        name: options.name,
+        initialFilePath: options.initialFilePath,
+        prepare:
+          options.prepare ??
+          "npm install -E typescript@next tsc-watch @types/node",
+        shells: options.shells,
+        snapshot: options.snapshot,
+        tree: [
+          ...(options.dependencies
+            ? [
+                new File({
+                  name: "package.json",
+                  language: "json",
+                  initialContent: JSON.stringify(
+                    {
+                      dependencies: options.dependencies
+                    },
+                    undefined,
+                    2
+                  )
+                }),
+                ...defaultFiles
+              ]
+            : []),
+          ...(options.tree ?? [])
+        ]
+      },
+      { disableValidation: true }
+    )
     this.filePaths = makeFilePaths(this.tree)
   }
 
@@ -142,14 +149,38 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       tree: [...this.tree, ...children]
     })
   }
-  findFile(name: string) {
-    return Iterable.findFirst(this.filePaths, ([_, path]) => path === name)
+  setTree(tree: FileTree) {
+    return new Workspace({ ...this, tree })
   }
-  get initialFile() {
+  filterMap(f: (item: File | Directory) => Option.Option<File | Directory>) {
+    return this.setTree(filterMapTree(this.tree, f))
+  }
+  replaceNode(node: File | Directory, replacement: File | Directory) {
+    return this.filterMap((item) =>
+      item === node ? Option.some(replacement) : Option.some(item)
+    )
+  }
+  removeNode(node: File | Directory) {
+    return this.filterMap((item) =>
+      item === node ? Option.none() : Option.some(item)
+    )
+  }
+  findFile(name: string) {
+    return Iterable.findFirst(
+      this.filePaths,
+      ([_, path]) => _._tag === "File" && path === name
+    ) as Option.Option<[File, string]>
+  }
+  get initialFile(): File {
     if (this.initialFilePath) {
       return Option.getOrThrow(this.findFile(this.initialFilePath))[0]
     }
-    return Option.getOrThrow(Iterable.head(this.filePaths.keys()))
+    return pipe(
+      this.filePaths.keys(),
+      Iterable.filter((_) => _._tag === "File"),
+      Iterable.head,
+      Option.getOrThrow
+    )
   }
   get dependencies(): Record<string, string> {
     const parse = Option.liftThrowable(JSON.parse)
@@ -159,10 +190,10 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       Option.getOrElse(() => ({}))
     )
   }
-  pathTo(file: File) {
+  pathTo(file: File | Directory) {
     return Option.fromNullable(this.filePaths.get(file))
   }
-  fullPathTo(file: File) {
+  fullPathTo(file: File | Directory) {
     return this.pathTo(file).pipe(
       Option.map((path) => FullPath(`${this.name}/${path}`))
     )
@@ -171,15 +202,21 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     f: (item: File, path: string) => Effect.Effect<File, E, R>
   ) {
     const walk = (
-      tree: ReadonlyArray<Directory | File>
+      tree: ReadonlyArray<File | Directory>
     ): Effect.Effect<ReadonlyArray<Directory | File>, E, R> =>
       Effect.gen(this, function* () {
-        const out: Array<Directory | File> = []
+        const out: Array<File | Directory> = []
         for (const node of tree) {
           if (node._tag === "File") {
             out.push(yield* f(node, this.filePaths.get(node)!))
           } else {
-            out.push(makeDirectory(node.name, yield* walk(node.children)))
+            out.push(
+              makeDirectory(
+                node.name,
+                yield* walk(node.children),
+                node.userManaged
+              )
+            )
           }
         }
         return out
@@ -209,12 +246,11 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
 // helper functions
 
 function makeFilePaths(tree: Workspace["tree"]) {
-  const paths = new Map<File, string>()
+  const paths = new Map<File | Directory, string>()
   function walk(prefix: string, children: Workspace["tree"]) {
     children.forEach((child) => {
-      if (child._tag === "File") {
-        paths.set(child, `${prefix}${child.name}`)
-      } else {
+      paths.set(child, `${prefix}${child.name}`)
+      if (child._tag === "Directory") {
         walk(`${prefix}${child.name}/`, child.children)
       }
     })
@@ -263,8 +299,7 @@ export const defaultFiles = [
           module: "NodeNext",
           moduleResolution: "NodeNext",
           strict: true,
-          target: "esnext",
-          strictNullChecks: true
+          target: "esnext"
         },
         include: ["src"]
       },
@@ -273,3 +308,28 @@ export const defaultFiles = [
     )
   })
 ]
+
+function filterMapTree(
+  tree: FileTree,
+  f: (node: File | Directory) => Option.Option<File | Directory>
+): FileTree {
+  const out: Array<File | Directory> = []
+  for (const node of tree) {
+    const result = f(node)
+    if (result._tag === "None") {
+      continue
+    }
+    if (result.value === node && result.value._tag === "Directory") {
+      out.push(
+        makeDirectory(
+          result.value.name,
+          filterMapTree(result.value.children, f),
+          result.value.userManaged
+        )
+      )
+    } else {
+      out.push(result.value)
+    }
+  }
+  return out
+}

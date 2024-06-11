@@ -19,6 +19,8 @@ import { useShareRx } from "../context"
 import { importRx } from "../rx"
 import { WorkspaceProvider } from "@/workspaces/WorkspaceProvider"
 import { ThemeSwitcher } from "@/components/atoms/theme-switcher"
+import { cn } from "@/lib/utils"
+import { Match } from "effect"
 
 export function ToolbarItems() {
   const workspace = useRxSuspenseSuccess(importRx).value
@@ -129,17 +131,7 @@ export function ShareButton() {
 
 function ShareContent() {
   const rx = useShareRx()
-  const result = useRxValue(rx, (result) =>
-    !result.waiting && Result.isSuccess(result)
-      ? ({
-          link: result.value,
-          loading: false
-        } as const)
-      : ({
-          link: "",
-          loading: true
-        } as const)
-  )
+  const result = useRxValue(rx)
 
   const [copied, setCopied] = useState(false)
   useEffect(() => {
@@ -152,9 +144,11 @@ function ShareContent() {
     }
   }, [copied, setCopied])
   const handleCopyLink = useCallback(() => {
-    navigator.clipboard.writeText(result.link)
-    setCopied(true)
-  }, [setCopied, result.link])
+    if (Result.isSuccess(result)) {
+      navigator.clipboard.writeText(result.value)
+      setCopied(true)
+    }
+  }, [setCopied, result])
 
   return (
     <>
@@ -172,16 +166,32 @@ function ShareContent() {
           <Input
             id="link"
             placeholder="Loading..."
-            value={result.link}
+            value={Result.matchWithWaiting(result, {
+              onWaiting: (_) => "",
+              onError: Match.valueTags({
+                FileNotFoundError: () => "The workspace could not be found.",
+                CompressionError: () => "Could not compress the workspace.",
+                ShortenError: (err) =>
+                  err.reason === "TooLarge"
+                    ? "The workspace is too large to share."
+                    : "An unexpected error occurred."
+              }),
+              onDefect: (_) => "An unexpected error occurred.",
+              onSuccess: ({ value }) => value
+            })}
             readOnly
-            className="h-9"
+            className={cn(
+              Result.isFailure(result) &&
+                "border-destructive focus-visible:ring-destructive",
+              "h-9"
+            )}
           />
         </div>
         <Button
           size="sm"
           variant="secondary"
           className="px-3"
-          disabled={result.loading}
+          disabled={result.waiting || Result.isFailure(result)}
           onClick={handleCopyLink}
         >
           <span className="sr-only">Copy</span>
@@ -189,8 +199,8 @@ function ShareContent() {
             <Icon name="check" className="h-4 w-4" />
           ) : (
             <Icon
-              name={result.loading ? "loading" : "clipboard"}
-              className={`h-4 w-4 ${result.loading ? "animate-spin" : ""}`}
+              name={result.waiting ? "loading" : "clipboard"}
+              className={`h-4 w-4 ${result.waiting ? "animate-spin" : ""}`}
             />
           )}
         </Button>

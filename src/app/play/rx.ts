@@ -6,27 +6,28 @@ import {
 } from "@/workspaces/domain/workspace"
 import { Result, Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
-import { Effect, Layer, String } from "effect"
+import { Effect, Layer } from "effect"
 import { editorRx } from "@/components/editor/rx"
 import { hashRx } from "@/rx/location"
-import { retrieveCompressed, shortenHash } from "./actions/shortenHash"
 import { pipe } from "effect"
-import { WorkspaceHandle } from "@/workspaces/rx"
+import { RxWorkspaceHandle } from "@/workspaces/rx"
 import { WorkspaceCompression } from "./services/WorkspaceCompression"
 import packageJson from "../../../snapshots/tutorials/package.json"
+import { rpcClient } from "@/rpc/client"
+import { RetrieveRequest, ShortenRequest } from "@/services/Shorten/domain"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
 )
 
-export const shareRx = Rx.family((handle: WorkspaceHandle) =>
+export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
   runtime.fn((_: void, get) =>
     Effect.gen(function* () {
       const compression = yield* WorkspaceCompression
-      const workspace = handle.workspace.value
+      const workspace = get.once(handle.workspace)
       const editor = yield* Result.toExit(
-        get.once(editorRx(workspace).editor)
-      )
+        get.once(editorRx(handle).editor)
+      ).pipe(Effect.orDie)
 
       yield* editor.save
 
@@ -34,7 +35,7 @@ export const shareRx = Rx.family((handle: WorkspaceHandle) =>
         workspace,
         handle.handle.read
       )
-      const hash = yield* Effect.promise(() => shortenHash(compressed))
+      const hash = yield* rpcClient(new ShortenRequest({ text: compressed }))
       const url = new URL(location.href)
       url.hash = hash
       return url.toString()
@@ -52,14 +53,15 @@ const defaultWorkspace = new Workspace({
     makeDirectory("src", [
       new File({
         name: "main.ts",
-        initialContent: String.stripMargin(
-          `|import { Effect } from "effect"
-           |
-           |Effect.gen(function* () {
-           |  yield* Effect.log("Welcome to the Effect Playground!")
-           |}).pipe(Effect.runPromise)
-           |`
-        )
+        initialContent: `import { Effect } from "effect"
+import { NodeRuntime } from "@effect/platform-node"
+
+const program = Effect.gen(function* () {
+  yield* Effect.log("Welcome to the Effect Playground!")
+})
+
+NodeRuntime.runMain(program)
+`
       })
     ])
   ]
@@ -72,13 +74,13 @@ export const importRx = runtime.rx((get) =>
   Effect.gen(function* () {
     const hash = get(hashRx)
     if (hash._tag === "None") return makeDefaultWorkspace()
-    const compressed = yield* Effect.promise(() =>
-      retrieveCompressed(hash.value)
+    const compressed = yield* rpcClient(
+      new RetrieveRequest({ hash: hash.value })
     )
-    if (!compressed) return makeDefaultWorkspace()
+    if (compressed._tag === "None") return makeDefaultWorkspace()
     const compression = yield* WorkspaceCompression
     return yield* pipe(
-      compression.decompress(compressed),
+      compression.decompress(compressed.value),
       Effect.orElseSucceed(makeDefaultWorkspace)
     )
   })

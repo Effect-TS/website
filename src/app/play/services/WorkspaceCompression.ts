@@ -3,10 +3,16 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { Compression } from "./Compression"
 import * as Schema from "@effect/schema/Schema"
-import { pipe } from "effect"
+import { flow, pipe } from "effect"
 
-const decodeWorkspace = Schema.decode(Schema.parseJson(Workspace))
-const encodeWorkspace = Schema.encode(Schema.parseJson(Workspace))
+const decodeWorkspace = flow(
+  Schema.decode(Schema.parseJson(Workspace)),
+  Effect.orDie
+)
+const encodeWorkspace = flow(
+  Schema.encode(Schema.parseJson(Workspace)),
+  Effect.orDie
+)
 
 const make = Effect.gen(function* () {
   const compression = yield* Compression
@@ -14,8 +20,8 @@ const make = Effect.gen(function* () {
   const compress = <E, R>(
     workspace: Workspace,
     read: (file: string) => Effect.Effect<string, E, R>
-  ) => {
-    return pipe(
+  ) =>
+    pipe(
       workspace
         .withPrepare("npm install")
         .withNoSnapshot.updateFiles((file, path) =>
@@ -24,7 +30,6 @@ const make = Effect.gen(function* () {
       Effect.andThen(encodeWorkspace),
       Effect.andThen(compression.compressBase64)
     )
-  }
 
   const decompress = (compressed: string) =>
     pipe(

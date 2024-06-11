@@ -6,16 +6,16 @@ import React, {
   useRef
 } from "react"
 import { Icon } from "@/components/icons"
-import {
-  useRxRef,
-  useRxRefProp,
-  useRxSuspenseSuccess
-} from "@effect-rx/rx-react"
+import { useRxSet, useRxSuspenseSuccess } from "@effect-rx/rx-react"
 
 import "@xterm/xterm/css/xterm.css"
 import "./terminal.css"
 import { WorkspaceShell } from "@/workspaces/domain/workspace"
-import { useWorkspaceHandle } from "@/workspaces/context"
+import {
+  useWorkspaceHandle,
+  useWorkspaceRx,
+  useWorkspaceShells
+} from "@/workspaces/context"
 
 export function Terminal({ shell }: { readonly shell: WorkspaceShell }) {
   return (
@@ -60,16 +60,17 @@ function Shell({ shell }: { readonly shell: WorkspaceShell }) {
 }
 
 function AddRemoveButton({ shell }: { readonly shell: WorkspaceShell }) {
-  const handle = useWorkspaceHandle()
-  const shells = useRxRef(useRxRefProp(handle.workspace, "shells"))
+  const workspace = useWorkspaceRx()
+  const setWorkspace = useRxSet(workspace)
+  const shells = useWorkspaceShells()
 
   const addShell = useCallback(() => {
-    handle.workspace.update((_) => _.addShell(new WorkspaceShell({})))
-  }, [handle.workspace])
+    setWorkspace((workspace) => workspace.addShell(new WorkspaceShell({})))
+  }, [setWorkspace])
 
   const removeShell = useCallback(() => {
-    handle.workspace.update((_) => _.removeShell(shell))
-  }, [handle.workspace, shell])
+    setWorkspace((workspace) => workspace.removeShell(shell))
+  }, [shell, setWorkspace])
 
   if (shells[0] === shell) {
     if (shells.length > 1) return null

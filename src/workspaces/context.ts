@@ -1,23 +1,20 @@
 import React from "react"
-import { WorkspaceHandle } from "./rx"
-import { useRxRef, useRxRefProp } from "@effect-rx/rx-react"
+import { RxWorkspaceHandle } from "./rx"
+import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 
-export const WorkspaceContext = React.createContext<WorkspaceHandle>(
+export const WorkspaceContext = React.createContext<RxWorkspaceHandle>(
   null as any
 )
 
-export const useWorkspaceHandle = () => {
-  return React.useContext(WorkspaceContext)
-}
+export const useWorkspaceHandle = () => React.useContext(WorkspaceContext)
 
-export const useWorkspace = () => useRxRef(useWorkspaceHandle().workspace)
+export const useWorkspaceRx = () => useWorkspaceHandle().workspace
 
-export const useWorkspaceShellsRef = () =>
-  useRxRefProp(useWorkspaceHandle().workspace, "shells")
+export const useWorkspace = () => useRxValue(useWorkspaceRx())
+export const useSetWorkspace = () => useRxSet(useWorkspaceRx())
 
-export const useWorkspaceShells = () => useRxRef(useWorkspaceShellsRef())
+export const useWorkspaceShells = () =>
+  useRxValue(useWorkspaceRx(), (workspace) => workspace.shells)
 
-export const useWorkspaceTreeRef = () =>
-  useRxRefProp(useWorkspaceHandle().workspace, "tree")
-
-export const useWorkspaceTree = () => useRxRef(useWorkspaceTreeRef())
+export const useWorkspaceTree = () =>
+  useRxValue(useWorkspaceRx(), (workspace) => workspace.tree)

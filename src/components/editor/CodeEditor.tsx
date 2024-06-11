@@ -10,6 +10,7 @@ import { FileEditor } from "./components/common/file-editor"
 import { FileExplorer } from "./components/common/file-explorer"
 import { Terminal } from "./components/common/terminal"
 import { PanelResizeHandleVertical } from "../ui/resizable"
+import { TooltipProvider } from "../ui/tooltip"
 
 export declare namespace CodeEditor {
   export interface Props {
@@ -49,32 +50,34 @@ function CodeEditorSuspended({
   )
 
   return (
-    <PanelGroup autoSaveId={`editor`} direction="vertical">
-      <Panel>
-        {disableExplorer === true ? (
-          <FileEditor />
-        ) : (
-          <PanelGroup autoSaveId={`sidebar`} direction="horizontal">
-            <Panel
-              defaultSize={20}
-              className="bg-gray-50 dark:bg-neutral-900 min-w-[200px] flex flex-col"
-            >
-              <FileExplorer />
-            </Panel>
-            <PanelResizeHandleVertical />
-            <Panel>
-              <FileEditor />
-            </Panel>
+    <TooltipProvider>
+      <PanelGroup autoSaveId={`editor`} direction="vertical">
+        <Panel>
+          {disableExplorer === true ? (
+            <FileEditor />
+          ) : (
+            <PanelGroup autoSaveId={`sidebar`} direction="horizontal">
+              <Panel
+                defaultSize={20}
+                className="bg-gray-50 dark:bg-neutral-900 min-w-[200px] flex flex-col"
+              >
+                <FileExplorer />
+              </Panel>
+              <PanelResizeHandleVertical />
+              <Panel>
+                <FileEditor />
+              </Panel>
+            </PanelGroup>
+          )}
+        </Panel>
+        <PanelResizeHandle />
+        <Panel onResize={onResize} defaultSize={30}>
+          <PanelGroup direction="horizontal">
+            <WorkspaceShells />
           </PanelGroup>
-        )}
-      </Panel>
-      <PanelResizeHandle />
-      <Panel onResize={onResize} defaultSize={30}>
-        <PanelGroup direction="horizontal">
-          <WorkspaceShells />
-        </PanelGroup>
-      </Panel>
-    </PanelGroup>
+        </Panel>
+      </PanelGroup>
+    </TooltipProvider>
   )
 }
 

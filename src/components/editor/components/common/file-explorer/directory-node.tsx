@@ -1,43 +1,55 @@
 import React, { useCallback, useState } from "react"
-import type { Directory, File } from "@/workspaces/domain/workspace"
+import { Directory } from "@/workspaces/domain/workspace"
+import { useCreate, useExplorerState } from "../file-explorer"
 import { FileNode } from "./file-node"
 import { FileTree } from "./file-tree"
+import { FileInput } from "./file-input"
 
-export declare namespace DirectoryNode {
-  export interface Props {
-    readonly node: Directory
-    readonly depth: number
-    readonly onClick?: DirectoryNode.OnClick
-  }
-
-  export interface OnClick {
-    (event: React.MouseEvent<HTMLButtonElement>, node: File | Directory): void
-  }
-}
-
-export const DirectoryNode: React.FC<DirectoryNode.Props> = ({
-  node,
+export function DirectoryNode({
   depth,
-  onClick
-}) => {
+  node,
+  path
+}: {
+  readonly node: Directory
+  readonly depth: number
+  readonly path: string
+}) {
   const [open, setOpen] = useState(true)
+  const state = useExplorerState()
+  const create = useCreate()
+  const isCreating = state._tag === "Creating" && state.parent === node
 
-  const toggle = useCallback(() => setOpen((prev) => !prev), [])
+  const handleToggle = useCallback(() => setOpen((prev) => !prev), [])
 
   return (
-    <div>
+    <>
       <FileNode
         type="directory"
         node={node}
         depth={depth}
+        path={path}
         isOpen={open}
-        onClick={toggle}
+        onClick={handleToggle}
       />
       {open && (
-        <FileTree tree={node.children} depth={depth + 1} onClick={onClick} />
+        <>
+          {isCreating && state.type === "Directory" && (
+            <FileInput
+              type={state.type}
+              depth={depth + 1}
+              onSubmit={(name) => create(node, name, "Directory")}
+            />
+          )}
+          <FileTree tree={node.children} depth={depth + 1} path={path} />
+          {isCreating && state.type === "File" && (
+            <FileInput
+              type={state.type}
+              depth={depth + 1}
+              onSubmit={(name) => create(node, name, "File")}
+            />
+          )}
+        </>
       )}
-    </div>
+    </>
   )
 }
-
-DirectoryNode.displayName = "DirectoryNode"

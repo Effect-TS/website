@@ -1,9 +1,9 @@
 import {
+  Array,
   Effect,
   Layer,
   Queue,
   Ref,
-  Array,
   SubscriptionRef,
   pipe
 } from "effect"
@@ -30,7 +30,7 @@ const make = Effect.gen(function* () {
       ...toast,
       id,
       open: true,
-      onOpenChange: (open) => !open && Effect.runPromise(dismissToast(id))
+      onOpenChange: (open) => !open && Effect.runSync(dismissToast(id))
     }
   }
 

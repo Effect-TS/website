@@ -114,7 +114,8 @@ const make = Effect.gen(function* () {
 
   yield* registerPlugin((handle) =>
     Effect.gen(function* () {
-      const config = handle.workspace.findFile("dprint.json")
+      const workspace = yield* handle.workspace.get
+      const config = workspace.findFile("dprint.json")
       if (Option.isNone(config)) {
         return
       }
@@ -153,7 +154,10 @@ const make = Effect.gen(function* () {
         Stream.runForEach(configurePlugin),
         Effect.forkScoped
       )
-    }).pipe(Effect.annotateLogs("service", "MonacoFormatters"))
+    }).pipe(
+      Effect.ignoreLogged,
+      Effect.annotateLogs("service", "MonacoFormatters")
+    )
   )
 }).pipe(
   Effect.withSpan("MonacoFormatters.make"),

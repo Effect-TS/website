@@ -4,11 +4,8 @@ import React, { useMemo } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import { File, makeDirectory, Workspace } from "@/workspaces/domain/workspace"
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup
-} from "@/components/ui/resizable"
+import { Panel, PanelGroup } from "react-resizable-panels"
+import { PanelResizeHandleVertical } from "@/components/ui/resizable"
 import { tutorialWorkspaces } from "@/tutorials/common"
 import { Tutorial as ITutorial } from "contentlayer/generated"
 
@@ -57,12 +54,12 @@ export const Tutorial = ({
   )
 
   return (
-    <ResizablePanelGroup
+    <PanelGroup
       autoSaveId="tutorial"
       direction="horizontal"
       className="flex-1 flex flex-row overflow-hidden"
     >
-      <ResizablePanel
+      <Panel
         className="pt-4 min-w-[450px] flex flex-col"
         defaultSize={30}
       >
@@ -75,12 +72,12 @@ export const Tutorial = ({
             </p>
           )}
         </div>
-      </ResizablePanel>
-      <ResizableHandle />
-      <ResizablePanel>
+      </Panel>
+      <PanelResizeHandleVertical />
+      <Panel>
         <Editor />
-      </ResizablePanel>
-    </ResizablePanelGroup>
+      </Panel>
+    </PanelGroup>
   )
 }
 
