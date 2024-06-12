@@ -29,7 +29,7 @@ To streamline this, you might consider using an environment object that bundles 
 
 ```ts
 type Context = {
-  databaseService: DatabaseService,
+  databaseService: DatabaseService
   loggingService: LoggingService
 }
 
@@ -104,10 +104,10 @@ Using a unique identifier is particularly useful in scenarios where live reloads
 
 In the Effect, understanding services, tags, and context is essential for managing requirements and building modular applications.
 
-| **Concept** | **Description**                                                                                         |
-| ----------- | ------------------------------------------------------------------------------------------------------- |
-| **Service** | A reusable component providing specific functionality, used across different parts of an application.   |
-| **Tag**     | A unique identifier representing a **service**, allowing Effect to locate and use it.                   |
+| **Concept** | **Description**                                                                                        |
+| ----------- | ------------------------------------------------------------------------------------------------------ |
+| **Service** | A reusable component providing specific functionality, used across different parts of an application.  |
+| **Tag**     | A unique identifier representing a **service**, allowing Effect to locate and use it.                  |
 | **Context** | A collection storing service, functioning like a map with **tags** as keys and **services** as values. |
 
 ### Using the Service
@@ -224,6 +224,27 @@ In the code snippet above, we call the `program` that we defined earlier and pro
 We use the `Effect.provideService` function to associate the `Random` tag with its implementation, an object with a `next` operation that generates a random number.
 
 Notice that the `Requirements` type parameter of the `runnable` effect is now `never`. This indicates that the effect no longer requires any service to be provided. With the implementation of the `Random` service in place, we are able to run the program without any further requirements.
+
+### Extracting the Service Type
+
+To retrieve the service type from a tag, use the `Context.Tag.Service` utility type:
+
+```ts twoslash
+import { Effect, Context } from "effect"
+
+class Random extends Context.Tag("MyRandomService")<
+  Random,
+  { readonly next: Effect.Effect<number> }
+>() {}
+
+type RandomShape = Context.Tag.Service<Random>
+/*
+This is equivalent to:
+type RandomShape = {
+    readonly next: Effect.Effect<number>;
+}
+*/
+```
 
 ## Using Multiple Services
 
