@@ -23,7 +23,8 @@ export const tutorialWorkspaces: ReadonlyRecord<
     name: "express",
     dependencies: {
       ...packageJson.dependencies,
-      express: "latest"
+      express: "latest",
+      "@types/express": "latest"
     },
     shells: [
       new WorkspaceShell({ label: "Server", command: "../run src/main.ts" }),

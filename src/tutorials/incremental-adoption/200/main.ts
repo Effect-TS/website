@@ -14,9 +14,9 @@ app.post("/todos", (req, res) => {
     Effect.andThen((todo) => res.json(todo)),
     Effect.catchTag("CreateTodoError", (error) =>
       Effect.sync(() => {
-        res.status(500).json({
+        res.status(404).json({
           type: error._tag,
-          text: error.text
+          text: error.text ?? ""
         })
       })
     ),
