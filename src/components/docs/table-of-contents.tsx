@@ -50,7 +50,9 @@ export const TableOfContents: React.FC<{
                   className="mt-2.5"
                   style={{ paddingLeft: `${level > 1 ? level - 2 : 0}rem` }}
                 >
-                  <Link href={`#${slug}`} className={`flex items-center pb-1 hover:text-black dark:hover:text-white leading-snug text-left ${
+                  <Link
+                    href={`#${slug}`}
+                    className={`flex items-center pb-1 hover:text-black dark:hover:text-white leading-snug text-left ${
                       slug === activeHeading
                         ? "text-black font-normal dark:text-white dark:font-light"
                         : ""
@@ -59,7 +61,8 @@ export const TableOfContents: React.FC<{
                       __html: title
                         .replace("`", "<code>")
                         .replace("`", "</code>")
-                    }}/>
+                    }}
+                  />
                 </li>
               )
             })}
