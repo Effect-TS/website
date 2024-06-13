@@ -1,10 +1,14 @@
-import { Effect } from "effect"
+import { Data, Effect, Random } from "effect"
 
 export interface Todo {
   readonly id: number
   readonly text: string
   readonly completed: boolean
 }
+
+export class CreateTodoError extends Data.TaggedError("CreateTodoError")<{
+  readonly text: string
+}> {}
 
 export class TodoRepository {
   readonly todos: Array<Todo> = [
@@ -24,8 +28,11 @@ export class TodoRepository {
     return Promise.resolve(this.todos)
   }
 
-  create(text: string): Effect.Effect<Todo> {
+  create(text: string): Effect.Effect<Todo, CreateTodoError> {
     return Effect.gen(this, function*() {
+      if ((yield* Random.next) > 0.5) {
+        return yield* new CreateTodoError({ text })
+      }
       const todos = yield* Effect.promise(() => this.getAll())
       const maxId = todos.reduce((max, todo) =>
         todo.id > max ? todo.id : max,

@@ -2,13 +2,13 @@
 
 import React from "react"
 import Link from "next/link"
+import { Tutorial } from "contentlayer/generated"
 import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger
 } from "@/components/ui/accordion"
 import { cn } from "@/lib/utils"
-import { Tutorial } from "contentlayer/generated"
 import { TutorialGroup } from "@/workspaces/domain/tutorial"
 
 export function MenuGroup({

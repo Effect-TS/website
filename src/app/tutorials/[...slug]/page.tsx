@@ -1,11 +1,11 @@
-import { MDX } from "@/components/atoms/mdx"
-import { Navigation } from "@/components/editor/components/tutorial/navigation"
-import { groupedTutorials, tutorialSection } from "@/workspaces/domain/tutorial"
 import { allTutorials } from "contentlayer/generated"
-import * as FS from "fs/promises"
 import { notFound } from "next/navigation"
-import * as Path from "path"
-import { Tutorial } from "./components/tutorial"
+import * as FS from "node:fs/promises"
+import * as Path from "node:path"
+import { MDX } from "@/components/atoms/mdx"
+import { groupedTutorials, tutorialSection } from "@/workspaces/domain/tutorial"
+import { Navigation } from "./components/Navigation"
+import { Tutorial } from "./components/Tutorial"
 
 export const generateStaticParams = () =>
   allTutorials.map((page) => ({

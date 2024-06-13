@@ -1,0 +1,173 @@
+---
+title: Dealing with Errors
+excerpt: Learn how to incrementally adopt Effect into your application
+section: Incremental Adoption
+workspace: express
+---
+
+### Dealing with Errors
+
+As you continue to adopt Effect into your codebase, you may encounter situations where you need to propagate error information from Effect code to non-Effect code.
+
+For example, perhaps your business requirements dictate that you must log all errors to a third-party log aggregator.
+
+In this section, we will explore several strategies for allowing your existing application to access both expected and unexpected errors coming from Effect code.
+
+<Idea>
+For more information about managing errors within your Effect programs, checkout the section on <a href="/docs/guides/error-management" target="_blank">Error Management</a> in the documentation.
+</Idea>
+
+### Example Business Case
+
+Let's imagine that we are working on refactoring a part of our application to use Effect. The part of our application we are refactoring involves communicating with one of our company's REST APIs to retrieve the price of a particular product we sell. If requests to our company's API are unsuccessful, the program will fail with an `HttpError`.
+
+Our business requirements dictate the following:
+- Our application's `ErrorReporter` must be used to report all errors occurring within our application to an external error tracking service
+- Our application's `LogAggregator` must be used to log the results of successful API calls to an external log aggregation service
+
+### Working with Expected Errors
+
+Effect provides a variety of tools to make working with expected errors in your program as simple as possible. These tools can also be used to provide the surrounding application with error information coming from your Effect code.
+
+In the first example below, we utilize `Effect.catchTag` to "catch" the `HttpError` in our Effect program. We then use `Effect.promise` to allow our application's `ErrorReporter` to report on the error.
+
+```ts twoslash
+import { Data, Effect } from "effect"
+
+// === Effect Code ===
+class HttpError extends Data.TaggedError("HttpError") {}
+
+const program = Effect.gen(function*() {
+  // Simulate the possibility of error
+  if (Math.random() > 0.5) {
+    return yield* new HttpError()
+  }
+  // Simulate a response from our API
+  return yield* Effect.succeed(42)
+})
+
+// === Application Code ===
+interface LogAggregator {
+  log(value: any): Promise<void>
+}
+interface ErrorReporter {
+  report(error: any): Promise<void>
+}
+declare const logger: LogAggregator
+declare const reporter: ErrorReporter
+
+async function main() {
+  await program.pipe(
+    Effect.andThen((result) => logger.log(result)),
+    Effect.catchTag("HttpError", (error) =>
+      Effect.promise(() => reporter.report(error))
+    ),
+    Effect.runPromise
+  )
+}
+```
+
+In the next example below, we wrap our _entire program_ in a call to `Effect.either`. This operator will convert an `Effect<A, E, R>` into an `Effect<Either<A, E>, never, R>`, thereby <a href="/docs/guides/error-management/error-channel-operations#exposing-errors-in-the-success-channel" target="_blank">exposing expected errors in the success channel of your program</a>.
+
+We can then use methods from the `Either` module to handle error and success cases separately.
+
+```ts twoslash
+import { Data, Effect, Either } from "effect"
+
+// === Effect Code ===
+class HttpError extends Data.TaggedError("HttpError") {}
+
+const program = Effect.gen(function*() {
+  // Simulate the possibility of error
+  if (Math.random() > 0.5) {
+    return yield* new HttpError()
+  }
+  return yield* Effect.succeed(42)
+})
+
+// === Application Code ===
+interface LogAggregator {
+  log(value: any): Promise<void>
+}
+interface ErrorReporter {
+  report(error: any): Promise<void>
+}
+declare const logger: LogAggregator
+declare const reporter: ErrorReporter
+
+async function main() {
+  await Effect.runPromise(Effect.either(program)).then(
+    Either.match({
+      // Handle the error case
+      onLeft: (error) => reporter.report(error),
+      // Handle the success case
+      onRight: (value) => logger.log(value)
+    })
+  )
+}
+```
+
+### Expected and Unexpected Errors
+
+The simplest method of gaining access to both expected _and_ unexpected errors returned from an Effect program is to simply run your program with `Effect.runPromise` and then catch any thrown errors.
+
+```ts twoslash
+import { Data, Effect } from "effect"
+
+// === Effect Code ===
+class HttpError extends Data.TaggedError("HttpError") {}
+
+const program = Effect.gen(function*() {
+  // Simulate the possibility of error
+  if (Math.random() > 0.5) {
+    return yield* new HttpError()
+  }
+  return yield* Effect.succeed(42)
+})
+
+// === Application Code ===
+interface LogAggregator {
+  log(value: any): Promise<void>
+}
+interface ErrorReporter {
+  report(error: any): Promise<void>
+}
+declare const logger: LogAggregator
+declare const reporter: ErrorReporter
+
+async function main() {
+  await Effect.runPromise(program)
+    .then((value) => logger.log(value))
+    .catch((error) => reporter.report(error))
+}
+```
+
+The benefit of this approach is that errors returned by `Effect.runPromise` will be automatically wrapped by Effect's special `FiberFailure` error. The `FiberFailure` error type will prettify the `Cause` of the failure for you (see the <a href="/docs/other/data-types/cause" target="_blank">Cause documentation</a>  for more information), making it easier to log the error and any associated stack trace.
+
+However, there are several downsides to this approach:
+
+- There is not an "easy" way to introspect the `Cause` of the failure for additional information
+- If there are multiple errors in the underlying `Cause`, only the first error will be rendered by the `FiberFailure`
+
+### Introspecting the Cause
+
+Introspecting the full `Cause` of failure of our Effect programs can be extremely useful when we need granular information about the failure(s) that occurred.
+
+For example, perhaps we need to respond to an `Interrupt` cause in a different manner than a `Fail` cause.
+
+If we want to perform some operations on the full `Cause` of failure of our program, we have a variety options available to us:
+
+- We could utilize <a href="/docs/guides/error-management/sandboxing" target="_blank">sandboxing</a> to expose the full `Cause` of failure in our program's error channel
+- We could <a href="/docs/guides/essentials/running-effects#runpromiseexit" target="_blank">run our program to an Exit</a> using `Effect.runPromiseExit` and then match on the success and error cases
+
+### Exercise
+
+The team in charge of the `TodoRepository` has continued to refactor the `create` method. The method now returns an `Effect<Todo, CreateTodoError>`.
+
+Using what we have learned above, your tasks for this exercise include:
+
+  - If creation of a `Todo` results in a `CreateTodoError`
+    - Set the response status code to `500`
+    - Return a JSON response that conforms to the following `{ "type": "CreateTodoError", "text": <TODO_TEXT> }`
+
+In the editor to the right, modify the code to restore functionality to our server. Please note that there is no one "correct" answer, as there are multiple ways to achieve the desired outcome.
