@@ -16,32 +16,61 @@ Effect offers a convenient syntax, similar to `async`/`await`, to write effectfu
 
 ## Understanding Effect.gen
 
-Let's start with a basic program that performs a series of transformations:
+The `Effect.gen` utility simplifies the task of writing effectful code by utilizing JavaScript's generator functions. This method helps your code appear and behave more like traditional synchronous code, which enhances both readability and error management.
+
+Let's explore a practical program that performs a series of data transformations commonly found in application logic:
 
 ```ts twoslash
 import { Effect } from "effect"
 
-const increment = (x: number) => x + 1
+// Function to add a small service charge to a transaction amount
+const addServiceCharge = (amount: number) => amount + 1
 
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
+// Function to apply a discount safely to a transaction amount
+const applyDiscount = (
+  total: number,
+  discountRate: number
+): Effect.Effect<number, Error> =>
+  discountRate === 0
+    ? Effect.fail(new Error("Discount rate cannot be zero"))
+    : Effect.succeed(total - (total * discountRate) / 100)
 
-const task1 = Effect.promise(() => Promise.resolve(10))
+// Simulated asynchronous task to fetch a transaction amount from a database
+const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
 
-const task2 = Effect.promise(() => Promise.resolve(2))
+// Simulated asynchronous task to fetch a discount rate from a configuration file
+const fetchDiscountRate = Effect.promise(() => Promise.resolve(5))
 
-export const program = Effect.gen(function* () {
-  const a = yield* task1
-  const b = yield* task2
-  const n1 = yield* divide(a, b)
-  const n2 = increment(n1)
-  return `Result is: ${n2}`
+// Assembling the program using a generator function
+const program = Effect.gen(function* () {
+  // Retrieve the transaction amount
+  const transactionAmount = yield* fetchTransactionAmount
+
+  // Retrieve the discount rate
+  const discountRate = yield* fetchDiscountRate
+
+  // Calculate discounted amount
+  const discountedAmount = yield* applyDiscount(
+    transactionAmount,
+    discountRate
+  )
+
+  // Apply service charge
+  const finalAmount = addServiceCharge(discountedAmount)
+
+  // Return the total amount after applying the charge
+  return `Final amount to charge: ${finalAmount}`
 })
 
-Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
+// Execute the program and log the result
+Effect.runPromise(program).then(console.log) // Output: "Final amount to charge: 96"
 ```
+
+Key steps to follow when using `Effect.gen`:
+
+- Wrap your logic in `Effect.gen`
+- Use `yield*` to handle effects
+- Return the final result
 
 <Warning>
   The generator API is only available when using the `downlevelIteration` flag
@@ -60,52 +89,60 @@ Let's compare the two approaches:
 ```ts twoslash
 import { Effect } from "effect"
 // ---cut---
-const increment = (x: number) => x + 1
+const addServiceCharge = (amount: number) => amount + 1
 
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
+const applyDiscount = (
+  total: number,
+  discountRate: number
+): Effect.Effect<number, Error> =>
+  discountRate === 0
+    ? Effect.fail(new Error("Discount rate cannot be zero"))
+    : Effect.succeed(total - (total * discountRate) / 100)
 
-const task1 = Effect.promise(() => Promise.resolve(10))
+const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
 
-const task2 = Effect.promise(() => Promise.resolve(2))
+const fetchDiscountRate = Effect.promise(() => Promise.resolve(5))
 
 export const program = Effect.gen(function* () {
-  const a = yield* task1
-  const b = yield* task2
-  const n1 = yield* divide(a, b)
-  const n2 = increment(n1)
-  return `Result is: ${n2}`
+  const transactionAmount = yield* fetchTransactionAmount
+  const discountRate = yield* fetchDiscountRate
+  const discountedAmount = yield* applyDiscount(
+    transactionAmount,
+    discountRate
+  )
+  const finalAmount = addServiceCharge(discountedAmount)
+  return `Final amount to charge: ${finalAmount}`
 })
-
-Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
 ```
 
   </Tab>
   <Tab>
 
 ```ts twoslash
-const increment = (x: number) => x + 1
+const addServiceCharge = (amount: number) => amount + 1
 
-const divide = (a: number, b: number): Promise<number> =>
-  b === 0
-    ? Promise.reject(new Error("Cannot divide by zero"))
-    : Promise.resolve(a / b)
+const applyDiscount = (
+  total: number,
+  discountRate: number
+): Promise<number> =>
+  discountRate === 0
+    ? Promise.reject(new Error("Discount rate cannot be zero"))
+    : Promise.resolve(total - (total * discountRate) / 100)
 
-const task1 = Promise.resolve(10)
+const fetchTransactionAmount = Promise.resolve(100)
 
-const task2 = Promise.resolve(2)
+const fetchDiscountRate = Promise.resolve(5)
 
 export const program = async function () {
-  const a = await task1
-  const b = await task2
-  const n1 = await divide(a, b)
-  const n2 = increment(n1)
-  return `Result is: ${n2}`
+  const transactionAmount = await fetchTransactionAmount
+  const discountRate = await fetchDiscountRate
+  const discountedAmount = await applyDiscount(
+    transactionAmount,
+    discountRate
+  )
+  const finalAmount = addServiceCharge(discountedAmount)
+  return `Final amount to charge: ${finalAmount}`
 }
-
-program().then(console.log) // Output: "Result is: 6"
 ```
 
   </Tab>
@@ -115,27 +152,29 @@ It's important to note that although the code appears similar, the two programs 
 
 ## Embracing Control Flow
 
-One significant advantage of using `Effect.gen` in conjunction with generators is its capability to employ standard control flow constructs within the generator function. These constructs encompass `if`/`else`, `for`, `while`, and other branching and looping mechanisms, enhancing your ability to express complex control flow logic in your code.
-
-To illustrate this, let's delve into a practical example:
+One significant advantage of using `Effect.gen` in conjunction with generators is its capability to employ standard control flow constructs within the generator function. These constructs include `if`/`else`, `for`, `while`, and other branching and looping mechanisms, enhancing your ability to express complex control flow logic in your code.
 
 ```ts twoslash
 import { Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
+const calculateTax = (
+  amount: number,
+  taxRate: number
+): Effect.Effect<number, Error> =>
+  taxRate > 0
+    ? Effect.succeed((amount * taxRate) / 100)
+    : Effect.fail(new Error("Invalid tax rate"))
 
 const program = Effect.gen(function* () {
   let i = 1
 
   while (true) {
     if (i === 10) {
-      break
+      break // Break the loop when counter reaches 10
     } else {
       if (i % 2 === 0) {
-        console.log(yield* divide(12, i))
+        // Calculate tax for even numbers
+        console.log(yield* calculateTax(100, i))
       }
       i++
       continue
@@ -146,16 +185,16 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 Output:
-6
-3
 2
-1.5
+4
+6
+8
 */
 ```
 
 ## Raising Errors
 
-Within the realm of the `Effect.gen` API, you have the capability to introduce errors into your program by yielding a failed effect. This can be effectively achieved, for instance, by using `Effect.fail`. Let's take a closer look at an example:
+The `Effect.gen` API allows you to incorporate error handling directly into your program flow by yielding failed effects. This mechanism, achieved through `Effect.fail`, is demonstrated in the example below:
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -163,6 +202,7 @@ import { Effect } from "effect"
 const program = Effect.gen(function* () {
   console.log("Task1...")
   console.log("Task2...")
+  // Introduce an error into the flow
   yield* Effect.fail("Something went wrong!")
 })
 
@@ -178,8 +218,6 @@ Task2...
 }
 */
 ```
-
-In this example, we intentionally introduce an error using `Effect.fail` to illustrate how errors can be managed within your program.
 
 ### The Role of Short-Circuiting
 
@@ -221,7 +259,8 @@ Task2...
 
 ## Passing this
 
-In some cases, you might need to pass a reference to the current object (`this`) into the body of your generator function. You can achieve this by utilizing an overload that accepts the reference as the first argument:
+In some cases, you might need to pass a reference to the current object (`this`) into the body of your generator function.
+You can achieve this by utilizing an overload that accepts the reference as the first argument:
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -235,5 +274,3 @@ class MyService {
 
 console.log(Effect.runSync(new MyService().compute)) // Output: 2
 ```
-
-In this example, we have a `MyService` class with a property called `local`. By passing `this` as the first argument to `Effect.gen`, we make the `local` property available within the generator.

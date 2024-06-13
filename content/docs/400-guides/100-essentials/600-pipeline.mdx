@@ -45,16 +45,20 @@ Let's see an example to better understand how `pipe` works:
 ```ts twoslash
 import { pipe } from "effect"
 
+// Define simple arithmetic operations
 const increment = (x: number) => x + 1
 const double = (x: number) => x * 2
 const subtractTen = (x: number) => x - 10
 
+// Sequentially apply these operations using `pipe`
 const result = pipe(5, increment, double, subtractTen)
 
 console.log(result) // Output: 2
 ```
 
 In the above example, we start with an input value of `5`. The `increment` function adds `1` to the initial value, resulting in `6`. Then, the `double` function doubles the value, giving us `12`. Finally, the `subtractTen` function subtracts `10` from `12`, resulting in the final output of `2`.
+
+The result is equivalent to `subtractTen(double(increment(5)))`, but using `pipe` makes the code more readable because the operations are sequenced from left to right, rather than nesting them inside out.
 
 ## Functions vs Methods
 
@@ -88,46 +92,50 @@ Now let's explore some examples of APIs that can be used with the `pipe` functio
 The `Effect.map` function is used to transform the value inside an `Effect`.
 It takes a function and applies it to the value contained within the `Effect`, creating a **new** `Effect` with the transformed value.
 
-<Info>
-  It's important to note that `Effect`s are immutable, meaning that when you
-  use `Effect.map` on an `Effect`, it doesn't modify the original data type.
-  Instead, it returns a new copy of the `Effect` with the transformed value.
-</Info>
+**Usage of Effect.map**
 
 The syntax for `Effect.map` is as follows:
 
 ```ts
 import { pipe, Effect } from "effect"
 
-const mappedEffect = pipe(myEffect, Effect.map(func))
+const mappedEffect = pipe(myEffect, Effect.map(transformation))
 // or
-const mappedEffect = Effect.map(myEffect, func)
+const mappedEffect = Effect.map(myEffect, transformation)
+// or
+const mappedEffect = myEffect.pipe(Effect.map(transformation))
 ```
 
-In the code above, `func` represents the transformation function to be applied, and `myEffect` is the input `Effect`.
+In the code above, `transformation` is the function applied to the value, and `myEffect` is the `Effect` being transformed.
 
-Let's see an example to better understand how `map` works:
+<Info>
+  It's important to note that `Effect`s are immutable, meaning that when you
+  use `Effect.map` on an `Effect`, it doesn't modify the original data type.
+  Instead, it returns a new copy of the `Effect` with the transformed value.
+</Info>
+
+**Example**
+
+Consider a program that adds a small service charge to a transaction:
 
 ```ts twoslash
 import { pipe, Effect } from "effect"
 
-const increment = (x: number) => x + 1
-const myEffect = Effect.succeed(5)
+// Function to add a small service charge to a transaction amount
+const addServiceCharge = (amount: number) => amount + 1
 
-const mappedEffect = pipe(myEffect, Effect.map(increment))
+// Simulated asynchronous task to fetch a transaction amount from a database
+const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
 
-Effect.runPromise(mappedEffect).then(console.log) // Output: 6
+// Apply service charge to the transaction amount
+const finalAmount = pipe(fetchTransactionAmount, Effect.map(addServiceCharge))
+
+Effect.runPromise(finalAmount).then(console.log) // Output: 101
 ```
 
-In the example above:
+## as
 
-- We define a simple `increment` function that adds `1` to its input.
-- We create an `Effect` using `Effect.succeed` with an initial value of `5`.
-- We use `Effect.map` to apply the `increment` function to the value inside the `myEffect`.
-
-The resulting `mappedEffect` contains the transformed value of `6`.
-
-If you simply want to replace the value with a constant, you can use `Effect.as`:
+To map an `Effect` to a constant value, replacing the original value, use `Effect.as`:
 
 ```ts twoslash
 import { pipe, Effect } from "effect"
@@ -139,24 +147,77 @@ Effect.runPromise(program).then(console.log) // Output: "new value"
 
 ## flatMap
 
-In the previous example, we saw how to transform an `Effect` using the `Effect.map` function when the transformation function returns a regular value. But what if we want to transform an `Effect` using a function that itself returns another `Effect`?
+The `Effect.flatMap` function is used when you need to chain transformations that produce `Effect` instances. This is useful for asynchronous operations or computations that depend on the results of previous effects.
 
-Many JavaScript / TypeScript engineers are familiar with the term `flatMap` due to it's [presence as a method on the `Array` prototype](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap).
-However, `flatMap` can actually be used to describe a more generic data transformation. While this section will focus specifically on explaining how one can use `flatMap` from the `Effect` module, we provide a more detailed explanation of `flatMap` [in the FAQ](../../other/faq#a-closer-look-at-flatmap).
+**Usage of Effect.flatMap**
 
-<Info>
-  If you're just looking for how to flatten a nested `Array`s within an Effect:
+The `Effect.flatMap` function enables you to sequence computations that result in new `Effect` values, "flattening" any nested `Effect` structures that arise.
 
-  <details>
-  <summary>Flattening a Nested Array</summary>
-
-If you have an Effect where result type is a nested `Array`, for example:
+The syntax for `Effect.flatMap` is as follows:
 
 ```ts
-Effect<Array<Array<A>>>
+import { pipe, Effect } from "effect"
+
+const flatMappedEffect = pipe(myEffect, Effect.flatMap(transformation))
+// or
+const flatMappedEffect = Effect.flatMap(myEffect, transformation)
+// or
+const flatMappedEffect = myEffect.pipe(Effect.flatMap(transformation))
 ```
 
-you can easily flatten the array using either the `Array` module exported from `effect`:
+In the code above, `transformation` is the function that takes a value and returns an `Effect`, and `myEffect` is the initial `Effect` being transformed.
+
+<Info>
+  It's important to note that `Effect`s are immutable, meaning that when you
+  use `Effect.flatMap` on an `Effect`, it doesn't modify the original data
+  type. Instead, it returns a new copy of the `Effect` with the transformed
+  value.
+</Info>
+
+**Example**
+
+```ts twoslash
+import { pipe, Effect } from "effect"
+
+// Function to apply a discount safely to a transaction amount
+const applyDiscount = (
+  total: number,
+  discountRate: number
+): Effect.Effect<number, Error> =>
+  discountRate === 0
+    ? Effect.fail(new Error("Discount rate cannot be zero"))
+    : Effect.succeed(total - (total * discountRate) / 100)
+
+// Simulated asynchronous task to fetch a transaction amount from a database
+const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
+
+const finalAmount = pipe(
+  fetchTransactionAmount,
+  Effect.flatMap((amount) => applyDiscount(amount, 5))
+)
+
+Effect.runPromise(finalAmount).then(console.log) // Output: 95
+```
+
+**Ensuring All Effects Are Considered**
+
+It's vital to ensure that all effects within `Effect.flatMap` contribute to the final computation.
+Neglecting any effect can lead to unexpected behaviors or incorrect outcomes:
+
+```ts {1}
+Effect.flatMap((amount) => {
+  Effect.sync(() => console.log(`Apply a discount to: ${amount}`)) // This effect is ignored
+  return applyDiscount(amount, 5)
+})
+```
+
+The `Effect.sync` above is ignored and does not influence the result of `applyDiscount(amount, 5)`.
+To include effects properly and avoid errors, explicitly chain them using functions like `Effect.map`, `Effect.flatMap`, `Effect.andThen`, or `Effect.tap`.
+
+**Further Information on `flatMap`**
+
+Although many developers may recognize `flatMap` from its usage with arrays, in the `Effect` framework, it's utilized to manage and resolve nested `Effect` structures.
+If your goal is to flatten nested arrays within an Effect (`Effect<Array<Array<A>>>`), this can be done using:
 
 ```ts twoslash
 import { pipe, Effect, Array } from "effect"
@@ -172,74 +233,6 @@ const flattened = pipe(
 
 or using the standard `Array.prototype.flat()` method.
 
-  </details>
-</Info>
-
-The `Effect.flatMap` function allows us to chain computations that produce `Effect` values. It takes a transformation function that produces a new `Effect` and then "flattens" the nested `Effect` structure.
-
-<Info>
-  It's important to note that `Effect`s are immutable, meaning that when you
-  use `Effect.flatMap` on an `Effect`, it doesn't modify the original data
-  type. Instead, it returns a new copy of the `Effect` with the transformed
-  value.
-</Info>
-
-The syntax for `Effect.flatMap` is as follows:
-
-```ts
-import { pipe, Effect } from "effect"
-
-const flatMappedEffect = pipe(myEffect, Effect.flatMap(func))
-// or
-const flatMappedEffect = Effect.flatMap(myEffect, func)
-```
-
-In the code above, `func` represents the transformation function that returns a new `Effect`, and `myEffect` is the input `Effect` that we want to transform.
-
-Let's see an example to better understand how `Effect.flatMap` works:
-
-```ts twoslash
-import { pipe, Effect } from "effect"
-
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
-const myEffect = Effect.succeed([10, 2])
-
-const flatMappedEffect = pipe(
-  myEffect,
-  Effect.flatMap(([a, b]) => divide(a, b))
-)
-
-Effect.runPromise(flatMappedEffect).then(console.log) // Output: 5
-```
-
-In the example above:
-
-- We define a function called `divide` that takes two numbers `a` and `b` and returns an `Effect` that can potentially succeed with the result of the division or fail with an error if `b` is zero.
-- We create an `Effect` using `Effect.succeed` with a tuple containing the values `10` and `2`.
-- We use `Effect.flatMap` to apply the `divide` function to the values inside the `myEffect`.
-
-The resulting `Effect` contains the transformed value of `5`.
-
-When using `Effect.flatMap`, it is crucial to ensure that **all effects** are properly considered in the computation. If you ignore an effect returned by a computation within `Effect.flatMap`, it can result in unexpected behavior and incorrect program logic.
-
-Let's take a look at the following code snippet:
-
-```ts {1}
-Effect.flatMap(([a, b]) => {
-  Effect.sync(() => console.log(`Performing division: ${a} / ${b}`))
-  return divide(a, b)
-})
-```
-
-The problem here is that the effect returned by `Effect.sync` will be ignored and not included in the resulting computation. It will not be chained or combined with the effect returned by`divide(a, b)`. As a result, you may encounter unexpected program behavior and obtain incorrect results.
-
-To ensure correct behavior, make sure that any effect you want to include in the computation is explicitly chained using `Effect.flatMap` or combined with other `Effect` values using the appropriate functions provided by the Effect library.
-
-In the next section, we will explore how to address this problem using the `tap` API.
-
 ## andThen
 
 Both the `Effect.map` and `Effect.flatMap` functions serve to transform an `Effect` into another `Effect` in two different scenarios.
@@ -252,12 +245,14 @@ The `Effect.andThen` function executes a sequence of two actions, typically two 
 ```ts
 import { pipe, Effect } from "effect"
 
-const transformedEffect = pipe(self, Effect.andThen(that))
+const transformedEffect = pipe(myEffect, Effect.andThen(anotherEffect))
 // or
-const transformedEffect = Effect.andThen(self, that)
+const transformedEffect = Effect.andThen(myEffect, anotherEffect)
+// or
+const transformedEffect = myEffect.pipe(Effect.andThen(anotherEffect))
 ```
 
-The `that` action can take various forms:
+The `anotherEffect` action can take various forms:
 
 - a value
 - a function returning a value (i.e. same functionality of `Effect.map`)
@@ -266,113 +261,139 @@ The `that` action can take various forms:
 - an `Effect`
 - a function returning an `Effect`(i.e. same functionality of `Effect.flatMap`)
 
+**Example**
+
 Let's see an example where we can compare the use of `Effect.andThen` instead of `Effect.map` and `Effect.flatMap`:
 
 ```ts
 import { pipe, Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
+// Function to apply a discount safely to a transaction amount
+const applyDiscount = (
+  total: number,
+  discountRate: number
+): Effect.Effect<number, Error> =>
+  discountRate === 0
+    ? Effect.fail(new Error("Discount rate cannot be zero"))
+    : Effect.succeed(total - (total * discountRate) / 100)
+
+// Simulated asynchronous task to fetch a transaction amount from a database
+const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
 
 // Using Effect.map, Effect.flatMap
 const result1 = pipe(
-  Effect.succeed(3),
-  Effect.map((n) => [n + 1, n - 1] as const),
-  Effect.flatMap(([a, b]) => divide(a, b))
+  fetchTransactionAmount,
+  Effect.map((amount) => amount * 2),
+  Effect.flatMap((amount) => applyDiscount(amount, 5))
 )
 
-console.log(Effect.runSync(result1)) // Output: 2
+Effect.runPromise(result1).then(console.log) // Output: 190
 
 // Using Effect.andThen
 const result2 = pipe(
-  Effect.succeed(3),
-  Effect.andThen((n) => [n + 1, n - 1] as const),
-  Effect.andThen(([a, b]) => divide(a, b))
+  fetchTransactionAmount,
+  Effect.andThen((amount) => amount * 2),
+  Effect.andThen((amount) => applyDiscount(amount, 5))
 )
 
-console.log(Effect.runSync(result2)) // Output: 2
+Effect.runPromise(result2).then(console.log) // Output: 190
 ```
 
 ## tap
 
-In the previous section, we discussed the problem of ignoring effects in a computation.
-To address this issue, we can use the `tap` API, which allows us to execute side effects without affecting the computation flow.
-
 The `Effect.tap` API has a similar signature to `Effect.flatMap`, but the result of the transformation function is **ignored**.
-This means that the value returned by the previous computation (i.e. `[a, b]`) will still be available for the next computation (i.e. `divide`).
+This means that the value returned by the previous computation will still be available for the next computation.
 
-Let's take a look at an updated code snippet that incorporates the `Effect.tap` API to fix the problem:
+**Example**
 
-```ts {3-5} twoslash
+```ts twoslash
 import { pipe, Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
-// ---cut---
-const program = pipe(
-  Effect.succeed([10, 2]),
-  Effect.tap(([a, b]) =>
-    Effect.sync(() => console.log(`Performing division: ${a} / ${b}`))
+// Function to apply a discount safely to a transaction amount
+const applyDiscount = (
+  total: number,
+  discountRate: number
+): Effect.Effect<number, Error> =>
+  discountRate === 0
+    ? Effect.fail(new Error("Discount rate cannot be zero"))
+    : Effect.succeed(total - (total * discountRate) / 100)
+
+// Simulated asynchronous task to fetch a transaction amount from a database
+const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
+
+const finalAmount = pipe(
+  fetchTransactionAmount,
+  Effect.tap((amount) =>
+    Effect.sync(() => console.log(`Apply a discount to: ${amount}`))
   ),
-  // [a, b] is still available!
-  Effect.andThen(([a, b]) => divide(a, b))
+  // `amount` is still available!
+  Effect.flatMap((amount) => applyDiscount(amount, 5))
 )
 
-Effect.runPromise(program).then(console.log)
+Effect.runPromise(finalAmount).then(console.log)
 /*
 Output:
-Performing division: 10 / 2
-5
+Apply a discount to: 100
+95
 */
 ```
 
-By using `Effect.tap`, we include the effect of `Effect.sync` in the computation. This ensures that the logging action is performed, providing us with the desired output and maintaining correct program logic. The resulting output is still `5`, as expected.
-
-Using `tap` allows us to execute side effects during the computation without altering the result. This can be useful for logging, performing additional actions, or observing the intermediate values without interfering with the main computation flow.
+Using `Effect.tap` allows us to execute side effects during the computation without altering the result.
+This can be useful for logging, performing additional actions, or observing the intermediate values without interfering with the main computation flow.
 
 ## all
 
 The `Effect.all` function is a powerful utility provided by Effect that allows you to combine multiple effects into a single effect that produces a tuple of results.
 
-The syntax for `all` is as follows:
+**Usage of Effect.all**
+
+The syntax for `Effect.all` is as follows:
 
 ```ts
 import { Effect } from "effect"
 
-const combinedEffect = Effect.all(effects)
+const combinedEffect = Effect.all([effect1, effect2, ...])
 ```
 
-Here, `effects` represents multiple effects that you want to combine.
-
-The `all` function will execute all these effects in **sequence** (to explore options for
+The `Effect.all` function will execute all these effects in **sequence** (to explore options for
 managing concurrency and controlling how these effects are executed, you can
 refer to the [Concurrency Options](../concurrency/concurrency-options)
 documentation).
 
 It will return a new effect that produces a tuple containing the results of each individual effect.
-Keep in mind that the order of the results corresponds to the order of the original effects passed to `all`.
+Keep in mind that the order of the results corresponds to the order of the original effects passed to `Effect.all`.
 
-Let's see an example to better understand how `all` works:
+**Example**
 
 ```ts twoslash
 import { Effect } from "effect"
 
-const foo = Effect.succeed(42)
-const bar = Effect.succeed("Hello")
+// Simulated function to read configuration from a file
+const webConfig = Effect.promise(() =>
+  Promise.resolve({ dbConnection: "localhost", port: 8080 })
+)
 
-const combinedEffect = Effect.all([foo, bar])
+// Simulated function to test database connectivity
+const checkDatabaseConnectivity = Effect.promise(() =>
+  Promise.resolve("Connected to Database")
+)
 
-Effect.runPromise(combinedEffect).then(console.log) // Output: [42, "Hello"]
+// Combine both effects to perform startup checks
+const startupChecks = Effect.all([webConfig, checkDatabaseConnectivity])
+
+Effect.runPromise(startupChecks).then(([config, dbStatus]) => {
+  console.log(
+    `Configuration: ${JSON.stringify(config)}, DB Status: ${dbStatus}`
+  )
+})
+/*
+Output:
+Configuration: {"dbConnection":"localhost","port":8080}, DB Status: Connected to Database
+*/
 ```
 
-In this example, `foo` and `bar` are two separate effects. Using `Effect.all`, we combine them into a single effect `combinedEffect`. When we run `combinedEffect`, it produces a tuple `[42, "Hello"]` containing the results of both effects.
-
 <Info>
-  The `all` function not only combines tuples but also works seamlessly with
+  The `Efefct.all` function not only combines tuples but also works with
   iterables, structs, and records. To explore the full potential of `all` head
   over to the [Introduction to Effect's Control Flow
   Operators](../control-flow#all) documentation.
@@ -380,30 +401,41 @@ In this example, `foo` and `bar` are two separate effects. Using `Effect.all`, w
 
 ## Build your first pipeline
 
-Now, let's combine all threee functions (`pipe`, `andThen` and `all`) to build a pipeline that performs a series of transformations:
+Now, let's combine `pipe`, `Effect.all` and `Effect.andThen` to build a pipeline that performs a series of transformations:
 
 ```ts twoslash
-import { pipe, Effect } from "effect"
+import { Effect, pipe } from "effect"
 
-const increment = (x: number) => x + 1
+// Function to add a small service charge to a transaction amount
+const addServiceCharge = (amount: number) => amount + 1
 
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
+// Function to apply a discount safely to a transaction amount
+const applyDiscount = (
+  total: number,
+  discountRate: number
+): Effect.Effect<number, Error> =>
+  discountRate === 0
+    ? Effect.fail(new Error("Discount rate cannot be zero"))
+    : Effect.succeed(total - (total * discountRate) / 100)
 
-const task1 = Effect.promise(() => Promise.resolve(10))
+// Simulated asynchronous task to fetch a transaction amount from a database
+const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
 
-const task2 = Effect.promise(() => Promise.resolve(2))
+// Simulated asynchronous task to fetch a discount rate from a configuration file
+const fetchDiscountRate = Effect.promise(() => Promise.resolve(5))
 
+// Assembling the program using a pipeline of effects
 const program = pipe(
-  Effect.all([task1, task2]),
-  Effect.andThen(([a, b]) => divide(a, b)),
-  Effect.andThen((n1) => increment(n1)),
-  Effect.andThen((n2) => `Result is: ${n2}`)
+  Effect.all([fetchTransactionAmount, fetchDiscountRate]),
+  Effect.flatMap(([transactionAmount, discountRate]) =>
+    applyDiscount(transactionAmount, discountRate)
+  ),
+  Effect.map(addServiceCharge),
+  Effect.map((finalAmount) => `Final amount to charge: ${finalAmount}`)
 )
 
-Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
+// Execute the program and log the result
+Effect.runPromise(program).then(console.log) // Output: "Final amount to charge: 96"
 ```
 
 ## The pipe method
@@ -429,24 +461,28 @@ Let's rewrite the previous example using the `pipe` method:
 ```ts twoslash
 import { Effect } from "effect"
 
-const increment = (x: number) => x + 1
+const addServiceCharge = (amount: number) => amount + 1
 
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
-  b === 0
-    ? Effect.fail(new Error("Cannot divide by zero"))
-    : Effect.succeed(a / b)
+const applyDiscount = (
+  total: number,
+  discountRate: number
+): Effect.Effect<number, Error> =>
+  discountRate === 0
+    ? Effect.fail(new Error("Discount rate cannot be zero"))
+    : Effect.succeed(total - (total * discountRate) / 100)
 
-const task1 = Effect.promise(() => Promise.resolve(10))
+const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
 
-const task2 = Effect.promise(() => Promise.resolve(2))
+const fetchDiscountRate = Effect.promise(() => Promise.resolve(5))
 
-const program = Effect.all([task1, task2]).pipe(
-  Effect.andThen(([a, b]) => divide(a, b)),
-  Effect.andThen((n1) => increment(n1)),
-  Effect.andThen((n2) => `Result is: ${n2}`)
+// ---cut---
+const program = Effect.all([fetchTransactionAmount, fetchDiscountRate]).pipe(
+  Effect.flatMap(([transactionAmount, discountRate]) =>
+    applyDiscount(transactionAmount, discountRate)
+  ),
+  Effect.map(addServiceCharge),
+  Effect.map((finalAmount) => `Final amount to charge: ${finalAmount}`)
 )
-
-Effect.runPromise(program).then(console.log) // Output: "Result is: 6"
 ```
 
 ## Cheatsheet
