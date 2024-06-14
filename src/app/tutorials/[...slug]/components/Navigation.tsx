@@ -16,6 +16,7 @@ export declare namespace Navigation {
 }
 
 export const Navigation: React.FC<Navigation.Props> = async ({ tutorial }) => {
+  console.log(groupedTutorials)
   const group = groupedTutorials[tutorialSection(tutorial)]
   const index = group.children.indexOf(tutorial)
   const previous = group.children[index - 1]
