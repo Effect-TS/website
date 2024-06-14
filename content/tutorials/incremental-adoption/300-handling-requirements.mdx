@@ -44,13 +44,17 @@ main()
  */
 ```
 
-As you can see from the output, the message `"Hello, World!"` is logged twice. This is because each call to `Effect.provide` will fully construct the dependency graph specified by the `Layer` and then provide it to the Effect program. This can create problems when your layers are meant to encapsulate logic that is only meant to be executed **once** (for example, creating a database connection pool) or when layer construction is **expensive** (for example, fetching a large number of remote assets and caching them in memory).
+As you can see from the output, the message `"Hello, World!"` is logged twice. This is because each call to `Effect.provide` will fully construct the dependency graph specified by the `Layer` and then provide it to the Effect program.
+
+This can create problems when your layers are meant to encapsulate logic that is only meant to be executed **once** (for example, creating a database connection pool) or when layer construction is **expensive** (for example, fetching a large number of remote assets and caching them in memory).
 
 To solve this problem, we need some sort of top-level, re-usable Effect `Runtime` which contains our fully constructed dependency graph, and then use that `Runtime` to execute our Effect programs instead of the default `Runtime` used by the `Effect.run*` methods.
 
 ### Managed Runtimes
 
 The `ManagedRuntime` data type in Effect allows us to create a top-level, re-usable Effect `Runtime` which encapsulates a fully constructed dependency graph. In addition, `ManagedRuntime` gives us explicit control over when resources acquired by the runtime should be disposed.
+
+Let's take a look at an example where we refactor the code from above to utilize `ManagedRuntime`:
 
 ```ts twoslash
 import { Console, Effect, Layer, ManagedRuntime } from "effect"
@@ -103,4 +107,6 @@ Using what we have learned above, your tasks for this exercise include:
     - Return a JSON response that conforms to the following `{ "type": "TodoNotFound", "id": <TODO_ID> }`
   - **BONUS**: properly dispose of the `ManagedRuntime` when the server shuts down
 
-In the editor to the right, modify the code to restore functionality to our server. Please note that there is no one "correct" answer, as there are multiple ways to achieve the desired outcome.
+Modify the code in the editor to the right to accomplish your tasks.
+
+Please note that there is no one "correct" answer, as there are multiple ways to achieve the desired outcome.
