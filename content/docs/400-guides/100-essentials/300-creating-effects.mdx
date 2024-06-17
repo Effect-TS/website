@@ -48,7 +48,9 @@ When a computation might fail, it's essential to manage the failure explicitly. 
 import { Effect } from "effect"
 
 // Creating an effect that represents a failure scenario
-const failure = Effect.fail(new Error("Operation failed due to network error"))
+const failure = Effect.fail(
+  new Error("Operation failed due to network error")
+)
 ```
 
 The type of `failure` is `Effect<never, Error, never>`, which means
@@ -113,8 +115,8 @@ const getUser = (userId: number): Effect.Effect<User, Error> => {
   }
 }
 
-// Example of using getUser to fetch user details
-const exampleUserEffect = getUser(1)  // This will successfully return the user with id 1
+// When executed, this will successfully return the user with id 1
+const exampleUserEffect = getUser(1)
 ```
 
 In this example `exampleUserEffect` can result in either a `User` object or an `Error`, depending on whether the user exists in the simulated database
@@ -154,6 +156,7 @@ const program = log("Hello, World!")
 In the above example, `Effect.sync` is used to defer the side-effect of writing to the console.
 
 The `program` has the type `Effect<void, never, never>`, indicating that:
+
 - It doesn't produce a return value (`void`).
 - It's not expected to fail (`never` indicates no expected errors).
 - It doesn't require any external dependencies or context (`never`).
