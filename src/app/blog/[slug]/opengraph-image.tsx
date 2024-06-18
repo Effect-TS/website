@@ -1,4 +1,4 @@
-import { allBlogPosts } from "contentlayer/generated"
+import blogPosts from ".og-image-data/index.json"
 import { ImageResponse } from "next/og"
 
 export const runtime = "edge"
@@ -16,7 +16,7 @@ export default async function Image({
 }: {
   params: { slug: string }
 }) {
-  const post = allBlogPosts.find((post) => post.urlPath === `/blog/${slug}`)!
+  const post = blogPosts.find((post) => post.urlPath === `/blog/${slug}`)!
 
   return new ImageResponse(
     (
@@ -50,7 +50,7 @@ export default async function Image({
         {
           name: "Inter",
           data: await fetch(
-            new URL("../../inter-light.ttf", import.meta.url)
+            new URL("../../../assets/inter-light.ttf", import.meta.url)
           ).then((res) => res.arrayBuffer()),
           style: "normal",
           weight: 300
@@ -58,7 +58,7 @@ export default async function Image({
         {
           name: "CalSans",
           data: await fetch(
-            new URL("../../cal-sans-semibold.ttf", import.meta.url)
+            new URL("../../../assets/cal-sans-semibold.ttf", import.meta.url)
           ).then((res) => res.arrayBuffer()),
           style: "normal",
           weight: 600
