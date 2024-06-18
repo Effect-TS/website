@@ -40,7 +40,6 @@ export default async function Image({
           {post.title}
         </div>
         <div style={{ color: "#A1A1AB", fontSize: 32 }}>{post.excerpt}</div>
-        {/* <div style={{fontFamily: 'Cal Sans', color: '#ffffff', fontSize: 64}}>Test</div> */}
       </div>
     ),
     {
@@ -49,7 +48,7 @@ export default async function Image({
         {
           name: "Inter",
           data: await fetch(
-            new URL("../../../assets/inter-light.ttf", import.meta.url)
+            new URL("../../inter-light.ttf", import.meta.url)
           ).then((res) => res.arrayBuffer()),
           style: "normal",
           weight: 300
@@ -57,7 +56,7 @@ export default async function Image({
         {
           name: "CalSans",
           data: await fetch(
-            new URL("../../../assets/cal-sans-semibold.ttf", import.meta.url)
+            new URL("../../cal-sans-semibold.ttf", import.meta.url)
           ).then((res) => res.arrayBuffer()),
           style: "normal",
           weight: 600
