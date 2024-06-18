@@ -1,5 +1,5 @@
 ---
-title: Batching & Caching
+title: Batching
 excerpt: Effect is a powerful TypeScript library designed to help developers easily create complex, synchronous, and asynchronous programs.
 bottomNavigation: pagination
 ---
@@ -47,7 +47,8 @@ export class SendEmailError {
 <Idea>
   In a real world scenario we may want to use a more precise types instead of
   directly using primitives for identifiers (see [Branded
-  Types](style/branded-types)). Additionally, you may want to include more detailed information in the errors.
+  Types](style/branded-types)). Additionally, you may want to include more
+  detailed information in the errors.
 </Idea>
 
 ### Defining API Functions
@@ -116,7 +117,9 @@ export const notifyOwner = (todo: Model.Todo) =>
 ```
 
 <Idea>
-  In a real-world scenario, you might not want to trust your APIs to always return the expected data - for this, you can use `@effect/schema` or similar alternatives such as `zod`.
+  In a real-world scenario, you might not want to trust your APIs to always
+  return the expected data - for this, you can use `@effect/schema` or similar
+  alternatives such as `zod`.
 </Idea>
 
 While this approach is straightforward and readable, it may not be the most efficient. Repeated API calls, especially when many todos share the same owner, can significantly increase network overhead and slow down your application.
@@ -323,10 +326,15 @@ export const SendEmailResolver = RequestResolver.makeBatched(
 ```
 
 <Info>
-  Resolvers can also access the context like any other `Effect`, and there are many different ways to create resolvers. For further details, consider exploring the reference documentation for the [RequestResolver](https://effect-ts.github.io/effect/effect/RequestResolver.ts.html) module.
+  Resolvers can also access the context like any other `Effect`, and there are
+  many different ways to create resolvers. For further details, consider
+  exploring the reference documentation for the
+  [RequestResolver](https://effect-ts.github.io/effect/effect/RequestResolver.ts.html)
+  module.
 </Info>
 
 In this configuration:
+
 - **GetTodosResolver** handles the fetching of multiple Todo items. It's set up as a standard resolver since we assume it cannot be batched.
 - **GetUserByIdResolver** and **SendEmailResolver** are configured as batched resolvers. This setup is based on the assumption that these requests can be processed in batches, enhancing performance and reducing the number of API calls.
 
