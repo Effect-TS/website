@@ -22,7 +22,6 @@ const calSans = localFont({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.VERCEL_URL ?? "http://localhost:3000"),
   title: "Effect – The best way to build robust apps in TypeScript",
   description:
     "Effect is a powerful TypeScript library designed to help developers easily create complex, synchronous, and asynchronous programs."
