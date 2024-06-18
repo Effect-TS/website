@@ -1,6 +1,7 @@
-import { allBlogPosts } from "contentlayer/generated"
 import { ImageResponse } from "next/og"
+import { headers } from "next/headers"
 
+export const runtime = "edge"
 export const alt = "Effect"
 export const size = {
   width: 1200,
@@ -9,12 +10,20 @@ export const size = {
 
 export const contentType = "image/png"
 
+const baseUrl = () => {
+  const host = headers().get("host") ?? "localhost:3000"
+  const proto = host.includes("localhost") ? "http" : "https"
+  return `${proto}://${host}`
+}
+
 export default async function Image({
   params: { slug }
 }: {
   params: { slug: string }
 }) {
-  const post = allBlogPosts.find((post) => post.urlPath === `/blog/${slug}`)!
+  const post = await fetch(`${baseUrl()}/api/blog/${slug}`).then((res) =>
+    res.json()
+  )
 
   return new ImageResponse(
     (
