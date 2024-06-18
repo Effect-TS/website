@@ -1,0 +1,81 @@
+---
+title: Managing Errors
+---
+
+In the previous section of this tutorial, we learned how to write simple
+programs with Effect. In this section, we will expand upon that knowledge to
+learn about managing errors with Effect.
+
+### Two Types of Errors
+
+Just like any other program, Effect programs may fail for expected or unexpected
+reasons. The difference between a non-Effect program and an Effect program is in
+the detail provided to you when your program fails. Effect attempts to preserve
+as much information as possible about what caused your program to fail to
+produce a detailed, comprehensive, and human readable failure message.
+
+In an Effect program, there are two possible ways for a program to fail:
+
+  - **Expected Errors**: These are errors that developers anticipate and expect
+    as part of normal program execution
+  - **Unexpected Errors**: These are errors that occur unexpectedly and are not
+    part of the intended program flow
+
+### Expected Errors
+
+These errors, also referred to as _failures_, _typed errors_ or _recoverable
+errors_, are errors that a developer anticipates as part of the normal program
+execution. They serve a similar purpose to checked exceptions and play a role
+in defining the program's domain and control flow.
+
+As we learned in a previous section of this tutorial, expected errors are
+**tracked at the type level** by the `Effect` data type (in the `Error` channel).
+
+For example, it is evident from the type that the Effect program in the
+following code snippet can fail with an error of type `HttpError` or an error of
+type `NetworkError`:
+
+<div className="flex justify-center">
+  <code>Effect&lt;string&comma; HttpError | NetworkError&gt;</code>
+</div>
+
+<Warning>
+Before continuing with this tutorial, please read through the section on
+**expected errors** <a href="docs/guides/error-management/expected-errors" target="_blank">in
+the documentation</a>.
+</Warning>
+
+### Unexpected Errors
+
+Unexpected errors, also referred to as _defects_, _untyped errors_, or
+_unrecoverable errors_, are errors that developers do not anticipate occurring
+during normal program execution. Unlike expected errors, which are considered
+part of a program's domain and control flow, unexpected errors resemble
+unchecked exceptions and lie outside the expected behavior of the program.
+
+Since these errors are not expected, Effect **does not track them at the type
+level**. However, the Effect runtime does keep track of these errors and
+provides several methods to aid in recovering from unexpected errors.
+
+<Warning>
+Before continuing with this tutorial, please read through the section on
+**unexpected errors** <a href="docs/guides/error-management/unexpected-errors" target="_blank">in
+the documentation</a>.
+</Warning>
+
+### Exercise
+
+Using the concepts we just learned about managing errors with Effect, complete
+the following tasks (also marked with `TODO`s in the editor):
+
+  - TODO
+  - TODO
+  - TODO
+
+**Bonus**: Use the <a href="/docs/guides/error-management/yieldable-errors" target="_blank">Data</a>
+module to create the custom error types via `Data.TaggedError`.
+
+<Idea>
+Remember, if you ever get stuck try clicking the "Show Solution" button in the
+upper right-hand corner of the editor.
+</Idea>
