@@ -1,6 +1,8 @@
 import { allBlogPosts } from "contentlayer/generated"
 import { ImageResponse } from "next/og"
 
+export const runtime = "edge"
+
 export const alt = "Effect"
 export const size = {
   width: 1200,
@@ -48,7 +50,7 @@ export default async function Image({
         {
           name: "Inter",
           data: await fetch(
-            new URL("../../inter-light.ttf", import.meta.url)
+            new URL("./inter-light.ttf", import.meta.url)
           ).then((res) => res.arrayBuffer()),
           style: "normal",
           weight: 300
@@ -56,7 +58,7 @@ export default async function Image({
         {
           name: "CalSans",
           data: await fetch(
-            new URL("../../cal-sans-semibold.ttf", import.meta.url)
+            new URL("./cal-sans-semibold.ttf", import.meta.url)
           ).then((res) => res.arrayBuffer()),
           style: "normal",
           weight: 600
