@@ -1,5 +1,7 @@
-import { allBlogPosts } from "contentlayer/generated"
+import blogPosts from ".og-image-data/index.json"
 import { ImageResponse } from "next/og"
+
+export const runtime = "edge"
 
 export const alt = "Effect"
 export const size = {
@@ -14,7 +16,7 @@ export default async function Image({
 }: {
   params: { slug: string }
 }) {
-  const post = allBlogPosts.find((post) => post.urlPath === `/blog/${slug}`)!
+  const post = blogPosts.find((post) => post.urlPath === `/blog/${slug}`)!
 
   return new ImageResponse(
     (
@@ -40,7 +42,6 @@ export default async function Image({
           {post.title}
         </div>
         <div style={{ color: "#A1A1AB", fontSize: 32 }}>{post.excerpt}</div>
-        {/* <div style={{fontFamily: 'Cal Sans', color: '#ffffff', fontSize: 64}}>Test</div> */}
       </div>
     ),
     {
