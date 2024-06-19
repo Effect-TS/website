@@ -375,9 +375,13 @@ Let's explore some common scenarios where `Effect.suspend` proves useful:
    console.log(Effect.runSync(good)) // Output: 2
    ```
 
-   In this example, `Effect.succeed(i++)` creates a new numeric value and consistently returns the same number. On the other hand, `Effect.suspend(() => Effect.succeed(i++))` generates a new number with each invocation.
+   <Info>
+     This example utilizes `Effect.runSync` to execute effects and display
+     their results (refer to [Running Effects](./running-effects#runsync) for
+     more details).
+   </Info>
 
-   This example utilizes `Effect.runSync` to execute effects and display their results (refer to [Running Effects](./running-effects##runsync) for more details).
+   In this example, `Effect.succeed(i++)` creates a new numeric value and consistently returns the same number. On the other hand, `Effect.suspend(() => Effect.succeed(i++))` generates a new number with each invocation.
 
 2. **Handling Circular Dependencies**. `Effect.suspend` is helpful in managing circular dependencies between effects, where one effect depends on another, and vice versa.
    For example it's fairly common for `Effect.suspend` to be used in recursive functions to escape an eager call. For instance:
@@ -403,6 +407,15 @@ Let's explore some common scenarios where `Effect.suspend` proves useful:
 
    console.log(Effect.runSync(allGood(32))) // Output: 3524578
    ```
+
+   <Info>
+     This example utilizes `Effect.zipWith` to combine the results of two
+     effects (refer to [Zipping](../control-flow#zipwith) for more details).
+   </Info>
+
+   The `blowsUp` function creates a recursive Fibonacci sequence without deferring execution. Each call to `blowsUp` triggers further immediate recursive calls, rapidly increasing the JavaScript call stack size.
+
+   Conversely, `allGood` avoids stack overflow by using `Effect.suspend` to defer the recursive calls. This mechanism doesn't immediately execute the recursive effects but schedules them to be run later, thus keeping the call stack shallow and preventing a crash.
 
 3. **Unifying Return Type**. In situations where TypeScript struggles to unify the returned effect type, `Effect.suspend` can be employed to resolve this issue. For example:
 
