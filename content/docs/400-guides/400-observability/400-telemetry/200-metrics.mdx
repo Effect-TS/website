@@ -437,7 +437,16 @@ When creating metrics, you can add tags to them. Tags are key-value pairs that p
 Use `Effect.tagMetrics` to apply tags to all metrics created in the same context. This is useful for adding common tags that apply to multiple metrics.
 
 ```ts twoslash
-yield* Effect.tagMetrics("environment", "production")
+import { Metric, Effect } from "effect"
+ 
+const taskCount = Metric.counter("task_count")
+const task1 = Effect.succeed(1).pipe(Effect.delay("100 millis"))
+ 
+Effect.gen(function* () {
+  yield* taskCount(task1)
+}).pipe(
+  Effect.tagMetrics("environment", "production")
+)
 ```
 
 Alternatively, use `Effect.tagMetricsScoped` to apply tags within a specific scope.
@@ -448,7 +457,9 @@ Alternatively, use `Effect.tagMetricsScoped` to apply tags within a specific sco
 For individual metrics, use `Metric.tagged`. This method allows you to apply tags to a specific metric.
 
 ```ts twoslash
-const counter = Metric.counter(
-  'request_count',
-).pipe(Metric.tagged('environment', 'production'));
+import { Metric } from "effect"
+
+const counter = Metric.counter('request_count').pipe(
+  Metric.tagged('environment', 'production'),
+);
 ```
