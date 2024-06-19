@@ -1,6 +1,7 @@
-import { allBlogPosts } from "contentlayer/generated"
 import { ImageResponse } from "next/og"
+import { headers } from "next/headers"
 
+export const runtime = "edge"
 export const alt = "Effect"
 export const size = {
   width: 1200,
@@ -9,12 +10,26 @@ export const size = {
 
 export const contentType = "image/png"
 
+const baseUrl = () => {
+  const host = headers().get("host") ?? "localhost:3000"
+  const proto = host.includes("localhost") ? "http" : "https"
+  return `${proto}://${host}`
+}
+
 export default async function Image({
   params: { slug }
 }: {
   params: { slug: string }
 }) {
-  const post = allBlogPosts.find((post) => post.urlPath === `/blog/${slug}`)!
+  const [post, inter, calSans] = await Promise.all([
+    fetch(`${baseUrl()}/api/blog/${slug}`).then((res) => res.json()),
+    fetch(new URL("../../../assets/inter-light.ttf", import.meta.url)).then(
+      (res) => res.arrayBuffer()
+    ),
+    fetch(
+      new URL("../../../assets/cal-sans-semibold.ttf", import.meta.url)
+    ).then((res) => res.arrayBuffer())
+  ] as const)
 
   return new ImageResponse(
     (
@@ -48,17 +63,13 @@ export default async function Image({
       fonts: [
         {
           name: "Inter",
-          data: await fetch(
-            new URL("../../../assets/inter-light.ttf", import.meta.url)
-          ).then((res) => res.arrayBuffer()),
+          data: inter,
           style: "normal",
           weight: 300
         },
         {
           name: "CalSans",
-          data: await fetch(
-            new URL("../../../assets/cal-sans-semibold.ttf", import.meta.url)
-          ).then((res) => res.arrayBuffer()),
+          data: calSans,
           style: "normal",
           weight: 600
         }
