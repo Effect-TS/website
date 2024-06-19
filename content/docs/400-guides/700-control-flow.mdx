@@ -126,6 +126,95 @@ Effect.runPromise(flipTheCoin)
 
 In this example, we generate a random boolean value using `Random.nextBoolean`. If the value is `true`, the effect `onTrue` will be executed, which logs "Head". Otherwise, if the value is `false`, the effect `onFalse` will be executed, logging "Tail".
 
+## Zipping
+
+### zip
+
+The `Effect.zip` function allows you to combine two effects into a single effect.
+This combined effect yields a tuple containing the results of both input effects once they succeed:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const task1 = Effect.succeed(1).pipe(
+  Effect.delay("200 millis"),
+  Effect.tap(Effect.log("task1 done"))
+)
+const task2 = Effect.succeed("hello").pipe(
+  Effect.delay("100 millis"),
+  Effect.tap(Effect.log("task2 done"))
+)
+
+const task3 = Effect.zip(task1, task2)
+
+Effect.runPromise(task3).then(console.log)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message="task1 done"
+timestamp=... level=INFO fiber=#0 message="task2 done"
+[ 1, 'hello' ]
+*/
+```
+
+Note that `Effect.zip` processes effects sequentially: it first completes the effect on the left and then the effect on the right.
+
+If you want to run the effects concurrently, you can use the `concurrent` option:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const task1 = Effect.succeed(1).pipe(
+  Effect.delay("200 millis"),
+  Effect.tap(Effect.log("task1 done"))
+)
+const task2 = Effect.succeed("hello").pipe(
+  Effect.delay("100 millis"),
+  Effect.tap(Effect.log("task2 done"))
+)
+// ---cut---
+const task3 = Effect.zip(task1, task2, { concurrent: true })
+
+Effect.runPromise(task3).then(console.log)
+/*
+Output:
+timestamp=... level=INFO fiber=#3 message="task2 done"
+timestamp=... level=INFO fiber=#2 message="task1 done"
+[ 1, 'hello' ]
+*/
+```
+
+### zipWith
+
+The `Effect.zipWith` function operates similarly to `Effect.zip` by combining two effects.
+However, instead of returning a tuple, it allows you to apply a function to the results of the combined effects, transforming them into a single value:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const task1 = Effect.succeed(1).pipe(
+  Effect.delay("200 millis"),
+  Effect.tap(Effect.log("task1 done"))
+)
+const task2 = Effect.succeed("hello").pipe(
+  Effect.delay("100 millis"),
+  Effect.tap(Effect.log("task2 done"))
+)
+
+const task3 = Effect.zipWith(
+  task1,
+  task2,
+  (number, string) => number + string.length
+)
+
+Effect.runPromise(task3).then(console.log)
+/*
+Output:
+timestamp=2024-06-19T16:37:36.837Z level=INFO fiber=#3 message="task1 done"
+timestamp=2024-06-19T16:37:36.936Z level=INFO fiber=#2 message="task2 done"
+6
+*/
+```
+
 ## Loop Operators
 
 ### loop
@@ -325,7 +414,7 @@ It will return a new effect that produces a result with a shape that depends on 
 
 Let's explore examples for each supported shape: tuples, iterables, structs, and records.
 
-#### Tuples
+**Tuples**
 
 ```ts twoslash
 import { Effect, Console } from "effect"
@@ -346,7 +435,7 @@ Hello
 */
 ```
 
-#### Iterables
+**Iterables**
 
 ```ts twoslash
 import { Effect, Console } from "effect"
@@ -367,7 +456,7 @@ Output:
 */
 ```
 
-#### Structs
+**Structs**
 
 ```ts twoslash
 import { Effect, Console } from "effect"
@@ -388,7 +477,7 @@ Hello
 */
 ```
 
-#### Records
+**Records**
 
 ```ts twoslash
 import { Effect, Console } from "effect"
