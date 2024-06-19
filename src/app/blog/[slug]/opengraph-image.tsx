@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og"
 import { headers } from "next/headers"
+import { notFound } from "next/navigation"
 
 export const runtime = "edge"
 export const alt = "Effect"
@@ -22,7 +23,10 @@ export default async function Image({
   params: { slug: string }
 }) {
   const [post, inter, calSans] = await Promise.all([
-    fetch(`${baseUrl()}/api/blog/${slug}`).then((res) => res.json()),
+    fetch(`${baseUrl()}/api/blog/${slug}`).then((res) => {
+      if (!res.ok) return notFound()
+      return res.json()
+    }),
     fetch(new URL("../../../assets/inter-light.ttf", import.meta.url)).then(
       (res) => res.arrayBuffer()
     ),
