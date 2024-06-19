@@ -440,10 +440,9 @@ Use `Effect.tagMetrics` to apply tags to all metrics created in the same context
 import { Metric, Effect } from "effect"
  
 const taskCount = Metric.counter("task_count")
-const task1 = Effect.succeed(1).pipe(Effect.delay("100 millis"))
  
 Effect.gen(function* () {
-  yield* taskCount(task1)
+  yield* taskCount(Effect.sleep("100 millis"))
 }).pipe(
   Effect.tagMetrics("environment", "production")
 )
