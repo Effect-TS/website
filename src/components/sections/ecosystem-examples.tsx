@@ -282,7 +282,12 @@ const fetchTodo = (
           fileName: "index.ts",
           code: `\
 import { Effect } from "effect";
-import * as Http from "@effect/platform-node/HttpClient";
+import {
+  HttpClient,
+  HttpClientError,
+  HttpClientRequest,
+  HttpClientResponse
+} from "@effect/platform";
 
 Effect.gen(function* () {
   const semaphore = yield* Effect.makeSemaphore(10);
@@ -296,16 +301,14 @@ Effect.gen(function* () {
 
 const fetchTodo = (
   id: number
-): Effect.Effect<unknown, Http.error.HttpClientError> =>
-  Http.request
-    .get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`)
-    .pipe(
-      Http.client.fetchOk,
-      Http.response.json,
-      Effect.retry(
-        Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3))
-      )
-    );\
+): Effect.Effect<unknown, HttpClientError.HttpClientError> =>
+  HttpClientRequest.get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`).pipe(
+    HttpClient.fetchOk,
+    HttpClientResponse.json,
+    Effect.retry(
+      Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3))
+    )
+  );\
       `
         }
       },
@@ -363,21 +366,24 @@ function readFile(path: string): Effect.Effect<string, "invalid path"> {
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import * as Http from "@effect/platform-node/HttpClient";
+          code: `import {
+  HttpClient,
+  HttpClientError,
+  HttpClientRequest,
+  HttpClientResponse
+} from "@effect/platform";
 import { Effect } from "effect";
 
 const fetchTodo = (
   id: number
 ): Effect.Effect<
   unknown,
-  Http.error.HttpClientError
+  HttpClientError.HttpClientError
 > =>
-  Http.request
-    .get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`)
-    .pipe(
-      Http.client.fetchOk,
-      Http.response.json,
-    );`
+  HttpClientRequest.get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`).pipe(
+    HttpClient.fetchOk,
+    HttpClientResponse.json,
+  );`
         }
       },
       {
@@ -396,29 +402,31 @@ app.listen(3000);`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import { HttpServer as Http, runMain } from "@effect/platform";
-import { NodeHttpServer } from "@effect/platform-node";
+          code: `import {
+  HttpRouter,
+  HttpServer,
+  HttpServerResponse
+} from "@effect/platform";
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { Layer } from "effect";
 import { createServer } from "node:http";
 
-const app = Http.router.empty.pipe(
-  Http.router.get(
+const app = HttpRouter.empty.pipe(
+  HttpRouter.get(
     "/",
-    Http.response.json({ message: "Hello World" })
+    HttpServerResponse.json({ message: "Hello World" })
   )
 );
 
-const HttpLive = Http.server
-  .serve(app)
-  .pipe(
-    Layer.provide(
-      NodeHttpServer.server.layer(() => createServer(), {
-        port: 3000,
-      })
-    )
-  );
+const HttpLive = HttpServer.serve(app).pipe(
+  Layer.provide(
+    NodeHttpServer.layer(() => createServer(), {
+      port: 3000,
+    })
+  )
+);
 
-runMain(Layer.launch(HttpLive));`
+NodeRuntime.runMain(Layer.launch(HttpLive));`
         }
       }
     ]

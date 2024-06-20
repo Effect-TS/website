@@ -299,13 +299,17 @@ main()
     withEffect: {
       fileName: "index.ts",
       code: `\
-import * as Http from "@effect/platform/HttpClient"
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse
+} from "@effect/platform"
 import { Console, Effect } from "effect"
 
 const getUser = (id: number) =>
-  Http.request.get(\`/users/\${id}\`).pipe(
-    Http.client.fetchOk,
-    Http.response.json,
+  HttpClientRequest.get(\`/users/\${id}\`).pipe(
+    HttpClient.fetchOk,
+    HttpClientResponse.json,
     Effect.retry({ times: 3 })
   )
 
@@ -545,7 +549,7 @@ const getTodos = (
   ids: Iterable<number>,
 ): Effect.Effect<
   Array<unknown>,
-  Http.error.HttpClientError
+  HttpClientError.HttpClientError
 > =>
   Effect.forEach(
     ids,
@@ -557,17 +561,15 @@ const getTodo = (
   id: number,
 ): Effect.Effect<
   unknown,
-  Http.error.HttpClientError
+  HttpClientError.HttpClientError
 > =>
-  Http.request
-    .get(
-      \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
-    )
-    .pipe(
-      Http.client.fetchOk,
-      Http.response.json,
-      Effect.timeout(1000),
-    )
+  HttpClientRequest.get(
+    \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
+  ).pipe(
+    HttpClient.fetchOk,
+    HttpClientResponse.json,
+    Effect.timeout(1000),
+  )
 
 const main = getTodos(
   Array.range(1, 10),
