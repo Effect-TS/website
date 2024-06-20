@@ -244,7 +244,7 @@ const getTodo = (
 ): Effect.Effect<unknown, HttpClientError> =>
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk,
-    Http.response.json,
+    Http.response.json
   )\
       `,
         highlights: [
@@ -327,17 +327,16 @@ const getTodo = (
   Http.request.get(\`/todos/\${id}\`).pipe(
     Http.client.fetchOk,
     Http.response.json,
-    Effect.retry(
-      Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3)),
-      ),
-    ),
+    Effect.retry({
+      times: 3,
+      schedule: Schedule.exponential(1000)
+    })
   )\
       `,
         highlights: [
           {
             color: "#39300D",
-            lines: [7, 8, 9, 10, 11]
+            lines: [7, 8, 9, 10]
           }
         ]
       }
@@ -432,11 +431,10 @@ const getTodo = (
     Http.client.fetchOk,
     Http.response.json,
     Effect.timeout("1 second"),
-    Effect.retry(
-      Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3)),
-      ),
-    ),
+    Effect.retry({
+      times: 3,
+      schedule: Schedule.exponential(1000)
+    })
   )\
       `,
         highlights: [
@@ -561,18 +559,17 @@ const getTodo = (
     Http.client.fetchOk,
     Http.response.json,
     Effect.timeout("1 second"),
-    Effect.retry(
-      Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3)),
-      ),
-    ),
-    Effect.withSpan("getTodo", { attributes: { id } }),
+    Effect.retry({
+      times: 3,
+      schedule: Schedule.exponential(1000)
+    }),
+    Effect.withSpan("getTodo", { attributes: { id } })
   )\
       `,
         highlights: [
           {
             color: "#10322E",
-            lines: [16]
+            lines: [15]
           }
         ]
       }
