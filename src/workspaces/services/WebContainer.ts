@@ -14,6 +14,7 @@ import {
 import * as Http from "@effect/platform/HttpClient"
 import {
   FileSystemTree,
+  SpawnOptions,
   WebContainer as WC,
   WebContainerProcess
 } from "@webcontainer/api"
@@ -155,20 +156,29 @@ const make = Effect.gen(function* () {
         ),
         (process) => Effect.sync(() => process.kill())
       )
-      const run = (command: string) =>
+      const run = (command: string, options: SpawnOptions = {}) =>
         Effect.acquireUseRelease(
           Effect.promise(() =>
             container.spawn(
               "jsh",
               ["-c", `cd ${workspace.name} && ${command}`],
               {
+                ...options,
                 env: {
-                  PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
+                  PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin",
+                  ...options.env
                 }
               }
             )
           ),
-          (process) => Effect.promise(() => process.exit),
+          (process) => {
+            process.output.pipeTo(new WritableStream({
+              write(data) {
+                console.log("DEBUG: ", data)
+              }
+            }))
+            return Effect.promise(() => process.exit)
+          },
           (process) => Effect.sync(() => process.kill())
         )
 
@@ -226,7 +236,9 @@ const make = Effect.gen(function* () {
               path:
                 directory._tag === "None"
                   ? FullPath(name)
-                  : FullPath(`${Option.getOrThrow(workspace.fullPathTo(directory.value))}/${name}`)
+                  : FullPath(
+                      `${Option.getOrThrow(workspace.fullPathTo(directory.value))}/${name}`
+                    )
             })
           )
           return node
@@ -414,7 +426,10 @@ export interface WorkspaceHandle {
   readonly watch: (file: string) => Stream.Stream<string, FileNotFoundError>
   readonly fsEvents: Stream.Stream<FileSystemEvent>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
-  readonly run: (command: string) => Effect.Effect<number>
+  readonly run: (
+    command: string,
+    options?: SpawnOptions
+  ) => Effect.Effect<number>
 }
 
 export interface WorkspacePlugin {
