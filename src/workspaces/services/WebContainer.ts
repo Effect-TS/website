@@ -1,4 +1,5 @@
 import {
+  Console,
   Data,
   Effect,
   GlobalValue,
@@ -8,10 +9,13 @@ import {
   Scope,
   Stream,
   SubscriptionRef,
-  identity,
-  pipe
+  identity
 } from "effect"
-import * as Http from "@effect/platform/HttpClient"
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse
+} from "@effect/platform"
 import {
   FileSystemTree,
   WebContainer as WC,
@@ -25,6 +29,8 @@ import {
   Workspace,
   makeDirectory
 } from "../domain/workspace"
+import * as Ndjson from "@effect/experimental/Ndjson"
+import * as DevToolsDomain from "@effect/experimental/DevTools/Domain"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
@@ -89,10 +95,62 @@ const make = Effect.gen(function* () {
   const workspaceScopes = new WeakMap<WorkspaceHandle, Scope.Scope>()
   const plugins = new Set<WorkspacePlugin>()
 
-  yield* Effect.promise(async () => {
-    await container.fs.writeFile("run", runProgram)
-    await container.spawn("chmod", ["+x", "run"])
-  })
+  const install = (name: string, content: string) =>
+    Effect.promise(async () => {
+      await container.fs.writeFile(name, content)
+      await container.spawn("chmod", ["+x", name])
+    })
+  yield* install("run", runProgram)
+  yield* install("dev-tools-proxy", devToolsProxy)
+
+  const shell = Effect.acquireRelease(
+    Effect.promise(() =>
+      container.spawn("jsh", [], {
+        env: {
+          PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin",
+          NODE_NO_WARNINGS: "1"
+        }
+      })
+    ),
+    (process) => Effect.sync(() => process.kill())
+  )
+  const spawn = (command: string) =>
+    Effect.acquireRelease(
+      Effect.promise(() =>
+        container.spawn("jsh", ["-c", command], {
+          env: { PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin" }
+        })
+      ),
+      (process) => Effect.sync(() => process.kill())
+    )
+  const run = (command: string) =>
+    spawn(command).pipe(
+      Effect.andThen((process) => Effect.promise(() => process.exit)),
+      Effect.scoped
+    )
+
+  // start dev tools proxy
+  const devToolsEvents = yield* PubSub.sliding<DevToolsDomain.Request>(128)
+  yield* spawn("./dev-tools-proxy").pipe(
+    Effect.tap((process) =>
+      Stream.fromReadableStream(
+        () => process.output,
+        (error) => error
+      ).pipe(
+        Stream.orDie,
+        Stream.encodeText,
+        Stream.pipeThroughChannel(
+          Ndjson.unpackSchema(DevToolsDomain.Request)()
+        ),
+        Stream.runForEach((_) => {
+          console.log("dev tools event", _)
+          return devToolsEvents.publish(_)
+        })
+      )
+    ),
+    Effect.forever,
+    Effect.forkScoped
+  )
 
   const workspace = (workspace: Workspace) =>
     Effect.gen(function* () {
@@ -126,11 +184,9 @@ const make = Effect.gen(function* () {
       )
 
       if (workspace.snapshot) {
-        const snapshot = yield* pipe(
-          Http.request.get(`/snapshots/${workspace.snapshot}`),
-          Http.client.fetchOk,
-          Http.response.arrayBuffer
-        )
+        const snapshot = yield* HttpClientRequest.get(
+          `/snapshots/${workspace.snapshot}`
+        ).pipe(HttpClient.fetchOk, HttpClientResponse.arrayBuffer)
         yield* Effect.promise(async () => {
           await container.mount(snapshot, {
             mountPoint: workspace.name
@@ -143,34 +199,8 @@ const make = Effect.gen(function* () {
           mountPoint: workspace.name
         })
       )
-
-      const shell = Effect.acquireRelease(
-        Effect.promise(() =>
-          container.spawn("jsh", [], {
-            env: {
-              PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin",
-              NODE_NO_WARNINGS: "1"
-            }
-          })
-        ),
-        (process) => Effect.sync(() => process.kill())
-      )
-      const run = (command: string) =>
-        Effect.acquireUseRelease(
-          Effect.promise(() =>
-            container.spawn(
-              "jsh",
-              ["-c", `cd ${workspace.name} && ${command}`],
-              {
-                env: {
-                  PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
-                }
-              }
-            )
-          ),
-          (process) => Effect.promise(() => process.exit),
-          (process) => Effect.sync(() => process.kill())
-        )
+      const runWorkspace = (command: string) =>
+        run(`cd ${workspace.name} && ${command}`)
 
       const validateName = (name: string, type: "File" | "Directory") =>
         Effect.gen(function* () {
@@ -226,7 +256,9 @@ const make = Effect.gen(function* () {
               path:
                 directory._tag === "None"
                   ? FullPath(name)
-                  : FullPath(`${Option.getOrThrow(workspace.fullPathTo(directory.value))}/${name}`)
+                  : FullPath(
+                      `${Option.getOrThrow(workspace.fullPathTo(directory.value))}/${name}`
+                    )
             })
           )
           return node
@@ -337,7 +369,7 @@ const make = Effect.gen(function* () {
         fsEvents: Stream.unwrapScoped(
           Stream.fromPubSub(fsEvents, { scoped: true })
         ),
-        run,
+        run: runWorkspace,
         shell
       })
 
@@ -375,7 +407,11 @@ const make = Effect.gen(function* () {
       Effect.asVoid
     )
 
-  return { workspace, registerPlugin } as const
+  return {
+    workspace,
+    registerPlugin,
+    devTools: Stream.fromPubSub(devToolsEvents)
+  } as const
 }).pipe(
   Effect.annotateLogs({
     service: "WebContainer"
@@ -465,4 +501,14 @@ function run() {
 }
 
 run()
+`
+
+const devToolsProxy = `#!/usr/bin/env node
+const Net = require("node:net")
+
+const server = Net.createServer((socket) => {
+  socket.pipe(process.stdout, { end: false })
+})
+
+server.listen(34437)
 `
