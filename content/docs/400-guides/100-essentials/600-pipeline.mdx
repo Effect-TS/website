@@ -254,12 +254,12 @@ const transformedEffect = myEffect.pipe(Effect.andThen(anotherEffect))
 
 The `anotherEffect` action can take various forms:
 
-- a value
-- a function returning a value (i.e. same functionality of `Effect.map`)
-- a `Promise`
-- a function returning a `Promise`
-- an `Effect`
-- a function returning an `Effect`(i.e. same functionality of `Effect.flatMap`)
+1. a value
+2. a function returning a value (i.e. same functionality of `Effect.map`)
+3. a `Promise`
+4. a function returning a `Promise`
+5. an `Effect`
+6. a function returning an `Effect`(i.e. same functionality of `Effect.flatMap`)
 
 **Example**
 
@@ -298,6 +298,51 @@ const result2 = pipe(
 
 Effect.runPromise(result2).then(console.log) // Output: 190
 ```
+
+It's worth noting that [Option](../../other/data-types/option#interop-with-effect) and [Either](../../other/data-types/either#interop-with-effect), types commonly used to handle optional values and simple error scenarios, are also compatible with `Effect.andThen`.
+However, it is important to understand that when these types are used, the operations are categorized under scenarios 5 and 6 as described previously, as both `Option` and `Either` operate as `Effect`s in this context.
+
+**Example with Option**
+
+```ts twoslash
+import { pipe, Effect, Option } from "effect"
+
+// Simulated asynchronous task fetching a number from a database
+const fetchStringValue = Effect.promise(() => Promise.resolve(42))
+
+// Although one might expect the type to be Effect<Option<number>, never, never>,
+// it is actually Effect<number, NoSuchElementException, never>
+const program = pipe(
+  fetchStringValue,
+  Effect.andThen((x) => (x > 0 ? Option.some(x) : Option.none()))
+)
+```
+
+A value of type `Option<A>` is interpreted as an effect of type `Effect<A, NoSuchElementException>`.
+
+**Example with Either**
+
+```ts twoslash
+import { pipe, Effect, Either } from "effect"
+
+// Function to parse an integer from a string that can fail
+const parseInteger = (input: string): Either.Either<number, string> =>
+  isNaN(parseInt(input))
+    ? Either.left("Invalid integer")
+    : Either.right(parseInt(input))
+
+// Simulated asynchronous task fetching a string from a database
+const fetchStringValue = Effect.promise(() => Promise.resolve("42"))
+
+// Although one might expect the type to be Effect<Either<number, string>, never, never>,
+// it is actually Effect<number, string, never>
+const program = pipe(
+  fetchStringValue,
+  Effect.andThen((str) => parseInteger(str))
+)
+```
+
+A value of type `Either<A, E>` is interpreted as an effect of type `Effect<A, E>`.
 
 ## tap
 
