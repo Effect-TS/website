@@ -1,5 +1,6 @@
 import { themeRx } from "@/rx/theme"
 import { Rx } from "@effect-rx/rx-react"
+import * as Deferred from "effect/Deferred"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Stream from "effect/Stream"
@@ -30,6 +31,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         const { spawn } = yield* Terminal
         yield* Effect.log("building")
         const handle = yield* WebContainer.workspace(workspace)
+        const readySignal = yield* Deferred.make<void>()
 
         const prepare = yield* handle
           .run(workspace.prepare)
@@ -76,6 +78,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
               yield* Effect.gen(function* () {
                 input.write(`cd "${workspace.name}" && clear\n`)
                 yield* prepare.await
+                yield* Deferred.succeed(readySignal, void 0)
                 if (env.command) {
                   yield* Effect.sleep(3000)
                   yield* mount
@@ -112,6 +115,13 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
                   )
             )
           ),
+          Effect.forkScoped
+        )
+
+        yield* Deferred.await(readySignal).pipe(
+          Effect.zipRight(handle.write("devtools.js", runDevtools)),
+          Effect.zipRight(handle.run("chmod +x devtools.js", { output: false })),
+          Effect.zipRight(handle.run("node devtools.js")),
           Effect.forkScoped
         )
 
@@ -165,3 +175,73 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
 
 export interface RxWorkspaceHandle
   extends Rx.Rx.InferSuccess<ReturnType<typeof workspaceHandleRx>> {}
+
+const runDevtools = `#!/usr/bin/env node
+const Domain = require("@effect/experimental/DevTools/Domain")
+const DevToolsServer = require("@effect/experimental/DevTools/Server")
+const SocketServer = require("@effect/experimental/SocketServer/Node")
+const Schema = require("@effect/schema/Schema")
+const Effect = require("effect/Effect")
+
+const program = Effect.gen(function*() {
+  const server = yield* DevToolsServer.make
+
+  const encode = Schema.encode(Schema.parseJson(Schema.Union(
+    Domain.MetricsSnapshot,
+    Domain.Span,
+    Domain.SpanEvent
+  )))
+
+  const makeClient = (client) =>
+    Effect.gen(function*() {
+      console.log(client)
+      return yield* client.queue.take.pipe(
+        Effect.tap((item) => Effect.sync(() => {
+          console.log(item)
+        })),
+        Effect.flatMap(encode),
+        Effect.flatMap((json) =>
+          Effect.sync(() => {
+            process.stdout.write(json)
+          })
+        ),
+        Effect.forever
+      )
+    })
+
+  yield* server.run(makeClient).pipe(
+    Effect.catchAllCause(Effect.log)
+  )
+})
+
+program.pipe(
+  Effect.provide(SocketServer.layer({
+    path: "/tmp/devtools.sock"
+  })),
+  Effect.runPromise
+)
+
+`
+/* Sample Program
+import * as Client from "@effect/experimental/DevTools/Client"
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
+import * as NodeSocket from "@effect/platform-node/NodeSocket"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
+
+export const UnixSocketLayer = Client.makeTracer.pipe(
+  Effect.map(Layer.setTracer),
+  Layer.unwrapEffect,
+  Layer.provide(Client.layer),
+  Layer.provide(NodeSocket.layerNet({ path: "/tmp/devtools.sock" }))
+)
+
+const program = Effect.gen(function*() {
+  yield* Effect.log("Welcome to the Effect Playground!")
+}).pipe(Effect.withSpan("my-test-span"))
+
+program.pipe(
+  Effect.provide(UnixSocketLayer),
+  NodeRuntime.runMain
+)
+ */
