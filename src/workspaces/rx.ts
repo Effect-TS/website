@@ -1,8 +1,6 @@
+import { Array, Effect, Layer, Stream, pipe } from "effect"
+import { Result, Rx } from "@effect-rx/rx-react"
 import { themeRx } from "@/rx/theme"
-import { Rx } from "@effect-rx/rx-react"
-import * as Effect from "effect/Effect"
-import * as Layer from "effect/Layer"
-import * as Stream from "effect/Stream"
 import {
   Directory,
   File,
@@ -14,18 +12,26 @@ import {
   NightOwlishLightTheme,
   Terminal
 } from "./services/Terminal"
+import { SpanNode, SpanProvider } from "./services/SpanProvider"
 import { WebContainer } from "./services/WebContainer"
-import { pipe } from "effect"
 
-const runtime = Rx.runtime(Layer.mergeAll(WebContainer.Live, Terminal.Live))
+const containerRuntime = Rx.runtime(
+  Layer.mergeAll(SpanProvider.Live, WebContainer.Live, Terminal.Live)
+)
+const devtoolsRuntime = Rx.runtime(SpanProvider.Live)
 
 const terminalTheme = Rx.map(themeRx, (theme) =>
   theme === "light" ? NightOwlishLightTheme : MonokaiSodaTheme
 )
 
+export const spanProviderRx = pipe(
+  devtoolsRuntime.subscriptionRef(SpanProvider.spans),
+  Rx.map(Result.getOrElse(() => Array.empty<SpanNode>()))
+)
+
 export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
   pipe(
-    runtime.rx((get) =>
+    containerRuntime.rx((get) =>
       Effect.gen(function* () {
         const { spawn } = yield* Terminal
         yield* Effect.log("building")

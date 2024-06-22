@@ -61,10 +61,21 @@ import { NodeRuntime } from "@effect/platform-node"
 import { DevToolsLive } from "./DevTools"
 
 const program = Effect.gen(function* () {
-  yield* Effect.log("Welcome to the Effect Playground!")
-})
+  yield* Effect.log("Welcome to the Effect Playground!").pipe(
+    Effect.withSpan("welcome-span")
+  )
+}).pipe(
+  Effect.withSpan("hello-span", {
+    attributes: {
+      source: "playground"
+    }
+  })
+)
 
-NodeRuntime.runMain(program.pipe(Effect.provide(DevToolsLive)))
+program.pipe(
+  Effect.provide(DevToolsLive),
+  NodeRuntime.runMain
+)
 `
       }),
       devToolsLayer

@@ -1,5 +1,4 @@
 import {
-  Console,
   Data,
   Effect,
   GlobalValue,
@@ -130,7 +129,8 @@ const make = Effect.gen(function* () {
     )
 
   // start dev tools proxy
-  const devToolsEvents = yield* PubSub.sliding<DevToolsDomain.Request>(128)
+  const devToolsEvents =
+    yield* PubSub.sliding<DevToolsDomain.Request.WithoutPing>(128)
   yield* spawn("./dev-tools-proxy").pipe(
     Effect.tap((process) =>
       Stream.fromReadableStream(
@@ -142,10 +142,9 @@ const make = Effect.gen(function* () {
         Stream.pipeThroughChannel(
           Ndjson.unpackSchema(DevToolsDomain.Request)()
         ),
-        Stream.runForEach((_) => {
-          console.log("dev tools event", _)
-          return devToolsEvents.publish(_)
-        })
+        Stream.runForEach((event) =>
+          event._tag === "Ping" ? Effect.void : devToolsEvents.publish(event)
+        )
       )
     ),
     Effect.forever,
@@ -155,7 +154,7 @@ const make = Effect.gen(function* () {
   const workspace = (workspace: Workspace) =>
     Effect.gen(function* () {
       const fsEvents = yield* Effect.acquireRelease(
-        PubSub.unbounded<FileSystemEvent>(),
+        PubSub.sliding<FileSystemEvent>(128),
         (pubsub) => PubSub.shutdown(pubsub)
       )
 
@@ -366,9 +365,7 @@ const make = Effect.gen(function* () {
         write: writeFile,
         read: readFile,
         watch: watchFile,
-        fsEvents: Stream.unwrapScoped(
-          Stream.fromPubSub(fsEvents, { scoped: true })
-        ),
+        fsEvents: Stream.fromPubSub(fsEvents),
         run: runWorkspace,
         shell
       })
