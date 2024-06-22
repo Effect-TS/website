@@ -6,11 +6,14 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Workspace } from "@/workspaces/domain/workspace"
 import { useWorkspaceHandle, useWorkspaceShells } from "@/workspaces/context"
 import { WorkspaceProvider } from "@/workspaces/WorkspaceProvider"
+import { Icon } from "../icons"
+import { PanelResizeHandleVertical } from "../ui/resizable"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs"
+import { TooltipProvider } from "../ui/tooltip"
 import { FileEditor } from "./components/common/file-editor"
 import { FileExplorer } from "./components/common/file-explorer"
 import { Terminal } from "./components/common/terminal"
-import { PanelResizeHandleVertical } from "../ui/resizable"
-import { TooltipProvider } from "../ui/tooltip"
+import { TraceViewer } from "./components/common/trace-viewer"
 
 export declare namespace CodeEditor {
   export interface Props {
@@ -51,12 +54,12 @@ function CodeEditorSuspended({
 
   return (
     <TooltipProvider>
-      <PanelGroup autoSaveId={`editor`} direction="vertical">
+      <PanelGroup autoSaveId="editor" direction="vertical">
         <Panel>
           {disableExplorer === true ? (
             <FileEditor />
           ) : (
-            <PanelGroup autoSaveId={`sidebar`} direction="horizontal">
+            <PanelGroup autoSaveId="sidebar" direction="horizontal">
               <Panel
                 defaultSize={20}
                 className="bg-gray-50 dark:bg-neutral-900 min-w-[200px] flex flex-col"
@@ -72,8 +75,40 @@ function CodeEditorSuspended({
         </Panel>
         <PanelResizeHandle />
         <Panel onResize={onResize} defaultSize={30}>
-          <PanelGroup direction="horizontal">
-            <WorkspaceShells />
+          <PanelGroup
+            direction="horizontal"
+            className="border-y border-neutral-300 dark:border-neutral-700"
+          >
+            <Tabs defaultValue="terminal">
+              <TabsList>
+                <TabsTrigger value="terminal">
+                  <Icon name="display" className="h-3 w-3 mr-2" />
+                  <span className="font-mono font-bold text-xs">
+                    Terminal
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="trace-viewer">
+                  <Icon name="mixer-horizontal" className="h-3 w-3 mr-2" />
+                  <span className="font-mono font-bold text-xs">
+                    Trace Viewer
+                  </span>
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent
+                value="terminal"
+                forceMount
+                className="data-[state=inactive]:hidden"
+              >
+                <WorkspaceShells />
+              </TabsContent>
+              <TabsContent
+                value="trace-viewer"
+                forceMount
+                className="data-[state=inactive]:hidden"
+              >
+                <TraceViewer />
+              </TabsContent>
+            </Tabs>
           </PanelGroup>
         </Panel>
       </PanelGroup>
