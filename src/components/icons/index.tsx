@@ -24,7 +24,9 @@ import { DirectoryPlusIcon } from "./directory-plus"
 import { DiscordIcon } from "./discord"
 import { DisplayIcon } from "./display"
 import { DotSolid } from "./dot-solid"
+import { DotsHorizontalIcon } from "./dots-horizontal"
 import { DragHandleDotsIcon } from "./drag-handle-dots"
+import { EditIcon } from "./edit"
 import { ErrorIcon } from "./error"
 import { FileIcon } from "./file"
 import { FilePlusIcon } from "./file-plus"
@@ -35,6 +37,7 @@ import { InfoIcon } from "./info"
 import { LightbulbIcon } from "./lightbulb"
 import { LightbulbSolidIcon } from "./lightbulb-solid"
 import { LoadingIcon } from "./loading"
+import { MixerHorizontalIcon } from "./mixer-horizontal"
 import { MoonIcon } from "./moon"
 import { NextIcon } from "./next"
 import { NodeIcon } from "./node"
@@ -42,14 +45,14 @@ import { OpenAPIIcon } from "./open-api"
 import { PlayIcon } from "./play"
 import { PlugsIcon } from "./plugs"
 import { PlusIcon } from "./plus"
+import { QuestionCircleIcon } from "./question-circle"
 import { ReactIcon } from "./react"
 import { SearchIcon } from "./search"
 import { ShieldIcon } from "./shield"
 import { SunIcon } from "./sun"
+import { TrashIcon } from "./trash"
 import { TrendUpIcon } from "./trend-up"
 import { TwitterIcon } from "./twitter"
-import { TrashIcon } from "./trash"
-import { EditIcon } from "./edit"
 
 const icons = {
   alert: AlertIcon,
@@ -77,6 +80,7 @@ const icons = {
   discord: DiscordIcon,
   display: DisplayIcon,
   "dot-solid": DotSolid,
+  "dots-horizontal": DotsHorizontalIcon,
   "drag-handle-dots": DragHandleDotsIcon,
   edit: EditIcon,
   error: ErrorIcon,
@@ -89,6 +93,7 @@ const icons = {
   lightbulb: LightbulbIcon,
   "lightbulb-solid": LightbulbSolidIcon,
   loading: LoadingIcon,
+  "mixer-horizontal": MixerHorizontalIcon,
   moon: MoonIcon,
   next: NextIcon,
   node: NodeIcon,
@@ -96,6 +101,7 @@ const icons = {
   play: PlayIcon,
   plugs: PlugsIcon,
   plus: PlusIcon,
+  "question-circle": QuestionCircleIcon,
   react: ReactIcon,
   search: SearchIcon,
   shield: ShieldIcon,

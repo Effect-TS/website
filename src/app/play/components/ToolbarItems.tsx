@@ -1,6 +1,15 @@
 "use client"
-import { Icon } from "@/components/icons"
+
+import { Match } from "effect"
+import { useCallback, useEffect, useState } from "react"
+import {
+  Result,
+  useRxSet,
+  useRxSuspenseSuccess,
+  useRxValue
+} from "@effect-rx/rx-react"
 import { Button } from "@/components/ui/button"
+import { Icon } from "@/components/icons"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -8,19 +17,11 @@ import {
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/popover"
-import {
-  Result,
-  useRxSet,
-  useRxSuspenseSuccess,
-  useRxValue
-} from "@effect-rx/rx-react"
-import { useCallback, useEffect, useState } from "react"
 import { useShareRx } from "../context"
 import { importRx } from "../rx"
 import { WorkspaceProvider } from "@/workspaces/WorkspaceProvider"
 import { ThemeSwitcher } from "@/components/atoms/theme-switcher"
 import { cn } from "@/lib/utils"
-import { Match } from "effect"
 
 export function ToolbarItems() {
   const workspace = useRxSuspenseSuccess(importRx).value

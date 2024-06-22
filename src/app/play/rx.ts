@@ -15,6 +15,7 @@ import { WorkspaceCompression } from "./services/WorkspaceCompression"
 import packageJson from "../../../snapshots/tutorials/package.json"
 import { rpcClient } from "@/rpc/client"
 import { RetrieveRequest, ShortenRequest } from "@/services/Shorten/domain"
+import { devToolsLayer } from "@/tutorials/common"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
@@ -46,6 +47,8 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
 const defaultWorkspace = new Workspace({
   name: "playground",
   dependencies: packageJson.dependencies,
+  prepare:
+    "npm install -E typescript@next tsc-watch @types/node @effect/experimental",
   shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
   initialFilePath: "src/main.ts",
   snapshot: "tutorials",
@@ -55,14 +58,27 @@ const defaultWorkspace = new Workspace({
         name: "main.ts",
         initialContent: `import { Effect } from "effect"
 import { NodeRuntime } from "@effect/platform-node"
+import { DevToolsLive } from "./DevTools"
 
 const program = Effect.gen(function* () {
-  yield* Effect.log("Welcome to the Effect Playground!")
-})
+  yield* Effect.log("Welcome to the Effect Playground!").pipe(
+    Effect.withSpan("welcome-span")
+  )
+}).pipe(
+  Effect.withSpan("hello-span", {
+    attributes: {
+      source: "playground"
+    }
+  })
+)
 
-NodeRuntime.runMain(program)
+program.pipe(
+  Effect.provide(DevToolsLive),
+  NodeRuntime.runMain
+)
 `
-      })
+      }),
+      devToolsLayer
     ])
   ]
 })
