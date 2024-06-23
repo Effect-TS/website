@@ -4,6 +4,11 @@ excerpt: A detailed comparison of key features between the Effect and fp-ts libr
 bottomNavigation: pagination
 ---
 
+## Key Developments
+
+- **Project Merger**: The fp-ts project is officially merging with the Effect-TS ecosystem. Giulio Canti, the author of fp-ts, is being welcomed into the Effect organization. For more details, see the [announcement here](https://dev.to/effect/a-bright-future-for-effect-455m).
+- **Continuity and Evolution**: Effect can be seen as the successor to fp-ts v2 and is effectively fp-ts v3, marking a significant evolution in the library's capabilities.
+
 ## FAQ
 
 ### Bundle Size Comparison Between Effect and fp-ts
@@ -14,9 +19,11 @@ A: It's natural to observe different bundle sizes because Effect and fp-ts are d
 Effect's bundle size is larger due to its included fiber runtime, which is crucial for its functionality.
 While the initial bundle size may seem large, the overhead amortizes as you use Effect.
 
-**Q: Should I be concerned about the bundle size difference when choosing between Effect and fp-ts?**
-
-A: Not necessarily. Consider the specific requirements and benefits of each library for your project.
+The **Micro** module in Effect is designed as a lightweight alternative to the standard `Effect` module, specifically for scenarios where reducing bundle size is crucial.
+This module is self-contained and does not include more complex features like `Layer`, `Ref`, `Queue`, and `Deferred`.
+If any major Effect modules (beyond basic data modules like `Option`, `Either`, `Array`, etc.) are used, the effect runtime will be added to your bundle, negating the benefits of Micro.
+This makes Micro ideal for libraries that aim to implement Effect functionality with minimal impact on bundle size, especially for libraries that plan to expose `Promise`-based APIs.
+It also supports scenarios where a client might use Micro while a server uses the full suite of Effect features, maintaining compatibility and shared logic between different parts of an application.
 
 ## Comparison Table
 
