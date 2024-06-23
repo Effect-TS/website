@@ -11,7 +11,11 @@ import {
   identity,
   pipe
 } from "effect"
-import * as Http from "@effect/platform/HttpClient"
+import {
+  HttpClientRequest,
+  HttpClientResponse,
+  HttpClient
+} from "@effect/platform"
 import {
   FileSystemTree,
   WebContainer as WC,
@@ -127,9 +131,9 @@ const make = Effect.gen(function* () {
 
       if (workspace.snapshot) {
         const snapshot = yield* pipe(
-          Http.request.get(`/snapshots/${workspace.snapshot}`),
-          Http.client.fetchOk,
-          Http.response.arrayBuffer
+          HttpClientRequest.get(`/snapshots/${workspace.snapshot}`),
+          HttpClient.fetchOk,
+          HttpClientResponse.arrayBuffer
         )
         yield* Effect.promise(async () => {
           await container.mount(snapshot, {
@@ -226,7 +230,9 @@ const make = Effect.gen(function* () {
               path:
                 directory._tag === "None"
                   ? FullPath(name)
-                  : FullPath(`${Option.getOrThrow(workspace.fullPathTo(directory.value))}/${name}`)
+                  : FullPath(
+                      `${Option.getOrThrow(workspace.fullPathTo(directory.value))}/${name}`
+                    )
             })
           )
           return node
