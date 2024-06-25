@@ -5,22 +5,22 @@ bottomNavigation: pagination
 ---
 
 <Info>
-  The Micro module is still in its experimental stages. We welcome your
-  feedback to help us enhance its functionality.
+  The Micro module is currently in its experimental stages. We encourage your
+  feedback to further improve its features.
 </Info>
 
-The `Micro` module in Effect serves as a lighter alternative to the standard `Effect` module, tailored for situations where it is beneficial to reduce the bundle size.
+The `Micro` module in Effect is designed as a lighter alternative to the standard `Effect` module, tailored for situations where it is beneficial to reduce the bundle size.
 
-This module is self-contained, meaning it does not encompass more advanced features such as `Layer`, `Ref`, `Queue`, and `Deferred`. This characteristic makes Micro particularly suitable for libraries looking to integrate Effect features without significantly increasing the bundle size, especially those that intend to provide `Promise`-based APIs.
+This module is standalone and does not include more complex functionalities such as `Layer`, `Ref`, `Queue`, and `Deferred`. This feature set makes Micro especially suitable for libraries that wish to utilize Effect functionalities while keeping the bundle size to a minimum, particularly for those aiming to provide `Promise`-based APIs.
 
-Micro also facilitates scenarios where a client might use Micro while a server employs the full suite of Effect features, ensuring both compatibility and consistency in logic across different parts of an application.
+Micro also supports use cases where a client application uses Micro, and a server employs the full suite of Effect features, maintaining both compatibility and logical consistency across various application components.
 
-The inclusion of Micro adds a minimal footprint to your bundle, starting at **5kb gzipped**, and increases based on the features utilized.
+Integrating Micro adds a minimal footprint to your bundle, starting at **5kb gzipped**, which may increase depending on the features you use.
 
 <Warning>
   Utilizing major Effect modules beyond basic data modules like `Option`,
-  `Either`, `Array`, etc., will incorporate the Effect runtime into your
-  bundle, negating the benefits of Micro.
+  `Either`, `Array`, will incorporate the Effect runtime into your bundle,
+  negating the benefits of Micro.
 </Warning>
 
 ## Importing Micro
@@ -33,13 +33,13 @@ import * as Micro from "effect/Micro"
 
 ## The Micro Type
 
-The `Micro` type utilizes three type parameters:
+The `Micro` type uses three type parameters:
 
 ```ts
 Micro<Success, Error, Requirements>
 ```
 
-with the same meanings of the `Effect` type:
+which mirror those of the `Effect` type:
 
 - **Success**. Represents the type of value that an effect can succeed with when executed.
   If this type parameter is `void`, it means the effect produces no useful information, while if it is `never`, it means the effect runs forever (or until failure).
@@ -51,9 +51,7 @@ with the same meanings of the `Effect` type:
 
 ## The Result Type
 
-The `Result` type is a data type that represents the result of a `Micro` computation.
-
-It uses the [Either](./data-types/either) data type to represent the success and failure cases:
+The `Result` type is a data structure that encapsulates the outcome of a `Micro` computation, utilizing the [Either](./data-types/either) data type to differentiate between success and failure scenarios:
 
 ```ts
 type Result<A, E = never> = Either<A, Failure<E>>
@@ -61,18 +59,35 @@ type Result<A, E = never> = Either<A, Failure<E>>
 type Failure<E> = Unexpected | Expected<E> | Aborted
 ```
 
+## How to Use This Guide
+
+Below, you'll find a series of comparisons between the functionalities of `Effect` and `Micro`. Each table lists a functionality of `Effect` alongside its counterpart in `Micro`. The icons used have the following meanings:
+
+- ✅: The feature is available in `Micro`.
+- ⚠️: The feature is available in `Micro`, but with some differences from `Effect`.
+- ❌: The feature is not available in `Effect`.
+
 ## Creating Effects
 
-| Effect              | Micro                 |                        |
-| ------------------- | --------------------- | ---------------------- |
-| `Effect.succeed`    | ✅ `Micro.succeed`    |                        |
-| `Effect.fail`       | ✅ `Micro.fail`       |                        |
-| `Effect.sync`       | ✅ `Micro.sync`       |                        |
-| `Effect.try`        | ⚠️ `Micro.try`        | requires a `try` block |
-| `Effect.promise`    | ✅ `Micro.promise`    |                        |
-| `Effect.tryPromise` | ⚠️ `Micro.tryPromise` | requires a `try` block |
-| `Effect.async`      | ✅ `Micro.async`      |                        |
-| `Effect.suspend`    | ✅ `Micro.suspend`    |                        |
+| Effect                 | Micro                   |                                   |
+| ---------------------- | ----------------------- | --------------------------------- |
+| `Effect.succeed`       | ✅ `Micro.succeed`      |                                   |
+| `Effect.succeedSome`   | ✅ `Micro.succeedSome`  |                                   |
+| `Effect.succeedNone`   | ✅ `Micro.succeedNone`  |                                   |
+| `Effect.fail`          | ✅ `Micro.fail`         |                                   |
+| `Effect.failSync`      | ✅ `Micro.failSync`     |                                   |
+| `Effect.sync`          | ✅ `Micro.sync`         |                                   |
+| `Effect.try`           | ⚠️ `Micro.try`          | requires a `try` block            |
+| `Effect.promise`       | ✅ `Micro.promise`      |                                   |
+| `Effect.tryPromise`    | ⚠️ `Micro.tryPromise`   | requires a `try` block            |
+| `Effect.async`         | ✅ `Micro.async`        |                                   |
+| `Effect.suspend`       | ✅ `Micro.suspend`      |                                   |
+| `Effect.sleep`         | ⚠️ `Micro.sleep`        | only handles milliseconds         |
+| `Effect.failCause`     | ⚠️ `Micro.failWith`     | uses `Failure` instead of `Cause` |
+| `Effect.failCauseSync` | ⚠️ `Micro.failWithSync` | uses `Failure` instead of `Cause` |
+| ❌                     | `Micro.make`            |                                   |
+| ❌                     | `Micro.fromOption`      |                                   |
+| ❌                     | `Micro.fromEither`      |                                   |
 
 ## Running Effects
 
@@ -156,32 +171,162 @@ observing...
 
 ## Building Pipelines
 
-| Effect           | Micro               |                                                         |
-| ---------------- | ------------------- | ------------------------------------------------------- |
-| `.pipe()` method | ✅ `.pipe()` method |                                                         |
-| `Effect.map`     | ✅ `Micro.map`      |                                                         |
-| `Effect.as`      | ✅ `Micro.as`       |                                                         |
-| `Effect.flatMap` | ✅ `Micro.flatMap`  |                                                         |
-| `Effect.andThen` | ⚠️ `Micro.andThen`  | doesn't handle `Promise` or `() => Promise` as argument |
-| `Effect.tap`     | ⚠️ `Micro.tap`      | doesn't handle `() => Promise` as argument              |
-| `Effect.all`     | ⚠️ `Micro.all`      | no `batching` and `mode` options                        |
+| Effect             | Micro                |                                                         |
+| ------------------ | -------------------- | ------------------------------------------------------- |
+| `.pipe()` method   | ✅ `.pipe()` method  |                                                         |
+| `Effect.map`       | ✅ `Micro.map`       |                                                         |
+| `Effect.as`        | ✅ `Micro.as`        |                                                         |
+| `Effect.flatMap`   | ✅ `Micro.flatMap`   |                                                         |
+| `Effect.andThen`   | ⚠️ `Micro.andThen`   | doesn't handle `Promise` or `() => Promise` as argument |
+| `Effect.tap`       | ⚠️ `Micro.tap`       | doesn't handle `() => Promise` as argument              |
+| `Effect.all`       | ⚠️ `Micro.all`       | no `batching` and `mode` options                        |
+| `Effect.forEach`   | ⚠️ `Micro.forEach`   | no `batching` option                                    |
+| `Effect.filter`    | ⚠️ `Micro.filter`    | no `batching` option                                    |
+| `Effect.filterMap` | ⚠️ `Micro.filterMap` | effectful                                               |
 
 ## Expected Errors
 
-| Effect                  | Micro                      |     |
-| ----------------------- | -------------------------- | --- |
-| `Effect.either`         | ✅ `Micro.either`          |     |
-| `Effect.catchTag`       | ✅ `Micro.catchTag`        |     |
-| `Effect.catchAll`       | ✅ `Micro.catchExpected`   |     |
-| `Effect.catchAllCause`  | ✅ `Micro.catchFailure`    |     |
-| `Effect.catchAllDefect` | ✅ `Micro.catchUnexpected` |     |
-| `Effect.catchIf`        | ❌                         |     |
-| ❌                      | `Micro.catchFailureIf`     |     |
+| Effect            | Micro                    |     |
+| ----------------- | ------------------------ | --- |
+| `Effect.either`   | ✅ `Micro.either`        |     |
+| `Effect.catchTag` | ✅ `Micro.catchTag`      |     |
+| `Effect.catchAll` | ✅ `Micro.catchExpected` |     |
+| `Effect.catchIf`  | ✅ `Micro.catchIf`       |     |
 
 ## Unexpected Errors
 
-## Aborted Errors
+| Effect                  | Micro                      |                    |
+| ----------------------- | -------------------------- | ------------------ |
+| `Effect.die`            | ✅ `Micro.die`             |                    |
+| `Effect.orDie`          | ✅ `Micro.orDie`           |                    |
+| `Effect.catchAllCause`  | ✅ `Micro.catchFailure`    |                    |
+| `Effect.catchSomeCause` | ⚠️ `Micro.catchFailureIf`  | non `Option`-based |
+| `Effect.catchAllDefect` | ✅ `Micro.catchUnexpected` |                    |
+
+## Interruptions
+
+| Effect                       | Micro                          |     |
+| ---------------------------- | ------------------------------ | --- |
+| `Effect.interrupt`           | ✅ `Micro.abort`               |     |
+| `Effect.uninterruptible`     | ✅ `Micro.uninterruptible`     |     |
+| `Effect.uninterruptibleMask` | ✅ `Micro.uninterruptibleMask` |     |
+| `Effect.interruptible`       | ✅ `Micro.interruptible`       |     |
+
+## Fallback
+
+| Effect                 | Micro                    |     |
+| ---------------------- | ------------------------ | --- |
+| `Effect.orElseSucceed` | ✅ `Micro.orElseSucceed` |     |
+
+## Matching
+
+| Effect                    | Micro                        |     |
+| ------------------------- | ---------------------------- | --- |
+| `Effect.match`            | ✅ `Micro.match`             |     |
+| `Effect.matchEffect`      | ✅ `Micro.matchMicro`        |     |
+| `Effect.matchCause`       | ✅ `Micro.matchFailure`      |     |
+| `Effect.matchCauseEffect` | ✅ `Micro.matchFailureMicro` |     |
+
+## Retrying
+
+| Effect         | Micro            |                     |
+| -------------- | ---------------- | ------------------- |
+| `Effect.retry` | ⚠️ `Micro.retry` | different `options` |
+
+## Repetition
+
+| Effect                          | Micro                   |                     |
+| ------------------------------- | ----------------------- | ------------------- |
+| `Effect.repeat`                 | ⚠️ `Micro.repeat`       | different `options` |
+| `Effect.exit` + `Effect.repeat` | ⚠️ `Micro.repeatResult` |                     |
+
+## Timing out
+
+| Effect                 | Micro                 |     |
+| ---------------------- | --------------------- | --- |
+| `Effect.timeoutOption` | ✅ `Micro.timeout`    |     |
+| ❌                     | `Micro.timeoutOrElse` |     |
+
+## Sandboxing
+
+| Effect           | Micro              |                                    |
+| ---------------- | ------------------ | ---------------------------------- |
+| `Effect.sandbox` | ⚠️ `Micro.sandbox` | `Failure<E>` instead of `Cause<E>` |
+
+## Yieldable Errors
+
+| Effect             | Micro                  |     |
+| ------------------ | ---------------------- | --- |
+| `Data.Error`       | ✅ `Micro.Error`       |     |
+| `Data.TaggedError` | ✅ `Micro.TaggedError` |     |
+
+## Error Channel Operations
+
+| Effect                 | Micro                    |                                     |
+| ---------------------- | ------------------------ | ----------------------------------- |
+| `Effect.mapError`      | ✅ `Micro.mapError`      |                                     |
+| `Effect.mapErrorCause` | ✅ `Micro.mapFailure`    |                                     |
+| `Effect.filterOrFail`  | ✅ `Micro.filterOrFail`  |                                     |
+| ❌                     | `Micro.filterOrFailWith` |                                     |
+| `Effect.tapError`      | ✅ `Micro.tapExpected`   |                                     |
+| `Effect.tapErrorCause` | ⚠️ `Micro.tapFailure`    | `Failure<E>` instead of `Cause<E>`  |
+| ❌                     | `Micro.tapFailureIf`     |                                     |
+| `Effect.tapDefect`     | ⚠️ `Micro.tapUnexpected` | `unknown` instead of `Cause<never>` |
+| `Effect.flip`          | ✅ `Micro.flip`          |                                     |
 
 ## Requirements Management
 
+| Effect                        | Micro                          |                        |
+| ----------------------------- | ------------------------------ | ---------------------- |
+| `Effect.provideService`       | ✅ `Micro.provideService`      |                        |
+| `Effect.provideServiceEffect` | ✅ `Micro.provideServiceMicro` |                        |
+| `Effect.provide`              | ⚠️ `Micro.provideContext`      | only handles `Context` |
+| ❌                            | `Micro.provideScope`           |                        |
+| `Effect.serviceOption`        | ✅ `Micro.serviceOption`       |                        |
+| ❌                            | `Micro.service`                |                        |
+
+## Scope
+
+| Effect          | Micro             |     |
+| --------------- | ----------------- | --- |
+| `Effect.scoped` | ✅ `Micro.scoped` |     |
+
+## Scoping, Resources and Finalization
+
+| Effect                     | Micro                        |                                       |
+| -------------------------- | ---------------------------- | ------------------------------------- |
+| `Effect.addFinalizer`      | ⚠️ `Micro.addFinalizer`      | `Result` instead of `Exit` and no `R` |
+| `Effect.acquireRelease`    | ⚠️ `Micro.acquireRelease`    | `Result` instead of `Exit`            |
+| `Effect.acquireUseRelease` | ⚠️ `Micro.acquireUseRelease` | `Result` instead of `Exit`            |
+| `Effect.onInterrupt`       | ✅ `Micro.onAbort`           |                                       |
+| `Effect.onExit`            | ⚠️ `Micro.onResult`          | `Result` instead of `Exit`            |
+| `Effect.onError`           | ⚠️ `Micro.onFailure`         | uses `Failure` instead of `Cause`     |
+| ❌                         | `Micro.onResultIf`           |                                       |
+| `Effect.ensuring`          | ✅ `Micro.ensuring`          |                                       |
+
+## Concurrency
+
+| Effect              | Micro                 |                                    |
+| ------------------- | --------------------- | ---------------------------------- |
+| `Effect.fork`       | ⚠️ `Micro.fork`       | `Handle` instead of `RuntimeFiber` |
+| `Effect.forkDaemon` | ⚠️ `Micro.forkDaemon` | `Handle` instead of `RuntimeFiber` |
+| `Effect.forkIn`     | ⚠️ `Micro.forkIn`     | `Handle` instead of `RuntimeFiber` |
+| `Effect.forkScoped` | ⚠️ `Micro.forkScoped` | `Handle` instead of `RuntimeFiber` |
+
 ## Control Flow
+
+| Effect                               | Micro             |     |
+| ------------------------------------ | ----------------- | --- |
+| `Effect.void`                        | ✅ `Micro.void`   |     |
+| `Effect.asVoid`                      | ✅ `Micro.asVoid` |     |
+| `Effect.when` \| `Effect.whenEffect` | ✅ `Micro.when`   |     |
+| `Effect.zip`                         | ✅ `Micro.zip`    |     |
+
+## Do Notation
+
+| Effect          | Micro             |     |
+| --------------- | ----------------- | --- |
+| `Effect.Do`     | ✅ `Micro.Do`     |     |
+| `Effect.let`    | ✅ `Micro.let`    |     |
+| `Effect.bindTo` | ✅ `Micro.bindTo` |     |
+| `Effect.bind`   | ✅ `Micro.bind`   |     |
