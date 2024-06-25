@@ -1,11 +1,14 @@
-import { MDX } from "@/components/atoms/mdx"
-import { Navigation } from "@/components/editor/components/tutorial/navigation"
-import { groupedTutorials, tutorialSection } from "@/workspaces/domain/tutorial"
 import { allTutorials } from "contentlayer/generated"
-import * as FS from "fs/promises"
 import { notFound } from "next/navigation"
-import * as Path from "path"
-import { Tutorial } from "./components/tutorial"
+import * as FS from "node:fs/promises"
+import * as Path from "node:path"
+import { MDX } from "@/components/atoms/mdx"
+import {
+  groupedTutorials,
+  tutorialSection
+} from "@/workspaces/domain/tutorial"
+import { Navigation } from "./components/Navigation"
+import { Tutorial } from "./components/Tutorial"
 
 export const generateStaticParams = () =>
   allTutorials.map((page) => ({
@@ -70,19 +73,21 @@ export default async function Page({
   )
 
   return (
-    <Tutorial
-      name={name}
-      files={filesWithContent}
-      workspace={page.workspace}
-      navigation={<Navigation tutorial={page} />}
-      next={
-        next && {
-          title: next.title,
-          url: next.urlPath
+    <div className="h-screen flex flex-col">
+      <Tutorial
+        name={name}
+        files={filesWithContent}
+        workspace={page.workspace}
+        navigation={<Navigation tutorial={page} />}
+        next={
+          next && {
+            title: next.title,
+            url: next.urlPath
+          }
         }
-      }
-    >
-      <MDX content={page.body.code} />
-    </Tutorial>
+      >
+        <MDX content={page.body.code} />
+      </Tutorial>
+    </div>
   )
 }

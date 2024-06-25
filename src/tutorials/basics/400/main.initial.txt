@@ -1,14 +1,30 @@
-import { Effect } from "effect"
-import assert from "assert"
+import { Data, Effect, Random } from "effect"
 
-const multiplyByTwo = (value: number) => Effect.succeed(value * 2)
+// TODO: Create a custom `HttpError` class with a `_tag` field
+/* Your code here*/
 
-const program = Effect.gen(function* (_) {
-  const value = yield* multiplyByTwo(42)
-  yield* Effect.log(value)
-  return value
-})
+// TODO: Create a custom `NetworkError` class with a `_tag` field
+/* Your code here*/
 
-Effect.runPromise(program).then((finalValue) => {
-  assert.strictEqual(finalValue, 84)
-})
+const program = Effect.gen(function*() {
+  const n = yield* Random.next
+  if (n < 0.3) {
+    // Simulate random HTTP errors
+    yield* Effect.logError("Encountered HTTP error")
+    return yield* Effect.fail(new HttpError())
+  }
+  if (n < 0.7) {
+    // Simulate random network errors
+    yield* Effect.logError("Encountered network error")
+    return yield* Effect.fail(new NetworkError())
+  }
+  // Simulate successful HTTP response
+  return 200
+}).pipe(
+  Effect.tap((statusCode) => Effect.log(`Status Code: ${statusCode}`)),
+  // TODO: retry the program three times, but only if the error
+  // is an `HttpError`
+  // TODO: transform all remaining failures in the pipeline to defects
+)
+
+Effect.runPromise(program)

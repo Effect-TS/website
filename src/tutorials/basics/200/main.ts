@@ -4,8 +4,8 @@ function fooFunc(): string {
   return "foo"
 }
 
-async function asyncFooFunc(): Promise<string> {
-  return "foo"
+function asyncFooFunc(): Promise<string> {
+  return Promise.resolve("foo")
 }
 
 async function main() {

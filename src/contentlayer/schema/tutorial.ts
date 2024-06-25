@@ -16,10 +16,21 @@ export const Tutorial = defineDocumentType(() => ({
       description: "The name of the section.",
       required: false
     },
+    prerequisites: {
+      type: "list",
+      of: { type: "string" },
+      required: false
+    },
     excerpt: {
       type: "string",
       description: "A brief description of the tutorial.",
-      required: true
+      required: false
+    },
+    difficulty: {
+      type: "enum",
+      description: "The level of difficulty of the tutorial",
+      options: ["beginner", "intermediate", "advanced"],
+      required: false
     },
     workspace: {
       type: "enum",

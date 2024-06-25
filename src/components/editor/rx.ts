@@ -1,13 +1,5 @@
 import { Rx } from "@effect-rx/rx-react"
-import {
-  Console,
-  Effect,
-  Option,
-  Layer,
-  Schedule,
-  Stream,
-  pipe
-} from "effect"
+import { Effect, Option, Layer, Schedule, Stream, pipe } from "effect"
 import { themeRx } from "@/rx/theme"
 import { File, FullPath } from "@/workspaces/domain/workspace"
 import { RxWorkspaceHandle } from "@/workspaces/rx"

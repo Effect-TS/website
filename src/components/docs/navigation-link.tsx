@@ -12,7 +12,7 @@ export const NavigationLink: FC<{
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState<boolean>(
     element.collapsible
-      ? pathname.startsWith(element.urlPath)
+      ? pathname?.startsWith(element.urlPath)
         ? false
         : true
       : false
@@ -20,13 +20,13 @@ export const NavigationLink: FC<{
   const ref = useRef<HTMLLIElement>(null)
 
   useEffect(() => {
-    if (pathname.startsWith(element.urlPath)) {
+    if (pathname?.startsWith(element.urlPath)) {
       setCollapsed(false)
     }
     if (
       level === 0 &&
       element.children.length > 0 &&
-      pathname.startsWith(element.urlPath)
+      pathname?.startsWith(element.urlPath)
     ) {
       document
         .getElementById("docs-sidebar-navigation")

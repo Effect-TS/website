@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 import * as Option from "effect/Option"
 import { useWorkspaceHandle } from "@/workspaces/context"
-import { editorRx } from "../../rx"
+import { editorRx } from "../rx"
 
 export function FileEditor() {
   const handle = useWorkspaceHandle()

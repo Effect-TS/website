@@ -1,0 +1,23 @@
+import Express from "express"
+import { Effect } from "effect"
+import { TodoRepository } from "./repo"
+
+const app = Express()
+
+app.use(Express.json() as Express.NextFunction)
+
+const repo = new TodoRepository()
+
+// Create Todo
+app.post("/todos", (req, res) => {
+  repo.create(req.body.text).pipe(
+    /* Your Code Here */
+    Effect.runPromise
+  )
+})
+
+/* snip */
+
+app.listen(3000, () => {
+  console.log("Server listing on port 3000...")
+})
