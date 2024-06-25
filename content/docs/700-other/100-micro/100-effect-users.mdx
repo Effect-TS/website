@@ -1,6 +1,6 @@
 ---
-title: Micro
-excerpt: Micro
+title: Micro for Effect Users
+excerpt: "Micro for Effect Users: Key Differences and Benefits"
 bottomNavigation: pagination
 ---
 
@@ -31,7 +31,9 @@ Micro is a part of the Effect library and can be imported just like any other mo
 import * as Micro from "effect/Micro"
 ```
 
-## The Micro Type
+## New Types
+
+### The Micro Type
 
 The `Micro` type uses three type parameters:
 
@@ -39,25 +41,46 @@ The `Micro` type uses three type parameters:
 Micro<Success, Error, Requirements>
 ```
 
-which mirror those of the `Effect` type:
+which mirror those of the `Effect` type.
 
-- **Success**. Represents the type of value that an effect can succeed with when executed.
-  If this type parameter is `void`, it means the effect produces no useful information, while if it is `never`, it means the effect runs forever (or until failure).
-- **Error**. Represents the expected errors that can occur when executing an effect.
-  If this type parameter is `never`, it means the effect cannot fail, because there are no values of type `never`.
-- **Requirements**. Represents the contextual data required by the effect to be executed.
-  This data is stored in a collection named `Context`.
-  If this type parameter is `never`, it means the effect has no requirements and the `Context` collection is empty.
+### Result
 
-## The Result Type
-
-The `Result` type is a data structure that encapsulates the outcome of a `Micro` computation, utilizing the [Either](./data-types/either) data type to differentiate between success and failure scenarios:
+The `Result` type is a streamlined version of the [Exit](../data-types/exit) type, designed to capture the outcome of a `Micro` computation. It uses the [Either](./data-types/either) data type to distinguish between successful outcomes and failures:
 
 ```ts
 type Result<A, E = never> = Either<A, Failure<E>>
+```
 
+### Failure
+
+The `Failure` type is a streamlined version of the [Cause](../data-types/cause) type.
+
+Similar to how `Cause` is a union of types, `Failure` consists of three specific types:
+
+```ts
 type Failure<E> = Unexpected | Expected<E> | Aborted
 ```
+
+| **Failure Type** | **Similar to** | **Description**                                                                             |
+| ---------------- | -------------- | ------------------------------------------------------------------------------------------- |
+| `Unexpected`     | `Die`          | Indicates an unforeseen defect that wasn't planned for in the system's logic.               |
+| `Expected<E>`    | `Fail<E>`      | Covers anticipated errors that are recognized and typically handled within the application. |
+| `Aborted`        | `Interrupt`    | Signifies an operation that has been purposefully stopped.                                  |
+
+### DelayFn
+
+The `DelayFn` type is a streamlined version of the [Schedule](../../guides/scheduling/introduction) type.
+
+```ts
+type DelayFn = (attempt: number, elapsed: number) => Option<number>
+```
+
+Represents a function that can be used to calculate the delay between
+repeats.
+
+The function takes the current attempt number and the elapsed time since
+the first attempt, and returns the delay for the next attempt. If the
+function returns `None`, the repetition will stop.
 
 ## How to Use This Guide
 
