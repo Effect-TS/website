@@ -1,5 +1,5 @@
 import React from "react"
-import { RxWorkspaceHandle } from "./rx"
+import { RxWorkspaceHandle } from "./rx/workspace"
 import { useRxSet, useRxValue } from "@effect-rx/rx-react"
 
 export const WorkspaceContext = React.createContext<RxWorkspaceHandle>(

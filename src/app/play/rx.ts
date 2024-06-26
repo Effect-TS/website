@@ -10,7 +10,7 @@ import { Effect, Layer } from "effect"
 import { editorRx } from "@/components/editor/rx"
 import { hashRx } from "@/rx/location"
 import { pipe } from "effect"
-import { RxWorkspaceHandle } from "@/workspaces/rx"
+import { RxWorkspaceHandle } from "@/workspaces/rx/workspace"
 import { WorkspaceCompression } from "./services/WorkspaceCompression"
 import packageJson from "../../../snapshots/tutorials/package.json"
 import { rpcClient } from "@/rpc/client"
@@ -53,6 +53,7 @@ const defaultWorkspace = new Workspace({
   initialFilePath: "src/main.ts",
   snapshot: "tutorials",
   tree: [
+    // TODO: Revert this back to the old program
     makeDirectory("src", [
       new File({
         name: "main.ts",
@@ -62,14 +63,13 @@ import { DevToolsLive } from "./DevTools"
 
 const program = Effect.gen(function* () {
   yield* Effect.log("Welcome to the Effect Playground!").pipe(
-    Effect.withSpan("welcome-span")
+    Effect.withSpan("leaf: depth 3"),
+    Effect.withSpan("node: depth 2")
   )
+  yield* Effect.void.pipe(Effect.withSpan("leaf: depth 2"))
 }).pipe(
-  Effect.withSpan("hello-span", {
-    attributes: {
-      source: "playground"
-    }
-  })
+  Effect.withSpan("node: depth 1"),
+  Effect.withSpan("root")
 )
 
 program.pipe(
