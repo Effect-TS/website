@@ -73,7 +73,7 @@ export function TraceWaterfall() {
     [traces, selected]
   )
   const headerRef = useRef<HTMLTableSectionElement>(null)
-  const [expanded, setExpanded] = React.useState<ExpandedState>({})
+  const [expanded, setExpanded] = React.useState<ExpandedState>(true)
 
   const table = useReactTable<SpanNode>({
     data,
