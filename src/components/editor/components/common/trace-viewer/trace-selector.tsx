@@ -1,4 +1,5 @@
-import React, { useState } from "react"
+import React, { useMemo, useState } from "react"
+import { useRx, useRxSuspenseSuccess, useRxValue } from "@effect-rx/rx-react"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -15,17 +16,15 @@ import {
   PopoverTrigger
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { devToolsRx } from "@/workspaces/rx/devtools"
 
-export function TraceSelector({
-  traceIds,
-  onSelect
-}: {
-  readonly traceIds: ReadonlyArray<string>
-  readonly onSelect: (traceId: string) => void
-}) {
+
+export function TraceSelector() {
   const [open, setOpen] = useState(false)
-  const [selected, setSelected] = useState<string>()
-
+  const devTools = useRxSuspenseSuccess(devToolsRx).value
+  const traces = useRxValue(devTools.traces)
+  const [selected, setSelected] = useRx(devTools.selectedTrace)
+  const trace = useMemo(() => traces[selected], [traces, selected])
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -34,36 +33,35 @@ export function TraceSelector({
           role="combobox"
           aria-label="Select a trace"
           aria-expanded={open}
-          className="flex-1 justify-between md:max-w-[325px]"
+          className="flex-1 justify-between md:min-w-[350px]"
         >
-          {selected || "Select a trace..."}
+          {trace?.traceId || "Select a trace..."}
           <Icon
             name="arrows-up-down"
             className="ml-2 h-4 w-4 shrink-0 opacity-50"
           />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[325px] p-0">
+      <PopoverContent className="w-[350px] p-0">
         <Command>
           <CommandInput placeholder="Search traces..." />
           <CommandEmpty>No traces found.</CommandEmpty>
           <CommandGroup heading="Traces">
             <CommandList>
-              {traceIds.map((traceId) => (
+              {traces.map((trace, index) => (
                 <CommandItem
-                  key={traceId}
+                  key={trace.traceId}
                   onSelect={() => {
-                    setSelected(traceId)
+                    setSelected(index)
                     setOpen(false)
-                    onSelect(traceId)
                   }}
                 >
-                  {traceId}
+                  {trace.traceId}
                   <Icon
                     name="check"
                     className={cn(
                       "ml-auto h-4 w-4",
-                      selected === traceId ? "opacity-100" : "opacity-0"
+                      selected === index ? "opacity-100" : "opacity-0"
                     )}
                   />
                 </CommandItem>

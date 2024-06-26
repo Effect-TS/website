@@ -6,27 +6,19 @@ import {
   File,
   Workspace,
   WorkspaceShell
-} from "./domain/workspace"
+} from "../domain/workspace"
 import {
   MonokaiSodaTheme,
   NightOwlishLightTheme,
   Terminal
-} from "./services/Terminal"
-import { SpanNode, SpanProvider } from "./services/SpanProvider"
-import { WebContainer } from "./services/WebContainer"
+} from "../services/Terminal"
+import { WebContainer } from "../services/WebContainer"
 
 const containerRuntime = Rx.runtime(
-  Layer.mergeAll(SpanProvider.Live, WebContainer.Live, Terminal.Live)
+  Layer.mergeAll(WebContainer.Live, Terminal.Live)
 )
-const devtoolsRuntime = Rx.runtime(SpanProvider.Live)
-
 const terminalTheme = Rx.map(themeRx, (theme) =>
   theme === "light" ? NightOwlishLightTheme : MonokaiSodaTheme
-)
-
-export const spanProviderRx = pipe(
-  devtoolsRuntime.subscriptionRef(SpanProvider.spans),
-  Rx.map(Result.getOrElse(() => Array.empty<SpanNode>()))
 )
 
 export const workspaceHandleRx = Rx.family((workspace: Workspace) =>

@@ -104,7 +104,7 @@ function CodeEditorSuspended({
               <TabsContent
                 value="trace-viewer"
                 forceMount
-                className="data-[state=inactive]:hidden"
+                className="h-full w-full data-[state=inactive]:hidden"
               >
                 <TraceViewer />
               </TabsContent>
