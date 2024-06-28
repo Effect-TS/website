@@ -69,7 +69,7 @@ const program = Effect.gen(function* () {
   yield* Effect.void.pipe(Effect.withSpan("leaf: depth 2"))
 }).pipe(
   Effect.withSpan("node: depth 1"),
-  Effect.withSpan("root")
+  Effect.withSpan("root", { attributes: { source: "Playground" } })
 )
 
 program.pipe(

@@ -175,7 +175,7 @@ export class SpanNode {
   }
 }
 
-class EventsNode {
+export class EventsNode {
   readonly _tag = "EventsNode"
   constructor(readonly events: Array<SpanEventNode>) {}
   get hasEvents() {
@@ -183,7 +183,7 @@ class EventsNode {
   }
 }
 
-class SpanEventNode {
+export class SpanEventNode {
   readonly _tag = "SpanEventNode"
   constructor(
     readonly span: DevToolsDomain.ParentSpan,
