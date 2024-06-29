@@ -284,7 +284,7 @@ function DurationCell({
           type="button"
           aria-label="select table row"
           style={{ width }}
-          className="h-6 flex border border-white rounded-sm"
+          className="h-6 my-1 flex border border-white rounded-sm"
           onClick={row.getToggleSelectedHandler()}
         >
           <div className="mt-[3px] ml-2 bg-white/90 rounded-sm leading-3">
