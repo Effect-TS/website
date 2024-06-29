@@ -4,19 +4,23 @@ import { SpanNode } from "@/workspaces/services/TraceProvider"
 
 export function TraceTree({ row }: { readonly row: Row<SpanNode> }) {
   const ref = useRef<SVGSVGElement>(null)
+  // const rerender = React.useReducer(() => ({}), {})[1]
   const [height, setHeight] = useState(32)
 
   // Update the height of this level of the tree whenever the row is selected
-  const isSelected = row.getIsSelected()
+  // const isSelected = row.getIsSelected()
   useEffect(() => {
-    if (ref.current) {
-      const svg = ref.current
-      const { height } = svg.getBoundingClientRect()
-      if (height > 0) {
-        setHeight(height)
+    const svg = ref.current!
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]!
+      const observedHeight = entry.contentRect.height
+      if (observedHeight > 0 && observedHeight !== height) {
+        setHeight(observedHeight)
       }
-    }
-  }, [row.depth, isSelected])
+    })
+    observer.observe(svg)
+    return () => observer.unobserve(svg)
+  }, [height])
 
   return (
     <svg
