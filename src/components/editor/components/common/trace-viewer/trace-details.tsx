@@ -19,7 +19,7 @@ import { formatDuration } from "./utils"
 
 export function TraceDetails({ row }: { readonly row: Row<SpanNode> }) {
   return (
-    <div className="flex flex-col my-2 p-2 bg-black rounded-sm">
+    <div className="flex flex-col mb-1 p-2 bg-black rounded-sm">
       <div className="flex justify-between mb-2 px-2 pb-1 border-b">
         <h3 className="font-display text-lg">{row.getValue("name")}</h3>
         <div>
