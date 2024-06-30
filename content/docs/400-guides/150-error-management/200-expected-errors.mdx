@@ -61,23 +61,24 @@ The following program serves as an illustration of how errors are automatically 
 ```twoslash include error-tracking
 import { Effect, Random } from "effect"
 
-export class FooError {
-  readonly _tag = "FooError"
+export class HttpError {
+  readonly _tag = "HttpError"
 }
 
-export class BarError {
-  readonly _tag = "BarError"
+export class ValidationError {
+  readonly _tag = "ValidationError"
 }
 
 export const program = Effect.gen(function* () {
   const n1 = yield* Random.next
   const n2 = yield* Random.next
 
-  const foo = n1 > 0.5 ? "yay!" : yield* Effect.fail(new FooError())
+  const httpResult =
+    n1 > 0.5 ? "yay!" : yield* Effect.fail(new HttpError())
+  const validationResult =
+    n2 > 0.5 ? "yay!" : yield* Effect.fail(new ValidationError())
 
-  const bar = n2 > 0.5 ? "yay!" : yield* Effect.fail(new BarError())
-
-  return foo + bar
+  return httpResult + validationResult
 })
 ```
 
@@ -87,7 +88,7 @@ export const program = Effect.gen(function* () {
 Effect.runPromise(program).then(console.log, console.error)
 ```
 
-In the above program, we compute two values: `foo` and `bar`, each representing a potential source of error.
+In the above program, we compute two values: `httpResult` and `validationResult`, each representing a potential source of error.
 
 </Tab>
 <Tab>
@@ -95,46 +96,46 @@ In the above program, we compute two values: `foo` and `bar`, each representing 
 ```ts filename="error-tracking.ts" twoslash
 import { Effect, Random } from "effect"
 
-export class FooError {
-  readonly _tag = "FooError"
+export class HttpError {
+  readonly _tag = "HttpError"
 }
 
-export class BarError {
-  readonly _tag = "BarError"
+export class ValidationError {
+  readonly _tag = "ValidationError"
 }
 
-const flakyFoo = Random.next.pipe(
+const httpResult = Random.next.pipe(
   Effect.andThen((n1) =>
-    n1 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new FooError())
+    n1 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new HttpError())
   )
 )
 
-const flakyBar = Random.next.pipe(
+const validationResult = Random.next.pipe(
   Effect.andThen((n2) =>
-    n2 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new BarError())
+    n2 > 0.5 ? Effect.succeed("yay!") : Effect.fail(new ValidationError())
   )
 )
 
-export const program = Effect.all([flakyFoo, flakyBar]).pipe(
-  Effect.andThen(([foo, bar]) => foo + bar)
+export const program = Effect.all([httpResult, validationResult]).pipe(
+  Effect.andThen(([http, validation]) => http + validation)
 )
 ```
 
-In the above program, we have two operations: `flakyFoo` and `flakyBar`, each representing a potential source of error.
+In the above program, we have two operations: `httpResult` and `validationResult`, each representing a potential source of error.
 These operations are combined using the `Effect.all(effects)` function from the Effect library, which allows us to sequence them together.
 
 </Tab>
 </Tabs>
 
 Effect automatically keeps track of the possible errors that can occur during the execution of the program.
-In this case, we have `FooError` and `BarError` as the possible error types.
+In this case, we have `HttpError` and `ValidationError` as the possible error types.
 The error channel of the `program` is specified as
 
 ```ts
-Effect<string, FooError | BarError, never>
+Effect<string, HttpError | ValidationError, never>
 ```
 
-indicating that it can potentially fail with either a `FooError` or a `BarError`.
+indicating that it can potentially fail with either a `HttpError` or a `ValidationError`.
 
 ## Short-Circuiting
 
@@ -219,13 +220,15 @@ In this specific example, `task3` is never executed because an error occurs in `
 
 ### either
 
-The `Effect.either` function converts an `Effect<A, E, R>` into another effect where both its failure (`E`) and success (`A`) channels have been lifted into an [Either&lt;A, E&gt;](../../other/data-types/either) data type:
+The `Effect.either` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](../../other/data-types/either) data type:
 
 ```ts
 Effect<A, E, R> -> Effect<Either<A, E>, never, R>
 ```
 
-The [Either&lt;R, L&gt;](../../other/data-types/either) data type represents a value that can be either a `Right` value (`R`) or a `Left` value (`L`).
+The resulting effect cannot fail because the potential failure is now represented within the `Either`'s `Left` type.
+The error type of the returned `Effect` is specified as `never`, confirming that the effect is structured to not fail.
+
 By yielding an `Either`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function.
 
 ```ts twoslash
@@ -293,7 +296,7 @@ indicating that all errors have been handled.
 
 ## Catching Some Errors
 
-Suppose we want to handle a specific error, such as `FooError`.
+Suppose we want to handle a specific error, such as `HttpError`.
 
 ```ts {8-10} twoslash
 // @filename: error-tracking.ts
@@ -308,8 +311,8 @@ const recovered = Effect.gen(function* () {
   const failureOrSuccess = yield* Effect.either(program)
   if (Either.isLeft(failureOrSuccess)) {
     const error = failureOrSuccess.left
-    if (error._tag === "FooError") {
-      return "Recovering from FooError"
+    if (error._tag === "HttpError") {
+      return "Recovering from HttpError"
     }
     return yield* Effect.fail(error)
   } else {
@@ -318,10 +321,10 @@ const recovered = Effect.gen(function* () {
 })
 ```
 
-We can observe that the type in the error channel of our program has changed to only show `BarError`,
-indicating that `FooError` has been handled.
+We can observe that the type in the error channel of our program has changed to only show `ValidationError`,
+indicating that `HttpError` has been handled.
 
-If we also want to handle `BarError`, we can easily add another case to our code:
+If we also want to handle `ValidationError`, we can easily add another case to our code:
 
 ```ts {11} twoslash
 // @filename: error-tracking.ts
@@ -336,10 +339,10 @@ const recovered = Effect.gen(function* () {
   const failureOrSuccess = yield* Effect.either(program)
   if (Either.isLeft(failureOrSuccess)) {
     const error = failureOrSuccess.left
-    if (error._tag === "FooError") {
-      return "Recovering from FooError"
+    if (error._tag === "HttpError") {
+      return "Recovering from HttpError"
     } else {
-      return "Recovering from BarError"
+      return "Recovering from ValidationError"
     }
   } else {
     return failureOrSuccess.right
@@ -365,8 +368,8 @@ import { program } from "./error-tracking"
 
 const recovered = program.pipe(
   Effect.catchSome((error) => {
-    if (error._tag === "FooError") {
-      return Option.some(Effect.succeed("Recovering from FooError"))
+    if (error._tag === "HttpError") {
+      return Option.some(Effect.succeed("Recovering from HttpError"))
     }
     return Option.none()
   })
@@ -375,7 +378,7 @@ const recovered = program.pipe(
 
 In the code above, `Effect.catchSome` takes a function that examines the error (`error`) and decides whether to attempt recovery or not. If the error matches a specific condition, recovery can be attempted by returning `Option.some(effect)`. If no recovery is possible, you can simply return `Option.none()`.
 
-It's important to note that while `Effect.catchSome` lets you catch specific errors, it **doesn't alter the error type** itself. Therefore, the resulting effect (`recovered` in this case) will still have the same error type (`FooError | BarError`) as the original effect.
+It's important to note that while `Effect.catchSome` lets you catch specific errors, it **doesn't alter the error type** itself. Therefore, the resulting effect (`recovered` in this case) will still have the same error type (`HttpError | ValidationError`) as the original effect.
 
 ### catchIf
 
@@ -392,15 +395,15 @@ import { program } from "./error-tracking"
 
 const recovered = program.pipe(
   Effect.catchIf(
-    (error) => error._tag === "FooError",
-    () => Effect.succeed("Recovering from FooError")
+    (error) => error._tag === "HttpError",
+    () => Effect.succeed("Recovering from HttpError")
   )
 )
 ```
 
-It's important to note that for TypeScript versions < 5.5, while `Effect.catchIf` lets you catch specific errors, it **doesn't alter the error type** itself. Therefore, the resulting effect (`recovered` in this case) will still have the same error type (`FooError | BarError`) as the original effect. In TypeScript versions >= 5.5, improved type narrowing causes the resulting error type to be inferred as `BarError`.
+It's important to note that for TypeScript versions < 5.5, while `Effect.catchIf` lets you catch specific errors, it **doesn't alter the error type** itself. Therefore, the resulting effect (`recovered` in this case) will still have the same error type (`HttpError | ValidationError`) as the original effect. In TypeScript versions >= 5.5, improved type narrowing causes the resulting error type to be inferred as `ValidationError`.
 
-For TypeScript versions < 5.5, if you provide a [user-defined type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) instead of a predicate, the resulting error type will be pruned, returning an `Effect<string, BarError, never>`:
+For TypeScript versions < 5.5, if you provide a [user-defined type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) instead of a predicate, the resulting error type will be pruned, returning an `Effect<string, ValidationError, never>`:
 
 ```ts {6} twoslash
 // @filename: error-tracking.ts
@@ -409,12 +412,12 @@ For TypeScript versions < 5.5, if you provide a [user-defined type guard](https:
 // @filename: index.ts
 // ---cut---
 import { Effect } from "effect"
-import { program, FooError } from "./error-tracking"
+import { program, HttpError } from "./error-tracking"
 
 const recovered = program.pipe(
   Effect.catchIf(
-    (error): error is FooError => error._tag === "FooError",
-    () => Effect.succeed("Recovering from FooError")
+    (error): error is HttpError => error._tag === "HttpError",
+    () => Effect.succeed("Recovering from HttpError")
   )
 )
 ```
@@ -433,20 +436,20 @@ import { Effect } from "effect"
 import { program } from "./error-tracking"
 
 const recovered = program.pipe(
-  Effect.catchTag("FooError", (_fooError) =>
-    Effect.succeed("Recovering from FooError")
+  Effect.catchTag("HttpError", (_HttpError) =>
+    Effect.succeed("Recovering from HttpError")
   )
 )
 ```
 
-In the example above, the `Effect.catchTag` function allows us to handle `FooError` specifically.
-If a `FooError` occurs during the execution of the program, the provided error handler function will be invoked,
+In the example above, the `Effect.catchTag` function allows us to handle `HttpError` specifically.
+If a `HttpError` occurs during the execution of the program, the provided error handler function will be invoked,
 and the program will proceed with the recovery logic specified within the handler.
 
-We can observe that the type in the error channel of our program has changed to only show `BarError`,
-indicating that `FooError` has been handled.
+We can observe that the type in the error channel of our program has changed to only show `ValidationError`,
+indicating that `HttpError` has been handled.
 
-If we also wanted to handle `BarError`, we can simply add another `catchTag`:
+If we also wanted to handle `ValidationError`, we can simply add another `catchTag`:
 
 ```ts {8-10} twoslash
 // @filename: error-tracking.ts
@@ -458,11 +461,11 @@ import { Effect } from "effect"
 import { program } from "./error-tracking"
 
 const recovered = program.pipe(
-  Effect.catchTag("FooError", (_fooError) =>
-    Effect.succeed("Recovering from FooError")
+  Effect.catchTag("HttpError", (_HttpError) =>
+    Effect.succeed("Recovering from HttpError")
   ),
-  Effect.catchTag("BarError", (_barError) =>
-    Effect.succeed("Recovering from BarError")
+  Effect.catchTag("ValidationError", (_ValidationError) =>
+    Effect.succeed("Recovering from ValidationError")
   )
 )
 ```
@@ -491,14 +494,15 @@ import { program } from "./error-tracking"
 
 const recovered = program.pipe(
   Effect.catchTags({
-    FooError: (_fooError) => Effect.succeed(`Recovering from FooError`),
-    BarError: (_barError) => Effect.succeed(`Recovering from BarError`)
+    HttpError: (_HttpError) => Effect.succeed(`Recovering from HttpError`),
+    ValidationError: (_ValidationError) =>
+      Effect.succeed(`Recovering from ValidationError`)
   })
 )
 ```
 
 In the above example, instead of using `Effect.catchTag` multiple times to handle individual errors, we utilize the `Effect.catchTags` combinator.
-This combinator takes an object where each property represents a specific error `_tag` (`"FooError"` and `"BarError"` in this case),
+This combinator takes an object where each property represents a specific error `_tag` (`"HttpError"` and `"ValidationError"` in this case),
 and the corresponding value is the error handler function to be executed when that particular error occurs.
 
 <Warning>
