@@ -8,14 +8,15 @@ bottomNavigation: pagination
 
 Before you start, make sure you have completed the following setup:
 
-- Install the `effect` library in your project. If it is not already installed, you can add it using npm with the following command:
-  ```bash
-  npm install effect
-  ```
+install the `effect` library in your project. If it is not already installed, you can add it using npm with the following command:
+
+```bash
+npm install effect
+```
 
 Micro is a component of the Effect library and can be imported similarly to any other module in your TypeScript project:
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 ```
 
@@ -47,7 +48,7 @@ In this tutorial, we'll demonstrate how to wrap a Promise-based API using the `M
 
 First, let's define a simple Promise-based function that simulates fetching weather data from an external service.
 
-```ts
+```ts twoslash
 function fetchWeather(city: string): Promise<string> {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
@@ -65,7 +66,7 @@ function fetchWeather(city: string): Promise<string> {
 
 Next, we'll wrap our `fetchWeather` function using Micro to handle both successful and failed Promise outcomes.
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 function fetchWeather(city: string): Promise<string> {
@@ -91,7 +92,7 @@ Here, `Micro.promise` is used to convert the Promise returned by `fetchWeather` 
 
 After wrapping our function, we need to execute the Micro effect and handle the results.
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 function fetchWeather(city: string): Promise<string> {
@@ -131,7 +132,7 @@ It converts the Micro effect back into a Promise, making it easier to integrate 
 To further enhance the function, you might want to handle specific errors differently.
 Micro provides methods like `Micro.tryPromise` to handle anticipated errors gracefully.
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 function fetchWeather(city: string): Promise<string> {
@@ -176,7 +177,7 @@ Failed to fetch weather data: MicroCause.Fail: {"_tag":"WeatherError","message":
 
 #### either
 
-```ts
+```ts twoslash
 import * as Either from "effect/Either"
 import * as Micro from "effect/Micro"
 
@@ -218,7 +219,7 @@ Example Output:
 
 With `Either.match`:
 
-```ts
+```ts twoslash
 import * as Either from "effect/Either"
 import * as Micro from "effect/Micro"
 
@@ -256,7 +257,7 @@ Example Output:
 
 #### catchAll
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 class NetworkError {
@@ -287,7 +288,7 @@ Example Output:
 
 #### catchTag
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 class NetworkError {
@@ -326,7 +327,7 @@ Example Output:
 
 #### die
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const divide = (a: number, b: number): Micro.Micro<number> =>
@@ -339,7 +340,7 @@ Micro.runSync(divide(1, 0)) // throws Error: Cannot divide by zero
 
 #### orDie
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const divide = (a: number, b: number): Micro.Micro<number, Error> =>
@@ -354,7 +355,7 @@ Micro.runSync(program) // throws Error: Cannot divide by zero
 
 #### catchAllDefect
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const consoleLog = (message: string) => Micro.sync(() => console.log(message))
@@ -379,7 +380,7 @@ Unknown defect caught: Boom!
 
 The `Micro.orElseSucceed` function will always replace the original failure with a success value, so the resulting effect cannot fail:
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 class NegativeAgeError {
@@ -411,7 +412,7 @@ const program = Micro.orElseSucceed(validate(3), () => 0)
 
 ### match
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const success: Micro.Micro<number, Error> = Micro.succeed(42)
@@ -434,7 +435,7 @@ Micro.runPromise(program2).then(console.log) // Output: "failure: Uh oh!"
 
 ### matchEffect
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const consoleLog = (message: string) => Micro.sync(() => console.log(message))
@@ -471,7 +472,7 @@ failure: Uh oh!
 
 ### matchCause / matchCauseEffect
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 declare const exceptionalEffect: Micro.Micro<void, Error>
@@ -497,7 +498,7 @@ const program = Micro.matchCauseEffect(exceptionalEffect, {
 
 To demonstrate the functionality of different retry functions, we will be working with the following helper that simulates an effect with possible failures:
 
-```ts
+```twoslash include simulated-effect
 import * as Micro from "effect/Micro"
 
 let count = 0
@@ -515,11 +516,20 @@ export const effect = Micro.async<string, Error>((resume) => {
 })
 ```
 
+```ts twoslash
+// @include: simulated-effect
+```
+
 ### retry
 
-```ts
+```ts twoslash
+// @filename: simulated-effect.ts
+// @include: simulated-effect
+
+// @filename: index.ts
+// ---cut---
 import * as Micro from "effect/Micro"
-import { effect } from "./fake.js"
+import { effect } from "./simulated-effect"
 
 // Define a repetition policy using a spaced delay between retries
 const policy = Micro.scheduleSpaced(100)
@@ -539,7 +549,7 @@ yay!
 
 ## Sandboxing
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const consoleLog = (message: string) => Micro.sync(() => console.log(message))
@@ -578,7 +588,7 @@ fallback result on expected error
 
 ### tapError
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const consoleLog = (message: string) => Micro.sync(() => console.log(message))
@@ -601,7 +611,7 @@ expected error: NetworkError
 
 ### tapErrorCause
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const consoleLog = (message: string) => Micro.sync(() => console.log(message))
@@ -636,7 +646,7 @@ error cause: MicroCause.Die: Something went wrong
 
 ### tapDefect
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const consoleLog = (message: string) => Micro.sync(() => console.log(message))
@@ -673,7 +683,7 @@ defect: Something went wrong
 
 ### Error
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 class MyError extends Micro.Error<{ message: string }> {}
@@ -696,7 +706,7 @@ Output:
 
 ### TaggedError
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 // An error with _tag: "Foo"
@@ -734,7 +744,7 @@ Foo error: Oh no!
 
 ## Requirements Management
 
-```ts
+```ts twoslash
 import * as Context from "effect/Context"
 import * as Micro from "effect/Micro"
 
@@ -769,7 +779,7 @@ random number: 0.8241872233134417
 
 ### Scope
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const consoleLog = (message: string) => Micro.sync(() => console.log(message))
@@ -799,7 +809,7 @@ finalizer 1
 
 Let's observe how things behave in the event of success:
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const consoleLog = (message: string) => Micro.sync(() => console.log(message))
@@ -823,7 +833,7 @@ finalizer after Right
 
 Next, let's explore how things behave in the event of a failure:
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const consoleLog = (message?: any, ...optionalParams: Array<any>) =>
@@ -848,7 +858,7 @@ finalizer after Left
 
 ### Defining Resources
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 // Define the interface for the resource
@@ -900,7 +910,7 @@ Resource released
 
 ### acquireUseRelease
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 // Define the interface for the resource
@@ -952,7 +962,7 @@ Resource released
 
 **Success Example**
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const action = Micro.sync(() => console.log("success"))
@@ -972,7 +982,7 @@ success
 
 **Failure Example**
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 let count = 0
@@ -1005,7 +1015,7 @@ failure
 
 ### helper
 
-```ts
+```twoslash include dryRun
 import type * as Micro from "effect/Micro"
 import * as Option from "effect/Option"
 
@@ -1028,11 +1038,20 @@ export const dryRun = (
 }
 ```
 
+```ts twoslash
+// @include: dryRun
+```
+
 ### scheduleExponential
 
-```ts
+```ts twoslash
+// @filename: dryRun.ts
+// @include: dryRun
+
+// @filename: index.ts
+// ---cut---
 import * as Micro from "effect/Micro"
-import { dryRun } from "./dryRun.js"
+import { dryRun } from "./dryRun"
 
 const policy = Micro.scheduleExponential(10)
 
@@ -1049,9 +1068,14 @@ Output:
 
 ### scheduleUnion
 
-```ts
+```ts twoslash
+// @filename: dryRun.ts
+// @include: dryRun
+
+// @filename: index.ts
+// ---cut---
 import * as Micro from "effect/Micro"
-import { dryRun } from "./dryRun.js"
+import { dryRun } from "./dryRun"
 
 const policy = Micro.scheduleUnion(
   Micro.scheduleExponential(10),
@@ -1070,9 +1094,14 @@ Output:
 
 ### scheduleIntersect
 
-```ts
+```ts twoslash
+// @filename: dryRun.ts
+// @include: dryRun
+
+// @filename: index.ts
+// ---cut---
 import * as Micro from "effect/Micro"
-import { dryRun } from "./dryRun.js"
+import { dryRun } from "./dryRun"
 
 const policy = Micro.scheduleIntersect(
   Micro.scheduleExponential(10),
@@ -1094,7 +1123,7 @@ Output:
 
 ### Forking Effects
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const fib = (n: number): Micro.Micro<number> =>
@@ -1110,7 +1139,7 @@ const fib10Fiber = Micro.fork(fib(10))
 
 ### Joining Fibers
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const fib = (n: number): Micro.Micro<number> =>
@@ -1134,7 +1163,7 @@ Micro.runPromise(program) // 55
 
 ### Awaiting Fibers
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const fib = (n: number): Micro.Micro<number> =>
@@ -1158,7 +1187,7 @@ Micro.runPromise(program) // { _id: 'Either', _tag: 'Right', right: 55 }
 
 ### Interrupting Fibers
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const program = Micro.gen(function* () {
@@ -1182,7 +1211,7 @@ Output
 
 The `Micro.race` function lets you race multiple effects concurrently and returns the result of the first one that successfully completes.
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const task1 = Micro.delay(Micro.fail("task1"), 1_000)
@@ -1199,7 +1228,7 @@ task2
 
 If you need to handle the first effect to complete, whether it succeeds or fails, you can use the `Micro.either` function.
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const task1 = Micro.delay(Micro.fail("task1"), 1_000)
@@ -1218,7 +1247,7 @@ Output:
 
 **Interruptible Operation**: If the operation can be interrupted, it is terminated immediately once the timeout threshold is reached, resulting in a `TimeoutException`.
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const myEffect = Micro.gen(function* () {
@@ -1244,7 +1273,7 @@ Output:
 
 **Uninterruptible Operation**: If the operation is uninterruptible, it continues until completion before the `TimeoutException` is assessed.
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const myEffect = Micro.gen(function* () {
@@ -1275,7 +1304,7 @@ Processing complete.
 
 #### Calling Effect.interrupt
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const program = Micro.gen(function* () {
@@ -1301,7 +1330,7 @@ waiting 1 second
 
 #### Interruption of Concurrent Effects
 
-```ts
+```ts twoslash
 import * as Micro from "effect/Micro"
 
 const program = Micro.forEach(
