@@ -42,7 +42,10 @@ In this example, `success` is an instance of `Effect<number, never, never>`. Thi
 
 ### fail
 
-When a computation might fail, it's essential to manage the failure explicitly. The `Effect.fail` constructor allows you to encapsulate an error within your program flow explicitly. This method is useful for representing known error states in a predictable and type-safe way. Here's a practical example to illustrate:
+When a computation might fail, it's essential to manage the failure explicitly.
+The `Effect.fail` constructor allows you to encapsulate an error within your program flow explicitly.
+This method is useful for representing known error states in a predictable and type-safe way.
+Here's a practical example to illustrate:
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -59,12 +62,17 @@ The type of `failure` is `Effect<never, Error, never>`, which means
 - It fails with an error, specifically an `Error`.
 - It does not depend on any external context to execute (`never`).
 
-You're not limited to using only `Error` objects with `Effect.fail`. You can also use strings, numbers, or more complex objects depending on what fits best with your error handling strategy:
+While you can use `Error` objects with `Effect.fail`, it also supports strings, numbers, or more complex objects, depending on your error management strategy.
+However, using "tagged" errors, which are objects with a `_tag` field, helps identify error types and integrates well with standard Effect functions like [Effect.catchTag](../error-management/expected-errors#catchtag).
 
 ```ts twoslash
 import { Effect } from "effect"
 
-const failure = Effect.fail("Something went wrong")
+class NetworkError {
+  readonly _tag = "NetworkError"
+}
+
+const failure = Effect.fail(new NetworkError())
 ```
 
 With `Effect.succeed` and `Effect.fail`, you can explicitly handle success and failure cases and the type system will ensure that errors are tracked and accounted for.
