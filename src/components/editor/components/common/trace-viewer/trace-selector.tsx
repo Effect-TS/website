@@ -1,5 +1,11 @@
 import React, { useMemo, useState } from "react"
-import { useRx, useRxSuspenseSuccess, useRxValue } from "@effect-rx/rx-react"
+import {
+  RxRef,
+  useRx,
+  useRxRef,
+  useRxSuspenseSuccess,
+  useRxValue
+} from "@effect-rx/rx-react"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -16,15 +22,20 @@ import {
   PopoverTrigger
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { devToolsRx } from "@/workspaces/rx/devtools"
-
+import {
+  useDevTools,
+  useSelectedSpan,
+  useSetSelectedSpan,
+  useSelectedSpanIndex
+} from "@/workspaces/context/devtools"
 
 export function TraceSelector() {
   const [open, setOpen] = useState(false)
-  const devTools = useRxSuspenseSuccess(devToolsRx).value
-  const traces = useRxValue(devTools.traces)
-  const [selected, setSelected] = useRx(devTools.selectedTrace)
-  const trace = useMemo(() => traces[selected], [traces, selected])
+  const devTools = useDevTools()
+  const rootSpans = useRxValue(devTools.rootSpans)
+  const span = useSelectedSpan()
+  const setSelectedSpan = useSetSelectedSpan()
+  const selectedSpanIndex = useSelectedSpanIndex()
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -35,7 +46,7 @@ export function TraceSelector() {
           aria-expanded={open}
           className="flex-1 justify-between md:min-w-[350px]"
         >
-          {trace?.traceId || "Select a trace..."}
+          {span?.traceId || "Select a trace..."}
           <Icon
             name="arrows-up-down"
             className="ml-2 h-4 w-4 shrink-0 opacity-50"
@@ -48,20 +59,22 @@ export function TraceSelector() {
           <CommandEmpty>No traces found.</CommandEmpty>
           <CommandGroup heading="Traces">
             <CommandList>
-              {traces.map((trace, index) => (
+              {rootSpans.map((ref, index) => (
                 <CommandItem
-                  key={trace.traceId}
+                  key={ref.value.traceId}
                   onSelect={() => {
-                    setSelected(index)
+                    setSelectedSpan(index)
                     setOpen(false)
                   }}
                 >
-                  {trace.traceId}
+                  {ref.value.traceId}
                   <Icon
                     name="check"
                     className={cn(
                       "ml-auto h-4 w-4",
-                      selected === index ? "opacity-100" : "opacity-0"
+                      selectedSpanIndex === index
+                        ? "opacity-100"
+                        : "opacity-0"
                     )}
                   />
                 </CommandItem>

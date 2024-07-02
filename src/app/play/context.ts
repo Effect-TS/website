@@ -1,4 +1,4 @@
-import { useWorkspaceHandle } from "@/workspaces/context"
+import { useWorkspaceHandle } from "@/workspaces/context/workspace"
 import { shareRx } from "./rx"
 import { useMemo } from "react"
 

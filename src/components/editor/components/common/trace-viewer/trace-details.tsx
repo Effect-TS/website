@@ -1,4 +1,5 @@
 import { Option } from "effect"
+import { RxRef, useRxRef } from "@effect-rx/rx-react"
 import { Row } from "@tanstack/react-table"
 import {
   Accordion,
@@ -14,18 +15,18 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table"
-import { EventsNode, SpanNode } from "@/workspaces/services/TraceProvider"
+import { SpanEventNode, SpanNode } from "@/workspaces/services/TraceProvider"
 import { formatDuration } from "./utils"
 
-export function TraceDetails({ row }: { readonly row: Row<SpanNode> }) {
+export function TraceDetails({ span }: { readonly span: SpanNode }) {
   return (
     <div className="flex flex-col mb-1 p-2 bg-black rounded-sm">
       <div className="flex justify-between mb-2 px-2 pb-1 border-b">
-        <h3 className="font-display text-lg">{row.getValue("name")}</h3>
+        <h3 className="font-display text-lg">{span.label}</h3>
         <div>
           <span className="mr-1 text-muted-foreground">Duration:</span>
           <span className="text-foreground">
-            {formatDuration(Option.getOrThrow(row.getValue("duration")))}
+            {formatDuration(Option.getOrThrow(span.duration))}
           </span>
         </div>
       </div>
@@ -38,7 +39,7 @@ export function TraceDetails({ row }: { readonly row: Row<SpanNode> }) {
             <span className="ml-1">Attributes</span>
           </AccordionTrigger>
           <AccordionContent className="p-0">
-            <TraceAttributes attributes={row.getValue("attributes")} />
+            <TraceAttributes attributes={Array.from(span.attributes)} />
           </AccordionContent>
         </AccordionItem>
         <AccordionItem value="events">
@@ -49,7 +50,7 @@ export function TraceDetails({ row }: { readonly row: Row<SpanNode> }) {
             <span className="ml-1">Events</span>
           </AccordionTrigger>
           <AccordionContent className="p-0">
-            <TraceEvents events={row.getValue("events")} />
+            <TraceEvents events={span.events} />
           </AccordionContent>
         </AccordionItem>
       </Accordion>
@@ -82,14 +83,14 @@ function TraceAttributes({
   )
 }
 
-function TraceEvents({ events }: { readonly events: EventsNode }) {
+function TraceEvents({ events }: { readonly events: ReadonlyArray<SpanEventNode> }) {
   return (
     <div>
-      {events.hasEvents ? (
+      {events.length === 0 ? (
         <span>No Events</span>
       ) : (
         <div>
-          {events.events.map((node) => (
+          {events.map((node) => (
             <span key={node.event.name}>{node.event.name}</span>
           ))}
         </div>

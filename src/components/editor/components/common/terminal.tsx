@@ -15,7 +15,7 @@ import {
   useWorkspaceHandle,
   useWorkspaceRx,
   useWorkspaceShells
-} from "@/workspaces/context"
+} from "@/workspaces/context/workspace"
 
 export function Terminal({ shell }: { readonly shell: WorkspaceShell }) {
   return (

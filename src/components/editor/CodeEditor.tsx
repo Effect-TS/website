@@ -4,7 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels"
 import { useRxSet } from "@effect-rx/rx-react"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Workspace } from "@/workspaces/domain/workspace"
-import { useWorkspaceHandle, useWorkspaceShells } from "@/workspaces/context"
+import { useWorkspaceHandle, useWorkspaceShells } from "@/workspaces/context/workspace"
 import { WorkspaceProvider } from "@/workspaces/WorkspaceProvider"
 import { Icon } from "../icons"
 import { PanelResizeHandleVertical } from "../ui/resizable"
@@ -79,7 +79,7 @@ function CodeEditorSuspended({
             direction="horizontal"
             className="border-y border-neutral-300 dark:border-neutral-700"
           >
-            <Tabs defaultValue="terminal">
+            <Tabs defaultValue="terminal" className="flex flex-col">
               <TabsList>
                 <TabsTrigger value="terminal">
                   <Icon name="display" className="h-3 w-3 mr-2" />
@@ -104,7 +104,7 @@ function CodeEditorSuspended({
               <TabsContent
                 value="trace-viewer"
                 forceMount
-                className="h-full w-full data-[state=inactive]:hidden"
+                className="h-full w-full overflow-y-auto data-[state=inactive]:hidden"
               >
                 <TraceViewer />
               </TabsContent>

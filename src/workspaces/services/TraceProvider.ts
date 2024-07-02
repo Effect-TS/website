@@ -14,64 +14,83 @@ import { WebContainer } from "./WebContainer"
 const make = Effect.gen(function* () {
   const { devTools } = yield* WebContainer
 
-  const cache = new Map<string, SpanNode>()
-  const traces = yield* SubscriptionRef.make(Array.empty<SpanNode>())
+  const registry = new Map<string, RxRef.RxRef<SpanNode>>()
+  const rootSpans = yield* SubscriptionRef.make(
+    Array.empty<RxRef.RxRef<SpanNode>>()
+  )
 
   function registerSpan(
     span: DevToolsDomain.ParentSpan
-  ): Effect.Effect<SpanNode> {
+  ): Effect.Effect<RxRef.RxRef<SpanNode>> {
     return Effect.gen(function* () {
-      let node = cache.get(span.spanId)
+      let ref = registry.get(span.spanId)
 
+      // The incoming span is considered an upgrade if:
+      //   1. There is an existing EXTERNAL span registered with the same span
+      //      identifier as the incoming span in the span registry
+      //   2. The incoming span is NOT an external span
+      // This set of conditions indicates that the external span in the registry
+      // should be replaced with the incoming span.
       const isUpgrade =
-        span._tag === "Span" && node?.span._tag === "ExternalSpan"
+        span._tag === "Span" &&
+        ref !== undefined &&
+        ref.value.span._tag === "ExternalSpan"
 
-      if (node === undefined || isUpgrade) {
-        if (node?.isRoot) {
-          yield* SubscriptionRef.update(
-            traces,
-            Array.filter((root) => root !== node)
-          )
+      // Handle the case where we haven't yet added the incoming span to the
+      // registry, or we need to upgrade the existing span
+      if (ref === undefined || isUpgrade) {
+        // // Before any other man
+        // if (ref !== undefined && ref.value.isRoot) {
+        //   yield* SubscriptionRef.update(
+        //     rootSpans,
+        //     Array.filter((spanRef) => spanRef !== ref)
+        //   )
+        // }
+
+        // Create the span node and add its ref to the registry
+        ref = RxRef.make(new SpanNode(span))
+        registry.set(span.spanId, ref)
+
+        // Update the subscription ref if it's a root span
+        if (ref.value.isRoot) {
+          yield* SubscriptionRef.update(rootSpans, Array.prepend(ref))
         }
 
-        node = new SpanNode(span)
-        cache.set(span.spanId, node)
-
-        if (node.isRoot) {
-          yield* SubscriptionRef.update(traces, Array.prepend(node))
-        }
-
+        // Register the parent span, if necessary and add the incoming span as
+        // a child to the parent
         if (span._tag === "Span" && span.parent._tag === "Some") {
-          const parent = yield* registerSpan(span.parent.value)
-          parent.addChild(span.spanId)
+          const parentRef = yield* registerSpan(span.parent.value)
+          parentRef.update((node) => node.addChild(ref!))
         }
+
+        // Handle the case where the incoming span is a child of another span
       } else if (span._tag === "Span" && span.parent._tag === "Some") {
         yield* registerSpan(span.parent.value)
       }
 
       if (span._tag === "Span") {
-        node.span = span
+        ref.update((node) => node.setSpan(span))
       }
 
-      return node
+      return ref
     })
   }
 
   function registerSpanEvent(
-    request: DevToolsDomain.SpanEvent
+    event: DevToolsDomain.SpanEvent
   ): Effect.Effect<void> {
-    return Effect.suspend(() => {
-      const span = cache.get(request.spanId)
-      if (span === undefined) {
-        return Effect.void
+    return Effect.sync(() => {
+      const ref = registry.get(event.spanId)
+      if (ref !== undefined) {
+        ref.update((node) =>
+          node.addEvent(new SpanEventNode(node.span, event))
+        )
       }
-      span.events.events.push(new SpanEventNode(span.span, request))
-      return Effect.void
     })
   }
 
-  function getSpanChildren(node: SpanNode): Array<SpanNode> {
-    return node.children.map((id) => cache.get(id)!)
+  function getSpanChildren(node: SpanNode): Array<RxRef.RxRef<SpanNode>> {
+    return node.children.map((ref) => registry.get(ref.value.spanId)!)
   }
 
   yield* devTools.pipe(
@@ -92,7 +111,7 @@ const make = Effect.gen(function* () {
   )
 
   return {
-    traces,
+    rootSpans,
     getSpanChildren
   } as const
 })
@@ -108,10 +127,19 @@ export class TraceProvider extends Effect.Tag("TraceProvider")<
 
 export class SpanNode {
   readonly _tag = "SpanNode"
+  readonly children: ReadonlyArray<RxRef.RxRef<SpanNode>>
+  readonly events: ReadonlyArray<SpanEventNode>
 
-  constructor(public span: DevToolsDomain.ParentSpan) {}
-
-  events: EventsNode = new EventsNode([])
+  constructor(
+    readonly span: DevToolsDomain.ParentSpan,
+    props: {
+      readonly children?: ReadonlyArray<RxRef.RxRef<SpanNode>>
+      readonly events?: ReadonlyArray<SpanEventNode>
+    } = {}
+  ) {
+    this.children = props.children ?? []
+    this.events = props.events ?? []
+  }
 
   get traceId() {
     return this.span.traceId
@@ -133,7 +161,6 @@ export class SpanNode {
     if (this.span._tag === "ExternalSpan") {
       return true
     }
-
     return this.span.parent._tag === "None"
   }
 
@@ -162,24 +189,28 @@ export class SpanNode {
     return Option.none()
   }
 
-  private _children: Array<string> = []
-  get children(): ReadonlyArray<string> {
-    return this._children
+  setSpan(span: DevToolsDomain.ParentSpan) {
+    return new SpanNode(span, {
+      children: this.children.slice(),
+      events: this.events.slice()
+    })
   }
 
-  addChild(spanId: string) {
-    if (this._children.includes(spanId)) {
-      return
+  addChild(ref: RxRef.RxRef<SpanNode>) {
+    if (this.children.includes(ref)) {
+      return this
     }
-    this._children.push(spanId)
+    return new SpanNode(this.span, {
+      children: Array.append(this.children, ref!),
+      events: this.events.slice()
+    })
   }
-}
 
-export class EventsNode {
-  readonly _tag = "EventsNode"
-  constructor(readonly events: Array<SpanEventNode>) {}
-  get hasEvents() {
-    return this.events.length > 0
+  addEvent(event: SpanEventNode) {
+    return new SpanNode(this.span, {
+      children: this.children.slice(),
+      events: Array.append(this.events, event)
+    })
   }
 }
 
