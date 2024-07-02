@@ -11,6 +11,8 @@ It allows us to put a time constraint on an operation, ensuring that it doesn't 
 
 ## Basic Usage
 
+### timeout
+
 The `Effect.timeout` function employs a [Duration](../../other/data-types/duration) parameter to establish a time limit on an operation. If the operation exceeds this limit, a `TimeoutException` is triggered, indicating a timeout has occurred.
 
 Here's a basic example where `Effect.timeout` is applied to an operation:
@@ -38,6 +40,69 @@ Processing complete.
 { _id: 'Exit', _tag: 'Success', value: 'Result' }
 */
 ```
+
+In the above example, the operation completes within the specified duration, so the result is returned successfully.
+
+If the operation takes longer than the specified duration, a `TimeoutException` is raised:
+
+```ts twoslash
+import { Effect } from "effect"
+
+const myEffect = Effect.gen(function* () {
+  console.log("Start processing...")
+  yield* Effect.sleep("2 seconds")
+  console.log("Processing complete.")
+  return "Result"
+})
+// ---cut---
+const timedEffect = myEffect.pipe(Effect.timeout("1 second"))
+
+Effect.runPromiseExit(timedEffect).then(console.log)
+/*
+Output:
+Start processing...
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: { _tag: 'TimeoutException' } }
+}
+*/
+```
+
+### timeoutOption
+
+If you want to handle the timeout as a regular result, you can use `Effect.timeoutOption` instead of `Effect.timeout`.
+
+```ts twoslash
+import { Effect } from "effect"
+
+const myEffect = Effect.gen(function* () {
+  console.log("Start processing...")
+  yield* Effect.sleep("2 seconds")
+  console.log("Processing complete.")
+  return "Result"
+})
+
+const timedOutEffect = Effect.all([
+  myEffect.pipe(Effect.timeoutOption("3 seconds")),
+  myEffect.pipe(Effect.timeoutOption("1 second"))
+])
+
+Effect.runPromise(timedOutEffect).then(console.log)
+/*
+Output:
+Start processing...
+Processing complete.
+Start processing...
+[
+  { _id: 'Option', _tag: 'Some', value: 'Result' },
+  { _id: 'Option', _tag: 'None' }
+]
+*/
+```
+
+In this example, the first effect completes within the specified duration, while the second effect times out.
+The result of the timed-out effect is wrapped in an [Option](../../other/data-types/option) type, allowing you to handle the timeout as a regular result.
 
 ## Handling Timeouts
 
@@ -163,46 +228,9 @@ Heavy processing done.
 
 In addition to the basic `Effect.timeout` function, there are variations available that allow you to customize the behavior when a timeout occurs.
 
-### timeoutTo
-
-The `timeoutTo` function is similar to `Effect.timeout`, but it provides more control over the final result type.
-It allows you to define alternative outcomes for both successful and timed-out operations:
-
-```ts twoslash
-import { Effect, Either } from "effect"
-
-const myEffect = Effect.gen(function* () {
-  console.log("Start processing...")
-  yield* Effect.sleep("2 seconds") // Simulates a delay in processing
-  console.log("Processing complete.")
-  return "Result"
-})
-
-const main = myEffect.pipe(
-  Effect.timeoutTo({
-    duration: "1 second",
-    // let's return an Either
-    onSuccess: (result): Either.Either<string, string> =>
-      Either.right(result),
-    onTimeout: (): Either.Either<string, string> => Either.left("Timed out!")
-  })
-)
-
-Effect.runPromise(main).then(console.log)
-/*
-Output:
-Start processing...
-{
-  _id: "Either",
-  _tag: "Left",
-  left: "Timed out!"
-}
-*/
-```
-
 ### timeoutFail
 
-The `timeoutFail` function allows you to produce a specific error when a timeout happens:
+The `Effect.timeoutFail` function allows you to produce a specific error when a timeout happens:
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -218,14 +246,14 @@ class MyTimeoutError {
   readonly _tag = "MyTimeoutError"
 }
 
-const main = myEffect.pipe(
+const program = myEffect.pipe(
   Effect.timeoutFail({
     duration: "1 second",
     onTimeout: () => new MyTimeoutError()
   })
 )
 
-Effect.runPromiseExit(main).then(console.log)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 Start processing...
@@ -243,7 +271,7 @@ Start processing...
 
 ### timeoutFailCause
 
-The `timeoutFailCause` function allows you to produce a specific defect when a timeout occurs.
+The `Effect.timeoutFailCause` function allows you to produce a specific defect when a timeout occurs.
 This is useful when you need to handle timeouts as exceptional cases in your code:
 
 ```ts twoslash
@@ -256,14 +284,14 @@ const myEffect = Effect.gen(function* () {
   return "Result"
 })
 
-const main = myEffect.pipe(
+const program = myEffect.pipe(
   Effect.timeoutFailCause({
     duration: "1 second",
     onTimeout: () => Cause.die("Timed out!")
   })
 )
 
-Effect.runPromiseExit(main).then(console.log)
+Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 Start processing...
@@ -271,6 +299,43 @@ Start processing...
   _id: 'Exit',
   _tag: 'Failure',
   cause: { _id: 'Cause', _tag: 'Die', defect: 'Timed out!' }
+}
+*/
+```
+
+### timeoutTo
+
+The `Effect.timeoutTo` function is similar to `Effect.timeout`, but it provides more control over the final result type.
+It allows you to define alternative outcomes for both successful and timed-out operations:
+
+```ts twoslash
+import { Effect, Either } from "effect"
+
+const myEffect = Effect.gen(function* () {
+  console.log("Start processing...")
+  yield* Effect.sleep("2 seconds") // Simulates a delay in processing
+  console.log("Processing complete.")
+  return "Result"
+})
+
+const program = myEffect.pipe(
+  Effect.timeoutTo({
+    duration: "1 second",
+    // let's return an Either
+    onSuccess: (result): Either.Either<string, string> =>
+      Either.right(result),
+    onTimeout: (): Either.Either<string, string> => Either.left("Timed out!")
+  })
+)
+
+Effect.runPromise(program).then(console.log)
+/*
+Output:
+Start processing...
+{
+  _id: "Either",
+  _tag: "Left",
+  left: "Timed out!"
 }
 */
 ```
