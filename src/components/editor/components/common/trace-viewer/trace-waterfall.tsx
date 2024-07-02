@@ -1,6 +1,11 @@
 import React, { useMemo } from "react"
 import { Array, Duration, Option } from "effect"
-import { useRxSuspenseSuccess, useRxValue } from "@effect-rx/rx-react"
+import {
+  RxRef,
+  useRxRef,
+  useRxSuspenseSuccess,
+  useRxValue
+} from "@effect-rx/rx-react"
 import {
   CellContext,
   ColumnDef,
@@ -27,6 +32,11 @@ import { SpanNode } from "@/workspaces/services/TraceProvider"
 import { TraceDetails } from "./trace-details"
 import { TraceTree } from "./trace-tree"
 import { formatDuration } from "./utils"
+import {
+  useDevTools,
+  useSelectedSpan,
+  useSelectedSpanRef
+} from "@/workspaces/context/devtools"
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
@@ -34,10 +44,10 @@ declare module "@tanstack/react-table" {
   }
 }
 
-const columns: Array<ColumnDef<SpanNode>> = [
+const columns: Array<ColumnDef<RxRef.RxRef<SpanNode>>> = [
   {
     id: "name",
-    accessorFn: (node) => node.label,
+    accessorFn: (node) => node,
     header: () => (
       <h5 role="columnheader" className="ml-2 !font-bold">
         Name
@@ -59,35 +69,34 @@ const columns: Array<ColumnDef<SpanNode>> = [
       grow: true
     },
     enableResizing: false
-  },
-  {
-    id: "duration",
-    accessorFn: (node) => node.duration
-  },
-  {
-    id: "attributes",
-    accessorFn: (node) => Array.fromIterable(node.attributes)
-  },
-  {
-    id: "events",
-    accessorFn: (node) => node.events
   }
+  // {
+  //   id: "duration",
+  //   accessorFn: (node) => node.duration
+  // },
+  // {
+  //   id: "attributes",
+  //   accessorFn: (node) => Array.fromIterable(node.attributes)
+  // },
+  // {
+  //   id: "events",
+  //   accessorFn: (node) => node.events
+  // }
 ]
 
 export function TraceWaterfall() {
-  const devTools = useRxSuspenseSuccess(devToolsRx).value
-  const traces = useRxValue(devTools.traces)
-  const selected = useRxValue(devTools.selectedTrace)
-  const data = useMemo(
-    () => Array.fromNullable(traces[selected]),
-    [traces, selected]
-  )
+  const devTools = useDevTools()
+  const selectedSpan = useSelectedSpanRef()
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>(
     {}
   )
   const [expanded, setExpanded] = React.useState<ExpandedState>(true)
+  const data = useMemo(
+    () => (selectedSpan.value === undefined ? [] : [selectedSpan]),
+    [selectedSpan]
+  )
 
-  const table = useReactTable<SpanNode>({
+  const table = useReactTable<RxRef.RxRef<SpanNode>>({
     data,
     columns,
     state: {
@@ -106,7 +115,8 @@ export function TraceWaterfall() {
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    getSubRows: (node) => devTools.getSpanChildren(node)
+    getSubRows: (ref) => devTools.getSpanChildren(ref.value),
+    debugAll: true
   })
 
   const columnSizeVars = React.useMemo(() => {
@@ -180,7 +190,7 @@ const MemoizedTableBody = React.memo(
 function UnmemoizedTableBody({
   table
 }: {
-  readonly table: ReactTable<SpanNode>
+  readonly table: ReactTable<RxRef.RxRef<SpanNode>>
 }) {
   return (
     <TableBody>
@@ -227,7 +237,12 @@ function UnmemoizedTableBody({
   )
 }
 
-function NameCell({ getValue, row }: CellContext<SpanNode, unknown>) {
+function NameCell({
+  getValue,
+  row
+}: CellContext<RxRef.RxRef<SpanNode>, unknown>) {
+  const ref = getValue<RxRef.RxRef<SpanNode>>()
+  const node = useRxRef(ref)
   return (
     <div className="h-full flex items-start ml-2 overflow-hidden text-ellipsis whitespace-nowrap">
       <button
@@ -239,7 +254,7 @@ function NameCell({ getValue, row }: CellContext<SpanNode, unknown>) {
       </button>
       <div className="h-8 flex items-center">
         <span className="ml-1.5 overflow-hidden text-ellipsis">
-          {getValue<string>()}
+          {node.label}
         </span>
       </div>
     </div>
@@ -250,11 +265,12 @@ function DurationCell({
   getValue,
   row,
   column
-}: CellContext<SpanNode, unknown>) {
-  const currentSpan = getValue<SpanNode>()
+}: CellContext<RxRef.RxRef<SpanNode>, unknown>) {
+  const ref = getValue<RxRef.RxRef<SpanNode>>()
+  const currentSpan = useRxRef(ref)
   const root = currentSpan.isRoot
     ? currentSpan
-    : row.getParentRows()[0]?.original
+    : row.getParentRows()[0]?.original.value
 
   if (root === undefined) {
     return null
@@ -293,7 +309,7 @@ function DurationCell({
             </span>
           </div>
         </button>
-        {row.getIsSelected() && <TraceDetails row={row} />}
+        {row.getIsSelected() && <TraceDetails span={currentSpan} />}
       </div>
     </div>
   )

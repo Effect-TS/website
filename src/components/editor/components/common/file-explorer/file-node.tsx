@@ -20,7 +20,7 @@ import {
   TooltipTrigger
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { useWorkspaceHandle } from "@/workspaces/context"
+import { useWorkspaceHandle } from "@/workspaces/context/workspace"
 import { Directory, File } from "@/workspaces/domain/workspace"
 import {
   State,

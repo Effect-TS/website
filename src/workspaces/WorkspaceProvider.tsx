@@ -1,8 +1,8 @@
 import React, { ReactNode } from "react"
 import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
+import { WorkspaceContext } from "./context/workspace"
 import { Workspace } from "./domain/workspace"
 import { workspaceHandleRx } from "./rx/workspace"
-import { WorkspaceContext } from "./context"
 
 export function WorkspaceProvider({
   workspace,

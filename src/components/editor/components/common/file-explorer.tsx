@@ -1,6 +1,6 @@
 import React, { useCallback } from "react"
 import { Data, Option } from "effect"
-import { useWorkspaceHandle, useWorkspaceTree } from "@/workspaces/context"
+import { useWorkspaceHandle, useWorkspaceTree } from "@/workspaces/context/workspace"
 import { FileTree } from "./file-explorer/file-tree"
 import { File, Directory } from "@/workspaces/domain/workspace"
 import { Rx, useRxSet, useRxValue } from "@effect-rx/rx-react"
