@@ -20,23 +20,6 @@ import {
 export function Terminal({ shell }: { readonly shell: WorkspaceShell }) {
   return (
     <div className="relative z-0 h-full flex flex-col">
-      <div className="font-mono font-bold text-xs border-y border-neutral-300 dark:border-neutral-700 flex px-2 items-center">
-        <Icon name="display" className="h-3 pr-2" />
-        <span className="py-1">
-          Terminal
-          {shell.label && (
-            <>
-              {" "}
-              &mdash;{" "}
-              <span className="bg-neutral-600 px-2 py-0.5 text-white rounded-full">
-                {shell.label}
-              </span>
-            </>
-          )}
-        </span>
-        {/*<div className="flex-1" />
-        <AddRemoveButton shell={shell} />*/}
-      </div>
       <Suspense fallback={null}>
         <div className="flex-1 overflow-hidden">
           <Shell shell={shell} />
