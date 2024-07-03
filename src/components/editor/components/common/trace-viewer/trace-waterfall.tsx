@@ -70,18 +70,6 @@ const columns: Array<ColumnDef<RxRef.RxRef<SpanNode>>> = [
     },
     enableResizing: false
   }
-  // {
-  //   id: "duration",
-  //   accessorFn: (node) => node.duration
-  // },
-  // {
-  //   id: "attributes",
-  //   accessorFn: (node) => Array.fromIterable(node.attributes)
-  // },
-  // {
-  //   id: "events",
-  //   accessorFn: (node) => node.events
-  // }
 ]
 
 export function TraceWaterfall() {
@@ -115,8 +103,7 @@ export function TraceWaterfall() {
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    getSubRows: (ref) => devTools.getSpanChildren(ref.value),
-    debugAll: true
+    getSubRows: (ref) => devTools.getSpanChildren(ref.value)
   })
 
   const columnSizeVars = React.useMemo(() => {
