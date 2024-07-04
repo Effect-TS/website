@@ -489,7 +489,7 @@ function run() {
     "--sourceMap", "true",
     "--target", "esnext",
     program,
-    "--onSuccess", \`node \${compiledProgram}\`
+    "--onSuccess", \`node --enable-source-maps \${compiledProgram}\`
   ], {
     stdio: "inherit"
   }).on("exit", function() {
