@@ -97,7 +97,7 @@ function CodeEditorSuspended({
               <TabsContent
                 value="terminal"
                 forceMount
-                className="data-[state=inactive]:hidden"
+                className="h-full w-full overflow-y-auto data-[state=inactive]:hidden"
               >
                 <WorkspaceShells />
               </TabsContent>
@@ -133,7 +133,7 @@ function WorkspaceShells() {
           {index > 0 && (
             <PanelResizeHandleVertical id={`${Hash.hash(shell)}`} />
           )}
-          <Panel id={`${Hash.hash(shell)}`} onResize={onResize} order={index}>
+          <Panel id={`${Hash.hash(shell)}`} onResize={onResize} order={index} className="h-full">
             <Terminal shell={shell} />
           </Panel>
         </Fragment>
