@@ -486,6 +486,7 @@ function run() {
   ChildProcess.spawn("tsc-watch", [
     "--module", "nodenext",
     "--outDir", outDir,
+    "--sourceMap", "true",
     "--target", "esnext",
     program,
     "--onSuccess", \`node \${compiledProgram}\`

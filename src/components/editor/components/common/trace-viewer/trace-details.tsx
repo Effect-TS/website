@@ -20,7 +20,7 @@ import { formatDuration } from "./utils"
 
 export function TraceDetails({ span }: { readonly span: SpanNode }) {
   return (
-    <div className="flex flex-col mb-1 p-2 bg-black rounded-sm">
+    <div className="flex flex-col mb-1 p-2 border border-black/40 dark:border-none dark:bg-black rounded-sm">
       <div className="flex justify-between mb-2 px-2 pb-1 border-b">
         <h3 className="font-display text-lg">{span.label}</h3>
         <div>
@@ -34,7 +34,7 @@ export function TraceDetails({ span }: { readonly span: SpanNode }) {
         <AccordionItem value="attributes" className="mb-2">
           <AccordionTrigger
             icon="left"
-            className="py-0 pl-2 justify-start font-display data-[state=open]:mb-1"
+            className="py-0 pl-2 justify-start font-display data-[state=open]:mb-1 !no-underline"
           >
             <span className="ml-1">Attributes</span>
           </AccordionTrigger>
@@ -45,14 +45,17 @@ export function TraceDetails({ span }: { readonly span: SpanNode }) {
         <AccordionItem value="events">
           <AccordionTrigger
             icon="left"
-            className="py-1 pl-2 justify-start bg-muted font-display"
+            className="py-1 pl-2 justify-start bg-muted font-display !no-underline"
           >
             <span className="ml-1">Events</span>
           </AccordionTrigger>
           <AccordionContent className="py-2 bg-muted/80">
             <TraceEvents events={span.events} />
             <div className="mt-2 ml-2 text-xs text-muted-foreground">
-              <span>Log timestamps are relative to the start time of the full trace</span>
+              <span>
+                Log timestamps are relative to the start time of the full
+                trace
+              </span>
             </div>
           </AccordionContent>
         </AccordionItem>
@@ -75,14 +78,19 @@ function TraceAttributes({
           <TableHeader className="hidden">
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Value</TableHead>
+              <TableHead className="w-full">Value</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="[&>tr>td]:py-1">
             {Array.from(attributes).map(([key, value]) => (
-              <TableRow key={key} className="even:bg-muted odd:bg-primary-foreground">
+              <TableRow
+                key={key}
+                className="even:bg-muted odd:bg-primary-foreground"
+              >
                 <TableCell className="font-medium">{key}</TableCell>
-                <TableCell>{JSON.stringify(value)}</TableCell>
+                <TableCell className="w-full">
+                  {JSON.stringify(value)}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -132,31 +140,41 @@ function TraceEvent({ node }: { readonly node: SpanEventNode }) {
     <>
       <AccordionTrigger
         icon="left"
-        className="p-0 justify-start font-display data-[state=open]:mb-1"
+        className="group p-0 justify-start font-display data-[state=open]:mb-1 !no-underline"
       >
-        <span className="ml-1">{eventTimestamp}</span>
+        <div className="max-w-32 ml-1 truncate">
+          <span>{eventTimestamp}</span>
+          <span className="ml-2 text-xs text-muted-foreground font-light group-data-[state=open]:hidden">
+            {node.event.name}
+          </span>
+        </div>
       </AccordionTrigger>
       <AccordionContent className="p-0">
-          <Table>
-            <TableHeader className="hidden">
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Value</TableHead>
+        <Table>
+          <TableHeader className="hidden">
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead className="w-full">Value</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="[&>tr>td]:py-1">
+            <TableRow className="even:bg-muted odd:bg-primary-foreground">
+              <TableCell className="font-medium">message</TableCell>
+              <TableCell>{JSON.stringify(node.event.name)}</TableCell>
+            </TableRow>
+            {Object.entries(node.event.attributes).map(([key, value]) => (
+              <TableRow
+                key={key}
+                className="even:bg-muted odd:bg-primary-foreground"
+              >
+                <TableCell className="font-medium">{key}</TableCell>
+                <TableCell className="w-full">
+                  {JSON.stringify(value)}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody className="[&>tr>td]:py-1">
-              <TableRow className="even:bg-muted odd:bg-primary-foreground">
-                <TableCell className="font-medium">message</TableCell>
-                <TableCell>{JSON.stringify(node.event.name)}</TableCell>
-              </TableRow>
-              {Object.entries(node.event.attributes).map(([key, value]) => (
-                <TableRow key={key} className="even:bg-muted odd:bg-primary-foreground">
-                  <TableCell className="font-medium">{key}</TableCell>
-                  <TableCell>{JSON.stringify(value)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+            ))}
+          </TableBody>
+        </Table>
       </AccordionContent>
     </>
   )
