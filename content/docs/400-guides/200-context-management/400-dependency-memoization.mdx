@@ -12,6 +12,10 @@ Layer.merge(Layer.provide(b, a), Layer.provide(c, a))
 
 then the `a` layer will be allocated only once.
 
+<Info>
+Layers are memoized using **reference equality**. Therefore, if you have a layer that is created by calling a function like `f()`, you should _only_ call that `f` once and re-use the resulting layer so that you are always using the same instance.
+</Info>
+
 ## Memoization When Providing Globally
 
 One important feature of an Effect application is that layers are shared by default. This means that if the same layer is used twice, and if we provide the layer globally, the layer will only be allocated a single time. For every layer in our dependency graph, there is only one instance of it that is shared between all the layers that depend on it.
