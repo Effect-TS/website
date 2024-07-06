@@ -27,16 +27,11 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
-import { devToolsRx } from "@/workspaces/rx/devtools"
-import { SpanNode } from "@/workspaces/services/TraceProvider"
+import { Span } from "@/workspaces/domain/devtools"
 import { TraceDetails } from "./trace-details"
 import { TraceTree } from "./trace-tree"
 import { formatDuration } from "./utils"
-import {
-  useDevTools,
-  useSelectedSpan,
-  useSelectedSpanRef
-} from "@/workspaces/context/devtools"
+import { useSelectedSpanValue } from "@/workspaces/context/devtools"
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
@@ -44,7 +39,7 @@ declare module "@tanstack/react-table" {
   }
 }
 
-const columns: Array<ColumnDef<RxRef.RxRef<SpanNode>>> = [
+const columns: Array<ColumnDef<Span>> = [
   {
     id: "name",
     accessorFn: (node) => node,
@@ -73,18 +68,17 @@ const columns: Array<ColumnDef<RxRef.RxRef<SpanNode>>> = [
 ]
 
 export function TraceWaterfall() {
-  const devTools = useDevTools()
-  const selectedSpan = useSelectedSpanRef()
+  const selectedSpan = useSelectedSpanValue()
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>(
     {}
   )
   const [expanded, setExpanded] = React.useState<ExpandedState>(true)
   const data = useMemo(
-    () => (selectedSpan.value === undefined ? [] : [selectedSpan]),
+    () => (selectedSpan === undefined ? [] : [selectedSpan]),
     [selectedSpan]
   )
 
-  const table = useReactTable<RxRef.RxRef<SpanNode>>({
+  const table = useReactTable<Span>({
     data,
     columns,
     state: {
@@ -103,7 +97,7 @@ export function TraceWaterfall() {
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    getSubRows: (ref) => devTools.getSpanChildren(ref.value)
+    getSubRows: (span) => span.children as Array<Span>
   })
 
   const columnSizeVars = React.useMemo(() => {
@@ -177,7 +171,7 @@ const MemoizedTableBody = React.memo(
 function UnmemoizedTableBody({
   table
 }: {
-  readonly table: ReactTable<RxRef.RxRef<SpanNode>>
+  readonly table: ReactTable<Span>
 }) {
   return (
     <TableBody>
@@ -224,12 +218,8 @@ function UnmemoizedTableBody({
   )
 }
 
-function NameCell({
-  getValue,
-  row
-}: CellContext<RxRef.RxRef<SpanNode>, unknown>) {
-  const ref = getValue<RxRef.RxRef<SpanNode>>()
-  const node = useRxRef(ref)
+function NameCell({ getValue, row }: CellContext<Span, unknown>) {
+  const node = getValue<Span>()
   return (
     <div className="h-full flex items-start ml-2 overflow-hidden text-ellipsis whitespace-nowrap">
       <button
@@ -248,16 +238,11 @@ function NameCell({
   )
 }
 
-function DurationCell({
-  getValue,
-  row,
-  column
-}: CellContext<RxRef.RxRef<SpanNode>, unknown>) {
-  const ref = getValue<RxRef.RxRef<SpanNode>>()
-  const currentSpan = useRxRef(ref)
+function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
+  const currentSpan = getValue<Span>()
   const root = currentSpan.isRoot
     ? currentSpan
-    : row.getParentRows()[0]?.original.value
+    : row.getParentRows()[0]?.original
 
   if (root === undefined) {
     return null

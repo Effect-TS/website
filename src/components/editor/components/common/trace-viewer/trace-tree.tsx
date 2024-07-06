@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { RxRef } from "@effect-rx/rx-react"
 import { Row } from "@tanstack/react-table"
-import { SpanNode } from "@/workspaces/services/TraceProvider"
+import { Span } from "@/workspaces/domain/devtools"
 
-export function TraceTree({ row }: { readonly row: Row<RxRef.RxRef<SpanNode>> }) {
+export function TraceTree({ row }: { readonly row: Row<Span> }) {
   const ref = useRef<SVGSVGElement>(null)
   const [height, setHeight] = useState(32)
 
@@ -133,7 +133,7 @@ function VerticalBranchConnectors({
   row
 }: {
   readonly height: number
-  readonly row: Row<RxRef.RxRef<SpanNode>>
+  readonly row: Row<Span>
 }) {
   const depthsWithChildren = useMemo(() => getDepthsWithChildren(row), [row])
   return Array.from({ length: row.depth }, (_, index) => {
@@ -183,7 +183,7 @@ function VerticalBranchConnectors({
  * children that will be rendered after the current row.
  */
 function getDepthsWithChildren(
-  row: Row<RxRef.RxRef<SpanNode>>,
+  row: Row<Span>,
   depths: Array<number> = []
 ): ReadonlyArray<number> {
   const parentRow = row.getParentRow()

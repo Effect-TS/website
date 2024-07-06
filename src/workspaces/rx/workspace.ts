@@ -1,5 +1,5 @@
-import { Array, Effect, Layer, Stream, pipe } from "effect"
-import { Result, Rx } from "@effect-rx/rx-react"
+import { Effect, Layer, Stream, pipe } from "effect"
+import { Rx } from "@effect-rx/rx-react"
 import { themeRx } from "@/rx/theme"
 import {
   Directory,
