@@ -1,15 +1,12 @@
-import { SpanNode } from "@/workspaces/services/TraceProvider"
+import { Span } from "@/workspaces/domain/devtools"
 import { Duration } from "effect"
 
-export function getTotalSpans(
-  trace: SpanNode,
-  getChildren: (node: SpanNode) => ReadonlyArray<SpanNode>
-): number {
+export function getTotalSpans(span: Span): number {
   let total = 1
-  const stack = [trace]
+  const stack = [span]
   while (stack.length > 0) {
     const node = stack.pop()!
-    const children = getChildren(node)
+    const children = node.children
     if (children.length > 0) {
       total += children.length
       for (const child of children) {

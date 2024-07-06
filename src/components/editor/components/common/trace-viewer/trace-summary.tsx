@@ -1,25 +1,27 @@
 import React, { useMemo } from "react"
 import { Duration, Option } from "effect"
 import { Icon } from "@/components/icons"
-import { useDevTools, useSelectedSpan } from "@/workspaces/context/devtools"
+import { useSelectedSpanValue } from "@/workspaces/context/devtools"
 import { formatDuration, getTotalSpans } from "./utils"
 
 export function TraceSummary() {
-  const devTools = useDevTools()
-  const selectedSpan = useSelectedSpan()
+  const selectedSpan = useSelectedSpanValue()
   const summary = useMemo(() => {
     if (selectedSpan !== undefined) {
-      const startTime = Option.getOrThrow(selectedSpan.startTime)
-      const endTime = Option.getOrThrow(selectedSpan.endTime)
-      const date = new Date(Duration.toMillis(startTime)).toString()
-      const duration = formatDuration(Duration.subtract(endTime, startTime))
-      const totalSpans = getTotalSpans(selectedSpan, (node) =>
-        devTools.getSpanChildren(node).map((ref) => ref.value)
-      )
-      return `${totalSpans} spans at ${date} (${duration})`
+      let summary = `${getTotalSpans(selectedSpan)} spans`
+      if (Option.isSome(selectedSpan.startTime)) {
+        const startTime = Duration.toMillis(selectedSpan.startTime.value)
+        const date = new Date(startTime).toString()
+        summary +=  ` at ${date}`
+      }
+      if (Option.isSome(selectedSpan.duration)) {
+        const duration = formatDuration(selectedSpan.duration.value)
+        summary += ` (${duration})`
+      }
+      return summary
     }
     return ""
-  }, [devTools, selectedSpan])
+  }, [selectedSpan])
 
   return (
     <p className="ml-2 py-3">

@@ -14,21 +14,23 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table"
-import { useSelectedSpan } from "@/workspaces/context/devtools"
-import { SpanEventNode, SpanNode } from "@/workspaces/services/TraceProvider"
+import { useSelectedSpanValue } from "@/workspaces/context/devtools"
+import { Event, Span } from "@/workspaces/domain/devtools"
 import { formatDuration } from "./utils"
 
-export function TraceDetails({ span }: { readonly span: SpanNode }) {
+export function TraceDetails({ span }: { readonly span: Span }) {
   return (
     <div className="flex flex-col mb-1 p-2 border border-black/40 dark:border-none dark:bg-black rounded-sm">
       <div className="flex justify-between mb-2 px-2 pb-1 border-b">
         <h3 className="font-display text-lg">{span.label}</h3>
-        <div>
-          <span className="mr-1 text-muted-foreground">Duration:</span>
-          <span className="text-foreground">
-            {formatDuration(Option.getOrThrow(span.duration))}
-          </span>
-        </div>
+        {Option.isSome(span.duration) && (
+          <div>
+            <span className="mr-1 text-muted-foreground">Duration:</span>
+            <span className="text-foreground">
+              {formatDuration(span.duration.value)}
+            </span>
+          </div>
+        )}
       </div>
       <Accordion type="multiple">
         <AccordionItem value="attributes" className="mb-2">
@@ -45,16 +47,16 @@ export function TraceDetails({ span }: { readonly span: SpanNode }) {
         <AccordionItem value="events">
           <AccordionTrigger
             icon="left"
-            className="py-1 pl-2 justify-start bg-muted font-display !no-underline"
+            className="py-1 pl-2 justify-start dark:bg-muted font-display !no-underline"
           >
             <span className="ml-1">Events</span>
           </AccordionTrigger>
-          <AccordionContent className="py-2 bg-muted/80">
+          <AccordionContent className="py-2 bg-zinc-200 dark:bg-muted/80">
             <TraceEvents events={span.events} />
             <div className="mt-2 ml-2 text-xs text-muted-foreground">
               <span>
                 Log timestamps are relative to the start time of the full
-                trace
+                trace.
               </span>
             </div>
           </AccordionContent>
@@ -67,12 +69,12 @@ export function TraceDetails({ span }: { readonly span: SpanNode }) {
 function TraceAttributes({
   attributes
 }: {
-  readonly attributes: ReadonlyArray<[string, string]>
+  readonly attributes: ReadonlyArray<[string, unknown]>
 }) {
   return (
     <div className="ml-2">
       {attributes.length === 0 ? (
-        <span>No attributes</span>
+        <span className="ml-2 text-xs text-muted-foreground font-medium">No attributes</span>
       ) : (
         <Table>
           <TableHeader className="hidden">
@@ -100,15 +102,11 @@ function TraceAttributes({
   )
 }
 
-function TraceEvents({
-  events
-}: {
-  readonly events: ReadonlyArray<SpanEventNode>
-}) {
+function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
   return (
     <div className="ml-2">
       {events.length === 0 ? (
-        <span>No Events</span>
+        <span className="ml-2 text-xs text-muted-foreground font-medium">No Events</span>
       ) : (
         <Accordion type="multiple" className="w-fit">
           {events.map((node, index) => (
@@ -122,10 +120,12 @@ function TraceEvents({
   )
 }
 
-function TraceEvent({ node }: { readonly node: SpanEventNode }) {
-  const selectedSpan = useSelectedSpan()
+function TraceEvent({ node }: { readonly node: Event }) {
+  const selectedSpan = useSelectedSpanValue()
   const eventTimestamp = useMemo(() => {
     if (selectedSpan !== undefined) {
+      // Since external spans will not have events, it is safe to `.getOrThrow`
+      // the `startTime` of the selected span
       const traceStartTime = Option.getOrThrow(selectedSpan.startTime)
       const eventStartTime = Duration.nanos(node.event.startTime)
       const relativeTimestamp = Duration.subtract(

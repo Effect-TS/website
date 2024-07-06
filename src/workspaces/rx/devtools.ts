@@ -1,22 +1,21 @@
 import { Effect } from "effect"
-import { Rx, RxRef } from "@effect-rx/rx-react"
-import { SpanNode, TraceProvider } from "../services/TraceProvider"
+import { Rx } from "@effect-rx/rx-react"
+import { Span } from "../domain/devtools"
+import { TraceProvider } from "../services/TraceProvider"
 
 const devToolsRuntime = Rx.runtime(TraceProvider.Live)
 
-const EMPTY_REF = RxRef.make(undefined)
-
 export const devToolsRx = devToolsRuntime.rx(
   Effect.gen(function* () {
-    const { rootSpans, getSpanChildren } = yield* TraceProvider
+    const { rootSpans } = yield* TraceProvider
 
     const rootSpansRx = Rx.subscriptionRef(rootSpans)
     const selectedSpanIndexRx = Rx.make(0)
     const selectedSpanRx = Rx.writable(
-      (get): RxRef.RxRef<SpanNode> | RxRef.RxRef<undefined> => {
+      (get): Span | undefined => {
         const rootSpans = get(rootSpansRx)
         const index = get(selectedSpanIndexRx)
-        return rootSpans[index] ?? EMPTY_REF
+        return rootSpans[index]
       },
       (ctx, index: number) => ctx.set(selectedSpanIndexRx, index)
     )
@@ -24,8 +23,7 @@ export const devToolsRx = devToolsRuntime.rx(
     return {
       rootSpans: rootSpansRx,
       selectedSpan: selectedSpanRx,
-      selectedSpanIndex: selectedSpanIndexRx,
-      getSpanChildren
+      selectedSpanIndex: selectedSpanIndexRx
     }
   })
 )

@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils"
 import {
   useDevTools,
   useSelectedSpan,
-  useSetSelectedSpan,
   useSelectedSpanIndex
 } from "@/workspaces/context/devtools"
 
@@ -27,8 +26,7 @@ export function TraceSelector() {
   const [open, setOpen] = useState(false)
   const devTools = useDevTools()
   const rootSpans = useRxValue(devTools.rootSpans)
-  const span = useSelectedSpan()
-  const setSelectedSpan = useSetSelectedSpan()
+  const [span, setSelectedSpan] = useSelectedSpan()
   const selectedSpanIndex = useSelectedSpanIndex()
   return (
     <Popover>
@@ -53,15 +51,15 @@ export function TraceSelector() {
           <CommandEmpty>No traces found.</CommandEmpty>
           <CommandGroup heading="Traces">
             <CommandList>
-              {rootSpans.map((ref, index) => (
+              {rootSpans.map((root, index) => (
                 <CommandItem
-                  key={ref.value.traceId}
+                  key={root.traceId}
                   onSelect={() => {
                     setSelectedSpan(index)
                     setOpen(false)
                   }}
                 >
-                  {ref.value.traceId}
+                  {root.traceId}
                   <Icon
                     name="check"
                     className={cn(
