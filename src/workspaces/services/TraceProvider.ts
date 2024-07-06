@@ -48,9 +48,7 @@ const make = Effect.gen(function* () {
           return Effect.void
         }
         case "Span": {
-          return registerSpan(request).pipe(
-            Effect.andThen(Effect.log("Done processing span"))
-          )
+          return registerSpan(request)
         }
         case "SpanEvent": {
           return registerSpanEvent(request)
