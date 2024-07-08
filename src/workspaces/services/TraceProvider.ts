@@ -1,5 +1,6 @@
 import {
   Array,
+  Console,
   Effect,
   Layer,
   Option,
@@ -24,7 +25,7 @@ const make = Effect.gen(function* () {
         Option.flatMap((index) =>
           Array.modifyOption(rootSpans, index, (root) => root.addSpan(span))
         ),
-        Option.getOrElse(() => Array.append(rootSpans, Span.fromSpan(span)))
+        Option.getOrElse(() => Array.prepend(rootSpans, Span.fromSpan(span)))
       )
     )
   }

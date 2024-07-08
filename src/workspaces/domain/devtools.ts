@@ -1,4 +1,4 @@
-import { Array, Data, Duration, Option } from "effect"
+import { Array, Data, Duration, Option, pipe } from "effect"
 import { ParentSpan, SpanEvent } from "@effect/experimental/DevTools/Domain"
 
 export class Span {
@@ -121,73 +121,70 @@ export class Span {
    * Adds the provided `span` to this span.
    */
   addSpan(span: ParentSpan): Span {
-    // This **should** never happen
+    // If the incoming span is an external span, it becomes the root
     if (span._tag === "ExternalSpan") {
-      return new Span({
-        span,
-        children: this.children,
-        events: this.events
-      })
-    }
-
-    // The root trace needs to be upgraded from an external span
-    if (
-      this.span._tag === "ExternalSpan" &&
-      span._tag === "Span" &&
-      Option.isNone(span.parent)
-    ) {
       return new Span({ span })
     }
-
-    // The incoming span needs to be inserted into the span tree
-    const parent = Option.getOrThrow(span.parent)
-    function addSpanLoop(current: Span): Span {
-      // If the current span identifier matches the incoming span's **parent**
-      // identifier, then the current span needs to be inserted into the
-      // children of the current node
-      if (current.spanId === parent.spanId) {
-        return current.hasChild(span.spanId)
-          ? current
-          : current.addChild(new Span({ span }))
-      }
-      return current.mapChildren(addSpanLoop)
+    // If this span is an external span and the incoming span is a regualar span
+    // then we need to upgrade this span
+    const isUpgrade =
+      span._tag === "Span" && this.span._tag === "ExternalSpan"
+    if (isUpgrade && Option.isNone(span.parent)) {
+      return new Span({ span })
     }
-    return addSpanLoop(this)
+    return Option.match(span.parent, {
+      // If the incoming span is a root span, clone the existing root span
+      onNone: () =>
+        new Span({
+          span,
+          children: this.children,
+          events: this.events
+        }),
+      // Otherwise add the incoming span as a child
+      onSome: (parent) =>
+        this.spanId === parent.spanId
+          ? this.addChild(span)
+          : this.mapChildren((child) => child.addSpan(span))
+    })
   }
 
   /**
    * Adds the provided `event` to this span.
    */
-  addEvent(event: SpanEvent) {
-    function addEventLoop(span: Span): Span {
-      if (span.spanId === event.spanId) {
-        return new Span({
-          span: span.span,
-          children: span.children,
-          events: Array.append(span.events, Event.fromEvent(event))
-        })
-      }
-      return span.mapChildren(addEventLoop)
+  addEvent(event: SpanEvent): Span {
+    if (this.spanId === event.spanId) {
+      return new Span({
+        span: this.span,
+        children: this.children,
+        events: Array.append(this.events, Event.fromEvent(event))
+      })
     }
-    return addEventLoop(this)
+    return this.mapChildren((child) => child.addEvent(event))
   }
 
   /**
-   * Returns `true` if this span has a child with the specified span identifier.
+   * Adds the provided span to the children of this span.
    */
-  hasChild(spanId: string): boolean {
-    return this.children.some((child) => child.spanId === spanId)
-  }
-
-  /**
-   * Adds the provides span to the children of this span.
-   */
-  addChild(span: Span) {
-    return new Span({
-      span: this.span,
-      children: Array.append(this.children, span),
-      events: this.events
-    })
+  addChild(span: ParentSpan) {
+    const children = pipe(
+      this.children,
+      Array.findFirstIndex((child) => child.spanId === span.spanId),
+      Option.match({
+        onNone: () => Array.append(this.children, new Span({ span })),
+        onSome: (index) =>
+          Array.modify(
+            this.children,
+            index,
+            (child) =>
+              new Span({
+                span,
+                children: child.children,
+                events: child.events
+              })
+          )
+      })
+    )
+    return new Span({ span: this.span, children, events: this.events })
   }
 
   /**
@@ -197,6 +194,14 @@ export class Span {
     return new Span({
       span: this.span,
       children: Array.map(this.children, f),
+      events: this.events
+    })
+  }
+
+  clone(): Span {
+    return new Span({
+      span: this.span,
+      children: this.children,
       events: this.events
     })
   }
