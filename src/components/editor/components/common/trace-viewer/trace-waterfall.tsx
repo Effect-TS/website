@@ -269,32 +269,21 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
     )
   }
 
-  // Case #2: Current span has ended but root span is in progress
-  if (Option.isSome(currentSpan.duration) && Option.isNone(root.duration)) {
-    const spanStartTime = Option.getOrThrow(currentSpan.startTime)
-    const relativeStartTime = Duration.nanos(spanStartTime - traceStartTime)
-    const duration = currentSpan.duration.value
-    return (
-      <div>
-        <span className="font-display text-xs">Completed</span>
-        <span className="ml-2 text-xs font-medium text-muted-foreground">(duration = {formatDuration(duration)})</span>
-        <span className="mx-2">...</span>
-        <span className="text-xs font-medium text-muted-foreground">Started: {formatDuration(relativeStartTime)} after trace start</span>
-      </div>
-    )
-  }
-
-  // Case #3: Current span and root span have both ended
-  const rootDuration = Option.getOrThrow(root.duration)
-  const rootStartTime = Option.getOrThrow(root.startTime)
+  const rootNanos = Option.match(root.duration, {
+    // Case #2: Current span has ended but root span is in progress
+    onNone: () => {
+      const now = processOrPerformanceNow()
+      return Number(now - traceStartTime)
+    },
+    // Case #3: Current span and root span have both ended
+    onSome: (duration) => Number(Duration.unsafeToNanos(duration))
+  })
   const spanStartTime = Option.getOrThrow(currentSpan.startTime)
   const spanDuration = Option.getOrThrow(currentSpan.duration)
-
-  const rootNanos = Number(Duration.unsafeToNanos(rootDuration))
   const spanNanos = Number(Duration.unsafeToNanos(spanDuration))
 
   const scaleFactor = column.getSize() / rootNanos
-  const spacer = Number(spanStartTime - rootStartTime) * scaleFactor
+  const spacer = Number(spanStartTime - traceStartTime) * scaleFactor
   const width = `${(spanNanos / rootNanos) * 100}%`
 
   return (
@@ -319,3 +308,23 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
     </div>
   )
 }
+
+const performanceNowNanos = (function() {
+  const bigint1e6 = BigInt(1_000_000)
+  if (typeof performance === "undefined") {
+    return () => BigInt(Date.now()) * bigint1e6
+  }
+  const origin = (BigInt(Date.now()) * bigint1e6) - BigInt(Math.round(performance.now() * 1_000_000))
+  return () => origin + BigInt(Math.round(performance.now() * 1_000_000))
+})()
+const processOrPerformanceNow = (function() {
+  const processHrtime =
+    typeof process === "object" && "hrtime" in process && typeof process.hrtime.bigint === "function" ?
+      process.hrtime :
+      undefined
+  if (!processHrtime) {
+    return performanceNowNanos
+  }
+  const origin = performanceNowNanos() - processHrtime.bigint()
+  return () => origin + processHrtime.bigint()
+})()
