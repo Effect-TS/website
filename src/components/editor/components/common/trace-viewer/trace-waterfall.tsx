@@ -1,11 +1,5 @@
 import React, { useMemo } from "react"
-import { Array, Duration, Option } from "effect"
-import {
-  RxRef,
-  useRxRef,
-  useRxSuspenseSuccess,
-  useRxValue
-} from "@effect-rx/rx-react"
+import { Duration, Option } from "effect"
 import {
   CellContext,
   ColumnDef,
@@ -27,11 +21,11 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
+import { useSelectedSpanValue } from "@/workspaces/context/devtools"
 import { Span } from "@/workspaces/domain/devtools"
 import { TraceDetails } from "./trace-details"
 import { TraceTree } from "./trace-tree"
 import { formatDuration } from "./utils"
-import { useSelectedSpanValue } from "@/workspaces/context/devtools"
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
@@ -248,21 +242,60 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
     return null
   }
 
+  // Filter out external spans since they do not contain useful information
+  if (currentSpan.span._tag === "ExternalSpan") {
+    return <div className="font-display text-xs text-muted-foreground">&lt;&lt; External Span &gt;&gt;</div>
+  }
+
+  // After filtering out external spans, there are three states the current span
+  // can be in:
+  //   1. The current span is still in progress
+  //   2. The current span has ended but the root span has not
+  //   3. Both current span and the root span have ended
+
+  // Only external spans will not have a start time, it is safe to `.getOrThrow`
+  const traceStartTime = Option.getOrThrow(root.startTime)
+
+  // Case #1: Current span is still in progress
+  if (Option.isSome(currentSpan.startTime) && Option.isNone(currentSpan.endTime)) {
+    const spanStartTime = currentSpan.startTime.value
+    const relativeStartTime = Duration.nanos(spanStartTime - traceStartTime)
+    return (
+      <div>
+        <span className="font-display text-xs">In-Progress</span>
+        <span className="mx-2">...</span>
+        <span className="text-xs font-medium text-muted-foreground">Started: {formatDuration(relativeStartTime)} after trace start</span>
+      </div>
+    )
+  }
+
+  // Case #2: Current span has ended but root span is in progress
+  if (Option.isSome(currentSpan.duration) && Option.isNone(root.duration)) {
+    const spanStartTime = Option.getOrThrow(currentSpan.startTime)
+    const relativeStartTime = Duration.nanos(spanStartTime - traceStartTime)
+    const duration = currentSpan.duration.value
+    return (
+      <div>
+        <span className="font-display text-xs">Completed</span>
+        <span className="ml-2 text-xs font-medium text-muted-foreground">(duration = {formatDuration(duration)})</span>
+        <span className="mx-2">...</span>
+        <span className="text-xs font-medium text-muted-foreground">Started: {formatDuration(relativeStartTime)} after trace start</span>
+      </div>
+    )
+  }
+
+  // Case #3: Current span and root span have both ended
   const rootDuration = Option.getOrThrow(root.duration)
+  const rootStartTime = Option.getOrThrow(root.startTime)
+  const spanStartTime = Option.getOrThrow(currentSpan.startTime)
+  const spanDuration = Option.getOrThrow(currentSpan.duration)
+
   const rootNanos = Number(Duration.unsafeToNanos(rootDuration))
+  const spanNanos = Number(Duration.unsafeToNanos(spanDuration))
+
   const scaleFactor = column.getSize() / rootNanos
-
-  const rootStartDuration = Option.getOrThrow(root.startTime)
-  const rootStartNanos = Number(Duration.unsafeToNanos(rootStartDuration))
-  const currentStartDuration = Option.getOrThrow(currentSpan.startTime)
-  const currentStartNanos = Number(
-    Duration.unsafeToNanos(currentStartDuration)
-  )
-  const currentDuration = Option.getOrThrow(currentSpan.duration)
-  const currentNanos = Number(Duration.unsafeToNanos(currentDuration))
-
-  const spacer = (currentStartNanos - rootStartNanos) * scaleFactor
-  const width = `${(currentNanos / rootNanos) * 100}%`
+  const spacer = Number(spanStartTime - rootStartTime) * scaleFactor
+  const width = `${(spanNanos / rootNanos) * 100}%`
 
   return (
     <div className="w-full flex items-center justify-start">
@@ -277,7 +310,7 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
         >
           <div className="mt-[3px] ml-2 bg-white/90 rounded-sm leading-3">
             <span className="px-1 font-display text-black text-xs">
-              {formatDuration(currentDuration)}
+              {formatDuration(spanDuration)}
             </span>
           </div>
         </button>
