@@ -244,7 +244,11 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
 
   // Filter out external spans since they do not contain useful information
   if (currentSpan.span._tag === "ExternalSpan") {
-    return <div className="font-display text-xs text-muted-foreground">&lt;&lt; External Span &gt;&gt;</div>
+    return (
+      <div className="font-display text-xs text-muted-foreground">
+        &lt;&lt; External Span &gt;&gt;
+      </div>
+    )
   }
 
   // After filtering out external spans, there are three states the current span
@@ -257,14 +261,33 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
   const traceStartTime = Option.getOrThrow(root.startTime)
 
   // Case #1: Current span is still in progress
-  if (Option.isSome(currentSpan.startTime) && Option.isNone(currentSpan.endTime)) {
+  if (
+    Option.isSome(currentSpan.startTime) &&
+    Option.isNone(currentSpan.endTime)
+  ) {
     const spanStartTime = currentSpan.startTime.value
     const relativeStartTime = Duration.nanos(spanStartTime - traceStartTime)
     return (
-      <div>
-        <span className="font-display text-xs">In-Progress</span>
-        <span className="mx-2">...</span>
-        <span className="text-xs font-medium text-muted-foreground">Started: {formatDuration(relativeStartTime)} after trace start</span>
+      <div
+        className={cn(
+          "w-full h-6 flex items-center px-2 justify-start",
+          currentSpan.isRoot &&
+            "my-1 outline-dashed outline-2 outline-black/40 dark:outline-muted-foreground rounded-sm"
+        )}
+      >
+        {currentSpan.isRoot ? (
+          <div className="px-2 bg-white/90 text-black rounded-sm leading-3">
+            <span className="font-display text-xs">In-Progress</span>
+          </div>
+        ) : (
+          <div>
+            <span className="font-display text-xs">In-Progress</span>
+            <span className="mx-2">...</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              Started: {formatDuration(relativeStartTime)} after trace start
+            </span>
+          </div>
+        )}
       </div>
     )
   }
@@ -309,19 +332,23 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
   )
 }
 
-const performanceNowNanos = (function() {
+const performanceNowNanos = (function () {
   const bigint1e6 = BigInt(1_000_000)
   if (typeof performance === "undefined") {
     return () => BigInt(Date.now()) * bigint1e6
   }
-  const origin = (BigInt(Date.now()) * bigint1e6) - BigInt(Math.round(performance.now() * 1_000_000))
+  const origin =
+    BigInt(Date.now()) * bigint1e6 -
+    BigInt(Math.round(performance.now() * 1_000_000))
   return () => origin + BigInt(Math.round(performance.now() * 1_000_000))
 })()
-const processOrPerformanceNow = (function() {
+const processOrPerformanceNow = (function () {
   const processHrtime =
-    typeof process === "object" && "hrtime" in process && typeof process.hrtime.bigint === "function" ?
-      process.hrtime :
-      undefined
+    typeof process === "object" &&
+    "hrtime" in process &&
+    typeof process.hrtime.bigint === "function"
+      ? process.hrtime
+      : undefined
   if (!processHrtime) {
     return performanceNowNanos
   }
