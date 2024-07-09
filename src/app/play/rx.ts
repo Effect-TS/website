@@ -48,10 +48,10 @@ const defaultWorkspace = new Workspace({
   name: "playground",
   dependencies: packageJson.dependencies,
   prepare:
-    "npm install -E typescript@next tsc-watch @types/node @effect/experimental",
+    "pnpm install typescript@next tsc-watch @types/node @effect/experimental",
   shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
   initialFilePath: "src/main.ts",
-  snapshot: "tutorials",
+  snapshot: "playground",
   tree: [
     // TODO: Revert this back to the old program
     makeDirectory("src", [

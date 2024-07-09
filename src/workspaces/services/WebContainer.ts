@@ -31,6 +31,7 @@ import {
 } from "../domain/workspace"
 import * as Ndjson from "@effect/experimental/Ndjson"
 import * as DevToolsDomain from "@effect/experimental/DevTools/Domain"
+import { Writable } from "stream"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
@@ -186,7 +187,11 @@ const make = Effect.gen(function* () {
       if (workspace.snapshot) {
         const snapshot = yield* HttpClientRequest.get(
           `/snapshots/${workspace.snapshot}`
-        ).pipe(HttpClient.fetchOk, HttpClientResponse.arrayBuffer)
+        ).pipe(
+          // HttpClientRequest.setHeader("Cache-Control", "max-age=604800"),
+          HttpClient.fetchOk,
+          HttpClientResponse.arrayBuffer
+        )
         yield* Effect.promise(async () => {
           await container.mount(snapshot, {
             mountPoint: workspace.name

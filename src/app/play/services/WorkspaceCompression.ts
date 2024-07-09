@@ -23,7 +23,7 @@ const make = Effect.gen(function* () {
   ) =>
     pipe(
       workspace
-        .withPrepare("npm install")
+        .withPrepare("pnpm install")
         .withNoSnapshot.updateFiles((file, path) =>
           read(path).pipe(Effect.map((content) => file.withContent(content)))
         ),
