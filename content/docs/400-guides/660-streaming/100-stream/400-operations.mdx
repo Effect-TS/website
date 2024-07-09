@@ -30,10 +30,7 @@ before mapping: 2
 after mapping: 4
 before mapping: 3
 after mapping: 6
-{
-  _id: "Chunk",
-  values: [ 2, 4, 6 ]
-}
+{ _id: 'Chunk', values: [ 2, 4, 6 ] }
 */
 ```
 
@@ -56,10 +53,7 @@ const s1 = Stream.take(stream, 5)
 Effect.runPromise(Stream.runCollect(s1)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 0, 1, 2, 3, 4 ]
-}
+{ _id: 'Chunk', values: [ 0, 1, 2, 3, 4 ] }
 */
 
 // Using `takeWhile` to extract elements until a certain condition is met:
@@ -67,10 +61,7 @@ const s2 = Stream.takeWhile(stream, (n) => n < 5)
 Effect.runPromise(Stream.runCollect(s2)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 0, 1, 2, 3, 4 ]
-}
+{ _id: 'Chunk', values: [ 0, 1, 2, 3, 4 ] }
 */
 
 // Using `takeUntil` to extract elements until a specific condition is met:
@@ -78,10 +69,7 @@ const s3 = Stream.takeUntil(stream, (n) => n === 5)
 Effect.runPromise(Stream.runCollect(s3)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 0, 1, 2, 3, 4, 5 ]
-}
+{ _id: 'Chunk', values: [ 0, 1, 2, 3, 4, 5 ] }
 */
 
 // Using `takeRight` to extract a specified number of elements from the end:
@@ -89,10 +77,7 @@ const s4 = Stream.takeRight(s3, 3)
 Effect.runPromise(Stream.runCollect(s4)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 3, 4, 5 ]
-}
+{ _id: 'Chunk', values: [ 3, 4, 5 ] }
 */
 ```
 
@@ -131,7 +116,7 @@ Output:
 { _id: 'Chunk', values: [ 1, 2 ] }
 { _id: 'Chunk', values: [ 3, 4 ] }
 { _id: 'Chunk', values: [ 5 ] }
-(FiberFailure) {
+(FiberFailure) Error: {
   "_id": "Option",
   "_tag": "None"
 }
@@ -156,10 +141,7 @@ const stream = Stream.make(1, 2, 3).pipe(Stream.map((n) => n + 1))
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 2, 3, 4 ]
-}
+{ _id: 'Chunk', values: [ 2, 3, 4 ] }
 */
 ```
 
@@ -176,11 +158,8 @@ const stream = Stream.make(10, 20, 30).pipe(
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
-Output:
-{
-  _id: "Chunk",
-  values: [ 6, 13, 5 ]
-}
+Example Output:
+{ _id: 'Chunk', values: [ 5, 9, 22 ] }
 */
 ```
 
@@ -208,10 +187,11 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
+  _id: 'Chunk',
   values: [
-    [ "Resource 0-url0", "Resource 1-url0", "Resource 2-url0" ], [ "Resource 0-url1", "Resource 1-url1",
-      "Resource 2-url1" ], [ "Resource 0-url2", "Resource 1-url2", "Resource 2-url2" ]
+    [ 'Resource 0-url0', 'Resource 1-url0', 'Resource 2-url0' ],
+    [ 'Resource 0-url1', 'Resource 1-url1', 'Resource 2-url1' ],
+    [ 'Resource 0-url2', 'Resource 1-url2', 'Resource 2-url2' ]
   ]
 }
 */
@@ -227,18 +207,12 @@ import { Stream, Effect } from "effect"
 const runningTotal = (stream: Stream.Stream<number>): Stream.Stream<number> =>
   stream.pipe(Stream.mapAccum(0, (s, a) => [s + a, s + a]))
 
-Effect.runPromise(Stream.runCollect(runningTotal(Stream.range(0, 6)))).then(
+Effect.runPromise(Stream.runCollect(runningTotal(Stream.range(0, 5)))).then(
   console.log
 )
 /*
 Output:
-{
-  _id: 'Chunk',
-  values: [
-     0,  1,  3, 6,
-    10, 15, 21
-  ]
-}
+{ _id: 'Chunk', values: [ 0, 1, 3, 6, 10, 15 ] }
 */
 ```
 
@@ -257,10 +231,7 @@ const numbers = Stream.make("1-2-3", "4-5", "6").pipe(
 Effect.runPromise(Stream.runCollect(numbers)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 1, 2, 3, 4, 5, 6 ]
-}
+{ _id: 'Chunk', values: [ 1, 2, 3, 4, 5, 6 ] }
 */
 ```
 
@@ -278,10 +249,7 @@ const stream = Stream.range(1, 5).pipe(Stream.as(null))
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ null, null, null, null ]
-}
+{ _id: 'Chunk', values: [ null, null, null, null, null ] }
 */
 ```
 
@@ -299,10 +267,7 @@ const stream = Stream.range(1, 11).pipe(Stream.filter((n) => n % 2 === 0))
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 2, 4, 6, 8, 10 ]
-}
+{ _id: 'Chunk', values: [ 2, 4, 6, 8, 10 ] }
 */
 ```
 
@@ -315,15 +280,12 @@ In this section, we'll explore the concept of stream scanning. Scans are similar
 ```ts twoslash
 import { Stream, Effect } from "effect"
 
-const stream = Stream.range(1, 6).pipe(Stream.scan(0, (a, b) => a + b))
+const stream = Stream.range(1, 5).pipe(Stream.scan(0, (a, b) => a + b))
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 0, 1, 3, 6, 10, 15 ]
-}
+{ _id: 'Chunk', values: [ 0, 1, 3, 6, 10, 15 ] }
 */
 ```
 
@@ -336,7 +298,7 @@ Additionally, if you only need the final result of the scan, you can use `Stream
 ```ts twoslash
 import { Stream, Effect } from "effect"
 
-const fold = Stream.range(1, 6).pipe(Stream.runFold(0, (a, b) => a + b))
+const fold = Stream.range(1, 5).pipe(Stream.runFold(0, (a, b) => a + b))
 
 Effect.runPromise(fold).then(console.log) // Output: 15
 ```
@@ -355,15 +317,12 @@ Let's go through a few examples:
 import { Stream, Effect } from "effect"
 
 // We create a stream and immediately drain it.
-const s1 = Stream.range(1, 6).pipe(Stream.drain)
+const s1 = Stream.range(1, 5).pipe(Stream.drain)
 
 Effect.runPromise(Stream.runCollect(s1)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: []
-}
+{ _id: 'Chunk', values: [] }
 */
 ```
 
@@ -385,28 +344,22 @@ const s2 = Stream.repeatEffect(
 
 Effect.runPromise(Stream.runCollect(s2)).then(console.log)
 /*
-Output:
-random number: 4
-random number: 2
+Example Output:
 random number: 7
-{
-  _id: "Chunk",
-  values: [ 4, 2, 7 ]
-}
+random number: 5
+random number: 0
+{ _id: 'Chunk', values: [ 7, 5, 0 ] }
 */
 
 const s3 = Stream.drain(s2)
 
 Effect.runPromise(Stream.runCollect(s3)).then(console.log)
 /*
-random number: 1
-random number: 6
+Example Output:
 random number: 0
-Output:
-{
-  _id: "Chunk",
-  values: []
-}
+random number: 1
+random number: 7
+{ _id: 'Chunk', values: [] }
 */
 ```
 
@@ -426,10 +379,7 @@ const stream = Stream.make(1, 1, 1, 2, 2, 3, 4).pipe(Stream.changes)
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 1, 2, 3, 4 ]
-}
+{ _id: 'Chunk', values: [ 1, 2, 3, 4 ] }
 */
 ```
 
@@ -449,12 +399,7 @@ const s1 = Stream.zip(
 Effect.runPromise(Stream.runCollect(s1)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [
-    [ 1, "a" ], [ 2, "b" ], [ 3, "c" ]
-  ]
-}
+{ _id: 'Chunk', values: [ [ 1, 'a' ], [ 2, 'b' ], [ 3, 'c' ] ] }
 */
 
 // We create two streams and zip them with custom logic.
@@ -467,12 +412,7 @@ const s2 = Stream.zipWith(
 Effect.runPromise(Stream.runCollect(s2)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [
-    [ 0, "a" ], [ 1, "b" ], [ 2, "c" ]
-  ]
-}
+{ _id: 'Chunk', values: [ [ 0, 'a' ], [ 1, 'b' ], [ 2, 'c' ] ] }
 */
 ```
 
@@ -495,9 +435,14 @@ Effect.runPromise(Stream.runCollect(s1)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
+  _id: 'Chunk',
   values: [
-    [ 1, "a" ], [ 2, "b" ], [ 3, "c" ], [ 4, "x" ], [ 5, "x" ], [ 6, "x" ]
+    [ 1, 'a' ],
+    [ 2, 'b' ],
+    [ 3, 'c' ],
+    [ 4, 'x' ],
+    [ 5, 'x' ],
+    [ 6, 'x' ]
   ]
 }
 */
@@ -513,9 +458,14 @@ Effect.runPromise(Stream.runCollect(s2)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
+  _id: 'Chunk',
   values: [
-    [ 0, "a" ], [ 1, "b" ], [ 2, "c" ], [ 4, "x" ], [ 5, "x" ], [ 6, "x" ]
+    [ 0, 'a' ],
+    [ 1, 'b' ],
+    [ 2, 'c' ],
+    [ 4, 'x' ],
+    [ 5, 'x' ],
+    [ 6, 'x' ]
   ]
 }
 */
@@ -544,9 +494,14 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
+  _id: 'Chunk',
   values: [
-    [ 1, "a" ], [ 1, "b" ], [ 2, "b" ], [ 2, "c" ], [ 2, "d" ], [ 3, "d" ]
+    [ 1, 'a' ],
+    [ 1, 'b' ],
+    [ 2, 'b' ],
+    [ 2, 'c' ],
+    [ 2, 'd' ],
+    [ 3, 'd' ]
   ]
 }
 */
@@ -565,7 +520,7 @@ Here, `Stream.zipLatest` combines elements from both streams without waiting for
 Here's an example illustrating these operations:
 
 ```ts twoslash
-import { Stream } from "effect"
+import { Stream, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)
 
@@ -574,6 +529,77 @@ const s1 = Stream.zipWithPrevious(stream)
 const s2 = Stream.zipWithNext(stream)
 
 const s3 = Stream.zipWithPreviousAndNext(stream)
+
+Effect.runPromise(Stream.runCollect(s1)).then((chunks) =>
+  console.log("%o", chunks)
+)
+/*
+Output:
+{
+  _id: 'Chunk',
+  values: [
+    [ { _id: 'Option', _tag: 'None' }, 1, [length]: 2 ],
+    [ { _id: 'Option', _tag: 'Some', value: 1 }, 2, [length]: 2 ],
+    [ { _id: 'Option', _tag: 'Some', value: 2 }, 3, [length]: 2 ],
+    [ { _id: 'Option', _tag: 'Some', value: 3 }, 4, [length]: 2 ],
+    [length]: 4
+  ]
+}
+*/
+
+Effect.runPromise(Stream.runCollect(s2)).then((chunks) =>
+  console.log("%o", chunks)
+)
+/*
+Output:
+{
+  _id: 'Chunk',
+  values: [
+    [ 1, { _id: 'Option', _tag: 'Some', value: 2 }, [length]: 2 ],
+    [ 2, { _id: 'Option', _tag: 'Some', value: 3 }, [length]: 2 ],
+    [ 3, { _id: 'Option', _tag: 'Some', value: 4 }, [length]: 2 ],
+    [ 4, { _id: 'Option', _tag: 'None' }, [length]: 2 ],
+    [length]: 4
+  ]
+}
+*/
+
+Effect.runPromise(Stream.runCollect(s3)).then((chunks) =>
+  console.log("%o", chunks)
+)
+/*
+Output:
+{
+  _id: 'Chunk',
+  values: [
+    [
+      { _id: 'Option', _tag: 'None' },
+      1,
+      { _id: 'Option', _tag: 'Some', value: 2 },
+      [length]: 3
+    ],
+    [
+      { _id: 'Option', _tag: 'Some', value: 1 },
+      2,
+      { _id: 'Option', _tag: 'Some', value: 3 },
+      [length]: 3
+    ],
+    [
+      { _id: 'Option', _tag: 'Some', value: 2 },
+      3,
+      { _id: 'Option', _tag: 'Some', value: 4 },
+      [length]: 3
+    ],
+    [
+      { _id: 'Option', _tag: 'Some', value: 3 },
+      4,
+      { _id: 'Option', _tag: 'None' },
+      [length]: 3
+    ],
+    [length]: 4
+  ]
+}
+*/
 ```
 
 ### Indexing Stream Elements
@@ -593,10 +619,8 @@ Effect.runPromise(Stream.runCollect(indexedStream)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
-  values: [
-    [ "Mary", 0 ], [ "James", 1 ], [ "Robert", 2 ], [ "Patricia", 3 ]
-  ]
+  _id: 'Chunk',
+  values: [ [ 'Mary', 0 ], [ 'James', 1 ], [ 'Robert', 2 ], [ 'Patricia', 3 ] ]
 }
 */
 ```
@@ -623,9 +647,14 @@ Effect.runPromise(Stream.runCollect(product)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
+  _id: 'Chunk',
   values: [
-    [ 1, "a" ], [ 1, "b" ], [ 2, "a" ], [ 2, "b" ], [ 3, "a" ], [ 3, "b" ]
+    [ 1, 'a' ],
+    [ 1, 'b' ],
+    [ 2, 'a' ],
+    [ 2, 'b' ],
+    [ 3, 'a' ],
+    [ 3, 'b' ]
   ]
 }
 */
@@ -646,7 +675,7 @@ Here's an example where we partition a stream of numbers into even and odd numbe
 ```ts twoslash
 import { Stream, Effect } from "effect"
 
-const partition = Stream.range(1, 10).pipe(
+const partition = Stream.range(1, 9).pipe(
   Stream.partition((n) => n % 2 === 0, { bufferSize: 5 })
 )
 
@@ -661,14 +690,8 @@ Effect.runPromise(
 )
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 2, 4, 6, 8 ]
-}
-{
-  _id: "Chunk",
-  values: [ 1, 3, 5, 7, 9 ]
-}
+{ _id: 'Chunk', values: [ 2, 4, 6, 8 ] }
+{ _id: 'Chunk', values: [ 1, 3, 5, 7, 9 ] }
 */
 ```
 
@@ -683,9 +706,9 @@ Here's an example where we use `Stream.partitionEither` to partition a stream of
 ```ts twoslash
 import { Stream, Effect, Either } from "effect"
 
-const partition = Stream.range(1, 10).pipe(
+const partition = Stream.range(1, 9).pipe(
   Stream.partitionEither(
-    (n) => Effect.succeed(n < 5 ? Either.left(n * 2) : Either.right(n)),
+    (n) => Effect.succeed(n % 2 === 0 ? Either.left(n) : Either.right(n)),
     { bufferSize: 5 }
   )
 )
@@ -701,14 +724,8 @@ Effect.runPromise(
 )
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 2, 4, 6, 8 ]
-}
-{
-  _id: "Chunk",
-  values: [ 5, 6, 7, 8, 9 ]
-}
+{ _id: 'Chunk', values: [ 2, 4, 6, 8 ] }
+{ _id: 'Chunk', values: [ 1, 3, 5, 7, 9 ] }
 */
 ```
 
@@ -762,12 +779,7 @@ const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [
-    [ 60, 1 ], [ 90, 1 ], [ 70, 3 ]
-  ]
-}
+{ _id: 'Chunk', values: [ [ 60, 1 ], [ 90, 1 ], [ 70, 3 ] ] }
 */
 ```
 
@@ -807,10 +819,8 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
-  values: [
-    [ "M", 1 ], [ "J", 3 ], [ "R", 2 ], [ "P", 2 ]
-  ]
+  _id: 'Chunk',
+  values: [ [ 'M', 1 ], [ 'J', 3 ], [ 'R', 2 ], [ 'P', 2 ] ]
 }
 */
 ```
@@ -830,22 +840,18 @@ import { Stream, Effect } from "effect"
 
 const stream = Stream.range(0, 8).pipe(Stream.grouped(3))
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+Effect.runPromise(Stream.runCollect(stream)).then((chunks) =>
+  console.log("%o", chunks)
+)
 /*
 Output:
 {
-  _id: "Chunk",
+  _id: 'Chunk',
   values: [
-    {
-      _id: "Chunk",
-      values: [ 0, 1, 2 ]
-    }, {
-      _id: "Chunk",
-      values: [ 3, 4, 5 ]
-    }, {
-      _id: "Chunk",
-      values: [ 6, 7 ]
-    }
+    { _id: 'Chunk', values: [ 0, 1, 2, [length]: 3 ] },
+    { _id: 'Chunk', values: [ 3, 4, 5, [length]: 3 ] },
+    { _id: 'Chunk', values: [ 6, 7, 8, [length]: 3 ] },
+    [length]: 3
   ]
 }
 */
@@ -858,32 +864,45 @@ In this example, we take a stream of numbers from 0 to 9 and use `Stream.grouped
 The `Stream.groupedWithin` function provides more flexibility by allowing you to group events based on time intervals or chunk size, whichever condition is satisfied first. This is particularly useful when you want to group data based on time constraints.
 
 ```ts twoslash
-import { Stream, Schedule, Effect } from "effect"
+import { Stream, Schedule, Effect, Chunk } from "effect"
 
-const stream = Stream.range(0, 10).pipe(
+const stream = Stream.range(0, 9).pipe(
   Stream.repeat(Schedule.spaced("1 second")),
   Stream.groupedWithin(18, "1.5 seconds"),
   Stream.take(3)
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+Effect.runPromise(Stream.runCollect(stream)).then((chunks) =>
+  console.log(Chunk.toArray(chunks))
+)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [
-    {
-      _id: "Chunk",
-      values: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7 ]
-    }, {
-      _id: "Chunk",
-      values: [ 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-    }, {
-      _id: "Chunk",
-      values: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7 ]
-    }
-  ]
-}
+[
+  {
+    _id: 'Chunk',
+    values: [
+      0, 1, 2, 3, 4, 5, 6,
+      7, 8, 9, 0, 1, 2, 3,
+      4, 5, 6, 7
+    ]
+  },
+  {
+    _id: 'Chunk',
+    values: [
+      8, 9, 0, 1, 2,
+      3, 4, 5, 6, 7,
+      8, 9
+    ]
+  },
+  {
+    _id: 'Chunk',
+    values: [
+      0, 1, 2, 3, 4, 5, 6,
+      7, 8, 9, 0, 1, 2, 3,
+      4, 5, 6, 7
+    ]
+  }
+]
 */
 ```
 
@@ -910,10 +929,7 @@ const stream = Stream.concat(s1, s2)
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 1, 2, 3, 4, 5 ]
-}
+{ _id: 'Chunk', values: [ 1, 2, 3, 4, 5 ] }
 */
 ```
 
@@ -936,8 +952,11 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
-  values: [ 1, 2, 3, 4, 5, 6, 7, 8 ]
+  _id: 'Chunk',
+  values: [
+    1, 2, 3, 4,
+    5, 6, 7, 8
+  ]
 }
 */
 ```
@@ -959,8 +978,12 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
-  values: [ 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3 ]
+  _id: 'Chunk',
+  values: [
+    1, 1, 1, 1, 2,
+    2, 2, 2, 3, 3,
+    3, 3
+  ]
 }
 */
 ```
@@ -992,10 +1015,7 @@ const stream = Stream.merge(s1, s2)
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 1, 4, 2, 3, 5, 6 ]
-}
+{ _id: 'Chunk', values: [ 1, 4, 2, 3, 5, 6 ] }
 */
 ```
 
@@ -1015,7 +1035,7 @@ Here's an example of specifying a termination strategy:
 ```ts twoslash
 import { Stream, Schedule, Effect } from "effect"
 
-const s1 = Stream.range(1, 6).pipe(
+const s1 = Stream.range(1, 5).pipe(
   Stream.schedule(Schedule.spaced("100 millis"))
 )
 const s2 = Stream.repeatValue(0).pipe(
@@ -1028,8 +1048,11 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
-  values: [ 1, 0, 2, 3, 0, 4, 5 ]
+  _id: 'Chunk',
+  values: [
+    1, 0, 2, 3,
+    0, 4, 5
+  ]
 }
 */
 ```
@@ -1060,10 +1083,7 @@ const stream = Stream.mergeWith(s1, s2, {
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 1, 4, 2, 3, 5, 6 ]
-}
+{ _id: 'Chunk', values: [ 1, 4, 2, 3, 5, 6 ] }
 */
 ```
 
@@ -1086,10 +1106,7 @@ const stream = Stream.interleave(s1, s2)
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
-{
-  _id: "Chunk",
-  values: [ 1, 4, 2, 5, 3, 6 ]
-}
+{ _id: 'Chunk', values: [ 1, 4, 2, 5, 3, 6 ] }
 */
 ```
 
@@ -1111,8 +1128,11 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
-  values: [ 1, 2, 4, 3, 6, 8, 5, 10, 7, 9 ]
+  _id: 'Chunk',
+  values: [
+    1, 2,  4, 3, 6,
+    8, 5, 10, 7, 9
+  ]
 }
 */
 ```
@@ -1138,8 +1158,11 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
-  values: [ 1, 0, 2, 0, 3, 0, 4, 0, 5 ]
+  _id: 'Chunk',
+  values: [
+    1, 0, 2, 0, 3,
+    0, 4, 0, 5
+  ]
 }
 */
 ```
@@ -1167,8 +1190,12 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
-  _id: "Chunk",
-  values: [ "[", 1, "-", 2, "-", 3, "-", 4, "-", 5, "]" ]
+  _id: 'Chunk',
+  values: [
+    '[', 1,   '-', 2,   '-',
+    3,   '-', 4,   '-', 5,
+    ']'
+  ]
 }
 */
 ```
@@ -1185,7 +1212,7 @@ Let's take a closer look at how broadcasting works in the following example. Her
 import { Effect, Stream, Console, Schedule, Fiber } from "effect"
 
 const numbers = Effect.scoped(
-  Stream.range(1, 21).pipe(
+  Stream.range(1, 20).pipe(
     Stream.tap((n) => Console.log(`Emit ${n} element before broadcasting`)),
     Stream.broadcast(2, 5),
     Stream.flatMap(([first, second]) =>
@@ -1256,10 +1283,7 @@ Logging to the Console: 17
 Logging to the Console: 18
 Logging to the Console: 19
 Logging to the Console: 20
-{
-  _id: "Chunk",
-  values: [ undefined ]
-}
+{ _id: 'Chunk', values: [ undefined ] }
 */
 ```
 
@@ -1276,7 +1300,7 @@ Let's walk through an example to see how it works:
 ```ts twoslash
 import { Stream, Console, Schedule, Effect } from "effect"
 
-const stream = Stream.range(1, 11).pipe(
+const stream = Stream.range(1, 10).pipe(
   Stream.tap((n) => Console.log(`before buffering: ${n}`)),
   Stream.buffer({ capacity: 4 }),
   Stream.tap((n) => Console.log(`after buffering: ${n}`)),
