@@ -33,34 +33,8 @@ export function TraceDetails({ span }: { readonly span: Span }) {
         )}
       </div>
       <Accordion type="multiple">
-        <AccordionItem value="attributes" className="mb-2">
-          <AccordionTrigger
-            icon="left"
-            className="py-0 pl-2 justify-start font-display data-[state=open]:mb-1 !no-underline"
-          >
-            <span className="ml-1">Attributes</span>
-          </AccordionTrigger>
-          <AccordionContent className="p-0">
-            <TraceAttributes attributes={Array.from(span.attributes)} />
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="events">
-          <AccordionTrigger
-            icon="left"
-            className="py-1 pl-2 justify-start dark:bg-muted font-display !no-underline"
-          >
-            <span className="ml-1">Events</span>
-          </AccordionTrigger>
-          <AccordionContent className="py-2 bg-zinc-200 dark:bg-muted/80">
-            <TraceEvents events={span.events} />
-            <div className="mt-2 ml-2 text-xs text-muted-foreground">
-              <span>
-                Log timestamps are relative to the start time of the full
-                trace.
-              </span>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+        <TraceAttributes attributes={Array.from(span.attributes)} />
+        <TraceEvents events={span.events} />
       </Accordion>
     </div>
   )
@@ -71,11 +45,27 @@ function TraceAttributes({
 }: {
   readonly attributes: ReadonlyArray<[string, unknown]>
 }) {
-  return (
-    <div className="ml-2">
-      {attributes.length === 0 ? (
-        <span className="ml-2 text-xs text-muted-foreground font-medium">No attributes</span>
-      ) : (
+  return attributes.length === 0 ? (
+    <div className="mb-2 pl-3 space-x-1 font-display">
+      <span>Attributes</span>
+      <span className="text-xs text-muted-foreground">
+        ( {attributes.length} )
+      </span>
+    </div>
+  ) : (
+    <AccordionItem value="attributes" className="mb-2">
+      <AccordionTrigger
+        icon="left"
+        className="py-0 pl-2 justify-start data-[state=open]:mb-1 !no-underline"
+      >
+        <div className="ml-1 space-x-1 font-display">
+          <span>Attributes</span>
+          <span className="text-xs text-muted-foreground">
+            ( {attributes.length} )
+          </span>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="p-0">
         <Table>
           <TableHeader className="hidden">
             <TableRow>
@@ -97,26 +87,49 @@ function TraceAttributes({
             ))}
           </TableBody>
         </Table>
-      )}
-    </div>
+      </AccordionContent>
+    </AccordionItem>
   )
 }
 
 function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
-  return (
-    <div className="ml-2">
-      {events.length === 0 ? (
-        <span className="ml-2 text-xs text-muted-foreground font-medium">No Events</span>
-      ) : (
-        <Accordion type="multiple" className="w-fit">
-          {events.map((node, index) => (
-            <AccordionItem key={index} value={`${index}`}>
-              <TraceEvent node={node} />
-            </AccordionItem>
-          ))}
-        </Accordion>
-      )}
+  return events.length === 0 ? (
+    <div className="py-1 pl-3 dark:bg-muted space-x-1 font-display">
+      <span>Events</span>
+      <span className="text-xs text-muted-foreground">
+        ( {events.length} )
+      </span>
     </div>
+  ) : (
+    <AccordionItem value="events">
+      <AccordionTrigger
+        icon="left"
+        className="py-1 pl-2 justify-start dark:bg-muted !no-underline"
+      >
+        <div className="ml-1 dark:bg-muted space-x-1 font-display">
+          <span>Events</span>
+          <span className="text-xs text-muted-foreground">
+            ( {events.length} )
+          </span>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="py-2 bg-zinc-200 dark:bg-muted/80">
+        <div className="ml-2">
+          <Accordion type="multiple" className="w-fit">
+            {events.map((node, index) => (
+              <AccordionItem key={index} value={`${index}`}>
+                <TraceEvent node={node} />
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+        <div className="mt-2 ml-2 text-xs text-muted-foreground">
+          <span>
+            Log timestamps are relative to the start time of the full trace.
+          </span>
+        </div>
+      </AccordionContent>
+    </AccordionItem>
   )
 }
 
