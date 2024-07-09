@@ -52,7 +52,7 @@ export const make = Effect.gen(function* () {
       yield* registerDependencies(initial.value)
 
       // Handle updates to the `package.json` dependencies (i.e. from a user
-      // running `npm install <package>`)
+      // running `pnpm install <package>`)
       yield* pipe(
         updates,
         Stream.runForEach(registerDependencies),
