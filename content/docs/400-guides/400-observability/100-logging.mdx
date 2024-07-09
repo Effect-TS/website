@@ -31,20 +31,26 @@ import { Effect } from "effect"
 
 const program = Effect.log("Application started")
 
-Effect.runSync(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message="Application started"
 */
 ```
 
-Details included in a log message:
+When you use the default logger with `Effect.log`, it incorporates several important details into each log entry:
 
 - `timestamp`: The timestamp when the log message was generated.
 - `level`: The log level at which the message is logged.
 - `fiber`: The identifier of the [fiber](../concurrency/fibers) executing the program.
 - `message`: The log content, which can include multiple items.
 - `span`: (Optional) The duration of the [span](#spans) in milliseconds.
+
+<Info>
+  For information on how to tailor the logging setup to meet specific needs,
+  such as integrating a custom logging framework or adjusting log formats,
+  please consult the section on [customizing loggers](#custom-loggers)
+</Info>
 
 You can log multiple messages simultaneously:
 
@@ -53,7 +59,7 @@ import { Effect } from "effect"
 
 const program = Effect.log("message1", "message2", "message3")
 
-Effect.runSync(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message=message1 message=message2 message=message3
@@ -73,7 +79,7 @@ const program = Effect.log(
   Cause.die("Oh uh!")
 )
 
-Effect.runSync(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message=message1 message=message2 cause="Error: Oh no!
@@ -114,7 +120,7 @@ const program = Effect.gen(function* () {
   yield* Effect.log("done")
 })
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO message=start
@@ -144,7 +150,7 @@ const program = Effect.log("start").pipe(
   Effect.andThen(Effect.log("done"))
 )
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO message=start
@@ -177,7 +183,7 @@ const program = Effect.gen(function* () {
   yield* Effect.logInfo("done")
 })
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO message=start
@@ -197,7 +203,7 @@ const program = Effect.logInfo("start").pipe(
   Effect.andThen(Effect.logInfo("done"))
 )
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO message=start
@@ -232,7 +238,7 @@ const program = Effect.gen(function* () {
   }
 })
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=WARN fiber=#0 message="Oh uh!"
@@ -251,7 +257,7 @@ const program = task.pipe(
   Effect.catchAll((error) => Effect.logWarning(error).pipe(Effect.as(0)))
 )
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=WARN fiber=#0 message="Oh uh!"
@@ -283,7 +289,7 @@ const program = Effect.gen(function* () {
   }
 })
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=ERROR fiber=#0 message="Oh uh!"
@@ -302,7 +308,7 @@ const program = task.pipe(
   Effect.catchAll((error) => Effect.logError(error).pipe(Effect.as(0)))
 )
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=ERROR fiber=#0 message="Oh uh!"
@@ -334,7 +340,7 @@ const program = Effect.gen(function* () {
   }
 })
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=FATAL fiber=#0 message="Oh uh!"
@@ -353,7 +359,7 @@ const program = task.pipe(
   Effect.catchAll((error) => Effect.logFatal(error).pipe(Effect.as(0)))
 )
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=FATAL fiber=#0 message="Oh uh!"
@@ -378,7 +384,7 @@ const program = Effect.gen(function* () {
   yield* Effect.log("message2")
 }).pipe(Effect.annotateLogs("key", "value")) // Annotation as key/value pair
 
-Effect.runSync(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message=message1 key=value
@@ -396,7 +402,7 @@ const program = Effect.gen(function* () {
   yield* Effect.log("message2")
 }).pipe(Effect.annotateLogs({ key1: "value1", key2: "value2" }))
 
-Effect.runSync(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message=message1 key2=value2 key1=value1
@@ -417,7 +423,7 @@ const program = Effect.gen(function* () {
   yield* Effect.log("message2") // Annotation is applied to this log
 }).pipe(Effect.scoped, Effect.andThen(Effect.log("no annotations again")))
 
-Effect.runSync(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message="no annotations"
@@ -442,7 +448,7 @@ const program = Effect.gen(function* () {
   yield* Effect.log("The job is finished!")
 }).pipe(Effect.withLogSpan("myspan"))
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
@@ -460,7 +466,7 @@ const program = Effect.sleep("1 second").pipe(
   Effect.withLogSpan("myspan")
 )
 
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message="The job is finished!" myspan=1011ms
@@ -492,7 +498,7 @@ const program = Effect.gen(function* () {
 })
 
 // Logging enabled (default)
-Effect.runPromise(program)
+Effect.runFork(program)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message="Executing task..."
@@ -500,7 +506,7 @@ task done
 */
 
 // Logging disabled using withMinimumLogLevel
-Effect.runPromise(program.pipe(Logger.withMinimumLogLevel(LogLevel.None)))
+Effect.runFork(program.pipe(Logger.withMinimumLogLevel(LogLevel.None)))
 /*
 Output:
 task done
@@ -525,7 +531,7 @@ const program = Effect.gen(function* () {
 const layer = Logger.minimumLogLevel(LogLevel.None)
 
 // Logging disabled using a layer
-Effect.runPromise(program.pipe(Effect.provide(layer)))
+Effect.runFork(program.pipe(Effect.provide(layer)))
 /*
 Output:
 task done
@@ -545,7 +551,7 @@ const program = Effect.gen(function* () {
   console.log("task done")
 })
 
-const customRuntime = Effect.runSync(
+const customRuntime = Effect.runFork(
   Effect.scoped(Layer.toRuntime(Logger.minimumLogLevel(LogLevel.None)))
 )
 
@@ -600,7 +606,7 @@ const test = Effect.provide(
   )
 )
 
-Effect.runPromise(test)
+Effect.runFork(test)
 /*
 Output:
 ... level=ERROR fiber=#0 message=ERROR!
@@ -612,9 +618,9 @@ To evaluate the configured program, you can utilize `ConfigProvider.fromMap` for
 
 ## Custom loggers
 
-In this section, we will learn how to define a custom logger and set it as the default logger in our program.
+In this section, we will learn how to define a custom logger and set it as the default logger.
 
-First, let's define our custom logger:
+First, let's define our custom logger using `Logger.make`:
 
 ```twoslash include CustomLogger
 import { Logger } from "effect"
@@ -697,10 +703,14 @@ import { Effect, Logger, LogLevel } from "effect"
 import * as CustomLogger from "./CustomLogger"
 import { program } from "./program"
 
+// Replace the default logger with the custom logger
 const layer = Logger.replace(Logger.defaultLogger, CustomLogger.logger)
 
-Effect.runPromise(
-  Effect.provide(Logger.withMinimumLogLevel(program, LogLevel.Debug), layer)
+Effect.runFork(
+  program.pipe(
+    Logger.withMinimumLogLevel(LogLevel.Debug),
+    Effect.provide(layer)
+  )
 )
 ```
 
@@ -711,4 +721,64 @@ This is what we see printed on the console after executing the program:
 [DEBUG] task1 done
 [DEBUG] task2 done
 [INFO] done
+```
+
+## Built-in Loggers
+
+### json
+
+The `json` logger formats log entries as JSON objects, making them easy to integrate with logging systems that consume JSON data.
+
+```ts twoslash
+import { Effect, Logger } from "effect"
+
+const program = Effect.log("message1", "message2").pipe(
+  Effect.annotateLogs({ key1: "value1", key2: "value2" }),
+  Effect.withLogSpan("myspan")
+)
+
+Effect.runFork(program.pipe(Effect.provide(Logger.json)))
+// {"message":["message1","message2"],"logLevel":"INFO","timestamp":"...","annotations":{"key2":"value2","key1":"value1"},"spans":{"myspan":0},"fiberId":"#0"}
+```
+
+### logFmt
+
+This logger outputs logs in a human-readable format that is easy to read during development or in a production console.
+
+```ts twoslash
+import { Effect, Logger } from "effect"
+
+const program = Effect.log("message1", "message2").pipe(
+  Effect.annotateLogs({ key1: "value1", key2: "value2" }),
+  Effect.withLogSpan("myspan")
+)
+
+Effect.runFork(program.pipe(Effect.provide(Logger.logFmt)))
+// timestamp=... level=INFO fiber=#0 message=message1 message=message2 myspan=0ms key2=value2 key1=value1
+```
+
+### structured
+
+The structured logger provides detailed log outputs, structured in a way that retains comprehensive traceability of the events, suitable for deeper analysis and troubleshooting.
+
+```ts twoslash
+import { Effect, Logger } from "effect"
+
+const program = Effect.log("message1", "message2").pipe(
+  Effect.annotateLogs({ key1: "value1", key2: "value2" }),
+  Effect.withLogSpan("myspan")
+)
+
+Effect.runFork(program.pipe(Effect.provide(Logger.structured)))
+/*
+{
+  message: [ 'message1', 'message2' ],
+  logLevel: 'INFO',
+  timestamp: '2024-07-09T14:05:41.623Z',
+  cause: undefined,
+  annotations: { key2: 'value2', key1: 'value1' },
+  spans: { myspan: 0 },
+  fiberId: '#0'
+}
+*/
 ```
