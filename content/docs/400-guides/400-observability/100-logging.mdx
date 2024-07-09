@@ -543,7 +543,7 @@ task done
 You can also disable logging by creating a custom runtime that includes the configuration to turn off logging:
 
 ```ts twoslash
-import { Effect, Logger, LogLevel, Runtime, Layer } from "effect"
+import { Effect, Logger, LogLevel, ManagedRuntime } from "effect"
 
 const program = Effect.gen(function* () {
   yield* Effect.log("Executing task...")
@@ -551,14 +551,11 @@ const program = Effect.gen(function* () {
   console.log("task done")
 })
 
-const customRuntime = Effect.runFork(
-  Effect.scoped(Layer.toRuntime(Logger.minimumLogLevel(LogLevel.None)))
+const customRuntime = ManagedRuntime.make(
+  Logger.minimumLogLevel(LogLevel.None)
 )
 
-// Logging disabled using a custom runtime
-const customRunPromise = Runtime.runPromise(customRuntime)
-
-customRunPromise(program)
+customRuntime.runPromise(program)
 /*
 Output:
 task done
