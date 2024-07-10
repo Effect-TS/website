@@ -61,6 +61,13 @@ export class Span {
     return this.span._tag === "ExternalSpan"
   }
 
+  get hasError(): boolean {
+    return (
+      this.span._tag !== "ExternalSpan" &&
+      this.span.attributes.get("code.stacktrace") !== undefined
+    )
+  }
+
   /**
    * The label for the span.
    */

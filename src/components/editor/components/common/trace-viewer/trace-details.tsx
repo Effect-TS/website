@@ -21,11 +21,11 @@ import { formatDuration } from "./utils"
 export function TraceDetails({ span }: { readonly span: Span }) {
   return (
     <div className="flex flex-col mb-1 p-2 border border-black/40 dark:border-none dark:bg-black rounded-sm">
-      <div className="flex justify-between mb-2 px-2 pb-1 border-b">
+      <div className="flex justify-between mb-2 px-2 pb-1 border-b border-muted-foreground">
         <h3 className="font-display text-lg">{span.label}</h3>
         {Option.isSome(span.duration) && (
           <div>
-            <span className="mr-1 text-muted-foreground">Duration:</span>
+            <span className="mr-1 font-display">Duration:</span>
             <span className="text-foreground">
               {formatDuration(span.duration.value)}
             </span>
