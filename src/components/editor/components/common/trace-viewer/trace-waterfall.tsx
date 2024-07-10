@@ -170,34 +170,40 @@ function UnmemoizedTableBody({
   return (
     <TableBody>
       {table.getRowModel().rows?.length ? (
-        table.getRowModel().rows.map((row) => (
-          <TableRow
-            key={row.id}
-            data-state={row.getIsSelected() && "selected"}
-            className="flex border-x"
-          >
-            {row.getVisibleCells().map((cell) => (
-              <TableCell
-                key={cell.id}
-                style={{
-                  width: `calc(var(--col-${cell.column.id}-size) * 1px)`
-                }}
-                className={cn(
-                  "min-h-8 grid grid-cols-[minmax(150px,1fr)_8px] items-center p-0",
-                  cell.column.columnDef.meta?.grow && "grow"
-                )}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                {cell.column.getCanResize() && (
-                  <div
-                    role="separator"
-                    className="h-full w-px border-l px-[3px]"
-                  />
-                )}
-              </TableCell>
-            ))}
-          </TableRow>
-        ))
+        table.getRowModel().rows.map((row) => {
+          const span = row.getValue<Span>("span")
+          return (
+            <TableRow
+              key={row.id}
+              data-state={row.getIsSelected() && "selected"}
+              className={cn(
+                "flex border-x",
+                span.hasError && "bg-destructive/30 data-[state=selected]:bg-destructive/30"
+              )}
+            >
+              {row.getVisibleCells().map((cell) => (
+                <TableCell
+                  key={cell.id}
+                  style={{
+                    width: `calc(var(--col-${cell.column.id}-size) * 1px)`
+                  }}
+                  className={cn(
+                    "min-h-8 grid grid-cols-[minmax(150px,1fr)_8px] items-center p-0",
+                    cell.column.columnDef.meta?.grow && "grow"
+                  )}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  {cell.column.getCanResize() && (
+                    <div
+                      role="separator"
+                      className="h-full w-px border-l px-[3px]"
+                    />
+                  )}
+                </TableCell>
+              ))}
+            </TableRow>
+          )
+        })
       ) : (
         <TableRow>
           <TableCell
@@ -260,6 +266,8 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
   // Only external spans will not have a start time, it is safe to `.getOrThrow`
   const traceStartTime = Option.getOrThrow(root.startTime)
 
+  const pillColors = getPillColors(currentSpan)
+
   // Case #1: Current span is still in progress
   if (
     Option.isSome(currentSpan.startTime) &&
@@ -276,7 +284,12 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
         )}
       >
         {currentSpan.isRoot ? (
-          <div className="px-2 bg-white/90 text-black rounded-sm leading-3">
+          <div
+            className={cn(
+              "px-2 bg-white/90 text-black rounded-sm leading-3",
+              pillColors
+            )}
+          >
             <span className="font-display text-xs">In-Progress</span>
           </div>
         ) : (
@@ -320,8 +333,10 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
           className="h-6 my-1 flex border border-black/40 dark:border-white rounded-sm"
           onClick={row.getToggleSelectedHandler()}
         >
-          <div className="mt-[3px] ml-2 bg-white/90 rounded-sm leading-3">
-            <span className="px-1 font-display text-black text-xs">
+          <div
+            className={cn("mt-[3px] ml-2 rounded-sm leading-3", pillColors)}
+          >
+            <span className="px-1 font-display text-xs">
               {formatDuration(spanDuration)}
             </span>
           </div>
@@ -355,3 +370,10 @@ const processOrPerformanceNow = (function () {
   const origin = performanceNowNanos() - processHrtime.bigint()
   return () => origin + processHrtime.bigint()
 })()
+
+function getPillColors(span: Span) {
+  if (span.hasError) {
+    return "bg-destructive text-white"
+  }
+  return "bg-white/90 text-black"
+}
