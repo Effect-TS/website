@@ -1,5 +1,4 @@
 import {
-  Console,
   Data,
   Effect,
   GlobalValue,
@@ -9,7 +8,8 @@ import {
   Scope,
   Stream,
   SubscriptionRef,
-  identity
+  identity,
+  pipe
 } from "effect"
 import {
   HttpClient,
@@ -185,10 +185,8 @@ const make = Effect.gen(function* () {
       )
 
       if (workspace.snapshot) {
-        const snapshot = yield* HttpClientRequest.get(
-          `/snapshots/${workspace.snapshot}`
-        ).pipe(
-          // HttpClientRequest.setHeader("Cache-Control", "max-age=604800"),
+        const snapshot = yield* pipe(
+          HttpClientRequest.get(`/snapshots/${workspace.snapshot}`),
           HttpClient.fetchOk,
           HttpClientResponse.arrayBuffer
         )

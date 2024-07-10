@@ -4,6 +4,11 @@ excerpt: A detailed comparison of key features between the Effect and fp-ts libr
 bottomNavigation: pagination
 ---
 
+## Key Developments
+
+- **Project Merger**: The fp-ts project is officially merging with the Effect-TS ecosystem. Giulio Canti, the author of fp-ts, is being welcomed into the Effect organization. For more details, see the [announcement here](https://dev.to/effect/a-bright-future-for-effect-455m).
+- **Continuity and Evolution**: Effect can be seen as the successor to fp-ts v2 and is effectively fp-ts v3, marking a significant evolution in the library's capabilities.
+
 ## FAQ
 
 ### Bundle Size Comparison Between Effect and fp-ts
@@ -17,6 +22,12 @@ While the initial bundle size may seem large, the overhead amortizes as you use 
 **Q: Should I be concerned about the bundle size difference when choosing between Effect and fp-ts?**
 
 A: Not necessarily. Consider the specific requirements and benefits of each library for your project.
+
+The **Micro** module in Effect is designed as a lightweight alternative to the standard `Effect` module, specifically for scenarios where reducing bundle size is crucial.
+This module is self-contained and does not include more complex features like `Layer`, `Ref`, `Queue`, and `Deferred`.
+If any major Effect modules (beyond basic data modules like `Option`, `Either`, `Array`, etc.) are used, the effect runtime will be added to your bundle, negating the benefits of Micro.
+This makes Micro ideal for libraries that aim to implement Effect functionality with minimal impact on bundle size, especially for libraries that plan to expose `Promise`-based APIs.
+It also supports scenarios where a client might use Micro while a server uses the full suite of Effect features, maintaining compatibility and shared logic between different parts of an application.
 
 ## Comparison Table
 
@@ -50,7 +61,7 @@ Here's an explanation of each feature:
 
 ### Typed Services
 
-Both fp-ts and Effect libraries provide the ability to track requirements at the type level, allowing you to define and use services with specific types. In fp-ts, you can utilize the `Reader<R, E, A>` type, while in Effect, the `Effect<A, E, R>` type is available. It's important to note that in fp-ts, the `R` type parameter is contravariant, which means that there is no guarantee of avoiding conflicts, and the library offers only basic tools for dependency management.
+Both fp-ts and Effect libraries provide the ability to track requirements at the type level, allowing you to define and use services with specific types. In fp-ts, you can utilize the `ReaderTaskEither<R, E, A>` type, while in Effect, the `Effect<A, E, R>` type is available. It's important to note that in fp-ts, the `R` type parameter is contravariant, which means that there is no guarantee of avoiding conflicts, and the library offers only basic tools for dependency management.
 
 On the other hand, in Effect, the `R` type parameter is covariant and all APIs have the ability to merge dependencies at the type level when multiple effects are involved. Effect also provides a range of specifically designed tools to simplify the management of dependencies, including `Tag`, `Context`, and `Layer`. These tools enhance the ease and flexibility of handling dependencies in your code, making it easier to compose and manage complex applications.
 
