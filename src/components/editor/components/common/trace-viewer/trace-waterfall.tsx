@@ -178,7 +178,8 @@ function UnmemoizedTableBody({
               data-state={row.getIsSelected() && "selected"}
               className={cn(
                 "flex border-x",
-                span.hasError && "bg-destructive/30 data-[state=selected]:bg-destructive/30"
+                span.hasError &&
+                  "bg-destructive/30 hover:bg-destructive/40 data-[state=selected]:bg-destructive/30"
               )}
             >
               {row.getVisibleCells().map((cell) => (
