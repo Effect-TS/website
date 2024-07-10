@@ -74,7 +74,7 @@ Effect.log("Hello, World!").pipe(Effect.provide(Logger.pretty))
 
 In Effect 4.0, `Logger.pretty` will become default logger.
 
-## Add replay option to PubSub
+## PubSub replay option
 
 The `replay` option adds a replay buffer in front of the given PubSub. The buffer will
 replay the last `n` messages to any new subscriber.
@@ -86,7 +86,7 @@ Effect.gen(function*() {
   yield* PubSub.publishAll(pubsub, messages)
   const sub = yield* PubSub.subscribe(pubsub)
   assert.deepStrictEqual(Chunk.toReadonlyArray(yield* Queue.takeAll(sub)), [3, 4, 5])
-}))
+})
 ```
 
 ## Added Stream.raceAll
@@ -111,6 +111,24 @@ Effect.runPromise(Stream.runDrain(stream))
 // 3
 // 4
 // 5
+```
+
+## Added Random.make
+
+`Random.make` creates a new instance of the Random service from a seed value.
+
+It will calculate the hash of the seed value, and use that to seed the random number generator.
+
+## Stream.async buffer options
+
+You can now customize the output buffer options for `Stream.async*`:
+
+```typescript
+import { Stream } from "effect"
+
+Stream.async((emit) => {
+  // ...
+}, { bufferSize: 16, strategy: "dropping" })
 ```
 
 ## Stream type fixes
