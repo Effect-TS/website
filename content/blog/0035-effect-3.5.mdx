@@ -131,6 +131,34 @@ Stream.async((emit) => {
 }, { bufferSize: 16, strategy: "dropping" })
 ```
 
+## Stream PubSub options
+
+You can now customize the strategy and capacity of the underlying PubSub in the following
+Stream apis:
+
+- `Stream.toPubSub`
+- `Stream.broadcast*`
+
+```ts
+import { Schedule, Stream } from "effect"
+
+// toPubSub
+Stream.fromSchedule(Schedule.spaced(1000)).pipe(
+  Stream.toPubSub({
+    capacity: 16, // or "unbounded"
+    strategy: "dropping", // or "sliding" / "suspend"
+  }),
+)
+
+// also for the broadcast apis
+Stream.fromSchedule(Schedule.spaced(1000)).pipe(
+  Stream.broadcastDynamic({
+    capacity: 16,
+    strategy: "dropping",
+  }),
+)
+```
+
 ## Stream type fixes
 
 - `Stream` & `Channel` run* methods now exclude `Scope` from the `R` type.
