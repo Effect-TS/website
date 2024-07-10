@@ -8,7 +8,7 @@ Repetition is a common requirement when working with effects in software develop
 
 ## repeat
 
-The `Effect,repeat` function returns a new effect that repeats the given effect according to a specified schedule or until the first failure.
+The `Effect.repeat` function returns a new effect that repeats the given effect according to a specified schedule or until the first failure.
 
 <Warning>
   The scheduled recurrences are in addition to the initial execution, so
@@ -159,3 +159,36 @@ orElse
 repetitions: 1
 */
 ```
+
+## Repeating Based on a Condition
+
+You can control the repetition of an effect by a condition using either a `while` or `until` option, allowing for dynamic control based on runtime outcomes.
+
+```ts twoslash
+import { Effect } from "effect"
+
+let count = 0
+
+// Define an effect that simulates varying outcomes on each invocation
+const action = Effect.sync(() => {
+  console.log(`Action called ${++count} time(s)`)
+  return count
+})
+
+// Repeat the action until a specific condition is met
+const program = Effect.repeat(action, { until: (n) => n === 3 })
+
+Effect.runFork(program)
+/*
+Output:
+Action called 1 time(s)
+Action called 2 time(s)
+Action called 3 time(s)
+*/
+```
+
+<Info>
+  Consider using
+  [Effect.retry](../error-management/retrying#retrying-based-on-a-condition)
+  to set conditions based on errors rather than successful outcomes.
+</Info>
