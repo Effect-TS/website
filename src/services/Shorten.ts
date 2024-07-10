@@ -11,7 +11,7 @@ const make = Effect.gen(function* (_) {
   const store = KVS.prefix(kvs, "shorten/")
 
   const shorten = (thing: string) =>
-    Effect.gen(function* (_) {
+    Effect.gen(function* () {
       if (thing.length > constMaxSize) {
         return yield* new ShortenError({
           reason: "TooLarge",
@@ -29,7 +29,8 @@ const make = Effect.gen(function* (_) {
       return hash
     }).pipe(
       Effect.catchIf(
-        (err) => err._tag !== "ShortenError",
+        (err): err is Exclude<typeof err, ShortenError> =>
+          err._tag !== "ShortenError",
         (_) =>
           new ShortenError({
             reason: "Unknown",
