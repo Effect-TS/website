@@ -8,8 +8,7 @@ import {
   Scope,
   Stream,
   SubscriptionRef,
-  identity,
-  pipe
+  identity
 } from "effect"
 import {
   HttpClient,
@@ -31,7 +30,6 @@ import {
 } from "../domain/workspace"
 import * as Ndjson from "@effect/experimental/Ndjson"
 import * as DevToolsDomain from "@effect/experimental/DevTools/Domain"
-import { Writable } from "stream"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
@@ -170,7 +168,7 @@ const make = Effect.gen(function* () {
             recursive: true,
             force: true
           })
-          return container.fs.mkdir(workspace.name)
+          return container.fs.mkdir(path(".npm-cache"), { recursive: true })
         }),
         () =>
           Effect.andThen(
@@ -184,24 +182,36 @@ const make = Effect.gen(function* () {
           )
       )
 
-      if (workspace.snapshot) {
-        const snapshot = yield* pipe(
-          HttpClientRequest.get(`/snapshots/${workspace.snapshot}`),
-          HttpClient.fetchOk,
-          HttpClientResponse.arrayBuffer
-        )
-        yield* Effect.promise(async () => {
-          await container.mount(snapshot, {
-            mountPoint: workspace.name
-          })
-        })
-      }
+      yield* Effect.promise(() =>
+        container.fs.writeFile(path(".npmrc"), npmRc)
+      )
+
+      yield* Effect.forEach(
+        workspace.snapshots,
+        (snapshot) =>
+          HttpClientRequest.get(
+            `/snapshots/${encodeURIComponent(encodeURIComponent(snapshot))}`
+          ).pipe(
+            HttpClient.fetchOk,
+            HttpClientResponse.arrayBuffer,
+            Effect.flatMap((buffer) =>
+              Effect.promise(() =>
+                container.mount(buffer, {
+                  mountPoint: workspace.name + "/.npm-cache"
+                })
+              )
+            ),
+            Effect.ignore
+          ),
+        { concurrency: 3, discard: true }
+      )
 
       yield* Effect.promise(() =>
         container.mount(treeFromWorkspace(workspace), {
           mountPoint: workspace.name
         })
       )
+
       const runWorkspace = (command: string) =>
         run(`cd ${workspace.name} && ${command}`)
 
@@ -514,3 +524,5 @@ const server = Net.createServer((socket) => {
 
 server.listen(34437)
 `
+
+const npmRc = `cache=.npm-cache\n`

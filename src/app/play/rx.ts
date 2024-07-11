@@ -12,7 +12,7 @@ import { hashRx } from "@/rx/location"
 import { pipe } from "effect"
 import { RxWorkspaceHandle } from "@/workspaces/rx/workspace"
 import { WorkspaceCompression } from "./services/WorkspaceCompression"
-import packageJson from "../../../snapshots/tutorials/package.json"
+import packageJson from "../../../snapshots/package.json"
 import { rpcClient } from "@/rpc/client"
 import { RetrieveRequest, ShortenRequest } from "@/services/Shorten/domain"
 import { devToolsLayer } from "@/tutorials/common"
@@ -47,11 +47,10 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
 const defaultWorkspace = new Workspace({
   name: "playground",
   dependencies: packageJson.dependencies,
-  prepare:
-    "pnpm install typescript@next tsc-watch @types/node @effect/experimental",
+  prepare: "npm install",
   shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
   initialFilePath: "src/main.ts",
-  snapshot: "playground",
+  snapshots: Object.keys(packageJson.dependencies),
   tree: [
     // TODO: Revert this back to the old program
     makeDirectory("src", [

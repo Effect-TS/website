@@ -78,7 +78,9 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   initialFilePath: Schema.optional(Schema.String),
   prepare: Schema.String,
   shells: Schema.Array(WorkspaceShell),
-  snapshot: Schema.optional(Schema.String)
+  snapshots: Schema.optional(Schema.Array(Schema.String), {
+    default: () => []
+  })
 }) {
   readonly filePaths: Map<File | Directory, string>
 
@@ -89,17 +91,15 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     initialFilePath?: string
     prepare?: string
     shells: ReadonlyArray<WorkspaceShell>
-    snapshot?: string
+    snapshots?: ReadonlyArray<string>
   }) {
     super(
       {
         name: options.name,
         initialFilePath: options.initialFilePath,
-        prepare:
-          options.prepare ??
-          "pnpm install typescript@next tsc-watch @types/node",
+        prepare: options.prepare ?? "npm install",
         shells: options.shells,
-        snapshot: options.snapshot,
+        snapshots: options.snapshots,
         tree: [
           ...(options.dependencies
             ? [
