@@ -1,4 +1,4 @@
-import { Brand, Effect, Hash, Iterable, Option, pipe } from "effect"
+import { Array, Brand, Effect, Hash, Iterable, Option, pipe } from "effect"
 import * as Schema from "@effect/schema/Schema"
 
 export type FullPath = Brand.Branded<string, "FullPath">
@@ -79,7 +79,11 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   prepare: Schema.String,
   shells: Schema.Array(WorkspaceShell),
   snapshots: Schema.optional(Schema.Array(Schema.String), {
-    default: () => []
+    default: () =>
+      pipe(
+        Array.range(0, 9),
+        Array.map((i) => `snapshot-${i}`)
+      )
   })
 }) {
   readonly filePaths: Map<File | Directory, string>
@@ -97,7 +101,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
       {
         name: options.name,
         initialFilePath: options.initialFilePath,
-        prepare: options.prepare ?? "npm install",
+        prepare: options.prepare ?? "pnpm install",
         shells: options.shells,
         snapshots: options.snapshots,
         tree: [

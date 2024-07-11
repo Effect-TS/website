@@ -168,7 +168,7 @@ const make = Effect.gen(function* () {
             recursive: true,
             force: true
           })
-          return container.fs.mkdir(path(".npm-cache"), { recursive: true })
+          return container.fs.mkdir(path(".pnpm-store"), { recursive: true })
         }),
         () =>
           Effect.andThen(
@@ -190,14 +190,14 @@ const make = Effect.gen(function* () {
         workspace.snapshots,
         (snapshot) =>
           HttpClientRequest.get(
-            `/snapshots/${encodeURIComponent(encodeURIComponent(snapshot))}`
+            `/snapshots/${encodeURIComponent(snapshot)}`
           ).pipe(
             HttpClient.fetchOk,
             HttpClientResponse.arrayBuffer,
             Effect.flatMap((buffer) =>
               Effect.promise(() =>
                 container.mount(buffer, {
-                  mountPoint: workspace.name + "/.npm-cache"
+                  mountPoint: workspace.name + "/.pnpm-store"
                 })
               )
             ),
@@ -525,4 +525,4 @@ const server = Net.createServer((socket) => {
 server.listen(34437)
 `
 
-const npmRc = `cache=.npm-cache\n`
+const npmRc = `store-dir=.pnpm-store\n`

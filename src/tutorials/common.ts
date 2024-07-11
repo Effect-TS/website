@@ -11,7 +11,6 @@ const baseWorkspace = new Workspace({
   name: "default",
   dependencies: packageJson.dependencies,
   shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
-  snapshots: Object.keys(packageJson.dependencies),
   initialFilePath: "src/main.ts",
   tree: []
 })
