@@ -31,7 +31,7 @@ const Tweet = ({ id }: { id: string }) => (
 
 const TwitchClip = ({ clip }: { clip: string }) => (
   <div>
-    <ReactTwitchEmbed.TwitchClip clip={clip} />
+    <ReactTwitchEmbed.TwitchClip clip={clip} autoplay={false} />
   </div>
 )
 
