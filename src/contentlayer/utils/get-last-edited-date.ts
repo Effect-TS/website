@@ -1,4 +1,4 @@
-import type {DocumentGen} from 'contentlayer/core'
+import type {DocumentGen} from 'contentlayer2/core'
 import * as fs from 'node:fs/promises'
 import path from 'node:path'
 

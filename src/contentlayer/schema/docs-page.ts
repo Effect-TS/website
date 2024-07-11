@@ -1,4 +1,4 @@
-import { defineDocumentType } from "@contentlayer/source-files"
+import { defineDocumentType } from "@contentlayer2/source-files"
 import { bundleMDX } from "mdx-bundler"
 import { getLastEditedDate } from "../utils/get-last-edited-date"
 import { urlFromFilePath } from "../utils/url-from-file-path"
