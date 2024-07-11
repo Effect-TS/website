@@ -1,4 +1,4 @@
-import { defineDocumentType } from "@contentlayer/source-files"
+import { defineDocumentType } from "@contentlayer2/source-files"
 import { urlFromFilePath } from "../utils/url-from-file-path"
 
 export const Tutorial = defineDocumentType(() => ({
