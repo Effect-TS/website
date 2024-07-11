@@ -5,7 +5,7 @@ import { makeSource } from "contentlayer2/source-files"
 import remarkGfm from "remark-gfm"
 import type { Options as RehypePrettyCodeOptions } from "rehype-pretty-code"
 import rehypePrettyCode from "rehype-pretty-code"
-import { transformerTwoslash, rendererClassic } from "@shikijs/twoslash"
+import { transformerTwoslash } from "@shikijs/twoslash"
 import rehypeRaw from "rehype-raw"
 import { nodeTypes } from "@mdx-js/mdx"
 import codeImport from "remark-code-import"
@@ -53,8 +53,7 @@ export default makeSource({
           },
           transformers: [
             transformerTwoslash({
-              explicitTrigger: true,
-              renderer: rendererClassic()
+              explicitTrigger: true
             })
           ]
         } satisfies RehypePrettyCodeOptions
