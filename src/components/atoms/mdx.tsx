@@ -37,7 +37,7 @@ const TwitchClip = ({ clip }: { clip: string }) => (
 
 const TwitchPlayerNonInteractive = ({ video }: { video: string }) => (
   <div>
-    <ReactTwitchEmbed.TwitchPlayerNonInteractive video={video} />
+    <ReactTwitchEmbed.TwitchPlayerNonInteractive video={video} autoplay={false} />
   </div>
 )
 
