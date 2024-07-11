@@ -29,9 +29,11 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         yield* Effect.log("building")
         const handle = yield* WebContainer.workspace(workspace)
 
-        const prepare = yield* handle
-          .run(workspace.prepare)
-          .pipe(Effect.forkScoped)
+        const prepare = yield* pipe(
+          handle.awaitSnapshots,
+          Effect.andThen(handle.run(workspace.prepare)),
+          Effect.forkScoped
+        )
 
         const selectedFile = Rx.make(workspace.initialFile)
 
