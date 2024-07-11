@@ -409,3 +409,33 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 // Output: Cannot find this file (foo.txt)
 ```
+
+### Native Cause Support
+
+Adding a `cause` property to errors created with `Data.Error` or `Data.TaggedError` integrates with the native `cause` property of JavaScript's `Error`:
+
+```ts twoslash
+import { Data, Effect } from "effect"
+
+class MyError extends Data.Error<{ cause: Error }> {}
+
+const program = Effect.gen(function* () {
+  yield* new MyError({
+    cause: new Error("Something went wrong")
+  })
+})
+
+Effect.runPromise(program)
+/*
+Error: An error has occurred
+    at ... {
+  name: '(FiberFailure) Error',
+  [Symbol(effect/Runtime/FiberFailure)]: Symbol(effect/Runtime/FiberFailure),
+  [Symbol(effect/Runtime/FiberFailure/Cause)]: {
+    _tag: 'Fail',
+    error: MyError
+        at ...
+      [cause]: Error: Something went wrong
+          at ...
+*/
+```
