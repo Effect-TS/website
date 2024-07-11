@@ -61,7 +61,9 @@ const processModule = ([module, version]) =>
 
 const program = Effect.forEach(
   Object.entries(packageJson.dependencies).filter(
-    ([module]) => !["effect", "typescript"].includes(module)
+    ([module]) =>
+      // exclude peer dependencies
+      !["@effect/platform", "effect", "typescript"].includes(module)
   ),
   processModule,
   { concurrency: 5, discard: true }
