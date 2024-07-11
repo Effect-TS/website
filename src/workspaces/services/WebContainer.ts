@@ -203,7 +203,7 @@ const make = Effect.gen(function* () {
             ),
             Effect.ignore
           ),
-        { concurrency: 3, discard: true }
+        { concurrency: workspace.snapshots.length, discard: true }
       )
 
       yield* Effect.promise(() =>
