@@ -12,7 +12,7 @@ export function TraceSummary() {
       if (Option.isSome(selectedSpan.startTime)) {
         const startTime = Duration.toMillis(selectedSpan.startTime.value)
         const date = new Date(startTime).toString()
-        summary +=  ` at ${date}`
+        summary += ` at ${date}`
       }
       if (Option.isSome(selectedSpan.duration)) {
         const duration = formatDuration(selectedSpan.duration.value)
@@ -24,7 +24,7 @@ export function TraceSummary() {
   }, [selectedSpan])
 
   return (
-    <p className="ml-2 py-3">
+    <p className="ml-px py-3">
       <span className="flex items-center text-sm text-zinc-700 dark:text-zinc-400">
         <span className="mr-2 font-bold text-black dark:text-white">
           Summary

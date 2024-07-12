@@ -16,7 +16,7 @@ export function TraceViewer() {
         <div className="flex flex-col w-full p-2">
           <div className="flex justify-between items-center">
             <div className="min-w-1/2 flex items-center shrink">
-              <h1 className="mr-3 text-3xl font-display">Trace</h1>
+              <h1 className="mr-3 mb-1 text-2xl font-display">Trace</h1>
               <div>
                 <TraceSelector />
               </div>
