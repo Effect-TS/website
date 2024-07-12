@@ -12,12 +12,14 @@ import { themeRx } from "@/rx/theme"
 import { File, FullPath } from "@/workspaces/domain/workspace"
 import { RxWorkspaceHandle } from "@/workspaces/rx"
 import { MonacoATA } from "./services/Monaco/ata"
+import { MonacoTwoslashLive } from "./services/Monaco/twoslash"
 import { MonacoCompletersLive } from "./services/Monaco/completers"
 import { MonacoFormattersLive } from "./services/Monaco/formatters"
 import { MonacoTSConfigLive } from "./services/Monaco/tsconfig"
 import { FileSystemEvent } from "@/workspaces/services/WebContainer"
 
 const MonacoWithPlugins = MonacoATA.Live.pipe(
+  Layer.provide(MonacoTwoslashLive),
   Layer.provide(MonacoCompletersLive),
   Layer.provide(MonacoFormattersLive),
   Layer.provide(MonacoTSConfigLive)
