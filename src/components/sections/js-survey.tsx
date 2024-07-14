@@ -15,15 +15,15 @@ to make building applications easier.
     heading: "Most desired JS features",
     subheading: "2022 State of JavaScript survey",
     features: [
-      { name: "2. Standard Library", value: 12928, docsLink: "/docs" },
+      { name: "2. Standard Library", value: 12928, docsLink: "/docs/other/api-reference" },
       {
         name: "4. Immutable Data Structures",
         value: 8243,
-        docsLink: "/docs"
+        docsLink: "/docs/other/data-types"
       },
-      { name: "5. Observable", value: 6515, docsLink: "/docs" },
-      { name: "6. Pipe Operator", value: 5860, docsLink: "/docs" },
-      { name: "8. Pattern Matching", value: 4872, docsLink: "/docs" }
+      { name: "5. Observable", value: 6515, docsLink: "/docs/guides/streaming/stream/introduction" },
+      { name: "6. Pipe Operator", value: 5860, docsLink: "/docs/guides/essentials/pipeline" },
+      { name: "8. Pattern Matching", value: 4872, docsLink: "/docs/guides/style/pattern-matching" }
     ]
   }
 }
