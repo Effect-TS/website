@@ -15,7 +15,7 @@ to make building applications easier.
     heading: "Most desired JS features",
     subheading: "2022 State of JavaScript survey",
     features: [
-      { name: "2. Standard Library", value: 12928, docsLink: "/docs/other/api-reference" },
+      { name: "2. Standard Library", value: 12928, docsLink: "/docs" },
       {
         name: "4. Immutable Data Structures",
         value: 8243,
