@@ -3,8 +3,9 @@ import { BlogPost } from "./src/contentlayer/schema/blog-post"
 import { DocsPage } from "./src/contentlayer/schema/docs-page"
 import { makeSource } from "contentlayer2/source-files"
 import remarkGfm from "remark-gfm"
-import type { Options as RehypePrettyCodeOptions } from "rehype-pretty-code"
-import rehypePrettyCode from "rehype-pretty-code"
+import rehypePrettyCode, {
+  type Options as RehypePrettyCodeOptions
+} from "rehype-pretty-code"
 import { transformerTwoslash } from "@shikijs/twoslash"
 import rehypeRaw from "rehype-raw"
 import { nodeTypes } from "@mdx-js/mdx"
@@ -43,6 +44,8 @@ export default makeSource({
       remarkGfm
     ],
     rehypePlugins: [
+      [rehypeRaw, { passThrough: nodeTypes }],
+      rehypeMdxCodeProps,
       [
         rehypePrettyCode,
         {
@@ -53,7 +56,13 @@ export default makeSource({
           },
           transformers: [
             transformerTwoslash({
-              explicitTrigger: true
+              explicitTrigger: true,
+              onTwoslashError: (error, code) => {
+                console.error(error, code)
+              },
+              onShikiError: (error, code) => {
+                console.error(error, code)
+              }
             })
           ]
         } satisfies RehypePrettyCodeOptions
