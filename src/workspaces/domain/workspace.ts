@@ -97,7 +97,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
         initialFilePath: options.initialFilePath,
         prepare:
           options.prepare ??
-          "npm install -E typescript@next tsc-watch @types/node",
+          "npm install -E typescript@5.5.3 tsc-watch @types/node",
         shells: options.shells,
         snapshot: options.snapshot,
         tree: [
