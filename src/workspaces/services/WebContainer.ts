@@ -142,7 +142,7 @@ const make = Effect.gen(function* () {
         Stream.orDie,
         Stream.encodeText,
         Stream.pipeThroughChannel(
-          Ndjson.unpackSchema(DevToolsDomain.Request)()
+          Ndjson.unpackSchema(DevToolsDomain.Request)({ ignoreEmptyLines: true })
         ),
         Stream.runForEach((event) =>
           event._tag === "Ping" ? Effect.void : devToolsEvents.publish(event)

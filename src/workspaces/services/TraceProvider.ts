@@ -1,6 +1,5 @@
 import {
   Array,
-  Console,
   Effect,
   Layer,
   Option,
