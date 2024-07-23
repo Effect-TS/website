@@ -1,32 +1,76 @@
 ---
-title: Your first Effect
-excerpt: Learn the basics of Effect
-section: Learn the basics
+title: Your First Effect
 ---
 
 ### What is an Effect?
 
-The `Effect` type represents an immutable value that lazily describes a workflow
-or job.
-
-In some ways you can think of them like lazy Promises - but Effects are not
-actually Promises, of course. They can model synchronous, asynchronous,
+The `Effect` type represents an **immutable value** that **lazily describes** a
+computation, workflow, or job. In some ways you can think of an `Effect` like a
+lazy `Promise`. But `Effect`s are not actually `Promise`s, of course - they are
+much more powerful and can be used to model synchronous, asynchronous,
 concurrent, and resourceful computations.
 
-To get started, let's implement a "Hello world!" program! In the editor you can
-see an example of the `Effect.log` function. This effect will log a message to
-the console.
+The `Effect` type has three generic type parameters which allow
+us to fully describe all aspects of a program. Let's take a closer look:
 
-But how do we run it?
+<div className="flex justify-center">
+  <code>Effect&lt;Success&comma; Error&comma; Requirements&gt;</code>
+</div>
 
-### Running Effect's
+The `Success` type represents the type of value that an effect can succeed with
+when executed. If this type parameter is `void`, it means the effect produces no
+useful information, while if it is `never`, it means the effect will run forever
+(or until it fails).
+
+The `Error` type represents **expected** errors that can occur when executing an
+effect. If this type parameter is `never`, it means the effect cannot fail
+because there are no values of type `never`.
+
+The `Requirements` type represents the contextual data required by the effect in
+order to be executed. This data is stored internally within a specialized
+collection called `Context`
+(<a href="/docs/other/glossary#context" target="_blank">docs</a>). If this type
+parameter is `never`, it means the effect does not have any requirements and
+that the underlying `Context` collection is empty.
+
+<Info>
+In the Effect ecosystem, you may often encounter the type parameters of the
+`Effect` type abbreviated as `A`, `E`, and `R` respectively. This is just
+shorthand for the success value of type `A`, `E`rror, and `R`equirements.
+Additionally, you may also hear these type parameters referred to as _channels_
+of an `Effect`.
+</Info>
+
+### Describing Computations
+
+We previously mentioned that an `Effect` is actually an immutable and lazy
+_description_ of a computation. This means that when you create an `Effect`,
+nothing actually happens. You are only _describing_ what you want your program
+to do. The fact that an `Effect` is an inherently lazy, immutable description of
+a program is a key component to what powers many of the features of the library.
+
+Similar to calling a function, to actually execute a program described by an
+`Effect`, you must explicitly run the `Effect` using Effect's runtime system.
+
+To get a better understanding of what we mean, let's implement a simple program
+that outputs `"Hello, World!"` to the console.
+
+### Running an Effect
+
+In the editor to the right, you can see an example of the `Effect.log` function.
+This effect will log the provided message (in this case `Hello, World!`) to the
+console, along with some other relevant metadata.
+
+But how do we actually run it?
 
 If you type `Effect.run` into the editor, you will see several different options
-to choose from.
+to choose from. For this example let's try running our `Effect.log` program with
+the `Effect.runPromise` function.
 
-Similar to calling a function, to execute an Effect we need to explicitly run it.
-For this example let's try running the `Effect.log` effect with the
-`Effect.runPromise` function.
+<Idea>
+To learn more about the different ways you can execute an `Effect`, checkout
+the documentation on <a href="/docs/guides/essentials/running-effects" target="_blank">Running Effects</a>.
+</Idea>
 
 To use `Effect.runPromise`:
 
@@ -34,10 +78,17 @@ To use `Effect.runPromise`:
 Effect.runPromise(/* your effect goes here */)
 ```
 
-Remember, if you ever get stuck try clicking the "Solve" button.
+Additionally, take a look at the type of our `Effect.log` program by hovering
+over the `program` variable in the editor. We can see that:
+
+  - The program has `void` in the `Success` channel, which means that no value
+    will be produced by the program
+  - The program has `never` in the `Error` channel, which means that no expected
+    errors will be produced by the program
+  - The program has `never` in the `Requirements` channel, which means that the
+    program has no other requirements in order to be run
 
 <Idea>
-  To learn more about running effects, we have a page in the documentation
-  with more information:<br />
-  <a href="/docs/guides/essentials/running-effects" target="_blank">Running Effects</a>
+Remember, if you ever get stuck try clicking the "Show Solution" button in the
+upper right-hand corner of the editor.
 </Idea>

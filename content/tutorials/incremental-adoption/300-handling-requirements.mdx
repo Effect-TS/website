@@ -1,0 +1,112 @@
+---
+title: Handling Requirements
+workspace: express
+---
+
+### Handling Requirements
+
+Utilizing `Effect.runPromise` to interop with your existing application is fine when you are just getting started with adopting Effect. However, it will quickly become apparent that this approach does not scale, especially once you start using Effect to manage the requirements of your application and `Layer`s to compose the dependency graph between services.
+
+<Idea>
+For a detailed walkthrough of how to manage requirements within your Effect applications, take a look at the <a href="/docs/guides/context-management" target="_blank">Requirements Management</a> section of the documentation.
+</Idea>
+
+### Understanding the Problem
+
+To understand the problem, let's take a look at a simple example where we create a `Layer` which logs `"Hello, World"` when constructed. The layer is then provided to two Effect programs which are executed at two separate execution boundaries.
+
+```ts twoslash
+import { Console, Effect, Layer } from "effect"
+
+const HelloWorldLive = Layer.effectDiscard(
+  Console.log("Hello, World!")
+)
+
+async function main() {
+  // Execution Boundary #1
+  await Effect.succeed(1).pipe(
+    Effect.provide(HelloWorldLive),
+    Effect.runPromise
+  )
+
+  // Execution Boundary #2
+  await Effect.succeed(2).pipe(
+    Effect.provide(HelloWorldLive),
+    Effect.runPromise
+  )
+}
+
+main()
+/**
+ * Output:
+ * Hello, World!
+ * Hello, World!
+ */
+```
+
+As you can see from the output, the message `"Hello, World!"` is logged twice. This is because each call to `Effect.provide` will fully construct the dependency graph specified by the `Layer` and then provide it to the Effect program.
+
+This can create problems when your layers are meant to encapsulate logic that is only meant to be executed **once** (for example, creating a database connection pool) or when layer construction is **expensive** (for example, fetching a large number of remote assets and caching them in memory).
+
+To solve this problem, we need some sort of top-level, re-usable Effect `Runtime` which contains our fully constructed dependency graph, and then use that `Runtime` to execute our Effect programs instead of the default `Runtime` used by the `Effect.run*` methods.
+
+### Managed Runtimes
+
+The `ManagedRuntime` data type in Effect allows us to create a top-level, re-usable Effect `Runtime` which encapsulates a fully constructed dependency graph. In addition, `ManagedRuntime` gives us explicit control over when resources acquired by the runtime should be disposed.
+
+Let's take a look at an example where we refactor the code from above to utilize `ManagedRuntime`:
+
+```ts twoslash
+import { Console, Effect, Layer, ManagedRuntime } from "effect"
+
+const HelloWorldLive = Layer.effectDiscard(
+  Console.log("Hello, World!")
+)
+
+// Create a managed runtime from our layer
+const runtime = ManagedRuntime.make(HelloWorldLive)
+
+async function main() {
+  // Execution Boundary #1
+  await Effect.succeed(1).pipe(
+    runtime.runPromise
+  )
+
+  // Execution Boundary #2
+  await Effect.succeed(2).pipe(
+    runtime.runPromise
+  )
+
+  // Dispose of resources when no longer needed
+  await runtime.dispose()
+}
+
+main()
+/**
+ * Output:
+ * Hello, World!
+ */
+```
+
+Some things to note about the program above include:
+
+  - `"Hello, World!"` is only logged to the console once
+  - We no longer have to provide `HelloWorldLive` to each Effect program
+  - Resources acquired by the `ManagedRuntime` must be manually disposed of
+
+### Exercise
+
+The team in charge of the `TodoRepository` has been hard at work and has managed to convert the `TodoRepository` into a completely Effect-based service complete with a `Layer` for service construction.
+
+Using what we have learned above, your tasks for this exercise include:
+
+  - Create a `ManagedRuntime` which takes in the `TodoRepository` layer
+  - Use the `ManagedRuntime` to run the Effect programs within the Express route handlers
+  - For any Effect program which may result in a `TodoNotFoundError`:
+    - Set the response status code to `404`
+    - Return a JSON response that conforms to the following `{ "type": "TodoNotFound", "id": <TODO_ID> }`
+  - **BONUS**: properly dispose of the `ManagedRuntime` when the server shuts down
+
+Modify the code in the editor to the right to accomplish your tasks.
+
+Please note that there is no one "correct" answer, as there are multiple ways to achieve the desired outcome.

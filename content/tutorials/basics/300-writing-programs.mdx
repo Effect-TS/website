@@ -1,0 +1,109 @@
+---
+title: Writing Programs with Effect
+---
+
+In the previous sections, we learned how to create effects and execute them. In
+this section, we will learn how to write simple programs with Effect.
+
+There are two main styles for writing programs with Effect - using generators
+and using pipelines - both of which can be freely mixed and matched.
+
+### Writing Programs with Generators
+
+The `Effect.gen` utility provided by Effect offers a convenient syntax,
+similar to `async`/`await`, which can be used to write effectful code using
+<a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator" target="_blank">JavaScript's generator functions</a>.
+
+This allows you to write code in a more imperative style which can enhance
+readability especially for those who are new to Effect.
+
+Let's take a look at a very simple example:
+
+```ts
+Effect.gen(function*() {
+  const n = yield* Effect.sync(() => Math.random())
+
+  if (n > 0.5) {
+    yield* Effect.log(`The number ${n} is greater than 0.5`)
+  } else {
+    yield* Effect.log(`The number ${n} is less than 0.5`)
+  }
+
+  return n
+})
+```
+
+To learn about writing programs with `Effect.gen`, please visit the corresponding
+<a href="/docs/guides/essentials/using-generators" target="_blank">page in the documentation</a>
+and return here once you are finished reading.
+
+<Idea>
+The use of generators is an **optional feature** in Effect. If you find
+generators unfamiliar or prefer a different coding style, you can skip this
+section and move on to [Writing Programs with Pipelines](#writing-programs-with-pipelines)
+the next section of the tutorial which covers building pipelines with Effect.
+</Idea>
+
+Some key takeaways from the documentation on using generators with Effect
+include:
+
+  - Logic goes inside a generator function wrapped by `Effect.gen`
+    - i.e. `Effect.gen(function*() { /* Logic goes here */ })`
+  - Use `yield*` to get the return value of effects
+  - Standard control flow constructs can be used
+  - Errors short-circuit evaluation
+
+### Writing Programs with Pipelines
+
+Using pipelines to create programs with Effect allows for the composition and
+sequencing of operations on values, enabling the transformation and manipulation
+of data in a clear, concise, and modular manner.
+
+The `pipe` utility enables the creation of pipelines with Effect by taking the
+output of one function and passing it as the input to the next function in the
+pipeline. The sequential composition of functions is why we refer to this style
+of writing Effect programs as "creating pipelines".
+
+Let's take a look at the same example from the previous section re-written to
+use `pipe`:
+
+```ts
+Effect.sync(() => Math.random()).pipe(
+  Effect.tap((n) =>
+    n > 0.5
+      ? Effect.log(`The number ${n} is greater than 0.5`)
+      : Effect.log(`The number ${n} is less than 0.5`)
+  )
+)
+```
+
+<Info>
+The <a href="/docs/guides/essentials/pipeline#tap" target="_blank">Effect.tap</a>
+method allows us to access the value of the previous Effect, perform some logic,
+and then ignore the result of said logic, returning the value of the effect
+prior to executing `Effect.tap`.
+</Info>
+
+To learn about creating pipelines with `pipe`, please visit the corresponding
+<a href="/docs/guides/essentials/pipeline" target="_blank">page in the documentation</a>
+and return here once you are finished reading.
+
+Some key takeaways from the documentation on creating pipelines with Effect
+include:
+
+  - `pipe` will apply all functions in the pipeline to a value sequentially
+  - The `.pipe` method is available as a convenience method on most data types
+    in the Effect ecosystem
+
+### Exercise
+
+Using the concepts we just learned about writing programs with Effect, complete
+the `TODO`s in the editor.
+
+**Bonus**: re-write the program in the editor to utilize a pipeline instead of a
+generator.
+
+<Idea>
+Remember, if you ever get stuck try clicking the "Show Solution" button in the
+upper right-hand corner of the editor.
+</Idea>

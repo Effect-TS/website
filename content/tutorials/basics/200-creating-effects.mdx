@@ -1,0 +1,169 @@
+---
+title: Creating Effects
+---
+
+### Returning Values
+
+Congratulations on running your first Effect!
+
+However, in the previous section our program had the type `void` in the
+`Success` channel of the effect, indicating that the program did not return
+any meaningful value.
+
+In this section, we are going to explore how we can create effects that _do_
+return meaningful values.
+
+### Modeling Synchronous Computations
+
+#### Effect.succeed
+
+To create an effect that returns the same value every time that it is run, you
+can use the `Effect.succeed` constructor. It takes a **pure value** as input and
+produces an effect that succeeds with that value.
+
+Here's an example:
+
+```ts
+Effect.succeed(42)
+```
+
+When run, this effect will always succeed with the value `42`.
+
+#### Effect.sync
+
+If you want to create an effect that executes a synchronous function each time
+it is run, you can use the `Effect.sync` constructor. It takes a thunk (i.e. a
+function with no arguments) as input, and calls that function each time the
+effect is run. This is particularly useful when you need to encapsulate
+operations within effect that have side-effects (e.g. logging to the console).
+
+Here's an example:
+
+```ts
+Effect.sync(() => Date.now())
+```
+
+This effect will return the current date each time. Note that if we used
+`Effect.succeed(Date.now())` instead, the date would be fixed to the time when
+the effect was created instead of being re-evaluated each time the effect is
+run.
+
+<Warning>
+The thunk passed to `Effect.sync` should never throw errors.
+</Warning>
+
+If, despite warnings, the thunk passed to `Effect.sync` does throw an error, the
+Effect runtime will create an `Effect` containing a "defect" (see
+<a href="/docs/guides/error-management/unexpected-errors" target="_blank">Unexpected Errors</a>
+in the documentation).
+
+#### Effect.try
+
+For situations where you need to perform a synchronous computation that may
+fail, you can use the `Effect.try` constructor. This constructor has two
+variants that can be used depending upon whether or not you would like to
+customize error handling.
+
+For example, let's say we have a function `numberOrFail` that can potentially
+throw an `Error`:
+
+```ts
+function numberOrFail(num: number) {
+  if (Math.random() > 0.5) {
+    throw new Error("failed")
+  }
+  return num
+}
+```
+
+If we do not need to customize error handling at all, we can directly pass our
+`numberOrFail` function to `Effect.try`. In this case, any errors thrown by the
+function passed to `Effect.try` will be wrapped by an `UnknownException`:
+
+```ts
+Effect.try(() => numberOrFail(42))
+```
+
+However, if we _do_ need to customize error handling, we can use the other
+variant of `Effect.try` which allows us to catch and handle any errors thrown
+from our synchronous function:
+
+```ts
+Effect.try({
+  // Try to run our synchronous function
+  try: () => numberOrFail(42),
+  // Catch and re-map the error to something possibly more useful
+  catch: (error) => new Error(`An error occurred: ${error}`)
+})
+```
+
+This pattern is analagous to a standard try-catch block in JavaScript.
+
+### Modeling Asynchronous Computations
+
+#### Effect.promise
+
+If you want to create an effect from an asynchronous function that returns a
+`Promise`, you can use the `Effect.promise` constructor. The resulting effect
+will resolve the returned `Promise` and succeed with it's value.
+
+Here's an example:
+
+```ts
+Effect.promise(
+  () => fetch("https://api.github.com/users/octocat")
+)
+```
+
+This effect will fetch the GitHub user `octocat` and succeed with the response.
+
+<Warning>
+The `Promise` returned by the thunk passed to `Effect.promise` should never
+reject.
+</Warning>
+
+If, despite warnings, the thunk passed to `Effect.promise` does reject, the
+Effect runtime will create an `Effect` containing a "defect" (see
+<a href="/docs/guides/error-management/unexpected-errors" target="_blank">Unexpected Errors</a>
+in the documentation).
+
+#### Effect.tryPromise
+
+For situations where you need to perform an asynchronous computation that may
+fail, you can use the `Effect.tryPromise` constructor. Similar to `Effect.try`,
+the `Effect.tryPromise` constructor has two variants that can be used depending
+upon whether or not you would like to customize error handling.
+
+If you do not need to customize error handling, the syntax is similar to
+`Effect.promise`, the difference being that if the promise rejects, the error
+will be wrapped into an `UnknownException`:
+
+```ts
+Effect.tryPromise(
+  () => fetch("https://api.github.com/users/octocat")
+)
+```
+
+However, if you _do_ need to customize error handling, you can use the other
+variant of `Effect.tryPromise` which allows for catching and handling the error
+returned by the rejected `Promise`:
+
+```ts
+Effect.tryPromise({
+  // Try to run the promise
+  try: () => fetch("https://api.github.com/users/octocat"),
+  // Catch and re-map the error to something possibly more useful
+  catch: (error) => new Error(`An error occurred: ${error}`)
+})
+```
+
+This is similar to adding a `.catch` handler to a `Promise`.
+
+### Exercise
+
+Using the Effect functions we just learned, complete the TODO's in the editor.
+
+<Idea>
+Remember, if you ever get stuck try clicking the "Show Solution" button in the
+upper right-hand corner of the editor.
+</Idea>

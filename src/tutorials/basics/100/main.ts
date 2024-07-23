@@ -1,3 +1,5 @@
 import { Effect } from "effect"
 
-Effect.runPromise(Effect.log("Hello world!"))
+const program = Effect.log("Hello, World!")
+
+Effect.runPromise(program)
