@@ -54,20 +54,15 @@ const defaultWorkspace = new Workspace({
     makeDirectory("src", [
       new File({
         name: "main.ts",
-        initialContent: `import { Effect } from "effect"
-import { NodeRuntime } from "@effect/platform-node"
+        initialContent: `import { NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
 import { DevToolsLive } from "./DevTools"
 
-const program = Effect.gen(function* () {
-  yield* Effect.log("Welcome to the Effect Playground!").pipe(
-    Effect.withSpan("leaf: depth 3"),
-    Effect.withSpan("node: depth 2")
-  )
-  yield* Effect.void.pipe(Effect.withSpan("leaf: depth 2"))
-}).pipe(
-  Effect.withSpan("node: depth 1"),
-  Effect.withSpan("root", { attributes: { source: "Playground" } })
-)
+const program = Effect.gen(function*() {
+  yield* Effect.log("Welcome to the Effect Playground!")
+}).pipe(Effect.withSpan("program", {
+  attributes: { source: "Playground" }
+}))
 
 program.pipe(
   Effect.provide(DevToolsLive),
