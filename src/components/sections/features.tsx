@@ -32,7 +32,7 @@ export const Features = () => {
             application, your package.json will have never been this small.
           </p>
           <Checklist items={['Data validation & serialization', 'Frameworks for CLI & HTTP applications', 'Powerful abstractions for every platform']} />
-          <Button href="/docs" secondary className="mt-10">
+          <Button href="/docs/other/api-reference" secondary className="mt-10">
             Read documentation
           </Button>
         </div>
@@ -46,7 +46,7 @@ export const Features = () => {
             Successfully handle failure with the built-in error-handling primitives.
           </p>
           <Checklist items={['Type-safe errors as values', 'Powerful retry & recovery APIs', 'Tools for logging & tracing']} />
-          <Button href="/docs" secondary className="mt-10">
+          <Button href="/docs/guides/error-management" secondary className="mt-10">
             Read documentation
           </Button>
         </div>
