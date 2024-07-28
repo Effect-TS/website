@@ -1,4 +1,4 @@
-import { defineDocumentType } from "@contentlayer/source-files"
+import { defineDocumentType } from "@contentlayer2/source-files"
 import { bundleMDX } from "mdx-bundler"
 import { urlFromFilePath } from "../utils/url-from-file-path"
 import { tocPlugin } from "../utils/toc-plugin"
