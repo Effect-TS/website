@@ -19,7 +19,7 @@ export const devToolsLayer = new File({
   name: "DevTools.ts",
   initialContent: `import { DevTools } from "@effect/experimental"
 import { NodeSocket } from "@effect/platform-node"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Logger } from "effect"
 
 export const DevToolsLive = Layer.effectDiscard(Effect.sleep(100)).pipe(
   Layer.provideMerge(DevTools.layerSocket),
