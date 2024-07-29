@@ -17,7 +17,7 @@ export const TableOfContents: React.FC<{
   useEffect(() => {
     const handleScroll = () => {
       let current = ""
-      for (const { title, slug } of elements) {
+      for (const { slug } of elements) {
         const element = document.getElementById(slug)
         if (element && element.getBoundingClientRect().top < 256)
           current = slug
@@ -33,14 +33,14 @@ export const TableOfContents: React.FC<{
   }, [elements])
 
   return (
-    <aside className="toc flex-none sticky top-32 sm:top-40 mb-16 w-40 overflow-y-auto hidden xl:block">
+    <aside className="toc flex-none sticky top-32 sm:top-40 mb-16 w-52 overflow-y-auto hidden xl:block">
       <div>
         {elements.length > 1 && (
           <h2 className="text-black dark:text-white uppercase text-sm font-semibold h-8 flex items-end">
             On this page
           </h2>
         )}
-        <ul className="relative grow overflow-y-auto py-9 text-sm">
+        <ul className="relative grow overflow-hidden py-9 text-sm">
           {elements
             .slice(1, elements.length)
             .map(({ level, title, slug }, index) => {
@@ -52,7 +52,7 @@ export const TableOfContents: React.FC<{
                 >
                   <Link
                     href={`#${slug}`}
-                    className={`flex items-center pb-1 hover:text-black dark:hover:text-white leading-snug text-left ${
+                    className={`flex items-center pb-1 break-words hover:text-black dark:hover:text-white leading-snug text-left ${
                       slug === activeHeading
                         ? "text-black font-normal dark:text-white dark:font-light"
                         : ""
