@@ -1,6 +1,6 @@
 "use client"
 
-import { useMDXComponent } from "next-contentlayer/hooks"
+import { useMDXComponent } from "next-contentlayer2/hooks"
 import { H2, H3, H4 } from "@/components/atoms/headings"
 import { Tab, Tabs } from "@/components/docs/components/tabs"
 import * as Callouts from "@/components/docs/components/callouts"

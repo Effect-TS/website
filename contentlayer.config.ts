@@ -1,15 +1,16 @@
 import { Tutorial } from "./src/contentlayer/schema/tutorial"
 import { BlogPost } from "./src/contentlayer/schema/blog-post"
 import { DocsPage } from "./src/contentlayer/schema/docs-page"
-import { makeSource } from "contentlayer/source-files"
+import { makeSource } from "contentlayer2/source-files"
 import remarkGfm from "remark-gfm"
-import type { Options as RehypePrettyCodeOptions } from "rehype-pretty-code"
-import rehypePrettyCode from "rehype-pretty-code"
-import remarkShikiTwoslash from "remark-shiki-twoslash"
+import rehypePrettyCode, {
+  type Options as RehypePrettyCodeOptions
+} from "rehype-pretty-code"
+import { transformerTwoslash } from "@shikijs/twoslash"
 import rehypeRaw from "rehype-raw"
 import { nodeTypes } from "@mdx-js/mdx"
 import codeImport from "remark-code-import"
-import remarkMdxCodeMeta from "remark-mdx-code-meta"
+import rehypeMdxCodeProps from "rehype-mdx-code-props"
 import rehypeSlug from "rehype-slug"
 
 export const CODE_BLOCK_FILENAME_REGEX = /filename="([^"]+)"/
@@ -39,20 +40,36 @@ export default makeSource({
   documentTypes: [DocsPage, BlogPost, Tutorial],
   mdx: {
     remarkPlugins: [
-      [codeImport as any, { rootDir: process.cwd() + "/content" }],
-      // @ts-expect-error
-      [remarkShikiTwoslash.default, { themes: ["github-dark", "github-light"] }],
-      // [conditionalShikiTwoslash, { theme: "github-dark" }],
-      remarkGfm,
-      remarkMdxCodeMeta
+      [codeImport, { rootDir: process.cwd() + "/content" }],
+      remarkGfm
     ],
     rehypePlugins: [
       [rehypeRaw, { passThrough: nodeTypes }],
+      rehypeMdxCodeProps,
       [
         rehypePrettyCode,
-        { ...DEFAULT_REHYPE_PRETTY_CODE_OPTIONS, theme: "github-dark" }
-      ] as any,
-      [rehypeSlug]
+        {
+          ...DEFAULT_REHYPE_PRETTY_CODE_OPTIONS,
+          theme: {
+            dark: "github-dark",
+            light: "github-light"
+          },
+          transformers: [
+            transformerTwoslash({
+              explicitTrigger: true,
+              onTwoslashError: (error, code) => {
+                console.error(error, code)
+              },
+              onShikiError: (error, code) => {
+                console.error(error, code)
+              }
+            })
+          ]
+        } satisfies RehypePrettyCodeOptions
+      ],
+      [rehypeRaw, { passThrough: nodeTypes }],
+      rehypeMdxCodeProps,
+      rehypeSlug
     ]
   }
 })
