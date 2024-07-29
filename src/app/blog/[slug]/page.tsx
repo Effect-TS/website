@@ -34,7 +34,7 @@ export default function Page({
   return (
     <>
       <Navigation />
-      <div className="blog-container relative w-full max-w-screen-xl px-4 sm:px-8 lg:px-16 flex items-start pt-32 sm:pt-40 min-h-screen">
+      <div className="blog-container relative w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 flex items-start pt-32 sm:pt-40 min-h-screen">
         <aside className="hidden md:flex shrink-0 sticky top-32 sm:top-40 mb-16 flex-col w-64">
           <div className="text-black dark:text-white uppercase text-sm font-semibold h-8 flex items-end mb-9">
             {post.authors.length > 1 ? "Authors" : "Author"}
@@ -43,7 +43,7 @@ export default function Page({
             <Author key={index} {...author} />
           ))}
         </aside>
-        <main className="md:px-12 pb-24 -mt-2 grow">
+        <main className="md:px-12 pb-24 -mt-2 grow overflow-hidden">
           <div className="flex gap-2 items-center -mt-5 mb-1 h-4 text-sm">
             <Link
               href="/blog"
