@@ -23,7 +23,8 @@ import { Effect, Layer } from "effect"
 
 export const DevToolsLive = Layer.effectDiscard(Effect.sleep(100)).pipe(
   Layer.provideMerge(DevTools.layerSocket),
-  Layer.provide(NodeSocket.layerNet({ port: 34437 }))
+  Layer.provide(NodeSocket.layerNet({ port: 34437 })),
+  Layer.merge(Logger.pretty)
 )`
 })
 
