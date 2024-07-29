@@ -1,31 +1,90 @@
+import { Array, Console, Effect, Stream } from "effect"
+import * as Command from "@effect/platform/Command"
+import * as FileSystem from "@effect/platform/FileSystem"
+import * as Path from "@effect/platform/Path"
+import * as NodeContext from "@effect/platform-node/NodeContext"
 import { snapshot } from "@webcontainer/snapshot"
-import { execSync } from "node:child_process"
-import * as FS from "node:fs/promises"
-import * as Path from "node:path"
 import { fileURLToPath } from "node:url"
+import packageJson from "./package.json" assert { type: "json" }
 
-const dirname = Path.dirname(fileURLToPath(import.meta.url))
+const constChunks = 10
 
-async function processDir(name) {
-  const directory = Path.join(dirname, name)
-  await FS.rm(`${directory}/.npm-cache`, { recursive: true, force: true })
-  await FS.rm(`${directory}/package-lock.json`, { force: true })
+const program = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem
+  const path = yield* Path.Path
+  const directory = yield* fs.makeTempDirectoryScoped()
 
-  execSync("corepack npm install", { cwd: directory })
+  yield* Effect.annotateLogsScoped({ directory })
+  yield* Effect.log("Processing")
 
-  await FS.rm(`${directory}/node_modules`, { recursive: true, force: true })
-  const buf = await snapshot(directory)
-  await FS.writeFile(Path.join(dirname, "..", "public/snapshots", name), buf)
-}
+  yield* fs.writeFileString(
+    path.join(directory, "package.json"),
+    JSON.stringify(packageJson, null, 2)
+  )
+  yield* fs.writeFileString(
+    path.join(directory, ".npmrc"),
+    "store-dir=.pnpm-store\n"
+  )
 
-async function main() {
-  for (const dir of await FS.readdir(dirname, {
-    withFileTypes: true
-  })) {
-    if (dir.isDirectory()) {
-      await processDir(dir.name)
-    }
-  }
-}
+  yield* Command.make("corepack", "pnpm", "install").pipe(
+    Command.workingDirectory(directory),
+    Command.streamLines,
+    Stream.runForEach((line) => Console.log(line))
+  )
 
-main().catch(console.error)
+  const pnpmFiles = path.join(directory, ".pnpm-store/v3/files")
+  const directories = yield* fs.readDirectory(
+    path.join(directory, ".pnpm-store/v3/files")
+  )
+  const chunks = Array.split(directories, constChunks)
+
+  yield* Effect.forEach(
+    chunks,
+    (chunk, i) =>
+      Effect.gen(function* () {
+        const chunkDir = path.join(directory, `snapshot-${i}`)
+        const filesDir = path.join(chunkDir, "v3/files")
+        yield* fs.makeDirectory(filesDir, {
+          recursive: true
+        })
+        yield* Effect.forEach(
+          chunk,
+          (dir) =>
+            fs.rename(path.join(pnpmFiles, dir), path.join(filesDir, dir)),
+          { concurrency: 10 }
+        )
+        const outputDir = path.join(
+          fileURLToPath(import.meta.url),
+          "../../public/snapshots"
+        )
+        const outputFile = path.join(outputDir, `snapshot-${i}`)
+
+        yield* Effect.log(`Creating binary snapshot`)
+        const buffer = yield* Effect.promise(() => snapshot(chunkDir))
+
+        yield* fs.writeFile(outputFile, buffer)
+      }).pipe(Effect.annotateLogs({ chunk: i })),
+    { concurrency: 3, discard: true }
+  )
+  //
+  // // Create and write snapshot
+  // const cacheDir = path.join(directory, ".pnpm-store")
+  // const outputDir = path.join(
+  //   fileURLToPath(import.meta.url),
+  //   "../../public/snapshots"
+  // )
+  // const outputFile = path.join(outputDir, encodeURIComponent(module))
+  //
+  // yield* Effect.log(`Creating binary snapshot`)
+  // const buffer = yield* Effect.promise(() => snapshot(cacheDir))
+  //
+  // yield* fs.writeFile(outputFile, buffer)
+  //
+  // yield* Effect.log(`Wrote snapshot to '${outputDir}'`)
+}).pipe(Effect.scoped)
+
+program.pipe(
+  Effect.tapErrorCause(Effect.logError),
+  Effect.provide(NodeContext.layer),
+  Effect.runPromise
+)

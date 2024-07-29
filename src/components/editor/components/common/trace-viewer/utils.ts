@@ -1,0 +1,31 @@
+import { Span } from "@/workspaces/domain/devtools"
+import { Duration } from "effect"
+
+export function getTotalSpans(span: Span): number {
+  let total = 1
+  const stack = [span]
+  while (stack.length > 0) {
+    const node = stack.pop()!
+    const children = node.children
+    if (children.length > 0) {
+      total += children.length
+      for (const child of children) {
+        stack.push(child)
+      }
+    }
+  }
+  return total
+}
+
+export function formatDuration(duration: Duration.Duration) {
+  const nanos = Number(Duration.unsafeToNanos(duration))
+  if (nanos < 1_000) {
+    return `${nanos}ns`
+  } else if (nanos < 1_000_000) {
+    return `${(nanos / 1_000).toFixed(2)}µs`
+  } else if (nanos < 1_000_000_000) {
+    return `${(nanos / 1_000_000).toFixed(2)}ms`
+  } else {
+    return `${(nanos / 1_000_000_000).toFixed(2)}s`
+  }
+}

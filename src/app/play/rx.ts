@@ -10,11 +10,12 @@ import { Effect, Layer } from "effect"
 import { editorRx } from "@/components/editor/rx"
 import { hashRx } from "@/rx/location"
 import { pipe } from "effect"
-import { RxWorkspaceHandle } from "@/workspaces/rx"
+import { RxWorkspaceHandle } from "@/workspaces/rx/workspace"
 import { WorkspaceCompression } from "./services/WorkspaceCompression"
-import packageJson from "../../../snapshots/tutorials/package.json"
+import packageJson from "../../../snapshots/package.json"
 import { rpcClient } from "@/rpc/client"
 import { RetrieveRequest, ShortenRequest } from "@/services/Shorten/domain"
+import { devToolsLayer } from "@/tutorials/common"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
@@ -48,21 +49,28 @@ const defaultWorkspace = new Workspace({
   dependencies: packageJson.dependencies,
   shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
   initialFilePath: "src/main.ts",
-  snapshot: "tutorials",
   tree: [
+    // TODO: Revert this back to the old program
     makeDirectory("src", [
       new File({
         name: "main.ts",
-        initialContent: `import { Effect } from "effect"
-import { NodeRuntime } from "@effect/platform-node"
+        initialContent: `import { NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
+import { DevToolsLive } from "./DevTools"
 
-const program = Effect.gen(function* () {
+const program = Effect.gen(function*() {
   yield* Effect.log("Welcome to the Effect Playground!")
-})
+}).pipe(Effect.withSpan("program", {
+  attributes: { source: "Playground" }
+}))
 
-NodeRuntime.runMain(program)
+program.pipe(
+  Effect.provide(DevToolsLive),
+  NodeRuntime.runMain
+)
 `
-      })
+      }),
+      devToolsLayer
     ])
   ]
 })

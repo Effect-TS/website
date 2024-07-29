@@ -31,9 +31,6 @@ function ToolbarHeader() {
 
       <h2 className="relative text-lg font-semibold text-nowrap">
         Playground
-        <span className="font-mono normal-case absolute ml-2 mt-[-3px] text-slate-400 dark:text-slate-500 text-[10px]">
-          Alpha
-        </span>
       </h2>
 
       <nav className="flex gap-6 pl-16">

@@ -1,6 +1,6 @@
 import React from "react"
 import { useRx } from "@effect-rx/rx-react"
-import { useWorkspaceHandle } from "@/workspaces/context"
+import { useWorkspaceHandle } from "@/workspaces/context/workspace"
 import { Button } from "@/components/ui/button"
 
 export declare namespace SolveButton {

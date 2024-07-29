@@ -1,15 +1,31 @@
-import { Workspace, WorkspaceShell } from "@/workspaces/domain/workspace"
+import {
+  File,
+  Workspace,
+  WorkspaceShell
+} from "@/workspaces/domain/workspace"
 import { Tutorial } from "contentlayer/generated"
 import type { ReadonlyRecord } from "effect/Record"
-import packageJson from "../../snapshots/tutorials/package.json"
+import packageJson from "../../snapshots/package.json"
 
 const baseWorkspace = new Workspace({
   name: "default",
   dependencies: packageJson.dependencies,
   shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
-  snapshot: "tutorials",
   initialFilePath: "src/main.ts",
   tree: []
+})
+
+export const devToolsLayer = new File({
+  name: "DevTools.ts",
+  initialContent: `import { DevTools } from "@effect/experimental"
+import { NodeSocket } from "@effect/platform-node"
+import { Effect, Layer, Logger } from "effect"
+
+export const DevToolsLive = Layer.effectDiscard(Effect.sleep(100)).pipe(
+  Layer.provideMerge(DevTools.layerSocket),
+  Layer.provide(NodeSocket.layerNet({ port: 34437 })),
+  Layer.merge(Logger.pretty)
+)`
 })
 
 export const tutorialWorkspaces: ReadonlyRecord<

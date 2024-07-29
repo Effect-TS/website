@@ -10,7 +10,7 @@ import {
 } from "effect"
 import { themeRx } from "@/rx/theme"
 import { File, FullPath } from "@/workspaces/domain/workspace"
-import { RxWorkspaceHandle } from "@/workspaces/rx"
+import { RxWorkspaceHandle } from "@/workspaces/rx/workspace"
 import { MonacoATA } from "./services/Monaco/ata"
 import { MonacoTwoslashLive } from "./services/Monaco/twoslash"
 import { MonacoCompletersLive } from "./services/Monaco/completers"

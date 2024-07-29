@@ -48,7 +48,7 @@ const socials = [
 
 export const Footer = () => {
   const pathname = usePathname()
-  const wide = pathname.startsWith("/docs")
+  const wide = pathname?.startsWith("/docs")
 
   return (
     <div className={pathname === "/" ? "dark" : ""}>
@@ -89,7 +89,7 @@ export const Footer = () => {
                     <li key={index}>
                       <Link
                         href={href}
-                        className={`flex items-start ${pathname.startsWith(href) ? "" : "button-hover"}`}
+                        className={`flex items-start ${pathname?.startsWith(href) ? "" : "button-hover"}`}
                         target={blank === true ? "_blank" : "_self"}
                       >
                         <span>{name}</span>

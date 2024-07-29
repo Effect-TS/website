@@ -1,6 +1,8 @@
 import {
+  Console,
   Data,
   Effect,
+  Fiber,
   GlobalValue,
   Layer,
   Option,
@@ -8,13 +10,12 @@ import {
   Scope,
   Stream,
   SubscriptionRef,
-  identity,
-  pipe
+  identity
 } from "effect"
 import {
+  HttpClient,
   HttpClientRequest,
-  HttpClientResponse,
-  HttpClient
+  HttpClientResponse
 } from "@effect/platform"
 import {
   FileSystemTree,
@@ -29,6 +30,8 @@ import {
   Workspace,
   makeDirectory
 } from "../domain/workspace"
+import * as Ndjson from "@effect/experimental/Ndjson"
+import * as DevToolsDomain from "@effect/experimental/DevTools/Domain"
 
 const semaphore = GlobalValue.globalValue("app/WebContainer/semaphore", () =>
   Effect.unsafeMakeSemaphore(1)
@@ -93,15 +96,67 @@ const make = Effect.gen(function* () {
   const workspaceScopes = new WeakMap<WorkspaceHandle, Scope.Scope>()
   const plugins = new Set<WorkspacePlugin>()
 
-  yield* Effect.promise(async () => {
-    await container.fs.writeFile("run", runProgram)
-    await container.spawn("chmod", ["+x", "run"])
-  })
+  const install = (name: string, content: string) =>
+    Effect.promise(async () => {
+      await container.fs.writeFile(name, content)
+      await container.spawn("chmod", ["+x", name])
+    })
+  yield* install("run", runProgram)
+  yield* install("dev-tools-proxy", devToolsProxy)
+
+  const shell = Effect.acquireRelease(
+    Effect.promise(() =>
+      container.spawn("jsh", [], {
+        env: {
+          PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin",
+          NODE_NO_WARNINGS: "1"
+        }
+      })
+    ),
+    (process) => Effect.sync(() => process.kill())
+  )
+  const spawn = (command: string) =>
+    Effect.acquireRelease(
+      Effect.promise(() =>
+        container.spawn("jsh", ["-c", command], {
+          env: { PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin" }
+        })
+      ),
+      (process) => Effect.sync(() => process.kill())
+    )
+  const run = (command: string) =>
+    spawn(command).pipe(
+      Effect.andThen((process) => Effect.promise(() => process.exit)),
+      Effect.scoped
+    )
+
+  // start dev tools proxy
+  const devToolsEvents =
+    yield* PubSub.sliding<DevToolsDomain.Request.WithoutPing>(128)
+  yield* spawn("./dev-tools-proxy").pipe(
+    Effect.tap((process) =>
+      Stream.fromReadableStream(
+        () => process.output,
+        (error) => error
+      ).pipe(
+        Stream.orDie,
+        Stream.encodeText,
+        Stream.pipeThroughChannel(
+          Ndjson.unpackSchema(DevToolsDomain.Request)({ ignoreEmptyLines: true })
+        ),
+        Stream.runForEach((event) =>
+          event._tag === "Ping" ? Effect.void : devToolsEvents.publish(event)
+        )
+      )
+    ),
+    Effect.forever,
+    Effect.forkScoped
+  )
 
   const workspace = (workspace: Workspace) =>
     Effect.gen(function* () {
       const fsEvents = yield* Effect.acquireRelease(
-        PubSub.unbounded<FileSystemEvent>(),
+        PubSub.sliding<FileSystemEvent>(128),
         (pubsub) => PubSub.shutdown(pubsub)
       )
 
@@ -115,7 +170,7 @@ const make = Effect.gen(function* () {
             recursive: true,
             force: true
           })
-          return container.fs.mkdir(workspace.name)
+          return container.fs.mkdir(path(".pnpm-store"), { recursive: true })
         }),
         () =>
           Effect.andThen(
@@ -129,18 +184,29 @@ const make = Effect.gen(function* () {
           )
       )
 
-      if (workspace.snapshot) {
-        const snapshot = yield* pipe(
-          HttpClientRequest.get(`/snapshots/${workspace.snapshot}`),
-          HttpClient.fetchOk,
-          HttpClientResponse.arrayBuffer
-        )
-        yield* Effect.promise(async () => {
-          await container.mount(snapshot, {
-            mountPoint: workspace.name
-          })
-        })
-      }
+      yield* Effect.promise(() =>
+        container.fs.writeFile(path(".npmrc"), npmRc)
+      )
+
+      const snapshotsFiber = yield* Effect.forEach(
+        workspace.snapshots,
+        (snapshot) =>
+          HttpClientRequest.get(
+            `/snapshots/${encodeURIComponent(snapshot)}`
+          ).pipe(
+            HttpClient.fetchOk,
+            HttpClientResponse.arrayBuffer,
+            Effect.flatMap((buffer) =>
+              Effect.promise(() =>
+                container.mount(buffer, {
+                  mountPoint: workspace.name + "/.pnpm-store"
+                })
+              )
+            ),
+            Effect.ignore
+          ),
+        { concurrency: workspace.snapshots.length, discard: true }
+      ).pipe(Effect.forkScoped)
 
       yield* Effect.promise(() =>
         container.mount(treeFromWorkspace(workspace), {
@@ -148,33 +214,8 @@ const make = Effect.gen(function* () {
         })
       )
 
-      const shell = Effect.acquireRelease(
-        Effect.promise(() =>
-          container.spawn("jsh", [], {
-            env: {
-              PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin",
-              NODE_NO_WARNINGS: "1"
-            }
-          })
-        ),
-        (process) => Effect.sync(() => process.kill())
-      )
-      const run = (command: string) =>
-        Effect.acquireUseRelease(
-          Effect.promise(() =>
-            container.spawn(
-              "jsh",
-              ["-c", `cd ${workspace.name} && ${command}`],
-              {
-                env: {
-                  PATH: "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
-                }
-              }
-            )
-          ),
-          (process) => Effect.promise(() => process.exit),
-          (process) => Effect.sync(() => process.kill())
-        )
+      const runWorkspace = (command: string) =>
+        run(`cd ${workspace.name} && ${command}`)
 
       const validateName = (name: string, type: "File" | "Directory") =>
         Effect.gen(function* () {
@@ -340,11 +381,10 @@ const make = Effect.gen(function* () {
         write: writeFile,
         read: readFile,
         watch: watchFile,
-        fsEvents: Stream.unwrapScoped(
-          Stream.fromPubSub(fsEvents, { scoped: true })
-        ),
-        run,
-        shell
+        fsEvents: Stream.fromPubSub(fsEvents),
+        run: runWorkspace,
+        shell,
+        awaitSnapshots: Fiber.join(snapshotsFiber)
       })
 
       activeWorkspaces.add(handle)
@@ -381,7 +421,11 @@ const make = Effect.gen(function* () {
       Effect.asVoid
     )
 
-  return { workspace, registerPlugin } as const
+  return {
+    workspace,
+    registerPlugin,
+    devTools: Stream.fromPubSub(devToolsEvents)
+  } as const
 }).pipe(
   Effect.annotateLogs({
     service: "WebContainer"
@@ -421,6 +465,7 @@ export interface WorkspaceHandle {
   readonly fsEvents: Stream.Stream<FileSystemEvent>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
   readonly run: (command: string) => Effect.Effect<number>
+  readonly awaitSnapshots: Effect.Effect<void>
 }
 
 export interface WorkspacePlugin {
@@ -459,9 +504,10 @@ function run() {
   ChildProcess.spawn("tsc-watch", [
     "--module", "nodenext",
     "--outDir", outDir,
+    "--sourceMap", "true",
     "--target", "esnext",
     program,
-    "--onSuccess", \`node \${compiledProgram}\`
+    "--onSuccess", \`node --enable-source-maps \${compiledProgram}\`
   ], {
     stdio: "inherit"
   }).on("exit", function() {
@@ -472,3 +518,15 @@ function run() {
 
 run()
 `
+
+const devToolsProxy = `#!/usr/bin/env node
+const Net = require("node:net")
+
+const server = Net.createServer((socket) => {
+  socket.pipe(process.stdout, { end: false })
+})
+
+server.listen(34437)
+`
+
+const npmRc = `store-dir=.pnpm-store\n`

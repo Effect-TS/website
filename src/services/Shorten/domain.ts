@@ -7,14 +7,18 @@ export class ShortenError extends Schema.TaggedError<ShortenError>()(
 
 export class ShortenRequest extends Schema.TaggedRequest<ShortenRequest>()(
   "ShortenRequest",
-  ShortenError,
-  Schema.String,
-  { text: Schema.String }
+  {
+    failure: ShortenError,
+    success: Schema.String,
+    payload: { text: Schema.String }
+  }
 ) {}
 
 export class RetrieveRequest extends Schema.TaggedRequest<RetrieveRequest>()(
   "RetrieveRequest",
-  ShortenError,
-  Schema.Option(Schema.String),
-  { hash: Schema.String }
+  {
+    failure: ShortenError,
+    success: Schema.Option(Schema.String),
+    payload: { hash: Schema.String }
+  }
 ) {}

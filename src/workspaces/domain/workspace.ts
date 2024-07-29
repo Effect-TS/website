@@ -1,4 +1,4 @@
-import { Brand, Effect, Hash, Iterable, Option, pipe } from "effect"
+import { Array, Brand, Effect, Hash, Iterable, Option, pipe } from "effect"
 import * as Schema from "@effect/schema/Schema"
 
 export type FullPath = Brand.Branded<string, "FullPath">
@@ -7,11 +7,13 @@ export const FullPath = Brand.nominal<FullPath>()
 export class File extends Schema.TaggedClass<File>()("File", {
   name: Schema.String,
   initialContent: Schema.String,
-  solution: Schema.optional(Schema.String),
+  solution: Schema.String.pipe(Schema.optional),
   language: Schema.String.pipe(
-    Schema.optional({ default: () => "typescript" })
+    Schema.optionalWith({ default: () => "typescript" })
   ),
-  userManaged: Schema.Boolean.pipe(Schema.optional({ default: () => false }))
+  userManaged: Schema.Boolean.pipe(
+    Schema.optionalWith({ default: () => false })
+  )
 }) {
   withContent(content: string) {
     return new File({
@@ -30,7 +32,7 @@ export interface Directory {
 const Directory_: Schema.Struct<{
   _tag: Schema.tag<"Directory">
   name: typeof Schema.String
-  userManaged: Schema.optionalWithOptions<
+  userManaged: Schema.optionalWith<
     typeof Schema.Boolean,
     { default: () => false }
   >
@@ -40,7 +42,9 @@ const Directory_: Schema.Struct<{
 }> = Schema.Struct({
   _tag: Schema.tag("Directory"),
   name: Schema.String,
-  userManaged: Schema.Boolean.pipe(Schema.optional({ default: () => false })),
+  userManaged: Schema.Boolean.pipe(
+    Schema.optionalWith({ default: () => false })
+  ),
   children: Schema.Array(
     Schema.Union(
       File,
@@ -78,7 +82,15 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   initialFilePath: Schema.optional(Schema.String),
   prepare: Schema.String,
   shells: Schema.Array(WorkspaceShell),
-  snapshot: Schema.optional(Schema.String)
+  snapshots: Schema.Array(Schema.String).pipe(
+    Schema.optionalWith({
+      default: () =>
+        pipe(
+          Array.range(0, 9),
+          Array.map((i) => `snapshot-${i}`)
+        )
+    })
+  )
 }) {
   readonly filePaths: Map<File | Directory, string>
 
@@ -89,17 +101,15 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     initialFilePath?: string
     prepare?: string
     shells: ReadonlyArray<WorkspaceShell>
-    snapshot?: string
+    snapshots?: ReadonlyArray<string>
   }) {
     super(
       {
         name: options.name,
         initialFilePath: options.initialFilePath,
-        prepare:
-          options.prepare ??
-          "npm install -E typescript@5.5.3 tsc-watch @types/node",
+        prepare: options.prepare ?? "pnpm install",
         shells: options.shells,
-        snapshot: options.snapshot,
+        snapshots: options.snapshots,
         tree: [
           ...(options.dependencies
             ? [
