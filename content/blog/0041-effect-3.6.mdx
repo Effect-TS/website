@@ -90,7 +90,7 @@ const keys: Array<"a" | "b"> = Struct.keys(value)
 
 ## @effect/sql-kysely package
 
-The `@effect/sql-kysely` package provides `@effect/sql` integration with the `@effect/kysely`
+The `@effect/sql-kysely` package provides `@effect/sql` integration with the `kysely`
 query builder apis.
 
 ```ts
@@ -117,7 +117,7 @@ Effect.gen(function*(_) {
 
 This api allows you to randomly select an item from an `Iterable`.
 
-It the `Iterable` is not "NonEmpty", then the Effect can fail with a `Cause.NoSuchElementException`.
+Unless the `Iterable` is "NonEmpty", then the Effect can fail with a `Cause.NoSuchElementException`.
 
 ```ts
 import { Random } from "effect"
@@ -130,13 +130,13 @@ Effect.gen(function* () {
 
 ## onlyEffect option for Effect.tap
 
-If the `onlyEffect` option for `Effect.tap` is set to `true`, then it will only allow effects to be provided.
+If the `onlyEffect` option for `Effect.tap` is set to `true`, then it will ensure the side effect only uses `Effect`'s.
 
 This can be useful when you want to add strictness to your program.
 
 ## Refinement support for Predicate.tuple/struct
 
-Refinements will now narrow the resulting type when used with `Predicate.tuple` and `Predicate.struct`.
+Refinements can now be used with `Predicate.tuple` and `Predicate.struct` to narrow the resulting type.
 
 ```ts
 import { Predicate } from "effect"
