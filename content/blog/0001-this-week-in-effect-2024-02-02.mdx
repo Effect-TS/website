@@ -215,15 +215,15 @@ Use `Proxy` for platform schema `Transferable`.
 Adds support for URL objects in HTTP Client, the following code is now valid:
 
 ```ts
-import { HttpClient } from "@effect/platform"
+import { HttpClientRequest, HttpClient } from "@effect/platform"
 import { Effect } from "effect"
 
-const request = HttpClient.request
-  .get(new URL("https://www.google.com/"))
-  .pipe(
-    HttpClient.client.fetchOk(),
-    Effect.flatMap((_) => _.text)
-  )
+const request = HttpClientRequest.get(
+  new URL("https://www.google.com/")
+).pipe(
+  HttpClient.fetchOk,
+  Effect.flatMap((_) => _.text)
+)
 ```
 
 - [Remove re-exports and rename packages](https://github.com/Effect-TS/effect/pull/2025) (Breaking)

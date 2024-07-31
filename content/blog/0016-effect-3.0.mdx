@@ -242,33 +242,41 @@ By this time I challenge every human being to look at the code and tell me if it
 By using Effect the above mess becomes just 25 lines of highly declarative code (imports & formatting included):
 
 ```ts
-import { HttpClient } from "@effect/platform"
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+  HttpClientError
+} from "@effect/platform"
 import type { Cause } from "effect"
 import { Effect, Schedule } from "effect"
 
-export const getTodo: (
+export const getTodo = (
   id: number
-) => Effect.Effect<
+): Effect.Effect<
   unknown,
-  HttpClient.error.HttpClientError | Cause.TimeoutException
-> = (id: number) =>
-  HttpClient.request
-    .get(`/todos/${id}`)
-    .pipe(
-      HttpClient.client.fetchOk,
-      HttpClient.response.json,
-      Effect.timeout("1 second"),
-      Effect.retry(
-        Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3)))
-      ),
-      Effect.withSpan("getTodo", { attributes: { id } })
-    )
+  HttpClientError.HttpClientError | Cause.TimeoutException,
+  never
+> =>
+  HttpClientRequest.get(`/todos/${id}`).pipe(
+    HttpClient.fetchOk,
+    HttpClientResponse.json,
+    Effect.timeout("1 second"),
+    Effect.retry(
+      Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3)))
+    ),
+    Effect.withSpan("getTodo", { attributes: { id } })
+  )
 ```
 
 If we unpack each piece in its own code block and allow for type inference it becomes even simpler to read and understand:
 
 ```ts
-import { HttpClient } from "@effect/platform"
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse
+} from "@effect/platform"
 import { Effect, Schedule } from "effect"
 
 const retryPolicy = Schedule.exponential(1000).pipe(
@@ -276,9 +284,10 @@ const retryPolicy = Schedule.exponential(1000).pipe(
 )
 
 const httpCall = (id: number) =>
-  HttpClient.request
-    .get(`/todos/${id}`)
-    .pipe(HttpClient.client.fetchOk, HttpClient.response.json)
+  HttpClientRequest.get(`/todos/${id}`).pipe(
+    HttpClient.fetchOk,
+    HttpClientResponse.json
+  )
 
 export const getTodo = (id: number) =>
   httpCall(id).pipe(
@@ -293,18 +302,23 @@ In this example we can truly see the power of composition, each block of Effect 
 The last problem we wanted to solve with our code is checking the types at the edge, accounting for that our full example code becomes:
 
 ```ts
-import { HttpClient } from "@effect/platform"
-import { Schema } from "@effect/schema"
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse
+} from "@effect/platform"
 import { Effect, Schedule } from "effect"
+import { Schema } from "@effect/schema"
 
 const retryPolicy = Schedule.exponential(1000).pipe(
   Schedule.compose(Schedule.recurs(3))
 )
 
 const httpCall = (id: number) =>
-  HttpClient.request
-    .get(`/todos/${id}`)
-    .pipe(HttpClient.client.fetchOk, HttpClient.response.json)
+  HttpClientRequest.get(`/todos/${id}`).pipe(
+    HttpClient.fetchOk,
+    HttpClientResponse.json
+  )
 
 class Todo extends Schema.Class<Todo>("Todo")({
   id: Schema.Number,
