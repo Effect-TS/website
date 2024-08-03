@@ -15,10 +15,8 @@
       devShells = forAllSystems(pkgs: {
         default = pkgs.mkShell {
           buildInputs = with pkgs; [
-            bun
             corepack
             nodejs_20
-            nodePackages.json
           ];
         };
       });
