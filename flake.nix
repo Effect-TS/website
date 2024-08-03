@@ -3,37 +3,24 @@
     nixpkgs = {
       url = "github:nixos/nixpkgs/nixpkgs-unstable";
     };
-
-    flake-utils = {
-      url = "github:numtide/flake-utils";
-    };
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    flake-utils,
-    ...
-  }:
-    flake-utils.lib.eachDefaultSystem (system: let
-      pkgs = nixpkgs.legacyPackages.${system};
-      node = pkgs.nodejs_20;
-      corepackEnable = pkgs.runCommand "corepack-enable" {} ''
-        mkdir -p $out/bin
-        ${node}/bin/corepack enable --install-directory $out/bin
-      '';
+  outputs = {nixpkgs, ...}: let 
+    forAllSystems = function:
+      nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed
+      (system: function nixpkgs.legacyPackages.${system});
     in {
-      formatter = pkgs.alejandra;
+      formatter = forAllSystems (pkgs: pkgs.alejandra);
 
-      devShells = {
+      devShells = forAllSystems(pkgs: {
         default = pkgs.mkShell {
           buildInputs = with pkgs; [
             bun
-            node
-            corepackEnable
+            corepack
+            nodejs_20
             nodePackages.json
           ];
         };
-      };
-    });
+      });
+    };
 }
