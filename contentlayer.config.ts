@@ -1,6 +1,7 @@
 import { Tutorial } from "./src/contentlayer/schema/tutorial"
 import { BlogPost } from "./src/contentlayer/schema/blog-post"
 import { DocsPage } from "./src/contentlayer/schema/docs-page"
+import { PodcastEpisode } from "./src/contentlayer/schema/podcast-episode"
 import { makeSource } from "contentlayer/source-files"
 import remarkGfm from "remark-gfm"
 import type { Options as RehypePrettyCodeOptions } from "rehype-pretty-code"
@@ -36,12 +37,16 @@ const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS: RehypePrettyCodeOptions = {
 export default makeSource({
   contentDirPath: "content",
   contentDirExclude: ["src"],
-  documentTypes: [DocsPage, BlogPost, Tutorial],
+  documentTypes: [DocsPage, BlogPost, Tutorial, PodcastEpisode],
   mdx: {
     remarkPlugins: [
       [codeImport as any, { rootDir: process.cwd() + "/content" }],
-      // @ts-expect-error
-      [remarkShikiTwoslash.default, { themes: ["github-dark", "github-light"] }],
+
+      [
+        // @ts-expect-error
+        remarkShikiTwoslash.default,
+        { themes: ["github-dark", "github-light"] }
+      ],
       // [conditionalShikiTwoslash, { theme: "github-dark" }],
       remarkGfm,
       remarkMdxCodeMeta
