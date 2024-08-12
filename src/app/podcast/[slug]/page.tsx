@@ -1,11 +1,11 @@
 import { MDX } from "@/components/atoms/mdx"
 import { ArrowRightIcon } from "@/components/icons/arrow-right"
+import { DiscordIcon } from "@/components/icons/discord"
 import { Navigation } from "@/components/layout/navigation"
 import { allPodcastEpisodes } from "contentlayer/generated"
 import { format } from "date-fns"
-import Image from "next/image"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import { notFound, permanentRedirect } from "next/navigation"
 
 export async function generateMetadata({
   params: { slug }
@@ -28,6 +28,9 @@ export default function Page({
 }: {
   params: { slug: string }
 }) {
+  const episodeById = allPodcastEpisodes.find((episode) => episode.id == slug)
+  if (episodeById) permanentRedirect(episodeById.urlPath)
+
   const episode = allPodcastEpisodes.find(
     (episode) => episode.urlPath === `/podcast/${slug}`
   )
@@ -54,7 +57,7 @@ export default function Page({
           </div>
           <Link
             href="/podcast"
-            className="order-1 lg:order-2 text-black dark:text-white font-medium block mb-5 lg:mb-0 lg:mt-5"
+            className="order-1 lg:order-2 text-black dark:text-white font-medium block mb-5 lg:mb-0 lg:mt-5 hover:underline"
           >
             <ArrowRightIcon className="h-3 inline mr-2 mb-0.5 rotate-180" />
             <span>All episodes</span>
@@ -71,6 +74,15 @@ export default function Page({
           <p>{episode.excerpt}</p>
           <section className="mt-16">
             <MDX content={episode.body.code} />
+            <Link
+              href="https://discord.gg/effect-ts"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex gap-2 hover:underline mt-16 text-black dark:text-white font-medium"
+            >
+              <DiscordIcon className="h-5" />
+              <span>Discuss this episode on Discord</span>
+            </Link>
           </section>
         </main>
       </div>

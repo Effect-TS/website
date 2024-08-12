@@ -2,15 +2,44 @@ import { Navigation } from "@/components/layout/navigation"
 import { Metadata } from "next"
 import { allPodcastEpisodes } from "contentlayer/generated"
 import { format } from "date-fns"
-import Image from "next/image"
 import Link from "next/link"
-import { ArrowUpRightIcon } from "@/components/icons/arrow-up-right"
 import { ArrowRightIcon } from "@/components/icons/arrow-right"
+import { OvercastIcon } from "@/components/icons/overcast"
+import { ApplePodcastsIcon } from "@/components/icons/apple-podcasts"
+import { SpotifyIcon } from "@/components/icons/spotify"
+import { PocketCastsIcon } from "@/components/icons/pocket-casts"
+import { cn } from "@/lib/utils"
 
 const content = {
   heading: "Effect Podcast",
   description:
-    "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua."
+    "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua.",
+  links: [
+    {
+      icon: SpotifyIcon,
+      caption: "Spotify",
+      href: "#",
+      className: "text-emerald-500 dark:text-emerald-400"
+    },
+    {
+      icon: ApplePodcastsIcon,
+      caption: "Apple Podcasts",
+      href: "#",
+      className: "text-violet-500 dark:text-violet-400"
+    },
+    {
+      icon: OvercastIcon,
+      caption: "Overcast",
+      href: "#",
+      className: "text-orange-500 dark:text-orange-400"
+    },
+    {
+      icon: PocketCastsIcon,
+      caption: "Pocket Casts",
+      href: "#",
+      className: "text-red-500 dark:text-red-400"
+    }
+  ]
 }
 
 export const metadata: Metadata = {
@@ -30,7 +59,29 @@ export default function Podcast() {
         <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl text-black dark:text-white">
           {content.heading}
         </h1>
-        <p className="mt-6 mb-16 md:mb-32 max-w-2xl">{content.description}</p>
+        <p className="mt-6 max-w-2xl">{content.description}</p>
+        <div className="flex flex-col sm:flex-row gap-y-4 gap-x-8 mt-6 mb-16 md:mb-32">
+          <span>Listen on:</span>
+          <ul className="flex flex-wrap gap-x-8 gap-y-4">
+            {content.links.map((link, index) => {
+              const Icon = link.icon
+              return (
+                <li key={index}>
+                  <Link
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-2 font-semibold",
+                      link.className
+                    )}
+                  >
+                    <Icon className="h-6" />
+                    <span>{link.caption}</span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
         <div className="flex flex-col gap-16 md:gap-32">
           {episodes.map((episode) => (
             <div
@@ -70,7 +121,7 @@ export default function Podcast() {
                 <p>{episode.excerpt}</p>
                 <Link
                   href={episode.urlPath}
-                  className="mt-5 text-black dark:text-white font-medium block"
+                  className="mt-5 text-black dark:text-white font-medium block hover:underline"
                 >
                   <span>Episode notes</span>
                   <ArrowRightIcon className="h-3 inline ml-2 mb-0.5" />

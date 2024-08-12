@@ -30,11 +30,6 @@ export const PodcastEpisode = defineDocumentType(() => ({
       type: "string",
       description: "The video id of the YouTube video.",
       required: true
-    },
-    thumbnail: {
-      type: "string",
-      description: "The url/path of the thumbnail image.",
-      required: true
     }
   },
   computedFields: {
