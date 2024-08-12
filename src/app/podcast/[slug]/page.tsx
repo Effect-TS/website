@@ -36,29 +36,31 @@ export default function Page({
   return (
     <>
       <Navigation />
-      <div className="blog-container relative w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 flex flex-col md:flex-row items-start pt-32 sm:pt-40 min-h-screen">
-        <aside className="flex shrink-0 md:sticky md:top-40 mb-16 flex-col">
-          <div className="order-2 md:order-1 shrink-0 bg-gradient-to-br from-zinc-200 dark:from-zinc-500 to-zinc-300 dark:to-zinc-800 p-px rounded-2xl overflow-hidden">
-            <div className="bg-zinc-50 dark:bg-zinc-950 rounded-[15px] overflow-hidden p-1.5">
-              <div className="relative size-64 rounded-[9px] overflow-hidden border border-transparent dark:border-zinc-800">
-                <Image
-                  src={episode.thumbnail}
-                  alt={`Effect Podcast: #{episode.id} ${episode.title}`}
-                  fill
-                  className="object-cover object-center"
+      <div className="blog-container relative w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 flex flex-col lg:flex-row items-start pt-32 sm:pt-40 min-h-screen">
+        <aside className="flex shrink-0 lg:sticky md:top-40 mb-16 flex-col lg:pr-8 w-full lg:w-1/2">
+          <div className="aspect-video order-2 lg:order-1 shrink-0 bg-gradient-to-br from-zinc-200 dark:from-zinc-500 to-zinc-300 dark:to-zinc-800 p-px rounded-2xl overflow-hidden">
+            <div className="h-full bg-zinc-50 dark:bg-zinc-950 rounded-[15px] overflow-hidden p-1.5">
+              <div className="h-full relative rounded-[9px] overflow-hidden border border-transparent dark:border-zinc-800">
+                <iframe
+                  src={`https://www.youtube.com/embed/${episode.youtubeId}`}
+                  title={episode.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                  className="w-full h-full"
                 />
               </div>
             </div>
           </div>
           <Link
             href="/podcast"
-            className="order-1 md:order-2 text-black dark:text-white font-medium block mb-5 md:mb-0 md:mt-5"
+            className="order-1 lg:order-2 text-black dark:text-white font-medium block mb-5 lg:mb-0 lg:mt-5"
           >
             <ArrowRightIcon className="h-3 inline mr-2 mb-0.5 rotate-180" />
             <span>All episodes</span>
           </Link>
         </aside>
-        <main className="md:pl-12 lg:pl-24 pb-24 -mt-2 grow overflow-hidden">
+        <main className="lg:pl-8 pb-24 -mt-2 grow overflow-hidden max-w-3xl">
           <div className="mt-1">
             {format(new Date(episode.date), "MMM do, yyyy")}
           </div>
@@ -67,10 +69,7 @@ export default function Page({
             <span>{episode.title}</span>
           </h1>
           <p>{episode.excerpt}</p>
-          <audio controls preload="none" className="w-full mt-6">
-            <source src={episode.mp3} type="audio/mp3" />
-          </audio>
-          <section className="mt-16 md:mt-32">
+          <section className="mt-16">
             <MDX content={episode.body.code} />
           </section>
         </main>

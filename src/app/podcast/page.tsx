@@ -50,7 +50,7 @@ export default function Podcast() {
                     <div className="w-full h-full relative rounded-[9px] overflow-hidden border border-transparent dark:border-zinc-800">
                       <iframe
                         src={`https://www.youtube.com/embed/${episode.youtubeId}`}
-                        title="YouTube video player"
+                        title={episode.title}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         referrerPolicy="strict-origin-when-cross-origin"
                         allowFullScreen
