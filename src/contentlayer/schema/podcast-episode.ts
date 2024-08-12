@@ -26,9 +26,9 @@ export const PodcastEpisode = defineDocumentType(() => ({
       description: "Publishing date.",
       required: true
     },
-    mp3: {
+    youtubeId: {
       type: "string",
-      description: "The url/path of the .mp3 file.",
+      description: "The video id of the YouTube video.",
       required: true
     },
     thumbnail: {

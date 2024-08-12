@@ -35,23 +35,28 @@ export default function Podcast() {
           {episodes.map((episode) => (
             <div
               key={episode.id}
-              className="flex flex-col md:flex-row items-start gap-8 lg:gap-x-16"
+              className="flex flex-col md:flex-row items-start gap-8 lg:gap-x-16 md:items-stretch"
             >
-              <div className="font-display text-6xl text-black dark:text-white w-[7.5rem] shrink-0 flex">
-                <div className="relative">
+              <div className="font-display text-6xl text-black dark:text-white shrink-0 flex flex-col gap-8 w-full md:w-auto md:flex-row items-start">
+                <Link
+                  className="relative block w-[7.5rem] shrink-0"
+                  href={episode.urlPath}
+                >
                   <span># {episode.id}</span>
                   <div className="h-1/2 absolute bottom-0 -inset-x-16 bg-gradient-to-b from-white/40 dark:from-[#09090B]/30 -rotate-[20deg]" />
-                </div>
-              </div>
-              <div className="shrink-0 bg-gradient-to-br from-zinc-200 dark:from-zinc-500 to-zinc-300 dark:to-zinc-800 p-px rounded-2xl overflow-hidden">
-                <div className="bg-zinc-50 dark:bg-zinc-950 rounded-[15px] overflow-hidden p-1.5">
-                  <div className="relative size-64 rounded-[9px] overflow-hidden border border-transparent dark:border-zinc-800">
-                    <Image
-                      src={episode.thumbnail}
-                      alt={`Effect Podcast: #{episode.id} ${episode.title}`}
-                      fill
-                      className="object-cover object-center"
-                    />
+                </Link>
+                <div className="w-full aspect-video md:aspect-auto md:w-64 lg:w-80 md:h-full shrink-0 bg-gradient-to-br from-zinc-200 dark:from-zinc-500 to-zinc-300 dark:to-zinc-800 p-px rounded-2xl overflow-hidden">
+                  <div className="w-full h-full bg-zinc-50 dark:bg-zinc-950 rounded-[15px] overflow-hidden p-1.5">
+                    <div className="w-full h-full relative rounded-[9px] overflow-hidden border border-transparent dark:border-zinc-800">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${episode.youtubeId}`}
+                        title="YouTube video player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                        allowFullScreen
+                        className="w-full h-full"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -60,12 +65,9 @@ export default function Podcast() {
                   {format(new Date(episode.date), "MMM do, yyyy")}
                 </div>
                 <h2 className="font-display text-black dark:text-white text-3xl mb-4">
-                  {episode.title}
+                  <Link href={episode.urlPath}>{episode.title}</Link>
                 </h2>
                 <p>{episode.excerpt}</p>
-                <audio controls preload="none" className="w-full mt-6">
-                  <source src={episode.mp3} type="audio/mp3" />
-                </audio>
                 <Link
                   href={episode.urlPath}
                   className="mt-5 text-black dark:text-white font-medium block"
