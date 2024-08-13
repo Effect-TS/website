@@ -82,7 +82,7 @@ export default function Podcast() {
             })}
           </ul>
         </div>
-        <code className="bg-zinc-800 px-4 py-2 rounded-lg border border-zinc-700 mt-6 inline-block">
+        <code className="bg-zinc-800 px-4 py-2 rounded-lg border border-zinc-700 mt-6 inline-block text-white">
           https://effect.website/podcast.rss
         </code>
         <div className="flex flex-col gap-16 md:gap-32 mt-16 md:mt-32">
