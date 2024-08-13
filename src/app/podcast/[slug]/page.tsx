@@ -28,7 +28,9 @@ export default function Page({
 }: {
   params: { slug: string }
 }) {
-  const episodeById = allPodcastEpisodes.find((episode) => episode.id == slug)
+  const episodeById = allPodcastEpisodes.find(
+    (episode) => `${episode.id}` === slug
+  )
   if (episodeById) permanentRedirect(episodeById.urlPath)
 
   const episode = allPodcastEpisodes.find(

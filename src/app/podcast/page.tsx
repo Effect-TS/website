@@ -11,7 +11,7 @@ import { PocketCastsIcon } from "@/components/icons/pocket-casts"
 import { cn } from "@/lib/utils"
 
 const content = {
-  heading: "Effect Podcast",
+  heading: "Cause & Effect Podcast",
   description:
     "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua.",
   links: [
@@ -60,7 +60,7 @@ export default function Podcast() {
           {content.heading}
         </h1>
         <p className="mt-6 max-w-2xl">{content.description}</p>
-        <div className="flex flex-col sm:flex-row gap-y-4 gap-x-8 mt-6 mb-16 md:mb-32">
+        <div className="flex flex-col sm:flex-row gap-y-4 gap-x-8 mt-6">
           <span>Listen on:</span>
           <ul className="flex flex-wrap gap-x-8 gap-y-4">
             {content.links.map((link, index) => {
@@ -82,7 +82,10 @@ export default function Podcast() {
             })}
           </ul>
         </div>
-        <div className="flex flex-col gap-16 md:gap-32">
+        <code className="bg-zinc-800 px-4 py-2 rounded-lg border border-zinc-700 mt-6 inline-block">
+          https://effect.website/podcast.rss
+        </code>
+        <div className="flex flex-col gap-16 md:gap-32 mt-16 md:mt-32">
           {episodes.map((episode) => (
             <div
               key={episode.id}
