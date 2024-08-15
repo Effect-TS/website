@@ -1,6 +1,5 @@
 import { MDX } from "@/components/atoms/mdx"
 import { ArrowRightIcon } from "@/components/icons/arrow-right"
-import { DiscordIcon } from "@/components/icons/discord"
 import { Navigation } from "@/components/layout/navigation"
 import { allPodcastEpisodes } from "contentlayer/generated"
 import { format } from "date-fns"
@@ -76,15 +75,6 @@ export default function Page({
           <p>{episode.excerpt}</p>
           <section className="mt-16">
             <MDX content={episode.body.code} />
-            <Link
-              href="https://discord.gg/effect-ts"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex gap-2 hover:underline mt-16 text-black dark:text-white font-medium"
-            >
-              <DiscordIcon className="h-5" />
-              <span>Discuss this episode on Discord</span>
-            </Link>
           </section>
         </main>
       </div>
