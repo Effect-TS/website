@@ -9,12 +9,19 @@ import { ApplePodcastsIcon } from "@/components/icons/apple-podcasts"
 import { SpotifyIcon } from "@/components/icons/spotify"
 import { PocketCastsIcon } from "@/components/icons/pocket-casts"
 import { cn } from "@/lib/utils"
+import { YoutubeIcon } from "@/components/icons/youtube"
 
 const content = {
   heading: "Cause & Effect Podcast",
   description:
     "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua.",
   links: [
+    {
+      icon: YoutubeIcon,
+      caption: "Youtube",
+      href: "#",
+      className: "text-red-500"
+    },
     {
       icon: SpotifyIcon,
       caption: "Spotify",
@@ -55,7 +62,7 @@ export default function Podcast() {
   return (
     <>
       <Navigation />
-      <main className="docs-container relative w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pb-24 pt-32 sm:pt-40 min-h-screen">
+      <main className="relative w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pb-24 pt-32 sm:pt-40 min-h-screen text-zinc-600 dark:text-zinc-400">
         <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl text-black dark:text-white">
           {content.heading}
         </h1>
