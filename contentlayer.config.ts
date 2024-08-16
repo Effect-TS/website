@@ -36,7 +36,7 @@ const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS: RehypePrettyCodeOptions = {
 
 export default makeSource({
   contentDirPath: "content",
-  contentDirExclude: ["src"],
+  contentDirExclude: ["src", "/srt"],
   documentTypes: [DocsPage, BlogPost, Tutorial, PodcastEpisode],
   mdx: {
     remarkPlugins: [

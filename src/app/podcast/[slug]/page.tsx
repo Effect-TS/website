@@ -1,6 +1,7 @@
 import { MDX } from "@/components/atoms/mdx"
 import { ArrowRightIcon } from "@/components/icons/arrow-right"
 import { Navigation } from "@/components/layout/navigation"
+import { Transcript } from "@/components/podcast/transcript"
 import { allPodcastEpisodes } from "contentlayer/generated"
 import { format } from "date-fns"
 import Link from "next/link"
@@ -75,6 +76,7 @@ export default function Page({
           <p>{episode.excerpt}</p>
           <section className="mt-16">
             <MDX content={episode.body.code} />
+            <Transcript lines={episode.transcript} showHeading />
           </section>
         </main>
       </div>

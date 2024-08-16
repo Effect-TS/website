@@ -1,9 +1,10 @@
 import { defineDocumentType } from "@contentlayer/source-files"
 import { urlFromFilePath } from "../utils/url-from-file-path"
+import { transcriptFromSrt } from "../utils/transcript-from-srt"
 
 export const PodcastEpisode = defineDocumentType(() => ({
   name: "PodcastEpisode",
-  filePathPattern: `podcast/**/*.mdx`,
+  filePathPattern: `podcast/notes/*.mdx`,
   contentType: "mdx",
   fields: {
     id: {
@@ -36,7 +37,15 @@ export const PodcastEpisode = defineDocumentType(() => ({
     urlPath: {
       type: "string",
       description: "The URL path of this episode page relative to site root.",
-      resolve: urlFromFilePath
+      resolve: (episode) => {
+        const urlPath = urlFromFilePath(episode)
+        return urlPath.replace("notes/", "")
+      }
+    },
+    transcript: {
+      type: "json",
+      description: "Transcript read from the .srt file.",
+      resolve: transcriptFromSrt
     }
   },
   extensions: {}
