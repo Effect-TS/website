@@ -1,0 +1,422 @@
+---
+title: From React to Effect 
+excerpt: If you know React you already know Effect to a great extent. Let's explore how the mental model of Effect maps to the concept you already know from React.
+date: 2024-08-17
+authors:
+  - name: Michael Arnaldi
+    description: Chief Executive Officer
+    avatar: https://pbs.twimg.com/profile_images/1232338149340319751/Ln9nNWyk_400x400.jpg
+    twitter: https://twitter.com/MichaelArnaldi
+---
+
+If you know React you already know Effect to a great extent. Let's explore how the mental model of Effect maps to the concept you already know from React.
+
+## The History
+
+When I started to program, roughly 20 years ago, the world was a very different place. The Web was just about to explode and the capabilities of the web platform were very limited, we were at the beginning of Ajax and most of our web pages were effectively documents rendered from a server with bits of interactivity.
+
+To a good extent it was a simpler world, TypeScript didn't exist, jQuery didn't exist, browsers were doing whatever they wanted and Java Applets looked like a good idea!
+
+If we fast forward to today we can easily see that things have changed a lot, the web platform offers incredible capabilities and most of the programs we are used to interact with are fully built on the web.
+
+Would it be possible to build what we have today on top of the tech we were using 20+ years ago? of course, but it wouldn't be optimal. With growing complexity we need more robust solutions, we wouldn't be able to build such powerful user interfaces with ease by sprinkling direct JS calls to manipulate the DOM, without type safety and without a strong model that guarantees correctness.
+
+A lot of what we do today is possible thanks to the ideas brought forward by frameworks such as Angular and React, and here I want to explore why React dominated the market for a decade and why it is still the preferred choice for many.
+
+What we will explore is equally valid for other frameworks, in fact those ideas are not specific to React but far more general.
+
+## The Power of React
+
+We should ask ourselves why is React so powerful? when we code UIs in React we think in terms of small **components** that can be **composed** together. This mental model allows us to tackle complexity at its heart, we build components that encapsulate the complexity and we compose them in order to build powerful UIs that don't crash constantly and that are sufficiently easy to maintain.
+
+But what is a **component**?
+
+You may be familiar to writing code that looks like the following:
+
+```tsx
+const App = () => {
+  return <div>Hello World</div>;
+};
+```
+
+Removing JSX, the above code becomes:
+
+```ts
+const App = () => {
+  return React.createElement("div", { children: "Hello World" });
+};
+```
+
+So we can say that a **component** is a **function** that returns **react elements**, or better framed a component is a **description** or **blueprint** of a UI.
+
+Only when we **mount** a component into a specific DOM node (in our example below called "root") our code is **executed** and the resulting description produces the **side-effects** that end up creating the final UI.
+
+```tsx
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+```
+
+Let's verify what we've just explained:
+
+```tsx
+const MyComponent = () => {
+  console.log("MyComponent Invoked");
+  return <div>MyComponent</div>;
+};
+
+const App = () => {
+  <MyComponent />;
+  return <div>Hello World</div>;
+};
+```
+
+If we run this code, which translates to:
+
+```ts
+const MyComponent = () => {
+  console.log("MyComponent Invoked");
+  return React.createElement("div", { children: "MyComponent" });
+};
+
+const App = () => {
+  React.createElement(MyComponent);
+  return React.createElement("div", { children: "Hello World" });
+};
+```
+
+we won't see any "MyComponent Invoked" messages in the browser console, that's because a component was created but it wasn't rendered as it isn't part of the returned UI description. 
+
+This proves that simply creating a component doesn't perform any side-effect, it is a pure operation, even if the component itself contains side-effects.
+
+Changing the code to:
+
+```tsx
+const MyComponent = () => {
+  console.log("MyComponent Invoked");
+  return <div>MyComponent</div>;
+};
+
+const App = () => {
+  return <MyComponent />;
+};
+```
+
+produces a few "MyComponent Invoked" messages, which means side-effects are being performed, how many depends on your setup, if you are running with Strict Mode or not and if you are in development or not (detail that can be ignored).
+
+## Programming with Blueprints
+
+The key idea of React can be summerized in short with: "Model UI with composable blueprints that can be rendered into the DOM". This is intentionally simplified for the purpose of showing the mental model, of course the details are much more complex but also the details are hidden from the user. This very idea is what makes react flexible, easy to use, and easy to maintain. You can at any point split your components into smaller ones, refactor your code, and you're sure that the UI that was working before keeps working.
+
+Let's take a look at some of the superpowers that React gains from this model, first of all a component can be rendered multiple times:
+
+```tsx
+const MyComponent = (props: { message: string }) => {
+  return <div>MyComponent: {props.message}</div>;
+};
+
+const App = () => {
+  return (
+    <div>
+      <MyComponent message="Foo" />
+      <MyComponent message="Bar" />
+      <MyComponent message="Baz" />
+    </div>
+  );
+};
+```
+
+This seems a little useless but if your component does something interesting like modelling a button this can be quite powerful as you can reuse the button code in multiple places without rewriting it.
+
+Further a component may crash and throw an error, such error can be recovered from a parent component and actions such as rendering an alternative UI can be taken.
+
+```tsx
+export declare namespace ErrorBoundary {
+  interface Props {
+    fallback: React.ReactNode;
+    children: React.ReactNode;
+  }
+}
+
+export class ErrorBoundary extends React.Component<ErrorBoundary.Props> {
+  state: {
+    hasError: boolean;
+  };
+
+  constructor(props: React.PropsWithChildren<ErrorBoundary.Props>) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+
+    return this.props.children;
+  }
+}
+
+const MyComponent = () => {
+  throw new Error("Something went deeply wrong");
+  return <div>MyComponent</div>;
+};
+
+const App = () => {
+  return (
+    <ErrorBoundary fallback={<div>Fallback Component!!!</div>}>
+      <MyComponent />
+    </ErrorBoundary>
+  );
+};
+```
+
+Arguably the API to catch errors in components isn't very nice, but also it isn't too common to throw from components, the only real case where one would throw in a component is throwing a promise that is awaited from the nearest suspense boundary, making it possible to have async work in components.
+
+Let's have a look:
+
+```tsx
+let resolved = false;
+
+const promiseToAwait = new Promise((resolve) => {
+  setTimeout(() => {
+    resolved = true;
+    resolve(resolved);
+  }, 1000);
+});
+
+const MyComponent = () => {
+  if (!resolved) {
+    throw promiseToAwait;
+  }
+  return <div>MyComponent</div>;
+};
+
+const App = () => {
+  return (
+    <Suspense fallback={<div>Waiting...</div>}>
+      <MyComponent />
+    </Suspense>
+  );
+};
+```
+
+This API is fairly low level and there are libraries that leverages it internally in order to provide features such as smooth data fetching (mandatory shutout to [React Query](https://tanstack.com/query/latest/docs/framework/react/guides/suspense)) and data streaming from SSR with server components (fairly new buzz).
+
+Additionally, by being a **description**, a React component can access contextual data provided by parent components, lets have a look:
+
+```tsx
+const ContextualData = React.createContext(0);
+
+const MyComponent = () => {
+  const context = React.useContext(ContextualData);
+
+  return <div>MyComponent: {context}</div>;
+};
+
+const App = () => {
+  return (
+    <ContextualData.Provider value={100}>
+      <MyComponent />
+    </ContextualData.Provider>
+  );
+};
+```
+
+in the above code we defined a piece of contextual data, a number, and we provided it from the top level `App` component, this way when React renders `MyComponent` the component will read the fresh data provided from above. 
+
+## Why Effect
+
+You might ask, why so much attention to React? How is it linked to Effect? similarly to why React was and is important for UI development Effect is equally important for general purpose code. Over the past two decades JS & TS evolved a lot, and thanks to the ideas brought forward by Node.js we now develop full stack applications on top of what people initially though was a toy language. 
+
+With such complexity we are again in a situation where our demands of the platform exceeds the robustness provided by the language, similarly to how building complex UIs on top of jQuery would be very hard developing increasingly complex applications on top of plain TS becomes growingly painful. 
+
+Production-Grade application code has requirements such as:
+
+- testability
+- graceful interruption
+- error management
+- logging
+- telemetry
+- metrics
+- flexibility
+
+and much more. 
+
+Over the years we've seen things added to the web platform such as AbortController, OpenTelemetry, etc. But all of those solutions that seem to work well in isolation end up failing the test of composition, writing code that fulfills all the demands of production-readiness becomes a nightmere of nested try-catches and becomes fragile, constantly vulnerable to changes.
+
+## The Effect Model
+
+If we make a short summary of what we've said so far we know that a **React component** is a **description** or **blueprint** of a **User Interface**, similarly we can say that an **Effect** is a **description** or **blueprint** of a generic computation.
+
+Let's see it in action, starting with an example which is very similar to what we have seen initially in React:
+
+```ts
+import { Effect } from "effect"
+
+const print = (message: string) =>
+  Effect.sync(() => {
+    console.log(message)
+  })
+
+const printHelloWorld = print("Hello World")
+```
+
+<br />
+<a href="https://effect.website/play#9599967a15cf" target="_blank">Open in Playground</a>
+
+Just like we've seen in React simply creating an Effect doesn't execute any side-effect, in fact just like a component an Effect is nothing more than a blueprint, only when we execute the blueprint the side-effects will kick-off, let's see how:
+
+```ts
+import { Effect } from "effect"
+
+const print = (message: string) =>
+  Effect.sync(() => {
+    console.log(message)
+  })
+
+const printHelloWorld = print("Hello World")
+
+Effect.runPromise(printHelloWorld)
+```
+
+<br />
+<a href="https://effect.website/play#b36bac0a41ca" target="_blank">Open in Playground</a>
+
+As we can see now we have our "Hello World" message printed, just in the same way as React we can compose different Effects together into more complex programs, to do that we will use a generator function:
+
+```ts
+import { Effect } from "effect"
+
+const print = (message: string) =>
+  Effect.sync(() => {
+    console.log(message)
+  })
+
+const printMessages = Effect.gen(function*() {
+  yield* print("Hello World")
+  yield* print("We're getting messages")
+})
+
+Effect.runPromise(printMessages)
+```
+
+<br />
+<a href="https://effect.website/play#b5058f3ac17b" target="_blank">Open in Playground</a>
+
+You can mentally map `yield*` to `await` and `Effect.gen(function*() { })` to `async function() {}` with the sole difference that in order to pass arguments you'd need to define a new lambda, for example:
+
+```ts
+import { Effect } from "effect"
+
+const print = (message: string) =>
+  Effect.sync(() => {
+    console.log(message)
+  })
+
+const printMessages = (messages: number) => Effect.gen(function*() {
+  for (let i = 0; i < messages; i++) {
+    yield* print(`message: ${i}`)
+  }
+})
+
+Effect.runPromise(printMessages(10))
+```
+
+<br />
+<a href="https://effect.website/play#3c5c45b473a4" target="_blank">Open in Playground</a>
+
+Similarly to how React components compose together we've now seen that also Effects can easily be composed, in the same way as we were able to raise an error from a component we can just as easily raise an error from an Effect and recover it from a parent Effect:
+
+```ts
+import { Effect } from "effect"
+
+const print = (message: string) =>
+  Effect.sync(() => {
+    console.log(message)
+  })
+
+class InvalidRandom extends Error {
+  message = "Invalid Random Number"
+}
+
+const printOrFail = Effect.gen(function*() {
+  if (Math.random() > 0.5) {
+    yield* print("Hello World")
+  } else {
+    yield* Effect.fail(new InvalidRandom())
+  }
+})
+
+const program = printOrFail.pipe(
+  Effect.catchAll((e) => print(`Error: ${e.message}`)),
+  Effect.repeatN(10)
+)
+
+Effect.runPromise(program)
+```
+
+<br />
+<a href="https://effect.website/play#a35378f5d2ab" target="_blank">Open in Playground</a>
+
+The above code randomly fails with an error that we recover from a parent Effect, in this case the recovery logic is to print the error message, differently from `React` we can see here that errors are type safe, in fact in our `catchAll` we know that `e` is of type `InvalidRandom`, this is possible because Effect uses inference to understand which error cases your program may encounter and represent those cases in its type, you can check the type of `printOrFail` and you'll see: `Effect<void, InvalidRandom, never>` which means that this Effect will return `void` if successful but may fail for `InvalidRandom`. You can compose Effects that can fail for different reasons and your final Effect will list all possible errors in a union, so you'd get for example `Effect<number, InvalidRandom | NetworkError | ..., never>`.
+
+An Effect can represent **any** piece of code, let it be a console.log statement, a fetch call, a database query or a computation, in fact Effect is capable of executing both async and sync code in a unified model, escaping the issue of <a href="https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/" target="_blank">function coloring</a> (having different types for async or sync).
+
+Just like React components are able to access context provided by a parent component also Effects can access context provided from a parent Effect, let's see how:
+
+```ts
+import { Context, Effect } from "effect"
+
+const print = (message: string) =>
+  Effect.sync(() => {
+    console.log(message)
+  })
+
+class ContextualData extends Context.Tag("ContextualData")<ContextualData, number>() {}
+
+const printFromContext = Effect.gen(function*() {
+  const n = yield* ContextualData
+
+  yield* print(`Contextual Data is: ${n}`)
+})
+
+const program = printFromContext.pipe(
+  Effect.provideService(ContextualData, 100)
+)
+
+Effect.runPromise(program)
+```
+
+<br />
+<a href="https://effect.website/play#88051688ce37" target="_blank">Open in Playground</a>
+
+Differently from React we don't have to provide a default implementation for our context, Effect will keep track of the requirements in its third type parameter and it will prohibit execution of an Effect that doesn't have all requirements fullfilled, you can check the type of `printFromContext` and will see `Effect<void, never, ContextualData>` which means that this Effect will return `void` upon success and that it needs `ContextualData` in order to become executable.
+
+## Conclusion
+
+We can see that Effect and React use basically the same model, both are about making composable descriptions that are later executed by a runtime, only the domain is different while React focuses on UI Effect focuses on general purpose code.
+
+This is only an introduction and Effect provides much more than what's shown here, this includes features such as:
+
+- Concurrency
+- Retry Scheduling
+- Telemetry
+- Metrics
+- Logging
+
+And much more.
+
+If you're curious your next read should be [the docs](https://effect.website/docs/introduction) and your next watch should be the [Effect Beginner Workshop](https://www.youtube.com/watch?v=Lz2J1NBnHK4).
+
+If you've made it till here: Thanks for reading.
