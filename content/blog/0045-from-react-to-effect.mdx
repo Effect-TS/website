@@ -326,11 +326,12 @@ const print = (message: string) =>
     console.log(message)
   })
 
-const printMessages = (messages: number) => Effect.gen(function*() {
-  for (let i = 0; i < messages; i++) {
-    yield* print(`message: ${i}`)
-  }
-})
+const printMessages = (messages: number) => 
+  Effect.gen(function*() {
+    for (let i = 0; i < messages; i++) {
+      yield* print(`message: ${i}`)
+    }
+  })
 
 Effect.runPromise(printMessages(10))
 ```
