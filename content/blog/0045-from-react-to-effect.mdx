@@ -401,7 +401,13 @@ Effect.runPromise(program)
 <br />
 <a href="https://effect.website/play#88051688ce37" target="_blank">Open in Playground</a>
 
-Differently from React we don't have to provide a default implementation for our context, Effect will keep track of the requirements in its third type parameter and it will prohibit execution of an Effect that doesn't have all requirements fullfilled, you can check the type of `printFromContext` and will see `Effect<void, never, ContextualData>` which means that this Effect will return `void` upon success and that it needs `ContextualData` in order to become executable.
+What separates Effect from React here is that we are not forced to provide a default implementation for our context. Effect keeps track of all requirements of our program in its third type parameter, and will prohibit execution of an Effect that does not have all requirements fulfilled.
+
+If you check the type of `printFromContext`, you will see:
+
+`Effect<void, never, ContextualData>`
+
+which means that this Effect will return `void` upon success, does not fail with any expected errors, and requires `ContextualData` in order to become executable.
 
 ## Conclusion
 
