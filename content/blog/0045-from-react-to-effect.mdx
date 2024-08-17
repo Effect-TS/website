@@ -372,7 +372,17 @@ Effect.runPromise(program)
 <br />
 <a href="https://effect.website/play#a35378f5d2ab" target="_blank">Open in Playground</a>
 
-The above code randomly fails with an error that we recover from a parent Effect, in this case the recovery logic is to print the error message, differently from `React` we can see here that errors are type safe, in fact in our `catchAll` we know that `e` is of type `InvalidRandom`, this is possible because Effect uses inference to understand which error cases your program may encounter and represent those cases in its type, you can check the type of `printOrFail` and you'll see: `Effect<void, InvalidRandom, never>` which means that this Effect will return `void` if successful but may fail for `InvalidRandom`. You can compose Effects that can fail for different reasons and your final Effect will list all possible errors in a union, so you'd get for example `Effect<number, InvalidRandom | NetworkError | ..., never>`.
+The above code will randomly fail with a `InvalidRandom` error, which we then recover from a parent Effect using `Effect.catchAll`. In this case, the recovery logic is to simply log the error message to the console.
+
+However, what separates Effect from `React` is that errors are 100% type safe - within our `Effect.catchAll`, we know that `e` is of type `InvalidRandom`. This is possible because Effect uses type inference to understand which error cases your program may encounter and represent those cases in its type. If you check the type of `printOrFail`, you will see: 
+
+`Effect<void, InvalidRandom, never>` 
+
+which means that this Effect will return `void` if successful but may also fail with an `InvalidRandom` error. 
+
+When you compose Effects that may fail for different reasons, your final Effect will list all possible errors in a union, so you would see something like the following in the type: 
+
+`Effect<number, InvalidRandom | NetworkError | ..., never>`.
 
 An Effect can represent **any** piece of code, let it be a `console.log` statement, a fetch call, a database query or a computation. Effect is also fully capable of executing both synchronous and asynchronous code in a unified model, escaping the issue of <a href="https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/" target="_blank">function coloring</a> (i.e. having different types for async or sync).
 
