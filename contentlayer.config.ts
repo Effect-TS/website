@@ -9,7 +9,6 @@ import rehypePrettyCode, {
 import { transformerTwoslash } from "@shikijs/twoslash"
 import rehypeRaw from "rehype-raw"
 import { nodeTypes } from "@mdx-js/mdx"
-import codeImport from "remark-code-import"
 import rehypeMdxCodeProps from "rehype-mdx-code-props"
 import rehypeSlug from "rehype-slug"
 
@@ -39,10 +38,7 @@ export default makeSource({
   contentDirExclude: ["src"],
   documentTypes: [DocsPage, BlogPost, Tutorial],
   mdx: {
-    remarkPlugins: [
-      [codeImport, { rootDir: process.cwd() + "/content" }],
-      remarkGfm
-    ],
+    remarkPlugins: [remarkGfm],
     rehypePlugins: [
       [rehypeRaw, { passThrough: nodeTypes }],
       rehypeMdxCodeProps,
