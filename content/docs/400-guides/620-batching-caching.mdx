@@ -12,7 +12,7 @@ In typical application development, when interacting with external APIs, databas
 
 Here's a basic model that outlines the structure of our data and possible errors:
 
-```twoslash include Model
+```ts twoslash include Model
 export interface User {
   readonly _tag: "User"
   readonly id: number
@@ -55,7 +55,7 @@ export class SendEmailError {
 
 Let's define functions that interact with an external API, handling common operations such as fetching todos, retrieving user details, and sending emails.
 
-```twoslash include API
+```ts twoslash include API
 import { Effect } from "effect"
 import * as Model from "./Model"
 
@@ -183,7 +183,7 @@ Let's start by defining a structured model for the types of requests our data so
 
 A `Request<Value, Error>` is a construct representing a request for a value of type `Value`, which might fail with an error of type `Error`.
 
-```twoslash include Requests
+```ts twoslash include Requests
 import { Request } from "effect"
 import * as Model from "./Model"
 
@@ -240,7 +240,7 @@ After defining our requests, the next step is configuring how Effect resolves th
 
 In this section, we'll create individual resolvers for each type of request. The granularity of your resolvers can vary, but typically, they are divided based on the batching capabilities of the corresponding API calls.
 
-```twoslash include Resolvers
+```ts twoslash include Resolvers
 import { Effect, RequestResolver, Request } from "effect"
 import * as API from "./API"
 import * as Model from "./Model"
@@ -342,7 +342,7 @@ In this configuration:
 
 Now that we've set up our resolvers, we're ready to tie all the pieces together to define our queries. This step will enable us to perform data operations effectively within our application.
 
-```twoslash include Queries
+```ts twoslash include Queries
 import { Effect } from "effect"
 import * as Model from "./Model"
 import * as Requests from "./Requests"
@@ -477,7 +477,7 @@ When creating request resolvers, it's crucial to manage the context carefully. P
 
 Consider the following example where we set up an HTTP service that the resolvers can use to execute API calls:
 
-```twoslash include ResolversWithContext
+```ts twoslash include ResolversWithContext
 import { Effect, Context, RequestResolver } from "effect"
 import * as Model from "./Model"
 import * as Requests from "./Requests"

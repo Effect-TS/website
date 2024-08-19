@@ -105,7 +105,7 @@ Type Lambdas allow us to express Higher-Kinded Types directly without the need f
 
 To implement a Type Lambda, we'll start by defining an interface that includes a `Target` field. Here's how it's done:
 
-```twoslash include TypeLambda
+```ts twoslash include TypeLambda
 export interface TypeLambda {
   readonly Target: unknown
 }
@@ -121,7 +121,7 @@ This simple interface sets the foundation for our Type Lambdas.
 
 Let's create a specific Type Lambda for the `Array` data type:
 
-```twoslash include ArrayTypeLambda
+```ts twoslash include ArrayTypeLambda
 export interface ArrayTypeLambda extends TypeLambda {
   readonly type: Array<this["Target"]>
 }
@@ -140,7 +140,7 @@ Here, we extend the base `TypeLambda` interface to define an `ArrayTypeLambda`. 
 
 Now that we have our Type Lambda and its specialized version for arrays, we need a way to apply this type-level function to a concrete type `A`. We'll call this operator `Kind`:
 
-```twoslash include Kind
+```ts twoslash include Kind
 export type Kind<F extends TypeLambda, Target> = F extends {
   readonly type: unknown
 }
@@ -183,13 +183,13 @@ type Test2 = Kind<ArrayTypeLambda, number>
 
 Let's take a step further and define Type Lambdas for other data types, such as `Chunk` and `Option`:
 
-```twoslash include ChunkTypeLambda
+```ts twoslash include ChunkTypeLambda
 export interface ChunkTypeLambda extends TypeLambda {
   readonly type: Chunk.Chunk<this["Target"]>
 }
 ```
 
-```twoslash include OptionTypeLambda
+```ts twoslash include OptionTypeLambda
 export interface OptionTypeLambda extends TypeLambda {
   readonly type: Option.Option<this["Target"]>
 }
@@ -215,7 +215,7 @@ type Test4 = Kind<OptionTypeLambda, string>
 
 We are now ready to define the `Mappable` type class, which we introduced earlier:
 
-```twoslash include Mappable
+```ts twoslash include Mappable
 export interface Mappable<F extends TypeLambda> {
   readonly map: <A, B>(self: Kind<F, A>, f: (a: A) => B) => Kind<F, B>
 }
@@ -235,7 +235,7 @@ In the code above, we define a `Mappable` type class. This type class provides a
 
 To put our `Mappable` type class to use, we need to create instances for specific data types. These instances will allow us to perform mapping operations on those data types.
 
-```twoslash include instances
+```ts twoslash include instances
 import { Chunk, Option } from "effect"
 
 export const MappableArray: Mappable<ArrayTypeLambda> = {
@@ -267,7 +267,7 @@ Here, we've created instances for `Array`, `Chunk`, and `Option` types. Each ins
 
 Now, we can proceed to create our `stringify` function:
 
-```twoslash include stringify
+```ts twoslash include stringify
 export const stringify =
   <F extends TypeLambda>(TC: Mappable<F>) =>
   (self: Kind<F, number>): Kind<F, string> =>
@@ -325,7 +325,7 @@ In Effect, we have the capability to work with data types that can have up to fo
 
 4. `Target` (Invariant): The `Target` type parameter remains invariant, meaning that it maintains the exact type as the original without any variation.
 
-```twoslash include HKT
+```ts twoslash include HKT
 export interface TypeLambda {
   readonly In: unknown
   readonly Out2: unknown
@@ -405,7 +405,7 @@ You might be wondering about the purpose of the second branch of the conditional
 
 This second branch serves to enforce something called "variance." To understand this concept, let's explore an example. Imagine we define a type class like this:
 
-```twoslash include Zippable
+```ts twoslash include Zippable
 import { Kind, TypeClass, TypeLambda } from "./HKT"
 
 export interface Zippable<F extends TypeLambda> extends TypeClass<F> {

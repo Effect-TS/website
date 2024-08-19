@@ -58,7 +58,7 @@ The following program serves as an illustration of how errors are automatically 
 <Tabs items={["Using Effect.gen", "Using pipe"]}>
 <Tab>
 
-```twoslash include error-tracking
+```ts twoslash include error-tracking
 import { Effect, Random } from "effect"
 
 export class HttpError {
@@ -73,8 +73,7 @@ export const program = Effect.gen(function* () {
   const n1 = yield* Random.next
   const n2 = yield* Random.next
 
-  const httpResult =
-    n1 > 0.5 ? "yay!" : yield* Effect.fail(new HttpError())
+  const httpResult = n1 > 0.5 ? "yay!" : yield* Effect.fail(new HttpError())
   const validationResult =
     n2 > 0.5 ? "yay!" : yield* Effect.fail(new ValidationError())
 
@@ -82,7 +81,7 @@ export const program = Effect.gen(function* () {
 })
 ```
 
-```ts filename="error-tracking.ts" twoslash
+```ts twoslash filename="error-tracking.ts"
 // @include: error-tracking
 
 Effect.runPromise(program).then(console.log, console.error)
