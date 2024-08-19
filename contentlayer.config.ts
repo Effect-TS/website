@@ -16,18 +16,18 @@ import rehypeSlug from "rehype-slug"
 export const CODE_BLOCK_FILENAME_REGEX = /filename="([^"]+)"/
 
 const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS: RehypePrettyCodeOptions = {
-  onVisitLine(node: any) {
+  onVisitLine(node) {
     // Prevent lines from collapsing in `display: grid` mode, and
     // allow empty lines to be copy/pasted
     if (node.children.length === 0) {
       node.children = [{ type: "text", value: " " }]
     }
   },
-  onVisitHighlightedLine(node: any) {
+  onVisitHighlightedLine(node) {
     if (!node.properties.className) node.properties.className = []
     node.properties.className.push("highlighted")
   },
-  onVisitHighlightedChars(node: any) {
+  onVisitHighlightedChars(node) {
     node.properties.className = ["highlighted"]
   },
   filterMetaString: (meta: string) =>
