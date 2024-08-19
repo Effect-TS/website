@@ -57,7 +57,6 @@ export default makeSource({
           ]
         } satisfies RehypePrettyCodeOptions
       ],
-      [rehypeRaw, { passThrough: nodeTypes }],
       rehypeSlug
     ]
   }

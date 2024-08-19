@@ -406,6 +406,10 @@ You might be wondering about the purpose of the second branch of the conditional
 This second branch serves to enforce something called "variance." To understand this concept, let's explore an example. Imagine we define a type class like this:
 
 ```ts twoslash include Zippable
+// @filename: HKT.ts
+// @include: HKT
+
+// @filename: Zippable.ts
 import { Kind, TypeClass, TypeLambda } from "./HKT"
 
 export interface Zippable<F extends TypeLambda> extends TypeClass<F> {
@@ -420,7 +424,6 @@ export interface Zippable<F extends TypeLambda> extends TypeClass<F> {
 // @filename: HKT.ts
 // @include: HKT
 
-// @filename: Zippable.ts
 // ---cut---
 // @include: Zippable
 ```
@@ -431,7 +434,6 @@ Now, we derive a `pipe`-able version of `zip`:
 // @filename: HKT.ts
 // @include: HKT
 
-// @filename: Zippable.ts
 // @include: Zippable
 // ---cut---
 export const zip =
@@ -468,7 +470,6 @@ Now, let's proceed to define an instance of `Zippable` for the `Either` type:
 // @filename: HKT.ts
 // @include: HKT
 
-// @filename: Zippable.ts
 // @include: Zippable
 
 // @filename: Either.ts
