@@ -9,10 +9,7 @@ import rehypePrettyCode, {
 import { transformerTwoslash } from "@shikijs/twoslash"
 import rehypeRaw from "rehype-raw"
 import { nodeTypes } from "@mdx-js/mdx"
-import rehypeMdxCodeProps from "rehype-mdx-code-props"
 import rehypeSlug from "rehype-slug"
-
-export const CODE_BLOCK_FILENAME_REGEX = /filename="([^"]+)"/
 
 const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS: RehypePrettyCodeOptions = {
   onVisitLine(node) {
@@ -28,9 +25,7 @@ const DEFAULT_REHYPE_PRETTY_CODE_OPTIONS: RehypePrettyCodeOptions = {
   },
   onVisitHighlightedChars(node) {
     node.properties.className = ["highlighted"]
-  },
-  filterMetaString: (meta: string) =>
-    meta.replace(CODE_BLOCK_FILENAME_REGEX, "")
+  }
 }
 
 export default makeSource({
@@ -41,7 +36,6 @@ export default makeSource({
     remarkPlugins: [remarkGfm],
     rehypePlugins: [
       [rehypeRaw, { passThrough: nodeTypes }],
-      rehypeMdxCodeProps,
       [
         rehypePrettyCode,
         {
@@ -64,7 +58,6 @@ export default makeSource({
         } satisfies RehypePrettyCodeOptions
       ],
       [rehypeRaw, { passThrough: nodeTypes }],
-      rehypeMdxCodeProps,
       rehypeSlug
     ]
   }
