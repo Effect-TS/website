@@ -189,10 +189,10 @@ In this case, the field `"age"` is of type `string` in the `Encoded` type of the
 When working with unknown data types in TypeScript, decoding them into a known structure can be challenging. Luckily, `@effect/schema` provides several functions to help with this process. Let's explore how to decode unknown values using these functions.
 
 - `decodeUnknownSync`: Synchronously decodes a value and throws an error if parsing fails.
-- `decodeUnknownOption`: Decodes a value and returns an `Option` type.
-- `decodeUnknownEither`: Decodes a value and returns an `Either` type.
+- `decodeUnknownOption`: Decodes a value and returns an [Option](../../other/data-types/option) type.
+- `decodeUnknownEither`: Decodes a value and returns an [Either](../../other/data-types/either) type.
 - `decodeUnknownPromise`: Decodes a value and returns a `Promise`.
-- `decodeUnknown`: Decodes a value and returns an `Effect`.
+- `decodeUnknown`: Decodes a value and returns an [Effect](../essentials/the-effect-type).
 
 **Example** (Using `decodeUnknownSync`)
 
@@ -221,7 +221,7 @@ Error: Expected { readonly name: string; readonly age: number }, actual null
 
 **Example** (Using `decodeUnknownEither`)
 
-Now, let's see how to use the `decodeUnknownEither` function, which returns an `Either` type representing success or failure.
+Now, let's see how to use the `decodeUnknownEither` function, which returns an [Either](../../other/data-types/either) type representing success or failure.
 
 ```ts twoslash
 import { Schema } from "@effect/schema"
@@ -268,9 +268,9 @@ interface ParseError {
 }
 ```
 
-Here, `ParseIssue` represents an error that might occur during the parsing process. It is wrapped in a tagged error to make it easier to catch errors using `Effect.catchTag`. The result `Either<A, ParseError>` contains the inferred data type described by the schema. A successful parse yields a `Right` value with the parsed data `A`, while a failed parse results in a `Left` value containing a `ParseError`.
+Here, `ParseIssue` represents an error that might occur during the parsing process. It is wrapped in a tagged error to make it easier to catch errors using [Effect.catchTag](../error-management/expected-errors#catchtag). The result `Either<A, ParseError>` contains the inferred data type described by the schema. A successful parse yields a `Right` value with the parsed data `A`, while a failed parse results in a `Left` value containing a `ParseError`.
 
-When your schema involves asynchronous transformations, neither the `decodeUnknownSync` nor the `decodeUnknownEither` functions will work for you. In such cases, you must turn to the `decodeUnknown` function, which returns an `Effect`.
+When your schema involves asynchronous transformations, neither the `decodeUnknownSync` nor the `decodeUnknownEither` functions will work for you. In such cases, you must turn to the `decodeUnknown` function, which returns an [Effect](../essentials/the-effect-type).
 
 ```ts twoslash
 import { Schema } from "@effect/schema"
@@ -584,7 +584,7 @@ Error: { readonly a: unknown }
 */
 ```
 
-For the APIs `is` and `asserts`, however, the default behavior is to treat missing properties strictly, where the default for `exact` is `true`:
+For the APIs `Schema.is` and `Schema.asserts`, however, the default behavior is to treat missing properties strictly, where the default for `exact` is `true`:
 
 ```ts twoslash
 import type { AST } from "@effect/schema"
@@ -633,10 +633,10 @@ try {
 The `@effect/schema/Schema` module provides several `encode*` functions to encode data according to a schema:
 
 - `encodeSync`: Synchronously encodes data and throws an error if encoding fails.
-- `encodeOption`: Encodes data and returns an `Option` type.
-- `encodeEither`: Encodes data and returns an `Either` type representing success or failure.
+- `encodeOption`: Encodes data and returns an [Option](../../other/data-types/option) type.
+- `encodeEither`: Encodes data and returns an [Either](../../other/data-types/either) type representing success or failure.
 - `encodePromise`: Encodes data and returns a `Promise`.
-- `encode`: Encodes data and returns an `Effect`.
+- `encode`: Encodes data and returns an [Effect](../essentials/the-effect-type).
 
 Let's consider an example where we have a schema for a `Person` object with a `name` property of type `string` and an `age` property of type `number`.
 
@@ -676,7 +676,7 @@ Note that during encoding, the number value `30` was converted to a string `"30"
 
 Although it is generally recommended to define schemas that support both decoding and encoding, there are situations where encoding support might be impossible. In such cases, the `Forbidden` error can be used to handle unsupported encoding.
 
-Here is an example of a transformation that never fails during decoding. It returns an `Either` containing either the decoded value or the original input. For encoding, it is reasonable to not support it and use `Forbidden` as the result.
+Here is an example of a transformation that never fails during decoding. It returns an [Either](../../other/data-types/either) containing either the decoded value or the original input. For encoding, it is reasonable to not support it and use `Forbidden` as the result.
 
 ```ts twoslash
 import { ParseResult, Schema } from "@effect/schema"
@@ -712,7 +712,7 @@ export const SafeDecode = <A, I>(self: Schema.Schema<A, I, never>) => {
 
 **Explanation**
 
-- **Decoding**: The `SafeDecode` function ensures that decoding never fails. It wraps the decoded value in an `Either`, where a successful decoding results in a `Right` and a failed decoding results in a `Left` containing the original input.
+- **Decoding**: The `SafeDecode` function ensures that decoding never fails. It wraps the decoded value in an [Either](../../other/data-types/either), where a successful decoding results in a `Right` and a failed decoding results in a `Left` containing the original input.
 - **Encoding**: The encoding process uses the `Forbidden` error to indicate that encoding a `Left` value is not supported. Only `Right` values are successfully encoded.
 
 ## Naming Conventions
