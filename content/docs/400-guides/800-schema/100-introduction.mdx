@@ -1,0 +1,182 @@
+---
+title: Introduction
+excerpt: Introduction
+bottomNavigation: pagination
+---
+
+Welcome to the documentation for `@effect/schema`, **a library for defining and using schemas** to validate and transform data in TypeScript.
+
+`@effect/schema` allows you to define a `Schema<Type, Encoded, Context>` that provides a blueprint for describing the structure and data types of your data. Once defined, you can leverage this schema to perform a range of operations, including:
+
+| Operation       | Description                                                                                                    |
+| --------------- | -------------------------------------------------------------------------------------------------------------- |
+| Decoding        | Transforming data from an input type `Encoded` to an output type `Type`.                                       |
+| Encoding        | Converting data from an output type `Type` back to an input type `Encoded`.                                    |
+| Asserting       | Verifying that a value adheres to the schema's output type `Type`.                                             |
+| Arbitraries     | Generate arbitraries for [fast-check](https://github.com/dubzzz/fast-check) testing.                           |
+| JSON Schemas    | Create JSON Schemas based on defined schemas.                                                                  |
+| Equivalence     | Create [Equivalences](https://effect-ts.github.io/effect/schema/Equivalence.ts.html) based on defined schemas. |
+| Pretty printing | Support pretty printing for data structures.                                                                   |
+
+## The Schema Type
+
+The `Schema<Type, Encoded, Context>` type represents an immutable value that describes the structure of your data.
+
+The `Schema` type has three type parameters with the following meanings:
+
+- **Type**. Represents the type of value that a schema can succeed with during decoding.
+- **Encoded**. Represents the type of value that a schema can succeed with during encoding. By default, it's equal to `Type` if not explicitly provided.
+- **Context**. Similar to the [`Effect`](https://effect.website/docs/guides/essentials/the-effect-type) type, it represents the contextual data required by the schema to execute both decoding and encoding. If this type parameter is `never` (default if not explicitly provided), it means the schema has no requirements.
+
+**Examples**
+
+- `Schema<string>` (defaulted to `Schema<string, string, never>`) represents a schema that decodes to `string`, encodes to `string`, and has no requirements.
+- `Schema<number, string>` (defaulted to `Schema<number, string, never>`) represents a schema that decodes to `number` from `string`, encodes a `number` to a `string`, and has no requirements.
+
+<Info>
+  In the Effect ecosystem, you may often encounter the type parameters of
+  `Schema` abbreviated as `A`, `I`, and `R` respectively. This is just
+  shorthand for the type value of type **A**, **I**nput, and **R**equirements.
+</Info>
+
+`Schema` values are immutable, and all `@effect/schema` functions produce new `Schema` values.
+
+`Schema` values do not actually do anything, they are just values that model or describe the structure of your data.
+
+`Schema` values don't perform any actions themselves; they simply describe the structure of your data. A `Schema` can be interpreted by various "compilers" into specific operations, depending on the compiler type (decoding, encoding, pretty printing, arbitraries, etc...).
+
+## Understanding Decoding and Encoding
+
+![Pipe](/images/mmd/schema-introduction.svg)
+
+We'll break down these concepts using an example with a `Schema<Date, string, never>`. This schema serves as a tool to transform a `string` into a `Date` and vice versa.
+
+**Encoding**
+
+When we talk about "encoding," we are referring to the process of changing a `Date` into a `string`. To put it simply, it's the act of converting data from one format to another.
+
+**Decoding**
+
+Conversely, "decoding" entails transforming a `string` back into a `Date`. It's essentially the reverse operation of encoding, where data is returned to its original form.
+
+**Decoding From Unknown**
+
+Decoding from `unknown` involves two key steps:
+
+1. **Checking:** Initially, we verify that the input data (which is of the `unknown` type) matches the expected structure. In our specific case, this means ensuring that the input is indeed a `string`.
+
+2. **Decoding:** Following the successful check, we proceed to convert the `string` into a `Date`. This process completes the decoding operation, where the data is both validated and transformed.
+
+**Encoding From Unknown**
+
+Encoding from `unknown` involves two key steps:
+
+1. **Checking:** Initially, we verify that the input data (which is of the `unknown` type) matches the expected structure. In our specific case, this means ensuring that the input is indeed a `Date`.
+
+2. **Encoding:** Following the successful check, we proceed to convert the `Date` into a `string`. This process completes the encoding operation, where the data is both validated and transformed.
+
+<Info>
+  As a general rule, schemas should be defined such that encode + decode
+  return the original value.
+</Info>
+
+Recap:
+
+- **Decoding:** Used for parsing data from external sources where you have no control over the data format.
+- **Encoding:** Used when sending data out to external sources, converting it to a format that is expected by those sources.
+
+For instance, when working with forms in the frontend, you often receive untyped data in the form of strings. This data can be tampered with and does not natively support arrays or booleans. Decoding helps you validate and parse this data into more useful types like numbers, dates, and arrays. Encoding allows you to convert these types back into the string format expected by forms.
+
+By understanding these processes, you can ensure that your data handling is robust and reliable, converting data safely between different formats.
+
+## The Rule of Schemas: Keeping Encode and Decode in Sync
+
+When working with schemas, there's an important rule to keep in mind: your schemas should be crafted in a way that when you perform both encoding and decoding operations, you should end up with the original value.
+
+In simpler terms, if you encode a value and then immediately decode it, the result should match the original value you started with. This rule ensures that your data remains consistent and reliable throughout the encoding and decoding process.
+
+## Requirements
+
+- TypeScript **5.0** or newer
+- The `strict` flag enabled in your `tsconfig.json` file
+- The `exactOptionalPropertyTypes` flag enabled in your `tsconfig.json` file
+  ```json
+  {
+    // ...
+    "compilerOptions": {
+      // ...
+      "strict": true,
+      "exactOptionalPropertyTypes": true
+    }
+  }
+  ```
+- Additionally, make sure to install the following packages, as they are peer dependencies. Note that some package managers might not install peer dependencies by default, so you need to install them manually:
+  - `effect` package (peer dependency)
+  - [fast-check](https://github.com/dubzzz/fast-check) package (peer dependency)
+
+## Understanding exactOptionalPropertyTypes
+
+The `@effect/schema` library takes advantage of the `exactOptionalPropertyTypes` option of `tsconfig.json`. This option affects how optional properties are typed (to learn more about this option, you can refer to the official [TypeScript documentation](https://www.typescriptlang.org/tsconfig#exactOptionalPropertyTypes)).
+
+Let's delve into this with an example.
+
+**With exactOptionalPropertyTypes Enabled**
+
+```ts
+import { Schema } from "@effect/schema"
+
+const Person = Schema.Struct({
+  name: Schema.optionalWith(Schema.String.pipe(Schema.nonEmptyString()), {
+    exact: true
+  })
+})
+
+/*
+type Type = {
+    readonly name?: string; // the type is strict (no `| undefined`)
+}
+*/
+type Type = Schema.Schema.Type<typeof Person>
+
+Schema.decodeSync(Person)({ name: undefined })
+/*
+TypeScript Error:
+Argument of type '{ name: undefined; }' is not assignable to parameter of type '{ readonly name?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'name' are incompatible.
+    Type 'undefined' is not assignable to type 'string'.ts(2379)
+*/
+```
+
+Here, notice that the type of `name` is "exact" (`string`), which means the type checker will catch any attempt to assign an invalid value (like `undefined`).
+
+**With exactOptionalPropertyTypes Disabled**
+
+If, for some reason, you can't enable the `exactOptionalPropertyTypes` option (perhaps due to conflicts with other third-party libraries), you can still use `@effect/schema`. However, there will be a mismatch between the types and the runtime behavior:
+
+```ts
+import { Schema } from "@effect/schema"
+
+const Person = Schema.Struct({
+  name: Schema.optionalWith(Schema.String.pipe(Schema.nonEmptyString()), {
+    exact: true
+  })
+})
+
+/*
+type Type = {
+    readonly name?: string | undefined; // the type is widened to string | undefined
+}
+*/
+type Type = Schema.Schema.Type<typeof Person>
+
+Schema.decodeSync(Person)({ name: undefined }) // No type error, but a decoding failure occurs
+/*
+Error: { name?: a non empty string }
+└─ ["name"]
+   └─ a non empty string
+      └─ From side refinement failure
+         └─ Expected a string, actual undefined
+*/
+```
+
+In this case, the type of `name` is widened to `string | undefined`, which means the type checker won't catch the invalid value (`undefined`). However, during decoding, you'll encounter an error, indicating that `undefined` is not allowed.
