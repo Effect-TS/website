@@ -771,3 +771,74 @@ const schema = Schema.Struct({
 ### Rationale
 
 While JSON's ubiquity justifies its primary consideration in naming, the conventions also accommodate serialization for other types of transport. For instance, converting a `Date` to a string is a universally useful method for various communication protocols, not just JSON. Thus, the selected naming conventions serve as sensible defaults that prioritize clarity and ease of use, facilitating the serialization and deserialization processes across diverse technological environments.
+
+## Type Guards
+
+The `Schema.is` function provided by the `@effect/schema/Schema` module represents a way of verifying that a value conforms to a given schema.
+It functions as a [type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates), taking a value of type `unknown` and determining if it matches the structure and type constraints defined in the schema.
+
+Here's how the `Schema.is` function works
+
+1. **Schema Definition**: Define a schema to describe the structure and constraints of the data type you expect. For instance, `Schema<A, I, R>` where `A` is the desired type.
+
+2. **Type Guard Creation**: Convert the schema into a user-defined type guard `(u: unknown) => u is A`. This allows you to assert at runtime whether a value meets the specified schema.
+
+The type `I`, typically used in schema transformations, does not influence the generation of the type guard. The primary focus is on ensuring that the input conforms to the desired type `A`.
+
+**Example Usage**:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Person = Schema.Struct({
+  name: Schema.String,
+  age: Schema.Number
+})
+
+/*
+const isPerson: (a: unknown, options?: number | ParseOptions) => a is {
+    readonly name: string;
+    readonly age: number;
+}
+*/
+const isPerson = Schema.is(Person)
+
+console.log(isPerson({ name: "Alice", age: 30 })) // true
+console.log(isPerson(null)) // false
+console.log(isPerson({})) // false
+```
+
+## Assertions
+
+While type guards verify and inform about type conformity, the `Schema.asserts` function takes it a step further by asserting that an input matches the schema `A` type (from `Schema<A, I, R>`). If the input does not match, it throws a detailed error.
+
+**Example Usage**:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Person = Schema.Struct({
+  name: Schema.String,
+  age: Schema.Number
+})
+
+// equivalent to: (input: unknown, options?: ParseOptions) => asserts input is { readonly name: string; readonly age: number; }
+const assertsPerson: Schema.Schema.ToAsserts<typeof Person> =
+  Schema.asserts(Person)
+
+try {
+  assertsPerson({ name: "Alice", age: "30" })
+} catch (e) {
+  console.error("The input does not match the schema:")
+  console.error(e)
+}
+/*
+The input does not match the schema:
+Error: { readonly name: string; readonly age: number }
+└─ ["age"]
+   └─ Expected a number, actual "30"
+*/
+
+// this will not throw an error
+assertsPerson({ name: "Alice", age: 30 })
+```
