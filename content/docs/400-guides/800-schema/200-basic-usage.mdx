@@ -1,0 +1,210 @@
+---
+title: Basic Usage
+excerpt: Basic Usage
+bottomNavigation: pagination
+---
+
+## Cheatsheet
+
+| Typescript Type                                           | Description / Notes                      | Schema / Combinator                                                        |
+| --------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------- |
+| `null`                                                    |                                          | `S.Null`                                                                   |
+| `undefined`                                               |                                          | `S.Undefined`                                                              |
+| `string`                                                  |                                          | `S.String`                                                                 |
+| `number`                                                  |                                          | `S.Number`                                                                 |
+| `boolean`                                                 |                                          | `S.Boolean`                                                                |
+| `symbol`                                                  |                                          | `S.SymbolFromSelf` / `S.Symbol`                                            |
+| `BigInt`                                                  |                                          | `S.BigIntFromSelf` / `S.BigInt`                                            |
+| `unknown`                                                 |                                          | `S.Unknown`                                                                |
+| `any`                                                     |                                          | `S.Any`                                                                    |
+| `never`                                                   |                                          | `S.Never`                                                                  |
+| `object`                                                  |                                          | `S.Object`                                                                 |
+| `unique symbol`                                           |                                          | `S.UniqueSymbolFromSelf`                                                   |
+| `"a"`, `1`, `true`                                        | type literals                            | `S.Literal("a")`, `S.Literal(1)`, `S.Literal(true)`                        |
+| `a${string}`                                              | template literals                        | `S.TemplateLiteral("a", S.String)`                                         |
+| `{ readonly a: string, readonly b?: number\| undefined }` | structs                                  | `S.Struct({ a: S.String, b: S.optional(S.Number) })`                       |
+| `Record<A, B>`                                            | records                                  | `S.Record({ key: A, value: B })`                                           |
+| `readonly [string, number]`                               | tuples                                   | `S.Tuple(S.String, S.Number)`                                              |
+| `ReadonlyArray<string>`                                   | arrays                                   | `S.Array(S.String)`                                                        |
+| `A \| B`                                                  | unions                                   | `S.Union(A, B)`                                                            |
+| `A & B`                                                   | intersections of non-overlapping structs | `S.extend(A, B)`                                                           |
+| `Record<A, B> & Record<C, D>`                             | intersections of non-overlapping records | `S.extend(S.Record({ key: A, value: B }), S.Record({ key: C, value: D }))` |
+| `type A = { a: A \| null }`                               | recursive types                          | `S.Struct({ a: S.Union(S.Null, S.suspend(() => self)) })`                  |
+| `keyof A`                                                 |                                          | `S.keyof(A)`                                                               |
+| `Partial<A>`                                              |                                          | `S.partial(A)`                                                             |
+| `Required<A>`                                             |                                          | `S.required(A)`                                                            |
+
+Here are the primitive schemas provided by the `@effect/schema/Schema` module:
+
+## Primitives
+
+```ts
+import { Schema } from "@effect/schema"
+
+Schema.String // Schema<string>
+Schema.Number // Schema<number>
+Schema.Boolean // Schema<boolean>
+Schema.BigIntFromSelf // Schema<BigInt>
+Schema.SymbolFromSelf // Schema<symbol>
+Schema.Object // Schema<object>
+Schema.Undefined // Schema<undefined>
+Schema.Void // Schema<void>
+Schema.Any // Schema<any>
+Schema.Unknown // Schema<unknown>
+Schema.Never // Schema<never>
+```
+
+These primitive schemas are building blocks for creating more complex schemas to describe your data structures.
+
+## Literals
+
+Literals in schemas represent specific values that are directly specified. Here are some examples of literal schemas provided by the `@effect/schema/Schema` module:
+
+```ts
+import { Schema } from "@effect/schema"
+
+Schema.Null // same as S.Literal(null)
+Schema.Literal("a")
+Schema.Literal("a", "b", "c") // union of literals
+Schema.Literal(1)
+Schema.Literal(2n) // BigInt literal
+Schema.Literal(true)
+```
+
+We can also use `pickLiteral` with a literal schema to narrow down the possible values:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+Schema.Literal("a", "b", "c").pipe(Schema.pickLiteral("a", "b")) // same as S.Literal("a", "b")
+```
+
+Sometimes, we need to reuse a schema literal in other parts of our code. Let's see an example:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const FruitId = Schema.Number
+// the source of truth regarding the Fruit category
+const FruitCategory = Schema.Literal("sweet", "citrus", "tropical")
+
+const Fruit = Schema.Struct({
+  id: FruitId,
+  category: FruitCategory
+})
+
+// Here, we want to reuse our FruitCategory definition to create a subtype of Fruit
+const SweetAndCitrusFruit = Schema.Struct({
+  fruitId: FruitId,
+  category: FruitCategory.pipe(Schema.pickLiteral("sweet", "citrus"))
+  /*
+    By using pickLiteral from the FruitCategory, we ensure that the values selected
+    are those defined in the category definition above.
+    If we remove "sweet" from the FruitCategory definition, TypeScript will notify us.
+    */
+})
+```
+
+In this example, `FruitCategory` serves as the source of truth for the categories of fruits. We reuse it to create a subtype of `Fruit` called `SweetAndCitrusFruit`, ensuring that only the categories defined in `FruitCategory` are allowed.
+
+### Exposed Values
+
+You can access the literals of a literal schema:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Literal("a", "b")
+
+// Accesses the literals
+const literals = schema.literals // readonly ["a", "b"]
+```
+
+## Template literals
+
+In TypeScript, template literals allow you to embed expressions within string literals. The `@effect/schema` library provides a `TemplateLiteral` constructor that you can use to create a schema for these template literal types.
+
+Here's how you can use it:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+// This creates a TemplateLiteral of type `a${string}`
+Schema.TemplateLiteral("a", Schema.String)
+
+// This creates a TemplateLiteral of type `https://${string}.com` or `https://${string}.net`
+Schema.TemplateLiteral(
+  "https://",
+  Schema.String,
+  ".",
+  Schema.Literal("com", "net")
+)
+```
+
+Let's look at a more complex example. Suppose you have two sets of locale IDs for emails and footers:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+// example from https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html
+const EmailLocaleIDs = Schema.Literal("welcome_email", "email_heading")
+const FooterLocaleIDs = Schema.Literal("footer_title", "footer_sendoff")
+```
+
+You can use the `TemplateLiteral` constructor to create a schema that combines these IDs:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const EmailLocaleIDs = Schema.Literal("welcome_email", "email_heading")
+const FooterLocaleIDs = Schema.Literal("footer_title", "footer_sendoff")
+
+// ---cut---
+// This creates a TemplateLiteral of type "welcome_email_id" | "email_heading_id" | "footer_title_id" | "footer_sendoff_id"
+Schema.TemplateLiteral(Schema.Union(EmailLocaleIDs, FooterLocaleIDs), "_id")
+```
+
+The `TemplateLiteral` constructor supports the following types of spans:
+
+- `Schema.String`
+- `Schema.Number`
+- Literals: `string | number | boolean | null | bigint`. These can be either wrapped by `Schema.Literal` or used directly
+- Unions of the above types
+
+### Enhanced Parsing with TemplateLiteralParser
+
+The `Schema.TemplateLiteral` function, while useful as a simple validator, only verifies that an input conforms to a specific string pattern by converting template literal definitions into regular expressions. Similarly, `Schema.pattern` employs regular expressions directly for the same purpose. Post-validation, both methods require additional manual parsing to convert the validated string into a usable data format.
+
+To address these limitations and eliminate the need for manual post-validation parsing, the new `TemplateLiteralParser` API has been developed. It not only validates the input format but also automatically parses it into a more structured and type-safe output, specifically into a **tuple** format.
+
+This new approach enhances developer productivity by reducing boilerplate code and simplifying the process of working with complex string inputs.
+
+**Example**
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+// const schema: Schema.Schema<readonly [number, "a", string], `${string}a${string}`, never>
+const schema = Schema.TemplateLiteralParser(
+  Schema.NumberFromString,
+  "a",
+  Schema.NonEmptyString
+)
+
+console.log(Schema.decodeEither(schema)("100afoo"))
+// { _id: 'Either', _tag: 'Right', right: [ 100, 'a', 'foo' ] }
+
+console.log(Schema.encode(schema)([100, "a", "foo"]))
+// { _id: 'Either', _tag: 'Right', right: '100afoo' }
+```
+
+## Unique Symbols
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const mySymbol = Symbol.for("mysymbol")
+
+// const mySymbolSchema: S.Schema<typeof mySymbol>
+const mySymbolSchema = Schema.UniqueSymbolFromSelf(mySymbol)
+```
