@@ -19,11 +19,23 @@ to make building applications easier.
       {
         name: "4. Immutable Data Structures",
         value: 8243,
-        docsLink: "/docs"
+        docsLink: "/docs/other/fp-ts#immutable-data-structures"
       },
-      { name: "5. Observable", value: 6515, docsLink: "/docs" },
-      { name: "6. Pipe Operator", value: 5860, docsLink: "/docs" },
-      { name: "8. Pattern Matching", value: 4872, docsLink: "/docs" }
+      {
+        name: "5. Observable",
+        value: 6515,
+        docsLink: "/docs/guides/observability"
+      },
+      {
+        name: "6. Pipe Operator",
+        value: 5860,
+        docsLink: "/docs/guides/essentials/pipeline#pipe"
+      },
+      {
+        name: "8. Pattern Matching",
+        value: 4872,
+        docsLink: "/docs/guides/style/pattern-matching"
+      }
     ]
   }
 }
