@@ -19,7 +19,7 @@ to make building applications easier.
       {
         name: "4. Immutable Data Structures",
         value: 8243,
-        docsLink: "/docs/other/fp-ts#immutable-data-structures"
+        docsLink: "/docs/other/data-types"
       },
       {
         name: "5. Observable",
