@@ -3,3 +3,188 @@ title: Transformations
 excerpt: Transformations
 bottomNavigation: pagination
 ---
+
+Transformations play a key role in working with schemas, especially when you need to convert data from one type to another, such as parsing a string into a number or converting a date string into a `Date` object.
+
+## transform
+
+The `Schema.transform` function is designed to facilitate these conversions by linking two schemas together: one for the input type and one for the output type.
+
+Here's an overview of the `Schema.transform` function, which accepts five parameters:
+
+| Parameter  | Description                                                                        | Type                                                                                                      |
+| ---------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **from**   | The source schema, representing the starting point of the transformation.          | `Schema<B, A, R1>` where `A` is the input type and `B` is the intermediate type after initial validation. |
+| **to**     | The target schema, representing the endpoint of the transformation.                | `Schema<D, C, R2>` where `C` is the transformed type from `B`, and `D` is the final output type.          |
+| **decode** | A function that converts an intermediate value of type `B` to a value of type `C`. | `(b: B, a: A) => C`                                                                                       |
+| **encode** | A function that reverses the transformation, converting type `C` back to type `B`. | `(c: C, d: D) => B`                                                                                       |
+| **strict** | optional (but recommended)                                                         | `boolean`                                                                                                 |
+
+This function results in a schema `Schema<D, A, R1 | R2>`, integrating both the dependencies and transformations of the `from` and `to` schemas.
+
+**Example: Doubling a Number**
+
+Here's an example that demonstrates a schema transformation to double an input number:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+// Define a transformation that doubles the input number
+const transformedSchema = Schema.transform(
+  // Source schema
+  Schema.Number,
+  // Target schema
+  Schema.Number,
+  {
+    // optional but you get better error messages from TypeScript
+    strict: true,
+    // Transformation function to double the number
+    decode: (n) => n * 2,
+    // Reverse transformation to revert to the original number
+    encode: (n) => n / 2
+  }
+)
+```
+
+In this example, if you input `2`, the schema will decode it to `4` and encode it back to `2`.
+
+**Example: Converting an array to a ReadonlySet**
+
+Here's how you can convert an array to a `ReadonlySet`:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const ReadonlySetFromArray = <A, I, R>(
+  itemSchema: Schema.Schema<A, I, R>
+): Schema.Schema<ReadonlySet<A>, ReadonlyArray<I>, R> =>
+  Schema.transform(
+    Schema.Array(itemSchema),
+    Schema.ReadonlySetFromSelf(Schema.typeSchema(itemSchema)),
+    {
+      strict: true,
+      decode: (items) => new Set(items),
+      encode: (set) => Array.from(set.values())
+    }
+  )
+```
+
+<Info>
+  Please note that to define the target schema, we used
+  [Schema.typeSchema](projections#typeschema). This is because the
+  decoding/encoding of the elements is already handled by the `from` schema,
+  `Schema.Array(itemSchema)`.
+</Info>
+
+**Example: Trim Whitespace**
+
+Here's how to use the `transform` function to trim whitespace from strings:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const transformedSchema = Schema.transform(
+  // Source schema: accepts any string
+  Schema.String,
+  // Target schema: also accepts any string
+  Schema.String,
+  {
+    strict: true,
+    // Trim the string during decoding
+    decode: (s) => s.trim(),
+    // No change during encoding
+    encode: (s) => s
+  }
+)
+```
+
+This schema automatically trims leading and trailing whitespace from a string during decoding. During encoding, it returns the string unchanged.
+
+**Improving the Transformation with a Filter**
+
+To ensure that strings are not only trimmed but also validated to exclude untrimmed inputs, you can restrict the target schema to only accept strings that are already trimmed:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const transformedSchema = Schema.transform(
+  // Source schema: accepts any string
+  Schema.String,
+  // Target schema now only accepts strings that are trimmed
+  Schema.String.pipe(Schema.filter((s) => s === s.trim())),
+  {
+    strict: true,
+    // Trim the string during decoding
+    decode: (s) => s.trim(),
+    // No change during encoding
+    encode: (s) => s
+  }
+)
+```
+
+In this improved example, the target schema is piped through a `filter` function. This function checks that the string is equal to its trimmed version, effectively ensuring that only strings without leading or trailing whitespace are considered valid. This is particularly useful for maintaining data integrity and can help prevent errors or inconsistencies in data processing.
+
+### Non-strict option
+
+Sometimes the strict type checking can impede certain operations where types might slightly deviate during the transformation process. For such cases, `transform` provides an option, `strict: false`, to relax type constraints and allow for more flexible data manipulation.
+
+**Example: Clamping Constructor**
+
+Let's consider the scenario where you need to define a constructor `clamp` that ensures a number falls within a specific range. This function returns a schema that "clamps" a number to a specified minimum and maximum range:
+
+```ts twoslash
+// @errors: 2345
+import { Schema } from "@effect/schema"
+import { Number } from "effect"
+
+const clamp =
+  (minimum: number, maximum: number) =>
+  <A extends number, I, R>(self: Schema.Schema<A, I, R>) =>
+    Schema.transform(
+      self,
+      self.pipe(
+        Schema.typeSchema,
+        Schema.filter((a) => a <= minimum || a >= maximum)
+      ),
+      {
+        strict: true,
+        decode: (a) => Number.clamp(a, { minimum, maximum }),
+        encode: (a) => a
+      }
+    )
+```
+
+In this code, `Number.clamp` is a function that adjusts the given number to stay within the specified range. However, the return type of `Number.clamp` may not strictly be of type `A` but just a `number`, which can lead to type mismatches according to TypeScript's strict type-checking.
+
+There are two ways to resolve the type mismatch:
+
+1. **Using Type Assertion**:
+   Adding a type cast can enforce the return type to be treated as type `A`:
+
+   ```ts
+   decode: (a) => Number.clamp(a, { minimum, maximum }) as A
+   ```
+
+2. **Using the Non-Strict Option**:
+   Setting `strict: false` in the transformation options allows the schema to bypass some of TypeScript's type-checking rules, accommodating the type discrepancy:
+
+   ```ts twoslash
+   import { Schema } from "@effect/schema"
+   import { Number } from "effect"
+
+   const clamp =
+     (minimum: number, maximum: number) =>
+     <A extends number, I, R>(self: Schema.Schema<A, I, R>) =>
+       Schema.transform(
+         self,
+         self.pipe(
+           Schema.typeSchema,
+           Schema.filter((a) => a >= minimum && a <= maximum)
+         ),
+         {
+           strict: false,
+           decode: (a) => Number.clamp(a, { minimum, maximum }),
+           encode: (a) => a
+         }
+       )
+   ```
