@@ -125,16 +125,18 @@ type User = z.infer<typeof User>`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import { Schema as S } from "@effect/schema"
+          code: `import { Schema } from "@effect/schema"
 
-const User = S.struct({
-  username: S.string
+const User = Schema.Struct({
+  username: Schema.String
 })
 
-S.parse(User)({ username: "john_doe" })
+Schema.decodeUnknownSync(User)({
+  username: "john_doe"
+})
 
 // extract the inferred type
-type User = S.Schema.To<typeof User>`
+type User = Schema.Schema.Type<typeof User>`
         }
       },
       {
@@ -154,16 +156,18 @@ type User = yup.InferType<typeof User>`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import { Schema as S } from "@effect/schema"
+          code: `import { Schema } from "@effect/schema"
 
-const User = S.struct({
-  username: S.string
+const User = Schema.Struct({
+  username: Schema.String
 })
 
-S.parse(User)({ username: "john_doe" })
+Schema.decodeUnknownSync(User)({
+  username: "john_doe"
+})
 
 // extract the inferred type
-type User = S.Schema.To<typeof User>`
+type User = Schema.Schema.Type<typeof User>`
         }
       },
       {
@@ -173,24 +177,33 @@ type User = S.Schema.To<typeof User>`
           code: `import superjson from "superjson"
 
 // encoding
-const jsonString = superjson.stringify({ date: new Date(0) })
+const json = superjson.stringify({
+  date: new Date(0)
+})
 // '{"json":{"date":"1970-01-01T00:00:00.000Z"},"meta":{"values":{date:"Date"}}}'
 
 // decoding
-const object = superjson.parse<{ date: Date }>(jsonString)`
+const obj = superjson.parse<{ date: Date }>(json)`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import { Schema as S } from "@effect/schema"
+          code: `import { Schema } from "@effect/schema"
 
-const schema = S.parseJson(S.struct({ date: S.Date }))
+const schema = Schema.parseJson(
+  Schema.Struct({
+    date: Schema.Date
+  })
+)
 
 // encoding
-const jsonString = S.encodeSync(schema)({ date: new Date(0) })
+const json = Schema.encodeSync(schema)({
+  date: new Date(0)
+})
 // '{"date":"1970-01-01T00:00:00.000Z"}'
 
 // decoding
-const object = S.decodeSync(schema)(jsonString)`
+const obj = Schema.decodeUnknownSync(schema)(json)
+`
         }
       }
     ]
