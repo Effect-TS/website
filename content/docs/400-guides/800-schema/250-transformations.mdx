@@ -188,3 +188,242 @@ There are two ways to resolve the type mismatch:
          }
        )
    ```
+
+## transformOrFail
+
+While the [Schema.transform](#transform) function is suitable for error-free transformations,
+the `Schema.transformOrFail` function is designed for more complex scenarios where **transformations
+can fail** during the decoding or encoding stages.
+
+This function enables decoding/encoding functions to return either a successful result or an error,
+making it particularly useful for validating and processing data that might not always conform to expected formats.
+
+### Error Handling
+
+The `Schema.transformOrFail` function utilizes the ParseResult module to manage potential errors:
+
+| Constructor               | Description                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------ |
+| **`ParseResult.succeed`** | Indicates a successful transformation, where no errors occurred.                                 |
+| **`ParseResult.fail`**    | Signals a failed transformation, creating a new `ParseError` based on the provided `ParseIssue`. |
+
+Additionally, the ParseResult module provides constructors for dealing with various types of parse issues, such as:
+
+- `Type`
+- `Missing`
+- `Unexpected`
+- `Forbidden`
+- `Pointer`
+- `Refinement`
+- `Transformation`
+- `Composite`
+
+These tools allow for detailed and specific error handling, enhancing the reliability of data processing operations.
+
+**Example: Converting a String to a Number**
+
+A common use case for `Schema.transformOrFail` is converting string representations of numbers into actual numeric types. This scenario is typical when dealing with user inputs or data from external sources.
+
+```ts twoslash
+import { ParseResult, Schema } from "@effect/schema"
+
+export const NumberFromString = Schema.transformOrFail(
+  Schema.String, // Source schema: accepts any string
+  Schema.Number, // Target schema: expects a number
+  {
+    strict: true, // optional but you get better error messages from TypeScript
+    decode: (input, options, ast) => {
+      const parsed = parseFloat(input)
+      if (isNaN(parsed)) {
+        return ParseResult.fail(
+          new ParseResult.Type(
+            ast,
+            input,
+            "Failed to convert string to number"
+          )
+        )
+      }
+      return ParseResult.succeed(parsed)
+    },
+    encode: (input, options, ast) => ParseResult.succeed(input.toString())
+  }
+)
+```
+
+In this example:
+
+- **Decoding:** Attempts to parse the input string into a number. If the parsing results in `NaN` (indicating that the string is not a valid number), it fails with a descriptive error.
+- **Encoding:** Converts the number back to a string, assuming that the input number is valid.
+
+Both `decode` and `encode` functions not only receive the value to transform (`input`), but also the [parse options](getting-started#parse-options) that the user sets when using the resulting schema, and the `ast`, which represents the low level definition of the schema you're transforming.
+
+### Async Transformations
+
+In modern applications, especially those interacting with external APIs, you might need to transform data asynchronously. `Schema.transformOrFail` supports asynchronous transformations by allowing you to return an `Effect`.
+
+**Example: Asynchronously Converting a String to a Number Using an API**
+
+Consider a situation where you need to validate a person's ID by fetching data from an external API. Here's how you can implement it:
+
+```ts twoslash
+import { ParseResult, Schema, TreeFormatter } from "@effect/schema"
+import { Effect } from "effect"
+
+// Define an API call function
+const api = (url: string): Effect.Effect<unknown, Error> =>
+  Effect.tryPromise({
+    try: () =>
+      fetch(url).then((res) => {
+        if (res.ok) {
+          return res.json() as Promise<unknown>
+        }
+        throw new Error(String(res.status))
+      }),
+    catch: (e) => new Error(String(e))
+  })
+
+const PeopleId = Schema.String.pipe(Schema.brand("PeopleId"))
+
+// Define a schema with async transformation
+const PeopleIdFromString = Schema.transformOrFail(Schema.String, PeopleId, {
+  strict: true,
+  decode: (s, _, ast) =>
+    Effect.mapBoth(api(`https://swapi.dev/api/people/${s}`), {
+      onFailure: (e) => new ParseResult.Type(ast, s, e.message),
+      onSuccess: () => s
+    }),
+  encode: ParseResult.succeed
+})
+
+const decode = (id: string) =>
+  Effect.mapError(Schema.decodeUnknown(PeopleIdFromString)(id), (e) =>
+    TreeFormatter.formatError(e)
+  )
+
+Effect.runPromiseExit(decode("1")).then(console.log)
+/*
+Output:
+{ _id: 'Exit', _tag: 'Success', value: '1' }
+*/
+
+Effect.runPromiseExit(decode("fail")).then(console.log)
+/*
+Output:
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: {
+    _id: 'Cause',
+    _tag: 'Fail',
+    failure: '(string <-> string)\n└─ Transformation process failure\n   └─ Error: 404'
+  }
+}
+*/
+```
+
+### Declaring Dependencies
+
+For more complex scenarios where your transformation might depend on external services like a fetching function, you can declare these dependencies explicitly.
+
+**Example: Injecting Dependencies**
+
+Here's how to inject a fetch dependency into your transformation process:
+
+```ts twoslash
+import { ParseResult, Schema, TreeFormatter } from "@effect/schema"
+import { Context, Effect, Layer } from "effect"
+
+const Fetch = Context.GenericTag<"Fetch", typeof fetch>("Fetch")
+
+// API call function with dependency
+const api = (url: string): Effect.Effect<unknown, Error, "Fetch"> =>
+  Fetch.pipe(
+    Effect.flatMap((fetch) =>
+      Effect.tryPromise({
+        try: () =>
+          fetch(url).then((res) => {
+            if (res.ok) {
+              return res.json() as Promise<unknown>
+            }
+            throw new Error(String(res.status))
+          }),
+        catch: (e) => new Error(String(e))
+      })
+    )
+  )
+
+const PeopleId = Schema.String.pipe(Schema.brand("PeopleId"))
+
+const PeopleIdFromString = Schema.transformOrFail(Schema.String, PeopleId, {
+  strict: true,
+  decode: (s, _, ast) =>
+    Effect.mapBoth(api(`https://swapi.dev/api/people/${s}`), {
+      onFailure: (e) => new ParseResult.Type(ast, s, e.message),
+      onSuccess: () => s
+    }),
+  encode: ParseResult.succeed
+})
+
+const decode = (id: string) =>
+  Effect.mapError(Schema.decodeUnknown(PeopleIdFromString)(id), (e) =>
+    TreeFormatter.formatError(e)
+  )
+
+const FetchLive = Layer.succeed(Fetch, fetch)
+
+Effect.runPromiseExit(decode("1").pipe(Effect.provide(FetchLive))).then(
+  console.log
+)
+/*
+Output:
+{ _id: 'Exit', _tag: 'Success', value: '1' }
+*/
+
+Effect.runPromiseExit(decode("fail").pipe(Effect.provide(FetchLive))).then(
+  console.log
+)
+/*
+Output:
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: {
+    _id: 'Cause',
+    _tag: 'Fail',
+    failure: '(string <-> string)\n└─ Transformation process failure\n   └─ Error: 404'
+  }
+}
+*/
+```
+
+## Effectful Filters
+
+The `Schema.filterEffect` function enhances the `Schema.filter` functionality by allowing the integration of effects, thus enabling asynchronous or dynamic validation scenarios. This is particularly useful when validations need to perform operations that require side effects, such as network requests or database queries.
+
+**Example: Validating Usernames Asynchronously**
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+import { Effect } from "effect"
+
+async function validateUsername(username: string) {
+  return Promise.resolve(username === "gcanti")
+}
+
+const ValidUsername = Schema.String.pipe(
+  Schema.filterEffect((username) =>
+    Effect.promise(() =>
+      validateUsername(username).then((valid) => valid || "Invalid username")
+    )
+  )
+).annotations({ identifier: "ValidUsername" })
+
+Effect.runPromise(Schema.decodeUnknown(ValidUsername)("xxx")).then(
+  console.log
+)
+/*
+ParseError: ValidUsername
+└─ Transformation process failure
+   └─ Invalid username
+*/
+```
