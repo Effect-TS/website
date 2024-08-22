@@ -297,7 +297,7 @@ const PeopleIdFromString = Schema.transformOrFail(Schema.String, PeopleId, {
 
 const decode = (id: string) =>
   Effect.mapError(Schema.decodeUnknown(PeopleIdFromString)(id), (e) =>
-    TreeFormatter.formatError(e)
+    TreeFormatter.formatErrorSync(e)
   )
 
 Effect.runPromiseExit(decode("1")).then(console.log)
@@ -315,7 +315,9 @@ Output:
   cause: {
     _id: 'Cause',
     _tag: 'Fail',
-    failure: '(string <-> string)\n└─ Transformation process failure\n   └─ Error: 404'
+    failure: '(string <-> string & Brand<"PeopleId">)\n' +
+      '└─ Transformation process failure\n' +
+      '   └─ Error: 404'
   }
 }
 */
@@ -366,7 +368,7 @@ const PeopleIdFromString = Schema.transformOrFail(Schema.String, PeopleId, {
 
 const decode = (id: string) =>
   Effect.mapError(Schema.decodeUnknown(PeopleIdFromString)(id), (e) =>
-    TreeFormatter.formatError(e)
+    TreeFormatter.formatErrorSync(e)
   )
 
 const FetchLive = Layer.succeed(Fetch, fetch)
@@ -390,7 +392,9 @@ Output:
   cause: {
     _id: 'Cause',
     _tag: 'Fail',
-    failure: '(string <-> string)\n└─ Transformation process failure\n   └─ Error: 404'
+    failure: '(string <-> string & Brand<"PeopleId">)\n' +
+      '└─ Transformation process failure\n' +
+      '   └─ Error: 404'
   }
 }
 */

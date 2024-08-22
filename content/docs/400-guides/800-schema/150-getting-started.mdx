@@ -220,7 +220,7 @@ console.log(Schema.decodeUnknownSync(Person)(input))
 console.log(Schema.decodeUnknownSync(Person)(null))
 /*
 throws:
-Error: Expected { readonly name: string; readonly age: number }, actual null
+ParseError: Expected { readonly name: string; readonly age: number }, actual null
 */
 ```
 
@@ -366,9 +366,9 @@ Schema.decodeUnknownSync(Person)(
 )
 /*
 throws
-Error: { readonly name: string; readonly age: number }
+ParseError: { readonly name: string; readonly age: number }
 └─ ["email"]
-   └─ is unexpected, expected "name" | "age"
+   └─ is unexpected, expected: "name" | "age"
 */
 ```
 
@@ -426,11 +426,11 @@ Schema.decodeUnknownSync(Person)(
 )
 /*
 throws
-Error: { readonly name: string; readonly age: number }
+ParseError: { readonly name: string; readonly age: number }
 ├─ ["email"]
-│  └─ is unexpected, expected "name" | "age"
+│  └─ is unexpected, expected: "name" | "age"
 └─ ["age"]
-   └─ Expected a number, actual "abc"
+   └─ Expected number, actual "abc"
 */
 ```
 
@@ -583,7 +583,7 @@ const input = {}
 console.log(Schema.decodeUnknownSync(schema)(input, { exact: true }))
 /*
 throws
-Error: { readonly a: unknown }
+ParseError: { readonly a: unknown }
 └─ ["a"]
    └─ is missing
 */
@@ -662,7 +662,7 @@ console.log(Schema.encodeSync(Person)({ name: "Alice", age: 30 }))
 console.log(Schema.encodeSync(Person)({ name: "", age: 30 }))
 /*
 throws:
-Error: { readonly name: NonEmpty; readonly age: NumberFromString }
+ParseError: { readonly name: NonEmpty; readonly age: NumberFromString }
 └─ ["name"]
    └─ NonEmpty
       └─ Predicate refinement failure
@@ -839,9 +839,12 @@ try {
 }
 /*
 The input does not match the schema:
-Error: { readonly name: string; readonly age: number }
-└─ ["age"]
-   └─ Expected a number, actual "30"
+{
+  _id: 'ParseError',
+  message: '{ readonly name: string; readonly age: number }\n' +
+    '└─ ["age"]\n' +
+    '   └─ Expected number, actual "30"'
+}
 */
 
 // this will not throw an error
