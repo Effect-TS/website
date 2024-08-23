@@ -2,7 +2,7 @@
 
 import { CodeEditor } from "@/components/editor/CodeEditor"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { useRxSuspenseSuccess, useRxValue } from "@effect-rx/rx-react"
+import { useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import { Suspense } from "react"
 import { importRx } from "../rx"
 
