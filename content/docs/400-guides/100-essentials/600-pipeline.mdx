@@ -531,6 +531,34 @@ const program = Effect.all([fetchTransactionAmount, fetchDiscountRate]).pipe(
 )
 ```
 
+## The flow method
+
+Sometimes, you may need to create a reusable pipeline of operations. In such
+cases, you can use the `flow` method.
+
+```ts twoslash
+import { Effect, Duration, flow } from "effect"
+
+const myRetryLogic = flow(
+  Effect.timeout(Duration.seconds(3)),
+  Effect.tapError((error) => Effect.log(`Failed: ${error}`)),
+  Effect.retry({ times: 2 }),
+  Effect.tapError((error) => Effect.log(`Abandon as retry failed: ${error}`)),
+)
+
+const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
+const fetchDiscountRate = Effect.promise(() => Promise.resolve(5))
+
+const fetchTransactionAmountWithRetry = fetchTransactionAmount.pipe(myRetryLogic)
+const fetchDiscountRateWithRetry = fetchDiscountRate.pipe(myRetryLogic)
+```
+
+<Info>
+    `flow` and `pipe` are very similar. The main difference is that `flow` returns *a function that returns an Effect*
+    (`() => Effect`), while `pipe` returns an `Effect`. It suggests that `pipe` should be used when you want a result,
+    while `flow` should be used for further composition.
+</Info>
+
 ## Cheatsheet
 
 Let's summarize the transformation functions we have seen so far:
