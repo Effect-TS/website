@@ -678,4 +678,598 @@ Schema.Array(Schema.Number).pipe(Schema.itemsCount(2))
 
 ## Branded types
 
-TypeScript's type system is structural, which means that any two types that are structurally equivalent are considered the same. This can cause issues when types that are semantically different are treated as if they were the same.
+TypeScript's type system is structural, which means that any two types that are structurally equivalent are considered the same.
+This can cause issues when types that are semantically different are treated as if they were the same.
+
+```ts twoslash
+type UserId = string
+type Username = string
+
+declare const getUser: (id: UserId) => object
+
+const myUsername: Username = "gcanti"
+
+getUser(myUsername) // This erroneously works
+```
+
+In the above example, `UserId` and `Username` are both aliases for the same type, `string`. This means that the `getUser` function can mistakenly accept a `Username` as a valid `UserId`, causing bugs and errors.
+
+To avoid these kinds of issues, the Effect ecosystem provides a way to create custom types with a unique identifier attached to them. These are known as **branded types**.
+
+```ts twoslash
+// @errors: 2345
+import { Brand } from "effect"
+
+type UserId = string & Brand.Brand<"UserId">
+type Username = string
+
+declare const getUser: (id: UserId) => object
+
+const myUsername: Username = "gcanti"
+
+getUser(myUsername)
+```
+
+By defining `UserId` as a branded type, the `getUser` function can accept only values of type `UserId`, and not plain strings or other types that are compatible with strings. This helps to prevent bugs caused by accidentally passing the wrong type of value to the function.
+
+There are two ways to define a schema for a branded type, depending on whether you:
+
+- want to define the schema from scratch
+- have already defined a [branded type](../style/branded-types) via `effect/Brand` and want to reuse it to define a schema
+
+### Defining a brand schema from scratch
+
+To define a schema for a branded type from scratch, you can use the `Schema.brand` function.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const UserId = Schema.String.pipe(Schema.brand("UserId"))
+
+// string & Brand<"UserId">
+type UserId = Schema.Schema.Type<typeof UserId>
+```
+
+Note that you can use `unique symbol`s as brands to ensure uniqueness across modules / packages:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const UserIdBrand = Symbol.for("UserId")
+
+const UserId = Schema.String.pipe(Schema.brand(UserIdBrand))
+
+// string & Brand<typeof UserIdBrand>
+type UserId = Schema.Schema.Type<typeof UserId>
+```
+
+### Reusing an existing branded constructor
+
+If you have already defined a [branded type](../style/branded-types) using the `effect/Brand` module, you can reuse it to define a schema using the `fromBrand` combinator exported by the `@effect/schema/Schema` module.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+import { Brand } from "effect"
+
+// the existing branded type
+type UserId = string & Brand.Brand<"UserId">
+
+const UserId = Brand.nominal<UserId>()
+
+// Define a schema for the branded type
+const UserIdSchema = Schema.String.pipe(Schema.fromBrand(UserId))
+```
+
+### Utilizing Default Constructors
+
+The `Schema.brand` function includes a default constructor to facilitate the creation of branded values.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const UserId = Schema.String.pipe(Schema.brand("UserId"))
+
+const userId = UserId.make("123") // Creates a branded UserId
+```
+
+## Native enums
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+enum Fruits {
+  Apple,
+  Banana
+}
+
+// Schema.Enums<typeof Fruits>
+const schema = Schema.Enums(Fruits)
+```
+
+### Accessing Enum Members
+
+Enums are exposed under an `enums` property of the schema:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+enum Fruits {
+  Apple,
+  Banana
+}
+
+const schema = Schema.Enums(Fruits)
+
+// ---cut---
+// Access the enum members
+schema.enums // Returns all enum members
+schema.enums.Apple // Access the Apple member
+schema.enums.Banana // Access the Banana member
+```
+
+## Unions
+
+The Schema module includes a built-in `Union` constructor for composing "OR" types.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Union(Schema.String, Schema.Number)
+```
+
+### Union of Literals
+
+While the following is perfectly acceptable:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Union(
+  Schema.Literal("a"),
+  Schema.Literal("b"),
+  Schema.Literal("c")
+)
+```
+
+It is possible to use `Literal` and pass multiple literals, which is less cumbersome:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Literal("a", "b", "c")
+```
+
+### Nullables
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+// Represents a schema for a string or null value
+Schema.NullOr(Schema.String)
+
+// Represents a schema for a string, null, or undefined value
+Schema.NullishOr(Schema.String)
+
+// Represents a schema for a string or undefined value
+Schema.UndefinedOr(Schema.String)
+```
+
+### Discriminated unions
+
+TypeScript reference: https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions
+
+Discriminated unions in TypeScript are a way of modeling complex data structures that may take on different forms based on a specific set of conditions or properties. They allow you to define a type that represents multiple related shapes, where each shape is uniquely identified by a shared discriminant property.
+
+In a discriminated union, each variant of the union has a common property, called the discriminant. The discriminant is a literal type, which means it can only have a finite set of possible values. Based on the value of the discriminant property, TypeScript can infer which variant of the union is currently in use.
+
+Here is an example of a discriminated union in TypeScript:
+
+```ts twoslash
+type Circle = {
+  readonly kind: "circle"
+  readonly radius: number
+}
+
+type Square = {
+  readonly kind: "square"
+  readonly sideLength: number
+}
+
+type Shape = Circle | Square
+```
+
+This code defines a discriminated union using the Schema module:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Circle = Schema.Struct({
+  kind: Schema.Literal("circle"),
+  radius: Schema.Number
+})
+
+const Square = Schema.Struct({
+  kind: Schema.Literal("square"),
+  sideLength: Schema.Number
+})
+
+const Shape = Schema.Union(Circle, Square)
+```
+
+The `Literal` constructor is used to define the discriminant property with a specific string literal value.
+
+Two structs are defined for `Circle` and `Square`, each with their own properties. These structs represent the variants of the union.
+
+Finally, the `Union` constructor is used to create a schema for the discriminated union `Shape`, which is a union of `Circle` and `Square`.
+
+### How to transform a simple union into a discriminated union
+
+If you're working on a TypeScript project and you've defined a simple union to represent a particular input, you may find yourself in a situation where you're not entirely happy with how it's set up.
+For example, let's say you've defined a `Shape` union as a combination of `Circle` and `Square` without any special property:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Circle = Schema.Struct({
+  radius: Schema.Number
+})
+
+const Square = Schema.Struct({
+  sideLength: Schema.Number
+})
+
+const Shape = Schema.Union(Circle, Square)
+```
+
+To make your code more manageable, you may want to transform the simple union into a discriminated union. This way, TypeScript will be able to automatically determine which member of the union you're working with based on the value of a specific property.
+
+To achieve this, you can add a special property to each member of the union, which will allow TypeScript to know which type it's dealing with at runtime.
+Here's how you can [transform](transformations#transform) the `Shape` schema into another schema that represents a discriminated union:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Circle = Schema.Struct({
+  radius: Schema.Number
+})
+
+const Square = Schema.Struct({
+  sideLength: Schema.Number
+})
+
+const DiscriminatedShape = Schema.Union(
+  Schema.transform(
+    Circle,
+    Schema.Struct({ ...Circle.fields, kind: Schema.Literal("circle") }), // Add a "kind" property with the literal value "circle" to Circle
+    {
+      strict: true,
+      decode: (circle) => ({ ...circle, kind: "circle" as const }), // Add the discriminant property to Circle
+      encode: ({ kind: _kind, ...rest }) => rest // Remove the discriminant property
+    }
+  ),
+
+  Schema.transform(
+    Square,
+    Schema.Struct({ ...Square.fields, kind: Schema.Literal("square") }), // Add a "kind" property with the literal value "square" to Square
+    {
+      strict: true,
+      decode: (square) => ({ ...square, kind: "square" as const }), // Add the discriminant property to Square
+      encode: ({ kind: _kind, ...rest }) => rest // Remove the discriminant property
+    }
+  )
+)
+
+console.log(Schema.decodeUnknownSync(DiscriminatedShape)({ radius: 10 }))
+// Output: { kind: 'circle', radius: 10 }
+
+console.log(Schema.decodeUnknownSync(DiscriminatedShape)({ sideLength: 10 }))
+// Output: { kind: 'square', sideLength: 10 }
+```
+
+The previous solution works perfectly and shows how we can add properties to our schema at will, making it easier to consume the result within our domain model.
+However, it requires a lot of boilerplate. Fortunately, there is an API called `Schema.attachPropertySignature` designed specifically for this use case, which allows us to achieve the same result with much less effort:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Circle = Schema.Struct({ radius: Schema.Number })
+const Square = Schema.Struct({ sideLength: Schema.Number })
+const DiscriminatedShape = Schema.Union(
+  Circle.pipe(Schema.attachPropertySignature("kind", "circle")),
+  Square.pipe(Schema.attachPropertySignature("kind", "square"))
+)
+
+// decoding
+console.log(Schema.decodeUnknownSync(DiscriminatedShape)({ radius: 10 }))
+// Output: { kind: 'circle', radius: 10 }
+
+// encoding
+console.log(
+  Schema.encodeSync(DiscriminatedShape)({
+    kind: "circle",
+    radius: 10
+  })
+)
+// Output: { radius: 10 }
+```
+
+<Warning>
+  Please note that with `Schema.attachPropertySignature`, you can only add a
+  property, it cannot override an existing one.
+</Warning>
+
+### Exposed Values
+
+You can access the individual members of a union schema represented as a tuple:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Union(Schema.String, Schema.Number)
+
+// Accesses the members of the union
+const members = schema.members
+```
+
+## Tuples
+
+### Required Elements
+
+To define a tuple with required elements, you specify the list of elements:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Tuple(Schema.String, Schema.Number)
+```
+
+### Append a Required Element
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const tuple1 = Schema.Tuple(Schema.String, Schema.Number)
+
+const tuple2 = Schema.Tuple(...tuple1.elements, Schema.Boolean)
+```
+
+### Optional Elements
+
+To define an optional element, wrap the schema of the element with the `optionalElement` constructor:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Tuple(
+  Schema.String, // required element
+  Schema.optionalElement(Schema.Number) // optional element
+)
+```
+
+### Rest Element
+
+To define rest elements, follow the list of elements (required or optional) with an element for the rest:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Tuple(
+  [Schema.String, Schema.optionalElement(Schema.Number)], // elements
+  Schema.Boolean // rest
+)
+```
+
+Optionally, you can include other elements after the rest:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Tuple(
+  [Schema.String, Schema.optionalElement(Schema.Number)], // elements
+  Schema.Boolean, // rest
+  Schema.String // additional element
+)
+```
+
+### Exposed Values
+
+You can access the elements and rest elements of a tuple schema:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Tuple(
+  [Schema.String, Schema.optionalElement(Schema.Number)], // elements
+  Schema.Boolean, // rest
+  Schema.String // additional element
+)
+
+// Accesses the elements of the tuple
+const tupleElements = schema.elements
+
+// Accesses the rest elements of the tuple
+const restElements = schema.rest
+```
+
+### Annotations
+
+Annotations are used to add metadata to tuple elements, which can describe the purpose or requirements of each element more clearly. This can be particularly useful when generating documentation or JSON schemas from your schemas.
+
+```ts twoslash
+import { JSONSchema, Schema } from "@effect/schema"
+
+// Defining a tuple with annotations for each coordinate in a point
+const Point = Schema.Tuple(
+  Schema.element(Schema.Number).annotations({
+    title: "X",
+    description: "X coordinate"
+  }),
+  Schema.optionalElement(Schema.Number).annotations({
+    title: "Y",
+    description: "optional Y coordinate"
+  })
+)
+
+// Generating a JSON Schema from the tuple
+console.log(JSONSchema.make(Point))
+/*
+Output:
+{
+  '$schema': 'http://json-schema.org/draft-07/schema#',
+  type: 'array',
+  minItems: 1,
+  items: [
+    { type: 'number', description: 'X coordinate', title: 'X' },
+    {
+      type: 'number',
+      description: 'optional Y coordinate',
+      title: 'Y'
+    }
+  ],
+  additionalItems: false
+}
+*/
+```
+
+## Arrays
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Array(Schema.Number)
+```
+
+### Exposed Values
+
+You can access the value of an array schema:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Array(Schema.String)
+
+// Accesses the value
+const value = schema.value // typeof Schema.String
+```
+
+### Mutable Arrays
+
+By default, when you use `Schema.Array`, it generates a type marked as readonly. The `mutable` combinator is a useful function for creating a new schema with a mutable type in a **shallow** manner:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.mutable(Schema.Array(Schema.Number))
+```
+
+## Non empty arrays
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.NonEmptyArray(Schema.Number)
+```
+
+### Exposed Values
+
+You can access the value of a non-empty array schema:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.NonEmptyArray(Schema.String)
+
+// Accesses the value
+const value = schema.value
+```
+
+## Records
+
+### String Keyed Records
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const opaque = Schema.Record({ key: Schema.String, value: Schema.Number })
+
+// Schema<{ readonly [x: string]: number; }>
+const schema = Schema.asSchema(opaque)
+```
+
+### Union of Literals as Keys
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const opaque = Schema.Record({
+  key: Schema.Union(Schema.Literal("a"), Schema.Literal("b")),
+  value: Schema.Number
+})
+
+// Schema<{ readonly a: number; readonly b: number; }>
+const schema = Schema.asSchema(opaque)
+```
+
+### Applying Key Refinements
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Record({
+  key: Schema.String.pipe(Schema.minLength(2)),
+  value: Schema.Number
+})
+```
+
+### Symbol Keyed Records
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Record({
+  key: Schema.SymbolFromSelf,
+  value: Schema.Number
+})
+```
+
+### Employing Template Literal Keys
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const opaque = Schema.Record({
+  key: Schema.TemplateLiteral(Schema.Literal("a"), Schema.String),
+  value: Schema.Number
+})
+
+// Schema<{ readonly [x: `a${string}`]: number; }>
+const schema = Schema.asSchema(opaque)
+```
+
+### Creating Mutable Records
+
+By default, when you use `Schema.Record`, it generates a type marked as readonly. The `mutable` combinator is a useful function for creating a new schema with a mutable type in a **shallow** manner:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.mutable(
+  Schema.Record({ key: Schema.String, value: Schema.Number })
+)
+```
+
+### Exposed Values
+
+You can access the key and the value of a record schema:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Record({ key: Schema.String, value: Schema.Number })
+
+// Accesses the key
+const key = schema.key
+
+// Accesses the value
+const value = schema.value
+```
