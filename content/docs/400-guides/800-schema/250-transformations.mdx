@@ -431,3 +431,464 @@ ParseError: ValidUsername
    └─ Invalid username
 */
 ```
+
+## String Transformations
+
+### split
+
+Splits a string into an array of strings.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.split(",")
+
+const decode = Schema.decodeUnknownSync(schema)
+
+console.log(decode("")) // [""]
+console.log(decode(",")) // ["", ""]
+console.log(decode("a,")) // ["a", ""]
+console.log(decode("a,b")) // ["a", "b"]
+```
+
+### Trim
+
+Removes whitespaces from the beginning and end of a string.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.Trim)
+
+console.log(decode("a")) // "a"
+console.log(decode(" a")) // "a"
+console.log(decode("a ")) // "a"
+console.log(decode(" a ")) // "a"
+```
+
+**Note**. If you were looking for a combinator to check if a string is trimmed, check out the `trimmed` filter.
+
+### Lowercase
+
+Converts a string to lowercase.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.Lowercase)
+
+console.log(decode("A")) // "a"
+console.log(decode(" AB")) // " ab"
+console.log(decode("Ab ")) // "ab "
+console.log(decode(" ABc ")) // " abc "
+```
+
+<Info>
+  If you were looking for a combinator to check if a string is lowercased,
+  check out the `Schema.Lowercased` schema or the `Schema.lowercased` filter.
+</Info>
+
+### Uppercase
+
+Converts a string to uppercase.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.Uppercase)
+
+console.log(decode("a")) // "A"
+console.log(decode(" ab")) // " AB"
+console.log(decode("aB ")) // "AB "
+console.log(decode(" abC ")) // " ABC "
+```
+
+<Info>
+  If you were looking for a combinator to check if a string is uppercased,
+  check out the `Schema.Uppercased` schema or the `Schema.uppercased` filter.
+</Info>
+
+### Capitalize
+
+Converts a string to capitalized one.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.Capitalize)
+
+console.log(decode("aa")) // "Aa"
+console.log(decode(" ab")) // " ab"
+console.log(decode("aB ")) // "AB "
+console.log(decode(" abC ")) // " abC "
+```
+
+<Info>
+  If you were looking for a combinator to check if a string is capitalized,
+  check out the `Schema.Capitalized` schema or the `Schema.capitalized`
+  filter.
+</Info>
+
+### Uncapitalize
+
+Converts a string to uncapitalized one.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.Uncapitalize)
+
+console.log(decode("AA")) // "aA"
+console.log(decode(" AB")) // " AB"
+console.log(decode("Ab ")) // "ab "
+console.log(decode(" AbC ")) // " AbC "
+```
+
+<Info>
+  If you were looking for a combinator to check if a string is uncapitalized,
+  check out the `Schema.Uncapitalized` schema or the `Schema.uncapitalized`
+  filter.
+</Info>
+
+### parseJson
+
+The `Schema.parseJson` constructor offers a method to convert JSON strings into the `unknown` type using the underlying functionality of `JSON.parse`.
+It also employs `JSON.stringify` for encoding.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.parseJson()
+const decode = Schema.decodeUnknownSync(schema)
+
+// Parse valid JSON strings
+console.log(decode("{}")) // Output: {}
+console.log(decode(`{"a":"b"}`)) // Output: { a: "b" }
+
+// Attempting to decode an empty string results in an error
+decode("")
+/*
+throws:
+ParseError: (JsonString <-> unknown)
+└─ Transformation process failure
+   └─ Unexpected end of JSON input
+*/
+```
+
+Additionally, you can refine the parsing result by providing a schema to the `parseJson` constructor:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+// Schema<{ readonly a: number; }, string, never>
+const schema = Schema.parseJson(Schema.Struct({ a: Schema.Number }))
+```
+
+In this example, we've used `parseJson` with a struct schema to ensure that the parsed result has a specific structure, including an object with a numeric property "a". This helps in handling JSON data with predefined shapes.
+
+### StringFromBase64
+
+Decodes a base64 (RFC4648) encoded string into a UTF-8 string.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.StringFromBase64)
+
+console.log(decode("Zm9vYmFy")) // "foobar"
+```
+
+### StringFromBase64Url
+
+Decodes a base64 (URL) encoded string into a UTF-8 string.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.StringFromBase64Url)
+
+console.log(decode("Zm9vYmFy")) // "foobar"
+```
+
+### StringFromHex
+
+Decodes a hex encoded string into a UTF-8 string.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.StringFromHex)
+
+console.log(new TextEncoder().encode(decode("0001020304050607")))
+/*
+Output:
+Uint8Array(8) [
+  0, 1, 2, 3,
+  4, 5, 6, 7
+]
+*/
+```
+
+## Number Transformations
+
+### NumberFromString
+
+Transforms a string into a number by parsing the string using `parseFloat`.
+
+The following special string values are supported: "NaN", "Infinity", "-Infinity".
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.NumberFromString
+
+const decode = Schema.decodeUnknownSync(schema)
+
+// success cases
+console.log(decode("1")) // 1
+console.log(decode("-1")) // -1
+console.log(decode("1.5")) // 1.5
+console.log(decode("NaN")) // NaN
+console.log(decode("Infinity")) // Infinity
+console.log(decode("-Infinity")) // -Infinity
+
+// failure cases
+decode("a")
+/*
+throws:
+ParseError: NumberFromString
+└─ Transformation process failure
+   └─ Expected NumberFromString, actual "a"
+*/
+```
+
+### clamp
+
+Clamps a number between a minimum and a maximum value.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.Number.pipe(Schema.clamp(-1, 1)) // clamps the input to -1 <= x <= 1
+
+const decode = Schema.decodeUnknownSync(schema)
+
+console.log(decode(-3)) // -1
+console.log(decode(0)) // 0
+console.log(decode(3)) // 1
+```
+
+### parseNumber
+
+Transforms a string into a number by parsing the string using the `parse` function of the `effect/Number` module.
+
+It returns an error if the value can't be converted (for example when non-numeric characters are provided).
+
+The following special string values are supported: "NaN", "Infinity", "-Infinity".
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const schema = Schema.String.pipe(Schema.parseNumber)
+
+const decode = Schema.decodeUnknownSync(schema)
+
+console.log(decode("1")) // 1
+console.log(decode("Infinity")) // Infinity
+console.log(decode("NaN")) // NaN
+console.log(decode("-"))
+/*
+throws
+ParseError: (string <-> number)
+└─ Transformation process failure
+   └─ Expected (string <-> number), actual "-"
+*/
+```
+
+## Boolean Transformations
+
+### Not
+
+Negates a boolean value.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.Not)
+
+console.log(decode(true)) // false
+console.log(decode(false)) // true
+```
+
+## Symbol transformations
+
+### Symbol
+
+Transforms a string into a symbol by parsing the string using `Symbol.for`.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.Symbol)
+
+console.log(decode("a")) // Symbol(a)
+```
+
+## BigInt transformations
+
+### BigInt
+
+Transforms a string into a `BigInt` by parsing the string using the `BigInt` constructor.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.BigInt)
+
+// success cases
+console.log(decode("1")) // 1n
+console.log(decode("-1")) // -1n
+
+// failure cases
+decode("a")
+/*
+throws:
+ParseError: bigint
+└─ Transformation process failure
+   └─ Expected bigint, actual "a"
+*/
+decode("1.5") // throws
+decode("NaN") // throws
+decode("Infinity") // throws
+decode("-Infinity") // throws
+```
+
+### BigIntFromNumber
+
+Transforms a number into a `BigInt` by parsing the number using the `BigInt` constructor.
+
+```ts
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.BigIntFromNumber)
+const encode = Schema.encodeSync(Schema.BigIntFromNumber)
+
+// success cases
+console.log(decode(1)) // 1n
+console.log(decode(-1)) // -1n
+console.log(encode(1n)) // 1
+console.log(encode(-1n)) // -1
+
+// failure cases
+decode(1.5)
+/*
+throws:
+ParseError: BigintFromNumber
+└─ Transformation process failure
+   └─ Expected BigintFromNumber, actual 1.5
+*/
+decode(NaN) // throws
+decode(Infinity) // throws
+decode(-Infinity) // throws
+encode(BigInt(Number.MAX_SAFE_INTEGER) + 1n) // throws
+encode(BigInt(Number.MIN_SAFE_INTEGER) - 1n) // throws
+```
+
+### clamp
+
+Clamps a `BigInt` between a minimum and a maximum value.
+
+```ts
+import { Schema } from "@effect/schema"
+
+const schema = Schema.BigIntFromSelf.pipe(Schema.clampBigInt(-1n, 1n)) // clamps the input to -1n <= x <= 1n
+
+const decode = Schema.decodeUnknownSync(schema)
+
+console.log(decode(-3n)) // -1n
+console.log(decode(0n)) // 0n
+console.log(decode(3n)) // 1n
+```
+
+## Date transformations
+
+### Date
+
+Transforms a string into a **valid** `Date`, ensuring that invalid dates, such as `new Date("Invalid Date")`, are rejected.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.Date)
+
+console.log(decode("1970-01-01T00:00:00.000Z")) // 1970-01-01T00:00:00.000Z
+
+decode("a")
+/*
+throws:
+ParseError: Date
+└─ Predicate refinement failure
+   └─ Expected Date, actual Invalid Date
+*/
+
+const validate = Schema.validateSync(Schema.Date)
+
+console.log(validate(new Date(0))) // 1970-01-01T00:00:00.000Z
+validate(new Date("Invalid Date"))
+/*
+throws:
+ParseError: Date
+└─ Predicate refinement failure
+   └─ Expected Date, actual Invalid Date
+*/
+```
+
+## BigDecimal Transformations
+
+### BigDecimal
+
+Transforms a string into a `BigDecimal`.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.BigDecimal)
+
+console.log(decode(".124")) // { _id: 'BigDecimal', value: '124', scale: 3 }
+```
+
+### BigDecimalFromNumber
+
+Transforms a number into a `BigDecimal`.
+
+<Warning>
+  When encoding, this Schema will produce incorrect results if the BigDecimal
+  exceeds the 64-bit range of a number.
+</Warning>
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const decode = Schema.decodeUnknownSync(Schema.BigDecimalFromNumber)
+
+console.log(decode(0.111)) // { _id: 'BigDecimal', value: '111', scale: 3 }
+```
+
+### clampBigDecimal
+
+Clamps a `BigDecimal` between a minimum and a maximum value.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+import { BigDecimal } from "effect"
+
+const schema = Schema.BigDecimal.pipe(
+  Schema.clampBigDecimal(BigDecimal.fromNumber(-1), BigDecimal.fromNumber(1))
+)
+
+const decode = Schema.decodeUnknownSync(schema)
+
+console.log(decode("-2")) // { _id: 'BigDecimal', value: '-1', scale: 0 }
+console.log(decode("0")) // { _id: 'BigDecimal', value: '0', scale: 0 }
+console.log(decode("3")) // { _id: 'BigDecimal', value: '1', scale: 0 }
+```
