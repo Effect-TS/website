@@ -2108,3 +2108,602 @@ Output:
 ```
 
 This example showcases a product schema that not only categorizes each product under a general tag (`"Product"`) but also specifies a category tag (`"Electronics"`), enhancing the clarity and specificity of the data model.
+
+## instanceOf
+
+When you need to define a schema for your custom data type defined through a `class`, the most convenient and fast way is to use the `Schema.instanceOf` constructor.
+
+**Example**
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+class MyData {
+  constructor(readonly name: string) {}
+}
+
+// Schema.instanceOf<MyData>
+const MyDataSchema = Schema.instanceOf(MyData)
+
+console.log(Schema.decodeUnknownSync(MyDataSchema)(new MyData("name")))
+// Output: MyData { name: 'name' }
+
+console.log(Schema.decodeUnknownSync(MyDataSchema)({ name: "name" }))
+/*
+throws
+ParseError: Expected MyData, actual {"name":"name"}
+*/
+```
+
+The `Schema.instanceOf` constructor is just a lightweight wrapper of the [Schema.declare](#declaring-new-data-types) API, which is the primitive in `@effect/schema` for declaring new custom data types.
+
+However, note that `Schema.instanceOf` can only be used for classes that expose a **public constructor**.
+If you try to use it with classes that, for some reason, have marked the constructor as `private`, you'll receive a TypeScript error:
+
+```ts twoslash
+// @errors: 2345
+import { Schema } from "@effect/schema"
+
+class MyData {
+  static make = (name: string) => new MyData(name)
+  private constructor(readonly name: string) {}
+}
+
+const MyDataSchema = Schema.instanceOf(MyData)
+```
+
+In such cases, you cannot use `Schema.instanceOf`, and you must rely on [Schema.declare](#declaring-new-data-types) like this:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+class MyData {
+  static make = (name: string) => new MyData(name)
+  private constructor(readonly name: string) {}
+}
+
+const MyDataSchema = Schema.declare(
+  (input: unknown): input is MyData => input instanceof MyData
+)
+
+console.log(Schema.decodeUnknownSync(MyDataSchema)(MyData.make("name")))
+// Output: MyData { name: 'name' }
+
+console.log(Schema.decodeUnknownSync(MyDataSchema)({ name: "name" }))
+/*
+throws
+ParseError: Expected <declaration schema>, actual {"name":"name"}
+*/
+```
+
+To improve the error message in case of failed decoding, remember to add [annotations](error-formatters#customizing-the-output):
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+class MyData {
+  static make = (name: string) => new MyData(name)
+  private constructor(readonly name: string) {}
+}
+
+// ---cut---
+const MyDataSchema = Schema.declare(
+  (input: unknown): input is MyData => input instanceof MyData,
+  { identifier: "MyData" } // annotations
+)
+
+console.log(Schema.decodeUnknownSync(MyDataSchema)({ name: "name" }))
+/*
+throws
+ParseError: Expected MyData, actual {"name":"name"}
+*/
+```
+
+## pick
+
+The `pick` static function available in each struct schema can be used to create a new `Struct` by selecting particular properties from an existing `Struct`.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const MyStruct = Schema.Struct({
+  a: Schema.String,
+  b: Schema.Number,
+  c: Schema.Boolean
+})
+
+// Schema.Struct<{ a: typeof Schema.String; c: typeof Schema.Boolean; }>
+const PickedSchema = MyStruct.pick("a", "c")
+```
+
+The `Schema.pick` function can be applied more broadly beyond just `Struct` types, such as with unions of schemas.
+However it returns a generic `SchemaClass`.
+
+**Example: Picking from a Union**
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const MyUnion = Schema.Union(
+  Schema.Struct({ a: Schema.String, b: Schema.String, c: Schema.String }),
+  Schema.Struct({ a: Schema.Number, b: Schema.Number, d: Schema.Number })
+)
+
+// Schema.Schema<{ readonly a: string | number; readonly b: string | number }>
+const PickedSchema = MyUnion.pipe(Schema.pick("a", "b"))
+```
+
+## omit
+
+The `omit` static function available in each struct schema can be used to create a new `Struct` by excluding particular properties from an existing `Struct`.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const MyStruct = Schema.Struct({
+  a: Schema.String,
+  b: Schema.Number,
+  c: Schema.Boolean
+})
+
+// Schema.Struct<{ a: typeof Schema.String; c: typeof Schema.Boolean; }>
+const PickedSchema = MyStruct.omit("b")
+```
+
+The `Schema.omit` function can be applied more broadly beyond just `Struct` types, such as with unions of schemas.
+However it returns a generic `Schema`.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const MyUnion = Schema.Union(
+  Schema.Struct({ a: Schema.String, b: Schema.String, c: Schema.String }),
+  Schema.Struct({ a: Schema.Number, b: Schema.Number, d: Schema.Number })
+)
+
+// Schema<{ readonly a: string | number }>
+const PickedSchema = MyUnion.pipe(Schema.omit("b"))
+```
+
+## partial
+
+The `Schema.partial` operation makes all properties within a schema optional.
+
+By default, the `Schema.partial` operation adds a union with `undefined` to the types. If you wish to avoid this, you can opt-out by passing a `{ exact: true }` argument to the `Schema.partialWith` operation.
+
+**Example**
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+// Schema<{ readonly a?: string | undefined; }>
+const schema = Schema.partial(Schema.Struct({ a: Schema.String }))
+
+Schema.decodeUnknownSync(schema)({ a: "a" }) // ok
+Schema.decodeUnknownSync(schema)({ a: undefined }) // ok
+
+// Schema<{ readonly a?: string; }>
+const exactSchema = Schema.partialWith(Schema.Struct({ a: Schema.String }), {
+  exact: true
+})
+
+Schema.decodeUnknownSync(exactSchema)({ a: "a" }) // ok
+Schema.decodeUnknownSync(exactSchema)({ a: undefined })
+/*
+throws:
+ParseError: { readonly a?: string }
+└─ ["a"]
+   └─ Expected string, actual undefined
+*/
+```
+
+## required
+
+The `Schema.required` operation ensures that all properties in a schema are mandatory.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+// Schema<{ readonly a: string; readonly b: number; }>
+const schema = Schema.required(
+  Schema.Struct({
+    a: Schema.optionalWith(Schema.String, { exact: true }),
+    b: Schema.optionalWith(Schema.Number, { exact: true })
+  })
+)
+```
+
+## Extending Schemas
+
+### Spreading Struct fields
+
+Structs expose their fields through a `fields` property. This feature can be utilized to extend an existing struct with additional fields or to merge fields from another struct.
+
+**Example: Adding Fields**
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Struct1 = Schema.Struct({
+  a: Schema.String,
+  b: Schema.String
+})
+
+const Extended = Schema.Struct({
+  ...Struct1.fields,
+  // other fields
+  c: Schema.String,
+  d: Schema.String
+})
+```
+
+**Example: Integrating Additional Index Signatures**
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Struct = Schema.Struct({
+  a: Schema.String,
+  b: Schema.String
+})
+
+const Extended = Schema.Struct(
+  Struct.fields,
+  Schema.Record({ key: Schema.String, value: Schema.String })
+)
+```
+
+**Example: Merging Fields from Two Structs**
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Struct1 = Schema.Struct({
+  a: Schema.String,
+  b: Schema.String
+})
+
+const Struct2 = Schema.Struct({
+  c: Schema.String,
+  d: Schema.String
+})
+
+const Extended = Schema.Struct({
+  ...Struct1.fields,
+  ...Struct2.fields
+})
+```
+
+### The extend combinator
+
+The `Schema.extend` combinator offers a structured way to extend schemas, particularly useful when direct field spreading is insufficient—for instance, when you need to extend a struct with a union of structs.
+
+<Warning>
+  Note that not all extensions are supported, and their support depends on the
+  nature of the involved schemas:
+</Warning>
+
+Possible extensions include:
+
+- `Schema.String` with another `Schema.String` refinement or a string literal
+- `Schema.Number` with another `Schema.Number` refinement or a number literal
+- `Schema.Boolean` with another `Schema.Boolean` refinement or a boolean literal
+- A struct with another struct where overlapping fields support extension
+- A struct with in index signature
+- A struct with a union of supported schemas
+- A refinement of a struct with a supported schema
+- A suspend of a struct with a supported schema
+
+**Example: Extending a Struct with a Union of Structs**
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Struct = Schema.Struct({
+  a: Schema.String
+})
+
+const UnionOfStructs = Schema.Union(
+  Schema.Struct({ b: Schema.String }),
+  Schema.Struct({ c: Schema.String })
+)
+
+const Extended = Schema.extend(Struct, UnionOfStructs)
+```
+
+This example shows an attempt to extend a struct with another struct where field names overlap, leading to an error:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Struct = Schema.Struct({
+  a: Schema.String
+})
+
+const OverlappingUnion = Schema.Union(
+  Schema.Struct({ a: Schema.Number }), // duplicate key
+  Schema.Struct({ d: Schema.String })
+)
+
+const Extended = Schema.extend(Struct, OverlappingUnion)
+/*
+throws:
+Error: Unsupported schema or overlapping types
+at path: ["a"]
+details: cannot extend string with number
+*/
+```
+
+**Example: Extending a refinement of Schema.String with another refinement**
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const Integer = Schema.Int.pipe(Schema.brand("Int"))
+const Positive = Schema.Positive.pipe(Schema.brand("Positive"))
+
+// Schema.Schema<number & Brand<"Positive"> & Brand<"Int">, number, never>
+const PositiveInteger = Schema.asSchema(Schema.extend(Positive, Integer))
+
+Schema.decodeUnknownSync(PositiveInteger)(-1)
+/*
+throws
+ParseError: Int & Brand<"Int">
+└─ From side refinement failure
+  └─ Positive & Brand<"Positive">
+      └─ Predicate refinement failure
+        └─ Expected Positive & Brand<"Positive">, actual -1
+*/
+
+Schema.decodeUnknownSync(PositiveInteger)(1.1)
+/*
+throws
+ParseError: Int & Brand<"Int">
+└─ Predicate refinement failure
+  └─ Expected Int & Brand<"Int">, actual 1.1
+*/
+```
+
+## Composition
+
+Combining and reusing schemas is a common requirement, the `Schema.compose` combinator allows you to do just that.
+It enables you to combine two schemas, `Schema<B, A, R1>` and `Schema<C, B, R2>`, into a single schema `Schema<C, A, R1 | R2>`:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+// Schema<readonly string[], string>
+const schema1 = Schema.split(",")
+
+// Schema<readonly number[], readonly string[]>
+const schema2 = Schema.Array(Schema.NumberFromString)
+
+// Schema<readonly number[], string>
+const ComposedSchema = Schema.compose(schema1, schema2)
+```
+
+In this example, we have two schemas, `schema1` and `schema2`. The first schema, `schema1`, takes a string and splits it into an array using a comma as the delimiter. The second schema, `schema2`, transforms an array of strings into an array of numbers.
+
+Now, by using the `compose` combinator, we can create a new schema, `ComposedSchema`, that combines the functionality of both `schema1` and `schema2`. This allows us to parse a string and directly obtain an array of numbers as a result.
+
+### Non-strict Option
+
+If you need to be less restrictive when composing your schemas, i.e., when you have something like `Schema<R1, A, B>` and `Schema<R2, C, D>` where `C` is different from `B`, you can make use of the `{ strict: false }` option:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+Schema.compose(
+  // @ts-expect-error
+  Schema.Union(Schema.Null, Schema.Literal("0")),
+  Schema.NumberFromString
+)
+
+// ok
+Schema.compose(
+  Schema.Union(Schema.Null, Schema.Literal("0")),
+  Schema.NumberFromString,
+  { strict: false }
+)
+```
+
+## Declaring New Data Types
+
+Creating schemas for new data types is crucial to defining the expected structure of information in your application. This guide explores how to declare schemas for new data types. We'll cover two important concepts: declaring schemas for primitive data types and type constructors.
+
+### Declaring Schemas for Primitive Data Types
+
+A primitive data type represents simple values. To declare a schema for a primitive data type, like the `File` type in TypeScript, we use the `S.declare` constructor along with a type guard. Let's go through an example:
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const FileFromSelf = Schema.declare(
+  (input: unknown): input is File => input instanceof File
+)
+
+const decode = Schema.decodeUnknownSync(FileFromSelf)
+
+console.log(decode(new File([], "")))
+// Output: File { size: 0, type: '', name: '', lastModified: 1724774163056 }
+
+decode(null)
+/*
+throws
+ParseError: Expected <declaration schema>, actual null
+*/
+```
+
+As you can see, the error message describes what went wrong but doesn't provide much information about which schema caused the error (`"Expected <declaration schema>"`). To enhance the default error message, you can add annotations, particularly the `identifier`, `title`, and `description` annotations (none of these annotations are required, but they are encouraged for good practice and can make your schema "self-documenting"). These annotations will be utilized by the messaging system to return more meaningful messages.
+
+A "title" should be concise, while a "description" provides a more detailed explanation of the purpose of the data described by the schema.
+
+```ts twoslash
+import { Schema } from "@effect/schema"
+
+const FileFromSelf = Schema.declare(
+  (input: unknown): input is File => input instanceof File,
+  {
+    identifier: "FileFromSelf",
+    description: "The `File` type in JavaScript"
+  }
+)
+
+const decode = Schema.decodeUnknownSync(FileFromSelf)
+
+console.log(decode(new File([], "")))
+// Output: File { size: 0, type: '', name: '', lastModified: 1724774221857 }
+
+decode(null)
+/*
+throws
+ParseError: Expected FileFromSelf, actual null
+*/
+```
+
+### Declaring Schemas for Type Constructors
+
+Type constructors are generic types that take one or more types as arguments and return a new type. If you need to define a schema for a type constructor, you can use the `S.declare` constructor. Let's illustrate this with a schema for `ReadonlySet<A>`:
+
+```ts twoslash
+import { ParseResult, Schema } from "@effect/schema"
+
+export const MyReadonlySet = <A, I, R>(
+  // Schema for the elements of the Set
+  item: Schema.Schema<A, I, R>
+): Schema.Schema<ReadonlySet<A>, ReadonlySet<I>, R> =>
+  Schema.declare(
+    // Store the schema for the elements
+    [item],
+    {
+      // Decoding function
+      decode: (item) => (input, parseOptions, ast) => {
+        if (input instanceof Set) {
+          // Decode the elements
+          const elements = ParseResult.decodeUnknown(Schema.Array(item))(
+            Array.from(input.values()),
+            parseOptions
+          )
+          // Return a Set containing the parsed elements
+          return ParseResult.map(
+            elements,
+            (as): ReadonlySet<A> => new Set(as)
+          )
+        }
+        return ParseResult.fail(new ParseResult.Type(ast, input))
+      },
+      // Encoding function
+      encode: (item) => (input, parseOptions, ast) => {
+        if (input instanceof Set) {
+          // Encode the elements
+          const elements = ParseResult.encodeUnknown(Schema.Array(item))(
+            Array.from(input.values()),
+            parseOptions
+          )
+          // Return a Set containing the parsed elements
+          return ParseResult.map(
+            elements,
+            (is): ReadonlySet<I> => new Set(is)
+          )
+        }
+        return ParseResult.fail(new ParseResult.Type(ast, input))
+      }
+    },
+    {
+      description: `ReadonlySet<${Schema.format(item)}>`
+    }
+  )
+
+// const setOfNumbers: S.Schema<ReadonlySet<string>, ReadonlySet<number>>
+const setOfNumbers = MyReadonlySet(Schema.NumberFromString)
+
+const decode = Schema.decodeUnknownSync(setOfNumbers)
+
+console.log(decode(new Set(["1", "2", "3"]))) // Set(3) { 1, 2, 3 }
+
+decode(null)
+/*
+throws
+ParseError: Expected ReadonlySet<NumberFromString>, actual null
+*/
+
+decode(new Set(["1", null, "3"]))
+/*
+throws
+ParseError: ReadonlyArray<NumberFromString>
+└─ [1]
+   └─ NumberFromString
+      └─ Encoded side transformation failure
+         └─ Expected string, actual null
+*/
+```
+
+<Warning>
+  The decoding and encoding functions cannot use context (the `R` type
+  parameter) and cannot use async effects.
+</Warning>
+
+### Adding Annotations
+
+When you define a new data type, some compilers like `Arbitrary` or `Pretty` may not know how to handle the newly defined data. For instance:
+
+```ts twoslash
+import { Arbitrary, Schema } from "@effect/schema"
+
+const FileFromSelf = Schema.declare(
+  (input: unknown): input is File => input instanceof File,
+  {
+    identifier: "FileFromSelf"
+  }
+)
+
+// Create an Arbitrary instance for FileFromSelf schema
+const arb = Arbitrary.make(FileFromSelf)
+/*
+throws:
+Error: Missing annotation
+details: Generating an Arbitrary for this schema requires an "arbitrary" annotation
+schema (Declaration): FileFromSelf
+*/
+```
+
+In such cases, you need to provide annotations to ensure proper functionality:
+
+```ts twoslash
+import { Arbitrary, FastCheck, Pretty, Schema } from "@effect/schema"
+
+const FileFromSelf = Schema.declare(
+  (input: unknown): input is File => input instanceof File,
+  {
+    identifier: "FileFromSelf",
+    // Provide an arbitrary function to generate random File instances
+    arbitrary: () => (fc) =>
+      fc
+        .tuple(fc.string(), fc.string())
+        .map(([content, path]) => new File([content], path)),
+    // Provide a pretty function to generate human-readable representation of File instances
+    pretty: () => (file) => `File(${file.name})`
+  }
+)
+
+// Create an Arbitrary instance for FileFromSelf schema
+const arb = Arbitrary.make(FileFromSelf)
+
+// Generate sample files using the Arbitrary instance
+const files = FastCheck.sample(arb, 2)
+console.log(files)
+/*
+Example Output:
+[
+  File { size: 5, type: '', name: 'C', lastModified: 1706435571176 },
+  File { size: 1, type: '', name: '98Ggmc', lastModified: 1706435571176 }
+]
+*/
+
+// Create a Pretty instance for FileFromSelf schema
+const pretty = Pretty.make(FileFromSelf)
+
+// Print human-readable representation of a file
+console.log(pretty(files[0]))
+// Example Output: "File(C)"
+```
