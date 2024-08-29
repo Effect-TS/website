@@ -2736,12 +2736,17 @@ const Category = Schema.Struct({
   It is necessary to define the `Category` type and add an explicit type
   annotation because otherwise TypeScript would struggle to infer types
   correctly. Without this annotation, you might encounter the error message:
-
-> 'Category' implicitly has type 'any' because it does not have a type
-> annotation and is referenced directly or indirectly in its own
-> initializer.ts(7022)
-
 </Warning>
+
+```ts twoslash
+// @errors: 2506 7024 7022
+import { Schema } from "@effect/schema"
+
+const Category = Schema.Struct({
+  name: Schema.String,
+  subcategories: Schema.Array(Schema.suspend(() => Category))
+})
+```
 
 ### A Helpful Pattern to Simplify Schema Definition
 
