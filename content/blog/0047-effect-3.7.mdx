@@ -89,9 +89,12 @@ Effect.gen(function*() {
   const handle = yield* FiberHandle.make()
 
   // run a fiber and propogate interrupts
-  yield* FiberHandle.run(handle, Effect.void, {
+  yield* FiberHandle.run(handle, Effect.interrupt, {
     propagateInterruption: true
   })
+
+  // this will now receive the interrupt
+  yield* FiberHandle.join(handle)
 })
 ```
 
@@ -104,7 +107,7 @@ results of the completed fibers.
 
 ## Preserve non-empty arrays in Array module
 
-The following apis now preserve non-empty arrays:
+The following apis will now preserve non-empty array types:
 
 - `Array.modify`
 - `Array.modifyOption`
