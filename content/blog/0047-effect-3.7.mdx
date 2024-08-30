@@ -1,0 +1,138 @@
+---
+title: Effect 3.7 (Release)
+excerpt: Release post highlighting new additions and changes
+date: 2024-08-30
+authors:
+  - name: Tim Smart
+    description: Founding Engineer
+    avatar: https://pbs.twimg.com/profile_images/3642301555/77cc6dab66dc94fdd77e503fd6d1c1cf_400x400.jpeg
+    twitter: https://twitter.com/tim_smart
+---
+
+Effect 3.7 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## HttpApi modules in @effect/platform
+
+The `HttpApi` family of modules provide a declarative way to define HTTP APIs.
+
+These modules are still experimental and subject to change, so give them a try
+and post your feedback on the [Effect Discord](https://discord.gg/effect-ts).
+
+For more infomation see the README for the `@effect/platform` package:<br />
+https://github.com/Effect-TS/effect/blob/main/packages/platform/README.md
+
+## Effect.bindAll
+
+`Effect.bindAll` combines `Effect.all` with `Effect.bind`, to allow you to
+combine multiple effects inside of a do notation pipeline.
+
+```typescript
+import { Effect } from "effect"
+
+const result = Effect.Do.pipe(
+  Effect.bind("x", () => Effect.succeed(2)),
+  Effect.bindAll(
+    ({ x }) => ({
+      a: Effect.succeed(x + 1),
+      b: Effect.succeed("foo"),
+    }),
+    { concurrency: 2 },
+  ),
+)
+assert.deepStrictEqual(Effect.runSync(result), {
+  x: 2,
+  a: 3,
+  b: "foo",
+})
+```
+
+## Stream.race
+
+`Stream.race` takes two streams, and the first stream to emit an item will be elected
+as the winner and continue to emit items. The other stream will be interrupted.
+
+```typescript
+import { Stream, Schedule, Console, Effect } from "effect"
+
+const stream = Stream.fromSchedule(Schedule.spaced('2 millis')).pipe(
+  Stream.race(Stream.fromSchedule(Schedule.spaced('1 millis'))),
+  Stream.take(6),
+  Stream.tap(n => Console.log(n))
+)
+
+Effect.runPromise(Stream.runDrain(stream))
+// Output each millisecond from the first stream, the other stream is interrupted
+// 0
+// 1
+// 2
+// 3
+// 4
+// 5
+```
+
+## Config.nonEmptyString
+
+Use `Config.nonEmptyString` to create a `Config` that is guaranteed to be a
+non-empty string. If the config value is present but is empty,
+`Config.withDefault` can be used to provide a fallback value.
+
+## Add propagateInterruption option to FiberHandle/Set/Map
+
+In the case you would like Fiber interrupts to be propogated to `Fiber{Handle,Set,Map}.join`,
+you can now use the `propagateInterruption` option.
+
+```typescript
+import { Effect, FiberHandle } from "effect"
+
+Effect.gen(function*() {
+  const handle = yield* FiberHandle.make()
+
+  // run a fiber and propagate interrupts
+  yield* FiberHandle.run(handle, Effect.interrupt, {
+    propagateInterruption: true
+  })
+
+  // this will now receive the interrupt
+  yield* FiberHandle.join(handle)
+})
+```
+
+## Fiber.awaitAll now returns Exit values
+
+Previously `Fiber.awaitAll` would return a `void` result.
+
+Now `Fiber.awaitAll` will return an `Array<Exit<A, E>>`, so you can inspect the
+results of the completed fibers.
+
+## Preserve non-empty arrays in Array module
+
+The following apis will now preserve non-empty array types:
+
+- `Array.modify`
+- `Array.modifyOption`
+- `Array.replace`
+- `Array.replaceOption`
+
+## Scope finalizer concurrency is no longer automatically propogated
+
+Previously, when using apis like `Effect.forEach` with concurrency, the Scope finalizer
+concurrency would be automatically adjusted to match.
+
+In some scenarios this could cause finalizers to leak, so now the behavior must
+be explicitly requested using the `concurrentFinalizers` option.
+
+```typescript
+import { Effect } from "effect"
+
+Effect.forEach([1, 2, 3], (n) => Effect.succeed(n), {
+  concurrency: "unbounded",
+  concurrentFinalizers: true
+})
+```
+
+## Other changes
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
