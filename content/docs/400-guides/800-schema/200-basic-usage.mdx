@@ -40,7 +40,7 @@ Here are the primitive schemas provided by the `@effect/schema/Schema` module:
 
 These primitive schemas are building blocks for creating more complex schemas to describe your data structures.
 
-```ts
+```ts twoslash
 import { Schema } from "@effect/schema"
 
 Schema.String // Schema<string>
@@ -60,7 +60,8 @@ Schema.Never // Schema<never>
 
 Literals represent specific values that are directly specified.
 
-```ts
+```ts twoslash
+// @target: ES2020
 import { Schema } from "@effect/schema"
 
 Schema.Null // same as S.Literal(null)
@@ -477,7 +478,7 @@ In this example, you're able to access the original schema (`Schema.String`) for
 
 ### String Filters
 
-```ts
+```ts twoslash
 import { Schema } from "@effect/schema"
 
 // Specifies maximum length of a string
@@ -496,16 +497,16 @@ Schema.String.pipe(Schema.length(5))
 Schema.String.pipe(Schema.length({ min: 2, max: 4 }))
 
 // Matches a string against a regular expression pattern
-Schema.String.pipe(Schema.pattern(regex))
+Schema.String.pipe(Schema.pattern(/^[a-z]+$/))
 
 // Ensures a string starts with a specific substring
-Schema.String.pipe(Schema.startsWith(string))
+Schema.String.pipe(Schema.startsWith("prefix"))
 
 // Ensures a string ends with a specific substring
-Schema.String.pipe(Schema.endsWith(string))
+Schema.String.pipe(Schema.endsWith("suffix"))
 
 // Checks if a string includes a specific substring
-Schema.String.pipe(Schema.includes(searchString))
+Schema.String.pipe(Schema.includes("substring"))
 
 // Validates that a string has no leading or trailing whitespaces
 Schema.String.pipe(Schema.trimmed())
@@ -567,7 +568,8 @@ Schema.Number.pipe(Schema.multipleOf(5))
 
 ### BigInt Filters
 
-```ts
+```ts twoslash
+// @target: ES2020
 import { Schema } from "@effect/schema"
 
 // Specifies a BigInt greater than 5
@@ -582,7 +584,7 @@ Schema.BigInt.pipe(Schema.lessThanBigInt(5n))
 // Specifies a BigInt less than or equal to 5
 Schema.BigInt.pipe(Schema.lessThanOrEqualToBigInt(5n))
 
-// Specifies a BigInt between -2 and 2, inclusive
+// Specifies a BigInt between -2n and 2n, inclusive
 Schema.BigInt.pipe(Schema.betweenBigInt(-2n, 2n))
 
 // Specifies a positive BigInt (> 0n)

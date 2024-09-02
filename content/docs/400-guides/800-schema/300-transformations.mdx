@@ -767,7 +767,8 @@ decode("-Infinity") // throws
 
 Transforms a number into a `BigInt` by parsing the number using the `BigInt` constructor.
 
-```ts
+```ts twoslash
+// @target: ES2020
 import { Schema } from "@effect/schema"
 
 const decode = Schema.decodeUnknownSync(Schema.BigIntFromNumber)
@@ -798,10 +799,12 @@ encode(BigInt(Number.MIN_SAFE_INTEGER) - 1n) // throws
 
 Clamps a `BigInt` between a minimum and a maximum value.
 
-```ts
+```ts twoslash
+// @target: ES2020
 import { Schema } from "@effect/schema"
 
-const schema = Schema.BigIntFromSelf.pipe(Schema.clampBigInt(-1n, 1n)) // clamps the input to -1n <= x <= 1n
+// clamps the input to -1n <= x <= 1n
+const schema = Schema.BigIntFromSelf.pipe(Schema.clampBigInt(-1n, 1n))
 
 const decode = Schema.decodeUnknownSync(schema)
 

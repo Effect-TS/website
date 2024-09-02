@@ -122,7 +122,9 @@ Let's delve into this with an example.
 
 **With exactOptionalPropertyTypes Enabled**
 
-```ts
+```ts twoslash
+// @exactOptionalPropertyTypes: true
+// @errors: 2379
 import { Schema } from "@effect/schema"
 
 const Person = Schema.Struct({
@@ -139,12 +141,6 @@ type Type = {
 type Type = Schema.Schema.Type<typeof Person>
 
 Schema.decodeSync(Person)({ name: undefined })
-/*
-TypeScript Error:
-Argument of type '{ name: undefined; }' is not assignable to parameter of type '{ readonly name?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'name' are incompatible.
-    Type 'undefined' is not assignable to type 'string'.ts(2379)
-*/
 ```
 
 Here, notice that the type of `name` is "exact" (`string`), which means the type checker will catch any attempt to assign an invalid value (like `undefined`).
@@ -153,7 +149,7 @@ Here, notice that the type of `name` is "exact" (`string`), which means the type
 
 If, for some reason, you can't enable the `exactOptionalPropertyTypes` option (perhaps due to conflicts with other third-party libraries), you can still use `@effect/schema`. However, there will be a mismatch between the types and the runtime behavior:
 
-```ts
+```ts twoslash
 import { Schema } from "@effect/schema"
 
 const Person = Schema.Struct({
