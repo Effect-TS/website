@@ -1,12 +1,12 @@
 import * as KVS from "@effect/platform/KeyValueStore"
 import { SystemError } from "@effect/platform/Error"
-import { Config, Effect, Layer, Option, Secret } from "effect"
+import { Config, Effect, Layer, Option, Redacted } from "effect"
 
-const make = (url: string, token: Secret.Secret) =>
+const make = (url: string, token: Redacted.Redacted) =>
   Effect.gen(function* () {
     const { createClient } = yield* Effect.promise(() => import("@vercel/kv"))
-    const kv = createClient({ url, token: Secret.value(token) })
-    return KVS.make({
+    const kv = createClient({ url, token: Redacted.value(token) })
+    return KVS.makeStringOnly({
       get: (key) =>
         Effect.tryPromise({
           try: () => kv.get<string>(key),
@@ -58,7 +58,7 @@ const make = (url: string, token: Secret.Secret) =>
     })
   })
 
-export const VercelKVSLive = (url: string, token: Secret.Secret) =>
+export const VercelKVSLive = (url: string, token: Redacted.Redacted) =>
   Layer.effect(KVS.KeyValueStore, make(url, token))
 
 export const VercelOrMemoryKVS = Layer.unwrapEffect(
@@ -66,7 +66,7 @@ export const VercelOrMemoryKVS = Layer.unwrapEffect(
     if (process.env.NODE_ENV === "development") return KVS.layerMemory
     const config = yield* Config.all({
       url: Config.string("KV_REST_API_URL"),
-      token: Config.secret("KV_REST_API_TOKEN")
+      token: Config.redacted("KV_REST_API_TOKEN")
     })
     return VercelKVSLive(config.url, config.token)
   })
