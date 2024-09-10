@@ -23,7 +23,7 @@ const tweets = [
       name: "Devin Jameson",
       bio: "Software engineer at PolyCam",
       avatar:
-        "https://pbs.twimg.com/profile_images/1716844356873666560/dX84cWtB_400x400.jpg"
+        "https://avatars.githubusercontent.com/u/39350030?v=4"
     }
   },
   {
