@@ -1,0 +1,152 @@
+---
+title: Terminal
+excerpt: Running commands in a terminal
+bottomNavigation: pagination
+---
+
+The `@effect/platform/Terminal` module exports a single `Terminal` tag, which serves as the entry point to reading from and writing to standard input and standard output.
+
+## Writing to standard output
+
+```ts
+import { Terminal } from "@effect/platform"
+import { NodeRuntime, NodeTerminal } from "@effect/platform-node"
+import { Effect } from "effect"
+
+// const displayMessage: Effect.Effect<void, PlatformError, Terminal.Terminal>
+const displayMessage = Effect.gen(function* (_) {
+  const terminal = yield* _(Terminal.Terminal)
+  yield* _(terminal.display("a message\n"))
+})
+
+NodeRuntime.runMain(displayMessage.pipe(Effect.provide(NodeTerminal.layer)))
+// Output: "a message"
+```
+
+## Reading from standard input
+
+```ts
+import { Terminal } from "@effect/platform"
+import { NodeRuntime, NodeTerminal } from "@effect/platform-node"
+import { Console, Effect } from "effect"
+
+// const readLine: Effect.Effect<void, Terminal.QuitException, Terminal.Terminal>
+const readLine = Effect.gen(function* (_) {
+  const terminal = yield* _(Terminal.Terminal)
+  const input = yield* _(terminal.readLine)
+  yield* _(Console.log(`input: ${input}`))
+})
+
+NodeRuntime.runMain(readLine.pipe(Effect.provide(NodeTerminal.layer)))
+// Input: "hello"
+// Output: "input: hello"
+```
+
+These simple examples illustrate how to utilize the `Terminal` module for handling standard input and output in your programs. Let's use this knowledge to build a number guessing game:
+
+```ts
+import { Terminal } from "@effect/platform"
+import type { PlatformError } from "@effect/platform/Error"
+import { Effect, Option, Random } from "effect"
+
+export const secret = Random.nextIntBetween(1, 100)
+
+const parseGuess = (input: string) => {
+  const n = parseInt(input, 10)
+  return isNaN(n) || n < 1 || n > 100 ? Option.none() : Option.some(n)
+}
+
+const display = (message: string) =>
+  Effect.gen(function* (_) {
+    const terminal = yield* _(Terminal.Terminal)
+    yield* _(terminal.display(`${message}\n`))
+  })
+
+const prompt = Effect.gen(function* (_) {
+  const terminal = yield* _(Terminal.Terminal)
+  yield* _(terminal.display("Enter a guess: "))
+  return yield* _(terminal.readLine)
+})
+
+const answer: Effect.Effect<
+  number,
+  Terminal.QuitException | PlatformError,
+  Terminal.Terminal
+> = Effect.gen(function* (_) {
+  const input = yield* _(prompt)
+  const guess = parseGuess(input)
+  if (Option.isNone(guess)) {
+    yield* _(display("You must enter an integer from 1 to 100"))
+    return yield* _(answer)
+  }
+  return guess.value
+})
+
+const check = <A, E, R>(
+  secret: number,
+  guess: number,
+  ok: Effect.Effect<A, E, R>,
+  ko: Effect.Effect<A, E, R>
+): Effect.Effect<A, E | PlatformError, R | Terminal.Terminal> =>
+  Effect.gen(function* (_) {
+    if (guess > secret) {
+      yield* _(display("Too high"))
+      return yield* _(ko)
+    } else if (guess < secret) {
+      yield* _(display("Too low"))
+      return yield* _(ko)
+    } else {
+      return yield* _(ok)
+    }
+  })
+
+const end = display("You guessed it!")
+
+const loop = (
+  secret: number
+): Effect.Effect<
+  void,
+  Terminal.QuitException | PlatformError,
+  Terminal.Terminal
+> =>
+  Effect.gen(function* (_) {
+    const guess = yield* _(answer)
+    return yield* _(
+      check(
+        secret,
+        guess,
+        end,
+        Effect.suspend(() => loop(secret))
+      )
+    )
+  })
+
+export const game = Effect.gen(function* (_) {
+  yield* _(
+    display(
+      "We have selected a random number between 1 and 100. See if you can guess it in 10 turns or fewer. We'll tell you if your guess was too high or too low."
+    )
+  )
+  yield* _(loop(yield* _(secret)))
+})
+```
+
+Let's run the game in Node.js:
+
+```ts
+import { NodeRuntime, NodeTerminal } from "@effect/platform-node"
+import * as Effect from "effect/Effect"
+import { game } from "./game.js"
+
+NodeRuntime.runMain(game.pipe(Effect.provide(NodeTerminal.layer)))
+```
+
+Let's run the game in Bun:
+
+```ts
+import { BunRuntime, BunTerminal } from "@effect/platform-bun"
+import * as Effect from "effect/Effect"
+import { game } from "./game.js"
+
+BunRuntime.runMain(game.pipe(Effect.provide(BunTerminal.layer)))
+```
