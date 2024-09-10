@@ -67,6 +67,78 @@ NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
 | `stream`      | Runs the command returning the output as a stream of `Uint8Array` chunks                 |
 | `streamLines` | Runs the command returning the output as a stream of lines (with the specified encoding) |
 
+### exitCode
+
+If all you need is the exit code of the command, you can use the `Command.exitCode` function.
+
+**Example**
+
+```ts twoslash
+import { Command } from "@effect/platform"
+import { NodeContext, NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
+
+const command = Command.make("ls", "-al")
+
+const program = Effect.gen(function* () {
+  const exitCode = yield* Command.exitCode(command)
+  console.log(exitCode)
+})
+
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+// Output: 0
+```
+
+## Custom Environment Variables
+
+You can customize environment variables in a command by using `Command.env`. This is useful when you need specific variables for the command's execution.
+
+**Example**
+
+```ts twoslash
+import { Command } from "@effect/platform"
+import { NodeContext, NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
+
+const command = Command.make("echo", "-n", "$MY_CUSTOM_VAR").pipe(
+  Command.env({
+    MY_CUSTOM_VAR: "Hello, this is a custom environment variable!"
+  }),
+  Command.runInShell(true) // Use shell to interpret variables correctly on Windows and Unix-like systems
+)
+
+const program = Effect.gen(function* () {
+  const output = yield* Command.string(command)
+  console.log(output)
+})
+
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+// Output: Hello, this is a custom environment variable!
+```
+
+In this example, the command runs in a shell to ensure environment variables are correctly processed.
+
+## Standard Input
+
+You can send input directly to a command's standard input using the `Command.feed` function.
+
+**Example**
+
+```ts twoslash
+import { Command } from "@effect/platform"
+import { NodeContext, NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
+
+const command = Command.make("cat").pipe(Command.feed("Hello"))
+
+const program = Effect.gen(function* () {
+  console.log(yield* Command.string(command))
+})
+
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+// Output: Hello
+```
+
 ## Fetching Process Details
 
 Next, we show how to obtain details about a running process like `exitCode`, `stdout`, and `stderr`.
