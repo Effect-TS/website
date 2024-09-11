@@ -6,51 +6,61 @@ bottomNavigation: pagination
 
 The `@effect/platform/FileSystem` module provides a single `FileSystem` tag, which acts as the gateway for interacting with the filesystem.
 
+```ts twoslash
+import { FileSystem } from "@effect/platform"
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem
+
+  // use `fs` to operate on the file system
+})
+```
+
 Here's a list of operations that can be performed using the `FileSystem` tag:
 
-| **Name**                    | **Arguments**                                                    | **Return**                                     | **Description**                                                                                                                                                        |
-| --------------------------- | ---------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **access**                  | `path: string`, `options?: AccessFileOptions`                    | `Effect<void, PlatformError>`                  | Check if a file can be accessed. You can optionally specify the level of access to check for.                                                                          |
-| **copy**                    | `fromPath: string`, `toPath: string`, `options?: CopyOptions`    | `Effect<void, PlatformError>`                  | Copy a file or directory from `fromPath` to `toPath`. Equivalent to `cp -r`.                                                                                           |
-| **copyFile**                | `fromPath: string`, `toPath: string`                             | `Effect<void, PlatformError>`                  | Copy a file from `fromPath` to `toPath`.                                                                                                                               |
-| **chmod**                   | `path: string`, `mode: number`                                   | `Effect<void, PlatformError>`                  | Change the permissions of a file.                                                                                                                                      |
-| **chown**                   | `path: string`, `uid: number`, `gid: number`                     | `Effect<void, PlatformError>`                  | Change the owner and group of a file.                                                                                                                                  |
-| **exists**                  | `path: string`                                                   | `Effect<boolean, PlatformError>`               | Check if a path exists.                                                                                                                                                |
-| **link**                    | `fromPath: string`, `toPath: string`                             | `Effect<void, PlatformError>`                  | Create a hard link from `fromPath` to `toPath`.                                                                                                                        |
-| **makeDirectory**           | `path: string`, `options?: MakeDirectoryOptions`                 | `Effect<void, PlatformError>`                  | Create a directory at `path`. You can optionally specify the mode and whether to recursively create nested directories.                                                |
-| **makeTempDirectory**       | `options?: MakeTempDirectoryOptions`                             | `Effect<string, PlatformError>`                | Create a temporary directory. By default, the directory will be created inside the system's default temporary directory.                                               |
-| **makeTempDirectoryScoped** | `options?: MakeTempDirectoryOptions`                             | `Effect<string, PlatformError, Scope>`         | Create a temporary directory inside a scope. Functionally equivalent to `makeTempDirectory`, but the directory will be automatically deleted when the scope is closed. |
-| **makeTempFile**            | `options?: MakeTempFileOptions`                                  | `Effect<string, PlatformError>`                | Create a temporary file. The directory creation is functionally equivalent to `makeTempDirectory`. The file name will be a randomly generated string.                  |
-| **makeTempFileScoped**      | `options?: MakeTempFileOptions`                                  | `Effect<string, PlatformError, Scope>`         | Create a temporary file inside a scope. Functionally equivalent to `makeTempFile`, but the file will be automatically deleted when the scope is closed.                |
-| **open**                    | `path: string`, `options?: OpenFileOptions`                      | `Effect<File, PlatformError, Scope>`           | Open a file at `path` with the specified `options`. The file handle will be automatically closed when the scope is closed.                                             |
-| **readDirectory**           | `path: string`, `options?: ReadDirectoryOptions`                 | `Effect<Array<string>, PlatformError>`         | List the contents of a directory. You can recursively list the contents of nested directories by setting the `recursive` option.                                       |
-| **readFile**                | `path: string`                                                   | `Effect<Uint8Array, PlatformError>`            | Read the contents of a file.                                                                                                                                           |
-| **readFileString**          | `path: string`, `encoding?: string`                              | `Effect<string, PlatformError>`                | Read the contents of a file as a string.                                                                                                                               |
-| **readLink**                | `path: string`                                                   | `Effect<string, PlatformError>`                | Read the destination of a symbolic link.                                                                                                                               |
-| **realPath**                | `path: string`                                                   | `Effect<string, PlatformError>`                | Resolve a path to its canonicalized absolute pathname.                                                                                                                 |
-| **remove**                  | `path: string`, `options?: RemoveOptions`                        | `Effect<void, PlatformError>`                  | Remove a file or directory. By setting the `recursive` option to `true`, you can recursively remove nested directories.                                                |
-| **rename**                  | `oldPath: string`, `newPath: string`                             | `Effect<void, PlatformError>`                  | Rename a file or directory.                                                                                                                                            |
-| **sink**                    | `path: string`, `options?: SinkOptions`                          | `Sink<void, Uint8Array, never, PlatformError>` | Create a writable `Sink` for the specified `path`.                                                                                                                     |
-| **stat**                    | `path: string`                                                   | `Effect<File.Info, PlatformError>`             | Get information about a file at `path`.                                                                                                                                |
-| **stream**                  | `path: string`, `options?: StreamOptions`                        | `Stream<Uint8Array, PlatformError>`            | Create a readable `Stream` for the specified `path`.                                                                                                                   |
-| **symlink**                 | `fromPath: string`, `toPath: string`                             | `Effect<void, PlatformError>`                  | Create a symbolic link from `fromPath` to `toPath`.                                                                                                                    |
-| **truncate**                | `path: string`, `length?: SizeInput`                             | `Effect<void, PlatformError>`                  | Truncate a file to a specified length. If the `length` is not specified, the file will be truncated to length `0`.                                                     |
-| **utimes**                  | `path: string`, `atime: Date \| number`, `mtime: Date \| number` | `Effect<void, PlatformError>`                  | Change the file system timestamps of the file at `path`.                                                                                                               |
-| **watch**                   | `path: string`                                                   | `Stream<WatchEvent, PlatformError>`            | Watch a directory or file for changes.                                                                                                                                 |
+| **Name**                    | **Description**                                                                                                                                                        |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **access**                  | Check if a file can be accessed. You can optionally specify the level of access to check for.                                                                          |
+| **copy**                    | Copy a file or directory from `fromPath` to `toPath`. Equivalent to `cp -r`.                                                                                           |
+| **copyFile**                | Copy a file from `fromPath` to `toPath`.                                                                                                                               |
+| **chmod**                   | Change the permissions of a file.                                                                                                                                      |
+| **chown**                   | Change the owner and group of a file.                                                                                                                                  |
+| **exists**                  | Check if a path exists.                                                                                                                                                |
+| **link**                    | Create a hard link from `fromPath` to `toPath`.                                                                                                                        |
+| **makeDirectory**           | Create a directory at `path`. You can optionally specify the mode and whether to recursively create nested directories.                                                |
+| **makeTempDirectory**       | Create a temporary directory. By default, the directory will be created inside the system's default temporary directory.                                               |
+| **makeTempDirectoryScoped** | Create a temporary directory inside a scope. Functionally equivalent to `makeTempDirectory`, but the directory will be automatically deleted when the scope is closed. |
+| **makeTempFile**            | Create a temporary file. The directory creation is functionally equivalent to `makeTempDirectory`. The file name will be a randomly generated string.                  |
+| **makeTempFileScoped**      | Create a temporary file inside a scope. Functionally equivalent to `makeTempFile`, but the file will be automatically deleted when the scope is closed.                |
+| **open**                    | Open a file at `path` with the specified `options`. The file handle will be automatically closed when the scope is closed.                                             |
+| **readDirectory**           | List the contents of a directory. You can recursively list the contents of nested directories by setting the `recursive` option.                                       |
+| **readFile**                | Read the contents of a file.                                                                                                                                           |
+| **readFileString**          | Read the contents of a file as a string.                                                                                                                               |
+| **readLink**                | Read the destination of a symbolic link.                                                                                                                               |
+| **realPath**                | Resolve a path to its canonicalized absolute pathname.                                                                                                                 |
+| **remove**                  | Remove a file or directory. By setting the `recursive` option to `true`, you can recursively remove nested directories.                                                |
+| **rename**                  | Rename a file or directory.                                                                                                                                            |
+| **sink**                    | Create a writable `Sink` for the specified `path`.                                                                                                                     |
+| **stat**                    | Get information about a file at `path`.                                                                                                                                |
+| **stream**                  | Create a readable `Stream` for the specified `path`.                                                                                                                   |
+| **symlink**                 | Create a symbolic link from `fromPath` to `toPath`.                                                                                                                    |
+| **truncate**                | Truncate a file to a specified length. If the `length` is not specified, the file will be truncated to length `0`.                                                     |
+| **utimes**                  | Change the file system timestamps of the file at `path`.                                                                                                               |
+| **watch**                   | Watch a directory or file for changes.                                                                                                                                 |
 
-Let's explore a simple example using `readFileString`:
+**Example: using `readFileString`**
 
-```ts
+```ts twoslash filename="index.ts"
 import { FileSystem } from "@effect/platform"
 import { NodeFileSystem, NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 
-// const readFileString: Effect.Effect<void, PlatformError, FileSystem.FileSystem>
-const readFileString = Effect.gen(function* (_) {
-  const fs = yield* _(FileSystem.FileSystem)
+const readFileString = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem
 
   // Reading the content of the same file where this code is written
-  const content = yield* _(fs.readFileString("./index.ts", "utf8"))
+  const content = yield* fs.readFileString("./index.ts", "utf8")
   console.log(content)
 })
 
