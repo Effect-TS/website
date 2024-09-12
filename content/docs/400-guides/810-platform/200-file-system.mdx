@@ -57,12 +57,12 @@ The `FileSystem` interface includes the following operations:
 
 **Example: using `readFileString`**
 
-```ts twoslash filename="index.ts"
+```ts twoslash
 import { FileSystem } from "@effect/platform"
-import { NodeFileSystem, NodeRuntime } from "@effect/platform-node"
+import { NodeContext, NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 
-const readFileString = Effect.gen(function* () {
+const program = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem
 
   // Reading the content of the same file where this code is written
@@ -70,5 +70,5 @@ const readFileString = Effect.gen(function* () {
   console.log(content)
 })
 
-NodeRuntime.runMain(readFileString.pipe(Effect.provide(NodeFileSystem.layer)))
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
 ```
