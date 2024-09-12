@@ -6,25 +6,12 @@ bottomNavigation: pagination
 
 Welcome to the documentation for `@effect/platform`, a library designed for creating platform-independent abstractions (Node.js, Bun, browsers).
 
-With `@effect/platform`, you can incorporate abstract services like `Terminal` or `FileSystem` into your program. Later, during the assembly of the final application, you can provide specific layers for the target platform using the corresponding packages: `platform-node`, `platform-bun`, and `platform-browser`.
+With `@effect/platform`, you can incorporate abstract services like `Terminal`, `FileSystem` or `Path` into your program.
+Later, during the assembly of the final application, you can provide specific layers for the target platform using the corresponding packages:
 
-This package empowers you to perform various operations, such as:
-
-| **Module**    | **Description**                                                                                  |
-| ------------- | ------------------------------------------------------------------------------------------------ |
-| Command       | Creating and running a command with the specified process name and an optional list of arguments |
-| FileSystem    | Reading and writing from/to the file system                                                      |
-| KeyValueStore | Storing and retrieving key-value pairs                                                           |
-| Terminal      | Reading and writing from/to standard input/output                                                |
-
-By utilizing `@effect/platform`, you can write code that remains platform-agnostic, ensuring compatibility across different environments.
-
-## Requirements
-
-- TypeScript **5.0** or newer
-- The `strict` flag enabled in your `tsconfig.json` file
-
-Additionally, make sure to install the `effect` package, as it's peer dependencies. Note that some package managers might not install peer dependencies by default, so you need to install them manually.
+- `@effect/platform-node` for Node.js
+- `@effect/platform-bun` for Bun
+- `@effect/platform-browser` for browsers
 
 ## Installation
 
@@ -34,18 +21,82 @@ To install the **beta** version:
 npm install @effect/platform
 ```
 
-Additionally, make sure to install the `effect` package, as it's peer dependencies. Note that some package managers might not install peer dependencies by default, so you need to install them manually.
+## Example: Platform-Agnostic Program
 
-Once you have installed the library, you can import the necessary types and functions from the `@effect/platform/*` modules.
+Below is a simple example using the `Path` module to create a file path. This program is compatible with multiple environments:
 
-**Example** (Namespace Import)
+```ts twoslash filename="index.ts"
+import { Path } from "@effect/platform"
+import { Effect } from "effect"
 
-```ts twoslash
-import * as Command from "@effect/platform/Command"
+const program = Effect.gen(function* () {
+  const path = yield* Path.Path
+
+  const mypath = path.join("tmp", "file.txt")
+  console.log(mypath)
+})
 ```
 
-**Example** (Named Import)
+## Running the Program in Node.js
 
-```ts twoslash
-import { Command } from "@effect/platform"
+First, install the Node.js-specific package:
+
+```bash
+npm install @effect/platform-node
+```
+
+Update the program to load the Node.js-specific context:
+
+```ts twoslash filename="index.ts"
+import { Path } from "@effect/platform"
+import { Effect } from "effect"
+import { NodeContext, NodeRuntime } from "@effect/platform-node"
+
+const program = Effect.gen(function* () {
+  const path = yield* Path.Path
+
+  const mypath = path.join("tmp", "file.txt")
+  console.log(mypath)
+})
+
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+```
+
+Finally, run the program in Node.js using `tsx`:
+
+```bash
+tsx index.ts
+# Output: tmp/file.txt
+```
+
+## Running the Program in Bun
+
+To run the same program in Bun, first install the Bun-specific package:
+
+```bash
+npm install @effect/platform-bun
+```
+
+Update the program to use the Bun-specific context:
+
+```ts twoslash filename="index.ts"
+import { Path } from "@effect/platform"
+import { Effect } from "effect"
+import { BunContext, BunRuntime } from "@effect/platform-bun"
+
+const program = Effect.gen(function* () {
+  const path = yield* Path.Path
+
+  const mypath = path.join("tmp", "file.txt")
+  console.log(mypath)
+})
+
+BunRuntime.runMain(program.pipe(Effect.provide(BunContext.layer)))
+```
+
+Run the program in Bun:
+
+```bash
+bun index.ts
+# Output: tmp/file.txt
 ```
