@@ -155,7 +155,7 @@ Instead of being a function that returns the response, the `HttpClient`
 interface now uses methods to make requests.
 
 Some shorthand methods have been added to the `HttpClient` interface to make
-less complex requests easier.
+less complex requests easier to implement.
 
 ```ts
 import {
@@ -182,7 +182,7 @@ Effect.gen(function* () {
 
 #### Scoped `HttpClientResponse` helpers removed
 
-The `HttpClientResponse` helpers that also eliminated the `Scope` have been removed.
+The `HttpClientResponse` helpers that also supplied the `Scope` have been removed.
 
 Instead, you can use the `HttpClientResponse` methods directly, and explicitly
 add a `Effect.scoped` to the pipeline.
@@ -196,7 +196,7 @@ Effect.gen(function* () {
 
   yield* client.get("https://jsonplaceholder.typicode.com/todos/1").pipe(
     Effect.flatMap((response) => response.json),
-    Effect.scoped // eliminate the `Scope`
+    Effect.scoped // supply the `Scope`
   )
 })
 ```
@@ -215,7 +215,7 @@ It is useful when you want to communicate between effects, and have a way to det
 the communication is complete.
 
 ```ts
-import { Effect, Mailbox } from "effect"
+import { Chunk, Effect, Mailbox } from "effect"
 import * as assert from "node:assert"
 
 Effect.gen(function* () {
@@ -228,13 +228,13 @@ Effect.gen(function* () {
 
   // take messages from the mailbox
   const [messages, done] = yield* mailbox.takeAll
-  assert.deepStrictEqual(messages, [1, 2, 3, 4, 5])
+  assert.deepStrictEqual(Chunk.toReadonlyArray(messages), [1, 2, 3, 4, 5])
   assert.strictEqual(done, false)
 
   // signal that the mailbox is done
   yield* mailbox.end
   const [messages2, done2] = yield* mailbox.takeAll
-  assert.deepStrictEqual(messages2, [])
+  assert.deepStrictEqual(messages2, Chunk.empty())
   assert.strictEqual(done2, true)
 
   // signal that the mailbox is failed
@@ -275,6 +275,16 @@ Effect.gen(function* () {
   const keys = yield* RcMap.keys(map) // ["a", "b", "c"]
 })
 ```
+
+## Duration conversion apis
+
+Some new apis for converting between a `Duration` and it's corresponding parts have been added:
+
+- `Duration.toMinutes`
+- `Duration.toHours`
+- `Duration.toDays`
+- `Duration.toWeeks`
+- `Duration.parts`
 
 ## Other changes
 
