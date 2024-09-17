@@ -13,6 +13,7 @@ import {
   identity
 } from "effect"
 import {
+  FetchHttpClient,
   HttpClient,
   HttpClientRequest,
   HttpClientResponse
@@ -92,6 +93,9 @@ const make = Effect.gen(function* () {
     (_) => Effect.sync(() => _.teardown())
   )
 
+  const httpClient = (yield* HttpClient.HttpClient).pipe(
+    HttpClient.filterStatusOk
+  )
   const activeWorkspaces = new Set<WorkspaceHandle>()
   const workspaceScopes = new WeakMap<WorkspaceHandle, Scope.Scope>()
   const plugins = new Set<WorkspacePlugin>()
@@ -142,7 +146,9 @@ const make = Effect.gen(function* () {
         Stream.orDie,
         Stream.encodeText,
         Stream.pipeThroughChannel(
-          Ndjson.unpackSchema(DevToolsDomain.Request)({ ignoreEmptyLines: true })
+          Ndjson.unpackSchema(DevToolsDomain.Request)({
+            ignoreEmptyLines: true
+          })
         ),
         Stream.runForEach((event) =>
           event._tag === "Ping" ? Effect.void : devToolsEvents.publish(event)
@@ -191,11 +197,9 @@ const make = Effect.gen(function* () {
       const snapshotsFiber = yield* Effect.forEach(
         workspace.snapshots,
         (snapshot) =>
-          HttpClientRequest.get(
-            `/snapshots/${encodeURIComponent(snapshot)}`
-          ).pipe(
-            HttpClient.fetchOk,
-            HttpClientResponse.arrayBuffer,
+          httpClient.get(`/snapshots/${encodeURIComponent(snapshot)}`).pipe(
+            Effect.flatMap((response) => response.arrayBuffer),
+            Effect.scoped,
             Effect.flatMap((buffer) =>
               Effect.promise(() =>
                 container.mount(buffer, {
@@ -436,7 +440,10 @@ export class WebContainer extends Effect.Tag("WebContainer")<
   WebContainer,
   Effect.Effect.Success<typeof make>
 >() {
-  static Live = Layer.scoped(this, make).pipe(Layer.provide(Toaster.Live))
+  static Live = Layer.scoped(this, make).pipe(
+    Layer.provide(Toaster.Live),
+    Layer.provide(FetchHttpClient.layer)
+  )
 }
 
 export class FileNotFoundError extends Data.TaggedError("FileNotFoundError")<{
