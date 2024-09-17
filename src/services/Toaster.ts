@@ -8,7 +8,7 @@ export interface Toast extends ToastProps {
   readonly action?: ToastActionElement
 }
 
-const make = Effect.gen(function* () {
+const make = Effect.gen(function*() {
   const counter = yield* Ref.make(0)
   const toasts = yield* SubscriptionRef.make(Array.empty<Toast>())
   const removeQueue = yield* Queue.unbounded<string>()
