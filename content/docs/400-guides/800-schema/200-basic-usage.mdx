@@ -1621,8 +1621,8 @@ console.log(Schema.decodeUnknownSync(Person)({ name: "name", AGE: "18" }))
 When defining types in TypeScript that include optional fields with the type `never`, such as:
 
 ```ts
-type A = {
-  readonly a?: never
+type MyType = {
+  readonly foo?: never
 }
 ```
 
@@ -1630,25 +1630,26 @@ the approach varies based on the `exactOptionalPropertyTypes` configuration in y
 
 **TypeScript Configuration: `exactOptionalPropertyTypes = false`**
 
-When this setting is disabled, optional fields are best handled by explicitly defining them as `undefined`. This reflects that the field may not be present, and if it is, it holds no value.
+When this feature is turned off, you can employ the `Schema.optional` function. This approach allows the field to implicitly accept `undefined` as a value.
 
 ```ts twoslash
 import { Schema } from "@effect/schema"
 
 const schema = Schema.Struct({
-  a: Schema.optional(Schema.Undefined)
+  foo: Schema.optional(Schema.Never)
 })
 ```
 
 **TypeScript Configuration: `exactOptionalPropertyTypes = true`**
 
-With `exactOptionalPropertyTypes` enabled, the definition changes slightly to enforce the field's absence more strictly. This configuration is more precise and aligns with newer TypeScript strictness features.
+When this feature is turned on, the `Schema.optionalWith` function is recommended.
+It ensures stricter enforcement of the field's absence.
 
 ```ts twoslash
 import { Schema } from "@effect/schema"
 
 const schema = Schema.Struct({
-  a: Schema.optionalWith(Schema.Never, { exact: true })
+  foo: Schema.optionalWith(Schema.Never, { exact: true })
 })
 ```
 
