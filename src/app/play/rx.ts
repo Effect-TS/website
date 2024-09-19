@@ -6,6 +6,7 @@ import {
 } from "@/workspaces/domain/workspace"
 import { Result, Rx } from "@effect-rx/rx-react"
 import { Clipboard } from "@effect/platform-browser"
+import { FetchHttpClient } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { editorRx } from "@/components/editor/rx"
 import { hashRx } from "@/rx/location"
@@ -18,13 +19,18 @@ import { RetrieveRequest, ShortenRequest } from "@/services/Shorten/domain"
 import { devToolsLayer } from "@/tutorials/common"
 
 const runtime = Rx.runtime(
-  Layer.mergeAll(WorkspaceCompression.Live, Clipboard.layer)
+  Layer.mergeAll(
+    WorkspaceCompression.Live,
+    Clipboard.layer,
+    FetchHttpClient.layer
+  )
 )
 
 export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
   runtime.fn((_: void, get) =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const compression = yield* WorkspaceCompression
+      const client = yield* rpcClient
       const workspace = get.once(handle.workspace)
       const editor = yield* Result.toExit(
         get.once(editorRx(handle).editor)
@@ -36,7 +42,7 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
         workspace,
         handle.handle.read
       )
-      const hash = yield* rpcClient(new ShortenRequest({ text: compressed }))
+      const hash = yield* client(new ShortenRequest({ text: compressed }))
       const url = new URL(location.href)
       url.hash = hash
       return url.toString()
@@ -79,10 +85,11 @@ const makeDefaultWorkspace = () =>
   defaultWorkspace.withName(`playground-${Date.now()}`)
 
 export const importRx = runtime.rx((get) =>
-  Effect.gen(function* () {
+  Effect.gen(function*() {
     const hash = get(hashRx)
     if (hash._tag === "None") return makeDefaultWorkspace()
-    const compressed = yield* rpcClient(
+    const client = yield* rpcClient
+    const compressed = yield* client(
       new RetrieveRequest({ hash: hash.value })
     )
     if (compressed._tag === "None") return makeDefaultWorkspace()
