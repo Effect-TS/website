@@ -1,5 +1,4 @@
 import {
-  Console,
   Data,
   Effect,
   Fiber,
@@ -12,12 +11,7 @@ import {
   SubscriptionRef,
   identity
 } from "effect"
-import {
-  FetchHttpClient,
-  HttpClient,
-  HttpClientRequest,
-  HttpClientResponse
-} from "@effect/platform"
+import { FetchHttpClient, HttpClient } from "@effect/platform"
 import {
   FileSystemTree,
   WebContainer as WC,
@@ -513,6 +507,7 @@ function run() {
     "--outDir", outDir,
     "--sourceMap", "true",
     "--target", "esnext",
+    "--lib", "ES2022,DOM,DOM.Iterable",
     program,
     "--onSuccess", \`node --enable-source-maps \${compiledProgram}\`
   ], {
