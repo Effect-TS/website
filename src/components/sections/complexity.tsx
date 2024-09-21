@@ -238,15 +238,17 @@ async function getTodo(
       },
       withEffect: {
         fileName: "index.ts",
-        code: `\
-const getTodo = (
+        code: `const getTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
-  HttpClientRequest.get(\`/todos/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
-  )\
-      `,
+  Effect.gen(function* () {
+    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
+    const res = yield* client.get(\`/todos/\${id}\`)
+    return yield* res.json
+  }).pipe(
+    Effect.scoped,
+    Effect.provide(FetchHttpClient.layer)
+  )`,
         highlights: [
           {
             color: "#283413",
@@ -320,24 +322,26 @@ function getTodo(
       },
       withEffect: {
         fileName: "index.ts",
-        code: `\
-const getTodo = (
+        code: `const getTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
-  HttpClientRequest.get(\`/todos/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
+  Effect.gen(function* () {
+    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
+    const res = yield* client.get(\`/todos/\${id}\`)
+    return yield* res.json
+  }).pipe(
+    Effect.scoped,
     Effect.retry(
       Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3)),
-      ),
+        Schedule.compose(Schedule.recurs(3))
+      )
     ),
-  )\
-      `,
+    Effect.provide(FetchHttpClient.layer)
+  )`,
         highlights: [
           {
             color: "#39300D",
-            lines: [7, 8, 9, 10, 11]
+            lines: [10, 11, 12, 13, 14]
           }
         ]
       }
@@ -421,28 +425,28 @@ function getTodo(
       },
       withEffect: {
         fileName: "index.ts",
-        code: `\
-const getTodo = (
+        code: `const getTodo = (
   id: number
 ): Effect.Effect<
   unknown,
   HttpClientError | TimeoutException
 > =>
-  HttpClientRequest.get(\`/todos/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
+  Effect.gen(function* () {
+    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
+    const res = yield* client.get(\`/todos/\${id}\`)
+    return yield* res.json
+  }).pipe(
+    Effect.scoped,
     Effect.timeout("1 second"),
     Effect.retry(
-      Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3)),
-      ),
+      Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3)))
     ),
-  )\
-      `,
+    Effect.provide(FetchHttpClient.layer)
+  )`,
         highlights: [
           {
             color: "#28233B",
-            lines: [5, 10]
+            lines: [5, 13]
           }
         ]
       }
@@ -550,29 +554,29 @@ function getTodo(
       },
       withEffect: {
         fileName: "index.ts",
-        code: `\
-const getTodo = (
+        code: `const getTodo = (
   id: number
 ): Effect.Effect<
   unknown,
   HttpClientError | TimeoutException
 > =>
-  HttpClientRequest.get(\`/todos/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
+  Effect.gen(function* () {
+    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
+    const res = yield* client.get(\`/todos/\${id}\`)
+    return yield* res.json
+  }).pipe(
+    Effect.scoped,
     Effect.timeout("1 second"),
     Effect.retry(
-      Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3)),
-      ),
+      Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3)))
     ),
     Effect.withSpan("getTodo", { attributes: { id } }),
-  )\
-      `,
+    Effect.provide(FetchHttpClient.layer)
+  )`,
         highlights: [
           {
             color: "#10322E",
-            lines: [16]
+            lines: [17]
           }
         ]
       }

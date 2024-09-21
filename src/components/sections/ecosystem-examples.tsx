@@ -252,14 +252,13 @@ Effect.runPromise(counts).then((x) => console.log(x))\
         name: "p-*",
         withoutEffect: {
           fileName: "index.ts",
-          code: `\
-import pMap from "p-map";
-import pQueue from "p-queue";
-import pRetry from "p-retry";
+          code: `import pMap from "p-map"
+import pQueue from "p-queue"
+import pRetry from "p-retry"
 
 async function main() {
-  const queue = new pQueue({ concurrency: 10 });
-  const signal = AbortSignal.timeout(1000);
+  const queue = new pQueue({ concurrency: 10 })
+  const signal = AbortSignal.timeout(10000)
   const todos = await pMap(
     Array.from({ length: 100 }, (_, i) => i + 1),
     (id) =>
@@ -267,10 +266,10 @@ async function main() {
         signal,
       })
   );
-  console.log(todos);
+  console.log(todos)
 }
 
-main().catch(console.error);
+main().catch(console.error)
 
 //
 
@@ -283,46 +282,48 @@ const fetchTodo = (
       const res = await fetch(
         \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
         { signal }
-      );
-      if (!res.ok) throw new Error(res.statusText);
-      return res.json();
+      )
+      if (!res.ok) throw new Error(res.statusText)
+      return res.json()
     },
     { retries: 3 }
-  );\
-      `
+  )`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `\
-import { Effect } from "effect";
-import {
+          code: `import {
   HttpClient,
   HttpClientError,
-  HttpClientRequest,
-  HttpClientResponse
-} from "@effect/platform";
+  FetchHttpClient
+} from "@effect/platform"
+import { Effect, Schedule } from "effect"
 
 Effect.gen(function* () {
-  const semaphore = yield* Effect.makeSemaphore(10);
+  const semaphore = yield* Effect.makeSemaphore(10)
   const todos = yield* Effect.forEach(
     Array.from({ length: 100 }, (_, i) => i + 1),
     (id) => semaphore.withPermits(1)(fetchTodo(id)),
     { concurrency: "unbounded" }
-  );
-  console.log(todos);
-}).pipe(Effect.timeout(1000), Effect.runPromise);
+  )
+  console.log(todos)
+}).pipe(Effect.timeout("10 seconds"), Effect.runPromise)
 
 const fetchTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError.HttpClientError> =>
-  HttpClientRequest.get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
-    Effect.retry(
-      Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3))
+  Effect.gen(function* () {
+    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
+    const res = yield* client.get(
+      \`https://jsonplaceholder.typicode.com/todos/\${id}\`
     )
-  );\
-      `
+    return yield* res.json
+  }).pipe(
+    Effect.scoped,
+    Effect.retry(
+      Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3)))
+    ),
+    Effect.provide(FetchHttpClient.layer)
+  )`
         }
       },
       {
@@ -372,9 +373,9 @@ function readFile(path: string): Effect.Effect<string, "invalid path"> {
   const res = await fetch(
     \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
     { signal }
-  );
-  if (!res.ok) throw new Error(res.statusText);
-  return res.json();
+  )
+  if (!res.ok) throw new Error(res.statusText)
+  return res.json()
 };`
         },
         withEffect: {
@@ -382,36 +383,36 @@ function readFile(path: string): Effect.Effect<string, "invalid path"> {
           code: `import {
   HttpClient,
   HttpClientError,
-  HttpClientRequest,
-  HttpClientResponse
-} from "@effect/platform";
-import { Effect } from "effect";
+  FetchHttpClient
+} from "@effect/platform"
+import { Effect } from "effect"
 
 const fetchTodo = (
   id: number
-): Effect.Effect<
-  unknown,
-  HttpClientError.HttpClientError
-> =>
-  HttpClientRequest.get(\`https://jsonplaceholder.typicode.com/todos/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
-  );`
+): Effect.Effect<unknown, HttpClientError.HttpClientError> =>
+  Effect.gen(function* () {
+    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
+    const res = yield* client.get(
+      \`https://jsonplaceholder.typicode.com/todos/\${id}\`
+    )
+    return yield* res.json
+  }).pipe(Effect.scoped, Effect.provide(FetchHttpClient.layer))
+`
         }
       },
       {
         name: "express",
         withoutEffect: {
           fileName: "index.ts",
-          code: `import Express from "express";
+          code: `import Express from "express"
 
-const app = Express();
+const app = Express()
 
 app.get("/", (_req, res) => {
   res.json({ message: "Hello World" });
-});
+})
 
-app.listen(3000);`
+app.listen(3000)`
         },
         withEffect: {
           fileName: "index.ts",
@@ -419,17 +420,17 @@ app.listen(3000);`
   HttpRouter,
   HttpServer,
   HttpServerResponse
-} from "@effect/platform";
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import { Layer } from "effect";
-import { createServer } from "node:http";
+} from "@effect/platform"
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Layer } from "effect"
+import { createServer } from "node:http"
 
 const app = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/",
     HttpServerResponse.json({ message: "Hello World" })
   )
-);
+)
 
 const HttpLive = HttpServer.serve(app).pipe(
   Layer.provide(
@@ -437,9 +438,9 @@ const HttpLive = HttpServer.serve(app).pipe(
       port: 3000,
     })
   )
-);
+)
 
-NodeRuntime.runMain(Layer.launch(HttpLive));`
+NodeRuntime.runMain(Layer.launch(HttpLive))`
         }
       }
     ]

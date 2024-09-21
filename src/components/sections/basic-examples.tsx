@@ -298,27 +298,23 @@ main()
     },
     withEffect: {
       fileName: "index.ts",
-      code: `\
-import {
-  HttpClient,
-  HttpClientRequest,
-  HttpClientResponse
-} from "@effect/platform"
+      code: `import { HttpClient, FetchHttpClient } from "@effect/platform"
 import { Console, Effect } from "effect"
 
 const getUser = (id: number) =>
-  HttpClientRequest.get(\`/users/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
-    Effect.retry({ times: 3 })
+  Effect.gen(function* () {
+    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
+    const res = yield* client.get(\`/users/\${id}\`)
+    return yield* res.json
+  }).pipe(
+    Effect.scoped,
+    Effect.retry({ times: 3 }),
+    Effect.provide(FetchHttpClient.layer)
   )
 
 const main = getUser(1).pipe(
   Effect.andThen((user) => Console.log("Got user", user))
-)
-
-Effect.runPromise(main)\
-      `,
+)`,
       command: "bun src/index.ts",
       result: "Got user { id: 1, name: 'John' }"
     }
@@ -542,47 +538,43 @@ function mergeAbortSignal(
     },
     withEffect: {
       fileName: "index.ts",
-      code: `\
-// interuption and concurrency can be configured with
+      code: `// interuption and concurrency can be configured with
 // composition
 const getTodos = (
-  ids: Iterable<number>,
+  ids: Iterable<number>
 ): Effect.Effect<
   Array<unknown>,
-  HttpClientError.HttpClientError
+  HttpClientError.HttpClientError | Cause.TimeoutException
 > =>
-  Effect.forEach(
-    ids,
-    (id) => getTodo(id).pipe(Effect.retry({ times: 3 })),
-    { concurrency: "inherit" },
-  )
+  Effect.forEach(ids, (id) => getTodo(id).pipe(Effect.retry({ times: 3 })), {
+    concurrency: "inherit"
+  })
 
 const getTodo = (
-  id: number,
+  id: number
 ): Effect.Effect<
   unknown,
-  HttpClientError.HttpClientError
+  HttpClientError.HttpClientError | Cause.TimeoutException
 > =>
-  HttpClientRequest.get(
-    \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
-  ).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
-    Effect.timeout(1000),
+  Effect.gen(function* () {
+    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
+    const res = yield* client.get(
+      \`https://jsonplaceholder.typicode.com/todos/\${id}\`
+    )
+    return yield* res.json
+  }).pipe(
+    Effect.scoped,
+    Effect.timeout("1 second"),
+    Effect.provide(FetchHttpClient.layer)
   )
 
-const main = getTodos(
-  Array.range(1, 10),
-).pipe(
+const main = getTodos(Array.range(1, 10)).pipe(
   Effect.withConcurrency(3),
   Effect.timeout("10 seconds"),
-  Effect.andThen((todos) =>
-    Console.log("Got todos", todos),
-  ),
+  Effect.andThen((todos) => Console.log("Got todos", todos))
 )
 
-Effect.runPromise(main)\
-      `,
+Effect.runPromise(main)`,
       command: "bun src/index.ts",
       result: "Got todos: [ ... ]"
     }
