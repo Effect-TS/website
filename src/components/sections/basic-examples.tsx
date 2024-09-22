@@ -298,27 +298,33 @@ main()
     },
     withEffect: {
       fileName: "index.ts",
-      code: `\
-import {
-  HttpClient,
-  HttpClientRequest,
-  HttpClientResponse
-} from "@effect/platform"
-import { Console, Effect } from "effect"
+      code: `import { FetchHttpClient, HttpClient } from "@effect/platform"
+import { Console, Effect, Layer } from "effect"
 
-const getUser = (id: number) =>
-  HttpClientRequest.get(\`/users/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
-    Effect.retry({ times: 3 })
+const makeUsers = Effect.gen(function*() {
+  const client = (yield* HttpClient.HttpClient).pipe(
+    HttpClient.filterStatusOk
   )
 
-const main = getUser(1).pipe(
-  Effect.andThen((user) => Console.log("Got user", user))
-)
+  const findById = (id: number) =>
+    client.get(\`/users/\${id}\`).pipe(
+      Effect.andThen((response) => response.json),
+      Effect.scoped,
+      Effect.retry({ times: 3 })
+    )
 
-Effect.runPromise(main)\
-      `,
+  return { findById } as const
+})
+
+class Users extends Effect.Tag("Users")<Users, Effect.Effect.Success<typeof makeUsers>>() {
+  static Live = Layer.effect(Users, makeUsers).pipe(
+    Layer.provide(FetchHttpClient.layer)
+  )
+}
+
+const main = Users.findById(1).pipe(
+  Effect.andThen((user) => Console.log("Got user", user))
+)`,
       command: "bun src/index.ts",
       result: "Got user { id: 1, name: 'John' }"
     }
@@ -542,47 +548,50 @@ function mergeAbortSignal(
     },
     withEffect: {
       fileName: "index.ts",
-      code: `\
-// interuption and concurrency can be configured with
-// composition
-const getTodos = (
-  ids: Iterable<number>,
-): Effect.Effect<
-  Array<unknown>,
-  HttpClientError.HttpClientError
-> =>
-  Effect.forEach(
-    ids,
-    (id) => getTodo(id).pipe(Effect.retry({ times: 3 })),
-    { concurrency: "inherit" },
+      code: `const makeTodos = Effect.gen(function*() {
+  const client = (yield* HttpClient.HttpClient).pipe(
+    HttpClient.filterStatusOk,
+    HttpClient.mapRequest(HttpClientRequest.prependUrl("https://jsonplaceholder.typicode.com"))
   )
 
-const getTodo = (
-  id: number,
-): Effect.Effect<
-  unknown,
-  HttpClientError.HttpClientError
-> =>
-  HttpClientRequest.get(
-    \`https://jsonplaceholder.typicode.com/todos/\${id}\`,
-  ).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
-    Effect.timeout(1000),
-  )
+  // interuption and concurrency can be configured with
+  // composition
+  const list = (
+    ids: Iterable<number>
+  ): Effect.Effect<
+    Array<unknown>,
+    HttpClientError.HttpClientError | Cause.TimeoutException
+  > =>
+    Effect.forEach(ids, (id) => findById(id).pipe(Effect.retry({ times: 3 })), {
+      concurrency: "inherit"
+    })
 
-const main = getTodos(
-  Array.range(1, 10),
-).pipe(
+  const findById = (
+    id: number
+  ): Effect.Effect<
+    unknown,
+    HttpClientError.HttpClientError | Cause.TimeoutException
+  > =>
+    client.get(\`/todos/\${id}\`).pipe(
+      Effect.andThen((response) => response.json),
+      Effect.scoped,
+      Effect.timeout("1 second")
+    )
+
+  return { list, findById } as const
+})
+
+class Todos extends Effect.Tag("Todos")<Todos, Effect.Effect.Success<typeof makeTodos>>() {
+  static Live = Layer.effect(Todos, makeTodos).pipe(
+    Layer.provide(FetchHttpClient.layer)
+  )
+}
+
+const main = Todos.list(Array.range(1, 10)).pipe(
   Effect.withConcurrency(3),
   Effect.timeout("10 seconds"),
-  Effect.andThen((todos) =>
-    Console.log("Got todos", todos),
-  ),
-)
-
-Effect.runPromise(main)\
-      `,
+  Effect.andThen((todos) => Console.log("Got todos", todos))
+)`,
       command: "bun src/index.ts",
       result: "Got todos: [ ... ]"
     }

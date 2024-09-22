@@ -186,7 +186,8 @@ export const Complexity = () => {
                   name: content.features[currentIndex].withEffect.fileName,
                   content: content.features[currentIndex].withEffect.code,
                   highlights:
-                    content.features[currentIndex].withEffect.highlights
+                    content.features[currentIndex].withEffect.highlights,
+                  language: "typescript"
                 }
               ]}
               fixedHeight={390}
@@ -238,15 +239,13 @@ async function getTodo(
       },
       withEffect: {
         fileName: "index.ts",
-        code: `\
-const getTodo = (
+        code: `const getTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
-  HttpClientRequest.get(\`/todos/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
-  )\
-      `,
+  httpClient.get(\`/todos/\${id}\`).pipe(
+    Effect.flatMap(response => response.json),
+    Effect.scoped
+  )`,
         highlights: [
           {
             color: "#283413",
@@ -324,20 +323,18 @@ function getTodo(
 const getTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
-  HttpClientRequest.get(\`/todos/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
-    Effect.retry(
-      Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3)),
-      ),
-    ),
-  )\
-      `,
+   httpClient.get(\`/todos/\${id}\`).pipe(
+    Effect.flatMap(response => response.json),
+    Effect.scoped,
+    Effect.retry({
+      schedule: Schedule.exponential(1000),
+      times: 3
+    })
+  )`,
         highlights: [
           {
             color: "#39300D",
-            lines: [7, 8, 9, 10, 11]
+            lines: [7, 8, 9, 10]
           }
         ]
       }
@@ -421,24 +418,21 @@ function getTodo(
       },
       withEffect: {
         fileName: "index.ts",
-        code: `\
-const getTodo = (
+        code: `const getTodo = (
   id: number
 ): Effect.Effect<
   unknown,
   HttpClientError | TimeoutException
 > =>
-  HttpClientRequest.get(\`/todos/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
+  httpClient.get(\`/todos/\${id}\`).pipe(
+    Effect.flatMap(response => response.json),
+    Effect.scoped,
     Effect.timeout("1 second"),
-    Effect.retry(
-      Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3)),
-      ),
-    ),
-  )\
-      `,
+    Effect.retry({
+      schedule: Schedule.exponential(1000),
+      times: 3
+    })
+  )`,
         highlights: [
           {
             color: "#28233B",
@@ -557,22 +551,20 @@ const getTodo = (
   unknown,
   HttpClientError | TimeoutException
 > =>
-  HttpClientRequest.get(\`/todos/\${id}\`).pipe(
-    HttpClient.fetchOk,
-    HttpClientResponse.json,
+  httpClient.get(\`/todos/\${id}\`).pipe(
+    Effect.flatMap(response => response.json),
+    Effect.scoped,
     Effect.timeout("1 second"),
-    Effect.retry(
-      Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3)),
-      ),
-    ),
-    Effect.withSpan("getTodo", { attributes: { id } }),
-  )\
-      `,
+    Effect.retry({
+      schedule: Schedule.exponential(1000),
+      times: 3
+    }),
+    Effect.withSpan("getTodo", { attributes: { id } })
+  )`,
         highlights: [
           {
             color: "#10322E",
-            lines: [16]
+            lines: [15]
           }
         ]
       }
