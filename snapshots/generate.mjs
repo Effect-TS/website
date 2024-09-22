@@ -66,21 +66,6 @@ const program = Effect.gen(function* () {
       }).pipe(Effect.annotateLogs({ chunk: i })),
     { concurrency: 3, discard: true }
   )
-  //
-  // // Create and write snapshot
-  // const cacheDir = path.join(directory, ".pnpm-store")
-  // const outputDir = path.join(
-  //   fileURLToPath(import.meta.url),
-  //   "../../public/snapshots"
-  // )
-  // const outputFile = path.join(outputDir, encodeURIComponent(module))
-  //
-  // yield* Effect.log(`Creating binary snapshot`)
-  // const buffer = yield* Effect.promise(() => snapshot(cacheDir))
-  //
-  // yield* fs.writeFile(outputFile, buffer)
-  //
-  // yield* Effect.log(`Wrote snapshot to '${outputDir}'`)
 }).pipe(Effect.scoped)
 
 program.pipe(
