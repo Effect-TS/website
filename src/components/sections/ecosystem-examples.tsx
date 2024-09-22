@@ -291,39 +291,59 @@ const fetchTodo = (
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import {
-  HttpClient,
-  HttpClientError,
-  FetchHttpClient
-} from "@effect/platform"
-import { Effect, Schedule } from "effect"
+          code: `import { FetchHttpClient, HttpClient, HttpClientRequest } from "@effect/platform"
+import { Context, Effect, Layer, Schedule } from "effect"
 
-Effect.gen(function* () {
+const main = Effect.gen(function*() {
+  const todosService = yield* Todos
   const semaphore = yield* Effect.makeSemaphore(10)
   const todos = yield* Effect.forEach(
     Array.from({ length: 100 }, (_, i) => i + 1),
-    (id) => semaphore.withPermits(1)(fetchTodo(id)),
+    (id) =>
+      semaphore.withPermits(1)(
+        todosService.findById(id)
+      ),
     { concurrency: "unbounded" }
   )
   console.log(todos)
-}).pipe(Effect.timeout("10 seconds"), Effect.runPromise)
+}).pipe(Effect.timeout("10 seconds"))
 
-const fetchTodo = (
-  id: number
-): Effect.Effect<unknown, HttpClientError.HttpClientError> =>
-  Effect.gen(function* () {
-    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
-    const res = yield* client.get(
-      \`https://jsonplaceholder.typicode.com/todos/\${id}\`
+//
+
+const makeTodos = Effect.gen(function*() {
+  const client = (yield* HttpClient.HttpClient).pipe(
+    HttpClient.filterStatusOk,
+    HttpClient.mapRequest(HttpClientRequest.prependUrl(
+      "https://jsonplaceholder.typicode.com"
+    ))
+  )
+
+  const findById = (id: number) =>
+    client.get(\`/todos/\${id}\`).pipe(
+      Effect.andThen((res) => res.json),
+      Effect.scoped,
+      Effect.retry({
+        schedule: Schedule.exponential(1000),
+        times: 3
+      })
     )
-    return yield* res.json
-  }).pipe(
-    Effect.scoped,
-    Effect.retry(
-      Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3)))
-    ),
-    Effect.provide(FetchHttpClient.layer)
-  )`
+
+  return { findById } as const
+})
+
+class Todos extends Context.Tag("Todos")<
+  Todos,
+  Effect.Effect.Success<typeof makeTodos>
+>() {
+  static Live = Layer.effect(Todos, makeTodos).pipe(
+    Layer.provide(FetchHttpClient.layer)
+  )
+}
+
+main.pipe(
+  Effect.provide(Todos.Live),
+  Effect.runPromise
+)`
         }
       },
       {
@@ -383,20 +403,27 @@ function readFile(path: string): Effect.Effect<string, "invalid path"> {
           code: `import {
   HttpClient,
   HttpClientError,
-  FetchHttpClient
+  HttpClientRequest
 } from "@effect/platform"
 import { Effect } from "effect"
 
 const fetchTodo = (
   id: number
-): Effect.Effect<unknown, HttpClientError.HttpClientError> =>
+): Effect.Effect<
+  unknown,
+  HttpClientError.HttpClientError,
+  HttpClient.HttpClient.Service
+> =>
   Effect.gen(function* () {
-    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
-    const res = yield* client.get(
-      \`https://jsonplaceholder.typicode.com/todos/\${id}\`
+    const client = (yield* HttpClient.HttpClient).pipe(
+      HttpClient.filterStatusOk,
+      HttpClient.mapRequest(HttpClientRequest.prependUrl(
+        "https://jsonplaceholder.typicode.com"
+      ))
     )
+    const res = yield* client.get(\`/todos/\${id}\`)
     return yield* res.json
-  }).pipe(Effect.scoped, Effect.provide(FetchHttpClient.layer))
+  }).pipe(Effect.scoped)
 `
         }
       },

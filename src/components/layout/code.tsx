@@ -11,6 +11,7 @@ export const Code: FC<{
     name: string
     content: string
     highlights?: { color: string; lines: number[] }[]
+    language?: string
   }[]
   terminal?: { run: string; command: string; result: string }
   fixedHeight?: number
@@ -53,8 +54,11 @@ export const Code: FC<{
               fixedHeight ? "" : "max-h-96"
             } overflow-y-auto`}
           >
-            {tabs.map(({ name, content, highlights }, index) => {
-              const html = hljs.highlightAuto(content).value
+            {tabs.map(({ name, content, highlights, language }, index) => {
+              const html = hljs.highlightAuto(
+                content,
+                language ? [language] : undefined
+              ).value
               const lineCount = (html.match(/\n/g) || []).length + 1
               return (
                 <Tabs.Content

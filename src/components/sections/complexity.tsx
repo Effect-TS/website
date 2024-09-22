@@ -186,7 +186,8 @@ export const Complexity = () => {
                   name: content.features[currentIndex].withEffect.fileName,
                   content: content.features[currentIndex].withEffect.code,
                   highlights:
-                    content.features[currentIndex].withEffect.highlights
+                    content.features[currentIndex].withEffect.highlights,
+                  language: "typescript"
                 }
               ]}
               fixedHeight={390}
@@ -241,13 +242,9 @@ async function getTodo(
         code: `const getTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
-  Effect.gen(function* () {
-    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
-    const res = yield* client.get(\`/todos/\${id}\`)
-    return yield* res.json
-  }).pipe(
-    Effect.scoped,
-    Effect.provide(FetchHttpClient.layer)
+  httpClient.get(\`/todos/\${id}\`).pipe(
+    Effect.flatMap(response => response.json),
+    Effect.scoped
   )`,
         highlights: [
           {
@@ -322,26 +319,22 @@ function getTodo(
       },
       withEffect: {
         fileName: "index.ts",
-        code: `const getTodo = (
+        code: `\
+const getTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
-  Effect.gen(function* () {
-    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
-    const res = yield* client.get(\`/todos/\${id}\`)
-    return yield* res.json
-  }).pipe(
+   httpClient.get(\`/todos/\${id}\`).pipe(
+    Effect.flatMap(response => response.json),
     Effect.scoped,
-    Effect.retry(
-      Schedule.exponential(1000).pipe(
-        Schedule.compose(Schedule.recurs(3))
-      )
-    ),
-    Effect.provide(FetchHttpClient.layer)
+    Effect.retry({
+      schedule: Schedule.exponential(1000),
+      times: 3
+    })
   )`,
         highlights: [
           {
             color: "#39300D",
-            lines: [10, 11, 12, 13, 14]
+            lines: [7, 8, 9, 10]
           }
         ]
       }
@@ -431,22 +424,19 @@ function getTodo(
   unknown,
   HttpClientError | TimeoutException
 > =>
-  Effect.gen(function* () {
-    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
-    const res = yield* client.get(\`/todos/\${id}\`)
-    return yield* res.json
-  }).pipe(
+  httpClient.get(\`/todos/\${id}\`).pipe(
+    Effect.flatMap(response => response.json),
     Effect.scoped,
     Effect.timeout("1 second"),
-    Effect.retry(
-      Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3)))
-    ),
-    Effect.provide(FetchHttpClient.layer)
+    Effect.retry({
+      schedule: Schedule.exponential(1000),
+      times: 3
+    })
   )`,
         highlights: [
           {
             color: "#28233B",
-            lines: [5, 13]
+            lines: [5, 10]
           }
         ]
       }
@@ -554,29 +544,27 @@ function getTodo(
       },
       withEffect: {
         fileName: "index.ts",
-        code: `const getTodo = (
+        code: `\
+const getTodo = (
   id: number
 ): Effect.Effect<
   unknown,
   HttpClientError | TimeoutException
 > =>
-  Effect.gen(function* () {
-    const client = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)
-    const res = yield* client.get(\`/todos/\${id}\`)
-    return yield* res.json
-  }).pipe(
+  httpClient.get(\`/todos/\${id}\`).pipe(
+    Effect.flatMap(response => response.json),
     Effect.scoped,
     Effect.timeout("1 second"),
-    Effect.retry(
-      Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3)))
-    ),
-    Effect.withSpan("getTodo", { attributes: { id } }),
-    Effect.provide(FetchHttpClient.layer)
+    Effect.retry({
+      schedule: Schedule.exponential(1000),
+      times: 3
+    }),
+    Effect.withSpan("getTodo", { attributes: { id } })
   )`,
         highlights: [
           {
             color: "#10322E",
-            lines: [17]
+            lines: [15]
           }
         ]
       }
