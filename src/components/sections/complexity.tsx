@@ -243,7 +243,7 @@ async function getTodo(
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
   httpClient.get(\`/todos/\${id}\`).pipe(
-    Effect.flatMap(response => response.json),
+    Effect.andThen((response) => response.json),
     Effect.scoped
   )`,
         highlights: [
@@ -324,7 +324,7 @@ const getTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
   httpClient.get(\`/todos/\${id}\`).pipe(
-    Effect.flatMap(response => response.json),
+    Effect.andThen((response) => response.json),
     Effect.scoped,
     Effect.retry({
       schedule: Schedule.exponential(1000),
@@ -425,7 +425,7 @@ function getTodo(
   HttpClientError | TimeoutException
 > =>
   httpClient.get(\`/todos/\${id}\`).pipe(
-    Effect.flatMap(response => response.json),
+    Effect.andThen((response) => response.json),
     Effect.scoped,
     Effect.timeout("1 second"),
     Effect.retry({
@@ -552,7 +552,7 @@ const getTodo = (
   HttpClientError | TimeoutException
 > =>
   httpClient.get(\`/todos/\${id}\`).pipe(
-    Effect.flatMap(response => response.json),
+    Effect.andThen((response) => response.json),
     Effect.scoped,
     Effect.timeout("1 second"),
     Effect.retry({
