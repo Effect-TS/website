@@ -323,7 +323,7 @@ function getTodo(
 const getTodo = (
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
-   httpClient.get(\`/todos/\${id}\`).pipe(
+  httpClient.get(\`/todos/\${id}\`).pipe(
     Effect.flatMap(response => response.json),
     Effect.scoped,
     Effect.retry({
