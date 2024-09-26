@@ -3,6 +3,10 @@ import type * as monaco from "monaco-editor/esm/vs/editor/editor.api"
 import type ts from "typescript"
 import { Monaco, type MonacoApi } from "../Monaco"
 
+/** Strongly-typed RegExp groups (https://github.com/microsoft/TypeScript/issues/32098#issuecomment-1279645368) */
+type RegExpGroups<T extends string> = IterableIterator<RegExpMatchArray> &
+  Array<{ groups: Record<T, string> | Record<string, string> }>
+
 export const make = Effect.gen(function* () {
   const { monaco } = yield* Monaco
 
@@ -12,6 +16,32 @@ export const make = Effect.gen(function* () {
 export const MonacoTwoslashLive = Layer.effectDiscard(make).pipe(
   Layer.provide(Monaco.Live)
 )
+type LineInfo = {
+  model: monaco.editor.ITextModel
+  position: monaco.Position
+  lineLength: number
+}
+const range = (num: number) => [...Array(num).keys()]
+
+export async function getLeftMostQuickInfoOfLine(
+  worker: monaco.languages.typescript.TypeScriptWorker,
+  { model, position, lineLength }: LineInfo
+) {
+  const offset = model.getOffsetAt(position)
+  for (const i of range(lineLength)) {
+    const quickInfo: ts.QuickInfo | undefined =
+      await worker.getQuickInfoAtPosition(
+        "file://" + model.uri.path,
+        i + offset
+      )
+
+    if (!quickInfo || !quickInfo.displayParts) {
+      continue
+    }
+
+    return quickInfo
+  }
+}
 
 function setupTwoslash(monaco: MonacoApi) {
   monaco.languages.registerInlayHintsProvider(
@@ -40,6 +70,52 @@ function setupTwoslash(monaco: MonacoApi) {
             dispose: () => {}
           }
         }
+
+        const matches = text.matchAll(inlineQueryRegex) as RegExpGroups<
+          "start" | "end"
+        >
+
+        for (const _match of matches) {
+          if (_match.index === undefined) {
+            break
+          }
+
+          if (cancellationToken.isCancellationRequested) {
+            return {
+              hints: [],
+              dispose: () => {}
+            }
+          }
+          const [line] = _match
+          const { start, end: querySymbol } = _match.groups
+
+          const offset = 0
+
+          const startIndex = line.indexOf(start)
+          const startPos = model.getPositionAt(
+            startIndex + offset + _match.index
+          )
+          const endIndex = line.lastIndexOf(querySymbol) + 2
+          const endPos = model.getPositionAt(endIndex + offset + _match.index)
+
+          const quickInfo = await getLeftMostQuickInfoOfLine(worker, {
+            model,
+            position: startPos,
+            lineLength: endIndex - startIndex - 2
+          })
+
+          if (!quickInfo || !quickInfo.displayParts) {
+            continue
+          }
+          results.push(
+            createHint({
+              displayParts: quickInfo.displayParts,
+              monaco,
+              position: endPos
+            })
+          )
+        }
+
         let match
 
         while ((match = queryRegex.exec(text)) !== null) {
@@ -58,35 +134,23 @@ function setupTwoslash(monaco: MonacoApi) {
             }
           }
 
-          const hint: ts.QuickInfo | undefined =
+          const quickInfo: ts.QuickInfo | undefined =
             await worker.getQuickInfoAtPosition(
               "file://" + model.uri.path,
               inspectionOff
             )
 
-          if (!hint || !hint.displayParts) {
+          if (!quickInfo || !quickInfo.displayParts) {
             continue
           }
 
-          // Make a one-liner
-          let text = hint.displayParts
-            .map((d) => d.text)
-            .join("")
-            .replace(/\\n/g, " ")
-            .replace(/\/n/g, " ")
-            .replace(/  /g, " ")
-            .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
-
-          const inlay: monaco.languages.InlayHint = {
-            kind: monaco.languages.InlayHintKind.Type,
-            position: new monaco.Position(
-              endPos.lineNumber,
-              endPos.column + 1
-            ),
-            label: text,
-            paddingLeft: true
-          }
-          results.push(inlay)
+          results.push(
+            createHint({
+              displayParts: quickInfo.displayParts,
+              monaco,
+              position: endPos
+            })
+          )
         }
         return {
           hints: results,
@@ -95,4 +159,26 @@ function setupTwoslash(monaco: MonacoApi) {
       }
     }
   )
+}
+
+function createHint(options: {
+  displayParts: ts.SymbolDisplayPart[]
+  position: monaco.Position
+  monaco: MonacoApi
+}): monaco.languages.InlayHint {
+  const { displayParts, position, monaco } = options
+  let text = displayParts
+    .map((d) => d.text)
+    .join("")
+    .replace(/\\n/g, " ")
+    .replace(/\/n/g, " ")
+    .replace(/  /g, " ")
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+
+  return {
+    kind: monaco.languages.InlayHintKind.Type,
+    position: new monaco.Position(position.lineNumber, position.column + 1),
+    label: text,
+    paddingLeft: true
+  }
 }
