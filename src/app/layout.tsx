@@ -37,7 +37,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="relative overflow-x-hidden antialiased font-light bg-white dark:bg-[#09090B] text-zinc-700 dark:text-zinc-300">
         <Providers>
           {children}
-          <Footer />
           <Analytics />
         </Providers>
       </body>

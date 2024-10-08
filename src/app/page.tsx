@@ -1,3 +1,4 @@
+import { Footer } from "@/components/layout/footer"
 import { Navigation } from "@/components/layout/navigation"
 import { Catch } from "@/components/sections/catch"
 import { Community } from "@/components/sections/community"
@@ -30,6 +31,7 @@ export default function HomePage() {
         <Community />
         <CTA />
       </main>
+      <Footer />
     </>
   )
 }

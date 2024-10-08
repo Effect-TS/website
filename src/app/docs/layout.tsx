@@ -1,4 +1,5 @@
 import { Navigation as DocsNavigation } from "@/components/docs/navigation"
+import { Footer } from "@/components/layout/footer"
 import { Navigation } from "@/components/layout/navigation"
 import { ReactNode } from "react"
 
@@ -10,6 +11,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <DocsNavigation className="hidden md:flex" />
         {children}
       </div>
+      <Footer />
     </>
   )
 }
