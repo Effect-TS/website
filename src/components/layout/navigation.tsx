@@ -15,13 +15,15 @@ export interface NavigationLink {
   readonly name: string
   readonly href: string
   readonly reload?: boolean
+  readonly blank?: boolean
 }
 
 const links: Array<NavigationLink> = [
   { name: "Docs", href: "/docs" },
   { name: "Blog", href: "/blog" },
   // { name: "Tutorials", href: "/tutorials/basics" },
-  { name: "Play", href: "/play", reload: true }
+  { name: "Play", href: "/play", reload: true },
+  { name: "Effect Days", href: "/events/effect-days", blank: true }
 ]
 
 const socials = [
@@ -43,7 +45,7 @@ export const Navigation: React.FC<{
         className={`${inline ? "relative" : "fixed top-0 inset-x-0"
           } backdrop-blur z-30 bg-white/70 dark:bg-[#09090B]/70 text-zinc-700 dark:text-zinc-400`}
       >
-        <EffectDaysBanner />
+        {pathname === "/" && <EffectDaysBanner />}
         <div
           className={`w-full ${inline
             ? "border-b dark:border-neutral-700"
@@ -105,7 +107,7 @@ const NavigationLinks: React.FC<{ links: ReadonlyArray<NavigationLink> }> = (
   )
 }
 
-function NavigationLink({ name, href, reload }: NavigationLink) {
+function NavigationLink({ name, href, reload, blank }: NavigationLink) {
   const pathname = usePathname()
   const Component = reload ? "a" : Link
   return (
@@ -115,6 +117,7 @@ function NavigationLink({ name, href, reload }: NavigationLink) {
         ? "text-black font-normal dark:text-white dark:font-light"
         : "button-hover"
         }`}
+      target={blank ? "_blank" : undefined}
     >
       <span>{name}</span>
       {href.startsWith("http") && (
