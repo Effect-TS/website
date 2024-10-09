@@ -41,6 +41,14 @@ const nextConfig = {
   },
   rewrites: () => [
     {
+      source: "/events",
+      destination: "https://webflow.effect.website/events/effect-days"
+    },
+    {
+      source: "/events/",
+      destination: "https://webflow.effect.website/events/effect-days/"
+    },
+    {
       source: "/events/:path*",
       destination: "https://webflow.effect.website/events/:path*"
     }

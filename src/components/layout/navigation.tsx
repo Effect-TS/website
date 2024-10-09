@@ -9,18 +9,21 @@ import { usePathname } from "next/navigation"
 import { ThemeSwitcher } from "../atoms/theme-switcher"
 import { LogoDark } from "../atoms/logo-dark"
 import React from "react"
+import { EffectDaysBanner } from "./banner"
 
 export interface NavigationLink {
   readonly name: string
   readonly href: string
   readonly reload?: boolean
+  readonly blank?: boolean
 }
 
 const links: Array<NavigationLink> = [
   { name: "Docs", href: "/docs" },
   { name: "Blog", href: "/blog" },
   // { name: "Tutorials", href: "/tutorials/basics" },
-  { name: "Play", href: "/play", reload: true }
+  { name: "Play", href: "/play", reload: true },
+  { name: "Effect Days", href: "/events/effect-days", blank: true }
 ]
 
 const socials = [
@@ -39,18 +42,17 @@ export const Navigation: React.FC<{
   return (
     <div className={pathname === "/" ? "dark" : ""}>
       <header
-        className={`${
-          inline ? "relative" : "fixed top-0 inset-x-0"
-        } backdrop-blur z-30 bg-white/70 dark:bg-[#09090B]/70 text-zinc-700 dark:text-zinc-400`}
+        className={`${inline ? "relative" : "fixed top-0 inset-x-0"
+          } backdrop-blur z-30 bg-white/70 dark:bg-[#09090B]/70 text-zinc-700 dark:text-zinc-400`}
       >
+        {pathname === "/" && <EffectDaysBanner />}
         <div
-          className={`w-full ${
-            inline
-              ? "border-b dark:border-neutral-700"
-              : wide
-                ? "max-w-screen-2xl"
-                : "max-w-screen-xl"
-          } mx-auto px-4 sm:px-8 lg:px-16 h-16 sm:h-24 flex justify-between items-center`}
+          className={`w-full ${inline
+            ? "border-b dark:border-neutral-700"
+            : wide
+              ? "max-w-screen-2xl"
+              : "max-w-screen-xl"
+            } mx-auto px-4 sm:px-8 lg:px-16 h-16 sm:h-24 flex justify-between items-center`}
         >
           <Link href="/" className="z-50">
             <Logo className="hidden dark:block h-7 sm:h-8" />
@@ -105,17 +107,17 @@ const NavigationLinks: React.FC<{ links: ReadonlyArray<NavigationLink> }> = (
   )
 }
 
-function NavigationLink({ name, href, reload }: NavigationLink) {
+function NavigationLink({ name, href, reload, blank }: NavigationLink) {
   const pathname = usePathname()
   const Component = reload ? "a" : Link
   return (
     <Component
       href={href}
-      className={`flex items-start ${
-        pathname?.startsWith(href)
-          ? "text-black font-normal dark:text-white dark:font-light"
-          : "button-hover"
-      }`}
+      className={`flex items-start ${pathname?.startsWith(href)
+        ? "text-black font-normal dark:text-white dark:font-light"
+        : "button-hover"
+        }`}
+      target={blank ? "_blank" : undefined}
     >
       <span>{name}</span>
       {href.startsWith("http") && (
