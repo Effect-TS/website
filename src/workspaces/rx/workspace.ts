@@ -30,8 +30,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         const handle = yield* WebContainer.workspace(workspace)
 
         const prepare = yield* pipe(
-          handle.awaitSnapshots,
-          Effect.andThen(handle.run(workspace.prepare)),
+          handle.run(workspace.prepare),
           Effect.forkScoped
         )
 

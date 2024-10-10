@@ -1,7 +1,6 @@
 import {
   Data,
   Effect,
-  Fiber,
   GlobalValue,
   Layer,
   Option,
@@ -11,7 +10,6 @@ import {
   SubscriptionRef,
   identity
 } from "effect"
-import { FetchHttpClient, HttpClient } from "@effect/platform"
 import {
   FileSystemTree,
   WebContainer as WC,
@@ -87,9 +85,6 @@ const make = Effect.gen(function* () {
     (_) => Effect.sync(() => _.teardown())
   )
 
-  const httpClient = (yield* HttpClient.HttpClient).pipe(
-    HttpClient.filterStatusOk
-  )
   const activeWorkspaces = new Set<WorkspaceHandle>()
   const workspaceScopes = new WeakMap<WorkspaceHandle, Scope.Scope>()
   const plugins = new Set<WorkspacePlugin>()
@@ -187,24 +182,6 @@ const make = Effect.gen(function* () {
       yield* Effect.promise(() =>
         container.fs.writeFile(path(".npmrc"), npmRc)
       )
-
-      const snapshotsFiber = yield* Effect.forEach(
-        workspace.snapshots,
-        (snapshot) =>
-          httpClient.get(`/snapshots/${encodeURIComponent(snapshot)}`).pipe(
-            Effect.flatMap((response) => response.arrayBuffer),
-            Effect.scoped,
-            Effect.flatMap((buffer) =>
-              Effect.promise(() =>
-                container.mount(buffer, {
-                  mountPoint: workspace.name + "/.pnpm-store"
-                })
-              )
-            ),
-            Effect.ignore
-          ),
-        { concurrency: workspace.snapshots.length, discard: true }
-      ).pipe(Effect.forkScoped)
 
       yield* Effect.promise(() =>
         container.mount(treeFromWorkspace(workspace), {
@@ -381,8 +358,7 @@ const make = Effect.gen(function* () {
         watch: watchFile,
         fsEvents: Stream.fromPubSub(fsEvents),
         run: runWorkspace,
-        shell,
-        awaitSnapshots: Fiber.join(snapshotsFiber)
+        shell
       })
 
       activeWorkspaces.add(handle)
@@ -434,10 +410,7 @@ export class WebContainer extends Effect.Tag("WebContainer")<
   WebContainer,
   Effect.Effect.Success<typeof make>
 >() {
-  static Live = Layer.scoped(this, make).pipe(
-    Layer.provide(Toaster.Live),
-    Layer.provide(FetchHttpClient.layer)
-  )
+  static Live = Layer.scoped(this, make).pipe(Layer.provide(Toaster.Live))
 }
 
 export class FileNotFoundError extends Data.TaggedError("FileNotFoundError")<{
@@ -466,7 +439,6 @@ export interface WorkspaceHandle {
   readonly fsEvents: Stream.Stream<FileSystemEvent>
   readonly shell: Effect.Effect<WebContainerProcess, never, Scope.Scope>
   readonly run: (command: string) => Effect.Effect<number>
-  readonly awaitSnapshots: Effect.Effect<void>
 }
 
 export interface WorkspacePlugin {
