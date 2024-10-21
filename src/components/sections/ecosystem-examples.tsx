@@ -125,7 +125,7 @@ type User = z.infer<typeof User>`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import { Schema } from "@effect/schema"
+          code: `import { Schema } from "effect"
 
 const User = Schema.Struct({
   username: Schema.String
@@ -187,7 +187,7 @@ const obj = superjson.parse<{ date: Date }>(json)`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import { Schema } from "@effect/schema"
+          code: `import { Schema } from "effect"
 
 const schema = Schema.parseJson(
   Schema.Struct({
