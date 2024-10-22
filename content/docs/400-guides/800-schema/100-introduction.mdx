@@ -4,9 +4,9 @@ excerpt: Introduction
 bottomNavigation: pagination
 ---
 
-Welcome to the documentation for `@effect/schema`, **a library for defining and using schemas** to validate and transform data in TypeScript.
+Welcome to the documentation for `effect/Schema`, **a module for defining and using schemas** to validate and transform data in TypeScript.
 
-`@effect/schema` allows you to define a `Schema<Type, Encoded, Context>` that provides a blueprint for describing the structure and data types of your data. Once defined, you can leverage this schema to perform a range of operations, including:
+`effect/Schema` allows you to define a `Schema<Type, Encoded, Context>` that provides a blueprint for describing the structure and data types of your data. Once defined, you can leverage this schema to perform a range of operations, including:
 
 | Operation       | Description                                                                                                    |
 | --------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -39,7 +39,7 @@ The `Schema` type has three type parameters with the following meanings:
   shorthand for the type value of type **A**, **I**nput, and **R**equirements.
 </Info>
 
-`Schema` values are immutable, and all `@effect/schema` functions produce new `Schema` values.
+`Schema` values are immutable, and all `effect/Schema` functions produce new `Schema` values.
 
 `Schema` values do not actually do anything, they are just values that model or describe the structure of your data.
 
@@ -115,7 +115,7 @@ Additionally, make sure to install the `effect` package, as it's peer dependenci
 
 ## Understanding exactOptionalPropertyTypes
 
-The `@effect/schema` library takes advantage of the `exactOptionalPropertyTypes` option of `tsconfig.json`. This option affects how optional properties are typed (to learn more about this option, you can refer to the official [TypeScript documentation](https://www.typescriptlang.org/tsconfig#exactOptionalPropertyTypes)).
+The `effect/Schema` module takes advantage of the `exactOptionalPropertyTypes` option of `tsconfig.json`. This option affects how optional properties are typed (to learn more about this option, you can refer to the official [TypeScript documentation](https://www.typescriptlang.org/tsconfig#exactOptionalPropertyTypes)).
 
 Let's delve into this with an example.
 
@@ -124,7 +124,7 @@ Let's delve into this with an example.
 ```ts twoslash
 // @exactOptionalPropertyTypes: true
 // @errors: 2379
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.optionalWith(Schema.String.pipe(Schema.nonEmptyString()), {
@@ -146,10 +146,10 @@ Here, notice that the type of `name` is "exact" (`string`), which means the type
 
 **With exactOptionalPropertyTypes Disabled**
 
-If, for some reason, you can't enable the `exactOptionalPropertyTypes` option (perhaps due to conflicts with other third-party libraries), you can still use `@effect/schema`. However, there will be a mismatch between the types and the runtime behavior:
+If, for some reason, you can't enable the `exactOptionalPropertyTypes` option (perhaps due to conflicts with other third-party libraries), you can still use `effect/Schema`. However, there will be a mismatch between the types and the runtime behavior:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.optionalWith(Schema.String.pipe(Schema.nonEmptyString()), {

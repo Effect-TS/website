@@ -13,8 +13,7 @@ The `TreeFormatter` is the default method for formatting errors. It organizes er
 Here's an example of how it works:
 
 ```ts twoslash
-import { Schema, TreeFormatter } from "@effect/schema"
-import { Either } from "effect"
+import { Either, Schema, ParseResult } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -26,7 +25,7 @@ const decode = Schema.decodeUnknownEither(Person)
 const result = decode({})
 if (Either.isLeft(result)) {
   console.error("Decoding failed:")
-  console.error(TreeFormatter.formatErrorSync(result.left))
+  console.error(ParseResult.TreeFormatter.formatErrorSync(result.left))
 }
 /*
 Decoding failed:
@@ -54,8 +53,7 @@ You can customize this output by adding annotations such as `identifier`, `title
 These annotations are applied in this order of priority and allow for a more concise and clear representation in error messages.
 
 ```ts twoslash
-import { Schema, TreeFormatter } from "@effect/schema"
-import { Either } from "effect"
+import { Either, Schema, ParseResult } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -64,7 +62,7 @@ const Person = Schema.Struct({
 
 const result = Schema.decodeUnknownEither(Person)({})
 if (Either.isLeft(result)) {
-  console.error(TreeFormatter.formatErrorSync(result.left))
+  console.error(ParseResult.TreeFormatter.formatErrorSync(result.left))
 }
 /*
 Person
@@ -80,8 +78,7 @@ In this modified example, by adding a `title` annotation, the schema representat
 By default, decoding functions like `decodeUnknownEither` return only the first encountered error. If you require a comprehensive list of all errors, you can modify the behavior by passing the `{ errors: "all" }` option:
 
 ```ts twoslash
-import { Schema, TreeFormatter } from "@effect/schema"
-import { Either } from "effect"
+import { Either, Schema, ParseResult } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -93,7 +90,7 @@ const decode = Schema.decodeUnknownEither(Person, { errors: "all" })
 const result = decode({})
 if (Either.isLeft(result)) {
   console.error("Decoding failed:")
-  console.error(TreeFormatter.formatErrorSync(result.left))
+  console.error(ParseResult.TreeFormatter.formatErrorSync(result.left))
 }
 /*
 Decoding failed:
@@ -129,8 +126,8 @@ If you set this annotation on a schema and the provided function returns a `stri
 **Example**
 
 ```ts twoslash
-import type { ParseResult } from "@effect/schema"
-import { Schema } from "@effect/schema"
+import type { ParseResult } from "effect"
+import { Schema } from "effect"
 
 const getOrderItemId = ({ actual }: ParseResult.ParseIssue) => {
   if (Schema.is(Schema.Struct({ id: Schema.String }))(actual)) {
@@ -209,15 +206,14 @@ In the examples above, we can see how the `parseIssueTitle` annotation helps pro
 
 ## ArrayFormatter
 
-The `ArrayFormatter` offers an alternative method for formatting errors within `@effect/schema`, organizing them into a more structured and easily navigable array format. This formatter is especially useful when you need a clear overview of all issues detected during the decoding or encoding processes.
+The `ArrayFormatter` offers an alternative method for formatting errors within `effect/Schema`, organizing them into a more structured and easily navigable array format. This formatter is especially useful when you need a clear overview of all issues detected during the decoding or encoding processes.
 
 The `ArrayFormatter` formats errors as an array of objects, where each object represents a distinct issue and includes properties such as `_tag`, `path`, and `message`. This structured format can help developers quickly identify and address multiple issues in data processing.
 
 Here's an example of how it works:
 
 ```ts twoslash
-import { ArrayFormatter, Schema } from "@effect/schema"
-import { Either } from "effect"
+import { Either, Schema, ParseResult } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -229,7 +225,7 @@ const decode = Schema.decodeUnknownEither(Person)
 const result = decode({})
 if (Either.isLeft(result)) {
   console.error("Decoding failed:")
-  console.error(ArrayFormatter.formatErrorSync(result.left))
+  console.error(ParseResult.ArrayFormatter.formatErrorSync(result.left))
 }
 /*
 Decoding failed:
@@ -244,8 +240,7 @@ Each error is formatted as an object in an array, making it clear what the error
 By default, decoding functions like `decodeUnknownEither` return only the first encountered error. If you require a comprehensive list of all errors, you can modify the behavior by passing the `{ errors: "all" }` option:
 
 ```ts twoslash
-import { ArrayFormatter, Schema } from "@effect/schema"
-import { Either } from "effect"
+import { Either, Schema, ParseResult } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -257,7 +252,7 @@ const decode = Schema.decodeUnknownEither(Person, { errors: "all" })
 const result = decode({})
 if (Either.isLeft(result)) {
   console.error("Decoding failed:")
-  console.error(ArrayFormatter.formatErrorSync(result.left))
+  console.error(ParseResult.ArrayFormatter.formatErrorSync(result.left))
 }
 /*
 Decoding failed:
@@ -270,7 +265,7 @@ Decoding failed:
 
 ## React Hook Form
 
-If you are working with React and need form validation, `@hookform/resolvers` offers an adapter for `@effect/schema`, which can be integrated with React Hook Form for enhanced form validation processes. This integration allows you to leverage the powerful features of `@effect/schema` within your React applications.
+If you are working with React and need form validation, `@hookform/resolvers` offers an adapter for `effect/Schema`, which can be integrated with React Hook Form for enhanced form validation processes. This integration allows you to leverage the powerful features of `effect/Schema` within your React applications.
 
-For more detailed instructions and examples on how to integrate `@effect/schema` with React Hook Form using `@hookform/resolvers`, you can visit the official npm package page:
+For more detailed instructions and examples on how to integrate `effect/Schema` with React Hook Form using `@hookform/resolvers`, you can visit the official npm package page:
 [React Hook Form Resolvers](https://www.npmjs.com/package/@hookform/resolvers#effect-ts)

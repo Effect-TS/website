@@ -14,7 +14,7 @@ Here's an example where we define a schema for a "Person" with properties "name"
 and we generate the corresponding JSON Schema.
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -51,7 +51,7 @@ The `JSONSchema.make` function aims to produce an optimal JSON Schema representi
 Consider a modification to the schema of the `age` field:
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -101,7 +101,7 @@ Literals are transformed into `enum` types within JSON Schema:
 **Single literal**
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Literal("a")
 
@@ -120,7 +120,7 @@ Output:
 **Union of literals**
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Literal("a", "b")
 
@@ -140,7 +140,7 @@ Output:
 ### Void
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Void
 
@@ -158,7 +158,7 @@ Output:
 ### Any
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Any
 
@@ -176,7 +176,7 @@ Output:
 ### Unknown
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Unknown
 
@@ -194,7 +194,7 @@ Output:
 ### Object
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Object
 
@@ -221,7 +221,7 @@ Output:
 ### String
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.String
 
@@ -238,7 +238,7 @@ Output:
 ### Number
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Number
 
@@ -255,7 +255,7 @@ Output:
 ### Boolean
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Boolean
 
@@ -272,7 +272,7 @@ Output:
 ### Tuples
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Tuple(Schema.String, Schema.Number)
 
@@ -299,7 +299,7 @@ Output:
 ### Arrays
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Array(Schema.String)
 
@@ -319,7 +319,7 @@ Output:
 ### Non Empty Arrays
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.NonEmptyArray(Schema.String)
 
@@ -340,7 +340,7 @@ Output:
 ### Structs
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Struct({
   name: Schema.String,
@@ -373,7 +373,7 @@ Output:
 ### Records
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Record({
   key: Schema.String,
@@ -400,7 +400,7 @@ Output:
 ### Mixed Structs with Records
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Struct(
   {
@@ -450,7 +450,7 @@ Output:
 ### Enums
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 enum Fruits {
   Apple,
@@ -486,7 +486,7 @@ Output:
 ### Template Literals
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.TemplateLiteral(Schema.Literal("a"), Schema.Number)
 
@@ -509,7 +509,7 @@ Unions are expressed using `anyOf` or `enum`, depending on the types involved:
 **Generic Union**
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Union(Schema.String, Schema.Number)
 
@@ -533,7 +533,7 @@ Output:
 **Union of literals**
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Literal("a", "b")
 
@@ -556,7 +556,7 @@ You can augment your schemas with `identifier` annotations to enhance their stru
 When you utilize these annotations, your schemas are included within a "$defs" object property at the root of the JSON Schema and referenced from there, enabling better organization and readability.
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const Name = Schema.String.annotations({ identifier: "Name" })
 const Age = Schema.Number.annotations({ identifier: "Age" })
@@ -610,7 +610,7 @@ Standard JSON Schema annotations such as `title`, `description`, `default`, and 
 These annotations allow you to enrich your schemas with metadata that can enhance readability and provide additional information about the data structure.
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.String.annotations({
   description: "my custom description",
@@ -644,7 +644,7 @@ To enhance the clarity of your JSON schemas, it's advisable to add annotations d
 This method is more semantically appropriate as it links descriptive titles and other metadata specifically to the properties they describe, rather than to the generic type.
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const Person = Schema.Struct({
   firstName: Schema.propertySignature(Schema.String).annotations({
@@ -687,7 +687,7 @@ Output:
 Recursive and mutually recursive schemas are supported, however it's **mandatory** to use identifier annotations for these types of schemas to ensure correct references and definitions within the generated JSON Schema.
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 interface Category {
   readonly name: string
@@ -743,7 +743,7 @@ When working with JSON Schema certain data types, such as `bigint`, lack a direc
 This absence typically leads to an error when the schema is generated:
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Struct({
   a_bigint_field: Schema.BigIntFromSelf
@@ -764,7 +764,7 @@ schema (BigIntKeyword): bigint
 To address this, you can enhance the schema with a custom annotation, defining how you intend to represent such types in JSON Schema:
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Struct({
   a_bigint_field: Schema.BigIntFromSelf.annotations({
@@ -802,7 +802,7 @@ This fragment will be used to generate the corresponding JSON Schema.
 Note that if the schema consists of more than one refinement, the corresponding annotations will be merged.
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const Positive = Schema.Number.pipe(
   Schema.filter((n) => n > 0, {
@@ -840,7 +840,7 @@ If you prefer stricter type enforcement or need to support non-standard extensio
 In the following example, we've used the `@types/json-schema` package to provide TypeScript definitions for JSON Schema. This approach not only ensures type correctness but also enables autocomplete suggestions in your IDE.
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 import type { JSONSchema7 } from "json-schema"
 
 const Positive = Schema.Number.pipe(
@@ -872,7 +872,7 @@ Output:
 For all other types of schema that are not refinements, the content of the annotation is used and overrides anything the system would have generated by default:
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 const schema = Schema.Struct({ foo: Schema.String }).annotations({
   jsonSchema: { type: "object" }
@@ -911,7 +911,7 @@ When utilizing `Schema.parseJson`, JSON Schema generation follows a specialized 
 **Example**
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 // Define a schema that parses a JSON string into a structured object
 const schema = Schema.parseJson(

@@ -2,7 +2,7 @@ import { Workspace } from "@/workspaces/domain/workspace"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { Compression } from "./Compression"
-import * as Schema from "@effect/schema/Schema"
+import * as Schema from "effect/Schema"
 import { flow, pipe } from "effect"
 
 const decodeWorkspace = flow(

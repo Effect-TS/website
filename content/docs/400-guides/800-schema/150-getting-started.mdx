@@ -4,43 +4,28 @@ excerpt: Getting Started
 bottomNavigation: pagination
 ---
 
-<Warning>
-  This is a pre-release version. Expect possible breaking changes and
-  inconsistencies until the stable release (v1.0) is achieved.
-</Warning>
-
-## Installation
-
-To install the **beta** version:
-
-```bash
-npm install @effect/schema
-```
-
-Additionally, make sure to install the `effect` package, as it's peer dependencies. Note that some package managers might not install peer dependencies by default, so you need to install them manually.
-
-Once you have installed the library, you can import the necessary types and functions from the `@effect/schema/Schema` module.
+You can import the necessary types and functions from the `effect/Schema` module:
 
 **Example** (Namespace Import)
 
 ```ts twoslash
-import * as Schema from "@effect/schema/Schema"
+import * as Schema from "effect/Schema"
 ```
 
 **Example** (Named Import)
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 ```
 
 ## Defining a schema
 
-One common way to define a `Schema` is by utilizing the `Struct` constructor provided by `@effect/schema`. This constructor allows you to create a new `Schema` that outlines an object with specific properties. Each property in the object is defined by its own `Schema`, which specifies the data type and any validation rules.
+One common way to define a `Schema` is by utilizing the `Struct` constructor provided by `effect/Schema`. This constructor allows you to create a new `Schema` that outlines an object with specific properties. Each property in the object is defined by its own `Schema`, which specifies the data type and any validation rules.
 
 For example, consider the following `Schema` that describes a person object with a `name` property of type `string` and an `age` property of type `number`:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -49,7 +34,7 @@ const Person = Schema.Struct({
 ```
 
 <Info>
-It's important to note that by default, most constructors exported by `@effect/schema` return `readonly` types. For instance, in the `Person` schema above, the resulting type would be `{ readonly name: string; readonly age: number; }`.
+It's important to note that by default, most constructors exported by `effect/Schema` return `readonly` types. For instance, in the `Person` schema above, the resulting type would be `{ readonly name: string; readonly age: number; }`.
 </Info>
 
 ## Extracting Inferred Types
@@ -64,7 +49,7 @@ Once you've defined a `Schema<A, I, R>`, you can extract the inferred type `A`, 
 For example, you can extract the inferred type of a `Person` object as demonstrated below:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -88,7 +73,7 @@ type Person2 = typeof Person.Type
 Alternatively, you can define the `Person` type using the `interface` keyword:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -113,7 +98,7 @@ Both approaches yield the same result, but using an interface provides benefits 
 In cases where in a `Schema<A, I>` the `I` type differs from the `A` type, you can also extract the inferred `I` type using the `Schema.Encoded` utility (or the `Encoded` field defined on your schema).
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -138,7 +123,7 @@ type PersonEncoded2 = typeof Person.Encoded
 You can also extract the inferred type `R` that represents the context described by the schema using the `Schema.Context` utility:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -154,7 +139,7 @@ type PersonContext = Schema.Schema.Context<typeof Person>
 To create a schema with an opaque type, you can use the following technique that re-declares the schema:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const _Person = Schema.Struct({
   name: Schema.String,
@@ -172,7 +157,7 @@ Alternatively, you can use the Class APIs (see the [Class APIs](classes) section
 Note that the technique shown above becomes more complex when the schema is defined such that `A` is different from `I`. For example:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const _Person = Schema.Struct({
   name: Schema.String,
@@ -191,7 +176,7 @@ In this case, the field `"age"` is of type `string` in the `Encoded` type of the
 
 ## Decoding From Unknown Values
 
-When working with unknown data types in TypeScript, decoding them into a known structure can be challenging. Luckily, `@effect/schema` provides several functions to help with this process. Let's explore how to decode unknown values using these functions.
+When working with unknown data types in TypeScript, decoding them into a known structure can be challenging. Luckily, `effect/Schema` provides several functions to help with this process. Let's explore how to decode unknown values using these functions.
 
 - `decodeUnknownSync`: Synchronously decodes a value and throws an error if parsing fails.
 - `decodeUnknownOption`: Decodes a value and returns an [Option](../../other/data-types/option) type.
@@ -204,7 +189,7 @@ When working with unknown data types in TypeScript, decoding them into a known s
 Let's begin with an example using the `decodeUnknownSync` function. This function is useful when you want to parse a value and immediately throw an error if the parsing fails.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -229,7 +214,7 @@ ParseError: Expected { readonly name: string; readonly age: number }, actual nul
 Now, let's see how to use the `decodeUnknownEither` function, which returns an [Either](../../other/data-types/either) type representing success or failure.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Either } from "effect"
 
 const Person = Schema.Struct({
@@ -278,7 +263,7 @@ Here, `ParseIssue` represents an error that might occur during the parsing proce
 When your schema involves asynchronous transformations, neither the `decodeUnknownSync` nor the `decodeUnknownEither` functions will work for you. In such cases, you must turn to the `decodeUnknown` function, which returns an [Effect](../essentials/the-effect-type).
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Effect } from "effect"
 
 const PersonId = Schema.Number
@@ -337,7 +322,7 @@ However, you can use the `onExcessProperty` option (default value: `"ignore"`) t
 Here's an example of how you might use `onExcessProperty` set to `"error"`:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -375,7 +360,7 @@ ParseError: { readonly name: string; readonly age: number }
 If you want to allow excess properties to remain, you can use `onExcessProperty` set to `"preserve"`:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -409,7 +394,7 @@ The `errors` option allows you to receive all parsing errors when attempting to 
 Here's an example of how you might use `errors`:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -450,7 +435,7 @@ Setting `propertyOrder` to `"original"` ensures that the keys are ordered as the
 **Example** (Synchronous Decoding)
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({
   a: Schema.Number,
@@ -475,9 +460,8 @@ console.log(
 **Example** (Asynchronous Decoding)
 
 ```ts twoslash
-import { ParseResult, Schema } from "@effect/schema"
 import type { Duration } from "effect"
-import { Effect } from "effect"
+import { Effect, ParseResult, Schema } from "effect"
 
 // Function to simulate an asynchronous process within the schema
 const effectify = (duration: Duration.DurationInput) =>
@@ -515,7 +499,7 @@ Schema.decode(schema)({ a: 1, b: 2, c: 3 }, { propertyOrder: "original" })
 You can tailor parse options for each schema using the `parseOptions` annotation. These options allow for specific parsing behavior at various levels of the schema hierarchy, overriding any parent settings and cascading down to nested schemas.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Either } from "effect"
 
 const schema = Schema.Struct({
@@ -559,10 +543,10 @@ In this example:
 
 ## Managing Missing Properties
 
-When using the `@effect/schema` library to handle data structures, it's important to understand how missing properties are processed. By default, if a property is not present in the input, it is treated as if it were present with an `undefined` value.
+When using the `effect/Schema` module to handle data structures, it's important to understand how missing properties are processed. By default, if a property is not present in the input, it is treated as if it were present with an `undefined` value.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({ a: Schema.Unknown })
 const input = {}
@@ -575,7 +559,7 @@ In this example, although the key `"a"` is not present in the input, it is treat
 If your validation logic needs to distinguish between truly missing properties and those that are explicitly undefined, you can enable the `exact` option:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({ a: Schema.Unknown })
 const input = {}
@@ -592,8 +576,8 @@ ParseError: { readonly a: unknown }
 For the APIs `Schema.is` and `Schema.asserts`, however, the default behavior is to treat missing properties strictly, where the default for `exact` is `true`:
 
 ```ts twoslash
-import type { AST } from "@effect/schema"
-import { Schema } from "@effect/schema"
+import type { SchemaAST } from "effect"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({ a: Schema.Unknown })
 const input = {}
@@ -603,7 +587,7 @@ console.log(Schema.is(schema)(input, { exact: false })) // Output: true
 
 const asserts: (
   u: unknown,
-  overrideOptions?: AST.ParseOptions
+  overrideOptions?: SchemaAST.ParseOptions
 ) => asserts u is {
   readonly a: unknown
 } = Schema.asserts(schema)
@@ -635,7 +619,7 @@ try {
 
 ## Encoding
 
-The `@effect/schema/Schema` module provides several `encode*` functions to encode data according to a schema:
+The `effect/Schema` module provides several `encode*` functions to encode data according to a schema:
 
 - `encodeSync`: Synchronously encodes data and throws an error if encoding fails.
 - `encodeOption`: Encodes data and returns an [Option](../../other/data-types/option) type.
@@ -646,7 +630,7 @@ The `@effect/schema/Schema` module provides several `encode*` functions to encod
 Let's consider an example where we have a schema for a `Person` object with a `name` property of type `string` and an `age` property of type `number`.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Age is a schema that can decode a string to a number and encode a number to a string
 const Age = Schema.NumberFromString
@@ -684,8 +668,7 @@ Although it is generally recommended to define schemas that support both decodin
 Here is an example of a transformation that never fails during decoding. It returns an [Either](../../other/data-types/either) containing either the decoded value or the original input. For encoding, it is reasonable to not support it and use `Forbidden` as the result.
 
 ```ts twoslash
-import { ParseResult, Schema } from "@effect/schema"
-import { Either } from "effect"
+import { Either, ParseResult, Schema } from "effect"
 
 // Define a schema that safely decodes to Either type
 export const SafeDecode = <A, I>(self: Schema.Schema<A, I, never>) => {
@@ -722,7 +705,7 @@ export const SafeDecode = <A, I>(self: Schema.Schema<A, I, never>) => {
 
 ## Naming Conventions
 
-The naming conventions in `@effect/schema` are designed to be straightforward and logical, **focusing primarily on compatibility with JSON serialization**. This approach simplifies the understanding and use of schemas, especially for developers who are integrating web technologies where JSON is a standard data interchange format.
+The naming conventions in `effect/Schema` are designed to be straightforward and logical, **focusing primarily on compatibility with JSON serialization**. This approach simplifies the understanding and use of schemas, especially for developers who are integrating web technologies where JSON is a standard data interchange format.
 
 ### Overview of Naming Strategies
 
@@ -751,7 +734,7 @@ The primary goal of these schemas is to ensure that domain objects can be easily
 Here is an example demonstrating how straightforward naming conventions can be applied:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({
   sym: Schema.Symbol,
@@ -779,7 +762,7 @@ While JSON's ubiquity justifies its primary consideration in naming, the convent
 
 ## Type Guards
 
-The `Schema.is` function provided by the `@effect/schema/Schema` module represents a way of verifying that a value conforms to a given schema.
+The `Schema.is` function provided by the `effect/Schema` module represents a way of verifying that a value conforms to a given schema.
 It functions as a [type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates), taking a value of type `unknown` and determining if it matches the structure and type constraints defined in the schema.
 
 Here's how the `Schema.is` function works
@@ -793,7 +776,7 @@ The type `I`, typically used in schema transformations, does not influence the g
 **Example Usage**:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -820,7 +803,7 @@ While type guards verify and inform about type conformity, the `Schema.asserts` 
 **Example Usage**:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,

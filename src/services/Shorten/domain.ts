@@ -1,4 +1,4 @@
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 export class ShortenError extends Schema.TaggedError<ShortenError>()(
   "ShortenError",

@@ -1,4 +1,4 @@
-import * as Schema from "@effect/schema/Schema"
+import * as Schema from "effect/Schema"
 
 // To prevent bad actors from creating arbitrarily large playgrounds
 // and attempting to share them, thus filling up our KV storage, we
@@ -12,4 +12,6 @@ export class MaxPlaygroundSizeExceeded extends Schema.TaggedError<MaxPlaygroundS
   readonly message = `The playground has exceeded the maximum shareable size limit of ${PLAYGROUND_MAX_SHAREABLE_BYTES / 1000} kilobytes`
 }
 
-export const isMaxPlaygroundSizeExceeded = Schema.is(MaxPlaygroundSizeExceeded)
+export const isMaxPlaygroundSizeExceeded = Schema.is(
+  MaxPlaygroundSizeExceeded
+)

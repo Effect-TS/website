@@ -15,7 +15,7 @@ Classes offer several features that simplify the schema creation process:
 
 ## Definition
 
-To define a `Class` in `@effect/schema`, you need to provide:
+To define a `Class` with `effect/Schema`, you need to provide:
 
 - The type of the class being created.
 - A unique identifier for the class.
@@ -24,7 +24,7 @@ To define a `Class` in `@effect/schema`, you need to provide:
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Define your schema by providing the type, a unique identifier and the desired fields
 class Person extends Schema.Class<Person>("Person")({
@@ -37,7 +37,7 @@ In this setup, `Person` is a class where `id` is a number and `name` is a non-em
 The constructor for the class creates instances with these specified properties.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -64,7 +64,7 @@ Person { id: 1, name: 'John' }
 If your schema does not require any fields, you can define a class with an empty object:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class NoArgs extends Schema.Class<NoArgs>("NoArgs")({}) {}
 
@@ -78,7 +78,7 @@ const noargs2 = new NoArgs({})
 When you define a class using `Schema.Class`, the constructor automatically checks that the provided properties adhere to the schema's rules. Here's how you can define and instantiate a `Person` class:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -97,7 +97,7 @@ This ensures that each property of the `Person` instance, like `id` and `name`, 
 If an instance is created with invalid properties, the constructor throws an error detailing what went wrong:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -118,10 +118,10 @@ ParseError: Person (Constructor)
 
 This error message clearly states that the `name` field failed the non-empty string predicate, providing precise feedback on why the validation failed.
 
-There are scenarios where you might want to bypass validation during instantiation. Although not typically recommended, `@effect/schema` allows for this flexibility:
+There are scenarios where you might want to bypass validation during instantiation. Although not typically recommended, `effect/Schema` allows for this flexibility:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -141,7 +141,7 @@ new Person({ id: 1, name: "" }, { disableValidation: true })
 Thanks to the implementation of [Data.Class](../../other/data-types/data#class), instances of your classes automatically support the [Equal](../../other/trait/equal) trait, which allows for easy comparison:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Equal } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
@@ -158,7 +158,7 @@ console.log(Equal.equals(john1, john2)) // Output: true
 However, be aware that the `Equal` trait checks for equality only at the first level. If, for instance, a field is an array, the returned instances will not be considered equal:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Equal } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
@@ -184,7 +184,7 @@ console.log(Equal.equals(john1, john2)) // Output: false
 To ensure deep equality for arrays, use `Schema.Data` combined with `Data.array`:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Data, Equal } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
@@ -214,7 +214,7 @@ You have the flexibility to enhance schema classes with custom getters and metho
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -237,7 +237,7 @@ When you define a class using `Schema.Class`, it not only creates a new class bu
 This means the class can be utilized wherever a schema is expected.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -253,7 +253,7 @@ const Persons = Schema.Array(Person)
 The class also includes a `fields` static property, which outlines the fields defined during the class creation.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -269,7 +269,7 @@ A class that extends `Schema.Class` implicitly forms a schema transformation fro
 For instance, consider the following definition:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -297,7 +297,7 @@ There are two primary ways to add annotations depending on your requirements:
    You can annotate the struct schema component, which is transformed into the class.
 
    ```ts twoslash
-   import { Schema } from "@effect/schema"
+   import { Schema } from "effect"
 
    class Person extends Schema.Class<Person>("Person")(
      Schema.Struct({
@@ -314,7 +314,7 @@ There are two primary ways to add annotations depending on your requirements:
    Alternatively, annotations can be added directly to the class schema, affecting how the class is represented as a schema.
 
    ```ts twoslash
-   import { Schema } from "@effect/schema"
+   import { Schema } from "effect"
 
    class Person extends Schema.Class<Person>("Person")(
      {
@@ -333,7 +333,7 @@ The `Schema.suspend` combinator is useful when you need to define a schema that 
 In this example, the `Category` schema depends on itself because it has a field `subcategories` that is an array of `Category` objects.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Category extends Schema.Class<Category>("Category")({
   name: Schema.String,
@@ -351,7 +351,7 @@ class Category extends Schema.Class<Category>("Category")({
 
 ```ts twoslash
 // @errors: 2506 7024
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Category extends Schema.Class<Category>("Category")({
   name: Schema.String,
@@ -364,7 +364,7 @@ class Category extends Schema.Class<Category>("Category")({
 Here's an example of two mutually recursive schemas, `Expression` and `Operation`, that represent a simple arithmetic expression tree.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Expression extends Schema.Class<Expression>("Expression")({
   type: Schema.Literal("expression"),
@@ -393,7 +393,7 @@ When we add this field to the `Category` schema, TypeScript raises an error:
 
 ```ts twoslash
 // @errors: 2322
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Category extends Schema.Class<Category>("Category")({
   id: Schema.NumberFromString,
@@ -407,7 +407,7 @@ class Category extends Schema.Class<Category>("Category")({
 This error occurs because the explicit annotation `S.suspend((): S.Schema<Category> => Category` is no longer sufficient and needs to be adjusted by explicitly adding the `Encoded` type:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 interface CategoryEncoded {
   readonly id: string
@@ -428,7 +428,7 @@ As we've observed, it's necessary to define an interface for the `Encoded` of th
 One pattern to mitigate this is to **separate the field responsible for recursion** from all other fields.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const fields = {
   id: Schema.NumberFromString,
@@ -457,7 +457,7 @@ You can also create classes that extend [TaggedClass](../../other/data-types/dat
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class TaggedPerson extends Schema.TaggedClass<TaggedPerson>()(
   "TaggedPerson",
@@ -485,7 +485,7 @@ In situations where you need to augment your existing class with more fields, th
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -511,8 +511,7 @@ You have the option to enhance a class with (effectful) transformations.
 This becomes valuable when you want to enrich or validate an entity sourced from a data store.
 
 ```ts twoslash
-import { Schema, ParseResult } from "@effect/schema"
-import { Effect, Option } from "effect"
+import { Effect, Option, Schema, ParseResult } from "effect"
 
 export class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
