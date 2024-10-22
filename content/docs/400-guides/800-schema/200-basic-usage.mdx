@@ -34,14 +34,14 @@ bottomNavigation: pagination
 | `Partial<A>`                                              |                                          | `S.partial(A)`                                                             |
 | `Required<A>`                                             |                                          | `S.required(A)`                                                            |
 
-Here are the primitive schemas provided by the `@effect/schema/Schema` module:
+Here are the primitive schemas provided by the `effect/Schema` module:
 
 ## Primitives
 
 These primitive schemas are building blocks for creating more complex schemas to describe your data structures.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 Schema.String // Schema<string>
 Schema.Number // Schema<number>
@@ -62,7 +62,7 @@ Literals represent specific values that are directly specified.
 
 ```ts twoslash
 // @target: ES2020
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 Schema.Null // same as S.Literal(null)
 Schema.Literal("a")
@@ -77,7 +77,7 @@ Schema.Literal(true)
 You can access the literals of a literal schema:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Literal("a", "b")
 
@@ -90,7 +90,7 @@ const literals = schema.literals
 We can also use `Schema.pickLiteral` with a literal schema to narrow down the possible values:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 Schema.Literal("a", "b", "c").pipe(Schema.pickLiteral("a", "b")) // same as S.Literal("a", "b")
 ```
@@ -98,7 +98,7 @@ Schema.Literal("a", "b", "c").pipe(Schema.pickLiteral("a", "b")) // same as S.Li
 Sometimes, we need to reuse a schema literal in other parts of our code. Let's see an example:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const FruitId = Schema.Number
 // the source of truth regarding the Fruit category
@@ -131,7 +131,7 @@ The `Schema.TemplateLiteral` constructor allows you to create a schema for these
 Here's how you can use it:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // This creates a TemplateLiteral of type `a${string}`
 Schema.TemplateLiteral("a", Schema.String)
@@ -148,7 +148,7 @@ Schema.TemplateLiteral(
 Let's look at a more complex example. Suppose you have two sets of locale IDs for emails and footers:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // example from https://www.typescriptlang.org/docs/handbook/2/template-literal-types.html
 const EmailLocaleIDs = Schema.Literal("welcome_email", "email_heading")
@@ -158,7 +158,7 @@ const FooterLocaleIDs = Schema.Literal("footer_title", "footer_sendoff")
 You can use the `Schema.TemplateLiteral` constructor to create a schema that combines these IDs:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const EmailLocaleIDs = Schema.Literal("welcome_email", "email_heading")
 const FooterLocaleIDs = Schema.Literal("footer_title", "footer_sendoff")
@@ -186,7 +186,7 @@ This new approach enhances developer productivity by reducing boilerplate code a
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // const schema: Schema.Schema<readonly [number, "a", string], `${string}a${string}`, never>
 const schema = Schema.TemplateLiteralParser(
@@ -205,7 +205,7 @@ console.log(Schema.encode(schema)([100, "a", "foo"]))
 ## Unique Symbols
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const mySymbol = Symbol.for("mysymbol")
 
@@ -225,7 +225,7 @@ Using the `Schema.filter` function, developers can define custom validation logi
 **Example: Simple Validation**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const LongString = Schema.String.pipe(
   Schema.filter(
@@ -298,7 +298,7 @@ It's beneficial to embed as much metadata as possible within the schema. This me
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const LongString = Schema.String.pipe(
   Schema.filter(
@@ -329,8 +329,7 @@ It's possible to specify an error path along with the message, which enhances er
 **Example**
 
 ```ts twoslash
-import { ArrayFormatter, Schema } from "@effect/schema"
-import { Either } from "effect"
+import { Either, Schema, ParseResult } from "effect"
 
 const Password = Schema.Trim.pipe(Schema.minLength(1))
 
@@ -353,7 +352,11 @@ console.log(
     Schema.decodeUnknownEither(MyForm)({
       password: "abc",
       confirm_password: "d"
-    }).pipe(Either.mapLeft((error) => ArrayFormatter.formatErrorSync(error))),
+    }).pipe(
+      Either.mapLeft((error) =>
+        ParseResult.ArrayFormatter.formatErrorSync(error)
+      )
+    ),
     null,
     2
   )
@@ -389,8 +392,7 @@ The `Schema.filter` API also supports reporting multiple issues at once, which i
 **Example**
 
 ```ts twoslash
-import { ArrayFormatter, Schema } from "@effect/schema"
-import { Either } from "effect"
+import { Either, Schema, ParseResult } from "effect"
 
 const Password = Schema.Trim.pipe(Schema.minLength(1))
 const OptionalString = Schema.optional(Schema.String)
@@ -426,7 +428,11 @@ console.log(
     Schema.decodeUnknownEither(MyForm)({
       password: "abc",
       confirm_password: "d"
-    }).pipe(Either.mapLeft((error) => ArrayFormatter.formatErrorSync(error))),
+    }).pipe(
+      Either.mapLeft((error) =>
+        ParseResult.ArrayFormatter.formatErrorSync(error)
+      )
+    ),
     null,
     2
   )
@@ -466,7 +472,7 @@ console.log(
 You can access the base schema for which the filter has been defined:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const LongString = Schema.String.pipe(Schema.filter((s) => s.length >= 10))
 
@@ -479,7 +485,7 @@ In this example, you're able to access the original schema (`Schema.String`) for
 ### String Filters
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Specifies maximum length of a string
 Schema.String.pipe(Schema.maxLength(5))
@@ -524,7 +530,7 @@ Schema.String.pipe(Schema.lowercased())
 ### Number Filters
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Specifies a number greater than 5
 Schema.Number.pipe(Schema.greaterThan(5))
@@ -570,7 +576,7 @@ Schema.Number.pipe(Schema.multipleOf(5))
 
 ```ts twoslash
 // @target: ES2020
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Specifies a BigInt greater than 5
 Schema.BigInt.pipe(Schema.greaterThanBigInt(5n))
@@ -603,7 +609,7 @@ Schema.BigInt.pipe(Schema.nonPositiveBigInt())
 ### BigDecimal Filters
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { BigDecimal } from "effect"
 
 // Specifies a BigDecimal greater than 5
@@ -645,7 +651,7 @@ Schema.BigDecimal.pipe(Schema.nonPositiveBigDecimal())
 ### Duration Filters
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Specifies a duration greater than 5 seconds
 Schema.Duration.pipe(Schema.greaterThanDuration("5 seconds"))
@@ -666,7 +672,7 @@ Schema.Duration.pipe(Schema.betweenDuration("5 seconds", "10 seconds"))
 ### Array Filters
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Specifies the maximum number of items in the array
 Schema.Array(Schema.Number).pipe(Schema.maxItems(2))
@@ -724,7 +730,7 @@ There are two ways to define a schema for a branded type, depending on whether y
 To define a schema for a branded type from scratch, you can use the `Schema.brand` function.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const UserId = Schema.String.pipe(Schema.brand("UserId"))
 
@@ -735,7 +741,7 @@ type UserId = Schema.Schema.Type<typeof UserId>
 Note that you can use `unique symbol`s as brands to ensure uniqueness across modules / packages:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const UserIdBrand = Symbol.for("UserId")
 
@@ -747,10 +753,10 @@ type UserId = Schema.Schema.Type<typeof UserId>
 
 ### Reusing an existing branded constructor
 
-If you have already defined a [branded type](../style/branded-types) using the `effect/Brand` module, you can reuse it to define a schema using the `fromBrand` combinator exported by the `@effect/schema/Schema` module.
+If you have already defined a [branded type](../style/branded-types) using the `effect/Brand` module, you can reuse it to define a schema using the `fromBrand` combinator exported by the `effect/Schema` module.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Brand } from "effect"
 
 // the existing branded type
@@ -767,7 +773,7 @@ const UserIdSchema = Schema.String.pipe(Schema.fromBrand(UserId))
 The `Schema.brand` function includes a default constructor to facilitate the creation of branded values.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const UserId = Schema.String.pipe(Schema.brand("UserId"))
 
@@ -777,7 +783,7 @@ const userId = UserId.make("123") // Creates a branded UserId
 ## Native enums
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 enum Fruits {
   Apple,
@@ -793,7 +799,7 @@ const schema = Schema.Enums(Fruits)
 Enums are exposed under an `enums` property of the schema:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 enum Fruits {
   Apple,
@@ -814,7 +820,7 @@ schema.enums.Banana // Access the Banana member
 The Schema module includes a built-in `Union` constructor for composing "OR" types.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Union(Schema.String, Schema.Number)
 ```
@@ -824,7 +830,7 @@ const schema = Schema.Union(Schema.String, Schema.Number)
 While the following is perfectly acceptable:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Union(
   Schema.Literal("a"),
@@ -836,7 +842,7 @@ const schema = Schema.Union(
 It is possible to use `Literal` and pass multiple literals, which is less cumbersome:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Literal("a", "b", "c")
 ```
@@ -844,7 +850,7 @@ const schema = Schema.Literal("a", "b", "c")
 ### Nullables
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Represents a schema for a string or null value
 Schema.NullOr(Schema.String)
@@ -883,7 +889,7 @@ type Shape = Circle | Square
 This code defines a discriminated union using the Schema module:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Circle = Schema.Struct({
   kind: Schema.Literal("circle"),
@@ -910,7 +916,7 @@ If you're working on a TypeScript project and you've defined a simple union to r
 For example, let's say you've defined a `Shape` union as a combination of `Circle` and `Square` without any special property:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Circle = Schema.Struct({
   radius: Schema.Number
@@ -929,7 +935,7 @@ To achieve this, you can add a special property to each member of the union, whi
 Here's how you can [transform](transformations#transform) the `Shape` schema into another schema that represents a discriminated union:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Circle = Schema.Struct({
   radius: Schema.Number
@@ -972,7 +978,7 @@ The previous solution works perfectly and shows how we can add properties to our
 However, it requires a lot of boilerplate. Fortunately, there is an API called `Schema.attachPropertySignature` designed specifically for this use case, which allows us to achieve the same result with much less effort:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Circle = Schema.Struct({ radius: Schema.Number })
 const Square = Schema.Struct({ sideLength: Schema.Number })
@@ -1005,7 +1011,7 @@ console.log(
 You can access the individual members of a union schema represented as a tuple:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Union(Schema.String, Schema.Number)
 
@@ -1020,7 +1026,7 @@ const members = schema.members
 To define a tuple with required elements, you specify the list of elements:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Tuple(Schema.String, Schema.Number)
 ```
@@ -1028,7 +1034,7 @@ const schema = Schema.Tuple(Schema.String, Schema.Number)
 ### Append a Required Element
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const tuple1 = Schema.Tuple(Schema.String, Schema.Number)
 
@@ -1040,7 +1046,7 @@ const tuple2 = Schema.Tuple(...tuple1.elements, Schema.Boolean)
 To define an optional element, wrap the schema of the element with the `optionalElement` constructor:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Tuple(
   Schema.String, // required element
@@ -1053,7 +1059,7 @@ const schema = Schema.Tuple(
 To define rest elements, follow the list of elements (required or optional) with an element for the rest:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Tuple(
   [Schema.String, Schema.optionalElement(Schema.Number)], // elements
@@ -1064,7 +1070,7 @@ const schema = Schema.Tuple(
 Optionally, you can include other elements after the rest:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Tuple(
   [Schema.String, Schema.optionalElement(Schema.Number)], // elements
@@ -1078,7 +1084,7 @@ const schema = Schema.Tuple(
 You can access the elements and rest elements of a tuple schema:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Tuple(
   [Schema.String, Schema.optionalElement(Schema.Number)], // elements
@@ -1098,7 +1104,7 @@ const restElements = schema.rest
 Annotations are used to add metadata to tuple elements, which can describe the purpose or requirements of each element more clearly. This can be particularly useful when generating documentation or JSON schemas from your schemas.
 
 ```ts twoslash
-import { JSONSchema, Schema } from "@effect/schema"
+import { JSONSchema, Schema } from "effect"
 
 // Defining a tuple with annotations for each coordinate in a point
 const Point = Schema.Tuple(
@@ -1136,7 +1142,7 @@ Output:
 ## Arrays
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Array(Schema.Number)
 ```
@@ -1146,7 +1152,7 @@ const schema = Schema.Array(Schema.Number)
 You can access the value of an array schema:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Array(Schema.String)
 
@@ -1159,7 +1165,7 @@ const value = schema.value // typeof Schema.String
 By default, when you use `Schema.Array`, it generates a type marked as readonly. The `mutable` combinator is a useful function for creating a new schema with a mutable type in a **shallow** manner:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.mutable(Schema.Array(Schema.Number))
 ```
@@ -1167,7 +1173,7 @@ const schema = Schema.mutable(Schema.Array(Schema.Number))
 ## Non empty arrays
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.NonEmptyArray(Schema.Number)
 ```
@@ -1177,7 +1183,7 @@ const schema = Schema.NonEmptyArray(Schema.Number)
 You can access the value of a non-empty array schema:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.NonEmptyArray(Schema.String)
 
@@ -1190,7 +1196,7 @@ const value = schema.value
 ### String Keyed Records
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const opaque = Schema.Record({ key: Schema.String, value: Schema.Number })
 
@@ -1201,7 +1207,7 @@ const schema = Schema.asSchema(opaque)
 ### Union of Literals as Keys
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const opaque = Schema.Record({
   key: Schema.Union(Schema.Literal("a"), Schema.Literal("b")),
@@ -1215,7 +1221,7 @@ const schema = Schema.asSchema(opaque)
 ### Applying Key Refinements
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Record({
   key: Schema.String.pipe(Schema.minLength(2)),
@@ -1226,7 +1232,7 @@ const schema = Schema.Record({
 ### Symbol Keyed Records
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Record({
   key: Schema.SymbolFromSelf,
@@ -1237,7 +1243,7 @@ const schema = Schema.Record({
 ### Employing Template Literal Keys
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const opaque = Schema.Record({
   key: Schema.TemplateLiteral(Schema.Literal("a"), Schema.String),
@@ -1253,7 +1259,7 @@ const schema = Schema.asSchema(opaque)
 By default, when you use `Schema.Record`, it generates a type marked as readonly. The `mutable` combinator is a useful function for creating a new schema with a mutable type in a **shallow** manner:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.mutable(
   Schema.Record({ key: Schema.String, value: Schema.Number })
@@ -1265,7 +1271,7 @@ const schema = Schema.mutable(
 You can access the key and the value of a record schema:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Record({ key: Schema.String, value: Schema.Number })
 
@@ -1281,7 +1287,7 @@ const value = schema.value
 Structs are used to define schemas for objects with specific properties. Here's how you can create and use a struct schema:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Define a struct schema for an object with properties "name" (string) and "age" (number)
 const MyStruct = Schema.Struct({
@@ -1304,7 +1310,7 @@ representing the structure of the object.
 To view the detailed type of `MyStruct`, you can use the `Schema.asSchema` function:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const MyStruct = Schema.Struct({
   name: Schema.String,
@@ -1341,7 +1347,7 @@ The `Struct` constructor optionally accepts a list of key/value pairs representi
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 /*
 Schema.TypeLiteral<{
@@ -1373,7 +1379,7 @@ const nonOpaque = Schema.asSchema(opaque)
 Since the `Schema.Record` constructor returns a schema that exposes both the `key` and the `value`, instead of passing a bare object `{ key, value }`, you can use the `Record` constructor:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 /*
 Schema.TypeLiteral<{
@@ -1402,7 +1408,7 @@ const nonOpaque = Schema.asSchema(opaque)
 You can access the fields and the records of a struct schema:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Struct(
   { a: Schema.Number },
@@ -1422,7 +1428,7 @@ By default, when you use `Schema.Struct`, it generates a type with properties th
 The `Schema.mutable` combinator is a useful function for creating a new schema with properties made mutable in a **shallow** manner:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const opaque = Schema.mutable(
   Schema.Struct({ a: Schema.String, b: Schema.Number })
@@ -1463,7 +1469,7 @@ to a "To" field:
 Let's start with the simple definition of a property signature that can be used to add annotations:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 /*
 Schema.Struct<{
@@ -1524,7 +1530,7 @@ indicates that there is the following transformation:
 Now, suppose the field from which decoding occurs is named `"AGE"`, but for our model, we want to keep the name in lowercase `"age"`. To achieve this result, we need to map the field key from `"AGE"` to `"age"`, and to do that, we can use the `fromKey` combinator:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 /*
 Schema.Struct<{
@@ -1550,7 +1556,7 @@ PropertySignature<":", number, "AGE", ":", string, false, never>
 Now, let's see an example of decoding:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -1633,7 +1639,7 @@ the approach varies based on the `exactOptionalPropertyTypes` configuration in y
 When this feature is turned off, you can employ the `Schema.optional` function. This approach allows the field to implicitly accept `undefined` as a value.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({
   foo: Schema.optional(Schema.Never)
@@ -1646,7 +1652,7 @@ When this feature is turned on, the `Schema.optionalWith` function is recommende
 It ensures stricter enforcement of the field's absence.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({
   foo: Schema.optionalWith(Schema.Never, { exact: true })
@@ -1662,7 +1668,7 @@ The `default` option in schemas allows you to set default values that are applie
 Let's see how default values work in both the decoding and constructing phases, illustrating how the default value is applied when certain properties are not provided.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Product = Schema.Struct({
   name: Schema.String,
@@ -1807,7 +1813,7 @@ Additionally, we can control the presence or absence of the field using `decode`
 Suppose we have an optional field of type `string`, and we want to exclude empty strings from the output. In other words, if the input contains an empty string, we want the field to be absent in the output.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { identity, Option } from "effect"
 
 const schema = Schema.Struct({
@@ -1869,7 +1875,7 @@ We can control the presence or absence of the field using `decode` and `encode`,
 For instance, a common use case is to assign a default value to the field in the output if it's missing in the input.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Option } from "effect"
 
 const schema = Schema.Struct({
@@ -1922,7 +1928,7 @@ We can control the presence or absence of the field using `decode` and `encode`,
 Let's look at a practical example where a field `name` that is typically required can be considered optional if it's an empty string during decoding, and ensure there is always a value during encoding by providing a default.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Option } from "effect"
 
 const schema = Schema.Struct({
@@ -1952,7 +1958,7 @@ To rename a property directly during schema creation, you can utilize the `Schem
 **Example: Renaming a Required Property**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({
   a: Schema.propertySignature(Schema.String).pipe(Schema.fromKey("c")),
@@ -1966,7 +1972,7 @@ console.log(Schema.decodeUnknownSync(schema)({ c: "c", b: 1 }))
 **Example: Renaming an Optional Property**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({
   a: Schema.optional(Schema.String).pipe(Schema.fromKey("c")),
@@ -1989,7 +1995,7 @@ For existing schemas, the `rename` API offers a way to systematically change pro
 **Example: Renaming Properties in a Struct Schema**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Original Schema
 const originalSchema = Schema.Struct({
@@ -2007,7 +2013,7 @@ console.log(Schema.decodeUnknownSync(renamedSchema)({ c: "c", b: 1 }))
 **Example: Renaming Properties in Union Schemas**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const originalSchema = Schema.Union(
   Schema.Struct({
@@ -2043,7 +2049,7 @@ A tag is a literal value added to data structures, commonly used in structs, to 
 The `tag` constructor is specifically designed to create a property signature that holds a specific literal value, serving as the discriminator for object types. Here's how you can define a schema with a tag:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const User = Schema.Struct({
   _tag: Schema.tag("User"),
@@ -2065,7 +2071,7 @@ In the example above, `Schema.tag("User")` attaches a `_tag` property to the `Us
 The `TaggedStruct` constructor streamlines the process of creating tagged structs by directly integrating the tag into the struct definition. This method provides a clearer and more declarative approach to building data structures with embedded discriminators.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const User = Schema.TaggedStruct("User", {
   name: Schema.String,
@@ -2087,7 +2093,7 @@ Output:
 While a primary tag is often sufficient, TypeScript allows you to define multiple tags for more complex data structuring needs. Here's an example demonstrating the use of multiple tags within a single struct:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Product = Schema.TaggedStruct("Product", {
   category: Schema.tag("Electronics"),
@@ -2119,7 +2125,7 @@ When you need to define a schema for your custom data type defined through a `cl
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class MyData {
   constructor(readonly name: string) {}
@@ -2138,14 +2144,14 @@ ParseError: Expected MyData, actual {"name":"name"}
 */
 ```
 
-The `Schema.instanceOf` constructor is just a lightweight wrapper of the [Schema.declare](#declaring-new-data-types) API, which is the primitive in `@effect/schema` for declaring new custom data types.
+The `Schema.instanceOf` constructor is just a lightweight wrapper of the [Schema.declare](#declaring-new-data-types) API, which is the primitive in `effect/Schema` for declaring new custom data types.
 
 However, note that `Schema.instanceOf` can only be used for classes that expose a **public constructor**.
 If you try to use it with classes that, for some reason, have marked the constructor as `private`, you'll receive a TypeScript error:
 
 ```ts twoslash
 // @errors: 2345
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class MyData {
   static make = (name: string) => new MyData(name)
@@ -2158,7 +2164,7 @@ const MyDataSchema = Schema.instanceOf(MyData)
 In such cases, you cannot use `Schema.instanceOf`, and you must rely on [Schema.declare](#declaring-new-data-types) like this:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class MyData {
   static make = (name: string) => new MyData(name)
@@ -2182,7 +2188,7 @@ ParseError: Expected <declaration schema>, actual {"name":"name"}
 To improve the error message in case of failed decoding, remember to add [annotations](error-formatters#customizing-the-output):
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class MyData {
   static make = (name: string) => new MyData(name)
@@ -2207,7 +2213,7 @@ ParseError: Expected MyData, actual {"name":"name"}
 The `pick` static function available in each struct schema can be used to create a new `Struct` by selecting particular properties from an existing `Struct`.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const MyStruct = Schema.Struct({
   a: Schema.String,
@@ -2225,7 +2231,7 @@ However it returns a generic `SchemaClass`.
 **Example: Picking from a Union**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const MyUnion = Schema.Union(
   Schema.Struct({ a: Schema.String, b: Schema.String, c: Schema.String }),
@@ -2241,7 +2247,7 @@ const PickedSchema = MyUnion.pipe(Schema.pick("a", "b"))
 The `omit` static function available in each struct schema can be used to create a new `Struct` by excluding particular properties from an existing `Struct`.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const MyStruct = Schema.Struct({
   a: Schema.String,
@@ -2257,7 +2263,7 @@ The `Schema.omit` function can be applied more broadly beyond just `Struct` type
 However it returns a generic `Schema`.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const MyUnion = Schema.Union(
   Schema.Struct({ a: Schema.String, b: Schema.String, c: Schema.String }),
@@ -2277,7 +2283,7 @@ By default, the `Schema.partial` operation adds a union with `undefined` to the 
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Schema<{ readonly a?: string | undefined; }>
 const schema = Schema.partial(Schema.Struct({ a: Schema.String }))
@@ -2305,7 +2311,7 @@ ParseError: { readonly a?: string }
 The `Schema.required` operation ensures that all properties in a schema are mandatory.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Schema<{ readonly a: string; readonly b: number; }>
 const schema = Schema.required(
@@ -2325,7 +2331,7 @@ Structs expose their fields through a `fields` property. This feature can be uti
 **Example: Adding Fields**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Struct1 = Schema.Struct({
   a: Schema.String,
@@ -2343,7 +2349,7 @@ const Extended = Schema.Struct({
 **Example: Integrating Additional Index Signatures**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Struct = Schema.Struct({
   a: Schema.String,
@@ -2359,7 +2365,7 @@ const Extended = Schema.Struct(
 **Example: Merging Fields from Two Structs**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Struct1 = Schema.Struct({
   a: Schema.String,
@@ -2400,7 +2406,7 @@ Possible extensions include:
 **Example: Extending a Struct with a Union of Structs**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Struct = Schema.Struct({
   a: Schema.String
@@ -2417,7 +2423,7 @@ const Extended = Schema.extend(Struct, UnionOfStructs)
 This example shows an attempt to extend a struct with another struct where field names overlap, leading to an error:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Struct = Schema.Struct({
   a: Schema.String
@@ -2440,7 +2446,7 @@ details: cannot extend string with number
 **Example: Extending a refinement of Schema.String with another refinement**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Integer = Schema.Int.pipe(Schema.brand("Int"))
 const Positive = Schema.Positive.pipe(Schema.brand("Positive"))
@@ -2473,7 +2479,7 @@ Combining and reusing schemas is a common requirement, the `Schema.compose` comb
 It enables you to combine two schemas, `Schema<B, A, R1>` and `Schema<C, B, R2>`, into a single schema `Schema<C, A, R1 | R2>`:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Schema<readonly string[], string>
 const schema1 = Schema.split(",")
@@ -2494,7 +2500,7 @@ Now, by using the `compose` combinator, we can create a new schema, `ComposedSch
 If you need to be less restrictive when composing your schemas, i.e., when you have something like `Schema<R1, A, B>` and `Schema<R2, C, D>` where `C` is different from `B`, you can make use of the `{ strict: false }` option:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 Schema.compose(
   // @ts-expect-error
@@ -2519,7 +2525,7 @@ Creating schemas for new data types is crucial to defining the expected structur
 A primitive data type represents simple values. To declare a schema for a primitive data type, like the `File` type in TypeScript, we use the `S.declare` constructor along with a type guard. Let's go through an example:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const FileFromSelf = Schema.declare(
   (input: unknown): input is File => input instanceof File
@@ -2542,7 +2548,7 @@ As you can see, the error message describes what went wrong but doesn't provide 
 A "title" should be concise, while a "description" provides a more detailed explanation of the purpose of the data described by the schema.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const FileFromSelf = Schema.declare(
   (input: unknown): input is File => input instanceof File,
@@ -2569,7 +2575,7 @@ ParseError: Expected FileFromSelf, actual null
 Type constructors are generic types that take one or more types as arguments and return a new type. If you need to define a schema for a type constructor, you can use the `S.declare` constructor. Let's illustrate this with a schema for `ReadonlySet<A>`:
 
 ```ts twoslash
-import { ParseResult, Schema } from "@effect/schema"
+import { ParseResult, Schema } from "effect"
 
 export const MyReadonlySet = <A, I, R>(
   // Schema for the elements of the Set
@@ -2651,7 +2657,7 @@ ParseError: ReadonlyArray<NumberFromString>
 When you define a new data type, some compilers like `Arbitrary` or `Pretty` may not know how to handle the newly defined data. For instance:
 
 ```ts twoslash
-import { Arbitrary, Schema } from "@effect/schema"
+import { Arbitrary, Schema } from "effect"
 
 const FileFromSelf = Schema.declare(
   (input: unknown): input is File => input instanceof File,
@@ -2673,7 +2679,7 @@ schema (Declaration): FileFromSelf
 In such cases, you need to provide annotations to ensure proper functionality:
 
 ```ts twoslash
-import { Arbitrary, FastCheck, Pretty, Schema } from "@effect/schema"
+import { Arbitrary, FastCheck, Pretty, Schema } from "effect"
 
 const FileFromSelf = Schema.declare(
   (input: unknown): input is File => input instanceof File,
@@ -2720,7 +2726,7 @@ The `Schema.suspend` function is useful when you need to define a schema that de
 In this example, the `Category` schema depends on itself because it has a field `subcategories` that is an array of `Category` objects.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 interface Category {
   readonly name: string
@@ -2743,7 +2749,7 @@ const Category = Schema.Struct({
 
 ```ts twoslash
 // @errors: 2506 7024 7022
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Category = Schema.Struct({
   name: Schema.String,
@@ -2757,7 +2763,7 @@ As we've observed, it's necessary to define an interface for the `Type` of the s
 One pattern to mitigate this is to **separate the field responsible for recursion** from all other fields.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const fields = {
   name: Schema.String
@@ -2784,7 +2790,7 @@ const Category = Schema.Struct({
 Here's an example of two mutually recursive schemas, `Expression` and `Operation`, that represent a simple arithmetic expression tree.
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 interface Expression {
   readonly type: "expression"
@@ -2826,7 +2832,7 @@ When we add this field to the `Category` schema, TypeScript raises an error:
 
 ```ts twoslash
 // @errors: 2322
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const fields = {
   id: Schema.NumberFromString,
@@ -2848,7 +2854,7 @@ const Category = Schema.Struct({
 This error occurs because the explicit annotation `Schema.Schema<Category>` is no longer sufficient and needs to be adjusted by explicitly adding the `Encoded` type:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const fields = {
   id: Schema.NumberFromString,

@@ -1,10 +1,10 @@
 ---
 title: Projections
-excerpt: The `@effect/schema` library facilitates the extraction of `Type` or `Encoded` portions from schemas, streamlining the creation of new schemas based on old specifications.
+excerpt: The `effect/Schema` module facilitates the extraction of `Type` or `Encoded` portions from schemas, streamlining the creation of new schemas based on old specifications.
 bottomNavigation: pagination
 ---
 
-Occasionally, you may need to derive a new schema from an existing one, specifically targeting either its `Type` or `Encoded` portion. The `@effect/schema` library provides several APIs to support this functionality.
+Occasionally, you may need to derive a new schema from an existing one, specifically targeting either its `Type` or `Encoded` portion. The `effect/Schema` module provides several APIs to support this functionality.
 
 ## typeSchema
 
@@ -19,7 +19,7 @@ declare const typeSchema: <A, I, R>(schema: Schema<A, I, R>) => Schema<A>
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const original = Schema.Struct({
   foo: Schema.NumberFromString.pipe(Schema.greaterThanOrEqualTo(2))
@@ -54,7 +54,7 @@ declare const encodedSchema: <A, I, R>(schema: Schema<A, I, R>) => Schema<I>
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const original = Schema.Struct({
   foo: Schema.String.pipe(Schema.minLength(3))
@@ -93,7 +93,7 @@ The term "bound" in this context refers to the boundary up to which refinements 
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const original = Schema.Struct({
   foo: Schema.String.pipe(Schema.minLength(3), Schema.compose(Schema.Trim))

@@ -16,7 +16,7 @@ Remember, default constructors linked to a schema `Schema<A, I, R>` specifically
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Struct = Schema.Struct({
   name: Schema.NonEmptyString
@@ -38,10 +38,10 @@ ParseError: { readonly name: NonEmptyString }
 ```
 
 There are scenarios where you might want to bypass validation during instantiation.
-Although not typically recommended, `@effect/schema` allows for this flexibility:
+Although not typically recommended, `effect/Schema` allows for this flexibility:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Struct = Schema.Struct({
   name: Schema.NonEmptyString
@@ -60,7 +60,7 @@ Struct.make({ name: "" }, { disableValidation: true })
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Record = Schema.Record({
   key: Schema.String,
@@ -90,7 +90,7 @@ Record.make({ a: "a", b: "" }, { disableValidation: true })
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const MyNumber = Schema.Number.pipe(Schema.between(1, 10))
 
@@ -115,7 +115,7 @@ MyNumber.make(20, { disableValidation: true })
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const BrandedNumberSchema = Schema.Number.pipe(
   Schema.between(1, 10),
@@ -149,7 +149,7 @@ This is because the goal of default constructors is to provide a quick way to cr
 To have a "safe" constructor, you can use `Schema.validateEither`:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const MyNumber = Schema.Number.pipe(Schema.between(1, 10))
 
@@ -183,7 +183,7 @@ The `Schema.withConstructorDefault` function allows you to manage the optionalit
 **Example: Without Default**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
@@ -197,7 +197,7 @@ Person.make({ name: "John", age: 30 })
 **Example: With Default**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
@@ -220,7 +220,7 @@ In the second example, notice how the `age` field is now optional and defaults t
 Defaults are **lazily evaluated**, meaning that a new instance of the default is generated every time the constructor is called:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
@@ -246,7 +246,7 @@ Note how the `timestamp` field varies.
 Default values are also "portable", meaning that if you reuse the same property signature in another schema, the default is carried over:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
@@ -271,7 +271,7 @@ console.log(AnotherSchema.make({ foo: "bar" })) // => { foo: 'bar', age: 0 }
 Defaults can also be applied using the `Class` API:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   name: Schema.NonEmptyString,

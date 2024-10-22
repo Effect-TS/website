@@ -4,13 +4,13 @@ excerpt: Annotations
 bottomNavigation: pagination
 ---
 
-One of the fundamental requirements in the design of `@effect/schema` is that it is extensible and customizable. Customizations are achieved through "annotations". Each node contained in the AST of `@effect/schema/AST` contains an `annotations: Record<symbol, unknown>` field that can be used to attach additional information to the schema.
+One of the fundamental requirements in the design of `effect/Schema` is that it is extensible and customizable. Customizations are achieved through "annotations". Each node contained in the AST of `effect/SchemaAST` contains an `annotations: Record<symbol, unknown>` field that can be used to attach additional information to the schema.
 You can manage these annotations using the `annotations` method or the `Schema.annotations` API.
 
 **Example of Using Annotations**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const Password =
   // initial schema, a string
@@ -70,7 +70,7 @@ The following table provides an overview of common built-in annotations and thei
 For complex schemas like `Struct`, `Array`, or `Union` that contain multiple nested schemas, the `concurrency` annotation provides a way to manage how validations are executed concurrently:
 
 ```twoslash include item
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import type { Duration } from "effect"
 import { Effect } from "effect"
 
@@ -148,7 +148,7 @@ By using this annotation, you can define custom fallback behaviors that trigger 
 **Example Usage**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Effect, Either } from "effect"
 
 // Basic Fallback
@@ -187,7 +187,7 @@ timestamp=2024-07-25T13:22:37.706Z level=INFO fiber=#0 message=Type
 You can also define your own custom annotations for specific needs. Here's how you can create a `deprecated` annotation:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const DeprecatedId = Symbol.for(
   "some/unique/identifier/for/your/custom/annotation"
@@ -201,8 +201,8 @@ Output:
 [class SchemaClass] {
   ast: StringKeyword {
     annotations: {
-      [Symbol(@effect/schema/annotation/Title)]: 'string',
-      [Symbol(@effect/schema/annotation/Description)]: 'a string',
+      [Symbol(effect/annotation/Title)]: 'string',
+      [Symbol(effect/annotation/Description)]: 'a string',
       [Symbol(some/unique/identifier/for/your/custom/annotation)]: true
     },
     _tag: 'StringKeyword'
@@ -215,8 +215,7 @@ Output:
 Annotations can be read using the `AST.getAnnotation` helper, here's an example:
 
 ```ts twoslash
-import { AST, Schema } from "@effect/schema"
-import { Option } from "effect"
+import { Option, Schema, SchemaAST } from "effect"
 
 const DeprecatedId = Symbol.for(
   "some/unique/identifier/for/your/custom/annotation"
@@ -225,7 +224,7 @@ const DeprecatedId = Symbol.for(
 const schema = Schema.String.annotations({ [DeprecatedId]: true })
 
 const isDeprecated = <A, I, R>(schema: Schema.Schema<A, I, R>): boolean =>
-  AST.getAnnotation<boolean>(DeprecatedId)(schema.ast).pipe(
+  SchemaAST.getAnnotation<boolean>(DeprecatedId)(schema.ast).pipe(
     Option.getOrElse(() => false)
   )
 

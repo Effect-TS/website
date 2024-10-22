@@ -21,7 +21,7 @@ console.log(Equal.equals(person1, person2)) // true
 You can use the `Schema.Data(schema)` combinator to build a schema from an existing schema that can decode a value `A` to a value with [Equal](../../other/trait/equal) and [Hash](../../other/trait/hash) traits added:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Equal } from "effect"
 
 const schema = Schema.Data(
@@ -66,7 +66,7 @@ The `Schema.Config` function operates through the following steps:
 **Example**
 
 ```ts twoslash filename="config.ts"
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Effect } from "effect"
 
 const myconfig = Schema.Config("Foo", Schema.String.pipe(Schema.minLength(4)))
@@ -116,7 +116,7 @@ To test the configuration, execute the following commands:
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Option } from "effect"
 
 const schema = Schema.Option(Schema.NumberFromString)
@@ -143,7 +143,7 @@ console.log(encode(Option.some(1))) // { _tag: 'Some', value: '1' }
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Option } from "effect"
 
 const schema = Schema.OptionFromSelf(Schema.NumberFromString)
@@ -170,7 +170,7 @@ console.log(encode(Option.some(1))) // { _id: 'Option', _tag: 'Some', value: '1'
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Option } from "effect"
 
 const schema = Schema.OptionFromUndefinedOr(Schema.NumberFromString)
@@ -197,7 +197,7 @@ console.log(encode(Option.some(1))) // "1"
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Option } from "effect"
 
 const schema = Schema.OptionFromNullOr(Schema.NumberFromString)
@@ -225,7 +225,7 @@ console.log(encode(Option.some(1))) // "1"
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Option } from "effect"
 
 const schema = Schema.OptionFromNullishOr(Schema.NumberFromString, undefined)
@@ -253,7 +253,7 @@ console.log(encode(Option.some(1))) // "1"
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 console.log(Schema.decodeSync(Schema.OptionFromNonEmptyTrimmedString)("")) // Option.none()
 console.log(Schema.decodeSync(Schema.OptionFromNonEmptyTrimmedString)(" a ")) // Option.some("a")
@@ -274,7 +274,7 @@ console.log(Schema.decodeSync(Schema.OptionFromNonEmptyTrimmedString)("a")) // O
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Either } from "effect"
 
 const schema = Schema.Either({
@@ -304,7 +304,7 @@ console.log(encode(Either.right(1))) // { _tag: 'Right', right: '1' }
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Either } from "effect"
 
 const schema = Schema.EitherFromSelf({
@@ -334,7 +334,7 @@ console.log(encode(Either.right(1))) // { _id: 'Either', _tag: 'Right', right: '
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Either } from "effect"
 
 const schema = Schema.EitherFromUnion({
@@ -364,7 +364,7 @@ console.log(encode(Either.right(1))) // "1"
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.ReadonlySet(Schema.NumberFromString)
 
@@ -385,7 +385,7 @@ console.log(encode(new Set([1, 2, 3]))) // [ '1', '2', '3' ]
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.ReadonlySetFromSelf(Schema.NumberFromString)
 
@@ -408,7 +408,7 @@ console.log(encode(new Set([1, 2, 3]))) // Set(3) { '1', '2', '3' }
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.ReadonlyMap({
   key: Schema.String,
@@ -446,7 +446,7 @@ console.log(
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.ReadonlyMapFromSelf({
   key: Schema.String,
@@ -486,7 +486,7 @@ console.log(
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.ReadonlyMapFromRecord({
   key: Schema.NumberFromString,
@@ -526,7 +526,7 @@ console.log(
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { HashSet } from "effect"
 
 const schema = Schema.HashSet(Schema.NumberFromString)
@@ -548,7 +548,7 @@ console.log(encode(HashSet.fromIterable([1, 2, 3]))) // [ '1', '2', '3' ]
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { HashSet } from "effect"
 
 const schema = Schema.HashSetFromSelf(Schema.NumberFromString)
@@ -572,7 +572,7 @@ console.log(encode(HashSet.fromIterable([1, 2, 3]))) // { _id: 'HashSet', values
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { HashMap } from "effect"
 
 const schema = Schema.HashMap({
@@ -611,7 +611,7 @@ console.log(
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { HashMap } from "effect"
 
 const schema = Schema.HashMapFromSelf({
@@ -654,7 +654,7 @@ console.log(
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Number, SortedSet } from "effect"
 
 const schema = Schema.SortedSet(Schema.NumberFromString, Number.Order)
@@ -676,7 +676,7 @@ console.log(encode(SortedSet.fromIterable(Number.Order)([1, 2, 3]))) // [ '1', '
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Number, SortedSet, String } from "effect"
 
 const schema = Schema.SortedSetFromSelf(
@@ -701,7 +701,7 @@ Converts an hrtime(i.e. `[seconds: number, nanos: number]`) into a `Duration`.
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.Duration // Schema<Duration, number>
 const decode = Schema.decodeUnknownSync(schema)
@@ -717,7 +717,7 @@ The `DurationFromSelf` schema is designed to validate that a given value conform
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Duration } from "effect"
 
 const schema = Schema.DurationFromSelf
@@ -734,7 +734,7 @@ Converts a `number` into a `Duration` where the number represents the number of 
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.DurationFromMillis // Schema<Duration, number>
 const decode = Schema.decodeUnknownSync(schema)
@@ -751,7 +751,7 @@ Converts a `BigInt` into a `Duration` where the number represents the number of 
 
 ```ts twoslash
 // @target: ES2020
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 const schema = Schema.DurationFromNanos // Schema<Duration, BigInt>
 const decode = Schema.decodeUnknownSync(schema)
@@ -767,7 +767,7 @@ Clamps a `Duration` between a minimum and a maximum value.
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Duration } from "effect"
 
 const schema = Schema.DurationFromSelf.pipe(
@@ -791,7 +791,7 @@ This transformation ensures that the sensitive data is not exposed in the applic
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 
 // Schema.Redacted<typeof Schema.String>
 const schema = Schema.Redacted(Schema.String)
@@ -811,7 +811,7 @@ It's important to note that when successfully decoding a `Redacted`, the output 
 **Practical Example Showing Potential Data Exposure**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Redacted } from "effect"
 
 const schema = Schema.Trimmed.pipe(
@@ -857,7 +857,7 @@ In the example above, if the input string does not meet the criteria (e.g., cont
 To reduce the risk of sensitive information leakage in error messages, you can customize the error messages to obscure sensitive details:
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Redacted } from "effect"
 
 const schema = Schema.Trimmed.annotations({
@@ -899,7 +899,7 @@ The `Schema.RedactedFromSelf` schema is designed to validate that a given value 
 **Example**
 
 ```ts twoslash
-import { Schema } from "@effect/schema"
+import { Schema } from "effect"
 import { Redacted } from "effect"
 
 const schema = Schema.RedactedFromSelf(Schema.String)

@@ -156,7 +156,7 @@ type User = yup.InferType<typeof User>`
         },
         withEffect: {
           fileName: "index.ts",
-          code: `import { Schema } from "@effect/schema"
+          code: `import { Schema } from "effect"
 
 const User = Schema.Struct({
   username: Schema.String

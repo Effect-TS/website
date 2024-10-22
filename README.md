@@ -46,7 +46,6 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 To update the versions of packages used in the playground, follow these steps:
 
 1. Open the `snapshots/tutorials/package.json` file and update it with the desired versions of the packages.
-2. After editing the file, execute the command `pnpm snapshots` in your terminal to apply the changes.
 
 ## Create Mermaid Diagrams
 

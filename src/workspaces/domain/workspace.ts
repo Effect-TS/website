@@ -1,5 +1,5 @@
 import { Array, Brand, Effect, Hash, Iterable, Option, pipe } from "effect"
-import * as Schema from "@effect/schema/Schema"
+import * as Schema from "effect/Schema"
 
 export type FullPath = Brand.Branded<string, "FullPath">
 export const FullPath = Brand.nominal<FullPath>()
