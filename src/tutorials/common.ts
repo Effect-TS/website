@@ -19,10 +19,9 @@ export const devToolsLayer = new File({
   name: "DevTools.ts",
   initialContent: `import { DevTools } from "@effect/experimental"
 import { NodeSocket } from "@effect/platform-node"
-import { Effect, Layer } from "effect"
+import { Layer } from "effect"
 
-export const DevToolsLive = Layer.effectDiscard(Effect.sleep(100)).pipe(
-  Layer.provideMerge(DevTools.layerSocket),
+export const DevToolsLive = DevTools.layerSocket.pipe(
   Layer.provide(NodeSocket.layerNet({ port: 34437 }))
 )`
 })
