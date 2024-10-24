@@ -60,6 +60,27 @@ In the above example, we start with an input value of `5`. The `increment` funct
 
 The result is equivalent to `subtractTen(double(increment(5)))`, but using `pipe` makes the code more readable because the operations are sequenced from left to right, rather than nesting them inside out.
 
+## flow
+
+`flow` is a "lazier" version of `pipe`. While `pipe` returns a concrete value, `flow` returns a function that returns a
+result. It allows us to reuse the same composed functions in different contexts.
+
+```ts twoslash
+import { pipe, flow } from "effect"
+
+const increment = (x: number) => x + 1
+const double = (x: number) => x * 2
+const subtractTen = (x: number) => x - 10
+
+const operation = flow(increment, double, subtractTen)
+
+const result1 = pipe(5, operation)
+const result2 = pipe(10, operation)
+
+console.log(result1) // Output: 2
+console.log(result2) // Output: 12
+```
+
 ## Functions vs Methods
 
 In the Effect ecosystem, libraries often expose functions rather than methods. This design choice is important for two key reasons: tree shakeability and extensibility.
@@ -447,62 +468,42 @@ Configuration: {"dbConnection":"localhost","port":8080}, DB Status: Connected to
 
 ## Build your first pipeline
 
-Now, let's combine `pipe`, `Effect.all` and `Effect.andThen` to build a pipeline that performs a series of transformations:
+Now, let's combine `pipe`, `Effect.all` and `Effect.andThen` to build a pipeline that performs a series of
+transformations.
 
-```ts twoslash
-import { Effect, pipe } from "effect"
+### Using pipe to chain operations
 
-// Function to add a small service charge to a transaction amount
-const addServiceCharge = (amount: number) => amount + 1
+At the beginning of this section, we saw how to use the `pipe` function to compose functions. Let us take a closer look
+on how to apply it to Effects. We should differentiate between
 
-// Function to apply a discount safely to a transaction amount
-const applyDiscount = (
-  total: number,
-  discountRate: number
-): Effect.Effect<number, Error> =>
-  discountRate === 0
-    ? Effect.fail(new Error("Discount rate cannot be zero"))
-    : Effect.succeed(total - (total * discountRate) / 100)
+- the `pipe` **method**, and
+- the `pipe` **function**
 
-// Simulated asynchronous task to fetch a transaction amount from a database
-const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
-
-// Simulated asynchronous task to fetch a discount rate from a configuration file
-const fetchDiscountRate = Effect.promise(() => Promise.resolve(5))
-
-// Assembling the program using a pipeline of effects
-const program = pipe(
-  Effect.all([fetchTransactionAmount, fetchDiscountRate]),
-  Effect.flatMap(([transactionAmount, discountRate]) =>
-    applyDiscount(transactionAmount, discountRate)
-  ),
-  Effect.map(addServiceCharge),
-  Effect.map((finalAmount) => `Final amount to charge: ${finalAmount}`)
-)
-
-// Execute the program and log the result
-Effect.runPromise(program).then(console.log) // Output: "Final amount to charge: 96"
-```
-
-## The pipe method
-
-Effect provides a `pipe` method that works similarly to the `pipe` method found in [rxjs](https://rxjs.dev/api/index/function/pipe). This method allows you to chain multiple operations together, making your code more concise and readable.
+by understanding that one comes from an Effect itself, while the other is a function that receives an input and applies
+other functions to it.
 
 Here's how the `pipe` **method** works:
 
 ```ts
+import { Effect } from "effect"
+
+const effect = Effect.succeed(5)
 const result = effect.pipe(func1, func2, ..., funcN)
 ```
 
-This is equivalent to using the `pipe` **function** like this:
+It is equivalent to using the `pipe` **function** like this:
 
 ```ts
+import { Effect, pipe } from "effect"
+
+const effect = Effect.succeed(5)
 const result = pipe(effect, func1, func2, ..., funcN)
 ```
 
-The `pipe` method is available on all effects and many other data types, eliminating the need to import the `pipe` function from the `Function` module and saving you some keystrokes.
+The `pipe` method is available on all effects and many other data types, eliminating the need to import the `pipe`
+function. It might save you some keystrokes occasionally.
 
-Let's rewrite the previous example using the `pipe` method:
+Let's finish the previous example using the `pipe` method:
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -521,7 +522,6 @@ const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
 
 const fetchDiscountRate = Effect.promise(() => Promise.resolve(5))
 
-// ---cut---
 const program = Effect.all([fetchTransactionAmount, fetchDiscountRate]).pipe(
   Effect.flatMap(([transactionAmount, discountRate]) =>
     applyDiscount(transactionAmount, discountRate)
@@ -529,7 +529,36 @@ const program = Effect.all([fetchTransactionAmount, fetchDiscountRate]).pipe(
   Effect.map(addServiceCharge),
   Effect.map((finalAmount) => `Final amount to charge: ${finalAmount}`)
 )
+
+Effect.runPromise(program).then(console.log) // Output: "Final amount to charge: 96"
 ```
+
+### Using flow to create reusable pipelines
+
+Sometimes, you may need to create a reusable pipeline of operations. In such cases, you can use the `flow` method.
+
+```ts twoslash
+import { Effect, Duration, flow } from "effect"
+
+const customRetryLogic = flow(
+  Effect.timeout(Duration.seconds(3)),
+  Effect.tapError((error) => Effect.log(`Failed: ${error}`)),
+  Effect.retry({ times: 2 }),
+  Effect.tapError((error) => Effect.log(`Abandon as retry failed: ${error}`)),
+)
+
+const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
+const fetchDiscountRate = Effect.promise(() => Promise.resolve(5))
+
+const fetchTransactionAmountWithRetry = fetchTransactionAmount.pipe(customRetryLogic)
+const fetchDiscountRateWithRetry = fetchDiscountRate.pipe(customRetryLogic)
+```
+
+<Info>
+    `flow` and `pipe` are very similar. The main difference is that `flow` returns *a function that returns a result*
+    (in this case, it is `() => Effect`), while `pipe` returns a result (an `Effect`). It suggests that `pipe` should be
+    used when you want a result, while `flow` should be used for further composition.
+</Info>
 
 ## Cheatsheet
 
