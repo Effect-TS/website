@@ -1,0 +1,775 @@
+---
+title: Expected Errors
+description: Explore how Effect represents and manages expected errors. Learn about creating error instances, tracking errors at the type level, and the short-circuiting behavior of Effect programs. Discover techniques to catch and recover from errors, and gain insights into error handling strategies using Effect's powerful combinators.
+sidebar:
+  order: 1
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+Expected errors are tracked at the type level by the [Effect data type](/docs/getting-started/the-effect-type/) in the "Error channel":
+
+```text showLineNumbers=false "Error"
+         ┌─── Represents the success type
+         │        ┌─── Represents the error type
+         │        │      ┌─── Represents required dependencies
+         ▼        ▼      ▼
+Effect<Success, Error, Requirements>
+```
+
+This means that the `Effect` type captures not only what the program returns on success but also what type of error it might produce.
+
+**Example** (Creating an Effect That Can Fail)
+
+In this example, we define a program that might randomly fail with an `HttpError`.
+
+```ts twoslash
+import { Effect, Random } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+//      ┌─── Effect<string, HttpError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  // Generate a random number between 0 and 1
+  const n = yield* Random.next
+
+  // Simulate an HTTP error
+  if (n < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+
+  return "some result"
+})
+```
+
+The type of `program` tells us that it can either return a `string` or fail with an `HttpError`:
+
+```ts "string" "HttpError" showLineNumbers=false
+const program: Effect<string, HttpError, never>
+```
+
+In this case, we use a class to represent the `HttpError` type, which allows us to define both the error type and a constructor. However, you can use whatever
+you like to model your error types.
+
+It's also worth noting that we added a readonly `_tag` field to the class:
+
+```ts showLineNumbers=false
+class HttpError {
+  // This field serves as a discriminant for the error
+  readonly _tag = "HttpError"
+}
+```
+
+This discriminant field will be useful when we discuss APIs like [Effect.catchTag](#catchtag), which help in handling specific error types.
+
+<Aside type="tip" title="Discriminant Fields">
+  Adding a discriminant field, such as `_tag`, can be beneficial for
+  distinguishing between different types of errors during error handling.
+  It also prevents TypeScript from unifying types, ensuring that each
+  error is treated uniquely based on its discriminant value.
+
+For more information on constructing tagged errors, see [Data.TaggedError](/docs/error-management/yieldable-errors/#datataggederror).
+
+</Aside>
+
+## Error Tracking
+
+In Effect, if a program can fail with multiple types of errors, they are automatically tracked as a union of those error types.
+This allows you to know exactly what errors can occur during execution, making error handling more precise and predictable.
+
+The example below illustrates how errors are automatically tracked for you.
+
+**Example** (Automatically Tracking Errors)
+
+```ts twoslash
+import { Effect, Random } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  // Generate two random numbers between 0 and 1
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+
+  // Simulate an HTTP error
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  // Simulate a validation error
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+
+  return "some result"
+})
+```
+
+Effect automatically keeps track of the possible errors that can occur during the execution of the program as a union:
+
+```ts "HttpError | ValidationError" showLineNumbers=false
+const program: Effect<string, HttpError | ValidationError, never>
+```
+
+indicating that it can potentially fail with either a `HttpError` or a `ValidationError`.
+
+## Short-Circuiting
+
+When working with APIs like [Effect.gen](/docs/getting-started/using-generators/#understanding-effectgen), [Effect.map](/docs/getting-started/building-pipelines/#map), [Effect.flatMap](/docs/getting-started/building-pipelines/#flatmap), and [Effect.andThen](/docs/getting-started/building-pipelines/#andthen), it's important to understand how they handle errors.
+These APIs are designed to **short-circuit the execution** upon encountering the **first error**.
+
+What does this mean for you as a developer? Well, let's say you have a chain of operations or a collection of effects to be executed in sequence. If any error occurs during the execution of one of these effects, the remaining computations will be skipped, and the error will be propagated to the final result.
+
+In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program, it won't waste time executing unnecessary computations. Instead, it will immediately stop and return the error to let you know that something went wrong.
+
+**Example** (Short-Circuiting Behavior)
+
+```ts twoslash {14-15}
+import { Effect, Console } from "effect"
+
+// Define three effects representing different tasks.
+const task1 = Console.log("Executing task1...")
+const task2 = Effect.fail("Something went wrong!")
+const task3 = Console.log("Executing task3...")
+
+// Compose the three tasks to run them in sequence.
+// If one of the tasks fails, the subsequent tasks won't be executed.
+const program = Effect.gen(function* () {
+  yield* task1
+  // After task1, task2 is executed, but it fails with an error
+  yield* task2
+  // This computation won't be executed because the previous one fails
+  yield* task3
+})
+
+Effect.runPromiseExit(program).then(console.log)
+/*
+Output:
+Executing task1...
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Something went wrong!' }
+}
+*/
+```
+
+This code snippet demonstrates the short-circuiting behavior when an error occurs.
+Each operation depends on the successful execution of the previous one.
+If any error occurs, the execution is short-circuited, and the error is propagated.
+In this specific example, `task3` is never executed because an error occurs in `task2`.
+
+## Catching All Errors
+
+### either
+
+The `Effect.either` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/data-types/either/) data type:
+
+```ts showLineNumbers=false
+Effect<A, E, R> -> Effect<Either<A, E>, never, R>
+```
+
+This means if you have an effect with the following type:
+
+```ts showLineNumbers=false
+Effect<string, HttpError, never>
+```
+
+and you call `Effect.either` on it, the type becomes:
+
+```ts showLineNumbers=false
+Effect<Either<string, HttpError>, never, never>
+```
+
+The resulting effect cannot fail because the potential failure is now represented within the `Either`'s `Left` type.
+The error type of the returned `Effect` is specified as `never`, confirming that the effect is structured to not fail.
+
+By yielding an `Either`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function.
+
+**Example** (Using `Effect.either` to Handle Errors)
+
+```ts twoslash
+import { Effect, Either, Random } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, never, never>
+//      ▼
+const recovered = Effect.gen(function* () {
+  //      ┌─── Either<string, HttpError | ValidationError>
+  //      ▼
+  const failureOrSuccess = yield* Effect.either(program)
+  if (Either.isLeft(failureOrSuccess)) {
+    // Failure case: you can extract the error from the `left` property
+    const error = failureOrSuccess.left
+    return `Recovering from ${error._tag}`
+  } else {
+    // Success case: you can extract the value from the `right` property
+    return failureOrSuccess.right
+  }
+})
+```
+
+As you can see since all errors are handled, the error type of the resulting effect `recovered` is `never`:
+
+```ts showLineNumbers=false
+const recovered: Effect<string, never, never>
+```
+
+We can make the code less verbose by using the `Either.match` function, which directly accepts the two callback functions for handling errors and successful values:
+
+**Example** (Simplifying with `Either.match`)
+
+```ts twoslash collapse={3-23}
+import { Effect, Either, Random } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, never, never>
+//      ▼
+const recovered = Effect.gen(function* () {
+  //      ┌─── Either<string, HttpError | ValidationError>
+  //      ▼
+  const failureOrSuccess = yield* Effect.either(program)
+  return Either.match(failureOrSuccess, {
+    onLeft: (error) => `Recovering from ${error._tag}`,
+    onRight: (value) => value // Do nothing in case of success
+  })
+})
+```
+
+### catchAll
+
+The `Effect.catchAll` function allows you to catch any error that occurs in the program and provide a fallback.
+
+**Example** (Catching All Errors with `Effect.catchAll`)
+
+```ts twoslash
+import { Effect, Random } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, never, never>
+//      ▼
+const recovered = program.pipe(
+  Effect.catchAll((error) =>
+    Effect.succeed(`Recovering from ${error._tag}`)
+  )
+)
+```
+
+We can observe that the type in the error channel of our program has changed to `never`:
+
+```ts showLineNumbers=false
+const recovered: Effect<string, never, never>
+```
+
+indicating that all errors have been handled.
+
+## Catching Some Errors
+
+### either
+
+The `Effect.either` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/data-types/either/) data type:
+
+```ts showLineNumbers=false
+Effect<A, E, R> -> Effect<Either<A, E>, never, R>
+```
+
+This means if you have an effect with the following type:
+
+```ts showLineNumbers=false
+Effect<string, HttpError, never>
+```
+
+and you call `Effect.either` on it, the type becomes:
+
+```ts showLineNumbers=false
+Effect<Either<string, HttpError>, never, never>
+```
+
+The resulting effect cannot fail because the potential failure is now represented within the `Either`'s `Left` type.
+The error type of the returned `Effect` is specified as `never`, confirming that the effect is structured to not fail.
+
+By yielding an `Either`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function.
+
+**Example** (Handling Specific Errors with `Effect.either`)
+
+```ts twoslash
+import { Effect, Random, Either } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, ValidationError, never>
+//      ▼
+const recovered = Effect.gen(function* () {
+  const failureOrSuccess = yield* Effect.either(program)
+  if (Either.isLeft(failureOrSuccess)) {
+    const error = failureOrSuccess.left
+    // Only handle HttpError errors
+    if (error._tag === "HttpError") {
+      return "Recovering from HttpError"
+    } else {
+      // Rethrow ValidationError
+      return yield* Effect.fail(error)
+    }
+  } else {
+    return failureOrSuccess.right
+  }
+})
+```
+
+We can observe that the type in the error channel of our program has changed to only show `ValidationError`:
+
+```ts "ValidationError" showLineNumbers=false
+const recovered: Effect<string, ValidationError, never>
+```
+
+indicating that `HttpError` has been handled.
+
+If we also want to handle `ValidationError`, we can easily add another case to our code:
+
+```ts twoslash collapse={3-21} {32-34}
+import { Effect, Random, Either } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, never, never>
+//      ▼
+const recovered = Effect.gen(function* () {
+  const failureOrSuccess = yield* Effect.either(program)
+  if (Either.isLeft(failureOrSuccess)) {
+    const error = failureOrSuccess.left
+    // Handle both HttpError and ValidationError
+    if (error._tag === "HttpError") {
+      return "Recovering from HttpError"
+    } else {
+      return "Recovering from ValidationError"
+    }
+  } else {
+    return failureOrSuccess.right
+  }
+})
+```
+
+We can observe that the type in the error channel has changed to `never`:
+
+```ts showLineNumbers=false
+const recovered: Effect<string, never, never>
+```
+
+indicating that all errors have been handled.
+
+### catchSome
+
+If we want to catch and recover from only some types of errors and effectfully attempt recovery, we can use the `Effect.catchSome` function.
+
+**Example** (Handling Specific Errors with `Effect.catchSome`)
+
+```ts twoslash
+import { Effect, Random, Option } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const recovered = program.pipe(
+  Effect.catchSome((error) => {
+    // Only handle HttpError errors
+    if (error._tag === "HttpError") {
+      return Option.some(Effect.succeed("Recovering from HttpError"))
+    } else {
+      return Option.none()
+    }
+  })
+)
+```
+
+In the code above, `Effect.catchSome` takes a function that examines the error and decides whether to attempt recovery or not. If the error matches a specific condition, recovery can be attempted by returning `Option.some(effect)`. If no recovery is possible, you can simply return `Option.none()`.
+
+It's important to note that while `Effect.catchSome` lets you catch specific errors, it **doesn't alter the error type** itself.
+Therefore, the resulting effect will still have the same error type as the original effect:
+
+```ts "HttpError | ValidationError" showLineNumbers=false
+const recovered: Effect<string, HttpError | ValidationError, never>
+```
+
+### catchIf
+
+Similar to `Effect.catchSome`, the function `Effect.catchIf` allows you to recover from specific errors based on a predicate.
+
+**Example** (Catching Specific Errors with a Predicate)
+
+```ts twoslash collapse={3-21
+import { Effect, Random } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, ValidationError, never>
+//      ▼
+const recovered = program.pipe(
+  Effect.catchIf(
+    // Only handle HttpError errors
+    (error) => error._tag === "HttpError",
+    () => Effect.succeed("Recovering from HttpError")
+  )
+)
+```
+
+It's important to note that for TypeScript versions < 5.5, while `Effect.catchIf` lets you catch specific errors, it **doesn't alter the error type** itself.
+Therefore, the resulting effect will still have the same error type as the original effect:
+
+```ts "HttpError | ValidationError" showLineNumbers=false
+const recovered: Effect<string, HttpError | ValidationError, never>
+```
+
+In TypeScript versions >= 5.5, improved type narrowing causes the resulting error type to be inferred as `ValidationError`.
+
+#### Workaround For TypeScript versions < 5.5
+
+If you provide a [user-defined type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) instead of a predicate, the resulting error type will be pruned, returning an `Effect<string, ValidationError, never>`:
+
+```ts twoslash collapse={3-23} {29-30}
+import { Effect, Random } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, ValidationError, never>
+//      ▼
+const recovered = program.pipe(
+  Effect.catchIf(
+    // User-defined type guard
+    (error): error is HttpError => error._tag === "HttpError",
+    () => Effect.succeed("Recovering from HttpError")
+  )
+)
+```
+
+### catchTag
+
+If your program's errors are **all tagged** with a `_tag` field that acts as a discriminator you can use the `Effect.catchTag` function to catch and handle specific errors with precision.
+
+**Example** (Handling Errors by Tag with `Effect.catchTag`)
+
+```ts twoslash
+import { Effect, Random } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, ValidationError, never>
+//      ▼
+const recovered = program.pipe(
+  // Only handle HttpError errors
+  Effect.catchTag("HttpError", (_HttpError) =>
+    Effect.succeed("Recovering from HttpError")
+  )
+)
+```
+
+In the example above, the `Effect.catchTag` function allows us to handle `HttpError` specifically.
+If a `HttpError` occurs during the execution of the program, the provided error handler function will be invoked,
+and the program will proceed with the recovery logic specified within the handler.
+
+We can observe that the type in the error channel of our program has changed to only show `ValidationError`:
+
+```ts showLineNumbers=false
+const recovered: Effect<string, ValidationError, never>
+```
+
+indicating that `HttpError` has been handled.
+
+If we also wanted to handle `ValidationError`, we can simply add another `catchTag`:
+
+**Example** (Handling Multiple Error Types with `catchTag`)
+
+```ts twoslash collapse={3-23} {32-34}
+import { Effect, Random } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, never, never>
+//      ▼
+const recovered = program.pipe(
+  // Handle both HttpError and ValidationError
+  Effect.catchTag("HttpError", (_HttpError) =>
+    Effect.succeed("Recovering from HttpError")
+  ),
+  Effect.catchTag("ValidationError", (_ValidationError) =>
+    Effect.succeed("Recovering from ValidationError")
+  )
+)
+```
+
+We can observe that the type in the error channel of our program has changed to `never`:
+
+```ts showLineNumbers=false
+const recovered: Effect<string, never, never>
+```
+
+indicating that all errors have been handled.
+
+<Aside type="caution" title="Error Type Requirement">
+  It is important to ensure that the error type used with
+  `Effect.catchTag` has a `readonly _tag` discriminant field. This field
+  is required for the matching and handling of specific error tags.
+</Aside>
+
+### catchTags
+
+Instead of using the [`Effect.catchTag`](#catchtag) function multiple times to handle individual error types, we have a more convenient option called `Effect.catchTags`. With `Effect.catchTags`, we can handle multiple errors in a single block of code.
+
+**Example** (Handling Multiple Error Types with `catchTags`)
+
+```ts twoslash
+import { Effect, Random } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
+}
+
+class ValidationError {
+  readonly _tag = "ValidationError"
+}
+
+//      ┌─── Effect<string, HttpError | ValidationError, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const n1 = yield* Random.next
+  const n2 = yield* Random.next
+  if (n1 < 0.5) {
+    yield* Effect.fail(new HttpError())
+  }
+  if (n2 < 0.5) {
+    yield* Effect.fail(new ValidationError())
+  }
+  return "some result"
+})
+
+//      ┌─── Effect<string, never, never>
+//      ▼
+const recovered = program.pipe(
+  Effect.catchTags({
+    HttpError: (_HttpError) =>
+      Effect.succeed(`Recovering from HttpError`),
+    ValidationError: (_ValidationError) =>
+      Effect.succeed(`Recovering from ValidationError`)
+  })
+)
+```
+
+This function takes an object where each property represents a specific error `_tag` (`"HttpError"` and `"ValidationError"` in this case),
+and the corresponding value is the error handler function to be executed when that particular error occurs.
+
+<Aside type="caution" title="Error Type Requirement">
+  It is important to ensure that all the error types used with
+  `Effect.catchTags` have a `readonly _tag` discriminant field. This field
+  is required for the matching and handling of specific error tags.
+</Aside>

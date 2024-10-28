@@ -1,0 +1,62 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
+import type { StarlightPageProps } from "@astrojs/starlight/props"
+import { CodeEditor } from "@/components/editor"
+
+export const prerender = false
+
+const pageProps: StarlightPageProps = {
+  frontmatter: {
+    title: "Effect Playground",
+    tableOfContents: false
+  },
+  hasSidebar: false,
+}
+
+Astro.response.headers.set("Cross-Origin-Embedder-Policy", "require-corp")
+Astro.response.headers.set("Cross-Origin-Opener-Policy", "same-origin")
+---
+
+<StarlightPage {...pageProps}>
+  <main class="not-content">
+    <CodeEditor client:only="react">
+      <div slot="fallback" class="h-full bg-[--sl-color-bg]"></div>
+    </CodeEditor>
+  </main>
+</StarlightPage>
+
+<style>
+:global(main) {
+  height: calc(100vh - (var(--sl-nav-height) + var(--sl-mobile-toc-height)));
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+:global(.content-panel:first-of-type) {
+  display: none;
+}
+
+:global(.content-panel:nth-of-type(2)) {
+  min-height: calc(100vh - (var(--sl-nav-height) + var(--sl-mobile-toc-height)));
+  padding: 0;
+}
+
+:global(.sl-container) {
+  --sl-content-width: 100%;
+  margin: 0;
+  margin-inline: 0;
+}
+
+:global(.sl-container > footer) {
+  display: none;
+}
+
+:global(
+  .sl-markdown-content
+    :not(a, strong, em, del, span, input, code)
+  + :not(a, strong, em, del, span, input, code, :where(.not-content *))
+) {
+  margin: 0;
+}
+</style>

@@ -1,0 +1,168 @@
+---
+title: Matching
+description: Discover how to handle both success and failure cases in the Effect data type using functions like `match` and `matchEffect`. Learn techniques to perform side effects, ignore values, and access the full cause of failures. Effectively manage control flow and handle errors in your Effect programs.
+sidebar:
+  order: 4
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+In the Effect module, similar to other modules like [Option](/docs/data-types/option/#matching) and [Exit](/docs/data-types/exit/#matching), we have a `match` function that allows us to handle different cases simultaneously.
+Additionally, Effect provides various functions to manage both success and failure scenarios in effectful programs.
+
+## match
+
+The `Effect.match` function lets you handle both success and failure cases without performing side effects. You provide a handler for each case.
+
+**Example** (Handling Both Success and Failure Cases)
+
+```ts twoslash
+import { Effect } from "effect"
+
+const success: Effect.Effect<number, Error> = Effect.succeed(42)
+
+const program1 = Effect.match(success, {
+  onFailure: (error) => `failure: ${error.message}`,
+  onSuccess: (value) => `success: ${value}`
+})
+
+// Run and log the result of the successful effect
+Effect.runPromise(program1).then(console.log)
+// Output: "success: 42"
+
+const failure: Effect.Effect<number, Error> = Effect.fail(
+  new Error("Uh oh!")
+)
+
+const program2 = Effect.match(failure, {
+  onFailure: (error) => `failure: ${error.message}`,
+  onSuccess: (value) => `success: ${value}`
+})
+
+// Run and log the result of the failed effect
+Effect.runPromise(program2).then(console.log)
+// Output: "failure: Uh oh!"
+```
+
+## ignore
+
+If you're not interested in the success or failure values, you can ignore them:
+
+**Example** (Ignoring Success and Failure Values)
+
+```ts twoslash
+import { Effect } from "effect"
+import { constVoid } from "effect/Function"
+
+//      ┌─── Effect<number, string, never>
+//      ▼
+const task = Effect.fail("Uh oh!").pipe(Effect.as(5))
+
+//      ┌─── Effect<void, never, never>
+//      ▼
+const program = Effect.match(task, {
+  onFailure: constVoid,
+  onSuccess: constVoid
+})
+```
+
+In this case, we use the `constVoid` function from the `Function` module, which constantly returns `void`, to provide handlers that perform no operation. This effectively discards the success and failure values and focuses solely on the control flow or side effects of the program.
+
+Alternatively, the same result can be achieved using the `Effect.ignore` function:
+
+**Example** (Using `Effect.ignore` to Discard Values)
+
+```ts twoslash
+import { Effect } from "effect"
+
+//      ┌─── Effect<number, string, never>
+//      ▼
+const task = Effect.fail("Uh oh!").pipe(Effect.as(5))
+
+//      ┌─── Effect<void, never, never>
+//      ▼
+const program = Effect.ignore(task)
+```
+
+## matchEffect
+
+The `Effect.matchEffect` function, similar to `Effect.match`, allows you to handle both success and failure cases, but it also enables you to perform additional side effects within those handlers.
+
+**Example** (Handling Success and Failure with Side Effects)
+
+```ts twoslash
+import { Effect } from "effect"
+
+const success: Effect.Effect<number, Error> = Effect.succeed(42)
+const failure: Effect.Effect<number, Error> = Effect.fail(
+  new Error("Uh oh!")
+)
+
+const program1 = Effect.matchEffect(success, {
+  onFailure: (error) =>
+    Effect.succeed(`failure: ${error.message}`).pipe(
+      Effect.tap(Effect.log)
+    ),
+  onSuccess: (value) =>
+    Effect.succeed(`success: ${value}`).pipe(Effect.tap(Effect.log))
+})
+
+console.log(Effect.runSync(program1))
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message="success: 42"
+success: 42
+*/
+
+const program2 = Effect.matchEffect(failure, {
+  onFailure: (error) =>
+    Effect.succeed(`failure: ${error.message}`).pipe(
+      Effect.tap(Effect.log)
+    ),
+  onSuccess: (value) =>
+    Effect.succeed(`success: ${value}`).pipe(Effect.tap(Effect.log))
+})
+
+console.log(Effect.runSync(program2))
+/*
+Output:
+timestamp=... level=INFO fiber=#1 message="failure: Uh oh!"
+failure: Uh oh!
+*/
+```
+
+## matchCause / matchCauseEffect
+
+The `Effect.matchCause` and `Effect.matchCauseEffect` functions allow you to handle failures more precisely by providing access to the complete [cause](/docs/data-types/cause/) of failure within a fiber. This makes it possible to differentiate between various failure types and respond accordingly.
+
+**Example** (Handling Different Failure Causes with `Effect.matchCauseEffect`)
+
+```ts twoslash
+import { Effect, Console } from "effect"
+
+const task: Effect.Effect<number, Error> = Effect.die("Uh oh!")
+
+const program = Effect.matchCauseEffect(task, {
+  onFailure: (cause) => {
+    switch (cause._tag) {
+      case "Fail":
+        // Handle standard failure with a logged message
+        return Console.log(`Fail: ${cause.error.message}`)
+      case "Die":
+        // Handle defects (unexpected errors) by logging the defect
+        return Console.log(`Die: ${cause.defect}`)
+      case "Interrupt":
+        // Handle interruption and log the fiberId that was interrupted
+        return Console.log(`${cause.fiberId} interrupted!`)
+    }
+    // Fallback for other causes
+    return Console.log("failed due to other causes")
+  },
+  onSuccess: (value) =>
+    // Log success if the task completes successfully
+    Console.log(`succeeded with ${value} value`)
+})
+
+Effect.runSync(program)
+// Output: "Die: Uh oh!"
+```

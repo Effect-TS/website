@@ -1,0 +1,73 @@
+---
+export interface Props {
+  readonly height?: string | number
+  readonly width?: string | number
+  readonly autoplay?: boolean
+  readonly channel?: string
+  readonly collection?: string
+  readonly muted?: boolean
+  readonly parent?: string | ReadonlyArray<string>
+  readonly time?: string
+  readonly title?: string
+  readonly video?: string
+}
+
+const {
+  height = 300,
+  width = 600,
+  autoplay = false,
+  channel,
+  collection,
+  muted = false,
+  parent = Astro.site?.hostname ?? "",
+  time = "0h0m0s",
+  title = "twitch-player-non-interactive",
+  video
+} = Astro.props
+
+const params = new URLSearchParams()
+
+if (channel) {
+  params.append("channel", channel);
+} else {
+  if (video) {
+    params.append("video", video);
+  }
+
+  if (collection) {
+    params.append("collection", collection);
+  }
+}
+
+params.append("autoplay", autoplay.toString())
+params.append("muted", muted.toString())
+params.append("time", time)
+
+if (Array.isArray(parent)) {
+  parent.forEach((parent) => params.append("parent", parent));
+} else {
+  params.append("parent", parent as string)
+}
+
+const playerUrl = `https://player.twitch.tv/?${params.toString()}`;
+
+---
+<iframe
+  class="twitch-player-non-interactive"
+  title={title}
+  height={height}
+  width={width}
+  src={playerUrl}
+  frame-border="0"
+></iframe>
+
+<style define:vars={{ 
+  twitchPlayerHeight: `${height}px`, 
+  twitchPlayerWidth: `${width}px` 
+}}>
+  .twitch-player-non-interactive {
+    height: var(--twitchPlayerHeight) !important;
+    width: var(--twitchPlayerWidth) !important;
+    margin: 1rem auto 0 auto;
+  }
+</style>

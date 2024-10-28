@@ -1,0 +1,90 @@
+.sl-markdown-content {
+  /* Set font-size on the markdown container element, so line-height, margins
+     etc. match heading size. */
+  .level-h2 {
+    font-size: var(--sl-text-h2);
+  }
+  .level-h3 {
+    font-size: var(--sl-text-h3);
+  }
+  .level-h4 {
+    font-size: var(--sl-text-h4);
+  }
+  .level-h5 {
+    font-size: var(--sl-text-h5);
+  }
+
+  /* Custom styles for the heading container */
+  .autolink-heading-container {
+    --icon-size: 0.75em;
+    --icon-spacing: 0.25em;
+    line-height: var(--sl-line-height-headings);
+
+    > :first-child {
+      margin-inline-end: calc(var(--icon-size) + var(--icon-spacing));
+      display: inline;
+    }
+
+    svg {
+      display: inline;
+      width: var(--icon-size);
+    }
+
+    &:hover > .anchor-link {
+      opacity: 1;
+    }
+
+    /* Float anchor links to the left of headings on larger screens. */
+    @media (min-width: 50rem) {
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+      gap: var(--icon-spacing);
+      margin-inline-start: calc(-1 * (var(--icon-size) + var(--icon-spacing)));
+
+      > :first-child {
+        margin: 0;
+      }
+    }
+  }
+
+  /* Custom styles for heading anchor links */
+  .anchor-link {
+    margin-inline-start: calc(-1 * (var(--icon-size)));
+    color: var(--sl-color-gray-3);
+
+    &:hover, &:focus {
+      color: var(--sl-color-text-accent);
+    }
+
+    &:focus {
+      opacity: 1;
+    }
+
+    /* Prevent double or triple clicks from potentially selecting the anchor link a11y text. */
+    .sr-only {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    @media (hover: hover) {
+      opacity: 0;
+    }
+
+    /* Float anchor links to the left of headings on larger screens. */
+    @media (min-width: 50rem) {
+        margin: 0;
+    }
+  }
+
+  /* Force blog header links to match text color */
+  .preview header h2 a {
+    color: var(--sl-color-text);
+  }
+
+  .preview header h2 a:hover {
+    text-decoration-line: underline;
+    text-decoration-thickness: 0.125rem;
+    text-underline-offset: 0.25rem;
+  }
+}

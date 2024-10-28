@@ -1,0 +1,78 @@
+---
+title: Dual APIs
+description: Explore "data-last" and "data-first" variants of dual APIs in the Effect ecosystem, illustrated with the example of `Effect.map`. Learn how to choose between them based on your coding style and readability preferences.
+sidebar:
+  order: 2
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+When you're working with APIs in the Effect ecosystem, you may come across two different ways to use the same API. These two ways are called the "data-last" and "data-first" variants.
+
+<Aside type="note" title="Implementation Details">
+  From a technical perspective, these variants are implemented using two
+  TypeScript overloads.
+</Aside>
+
+When an API supports both variants, we call them "dual" APIs.
+
+Let's explore these two variants using a concrete example of a dual API: `Effect.map`.
+
+The `Effect.map` function is defined with two TypeScript overloads. The terms "data-last" and "data-first" refer to the position of the `self` argument (also known as the "data") in the signatures of the two overloads:
+
+```ts showLineNumbers=false
+declare const map: {
+  // data-last
+  <A, B>(f: (a: A) => B): <E, R>(self: Effect<A, E, R>) => Effect<B, E, R>
+  // data-first
+  <A, E, R, B>(self: Effect<A, E, R>, f: (a: A) => B): Effect<B, E, R>
+}
+```
+
+## data-last
+
+In the first overload, the `self` argument comes in the **last position**:
+
+```ts showLineNumbers=false
+declare const map: <A, B>(
+  f: (a: A) => B
+) => <E, R>(self: Effect<A, E, R>) => Effect<B, E, R>
+```
+
+This is the variant we have been using with `pipe`. You pass the `Effect` as the first argument to the `pipe` function, followed by a call to `Effect.andThen`:
+
+```ts showLineNumbers=false
+const mappedEffect = pipe(effect, Effect.andThen(func))
+```
+
+This variant is useful when you need to chain multiple computations in a long pipeline. You can continue the pipeline by adding more computations after the initial transformation:
+
+```ts showLineNumbers=false
+pipe(effect, Effect.andThen(func1), Effect.andThen(func2), ...)
+```
+
+## data-first
+
+In the second overload, the `self` argument comes in the **first position**:
+
+```ts showLineNumbers=false
+declare const map: <A, E, R, B>(
+  self: Effect<A, E, R>,
+  f: (a: A) => B
+) => Effect<B, E, R>
+```
+
+This variant doesn't require the `pipe` function. Instead, you can directly pass the `Effect` as the first argument to the `Effect.andThen` function:
+
+```ts showLineNumbers=false
+const mappedEffect = Effect.andThen(effect, func)
+```
+
+This variant is convenient when you only need to perform a single operation on the `Effect`.
+
+<Aside type="tip" title="Choosing Between Styles">
+  It's important to note that both overloads achieve the same result. They
+  are simply two different ways of expressing the same code. You can
+  choose the overload that best fits your coding style and makes the code
+  more readable for you and your team.
+</Aside>

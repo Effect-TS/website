@@ -1,0 +1,109 @@
+---
+title: Glossary
+description: Explore key concepts in Effect, such as context, dual APIs, distributed workflows, expected errors, fibers, interruption, local workflows, effect pipelines, schedules, services, tags, and unexpected errors. Understand their significance in managing dependencies, controlling concurrency, and handling errors within effectful computations.
+sidebar:
+  order: 4
+---
+
+## Context
+
+In `Effect`, context refers to a container that holds important contextual data required for the execution of effects. It's a conceptual construct that enables effects to access and utilize contextual data within their execution scope.
+
+Think of context as a `Map<Tag, Impl>` that associates `Tag`s with their corresponding implementations. By providing the appropriate context to an effect, the effect gains access to the specific contextual data it needs. This allows the effect to perform operations that rely on that data.
+
+Context plays a vital role in managing dependencies and facilitating the composition of effects in a modular and flexible manner. It ensures that effects have access to the necessary data they depend on, making it easier to organize and maintain code.
+
+## Dual (API)
+
+In the context of APIs, "dual" refers to a function that supports both the "data-first" and "data-last" variants.
+It means that the API can be used interchangeably with either style, depending on the developer's preference.
+
+One example of a dual API is the `andThen` function of the `Effect` data type.
+
+In the "data-first" variant, the effect is passed as the first argument to `andThen`:
+
+```ts twoslash
+import { Effect } from "effect"
+
+Effect.andThen(Effect.succeed(1), (n) => n + 1)
+```
+
+while in the "data-last" variant, the effect is passed as the first argument to the `pipe` function, followed by the `andThen` function:
+
+```ts twoslash
+import { Effect, pipe } from "effect"
+
+pipe(
+  Effect.succeed(1),
+  Effect.andThen((n) => n + 1)
+)
+
+// or
+
+Effect.succeed(1).pipe(Effect.andThen((n) => n + 1))
+```
+
+## Distributed workflow
+
+Things that may execute across multiple execution boundaries.
+
+## Expected Errors
+
+Also referred to as _failures_, _typed errors_ or _recoverable errors_.
+
+These are errors that developers anticipate and expect as part of normal program execution.
+Expected errors are tracked at the type level by the `Effect` data type in the "Error" channel:
+
+```ts
+Effect<Value, Error, Context>
+```
+
+## Fiber
+
+A "fiber" is a small unit of work or a lightweight thread of execution. It represents a specific computation or an effectful operation in a program. Fibers are used to manage concurrency and asynchronous tasks.
+
+Think of a fiber as a worker that performs a specific job. It can be started, paused, resumed, and even interrupted. Fibers are useful when we want to perform multiple tasks simultaneously or handle long-running operations without blocking the main program.
+
+By using fibers, developers can control and coordinate the execution of tasks, allowing for efficient multitasking and responsiveness in their applications.
+
+To summarize:
+
+- An `Effect` is a higher-level concept that describes an effectful computation. It is lazy and immutable, meaning it represents a computation that may produce a value or fail but does not immediately execute.
+- A fiber, on the other hand, represents the running execution of an `Effect`. It can be interrupted or awaited to retrieve its result. Think of it as a way to control and interact with the ongoing computation.
+
+## Interruption
+
+Interruption errors occur when the execution of a running fiber is deliberately interrupted.
+
+## Local workflow
+
+Things that execute within a single execution boundary.
+
+## Pipeline (of Effects)
+
+A "pipeline" refers to a series of sequential operations performed on `Effect` values to achieve a desired result.
+When working with `Effect`, a pipeline typically consists of operations such as mapping, flat-mapping, filtering, and error handling, among others. Each operation in the pipeline takes an input `Effect` and produces an output `Effect`, which becomes the input for the next operation in the sequence.
+
+## Schedule
+
+A Schedule is an immutable value that defines a strategy for repeating or retrying an effectful operation.
+Schedules can be composed and combined together to create more complex recurrence patterns.
+This allows for flexible and customizable scheduling strategies.
+
+## Service
+
+A Service is an interface that defines a set of operations or functionality. Services encapsulate specific capabilities or behaviors that can be utilized by effects. By providing service implementations, we can enhance the capabilities of effects and enable them to interact with external systems, perform IO operations, or access shared resources. Services are usually associated with Tags, which allow effects to locate and access the corresponding service implementation during runtime.
+
+## Tag
+
+In Effect, a Tag is a unique marker that represents a specific value in a `Context`. It is used when you need to uniquely identify something in a "bag of type-safe things". Tags are similar to map keys but come with associated types. In the context of Effect, a Tag is often used to represent a specific service.
+
+Tags serve as keys that allow Effect to locate and use the corresponding service implementation at runtime. They play a crucial role in managing dependencies in a type-safe manner and providing the required services for the smooth execution of your effects.
+
+For examples of how to use Tags in creating a simple service, check out [Creating a Simple Service](/requirements-management/services#creating-a-service).
+
+## Unexpected Errors
+
+Also referred to as _defects_, _untyped errors_, or _unrecoverable errors_.
+
+These are errors that occur unexpectedly and are not part of the intended program flow.
