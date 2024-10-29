@@ -13,18 +13,18 @@ When working with streams that may encounter errors, it's crucial to know how to
 **Example**
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
   Stream.concat(Stream.fail("Oh! Error!")),
   Stream.concat(Stream.make(4, 5))
-);
+)
 
-const s2 = Stream.make("a", "b", "c");
+const s2 = Stream.make("a", "b", "c")
 
-const stream = Stream.orElse(s1, () => s2);
+const stream = Stream.orElse(s1, () => s2)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -39,18 +39,18 @@ In this example, `s1` encounters an error, but instead of terminating the stream
 There's also a variant called `Stream.orElseEither` that uses the [Either](/docs/data-types/either/) data type to distinguish elements from the two streams based on success or failure:
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
   Stream.concat(Stream.fail("Oh! Error!")),
   Stream.concat(Stream.make(4, 5))
-);
+)
 
-const s2 = Stream.make("a", "b", "c");
+const s2 = Stream.make("a", "b", "c")
 
-const stream = Stream.orElseEither(s1, () => s2);
+const stream = Stream.orElseEither(s1, () => s2)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -89,28 +89,31 @@ Output:
 The `Stream.catchAll` function provides advanced error handling capabilities compared to `Stream.orElse`. With `Stream.catchAll`, you can make decisions based on both the type and value of the encountered failure.
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
   Stream.concat(Stream.fail("Uh Oh!" as const)),
   Stream.concat(Stream.make(4, 5)),
   Stream.concat(Stream.fail("Ouch" as const))
-);
+)
 
-const s2 = Stream.make("a", "b", "c");
+const s2 = Stream.make("a", "b", "c")
 
-const s3 = Stream.make(true, false, false);
+const s3 = Stream.make(true, false, false)
 
-const stream = Stream.catchAll(s1, (error): Stream.Stream<string | boolean> => {
-  switch (error) {
-    case "Uh Oh!":
-      return s2;
-    case "Ouch":
-      return s3;
+const stream = Stream.catchAll(
+  s1,
+  (error): Stream.Stream<string | boolean> => {
+    switch (error) {
+      case "Uh Oh!":
+        return s2
+      case "Ouch":
+        return s3
+    }
   }
-});
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -129,18 +132,18 @@ When working with streams, it's essential to be prepared for various failure sce
 **Example**
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
   Stream.concat(Stream.dieMessage("Boom!")),
   Stream.concat(Stream.make(4, 5))
-);
+)
 
-const s2 = Stream.make("a", "b", "c");
+const s2 = Stream.make("a", "b", "c")
 
-const stream = Stream.catchAllCause(s1, () => s2);
+const stream = Stream.catchAllCause(s1, () => s2)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -159,23 +162,23 @@ In stream processing, there may be situations where you need to recover from spe
 If you want to recover from a particular error, you can use `Stream.catchSome`:
 
 ```ts twoslash
-import { Stream, Effect, Option } from "effect";
+import { Stream, Effect, Option } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
   Stream.concat(Stream.fail("Oh! Error!")),
   Stream.concat(Stream.make(4, 5))
-);
+)
 
-const s2 = Stream.make("a", "b", "c");
+const s2 = Stream.make("a", "b", "c")
 
 const stream = Stream.catchSome(s1, (error) => {
   if (error === "Oh! Error!") {
-    return Option.some(s2);
+    return Option.some(s2)
   }
-  return Option.none();
-});
+  return Option.none()
+})
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -188,23 +191,23 @@ Output:
 To recover from a specific cause, you can use the `Stream.catchSomeCause` function:
 
 ```ts twoslash
-import { Stream, Effect, Option, Cause } from "effect";
+import { Stream, Effect, Option, Cause } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
   Stream.concat(Stream.dieMessage("Oh! Error!")),
   Stream.concat(Stream.make(4, 5))
-);
+)
 
-const s2 = Stream.make("a", "b", "c");
+const s2 = Stream.make("a", "b", "c")
 
 const stream = Stream.catchSomeCause(s1, (cause) => {
   if (Cause.isDie(cause)) {
-    return Option.some(s2);
+    return Option.some(s2)
   }
-  return Option.none();
-});
+  return Option.none()
+})
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -219,7 +222,7 @@ Output:
 In stream processing, it's crucial to handle errors gracefully and perform cleanup tasks when needed. The `Stream.onError` function allows us to do just that. If our stream encounters an error, we can specify a cleanup task to be executed.
 
 ```ts twoslash
-import { Stream, Console, Effect } from "effect";
+import { Stream, Console, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3).pipe(
   Stream.concat(Stream.dieMessage("Oh! Boom!")),
@@ -229,9 +232,9 @@ const stream = Stream.make(1, 2, 3).pipe(
       "Stream application closed! We are doing some cleanup jobs."
     ).pipe(Effect.orDie)
   )
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 Stream application closed! We are doing some cleanup jobs.
@@ -246,25 +249,25 @@ Sometimes, streams may encounter failures that are temporary or recoverable. In 
 **Example**
 
 ```ts twoslash
-import { Stream, Effect, Schedule } from "effect";
-import * as NodeReadLine from "node:readline";
+import { Stream, Effect, Schedule } from "effect"
+import * as NodeReadLine from "node:readline"
 
 const stream = Stream.make(1, 2, 3).pipe(
   Stream.concat(
     Stream.fromEffect(
       Effect.gen(function* () {
-        const s = yield* readLine("Enter a number: ");
-        const n = parseInt(s);
+        const s = yield* readLine("Enter a number: ")
+        const n = parseInt(s)
         if (Number.isNaN(n)) {
-          return yield* Effect.fail("NaN");
+          return yield* Effect.fail("NaN")
         }
-        return n;
+        return n
       })
     ).pipe(Stream.retry(Schedule.exponential("1 second")))
   )
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 Enter a number: a
@@ -283,14 +286,14 @@ const readLine = (message: string): Effect.Effect<string> =>
       new Promise((resolve) => {
         const rl = NodeReadLine.createInterface({
           input: process.stdin,
-          output: process.stdout,
-        });
+          output: process.stdout
+        })
         rl.question(message, (answer) => {
-          rl.close();
-          resolve(answer);
-        });
+          rl.close()
+          resolve(answer)
+        })
       })
-  );
+  )
 ```
 
 In this example, the stream asks the user to input a number, but if an invalid value is entered (e.g., "a," "b," "c"), it fails with "NaN." However, we use `Stream.retry` with an exponential backoff schedule, which means it will retry after a delay of increasing duration. This allows us to handle temporary errors and eventually collect valid input.
@@ -302,16 +305,16 @@ When working with streams, there might be situations where you want to selective
 **Example**
 
 ```ts twoslash
-import { Stream, Option } from "effect";
+import { Stream, Option } from "effect"
 
-const stream = Stream.fail(new Error());
+const stream = Stream.fail(new Error())
 
 const res = Stream.refineOrDie(stream, (error) => {
   if (error instanceof SyntaxError) {
-    return Option.some(error);
+    return Option.some(error)
   }
-  return Option.none();
-});
+  return Option.none()
+})
 ```
 
 In this example, `stream` initially fails with a generic `Error`. However, we use `Stream.refineOrDie` to filter and keep only errors of type `SyntaxError`. Any other errors will be terminated, while `SyntaxErrors` will be retained in `refinedStream`.
@@ -325,13 +328,13 @@ When working with streams, there are scenarios where you may want to handle time
 The `Stream.timeout` operator allows you to set a timeout on a stream. If the stream does not produce a value within the specified duration, it terminates.
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
   Stream.timeout("2 seconds")
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 {
   _id: "Chunk",
@@ -345,13 +348,13 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log);
 The `Stream.timeoutFail` operator combines a timeout with a custom failure message. If the stream times out, it fails with the specified error message.
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
   Stream.timeoutFail(() => "timeout", "2 seconds")
-);
+)
 
-Effect.runPromiseExit(Stream.runCollect(stream)).then(console.log);
+Effect.runPromiseExit(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -367,13 +370,13 @@ Output:
 Similar to `Stream.timeoutFail`, `Stream.timeoutFailCause` combines a timeout with a custom failure cause. If the stream times out, it fails with the specified cause.
 
 ```ts twoslash
-import { Stream, Effect, Cause } from "effect";
+import { Stream, Effect, Cause } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
   Stream.timeoutFailCause(() => Cause.die("timeout"), "2 seconds")
-);
+)
 
-Effect.runPromiseExit(Stream.runCollect(stream)).then(console.log);
+Effect.runPromiseExit(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -389,13 +392,13 @@ Output:
 The `Stream.timeoutTo` operator allows you to switch to another stream if the first stream does not produce a value within the specified duration.
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
   Stream.timeoutTo("2 seconds", Stream.make(1, 2, 3))
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 {
   _id: "Chunk",
