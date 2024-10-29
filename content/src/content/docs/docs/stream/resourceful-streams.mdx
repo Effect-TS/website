@@ -2,7 +2,7 @@
 title: Resourceful Streams
 description: Discover how to manage resources effectively in Effect's `Stream` module. Explore constructors tailored for lifting scoped resources, ensuring safe acquisition and release within streams. Dive into examples illustrating the use of `Stream.acquireRelease` for file operations, finalization for cleanup tasks, and `ensuring` for post-finalization actions. Master the art of resource management in streaming applications with Effect.
 sidebar:
-  order: 2
+  order: 5
 ---
 
 In the Stream module, you'll find that most of the constructors offer a special variant designed for lifting a scoped resource into a `Stream`. When you use these specific constructors, you're essentially creating streams that are inherently safe with regards to resource management. These constructors, before creating the stream, handle the resource acquisition, and after the stream's usage, they ensure its proper closure.
@@ -14,24 +14,24 @@ Stream also provides us with `Stream.acquireRelease` and `Stream.finalizer` cons
 In this section, we'll explore an example that demonstrates the use of `Stream.acquireRelease` when working with file operations.
 
 ```ts twoslash
-import { Stream, Console, Effect } from "effect"
+import { Stream, Console, Effect } from "effect";
 
 // Simulating File operations
 const open = (filename: string) =>
   Effect.gen(function* () {
-    yield* Console.log(`Opening ${filename}`)
+    yield* Console.log(`Opening ${filename}`);
     return {
       getLines: Effect.succeed(["Line 1", "Line 2", "Line 3"]),
-      close: Console.log(`Closing ${filename}`)
-    }
-  })
+      close: Console.log(`Closing ${filename}`),
+    };
+  });
 
 const stream = Stream.acquireRelease(
   open("file.txt"),
   (file) => file.close
-).pipe(Stream.flatMap((file) => file.getLines))
+).pipe(Stream.flatMap((file) => file.getLines));
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+Effect.runPromise(Stream.runCollect(stream)).then(console.log);
 /*
 Output:
 Opening file.txt
@@ -54,11 +54,11 @@ In this section, we'll explore the concept of finalization in streams. Finalizat
 Imagine a scenario where our streaming application needs to clean up a temporary directory when it completes its execution. We can achieve this using the `Stream.finalizer` function:
 
 ```ts twoslash
-import { Stream, Console, Effect } from "effect"
+import { Stream, Console, Effect } from "effect";
 
-const application = Stream.fromEffect(Console.log("Application Logic."))
+const application = Stream.fromEffect(Console.log("Application Logic."));
 
-const deleteDir = (dir: string) => Console.log(`Deleting dir: ${dir}`)
+const deleteDir = (dir: string) => Console.log(`Deleting dir: ${dir}`);
 
 const program = application.pipe(
   Stream.concat(
@@ -68,9 +68,9 @@ const program = application.pipe(
       )
     )
   )
-)
+);
 
-Effect.runPromise(Stream.runCollect(program)).then(console.log)
+Effect.runPromise(Stream.runCollect(program)).then(console.log);
 /*
 Output:
 Application Logic.
@@ -92,16 +92,16 @@ In this section, we'll explore a scenario where we need to perform actions after
 Consider a situation where our application has completed its primary logic and finalized some resources, but we also need to perform additional actions afterward. We can use `Stream.ensuring` for this purpose:
 
 ```ts twoslash
-import { Stream, Console, Effect } from "effect"
+import { Stream, Console, Effect } from "effect";
 
 const program = Stream.fromEffect(Console.log("Application Logic.")).pipe(
   Stream.concat(Stream.finalizer(Console.log("Finalizing the stream"))),
   Stream.ensuring(
     Console.log("Doing some other works after stream's finalization")
   )
-)
+);
 
-Effect.runPromise(Stream.runCollect(program)).then(console.log)
+Effect.runPromise(Stream.runCollect(program)).then(console.log);
 /*
 Output:
 Application Logic.
