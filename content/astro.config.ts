@@ -18,12 +18,12 @@ import pluginTwoslash from "./src/plugins/twoslash/plugin"
 import { monacoEditorPlugin } from "./src/plugins/vite/monaco-editor"
 
 const VERCEL_PREVIEW_DOMAIN =
-  process.env.PUBLIC_VERCEL_ENV !== "production" &&
-  process.env.PUBLIC_VERCEL_BRANCH_URL
+  process.env.VERCEL_ENV !== "production" &&
+  process.env.VERCEL_BRANCH_URL
 
 const domain =
   VERCEL_PREVIEW_DOMAIN ||
-  process.env.PUBLIC_VERCEL_PROJECT_PRODUCTION_URL ||
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ||
   "effect.website"
 
 const site = `https://${domain}`
