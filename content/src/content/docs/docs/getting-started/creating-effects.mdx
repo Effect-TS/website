@@ -593,17 +593,30 @@ Conversely, `allGood` avoids stack overflow by using `Effect.suspend` to defer t
 
 In situations where TypeScript struggles to unify the returned effect type, `Effect.suspend` can be employed to resolve this issue.
 
-**Example**
+**Example** (Using `Effect.suspend` to Help TypeScript Infer Types)
 
 ```ts twoslash
 import { Effect } from "effect"
 
-const ugly = (a: number, b: number) =>
+/*
+  Without suspend, TypeScript may struggle with type inference.
+
+  Inferred type:
+    (a: number, b: number) =>
+      Effect<never, Error, never> | Effect<number, never, never>
+*/
+const withoutSuspend = (a: number, b: number) =>
   b === 0
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-const nice = (a: number, b: number) =>
+/*
+  Using suspend to unify return types.
+
+  Inferred type:
+    (a: number, b: number) => Effect<number, Error, never>
+*/
+const withSuspend = (a: number, b: number) =>
   Effect.suspend(() =>
     b === 0
       ? Effect.fail(new Error("Cannot divide by zero"))
