@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components"
 
 In this guide, we'll explore some essential operations you can perform on streams. These operations allow you to manipulate and interact with stream elements in various ways.
 
@@ -18,15 +18,15 @@ The `Stream.tap` operation allows you to run an effect on each element emitted b
 For example, `Stream.tap` can be used to log each element before and after a mapping operation:
 
 ```ts twoslash
-import { Stream, Console, Effect } from "effect";
+import { Stream, Console, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3).pipe(
   Stream.tap((n) => Console.log(`before mapping: ${n}`)),
   Stream.map((n) => n * 2),
   Stream.tap((n) => Console.log(`after mapping: ${n}`))
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 before mapping: 1
@@ -53,37 +53,37 @@ The "taking" operations in streams let you extract a specific set of elements, e
 **Example** (Extracting Elements in Different Ways)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
-const stream = Stream.iterate(0, (n) => n + 1);
+const stream = Stream.iterate(0, (n) => n + 1)
 
 // Using `take` to extract a fixed number of elements:
-const s1 = Stream.take(stream, 5);
-Effect.runPromise(Stream.runCollect(s1)).then(console.log);
+const s1 = Stream.take(stream, 5)
+Effect.runPromise(Stream.runCollect(s1)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 0, 1, 2, 3, 4 ] }
 */
 
 // Using `takeWhile` to extract elements while a condition is met:
-const s2 = Stream.takeWhile(stream, (n) => n < 5);
-Effect.runPromise(Stream.runCollect(s2)).then(console.log);
+const s2 = Stream.takeWhile(stream, (n) => n < 5)
+Effect.runPromise(Stream.runCollect(s2)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 0, 1, 2, 3, 4 ] }
 */
 
 // Using `takeUntil` to extract elements until a condition is met:
-const s3 = Stream.takeUntil(stream, (n) => n === 5);
-Effect.runPromise(Stream.runCollect(s3)).then(console.log);
+const s3 = Stream.takeUntil(stream, (n) => n === 5)
+Effect.runPromise(Stream.runCollect(s3)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 0, 1, 2, 3, 4, 5 ] }
 */
 
 // Using `takeRight` to take elements from the end of the stream:
-const s4 = Stream.takeRight(s3, 3);
-Effect.runPromise(Stream.runCollect(s4)).then(console.log);
+const s4 = Stream.takeRight(s3, 3)
+Effect.runPromise(Stream.runCollect(s4)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 3, 4, 5 ] }
@@ -104,23 +104,25 @@ With async iterables, data is processed in a loop until a break or return statem
 **Example** (Using `Stream.toPull`)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 // Simulate a chunked stream
-const stream = Stream.fromIterable([1, 2, 3, 4, 5]).pipe(Stream.rechunk(2));
+const stream = Stream.fromIterable([1, 2, 3, 4, 5]).pipe(
+  Stream.rechunk(2)
+)
 
 const program = Effect.gen(function* () {
   // Create an effect to get data chunks from the stream
-  const getChunk = yield* Stream.toPull(stream);
+  const getChunk = yield* Stream.toPull(stream)
 
   // Continuously fetch and process chunks
   while (true) {
-    const chunk = yield* getChunk;
-    console.log(chunk);
+    const chunk = yield* getChunk
+    console.log(chunk)
   }
-});
+})
 
-Effect.runPromise(Effect.scoped(program)).then(console.log, console.error);
+Effect.runPromise(Effect.scoped(program)).then(console.log, console.error)
 /*
 Output:
 { _id: 'Chunk', values: [ 1, 2 ] }
@@ -142,13 +144,13 @@ The `Stream.map` operation applies a specified function to each element in a str
 **Example** (Incrementing Each Element by 1)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3).pipe(
   Stream.map((n) => n + 1) // Increment each element by 1
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 2, 3, 4 ] }
@@ -162,11 +164,11 @@ The `Stream.as` method allows you to replace each success value in a stream with
 **Example** (Mapping to `null`)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
-const stream = Stream.range(1, 5).pipe(Stream.as(null));
+const stream = Stream.range(1, 5).pipe(Stream.as(null))
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ null, null, null, null, null ] }
@@ -180,14 +182,14 @@ For transformations involving effects, use `Stream.mapEffect`. This function app
 **Example** (Random Number Generation)
 
 ```ts twoslash
-import { Stream, Random, Effect } from "effect";
+import { Stream, Random, Effect } from "effect"
 
 const stream = Stream.make(10, 20, 30).pipe(
   // Generate a random number between 0 and each element
   Stream.mapEffect((n) => Random.nextIntBetween(0, n))
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Example Output:
 { _id: 'Chunk', values: [ 5, 9, 22 ] }
@@ -199,22 +201,22 @@ To handle multiple effectful transformations concurrently, you can use the [conc
 **Example** (Fetching URLs Concurrently)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const fetchUrl = (url: string) =>
   Effect.gen(function* (_) {
-    console.log(`Fetching ${url}`);
-    yield* Effect.sleep("100 millis");
-    console.log(`Fetching ${url} done`);
-    return [`Resource 0-${url}`, `Resource 1-${url}`, `Resource 2-${url}`];
-  });
+    console.log(`Fetching ${url}`)
+    yield* Effect.sleep("100 millis")
+    console.log(`Fetching ${url} done`)
+    return [`Resource 0-${url}`, `Resource 1-${url}`, `Resource 2-${url}`]
+  })
 
 const stream = Stream.make("url1", "url2", "url3").pipe(
   // Fetch each URL concurrently with a limit of 2
   Stream.mapEffect(fetchUrl, { concurrency: 2 })
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 Fetching url1
@@ -241,16 +243,16 @@ Fetching url3 done
 **Example** (Calculating a Running Total)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const stream = Stream.range(1, 5).pipe(
   //                                  ┌─── next state
   //                                  │          ┌─── emitted value
   //                                  ▼          ▼
   Stream.mapAccum(0, (state, n) => [state + n, state + n])
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 1, 3, 6, 10, 15 ] }
@@ -264,13 +266,13 @@ The `Stream.mapConcat` operation is similar to `Stream.map`, but it goes further
 **Example** (Splitting and Flattening a Stream)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const numbers = Stream.make("1-2-3", "4-5", "6").pipe(
   Stream.mapConcat((s) => s.split("-"))
-);
+)
 
-Effect.runPromise(Stream.runCollect(numbers)).then(console.log);
+Effect.runPromise(Stream.runCollect(numbers)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ '1', '2', '3', '4', '5', '6' ] }
@@ -284,11 +286,11 @@ The `Stream.filter` operation allows you to pass through only elements that meet
 **Example** (Filtering Even Numbers)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
-const stream = Stream.range(1, 11).pipe(Stream.filter((n) => n % 2 === 0));
+const stream = Stream.range(1, 11).pipe(Stream.filter((n) => n % 2 === 0))
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 2, 4, 6, 8, 10 ] }
@@ -302,11 +304,11 @@ Stream scanning allows you to apply a function cumulatively to each element in t
 **Example** (Cumulative Addition)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
-const stream = Stream.range(1, 5).pipe(Stream.scan(0, (a, b) => a + b));
+const stream = Stream.range(1, 5).pipe(Stream.scan(0, (a, b) => a + b))
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 0, 1, 3, 6, 10, 15 ] }
@@ -318,11 +320,11 @@ If you need only the final accumulated value, you can use [Stream.runFold](/docs
 **Example** (Final Accumulated Result)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
-const fold = Stream.range(1, 5).pipe(Stream.runFold(0, (a, b) => a + b));
+const fold = Stream.range(1, 5).pipe(Stream.runFold(0, (a, b) => a + b))
 
-Effect.runPromise(fold).then(console.log); // Output: 15
+Effect.runPromise(fold).then(console.log) // Output: 15
 ```
 
 ## Draining
@@ -332,18 +334,18 @@ Stream draining lets you execute effectful operations within a stream while disc
 **Example** (Executing Effectful Operations without Collecting Values)
 
 ```ts twoslash
-import { Stream, Effect, Random } from "effect";
+import { Stream, Effect, Random } from "effect"
 
 const stream = Stream.repeatEffect(
   Effect.gen(function* () {
-    const nextInt = yield* Random.nextInt;
-    const number = Math.abs(nextInt % 10);
-    console.log(`random number: ${number}`);
-    return number;
+    const nextInt = yield* Random.nextInt
+    const number = Math.abs(nextInt % 10)
+    console.log(`random number: ${number}`)
+    return number
   })
-).pipe(Stream.take(3));
+).pipe(Stream.take(3))
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Example Output:
 random number: 7
@@ -352,9 +354,9 @@ random number: 0
 { _id: 'Chunk', values: [ 7, 5, 0 ] }
 */
 
-const drained = Stream.drain(stream);
+const drained = Stream.drain(stream)
 
-Effect.runPromise(Stream.runCollect(drained)).then(console.log);
+Effect.runPromise(Stream.runCollect(drained)).then(console.log)
 /*
 Example Output:
 random number: 0
@@ -371,11 +373,11 @@ The `Stream.changes` operation detects and emits elements that differ from their
 **Example** (Emitting Distinct Consecutive Elements)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
-const stream = Stream.make(1, 1, 1, 2, 2, 3, 4).pipe(Stream.changes);
+const stream = Stream.make(1, 1, 1, 2, 2, 3, 4).pipe(Stream.changes)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 1, 2, 3, 4 ] }
@@ -391,15 +393,15 @@ Zipping combines elements from two streams into a new stream, pairing elements f
 In this example, elements from the two streams are paired sequentially. The resulting stream ends when one of the streams is exhausted.
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 // Zip two streams together
 const stream = Stream.zip(
   Stream.make(1, 2, 3, 4, 5, 6),
   Stream.make("a", "b", "c")
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ [ 1, 'a' ], [ 2, 'b' ], [ 3, 'c' ] ] }
@@ -411,16 +413,16 @@ Output:
 Here, `Stream.zipWith` applies custom logic to each pair, combining elements in a user-defined way.
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 // Zip two streams with custom pairing logic
 const stream = Stream.zipWith(
   Stream.make(1, 2, 3, 4, 5, 6),
   Stream.make("a", "b", "c"),
   (n, s) => [n + 10, s + "!"]
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ [ 11, 'a!' ], [ 12, 'b!' ], [ 13, 'c!' ] ] }
@@ -436,15 +438,15 @@ If one input stream ends before the other, you might want to zip with default va
 In this example, when the second stream completes, the first stream continues with "x" as a default value for the second stream.
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const stream = Stream.zipAll(Stream.make(1, 2, 3, 4, 5, 6), {
   other: Stream.make("a", "b", "c"),
   defaultSelf: -1,
-  defaultOther: "x",
-});
+  defaultOther: "x"
+})
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -466,16 +468,16 @@ Output:
 With `Stream.zipAllWith`, custom logic determines how to combine elements when either stream runs out, offering flexibility to handle these cases.
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const stream = Stream.zipAllWith(Stream.make(1, 2, 3, 4, 5, 6), {
   other: Stream.make("a", "b", "c"),
   onSelf: (n) => [n, "x"],
   onOther: (s) => [-1, s],
-  onBoth: (n, s) => [n + 10, s + "!"],
-});
+  onBoth: (n, s) => [n + 10, s + "!"]
+})
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -499,19 +501,19 @@ When combining streams that emit elements at different speeds, you may not want 
 **Example** (Combining Streams with Different Emission Rates)
 
 ```ts twoslash
-import { Stream, Schedule, Effect } from "effect";
+import { Stream, Schedule, Effect } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
   Stream.schedule(Schedule.spaced("1 second"))
-);
+)
 
 const s2 = Stream.make("a", "b", "c", "d").pipe(
   Stream.schedule(Schedule.spaced("500 millis"))
-);
+)
 
-const stream = Stream.zipLatest(s1, s2);
+const stream = Stream.zipLatest(s1, s2)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -539,13 +541,13 @@ Output:
 **Example** (Pairing Stream Elements with Next)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
-const stream = Stream.zipWithNext(Stream.make(1, 2, 3, 4));
+const stream = Stream.zipWithNext(Stream.make(1, 2, 3, 4))
 
 Effect.runPromise(Stream.runCollect(stream)).then((chunks) =>
   console.log("%o", chunks)
-);
+)
 /*
 Output:
 {
@@ -568,13 +570,13 @@ The `Stream.zipWithIndex` operator is a helpful tool for indexing each element i
 **Example** (Indexing Each Element in a Stream)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 const stream = Stream.zipWithIndex(
   Stream.make("Mary", "James", "Robert", "Patricia")
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -600,14 +602,14 @@ To create a Cartesian Product of two streams, the `Stream.cross` operator is ava
 **Example** (Creating a Cartesian Product of Two Streams)
 
 ```ts twoslash
-import { Stream, Effect, Console } from "effect";
+import { Stream, Effect, Console } from "effect"
 
-const s1 = Stream.make(1, 2, 3).pipe(Stream.tap(Console.log));
-const s2 = Stream.make("a", "b").pipe(Stream.tap(Console.log));
+const s1 = Stream.make(1, 2, 3).pipe(Stream.tap(Console.log))
+const s2 = Stream.make("a", "b").pipe(Stream.tap(Console.log))
 
-const cartesianProduct = Stream.cross(s1, s2);
+const cartesianProduct = Stream.cross(s1, s2)
 
-Effect.runPromise(Stream.runCollect(cartesianProduct)).then(console.log);
+Effect.runPromise(Stream.runCollect(cartesianProduct)).then(console.log)
 /*
 Output:
 1
@@ -634,10 +636,10 @@ b
 ```
 
 <Aside type="caution" title="Multiple Iterations of Right Stream">
-  Note that the right-hand stream (`s2` in this example) will be iterated over
-  multiple times, once for each element in the left-hand stream (`s1`). If the
-  right-hand stream involves expensive or side-effect-producing operations,
-  those will be executed repeatedly.
+  Note that the right-hand stream (`s2` in this example) will be iterated
+  over multiple times, once for each element in the left-hand stream
+  (`s1`). If the right-hand stream involves expensive or
+  side-effect-producing operations, those will be executed repeatedly.
 </Aside>
 
 ## Partitioning
@@ -651,23 +653,23 @@ The `Stream.partition` function takes a predicate (a condition) as input and div
 **Example** (Partitioning a Stream into Even and Odd Numbers)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 //      ┌─── Effect<[Stream<number>, Stream<number>], never, Scope>
 //      ▼
 const program = Stream.range(1, 9).pipe(
   Stream.partition((n) => n % 2 === 0, { bufferSize: 5 })
-);
+)
 
 Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
-      const [evens, odds] = yield* program;
-      console.log(yield* Stream.runCollect(evens));
-      console.log(yield* Stream.runCollect(odds));
+      const [evens, odds] = yield* program
+      console.log(yield* Stream.runCollect(evens))
+      console.log(yield* Stream.runCollect(odds))
     })
   )
-);
+)
 /*
 Output:
 { _id: 'Chunk', values: [ 2, 4, 6, 8 ] }
@@ -682,7 +684,7 @@ In some cases, you might need to partition a stream using a condition that invol
 **Example** (Partitioning a Stream with an Effectful Predicate)
 
 ```ts twoslash
-import { Stream, Effect, Either } from "effect";
+import { Stream, Effect, Either } from "effect"
 
 //      ┌─── Effect<[Stream<number>, Stream<number>], never, Scope>
 //      ▼
@@ -692,17 +694,17 @@ const program = Stream.range(1, 9).pipe(
     (n) => Effect.succeed(n % 2 === 0 ? Either.left(n) : Either.right(n)),
     { bufferSize: 5 }
   )
-);
+)
 
 Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
-      const [evens, odds] = yield* program;
-      console.log(yield* Stream.runCollect(evens));
-      console.log(yield* Stream.runCollect(odds));
+      const [evens, odds] = yield* program
+      console.log(yield* Stream.runCollect(evens))
+      console.log(yield* Stream.runCollect(odds))
     })
   )
-);
+)
 /*
 Output:
 { _id: 'Chunk', values: [ 2, 4, 6, 8 ] }
@@ -725,7 +727,7 @@ The result of `Stream.groupByKey` is a `GroupBy` data type, representing the gro
 In the following example, we use `Stream.groupByKey` to group exam scores by the tens place and count the number of scores in each group:
 
 ```ts twoslash
-import { Stream, GroupBy, Effect, Chunk } from "effect";
+import { Stream, GroupBy, Effect, Chunk } from "effect"
 
 class Exam {
   constructor(readonly person: string, readonly score: number) {}
@@ -737,13 +739,13 @@ const examResults = [
   new Exam("Michael", 97),
   new Exam("Bill", 77),
   new Exam("John", 78),
-  new Exam("Bobby", 71),
-];
+  new Exam("Bobby", 71)
+]
 
 // Group exam results by the tens place in the score
 const groupByKeyResult = Stream.fromIterable(examResults).pipe(
   Stream.groupByKey((exam) => Math.floor(exam.score / 10) * 10)
-);
+)
 
 // Count the number of exam results in each group
 const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
@@ -752,9 +754,9 @@ const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
       Effect.andThen((chunk) => [key, Chunk.size(chunk)] as const)
     )
   )
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ [ 60, 1 ], [ 90, 1 ], [ 70, 3 ] ] }
@@ -770,7 +772,7 @@ For more complex grouping requirements where partitioning involves effects, you 
 In the following example, we group names by their first letter and count the number of names in each group. Here, the partitioning operation is set up as an effectful operation:
 
 ```ts twoslash
-import { Stream, GroupBy, Effect, Chunk } from "effect";
+import { Stream, GroupBy, Effect, Chunk } from "effect"
 
 // Group names by their first letter
 const groupByKeyResult = Stream.fromIterable([
@@ -781,11 +783,11 @@ const groupByKeyResult = Stream.fromIterable([
   "John",
   "Jennifer",
   "Rebecca",
-  "Peter",
+  "Peter"
 ]).pipe(
   // Simulate an effectful groupBy operation
   Stream.groupBy((name) => Effect.succeed([name.substring(0, 1), name]))
-);
+)
 
 // Count the number of names in each group and display results
 const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
@@ -794,9 +796,9 @@ const stream = GroupBy.evaluate(groupByKeyResult, (key, stream) =>
       Effect.andThen((chunk) => [key, Chunk.size(chunk)] as const)
     )
   )
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -813,14 +815,14 @@ The `Stream.grouped` function is ideal for dividing a stream into chunks of a sp
 **Example** (Dividing a Stream into Chunks of 3 Elements)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 // Create a stream of numbers and group them into chunks of 3
-const stream = Stream.range(0, 8).pipe(Stream.grouped(3));
+const stream = Stream.range(0, 8).pipe(Stream.grouped(3))
 
 Effect.runPromise(Stream.runCollect(stream)).then((chunks) =>
   console.log("%o", chunks)
-);
+)
 /*
 Output:
 {
@@ -844,18 +846,18 @@ The `Stream.groupedWithin` function allows for flexible grouping by creating chu
 In this example, `Stream.groupedWithin(18, "1.5 seconds")` groups the stream into chunks whenever either 18 elements accumulate or 1.5 seconds elapse since the last chunk was created.
 
 ```ts twoslash
-import { Stream, Schedule, Effect, Chunk } from "effect";
+import { Stream, Schedule, Effect, Chunk } from "effect"
 
 // Create a stream that repeats every second and group by size or time
 const stream = Stream.range(0, 9).pipe(
   Stream.repeat(Schedule.spaced("1 second")),
   Stream.groupedWithin(18, "1.5 seconds"),
   Stream.take(3)
-);
+)
 
 Effect.runPromise(Stream.runCollect(stream)).then((chunks) =>
   console.log(Chunk.toArray(chunks))
-);
+)
 /*
 Output:
 [
@@ -898,11 +900,11 @@ The `Stream.concat` operator is a straightforward method for joining two streams
 **Example** (Concatenating Two Streams Sequentially)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
-const stream = Stream.concat(Stream.make(1, 2, 3), Stream.make("a", "b"));
+const stream = Stream.concat(Stream.make(1, 2, 3), Stream.make("a", "b"))
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 1, 2, 3, 'a', 'b' ] }
@@ -916,17 +918,17 @@ If you have multiple streams to concatenate, `Stream.concatAll` provides an effi
 **Example** (Concatenating Multiple Streams)
 
 ```ts twoslash
-import { Stream, Effect, Chunk } from "effect";
+import { Stream, Effect, Chunk } from "effect"
 
-const s1 = Stream.make(1, 2, 3);
-const s2 = Stream.make("a", "b");
-const s3 = Stream.make(true, false, false);
+const s1 = Stream.make(1, 2, 3)
+const s2 = Stream.make("a", "b")
+const s3 = Stream.make(true, false, false)
 
 const stream = Stream.concatAll<number | string | boolean, never, never>(
   Chunk.make(s1, s2, s3)
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -947,14 +949,14 @@ The `Stream.flatMap` operator allows for advanced concatenation by creating a st
 **Example** (Generating Repeated Elements with `Stream.flatMap`)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 // Create a stream where each element is repeated 4 times
 const stream = Stream.make(1, 2, 3).pipe(
   Stream.flatMap((a) => Stream.repeatValue(a).pipe(Stream.take(4)))
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -982,20 +984,20 @@ The `Stream.merge` operation combines elements from two source streams into a si
 **Example** (Interleaving Two Streams with `Stream.merge`)
 
 ```ts twoslash
-import { Schedule, Stream, Effect } from "effect";
+import { Schedule, Stream, Effect } from "effect"
 
 // Create two streams with different emission intervals
 const s1 = Stream.make(1, 2, 3).pipe(
   Stream.schedule(Schedule.spaced("100 millis"))
-);
+)
 const s2 = Stream.make(4, 5, 6).pipe(
   Stream.schedule(Schedule.spaced("200 millis"))
-);
+)
 
 // Merge s1 and s2 into a single stream that interleaves their values
-const merged = Stream.merge(s1, s2);
+const merged = Stream.merge(s1, s2)
 
-Effect.runPromise(Stream.runCollect(merged)).then(console.log);
+Effect.runPromise(Stream.runCollect(merged)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 1, 4, 2, 3, 5, 6 ] }
@@ -1017,18 +1019,18 @@ By default, `Stream.merge` waits for both streams to terminate before ending the
 **Example** (Using `haltStrategy: "left"` to Control Stream Termination)
 
 ```ts twoslash
-import { Stream, Schedule, Effect } from "effect";
+import { Stream, Schedule, Effect } from "effect"
 
 const s1 = Stream.range(1, 5).pipe(
   Stream.schedule(Schedule.spaced("100 millis"))
-);
+)
 const s2 = Stream.repeatValue(0).pipe(
   Stream.schedule(Schedule.spaced("200 millis"))
-);
+)
 
-const merged = Stream.merge(s1, s2, { haltStrategy: "left" });
+const merged = Stream.merge(s1, s2, { haltStrategy: "left" })
 
-Effect.runPromise(Stream.runCollect(merged)).then(console.log);
+Effect.runPromise(Stream.runCollect(merged)).then(console.log)
 /*
 Output:
 {
@@ -1048,23 +1050,23 @@ In some cases, you may want to merge two streams while transforming their elemen
 **Example** (Merging and Transforming Two Streams)
 
 ```ts twoslash
-import { Schedule, Stream, Effect } from "effect";
+import { Schedule, Stream, Effect } from "effect"
 
 const s1 = Stream.make("1", "2", "3").pipe(
   Stream.schedule(Schedule.spaced("100 millis"))
-);
+)
 const s2 = Stream.make(4.1, 5.3, 6.2).pipe(
   Stream.schedule(Schedule.spaced("200 millis"))
-);
+)
 
 const merged = Stream.mergeWith(s1, s2, {
   // Convert string elements from `s1` to integers
   onSelf: (s) => parseInt(s),
   // Round down decimal elements from `s2`
-  onOther: (n) => Math.floor(n),
-});
+  onOther: (n) => Math.floor(n)
+})
 
-Effect.runPromise(Stream.runCollect(merged)).then(console.log);
+Effect.runPromise(Stream.runCollect(merged)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 1, 4, 2, 3, 5, 6 ] }
@@ -1080,14 +1082,14 @@ The `Stream.interleave` operator lets you pull one element at a time from each o
 **Example** (Basic Interleaving of Two Streams)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
-const s1 = Stream.make(1, 2, 3);
-const s2 = Stream.make(4, 5, 6);
+const s1 = Stream.make(1, 2, 3)
+const s2 = Stream.make(4, 5, 6)
 
-const stream = Stream.interleave(s1, s2);
+const stream = Stream.interleave(s1, s2)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 { _id: 'Chunk', values: [ 1, 4, 2, 5, 3, 6 ] }
@@ -1101,17 +1103,17 @@ For more complex interleaving, `Stream.interleaveWith` provides additional contr
 **Example** (Custom Interleaving Logic Using `Stream.interleaveWith`)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
-const s1 = Stream.make(1, 3, 5, 7, 9);
-const s2 = Stream.make(2, 4, 6, 8, 10);
+const s1 = Stream.make(1, 3, 5, 7, 9)
+const s2 = Stream.make(2, 4, 6, 8, 10)
 
 // Define a boolean stream to control interleaving
-const booleanStream = Stream.make(true, false, false).pipe(Stream.forever);
+const booleanStream = Stream.make(true, false, false).pipe(Stream.forever)
 
-const stream = Stream.interleaveWith(s1, s2, booleanStream);
+const stream = Stream.interleaveWith(s1, s2, booleanStream)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -1135,12 +1137,12 @@ The `Stream.intersperse` operator inserts a specified delimiter element between 
 **Example** (Inserting Delimiters Between Stream Elements)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 // Create a stream of numbers and intersperse `0` between them
-const stream = Stream.make(1, 2, 3, 4, 5).pipe(Stream.intersperse(0));
+const stream = Stream.make(1, 2, 3, 4, 5).pipe(Stream.intersperse(0))
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -1160,7 +1162,7 @@ For more complex needs, `Stream.intersperseAffixes` provides control over differ
 **Example** (Adding Affixes to a Stream)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 // Create a stream and add affixes:
 // - `[` at the start
@@ -1170,11 +1172,11 @@ const stream = Stream.make(1, 2, 3, 4, 5).pipe(
   Stream.intersperseAffixes({
     start: "[",
     middle: "|",
-    end: "]",
+    end: "]"
   })
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 {
@@ -1197,11 +1199,13 @@ Broadcasting a stream creates multiple downstream streams that each receive the 
 In the following example, we broadcast a stream of numbers to two downstream consumers. The first calculates the maximum value in the stream, while the second logs each number with a delay. The upstream stream's speed adjusts based on the slower logging stream:
 
 ```ts twoslash
-import { Effect, Stream, Console, Schedule, Fiber } from "effect";
+import { Effect, Stream, Console, Schedule, Fiber } from "effect"
 
 const numbers = Effect.scoped(
   Stream.range(1, 20).pipe(
-    Stream.tap((n) => Console.log(`Emit ${n} element before broadcasting`)),
+    Stream.tap((n) =>
+      Console.log(`Emit ${n} element before broadcasting`)
+    ),
     // Broadcast to 2 downstream consumers with max lag of 5
     Stream.broadcast(2, 5),
     Stream.flatMap(([first, second]) =>
@@ -1212,26 +1216,28 @@ const numbers = Effect.scoped(
         ).pipe(
           Effect.andThen((max) => Console.log(`Maximum: ${max}`)),
           Effect.fork
-        );
+        )
 
         // Second downstream stream: logs each element with a delay
         const fiber2 = yield* second.pipe(
           Stream.schedule(Schedule.spaced("1 second")),
-          Stream.runForEach((n) => Console.log(`Logging to the Console: ${n}`)),
+          Stream.runForEach((n) =>
+            Console.log(`Logging to the Console: ${n}`)
+          ),
           Effect.fork
-        );
+        )
 
         // Wait for both fibers to complete
         yield* Fiber.join(fiber1).pipe(
           Effect.zip(Fiber.join(fiber2), { concurrent: true })
-        );
+        )
       })
     ),
     Stream.runCollect
   )
-);
+)
 
-Effect.runPromise(numbers).then(console.log);
+Effect.runPromise(numbers).then(console.log)
 /*
 Output:
 Emit 1 element before broadcasting
@@ -1290,7 +1296,7 @@ The `Stream.buffer` operator queues elements to allow the producer to work indep
 **Example** (Using a Buffer to Handle Speed Mismatch)
 
 ```ts twoslash
-import { Stream, Console, Schedule, Effect } from "effect";
+import { Stream, Console, Schedule, Effect } from "effect"
 
 const stream = Stream.range(1, 10).pipe(
   // Log each element before buffering
@@ -1301,9 +1307,9 @@ const stream = Stream.range(1, 10).pipe(
   Stream.tap((n) => Console.log(`after buffering: ${n}`)),
   // Add a 5-second delay between each emission
   Stream.schedule(Schedule.spaced("5 seconds"))
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 before buffering: 1
@@ -1343,16 +1349,16 @@ The `Stream.debounce` function achieves this by delaying the emission of values 
 **Example** (Debouncing a Stream of Rapidly Emitted Values)
 
 ```ts twoslash
-import { Stream, Effect } from "effect";
+import { Stream, Effect } from "effect"
 
 // Helper function to log with elapsed time since the last log
-let last = Date.now();
+let last = Date.now()
 const log = (message: string) =>
   Effect.sync(() => {
-    const end = Date.now();
-    console.log(`${message} after ${end - last}ms`);
-    last = end;
-  });
+    const end = Date.now()
+    console.log(`${message} after ${end - last}ms`)
+    last = end
+  })
 
 const stream = Stream.make(1, 2, 3).pipe(
   // Emit the value 4 after 200 ms
@@ -1370,9 +1376,9 @@ const stream = Stream.make(1, 2, 3).pipe(
   // Only emit values after a pause of at least 100 milliseconds
   Stream.debounce("100 millis"),
   Stream.tap((n) => log(`> Emitted ${n}`))
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Example Output:
 Received 1 after 5ms
@@ -1402,8 +1408,8 @@ The `Stream.throttle` function uses the [token bucket algorithm](https://en.wiki
 Stream.throttle({
   cost: () => 1,
   duration: "100 millis",
-  units: 1,
-});
+  units: 1
+})
 ```
 
 In this configuration:
@@ -1412,8 +1418,8 @@ In this configuration:
 - Tokens are replenished at a rate of one token (`units: 1`) every 100 milliseconds (`duration: "100 millis"`).
 
 <Aside type="caution" title="Throttling Applies to Chunks, Not Elements">
-  Note that throttling operates on chunks rather than individual elements. The
-  `cost` function sets the token cost for each chunk.
+  Note that throttling operates on chunks rather than individual elements.
+  The `cost` function sets the token cost for each chunk.
 </Aside>
 
 ### Shape Strategy (Default)
@@ -1424,16 +1430,16 @@ This strategy ensures that data throughput does not exceed defined limits, allow
 **Example** (Applying Throttling with the Shape Strategy)
 
 ```ts twoslash
-import { Stream, Effect, Schedule, Chunk } from "effect";
+import { Stream, Effect, Schedule, Chunk } from "effect"
 
 // Helper function to log with elapsed time since last log
-let last = Date.now();
+let last = Date.now()
 const log = (message: string) =>
   Effect.sync(() => {
-    const end = Date.now();
-    console.log(`${message} after ${end - last}ms`);
-    last = end;
-  });
+    const end = Date.now()
+    console.log(`${message} after ${end - last}ms`)
+    last = end
+  })
 
 const stream = Stream.fromSchedule(Schedule.spaced("50 millis")).pipe(
   Stream.take(6),
@@ -1441,12 +1447,12 @@ const stream = Stream.fromSchedule(Schedule.spaced("50 millis")).pipe(
   Stream.throttle({
     cost: Chunk.size,
     duration: "100 millis",
-    units: 1,
+    units: 1
   }),
   Stream.tap((n) => log(`> Emitted ${n}`))
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Example Output:
 Received 0 after 56ms
@@ -1472,16 +1478,16 @@ The "enforce" strategy strictly regulates data flow by discarding chunks that ex
 **Example** (Throttling with the Enforce Strategy)
 
 ```ts twoslash
-import { Stream, Effect, Schedule, Chunk } from "effect";
+import { Stream, Effect, Schedule, Chunk } from "effect"
 
 // Helper function to log with elapsed time since last log
-let last = Date.now();
+let last = Date.now()
 const log = (message: string) =>
   Effect.sync(() => {
-    const end = Date.now();
-    console.log(`${message} after ${end - last}ms`);
-    last = end;
-  });
+    const end = Date.now()
+    console.log(`${message} after ${end - last}ms`)
+    last = end
+  })
 
 const stream = Stream.make(1, 2, 3, 4, 5, 6).pipe(
   Stream.schedule(Schedule.exponential("100 millis")),
@@ -1490,12 +1496,12 @@ const stream = Stream.make(1, 2, 3, 4, 5, 6).pipe(
     cost: Chunk.size,
     duration: "1 second",
     units: 1,
-    strategy: "enforce",
+    strategy: "enforce"
   }),
   Stream.tap((n) => log(`> Emitted ${n}`))
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Example Output:
 Received 1 after 106ms
@@ -1521,16 +1527,16 @@ The burst capacity provides additional tokens in the token bucket, enabling the 
 **Example** (Throttling with Burst Capacity)
 
 ```ts twoslash
-import { Effect, Schedule, Stream, Chunk } from "effect";
+import { Effect, Schedule, Stream, Chunk } from "effect"
 
 // Helper function to log with elapsed time since last log
-let last = Date.now();
+let last = Date.now()
 const log = (message: string) =>
   Effect.sync(() => {
-    const end = Date.now();
-    console.log(`${message} after ${end - last}ms`);
-    last = end;
-  });
+    const end = Date.now()
+    console.log(`${message} after ${end - last}ms`)
+    last = end
+  })
 
 const stream = Stream.fromSchedule(Schedule.spaced("10 millis")).pipe(
   Stream.take(20),
@@ -1540,12 +1546,12 @@ const stream = Stream.fromSchedule(Schedule.spaced("10 millis")).pipe(
     duration: "200 millis",
     units: 5,
     strategy: "enforce",
-    burst: 2,
+    burst: 2
   }),
   Stream.tap((n) => log(`> Emitted ${n}`))
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Example Output:
 Received 0 after 16ms
@@ -1599,15 +1605,15 @@ When working with streams, you may need to introduce specific time intervals bet
 **Example** (Adding a Delay Between Stream Emissions)
 
 ```ts twoslash
-import { Stream, Schedule, Console, Effect } from "effect";
+import { Stream, Schedule, Console, Effect } from "effect"
 
 // Create a stream that emits values with a 1-second delay between each
 const stream = Stream.make(1, 2, 3, 4, 5).pipe(
   Stream.schedule(Schedule.spaced("1 second")),
   Stream.tap(Console.log)
-);
+)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log);
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 1

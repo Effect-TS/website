@@ -5,7 +5,7 @@ sidebar:
   order: 5
 ---
 
-import { Aside, Badge } from "@astrojs/starlight/components";
+import { Aside, Badge } from "@astrojs/starlight/components"
 
 Configuration is an essential aspect of any cloud-native application. Effect simplifies the process of managing configuration by offering a convenient interface for configuration providers.
 
@@ -45,19 +45,19 @@ Effect provides several built-in types for configuration values, which you can u
 Here's an example of loading a basic configuration using environment variables for `HOST` and `PORT`:
 
 ```ts twoslash title="primitives.ts"
-import { Effect, Config } from "effect";
+import { Effect, Config } from "effect"
 
 // Define a program that loads HOST and PORT configuration
 const program = Effect.gen(function* () {
   // Load the HOST from environment variables
-  const host = yield* Config.string("HOST");
+  const host = yield* Config.string("HOST")
   // Load the PORT as a number
-  const port = yield* Config.number("PORT");
+  const port = yield* Config.number("PORT")
 
-  console.log(`Application started: ${host}:${port}`);
-});
+  console.log(`Application started: ${host}:${port}`)
+})
 
-Effect.runPromise(program);
+Effect.runPromise(program)
 ```
 
 If you run this without setting the required environment variables:
@@ -102,16 +102,16 @@ Sometimes, you may encounter situations where an environment variable is missing
 **Example** (Using Default Values)
 
 ```ts twoslash title="defaults.ts"
-import { Effect, Config } from "effect";
+import { Effect, Config } from "effect"
 
 const program = Effect.gen(function* () {
-  const host = yield* Config.string("HOST");
+  const host = yield* Config.string("HOST")
   // Use default 8080 if PORT is not set
-  const port = yield* Config.number("PORT").pipe(Config.withDefault(8080));
-  console.log(`Application started: ${host}:${port}`);
-});
+  const port = yield* Config.number("PORT").pipe(Config.withDefault(8080))
+  console.log(`Application started: ${host}:${port}`)
+})
 
-Effect.runPromise(program);
+Effect.runPromise(program)
 ```
 
 Running this program with only the `HOST` environment variable set:
@@ -156,15 +156,15 @@ Additionally, there are three special constructors for specific use cases:
 The following example demonstrates how to load an environment variable as an array of strings using the `Config.array` constructor.
 
 ```ts twoslash title="array.ts"
-import { Effect, Config } from "effect";
+import { Effect, Config } from "effect"
 
 const program = Effect.gen(function* () {
   // Load array from env var MY_ARRAY
-  const config = yield* Config.array(Config.string(), "MY_ARRAY");
-  console.log(config);
-});
+  const config = yield* Config.array(Config.string(), "MY_ARRAY")
+  console.log(config)
+})
 
-Effect.runPromise(program);
+Effect.runPromise(program)
 ```
 
 If we run this program with the following environment variable:
@@ -199,20 +199,20 @@ These operators enable you to modify configurations or validate their values:
 **Example** (Using `validate` Operator)
 
 ```ts twoslash title="validate.ts"
-import { Effect, Config } from "effect";
+import { Effect, Config } from "effect"
 
 const program = Effect.gen(function* () {
   // Load the NAME environment variable and validate its length
   const config = yield* Config.string("NAME").pipe(
     Config.validate({
       message: "Expected a string at least 4 characters long",
-      validation: (s) => s.length >= 4,
+      validation: (s) => s.length >= 4
     })
-  );
-  console.log(config);
-});
+  )
+  console.log(config)
+})
 
-Effect.runPromise(program);
+Effect.runPromise(program)
 ```
 
 If we run this program with an invalid `NAME` value:
@@ -252,27 +252,27 @@ Fallback operators are useful when you want to provide alternative configuration
 In this example, the program requires two configuration values: `A` and `B`. We set up two configuration providers, each containing only one of the required values. Using the `orElse` operator, we combine these providers so the program can retrieve both `A` and `B`.
 
 ```ts twoslash title="orElse.ts"
-import { Config, ConfigProvider, Effect, Layer } from "effect";
+import { Config, ConfigProvider, Effect, Layer } from "effect"
 
 // A program that requires two configurations: A and B
 const program = Effect.gen(function* () {
-  const A = yield* Config.string("A"); // Retrieve config A
-  const B = yield* Config.string("B"); // Retrieve config B
-  console.log(`A: ${A}, B: ${B}`);
-});
+  const A = yield* Config.string("A") // Retrieve config A
+  const B = yield* Config.string("B") // Retrieve config B
+  console.log(`A: ${A}, B: ${B}`)
+})
 
 // First provider has A but is missing B
-const provider1 = ConfigProvider.fromMap(new Map([["A", "A"]]));
+const provider1 = ConfigProvider.fromMap(new Map([["A", "A"]]))
 
 // Second provider has B but is missing A
-const provider2 = ConfigProvider.fromMap(new Map([["B", "B"]]));
+const provider2 = ConfigProvider.fromMap(new Map([["B", "B"]]))
 
 // Use `orElse` to fall back from provider1 to provider2
 const layer = Layer.setConfigProvider(
   provider1.pipe(ConfigProvider.orElse(() => provider2))
-);
+)
 
-Effect.runPromise(Effect.provide(program, layer));
+Effect.runPromise(Effect.provide(program, layer))
 ```
 
 If we run this program:
@@ -288,10 +288,10 @@ A: A, B: B
 ```
 
 <Aside type="tip">
-  In this example, we use `ConfigProvider.fromMap` to create a configuration
-  provider from a simple JavaScript `Map`. This is particularly useful for
-  testing, as described in the [Testing Configurable
-  Services](#testing-configurable-services) section.
+  In this example, we use `ConfigProvider.fromMap` to create a
+  configuration provider from a simple JavaScript `Map`. This is
+  particularly useful for testing, as described in the [Testing
+  Configurable Services](#testing-configurable-services) section.
 </Aside>
 
 ## Custom Configurations
@@ -304,7 +304,7 @@ For example, let's create a `HostPort` class, which has two fields: `host` and `
 class HostPort {
   constructor(readonly host: string, readonly port: number) {}
   get url() {
-    return `${this.host}:${this.port}`;
+    return `${this.host}:${this.port}`
   }
 }
 ```
@@ -312,20 +312,23 @@ class HostPort {
 To define a configuration for this custom type, we can combine primitive configs for `string` and `number`:
 
 ```ts twoslash
-import { Config } from "effect";
+import { Config } from "effect"
 
 class HostPort {
   constructor(readonly host: string, readonly port: number) {}
   get url() {
-    return `${this.host}:${this.port}`;
+    return `${this.host}:${this.port}`
   }
 }
 
 // Combine the configuration for 'HOST' and 'PORT'
-const both = Config.all([Config.string("HOST"), Config.number("PORT")]);
+const both = Config.all([Config.string("HOST"), Config.number("PORT")])
 
 // Map the configuration values into a HostPort instance
-const config = Config.map(both, ([host, port]) => new HostPort(host, port));
+const config = Config.map(
+  both,
+  ([host, port]) => new HostPort(host, port)
+)
 ```
 
 In this example, `Config.all(configs)` combines two primitive configurations, `Config<string>` and `Config<number>`, into a `Config<[string, number]>`. The `Config.map` operator is then used to transform these values into an instance of the `HostPort` class.
@@ -333,28 +336,31 @@ In this example, `Config.all(configs)` combines two primitive configurations, `C
 **Example** (Using Custom Configuration)
 
 ```ts twoslash title="App.ts"
-import { Effect, Config } from "effect";
+import { Effect, Config } from "effect"
 
 class HostPort {
   constructor(readonly host: string, readonly port: number) {}
   get url() {
-    return `${this.host}:${this.port}`;
+    return `${this.host}:${this.port}`
   }
 }
 
 // Combine the configuration for 'HOST' and 'PORT'
-const both = Config.all([Config.string("HOST"), Config.number("PORT")]);
+const both = Config.all([Config.string("HOST"), Config.number("PORT")])
 
 // Map the configuration values into a HostPort instance
-const config = Config.map(both, ([host, port]) => new HostPort(host, port));
+const config = Config.map(
+  both,
+  ([host, port]) => new HostPort(host, port)
+)
 
 // Main program that reads configuration and starts the application
 const program = Effect.gen(function* () {
-  const hostPort = yield* config;
-  console.log(`Application started: ${hostPort.url}`);
-});
+  const hostPort = yield* config
+  console.log(`Application started: ${hostPort.url}`)
+})
 
-Effect.runPromise(program);
+Effect.runPromise(program)
 ```
 
 When you run this program, it will try to retrieve the values for `HOST` and `PORT` from your environment variables:
@@ -383,7 +389,7 @@ class ServiceConfig {
     readonly timeout: number
   ) {}
   get url() {
-    return `${this.host}:${this.port}`;
+    return `${this.host}:${this.port}`
   }
 }
 ```
@@ -393,7 +399,7 @@ If you were to use this configuration in your application, it would expect the `
 To do this, you can use the `Config.nested` operator, which allows you to nest configuration values under a specific namespace. Let's update the previous example to reflect this:
 
 ```ts twoslash
-import { Config } from "effect";
+import { Config } from "effect"
 
 class ServiceConfig {
   constructor(
@@ -402,21 +408,24 @@ class ServiceConfig {
     readonly timeout: number
   ) {}
   get url() {
-    return `${this.host}:${this.port}`;
+    return `${this.host}:${this.port}`
   }
 }
 
-const serverConfig = Config.all([Config.string("HOST"), Config.number("PORT")]);
+const serverConfig = Config.all([
+  Config.string("HOST"),
+  Config.number("PORT")
+])
 
 const serviceConfig = Config.map(
   Config.all([
     // Read 'HOST' and 'PORT' from 'SERVER' namespace
     Config.nested(serverConfig, "SERVER"),
     // Read 'TIMEOUT' from the root namespace
-    Config.number("TIMEOUT"),
+    Config.number("TIMEOUT")
   ]),
   ([[host, port], timeout]) => new ServiceConfig(host, port, timeout)
-);
+)
 ```
 
 Now, if you run your application with this configuration setup, it will look for the following environment variables:
@@ -436,38 +445,38 @@ You can achieve this using the `ConfigProvider.fromMap` constructor. This method
 **Example** (Mocking a Config Provider for Testing)
 
 ```ts twoslash
-import { Config, ConfigProvider, Layer, Effect } from "effect";
+import { Config, ConfigProvider, Layer, Effect } from "effect"
 
 class HostPort {
   constructor(readonly host: string, readonly port: number) {}
   get url() {
-    return `${this.host}:${this.port}`;
+    return `${this.host}:${this.port}`
   }
 }
 
 const config = Config.map(
   Config.all([Config.string("HOST"), Config.number("PORT")]),
   ([host, port]) => new HostPort(host, port)
-);
+)
 
 const program = Effect.gen(function* () {
-  const hostPort = yield* config;
-  console.log(`Application started: ${hostPort.url}`);
-});
+  const hostPort = yield* config
+  console.log(`Application started: ${hostPort.url}`)
+})
 
 // Create a mock config provider using a map with test data
 const mockConfigProvider = ConfigProvider.fromMap(
   new Map([
     ["HOST", "localhost"],
-    ["PORT", "8080"],
+    ["PORT", "8080"]
   ])
-);
+)
 
 // Override the default config provider with the mock provider
-const layer = Layer.setConfigProvider(mockConfigProvider);
+const layer = Layer.setConfigProvider(mockConfigProvider)
 
 // Run the program using the mock config provider
-Effect.runPromise(Effect.provide(program, layer));
+Effect.runPromise(Effect.provide(program, layer))
 // Output: Application started: localhost:8080
 ```
 
@@ -482,19 +491,19 @@ When you log a `Redacted` value using `console.log`, the actual content remains 
 **Example** (Handling Redacted Values)
 
 ```ts twoslash title="redacted.ts"
-import { Effect, Config, Redacted } from "effect";
+import { Effect, Config, Redacted } from "effect"
 
 const program = Effect.gen(function* () {
-  const redacted = yield* Config.redacted("API_KEY");
+  const redacted = yield* Config.redacted("API_KEY")
 
   // Log the redacted value, which won't reveal the actual secret
-  console.log(`Console output: ${redacted}`);
+  console.log(`Console output: ${redacted}`)
 
   // Access the real value using Redacted.value and log it
-  console.log(`Actual value: ${Redacted.value(redacted)}`);
-});
+  console.log(`Actual value: ${Redacted.value(redacted)}`)
+})
 
-Effect.runPromise(program);
+Effect.runPromise(program)
 ```
 
 When this program is executed:
@@ -521,19 +530,19 @@ The `Config.secret` function was previously used to secure sensitive information
 **Example** (Using Deprecated `Config.secret`)
 
 ```ts twoslash title="secret.ts"
-import { Effect, Config, Secret } from "effect";
+import { Effect, Config, Secret } from "effect"
 
 const program = Effect.gen(function* () {
-  const secret = yield* Config.secret("API_KEY");
+  const secret = yield* Config.secret("API_KEY")
 
   // Log the secret value, which won't reveal the actual secret
-  console.log(`Console output: ${secret}`);
+  console.log(`Console output: ${secret}`)
 
   // Access the real value using Secret.value and log it
-  console.log(`Actual value: ${Secret.value(secret)}`);
-});
+  console.log(`Actual value: ${Secret.value(secret)}`)
+})
 
-Effect.runPromise(program);
+Effect.runPromise(program)
 ```
 
 When this program is executed:

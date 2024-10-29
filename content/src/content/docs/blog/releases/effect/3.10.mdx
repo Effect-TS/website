@@ -32,8 +32,8 @@ import {
   JSONSchema,
   ParseResult,
   Pretty,
-  Schema,
-} from "@effect/schema";
+  Schema
+} from "@effect/schema"
 ```
 
 After
@@ -46,8 +46,8 @@ import {
   JSONSchema,
   ParseResult,
   Pretty,
-  Schema,
-} from "effect";
+  Schema
+} from "effect"
 ```
 
 ### Formatters
@@ -57,13 +57,13 @@ import {
 Before
 
 ```ts
-import { ArrayFormatter, TreeFormatter } from "@effect/schema";
+import { ArrayFormatter, TreeFormatter } from "@effect/schema"
 ```
 
 After
 
 ```ts
-import { ArrayFormatter, TreeFormatter } from "effect/ParseResult";
+import { ArrayFormatter, TreeFormatter } from "effect/ParseResult"
 ```
 
 ### Serializable
@@ -77,17 +77,17 @@ Merged into the `Schema` module.
 Before
 
 ```ts
-import { Equivalence } from "@effect/schema";
+import { Equivalence } from "@effect/schema"
 
-Equivalence.make(myschema);
+Equivalence.make(myschema)
 ```
 
 After
 
 ```ts
-import { Schema } from "effect";
+import { Schema } from "effect"
 
-Schema.equivalence(myschema);
+Schema.equivalence(myschema)
 ```
 
 ## HttpApi improvements
@@ -116,13 +116,13 @@ create complex atomic operations.
 These new apis allow you to create a stream from a `TQueue` or `TPubSub`.
 
 ```ts
-import { Effect, Stream, TQueue } from "effect";
+import { Effect, Stream, TQueue } from "effect"
 
 Effect.gen(function* () {
-  const queue = yield* TQueue.unbounded<number>();
+  const queue = yield* TQueue.unbounded<number>()
 
-  const stream: Stream.Stream<number> = Stream.fromTQueue(queue);
-});
+  const stream: Stream.Stream<number> = Stream.fromTQueue(queue)
+})
 ```
 
 ## Redactable trait
@@ -131,9 +131,9 @@ The `Redactable` trait has been added to the `Inspectable` module. It is integra
 to allow you to create data types that can have sensitive data redacted when logged.
 
 ```ts
-import { Headers } from "@effect/platform";
-import { NodeRuntime } from "@effect/platform-node";
-import { Effect } from "effect";
+import { Headers } from "@effect/platform"
+import { NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
 
 /*
 
@@ -145,10 +145,10 @@ Output:
 Effect.gen(function* () {
   yield* Effect.log(
     Headers.fromInput({
-      authorization: "Some secret key",
+      authorization: "Some secret key"
     })
-  );
-}).pipe(NodeRuntime.runMain);
+  )
+}).pipe(NodeRuntime.runMain)
 ```
 
 ## Other changes
