@@ -913,7 +913,7 @@ class Random extends Context.Tag("MyRandomService")<
   Random,
   { readonly next: Micro.Micro<number> } // Operations
 >() {}
-// ---cut---
+
 const program = Micro.gen(function* () {
   // Access the Random service
   const random = yield* Micro.service(Random)
@@ -950,7 +950,7 @@ const program = Micro.gen(function* () {
 
   console.log(`random number: ${randomNumber}`)
 })
-// ---cut---
+
 // Provide the Random service implementation
 const runnable = Micro.provideService(program, Random, {
   next: Micro.sync(() => Math.random())
