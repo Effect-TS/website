@@ -28,22 +28,15 @@ const main = makeFile(
      |import { DevToolsLive } from "./DevTools"
      |
      |const program = Effect.gen(function*() {
-     |  yield* Effect.log("Welcome to the Effect Playground!").pipe(
-     |    Effect.withSpan("leaf: depth 3", {
-     |      attributes: { source: "Playground" }
-     |    }),
-     |    Effect.withSpan("node: depth 2")
-     |  )
-     |  yield* Effect.void.pipe(Effect.withSpan("leaf: depth 2"))
-     |}).pipe(
-     |  Effect.withSpan("node: depth 1"),
-     |  Effect.withSpan("root")
-     |)
+     |  yield* Effect.log("Welcome to the Effect Playground!")
+     |}).pipe(Effect.withSpan("program", {
+     |  attributes: { source: "Playground" }
+     |}))
      |
      |program.pipe(
      |  Effect.provide(DevToolsLive),
      |  NodeRuntime.runMain
-     |)
+     |)     
      |`
   )
 )
