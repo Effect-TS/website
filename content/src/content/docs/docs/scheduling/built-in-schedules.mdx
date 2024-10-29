@@ -1,0 +1,474 @@
+---
+title: Built-In Schedules
+description: Unlock the power of scheduling in Effect with built-in schedules. Dive into various schedules like `forever`, `once`, and `recurs`, each offering unique recurrence patterns. Witness the behavior of `spaced` and `fixed` schedules, understanding how they space repetitions at specific intervals. Delve into advanced schedules like `exponential` and `fibonacci`, providing controlled recurrence with increasing delays. Master the art of scheduling for precise and efficient execution of effectful operations.
+sidebar:
+  order: 2
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+To demonstrate the functionality of different schedules, we will use the following helper function that logs the delay between executions.
+
+```ts twoslash collapse={7-33}
+import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+
+const log = <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+): void => {
+  let start = 0
+  let i = 0
+
+  Effect.gen(function* () {
+    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
+      function* () {
+        yield* action
+        const now = yield* TestClock.currentTimeMillis
+        console.log(
+          i === 0
+            ? `delay: ${now - start}`
+            : i === 10
+            ? "..."
+            : `#${i} delay: ${now - start}`
+        )
+        i++
+        start = now
+      }
+    ).pipe(
+      Effect.repeat(
+        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
+      ),
+      Effect.fork
+    )
+    yield* TestClock.adjust(Infinity)
+    yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+}
+```
+
+<Aside type="note" title="Implementation Details">
+  The `log` helper uses [TestClock](/docs/testing/testclock/) to simulate
+  time passing. This allows us to observe the behavior of schedules as if
+  time were advancing in a real-world scenario.
+</Aside>
+
+## forever
+
+A schedule that repeats indefinitely, producing the number of recurrences each time it runs.
+
+**Example** (Forever Recurring Schedule)
+
+```ts twoslash collapse={3-34}
+import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+
+const log = <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+): void => {
+  let start = 0
+  let i = 0
+
+  Effect.gen(function* () {
+    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
+      function* () {
+        yield* action
+        const now = yield* TestClock.currentTimeMillis
+        console.log(
+          i === 0
+            ? `delay: ${now - start}`
+            : i === 10
+            ? "..."
+            : `#${i} delay: ${now - start}`
+        )
+        i++
+        start = now
+      }
+    ).pipe(
+      Effect.repeat(
+        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
+      ),
+      Effect.fork
+    )
+    yield* TestClock.adjust(Infinity)
+    yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+}
+
+const schedule = Schedule.forever
+const action = Effect.void
+log(action, schedule)
+/*
+Output:
+delay: 0
+#1 delay: 0 < forever
+#2 delay: 0
+#3 delay: 0
+#4 delay: 0
+#5 delay: 0
+#6 delay: 0
+#7 delay: 0
+#8 delay: 0
+#9 delay: 0
+...
+*/
+```
+
+## once
+
+A schedule that recurs only once.
+
+**Example** (Single Recurrence Schedule)
+
+```ts twoslash collapse={3-34}
+import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+
+const log = <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+): void => {
+  let start = 0
+  let i = 0
+
+  Effect.gen(function* () {
+    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
+      function* () {
+        yield* action
+        const now = yield* TestClock.currentTimeMillis
+        console.log(
+          i === 0
+            ? `delay: ${now - start}`
+            : i === 10
+            ? "..."
+            : `#${i} delay: ${now - start}`
+        )
+        i++
+        start = now
+      }
+    ).pipe(
+      Effect.repeat(
+        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
+      ),
+      Effect.fork
+    )
+    yield* TestClock.adjust(Infinity)
+    yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+}
+
+const schedule = Schedule.once
+const action = Effect.void
+log(action, schedule)
+/*
+Output:
+delay: 0
+#1 delay: 0 < once
+*/
+```
+
+## recurs
+
+A schedule that repeats a specified number of times.
+
+**Example** (Fixed Number of Recurrences)
+
+```ts twoslash collapse={3-34}
+import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+
+const log = <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+): void => {
+  let start = 0
+  let i = 0
+
+  Effect.gen(function* () {
+    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
+      function* () {
+        yield* action
+        const now = yield* TestClock.currentTimeMillis
+        console.log(
+          i === 0
+            ? `delay: ${now - start}`
+            : i === 10
+            ? "..."
+            : `#${i} delay: ${now - start}`
+        )
+        i++
+        start = now
+      }
+    ).pipe(
+      Effect.repeat(
+        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
+      ),
+      Effect.fork
+    )
+    yield* TestClock.adjust(Infinity)
+    yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+}
+
+const schedule = Schedule.recurs(5)
+const action = Effect.void
+log(action, schedule)
+/*
+Output:
+delay: 0
+#1 delay: 0 < recurs
+#2 delay: 0
+#3 delay: 0
+#4 delay: 0
+#5 delay: 0
+*/
+```
+
+## Recurring at specific intervals
+
+You can use `spaced` or `fixed` schedules to specify intervals between recurrences. The difference lies in how the interval is measured: `spaced` delays each repetition from the end of the previous one, while `fixed` ensures regular intervals, regardless of how long the previous effect took.
+
+### spaced
+
+A schedule that repeats indefinitely, each repetition spaced the specified duration from the last run.
+
+**Example** (Recurring with Delay Between Executions)
+
+```ts twoslash collapse={3-34}
+import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+
+const log = <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+): void => {
+  let start = 0
+  let i = 0
+
+  Effect.gen(function* () {
+    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
+      function* () {
+        yield* action
+        const now = yield* TestClock.currentTimeMillis
+        console.log(
+          i === 0
+            ? `delay: ${now - start}`
+            : i === 10
+            ? "..."
+            : `#${i} delay: ${now - start}`
+        )
+        i++
+        start = now
+      }
+    ).pipe(
+      Effect.repeat(
+        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
+      ),
+      Effect.fork
+    )
+    yield* TestClock.adjust(Infinity)
+    yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+}
+
+const schedule = Schedule.spaced("200 millis")
+const action = Effect.delay(Effect.void, "100 millis")
+log(action, schedule)
+/*
+Output:
+delay: 100
+#1 delay: 300 < spaced
+#2 delay: 300
+#3 delay: 300
+#4 delay: 300
+#5 delay: 300
+#6 delay: 300
+#7 delay: 300
+#8 delay: 300
+#9 delay: 300
+...
+*/
+```
+
+The first delay is approximately 100 milliseconds, as the initial execution is not affected by the schedule. Subsequent delays are approximately 200 milliseconds apart, demonstrating the effect of the `spaced` schedule.
+
+### fixed
+
+A schedule that recurs at fixed intervals. Returns the number of repetitions of the schedule so far.
+
+**Example** (Fixed Interval Recurrence)
+
+```ts twoslash collapse={3-34}
+import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+
+const log = <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+): void => {
+  let start = 0
+  let i = 0
+
+  Effect.gen(function* () {
+    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
+      function* () {
+        yield* action
+        const now = yield* TestClock.currentTimeMillis
+        console.log(
+          i === 0
+            ? `delay: ${now - start}`
+            : i === 10
+            ? "..."
+            : `#${i} delay: ${now - start}`
+        )
+        i++
+        start = now
+      }
+    ).pipe(
+      Effect.repeat(
+        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
+      ),
+      Effect.fork
+    )
+    yield* TestClock.adjust(Infinity)
+    yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+}
+
+const schedule = Schedule.fixed("200 millis")
+const action = Effect.delay(Effect.void, "100 millis")
+log(action, schedule)
+/*
+Output:
+delay: 100
+#1 delay: 300 < fixed
+#2 delay: 200
+#3 delay: 200
+#4 delay: 200
+#5 delay: 200
+#6 delay: 200
+#7 delay: 200
+#8 delay: 200
+#9 delay: 200
+...
+*/
+```
+
+The first delay is approximately 100 milliseconds, as the initial execution is not affected by the schedule. Subsequent delays are consistently around 200 milliseconds apart, demonstrating the effect of the `fixed` schedule.
+
+## exponential
+
+A schedule that recurs using exponential backoff, with each delay increasing exponentially.
+
+**Example** (Exponential Backoff Schedule)
+
+```ts twoslash collapse={3-34}
+import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+
+const log = <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+): void => {
+  let start = 0
+  let i = 0
+
+  Effect.gen(function* () {
+    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
+      function* () {
+        yield* action
+        const now = yield* TestClock.currentTimeMillis
+        console.log(
+          i === 0
+            ? `delay: ${now - start}`
+            : i === 10
+            ? "..."
+            : `#${i} delay: ${now - start}`
+        )
+        i++
+        start = now
+      }
+    ).pipe(
+      Effect.repeat(
+        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
+      ),
+      Effect.fork
+    )
+    yield* TestClock.adjust(Infinity)
+    yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+}
+
+const schedule = Schedule.exponential("10 millis")
+const action = Effect.void
+log(action, schedule)
+/*
+Output:
+delay: 0
+#1 delay: 10 < exponential
+#2 delay: 20
+#3 delay: 40
+#4 delay: 80
+#5 delay: 160
+#6 delay: 320
+#7 delay: 640
+#8 delay: 1280
+#9 delay: 2560
+...
+*/
+```
+
+## fibonacci
+
+A schedule that always recurs, increasing delays by summing the preceding two delays (similar to the fibonacci sequence). Returns the current duration between recurrences.
+
+**Example** (Fibonacci Delay Schedule)
+
+```ts twoslash collapse={3-34}
+import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+
+const log = <A, Out>(
+  action: Effect.Effect<A>,
+  schedule: Schedule.Schedule<Out, void>
+): void => {
+  let start = 0
+  let i = 0
+
+  Effect.gen(function* () {
+    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
+      function* () {
+        yield* action
+        const now = yield* TestClock.currentTimeMillis
+        console.log(
+          i === 0
+            ? `delay: ${now - start}`
+            : i === 10
+            ? "..."
+            : `#${i} delay: ${now - start}`
+        )
+        i++
+        start = now
+      }
+    ).pipe(
+      Effect.repeat(
+        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
+      ),
+      Effect.fork
+    )
+    yield* TestClock.adjust(Infinity)
+    yield* Fiber.join(fiber)
+  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+}
+
+const schedule = Schedule.fibonacci("10 millis")
+const action = Effect.void
+log(action, schedule)
+/*
+Output:
+delay: 0
+#1 delay: 10 < fibonacci
+#2 delay: 10
+#3 delay: 20
+#4 delay: 30
+#5 delay: 50
+#6 delay: 80
+#7 delay: 130
+#8 delay: 210
+#9 delay: 340
+...
+*/
+```

@@ -1,0 +1,112 @@
+diff --git a/src/twitter-theme/TweetBody.astro b/src/twitter-theme/TweetBody.astro
+index 04225a838ebf91081acf59efd30c335732e5ca83..4e8edfcea4e82dd0ee1b89b890499dfaffef823f 100644
+--- a/src/twitter-theme/TweetBody.astro
++++ b/src/twitter-theme/TweetBody.astro
+@@ -8,24 +8,20 @@ interface Props {
+ const { tweet } = Astro.props;
+ ---
+ 
+-<p class={styles.root}>
+-  {
+-    tweet.entities.map((item, i) => {
+-      switch (item.type) {
+-        case "hashtag":
+-        case "mention":
+-        case "url":
+-        case "symbol":
+-          return <TweetLink href={item.href}>{item.text}</TweetLink>;
+-        case "media":
+-          // Media text is currently never displayed, some tweets however might have indices
+-          // that do match `display_text_range` so for those cases we ignore the content.
+-          return;
+-        default:
+-          // We use `dangerouslySetInnerHTML` to preserve the text encoding.
+-          // https://github.com/vercel-labs/react-tweet/issues/29
+-          return <span set:html={item.text} />;
+-      }
+-    })
++<p class={styles.root}>{tweet.entities.map((item) => {
++  switch (item.type) {
++    case "hashtag":
++    case "mention":
++    case "url":
++    case "symbol":
++      return <TweetLink href={item.href}>{item.text}</TweetLink>;
++    case "media":
++      // Media text is currently never displayed, some tweets however might have indices
++      // that do match `display_text_range` so for those cases we ignore the content.
++      return;
++    default:
++      // We use `dangerouslySetInnerHTML` to preserve the text encoding.
++      // https://github.com/vercel-labs/react-tweet/issues/29
++      return <span set:html={item.text} />;
+   }
+-</p>
++})}</p>
+diff --git a/src/twitter-theme/TweetInReplyTo.astro b/src/twitter-theme/TweetInReplyTo.astro
+index e61fd03544caaa3be53323d65e870ee78ee538a4..8be5e6ac26d568db858bc7366a16812e6f9401d2 100644
+--- a/src/twitter-theme/TweetInReplyTo.astro
++++ b/src/twitter-theme/TweetInReplyTo.astro
+@@ -5,13 +5,13 @@ interface Props {
+   tweet: EnrichedTweet;
+ }
+ const { tweet } = Astro.props;
++
++const props = {
++  href: tweet.in_reply_to_url,
++  class: s.root,
++  target: "_blank",
++  rel: "noopener noreferrer"
++}
+ ---
+ 
+-<a
+-  href={tweet.in_reply_to_url}
+-  class={s.root}
+-  target="_blank"
+-  rel="noopener noreferrer"
+->
+-  Replying to @{tweet.in_reply_to_screen_name}
+-</a>
++<a {...props}>Replying to @{tweet.in_reply_to_screen_name}</a>
+diff --git a/src/twitter-theme/TweetLink.astro b/src/twitter-theme/TweetLink.astro
+index 124bd3d3d8b2f0190e8aee3a7def441722d8a460..88e97b44654a93ef765ac0d2f67b940fac228b36 100644
+--- a/src/twitter-theme/TweetLink.astro
++++ b/src/twitter-theme/TweetLink.astro
+@@ -1,15 +1,16 @@
+ ---
+ import s from "./tweet-link.module.css";
++
+ interface Props {
+   href: string;
+ }
++
++const props = {
++  href: Astro.props.href,
++  class: s.root,
++  target: "_blank",
++  rel: "noopener noreferrer"
++}
+ ---
+ 
+-<a
+-  href={Astro.props.href}
+-  class={s.root}
+-  target="_blank"
+-  rel="noopener noreferrer"
+->
+-  <slot />
+-</a>
++<a {...props}><slot /></a>
+diff --git a/src/twitter-theme/quoted-tweet/QuotedTweetBody.astro b/src/twitter-theme/quoted-tweet/QuotedTweetBody.astro
+index 1edf0b8c089fbe8578a9994599552f67d5d94884..0efee2080cb41832d91416021755cdb31d0d2543 100644
+--- a/src/twitter-theme/quoted-tweet/QuotedTweetBody.astro
++++ b/src/twitter-theme/quoted-tweet/QuotedTweetBody.astro
+@@ -7,6 +7,4 @@ interface Props {
+ }
+ ---
+ 
+-<p class={styles.root}>
+-  {Astro.props.tweet.entities.map((item, i) => <span>{item.text}</span>)}
+-</p>
++<p class={styles.root}>{Astro.props.tweet.entities.map((item, i) => <span>{item.text}</span>)}</p>

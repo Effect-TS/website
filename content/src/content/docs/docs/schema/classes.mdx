@@ -1,0 +1,624 @@
+---
+title: Class APIs
+description: Class APIs
+sidebar:
+  order: 11
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+When working with schemas, you have a choice beyond the [Schema.Struct](/docs/schema/basic-usage/#structs) constructor.
+You can leverage the power of classes through the `Schema.Class` utility, which comes with its own set of advantages tailored to common use cases:
+
+Classes offer several features that simplify the schema creation process:
+
+- **All-in-One Definition**: With classes, you can define both a schema and an opaque type simultaneously.
+- **Shared Functionality**: You can incorporate shared functionality using class methods or getters.
+- **Value Hashing and Equality**: Utilize the built-in capability for checking value equality and applying hashing (thanks to `Class` implementing [Data.Class](/docs/data-types/data/#class)).
+
+## Definition
+
+To define a `Class` you need to provide:
+
+- The type of the class being created.
+- A unique identifier for the class.
+- The desired fields.
+
+**Example**
+
+```ts twoslash
+import { Schema } from "effect"
+
+// Define your schema by providing the type, a unique identifier and the desired fields
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+```
+
+In this setup, `Person` is a class where `id` is a number and `name` is a non-empty string.
+The constructor for the class creates instances with these specified properties.
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+
+// ---cut---
+console.log(new Person({ id: 1, name: "John" }))
+/*
+Output:
+Person { id: 1, name: 'John' }
+*/
+
+// or
+console.log(Person.make({ id: 1, name: "John" }))
+/*
+Output:
+Person { id: 1, name: 'John' }
+*/
+```
+
+### Classes Without Arguments
+
+If your schema does not require any fields, you can define a class with an empty object:
+
+```ts twoslash
+import { Schema } from "effect"
+
+class NoArgs extends Schema.Class<NoArgs>("NoArgs")({}) {}
+
+const noargs1 = new NoArgs()
+// same as
+const noargs2 = new NoArgs({})
+```
+
+## Class Constructor as a Validator
+
+When you define a class using `Schema.Class`, the constructor automatically checks that the provided properties adhere to the schema's rules. Here's how you can define and instantiate a `Person` class:
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+
+// ok
+const john = new Person({ id: 1, name: "John" })
+
+john.id
+john.name
+```
+
+This ensures that each property of the `Person` instance, like `id` and `name`, meets the conditions specified in the schema, such as `id` being a number and `name` being a non-empty string.
+
+If an instance is created with invalid properties, the constructor throws an error detailing what went wrong:
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+
+// ---cut---
+new Person({ id: 1, name: "" }) // Attempting to instantiate with an invalid name
+/*
+throws:
+ParseError: Person (Constructor)
+└─ ["name"]
+   └─ a non empty string
+      └─ Predicate refinement failure
+         └─ Expected a non empty string, actual ""
+*/
+```
+
+This error message clearly states that the `name` field failed the non-empty string predicate, providing precise feedback on why the validation failed.
+
+There are scenarios where you might want to bypass validation during instantiation. Although not typically recommended, `effect/Schema` allows for this flexibility:
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+
+// ---cut---
+// Bypasses validation, thus avoiding errors
+const john = new Person({ id: 1, name: "" }, true)
+
+// or more explicitly
+new Person({ id: 1, name: "" }, { disableValidation: true })
+```
+
+## Hashing and Equality
+
+Thanks to the implementation of [Data.Class](/docs/data-types/data/#class), instances of your classes automatically support the [Equal](/docs/trait/equal/) trait, which allows for easy comparison:
+
+```ts twoslash
+import { Schema } from "effect"
+import { Equal } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+
+const john1 = new Person({ id: 1, name: "John" })
+const john2 = new Person({ id: 1, name: "John" })
+
+console.log(Equal.equals(john1, john2)) // Output: true
+```
+
+However, be aware that the `Equal` trait checks for equality only at the first level. If, for instance, a field is an array, the returned instances will not be considered equal:
+
+```ts twoslash
+import { Schema } from "effect"
+import { Equal } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString,
+  hobbies: Schema.Array(Schema.String)
+}) {}
+
+const john1 = new Person({
+  id: 1,
+  name: "John",
+  hobbies: ["reading", "coding"]
+})
+const john2 = new Person({
+  id: 1,
+  name: "John",
+  hobbies: ["reading", "coding"]
+})
+
+console.log(Equal.equals(john1, john2)) // Output: false
+```
+
+To ensure deep equality for arrays, use `Schema.Data` combined with `Data.array`:
+
+```ts twoslash
+import { Schema } from "effect"
+import { Data, Equal } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString,
+  hobbies: Schema.Data(Schema.Array(Schema.String))
+}) {}
+
+const john1 = new Person({
+  id: 1,
+  name: "John",
+  hobbies: Data.array(["reading", "coding"])
+})
+const john2 = new Person({
+  id: 1,
+  name: "John",
+  hobbies: Data.array(["reading", "coding"])
+})
+
+console.log(Equal.equals(john1, john2)) // Output: true
+```
+
+## Custom Getters and Methods
+
+You have the flexibility to enhance schema classes with custom getters and methods.
+
+**Example**
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {
+  // Custom getter to return the name in uppercase
+  get upperName() {
+    return this.name.toUpperCase()
+  }
+}
+
+const john = new Person({ id: 1, name: "John" })
+
+console.log(john.upperName) // Output: "JOHN"
+```
+
+## Using Classes as Schemas
+
+When you define a class using `Schema.Class`, it not only creates a new class but also treats this class as a schema.
+This means the class can be utilized wherever a schema is expected.
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+
+// Person can be used as a normal schema
+const Persons = Schema.Array(Person)
+```
+
+### The fields Property
+
+The class also includes a `fields` static property, which outlines the fields defined during the class creation.
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+
+Person.fields
+```
+
+## Annotations and Transformations
+
+A class that extends `Schema.Class` implicitly forms a schema transformation from a structured type to a class type.
+For instance, consider the following definition:
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+```
+
+This class definition serves as a transformation from the following struct schema:
+
+```ts
+Schema.Struct({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+})
+```
+
+to a schema that represents the `Person` class.
+
+### Adding Annotations
+
+There are two primary ways to add annotations depending on your requirements:
+
+1. **Adding Annotations to the Struct Schema** (the "from" part of the transformation):
+
+   You can annotate the struct schema component, which is transformed into the class.
+
+   ```ts twoslash
+   import { Schema } from "effect"
+
+   class Person extends Schema.Class<Person>("Person")(
+     Schema.Struct({
+       id: Schema.Number,
+       name: Schema.NonEmptyString
+     }).annotations({ identifier: "From" })
+   ) {}
+
+   console.log(String(Person.ast)) // Output: (From <-> Person)
+   ```
+
+2. **Adding Annotations to the Class Schema** (the "to" part of the transformation):
+
+   Alternatively, annotations can be added directly to the class schema, affecting how the class is represented as a schema.
+
+   ```ts twoslash
+   import { Schema } from "effect"
+
+   class Person extends Schema.Class<Person>("Person")(
+     {
+       id: Schema.Number,
+       name: Schema.NonEmptyString
+     },
+     { identifier: "To" }
+   ) {}
+
+   console.log(String(Person.ast)) // Output: (Person (Encoded side) <-> To)
+   ```
+
+## Recursive Schemas
+
+The `Schema.suspend` combinator is useful when you need to define a schema that depends on itself, like in the case of recursive data structures.
+In this example, the `Category` schema depends on itself because it has a field `subcategories` that is an array of `Category` objects.
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Category extends Schema.Class<Category>("Category")({
+  name: Schema.String,
+  subcategories: Schema.Array(
+    Schema.suspend((): Schema.Schema<Category> => Category)
+  )
+}) {}
+```
+
+<Aside type="note" title="Correct Inference">
+  It is necessary to add an explicit type annotation because otherwise
+  TypeScript would struggle to infer types correctly. Without this
+  annotation, you might encounter the error message:
+</Aside>
+
+```ts twoslash
+import { Schema } from "effect"
+
+// @ts-expect-error
+class Category extends Schema.Class<Category>("Category")({
+  name: Schema.String,
+  // @ts-expect-error
+  subcategories: Schema.Array(Schema.suspend(() => Category))
+}) {}
+/*
+'Category' is referenced directly or indirectly in its own base expression.ts(2506)
+*/
+```
+
+### Mutually Recursive Schemas
+
+Here's an example of two mutually recursive schemas, `Expression` and `Operation`, that represent a simple arithmetic expression tree.
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Expression extends Schema.Class<Expression>("Expression")({
+  type: Schema.Literal("expression"),
+  value: Schema.Union(
+    Schema.Number,
+    Schema.suspend((): Schema.Schema<Operation> => Operation)
+  )
+}) {}
+
+class Operation extends Schema.Class<Operation>("Operation")({
+  type: Schema.Literal("operation"),
+  operator: Schema.Literal("+", "-"),
+  left: Expression,
+  right: Expression
+}) {}
+```
+
+### Recursive Types with Different Encoded and Type
+
+Defining a recursive schema where the `Encoded` type differs from the `Type` type adds another layer of complexity.
+In such cases, we need to define an interface for the `Encoded` type.
+
+Let's consider an example: suppose we want to add an `id` field to the `Category` schema, where the schema for `id` is `NumberFromString`.
+It's important to note that `NumberFromString` is a schema that transforms a string into a number, so the `Type` and `Encoded` types of `NumberFromString` differ, being `number` and `string` respectively.
+When we add this field to the `Category` schema, TypeScript raises an error:
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Category extends Schema.Class<Category>("Category")({
+  id: Schema.NumberFromString,
+  name: Schema.String,
+  subcategories: Schema.Array(
+    // @ts-expect-error
+    Schema.suspend((): Schema.Schema<Category> => Category)
+  )
+}) {}
+/*
+Type 'typeof Category' is not assignable to type 'Schema<Category, Category, never>'.
+  The types of 'Encoded.id' are incompatible between these types.
+    Type 'string' is not assignable to type 'number'.ts(2322)
+*/
+```
+
+This error occurs because the explicit annotation `S.suspend((): S.Schema<Category> => Category` is no longer sufficient and needs to be adjusted by explicitly adding the `Encoded` type:
+
+```ts twoslash
+import { Schema } from "effect"
+
+interface CategoryEncoded {
+  readonly id: string
+  readonly name: string
+  readonly subcategories: ReadonlyArray<CategoryEncoded>
+}
+
+class Category extends Schema.Class<Category>("Category")({
+  id: Schema.NumberFromString,
+  name: Schema.String,
+  subcategories: Schema.Array(
+    Schema.suspend(
+      (): Schema.Schema<Category, CategoryEncoded> => Category
+    )
+  )
+}) {}
+```
+
+As we've observed, it's necessary to define an interface for the `Encoded` of the schema to enable recursive schema definition, which can complicate things and be quite tedious.
+One pattern to mitigate this is to **separate the field responsible for recursion** from all other fields.
+
+```ts twoslash
+import { Schema } from "effect"
+
+const fields = {
+  id: Schema.NumberFromString,
+  name: Schema.String
+  // ...possibly other fields
+}
+
+interface CategoryEncoded extends Schema.Struct.Encoded<typeof fields> {
+  // Define `subcategories` using recursion
+  readonly subcategories: ReadonlyArray<CategoryEncoded>
+}
+
+class Category extends Schema.Class<Category>("Category")({
+  ...fields, // Include the fields
+  subcategories: Schema.Array(
+    // Define `subcategories` using recursion
+    Schema.suspend(
+      (): Schema.Schema<Category, CategoryEncoded> => Category
+    )
+  )
+}) {}
+```
+
+## Tagged Class variants
+
+You can also create classes that extend [TaggedClass](/docs/data-types/data/#taggedclass) and [TaggedError](/docs/data-types/data/#taggederror) from the `effect/Data` module.
+
+**Example**
+
+```ts twoslash
+import { Schema } from "effect"
+
+class TaggedPerson extends Schema.TaggedClass<TaggedPerson>()(
+  "TaggedPerson",
+  {
+    name: Schema.String
+  }
+) {}
+
+class HttpError extends Schema.TaggedError<HttpError>()("HttpError", {
+  status: Schema.Number
+}) {}
+
+const joe = new TaggedPerson({ name: "Joe" })
+console.log(joe._tag) // "TaggedPerson"
+
+const error = new HttpError({ status: 404 })
+console.log(error._tag) // "HttpError"
+console.log(error.stack) // access the stack trace
+```
+
+## Extending existing Classes
+
+In situations where you need to augment your existing class with more fields, the built-in `extend` static utility comes in handy.
+
+**Example**
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {
+  get upperName() {
+    return this.name.toUpperCase()
+  }
+}
+
+class PersonWithAge extends Person.extend<PersonWithAge>("PersonWithAge")(
+  {
+    age: Schema.Number
+  }
+) {
+  get isAdult() {
+    return this.age >= 18
+  }
+}
+```
+
+## Transformations
+
+You have the option to enhance a class with (effectful) transformations.
+This becomes valuable when you want to enrich or validate an entity sourced from a data store.
+
+```ts twoslash
+import { Effect, Option, Schema, ParseResult } from "effect"
+
+export class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.String
+}) {}
+
+console.log(Schema.decodeUnknownSync(Person)({ id: 1, name: "name" }))
+/*
+Output:
+Person { id: 1, name: 'name' }
+*/
+
+function getAge(id: number): Effect.Effect<number, Error> {
+  return Effect.succeed(id + 2)
+}
+
+export class PersonWithTransform extends Person.transformOrFail<PersonWithTransform>(
+  "PersonWithTransform"
+)(
+  {
+    age: Schema.optionalWith(Schema.Number, { exact: true, as: "Option" })
+  },
+  {
+    decode: (input) =>
+      Effect.mapBoth(getAge(input.id), {
+        onFailure: (e) =>
+          new ParseResult.Type(Schema.String.ast, input.id, e.message),
+        // must return { age: Option<number> }
+        onSuccess: (age) => ({ ...input, age: Option.some(age) })
+      }),
+    encode: ParseResult.succeed
+  }
+) {}
+
+Schema.decodeUnknownPromise(PersonWithTransform)({
+  id: 1,
+  name: "name"
+}).then(console.log)
+/*
+Output:
+PersonWithTransform {
+  id: 1,
+  name: 'name',
+  age: { _id: 'Option', _tag: 'Some', value: 3 }
+}
+*/
+
+export class PersonWithTransformFrom extends Person.transformOrFailFrom<PersonWithTransformFrom>(
+  "PersonWithTransformFrom"
+)(
+  {
+    age: Schema.optionalWith(Schema.Number, { exact: true, as: "Option" })
+  },
+  {
+    decode: (input) =>
+      Effect.mapBoth(getAge(input.id), {
+        onFailure: (e) =>
+          new ParseResult.Type(Schema.String.ast, input, e.message),
+        // must return { age?: number }
+        onSuccess: (age) => (age > 18 ? { ...input, age } : { ...input })
+      }),
+    encode: ParseResult.succeed
+  }
+) {}
+
+Schema.decodeUnknownPromise(PersonWithTransformFrom)({
+  id: 1,
+  name: "name"
+}).then(console.log)
+/*
+Output:
+PersonWithTransformFrom {
+  id: 1,
+  name: 'name',
+  age: { _id: 'Option', _tag: 'None' }
+}
+*/
+```
+
+The decision of which API to use, either `transformOrFail` or `transformOrFailFrom`, depends on when you wish to execute the transformation:
+
+1. Using `transformOrFail`:
+
+   - The transformation occurs at the end of the process.
+   - It expects you to provide a value of type `{ age: Option<number> }`.
+   - After processing the initial input, the new transformation comes into play, and you need to ensure the final output adheres to the specified structure.
+
+2. Using `transformOrFailFrom`:
+   - The new transformation starts as soon as the initial input is handled.
+   - You should provide a value `{ age?: number }`.
+   - Based on this fresh input, the subsequent transformation `{ age: Schema.optionalToOption(S.Number, { exact: true }) }` is executed.
+   - This approach allows for immediate handling of the input, potentially influencing the subsequent transformations.

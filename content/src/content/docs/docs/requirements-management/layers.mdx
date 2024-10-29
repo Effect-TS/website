@@ -1,0 +1,641 @@
+---
+title: Managing Layers
+description: Learn how to use Layers to control the construction of service dependencies and manage the "dependency graph" of your program more effectively.
+sidebar:
+  order: 2
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+In the [Managing Services](/docs/requirements-management/services/) page, you learned how to create effects which depend on some service to be provided in order to execute, as well as how to provide that service to an effect.
+
+However, what if we have a service within our effect program that has dependencies on other services in order to be built? We want to avoid leaking these implementation details into the service interface.
+
+To represent the "dependency graph" of our program and manage these dependencies more effectively, we can utilize a powerful abstraction called "Layer".
+
+Layers act as **constructors for creating services**, allowing us to manage dependencies during construction rather than at the service level. This approach helps to keep our service interfaces clean and focused.
+
+Let's review some key concepts before diving into the details:
+
+| Concept     | Description                                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **service** | A reusable component providing specific functionality, used across different parts of an application.                     |
+| **tag**     | A unique identifier representing a **service**, allowing Effect to locate and use it.                                     |
+| **context** | A collection storing services, functioning like a map with **tags** as keys and **services** as values.                   |
+| **layer**   | An abstraction for constructing **services**, managing dependencies during construction rather than at the service level. |
+
+## Designing the Dependency Graph
+
+Let's imagine that we are building a web application. We could imagine that the dependency graph for an application where we need to manage configuration, logging, and database access might look something like this:
+
+- The `Config` service provides application configuration.
+- The `Logger` service depends on the `Config` service.
+- The `Database` service depends on both the `Config` and `Logger` services.
+
+Our goal is to build the `Database` service along with its direct and indirect dependencies. This means we need to ensure that the `Config` service is available for both `Logger` and `Database`, and then provide these dependencies to the `Database` service.
+
+We will use **layers** to construct the `Database` service instead of providing a service implementation directly as we did in the [Managing Services](/docs/requirements-management/services/) page.
+
+<Aside type="tip" title="Use Layers for Dependencies">
+  When a service has its own requirements, it's best to separate
+  implementation details into layers. Layers act as **constructors for
+  creating the service**, allowing us to handle dependencies at the
+  construction level rather than the service level.
+</Aside>
+
+## Creating Layers
+
+The `Layer` type is structured as follows:
+
+```text showLineNumbers=false
+        ┌─── The service to be created
+        │                ┌─── The possible error
+        │                │      ┌─── The required dependencies
+        ▼                ▼      ▼
+Layer<RequirementsOut, Error, RequirementsIn>
+```
+
+A `Layer` represents a blueprint for constructing a `RequirementsOut` (the service). It requires a `RequirementsIn` (dependencies) as input and may result in an error of type `Error` during the construction process.
+
+| Parameter         | Description                                                                |
+| ----------------- | -------------------------------------------------------------------------- |
+| `RequirementsOut` | The service or resource to be created.                                     |
+| `Error`           | The type of error that might occur during the construction of the service. |
+| `RequirementsIn`  | The dependencies required to construct the service.                        |
+
+By using layers, you can better organize your services, ensuring that their dependencies are clearly defined and separated from their implementation details.
+
+For simplicity, let's assume that we won't encounter any errors during the value construction (meaning `Error = never`).
+
+Now, let's determine how many layers we need to implement our dependency graph:
+
+| Layer          | Dependencies                                               | Type                                       |
+| -------------- | ---------------------------------------------------------- | ------------------------------------------ |
+| `ConfigLive`   | The `Config` service does not depend on any other services | `Layer<Config>`                            |
+| `LoggerLive`   | The `Logger` service depends on the `Config` service       | `Layer<Logger, never, Config>`             |
+| `DatabaseLive` | The `Database` service depends on `Config` and `Logger`    | `Layer<Database, never, Config \| Logger>` |
+
+<Aside type="tip" title="Naming Conventions">
+  A common convention when naming the `Layer` for a particular service is
+  to add a `Live` suffix for the "live" implementation and a `Test` suffix
+  for the "test" implementation. For example, for a `Database` service,
+  the `DatabaseLive` would be the layer you provide in your application
+  and the `DatabaseTest` would be the layer you provide in your tests.
+</Aside>
+
+When a service has multiple dependencies, they are represented as a **union type**. In our case, the `Database` service depends on both the `Config` and `Logger` services. Therefore, the type for the `DatabaseLive` layer will be:
+
+```ts showLineNumbers=false "Config | Logger"
+Layer<Database, never, Config | Logger>
+```
+
+### Config
+
+The `Config` service does not depend on any other services, so `ConfigLive` will be the simplest layer to implement. Just like in the [Managing Services](/docs/requirements-management/services/) page, we must create a tag for the service. And because the service has no dependencies, we can create the layer directly using the `Layer.succeed` constructor:
+
+```ts twoslash
+import { Effect, Context, Layer } from "effect"
+
+// Declaring a tag for the Config service
+class Config extends Context.Tag("Config")<
+  Config,
+  {
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
+  }
+>() {}
+
+// Layer<Config, never, never>
+const ConfigLive = Layer.succeed(
+  Config,
+  Config.of({
+    getConfig: Effect.succeed({
+      logLevel: "INFO",
+      connection: "mysql://username:password@hostname:port/database_name"
+    })
+  })
+)
+```
+
+Looking at the type of `ConfigLive` we can observe:
+
+- `RequirementsOut` is `Config`, indicating that constructing the layer will produce a `Config` service
+- `Error` is `never`, indicating that layer construction cannot fail
+- `RequirementsIn` is `never`, indicating that the layer has no dependencies
+
+Note that, to construct `ConfigLive`, we used the `Config.of`
+constructor. However, this is merely a helper to ensure correct type inference
+for the implementation. It's possible to skip this helper and construct the
+implementation directly as a simple object:
+
+```ts twoslash collapse={4-12}
+import { Effect, Context, Layer } from "effect"
+
+// Declaring a tag for the Config service
+class Config extends Context.Tag("Config")<
+  Config,
+  {
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
+  }
+>() {}
+
+// Layer<Config, never, never>
+const ConfigLive = Layer.succeed(Config, {
+  getConfig: Effect.succeed({
+    logLevel: "INFO",
+    connection: "mysql://username:password@hostname:port/database_name"
+  })
+})
+```
+
+### Logger
+
+Now we can move on to the implementation of the `Logger` service, which depends on the `Config` service to retrieve some configuration.
+
+Just like we did in the [Managing Services](/docs/requirements-management/services/#using-the-service) page, we can yield the `Config` tag to "extract" the service from the context.
+
+Given that using the `Config` tag is an effectful operation, we use `Layer.effect` to create a layer from the resulting effect.
+
+```ts twoslash collapse={4-20}
+import { Effect, Context, Layer } from "effect"
+
+// Declaring a tag for the Config service
+class Config extends Context.Tag("Config")<
+  Config,
+  {
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
+  }
+>() {}
+
+// Layer<Config, never, never>
+const ConfigLive = Layer.succeed(Config, {
+  getConfig: Effect.succeed({
+    logLevel: "INFO",
+    connection: "mysql://username:password@hostname:port/database_name"
+  })
+})
+
+// Declaring a tag for the Logger service
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
+>() {}
+
+// Layer<Logger, never, Config>
+const LoggerLive = Layer.effect(
+  Logger,
+  Effect.gen(function* () {
+    const config = yield* Config
+    return {
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
+    }
+  })
+)
+```
+
+Looking at the type of `LoggerLive`:
+
+```ts showLineNumbers=false
+Layer<Logger, never, Config>
+```
+
+we can observe that:
+
+- `RequirementsOut` is `Logger`
+- `Error` is `never`, indicating that layer construction cannot fail
+- `RequirementsIn` is `Config`, indicating that the layer has a requirement
+
+### Database
+
+Finally, we can use our `Config` and `Logger` services to implement the `Database` service.
+
+```ts twoslash collapse={4-20,23-41}
+import { Effect, Context, Layer } from "effect"
+
+// Declaring a tag for the Config service
+class Config extends Context.Tag("Config")<
+  Config,
+  {
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
+  }
+>() {}
+
+// Layer<Config, never, never>
+const ConfigLive = Layer.succeed(Config, {
+  getConfig: Effect.succeed({
+    logLevel: "INFO",
+    connection: "mysql://username:password@hostname:port/database_name"
+  })
+})
+
+// Declaring a tag for the Logger service
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
+>() {}
+
+// Layer<Logger, never, Config>
+const LoggerLive = Layer.effect(
+  Logger,
+  Effect.gen(function* () {
+    const config = yield* Config
+    return {
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
+    }
+  })
+)
+
+// Declaring a tag for the Database service
+class Database extends Context.Tag("Database")<
+  Database,
+  { readonly query: (sql: string) => Effect.Effect<unknown> }
+>() {}
+
+// Layer<Database, never, Config | Logger>
+const DatabaseLive = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const config = yield* Config
+    const logger = yield* Logger
+    return {
+      query: (sql: string) =>
+        Effect.gen(function* () {
+          yield* logger.log(`Executing query: ${sql}`)
+          const { connection } = yield* config.getConfig
+          return { result: `Results from ${connection}` }
+        })
+    }
+  })
+)
+```
+
+Looking at the type of `DatabaseLive`:
+
+```ts showLineNumbers=false
+Layer<Database, never, Config | Logger>
+```
+
+we can observe that the `RequirementsIn` type is `Config | Logger`, i.e., the `Database` service requires both `Config` and `Logger` services.
+
+## Combining Layers
+
+Layers can be combined in two primary ways: **merging** and **composing**.
+
+### Merging Layers
+
+Layers can be combined through merging using the `Layer.merge` function:
+
+```ts twoslash
+import { Layer } from "effect"
+
+declare const layer1: Layer.Layer<"Out1", never, "In1">
+declare const layer2: Layer.Layer<"Out2", never, "In2">
+
+// Layer<"Out1" | "Out2", never, "In1" | "In2">
+const merging = Layer.merge(layer1, layer2)
+```
+
+When we merge two layers, the resulting layer:
+
+- requires all the services that both of them require (`"In1" | "In2"`).
+- produces all services that both of them produce (`"Out1" | "Out2"`).
+
+For example, in our web application above, we can merge our `ConfigLive` and `LoggerLive` layers into a single `AppConfigLive` layer, which retains the requirements of both layers (`never | Config = Config`) and the outputs of both layers (`Config | Logger`):
+
+```ts twoslash collapse={4-20,23-41}
+import { Effect, Context, Layer } from "effect"
+
+// Declaring a tag for the Config service
+class Config extends Context.Tag("Config")<
+  Config,
+  {
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
+  }
+>() {}
+
+// Layer<Config, never, never>
+const ConfigLive = Layer.succeed(Config, {
+  getConfig: Effect.succeed({
+    logLevel: "INFO",
+    connection: "mysql://username:password@hostname:port/database_name"
+  })
+})
+
+// Declaring a tag for the Logger service
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
+>() {}
+
+// Layer<Logger, never, Config>
+const LoggerLive = Layer.effect(
+  Logger,
+  Effect.gen(function* () {
+    const config = yield* Config
+    return {
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
+    }
+  })
+)
+
+// Layer<Config | Logger, never, Config>
+const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
+```
+
+### Composing Layers
+
+Layers can be composed using the `Layer.provide` function:
+
+```ts twoslash
+import { Layer } from "effect"
+
+declare const inner: Layer.Layer<"OutInner", never, "InInner">
+declare const outer: Layer.Layer<"InInner", never, "InOuter">
+
+// Layer<"OutInner", never, "InOuter">
+const composition = Layer.provide(inner, outer)
+```
+
+Sequential composition of layers implies that the output of one layer is supplied as the input for the inner layer,
+resulting in a single layer with the requirements of the outer layer and the output of the inner.
+
+Now we can compose the `AppConfigLive` layer with the `DatabaseLive` layer:
+
+```ts twoslash collapse={4-20,23-41,44-64}
+import { Effect, Context, Layer } from "effect"
+
+// Declaring a tag for the Config service
+class Config extends Context.Tag("Config")<
+  Config,
+  {
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
+  }
+>() {}
+
+// Layer<Config, never, never>
+const ConfigLive = Layer.succeed(Config, {
+  getConfig: Effect.succeed({
+    logLevel: "INFO",
+    connection: "mysql://username:password@hostname:port/database_name"
+  })
+})
+
+// Declaring a tag for the Logger service
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
+>() {}
+
+// Layer<Logger, never, Config>
+const LoggerLive = Layer.effect(
+  Logger,
+  Effect.gen(function* () {
+    const config = yield* Config
+    return {
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
+    }
+  })
+)
+
+// Declaring a tag for the Database service
+class Database extends Context.Tag("Database")<
+  Database,
+  { readonly query: (sql: string) => Effect.Effect<unknown> }
+>() {}
+
+// Layer<Database, never, Config | Logger>
+const DatabaseLive = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const config = yield* Config
+    const logger = yield* Logger
+    return {
+      query: (sql: string) =>
+        Effect.gen(function* () {
+          yield* logger.log(`Executing query: ${sql}`)
+          const { connection } = yield* config.getConfig
+          return { result: `Results from ${connection}` }
+        })
+    }
+  })
+)
+
+// Layer<Config | Logger, never, Config>
+const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
+
+// Layer<Database, never, never>
+const MainLive = DatabaseLive.pipe(
+  // provides the config and logger to the database
+  Layer.provide(AppConfigLive),
+  // provides the config to AppConfigLive
+  Layer.provide(ConfigLive)
+)
+```
+
+We obtained a `MainLive` layer that produces the `Database` service:
+
+```ts showLineNumbers=false
+Layer<Database, never, never>
+```
+
+This layer is the fully resolved layer for our application.
+
+### Merging and Composing Layers
+
+Let's say we want our `MainLive` layer to return both the `Config` and `Database` services. We can achieve this with `Layer.provideMerge`:
+
+```ts twoslash collapse={4-19,22-39,42-61}
+import { Effect, Context, Layer } from "effect"
+
+// Declaring a tag for the Config service
+class Config extends Context.Tag("Config")<
+  Config,
+  {
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
+  }
+>() {}
+
+const ConfigLive = Layer.succeed(Config, {
+  getConfig: Effect.succeed({
+    logLevel: "INFO",
+    connection: "mysql://username:password@hostname:port/database_name"
+  })
+})
+
+// Declaring a tag for the Logger service
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
+>() {}
+
+const LoggerLive = Layer.effect(
+  Logger,
+  Effect.gen(function* () {
+    const config = yield* Config
+    return {
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
+    }
+  })
+)
+
+// Declaring a tag for the Database service
+class Database extends Context.Tag("Database")<
+  Database,
+  { readonly query: (sql: string) => Effect.Effect<unknown> }
+>() {}
+
+const DatabaseLive = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const config = yield* Config
+    const logger = yield* Logger
+    return {
+      query: (sql: string) =>
+        Effect.gen(function* () {
+          yield* logger.log(`Executing query: ${sql}`)
+          const { connection } = yield* config.getConfig
+          return { result: `Results from ${connection}` }
+        })
+    }
+  })
+)
+
+// Layer<Config | Logger, never, Config>
+const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
+
+// Layer<Config | Database, never, never>
+const MainLive = DatabaseLive.pipe(
+  Layer.provide(AppConfigLive),
+  Layer.provideMerge(ConfigLive)
+)
+```
+
+## Providing a Layer to an Effect
+
+Now that we have assembled the fully resolved `MainLive` for our application,
+we can provide it to our program to satisfy the program's requirements using `Effect.provide`:
+
+```ts twoslash collapse={3-65}
+import { Effect, Context, Layer } from "effect"
+
+class Config extends Context.Tag("Config")<
+  Config,
+  {
+    readonly getConfig: Effect.Effect<{
+      readonly logLevel: string
+      readonly connection: string
+    }>
+  }
+>() {}
+
+const ConfigLive = Layer.succeed(Config, {
+  getConfig: Effect.succeed({
+    logLevel: "INFO",
+    connection: "mysql://username:password@hostname:port/database_name"
+  })
+})
+
+class Logger extends Context.Tag("Logger")<
+  Logger,
+  { readonly log: (message: string) => Effect.Effect<void> }
+>() {}
+
+const LoggerLive = Layer.effect(
+  Logger,
+  Effect.gen(function* () {
+    const config = yield* Config
+    return {
+      log: (message) =>
+        Effect.gen(function* () {
+          const { logLevel } = yield* config.getConfig
+          console.log(`[${logLevel}] ${message}`)
+        })
+    }
+  })
+)
+
+class Database extends Context.Tag("Database")<
+  Database,
+  { readonly query: (sql: string) => Effect.Effect<unknown> }
+>() {}
+
+const DatabaseLive = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const config = yield* Config
+    const logger = yield* Logger
+    return {
+      query: (sql: string) =>
+        Effect.gen(function* () {
+          yield* logger.log(`Executing query: ${sql}`)
+          const { connection } = yield* config.getConfig
+          return { result: `Results from ${connection}` }
+        })
+    }
+  })
+)
+
+const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
+
+const MainLive = DatabaseLive.pipe(
+  Layer.provide(AppConfigLive),
+  Layer.provide(ConfigLive)
+)
+
+const program = Effect.gen(function* () {
+  const database = yield* Database
+  const result = yield* database.query("SELECT * FROM users")
+  return result
+})
+
+const runnable = Effect.provide(program, MainLive)
+
+Effect.runPromise(runnable).then(console.log)
+/*
+Output:
+[INFO] Executing query: SELECT * FROM users
+{
+  result: 'Results from mysql://username:password@hostname:port/database_name'
+}
+*/
+```

@@ -1,0 +1,57 @@
+---
+import type { Props } from "@astrojs/starlight/props";
+import Default from "@astrojs/starlight/components/SocialIcons.astro";
+
+const links = Object.entries({
+  Docs: "/docs/",
+  Blog: "/blog/",
+  Play: "/play/",
+  "Effect Days": "/events/effect-days/",
+})
+---
+<div class="nav-link-container">
+	{
+		links.map(([text, href]) => (
+			<a
+				href={href}
+				class="nav-link"
+			>
+				<span>{text}</span>
+			</a>
+		))
+	}
+</div>
+<Default {...Astro.props} />
+
+<style is:global>
+.nav-link-container {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  margin-right: auto;
+  visibility: hidden;
+}
+
+@media (min-width: 50rem) {
+  .nav-link-container {
+    visibility: visible;
+  }
+}
+
+.nav-link-container .nav-link {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  color: var(--sl-color-text);
+  font-weight: 500;
+  text-decoration-line: none;
+}
+
+/* Force the social icons to be the same color as text */
+.nav-link-container ~ a {
+  color: var(--sl-color-text);
+}
+
+.nav-link-container ~ a:hover {
+  opacity: 0.66;
+}
+</style>

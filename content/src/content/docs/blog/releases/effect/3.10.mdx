@@ -1,0 +1,158 @@
+---
+title: Effect 3.10 (Release)
+excerpt: Release post highlighting new additions and changes
+date: 2024-10-22
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.10 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## @effect/schema moved to effect/Schema
+
+We are pleased to announce that `@effect/schema` has reached a level of maturity that allows us to merge it into the `effect` package.
+
+This means that you no longer need to install `@effect/schema` separately, and it is now available as `effect/Schema`.
+
+Here is where the various schema modules can now be found:
+
+### Modules
+
+Before
+
+```ts
+import {
+  Arbitrary,
+  AST,
+  FastCheck,
+  JSONSchema,
+  ParseResult,
+  Pretty,
+  Schema
+} from "@effect/schema"
+```
+
+After
+
+```ts
+import {
+  Arbitrary,
+  SchemaAST, // changed
+  FastCheck,
+  JSONSchema,
+  ParseResult,
+  Pretty,
+  Schema
+} from "effect"
+```
+
+### Formatters
+
+`ArrayFormatter` / `TreeFormatter` has been merged into the `ParseResult` module.
+
+Before
+
+```ts
+import { ArrayFormatter, TreeFormatter } from "@effect/schema"
+```
+
+After
+
+```ts
+import { ArrayFormatter, TreeFormatter } from "effect/ParseResult"
+```
+
+### Serializable
+
+Merged into the `Schema` module.
+
+### Equivalence
+
+Merged into the `Schema` module.
+
+Before
+
+```ts
+import { Equivalence } from "@effect/schema"
+
+Equivalence.make(myschema)
+```
+
+After
+
+```ts
+import { Schema } from "effect"
+
+Schema.equivalence(myschema)
+```
+
+## HttpApi improvements
+
+The `HttpApi` modules have undergone a number of improvements:
+
+- `HttpApi`, `HttpApiGroup` & `HttpApiEndpoint` now use a chainable api instead
+  of a pipeable api.
+- `HttpApiMiddleware` module has been added, with an updated way of defining
+  security middleware.
+- You can now add multiple success schemas
+- A url search parameter schema has been added
+- Error schemas now support `HttpApiSchema` encoding apis
+- `toWebHandler` has been simplified
+
+For more information, see the [README](https://github.com/Effect-TS/effect/blob/main/packages/platform/README.md#http-api).
+
+## TSubscriptionRef
+
+The `TSubscriptionRef` module has been added. A `TSubscriptionRef` is from the `STM` family of modules,
+which allows you to create a subcribe-able `Ref` that also can be composed with the other `STM` modules, to
+create complex atomic operations.
+
+## Stream.fromTQueue & Stream.fromTPubSub
+
+These new apis allow you to create a stream from a `TQueue` or `TPubSub`.
+
+```ts
+import { Effect, Stream, TQueue } from "effect"
+
+Effect.gen(function* () {
+  const queue = yield* TQueue.unbounded<number>()
+
+  const stream: Stream.Stream<number> = Stream.fromTQueue(queue)
+})
+```
+
+## Redactable trait
+
+The `Redactable` trait has been added to the `Inspectable` module. It is integrated with the Effect loggers,
+to allow you to create data types that can have sensitive data redacted when logged.
+
+```ts
+import { Headers } from "@effect/platform"
+import { NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
+
+/*
+
+Output:
+[09:18:35.182] INFO (#0):
+  { authorization: <redacted> }
+
+*/
+Effect.gen(function* () {
+  yield* Effect.log(
+    Headers.fromInput({
+      authorization: "Some secret key"
+    })
+  )
+}).pipe(NodeRuntime.runMain)
+```
+
+## Other changes
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!

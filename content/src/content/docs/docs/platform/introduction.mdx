@@ -1,0 +1,196 @@
+---
+title: Introduction to Effect Platform
+description: Introduction
+sidebar:
+  label: Introduction
+  order: 0
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components"
+
+Welcome to the documentation for `@effect/platform`, a library designed for creating platform-independent abstractions (Node.js, Bun, browsers).
+
+With `@effect/platform`, you can incorporate abstract services like `Terminal`, `FileSystem` or `Path` into your program.
+Later, during the assembly of the final application, you can provide specific layers for the target platform using the corresponding packages:
+
+- `@effect/platform-node` for Node.js
+- `@effect/platform-bun` for Bun
+- `@effect/platform-browser` for browsers
+
+<Aside type="caution" title="Experimental Features Notice">
+  Some modules in `@effect/platform` are still in development or marked as
+  experimental. These features are subject to change. For the most
+  up-to-date documentation and details, please refer to the official
+  [README](https://github.com/Effect-TS/effect/blob/main/packages/platform/README.md)
+  of the package.
+</Aside>
+
+## Installation
+
+To install the **beta** version:
+
+<Tabs syncKey="package-manager">
+
+<TabItem label="npm" icon="seti:npm">
+
+```sh showLineNumbers=false
+npm install @effect/platform
+```
+
+</TabItem>
+
+<TabItem label="pnpm" icon="pnpm">
+
+```sh showLineNumbers=false
+pnpm add @effect/platform
+```
+
+</TabItem>
+
+<TabItem label="Yarn" icon="yarn">
+
+```sh showLineNumbers=false
+yarn add @effect/platform
+```
+
+</TabItem>
+
+<TabItem label="Bun" icon="bun">
+
+```sh showLineNumbers=false
+bun add @effect/platform
+```
+
+</TabItem>
+
+</Tabs>
+
+## Example (Platform-Agnostic Program)
+
+Below is a simple example using the `Path` module to create a file path. This program is compatible with multiple environments:
+
+```ts twoslash title="index.ts"
+import { Path } from "@effect/platform"
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  const path = yield* Path.Path
+
+  const mypath = path.join("tmp", "file.txt")
+  console.log(mypath)
+})
+```
+
+### Running the Program in Node.js
+
+First, install the Node.js-specific package:
+
+<Tabs syncKey="package-manager">
+
+<TabItem label="npm" icon="seti:npm">
+
+```sh showLineNumbers=false
+npm install @effect/platform-node
+```
+
+</TabItem>
+
+<TabItem label="pnpm" icon="pnpm">
+
+```sh showLineNumbers=false
+pnpm add @effect/platform-node
+```
+
+</TabItem>
+
+<TabItem label="Yarn" icon="yarn">
+
+```sh showLineNumbers=false
+yarn add @effect/platform-node
+```
+
+</TabItem>
+
+</Tabs>
+
+Update the program to load the Node.js-specific context:
+
+```ts twoslash title="index.ts" ins={3,12}
+import { Path } from "@effect/platform"
+import { Effect } from "effect"
+import { NodeContext, NodeRuntime } from "@effect/platform-node"
+
+const program = Effect.gen(function* () {
+  const path = yield* Path.Path
+
+  const mypath = path.join("tmp", "file.txt")
+  console.log(mypath)
+})
+
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+```
+
+Finally, run the program in Node.js using `tsx`:
+
+<Tabs syncKey="package-manager">
+
+<TabItem label="npm" icon="seti:npm">
+
+```sh showLineNumbers=false
+npx tsx index.ts
+# Output: tmp/file.txt
+```
+
+</TabItem>
+
+<TabItem label="pnpm" icon="pnpm">
+
+```sh showLineNumbers=false
+pnpm dlx tsx index.ts
+# Output: tmp/file.txt
+```
+
+</TabItem>
+
+<TabItem label="Yarn" icon="seti:yarn">
+
+```sh showLineNumbers=false
+yarn dlx tsx index.ts
+# Output: tmp/file.txt
+```
+
+</TabItem>
+
+</Tabs>
+
+### Running the Program in Bun
+
+To run the same program in Bun, first install the Bun-specific package:
+
+```sh showLineNumbers=false
+bun add @effect/platform-bun
+```
+
+Update the program to use the Bun-specific context:
+
+```ts twoslash title="index.ts" ins={3,12}
+import { Path } from "@effect/platform"
+import { Effect } from "effect"
+import { BunContext, BunRuntime } from "@effect/platform-bun"
+
+const program = Effect.gen(function* () {
+  const path = yield* Path.Path
+
+  const mypath = path.join("tmp", "file.txt")
+  console.log(mypath)
+})
+
+BunRuntime.runMain(program.pipe(Effect.provide(BunContext.layer)))
+```
+
+Run the program in Bun:
+
+```sh showLineNumbers=false
+bun index.ts
+tmp/file.txt
+```

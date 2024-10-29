@@ -1,0 +1,87 @@
+---
+title: Effect 3.4 (Release)
+excerpt: Release post highlighting new additions and changes
+date: 2024-06-20
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.4.0 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## @effect/platform HTTP restructure
+
+The HTTP modules in `@effect/platform` have been reorganized to have a flat structure, similar to the `effect` package.
+
+Instead of a single import, you now import the specific modules you need:
+
+```ts
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
+
+HttpClientRequest.get("/").pipe(
+  HttpClient.fetchOk,
+  HttpClientResponse.json,
+)
+```
+
+## New Micro module
+
+The `Micro` module provides a lightweight alternative to Effect, for when bundle size really matters.
+
+At a minimum, Micro adds 5kb gzipped to your bundle, and scales with the amount of features you use.
+
+`Micro` is still experimental, and we're looking for feedback on how it can be improved.
+
+## Added Array.ensure
+
+`Array.ensure` is an api that can be used to normalize `A | ReadonlyArray<A>` to `Array<A>`.
+
+```ts
+import { ensure } from "effect/Array"
+
+// lets say you are not 100% sure if it's a member or a collection
+declare const someValue: {foo: string} | Array<{foo: string}>
+
+// $ExpectType ({ foo: string })[]
+const normalized = ensure(someValue)
+```
+
+## liftPredicate changes
+
+- `Option.liftPredicate` is now dual, so it can be use data-first or data-last.
+- `Either.liftPredicate` has been added.
+- `Effect.liftPredicate` has been added.
+
+## New type accessors
+
+- `Stream` type accessors for `Success`, `Error` and `Context` have been added.
+- `ManagedRuntime` type accessors for `Success` and `Context` have been added.
+
+## Added Tuple.at
+
+The `Tuple.at` api can be used to retrieve an element at a specified index from a tuple.
+
+```ts
+import { Tuple } from "effect"
+
+assert.deepStrictEqual(Tuple.at([1, 'hello', true], 1), 'hello')
+```
+
+## Added Chunk.lastNonEmpty
+
+If you have a `NonEmptyChunk`, you can use `lastNonEmpty` to directly get the last element without having to do a runtime check.
+
+```ts
+import { Chunk } from "effect"
+
+const last = Chunk.lastNonEmpty(Chunk.of(1))
+```
+
+## Other changes
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!

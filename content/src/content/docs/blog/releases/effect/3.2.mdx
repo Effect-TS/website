@@ -1,0 +1,122 @@
+---
+title: Effect 3.2 (Release)
+excerpt: Release post highlighting new additions and changes
+date: 2024-05-20
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.2.0 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## Chunk.difference & Chunk.differenceWith
+
+These functions allow you to calculate the difference between two `Chunk`'s. This
+can be useful when you want to know what elements are in one chunk but not in
+another.
+
+```ts
+expect(
+  Chunk.difference(Chunk.make(1, 2, 3, 4, 5), Chunk.make(1, 2, 3))
+).toEqual(Chunk.make(4, 5))
+```
+
+## Span's now capture source location
+
+Tracing spans now capture their source location. This can be useful when
+debugging and trying to understand where a span was created. It will also add
+the source location to any errors created within the span.
+
+To disable this feature, pass `captureStackTrace: false` to the `Effect.withSpan` options:
+
+```ts
+Effect.log("Hello World").pipe(
+  Effect.withSpan("my span", { captureStackTrace: false }),
+)
+```
+
+## Cause.prettyErrors
+
+You can use this to extract Error instances from a Cause, that have clean stack
+traces and have had span information added to them.
+
+This can be useful when integrating Effect with other libraries that expect
+Error instances.
+
+## Effect.functionWithSpan
+
+This api allows you to define an effectful function that is wrapped with a span.
+
+You can also use the function arguments to generate the span options.
+
+```ts
+import { Effect } from "effect";
+
+const getTodo = Effect.functionWithSpan({
+  body: (id: number) => Effect.succeed(`Got todo ${id}!`),
+  options: (id) => ({
+    name: `getTodo-${id}`,
+    attributes: { id },
+  }),
+});
+```
+
+## Array.Do notation
+
+Do notation has been added to the `Array` module, for building up arrays in a
+sequential manner.
+
+```ts
+const props = pipe(
+  Array.Do,
+  Array.bind("size", () => ["small", "medium", "large"] as const),
+  Array.bind("theme", () => ["dark", "light", "contrast-light", "contrast-dark"] as const),
+  Array.bind("disabled", () => [false, true]),
+  Array.bind("loading", () => [false, true]),
+)
+```
+
+## Stream.toReadableStreamEffect
+
+To convert a `Stream` to a `ReadableStream`, that supports using Effect
+context / requirements, you can use the `Stream.toReadableStreamEffect` or
+`Stream.toReadableStreamRuntime` function.
+
+## $is & $match helpers added to Data.TaggedEnum
+
+The `$is` and `$match` helpers have been added to the
+`Data.TaggedEnum.WithGenerics` constructors.  You can use these apis to perform
+type-safe checks and pattern matching.
+
+```ts
+type Result<E, A> = Data.TaggedEnum<{
+  Success: { value: A }
+  Failure: {
+    error: E
+    message?: string
+  }
+}>
+interface ResultDefinition extends Data.TaggedEnum.WithGenerics<2> {
+  readonly taggedEnum: Result<this["A"], this["B"]>
+}
+const { $is, $match, Failure, Success } = Data.taggedEnum<ResultDefinition>()
+
+const result: Result<string, number> = Success({ value: 1 })
+
+pipe(
+  result,
+  $match({
+    Success: (_) => _.value,
+    Failure: (_) => _.error
+  })
+) satisfies string | number
+```
+
+## Other changes
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!

@@ -1,0 +1,224 @@
+---
+title: Effect 2.3 (Release)
+excerpt: Release post highlighting new additions and breaking changes
+date: 2024-02-10
+authors:
+  - tim_smart
+  - michael_arnaldi
+tags:
+  - Releases
+  - Effect
+---
+
+A new minor release of `Effect` has gone out, with some big changes we wanted to let you know about:
+
++ `Effect<R, E, A>` has been changed to `Effect<A, E = never, R = never>`. This change makes for cleaner type signatures (`Effect<void>`) and ensures types are ordered by importance. The full list of types that got updated with the same change: `Effect`, `Stream`, `STM`, `STMGen`, `Layer`, `Exit`, `Take`, `Fiber`, `FiberRuntime`, `Request`, `Resource`, `TExit`, `Deferred`, `TDeferred`, `Pool`.
+
+The following should be used:
+
+```ts
+import { Effect } from "effect"
+
+interface Logger {
+  print: (message: string) => Effect.Effect<void>
+}
+```
+
+instead of:
+
+```ts
+import { Effect } from "effect"
+
+interface Logger {
+  print: (message: string) => Effect.Effect<never, never, void>
+}
+```
+
+For this inhuman work we have to thank deeply Giulio Canti, who's now officially known as `<Canti, Giulio = never>`!
+
++ `Context.Tag` has been renamed to `Context.GenericTag`, string identifiers are now mandatory.
+
+The following should be used:
+
+```ts
+import { Context } from "effect"
+
+interface ServiceId {
+  readonly _: unique symbol
+}
+
+interface Service {
+  // ...
+}
+
+const Service = Context.GenericTag<ServiceId, Service>("@services/Service")
+```
+
+instead of:
+
+```ts
+import { Context } from "effect"
+
+interface ServiceId {
+  readonly _: unique symbol
+}
+
+interface Service {
+  // ...
+}
+
+const Service = Context.Tag<ServiceId, Service>()
+```
+
++ A new `Context.Tag` base class has been added. The added class approach assists with creating unique tag identifiers, making use of the opaque type that you get for free using a class.
+
+For example:
+
+```ts
+import { Context, Effect } from "effect"
+
+class MyService extends Context.Tag("MyService")<
+  MyService,
+  { methodA: Effect.Effect<void> }
+>() {}
+
+const effect: Effect.Effect<void, never, MyService> =
+  Effect.flatMap(MyService, _ => _.methodA)
+```
+
+For the changes above, a code-mod has been released to make migration as easy as possible.
+
+You can run it by executing:
+
+```bash showLineNumbers=false
+npx @effect/codemod minor-2.3 src/**/*
+```
+
+It might not be perfect - if you encounter issues, let us know! Also make sure you commit any changes before running it, in case you need to revert anything.
+
++ `@effect/platform` has been refactored to remove re-exports from the base package.
+
+You will now need to install both `@effect/platform` & the corresponding `@effect/platform-*` package to make use of platform specific implementations.
+
+You can see an example at [platform-node/examples/http-client.ts](https://github.com/Effect-TS/effect/blob/main/packages/platform-node/examples/http-client.ts)
+
+Notice the imports:
+
+```ts
+import { runMain } from "@effect/platform-node/NodeRuntime"
+import * as Http from "@effect/platform/HttpClient"
+```
+
++ A rewrite of the `@effect/rpc` package has been released, which simplifies the design and adds support for streaming responses.
+
+You can see a small example of usage here: [rpc-http/examples](https://github.com/Effect-TS/effect/tree/main/packages/rpc-http/examples).
+
+We start by defining our requests using `S.TaggedRequest` or `Rpc.StreamingRequest`:
+
+```ts filename="schema.ts"
+import * as Rpc from "@effect/rpc/Rpc"
+import * as S from "@effect/schema/Schema"
+import { pipe } from "effect/Function"
+
+export const UserId = pipe(S.number, S.int(), S.brand("UserId"))
+export type UserId = S.Schema.To<typeof UserId>
+
+export class User extends S.Class<User>()({
+  id: UserId,
+  name: S.string
+}) {}
+
+export class GetUserIds extends Rpc.StreamRequest<GetUserIds>()("GetUserIds", S.never, UserId, {}) {}
+export class GetUser extends S.TaggedRequest<GetUser>()("GetUser", S.never, User, {
+  id: UserId
+}) {}
+```
+
+We then define our router:
+
+```ts filename="router.ts"
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import * as Http from "@effect/platform/HttpServer"
+import { Router, Rpc } from "@effect/rpc"
+import { HttpRouter } from "@effect/rpc-http"
+import { Effect, Layer, Array, Stream } from "effect"
+import { createServer } from "http"
+import { GetUser, GetUserIds, User, UserId } from "./schema.js"
+
+// Implement the RPC server router
+const router = Router.make(
+  Rpc.stream(GetUserIds, () => Stream.fromIterable(Array.makeBy(1000, UserId))),
+  Rpc.effect(GetUser, ({ id }) => Effect.succeed(new User({ id, name: "John Doe" })))
+)
+
+export type UserRouter = typeof router
+
+// Create the http server
+const HttpLive = Http.router.empty.pipe(
+  Http.router.post("/rpc", HttpRouter.toHttpApp(router)),
+  Http.server.serve(Http.middleware.logger),
+  Http.server.withLogAddress,
+  Layer.provide(NodeHttpServer.server.layer(createServer, { port: 3000 }))
+)
+
+Layer.launch(HttpLive).pipe(
+  NodeRuntime.runMain
+)
+```
+
+And finally the client:
+
+```ts
+import * as Http from "@effect/platform/HttpClient"
+import { Resolver } from "@effect/rpc"
+import { HttpResolver } from "@effect/rpc-http"
+import { Console, Effect, Stream } from "effect"
+import type { UserRouter } from "./router.js"
+import { GetUser, GetUserIds } from "./schema.js"
+
+// Create the client
+const client = HttpResolver.make<UserRouter>(
+  Http.client.fetchOk().pipe(
+    Http.client.mapRequest(Http.request.prependUrl("http://localhost:3000/rpc"))
+  )
+).pipe(Resolver.toClient)
+
+// Use the client
+client(new GetUserIds()).pipe(
+  Stream.runCollect,
+  Effect.flatMap(Effect.forEach((id) => client(new GetUser({ id })), { batching: true })),
+  Effect.tap(Console.log),
+  Effect.runFork
+)
+```
+
++ A new module called `RateLimiter` has been released to help you with rate limiting effects, an example of its usage:
+
+```ts
+import { Context, Effect, Layer, RateLimiter } from "effect"
+
+class ApiLimiter extends Context.Tag("@services/ApiLimiter")<
+  ApiLimiter,
+  RateLimiter.RateLimiter
+>() {
+  static Live = RateLimiter.make(10, "2 seconds").pipe(
+    Layer.scoped(ApiLimiter)
+  )
+}
+
+const program = Effect.gen(function* () {
+  const rateLimit = yield* ApiLimiter
+  for (let n = 0; n < 100; n++) {
+    yield* rateLimit(Effect.log("Calling RateLimited Effect"))
+  }
+})
+
+program.pipe(
+  Effect.provide(ApiLimiter.Live),
+  Effect.runFork
+)
+```
+
+There were several other smaller changes made, feel free to read through the changelog to see them all: [Changelog](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md#230).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!

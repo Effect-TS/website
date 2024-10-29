@@ -1,0 +1,140 @@
+---
+title: Effect 3.3 (Release)
+excerpt: Release post highlighting new additions and changes
+date: 2024-06-06
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.3.0 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## Stream.zipLatestAll
+
+This api can be used to zip multiple streams together. When a value is emitted
+by any of the streams, it is combined with the latest values from the other
+streams to produce a result.
+
+```ts
+import { Stream, Schedule, Console, Effect } from "effect"
+
+const stream = Stream.zipLatestAll(
+  Stream.fromSchedule(Schedule.spaced("1 millis")),
+  Stream.fromSchedule(Schedule.spaced("2 millis")),
+  Stream.fromSchedule(Schedule.spaced("4 millis"))
+).pipe(Stream.take(6), Stream.tap(Console.log))
+
+Effect.runPromise(Stream.runDrain(stream))
+// Output:
+// [ 0, 0, 0 ]
+// [ 1, 0, 0 ]
+// [ 1, 1, 0 ]
+// [ 2, 1, 0 ]
+// [ 3, 1, 0 ]
+// [ 3, 1, 1 ]
+// .....
+```
+
+## Added queuing strategy option to Stream.toReadableStream
+
+This option is passed to the underlying `ReadableStream` constructor. It allows
+you to control the backpressure strategy of the stream.
+
+[See MDN for more information.](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream/ReadableStream#queuingstrategy)
+
+## New options in Pool constructors
+
+New concurrency & resizing options have been added to the Pool constructors, as
+well as some performance improvements.
+
+#### concurrency
+
+You can now specify the concurrent access per pool item. This is useful when
+you have a pool item that can handle multiple concurrent requests.
+
+#### targetUtilization
+
+This option determines when new pool items are created. It is a value between `0`
+and `1`, where `1` means only create new pool items when all the existing items are
+fully utilized.
+
+A `targetUtilization` of `0.5` will create new pool items when the existing items are
+50% utilized.
+
+By default it is set to `1`,
+
+#### timeToLiveStrategy
+
+This option allows you to specify a strategy that determines how the pool is
+resized. The default strategy is `"usage"`, which invalidates pool items based
+on the `targetUtilization`.
+
+Another strategy is `"creation"`, which invalidates pool items based on the time
+they were created.
+
+## STM.gen, Either.gen & Option.gen now support passing this
+
+The value to bind to `this` can be passed as the first argument to the .gen function.
+
+```ts
+import { Option } from "effect"
+
+class MyClass {
+  readonly value = 1
+
+  readonly option = Option.gen(this, function* () {
+    // you can now access `this.value`
+  })
+}
+```
+
+## New Redacted module
+
+The `Redacted<T>` data type represents sensitive data. It is generic, so it can
+be used to redact any type of data.
+
+Support for `Redacted` has been added to @effect/schema & @effect/cli.
+
+The `Secret` module has now been marked as deprecated, and will be removed in a future release.
+
+## Layer annotation APIs
+
+#### Layer.annotateLogs
+
+This api will annotate any logs emitted during the execution of the layer.
+Fibers that are forked from the layer will also have their logs annotated.
+
+#### Layer.annotateSpans
+
+Similar to `Layer.annotateLogs`, but for tracing spans.
+
+## Improved URL handling in /platform http client
+
+If you pass a `URL` object to the ClientRequest constructors, it will now also
+populate the url parameters & hash of the request.
+
+```ts
+// create a request to https://example.com/foo?foo=bar&baz=qux#hash
+Http.request
+  .get(new URL("https://example.com/?foo=bar#hash"))
+  .pipe(
+    Http.request.appendUrl("/foo"),
+    Http.request.setUrlParam("baz", "qux")
+  )
+```
+
+## Tuple type guards
+
+The following type guards have been added to the `Predicate` module:
+
+- `isTupleOf` - a refinement that checks if a value is a tuple of a specific length
+- `isTupleOfAtLeast` - a refinement that checks if a value is a tuple at least the specified length
+
+## Other changes
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!

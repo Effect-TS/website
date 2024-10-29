@@ -1,0 +1,161 @@
+---
+title: Effect 3.6 (Release)
+excerpt: Release post highlighting new additions and changes
+date: 2024-07-30
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.6 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## DateTime module
+
+The `DateTime` module provides functionality for working with time, including
+support for time zones and daylight saving time.
+
+It has two main data types: `DateTime.Utc` and `DateTime.Zoned`.
+
+A `DateTime.Utc` represents a time in Coordinated Universal Time (UTC), and
+a `DateTime.Zoned` contains both a UTC timestamp and a time zone.
+
+There is also a `CurrentTimeZone` service, for setting a time zone contextually.
+
+```ts
+import { DateTime, Effect } from "effect"
+
+Effect.gen(function* () {
+  // Get the current time in the current time zone
+  const now = yield* DateTime.nowInCurrentZone
+
+  // Math functions are included
+  const tomorrow = DateTime.add(now, { days: 1 })
+
+  // Convert to a different time zone
+  // The UTC portion of the `DateTime` is preserved and only the time zone is
+  // changed
+  const sydneyTime = tomorrow.pipe(
+    DateTime.unsafeSetZoneNamed("Australia/Sydney"),
+  )
+}).pipe(DateTime.withCurrentZoneNamed("America/New_York"))
+```
+
+## Stream.asyncPush api
+
+`Stream.asyncPush` can be used to create a `Stream` from an external push-based resource.
+
+You can customize the buffer size and strategy by passing an object as the
+second argument with the `bufferSize` and `strategy` fields.
+
+```ts
+import { Effect, Stream } from "effect";
+
+Stream.asyncPush<string>(
+  (emit) =>
+    Effect.acquireRelease(
+      Effect.gen(function* () {
+        yield* Effect.log("subscribing");
+        return setInterval(() => emit.single("tick"), 1000);
+      }),
+      (handle) =>
+        Effect.gen(function* () {
+          yield* Effect.log("unsubscribing");
+          clearInterval(handle);
+        }),
+    ),
+  { bufferSize: 16, strategy: "dropping" },
+);
+```
+
+## Struct.keys api
+
+To access the fully typed keys of a struct, you can use the `Struct.keys` function.
+
+```ts
+import { Struct } from "effect"
+
+const symbol: unique symbol = Symbol()
+
+const value = {
+  a: 1,
+  b: 2,
+  [symbol]: 3
+}
+
+const keys: Array<"a" | "b"> = Struct.keys(value)
+```
+
+## @effect/sql-kysely package
+
+The `@effect/sql-kysely` package provides `@effect/sql` integration with the `kysely`
+query builder apis.
+
+```ts
+// create a Tag with your `Database` type
+class KyselyDB extends Context.Tag("KyselyDB")<KyselyDB, Kysely<Database>>() {}
+
+Effect.gen(function*(_) {
+  // access the service and execute queries
+  const db = yield* KyselyDB
+
+  yield* db.schema
+    .createTable("users")
+    .addColumn("id", "integer", (c) => c.primaryKey().autoIncrement())
+    .addColumn("userName", "text", (c) => c.notNull())
+
+  const inserted = yield* db.insertInto("users").values({ userName: "Alice" }).returningAll()
+  const selected = yield* db.selectFrom("users").selectAll()
+  const updated = yield* db.updateTable("users").set({ userName: "Bob" }).returningAll()
+  const deleted = yield* db.deleteFrom("users").returningAll()
+})
+```
+
+## Random.choice api
+
+This api allows you to randomly select an item from an `Iterable`.
+
+Unless the `Iterable` is "NonEmpty", then the Effect can fail with a `Cause.NoSuchElementException`.
+
+```ts
+import { Random } from "effect"
+
+Effect.gen(function* () {
+  const randomItem = yield* Random.choice([1, 2, 3])
+  console.log(randomItem)
+})
+```
+
+## onlyEffect option for Effect.tap
+
+If the `onlyEffect` option for `Effect.tap` is set to `true`, then it will ensure the side effect only uses `Effect`'s.
+
+This can be useful when you want to add strictness to your program.
+
+## Refinement support for Predicate.tuple/struct
+
+Refinements can now be used with `Predicate.tuple` and `Predicate.struct` to narrow the resulting type.
+
+```ts
+import { Predicate } from "effect"
+
+const isTrue = (u: unknown): u is true => u === true
+
+// will narrow the type to { isTrue: true }
+Predicate.struct({ isTrue })
+```
+
+## Stream hook apis
+
+Some new lifetime hook apis have been added to the `Stream` module:
+
+- `Stream.onStart` - run an effect when the stream starts
+- `Stream.onEnd` - run an effect when the stream ends without error
+
+## Other changes
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
