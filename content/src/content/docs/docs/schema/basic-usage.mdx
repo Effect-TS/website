@@ -99,6 +99,37 @@ const schema = Schema.Literal("a", "b", "c")
 type Type = typeof schema.Type
 ```
 
+If you want to set a custom error message for the entire union of literals, you can use the `override: true` option (see [Custom Error Messages](/docs/schema/error-messages/#custom-error-messages) for more details) to specify a unified message.
+
+**Example** (Adding a Custom Message to a Union of Literals)
+
+```ts twoslash
+import { Schema } from "effect"
+
+// Schema with individual messages for each literal
+const individualMessages = Schema.Literal("a", "b", "c")
+
+console.log(Schema.decodeUnknownSync(individualMessages)(null))
+/*
+throws:
+ParseError: "a" | "b" | "c"
+├─ Expected "a", actual null
+├─ Expected "b", actual null
+└─ Expected "c", actual null
+*/
+
+// Schema with a unified custom message for all literals
+const unifiedMessage = Schema.Literal("a", "b", "c").annotations({
+  message: () => ({ message: "Not a valid code", override: true })
+})
+
+console.log(Schema.decodeUnknownSync(unifiedMessage)(null))
+/*
+throws:
+ParseError: Not a valid code
+*/
+```
+
 ### Exposed Values
 
 You can access the literals defined in a literal schema using the `literals` property:
@@ -303,6 +334,37 @@ const schema = Schema.Literal("a", "b", "c")
 
 // "a" | "b" | "c"
 type Type = typeof schema.Type
+```
+
+If you want to set a custom error message for the entire union of literals, you can use the `override: true` option (see [Custom Error Messages](/docs/schema/error-messages/#custom-error-messages) for more details) to specify a unified message.
+
+**Example** (Adding a Custom Message to a Union of Literals)
+
+```ts twoslash
+import { Schema } from "effect"
+
+// Schema with individual messages for each literal
+const individualMessages = Schema.Literal("a", "b", "c")
+
+console.log(Schema.decodeUnknownSync(individualMessages)(null))
+/*
+throws:
+ParseError: "a" | "b" | "c"
+├─ Expected "a", actual null
+├─ Expected "b", actual null
+└─ Expected "c", actual null
+*/
+
+// Schema with a unified custom message for all literals
+const unifiedMessage = Schema.Literal("a", "b", "c").annotations({
+  message: () => ({ message: "Not a valid code", override: true })
+})
+
+console.log(Schema.decodeUnknownSync(unifiedMessage)(null))
+/*
+throws:
+ParseError: Not a valid code
+*/
 ```
 
 ### Nullables
