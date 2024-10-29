@@ -103,7 +103,7 @@ export function FileNode({
     />
   ) : (
     <FileNodeRoot
-      className={showControls ? "grid-cols-[auto_minmax(0,1fr)]" : "grid-cols-1"}
+      className={showControls ? "grid-cols-[minmax(0,1fr)_auto]" : "auto-cols-auto"}
       isSelected={isSelected}
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
@@ -210,7 +210,7 @@ function FileNodeControls({ className, node }: {
   const isIdle = state._tag === "Idle"
 
   return (node._tag === "Directory" || node.userManaged) && (
-    <div className={cn("flex items-center gap-2 !mr-2", className)}>
+    <div className={cn("h-full flex items-center [&_button]:px-1 [&_button]:rounded-none", className)}>
       {node.userManaged && (
         <Tooltip disableHoverableContent={!isIdle}>
           <TooltipTrigger asChild>
