@@ -15,26 +15,26 @@ to make building applications easier.
     heading: "Most desired JS features",
     subheading: "2022 State of JavaScript survey",
     features: [
-      { name: "2. Standard Library", value: 12928, docsLink: "/docs" },
+      { name: "2. Standard Library", value: 12928, docsLink: "/docs/getting-started-introduction/" },
       {
         name: "4. Immutable Data Structures",
         value: 8243,
-        docsLink: "/docs/other/data-types"
+        docsLink: "/docs/data-types/cause/"
       },
       {
         name: "5. Observable",
         value: 6515,
-        docsLink: "/docs/guides/observability"
+        docsLink: "/docs/observability/tracing/"
       },
       {
         name: "6. Pipe Operator",
         value: 5860,
-        docsLink: "/docs/guides/essentials/pipeline#pipe"
+        docsLink: "/docs/getting-started/building-pipelines/"
       },
       {
         name: "8. Pattern Matching",
         value: 4872,
-        docsLink: "/docs/guides/style/pattern-matching"
+        docsLink: "/docs/code-style/pattern-matching/"
       }
     ]
   }
@@ -86,9 +86,8 @@ export const JSSurvey = () => {
                       className="absolute inset-0 bg-zinc-700 rounded-r-md"
                       style={{
                         opacity: `${100 - index * 15}%`,
-                        width: `${
-                          (value / content.survey.features[0].value) * 100
-                        }%`
+                        width: `${(value / content.survey.features[0].value) * 100
+                          }%`
                       }}
                     />
                     <div className="relative items-center text-sm text-white px-2 w-full flex gap-4 h-6 whitespace-nowrap justify-between">
