@@ -21,10 +21,7 @@ const VERCEL_PREVIEW_DOMAIN =
   process.env.VERCEL_ENV !== "production" &&
   process.env.VERCEL_BRANCH_URL
 
-const domain =
-  VERCEL_PREVIEW_DOMAIN ||
-  process.env.VERCEL_PROJECT_PRODUCTION_URL ||
-  "effect.website"
+const domain = VERCEL_PREVIEW_DOMAIN || "effect.website"
 
 const site = `https://${domain}`
 
