@@ -78,7 +78,11 @@ export default defineConfig({
   site,
   output: "hybrid",
   trailingSlash: "always",
-  adapter: vercel(),
+  adapter: vercel({
+    webAnalytics: {
+      enabled: true
+    }
+  }),
   markdown: {
     rehypePlugins: [
       [rehypeMermaid, rehypeMermaidOptions],
