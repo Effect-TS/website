@@ -78,7 +78,11 @@ export default defineConfig({
   site,
   output: "hybrid",
   trailingSlash: "always",
-  adapter: vercel(),
+  adapter: vercel({
+    webAnalytics: {
+      enabled: true
+    }
+  }),
   markdown: {
     rehypePlugins: [
       [rehypeMermaid, rehypeMermaidOptions],
@@ -111,6 +115,8 @@ export default defineConfig({
         ThemeSelect: "./src/components/overrides/ThemeSelect.astro"
       },
       customCss: [
+        // tye styles for the navigation header
+        "./src/styles/header.css",
         // the styles for the autolink headings
         "./src/styles/headings.css",
         // the styles for the main site logo
