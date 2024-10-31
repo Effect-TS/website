@@ -101,7 +101,7 @@ export const importRx = runtime.rx((get) =>
     )
 
     if (Option.isNone(compressed)) {
-      return makeDefaultWorkspace().setTree
+      return makeDefaultWorkspace()
     }
 
     const compression = yield* WorkspaceCompression
