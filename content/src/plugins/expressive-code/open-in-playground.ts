@@ -148,25 +148,30 @@ export function pluginOpenInPlayground(): ExpressiveCodePlugin {
       }`
     },
     hooks: {
-      postprocessRenderedBlock({ locale, renderData }) {
-        const texts = pluginTexts.get(locale)
+      postprocessRenderedBlock({ codeBlock, locale, renderData }) {
+        const isTS = codeBlock.language === "ts"
+        const hasTwoslash = /\btwoslash\b/.test(codeBlock.meta)
+        // Only enable on `ts twoslash` code blocks for now
+        if (isTS && hasTwoslash) {
+          const texts = pluginTexts.get(locale)
 
-        const element = h("div", { className: "open-in-playground" }, [
-          h(
-            "button",
-            {
-              title: texts.openInPlaygroundButtonTooltip,
-            },
-            [h("div")]
-          ),
-        ])
+          const element = h("div", { className: "open-in-playground" }, [
+            h(
+              "button",
+              {
+                title: texts.openInPlaygroundButtonTooltip,
+              },
+              [h("div")]
+            ),
+          ])
 
-        const figure = select("figure", renderData.blockAst)
-        if (!figure) {
-          throw new Error("Unable to find figure element for code frame")
+          const figure = select("figure", renderData.blockAst)
+          if (!figure) {
+            throw new Error("Unable to find figure element for code frame")
+          }
+          figure.children.push(element)
+          renderData.blockAst = figure
         }
-        figure.children.push(element)
-        renderData.blockAst = figure
       }
     }
   }
