@@ -20,7 +20,7 @@ export function pluginOpenInPlayground(): ExpressiveCodePlugin {
       const openInPlayground = `url("data:image/svg+xml,${escapedOpenInPlaygroundSvg}")`
       return `
       /* Move the copy button over to make room for the Open in Playground button */
-      .copy {
+      .copy:has(+ .open-in-playground) {
         inset-inline-end: calc(${cssVar("borderWidth")} + ${cssVar("uiPaddingInline")} / 2 + 3rem);
 
         @media (hover: hover) {
