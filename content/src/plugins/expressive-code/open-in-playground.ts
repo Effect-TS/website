@@ -151,8 +151,10 @@ export function pluginOpenInPlayground(): ExpressiveCodePlugin {
       postprocessRenderedBlock({ codeBlock, locale, renderData }) {
         const isTS = codeBlock.language === "ts"
         const hasTwoslash = /\btwoslash\b/.test(codeBlock.meta)
-        // Only enable on `ts twoslash` code blocks for now
-        if (isTS && hasTwoslash) {
+        const canOpenInPlayground = codeBlock.metaOptions.getBoolean("playground") ?? true
+        // Only enable on `ts twoslash` code blocks for now, with the ability
+        // to opt-out via the `playground=false` meta argument
+        if (isTS && hasTwoslash && canOpenInPlayground) {
           const texts = pluginTexts.get(locale)
 
           const element = h("div", { className: "open-in-playground" }, [
