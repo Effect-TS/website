@@ -13,8 +13,9 @@ import starlight from "@astrojs/starlight"
 import tailwind from "@astrojs/tailwind"
 import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections"
 import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers"
-import effectPlaygroundPlugin from "./src/plugins/starlight/playground"
-import pluginTwoslash from "./src/plugins/twoslash/plugin"
+import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground"
+import { pluginTwoslash } from "./src/plugins/expressive-code/twoslash"
+import { effectPlaygroundPlugin } from "./src/plugins/starlight/playground"
 import { monacoEditorPlugin } from "./src/plugins/vite/monaco-editor"
 
 const VERCEL_PREVIEW_DOMAIN =
@@ -137,6 +138,7 @@ export default defineConfig({
         plugins: [
           pluginCollapsibleSections(),
           pluginLineNumbers(),
+          pluginOpenInPlayground(),
           pluginTwoslash({ explicitTrigger: true })
         ],
         themes: ["github-light", "github-dark"]

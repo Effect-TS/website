@@ -19,3 +19,4 @@ export const hashRx = Rx.make<Option.Option<string>>((get) => {
   })
   return getHash()
 })
+

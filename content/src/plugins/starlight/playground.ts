@@ -1,6 +1,6 @@
 import type { StarlightPlugin } from "@astrojs/starlight/types"
 
-export default function effectPlaygroundPlugin({ pattern }: {
+export function effectPlaygroundPlugin({ pattern }: {
   readonly pattern: string
 }): StarlightPlugin {
   return {
