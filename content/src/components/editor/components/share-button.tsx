@@ -30,7 +30,7 @@ export function ShareButton() {
   return (
     <Popover onOpenChange={onOpen}>
       <PopoverTrigger asChild>
-        <Button className="absolute top-2 right-6 bg-[--sl-color-bg-nav] hover:bg-[--sl-color-gray-6] dark:hover:bg-[--sl-color-gray-5] border border-[--sl-color-text] text-[--sl-color-white] cursor-pointer">
+        <Button className="absolute top-2 right-6 z-10 bg-[--sl-color-bg-nav] hover:bg-[--sl-color-gray-6] dark:hover:bg-[--sl-color-gray-5] border border-[--sl-color-text] text-[--sl-color-white] cursor-pointer">
           Share
         </Button>
       </PopoverTrigger>
