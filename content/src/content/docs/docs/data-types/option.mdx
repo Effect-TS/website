@@ -7,9 +7,9 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components"
 
-The `Option` data type is used to represent optional values. An `Option` can be either `Some`, which contains a value, or `None`, which indicates the absence of a value.
+The `Option` data type represents optional values. An `Option<A>` can either be `Some<A>`, containing a value of type `A`, or `None`, representing the absence of a value.
 
-The `Option` type is versatile and can be applied in various scenarios, including:
+You can use `Option` in scenarios like:
 
 - Using it for initial values
 - Returning values from functions that are not defined for all possible inputs (referred to as "partial functions")
@@ -20,29 +20,43 @@ The `Option` type is versatile and can be applied in various scenarios, includin
 
 ### some
 
-The `Option.some` constructor takes a value of type `A` and returns an `Option<A>` that holds that value:
+Use the `Option.some` constructor to create an `Option` that holds a value of type `A`.
+
+**Example** (Creating an Option with a Value)
 
 ```ts twoslash
 import { Option } from "effect"
 
-const value = Option.some(1) // An Option holding the number 1
+// An Option holding the number 1
+const value = Option.some(1)
+
+console.log(value)
+// Output: { _id: 'Option', _tag: 'Some', value: 1 }
 ```
 
 ### none
 
-On the other hand, the `Option.none` constructor returns an `Option<never>`, representing the absence of a value:
+Use the `Option.none` constructor to create an `Option` representing the absence of a value.
+
+**Example** (Creating an Option with No Value)
 
 ```ts twoslash
 import { Option } from "effect"
 
-const noValue = Option.none() // An Option holding no value
+// An Option holding no value
+const noValue = Option.none()
+
+console.log(noValue)
+// Output: { _id: 'Option', _tag: 'None' }
 ```
 
 ### liftPredicate
 
-Sometimes you need to create an `Option` based on a predicate, such as checking if a value is positive.
+You can create an `Option` based on a predicate, for example, to check if a value is positive.
 
-Here's how you can do this explicitly using `Option.none` and `Option.some`
+**Example** (Using Explicit Option Creation)
+
+Here's how you can achieve this using `Option.none` and `Option.some`:
 
 ```ts twoslash
 import { Option } from "effect"
@@ -53,20 +67,23 @@ const parsePositive = (n: number): Option.Option<number> =>
   isPositive(n) ? Option.some(n) : Option.none()
 ```
 
-The same result can be achieved more concisely using `Option.liftPredicate`
+**Example** (Using `Option.liftPredicate` for Conciseness)
+
+Alternatively, you can simplify the above logic with `Option.liftPredicate`:
 
 ```ts twoslash
 import { Option } from "effect"
 
 const isPositive = (n: number) => n > 0
 
+//      ┌─── (b: number) => Option<number>
+//      ▼
 const parsePositive = Option.liftPredicate(isPositive)
 ```
 
 ## Modeling Optional Properties
 
-Let's look at an example of a `User` model where the `"email"` property is optional and can have a value of type `string`.
-To represent this, we can use the `Option<string>` type:
+Consider a `User` model where the `"email"` property is optional and can hold a `string` value. We use the `Option<string>` type to represent this optional property:
 
 ```ts {6} twoslash
 import { Option } from "effect"
@@ -78,13 +95,15 @@ interface User {
 }
 ```
 
-<Aside type="caution" title="Property Key Always Present">
+<Aside type="note" title="Property Key Always Present">
   Optionality only applies to the value of the property. The key `"email"`
   will always be present in the object, regardless of whether it has a
   value or not.
 </Aside>
 
-Now, let's see how we can create instances of `User` with and without an email:
+Here are examples of how to create `User` instances with and without an email:
+
+**Example** (Creating Users with and without Email)
 
 ```ts twoslash
 import { Option } from "effect"
@@ -110,14 +129,17 @@ const withoutEmail: User = {
 
 ## Guards
 
-You can determine whether an `Option` is a `Some` or a `None` by using the `isSome` and `isNone` guards:
+You can check whether an `Option` is a `Some` or a `None` using the `Option.isSome` and `Option.isNone` guards.
+
+**Example** (Using Guards to Check Option Values)
 
 ```ts twoslash
 import { Option } from "effect"
 
 const foo = Option.some(1)
 
-console.log(Option.isSome(foo)) // Output: true
+console.log(Option.isSome(foo))
+// Output: true
 
 if (Option.isNone(foo)) {
   console.log("Option is empty")
@@ -127,58 +149,61 @@ if (Option.isNone(foo)) {
 // Output: "Option has a value: 1"
 ```
 
-## Matching
+## Pattern Matching
 
-The `Option.match` function allows you to handle different cases of an `Option` value by providing separate actions for each case:
+Use `Option.match` to handle both cases of an `Option` by specifying separate callbacks for `None` and `Some`.
+
+**Example** (Pattern Matching with Option)
 
 ```ts twoslash
 import { Option } from "effect"
 
 const foo = Option.some(1)
 
-const result = Option.match(foo, {
+const message = Option.match(foo, {
   onNone: () => "Option is empty",
   onSome: (value) => `Option has a value: ${value}`
 })
 
-console.log(result) // Output: "Option has a value: 1"
+console.log(message)
+// Output: "Option has a value: 1"
 ```
-
-<Aside type="tip" title="Matching">
-  Using `Option.match` instead of `Option.isSome` or `Option.isNone` can
-  be more expressive and provide a clear way to handle both cases of an
-  `Option`.
-</Aside>
 
 ## Working with Option
 
 ### map
 
-The `Option.map` function allows you to transform the value inside an `Option` without having to unwrap and wrap the underlying value. Let's see an example:
+The `Option.map` function lets you transform the value inside an `Option` without manually unwrapping and re-wrapping it. If the `Option` holds a value (`Some`), the transformation function is applied. If the `Option` is `None`, the function is ignored, and the `Option` remains unchanged.
+
+**Example** (Mapping a Value in Some)
 
 ```ts twoslash
 import { Option } from "effect"
 
-const maybeIncremented = Option.map(Option.some(1), (n) => n + 1) // some(2)
+// Transform the value inside Some
+console.log(Option.map(Option.some(1), (n) => n + 1))
+// Output: { _id: 'Option', _tag: 'Some', value: 2 }
 ```
 
-The convenient aspect of using `Option` is how it handles the absence of a value, represented by `None`:
+When dealing with `None`, the mapping function is not executed, and the `Option` remains `None`:
+
+**Example** (Mapping over None)
 
 ```ts twoslash
 import { Option } from "effect"
 
-const maybeIncremented = Option.map(Option.none(), (n) => n + 1) // none()
+// Mapping over None results in None
+console.log(Option.map(Option.none(), (n) => n + 1))
+// Output: { _id: 'Option', _tag: 'None' }
 ```
-
-Despite having `None` as the input, we can still operate on the `Option` without encountering errors. The mapping function `(n) => n + 1` is not executed when the `Option` is `None`, and the result remains `none` representing the absence of a value.
 
 ### flatMap
 
-The `Option.flatMap` function works similarly to `Option.map`, but with an additional feature. It allows us to sequence computations that depend on the absence or presence of a value in an `Option`.
+The `Option.flatMap` function is similar to `Option.map`, but it is designed to handle cases where the transformation might return another `Option`. This allows us to chain computations that depend on whether or not a value is present in an `Option`.
 
-Let's explore an example that involves a **nested** optional property. We have a `User` model with an optional `address` field of type `Option<Address>`:
+Consider a `User` model that includes a nested optional `Address`, which itself contains an optional `street` property:
 
-```ts {7} twoslash
+```ts twoslash {7,12}
 import { Option } from "effect"
 
 interface User {
@@ -194,25 +219,11 @@ interface Address {
 }
 ```
 
-The `address` field itself contains a nested optional property called `street` of type `Option<string>`:
+In this model, the `address` field is an `Option<Address>`, and the `street` field within `Address` is an `Option<string>`.
 
-```ts {12} twoslash
-import { Option } from "effect"
+We can use `Option.flatMap` to extract the `street` property from `address`:
 
-interface User {
-  readonly id: number
-  readonly username: string
-  readonly email: Option.Option<string>
-  readonly address: Option.Option<Address>
-}
-
-interface Address {
-  readonly city: string
-  readonly street: Option.Option<string>
-}
-```
-
-We can use `Option.flatMap` to extract the `street` property from the `address` field.
+**Example** (Extracting a Nested Optional Property)
 
 ```ts twoslash
 import { Option } from "effect"
@@ -239,104 +250,169 @@ const user: User = {
   })
 }
 
+// Use flatMap to extract the street value
 const street = user.address.pipe(
   Option.flatMap((address) => address.street)
 )
+
+console.log(street)
+// Output: { _id: 'Option', _tag: 'Some', value: '123 Main St' }
 ```
 
-Here's how it works: if the `address` is `Some`, meaning it has a value, the mapping function `(addr) => addr.street` is applied to retrieve the `street` value. On the other hand, if the `address` is `None`, indicating the absence of a value, the mapping function is not executed, and the result is also `None`.
+If `user.address` is `Some`, `Option.flatMap` applies the function `(address) => address.street` to retrieve the `street` value.
+
+If `user.address` is `None`, the function is not executed, and `street` remains `None`.
+
+This approach lets us handle nested optional values concisely, avoiding manual checks and making the code cleaner and easier to read.
 
 ### filter
 
-The `Option.filter` function is used to filter an `Option` using a predicate. If the predicate is not satisfied or the `Option` is `None`, it returns `None`.
+The `Option.filter` function allows you to filter an `Option` based on a given predicate. If the predicate is not met or if the `Option` is `None`, the result will be `None`.
 
-Let's see an example where we refactor some code to a more idiomatic version:
+**Example** (Filtering an Option Value)
+
+Here's how you can simplify some code using `Option.filter` for a more idiomatic approach:
 
 Original Code
 
 ```ts twoslash
 import { Option } from "effect"
 
+// Function to remove empty strings from an Option
 const removeEmptyString = (input: Option.Option<string>) => {
   if (Option.isSome(input) && input.value === "") {
-    return Option.none()
+    return Option.none() // Return None if the value is an empty string
   }
-  return input
+  return input // Otherwise, return the original Option
 }
 
-console.log(removeEmptyString(Option.none())) // { _id: 'Option', _tag: 'None' }
-console.log(removeEmptyString(Option.some(""))) // { _id: 'Option', _tag: 'None' }
-console.log(removeEmptyString(Option.some("a"))) // { _id: 'Option', _tag: 'Some', value: 'a' }
+console.log(removeEmptyString(Option.none()))
+// Output: { _id: 'Option', _tag: 'None' }
+
+console.log(removeEmptyString(Option.some("")))
+// Output: { _id: 'Option', _tag: 'None' }
+
+console.log(removeEmptyString(Option.some("a")))
+// Output: { _id: 'Option', _tag: 'Some', value: 'a' }
 ```
 
-Idiomatic Code
+Refactored Idiomatic Code
+
+Using `Option.filter`, we can write the same logic more concisely:
 
 ```ts twoslash
 import { Option } from "effect"
 
 const removeEmptyString = (input: Option.Option<string>) =>
   Option.filter(input, (value) => value !== "")
+
+console.log(removeEmptyString(Option.none()))
+// Output: { _id: 'Option', _tag: 'None' }
+
+console.log(removeEmptyString(Option.some("")))
+// Output: { _id: 'Option', _tag: 'None' }
+
+console.log(removeEmptyString(Option.some("a")))
+// Output: { _id: 'Option', _tag: 'Some', value: 'a' }
 ```
 
 ## Getting the Value from an Option
 
-To retrieve the value stored within an `Option`, you can use various functions provided by the `Option` module. Let's explore these functions:
+To retrieve the value stored inside an `Option`, you can use several helper functions provided by the `Option` module. Here's an overview of the available methods:
 
-- `getOrThrow`: It retrieves the wrapped value from an `Option`, or throws an error if the `Option` is a `None`. Here's an example:
+### getOrThrow
 
-  ```ts twoslash
-  import { Option } from "effect"
+This function extracts the value from a `Some`. If the `Option` is `None`, it throws an error.
 
-  Option.getOrThrow(Option.some(10)) // 10
-  Option.getOrThrow(Option.none()) // throws getOrThrow called on a None
-  ```
+**Example** (Retrieving Value or Throwing an Error)
 
-- `getOrNull` and `getOrUndefined`: These functions are useful when you want to work with code that doesn't use `Option`. They allow you to retrieve the value of an `Option` as `null` or `undefined`, respectively. Examples:
+```ts twoslash
+import { Option } from "effect"
 
-  ```ts twoslash
-  import { Option } from "effect"
+console.log(Option.getOrThrow(Option.some(10)))
+// Output: 10
 
-  Option.getOrNull(Option.some(5)) // 5
-  Option.getOrNull(Option.none()) // null
+console.log(Option.getOrThrow(Option.none()))
+// throws: Error: getOrThrow called on a None
+```
 
-  Option.getOrUndefined(Option.some(5)) // 5
-  Option.getOrUndefined(Option.none()) // undefined
-  ```
+### getOrNull / getOrUndefined
 
-- `getOrElse`: This function lets you provide a default value that will be returned if the `Option` is a `None`. Here's an example:
+These functions convert a `None` to either `null` or `undefined`, which is useful when working with non-`Option`-based code.
 
-  ```ts twoslash
-  import { Option } from "effect"
+**Example** (Converting `None` to `null` or `undefined`)
 
-  Option.getOrElse(Option.some(5), () => 0) // 5
-  Option.getOrElse(Option.none(), () => 0) // 0
-  ```
+```ts twoslash
+import { Option } from "effect"
+
+console.log(Option.getOrNull(Option.some(5)))
+// Output: 5
+
+console.log(Option.getOrNull(Option.none()))
+// Output: null
+
+console.log(Option.getOrUndefined(Option.some(5)))
+// Output: 5
+
+console.log(Option.getOrUndefined(Option.none()))
+// Output: undefined
+```
+
+### getOrElse
+
+This function allows you to specify a default value to return when the `Option` is `None`.
+
+**Example** (Providing a Default Value When `None`)
+
+```ts twoslash
+import { Option } from "effect"
+
+console.log(Option.getOrElse(Option.some(5), () => 0))
+// Output: 5
+
+console.log(Option.getOrElse(Option.none(), () => 0))
+// Output: 0
+```
 
 ## Fallback
 
-In certain situations, when a computation returns `None`, you may want to try an alternative computation that returns an `Option`. This is where the `Option.orElse` function comes in handy. It allows you to chain multiple computations together and continue with the next one if the previous one resulted in `None`. This can be useful for implementing retry logic, where you want to attempt a computation multiple times until you either succeed or exhaust all possible attempts.
+### orElse
+
+When a computation returns `None`, you might want to try an alternative computation that yields an `Option`. The `Option.orElse` function is helpful in such cases. It lets you chain multiple computations, moving on to the next if the current one results in `None`. This approach is often used in retry logic, attempting computations until one succeeds or all possibilities are exhausted.
+
+**Example** (Attempting Alternative Computations)
 
 ```ts twoslash
 import { Option } from "effect"
 
 // Simulating a computation that may or may not produce a result
-const performComputation = (): Option.Option<number> =>
+const computation = (): Option.Option<number> =>
   Math.random() < 0.5 ? Option.some(10) : Option.none()
 
-const performAlternativeComputation = (): Option.Option<number> =>
+// Simulates an alternative computation
+const alternativeComputation = (): Option.Option<number> =>
   Math.random() < 0.5 ? Option.some(20) : Option.none()
 
-const result = performComputation().pipe(
-  Option.orElse(() => performAlternativeComputation())
+// Attempt the first computation, then try an alternative if needed
+const program = computation().pipe(
+  Option.orElse(() => alternativeComputation())
 )
 
-Option.match(result, {
-  onNone: () => console.log("Both computations resulted in None"),
-  onSome: (value) => console.log("Computed value:", value) // At least one computation succeeded
+const result = Option.match(program, {
+  onNone: () => "Both computations resulted in None",
+  // At least one computation succeeded
+  onSome: (value) => `Computed value: ${value}`
 })
+
+console.log(result)
+// Output: Computed value: 10
 ```
 
-Additionally, the `Option.firstSomeOf` function can be used to retrieve the first value that is `Some` within an iterable of `Option` values:
+### firstSomeOf
+
+You can also use `Option.firstSomeOf` to get the first `Some` value from an iterable of `Option` values:
+
+**Example** (Retrieving the First `Some` Value)
 
 ```ts twoslash
 import { Option } from "effect"
@@ -346,65 +422,85 @@ const first = Option.firstSomeOf([
   Option.some(2),
   Option.none(),
   Option.some(3)
-]) // some(2)
+])
+
+console.log(first)
+// Output: { _id: 'Option', _tag: 'Some', value: 2 }
 ```
 
 ## Interop with Nullable Types
 
-When working with the `Option` data type, you may come across code that uses `undefined` or `null` to represent optional values. The `Option` data type provides several APIs to facilitate the interaction between `Option` and nullable types.
+When dealing with the `Option` data type, you may encounter code that uses `undefined` or `null` to represent optional values. The `Option` module provides several APIs to make interaction with these nullable types straightforward.
 
-You can create an `Option` from a nullable value using the `fromNullable` API.
+### fromNullable
 
-```ts twoslash
-import { Option } from "effect"
+`Option.fromNullable` converts a nullable value (`null` or `undefined`) into an `Option`. If the value is `null` or `undefined`, it returns `Option.none()`. Otherwise, it wraps the value in `Option.some()`.
 
-Option.fromNullable(null) // none()
-Option.fromNullable(undefined) // none()
-Option.fromNullable(1) // some(1)
-```
-
-Conversely, if you have a value of type `Option` and want to convert it to a nullable value, you have two options:
-
-- Convert `None` to `null` using the `getOrNull` API.
-- Convert `None` to `undefined` using the `getOrUndefined` API.
+**Example** (Creating Option from Nullable Values)
 
 ```ts twoslash
 import { Option } from "effect"
 
-Option.getOrNull(Option.some(5)) // 5
-Option.getOrNull(Option.none()) // null
+console.log(Option.fromNullable(null))
+// Output: { _id: 'Option', _tag: 'None' }
 
-Option.getOrUndefined(Option.some(5)) // 5
-Option.getOrUndefined(Option.none()) // undefined
+console.log(Option.fromNullable(undefined))
+// Output: { _id: 'Option', _tag: 'None' }
+
+console.log(Option.fromNullable(1))
+// Output: { _id: 'Option', _tag: 'Some', value: 1 }
 ```
+
+If you need to convert an `Option` back to a nullable value, there are two helper methods:
+
+- `Option.getOrNull`: Converts `None` to `null`.
+- `Option.getOrUndefined`: Converts `None` to `undefined`.
 
 ## Interop with Effect
 
-The `Option` type is a subtype of the `Effect` type, which means that it can be seamlessly used with functions from the `Effect` module. These functions are primarily designed to work with `Effect` values, but they can also handle `Option` values and process them correctly.
+The `Option` type works as a subtype of the `Effect` type, allowing you to use it with functions from the `Effect` module. While these functions are built to handle `Effect` values, they can also manage `Option` values correctly.
 
-In the context of `Effect`, the two members of the `Option` type are treated as follows:
+### How Option Maps to Effect
 
-- `None` is equivalent to `Effect<never, NoSuchElementException>`
-- `Some<A>` is equivalent to `Effect<A>`
+| Option Variant | Mapped to Effect                        | Description                        |
+| -------------- | --------------------------------------- | ---------------------------------- |
+| `None`         | `Effect<never, NoSuchElementException>` | Represents the absence of a value  |
+| `Some<A>`      | `Effect<A>`                             | Represents the presence of a value |
 
-To illustrate this interoperability, let's consider the following example:
+**Example** (Combining `Option` with `Effect`)
 
 ```ts twoslash
 import { Effect, Option } from "effect"
 
-const head = <A>(as: ReadonlyArray<A>): Option.Option<A> =>
-  as.length > 0 ? Option.some(as[0]) : Option.none()
+// Function to get the head of an array, returning Option
+const head = <A>(array: ReadonlyArray<A>): Option.Option<A> =>
+  array.length > 0 ? Option.some(array[0]) : Option.none()
 
-console.log(
-  Effect.runSync(Effect.succeed([1, 2, 3]).pipe(Effect.andThen(head)))
-) // Output: 1
+// Simulated fetch function that returns Effect
+const fetchData = (): Effect.Effect<string, string> => {
+  const success = Math.random() > 0.5
+  return success
+    ? Effect.succeed("some data")
+    : Effect.fail("Failed to fetch data")
+}
 
-Effect.runSync(Effect.succeed([]).pipe(Effect.andThen(head))) // throws NoSuchElementException: undefined
+// Mixing Either and Effect
+const program = Effect.all([head([1, 2, 3]), fetchData()])
+
+Effect.runPromise(program).then(console.log)
+/*
+Example Output:
+[ 1, 'some data' ]
+*/
 ```
 
 ## Combining Two or More Options
 
-The `Option.zipWith` function allows you to combine two `Option` values using a provided function. It creates a new `Option` that holds the combined value of both original `Option` values.
+### zipWith
+
+The `Option.zipWith` function lets you combine two `Option` values using a provided function. It creates a new `Option` that holds the combined value of both original `Option` values.
+
+**Example** (Combining Two Options into an Object)
 
 ```ts twoslash
 import { Option } from "effect"
@@ -412,6 +508,7 @@ import { Option } from "effect"
 const maybeName: Option.Option<string> = Option.some("John")
 const maybeAge: Option.Option<number> = Option.some(25)
 
+// Combine the name and age into a person object
 const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
   name: name.toUpperCase(),
   age
@@ -424,13 +521,9 @@ Output:
 */
 ```
 
-The `Option.zipWith` function takes three arguments:
+If either of the `Option` values is `None`, the result will be `None`:
 
-- The first `Option` you want to combine
-- The second `Option` you want to combine
-- A function that takes two arguments, which are the values held by the two `Options`, and returns the combined value
-
-It's important to note that if either of the two `Option` values is `None`, the resulting `Option` will also be `None`:
+**Example** (Handling None Values)
 
 ```ts {4} twoslash
 import { Option } from "effect"
@@ -438,23 +531,25 @@ import { Option } from "effect"
 const maybeName: Option.Option<string> = Option.some("John")
 const maybeAge: Option.Option<number> = Option.none()
 
+// Since maybeAge is a None, the result will also be None
 const person = Option.zipWith(maybeName, maybeAge, (name, age) => ({
   name: name.toUpperCase(),
   age
 }))
 
 console.log(person)
-/*
-Output:
-{ _id: 'Option', _tag: 'None' }
-*/
+// Output: { _id: 'Option', _tag: 'None' }
 ```
 
-If you need to combine two or more `Option`s without transforming the values they hold, you can use `Option.all`, which takes a collection of `Option`s and returns an `Option` with the same structure.
+### all
 
-- If a tuple is provided, the returned `Option` will contain a tuple with the same length.
-- If a struct is provided, the returned `Option` will contain a struct with the same keys.
-- If an iterable is provided, the returned `Option` will contain an array.
+To combine multiple `Option` values without transforming their contents, you can use `Option.all`. This function returns an `Option` with a structure matching the input:
+
+- If you pass a tuple, the result will be a tuple of the same length.
+- If you pass a struct, the result will be a struct with the same keys.
+- If you pass an `Iterable`, the result will be an array.
+
+**Example** (Combining Multiple Options into a Tuple and Struct)
 
 ```ts twoslash
 import { Option } from "effect"
@@ -462,16 +557,44 @@ import { Option } from "effect"
 const maybeName: Option.Option<string> = Option.some("John")
 const maybeAge: Option.Option<number> = Option.some(25)
 
+//      ┌─── Option<[string, number]>
+//      ▼
 const tuple = Option.all([maybeName, maybeAge])
+console.log(tuple)
+/*
+Output:
+{ _id: 'Option', _tag: 'Some', value: [ 'John', 25 ] }
+*/
 
+//      ┌─── Option<{ name: string; age: number; }>
+//      ▼
 const struct = Option.all({ name: maybeName, age: maybeAge })
+console.log(struct)
+/*
+Output:
+{ _id: 'Option', _tag: 'Some', value: { name: 'John', age: 25 } }
+*/
+```
+
+If any of the `Option` values are `None`, the result will be `None`:
+
+**Example**
+
+```ts
+import { Option } from "effect"
+
+const maybeName: Option.Option<string> = Option.some("John")
+const maybeAge: Option.Option<number> = Option.none()
+
+console.log(Option.all([maybeName, maybeAge]))
+// Output: { _id: 'Option', _tag: 'None' }
 ```
 
 ## gen
 
-Similar to [Effect.gen](/docs/getting-started/using-generators/), there's also `Option.gen`, which provides a convenient syntax, akin to async/await, for writing code involving `Option` and using generators.
+Similar to [Effect.gen](/docs/getting-started/using-generators/), `Option.gen` provides a more readable, generator-based syntax for working with `Option` values, making code that involves `Option` easier to write and understand. This approach is similar to using `async/await` but tailored for `Option`.
 
-Let's revisit the previous example, this time using `Option.gen` instead of `Option.zipWith`:
+**Example** (Using `Option.gen` to Create a Combined Value)
 
 ```ts twoslash
 import { Option } from "effect"
@@ -492,60 +615,73 @@ Output:
 */
 ```
 
-Once again, if either of the two `Option` values is `None`, the resulting `Option` will also be `None`:
+When any of the `Option` values in the sequence is `None`, the generator immediately returns the `None` value, skipping further operations:
+
+**Example** (Handling a `None` Value with `Option.gen`)
+
+In this example, `Option.gen` halts execution as soon as it encounters the `None` value, effectively propagating the missing value without performing further operations.
 
 ```ts twoslash
 import { Option } from "effect"
 
-const maybeName: Option.Option<string> = Option.some("John")
-const maybeAge: Option.Option<number> = Option.none()
+const maybeName: Option.Option<string> = Option.none()
+const maybeAge: Option.Option<number> = Option.some(25)
 
-const person = Option.gen(function* () {
+const program = Option.gen(function* () {
+  console.log("Retrieving name...")
   const name = (yield* maybeName).toUpperCase()
+  console.log("Retrieving age...")
   const age = yield* maybeAge
   return { name, age }
 })
 
-console.log(person)
+console.log(program)
 /*
 Output:
+Retrieving name...
 { _id: 'Option', _tag: 'None' }
 */
 ```
 
-## Comparing Option Values with Equivalence
+The use of `console.log` in these example is for demonstration purposes only. When using `Option.gen`, avoid including side effects in your generator functions, as `Option` should remain a pure data structure.
 
-You can compare `Option` values using the `Option.getEquivalence` function.
-This function lets you define rules for comparing the contents of `Option` types by providing an `Equivalence` for the type of value they might contain.
+## Equivalence
 
-**Example** (Checking Equivalence of Optional Numbers)
+You can compare `Option` values using the `Option.getEquivalence` function. This function allows you to specify how to compare the contents of `Option` types by providing an [Equivalence](/docs/behaviour/equivalence/) for the type of value they may contain.
 
-Imagine you have optional numbers and you want to check if they are equivalent. Here’s how you can do it:
+**Example** (Comparing Optional Numbers for Equivalence)
+
+Suppose you have optional numbers and want to check if they are equivalent. Here's how you can use `Option.getEquivalence`:
 
 ```ts twoslash
 import { Option, Equivalence } from "effect"
 
 const myEquivalence = Option.getEquivalence(Equivalence.number)
 
-console.log(myEquivalence(Option.some(1), Option.some(1))) // Output: true, because both options contain the number 1
-console.log(myEquivalence(Option.some(1), Option.some(2))) // Output: false, because the numbers are different
-console.log(myEquivalence(Option.some(1), Option.none())) // Output: false, because one is a number and the other is empty
+console.log(myEquivalence(Option.some(1), Option.some(1)))
+// Output: true, both options contain the number 1
+
+console.log(myEquivalence(Option.some(1), Option.some(2)))
+// Output: false, the numbers are different
+
+console.log(myEquivalence(Option.some(1), Option.none()))
+// Output: false, one is a number and the other is empty
 ```
 
-## Sorting Option Values with Order
+## Sorting
 
-Sorting a collection of `Option` values can be done using the `Option.getOrder` function.
-This function helps you sort `Option` values by providing a custom sorting rule for the type of value they might contain.
+You can sort a collection of `Option` values using the `Option.getOrder` function. This function helps specify a custom sorting rule for the type of value contained within the `Option`.
 
 **Example** (Sorting Optional Numbers)
 
-Suppose you have a list of optional numbers and you want to sort them in ascending order, considering empty values as the lowest:
+Suppose you have a list of optional numbers and want to sort them in ascending order, with empty values (`Option.none()`) treated as the lowest:
 
 ```ts twoslash
 import { Option, Array, Order } from "effect"
 
 const items = [Option.some(1), Option.none(), Option.some(2)]
 
+// Create an order for sorting Option values containing numbers
 const myOrder = Option.getOrder(Order.number)
 
 console.log(Array.sort(myOrder)(items))
@@ -559,11 +695,9 @@ Output:
 */
 ```
 
-In this example, `Option.none()` is treated as the lowest value, allowing `Option.some(1)` and `Option.some(2)` to be sorted in ascending order based on their numerical value. This method ensures that all `Option` values are sorted logically according to their content, with empty values (`Option.none()`) being placed before non-empty values (`Option.some()`).
+**Example** (Sorting Optional Dates in Reverse Order)
 
-**Advanced Example: Sorting Optional Dates in Reverse Order**
-
-Now, let's consider a more complex scenario where you have a list of objects containing optional dates, and you want to sort them in descending order, with any empty optional values placed at the end:
+Consider a more complex case where you have a list of objects containing optional dates, and you want to sort them in descending order, with `Option.none()` values at the end:
 
 ```ts
 import { Option, Array, Order } from "effect"

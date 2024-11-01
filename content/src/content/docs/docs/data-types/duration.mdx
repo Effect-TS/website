@@ -9,7 +9,9 @@ The `Duration` data type data type is used to represent specific non-negative sp
 
 ## Creating Durations
 
-The `Duration` module provides several constructors to create durations of different units. Here are some examples:
+The Duration module includes several constructors to create durations in different units.
+
+**Example** (Creating Durations in Various Units)
 
 ```ts twoslash
 import { Duration } from "effect"
@@ -26,7 +28,9 @@ const duration3 = Duration.minutes(5)
 
 You can create durations using units such as nanoseconds, microsecond, milliseconds, seconds, minutes, hours, days, and weeks.
 
-If you want to create an infinite duration, you can use `Duration.infinity`:
+For an infinite duration, use `Duration.infinity`.
+
+**Example** (Creating an Infinite Duration)
 
 ```ts twoslash
 import { Duration } from "effect"
@@ -34,18 +38,17 @@ import { Duration } from "effect"
 console.log(String(Duration.infinity))
 /*
 Output:
-{
-  "_id": "Duration",
-  "_tag": "Infinity"
-}
+Duration(Infinity)
 */
 ```
 
 Another option for creating durations is using the `Duration.decode` helper:
 
-- `number`s are treated as milliseconds
-- `bigint`s are treated as nanoseconds
-- strings must be formatted as `"${number} ${unit}"`
+- `number` values are treated as milliseconds.
+- `bigint` values are treated as nanoseconds.
+- Strings must follow the format `"${number} ${unit}"`.
+
+**Example** (Decoding Values into Durations)
 
 ```ts twoslash
 import { Duration } from "effect"
@@ -65,7 +68,9 @@ Duration.decode("3 weeks") // same as Duration.weeks(3)
 
 ## Getting the Duration Value
 
-You can retrieve the value of a duration in milliseconds using the `toMillis` function:
+You can retrieve the value of a duration in milliseconds using `Duration.toMillis`.
+
+**Example** (Getting Duration in Milliseconds)
 
 ```ts twoslash
 import { Duration } from "effect"
@@ -74,7 +79,9 @@ console.log(Duration.toMillis(Duration.seconds(30)))
 // Output: 30000
 ```
 
-You can retrieve the value of a duration in nanoseconds using the `toNanos` function:
+To get the value of a duration in nanoseconds, use `Duration.toNanos`. Note that `toNanos` returns an `Option<bigint>` because the duration might be infinite.
+
+**Example** (Getting Duration in Nanoseconds)
 
 ```ts twoslash
 import { Duration } from "effect"
@@ -82,15 +89,13 @@ import { Duration } from "effect"
 console.log(Duration.toNanos(Duration.millis(100)))
 /*
 Output:
-{
-  _id: "Option",
-  _tag: "Some",
-  value: 100000000n
-}
+{ _id: 'Option', _tag: 'Some', value: 100000000n }
 */
 ```
 
-Note that `toNanos` returns an `Option<bigint>` since the duration might be infinite. If you want a `bigint` as a return type, you can use `unsafeToNanos`. However, note that it will throw an error for infinite durations:
+To get a `bigint` value without `Option`, use `Duration.unsafeToNanos`. However, it will throw an error for infinite durations.
+
+**Example** (Retrieving Nanoseconds Unsafely)
 
 ```ts twoslash
 import { Duration } from "effect"
@@ -98,20 +103,26 @@ import { Duration } from "effect"
 console.log(Duration.unsafeToNanos(Duration.millis(100)))
 // Output: 100000000n
 
-// throws "Cannot convert infinite duration to nanos"
 console.log(Duration.unsafeToNanos(Duration.infinity))
+/*
+throws:
+Error: Cannot convert infinite duration to nanos
+  ...stack trace...
+*/
 ```
 
 ## Comparing Durations
 
-You can compare two durations using the following functions:
+Use the following functions to compare two durations:
 
-| API                    | Description                                                                 |
-| ---------------------- | --------------------------------------------------------------------------- |
-| `lessThan`             | returns `true` if the first duration is less than the second                |
-| `lessThanOrEqualTo`    | returns `true` if the first duration is less than or equal to the second    |
-| `greaterThan`          | returns `true` if the first duration is greater than the second             |
-| `greaterThanOrEqualTo` | returns `true` if the first duration is greater than or equal to the second |
+| API                    | Description                                                                  |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `lessThan`             | Returns `true` if the first duration is less than the second.                |
+| `lessThanOrEqualTo`    | Returns `true` if the first duration is less than or equal to the second.    |
+| `greaterThan`          | Returns `true` if the first duration is greater than the second.             |
+| `greaterThanOrEqualTo` | Returns `true` if the first duration is greater than or equal to the second. |
+
+**Example** (Comparing Two Durations)
 
 ```ts twoslash
 import { Duration } from "effect"
@@ -134,7 +145,9 @@ console.log(Duration.greaterThanOrEqualTo(duration1, duration2))
 
 ## Performing Arithmetic Operations
 
-You can perform arithmetic operations on durations, such as addition and multiplication. Here are some examples:
+You can perform arithmetic operations on durations, like addition and multiplication.
+
+**Example** (Adding and Multiplying Durations)
 
 ```ts twoslash
 import { Duration } from "effect"
@@ -142,23 +155,17 @@ import { Duration } from "effect"
 const duration1 = Duration.seconds(30)
 const duration2 = Duration.minutes(1)
 
+// Add two durations
 console.log(String(Duration.sum(duration1, duration2)))
 /*
 Output:
-{
-  "_id": "Duration",
-  "_tag": "Millis",
-  "millis": 90000
-}
+Duration(1m 30s)
 */
 
-console.log(String(Duration.times(duration1, 2))) // Output: Duration("60000 millis")
+// Multiply a duration by a factor
+console.log(String(Duration.times(duration1, 2)))
 /*
 Output:
-{
-  "_id": "Duration",
-  "_tag": "Millis",
-  "millis": 60000
-}
+Duration(1m)
 */
 ```

@@ -1,44 +1,62 @@
 ---
 title: Either
-description: Explore the `Either` data type in Effect for representing exclusive values using `Left` and `Right`. Learn to create Eithers, use guards for checking types, and perform pattern matching. Discover operations like mapping over `Right` and `Left` values, and understand interoperability with the `Effect` type. Master the expressive and versatile features of `Either` for error handling and result representation in your applications.
+description: Explore the `Either` data type in Effect for representing exclusive values using `Left` and `Right`.
 sidebar:
   order: 4
 ---
 
 import { Aside } from "@astrojs/starlight/components"
 
-The `Either` data type represents two exclusive possible values: an `Either<R, L>` can be either a `Right` value or a `Left` value, where `R` represents the type of the `Right` value and `L` represents the type of the `Left` value.
+The `Either` data type represents two exclusive values: an `Either<R, L>` can be a `Right` value or a `Left` value, where `R` is the type of the `Right` value, and `L` is the type of the `Left` value.
 
 ## Understanding Either and Exit
 
-- Either is primarily used as a **simple discriminated union** and is not recommended as the main result type for operations requiring detailed error information.
+Either is primarily used as a **simple discriminated union** and is not recommended as the main result type for operations requiring detailed error information.
 
-- [Exit](/docs/data-types/exit/) is the preferred **result type** within Effect for capturing comprehensive details about failures.
-  It encapsulates the outcomes of effectful computations, distinguishing between success and various failure modes, such as errors, defects and interruptions.
+[Exit](/docs/data-types/exit/) is the preferred **result type** within Effect for capturing comprehensive details about failures.
+It encapsulates the outcomes of effectful computations, distinguishing between success and various failure modes, such as errors, defects and interruptions.
 
 ## Creating Eithers
 
 You can create an `Either` using the `Either.right` and `Either.left` constructors.
 
-- The `Either.right` function takes a value of type `R` and constructs a `Either<R, never>`:
+Use `Either.right` to create a `Right` value of type `R`.
 
-  ```ts twoslash
-  import { Either } from "effect"
+**Example** (Creating a Right Value)
 
-  const rightValue = Either.right(42)
-  ```
+```ts twoslash
+import { Either } from "effect"
 
-- The `Either.left` function takes a value of type `L` and constructs a `Either<never, L>`:
+const rightValue = Either.right(42)
 
-  ```ts twoslash
-  import { Either } from "effect"
+console.log(rightValue)
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: 42 }
+*/
+```
 
-  const leftValue = Either.left("not a number")
-  ```
+Use `Either.left` to create a `Left` value of type `L`.
+
+**Example** (Creating a Left Value)
+
+```ts twoslash
+import { Either } from "effect"
+
+const leftValue = Either.left("not a number")
+
+console.log(leftValue)
+/*
+Output:
+{ _id: 'Either', _tag: 'Left', left: 'not a number' }
+*/
+```
 
 ## Guards
 
-You can determine whether an `Either` is a `Left` or a `Right` by using the `Either.isLeft` and `Either.isRight` guards:
+Use `Either.isLeft` and `Either.isRight` to check whether an `Either` is a `Left` or `Right` value.
+
+**Example** (Using Guards to Check the Type of Either)
 
 ```ts twoslash
 import { Either } from "effect"
@@ -55,7 +73,9 @@ if (Either.isLeft(foo)) {
 
 ## Pattern Matching
 
-The `Either.match` function allows you to handle different cases of an `Either` by providing separate callbacks for each case:
+Use `Either.match` to handle both cases of an `Either` by specifying separate callbacks for `Left` and `Right`.
+
+**Example** (Pattern Matching with Either)
 
 ```ts twoslash
 import { Either } from "effect"
@@ -67,107 +87,150 @@ const message = Either.match(foo, {
   onRight: (right) => `The Right value is: ${right}`
 })
 
-console.log(message) // Output: "The Right value is: 42"
+console.log(message)
+// Output: "The Right value is: 42"
 ```
 
-<Aside type="tip" title="Matching">
-  Using `Either.match` instead of `Either.isLeft` or `Either.isRight` can
-  be more expressive and provide a clear way to handle both cases of an
-  `Either`.
-</Aside>
-
-## Working with Either
-
-Once you have an `Either`, there are several operations you can perform on it.
+## Mapping
 
 ### Mapping over the Right Value
 
-You can use the `Either.map` function to transform the `Right` value of an `Either`.
-The `Either.map` function takes a transformation function that maps the `Right` value.
+Use `Either.map` to transform the `Right` value of an `Either`. The function you provide will only apply to the `Right` value, leaving any `Left` value unchanged.
 
-If the `Either` value is a `Left` value, the transformation function is **ignored**, and the `Left` value is returned unchanged.
-
-**Example**
+**Example** (Transforming the Right Value)
 
 ```ts twoslash
 import { Either } from "effect"
 
-Either.map(Either.right(1), (n) => n + 1) // right(2)
+// Transform the Right value by adding 1
+const rightResult = Either.map(Either.right(1), (n) => n + 1)
+console.log(rightResult)
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: 2 }
+*/
 
-Either.map(Either.left("not a number"), (n) => n + 1) // left("not a number")
+// The transformation is ignored for Left values
+const leftResult = Either.map(Either.left("not a number"), (n) => n + 1)
+console.log(leftResult)
+/*
+Output:
+{ _id: 'Either', _tag: 'Left', left: 'not a number' }
+*/
 ```
 
 ### Mapping over the Left Value
 
-You can use the `Either.mapLeft` function to transform the `Left` value of an Either. The `mapLeft` function takes a transformation function that maps the `Left`.
+Use `Either.mapLeft` to transform the `Left` value of an `Either`. The provided function only applies to the `Left` value, leaving any `Right` value unchanged.
 
-If the `Either` value is a `Right` value, the transformation function is **ignored**, and the `Right` value is returned unchanged.
-
-**Example**
+**Example** (Transforming the Left Value)
 
 ```ts twoslash
 import { Either } from "effect"
 
-Either.mapLeft(Either.right(1), (s) => s + "!") // right(1)
+// The transformation is ignored for Right values
+const rightResult = Either.mapLeft(Either.right(1), (s) => s + "!")
+console.log(rightResult)
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: 1 }
+*/
 
-Either.mapLeft(Either.left("not a number"), (s) => s + "!") // left("not a number!")
+// Transform the Left value by appending "!"
+const leftResult = Either.mapLeft(
+  Either.left("not a number"),
+  (s) => s + "!"
+)
+console.log(leftResult)
+/*
+Output:
+{ _id: 'Either', _tag: 'Left', left: 'not a number!' }
+*/
 ```
 
 ### Mapping over Both Values
 
-You can use the `Either.mapBoth` function to transform both the `Left` and `Right` values of an `Either`. The `mapBoth` function takes two transformation functions: one for the `Left` value and one for the `Right` value.
+Use `Either.mapBoth` to transform both the `Left` and `Right` values of an `Either`. This function takes two separate transformation functions: one for the `Left` value and another for the `Right` value.
 
-**Example**
+**Example** (Transforming Both Left and Right Values)
 
 ```ts twoslash
 import { Either } from "effect"
 
-Either.mapBoth(Either.right(1), {
+const transformedRight = Either.mapBoth(Either.right(1), {
   onLeft: (s) => s + "!",
   onRight: (n) => n + 1
-}) // right(2)
+})
+console.log(transformedRight)
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: 2 }
+*/
 
-Either.mapBoth(Either.left("not a number"), {
+const transformedLeft = Either.mapBoth(Either.left("not a number"), {
   onLeft: (s) => s + "!",
   onRight: (n) => n + 1
-}) // left("not a number!")
+})
+console.log(transformedLeft)
+/*
+Output:
+{ _id: 'Either', _tag: 'Left', left: 'not a number!' }
+*/
 ```
 
 ## Interop with Effect
 
-The `Either` type is a subtype of the `Effect` type, which means that it can be seamlessly used with functions from the `Effect` module. These functions are primarily designed to work with `Effect` values, but they can also handle `Either` values and process them correctly.
+The `Either` type works as a subtype of the `Effect` type, allowing you to use it with functions from the `Effect` module. While these functions are built to handle `Effect` values, they can also manage `Either` values correctly.
 
-In the context of `Effect`, the two members of the `Either` type are treated as follows:
+### How Either Maps to Effect
 
-- `Left<L>` is equivalent to `Effect<never, L>`
-- `Right<R>` is equivalent to `Effect<R>`
+| Either Variant | Mapped to Effect   | Description          |
+| -------------- | ------------------ | -------------------- |
+| `Left<L>`      | `Effect<never, L>` | Represents a failure |
+| `Right<R>`     | `Effect<R>`        | Represents a success |
 
-To illustrate this interoperability, let's consider the following example:
+**Example** (Combining `Either` with `Effect`)
 
 ```ts twoslash
 import { Effect, Either } from "effect"
 
+// Function to get the head of an array, returning Either
 const head = <A>(array: ReadonlyArray<A>): Either.Either<A, string> =>
   array.length > 0 ? Either.right(array[0]) : Either.left("empty array")
 
-const foo = Effect.runSync(
-  Effect.andThen(Effect.succeed([1, 2, 3]), head)
-)
-console.log(foo) // Output: 1
+// Simulated fetch function that returns Effect
+const fetchData = (): Effect.Effect<string, string> => {
+  const success = Math.random() > 0.5
+  return success
+    ? Effect.succeed("some data")
+    : Effect.fail("Failed to fetch data")
+}
 
-const bar = Effect.runSync(Effect.andThen(Effect.succeed([]), head)) // throws "empty array"
+// Mixing Either and Effect
+const program = Effect.all([head([1, 2, 3]), fetchData()])
+
+Effect.runPromise(program).then(console.log)
+/*
+Example Output:
+[ 1, 'some data' ]
+*/
 ```
 
 ## Combining Two or More Eithers
 
-The `Either.zipWith` function allows you to combine two `Either` values using a provided function. It creates a new `Either` that holds the combined value of both original `Either` values.
+### zipWith
+
+The `Either.zipWith` function lets you combine two `Either` values using a provided function. It creates a new `Either` that holds the combined value of both original `Either` values.
+
+**Example** (Combining Two Eithers into an Object)
 
 ```ts twoslash
 import { Either } from "effect"
 
-const maybeName: Either.Either<string, Error> = Either.right("John")
-const maybeAge: Either.Either<number, Error> = Either.right(25)
+const maybeName: Either.Either<string, string> = Either.right("John")
+const maybeAge: Either.Either<number, string> = Either.right(25)
 
+// Combine the name and age into a person object
 const person = Either.zipWith(maybeName, maybeAge, (name, age) => ({
   name: name.toUpperCase(),
   age
@@ -180,22 +243,17 @@ Output:
 */
 ```
 
-The `Either.zipWith` function takes three arguments:
+If either of the `Either` values is `Left`, the result will be `Left`, holding the first encountered `Left` value:
 
-- The first `Either` you want to combine
-- The second `Either` you want to combine
-- A function that takes two arguments, which are the values held by the two `Either`, and returns the combined value
+**Example** (Combining Eithers with a Left Value)
 
-It's important to note that if either of the two `Either` values is `Left`, the resulting `Either` will also be `Left`, containing the value of the first encountered `Left`:
-
-```ts {4-6} twoslash
+```ts twoslash {4}
 import { Either } from "effect"
 
-const maybeName: Either.Either<string, Error> = Either.right("John")
-const maybeAge: Either.Either<number, Error> = Either.left(
-  new Error("Oh no!")
-)
+const maybeName: Either.Either<string, string> = Either.right("John")
+const maybeAge: Either.Either<number, string> = Either.left("Oh no!")
 
+// Since maybeAge is a Left, the result will also be Left
 const person = Either.zipWith(maybeName, maybeAge, (name, age) => ({
   name: name.toUpperCase(),
   age
@@ -204,92 +262,116 @@ const person = Either.zipWith(maybeName, maybeAge, (name, age) => ({
 console.log(person)
 /*
 Output:
-{ _id: 'Either', _tag: 'Left', left: new Error("Oh no!") }
+{ _id: 'Either', _tag: 'Left', left: 'Oh no!' }
 */
 ```
 
-If you need to combine two or more `Either`s without transforming the values they hold, you can use `Either.all`, which takes a collection of `Either`s and returns an `Either` with the same structure.
+### all
 
-- If a tuple is provided, the returned `Either` will contain a tuple with the same length.
-- If a struct is provided, the returned `Either` will contain a struct with the same keys.
-- If an iterable is provided, the returned `Either` will contain an array.
+To combine multiple `Either` values without transforming their contents, you can use `Either.all`. This function returns an `Either` with a structure matching the input:
+
+- If you pass a tuple, the result will be a tuple of the same length.
+- If you pass a struct, the result will be a struct with the same keys.
+- If you pass an `Iterable`, the result will be an array.
+
+**Example** (Combining Multiple Eithers into a Tuple and Struct)
 
 ```ts twoslash
 import { Either } from "effect"
 
-const maybeName: Either.Either<string, Error> = Either.right("John")
-const maybeAge: Either.Either<number, Error> = Either.right(25)
+const maybeName: Either.Either<string, string> = Either.right("John")
+const maybeAge: Either.Either<number, string> = Either.right(25)
 
+//      ┌─── Either<[string, number], string>
+//      ▼
 const tuple = Either.all([maybeName, maybeAge])
+console.log(tuple)
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: [ 'John', 25 ] }
+*/
 
+//      ┌─── Either<{ name: string; age: number; }, string>
+//      ▼
 const struct = Either.all({ name: maybeName, age: maybeAge })
+console.log(struct)
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: { name: 'John', age: 25 } }
+*/
 ```
 
-Note that if one or more `Either` is a `Left`, then the first encountered `Left` will be returned:
+If one or more `Either` values are `Left`, the first `Left` encountered is returned:
+
+**Example** (Handling Multiple Left Values)
 
 ```ts
 import { Either } from "effect"
 
-const maybeName: Either.Either<string, Error> = Either.left(
-  new Error("name not found")
-)
-const maybeAge: Either.Either<number, Error> = Either.left(
-  new Error("age not found")
-)
+const maybeName: Either.Either<string, string> =
+  Either.left("name not found")
+const maybeAge: Either.Either<number, string> =
+  Either.left("age not found")
 
-const tuple = Either.all([maybeName, maybeAge])
-
-console.log(tuple)
+// The first Left value will be returned
+console.log(Either.all([maybeName, maybeAge]))
 /*
 Output:
-{ _id: 'Either', _tag: 'Left', left: new Error("name not found") }
+{ _id: 'Either', _tag: 'Left', left: 'name not found' }
 */
 ```
 
 ## gen
 
-Similar to [Effect.gen](/docs/getting-started/using-generators/), there's also `Either.gen`, which provides a convenient syntax, akin to async/await, for writing code involving `Either` and using generators.
+Similar to [Effect.gen](/docs/getting-started/using-generators/), `Either.gen` provides a more readable, generator-based syntax for working with `Either` values, making code that involves `Either` easier to write and understand. This approach is similar to using `async/await` but tailored for `Either`.
 
-Let's revisit the previous example, this time using `Either.gen` instead of `Either.zipWith`:
+**Example** (Using `Either.gen` to Create a Combined Value)
 
 ```ts twoslash
 import { Either } from "effect"
 
-const maybeName: Either.Either<string, Error> = Either.right("John")
-const maybeAge: Either.Either<number, Error> = Either.right(25)
+const maybeName: Either.Either<string, string> = Either.right("John")
+const maybeAge: Either.Either<number, string> = Either.right(25)
 
-const person = Either.gen(function* () {
+const program = Either.gen(function* () {
   const name = (yield* maybeName).toUpperCase()
   const age = yield* maybeAge
   return { name, age }
 })
 
-console.log(person)
+console.log(program)
 /*
 Output:
 { _id: 'Either', _tag: 'Right', right: { name: 'JOHN', age: 25 } }
 */
 ```
 
-Once again, if either of the two `Either` values is `Left`, the resulting `Either` will also be `Left`:
+When any of the `Either` values in the sequence is `Left`, the generator immediately returns the `Left` value, skipping further operations:
+
+**Example** (Handling a `Left` Value with `Either.gen`)
+
+In this example, `Either.gen` halts execution as soon as it encounters the `Left` value, effectively propagating the error without performing further operations.
 
 ```ts twoslash
 import { Either } from "effect"
 
-const maybeName: Either.Either<string, Error> = Either.right("John")
-const maybeAge: Either.Either<number, Error> = Either.left(
-  new Error("Oh no!")
-)
+const maybeName: Either.Either<string, string> = Either.left("Oh no!")
+const maybeAge: Either.Either<number, string> = Either.right(25)
 
-const person = Either.gen(function* () {
+const program = Either.gen(function* () {
+  console.log("Retrieving name...")
   const name = (yield* maybeName).toUpperCase()
+  console.log("Retrieving age...")
   const age = yield* maybeAge
   return { name, age }
 })
 
-console.log(person)
+console.log(program)
 /*
 Output:
-{ _id: 'Either', _tag: 'Left', left: new Error("Oh no!") }
+Retrieving name...
+{ _id: 'Either', _tag: 'Left', left: 'Oh no!' }
 */
 ```
+
+The use of `console.log` in these example is for demonstration purposes only. When using `Either.gen`, avoid including side effects in your generator functions, as `Either` should remain a pure data structure.

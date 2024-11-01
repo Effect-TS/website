@@ -1,53 +1,107 @@
 ---
 title: Exit
-description: Explore the `Exit` data type in Effect, representing the result of executing an `Effect` workflow. Learn about success and failure states, matching with `Exit.match`, and the conceptual relationship between `Exit` and `Either`. Understand how `Exit` is a subtype of `Effect` and its role in handling results and errors.
+description: Explore the `Exit` data type, representing the result of executing an `Effect` workflow.
 sidebar:
   order: 5
 ---
 
-An `Exit<A, E>` describes the result of executing an `Effect` workflow.
+An `Exit<A, E>` describes the result of running an `Effect` workflow.
 
-There are two possible values for an `Exit<A, E>`:
+There are two possible states for an `Exit<A, E>`:
 
-- `Exit.Success` contains a success value of type `A`.
-- `Exit.Failure` contains a failure [Cause](/docs/data-types/cause/) of type `E`.
+- `Exit.Success`: Contains a success value of type `A`.
+- `Exit.Failure`: Contains a failure [Cause](/docs/data-types/cause/) of type `E`.
 
-## Matching
+## Creating Exits
 
-To handle the different outcomes of an `Exit`, we can use the `Exit.match` function:
+The Exit module provides two primary functions for constructing exit values: `Exit.succeed` and `Exit.fail`. These functions represent the outcomes of an effectful computation in terms of success or failure.
+
+### succeed
+
+`Exit.succeed` creates an `Exit` value that represents a successful outcome. You use this function when you want to indicate that a computation completed successfully and to provide the resulting value.
+
+**Example** (Creating a Successful Exit)
 
 ```ts twoslash
-import { Effect, Exit } from "effect"
+import { Exit } from "effect"
+
+// Create an Exit representing a successful outcome with the value 42
+const successExit = Exit.succeed(42)
+
+console.log(successExit)
+// Output: { _id: 'Exit', _tag: 'Success', value: 42 }
+```
+
+### fail
+
+`Exit.fail` creates an `Exit` value that represents a failure. The failure is described using a [Cause](/docs/data-types/cause/) object, which can encapsulate expected errors, defects, interruptions, or even composite errors.
+
+**Example** (Creating a Failed Exit)
+
+```ts twoslash
+import { Exit, Cause } from "effect"
+
+// Create an Exit representing a failure with an error message
+const failureExit = Exit.fail(Cause.fail("Something went wrong"))
+
+console.log(failureExit)
+/*
+Output:
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Something went wrong' }
+}
+*/
+```
+
+## Pattern Matching
+
+You can handle different outcomes of an `Exit` using the `Exit.match` function.
+This function lets you provide two separate callbacks to handle both success and failure cases of an `Effect` execution.
+
+**Example** (Matching Success and Failure States)
+
+```ts twoslash
+import { Effect, Exit, Cause } from "effect"
 
 const simulatedSuccess = Effect.runSyncExit(Effect.succeed(1))
 
-Exit.match(simulatedSuccess, {
-  onFailure: (cause) =>
-    console.error(`Exited with failure state: ${cause._tag}`),
-  onSuccess: (value) => console.log(`Exited with success value: ${value}`)
-})
+console.log(
+  Exit.match(simulatedSuccess, {
+    onFailure: (cause) =>
+      `Exited with failure state: ${Cause.pretty(cause)}`,
+    onSuccess: (value) => `Exited with success value: ${value}`
+  })
+)
 // Output: "Exited with success value: 1"
 
 const simulatedFailure = Effect.runSyncExit(Effect.fail("error"))
 
-Exit.match(simulatedFailure, {
-  onFailure: (cause) =>
-    console.error(`Exited with failure state: ${cause._tag}`),
-  onSuccess: (value) => console.log(`Exited with success value: ${value}`)
-})
-// Output: "Exited with failure state: Fail"
+console.log(
+  Exit.match(simulatedFailure, {
+    onFailure: (cause) =>
+      `Exited with failure state: ${Cause.pretty(cause)}`,
+    onSuccess: (value) => `Exited with success value: ${value}`
+  })
+)
+// Output: "Exited with failure state: Error: error"
 ```
-
-In this example, we first simulate a successful `Effect` execution using `Effect.runSyncExit` and `Effect.succeed`. We then handle the `Exit` using `Exit.match`, where the `onSuccess` callback prints the success value.
-
-Next, we simulate a failure using `Effect.runSyncExit` and `Effect.fail`, and handle the `Exit` again using `Exit.match`, where the `onFailure` callback prints the failure state.
 
 ## Exit vs Either
 
-An `Exit<A, E>` is conceptually an `Either<A, Cause<E>>`. However, it's important to note that [Cause](/docs/data-types/cause/) encompasses more states than just the expected error type `E`. It also includes other states such as interruption and defects (unexpected errors), as well as the possibility of combining multiple `Cause` values together.
+Conceptually, `Exit<A, E>` can be thought of as `Either<A, Cause<E>>`. However, the [Cause](/docs/data-types/cause/) type represents more than just expected errors of type `E`. It includes:
+
+- Interruption causes
+- Defects (unexpected errors)
+- The combination of multiple causes
+
+This allows `Cause` to capture richer and more complex error states compared to a simple `Either`.
 
 ## Exit vs Effect
 
-The `Exit` data type is a subtype of the `Effect` type, which means that an `Exit` is itself an `Effect`.
-The reason for this is that a result can be considered as a _constant computation_.
-Technically, `Effect.succeed` is an alias for `Exit.succeed`, and `Effect.fail` is an alias for `Exit.fail` (avoiding conversions between `Exit` and `Effect` is important for performance, as boxing and unboxing have a cost).
+`Exit` is actually a subtype of `Effect`. This means that `Exit` values can also be considered as `Effect` values.
+
+- An `Exit`, in essence, is a "constant computation".
+- `Effect.succeed` is essentially the same as `Exit.succeed`.
+- `Effect.fail` is the same as `Exit.fail`.
