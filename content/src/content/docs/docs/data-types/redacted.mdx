@@ -1,6 +1,6 @@
 ---
 title: Redacted
-description: The Redacted module in "effect" provides tools to securely handle sensitive data within applications, preventing accidental exposure in logs or error messages. It offers functions to create, manage, and compare `Redacted` instances, ensuring sensitive information is protected and managed appropriately.
+description: The Redacted module provides tools to securely handle sensitive data within applications, preventing accidental exposure in logs or error messages.
 sidebar:
   order: 7
 ---
@@ -10,50 +10,72 @@ By using the `Redacted` data type, you can ensure that sensitive values are not 
 
 ## make
 
-This function creates a `Redacted<A>` instance from a given value `A`, securely hiding its content.
+The `Redacted.make` function creates a `Redacted<A>` instance from a given value `A`, ensuring the content is securely hidden.
+
+**Example** (Hiding Sensitive Information from Logs)
+
+Using `Redacted.make` helps prevent sensitive information, such as API keys, from being accidentally exposed in logs or error messages.
 
 ```ts twoslash
-import { Redacted } from "effect"
+import { Redacted, Effect } from "effect"
 
-// Creating a redacted value
+// Create a redacted API key
 const API_KEY = Redacted.make("1234567890")
 
-console.log(API_KEY) // Output: {}
-console.log(String(API_KEY)) // Output: <redacted>
+console.log(API_KEY)
+// Output: {}
+
+console.log(String(API_KEY))
+// Output: <redacted>
+
+Effect.runSync(Effect.log(API_KEY))
+// Output: timestamp=... level=INFO fiber=#0 message="\"<redacted>\""
 ```
 
 ## value
 
-Retrieves the original value from a `Redacted` instance. Use this function with caution, as it exposes the sensitive data.
+The `Redacted.value` function retrieves the original value from a `Redacted` instance. Use this function carefully, as it exposes the sensitive data, potentially making it visible in logs or accessible in unintended ways.
+
+**Example** (Accessing the Underlying Sensitive Value)
 
 ```ts twoslash
 import { Redacted } from "effect"
 
 const API_KEY = Redacted.make("1234567890")
 
-console.log(Redacted.value(API_KEY)) // Output: "1234567890"
+// Expose the redacted value
+console.log(Redacted.value(API_KEY))
+// Output: "1234567890"
 ```
 
 ## unsafeWipe
 
-Erases the underlying value of a `Redacted` instance, rendering it unusable. This function is intended to ensure that sensitive data does not remain in memory longer than necessary.
+The `Redacted.unsafeWipe` function erases the underlying value of a `Redacted` instance, making it inaccessible. This helps ensure that sensitive data does not remain in memory longer than needed.
+
+**Example** (Wiping Sensitive Data from Memory)
 
 ```ts twoslash
 import { Redacted } from "effect"
 
 const API_KEY = Redacted.make("1234567890")
 
-console.log(Redacted.value(API_KEY)) // Output: "1234567890"
+console.log(Redacted.value(API_KEY))
+// Output: "1234567890"
 
 Redacted.unsafeWipe(API_KEY)
 
-console.log(Redacted.value(API_KEY)) // throws Error: Unable to get redacted value
+console.log(Redacted.value(API_KEY))
+/*
+throws:
+Error: Unable to get redacted value
+*/
 ```
 
 ## getEquivalence
 
-Generates an equivalence relation for `Redacted<A>` values based on an equivalence relation for the underlying values `A`.
-This function is useful for comparing `Redacted` instances without exposing their contents.
+The `Redacted.getEquivalence` function generates an [Equivalence](/docs/behaviour/equivalence/) for `Redacted<A>` values using an Equivalence for the underlying values of type `A`. This allows you to compare `Redacted` values securely without revealing their content.
+
+**Example** (Comparing Redacted Values)
 
 ```ts twoslash
 import { Redacted, Equivalence } from "effect"
@@ -64,6 +86,9 @@ const API_KEY3 = Redacted.make("1234567890")
 
 const equivalence = Redacted.getEquivalence(Equivalence.string)
 
-console.log(equivalence(API_KEY1, API_KEY2)) // Output: false
-console.log(equivalence(API_KEY1, API_KEY3)) // Output: true
+console.log(equivalence(API_KEY1, API_KEY2))
+// Output: false
+
+console.log(equivalence(API_KEY1, API_KEY3))
+// Output: true
 ```
