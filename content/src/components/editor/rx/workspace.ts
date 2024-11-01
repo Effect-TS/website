@@ -61,7 +61,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
             get.subscribe(terminalThemeRx, (theme) => {
               spawned.terminal.options.theme = theme
             }, { immediate: true })
-            get.stream(terminalSize).pipe(
+            yield* get.stream(terminalSize).pipe(
               Stream.runForEach(() => spawned.resize),
               Effect.forkScoped
             )
