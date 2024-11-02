@@ -47,6 +47,8 @@ The Effect library simplifies managing these dependencies by leveraging the type
 Instead of manually passing services or environment objects around, Effect allows you to declare service dependencies directly in the function's type signature using the `Requirements` parameter in the `Effect` type:
 
 ```ts showLineNumbers=false "Requirements"
+                         ┌─── Represents required dependencies
+                         ▼
 Effect<Success, Error, Requirements>
 ```
 
@@ -86,7 +88,7 @@ To create a new service, you need two things:
 1. A unique **identifier**.
 2. A **type** describing the possible operations of the service.
 
-**Example**
+**Example** (Defining a Random Number Generator Service)
 
 Let's create a service for generating random numbers.
 
@@ -129,6 +131,8 @@ Let's summarize the concepts we've covered so far:
 ## Using the Service
 
 Now that we have our service tag defined, let's see how we can use it by building a simple program.
+
+**Example** (Using the Random Service)
 
 <Tabs syncKey="pipe-vs-gen">
 
@@ -193,6 +197,8 @@ This indicates that our program requires the `Random` service to be provided in 
 
 If we attempt to execute the effect without providing the necessary service we will encounter a type-checking error:
 
+**Example** (Type Error Without Service Provision)
+
 ```ts twoslash
 import { Effect, Context } from "effect"
 
@@ -224,6 +230,8 @@ In the next section, we will explore how to implement and provide the `Random` s
 ## Providing a Service Implementation
 
 In order to provide an actual implementation of the `Random` service, we can utilize the `Effect.provideService` function.
+
+**Example** (Providing a Random Number Implementation)
 
 ```ts twoslash
 import { Effect, Context } from "effect"
@@ -266,7 +274,7 @@ With the implementation of the `Random` service in place, we are able to run the
 
 To retrieve the service type from a tag, use the `Context.Tag.Service` utility type.
 
-**Example**
+**Example** (Extracting Service Type)
 
 ```ts twoslash
 import { Effect, Context } from "effect"
@@ -291,7 +299,7 @@ type RandomShape = {
 
 When we require the usage of more than one service, the process remains similar to what we've learned in defining a service, repeated for each service needed.
 
-**Example**
+**Example** (Using Random and Logger Services)
 
 Let's examine an example where we need two services, namely `Random` and `Logger`:
 
@@ -335,6 +343,8 @@ indicating that it requires both the `Random` and `Logger` services to be provid
 
 To execute the `program`, we need to provide implementations for both services:
 
+**Example** (Providing Multiple Services)
+
 ```ts twoslash collapse={3-24}
 import { Effect, Context } from "effect"
 
@@ -373,6 +383,8 @@ const runnable = program.pipe(
 ```
 
 Alternatively, instead of calling `provideService` multiple times, we can combine the service implementations into a single `Context` and then provide the entire context using the `Effect.provide` function:
+
+**Example** (Combining Service Implementations)
 
 ```ts twoslash collapse={3-24}
 import { Effect, Context } from "effect"
@@ -420,7 +432,7 @@ In such cases, we can use the `Effect.serviceOption` function to handle this sce
 The `Effect.serviceOption` function returns an implementation that is available only if it is actually provided before executing this effect.
 To represent this optionality it returns an [Option](/docs/data-types/option/) of the implementation.
 
-**Example**
+**Example** (Handling Optional Services)
 
 To determine what action to take, we can use the `Option.isNone` function provided by the Option module. This function allows us to check if the service is available or not by returning `true` when the service is not available.
 
