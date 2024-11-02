@@ -13,9 +13,13 @@ type DefaultServices = Clock | ConfigProvider | Console | Random | Tracer
 
 When we employ these services, there's no need to explicitly provide their implementations. Effect automatically supplies live versions of these services to our effects, sparing us from manual setup.
 
+**Example** (Using Clock and Console)
+
 ```ts twoslash
 import { Effect, Clock, Console } from "effect"
 
+//      ┌─── Effect<void, never, never>
+//      ▼
 const program = Effect.gen(function* () {
   const now = yield* Clock.currentTimeMillis
   yield* Console.log(`Application started at ${new Date(now)}`)
