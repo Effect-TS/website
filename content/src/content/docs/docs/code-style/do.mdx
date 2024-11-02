@@ -14,6 +14,8 @@ Suppose you want to create a custom function `elapsed` that prints the elapsed t
 
 Initially, you may come up with code that uses the standard `pipe` [method](/docs/getting-started/building-pipelines/#the-pipe-method), but this approach can lead to excessive nesting and result in verbose and hard-to-read code:
 
+**Example** (Measuring Elapsed Time with `pipe`)
+
 ```ts twoslash
 import { Effect, Console } from "effect"
 
@@ -109,7 +111,9 @@ Here's how the do simulation works:
 
 </Steps>
 
-With the do simulation, you can rewrite the `elapsed` combinator like this:
+With the do simulation, you can rewrite the `elapsed` function like this:
+
+**Example** (Using Do Simulation to Measure Elapsed Time)
 
 ```ts twoslash
 import { Effect, Console } from "effect"
@@ -126,9 +130,11 @@ const elapsed = <R, E, A>(
     Effect.bind("endMillis", () => now),
     Effect.let(
       "elapsed",
-      ({ startMillis, endMillis }) => endMillis - startMillis // Calculate the elapsed time in milliseconds
+      // Calculate the elapsed time in milliseconds
+      ({ startMillis, endMillis }) => endMillis - startMillis
     ),
-    Effect.tap(({ elapsed }) => Console.log(`Elapsed: ${elapsed}`)), // Log the elapsed time
+    // Log the elapsed time
+    Effect.tap(({ elapsed }) => Console.log(`Elapsed: ${elapsed}`)),
     Effect.map(({ result }) => result)
   )
 
@@ -145,12 +151,11 @@ some task
 */
 ```
 
-In this solution, we use the do simulation to simplify the code. The `elapsed` function now starts with `Effect.Do` to enter the simulation scope.
-Inside the scope, we use `Effect.bind` to define variables and bind them to the corresponding effects.
-
 ## Using Effect.gen
 
-The most concise and convenient solution is to use the `Effect.gen` constructor, which allows you to work with [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) when dealing with effects. This approach leverages the native scope provided by the generator syntax, avoiding excessive nesting and leading to more concise code.
+The most concise and convenient solution is to use [Effect.gen](/docs/getting-started/using-generators/), which allows you to work with [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) when dealing with effects. This approach leverages the native scope provided by the generator syntax, avoiding excessive nesting and leading to more concise code.
+
+**Example** (Using Effect.gen to Measure Elapsed Time)
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -186,10 +191,6 @@ some task
 */
 ```
 
-In this solution, we switch to using [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) to simplify the code. The `elapsed` function now uses a generator function (`Effect.gen`) to define the flow of execution. Within the generator, we use `yield*` to invoke effects and bind their results to variables. This eliminates the nesting and provides a more readable and sequential code structure.
+Within the generator, we use `yield*` to invoke effects and bind their results to variables. This eliminates the nesting and provides a more readable and sequential code structure.
 
 The generator style in Effect uses a more linear and sequential flow of execution, resembling traditional imperative programming languages. This makes the code easier to read and understand, especially for developers who are more familiar with imperative programming paradigms.
-
-On the other hand, the pipe style can lead to excessive nesting, especially when dealing with complex effectful computations. This can make the code harder to follow and debug.
-
-For more information on how to use generators in Effect, you can refer to the [Using Generators in Effect](/docs/getting-started/using-generators/) guide.
