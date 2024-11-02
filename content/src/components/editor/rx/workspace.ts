@@ -66,7 +66,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
       const selectedFile = Rx.make(workspace.initialFile)
 
       const createTerminal = Rx.family(({ command }: WorkspaceShell) =>
-        Rx.make((get) =>
+        runtime.rx((get) =>
           Effect.gen(function*() {
             const process = yield* container.createShell
             const spawned = yield* terminal.spawn({
@@ -89,7 +89,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
              * Install dependencies, acquire types, and setup formatters in the 
              * background, and once complete, enable diagnostics for the editor
              */
-            const fiber = yield* handle.spawn("pnpm install --reporter=append-only").pipe(
+            const fiber = yield* handle.spawn("pnpm install").pipe(
               Effect.tap((process) => {
                 process.output.pipeTo(new WritableStream({
                   write(data) {
@@ -109,13 +109,15 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
               Effect.scoped,
               Effect.forkScoped
             )
-            /**
-             * Wait for dependencies, type acquisition, etc. to be complete
-             * before running the workspace command
-             */
-            yield* Fiber.await(fiber)
             if (command !== undefined) {
-              writer.write(`${command}\n`)
+              /**
+               * Wait for dependencies, type acquisition, etc. to be complete
+               * before running the workspace command
+               */
+              yield* fiber.await.pipe(
+                Effect.zipRight(Effect.sync(() => writer.write(`${command}\n`))),
+                Effect.forkScoped
+              )
             }
             get.subscribe(terminalThemeRx, (theme) => {
               spawned.terminal.options.theme = theme

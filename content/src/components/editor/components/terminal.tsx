@@ -25,7 +25,7 @@ function Shell({ shell }: {
 }) {
   const handle = useWorkspaceHandle()
   const rx = useMemo(() => handle.createTerminal(shell), [handle, shell])
-  const terminal = useRxSuspenseSuccess(rx).value
+  const { value: terminal } = useRxSuspenseSuccess(rx)
 
   const terminalRef = useCallback((node: HTMLDivElement) => {
     terminal.open(node)
