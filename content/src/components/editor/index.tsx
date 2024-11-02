@@ -31,7 +31,7 @@ export function CodeEditor() {
   return (
     <TooltipProvider>
       <PlaygroundLoader />
-      <Suspense>
+      <Suspense fallback={null}>
         <EditorSuspended />
       </Suspense>
       <Toaster />
@@ -40,11 +40,13 @@ export function CodeEditor() {
 }
 
 function EditorSuspended() {
-  const workspace = useRxSuspenseSuccess(importRx).value
+  const { value } = useRxSuspenseSuccess(importRx)
   return (
-    <WorkspaceProvider workspace={workspace}>
-      <CodeEditorSuspended />
-    </WorkspaceProvider>
+    <Suspense>
+      <WorkspaceProvider workspace={value}>
+        <CodeEditorSuspended />
+      </WorkspaceProvider>
+    </Suspense>
   )
 }
 

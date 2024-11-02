@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useMemo } from "react"
 import { useRxSuspenseSuccess, useRxValue } from "@effect-rx/rx-react"
 import { Workspace } from "../domain/workspace"
 import { workspaceHandleRx, type RxWorkspaceHandle } from "../rx/workspace"
