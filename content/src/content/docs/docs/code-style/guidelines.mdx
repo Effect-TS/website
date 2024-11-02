@@ -5,9 +5,13 @@ sidebar:
   order: 1
 ---
 
-## Using `runMain`
+import { Aside } from "@astrojs/starlight/components"
 
-In Effect, `runMain` serves as the primary entry point for running an Effect application on Node:
+## Using runMain
+
+In Effect, `runMain` is the primary entry point for executing an Effect application on Node.js.
+
+**Example** (Running an Effect Application with Graceful Teardown)
 
 ```ts
 import { Effect, Console, Schedule, pipe } from "effect"
@@ -24,27 +28,63 @@ const program = pipe(
   Effect.scoped
 )
 
-// Effect.runFork(program) // no graceful teardown with CTRL+C
+// No graceful teardown on CTRL+C
+// Effect.runPromise(program)
 
-NodeRuntime.runMain(program) // graceful teardown with CTRL+C
+// Use NodeRuntime.runMain for graceful teardown on CTRL+C
+NodeRuntime.runMain(program)
+/*
+Output:
+Application started!
+still alive...
+still alive...
+still alive...
+still alive...
+^C <-- CTRL+C
+Application is about to exit!
+*/
 ```
 
-The `runMain` function is responsible for finding all fibers and interrupting them. Internally, it adds an observer for the fiber by listening to `sigint` and interrupts all fibers.
+The `runMain` function handles finding and interrupting all fibers. Internally, it observes the fiber and listens for `sigint` signals, ensuring a graceful shutdown of the application when interrupted (e.g., using CTRL+C).
 
-It's important to note that teardown should be on the main effect. If you kill the fiber that runs the application/server, the teardown of everything will occur. This is precisely what `runMain` from the `platform-node` package does.
+<Aside type="tip" title="Graceful Teardown">
+  Ensure the teardown logic is placed in the main effect. If the fiber
+  running the application or server is interrupted, `runMain` ensures that
+  all resources are properly released.
+</Aside>
+
+### Versions for Different Platforms
+
+Effect provides versions of `runMain` tailored for different platforms:
+
+| Platform | Runtime Version          | Import Path                |
+| -------- | ------------------------ | -------------------------- |
+| Node.js  | `NodeRuntime.runMain`    | `@effect/platform-node`    |
+| Bun      | `BunRuntime.runMain`     | `@effect/platform-bun`     |
+| Browser  | `BrowserRuntime.runMain` | `@effect/platform-browser` |
 
 ## Avoid Tacit Usage
 
-> Avoid tacit function calls like `map(f)` and using `flow`
+Avoid using tacit (point-free) function calls, such as `Effect.map(fn)`, or using `flow` from the `effect/Function` module.
 
-In Effect, it's recommended not to use functions point-free, meaning avoiding tacit usage.
+In Effect, it's generally safer to write functions explicitly:
 
-While you're free to use tacit functions if you prefer, it's important to know that it can cause issues. It's safer to use `(x) => fn(x)` instead.
+```ts showLineNumbers=false
+Effect.map((x) => fn(x))
+```
 
-Using functions tacitly, especially with optional parameters, can be unsafe. If a function has overloads, using it tacitly might erase all generics, leading to bugs. For example, check out this X thread: [link to thread](https://twitter.com/MichaelArnaldi/status/1670715270845935616).
+rather than in a point-free style:
 
-TypeScript inference can also be compromised when using tacit functions, which can lead to unexpected errors. So, it's not just a matter of style; it's a protective measure to avoid mistakes.
+```ts showLineNumbers=false
+Effect.map(fn)
+```
 
-Additionally, stack traces may not be as clear when tacit usage is involved. It's risky without much benefit, as TypeScript may not properly check arguments, especially with optional ones, leading to potential issues.
+While tacit functions may be appealing for their brevity, they can introduce a number of problems:
 
-It's worth trying without tacit usage, especially when dealing with generic functions with overloads, as using them tacitly can result in losing the generics.
+- Using tacit functions, particularly when dealing with optional parameters, can be unsafe. For example, if a function has overloads, writing it in a tacit style may erase all generics, resulting in bugs. Check out this X thread for more details: [link to thread](https://twitter.com/MichaelArnaldi/status/1670715270845935616).
+
+- Tacit usage can also compromise TypeScript's ability to infer types, potentially causing unexpected errors. This isn't just a matter of style but a way to avoid subtle mistakes that can arise from type inference issues.
+
+- Additionally, stack traces might not be as clear when tacit usage is employed.
+
+Avoiding tacit usage is a simple precaution that makes your code more reliable.

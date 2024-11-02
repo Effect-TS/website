@@ -7,72 +7,74 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components"
 
-When you're working with APIs in the Effect ecosystem, you may come across two different ways to use the same API. These two ways are called the "data-last" and "data-first" variants.
-
-<Aside type="note" title="Implementation Details">
-  From a technical perspective, these variants are implemented using two
-  TypeScript overloads.
-</Aside>
+When you're working with APIs in the Effect ecosystem, you may come across two different ways to use the same API.
+These two ways are called the "data-last" and "data-first" variants.
 
 When an API supports both variants, we call them "dual" APIs.
 
-Let's explore these two variants using a concrete example of a dual API: `Effect.map`.
+Here's an illustration of these two variants using `Effect.map`.
+
+## Effect.map as a dual API
 
 The `Effect.map` function is defined with two TypeScript overloads. The terms "data-last" and "data-first" refer to the position of the `self` argument (also known as the "data") in the signatures of the two overloads:
 
 ```ts showLineNumbers=false
 declare const map: {
-  // data-last
+  //                               ┌─── data-last
+  //                               ▼
   <A, B>(f: (a: A) => B): <E, R>(self: Effect<A, E, R>) => Effect<B, E, R>
-  // data-first
+  //             ┌─── data-first
+  //             ▼
   <A, E, R, B>(self: Effect<A, E, R>, f: (a: A) => B): Effect<B, E, R>
 }
 ```
 
-## data-last
+### data-last
 
-In the first overload, the `self` argument comes in the **last position**:
+In the first overload, the `self` argument comes **last**:
 
-```ts showLineNumbers=false
+```ts showLineNumbers=false "self"
 declare const map: <A, B>(
   f: (a: A) => B
 ) => <E, R>(self: Effect<A, E, R>) => Effect<B, E, R>
 ```
 
-This is the variant we have been using with `pipe`. You pass the `Effect` as the first argument to the `pipe` function, followed by a call to `Effect.andThen`:
+This version is commonly used with the `pipe` function. You start by passing the `Effect` as the initial argument to `pipe` and then chain transformations like `Effect.map`:
+
+**Example** (Using data-last with `pipe`)
 
 ```ts showLineNumbers=false
-const mappedEffect = pipe(effect, Effect.andThen(func))
+const mappedEffect = pipe(effect, Effect.map(func))
 ```
 
-This variant is useful when you need to chain multiple computations in a long pipeline. You can continue the pipeline by adding more computations after the initial transformation:
+This style is helpful when chaining multiple transformations, making the code easier to follow in a pipeline format:
 
 ```ts showLineNumbers=false
-pipe(effect, Effect.andThen(func1), Effect.andThen(func2), ...)
+pipe(effect, Effect.map(func1), Effect.map(func2), ...)
 ```
 
-## data-first
+### data-first
 
-In the second overload, the `self` argument comes in the **first position**:
+In the second overload, the `self` argument comes **first**:
 
-```ts showLineNumbers=false
+```ts showLineNumbers=false "self"
 declare const map: <A, E, R, B>(
   self: Effect<A, E, R>,
   f: (a: A) => B
 ) => Effect<B, E, R>
 ```
 
-This variant doesn't require the `pipe` function. Instead, you can directly pass the `Effect` as the first argument to the `Effect.andThen` function:
+This form doesn't require `pipe`. Instead, you provide the `Effect` directly as the first argument:
+
+**Example** (Using data-first without `pipe`)
 
 ```ts showLineNumbers=false
-const mappedEffect = Effect.andThen(effect, func)
+const mappedEffect = Effect.map(effect, func)
 ```
 
-This variant is convenient when you only need to perform a single operation on the `Effect`.
+This version works well when you only need to perform a single operation on the `Effect`.
 
 <Aside type="tip" title="Choosing Between Styles">
-  It's important to note that both overloads achieve the same result. They
-  are simply two different ways of expressing the same code. You can
-  choose the overload that best fits your coding style and makes the code
-  more readable for you and your team.
+  Both overloads achieve the same result. Choose the one that best suits
+  your coding style and enhances readability for your team.
 </Aside>
