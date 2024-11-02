@@ -5,8 +5,6 @@ sidebar:
   order: 3
 ---
 
-# Branded Types
-
 In this guide, we will explore the concept of **branded types** in TypeScript and learn how to create and work with them using the Brand module.
 Branded types are TypeScript types with an added type tag that helps prevent accidental usage of a value in the wrong context.
 They allow us to create distinct types based on an existing underlying type, enabling type safety and better code organization.
@@ -27,7 +25,7 @@ type ProductId = number
 Here, `UserId` and `ProductId` are structurally identical as they are both based on `number`.
 TypeScript will treat these as interchangeable, potentially causing bugs if they are mixed up in your application.
 
-For example:
+**Example** (Unintended Type Compatibility)
 
 ```ts twoslash
 type UserId = number
@@ -44,10 +42,10 @@ const getProductById = (id: ProductId) => {
 
 const id: UserId = 1
 
-getProductById(id) // No type error, but this is incorrect usage
+getProductById(id) // No type error, but incorrect usage
 ```
 
-In the example above, passing a `UserId` to `getProductById` should ideally throw a type error, but it doesn't due to structural compatibility.
+In the example above, passing a `UserId` to `getProductById` does not produce a type error, even though it's logically incorrect. This happens because both types are considered interchangeable.
 
 ## How Branded Types Help
 
@@ -72,6 +70,8 @@ This approach assigns a unique identifier as a brand to the `number` type, effec
 The use of a symbol ensures that the branding field does not conflict with any existing properties of the `number` type.
 
 Attempting to use a `UserId` in place of a `ProductId` now results in an error:
+
+**Example** (Enforcing Type Safety with Branded Types)
 
 ```ts twoslash
 const BrandTypeId: unique symbol = Symbol.for("effect/Brand")
@@ -102,7 +102,9 @@ The error message clearly states that a `number` cannot be used in place of a `P
 
 TypeScript won't let us pass an instance of `number` to the function accepting `ProductId` because it's missing the brand field.
 
-What if `UserId` also had its own brand?
+Let's add branding to `UserId` as well:
+
+**Example** (Branding UserId and ProductId)
 
 ```ts twoslash
 const BrandTypeId: unique symbol = Symbol.for("effect/Brand")
@@ -135,7 +137,7 @@ Argument of type 'UserId' is not assignable to parameter of type 'ProductId'.
 */
 ```
 
-The error is saying that though both types utilize a branding strategy, the distinct values associated with their branding fields (`"ProductId"` and `"UserId"`) prevent them from being interchangeable.
+The error indicates that while both types use branding, the unique values associated with the branding fields (`"ProductId"` and `"UserId"`) ensure they remain distinct and non-interchangeable.
 
 ## Generalizing Branded Types
 
@@ -162,6 +164,8 @@ This design allows any type to be branded using a unique identifier, either a st
 
 Here's how you can utilize the `Brand` interface, which is readily available from the Brand module, eliminating the need to craft your own implementation:
 
+**Example** (Using the Brand Interface from the Brand Module)
+
 ```ts
 import { Brand } from "effect"
 
@@ -173,6 +177,8 @@ type UserId = number & Brand.Brand<"UserId">
 ```
 
 However, creating instances of these types directly leads to an error because the type system expects the brand structure:
+
+**Example** (Direct Assignment Error)
 
 ```ts twoslash
 const BrandTypeId: unique symbol = Symbol.for("effect/Brand")
@@ -193,21 +199,24 @@ Type 'number' is not assignable to type 'ProductId'.
 */
 ```
 
-We need a way to create a value of type `ProductId` without directly assigning a number to it. This is where the Brand module comes in.
+You cannot directly assign a `number` to `ProductId`. The Brand module provides utilities to correctly construct values of branded types.
 
 ## Constructing Branded Types
 
-The Brand module offers two core functions for constructing branded types: `nominal` and `refined`.
+The Brand module provides two main functions for creating branded types: `nominal` and `refined`.
 
 ### nominal
 
-The `nominal` function is designed for defining branded types that do not require runtime validations.
+The `Brand.nominal` function is designed for defining branded types that do not require runtime validations.
 It simply adds a type tag to the underlying type, allowing us to distinguish between values of the same type but with different meanings.
 Nominal branded types are useful when we only want to create distinct types for clarity and code organization purposes.
+
+**Example** (Defining Distinct Identifiers with Nominal Branding)
 
 ```ts twoslash
 import { Brand } from "effect"
 
+// Define UserId as a branded number
 type UserId = number & Brand.Brand<"UserId">
 
 // Constructor for UserId
@@ -217,6 +226,7 @@ const getUserById = (id: UserId) => {
   // Logic to retrieve user
 }
 
+// Define ProductId as a branded number
 type ProductId = number & Brand.Brand<"ProductId">
 
 // Constructor for ProductId
@@ -228,6 +238,8 @@ const getProductById = (id: ProductId) => {
 ```
 
 Attempting to assign a non-`ProductId` value will result in a compile-time error:
+
+**Example** (Type Safety with Branded Identifiers)
 
 ```ts twoslash
 import { Brand } from "effect"
@@ -272,9 +284,11 @@ Argument of type 'UserId' is not assignable to parameter of type 'ProductId'.
 
 ### refined
 
-The `refined` function enables the creation of branded types that include data validation. It requires a refinement predicate to check the validity of input data against specific criteria.
+The `Brand.refined` function enables the creation of branded types that include data validation. It requires a refinement predicate to check the validity of input data against specific criteria.
 
 When the input data does not meet the criteria, the function uses `Brand.error` to generate a `BrandErrors` data type. This provides detailed information about why the validation failed.
+
+**Example** (Creating a Branded Type with Validation)
 
 ```ts twoslash
 import { Brand } from "effect"
@@ -291,7 +305,7 @@ const Int = Brand.refined<Int>(
 )
 ```
 
-Usage example of the `Int` constructor:
+**Example** (Using the `Int` Constructor)
 
 ```ts twoslash
 import { Brand } from "effect"
@@ -299,8 +313,10 @@ import { Brand } from "effect"
 type Int = number & Brand.Brand<"Int">
 
 const Int = Brand.refined<Int>(
-  (n) => Number.isInteger(n), // Check if the value is an integer
-  (n) => Brand.error(`Expected ${n} to be an integer`) // Error message if the value is not an integer
+  // Check if the value is an integer
+  (n) => Number.isInteger(n),
+  // Error message if the value is not an integer
+  (n) => Brand.error(`Expected ${n} to be an integer`)
 )
 
 // Create a valid Int value
@@ -308,10 +324,13 @@ const x: Int = Int(3)
 console.log(x) // Output: 3
 
 // Attempt to create an Int with an invalid value
-const y: Int = Int(3.14) // throws [ { message: 'Expected 3.14 to be an integer' } ]
+const y: Int = Int(3.14)
+// throws [ { message: 'Expected 3.14 to be an integer' } ]
 ```
 
 Attempting to assign a non-`Int` value will result in a compile-time error:
+
+**Example** (Compile-Time Error for Incorrect Assignments)
 
 ```ts twoslash
 import { Brand } from "effect"
@@ -337,7 +356,9 @@ const bad2: Int = 3.14
 
 ## Combining Branded Types
 
-In some scenarios, you may need to combine multiple branded types together. The Brand module provides the `all` API to facilitate this:
+In some cases, you might need to combine multiple branded types. The Brand module provides the `Brand.all` API for this purpose:
+
+**Example** (Combining Multiple Branded Types)
 
 ```ts twoslash
 import { Brand } from "effect"
@@ -356,7 +377,8 @@ const Positive = Brand.refined<Positive>(
   (n) => Brand.error(`Expected ${n} to be positive`)
 )
 
-// Combine the Int and Positive constructors into a new branded constructor PositiveInt
+// Combine the Int and Positive constructors
+// into a new branded constructor PositiveInt
 const PositiveInt = Brand.all(Int, Positive)
 
 // Extract the branded type from the PositiveInt constructor
