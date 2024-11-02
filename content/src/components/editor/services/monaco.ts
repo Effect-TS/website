@@ -19,6 +19,11 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
       target: 99 // ts.ScriptTarget.ESNext
     })
 
+    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: true,
+    })
+
     monaco.editor.defineTheme("chrome-devtools", ChromeDevTools)
     monaco.editor.defineTheme("dracula", Dracula)
 

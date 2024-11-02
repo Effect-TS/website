@@ -287,6 +287,16 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
     function createWorkspaceHandle(workspace: Workspace) {
       return Effect.gen(function*() {
         /**
+          * Spawns the specified `command` into a `jsh` shell and returns the
+          * associated `WebContainerProcess`.
+          *
+          * The command will be run in the root directory of the workspace.
+          */
+        function spawnInWorkspace(command: string) {
+          return spawn(`cd ${workspace.name} && ${command}`)
+        }
+
+        /**
           * Spawns the specified `command` into a `jsh` shell and waits for the 
           * program to exit.
           *
@@ -420,6 +430,7 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
 
         return {
           workspace: workspaceRef,
+          spawn: spawnInWorkspace,
           run: runInWorkspace,
           createFile: create,
           renameFile: rename,
