@@ -114,7 +114,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
                * Wait for dependencies, type acquisition, etc. to be complete
                * before running the workspace command
                */
-              yield* fiber.await.pipe(
+              yield* Fiber.await(fiber).pipe(
                 Effect.zipRight(Effect.sync(() => writer.write(`${command}\n`))),
                 Effect.forkScoped
               )
