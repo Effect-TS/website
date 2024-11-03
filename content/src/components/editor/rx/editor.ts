@@ -94,7 +94,7 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
 
       // Setup go-to-definition for the playground
       monaco.editor.registerEditorOpener({
-        openCodeEditor(_, uri) {
+        openCodeEditor(_, uri, position) {
           const model = monaco.editor.getModel(uri)
           if (model === null) {
             return false
@@ -105,7 +105,22 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
               const workspacePath = fullPath.replace(workspace.name, "").replace(/^\/+/, "")
               return workspace.findFile(workspacePath)
             }),
-            Effect.flatMap(([file]) => get.set(handle.selectedFile, file)),
+            Effect.flatMap(([file]) =>
+              editor.loadModel(model).pipe(
+                Effect.zipRight(
+                  Effect.sync(() => {
+                    if (position !== undefined) {
+                      if ("lineNumber" in position) {
+                        editor.editor.revealLineInCenter(position.lineNumber)
+                      } else {
+                        editor.editor.revealLineInCenter(position.startLineNumber)
+                      }
+                    }
+                  })
+                ),
+                Effect.zipRight(get.set(handle.selectedFile, file)),
+              )
+            ),
             Effect.as(true),
             Effect.catchTag("NoSuchElementException", () => {
               editor.editor.trigger("registerEditorOpener", "editor.action.peekDefinition", {})
