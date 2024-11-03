@@ -94,7 +94,7 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
 
       // Setup go-to-definition for the playground
       monaco.editor.registerEditorOpener({
-        openCodeEditor(source, uri, position) {
+        openCodeEditor(_, uri) {
           const model = monaco.editor.getModel(uri)
           if (model === null) {
             return false
