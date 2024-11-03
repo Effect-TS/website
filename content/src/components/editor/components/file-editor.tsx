@@ -16,7 +16,7 @@ export function FileEditor() {
   }, [setElement])
 
   return (
-    <section className="h-full relative flex flex-col">
+    <section className="h-full relative">
       <div ref={containerRef} className="h-full"></div>
       <ShareButton />
     </section>

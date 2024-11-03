@@ -1,19 +1,14 @@
 import { Rx } from "@effect-rx/rx-react"
-// import * as monaco from "@effect/monaco-editor"
-// import { createStreaming, type Formatter } from "@dprint/formatter"
-// import * as Array from "effect/Array"
-// import * as Cache from "effect/Cache"
+import * as monaco from "@effect/monaco-editor"
 import * as Effect from "effect/Effect"
-// import * as Either from "effect/Either"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schedule from "effect/Schedule"
-// import * as Sink from "effect/Sink"
 import * as Stream from "effect/Stream"
 import * as SubscriptionRef from "effect/SubscriptionRef"
 import { themeRx } from "@/rx/theme"
 import { Toaster } from "@/services/toaster"
-import { File, FullPath, /* Workspace */ } from "../domain/workspace"
+import { File, FullPath } from "../domain/workspace"
 import { Loader } from "../services/loader"
 import { Monaco } from "../services/monaco"
 import { WebContainer } from "../services/webcontainer"
@@ -36,11 +31,11 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
   const editor = runtime.rx((get) =>
     Effect.gen(function*() {
       const loader = yield* Loader
-      const monaco = yield* Monaco
+      const { createEditor } = yield* Monaco
       const container = yield* WebContainer
 
       const el = yield* get.some(element)
-      const editor = yield* monaco.createEditor(el)
+      const editor = yield* createEditor(el)
 
       /**
        * Syncs the website theme with the editor.
@@ -96,6 +91,30 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
         Effect.retry(Schedule.spaced("200 millis")),
         Effect.forkScoped
       )
+
+      // Setup go-to-definition for the playground
+      monaco.editor.registerEditorOpener({
+        openCodeEditor(source, uri, position) {
+          const model = monaco.editor.getModel(uri)
+          if (model === null) {
+            return false
+          }
+          return SubscriptionRef.get(handle.workspace).pipe(
+            Effect.flatMap((workspace) => {
+              const fullPath = model.uri.fsPath
+              const workspacePath = fullPath.replace(workspace.name, "").replace(/^\/+/, "")
+              return workspace.findFile(workspacePath)
+            }),
+            Effect.flatMap(([file]) => get.set(handle.selectedFile, file)),
+            Effect.as(true),
+            Effect.catchTag("NoSuchElementException", () => {
+              editor.editor.trigger("registerEditorOpener", "editor.action.peekDefinition", {})
+              return Effect.succeed(false)
+            }),
+            Effect.runPromise
+          )
+        }
+      })
 
       yield* loader.finish
 

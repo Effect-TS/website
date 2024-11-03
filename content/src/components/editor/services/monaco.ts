@@ -54,7 +54,8 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
                 comments: false,
                 other: true,
                 strings: true
-              }
+              },
+              scrollBeyondLastLine: false
             })
           ),
           (editor) => Effect.sync(() => editor.dispose())
