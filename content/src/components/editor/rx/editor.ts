@@ -47,6 +47,11 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
       )
 
       /**
+       * Setup go-to-definition for the playground
+       */
+      setupGoToDefinition(handle, get)
+
+      /**
        * Saves the content of the editor's current model to the file system.
        */
       const save = SubscriptionRef.get(handle.workspace).pipe(
@@ -92,45 +97,6 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
         Effect.forkScoped
       )
 
-      // Setup go-to-definition for the playground
-      monaco.editor.registerEditorOpener({
-        openCodeEditor(_, uri, position) {
-          const model = monaco.editor.getModel(uri)
-          if (model === null) {
-            return false
-          }
-          return SubscriptionRef.get(handle.workspace).pipe(
-            Effect.flatMap((workspace) => {
-              const fullPath = model.uri.fsPath
-              const workspacePath = fullPath.replace(workspace.name, "").replace(/^\/+/, "")
-              return workspace.findFile(workspacePath)
-            }),
-            Effect.flatMap(([file]) =>
-              editor.loadModel(model).pipe(
-                Effect.zipRight(
-                  Effect.sync(() => {
-                    if (position !== undefined) {
-                      if ("lineNumber" in position) {
-                        editor.editor.revealLineInCenter(position.lineNumber)
-                      } else {
-                        editor.editor.revealLineInCenter(position.startLineNumber)
-                      }
-                    }
-                  })
-                ),
-                Effect.zipRight(get.set(handle.selectedFile, file)),
-              )
-            ),
-            Effect.as(true),
-            Effect.catchTag("NoSuchElementException", () => {
-              editor.editor.trigger("registerEditorOpener", "editor.action.peekDefinition", {})
-              return Effect.succeed(false)
-            }),
-            Effect.runPromise
-          )
-        }
-      })
-
       yield* loader.finish
 
       return {
@@ -146,3 +112,26 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
   } as const
 })
 
+function setupGoToDefinition(handle: RxWorkspaceHandle, get: Rx.Context) {
+  monaco.editor.registerEditorOpener({
+    openCodeEditor(editor, uri) {
+      const model = monaco.editor.getModel(uri)
+      if (model === null) {
+        return false
+      }
+      const workspace = get.once(handle.workspaceRx)
+      const fullPath = model.uri.fsPath
+      const workspacePath = fullPath.replace(workspace.name, "").replace(/^\/+/, "")
+      return Option.match(workspace.findFile(workspacePath), {
+        onNone: () => {
+          editor.trigger("registerEditorOpener", "editor.action.peekDefinition", {})
+          return false
+        },
+        onSome: ([file]) => {
+          get.setSync(handle.selectedFile, file)
+          return true
+        }
+      })
+    }
+  })
+}

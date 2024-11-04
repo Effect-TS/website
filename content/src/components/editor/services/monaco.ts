@@ -73,12 +73,12 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
               return model
             }
             // Otherwise, handle the editor view state
-            const fsPath = model.uri.fsPath
             if (current !== null) {
               // Make sure to save the view state for the outgoing model
-              viewStates.set(fsPath, editor.saveViewState())
+              viewStates.set(current.uri.fsPath, editor.saveViewState())
             }
             editor.setModel(model)
+            const fsPath = model.uri.fsPath
             if (viewStates.has(fsPath)) {
               // Make sure to restore the view state for the incoming model
               editor.restoreViewState(viewStates.get(fsPath)!)
