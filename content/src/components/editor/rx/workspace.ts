@@ -89,7 +89,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
              * Install dependencies, acquire types, and setup formatters in the 
              * background, and once complete, enable diagnostics for the editor
              */
-            const fiber = yield* handle.spawn("pnpm install").pipe(
+            const fiber = yield* handle.spawn(workspace.prepare).pipe(
               Effect.tap((process) => {
                 process.output.pipeTo(new WritableStream({
                   write(data) {
