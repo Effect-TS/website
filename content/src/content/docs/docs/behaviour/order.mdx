@@ -1,6 +1,6 @@
 ---
 title: Order
-description: Explore the Order module in Effect, which provides a powerful interface for comparing and sorting values. Learn about built-in comparators for common data types, sorting arrays, deriving custom orders, combining orders, and additional useful functions for comparisons, finding minimum/maximum, clamping values, and checking value range.
+description: The Order module provides tools for comparing and sorting values in TypeScript, including built-in comparators, custom ordering, and functions for sorting, finding min/max, clamping, and checking ranges.
 sidebar:
   order: 2
 ---
@@ -21,12 +21,14 @@ interface Order<A> {
 
 The Order module comes with several built-in comparators for common data types:
 
-- `string`: Used for comparing strings.
-- `number`: Used for comparing numbers.
-- `bigint`: Used for comparing big integers.
-- `Date`: Used for comparing `Date`s.
+| Order    | Description                        |
+| -------- | ---------------------------------- |
+| `string` | Used for comparing strings.        |
+| `number` | Used for comparing numbers.        |
+| `bigint` | Used for comparing big integers.   |
+| `Date`   | Used for comparing `Date` objects. |
 
-Here's how you can use these comparators:
+**Example** (Using Built-in Comparators)
 
 ```ts twoslash
 import { Order } from "effect"
@@ -43,7 +45,9 @@ console.log(Order.bigint(2n, 1n))
 
 ## Sorting Arrays
 
-Once you have your comparators, you can sort arrays. The Array module provides a handy function called `sort` that allows you to sort arrays without modifying the original array. Here's an example:
+You can sort arrays using these comparators. The `Array` module offers a `sort` function that sorts arrays without altering the original one.
+
+**Example** (Sorting Arrays with `Order`)
 
 ```ts twoslash
 import { Order, Array } from "effect"
@@ -52,39 +56,36 @@ const strings = ["b", "a", "d", "c"]
 
 const result = Array.sort(strings, Order.string)
 
-console.log(strings)
-console.log(result)
-/*
-Output:
-[ 'b', 'a', 'd', 'c' ]
-[ 'a', 'b', 'c', 'd' ]
-*/
+console.log(strings) // Original array remains unchanged
+// Output: [ 'b', 'a', 'd', 'c' ]
+
+console.log(result) // Sorted array
+// Output: [ 'a', 'b', 'c', 'd' ]
 ```
 
-You can even use an `Order` as a comparator in JavaScript's native `Array.sort` method:
+You can also use an `Order` as a comparator with JavaScript's native `Array.sort` method, but keep in mind that this will modify the original array.
+
+**Example** (Using `Order` with Native `Array.prototype.sort`)
 
 ```ts twoslash
 import { Order } from "effect"
 
 const strings = ["b", "a", "d", "c"]
 
-strings.sort(Order.string)
+strings.sort(Order.string) // Modifies the original array
 
 console.log(strings)
 // Output: [ 'a', 'b', 'c', 'd' ]
 ```
 
-Please note that when using `Array#sort`, you modify the original array. So, be cautious if you want to keep the original order. If you don't want to alter the original array, consider using `Array.sort` as shown earlier.
-
 ## Deriving Orders
 
-Sometimes, when working with more complex data structures, you may need to create custom sorting rules.
-The `Order` module allows you to do this by deriving a new `Order` from an existing one using the `Order.mapInput` function.
+For more complex data structures, you may need custom sorting rules. The Order module lets you derive new `Order` instances from existing ones with the `Order.mapInput` function.
+
+**Example** (Creating a Custom Order for Objects)
 
 Imagine you have a list of `Person` objects, and you want to sort them by their names in ascending order.
 To achieve this, you can create a custom `Order`.
-
-Here's how you can do it:
 
 ```ts twoslash
 import { Order } from "effect"
@@ -95,32 +96,35 @@ interface Person {
   readonly age: number
 }
 
-// Create a custom sorting rule to sort Persons
-// by their names in ascending order
+// Create a custom order to sort Person objects by name in ascending order
+//
+//      ┌─── Order<Person>
+//      ▼
 const byName = Order.mapInput(
   Order.string,
   (person: Person) => person.name
 )
 ```
 
-In this example, we first import the necessary modules and define the `Person` interface, representing our data structure.
-Next, we create a custom sorting rule called `byName` using the `mapInput` function.
+The `Order.mapInput` function takes two arguments:
 
-The `mapInput` function takes two arguments:
+1. The existing `Order` you want to use as a base (`Order.string` in this case, for comparing strings).
+2. A function that extracts the value you want to use for sorting from your data structure (`(person: Person) => person.name` in this case).
 
-1. The existing sorting rule you want to use as a base (`Order.string` in this case, for comparing strings).
-2. A function that extracts the value you want to use for sorting from your data structure (`person.name` in this case).
+Once you have defined your custom `Order`, you can apply it to sort an array of `Person` objects:
 
-Once you have defined your custom sorting rule, you can apply it to sort a list of `Person` objects:
+**Example** (Sorting Objects Using a Custom Order)
 
-```ts twoslash
+```ts twoslash collapse={3-13}
 import { Order, Array } from "effect"
 
+// Define the Person interface
 interface Person {
   readonly name: string
   readonly age: number
 }
 
+// Create a custom order to sort Person objects by name in ascending order
 const byName = Order.mapInput(
   Order.string,
   (person: Person) => person.name
@@ -132,7 +136,7 @@ const persons: ReadonlyArray<Person> = [
   { name: "Bob", age: 30 }
 ]
 
-// Use your custom sorting rule to sort the persons array
+// Sort persons array using the custom order
 const sortedPersons = Array.sort(persons, byName)
 
 console.log(sortedPersons)
@@ -148,33 +152,31 @@ Output:
 
 ## Combining Orders
 
-The Order module not only handles basic comparisons but also empowers you to create intricate sorting rules. This is especially valuable when you need to sort data based on multiple criteria or properties.
+The Order module lets you combine multiple `Order` instances to create complex sorting rules. This is useful when sorting by multiple properties.
 
-The `combine*` functions in the Order module enables you to merge two or more `Order` instances, resulting in a new `Order` that incorporates the combined sorting logic. Let's walk through an example to illustrate this concept.
+**Example** (Sorting by Multiple Criteria)
 
 Imagine you have a list of people, each represented by an object with a `name` and an `age`. You want to sort this list first by name and then, for individuals with the same name, by age.
-
-Here's how you can achieve this using the Order module:
 
 ```ts twoslash
 import { Order, Array } from "effect"
 
-// Define the structure of a person
+// Define the Person interface
 interface Person {
   readonly name: string
   readonly age: number
 }
 
-// Create an Order to sort people by their names
+// Create an Order to sort people by their names in ascending order
 const byName = Order.mapInput(
   Order.string,
   (person: Person) => person.name
 )
 
-// Create an Order to sort people by their ages
+// Create an Order to sort people by their ages in ascending order
 const byAge = Order.mapInput(Order.number, (person: Person) => person.age)
 
-// Combine the two Orders to create a complex sorting logic
+// Combine orders to sort by name, then by age
 const byNameAge = Order.combine(byName, byAge)
 
 const result = Array.sort(
@@ -190,31 +192,28 @@ console.log(result)
 /*
 Output:
 [
-  { name: 'Alice', age: 18 }, <-- by name
-  { name: 'Bob', age: 18 },   <-- by age
-  { name: 'Bob', age: 20 }    <-- by age
+  { name: 'Alice', age: 18 }, // Sorted by name
+  { name: 'Bob', age: 18 },   // Sorted by age within the same name
+  { name: 'Bob', age: 20 }
 ]
 */
 ```
 
-In the code above, we first create two separate `Order` instances: `byName` and `byAge`. These orders individually sort people by their names and ages, respectively.
-
-Next, we use the `combine` function to merge these two orders into a single `byNameAge` order. This combined order first sorts people by name and then, for those with the same name, by age.
-
-Finally, we apply this combined order to the array of people using `Array.sort`. The result is an array of people sorted according to the specified criteria.
-
 ## Additional Useful Functions
 
-The Order module extends its functionality by providing additional functions for common operations. These functions make it easier to work with ordered values and perform various comparisons. Let's explore each of them:
+The Order module provides additional functions for common comparison operations, making it easier to work with ordered values.
 
 ### Reversing Order
 
-The `Order.reverse` function does exactly what its name suggests; it reverses the order of comparison. If you have an `Order` that sorts values in ascending order, applying `reverse` will sort them in descending order.
+`Order.reverse` inverts the order of comparison. If you have an `Order` for ascending values, reversing it makes it descending.
+
+**Example** (Reversing an Order)
 
 ```ts twoslash
 import { Order } from "effect"
 
 const ascendingOrder = Order.number
+
 const descendingOrder = Order.reverse(ascendingOrder)
 
 console.log(ascendingOrder(1, 3))
@@ -227,10 +226,14 @@ console.log(descendingOrder(1, 3))
 
 These functions allow you to perform simple comparisons between values:
 
-- `lessThan`: Checks if one value is strictly less than another.
-- `greaterThan`: Checks if one value is strictly greater than another.
-- `lessThanOrEqualTo`: Checks if one value is less than or equal to another.
-- `greaterThanOrEqualTo`: Checks if one value is greater than or equal to another.
+| API                    | Description                                              |
+| ---------------------- | -------------------------------------------------------- |
+| `lessThan`             | Checks if one value is strictly less than another.       |
+| `greaterThan`          | Checks if one value is strictly greater than another.    |
+| `lessThanOrEqualTo`    | Checks if one value is less than or equal to another.    |
+| `greaterThanOrEqualTo` | Checks if one value is greater than or equal to another. |
+
+**Example** (Using Comparison Functions)
 
 ```ts twoslash
 import { Order } from "effect"
@@ -250,7 +253,9 @@ console.log(Order.greaterThanOrEqualTo(Order.number)(4, 4))
 
 ### Finding Minimum and Maximum
 
-The `min` and `max` functions return the minimum or maximum value between two values, considering the order. These functions are particularly useful when you want to determine the smallest or largest value among multiple options.
+The `Order.min` and `Order.max` functions return the minimum or maximum value between two values, considering the order.
+
+**Example** (Finding Minimum and Maximum Numbers)
 
 ```ts twoslash
 import { Order } from "effect"
@@ -264,30 +269,56 @@ console.log(Order.max(Order.number)(5, 8))
 
 ### Clamping Values
 
-The `clamp` function ensures that a value stays within a specified range. It takes three arguments: the value you want to clamp, the minimum bound, and the maximum bound. If the value falls outside the range, it's adjusted to the nearest bound.
+`Order.clamp` restricts a value within a given range. If the value is outside the range, it is adjusted to the nearest bound.
+
+**Example** (Clamping Numbers to a Range)
 
 ```ts twoslash
 import { Order } from "effect"
 
-const clampedValue = Order.clamp(Order.number)(10, {
+// Define a function to clamp numbers between 20 and 30
+const clampNumbers = Order.clamp(Order.number)({
   minimum: 20,
   maximum: 30
 })
 
-console.log(clampedValue)
-// Output: 20 (10 is clamped to the nearest bound, which is 20)
+// Value 26 is within the range [20, 30], so it remains unchanged
+console.log(clampNumbers(26))
+// Output: 26
+
+// Value 10 is below the minimum bound, so it is clamped to 20
+console.log(clampNumbers(10))
+// Output: 20
+
+// Value 40 is above the maximum bound, so it is clamped to 30
+console.log(clampNumbers(40))
+// Output: 30
 ```
 
 ### Checking Value Range
 
-The `between` function checks if a value falls within a specified range, inclusively. It takes three arguments: the value you want to check, the minimum bound, and the maximum bound.
+`Order.between` checks if a value falls within a specified inclusive range.
+
+**Example** (Checking if Numbers Fall Within a Range)
 
 ```ts twoslash
 import { Order } from "effect"
 
-console.log(Order.between(Order.number)(15, { minimum: 10, maximum: 20 }))
-// Output: true (15 is within the range [10, 20])
+// Create a function to check if numbers are between 20 and 30
+const betweenNumbers = Order.between(Order.number)({
+  minimum: 20,
+  maximum: 30
+})
 
-console.log(Order.between(Order.number)(5, { minimum: 10, maximum: 20 }))
-// Output: false (5 is outside the range [10, 20])
+// Value 26 falls within the range [20, 30], so it returns true
+console.log(betweenNumbers(26))
+// Output: true
+
+// Value 10 is below the minimum bound, so it returns false
+console.log(betweenNumbers(10))
+// Output: false
+
+// Value 40 is above the maximum bound, so it returns false
+console.log(betweenNumbers(40))
+// Output: false
 ```
