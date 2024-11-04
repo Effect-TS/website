@@ -75,10 +75,23 @@ function makeDefaultWorkspace() {
   return defaultWorkspace.withName(`playground-${Date.now()}`)
 }
 
+function base64ToBytes(base64: string) {
+  const binString = atob(base64)
+  return Uint8Array.from(binString, (char) => char.codePointAt(0)!)
+}
+
 export const importRx = runtime.rx((get) =>
   Effect.gen(function*() {
     const hash = get(hashRx)
     if (Option.isNone(hash)) {
+      const params = new URLSearchParams(window.location.search)
+      if (params.has("code")) {
+        const code = params.get("code")!
+        const content = new TextDecoder().decode(base64ToBytes(code))
+        const node = makeFile("main.ts", content, false)
+        console.log({ code, content })
+        return defaultWorkspace.replaceNode(main, node)
+      }
       return makeDefaultWorkspace()
     }
 

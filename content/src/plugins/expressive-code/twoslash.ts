@@ -8,7 +8,7 @@ import { h } from "@expressive-code/core/hast"
 import { createTwoslasher, type NodeHover, type TwoslashOptions } from "twoslash"
 import ts from "typescript"
 import type { CompilerOptions } from "typescript"
-import FloatingToolipModule from "./twoslash-popup.js?raw"
+import jsModule from "./twoslash/js-module.js?raw"
 
 const defaultCompilerOptions: CompilerOptions = {
   strict: true,
@@ -47,7 +47,7 @@ export interface PluginTwoslashOptions {
   readonly twoslashOptions?: TwoslashOptions
 }
 
-export default function pluginCodeOutput(options: PluginTwoslashOptions = {}) {
+export function pluginTwoslash(options: PluginTwoslashOptions = {}) {
   const {
     explicitTrigger = false,
     languages = ["ts", "tsx"],
@@ -67,7 +67,7 @@ export default function pluginCodeOutput(options: PluginTwoslashOptions = {}) {
 
   return definePlugin({
     name: "@plugins/twoslash",
-    jsModules: [FloatingToolipModule],
+    jsModules: [jsModule],
     hooks: {
       preprocessCode(context) {
         if (shouldTransform(context.codeBlock)) {
