@@ -115,11 +115,18 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     shells: ReadonlyArray<WorkspaceShell>
     snapshots?: ReadonlyArray<string>
   }) {
+    let prepare = options.prepare ?? "pnpm install"
+    if (options.dependencies !== undefined) {
+      const dependencies = Object.entries(options.dependencies)
+        .map(([name, version]) => `${name}@${version}`)
+        .join(" ")
+      prepare = `${prepare} -E ${dependencies}`
+    }
     super(
       {
         name: options.name,
         initialFilePath: options.initialFilePath,
-        prepare: options.prepare ?? "pnpm install",
+        prepare,
         shells: options.shells,
         snapshots: options.snapshots ?? [],
         tree: [
