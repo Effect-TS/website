@@ -1,5 +1,6 @@
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
+import * as Encoding from "effect/Encoding"
 import { flow, pipe } from "effect/Function"
 import * as Schema from "effect/Schema"
 import { Workspace } from "../domain/workspace"
@@ -18,15 +19,15 @@ export class Compression extends Effect.Service<Compression>()("app/Compression"
           const stream = blob
             .stream()
             .pipeThrough(new CompressionStream("deflate-raw"))
-          return await new Response(stream).arrayBuffer()
+          return new Uint8Array(await new Response(stream).arrayBuffer())
         },
         catch: (cause) => new CompressionError({ method: "compress", cause })
       })
 
     const compressBase64 = (content: string) =>
-      compress(content).pipe(Effect.map(arrayBufferToBase64))
+      compress(content).pipe(Effect.map(Encoding.encodeBase64))
 
-    const decompress = (buffer: ArrayBuffer) =>
+    const decompress = (buffer: Uint8Array) =>
       Effect.tryPromise({
         try: async () => {
           const blob = new Blob([buffer], { type: "application/gzip" })
@@ -38,34 +39,15 @@ export class Compression extends Effect.Service<Compression>()("app/Compression"
         catch: (cause) => new CompressionError({ method: "decompress", cause })
       })
 
-    const decompressBase64 = (base64: string) =>
-      Effect.try({
-        try: () => base64ToArrayBuffer(base64),
-        catch: (cause) => new CompressionError({ method: "decompress", cause })
-      }).pipe(Effect.andThen(decompress))
+    const decompressBase64 = (base64: string) => 
+      Encoding.decodeBase64(base64).pipe(
+        Effect.mapError((cause) => new CompressionError({ method: "decompress", cause })),
+        Effect.andThen(decompress)
+      )
 
     return { compress, compressBase64, decompress, decompressBase64 } as const
   })
 }) { }
-
-function arrayBufferToBase64(buffer: ArrayBuffer) {
-  var binary = ""
-  const bytes = new Uint8Array(buffer)
-  const len = bytes.byteLength
-  for (var i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]!)
-  }
-  return btoa(binary)
-}
-
-function base64ToArrayBuffer(base64: string) {
-  const binaryString = atob(base64)
-  const bytes = new Uint8Array(binaryString.length)
-  for (var i = 0, len = binaryString.length; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i)
-  }
-  return bytes.buffer
-}
 
 const decodeWorkspace = flow(
   Schema.decode(Schema.parseJson(Workspace)),

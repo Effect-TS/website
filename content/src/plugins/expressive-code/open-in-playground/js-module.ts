@@ -1,11 +1,5 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
-
-function bytesToBase64(bytes: Uint8Array) {
-  const binString = Array.from(bytes, (byte) =>
-    String.fromCodePoint(byte),
-  ).join("");
-  return btoa(binString);
-}
+import * as Encoding from "effect/Encoding"
 
 /**
  * Handles clicks on a single copy button.
@@ -15,9 +9,8 @@ function clickHandler(event: Event) {
   const copyButton = button.closest(".expressive-code")?.querySelector(".copy button") as HTMLButtonElement
   const dataset = copyButton.dataset as { code: string; }
   const code = dataset.code.replace(/\u007f/g, "\n")
-  const bytes = new TextEncoder().encode(code)
-  const base64 = bytesToBase64(bytes)
-  window.open(`${window.location.origin}/play/?code=${encodeURIComponent(base64)}`, "_blank")
+  const base64 = Encoding.encodeBase64Url(code)
+  window.open(`${window.location.origin}/play/?code=${base64}`, "_blank")
 }
 
 /**
