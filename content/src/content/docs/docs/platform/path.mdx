@@ -11,6 +11,8 @@ The `@effect/platform/Path` module provides a set of operations for working with
 
 The module provides a single `Path` [tag](/docs/requirements-management/services/), which acts as the gateway for interacting with paths.
 
+**Example** (Accessing the Path Service)
+
 ```ts twoslash
 import { Path } from "@effect/platform"
 import { Effect } from "effect"
@@ -18,7 +20,7 @@ import { Effect } from "effect"
 const program = Effect.gen(function* () {
   const path = yield* Path.Path
 
-  // use `path` to operate on paths
+  // Use `path` to perform various path operations
 })
 ```
 
@@ -41,7 +43,7 @@ The `Path` interface includes the following operations:
 | **toFileUrl**        | Converts a path to a file URL.                                             |
 | **toNamespacedPath** | Converts a path to a namespaced path (specific to Windows).                |
 
-**Example** (Using `join`)
+**Example** (Joining Path Segments)
 
 ```ts twoslash
 import { Path } from "@effect/platform"
@@ -56,4 +58,5 @@ const program = Effect.gen(function* () {
 })
 
 NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+// Output: "tmp/file.txt"
 ```
