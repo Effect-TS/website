@@ -11,6 +11,8 @@ The `@effect/platform/FileSystem` module provides a set of operations for readin
 
 The module provides a single `FileSystem` [tag](/docs/requirements-management/services/), which acts as the gateway for interacting with the filesystem.
 
+**Example** (Accessing File System Operations)
+
 ```ts twoslash
 import { FileSystem } from "@effect/platform"
 import { Effect } from "effect"
@@ -18,7 +20,7 @@ import { Effect } from "effect"
 const program = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem
 
-  // use `fs` to operate on the file system
+  // Use `fs` to perform file system operations
 })
 ```
 
@@ -56,7 +58,7 @@ The `FileSystem` interface includes the following operations:
 | **writeFile**               | Write data to a file at `path`.                                                                                                                                        |
 | **writeFileString**         | Write a string to a file at `path`.                                                                                                                                    |
 
-**Example** (Using `readFileString`)
+**Example** (Reading a File as a String)
 
 ```ts twoslash
 import { FileSystem } from "@effect/platform"
@@ -71,5 +73,6 @@ const program = Effect.gen(function* () {
   console.log(content)
 })
 
+// Provide the necessary context and run the program
 NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
 ```
