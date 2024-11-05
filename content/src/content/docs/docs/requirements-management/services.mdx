@@ -148,6 +148,9 @@ class Random extends Context.Tag("MyRandomService")<
 >() {}
 
 // Using the service
+//
+//      ┌─── Effect<void, never, Random>
+//      ▼
 const program = Effect.gen(function* () {
   const random = yield* Random
   const randomNumber = yield* random.next
@@ -172,6 +175,9 @@ class Random extends Context.Tag("MyRandomService")<
 >() {}
 
 // Using the service
+//
+//      ┌─── Effect<void, never, Random>
+//      ▼
 const program = Random.pipe(
   Effect.andThen((random) => random.next),
   Effect.andThen((randomNumber) =>
@@ -250,6 +256,9 @@ const program = Effect.gen(function* () {
 })
 
 // Providing the implementation
+//
+//      ┌─── Effect<void, never, never>
+//      ▼
 const runnable = Effect.provideService(program, Random, {
   next: Effect.sync(() => Math.random())
 })

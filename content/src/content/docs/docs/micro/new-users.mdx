@@ -6,16 +6,21 @@ sidebar:
   order: 0
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components"
+import {
+  Aside,
+  Tabs,
+  TabItem,
+  Steps
+} from "@astrojs/starlight/components"
 
 <Aside type="caution" title="Experimental Module">
   The Micro module is currently in its experimental stages. We encourage
   your feedback to further improve its features.
 </Aside>
 
-The `Micro` module in Effect is designed as a lighter alternative to the standard `Effect` module, tailored for situations where it is beneficial to reduce the bundle size.
+The Micro module is designed as a lighter alternative to the standard Effect module, tailored for situations where it is beneficial to reduce the bundle size.
 
-This module is standalone and does not include more complex functionalities such as `Layer`, `Ref`, `Queue`, and `Deferred`. This feature set makes Micro especially suitable for libraries that wish to utilize Effect functionalities while keeping the bundle size to a minimum, particularly for those aiming to provide `Promise`-based APIs.
+This module is standalone and does not include more complex functionalities such as [Layer](/docs/requirements-management/layers/), [Ref](/docs/state-management/ref/), [Queue](/docs/concurrency/queue/), and [Deferred](/docs/concurrency/deferred/). This feature set makes Micro especially suitable for libraries that wish to utilize Effect functionalities while keeping the bundle size to a minimum, particularly for those aiming to provide `Promise`-based APIs.
 
 Micro also supports use cases where a client application uses Micro, and a server employs the full suite of Effect features, maintaining both compatibility and logical consistency across various application components.
 
@@ -72,215 +77,249 @@ bun add effect
 Micro is a component of the Effect library and can be imported similarly to any other module in your TypeScript project:
 
 ```ts showLineNumbers=false
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 ```
 
-This import statement allows you to access all functionalities of Micro, enabling you to use its features in your application.
+You can also import it using a namespace import like this:
+
+```ts showLineNumbers=false
+import { Micro } from "effect"
+```
 
 ## The Micro Type
 
-The `Micro` type uses three type parameters:
+Here is the general form of a `Micro`:
 
-```ts showLineNumbers=false
+```text showLineNumbers=false
+        ┌─── Represents the success type
+        │        ┌─── Represents the error type
+        │        │      ┌─── Represents required dependencies
+        ▼        ▼      ▼
 Micro<Success, Error, Requirements>
 ```
 
 which mirror those of the `Effect` type:
 
-- **Success**. Represents the type of value that an effect can succeed with when executed.
-  If this type parameter is `void`, it means the effect produces no useful information, while if it is `never`, it means the effect runs forever (or until failure).
-- **Error**. Represents the expected errors that can occur when executing an effect.
-  If this type parameter is `never`, it means the effect cannot fail, because there are no values of type `never`.
-- **Requirements**. Represents the contextual data required by the effect to be executed.
-  This data is stored in a collection named `Context`.
-  If this type parameter is `never`, it means the effect has no requirements and the `Context` collection is empty.
+| Parameter        | Description                                                                                                                                                                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Success**      | Represents the type of value that an effect can succeed with when executed. If this type parameter is `void`, it means the effect produces no useful information, while if it is `never`, it means the effect runs forever (or until failure). |
+| **Error**        | Represents the expected errors that can occur when executing an effect. If this type parameter is `never`, it means the effect cannot fail, because there are no values of type `never`.                                                       |
+| **Requirements** | Represents the contextual data required by the effect to be executed. This data is stored in a collection named `Context`. If this type parameter is `never`, it means the effect has no requirements and the `Context` collection is empty.   |
 
 ## The MicroExit Type
 
 The `MicroExit` type is designed to capture the outcome of a `Micro` computation. It uses the [Either](/docs/data-types/either/) data type to distinguish between successful outcomes and failures:
 
 ```ts showLineNumbers=false
-type MicroExit<A, E = never> = Either<A, MicroCause<E>>
+type MicroExit<A, E> = Either<A, MicroCause<E>>
 ```
+
+`A` represents the success value of the computation.
+
+`E` represents the type of error, encapsulated within a `MicroCause`.
 
 ## The MicroCause Type
 
-The `MicroCause` type represents the possible causes of an effect's failure.
+The `MicroCause` type describes the different reasons why an effect may fail.
 
-`MicroCause` consists of three specific types:
+`MicroCause` comes in three forms:
 
 ```ts showLineNumbers=false
 type MicroCause<E> = Die | Fail<E> | Interrupt
 ```
 
-| Failure Type | Description                                                                                 |
-| ------------ | ------------------------------------------------------------------------------------------- |
-| `Die`        | Indicates an unforeseen defect that wasn't planned for in the system's logic.               |
-| `Fail<E>`    | Covers anticipated errors that are recognized and typically handled within the application. |
-| `Interrupt`  | Signifies an operation that has been purposefully stopped.                                  |
+| Variant     | Description                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| `Die`       | Indicates an unforeseen defect that wasn't planned for in the system's logic.               |
+| `Fail<E>`   | Covers anticipated errors that are recognized and typically handled within the application. |
+| `Interrupt` | Signifies an operation that has been purposefully stopped.                                  |
 
-## Tutorial: Wrapping a Promise-based API with Micro
+## Wrapping a Promise-based API with Micro
 
-In this tutorial, we'll demonstrate how to wrap a Promise-based API using the `Micro` library from Effect. We'll use a simple example where we interact with a hypothetical weather forecasting API. The goal is to encapsulate the asynchronous API call within Micro's structured error handling and execution flow.
+This guide shows how to wrap a `Promise`-based API using the `Micro` library from Effect. We'll create a simple example that interacts with a hypothetical weather forecasting API, using Micro to handle structured error handling and execution flow.
 
-**Step 1: Create a Promise-based API Function**
+<Steps>
 
-First, let's define a simple Promise-based function that simulates fetching weather data from an external service.
+1. **Create a Promise-based API Function**
 
-```ts twoslash
-function fetchWeather(city: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (city === "London") {
-        resolve("Sunny")
-      } else {
-        reject(new Error("Weather data not found for this location"))
-      }
-    }, 1_000)
-  })
-}
-```
+   Start by defining a basic Promise-based function that simulates fetching weather data from an external service.
 
-**Step 2: Wrap the Promise with Micro**
+   ```ts twoslash
+   // Simulate fetching weather data
+   function fetchWeather(city: string): Promise<string> {
+     return new Promise((resolve, reject) => {
+       setTimeout(() => {
+         if (city === "London") {
+           resolve("Sunny")
+         } else {
+           reject(new Error("Weather data not found for this location"))
+         }
+       }, 1_000)
+     })
+   }
+   ```
 
-Next, we'll wrap our `fetchWeather` function using Micro to handle both successful and failed Promise outcomes.
+2. **Wrap the Promise with Micro**
 
-```ts twoslash
-import * as Micro from "effect/Micro"
+   Now, wrap the `fetchWeather` function using Micro, converting the `Promise` to a Micro effect to manage both success and failure scenarios.
 
-function fetchWeather(city: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (city === "London") {
-        resolve("Sunny")
-      } else {
-        reject(new Error("Weather data not found for this location"))
-      }
-    }, 1_000)
-  })
-}
+   ```ts twoslash collapse={4-14}
+   import { Micro } from "effect"
 
-function getWeather(city: string) {
-  return Micro.promise(() => fetchWeather(city))
-}
-```
+   // Simulate fetching weather data
+   function fetchWeather(city: string): Promise<string> {
+     return new Promise((resolve, reject) => {
+       setTimeout(() => {
+         if (city === "London") {
+           resolve("Sunny")
+         } else {
+           reject(new Error("Weather data not found for this location"))
+         }
+       }, 1_000)
+     })
+   }
 
-Here, `Micro.promise` is used to convert the Promise returned by `fetchWeather` into a Micro effect.
+   function getWeather(city: string) {
+     return Micro.promise(() => fetchWeather(city))
+   }
+   ```
 
-**Step 3: Running the Micro Effect**
+   Here, `Micro.promise` transforms the `Promise` returned by `fetchWeather` into a `Micro<string, never, never>` effect.
 
-After wrapping our function, we need to execute the Micro effect and handle the results.
+3. **Running the Micro Effect**
 
-```ts twoslash
-import * as Micro from "effect/Micro"
+   Once the function is wrapped, execute the Micro effect and handle the results.
 
-function fetchWeather(city: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (city === "London") {
-        resolve("Sunny")
-      } else {
-        reject(new Error("Weather data not found for this location"))
-      }
-    }, 1_000)
-  })
-}
+   **Example** (Executing the Micro Effect)
 
-function getWeather(city: string) {
-  return Micro.promise(() => fetchWeather(city))
-}
+   ```ts twoslash collapse={4-14}
+   import { Micro } from "effect"
 
-const weatherEffect = getWeather("London")
+   // Simulate fetching weather data
+   function fetchWeather(city: string): Promise<string> {
+     return new Promise((resolve, reject) => {
+       setTimeout(() => {
+         if (city === "London") {
+           resolve("Sunny")
+         } else {
+           reject(new Error("Weather data not found for this location"))
+         }
+       }, 1_000)
+     })
+   }
 
-Micro.runPromise(weatherEffect)
-  .then((result) => console.log(`The weather in London is: ${result}`))
-  .catch((error) =>
-    console.error(`Failed to fetch weather data: ${error.message}`)
-  )
-/*
-Output:
-The weather in London is: Sunny
-*/
-```
+   function getWeather(city: string) {
+     return Micro.promise(() => fetchWeather(city))
+   }
 
-In this snippet, `Micro.runPromise` is used to execute the `weatherEffect`.
-It converts the Micro effect back into a Promise, making it easier to integrate with other Promise-based code or simply to manage asynchronous operations in a familiar way.
+   //      ┌─── Micro<string, never, never>
+   //      ▼
+   const weatherEffect = getWeather("London")
 
-You can also use `Micro.runPromiseExit` to get more detailed information about the effect's exit status:
+   Micro.runPromise(weatherEffect)
+     .then((data) => console.log(`The weather in London is: ${data}`))
+     .catch((error) =>
+       console.error(`Failed to fetch weather data: ${error.message}`)
+     )
+   /*
+   Output:
+   The weather in London is: Sunny
+   */
+   ```
 
-```ts twoslash
-import * as Micro from "effect/Micro"
+   In the example above, `Micro.runPromise` is used to execute the `weatherEffect`, converting it back into a `Promise`, which can be managed using familiar asynchronous handling methods.
 
-function fetchWeather(city: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (city === "London") {
-        resolve("Sunny")
-      } else {
-        reject(new Error("Weather data not found for this location"))
-      }
-    }, 1_000)
-  })
-}
+   For more detailed information on the effect's exit status, use `Micro.runPromiseExit`:
 
-function getWeather(city: string) {
-  return Micro.promise(() => fetchWeather(city))
-}
+   **Example** (Inspecting Exit Status)
 
-const weatherEffect = getWeather("London")
+   ```ts twoslash collapse={4-14}
+   import { Micro } from "effect"
 
-Micro.runPromiseExit(weatherEffect).then((exit) => console.log(exit))
-/*
-Output:
-{ _id: 'Either', _tag: 'Right', right: 'Sunny' }
-*/
-```
+   // Simulate fetching weather data
+   function fetchWeather(city: string): Promise<string> {
+     return new Promise((resolve, reject) => {
+       setTimeout(() => {
+         if (city === "London") {
+           resolve("Sunny")
+         } else {
+           reject(new Error("Weather data not found for this location"))
+         }
+       }, 1_000)
+     })
+   }
 
-**Step 4: Adding Error Handling**
+   function getWeather(city: string) {
+     return Micro.promise(() => fetchWeather(city))
+   }
 
-To further enhance the function, you might want to handle specific errors differently.
-Micro provides methods like `Micro.tryPromise` to handle anticipated errors gracefully.
+   //      ┌─── Micro<string, never, never>
+   //      ▼
+   const weatherEffect = getWeather("London")
 
-```ts twoslash
-import * as Micro from "effect/Micro"
+   Micro.runPromiseExit(weatherEffect).then(
+     // ┌─── MicroExit<string, never>
+     // ▼
+     (exit) => console.log(exit)
+   )
+   /*
+   Output:
+   { _id: 'Either', _tag: 'Right', right: 'Sunny' }
+   */
+   ```
 
-function fetchWeather(city: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (city === "London") {
-        resolve("Sunny")
-      } else {
-        reject(new Error("Weather data not found for this location"))
-      }
-    }, 1_000)
-  })
-}
+4. **Adding Error Handling**
 
-class WeatherError {
-  readonly _tag = "WeatherError"
-  constructor(readonly message: string) {}
-}
+   To further enhance the function, you might want to handle specific errors differently.
+   Micro provides functions like `Micro.tryPromise` to handle anticipated errors gracefully.
 
-function getWeather(city: string) {
-  return Micro.tryPromise({
-    try: () => fetchWeather(city),
-    // remap the error
-    catch: (error) => new WeatherError(String(error))
-  })
-}
+   **Example** (Handling Specific Errors)
 
-const weatherEffect = getWeather("Paris")
+   ```ts twoslash collapse={4-14}
+   import { Micro } from "effect"
 
-Micro.runPromise(weatherEffect)
-  .then((result) => console.log(`The weather in London is: ${result}`))
-  .catch((error) =>
-    console.error(`Failed to fetch weather data: ${error}`)
-  )
-/*
-Output:
-Failed to fetch weather data: MicroCause.Fail: {"_tag":"WeatherError","message":"Error: Weather data not found for this location"}
-*/
-```
+   // Simulate fetching weather data
+   function fetchWeather(city: string): Promise<string> {
+     return new Promise((resolve, reject) => {
+       setTimeout(() => {
+         if (city === "London") {
+           resolve("Sunny")
+         } else {
+           reject(new Error("Weather data not found for this location"))
+         }
+       }, 1_000)
+     })
+   }
+
+   class WeatherError {
+     readonly _tag = "WeatherError"
+     constructor(readonly message: string) {}
+   }
+
+   function getWeather(city: string) {
+     return Micro.tryPromise({
+       try: () => fetchWeather(city),
+       // remap the error
+       catch: (error) => new WeatherError(String(error))
+     })
+   }
+
+   //      ┌─── Micro<string, WeatherError, never>
+   //      ▼
+   const weatherEffect = getWeather("Paris")
+
+   Micro.runPromise(weatherEffect)
+     .then((data) => console.log(`The weather in London is: ${data}`))
+     .catch((error) =>
+       console.error(`Failed to fetch weather data: ${error}`)
+     )
+   /*
+   Output:
+   Failed to fetch weather data: MicroCause.Fail: {"_tag":"WeatherError","message":"Error: Weather data not found for this location"}
+   */
+   ```
+
+</Steps>
 
 ## Expected Errors
 
@@ -288,40 +327,73 @@ These errors, also referred to as _failures_, _typed errors_
 or _recoverable errors_, are errors that developers anticipate as part of the normal program execution.
 They serve a similar purpose to checked exceptions and play a role in defining the program's domain and control flow.
 
-Expected errors **are tracked** at the type level by the `Micro` data type in the "Error" channel.
+Expected errors **are tracked** at the type level by the `Micro` data type in the "Error" channel:
+
+```text showLineNumbers=false "Error"
+        ┌─── Represents the success type
+        │        ┌─── Represents the error type
+        │        │      ┌─── Represents required dependencies
+        ▼        ▼      ▼
+Micro<Success, Error, Requirements>
+```
 
 ### either
 
-The `Micro.either` function transforms an `Micro<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/data-types/either/) data type.
+The `Micro.either` function transforms an `Micro<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/data-types/either/) data type:
+
+```ts showLineNumbers=false
+Micro<A, E, R> -> Micro<Either<A, E>, never, R>
+```
+
+This means if you have an effect with the following type:
+
+```ts showLineNumbers=false
+Micro<string, HttpError, never>
+```
+
+and you call `Micro.either` on it, the type becomes:
+
+```ts showLineNumbers=false
+Micro<Either<string, HttpError>, never, never>
+```
 
 The resulting effect cannot fail because the potential failure is now represented within the `Either`'s `Left` type.
 The error type of the returned `Micro` is specified as `never`, confirming that the effect is structured to not fail.
 
-By yielding an `Either`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function:
+By yielding an `Either`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function.
+
+**Example** (Using `Micro.either` to Handle Errors)
 
 ```ts twoslash
-import * as Either from "effect/Either"
-import * as Micro from "effect/Micro"
+import { Micro, Either } from "effect"
 
-class NetworkError {
-  readonly _tag = "NetworkError"
+class HttpError {
+  readonly _tag = "HttpError"
 }
 
 class ValidationError {
   readonly _tag = "ValidationError"
 }
 
-const task = Micro.gen(function* () {
-  // Simulate network and validation errors
-  if (Math.random() > 0.5) yield* Micro.fail(new NetworkError())
+//      ┌─── Micro<string, HttpError | ValidationError, never>
+//      ▼
+const program = Micro.gen(function* () {
+  // Simulate http and validation errors
+  if (Math.random() > 0.5) yield* Micro.fail(new HttpError())
   if (Math.random() > 0.5) yield* Micro.fail(new ValidationError())
-  return "Success"
+  return "some result"
 })
 
+//      ┌─── Micro<string, never, never>
+//      ▼
 const recovered = Micro.gen(function* () {
-  const failureOrSuccess = yield* Micro.either(task)
+  //      ┌─── Either<string, HttpError | ValidationError>
+  //      ▼
+  const failureOrSuccess = yield* Micro.either(program)
   return Either.match(failureOrSuccess, {
+    // Failure case
     onLeft: (error) => `Recovering from ${error._tag}`,
+    // Success case
     onRight: (value) => `Result is: ${value}`
   })
 })
@@ -337,29 +409,41 @@ Example Output:
 */
 ```
 
+As you can see since all errors are handled, the error type of the resulting effect `recovered` is `never`:
+
+```ts showLineNumbers=false
+const recovered: Micro<string, never, never>
+```
+
 ### catchAll
 
 The `Micro.catchAll` function allows you to catch any error that occurs in the program and provide a fallback.
 
-```ts twoslash
-import * as Micro from "effect/Micro"
+**Example** (Catching All Errors with `Micro.catchAll`)
 
-class NetworkError {
-  readonly _tag = "NetworkError"
+```ts twoslash
+import { Micro } from "effect"
+
+class HttpError {
+  readonly _tag = "HttpError"
 }
 
 class ValidationError {
   readonly _tag = "ValidationError"
 }
 
-const task = Micro.gen(function* () {
-  // Simulate network and validation errors
-  if (Math.random() > 0.5) yield* Micro.fail(new NetworkError())
+//      ┌─── Micro<string, HttpError | ValidationError, never>
+//      ▼
+const program = Micro.gen(function* () {
+  // Simulate http and validation errors
+  if (Math.random() > 0.5) yield* Micro.fail(new HttpError())
   if (Math.random() > 0.5) yield* Micro.fail(new ValidationError())
-  return "Success"
+  return "some result"
 })
 
-const recovered = task.pipe(
+//      ┌─── Micro<string, never, never>
+//      ▼
+const recovered = program.pipe(
   Micro.catchAll((error) =>
     Micro.succeed(`Recovering from ${error._tag}`)
   )
@@ -368,35 +452,49 @@ const recovered = task.pipe(
 Micro.runPromiseExit(recovered).then(console.log)
 /*
 Example Output:
-{ _id: 'Either', _tag: 'Right', right: 'Recovering from NetworkError' }
+{ _id: 'Either', _tag: 'Right', right: 'Recovering from HttpError' }
 */
 ```
 
+We can observe that the type in the error channel of our program has changed to `never`:
+
+```ts showLineNumbers=false
+const recovered: Micro<string, never, never>
+```
+
+indicating that all errors have been handled.
+
 ### catchTag
 
-If your program's errors are all tagged with a `_tag` field that acts as a discriminator (recommended) you can use the `Effect.catchTag` function to catch and handle specific errors with precision.
+If your program's errors are **all tagged** with a `_tag` field that acts as a discriminator you can use the `Effect.catchTag` function to catch and handle specific errors with precision.
+
+**Example** (Handling Errors by Tag with `Micro.catchTag`)
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-class NetworkError {
-  readonly _tag = "NetworkError"
+class HttpError {
+  readonly _tag = "HttpError"
 }
 
 class ValidationError {
   readonly _tag = "ValidationError"
 }
 
-const task = Micro.gen(function* () {
-  // Simulate network and validation errors
-  if (Math.random() > 0.5) yield* Micro.fail(new NetworkError())
+//      ┌─── Micro<string, HttpError | ValidationError, never>
+//      ▼
+const program = Micro.gen(function* () {
+  // Simulate http and validation errors
+  if (Math.random() > 0.5) yield* Micro.fail(new HttpError())
   if (Math.random() > 0.5) yield* Micro.fail(new ValidationError())
   return "Success"
 })
 
-const recovered = task.pipe(
-  Micro.catchTag("ValidationError", (_error) =>
-    Micro.succeed("Recovering from ValidationError")
+//      ┌─── Micro<string, ValidationError, never>
+//      ▼
+const recovered = program.pipe(
+  Micro.catchTag("HttpError", (_HttpError) =>
+    Micro.succeed("Recovering from HttpError")
   )
 )
 
@@ -406,10 +504,22 @@ Example Output:
 {
   _id: 'Either',
   _tag: 'Right',
-  right: 'Recovering from ValidationError'
+  right: 'Recovering from HttpError'
 }
 */
 ```
+
+In the example above, the `Micro.catchTag` function allows us to handle `HttpError` specifically.
+If a `HttpError` occurs during the execution of the program, the provided error handler function will be invoked,
+and the program will proceed with the recovery logic specified within the handler.
+
+We can observe that the type in the error channel of our program has changed to only show `ValidationError`:
+
+```ts showLineNumbers=false
+const recovered: Micro<string, ValidationError, never>
+```
+
+indicating that `HttpError` has been handled.
 
 ## Unexpected Errors
 
@@ -423,47 +533,65 @@ However, the Effect runtime does keep track of these errors and provides several
 
 ### die
 
+The `Micro.die` function returns an effect that throws a specified error. This function is useful for terminating a program when a defect, a critical and unexpected error, is detected in the code.
+
+**Example** (Terminating on Division by Zero with `Effect.die`)
+
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const divide = (a: number, b: number): Micro.Micro<number> =>
   b === 0
     ? Micro.die(new Error("Cannot divide by zero"))
     : Micro.succeed(a / b)
 
-Micro.runSync(divide(1, 0)) // throws Error: Cannot divide by zero
+Micro.runPromise(divide(1, 0))
+// throws Error: Cannot divide by zero
 ```
 
 ### orDie
 
+The `Micro.orDie` function converts an effect's failure into a termination of the program, removing the error from the type of the effect. It is useful when you encounter failures that you do not intend to handle or recover from.
+
+**Example** (Converting Failure to Defect with `Micro.orDie`)
+
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const divide = (a: number, b: number): Micro.Micro<number, Error> =>
   b === 0
     ? Micro.fail(new Error("Cannot divide by zero"))
     : Micro.succeed(a / b)
 
+//      ┌─── Micro<number, never, never>
+//      ▼
 const program = Micro.orDie(divide(1, 0))
 
-Micro.runSync(program) // throws Error: Cannot divide by zero
+Micro.runPromise(program)
+// throws Error: Cannot divide by zero
 ```
 
 ### catchAllDefect
 
+The `Micro.catchAllDefect` function allows you to recover from all defects using a provided function.
+
+**Example** (Handling All Defects with `Micro.catchAllDefect`)
+
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-const consoleLog = (message: string) =>
-  Micro.sync(() => console.log(message))
+// Helper function to log a message
+const log = (message: string) => Micro.sync(() => console.log(message))
 
-const program = Micro.catchAllDefect(
-  Micro.die("Boom!"), // Simulating a runtime error
-  (defect) => consoleLog(`Unknown defect caught: ${defect}`)
+// Simulating a runtime error
+const task = Micro.die("Boom!")
+
+const program = Micro.catchAllDefect(task, (defect) =>
+  log(`Unknown defect caught: ${defect}`)
 )
 
-// We get an Either.Right because we caught all defects
-Micro.runPromiseExit(program).then(console.log)
+// We get a Right because we caught all defects
+Micro.runPromiseExit(program).then((exit) => console.log(exit))
 /*
 Output:
 Unknown defect caught: Boom!
@@ -471,74 +599,89 @@ Unknown defect caught: Boom!
 */
 ```
 
+It's important to understand that `Micro.catchAllDefect` can only handle defects, not expected errors (such as those caused by `Micro.fail`) or interruptions in execution (such as when using `Micro.interrupt`).
+
+A defect refers to an error that cannot be anticipated in advance, and there is no reliable way to respond to it. As a general rule, it's recommended to let defects crash the application, as they often indicate serious issues that need to be addressed.
+
+However, in some specific cases, such as when dealing with dynamically loaded plugins, a controlled recovery approach might be necessary. For example, if our application supports runtime loading of plugins and a defect occurs within a plugin, we may choose to log the defect and then reload only the affected plugin instead of crashing the entire application. This allows for a more resilient and uninterrupted operation of the application.
+
 ## Fallback
 
 ### orElseSucceed
 
-The `Micro.orElseSucceed` function will always replace the original failure with a success value, so the resulting effect cannot fail:
+The `Effect.orElseSucceed` function will replace the original failure with a success value, ensuring the effect cannot fail:
+
+**Example** (Replacing Failure with Success using `Micro.orElseSucceed`)
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-class NegativeAgeError {
-  readonly _tag = "NegativeAgeError"
-  constructor(readonly age: number) {}
-}
-
-class IllegalAgeError {
-  readonly _tag = "IllegalAgeError"
-  constructor(readonly age: number) {}
-}
-
-const validate = (
-  age: number
-): Micro.Micro<number, NegativeAgeError | IllegalAgeError> => {
+const validate = (age: number): Micro.Micro<number, string> => {
   if (age < 0) {
-    return Micro.fail(new NegativeAgeError(age))
+    return Micro.fail("NegativeAgeError")
   } else if (age < 18) {
-    return Micro.fail(new IllegalAgeError(age))
+    return Micro.fail("IllegalAgeError")
   } else {
     return Micro.succeed(age)
   }
 }
 
-const program = Micro.orElseSucceed(validate(3), () => 0)
+const program = Micro.orElseSucceed(validate(-1), () => 18)
+
+console.log(Micro.runSyncExit(program))
+/*
+Output:
+{ _id: 'Either', _tag: 'Right', right: 18 }
+*/
 ```
 
 ## Matching
 
 ### match
 
+The `Micro.match` function lets you handle both success and failure cases without performing side effects. You provide a handler for each case.
+
+**Example** (Handling Both Success and Failure Cases)
+
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const success: Micro.Micro<number, Error> = Micro.succeed(42)
-const failure: Micro.Micro<number, Error> = Micro.fail(
-  new Error("Uh oh!")
-)
 
 const program1 = Micro.match(success, {
   onFailure: (error) => `failure: ${error.message}`,
   onSuccess: (value) => `success: ${value}`
 })
 
-Micro.runPromise(program1).then(console.log) // Output: "success: 42"
+// Run and log the result of the successful effect
+Micro.runPromise(program1).then(console.log)
+// Output: "success: 42"
+
+const failure: Micro.Micro<number, Error> = Micro.fail(
+  new Error("Uh oh!")
+)
 
 const program2 = Micro.match(failure, {
   onFailure: (error) => `failure: ${error.message}`,
   onSuccess: (value) => `success: ${value}`
 })
 
-Micro.runPromise(program2).then(console.log) // Output: "failure: Uh oh!"
+// Run and log the result of the failed effect
+Micro.runPromise(program2).then(console.log)
+// Output: "failure: Uh oh!"
 ```
 
 ### matchEffect
 
-```ts twoslash
-import * as Micro from "effect/Micro"
+The `Micro.matchEffect` function, similar to `Micro.match`, allows you to handle both success and failure cases, but it also enables you to perform additional side effects within those handlers.
 
-const consoleLog = (message: string) =>
-  Micro.sync(() => console.log(message))
+**Example** (Handling Success and Failure with Side Effects)
+
+```ts twoslash
+import { Micro } from "effect"
+
+// Helper function to log a message
+const log = (message: string) => Micro.sync(() => console.log(message))
 
 const success: Micro.Micro<number, Error> = Micro.succeed(42)
 const failure: Micro.Micro<number, Error> = Micro.fail(
@@ -547,11 +690,9 @@ const failure: Micro.Micro<number, Error> = Micro.fail(
 
 const program1 = Micro.matchEffect(success, {
   onFailure: (error) =>
-    Micro.succeed(`failure: ${error.message}`).pipe(
-      Micro.tap(consoleLog)
-    ),
+    Micro.succeed(`failure: ${error.message}`).pipe(Micro.tap(log)),
   onSuccess: (value) =>
-    Micro.succeed(`success: ${value}`).pipe(Micro.tap(consoleLog))
+    Micro.succeed(`success: ${value}`).pipe(Micro.tap(log))
 })
 
 Micro.runSync(program1)
@@ -562,11 +703,9 @@ success: 42
 
 const program2 = Micro.matchEffect(failure, {
   onFailure: (error) =>
-    Micro.succeed(`failure: ${error.message}`).pipe(
-      Micro.tap(consoleLog)
-    ),
+    Micro.succeed(`failure: ${error.message}`).pipe(Micro.tap(log)),
   onSuccess: (value) =>
-    Micro.succeed(`success: ${value}`).pipe(Micro.tap(consoleLog))
+    Micro.succeed(`success: ${value}`).pipe(Micro.tap(log))
 })
 
 Micro.runSync(program2)
@@ -578,55 +717,51 @@ failure: Uh oh!
 
 ### matchCause / matchCauseEffect
 
+The `Micro.matchCause` and `Micro.matchCauseEffect` functions allow you to handle failures more precisely by providing access to the complete cause of failure within a fiber. This makes it possible to differentiate between various failure types and respond accordingly.
+
+**Example** (Handling Different Failure Causes with `Micro.matchCauseEffect`)
+
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-declare const exceptionalEffect: Micro.Micro<void, Error>
+// Helper function to log a message
+const log = (message: string) => Micro.sync(() => console.log(message))
 
-const consoleLog = (message: string) =>
-  Micro.sync(() => console.log(message))
+const task: Micro.Micro<number, Error> = Micro.die("Uh oh!")
 
-const program = Micro.matchCauseEffect(exceptionalEffect, {
+const program = Micro.matchCauseEffect(task, {
   onFailure: (cause) => {
     switch (cause._tag) {
       case "Fail":
-        return consoleLog(`Fail: ${cause.error.message}`)
+        // Handle standard failure with a logged message
+        return log(`Fail: ${cause.error.message}`)
       case "Die":
-        return consoleLog(`Die: ${cause.defect}`)
+        // Handle defects (unexpected errors) by logging the defect
+        return log(`Die: ${cause.defect}`)
       case "Interrupt":
-        return consoleLog("interrupted!")
+        // Handle interruption
+        return log("Interrupt")
     }
   },
-  onSuccess: (value) => consoleLog(`succeeded with ${value} value`)
+  onSuccess: (value) =>
+    // Log success if the task completes successfully
+    log(`succeeded with ${value} value`)
 })
+
+Micro.runSync(program)
+// Output: "Die: Uh oh!"
 ```
 
 ## Retrying
 
-To demonstrate the functionality of the `Micro.retry` function, we will be working with the following helper that simulates an effect with possible failures:
-
-```ts twoslash
-import * as Micro from "effect/Micro"
-
-let count = 0
-
-// Simulates an effect with possible failures
-const effect = Micro.async<string, Error>((resume) => {
-  if (count <= 2) {
-    count++
-    console.log("failure")
-    resume(Micro.fail(new Error()))
-  } else {
-    console.log("success")
-    resume(Micro.succeed("yay!"))
-  }
-})
-```
-
 ### retry
 
+The `Micro.retry` function allows you to retry a failing effect according to a defined policy.
+
+**Example** (Retrying with a Fixed Delay)
+
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 let count = 0
 
@@ -660,32 +795,39 @@ yay!
 
 ## Sandboxing
 
-The `Micro.sandbox` function allows you to encapsulate all the potential causes of an error in an effect.
-It exposes the full `MicroCause` of an effect, whether it's due to a failure, fiber interruption, or defect.
+The `Micro.sandbox` function allows you to encapsulate all the potential causes of an error in an effect. It exposes the full cause of an effect, whether it's due to a failure, defect or interruption.
+
+In simple terms, it takes an effect `Micro<A, E, R>` and transforms it into an effect `Micro<A, MicroCause<E>, R>` where the error channel now contains a detailed cause of the error.
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-const consoleLog = (message: string) =>
-  Micro.sync(() => console.log(message))
+// Helper function to log a message
+const log = (message: string) => Micro.sync(() => console.log(message))
 
-const effect = Micro.fail("Oh uh!").pipe(Micro.as("primary result"))
+//      ┌─── Micro<string, Error, never>
+//      ▼
+const task = Micro.fail(new Error("Oh uh!")).pipe(
+  Micro.as("primary result")
+)
 
-const sandboxed = Micro.sandbox(effect)
+//      ┌─── Effect<string, MicroCause<Error>, never>
+//      ▼
+const sandboxed = Micro.sandbox(task)
 
 const program = sandboxed.pipe(
   Micro.catchTag("Fail", (cause) =>
-    consoleLog(`Caught a defect: ${cause.error}`).pipe(
+    log(`Caught a defect: ${cause.error}`).pipe(
       Micro.as("fallback result on expected error")
     )
   ),
   Micro.catchTag("Interrupt", () =>
-    consoleLog(`Caught a defect`).pipe(
+    log(`Caught a defect`).pipe(
       Micro.as("fallback result on fiber interruption")
     )
   ),
   Micro.catchTag("Die", (cause) =>
-    consoleLog(`Caught a defect: ${cause.defect}`).pipe(
+    log(`Caught a defect: ${cause.defect}`).pipe(
       Micro.as("fallback result on unexpected error")
     )
   )
@@ -694,7 +836,7 @@ const program = sandboxed.pipe(
 Micro.runPromise(program).then(console.log)
 /*
 Output:
-Caught a defect: Oh uh!
+Caught a defect: Error: Oh uh!
 fallback result on expected error
 */
 ```
@@ -705,19 +847,20 @@ fallback result on expected error
 
 Executes an effectful operation to inspect the failure of an effect without altering it.
 
+**Example** (Inspecting Errors)
+
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-const consoleLog = (message: string) =>
-  Micro.sync(() => console.log(message))
+// Helper function to log a message
+const log = (message: string) => Micro.sync(() => console.log(message))
 
-// Create an effect that is designed to fail, simulating an occurrence of a network error
+// Simulate a task that fails with an error
 const task: Micro.Micro<number, string> = Micro.fail("NetworkError")
 
-// Log the error message if the task fails. This function only executes if there is an error,
-// providing a method to handle or inspect errors without altering the outcome of the original effect.
+// Use tapError to log the error message when the task fails
 const tapping = Micro.tapError(task, (error) =>
-  consoleLog(`expected error: ${error}`)
+  log(`expected error: ${error}`)
 )
 
 Micro.runFork(tapping)
@@ -729,19 +872,21 @@ expected error: NetworkError
 
 ### tapErrorCause
 
-Inspects the underlying cause of an effect's failure.
+This function inspects the complete cause of an error, including failures and defects.
+
+**Example** (Inspecting Error Causes)
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-const consoleLog = (message: string) =>
-  Micro.sync(() => console.log(message))
+// Helper function to log a message
+const log = (message: string) => Micro.sync(() => console.log(message))
 
-// Create an effect that is designed to fail, simulating an occurrence of a network error
+// Create a task that fails with a NetworkError
 const task1: Micro.Micro<number, string> = Micro.fail("NetworkError")
-// This will log the cause of any expected error or defect
+
 const tapping1 = Micro.tapErrorCause(task1, (cause) =>
-  consoleLog(`error cause: ${cause}`)
+  log(`error cause: ${cause}`)
 )
 
 Micro.runFork(tapping1)
@@ -750,14 +895,13 @@ Output:
 error cause: MicroCause.Fail: NetworkError
 */
 
-// Simulate a severe failure in the system by causing a defect with a specific message.
+// Simulate a severe failure in the system
 const task2: Micro.Micro<number, string> = Micro.die(
   "Something went wrong"
 )
 
-// This will log the cause of any expected error or defect
 const tapping2 = Micro.tapErrorCause(task2, (cause) =>
-  consoleLog(`error cause: ${cause}`)
+  log(`error cause: ${cause}`)
 )
 
 Micro.runFork(tapping2)
@@ -769,20 +913,22 @@ error cause: MicroCause.Die: Something went wrong
 
 ### tapDefect
 
-Specifically inspects non-recoverable failures or defects in an effect.
+Specifically inspects non-recoverable failures or defects in an effect (i.e., one or more [Die](/docs/data-types/cause/#die) causes).
+
+**Example** (Inspecting Defects)
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-const consoleLog = (message: string) =>
-  Micro.sync(() => console.log(message))
+// Helper function to log a message
+const log = (message: string) => Micro.sync(() => console.log(message))
 
-// Create an effect that is designed to fail, simulating an occurrence of a network error
+// Simulate a task that fails with a recoverable error
 const task1: Micro.Micro<number, string> = Micro.fail("NetworkError")
 
-// this won't log anything because is not a defect
+// tapDefect won't log anything because NetworkError is not a defect
 const tapping1 = Micro.tapDefect(task1, (cause) =>
-  consoleLog(`defect: ${cause}`)
+  log(`defect: ${cause}`)
 )
 
 Micro.runFork(tapping1)
@@ -790,14 +936,14 @@ Micro.runFork(tapping1)
 No Output
 */
 
-// Simulate a severe failure in the system by causing a defect with a specific message.
+// Simulate a severe failure in the system
 const task2: Micro.Micro<number, string> = Micro.die(
   "Something went wrong"
 )
 
-// This will only log defects, not errors
+// Log the defect using tapDefect
 const tapping2 = Micro.tapDefect(task2, (cause) =>
-  consoleLog(`defect: ${cause}`)
+  log(`defect: ${cause}`)
 )
 
 Micro.runFork(tapping2)
@@ -809,19 +955,23 @@ defect: Something went wrong
 
 ## Yieldable Errors
 
-"Yieldable Errors" are special types of errors that can be yielded within a generator function used by `Micro.gen`.
-The unique feature of these errors is that you don't need to use the `Micro.fail` API explicitly to handle them.
-They offer a more intuitive and convenient way to work with custom errors in your code.
+Yieldable Errors are special types of errors that can be yielded directly within a generator function using `Micro.gen`.
+These errors allow you to handle them intuitively, without needing to explicitly invoke `Micro.fail`. This simplifies how you manage custom errors in your code.
 
 ### Error
 
-```ts twoslash
-import * as Micro from "effect/Micro"
+The `Error` constructor provides a way to define a base class for yieldable errors.
 
+**Example** (Creating and Yielding a Custom Error)
+
+```ts twoslash
+import { Micro } from "effect"
+
+// Define a custom error class extending Error
 class MyError extends Micro.Error<{ message: string }> {}
 
 export const program = Micro.gen(function* () {
-  // same as yield* Effect.fail(new MyError({ message: "Oh no!" })
+  // Yield a custom error (equivalent to failing with MyError)
   yield* new MyError({ message: "Oh no!" })
 })
 
@@ -839,8 +989,12 @@ Output:
 
 ### TaggedError
 
+The `TaggedError` constructor lets you define custom yieldable errors with unique tags. Each error has a `_tag` property, allowing you to easily distinguish between different error types. This makes it convenient to handle specific tagged errors using functions like `Micro.catchTag`.
+
+**Example** (Handling Multiple Tagged Errors)
+
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 // An error with _tag: "Foo"
 class FooError extends Micro.TaggedError("Foo")<{
@@ -860,6 +1014,7 @@ export const program = Micro.gen(function* () {
     ? yield* new FooError({ message: "Oh no!" })
     : yield* new BarError({ randomNumber: n })
 }).pipe(
+  // Handle different tagged errors using catchTag
   Micro.catchTag("Foo", (error) =>
     Micro.succeed(`Foo error: ${error.message}`)
   ),
@@ -892,28 +1047,33 @@ To create a new service, you need two things:
 - A type describing the possible operations of the service.
 
 ```ts twoslash
-import * as Context from "effect/Context"
-import * as Micro from "effect/Micro"
+import { Micro, Context } from "effect"
 
-// Define a service using a unique identifier
+// Declaring a tag for a service that generates random numbers
 class Random extends Context.Tag("MyRandomService")<
   Random,
-  { readonly next: Micro.Micro<number> } // Operations
+  { readonly next: Micro.Micro<number> }
 >() {}
 ```
 
 Now that we have our service tag defined, let's see how we can use it by building a simple program.
 
+**Example** (Using a Custom Service in a Program)
+
 ```ts twoslash
 import * as Context from "effect/Context"
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-// Define a service using a unique identifier
+// Declaring a tag for a service that generates random numbers
 class Random extends Context.Tag("MyRandomService")<
   Random,
-  { readonly next: Micro.Micro<number> } // Operations
+  { readonly next: Micro.Micro<number> }
 >() {}
 
+// Using the service
+//
+//      ┌─── Micro<void, never, Random>
+//      ▼
 const program = Micro.gen(function* () {
   // Access the Random service
   const random = yield* Micro.service(Random)
@@ -925,22 +1085,28 @@ const program = Micro.gen(function* () {
 })
 ```
 
-It's worth noting that the type of the `program` variable includes `Random` in the `Requirements` type parameter: `Micro<void, never, Random>`.
+It's worth noting that the type of the `program` variable includes `Random` in the `Requirements` type parameter:
+
+```ts "Random" showLineNumbers=false
+const program: Micro<void, never, Random>
+```
 
 This indicates that our program requires the `Random` service to be provided in order to execute successfully.
 
 To successfully execute the program, we need to provide an actual implementation of the `Random` service.
 
-```ts twoslash
-import * as Context from "effect/Context"
-import * as Micro from "effect/Micro"
+**Example** (Providing and Using a Service)
 
-// Define a service using a unique identifier
+```ts twoslash
+import { Micro, Context } from "effect"
+
+// Declaring a tag for a service that generates random numbers
 class Random extends Context.Tag("MyRandomService")<
   Random,
-  { readonly next: Micro.Micro<number> } // Operations
+  { readonly next: Micro.Micro<number> }
 >() {}
 
+// Using the service
 const program = Micro.gen(function* () {
   // Access the Random service
   const random = yield* Micro.service(Random)
@@ -951,12 +1117,14 @@ const program = Micro.gen(function* () {
   console.log(`random number: ${randomNumber}`)
 })
 
-// Provide the Random service implementation
+// Providing the implementation
+//
+//      ┌─── Micro<void, never, never>
+//      ▼
 const runnable = Micro.provideService(program, Random, {
   next: Micro.sync(() => Math.random())
 })
 
-// Execute the program and print the random number
 Micro.runPromise(runnable)
 /*
 Example Output:
@@ -972,26 +1140,24 @@ In simple terms, a `MicroScope` represents the lifetime of one or more resources
 
 With the `MicroScope` data type, you can:
 
-- **Add finalizers**, which represent the release of a resource.
-- **Close** the scope, releasing all acquired resources and executing any added finalizers.
+- **Add finalizers**: A finalizer specifies the cleanup logic for a resource.
+- **Close the scope**: When the scope is closed, all resources are released, and the finalizers are executed.
+
+**Example** (Managing a Scope)
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-const consoleLog = (message: string) =>
-  Micro.sync(() => console.log(message))
+// Helper function to log a message
+const log = (message: string) => Micro.sync(() => console.log(message))
 
 const program =
   // create a new scope
   Micro.scopeMake.pipe(
     // add finalizer 1
-    Micro.tap((scope) =>
-      scope.addFinalizer(() => consoleLog("finalizer 1"))
-    ),
+    Micro.tap((scope) => scope.addFinalizer(() => log("finalizer 1"))),
     // add finalizer 2
-    Micro.tap((scope) =>
-      scope.addFinalizer(() => consoleLog("finalizer 2"))
-    ),
+    Micro.tap((scope) => scope.addFinalizer(() => log("finalizer 2"))),
     // close the scope
     Micro.andThen((scope) =>
       scope.close(Micro.exitSucceed("scope closed successfully"))
@@ -1006,30 +1172,33 @@ finalizer 1
 */
 ```
 
-By default, when a `MicroScope` is closed, all finalizers added to that `MicroScope` are executed in the reverse order in which they were added. This approach makes sense because releasing resources in the reverse order of acquisition ensures that resources are properly closed.
+In the above example, finalizers are added to the scope, and when the scope is closed, the finalizers are **executed in the reverse order**.
 
-For instance, if you open a network connection and then access a file on a remote server, you must close the file before closing the network connection. This sequence is critical to maintaining the ability to interact with the remote server.
+This reverse order is important because it ensures that resources are released in the correct sequence.
+
+For instance, if you acquire a network connection and then access a file on a remote server, the file must be closed before the network connection to avoid errors.
 
 ### addFinalizer
 
-The `Micro.addFinalizer` function provides a higher-level API for adding finalizers to the scope of a `Micro` value.
-These finalizers are guaranteed to execute when the associated scope is closed, and their behavior may depend on the `MicroExit` value with which the scope is closed.
+The `Micro.addFinalizer` function is a high-level API that allows you to add finalizers to the scope of an effect. A finalizer is a piece of code that is guaranteed to run when the associated scope is closed. The behavior of the finalizer can vary based on the `MicroExit` value, which represents how the scope was closed—whether successfully or with an error.
 
-Let's observe how things behave in the event of success:
+**Example** (Adding a Finalizer on Success)
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-const consoleLog = (message: string) =>
-  Micro.sync(() => console.log(message))
+// Helper function to log a message
+const log = (message: string) => Micro.sync(() => console.log(message))
 
+//      ┌─── Micro<string, never, MicroScope>
+//      ▼
 const program = Micro.gen(function* () {
-  yield* Micro.addFinalizer((exit) =>
-    consoleLog(`finalizer after ${exit._tag}`)
-  )
-  return 1
+  yield* Micro.addFinalizer((exit) => log(`finalizer after ${exit._tag}`))
+  return "some result"
 })
 
+//      ┌─── Micro<string, never, never>
+//      ▼
 const runnable = Micro.scoped(program)
 
 Micro.runPromise(runnable).then(console.log, console.error)
@@ -1042,16 +1211,16 @@ finalizer after Right
 
 Next, let's explore how things behave in the event of a failure:
 
-```ts twoslash
-import * as Micro from "effect/Micro"
+**Example** (Adding a Finalizer on Failure)
 
-const consoleLog = (message?: any, ...optionalParams: Array<any>) =>
-  Micro.sync(() => console.log(message, ...optionalParams))
+```ts twoslash
+import { Micro } from "effect"
+
+// Helper function to log a message
+const log = (message: string) => Micro.sync(() => console.log(message))
 
 const program = Micro.gen(function* () {
-  yield* Micro.addFinalizer((exit) =>
-    consoleLog(`finalizer after ${exit._tag}`)
-  )
+  yield* Micro.addFinalizer((exit) => log(`finalizer after ${exit._tag}`))
   return yield* Micro.fail("Uh oh!")
 })
 
@@ -1080,18 +1249,18 @@ This is important because if we allowed interruption during resource acquisition
 
 The guarantee of the `Micro.acquireRelease` operator is that if the `acquire` workflow successfully completes execution then the `release` workflow is guaranteed to be run when the `Scope` is closed.
 
-For example, let's define a simple resource:
+**Example** (Defining a Simple Resource)
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
-// Define the interface for the resource
+// Define an interface for a resource
 interface MyResource {
   readonly contents: string
   readonly close: () => Promise<void>
 }
 
-// Simulate getting the resource
+// Simulate resource acquisition
 const getMyResource = (): Promise<MyResource> =>
   Promise.resolve({
     contents: "lorem ipsum",
@@ -1102,7 +1271,7 @@ const getMyResource = (): Promise<MyResource> =>
       })
   })
 
-// Define the acquisition of the resource with error handling
+// Define how the resource is acquired
 const acquire = Micro.tryPromise({
   try: () =>
     getMyResource().then((res) => {
@@ -1112,11 +1281,17 @@ const acquire = Micro.tryPromise({
   catch: () => new Error("getMyResourceError")
 })
 
-// Define the release of the resource
+// Define how the resource is released
 const release = (res: MyResource) => Micro.promise(() => res.close())
 
+// Create the resource management workflow
+//
+//      ┌─── Micro<MyResource, Error, MicroScope>
+//      ▼
 const resource = Micro.acquireRelease(acquire, release)
 
+//      ┌─── Micro<void, Error, never>
+//      ▼
 const program = Micro.scoped(
   Micro.gen(function* () {
     const res = yield* resource
@@ -1140,10 +1315,10 @@ The `Micro.acquireUseRelease(acquire, use, release)` function is a specialized v
 
 The main difference is that `acquireUseRelease` eliminates the need to manually call `Micro.scoped` to manage the resource's scope. It has additional knowledge about when you are done using the resource created with the `acquire` step. This is achieved by providing a `use` argument, which represents the function that operates on the acquired resource. As a result, `acquireUseRelease` can automatically determine when it should execute the release step.
 
-Here's an example that demonstrates the usage of `acquireUseRelease`:
+**Example** (Automatically Managing Resource Lifetime)
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 // Define the interface for the resource
 interface MyResource {
@@ -1178,6 +1353,8 @@ const release = (res: MyResource) => Micro.promise(() => res.close())
 const use = (res: MyResource) =>
   Micro.sync(() => console.log(`content is ${res.contents}`))
 
+//      ┌─── Micro<void, Error, never>
+//      ▼
 const program = Micro.acquireUseRelease(acquire, use, release)
 
 Micro.runPromise(program)
@@ -1203,7 +1380,7 @@ The `Micro.repeat` function returns a new effect that repeats the given effect a
 **Success Example**
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const action = Micro.sync(() => console.log("success"))
 
@@ -1223,7 +1400,7 @@ success
 **Failure Example**
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 let count = 0
 
@@ -1285,7 +1462,7 @@ const dryRun = (
 A schedule that recurs continuously, each repetition spaced the specified duration from the last run.
 
 ```ts twoslash collapse={4-20}
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 import * as Option from "effect/Option"
 
 const dryRun = (
@@ -1323,7 +1500,7 @@ Output:
 A schedule that recurs using exponential backoff.
 
 ```ts twoslash collapse={4-20}
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 import * as Option from "effect/Option"
 
 const dryRun = (
@@ -1362,7 +1539,7 @@ Output:
 Combines two schedules through union, by recurring if either schedule wants to recur, using the minimum of the two delays between recurrences.
 
 ```ts twoslash collapse={4-20}
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 import * as Option from "effect/Option"
 
 const dryRun = (
@@ -1408,7 +1585,7 @@ Output:
 Combines two schedules through the intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences.
 
 ```ts twoslash collapse={4-20}
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 import * as Option from "effect/Option"
 
 const dryRun = (
@@ -1459,7 +1636,7 @@ When you fork an effect, it starts executing the effect on a new fiber, giving y
 The following code demonstrates how to create a single fiber using the `Micro.fork` function. This fiber will execute the function `fib(100)` independently of the main fiber:
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const fib = (n: number): Micro.Micro<number> =>
   Micro.suspend(() => {
@@ -1478,7 +1655,7 @@ A common operation with fibers is joining them using the `.join` property.
 This property returns a `Micro` that will succeed or fail based on the outcome of the fiber it joins:
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const fib = (n: number): Micro.Micro<number> =>
   Micro.suspend(() => {
@@ -1505,7 +1682,7 @@ Another useful property for fibers is `.await`.
 This property returns an effect containing a `MicroExit` value, which provides detailed information about how the fiber completed.
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const fib = (n: number): Micro.Micro<number> =>
   Micro.suspend(() => {
@@ -1533,7 +1710,7 @@ If a fiber's result is no longer needed, it can be interrupted, which immediatel
 Similar to `.await`, `.interrupt` returns a `MicroExit` value describing how the fiber completed.
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const program = Micro.gen(function* () {
   const fiber = yield* Micro.fork(Micro.forever(Micro.succeed("Hi!")))
@@ -1557,7 +1734,7 @@ Output
 The `Micro.race` function lets you race multiple effects concurrently and returns the result of the first one that successfully completes.
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const task1 = Micro.delay(Micro.fail("task1"), 1_000)
 const task2 = Micro.delay(Micro.succeed("task2"), 2_000)
@@ -1574,7 +1751,7 @@ task2
 If you need to handle the first effect to complete, whether it succeeds or fails, you can use the `Micro.either` function.
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const task1 = Micro.delay(Micro.fail("task1"), 1_000)
 const task2 = Micro.delay(Micro.succeed("task2"), 2_000)
@@ -1593,7 +1770,7 @@ Output:
 **Interruptible Operation**: If the operation can be interrupted, it is terminated immediately once the timeout threshold is reached, resulting in a `TimeoutException`.
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const myEffect = Micro.gen(function* () {
   console.log("Start processing...")
@@ -1619,7 +1796,7 @@ Output:
 **Uninterruptible Operation**: If the operation is uninterruptible, it continues until completion before the `TimeoutException` is assessed.
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const myEffect = Micro.gen(function* () {
   console.log("Start processing...")
@@ -1648,10 +1825,10 @@ Processing complete.
 */
 ```
 
-### Calling Effect.interrupt
+### Calling Micro.interrupt
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const program = Micro.gen(function* () {
   console.log("waiting 1 second")
@@ -1677,7 +1854,7 @@ waiting 1 second
 ### Interruption of Concurrent Effects
 
 ```ts twoslash
-import * as Micro from "effect/Micro"
+import { Micro } from "effect"
 
 const program = Micro.forEach(
   [1, 2, 3],
