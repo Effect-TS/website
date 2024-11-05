@@ -11,6 +11,8 @@ If you are coming to Effect from ZIO, there are a few differences to be aware of
 
 In Effect, we represent the environment required to run an effect workflow as a **union** of services:
 
+**Example** (Defining the Environment with a Union of Services)
+
 ```ts twoslash "Console | Logger"
 import { Effect } from "effect"
 
@@ -36,7 +38,7 @@ type Response = Record<string, string>
 type Http = Effect.Effect<Response, IOError | HttpError, Console | Logger>
 ```
 
-This may be confusing to folks coming from ZIO, where the environment is represented as an intersection of services:
+This may be confusing to folks coming from ZIO, where the environment is represented as an **intersection** of services:
 
 ```scala showLineNumbers=false
 type Http = ZIO[Console with Logger, IOError, Response]
@@ -47,6 +49,8 @@ type Http = ZIO[Console with Logger, IOError, Response]
 The rationale for using a union to represent the environment required by an `Effect` workflow boils down to our desire to remove `Has` as a wrapper for services in the environment (similar to what was achieved in ZIO 2.0).
 
 To be able to remove `Has` from Effect, we had to think a bit more structurally given that TypeScript is a structural type system. In TypeScript, if you have a type `A & B` where there is a structural conflict between `A` and `B`, the type `A & B` will reduce to `never`.
+
+**Example** (Intersection Type Conflict)
 
 ```ts twoslash
 interface A {
