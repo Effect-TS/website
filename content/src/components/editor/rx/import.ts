@@ -1,6 +1,7 @@
 import { Rx } from "@effect-rx/rx-react"
 import * as FetchHttpClient from "@effect/platform/FetchHttpClient"
 import * as Effect from "effect/Effect"
+import * as Encoding from "effect/Encoding"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as String from "effect/String"
@@ -75,11 +76,6 @@ function makeDefaultWorkspace() {
   return defaultWorkspace.withName(`playground-${Date.now()}`)
 }
 
-function base64ToBytes(base64: string) {
-  const binString = atob(base64)
-  return Uint8Array.from(binString, (char) => char.codePointAt(0)!)
-}
-
 export const importRx = runtime.rx((get) =>
   Effect.gen(function*() {
     const hash = get(hashRx)
@@ -87,7 +83,7 @@ export const importRx = runtime.rx((get) =>
       const params = new URLSearchParams(window.location.search)
       if (params.has("code")) {
         const code = params.get("code")!
-        const content = new TextDecoder().decode(base64ToBytes(code))
+        const content = yield* Encoding.decodeBase64UrlString(code)
         const node = makeFile("main.ts", content, false)
         console.log({ code, content })
         return defaultWorkspace.replaceNode(main, node)
