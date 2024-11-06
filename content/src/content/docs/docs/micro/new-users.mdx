@@ -74,7 +74,7 @@ bun add effect
 
 </Tabs>
 
-Micro is a component of the Effect library and can be imported similarly to any other module in your TypeScript project:
+Micro is a part of the Effect library and can be imported just like any other module:
 
 ```ts showLineNumbers=false
 import { Micro } from "effect"
@@ -1437,6 +1437,19 @@ Resource released
 ```
 
 ## Scheduling
+
+### MicroSchedule
+
+The `MicroSchedule` type represents a function that can be used to calculate the delay between
+repeats.
+
+```ts showLineNumbers=false
+type MicroSchedule = (attempt: number, elapsed: number) => Option<number>
+```
+
+The function takes the current attempt number and the elapsed time since
+the first attempt, and returns the delay for the next attempt. If the
+function returns `None`, the repetition will stop.
 
 ### repeat
 
