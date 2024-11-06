@@ -793,6 +793,77 @@ yay!
 */
 ```
 
+## Timing out
+
+When an operation does not finish within the specified duration, the behavior of the `Micro.timeout` depends on whether the operation is "uninterruptible".
+
+<Aside type="note" title="Uninterruptible Effects">
+  An uninterruptible effect is one that, once started, cannot be stopped
+  mid-execution by the timeout mechanism directly. This could be because
+  the operations within the effect need to run to completion to avoid
+  leaving the system in an inconsistent state.
+</Aside>
+
+1. **Interruptible Operation**: If the operation can be interrupted, it is terminated immediately once the timeout threshold is reached, resulting in a `TimeoutException`.
+
+   ```ts twoslash
+   import { Micro } from "effect"
+
+   const task = Micro.gen(function* () {
+     console.log("Start processing...")
+     yield* Micro.sleep(2_000) // Simulates a delay in processing
+     console.log("Processing complete.")
+     return "Result"
+   })
+
+   const timedEffect = task.pipe(Micro.timeout(1_000))
+
+   Micro.runPromiseExit(timedEffect).then(console.log)
+   /*
+   Output:
+   Start processing...
+   {
+     _id: 'Either',
+     _tag: 'Left',
+     left: (MicroCause.Fail) TimeoutException
+         ...stack trace...
+   }
+   */
+   ```
+
+2. **Uninterruptible Operation**: If the operation is uninterruptible, it continues until completion before the `TimeoutException` is assessed.
+
+   ```ts twoslash
+   import { Micro } from "effect"
+
+   const task = Micro.gen(function* () {
+     console.log("Start processing...")
+     yield* Micro.sleep(2_000) // Simulates a delay in processing
+     console.log("Processing complete.")
+     return "Result"
+   })
+
+   const timedEffect = task.pipe(
+     Micro.uninterruptible,
+     Micro.timeout(1_000)
+   )
+
+   // Outputs a TimeoutException after the task completes,
+   // because the task is uninterruptible
+   Micro.runPromiseExit(timedEffect).then(console.log)
+   /*
+   Output:
+   Start processing...
+   Processing complete.
+   {
+     _id: 'Either',
+     _tag: 'Left',
+     left: (MicroCause.Fail) TimeoutException
+         ...stack trace...
+   }
+   */
+   ```
+
 ## Sandboxing
 
 The `Micro.sandbox` function allows you to encapsulate all the potential causes of an error in an effect. It exposes the full cause of an effect, whether it's due to a failure, defect or interruption.
@@ -1371,24 +1442,27 @@ Resource released
 
 The `Micro.repeat` function returns a new effect that repeats the given effect according to a specified schedule or until the first failure.
 
-<Aside type="caution" title="Initial Execution Included">
+<Aside type="note" title="Initial Execution Included">
   The scheduled recurrences are in addition to the initial execution, so
-  `Effect.repeat(action, Micro.scheduleRecurs(1))` executes `action` once
+  `Micro.repeat(action, Micro.scheduleRecurs(1))` executes `action` once
   initially, and if it succeeds, repeats it an additional time.
 </Aside>
 
-**Success Example**
+**Example** (Repeating a Successful Effect)
 
 ```ts twoslash
 import { Micro } from "effect"
 
+// Define an effect that logs a message to the console
 const action = Micro.sync(() => console.log("success"))
 
+// Define a schedule that repeats the action 2 more times with a delay
 const policy = Micro.scheduleAddDelay(Micro.scheduleRecurs(2), () => 100)
 
+// Repeat the action according to the schedule
 const program = Micro.repeat(action, { schedule: policy })
 
-Micro.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+Micro.runPromise(program)
 /*
 Output:
 success
@@ -1397,14 +1471,14 @@ success
 */
 ```
 
-**Failure Example**
+**Example** (Handling Failures in Repetition)
 
 ```ts twoslash
 import { Micro } from "effect"
 
 let count = 0
 
-// Define an async effect that simulates an action with possible failures
+// Define an async effect that simulates an action with potential failure
 const action = Micro.async<string, string>((resume) => {
   if (count > 1) {
     console.log("failure")
@@ -1416,10 +1490,13 @@ const action = Micro.async<string, string>((resume) => {
   }
 })
 
+// Define a schedule that repeats the action 2 more times with a delay
 const policy = Micro.scheduleAddDelay(Micro.scheduleRecurs(2), () => 100)
 
+// Repeat the action according to the schedule
 const program = Micro.repeat(action, { schedule: policy })
 
+// Run the program and observe the result on failure
 Micro.runPromiseExit(program).then(console.log)
 /*
 Output:
@@ -1430,49 +1507,58 @@ failure
 */
 ```
 
-### helper
+### Simulating Schedule Behavior
 
-To demonstrate the functionality of different schedules, we will be working with the following helper:
+This helper function, `dryRun`, demonstrates how different scheduling policies control repetition timing without executing an actual effect. By returning an array of delay intervals, it visualizes how a schedule would space repetitions.
 
 ```ts twoslash
-import type * as Micro from "effect/Micro"
-import * as Option from "effect/Option"
+import { Option, Micro } from "effect"
 
+// Helper function to simulate and visualize a schedule's behavior
 const dryRun = (
-  schedule: Micro.MicroSchedule,
-  maxAttempt: number = 7
+  schedule: Micro.MicroSchedule, // The scheduling policy to simulate
+  maxAttempt: number = 7 // Maximum number of repetitions to simulate
 ): Array<number> => {
-  let attempt = 1
-  let elapsed = 0
+  let attempt = 1 // Track the current attempt number
+  let elapsed = 0 // Track the total elapsed time
+  const out: Array<number> = [] // Array to store each delay duration
   let duration = schedule(attempt, elapsed)
-  const out: Array<number> = []
+
+  // Continue until the schedule returns no delay or maxAttempt is reached
   while (Option.isSome(duration) && attempt <= maxAttempt) {
     const value = duration.value
+    out.push(value)
     attempt++
     elapsed += value
-    out.push(value)
+
+    // Get the next duration based on the current attempt
+    // and total elapsed time
     duration = schedule(attempt, elapsed)
   }
+
   return out
 }
 ```
 
 ### scheduleSpaced
 
-A schedule that recurs continuously, each repetition spaced the specified duration from the last run.
+A schedule that repeats indefinitely, each repetition spaced the specified duration from the last run.
 
-```ts twoslash collapse={4-20}
+**Example** (Recurring with Delay Between Executions)
+
+```ts twoslash collapse={5-21}
 import { Micro } from "effect"
 import * as Option from "effect/Option"
 
+// Helper function to simulate and visualize a schedule's behavior
 const dryRun = (
   schedule: Micro.MicroSchedule,
   maxAttempt: number = 7
 ): Array<number> => {
   let attempt = 1
   let elapsed = 0
-  let duration = schedule(attempt, elapsed)
   const out: Array<number> = []
+  let duration = schedule(attempt, elapsed)
   while (Option.isSome(duration) && attempt <= maxAttempt) {
     const value = duration.value
     attempt++
@@ -1497,20 +1583,23 @@ Output:
 
 ### scheduleExponential
 
-A schedule that recurs using exponential backoff.
+A schedule that recurs using exponential backoff, with each delay increasing exponentially.
 
-```ts twoslash collapse={4-20}
+**Example** (Exponential Backoff Schedule)
+
+```ts twoslash collapse={5-21}
 import { Micro } from "effect"
 import * as Option from "effect/Option"
 
+// Helper function to simulate and visualize a schedule's behavior
 const dryRun = (
   schedule: Micro.MicroSchedule,
   maxAttempt: number = 7
 ): Array<number> => {
   let attempt = 1
   let elapsed = 0
-  let duration = schedule(attempt, elapsed)
   const out: Array<number> = []
+  let duration = schedule(attempt, elapsed)
   while (Option.isSome(duration) && attempt <= maxAttempt) {
     const value = duration.value
     attempt++
@@ -1536,20 +1625,23 @@ Output:
 
 ### scheduleUnion
 
-Combines two schedules through union, by recurring if either schedule wants to recur, using the minimum of the two delays between recurrences.
+Combines two schedules using union. The schedule recurs as long as one of the schedules wants to, using the minimum delay between recurrences.
 
-```ts twoslash collapse={4-20}
+**Example** (Union of Exponential and Spaced Schedules)
+
+```ts twoslash collapse={5-21}
 import { Micro } from "effect"
 import * as Option from "effect/Option"
 
+// Helper function to simulate and visualize a schedule's behavior
 const dryRun = (
   schedule: Micro.MicroSchedule,
   maxAttempt: number = 7
 ): Array<number> => {
   let attempt = 1
   let elapsed = 0
-  let duration = schedule(attempt, elapsed)
   const out: Array<number> = []
+  let duration = schedule(attempt, elapsed)
   while (Option.isSome(duration) && attempt <= maxAttempt) {
     const value = duration.value
     attempt++
@@ -1582,20 +1674,23 @@ Output:
 
 ### scheduleIntersect
 
-Combines two schedules through the intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences.
+Combines two schedules using intersection. The schedule recurs only if both schedules want to continue, using the maximum delay between them.
 
-```ts twoslash collapse={4-20}
+**Example** (Intersection of Exponential and Recurs Schedules)
+
+```ts twoslash collapse={5-21}
 import { Micro } from "effect"
 import * as Option from "effect/Option"
 
+// Helper function to simulate and visualize a schedule's behavior
 const dryRun = (
   schedule: Micro.MicroSchedule,
   maxAttempt: number = 7
 ): Array<number> => {
   let attempt = 1
   let elapsed = 0
-  let duration = schedule(attempt, elapsed)
   const out: Array<number> = []
+  let duration = schedule(attempt, elapsed)
   while (Option.isSome(duration) && attempt <= maxAttempt) {
     const value = duration.value
     attempt++
@@ -1631,21 +1726,22 @@ Output:
 ### Forking Effects
 
 One of the fundamental ways to create a fiber is by forking an existing effect.
-When you fork an effect, it starts executing the effect on a new fiber, giving you a reference to this newly-created fiber.
+When you fork an effect, it starts executing the effect on a new fiber, giving you a reference (`Handle`) to this newly-created fiber.
 
 The following code demonstrates how to create a single fiber using the `Micro.fork` function. This fiber will execute the function `fib(100)` independently of the main fiber:
+
+**Example** (Forking a Fiber)
 
 ```ts twoslash
 import { Micro } from "effect"
 
 const fib = (n: number): Micro.Micro<number> =>
-  Micro.suspend(() => {
-    if (n <= 1) {
-      return Micro.succeed(n)
-    }
-    return fib(n - 1).pipe(Micro.zipWith(fib(n - 2), (a, b) => a + b))
-  })
+  n < 2
+    ? Micro.succeed(n)
+    : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
+//      ┌─── Micro<Handle<number, never>, never, never>
+//      ▼
 const fib10Fiber = Micro.fork(fib(10))
 ```
 
@@ -1654,26 +1750,29 @@ const fib10Fiber = Micro.fork(fib(10))
 A common operation with fibers is joining them using the `.join` property.
 This property returns a `Micro` that will succeed or fail based on the outcome of the fiber it joins:
 
+**Example** (Joining a Fiber)
+
 ```ts twoslash
 import { Micro } from "effect"
 
 const fib = (n: number): Micro.Micro<number> =>
-  Micro.suspend(() => {
-    if (n <= 1) {
-      return Micro.succeed(n)
-    }
-    return fib(n - 1).pipe(Micro.zipWith(fib(n - 2), (a, b) => a + b))
-  })
+  n < 2
+    ? Micro.succeed(n)
+    : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
+//      ┌─── Micro<Handle<number, never>, never, never>
+//      ▼
 const fib10Fiber = Micro.fork(fib(10))
 
 const program = Micro.gen(function* () {
+  // Retrieve the fiber
   const fiber = yield* fib10Fiber
+  // Join the fiber and get the result
   const n = yield* fiber.join
   console.log(n)
 })
 
-Micro.runPromise(program) // 55
+Micro.runPromise(program) // Output: 55
 ```
 
 ### Awaiting Fibers
@@ -1681,27 +1780,44 @@ Micro.runPromise(program) // 55
 Another useful property for fibers is `.await`.
 This property returns an effect containing a `MicroExit` value, which provides detailed information about how the fiber completed.
 
+**Example** (Awaiting Fiber Completion)
+
 ```ts twoslash
 import { Micro } from "effect"
 
 const fib = (n: number): Micro.Micro<number> =>
-  Micro.suspend(() => {
-    if (n <= 1) {
-      return Micro.succeed(n)
-    }
-    return fib(n - 1).pipe(Micro.zipWith(fib(n - 2), (a, b) => a + b))
-  })
+  n < 2
+    ? Micro.succeed(n)
+    : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
+//      ┌─── Micro<Handle<number, never>, never, never>
+//      ▼
 const fib10Fiber = Micro.fork(fib(10))
 
 const program = Micro.gen(function* () {
+  // Retrieve the fiber
   const fiber = yield* fib10Fiber
+  // Await its completion and get the MicroExit result
   const exit = yield* fiber.await
   console.log(exit)
 })
 
-Micro.runPromise(program) // { _id: 'Either', _tag: 'Right', right: 55 }
+Micro.runPromise(program)
+// Output: { _id: 'Either', _tag: 'Right', right: 55 }
 ```
+
+## Interruptions
+
+All effects in Effect are executed by fibers. If you didn't create the fiber yourself, it was created by an operation you're using (if it's concurrent) or by the Effect runtime system.
+
+A fiber is created any time an effect is run. When running effects concurrently, a fiber is created for each concurrent effect.
+
+To summarize:
+
+- A `Micro` is a higher-level concept that describes an effectful computation. It is lazy and immutable, meaning it represents a computation that may produce a value or fail but does not immediately execute.
+- A fiber, on the other hand, represents the running execution of a `Micro`. It can be interrupted or awaited to retrieve its result. Think of it as a way to control and interact with the ongoing computation.
+
+Fibers can be interrupted in various ways. Let's explore some of these scenarios and see examples of how to interrupt fibers in Effect.
 
 ### Interrupting Fibers
 
@@ -1709,18 +1825,29 @@ If a fiber's result is no longer needed, it can be interrupted, which immediatel
 
 Similar to `.await`, `.interrupt` returns a `MicroExit` value describing how the fiber completed.
 
+**Example** (Interrupting a Fiber)
+
 ```ts twoslash
 import { Micro } from "effect"
 
 const program = Micro.gen(function* () {
-  const fiber = yield* Micro.fork(Micro.forever(Micro.succeed("Hi!")))
+  // Fork a fiber that runs indefinitely, printing "Hi!"
+  const fiber = yield* Micro.fork(
+    Micro.forever(
+      Micro.sync(() => console.log("Hi!")).pipe(Micro.delay(10))
+    )
+  )
+  yield* Micro.sleep(30)
+  // Interrupt the fiber and get the MicroExit result
   const exit = yield* fiber.interrupt
   console.log(exit)
 })
 
 Micro.runPromise(program)
 /*
-Output
+Output:
+Hi!
+Hi!
 {
   _id: 'Either',
   _tag: 'Left',
@@ -1729,120 +1856,50 @@ Output
 */
 ```
 
-### Racing
+### Micro.interrupt
 
-The `Micro.race` function lets you race multiple effects concurrently and returns the result of the first one that successfully completes.
+A fiber can be interrupted using the `Micro.interrupt` effect on that particular fiber.
 
-```ts twoslash
-import { Micro } from "effect"
+**Example** (Without Interruption)
 
-const task1 = Micro.delay(Micro.fail("task1"), 1_000)
-const task2 = Micro.delay(Micro.succeed("task2"), 2_000)
-
-const program = Micro.race(task1, task2)
-
-Micro.runPromise(program).then(console.log)
-/*
-Output:
-task2
-*/
-```
-
-If you need to handle the first effect to complete, whether it succeeds or fails, you can use the `Micro.either` function.
-
-```ts twoslash
-import { Micro } from "effect"
-
-const task1 = Micro.delay(Micro.fail("task1"), 1_000)
-const task2 = Micro.delay(Micro.succeed("task2"), 2_000)
-
-const program = Micro.race(Micro.either(task1), Micro.either(task2))
-
-Micro.runPromise(program).then(console.log)
-/*
-Output:
-{ _id: 'Either', _tag: 'Left', left: 'task1' }
-*/
-```
-
-### Timing out
-
-**Interruptible Operation**: If the operation can be interrupted, it is terminated immediately once the timeout threshold is reached, resulting in a `TimeoutException`.
-
-```ts twoslash
-import { Micro } from "effect"
-
-const myEffect = Micro.gen(function* () {
-  console.log("Start processing...")
-  yield* Micro.sleep(2_000) // Simulates a delay in processing
-  console.log("Processing complete.")
-  return "Result"
-})
-
-const timedEffect = myEffect.pipe(Micro.timeout(1_000))
-
-Micro.runPromiseExit(timedEffect).then(console.log)
-/*
-Output:
-{
-  _id: 'Either',
-  _tag: 'Left',
-  left: (MicroCause.Fail) TimeoutException
-      ...stack trace...
-}
-*/
-```
-
-**Uninterruptible Operation**: If the operation is uninterruptible, it continues until completion before the `TimeoutException` is assessed.
-
-```ts twoslash
-import { Micro } from "effect"
-
-const myEffect = Micro.gen(function* () {
-  console.log("Start processing...")
-  yield* Micro.sleep(2_000) // Simulates a delay in processing
-  console.log("Processing complete.")
-  return "Result"
-})
-
-const timedEffect = myEffect.pipe(
-  Micro.uninterruptible,
-  Micro.timeout(1_000)
-)
-
-// Outputs a TimeoutException after the task completes, because the task is uninterruptible
-Micro.runPromiseExit(timedEffect).then(console.log)
-/*
-Output:
-Start processing...
-Processing complete.
-{
-  _id: 'Either',
-  _tag: 'Left',
-  left: (MicroCause.Fail) TimeoutException
-      ...stack trace...
-}
-*/
-```
-
-### Calling Micro.interrupt
+In this case, the program runs without any interruption, logging the start and completion of the task.
 
 ```ts twoslash
 import { Micro } from "effect"
 
 const program = Micro.gen(function* () {
-  console.log("waiting 1 second")
-  yield* Micro.sleep(1_000)
-  yield* Micro.interrupt
-  console.log("waiting 1 second")
-  yield* Micro.sleep(1_000)
+  console.log("start")
+  yield* Micro.sleep(2_000)
   console.log("done")
 })
 
 Micro.runPromiseExit(program).then(console.log)
 /*
 Output:
-waiting 1 second
+start
+done
+{ _id: 'Either', _tag: 'Right', right: undefined }
+*/
+```
+
+**Example** (With Interruption)
+
+Here, the fiber is interrupted after the log `"start"` but before the `"done"` log. The `Effect.interrupt` stops the fiber, and it never reaches the final log.
+
+```ts {6} twoslash
+import { Micro } from "effect"
+
+const program = Micro.gen(function* () {
+  console.log("start")
+  yield* Micro.sleep(2_000)
+  yield* Micro.interrupt
+  console.log("done")
+})
+
+Micro.runPromiseExit(program).then(console.log)
+/*
+Output:
+start
 {
   _id: 'Either',
   _tag: 'Left',
@@ -1851,7 +1908,13 @@ waiting 1 second
 */
 ```
 
+When a fiber is interrupted, the cause of the interruption is captured, including details like the fiber's ID and when it started.
+
 ### Interruption of Concurrent Effects
+
+When running multiple effects concurrently, such as with `Micro.forEach`, if one of the effects is interrupted, it causes all concurrent effects to be interrupted as well.
+
+**Example** (Interrupting Concurrent Effects)
 
 ```ts twoslash
 import { Micro } from "effect"
@@ -1861,7 +1924,7 @@ const program = Micro.forEach(
   (n) =>
     Micro.gen(function* () {
       console.log(`start #${n}`)
-      yield* Micro.sleep(n * 1_000)
+      yield* Micro.sleep(2 * 1_000)
       if (n > 1) {
         yield* Micro.interrupt
       }
@@ -1888,5 +1951,49 @@ done #1
     "name": "MicroCause.Interrupt"
   }
 }
+*/
+```
+
+## Racing
+
+The `Effect.race` function allows you to run multiple effects concurrently, returning the result of the first one that successfully completes.
+
+**Example** (Basic Race Between Effects)
+
+```ts twoslash
+import { Micro } from "effect"
+
+const task1 = Micro.delay(Micro.fail("task1"), 1_000)
+const task2 = Micro.delay(Micro.succeed("task2"), 2_000)
+
+// Run both tasks concurrently and return
+// the result of the first to complete
+const program = Micro.race(task1, task2)
+
+Micro.runPromise(program).then(console.log)
+/*
+Output:
+task2
+*/
+```
+
+If you want to handle the result of whichever task completes first, whether it succeeds or fails, you can use the `Micro.either` function. This function wraps the result in an [Either](/docs/data-types/either/) type, allowing you to see if the result was a success (`Right`) or a failure (`Left`):
+
+**Example** (Handling Success or Failure with Either)
+
+```ts twoslash
+import { Micro } from "effect"
+
+const task1 = Micro.delay(Micro.fail("task1"), 1_000)
+const task2 = Micro.delay(Micro.succeed("task2"), 2_000)
+
+// Run both tasks concurrently, wrapping the result
+// in Either to capture success or failure
+const program = Micro.race(Micro.either(task1), Micro.either(task2))
+
+Micro.runPromise(program).then(console.log)
+/*
+Output:
+{ _id: 'Either', _tag: 'Left', left: 'task1' }
 */
 ```
