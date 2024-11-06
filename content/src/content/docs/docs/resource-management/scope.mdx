@@ -79,23 +79,26 @@ The `Effect.addFinalizer` function is a high-level API that allows you to add fi
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-// Effect<number, never, Scope>
+//      ┌─── Effect<string, never, Scope>
+//      ▼
 const program = Effect.gen(function* () {
   yield* Effect.addFinalizer((exit) =>
     Console.log(`Finalizer executed. Exit status: ${exit._tag}`)
   )
-  return 1
+  return "some result"
 })
 
 // Wrapping the effect in a scope
+//
+//      ┌─── Effect<string, never, never>
+//      ▼
 const runnable = Effect.scoped(program)
-//    ^? const runnable: Effect<number, never, never>
 
 Effect.runPromiseExit(runnable).then(console.log)
 /*
 Output:
 Finalizer executed. Exit status: Success
-{ _id: 'Exit', _tag: 'Success', value: 1 }
+{ _id: 'Exit', _tag: 'Success', value: 'some result' }
 */
 ```
 
@@ -106,20 +109,23 @@ Finalizer executed. Exit status: Success
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-// Effect<number, never, Scope>
+//      ┌─── Effect<string, never, Scope>
+//      ▼
 const program = Effect.addFinalizer((exit) =>
   Console.log(`Finalizer executed. Exit status: ${exit._tag}`)
-).pipe(Effect.andThen(Effect.succeed(1)))
+).pipe(Effect.andThen(Effect.succeed("some result")))
 
 // Wrapping the effect in a scope
+//
+//      ┌─── Effect<string, never, never>
+//      ▼
 const runnable = Effect.scoped(program)
-//    ^? const runnable: Effect<number, never, never>
 
 Effect.runPromiseExit(runnable).then(console.log)
 /*
 Output:
 Finalizer executed. Exit status: Success
-{ _id: 'Exit', _tag: 'Success', value: 1 }
+{ _id: 'Exit', _tag: 'Success', value: 'some result' }
 */
 ```
 
@@ -132,7 +138,7 @@ In this example, we use `Effect.addFinalizer` to add a finalizer that logs the e
 The type signature:
 
 ```ts showLineNumbers=false "Scope"
-const program: Effect<number, never, Scope>
+const program: Effect<string, never, Scope>
 ```
 
 shows that the workflow requires a `Scope` to run. You can provide this `Scope` using the `Effect.scoped` function, which creates a new scope, runs the effect within it, and ensures the finalizers are executed when the scope is closed.
@@ -152,7 +158,8 @@ shows that the workflow requires a `Scope` to run. You can provide this `Scope` 
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-// Effect<never, string, Scope>
+//      ┌─── Effect<never, string, Scope>
+//      ▼
 const program = Effect.gen(function* () {
   yield* Effect.addFinalizer((exit) =>
     Console.log(`Finalizer executed. Exit status: ${exit._tag}`)
@@ -161,8 +168,10 @@ const program = Effect.gen(function* () {
 })
 
 // Wrapping the effect in a scope
+//
+//      ┌─── Effect<never, string, never>
+//      ▼
 const runnable = Effect.scoped(program)
-//    ^? const runnable: Effect<never, string, never>
 
 Effect.runPromiseExit(runnable).then(console.log)
 /*
@@ -183,14 +192,17 @@ Finalizer executed. Exit status: Failure
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-// Effect<never, string, Scope>
+//      ┌─── Effect<never, string, Scope>
+//      ▼
 const program = Effect.addFinalizer((exit) =>
   Console.log(`Finalizer executed. Exit status: ${exit._tag}`)
 ).pipe(Effect.andThen(Effect.fail("Uh oh!")))
 
 // Wrapping the effect in a scope
+//
+//      ┌─── Effect<never, string, never>
+//      ▼
 const runnable = Effect.scoped(program)
-//    ^? const runnable: Effect<never, string, never>
 
 Effect.runPromiseExit(runnable).then(console.log)
 /*
@@ -219,7 +231,8 @@ In this case, the finalizer is executed even when the effect fails. The log outp
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-// Effect<never, never, Scope>
+//      ┌─── Effect<never, never, Scope>
+//      ▼
 const program = Effect.gen(function* () {
   yield* Effect.addFinalizer((exit) =>
     Console.log(`Finalizer executed. Exit status: ${exit._tag}`)
@@ -228,8 +241,10 @@ const program = Effect.gen(function* () {
 })
 
 // Wrapping the effect in a scope
+//
+//      ┌─── Effect<never, never, never>
+//      ▼
 const runnable = Effect.scoped(program)
-//    ^? const runnable: Effect<never, never, never>
 
 Effect.runPromiseExit(runnable).then(console.log)
 /*
@@ -259,14 +274,17 @@ Finalizer executed. Exit status: Failure
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-// Effect<never, never, Scope>
+//      ┌─── Effect<never, never, Scope>
+//      ▼
 const program = Effect.addFinalizer((exit) =>
   Console.log(`Finalizer executed. Exit status: ${exit._tag}`)
 ).pipe(Effect.andThen(Effect.interrupt))
 
 // Wrapping the effect in a scope
+//
+//      ┌─── Effect<never, never, never>
+//      ▼
 const runnable = Effect.scoped(program)
-//    ^? const runnable: Effect<never, never, never>
 
 Effect.runPromiseExit(runnable).then(console.log)
 /*
@@ -475,8 +493,10 @@ const acquire = Effect.tryPromise({
 const release = (res: MyResource) => Effect.promise(() => res.close())
 
 // Create the resource management workflow
+//
+//      ┌─── Effect<MyResource, Error, Scope>
+//      ▼
 const resource = Effect.acquireRelease(acquire, release)
-//    ^? const resource: Effect<MyResource, Error, Scope>
 ```
 
 In the code above, the `Effect.acquireRelease` function creates a resource workflow that requires a `Scope`:
@@ -529,7 +549,8 @@ const release = (res: MyResource) => Effect.promise(() => res.close())
 // Create the resource management workflow
 const resource = Effect.acquireRelease(acquire, release)
 
-// Effect<void, Error, Scope>
+//      ┌─── Effect<void, Error, Scope>
+//      ▼
 const program = Effect.gen(function* () {
   const res = yield* resource
   console.log(`content is ${res.contents}`)
@@ -576,7 +597,8 @@ const release = (res: MyResource) => Effect.promise(() => res.close())
 // Create the resource management workflow
 const resource = Effect.acquireRelease(acquire, release)
 
-// Effect<void, Error, never>
+//      ┌─── Effect<void, Error, never>
+//      ▼
 const program = Effect.scoped(
   Effect.gen(function* () {
     const res = yield* resource
@@ -603,7 +625,7 @@ Effect.acquireUseRelease(acquire, use, release)
 
 The main difference is that `Effect.acquireUseRelease` eliminates the need to manually call `Effect.scoped` to manage the resource's scope. It has additional knowledge about when you are done using the resource created with the `acquire` step. This is achieved by providing a `use` argument, which represents the function that operates on the acquired resource. As a result, `Effect.acquireUseRelease` can automatically determine when it should execute the release step.
 
-**Example**
+**Example** (Automatically Managing Resource Lifetime)
 
 ```ts twoslash collapse={3-31}
 import { Effect, Console } from "effect"
@@ -640,6 +662,8 @@ const release = (res: MyResource) => Effect.promise(() => res.close())
 
 const use = (res: MyResource) => Console.log(`content is ${res.contents}`)
 
+//      ┌─── Effect<void, Error, never>
+//      ▼
 const program = Effect.acquireUseRelease(acquire, use, release)
 
 Effect.runPromise(program)
