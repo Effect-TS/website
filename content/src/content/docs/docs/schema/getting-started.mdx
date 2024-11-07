@@ -27,12 +27,9 @@ One common way to define a `Schema` is by utilizing the `Struct` constructor.
 This constructor allows you to create a new schema that outlines an object with specific properties.
 Each property in the object is defined by its own schema, which specifies the data type and any validation rules.
 
-**Example**
+**Example** (Defining a Simple Object Schema)
 
-Consider the following schema that describes a person object with:
-
-- a `name` property of type `string`
-- an `age` property of type `number`
+This `Person` schema describes an object with a `name` (string) and `age` (number) property:
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -49,10 +46,10 @@ const Person = Schema.Struct({
 
 Once you've defined a schema (`Schema<Type, Encoded, Context>`), you can extract the inferred type `Type` in two ways:
 
-1. Using the `Schema.Type` utility.
-2. Using the `Type` field defined on your schema.
+1. Using the `Schema.Type` utility
+2. Accessing the `Type` field directly on your schema
 
-**Example**
+**Example** (Extracting Inferred Type)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -65,22 +62,22 @@ const Person = Schema.Struct({
 // 1. Using the Schema.Type utility
 type Person = Schema.Schema.Type<typeof Person>
 
-// 2. Using the `Type` field
+// 2. Accessing the Type field directly
 type Person2 = typeof Person.Type
 ```
 
-The result is equivalent to:
+The resulting type will look like this:
 
 ```ts showLineNumbers=false
 type Person = {
-  name: string
-  age: number
+  readonly name: string
+  readonly age: number
 }
 ```
 
-Alternatively, you can extract the `Person` type using the `interface` keyword.
+Alternatively, you can extract the `Person` type using the `interface` keyword, which may improve readability and performance in some cases.
 
-**Example**
+**Example** (Extracting Type with an Interface)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -97,12 +94,12 @@ Both approaches yield the same result, but using an interface provides benefits 
 
 ### Encoded
 
-In cases where in a `Schema<Type, Encoded, Context>` the `Encoded` type differs from the `Type` type, you can extract the inferred `Encoded` in two ways:
+In a `Schema<Type, Encoded, Context>`, the `Encoded` type can differ from the `Type` type, representing the format in which data is encoded. You can extract the `Encoded` type in two ways:
 
-1. Using the `Schema.Encoded` utility.
-2. Using the `Encoded` field defined on your schema.
+1. Using the `Schema.Encoded` utility
+2. Accessing the `Encoded` field directly on the schema
 
-**Example**
+**Example** (Extracting the Encoded Type)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -116,24 +113,24 @@ const Person = Schema.Struct({
 // 1. Using the Schema.Encoded utility
 type PersonEncoded = Schema.Schema.Encoded<typeof Person>
 
-// 2. Using the `Encoded` field
+// 2. Accessing the Encoded field directly
 type PersonEncoded2 = typeof Person.Encoded
 ```
 
-The result is equivalent to:
+The resulting type is:
 
 ```ts showLineNumbers=false
 type PersonEncoded = {
-  name: string
-  age: string
+  readonly name: string
+  readonly age: string
 }
 ```
 
 Note that `age` is of type `string` in the `Encoded` type of the schema and is of type `number` in the `Type` type of the schema.
 
-Alternatively, you can extract the `PersonEncoded` type using the `interface` keyword.
+Alternatively, you can define the `PersonEncoded` type using the `interface` keyword, which can enhance readability and performance.
 
-**Example**
+**Example** (Extracting Encoded Type with an Interface)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -151,9 +148,12 @@ Both approaches yield the same result, but using an interface provides benefits 
 
 ### Context
 
-You can also extract the inferred type `Context` that represents the context required by the schema.
+In a `Schema<Type, Encoded, Context>`, the `Context` type represents any external data or dependencies that the schema requires to perform encoding or decoding. You can extract the inferred `Context` type in two ways:
 
-**Example**
+1. Using the `Schema.Context` utility.
+2. Accessing the `Context` field on the schema.
+
+**Example** (Extracting the Context Type)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -166,7 +166,7 @@ const Person = Schema.Struct({
 // 1. Using the Schema.Context utility
 type PersonContext = Schema.Schema.Context<typeof Person>
 
-// 2. Using the `Context` field
+// 2. Accessing the Context field directly
 type PersonContext2 = typeof Person.Context
 ```
 
@@ -174,21 +174,23 @@ type PersonContext2 = typeof Person.Context
 
 When defining a schema, you may want to create a schema with an opaque type. This is useful when you want to hide the internal structure of the schema and only expose the type of the schema.
 
-**Example**
+**Example** (Creating an Opaque Schema)
 
 To create a schema with an opaque type, you can use the following technique that re-declares the schema:
 
 ```ts twoslash
 import { Schema } from "effect"
 
+// Define the schema structure
 const _Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number
 })
 
+// Declare the type interface to make it opaque
 interface Person extends Schema.Schema.Type<typeof _Person> {}
 
-// Re-declare the schema to create a schema with an opaque type
+// Re-declare the schema as opaque
 const Person: Schema.Schema<Person> = _Person
 ```
 
@@ -196,22 +198,25 @@ Alternatively, you can use the Class APIs (see the [Class APIs](/docs/schema/cla
 
 Note that the technique shown above becomes more complex when the schema is defined such that `Type` is different from `Encoded`.
 
-**Example**
+**Example** (Opaque Schema with Different Type and Encoded)
 
-```ts twoslash
+```ts twoslash "NumberFromString"
 import { Schema } from "effect"
 
+// Define the schema structure, with a field that
+// decodes a string to a number
 const _Person = Schema.Struct({
   name: Schema.String,
-  // a schema that decodes a string to a number
   age: Schema.NumberFromString
 })
 
+// Create the `Type` interface for an opaque schema
 interface Person extends Schema.Schema.Type<typeof _Person> {}
 
+// Create the `Encoded` interface for an opaque schema
 interface PersonEncoded extends Schema.Schema.Encoded<typeof _Person> {}
 
-// Re-declare the schema to create a schema with an opaque type
+// Re-declare the schema with opaque Type and Encoded
 const Person: Schema.Schema<Person, PersonEncoded> = _Person
 ```
 
@@ -222,7 +227,7 @@ In this case, the field `"age"` is of type `string` in the `Encoded` type of the
 It's important to note that by default, most constructors exported by
 `effect/Schema` return `readonly` types.
 
-**Example**
+**Example** (Readonly Types in a Schema)
 
 For instance, in the `Person` schema below:
 
@@ -237,7 +242,7 @@ const Person = Schema.Struct({
 
 the resulting inferred `Type` would be:
 
-```ts showLineNumbers=false
+```ts showLineNumbers=false "readonly"
 {
   readonly name: string;
   readonly age: number;
@@ -260,7 +265,7 @@ When working with unknown data types in TypeScript, decoding them into a known s
 
 The `Schema.decodeUnknownSync` function is useful when you want to parse a value and immediately throw an error if the parsing fails.
 
-**Example**
+**Example** (Using `decodeUnknownSync` for Immediate Decoding)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -273,9 +278,11 @@ const Person = Schema.Struct({
 // Simulate an unknown input
 const input: unknown = { name: "Alice", age: 30 }
 
+// Example of valid input matching the schema
 console.log(Schema.decodeUnknownSync(Person)(input))
 // Output: { name: 'Alice', age: 30 }
 
+// Example of invalid input that does not match the schema
 console.log(Schema.decodeUnknownSync(Person)(null))
 /*
 throws:
@@ -285,9 +292,9 @@ ParseError: Expected { readonly name: string; readonly age: number }, actual nul
 
 ### decodeUnknownEither
 
-The `Schema.decodeUnknownEither` function returns an [Either](/docs/data-types/either/) type representing success or failure.
+The `Schema.decodeUnknownEither` function allows you to parse a value and receive the result as an [Either](/docs/data-types/either/), representing success (`Right`) or failure (`Left`). This approach lets you handle parsing errors more gracefully without throwing exceptions.
 
-**Example**
+**Example** (Using `Schema.decodeUnknownEither` for Error Handling)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -303,6 +310,7 @@ const decode = Schema.decodeUnknownEither(Person)
 // Simulate an unknown input
 const input: unknown = { name: "Alice", age: 30 }
 
+// Attempt decoding a valid input
 const result1 = decode(input)
 if (Either.isRight(result1)) {
   console.log(result1.right)
@@ -312,6 +320,7 @@ if (Either.isRight(result1)) {
   */
 }
 
+// Simulate decoding an invalid input
 const result2 = decode(null)
 if (Either.isLeft(result2)) {
   console.log(result2.left)
@@ -330,7 +339,7 @@ if (Either.isLeft(result2)) {
 If your schema involves asynchronous transformations, the `Schema.decodeUnknownSync` and `Schema.decodeUnknownEither` functions will not be suitable.
 In such cases, you should use the `Schema.decodeUnknown` function, which returns an [Effect](/docs/getting-started/the-effect-type/).
 
-**Example**
+**Example** (Handling Asynchronous Decoding)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -346,7 +355,7 @@ const Person = Schema.Struct({
 
 const asyncSchema = Schema.transformOrFail(PersonId, Person, {
   strict: true,
-  // Simulate an async transformation
+  // Decode with simulated async transformation
   decode: (id) =>
     Effect.succeed({ id, name: "name", age: 18 }).pipe(
       Effect.delay("10 millis")
@@ -355,6 +364,7 @@ const asyncSchema = Schema.transformOrFail(PersonId, Person, {
     Effect.succeed(person.id).pipe(Effect.delay("10 millis"))
 })
 
+// Attempting to use a synchronous decoder on an async schema
 console.log(Schema.decodeUnknownEither(asyncSchema)(1))
 /*
 Output:
@@ -369,6 +379,7 @@ Output:
 }
 */
 
+// Decoding asynchronously with `Schema.decodeUnknown`
 Effect.runPromise(Schema.decodeUnknown(asyncSchema)(1)).then(console.log)
 /*
 Output:
@@ -392,24 +403,23 @@ The `Schema` module provides several `encode*` functions to encode data accordin
 | `encodePromise` | Encodes data and returns a `Promise`.                                                                |
 | `encode`        | Encodes data and returns an [Effect](/docs/getting-started/the-effect-type/).                        |
 
-**Example** (`Schema.encodeSync`)
+**Example** (Using `Schema.encodeSync` for Immediate Encoding)
 
 ```ts twoslash
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
-  // A schema that ensures a string is not empty
+  // Ensure name is a non-empty string
   name: Schema.NonEmptyString,
-  // A schema that can decode a string to a number
-  // and encode a number to a string
+  // Allow age to be decoded from a string and encoded to a string
   age: Schema.NumberFromString
 })
 
-// Valid input
+// Valid input: encoding succeeds and returns expected types
 console.log(Schema.encodeSync(Person)({ name: "Alice", age: 30 }))
 // Output: { name: 'Alice', age: '30' }
 
-// Invalid input
+// Invalid input: encoding fails due to empty name string
 console.log(Schema.encodeSync(Person)({ name: "", age: 30 }))
 /*
 throws:
@@ -425,10 +435,9 @@ Note that during encoding, the number value `30` was converted to a string `"30"
 
 ### Handling Unsupported Encoding
 
-Although it is generally recommended to define schemas that support both decoding and encoding, there are situations where encoding support might be impossible.
-In such cases, the `Forbidden` error can be used to handle unsupported encoding.
+In certain cases, it may not be feasible to support encoding for a schema. While it is generally advised to define schemas that allow both decoding and encoding, there are situations where encoding a particular type is either unsupported or unnecessary. In these instances, the `Forbidden` issue can signal that encoding is not available for certain values.
 
-**Example** (Using `Forbidden` for Unsupported Encoding)
+**Example** (Using `Forbidden` to Indicate Unsupported Encoding)
 
 Here is an example of a transformation that never fails during decoding. It returns an [Either](/docs/data-types/either/) containing either the decoded value or the original input. For encoding, it is reasonable to not support it and use `Forbidden` as the result.
 
@@ -446,13 +455,16 @@ export const SafeDecode = <A, I>(self: Schema.Schema<A, I, never>) => {
     }),
     {
       strict: true,
+      // Decode: map a failed result to the input as Left,
+      // successful result as Right
       decode: (input) =>
         ParseResult.succeed(
           Either.mapLeft(decodeUnknownEither(input), () => input)
         ),
+      // Encode: only support encoding Right values,
+      // Left values raise Forbidden error
       encode: (actual, _, ast) =>
         Either.match(actual, {
-          // Encoding a Left value is not supported
           onLeft: () =>
             ParseResult.fail(
               new ParseResult.Forbidden(
@@ -496,23 +508,22 @@ It is wrapped in a tagged error to make it easier to catch errors using [Effect.
 The result `Either<Type, ParseError>` contains the inferred data type described by the schema (`Type`).
 A successful parse yields a `Right` value with the parsed data `Type`, while a failed parse results in a `Left` value containing a `ParseError`.
 
-<Aside type="tip">
+<Aside type="tip" title="Returning All Errors">
   By default only the first error is returned. You can use the
   [`errors`](#receive-all-errors) option to receive all errors.
 </Aside>
 
 ## Parse Options
 
-The following options affect both decoding and encoding.
+The options below provide control over both decoding and encoding behaviors.
 
 ### Managing Excess properties
 
-When using a schema to parse a value, by default any properties that are not specified in the schema will be stripped out from the output.
-This is because the schema is expecting a specific shape for the parsed value, and any excess properties do not conform to that shape.
+By default, any properties not defined in the schema are removed from the output when parsing a value. This ensures the parsed data conforms strictly to the expected structure.
 
-However, you can use the `onExcessProperty` option (default value: `"ignore"`) to trigger a parsing error. This can be particularly useful in cases where you need to detect and handle potential errors or unexpected values.
+If you want to detect and handle unexpected properties, use the `onExcessProperty` option (default value: `"ignore"`), which allows you to raise an error for excess properties. This can be helpful when you need to validate and catch unanticipated properties.
 
-**Example** (`onExcessProperty` set to `"error"`)
+**Example** (Setting `onExcessProperty` to `"error"`)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -522,11 +533,12 @@ const Person = Schema.Struct({
   age: Schema.Number
 })
 
+// Excess properties are ignored by default
 console.log(
   Schema.decodeUnknownSync(Person)({
     name: "Bob",
     age: 40,
-    email: "bob@example.com"
+    email: "bob@example.com" // Ignored
   })
 )
 /*
@@ -534,11 +546,13 @@ Output:
 { name: 'Bob', age: 40 }
 */
 
+// With `onExcessProperty` set to "error",
+// an error is thrown for excess properties
 Schema.decodeUnknownSync(Person)(
   {
     name: "Bob",
     age: 40,
-    email: "bob@example.com"
+    email: "bob@example.com" // Will raise an error
   },
   { onExcessProperty: "error" }
 )
@@ -550,9 +564,9 @@ ParseError: { readonly name: string; readonly age: number }
 */
 ```
 
-If you want to allow excess properties to remain, you can use `onExcessProperty` set to `"preserve"`.
+To retain extra properties, set `onExcessProperty` to `"preserve"`.
 
-**Example** (`onExcessProperty` set to `"preserve"`)
+**Example** (Setting `onExcessProperty` to `"preserve"`)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -562,6 +576,7 @@ const Person = Schema.Struct({
   age: Schema.Number
 })
 
+// Excess properties are preserved in the output
 console.log(
   Schema.decodeUnknownSync(Person)(
     {
@@ -579,9 +594,9 @@ console.log(
 
 ### Receive all errors
 
-The `errors` option allows you to receive all parsing errors when attempting to parse a value using a schema. By default only the first error is returned, but by setting the `errors` option to `"all"`, you can receive all errors that occurred during the parsing process. This can be useful for debugging or for providing more comprehensive error messages to the user.
+The `errors` option enables you to retrieve all errors encountered during parsing. By default, only the first error is returned. Setting `errors` to `"all"` provides comprehensive error feedback, which can be useful for debugging or offering detailed validation feedback.
 
-**Example** (`errors` set to `"all"`)
+**Example** (Setting `errors` to `"all"`)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -591,6 +606,7 @@ const Person = Schema.Struct({
   age: Schema.Number
 })
 
+// Attempt to parse with multiple issues in the input data
 Schema.decodeUnknownSync(Person)(
   {
     name: "Bob",
@@ -629,18 +645,18 @@ const schema = Schema.Struct({
   c: Schema.Number
 })
 
-// Decoding an object synchronously without specifying the property order
+// Default decoding, where property order is system-defined
 console.log(Schema.decodeUnknownSync(schema)({ b: "b", c: 2, a: 1 }))
-// Output decided internally: { a: 1, b: 'b', c: 2 }
+// Output may vary: { a: 1, b: 'b', c: 2 }
 
-// Decoding an object synchronously while preserving the order of properties as in the input
+// Decoding while preserving input order
 console.log(
   Schema.decodeUnknownSync(schema)(
     { b: "b", c: 2, a: 1 },
     { propertyOrder: "original" }
   )
 )
-// Output preserving input order: { b: 'b', c: 2, a: 1 }
+// Output preserves input order: { b: 'b', c: 2, a: 1 }
 ```
 
 **Example** (Asynchronous Decoding)
@@ -649,7 +665,7 @@ console.log(
 import type { Duration } from "effect"
 import { Effect, ParseResult, Schema } from "effect"
 
-// Function to simulate an asynchronous process within the schema
+// Helper function to simulate an async operation in schema
 const effectify = (duration: Duration.DurationInput) =>
   Schema.Number.pipe(
     Schema.transformOrFail(Schema.Number, {
@@ -669,13 +685,13 @@ const schema = Schema.Struct({
   c: effectify("100 millis")
 }).annotations({ concurrency: 3 })
 
-// Decoding data asynchronously without preserving order
+// Default decoding, where property order is system-defined
 Schema.decode(schema)({ a: 1, b: 2, c: 3 })
   .pipe(Effect.runPromise)
   .then(console.log)
 // Output decided internally: { c: 3, a: 1, b: 2 }
 
-// Decoding data asynchronously while preserving the original input order
+// Decoding while preserving input order
 Schema.decode(schema)({ a: 1, b: 2, c: 3 }, { propertyOrder: "original" })
   .pipe(Effect.runPromise)
   .then(console.log)
@@ -684,10 +700,9 @@ Schema.decode(schema)({ a: 1, b: 2, c: 3 }, { propertyOrder: "original" })
 
 ### Customizing Parsing Behavior at the Schema Level
 
-You can tailor parse options for each schema using the `parseOptions` annotation.
-These options allow for specific parsing behavior at various levels of the schema hierarchy, overriding any parent settings and cascading down to nested schemas.
+The `parseOptions` annotation allows you to customize parsing behavior at different schema levels, enabling you to apply unique parsing settings to nested schemas within a structure. Options defined within a schema override parent-level settings and apply to all nested schemas.
 
-**Example**
+**Example** (Using `parseOptions` to Customize Error Handling)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -699,16 +714,17 @@ const schema = Schema.Struct({
     c: Schema.String
   }).annotations({
     title: "first error only",
-    // Only the first error in this sub-schema is reported
+    // Limit errors to the first in this sub-schema
     parseOptions: { errors: "first" }
   }),
   d: Schema.String
 }).annotations({
   title: "all errors",
-  // All errors in the main schema are reported
+  // Capture all errors for the main schema
   parseOptions: { errors: "all" }
 })
 
+// Decode input with custom error-handling behavior
 const result = Schema.decodeUnknownEither(schema)(
   { a: {} },
   { errors: "first" }
@@ -761,16 +777,21 @@ const Person = Schema.Struct({
   age: Schema.Number
 })
 
-// Create a type guard using the schema
+// Generate a type guard from the schema
 const isPerson = Schema.is(Person)
 
-// Test the type guard with different values
-console.log(isPerson({ name: "Alice", age: 30 })) // true
-console.log(isPerson(null)) // false
-console.log(isPerson({})) // false
+// Test the type guard with various inputs
+console.log(isPerson({ name: "Alice", age: 30 }))
+// Output: true
+
+console.log(isPerson(null))
+// Output: false
+
+console.log(isPerson({}))
+// Output: false
 ```
 
-The `isPerson` function generated from the schema has the following signature:
+The generated `isPerson` function has the following signature:
 
 ```ts showLineNumbers=false
 const isPerson: (
@@ -804,7 +825,7 @@ const Person = Schema.Struct({
   age: Schema.Number
 })
 
-// Create an assertion function from the schema
+// Generate an assertion function from the schema
 const assertsPerson: Schema.Schema.ToAsserts<typeof Person> =
   Schema.asserts(Person)
 
@@ -846,7 +867,7 @@ const assertsPerson: (
 
 When decoding, it's important to understand how missing properties are processed. By default, if a property is not present in the input, it is treated as if it were present with an `undefined` value.
 
-**Example** (Default Behavior)
+**Example** (Default Behavior of Missing Properties)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -860,9 +881,9 @@ console.log(Schema.decodeUnknownSync(schema)(input))
 
 In this example, although the key `"a"` is not present in the input, it is treated as `{ a: undefined }` by default.
 
-If your validation logic needs to distinguish between truly missing properties and those that are explicitly undefined, you can enable the `exact` option:
+If you need your validation logic to differentiate between genuinely missing properties and those explicitly set to `undefined`, you can enable the `exact` option.
 
-**Example** (`exact` set to `true`)
+**Example** (Setting `exact: true` to Distinguish Missing Properties)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -881,7 +902,7 @@ ParseError: { readonly a: unknown }
 
 For the APIs `Schema.is` and `Schema.asserts`, however, the default behavior is to treat missing properties strictly, where the default for `exact` is `true`:
 
-**Example** (Default Behavior for `Schema.is` and `Schema.asserts`)
+**Example** (Strict Handling of Missing Properties with `Schema.is` and `Schema.asserts`)
 
 ```ts twoslash
 import type { SchemaAST } from "effect"
@@ -890,8 +911,11 @@ import { Schema } from "effect"
 const schema = Schema.Struct({ a: Schema.Unknown })
 const input = {}
 
-console.log(Schema.is(schema)(input)) // Output: false
-console.log(Schema.is(schema)(input, { exact: false })) // Output: true
+console.log(Schema.is(schema)(input))
+// Output: false
+
+console.log(Schema.is(schema)(input, { exact: false }))
+// Output: true
 
 const asserts: (
   u: unknown,
