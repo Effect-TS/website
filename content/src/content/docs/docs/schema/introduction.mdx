@@ -37,13 +37,13 @@ The `effect/Schema` module allows you to define a `Schema<Type, Encoded, Require
 }
 ```
 
-### exactOptionalPropertyTypes
+### The exactOptionalPropertyTypes Option
 
 The `effect/Schema` module takes advantage of the `exactOptionalPropertyTypes` option of `tsconfig.json`. This option affects how optional properties are typed (to learn more about this option, you can refer to the official [TypeScript documentation](https://www.typescriptlang.org/tsconfig#exactOptionalPropertyTypes)).
 
-**With exactOptionalPropertyTypes Enabled**
+**Example** (With `exactOptionalPropertyTypes` Enabled)
 
-```ts showLineNumbers=false
+```ts twoslash
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -70,11 +70,11 @@ Argument of type '{ name: undefined; }' is not assignable to parameter of type '
 
 Here, notice that the type of `name` is "exact" (`string`), which means the type checker will catch any attempt to assign an invalid value (like `undefined`).
 
-**With exactOptionalPropertyTypes Disabled**
+**Example** (With `exactOptionalPropertyTypes` Disabled)
 
 If, for some reason, you can't enable the `exactOptionalPropertyTypes` option (perhaps due to conflicts with other third-party libraries), you can still use `effect/Schema`. However, there will be a mismatch between the types and the runtime behavior:
 
-```ts showLineNumbers=false
+```ts
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -93,11 +93,12 @@ type Type = {
 // No type error, but a decoding failure occurs
 Schema.decodeSync(Person)({ name: undefined })
 /*
-Error: { name?: a non empty string }
+throws:
+ParseError: { readonly name?: a non empty string }
 └─ ["name"]
    └─ a non empty string
       └─ From side refinement failure
-         └─ Expected a string, actual undefined
+         └─ Expected string, actual undefined
 */
 ```
 
@@ -105,9 +106,15 @@ In this case, the type of `name` is widened to `string | undefined`, which means
 
 ## The Schema Type
 
-The `Schema` type represents an **immutable** value that describes the structure of your data:
+The `Schema` type represents an **immutable** value that describes the structure of your data.
 
-```ts showLineNumbers=false
+Here is the general form of a `Schema`:
+
+```text showLineNumbers=false
+         ┌─── Type of the decoded value
+         │        ┌─── Encoded type (input/output)
+         │        │      ┌─── Requirements (context)
+         ▼        ▼      ▼
 Schema<Type, Encoded, Requirements>
 ```
 
