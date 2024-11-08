@@ -122,6 +122,8 @@ export default defineConfig({
         "./src/styles/headings.css",
         // the styles for the main site logo
         "./src/styles/logo.css",
+        // adds additional styles to right sidebar elements
+        "./src/styles/sidebar.css",
         // fixes overflow-wrap when the columns contains code blocks
         "./src/styles/tables.css",
         // the base styles for tailwind
