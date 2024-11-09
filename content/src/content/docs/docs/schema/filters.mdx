@@ -13,7 +13,7 @@ Developers can define custom validation logic beyond basic type checks, giving m
 
 Filters are declared using the `Schema.filter` function. This function requires two arguments: the schema to be validated and a predicate function. The predicate function is user-defined and determines whether the data satisfies the condition. If the data fails the validation, an error message can be provided.
 
-**Example**
+**Example** (Defining a Minimum String Length Filter)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -27,8 +27,9 @@ const LongString = Schema.String.pipe(
   )
 )
 
-// string
-type LongString = typeof LongString.Type
+//     ┌─── string
+//     ▼
+type Type = typeof LongString.Type
 
 console.log(Schema.decodeUnknownSync(LongString)("a"))
 /*
@@ -39,14 +40,15 @@ ParseError: { string | filter }
 */
 ```
 
-Note that the filter does not modify the schema's `Type`:
+Note that the filter does not alter the schema's `Type`:
 
 ```ts showLineNumbers=false
-// string
-type LongString = typeof LongString.Type
+//     ┌─── string
+//     ▼
+type Type = typeof LongString.Type
 ```
 
-Filters add additional validation constraints but do not alter the schema's underlying type.
+Filters add additional validation constraints without modifying the schema's underlying type.
 
 <Aside type="tip">
   If you need to modify the `Type`, consider using [Branded
@@ -103,9 +105,9 @@ The filter's predicate can return several types of values, each affecting valida
 
 ## Adding Annotations
 
-It's beneficial to embed as much metadata as possible within the schema. This metadata can include identifiers, JSON schema specifications, and descriptive text to facilitate later analysis and understanding of the schema's purpose and constraints.
+Embedding metadata within the schema, such as identifiers, JSON schema specifications, and descriptions, enhances understanding and analysis of the schema's constraints and purpose.
 
-**Example**
+**Example** (Adding Metadata with Annotations)
 
 ```ts twoslash
 import { Schema, JSONSchema } from "effect"
@@ -146,7 +148,7 @@ Output:
 
 When validating forms or structured data, it's possible to associate specific error messages with particular fields or paths. This enhances error reporting and is especially useful when integrating with libraries like [react-hook-form](https://react-hook-form.com/).
 
-**Example** (Match Passwords)
+**Example** (Matching Passwords)
 
 ```ts twoslash
 import { Either, Schema, ParseResult } from "effect"
@@ -300,7 +302,7 @@ In this example, we define a `MyForm` schema with fields for password validation
 
 ## Exposed Values
 
-When working with schemas that have filters, you can access the base schema (the schema before the filter was applied) using the `from` property:
+For schemas with filters, you can access the base schema (the schema before the filter was applied) using the `from` property:
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -311,11 +313,17 @@ const LongString = Schema.String.pipe(
 
 // Access the base schema, which is the string schema
 // before the filter was applied
+//
+//      ┌─── typeof Schema.String
+//      ▼
 const From = LongString.from
-//    ^? const From: typeof Schema.String
 ```
 
-## String Filters
+## Built-in Filters
+
+### String Filters
+
+Here is a list of useful string filters provided by the Schema module:
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -369,7 +377,9 @@ Schema.String.pipe(Schema.uncapitalized())
   strings, then check out the `trim` combinator or the `Trim` schema.
 </Aside>
 
-## Number Filters
+### Number Filters
+
+Here is a list of useful number filters provided by the Schema module:
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -414,7 +424,9 @@ Schema.Number.pipe(Schema.nonPositive())
 Schema.Number.pipe(Schema.multipleOf(5))
 ```
 
-## Array Filters
+### Array Filters
+
+Here is a list of useful array filters provided by the Schema module:
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -429,7 +441,9 @@ Schema.Array(Schema.Number).pipe(Schema.minItems(2))
 Schema.Array(Schema.Number).pipe(Schema.itemsCount(2))
 ```
 
-## BigInt Filters
+### BigInt Filters
+
+Here is a list of useful `BigInt` filters provided by the Schema module:
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -462,7 +476,9 @@ Schema.BigInt.pipe(Schema.negativeBigInt())
 Schema.BigInt.pipe(Schema.nonPositiveBigInt())
 ```
 
-## BigDecimal Filters
+### BigDecimal Filters
+
+Here is a list of useful `BigDecimal` filters provided by the Schema module:
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -508,7 +524,9 @@ Schema.BigDecimal.pipe(Schema.negativeBigDecimal())
 Schema.BigDecimal.pipe(Schema.nonPositiveBigDecimal())
 ```
 
-## Duration Filters
+### Duration Filters
+
+Here is a list of useful `Duration` filters provided by the Schema module:
 
 ```ts twoslash
 import { Schema } from "effect"
