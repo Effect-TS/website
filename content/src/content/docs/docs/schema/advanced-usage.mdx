@@ -469,34 +469,34 @@ creates an optional property within a schema, allowing fields to be omitted or s
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Struct({
+const Product = Schema.Struct({
   quantity: Schema.optional(Schema.NumberFromString)
 })
 
 //     ┌─── { readonly quantity?: string | undefined; }
 //     ▼
-type Encoded = typeof schema.Encoded
+type Encoded = typeof Product.Encoded
 
 //     ┌─── { readonly quantity?: number | undefined; }
 //     ▼
-type Type = typeof schema.Type
+type Type = typeof Product.Type
 
 // Decoding examples
 
-console.log(Schema.decodeUnknownSync(schema)({ quantity: "1" }))
+console.log(Schema.decodeUnknownSync(Product)({ quantity: "1" }))
 // Output: { quantity: 1 }
-console.log(Schema.decodeUnknownSync(schema)({}))
+console.log(Schema.decodeUnknownSync(Product)({}))
 // Output: {}
-console.log(Schema.decodeUnknownSync(schema)({ quantity: undefined }))
+console.log(Schema.decodeUnknownSync(Product)({ quantity: undefined }))
 // Output: { quantity: undefined }
 
 // Encoding examples
 
-console.log(Schema.encodeSync(schema)({ quantity: 1 }))
+console.log(Schema.encodeSync(Product)({ quantity: 1 }))
 // Output: { quantity: "1" }
-console.log(Schema.encodeSync(schema)({}))
+console.log(Schema.encodeSync(Product)({}))
 // Output: {}
-console.log(Schema.encodeSync(schema)({ quantity: undefined }))
+console.log(Schema.encodeSync(Product)({ quantity: undefined }))
 // Output: { quantity: undefined }
 ```
 
@@ -509,13 +509,13 @@ You can access the original schema type (before it was marked as optional) using
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Struct({
+const Product = Schema.Struct({
   quantity: Schema.optional(Schema.NumberFromString)
 })
 
 //      ┌─── typeof Schema.NumberFromString
 //      ▼
-const from = schema.fields.quantity.from
+const from = Product.fields.quantity.from
 ```
 
 #### Optional with Nullability
@@ -550,7 +550,7 @@ creates an optional property within a schema, treating `null` values the same as
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Struct({
+const Product = Schema.Struct({
   quantity: Schema.optionalWith(Schema.NumberFromString, {
     nullable: true
   })
@@ -558,30 +558,30 @@ const schema = Schema.Struct({
 
 //     ┌─── { readonly quantity?: string | null | undefined; }
 //     ▼
-type Encoded = typeof schema.Encoded
+type Encoded = typeof Product.Encoded
 
 //     ┌─── { readonly quantity?: number | undefined; }
 //     ▼
-type Type = typeof schema.Type
+type Type = typeof Product.Type
 
 // Decoding examples
 
-console.log(Schema.decodeUnknownSync(schema)({ quantity: "1" }))
+console.log(Schema.decodeUnknownSync(Product)({ quantity: "1" }))
 // Output: { quantity: 1 }
-console.log(Schema.decodeUnknownSync(schema)({}))
+console.log(Schema.decodeUnknownSync(Product)({}))
 // Output: {}
-console.log(Schema.decodeUnknownSync(schema)({ quantity: undefined }))
+console.log(Schema.decodeUnknownSync(Product)({ quantity: undefined }))
 // Output: { quantity: undefined }
-console.log(Schema.decodeUnknownSync(schema)({ quantity: null }))
+console.log(Schema.decodeUnknownSync(Product)({ quantity: null }))
 // Output: {}
 
 // Encoding examples
 
-console.log(Schema.encodeSync(schema)({ quantity: 1 }))
+console.log(Schema.encodeSync(Product)({ quantity: 1 }))
 // Output: { quantity: "1" }
-console.log(Schema.encodeSync(schema)({}))
+console.log(Schema.encodeSync(Product)({}))
 // Output: {}
-console.log(Schema.encodeSync(schema)({ quantity: undefined }))
+console.log(Schema.encodeSync(Product)({ quantity: undefined }))
 // Output: { quantity: undefined }
 ```
 
@@ -594,7 +594,7 @@ You can access the original schema type (before it was marked as optional) using
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Struct({
+const Product = Schema.Struct({
   quantity: Schema.optionalWith(Schema.NumberFromString, {
     nullable: true
   })
@@ -602,7 +602,7 @@ const schema = Schema.Struct({
 
 //      ┌─── typeof Schema.NumberFromString
 //      ▼
-const from = schema.fields.quantity.from
+const from = Product.fields.quantity.from
 ```
 
 #### Optional with Exactness
@@ -620,6 +620,7 @@ creates an optional property while enforcing strict typing. This means that only
 | Input             | Output                    |
 | ----------------- | ------------------------- |
 | `<missing value>` | remains `<missing value>` |
+| `undefined`       | `ParseError`              |
 | `i: I`            | transforms to `a: A`      |
 
 ##### Encoding
@@ -634,25 +635,25 @@ creates an optional property while enforcing strict typing. This means that only
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Struct({
+const Product = Schema.Struct({
   quantity: Schema.optionalWith(Schema.NumberFromString, { exact: true })
 })
 
 //     ┌─── { readonly quantity?: string; }
 //     ▼
-type Encoded = typeof schema.Encoded
+type Encoded = typeof Product.Encoded
 
 //     ┌─── { readonly quantity?: number; }
 //     ▼
-type Type = typeof schema.Type
+type Type = typeof Product.Type
 
 // Decoding examples
 
-console.log(Schema.decodeUnknownSync(schema)({ quantity: "1" }))
+console.log(Schema.decodeUnknownSync(Product)({ quantity: "1" }))
 // Output: { quantity: 1 }
-console.log(Schema.decodeUnknownSync(schema)({}))
+console.log(Schema.decodeUnknownSync(Product)({}))
 // Output: {}
-console.log(Schema.decodeUnknownSync(schema)({ quantity: undefined }))
+console.log(Schema.decodeUnknownSync(Product)({ quantity: undefined }))
 /*
 throws:
 ParseError: { readonly quantity?: NumberFromString }
@@ -664,9 +665,9 @@ ParseError: { readonly quantity?: NumberFromString }
 
 // Encoding examples
 
-console.log(Schema.encodeSync(schema)({ quantity: 1 }))
+console.log(Schema.encodeSync(Product)({ quantity: 1 }))
 // Output: { quantity: "1" }
-console.log(Schema.encodeSync(schema)({}))
+console.log(Schema.encodeSync(Product)({}))
 // Output: {}
 ```
 
@@ -679,13 +680,13 @@ You can access the original schema type (before it was marked as optional) using
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Struct({
+const Product = Schema.Struct({
   quantity: Schema.optionalWith(Schema.NumberFromString, { exact: true })
 })
 
 //      ┌─── typeof Schema.NumberFromString
 //      ▼
-const from = schema.fields.quantity.from
+const from = Product.fields.quantity.from
 ```
 
 #### Combining Nullability and Exactness
@@ -704,6 +705,7 @@ allows you to define an optional property that enforces strict typing (exact typ
 | ----------------- | ------------------------------- |
 | `<missing value>` | remains `<missing value>`       |
 | `null`            | transforms to `<missing value>` |
+| `undefined`       | `ParseError`                    |
 | `i: I`            | transforms to `a: A`            |
 
 ##### Encoding
@@ -718,7 +720,7 @@ allows you to define an optional property that enforces strict typing (exact typ
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Struct({
+const Product = Schema.Struct({
   quantity: Schema.optionalWith(Schema.NumberFromString, {
     exact: true,
     nullable: true
@@ -727,19 +729,19 @@ const schema = Schema.Struct({
 
 //     ┌─── { readonly quantity?: string | null; }
 //     ▼
-type Encoded = typeof schema.Encoded
+type Encoded = typeof Product.Encoded
 
 //     ┌─── { readonly quantity?: number; }
 //     ▼
-type Type = typeof schema.Type
+type Type = typeof Product.Type
 
 // Decoding examples
 
-console.log(Schema.decodeUnknownSync(schema)({ quantity: "1" }))
+console.log(Schema.decodeUnknownSync(Product)({ quantity: "1" }))
 // Output: { quantity: 1 }
-console.log(Schema.decodeUnknownSync(schema)({}))
+console.log(Schema.decodeUnknownSync(Product)({}))
 // Output: {}
-console.log(Schema.decodeUnknownSync(schema)({ quantity: undefined }))
+console.log(Schema.decodeUnknownSync(Product)({ quantity: undefined }))
 /*
 throws:
 ParseError: (Struct (Encoded side) <-> Struct (Type side))
@@ -752,14 +754,14 @@ ParseError: (Struct (Encoded side) <-> Struct (Type side))
             │     └─ Expected string, actual undefined
             └─ Expected null, actual undefined
 */
-console.log(Schema.decodeUnknownSync(schema)({ quantity: null }))
+console.log(Schema.decodeUnknownSync(Product)({ quantity: null }))
 // Output: {}
 
 // Encoding examples
 
-console.log(Schema.encodeSync(schema)({ quantity: 1 }))
+console.log(Schema.encodeSync(Product)({ quantity: 1 }))
 // Output: { quantity: "1" }
-console.log(Schema.encodeSync(schema)({}))
+console.log(Schema.encodeSync(Product)({}))
 // Output: {}
 ```
 
@@ -772,7 +774,7 @@ You can access the original schema type (before it was marked as optional) using
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Struct({
+const Product = Schema.Struct({
   quantity: Schema.optionalWith(Schema.NumberFromString, {
     exact: true,
     nullable: true
@@ -781,7 +783,7 @@ const schema = Schema.Struct({
 
 //      ┌─── typeof Schema.NumberFromString
 //      ▼
-const from = schema.fields.quantity.from
+const from = Product.fields.quantity.from
 ```
 
 ### Representing Optional Fields with never Type
@@ -804,17 +806,17 @@ When this feature is turned off, you can employ the `Schema.optional` function. 
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Struct({
+const Product = Schema.Struct({
   quantity: Schema.optional(Schema.Never)
 })
 
 //     ┌─── { readonly quantity?: undefined; }
 //     ▼
-type Encoded = typeof schema.Encoded
+type Encoded = typeof Product.Encoded
 
 //     ┌─── { readonly quantity?: undefined; }
 //     ▼
-type Type = typeof schema.Type
+type Type = typeof Product.Type
 ```
 
 **Example** (`exactOptionalPropertyTypes: true`)
@@ -825,17 +827,17 @@ It ensures stricter enforcement of the field's absence.
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Struct({
+const Product = Schema.Struct({
   quantity: Schema.optionalWith(Schema.Never, { exact: true })
 })
 
 //     ┌─── { readonly quantity?: never; }
 //     ▼
-type Encoded = typeof schema.Encoded
+type Encoded = typeof Product.Encoded
 
 //     ┌─── { readonly quantity?: never; }
 //     ▼
-type Type = typeof schema.Type
+type Type = typeof Product.Type
 ```
 
 ### Default Values
@@ -855,10 +857,10 @@ This is the simplest use case. If the input is missing or `undefined`, the defau
 Schema.optionalWith(schema: Schema<A, I, R>, { default: () => A })
 ```
 
-| Operation    | Behavior                                                      |
-| ------------ | ------------------------------------------------------------- |
-| **Decoding** | Uses the default value if the input is missing or `undefined` |
-| **Encoding** | Transforms the input `a: A` back to `i: I`                    |
+| Operation    | Behavior                                                         |
+| ------------ | ---------------------------------------------------------------- |
+| **Decoding** | Applies the default value if the input is missing or `undefined` |
+| **Encoding** | Transforms the input `a: A` back to `i: I`                       |
 
 **Example** (Applying Default When Field Is Missing or `undefined`)
 
@@ -870,6 +872,14 @@ const Product = Schema.Struct({
     default: () => 1 // Default value for quantity
   })
 })
+
+//     ┌─── { readonly quantity?: string | undefined; }
+//     ▼
+type Encoded = typeof Product.Encoded
+
+//     ┌─── { readonly quantity: number; }
+//     ▼
+type Type = typeof Product.Type
 
 // Decoding examples with default applied
 
@@ -941,6 +951,14 @@ const Product = Schema.Struct({
   })
 })
 
+//     ┌─── { readonly quantity?: string; }
+//     ▼
+type Encoded = typeof Product.Encoded
+
+//     ┌─── { readonly quantity: number; }
+//     ▼
+type Type = typeof Product.Type
+
 console.log(Schema.decodeUnknownSync(Product)({}))
 // Output: { quantity: 1 }
 
@@ -973,10 +991,10 @@ Schema.optionalWith(schema: Schema<A, I, R>, {
 })
 ```
 
-| Operation    | Behavior                                                  |
-| ------------ | --------------------------------------------------------- |
-| **Decoding** | Treats `null`, `undefined`, or missing inputs as defaults |
-| **Encoding** | Transforms the input `a: A` back to `i: I`                |
+| Operation    | Behavior                                                                   |
+| ------------ | -------------------------------------------------------------------------- |
+| **Decoding** | Applies the default value if the input is missing or `undefined` or `null` |
+| **Encoding** | Transforms the input `a: A` back to `i: I`                                 |
 
 **Example** (Applying Default When Field Is Missing or `undefined` or `null`)
 
@@ -989,6 +1007,14 @@ const Product = Schema.Struct({
     nullable: true // Apply default if quantity is null
   })
 })
+
+//     ┌─── { readonly quantity?: string | null | undefined; }
+//     ▼
+type Encoded = typeof Product.Encoded
+
+//     ┌─── { readonly quantity: number; }
+//     ▼
+type Type = typeof Product.Type
 
 console.log(Schema.decodeUnknownSync(Product)({}))
 // Output: { quantity: 1 }
@@ -1017,10 +1043,10 @@ Schema.optionalWith(schema: Schema<A, I, R>, {
 })
 ```
 
-| Operation    | Behavior                                               |
-| ------------ | ------------------------------------------------------ |
-| **Decoding** | Defaults are applied when values are `null` or missing |
-| **Encoding** | Transforms the input `a: A` back to `i: I`             |
+| Operation    | Behavior                                                    |
+| ------------ | ----------------------------------------------------------- |
+| **Decoding** | Applies the default value if the input is missing or `null` |
+| **Encoding** | Transforms the input `a: A` back to `i: I`                  |
 
 **Example** (Applying Default Only When Field Is Missing or `null`)
 
@@ -1034,6 +1060,14 @@ const Product = Schema.Struct({
     nullable: true // Apply default if quantity is null
   })
 })
+
+//     ┌─── { readonly quantity?: string | null; }
+//     ▼
+type Encoded = typeof Product.Encoded
+
+//     ┌─── { readonly quantity: number; }
+//     ▼
+type Type = typeof Product.Type
 
 console.log(Schema.decodeUnknownSync(Product)({}))
 // Output: { quantity: 1 }
@@ -1059,12 +1093,11 @@ ParseError: (Struct (Encoded side) <-> Struct (Type side))
 
 ### Optional Fields as Options
 
-In many cases you may want to transform an optional field into an [Option](/docs/data-types/option/) type.
-This approach allows you to explicitly manage whether a field is present or not, rather than relying on `undefined` or `null`.
+When working with optional fields, you may want to handle them as [Option](/docs/data-types/option/) types. This approach allows you to explicitly manage the presence or absence of a field rather than relying on `undefined` or `null`.
 
 #### Basic Optional with Option Type
 
-You can configure a schema to handle optional fields as `Option` types, where missing or undefined values are converted to `Option.none()` and present values are wrapped in `Option.some()`.
+You can configure a schema to treat optional fields as `Option` types, where missing or `undefined` values are converted to `Option.none()` and existing values are wrapped in `Option.some()`.
 
 **Syntax**
 
@@ -1072,40 +1105,64 @@ You can configure a schema to handle optional fields as `Option` types, where mi
 optionalWith(schema: Schema<A, I, R>, { as: "Option" })
 ```
 
-**Decoding**
+##### Decoding
 
-- Missing values or `undefined` are converted to `Option.none()`
-- Provided values (`i: I`) are converted to `Option.some(a: A)`
+| Input             | Output                            |
+| ----------------- | --------------------------------- |
+| `<missing value>` | transforms to `Option.none()`     |
+| `undefined`       | transforms to `Option.none()`     |
+| `i: I`            | transforms to `Option.some(a: A)` |
 
-**Encoding**
+##### Encoding
 
-- `Option.none()` results in the value being omitted
-- `Option.some(a: A)` is converted back to the original input (`i: I`)
+| Input               | Output                          |
+| ------------------- | ------------------------------- |
+| `Option.none()`     | transforms to `<missing value>` |
+| `Option.some(a: A)` | transforms back to `i: I`       |
 
-**Example**
+**Example** (Handling Optional Field as Option)
 
 ```ts twoslash
 import { Schema } from "effect"
 
 const Product = Schema.Struct({
-  name: Schema.String,
-  price: Schema.NumberFromString,
   quantity: Schema.optionalWith(Schema.NumberFromString, { as: "Option" })
 })
 
-console.log(
-  Schema.decodeUnknownSync(Product)({ name: "Laptop", price: "999" })
-)
-// Output: { name: 'Laptop', price: 999, quantity: none() }
+//     ┌─── { readonly quantity?: string | undefined; }
+//     ▼
+type Encoded = typeof Product.Encoded
 
-console.log(
-  Schema.decodeUnknownSync(Product)({
-    name: "Laptop",
-    price: "999",
-    quantity: "2"
-  })
-)
-// Output: { name: 'Laptop', price: 999, quantity: some(2) }
+//     ┌─── { readonly quantity: Option<number>; }
+//     ▼
+type Type = typeof Product.Type
+
+console.log(Schema.decodeUnknownSync(Product)({}))
+// Output: { quantity: { _id: 'Option', _tag: 'None' } }
+
+console.log(Schema.decodeUnknownSync(Product)({ quantity: undefined }))
+// Output: { quantity: { _id: 'Option', _tag: 'None' } }
+
+console.log(Schema.decodeUnknownSync(Product)({ quantity: "2" }))
+// Output: { quantity: { _id: 'Option', _tag: 'Some', value: 2 } }
+```
+
+##### Exposed Values
+
+You can access the original schema type (before it was marked as optional) using the `from` property.
+
+**Example** (Accessing the Original Schema)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const Product = Schema.Struct({
+  quantity: Schema.optionalWith(Schema.NumberFromString, { as: "Option" })
+})
+
+//      ┌─── typeof Schema.NumberFromString
+//      ▼
+const from = Product.fields.quantity.from
 ```
 
 #### Optional with Exactness
@@ -1121,15 +1178,80 @@ optionalWith(schema: Schema<A, I, R>, {
 })
 ```
 
-**Decoding**
+##### Decoding
 
-- Only truly missing values are converted to `Option.none()`
-- Provided values (`i: I`) are converted to `Option.some(a)`
+| Input             | Output                            |
+| ----------------- | --------------------------------- |
+| `<missing value>` | transforms to `Option.none()`     |
+| `undefined`       | `ParseError`                      |
+| `i: I`            | transforms to `Option.some(a: A)` |
 
-**Encoding**
+##### Encoding
 
-- `Option.none()` results in the value being omitted
-- `Option.some(a: A)` is converted back to the original input (`i: I`)
+| Input               | Output                          |
+| ------------------- | ------------------------------- |
+| `Option.none()`     | transforms to `<missing value>` |
+| `Option.some(a: A)` | transforms back to `i: I`       |
+
+**Example** (Using Exactness with Optional Field as Option)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const Product = Schema.Struct({
+  quantity: Schema.optionalWith(Schema.NumberFromString, {
+    as: "Option",
+    exact: true
+  })
+})
+
+//     ┌─── { readonly quantity?: string; }
+//     ▼
+type Encoded = typeof Product.Encoded
+
+//     ┌─── { readonly quantity: Option<number>; }
+//     ▼
+type Type = typeof Product.Type
+
+console.log(Schema.decodeUnknownSync(Product)({}))
+// Output: { quantity: { _id: 'Option', _tag: 'None' } }
+
+console.log(Schema.decodeUnknownSync(Product)({ quantity: "2" }))
+// Output: { quantity: { _id: 'Option', _tag: 'Some', value: 2 } }
+
+console.log(Schema.decodeUnknownSync(Product)({ quantity: undefined }))
+/*
+throws:
+ParseError: (Struct (Encoded side) <-> Struct (Type side))
+└─ Encoded side transformation failure
+   └─ Struct (Encoded side)
+      └─ ["quantity"]
+         └─ NumberFromString
+            └─ Encoded side transformation failure
+               └─ Expected string, actual undefined
+*/
+```
+
+##### Exposed Values
+
+You can access the original schema type (before it was marked as optional) using the `from` property.
+
+**Example** (Accessing the Original Schema)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const Product = Schema.Struct({
+  quantity: Schema.optionalWith(Schema.NumberFromString, {
+    as: "Option",
+    exact: true
+  })
+})
+
+//      ┌─── typeof Schema.NumberFromString
+//      ▼
+const from = Product.fields.quantity.from
+```
 
 #### Optional with Nullability
 
@@ -1144,19 +1266,79 @@ optionalWith(schema: Schema<A, I, R>, {
 })
 ```
 
-**Decoding**
+##### Decoding
 
-- Treats missing, `undefined`, and `null` values all as `Option.none()`
-- Provided values (`i: I`) are converted to `Option.some(a: A)`
+| Input             | Output                            |
+| ----------------- | --------------------------------- |
+| `<missing value>` | transforms to `Option.none()`     |
+| `undefined`       | transforms to `Option.none()`     |
+| `null`            | transforms to `Option.none()`     |
+| `i: I`            | transforms to `Option.some(a: A)` |
 
-**Encoding**
+##### Encoding
 
-- `Option.none()` results in the value being omitted
-- `Option.some(a: A)` is converted back to the original input (`i: I`)
+| Input               | Output                          |
+| ------------------- | ------------------------------- |
+| `Option.none()`     | transforms to `<missing value>` |
+| `Option.some(a: A)` | transforms back to `i: I`       |
+
+**Example** (Handling Null as Missing Value with Optional Field as Option)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const Product = Schema.Struct({
+  quantity: Schema.optionalWith(Schema.NumberFromString, {
+    as: "Option",
+    nullable: true
+  })
+})
+
+//     ┌─── { readonly quantity?: string | null | undefined; }
+//     ▼
+type Encoded = typeof Product.Encoded
+
+//     ┌─── { readonly quantity: Option<number>; }
+//     ▼
+type Type = typeof Product.Type
+
+console.log(Schema.decodeUnknownSync(Product)({}))
+// Output: { quantity: { _id: 'Option', _tag: 'None' } }
+
+console.log(Schema.decodeUnknownSync(Product)({ quantity: undefined }))
+// Output: { quantity: { _id: 'Option', _tag: 'None' } }
+
+console.log(Schema.decodeUnknownSync(Product)({ quantity: null }))
+// Output: { quantity: { _id: 'Option', _tag: 'None' } }
+
+console.log(Schema.decodeUnknownSync(Product)({ quantity: "2" }))
+// Output: { quantity: { _id: 'Option', _tag: 'Some', value: 2 } }
+```
+
+##### Exposed Values
+
+You can access the original schema type (before it was marked as optional) using the `from` property.
+
+**Example** (Accessing the Original Schema)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const Product = Schema.Struct({
+  quantity: Schema.optionalWith(Schema.NumberFromString, {
+    as: "Option",
+    nullable: true
+  })
+})
+
+//      ┌─── typeof Schema.NumberFromString
+//      ▼
+const from = Product.fields.quantity.from
+```
 
 #### Combining Exactness and Nullability
 
-When both `exact` and `nullable` are used together, only `null` and missing fields trigger `Option.none()`, while `undefined` is treated as an invalid value.
+When both `exact` and `nullable` options are used together, only `null` and missing fields are treated as `Option.none()`, while `undefined` is considered an invalid value.
 
 **Syntax**
 
@@ -1168,15 +1350,86 @@ optionalWith(schema: Schema<A, I, R>, {
 })
 ```
 
-**Decoding**
+##### Decoding
 
-- Missing or `null` values lead to `Option.none()`
-- Provided values (`i: I`) are converted to `Option.some(a: A)`
+| Input             | Output                            |
+| ----------------- | --------------------------------- |
+| `<missing value>` | transforms to `Option.none()`     |
+| `undefined`       | `ParseError`                      |
+| `null`            | transforms to `Option.none()`     |
+| `i: I`            | transforms to `Option.some(a: A)` |
 
-**Encoding**
+##### Encoding
 
-- `Option.none()` results in the value being omitted
-- `Option.some(a: A)` is converted back to the original input (`i: I`)
+| Input               | Output                          |
+| ------------------- | ------------------------------- |
+| `Option.none()`     | transforms to `<missing value>` |
+| `Option.some(a: A)` | transforms back to `i: I`       |
+
+**Example** (Using Exactness and Handling Null as Missing Value with Optional Field as Option)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const Product = Schema.Struct({
+  quantity: Schema.optionalWith(Schema.NumberFromString, {
+    as: "Option",
+    exact: true,
+    nullable: true
+  })
+})
+
+//     ┌─── { readonly quantity?: string | null; }
+//     ▼
+type Encoded = typeof Product.Encoded
+
+//     ┌─── { readonly quantity: Option<number>; }
+//     ▼
+type Type = typeof Product.Type
+
+console.log(Schema.decodeUnknownSync(Product)({}))
+// Output: { quantity: { _id: 'Option', _tag: 'None' } }
+
+console.log(Schema.decodeUnknownSync(Product)({ quantity: null }))
+// Output: { quantity: { _id: 'Option', _tag: 'None' } }
+
+console.log(Schema.decodeUnknownSync(Product)({ quantity: "2" }))
+// Output: { quantity: { _id: 'Option', _tag: 'Some', value: 2 } }
+
+console.log(Schema.decodeUnknownSync(Product)({ quantity: undefined }))
+/*
+throws:
+ParseError: (Struct (Encoded side) <-> Struct (Type side))
+└─ Encoded side transformation failure
+   └─ Struct (Encoded side)
+      └─ ["quantity"]
+         └─ NumberFromString
+            └─ Encoded side transformation failure
+               └─ Expected string, actual undefined
+*/
+```
+
+##### Exposed Values
+
+You can access the original schema type (before it was marked as optional) using the `from` property.
+
+**Example** (Accessing the Original Schema)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const Product = Schema.Struct({
+  quantity: Schema.optionalWith(Schema.NumberFromString, {
+    as: "Option",
+    exact: true,
+    nullable: true
+  })
+})
+
+//      ┌─── typeof Schema.NumberFromString
+//      ▼
+const from = Product.fields.quantity.from
+```
 
 ## Optional Fields Primitives
 
