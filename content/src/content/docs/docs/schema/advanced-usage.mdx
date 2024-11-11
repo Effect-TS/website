@@ -1962,11 +1962,11 @@ console.log(Schema.decodeUnknownSync(Renamed)({ c: "c", d: false }))
 
 ## Recursive Schemas
 
-The `Schema.suspend` function is useful when you need to define a schema that depends on itself, like in the case of recursive data structures.
+The `Schema.suspend` function is designed for defining schemas that reference themselves, such as in recursive data structures.
 
-**Example**
+**Example** (Self-Referencing Schema)
 
-In this example, the `Category` schema depends on itself because it has a field `subcategories` that is an array of `Category` objects.
+In this example, the `Category` schema references itself through the `subcategories` field, which is an array of `Category` objects.
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -1991,6 +1991,8 @@ const Category = Schema.Struct({
   message:
 </Aside>
 
+**Example** (Type Inference Error)
+
 ```ts twoslash
 import { Schema } from "effect"
 
@@ -2011,22 +2013,25 @@ referenced directly or indirectly in its own initializer.ts(7022)
 As we've observed, it's necessary to define an interface for the `Type` of the schema to enable recursive schema definition, which can complicate things and be quite tedious.
 One pattern to mitigate this is to **separate the field responsible for recursion** from all other fields.
 
+**Example** (Separating Recursive Fields)
+
 ```ts twoslash
 import { Schema } from "effect"
 
 const fields = {
   name: Schema.String
-  // ...possibly other fields
+  // ...other fields as needed
 }
 
-// Define an interface for the Category schema, extending the Type of the defined fields
+// Define an interface for the Category schema,
+// extending the Type of the defined fields
 interface Category extends Schema.Struct.Type<typeof fields> {
   // Define `subcategories` using recursion
   readonly subcategories: ReadonlyArray<Category>
 }
 
 const Category = Schema.Struct({
-  ...fields, // Include the fields
+  ...fields, // Spread in the base fields
   subcategories: Schema.Array(
     // Define `subcategories` using recursion
     Schema.suspend((): Schema.Schema<Category> => Category)
@@ -2036,7 +2041,9 @@ const Category = Schema.Struct({
 
 ### Mutually Recursive Schemas
 
-Here's an example of two mutually recursive schemas, `Expression` and `Operation`, that represent a simple arithmetic expression tree.
+You can also use `Schema.suspend` to create mutually recursive schemas, where two schemas reference each other. In the following example, `Expression` and `Operation` form a simple arithmetic expression tree by referencing each other.
+
+**Example** (Defining Mutually Recursive Schemas)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -2073,7 +2080,7 @@ const Operation = Schema.Struct({
 
 Defining a recursive schema where the `Encoded` type differs from the `Type` type adds another layer of complexity. In such cases, we need to define two interfaces: one for the `Type` type, as seen previously, and another for the `Encoded` type.
 
-**Example**
+**Example** (Recursive Schema with Different Encoded and Type Definitions)
 
 Let's consider an example: suppose we want to add an `id` field to the `Category` schema, where the schema for `id` is `NumberFromString`.
 It's important to note that `NumberFromString` is a schema that transforms a string into a number, so the `Type` and `Encoded` types of `NumberFromString` differ, being `number` and `string` respectively.
