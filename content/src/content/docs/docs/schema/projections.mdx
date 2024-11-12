@@ -6,11 +6,11 @@ sidebar:
   order: 6
 ---
 
-Occasionally, you may need to derive a new schema from an existing one, specifically targeting either its `Type` or `Encoded` portion. The `effect/Schema` module provides several APIs to support this functionality.
+Sometimes, you may want to create a new schema based on an existing one, focusing specifically on either its `Type` or `Encoded` aspect. The Schema module provides several functions to make this possible.
 
 ## typeSchema
 
-The `Schema.typeSchema` function allows you to extract the `Type` portion of a schema, creating a new schema that conforms to the properties defined in the original schema without considering the initial encoding or transformation processes.
+The `Schema.typeSchema` function is used to extract the `Type` portion of a schema, resulting in a new schema that retains only the type-specific properties from the original schema. This excludes any initial encoding or transformation logic applied to the original schema.
 
 **Function Signature**
 
@@ -18,34 +18,28 @@ The `Schema.typeSchema` function allows you to extract the `Type` portion of a s
 declare const typeSchema: <A, I, R>(schema: Schema<A, I, R>) => Schema<A>
 ```
 
-**Example**
+**Example** (Extracting Only Type-Specific Properties)
 
 ```ts twoslash
 import { Schema } from "effect"
 
-const original = Schema.Struct({
-  foo: Schema.NumberFromString.pipe(Schema.greaterThanOrEqualTo(2))
+const Original = Schema.Struct({
+  quantity: Schema.NumberFromString.pipe(Schema.greaterThanOrEqualTo(2))
 })
 
-// This creates a schema where 'foo' is strictly a number
+// This creates a schema where 'quantity' is defined as a number
 // that must be greater than or equal to 2.
-const resultingTypeSchema = Schema.typeSchema(original)
+const TypeSchema = Schema.typeSchema(Original)
 
-// resultingTypeSchema is the same as:
-const resultingTypeSchema2 = Schema.Struct({
-  foo: Schema.Number.pipe(Schema.greaterThanOrEqualTo(2))
+// TypeSchema is equivalent to:
+const TypeSchema2 = Schema.Struct({
+  quantity: Schema.Number.pipe(Schema.greaterThanOrEqualTo(2))
 })
 ```
 
-In this example:
-
-- **Original Schema**: The schema for `foo` is initially defined to accept a number from a string and enforce that it is greater than or equal to 2.
-- **Resulting Type Schema**: The `Schema.typeSchema` function extracts only the type-related information from `foo`, simplifying it to just a number while still maintaining the constraint that it must be greater than or equal to 2.
-
 ## encodedSchema
 
-The `Schema.encodedSchema` function allows you to extract the `Encoded` portion of a schema,
-creating a new schema that conforms to the properties defined in the original schema **without retaining any refinements or transformations** that were applied previously.
+The `Schema.encodedSchema` function enables you to extract the `Encoded` portion of a schema, creating a new schema that matches the original properties but **omits any refinements or transformations** applied to the schema.
 
 **Function Signature**
 
@@ -55,29 +49,24 @@ declare const encodedSchema: <A, I, R>(
 ) => Schema<I>
 ```
 
-**Example**
+**Example** (Extracting Encoded Properties Only)
 
 ```ts twoslash
 import { Schema } from "effect"
 
-const original = Schema.Struct({
-  foo: Schema.String.pipe(Schema.minLength(3))
+const Original = Schema.Struct({
+  quantity: Schema.String.pipe(Schema.minLength(3))
 })
 
-// resultingEncodedSchema simplifies 'foo' to just a string,
+// This creates a schema where 'quantity' is just a string,
 // disregarding the minLength refinement.
-const resultingEncodedSchema = Schema.encodedSchema(original)
+const Encoded = Schema.encodedSchema(Original)
 
-// resultingEncodedSchema is the same as:
-const resultingEncodedSchema2 = Schema.Struct({
-  foo: Schema.String
+// Encoded is equivalent to:
+const Encoded2 = Schema.Struct({
+  quantity: Schema.String
 })
 ```
-
-In this example:
-
-- **Original Schema Definition**: The `foo` field in the schema is defined as a string with a minimum length of three characters.
-- **Resulting Encoded Schema**: The `encodedSchema` function simplifies the `foo` field to just a string type, effectively stripping away the `minLength` refinement.
 
 ## encodedBoundSchema
 
@@ -94,29 +83,25 @@ declare const encodedBoundSchema: <A, I, R>(
 
 The term "bound" in this context refers to the boundary up to which refinements are preserved when extracting the encoded form of a schema. It essentially marks the limit to which initial validations and structure are maintained before any transformations are applied.
 
-**Example**
+**Example** (Retaining Initial Refinements Only)
 
 ```ts twoslash
 import { Schema } from "effect"
 
-const original = Schema.Struct({
+const Original = Schema.Struct({
   foo: Schema.String.pipe(
     Schema.minLength(3),
     Schema.compose(Schema.Trim)
   )
 })
 
-// The resultingEncodedBoundSchema preserves the minLength(3) refinement,
-// ensuring the string length condition is enforced but omits the Trim transformation.
-const resultingEncodedBoundSchema = Schema.encodedBoundSchema(original)
+// The EncodedBoundSchema schema preserves the minLength(3) refinement,
+// ensuring the string length condition is enforced
+// but omits the Schema.Trim transformation.
+const EncodedBoundSchema = Schema.encodedBoundSchema(Original)
 
-// resultingEncodedBoundSchema is the same as:
-const resultingEncodedBoundSchema2 = Schema.Struct({
+// EncodedBoundSchema is equivalent to:
+const EncodedBoundSchema2 = Schema.Struct({
   foo: Schema.String.pipe(Schema.minLength(3))
 })
 ```
-
-In the provided example:
-
-- **Initial Schema**: The schema for `foo` includes a refinement to ensure strings have a minimum length of three characters and a transformation to trim the string.
-- **Resulting Schema**: `resultingEncodedBoundSchema` maintains the `Schema.minLength(3)` condition, ensuring that this validation persists. However, it excludes the trimming transformation, focusing solely on the length requirement without altering the string's formatting.
