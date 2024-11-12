@@ -38,7 +38,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Providers>
           {children}
           <Analytics />
-          <SpeedInsights />
+          <SpeedInsights
+            endpoint="/speed-insights/vitals"
+            scriptSrc="/speed-insights/script.js"
+          />
         </Providers>
       </body>
     </html>
