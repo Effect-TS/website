@@ -5,7 +5,6 @@ import { Duration, Effect, Schedule } from "effect"
 import { sample } from "./run-schedule"
 
 export type ScheduleVisualizerProps = {
-  code: string
   items: ReadonlyArray<ScheduleItem>
 }
 
@@ -17,12 +16,10 @@ type ScheduleItem = {
 }
 
 export const ScheduleVisualizer: React.FC<ScheduleVisualizerProps> = ({
-  code,
   items
 }) => {
   return (
     <div className="not-content mb-12">
-      <pre className="font-mono whitespace-pre-wrap">{code}</pre>
       <div className="relative">
         <div className="w-full absolute inset-0 top-[70px] z-10">
           <div className="arrow w-full" />
@@ -99,10 +96,11 @@ export const scheduleToItems = async (
   return sample(schedule, limit).pipe(
     Effect.map((_) =>
       _.map((duration) => {
+        const clock = accDuration
         accDuration = Duration.sum(accDuration, duration)
         return {
           interval: duration,
-          clock: accDuration,
+          clock,
           hasNewValue: true,
           value: ""
         } satisfies ScheduleItem
