@@ -31,7 +31,7 @@ export function CodeEditor() {
   return (
     <TooltipProvider>
       <PlaygroundLoader />
-      <Suspense fallback={null}>
+      <Suspense>
         <EditorSuspended />
       </Suspense>
       <Toaster />

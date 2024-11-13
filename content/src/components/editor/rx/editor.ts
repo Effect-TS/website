@@ -86,7 +86,7 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
       }
 
       // Ensure the editor UI reflects changes to the selected workspace file
-      yield* loader.withIndicator("Configuring editor", "1 seconds")(Effect.void)
+      yield* loader.withIndicator("Configuring editor")(Effect.void)
       yield* get.stream(handle.selectedFile).pipe(
         Stream.bindTo("file"),
         Stream.bindEffect("workspace", () => SubscriptionRef.get(handle.workspace)),
