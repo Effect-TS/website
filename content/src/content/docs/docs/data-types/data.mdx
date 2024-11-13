@@ -245,6 +245,7 @@ interface Person {
   }
 }
 
+// Create a constructor for `Person`
 const Person = Data.case<Person>()
 
 const alice = Person({
@@ -258,6 +259,38 @@ const anotherAlice = Person({
 })
 
 console.log(Equal.equals(alice, anotherAlice))
+// Output: true
+```
+
+**Example** (Defining and Comparing Recursive Case Classes)
+
+This example demonstrates a recursive structure using `Data.case` to define a binary tree where each node can contain other nodes.
+
+```ts twoslash
+import { Data, Equal } from "effect"
+
+interface BinaryTree<T> {
+  readonly value: T
+  readonly left: BinaryTree<T> | null
+  readonly right: BinaryTree<T> | null
+}
+
+// Create a constructor for `BinaryTree`
+const BinaryTree = Data.case<BinaryTree<number>>()
+
+const tree1 = BinaryTree({
+  value: 0,
+  left: BinaryTree({ value: 1, left: null, right: null }),
+  right: null
+})
+
+const tree2 = BinaryTree({
+  value: 0,
+  left: BinaryTree({ value: 1, left: null, right: null }),
+  right: null
+})
+
+console.log(Equal.equals(tree1, tree2))
 // Output: true
 ```
 
