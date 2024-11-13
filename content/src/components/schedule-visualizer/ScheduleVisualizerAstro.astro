@@ -1,0 +1,21 @@
+---
+import { Schedule } from "effect"
+import { ScheduleVisualizer, type ScheduleVisualizerProps, scheduleToItems } from "./ScheduleVisualizer"
+// import { Code } from "astro:components"
+
+type Props = ScheduleVisualizerProps & {
+  schedule: Schedule.Schedule<unknown>
+}
+
+
+const limit = 10
+
+const items = await scheduleToItems(Astro.props.schedule, limit)
+
+const { code } = Astro.props
+---
+
+<ScheduleVisualizer 
+  code={code}
+  items={items}
+/>

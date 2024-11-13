@@ -1,7 +1,8 @@
 import React from "react"
 
 import "./ScheduleVisualizer.css"
-import { Duration } from "effect"
+import { Duration, Effect, Schedule } from "effect"
+import { sample } from "./run-schedule"
 
 export type ScheduleVisualizerProps = {
   code: string
@@ -10,7 +11,7 @@ export type ScheduleVisualizerProps = {
 
 type ScheduleItem = {
   value: string
-  interval: Duration.Duration
+  interval: Duration.Duration | undefined
   clock: Duration.Duration
   hasNewValue: boolean
 }
@@ -20,8 +21,8 @@ export const ScheduleVisualizer: React.FC<ScheduleVisualizerProps> = ({
   items
 }) => {
   return (
-    <div className="not-content">
-      <pre className="font-mono">{code}</pre>
+    <div className="not-content mb-12">
+      <pre className="font-mono whitespace-pre-wrap">{code}</pre>
       <div className="relative">
         <div className="w-full absolute inset-0 top-[70px] z-10">
           <div className="arrow w-full" />
@@ -30,7 +31,7 @@ export const ScheduleVisualizer: React.FC<ScheduleVisualizerProps> = ({
             output
           </div>
         </div>
-        <div className="flex space-x-0.5 z-20 relative p-4">
+        <div className="flex space-x-0.5 z-20 relative p-4 w-full overflow-x-auto">
           {items.map((item, index) => (
             <ScheduleItem key={index} {...item} />
           ))}
@@ -58,17 +59,28 @@ const ScheduleItem: React.FC<ScheduleItem> = ({
         <div className="w-px h-4 bg-white" />
         <div
           style={{
-            width: `${durationToPixels(interval)}px`,
+            width: `${durationToPixels(
+              interval ?? Duration.seconds(0)
+            )}px`,
             background: "#DAF0FF",
             border: "1px solid #0095FF",
             color: "#007BD3"
           }}
-          className="font-bold text-center p-0.5 text-xs"
+          className="font-bold text-center p-0.5 text-xs overflow-hidden"
         >
-          {Duration.format(interval)}
+          {interval && Duration.toMillis(interval) > 0
+            ? Duration.format(interval)
+            : "0"}
         </div>
       </div>
-      <div className="-ml-[4px] text-sm">
+      <div
+        className="-ml-[4px] text-sm"
+        style={{
+          maxWidth: `${durationToPixels(
+            interval ?? Duration.seconds(0)
+          )}px`
+        }}
+      >
         {Duration.toMillis(clock) === 0 ? "0s" : Duration.format(clock)}
       </div>
     </div>
@@ -76,5 +88,27 @@ const ScheduleItem: React.FC<ScheduleItem> = ({
 }
 
 const durationToPixels = (duration: Duration.Duration) => {
-  return Math.round(Duration.toSeconds(duration) * 60)
+  return Math.max(20, Math.round(Duration.toSeconds(duration) * 60))
+}
+
+export const scheduleToItems = async (
+  schedule: Schedule.Schedule<unknown>,
+  limit: number
+) => {
+  let accDuration = Duration.millis(0)
+  return sample(schedule, limit).pipe(
+    Effect.map((_) =>
+      _.map((duration) => {
+        accDuration = Duration.sum(accDuration, duration)
+        return {
+          interval: duration,
+          clock: accDuration,
+          hasNewValue: true,
+          value: ""
+        } satisfies ScheduleItem
+      })
+    ),
+    Effect.tapErrorCause(Effect.logError),
+    Effect.runPromise
+  )
 }

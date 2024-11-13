@@ -2,18 +2,25 @@
 title: Schedule Visualizer
 ---
 
-import { ScheduleVisualizer } from "@/components/schedule-visualizer/ScheduleVisualizer"
-import { Duration } from "effect"
-
-# Schedule Visualizer
+import ScheduleVisualizer from "@/components/schedule-visualizer/ScheduleVisualizerAstro.astro"
+import { Duration, Schedule } from "effect"
 
 <ScheduleVisualizer
 	code={`Schedule.fixed(Duration.seconds(1))`}
-  items={[
-    { value: "0", interval: Duration.seconds(1), clock: Duration.seconds(0), hasNewValue: true },
-    { value: "1", interval: Duration.seconds(1), clock: Duration.seconds(1), hasNewValue: true },
-    { value: "2", interval: Duration.seconds(1), clock: Duration.seconds(2), hasNewValue: true },
-    { value: "3", interval: Duration.seconds(1), clock: Duration.seconds(3), hasNewValue: true },
-  ]}
+	schedule={Schedule.fixed(Duration.seconds(1))}
 />
 
+<ScheduleVisualizer
+	code={`Schedule.recurs(2)`}
+	schedule={Schedule.recurs(2)}
+/>
+
+<ScheduleVisualizer
+	code={`Schedule.fibonacci(Duration.seconds(1))`}
+	schedule={Schedule.fibonacci(Duration.seconds(1))}
+/>
+
+<ScheduleVisualizer
+	code={`Schedule.exponential(Duration.millis(10), 4).pipe(Schedule.andThenEither(Schedule.spaced(Duration.seconds(1))), Schedule.compose(Schedule.elapsed), Schedule.whileOutput(Duration.lessThanOrEqualTo(Duration.seconds(10))))`}
+	schedule={Schedule.exponential(Duration.millis(10), 4).pipe(Schedule.andThenEither(Schedule.spaced(Duration.seconds(1))), Schedule.compose(Schedule.elapsed), Schedule.whileOutput(Duration.lessThanOrEqualTo(Duration.seconds(10))))}
+/>
