@@ -59,9 +59,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
       /**
        * Load the file system of the workspace into the WebContainer
        */
-      yield* loadWorkspace(workspace).pipe(
-        loader.withIndicator("Preparing workspace", "1 seconds")
-      )
+      yield* loadWorkspace(workspace).pipe(loader.withIndicator("Preparing workspace"))
 
       const selectedFile = Rx.make(workspace.initialFile)
 

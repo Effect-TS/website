@@ -29,9 +29,7 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
     const loader = yield* Loader
 
     const container = yield* Effect.acquireRelease(
-      Effect.promise(() => WC.boot()).pipe(
-        loader.withIndicator("Booting webcontainer", "3 seconds")
-      ),
+      Effect.promise(() => WC.boot()).pipe(loader.withIndicator("Booting webcontainer")),
       (container) => Effect.sync(() => container.teardown())
     )
 

@@ -49,7 +49,7 @@ export class Loader extends Effect.Service<Loader>()("app/Loader", {
 
     const finish = nextId.pipe(
       Effect.tap((id) => addStep(id, "Starting playground")),
-      Effect.flatMap((id) => Queue.offerAll(queue, [[id, "3 seconds"], null]))
+      Effect.flatMap((id) => Queue.offerAll(queue, [[id, 0], null]))
     )
 
     function completeStep(id: number) {
