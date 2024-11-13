@@ -1266,12 +1266,61 @@ const User = Schema.TaggedStruct("User", {
   age: Schema.Number
 })
 
-// `_tag` is optional when creating an instance
+// `_tag` is automatically applied when constructing an instance
 console.log(User.make({ name: "John", age: 44 }))
+// Output: { _tag: 'User', name: 'John', age: 44 }
+
+// `_tag` is required when decoding from an unknown source
+console.log(Schema.decodeUnknownSync(User)({ name: "John", age: 44 }))
 /*
-Output:
-{ _tag: 'User', name: 'John', age: 44 }
+throws:
+ParseError: { readonly _tag: "User"; readonly name: string; readonly age: number }
+└─ ["_tag"]
+   └─ is missing
 */
+```
+
+In this example:
+
+- The `_tag` property is optional when constructing an instance with `make`, allowing the schema to automatically apply it.
+- When decoding unknown data, `_tag` is required to ensure correct type identification. This distinction between instance construction and decoding is useful for preserving the tag’s role as a type discriminator while simplifying instance creation.
+
+If you need `_tag` to be applied automatically during decoding as well, you can create a customized version of `Schema.TaggedStruct`:
+
+**Example** (Custom `TaggedStruct` with `_tag` Applied during Decoding)
+
+```ts twoslash
+import type { SchemaAST } from "effect"
+import { Schema } from "effect"
+
+const TaggedStruct = <
+  Tag extends SchemaAST.LiteralValue,
+  Fields extends Schema.Struct.Fields
+>(
+  tag: Tag,
+  fields: Fields
+) =>
+  Schema.Struct({
+    _tag: Schema.Literal(tag).pipe(
+      Schema.optional,
+      Schema.withDefaults({
+        constructor: () => tag, // Apply _tag during instance construction
+        decoding: () => tag // Apply _tag during decoding
+      })
+    ),
+    ...fields
+  })
+
+const User = TaggedStruct("User", {
+  name: Schema.String,
+  age: Schema.Number
+})
+
+console.log(User.make({ name: "John", age: 44 }))
+// Output: { _tag: 'User', name: 'John', age: 44 }
+
+console.log(Schema.decodeUnknownSync(User)({ name: "John", age: 44 }))
+// Output: { _tag: 'User', name: 'John', age: 44 }
 ```
 
 ### Multiple Tags
