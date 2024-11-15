@@ -5,13 +5,13 @@ sidebar:
   order: 10
 ---
 
-When you're working with Effect Schema and encounter errors during decoding, or encoding functions, you can format these errors in two different ways: using the `TreeFormatter` or the `ArrayFormatter`.
+When working with Effect Schema, errors encountered during decoding or encoding operations can be formatted using two built-in methods: `TreeFormatter` and `ArrayFormatter`. These formatters help structure and present errors in a readable and actionable manner.
 
 ## TreeFormatter (default)
 
 The `TreeFormatter` is the default method for formatting errors. It organizes errors in a tree structure, providing a clear hierarchy of issues.
 
-Here's an example of how it works:
+**Example** (Decoding with Missing Properties)
 
 ```ts twoslash
 import { Either, Schema, ParseResult } from "effect"
@@ -36,22 +36,19 @@ Decoding failed:
 */
 ```
 
-In this example, the tree error message is structured as follows:
+In this example:
 
-- `{ readonly name: string; readonly age: number }` represents the schema, providing a visual representation of the expected structure. This can be customized by using annotations like `identifier`, `title`, or `description`.
-- `["name"]` points to the problematic property, in this case, the `"name"` property.
-- `is missing` details the specific error for the `"name"` property.
+- `{ readonly name: string; readonly age: number }` describes the schema's expected structure.
+- `["name"]` identifies the specific field causing the error.
+- `is missing` explains the issue for the `"name"` field.
 
 ### Customizing the Output
 
-The default error message represents the involved schemas in a TypeScript-like syntax:
+You can make the error output more concise and meaningful by annotating the schema with annotations like `identifier`, `title`, or `description`. These annotations replace the default TypeScript-like representation in the error messages.
 
-```ts
-{ readonly name: string; readonly age: number }
-```
+**Example** (Using `title` Annotation for Clarity)
 
-You can customize this output by adding annotations such as `identifier`, `title`, or `description`.
-These annotations are applied in this order of priority and allow for a more concise and clear representation in error messages.
+Adding a `title` annotation replaces the schema structure in the error message with the more human-readable "Person" making it easier to understand.
 
 ```ts twoslash
 import { Either, Schema, ParseResult } from "effect"
@@ -59,7 +56,7 @@ import { Either, Schema, ParseResult } from "effect"
 const Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number
-}).annotations({ title: "Person" }) // Adding a title annotation
+}).annotations({ title: "Person" }) // Add a title annotation
 
 const result = Schema.decodeUnknownEither(Person)({})
 if (Either.isLeft(result)) {
@@ -72,11 +69,11 @@ Person
 */
 ```
 
-In this modified example, by adding a `title` annotation, the schema representation in the error message changes to "Person", providing a simpler and more understandable output. This helps in identifying the schema involved more quickly and improves the readability of the error messages.
+### Handling Multiple Errors
 
-**Handling Multiple Errors**
+By default, decoding functions like `Schema.decodeUnknownEither` report only the first error. To list all errors, use the `{ errors: "all" }` option.
 
-By default, decoding functions like `decodeUnknownEither` return only the first encountered error. If you require a comprehensive list of all errors, you can modify the behavior by passing the `{ errors: "all" }` option:
+**Example** (Listing All Errors)
 
 ```ts twoslash
 import { Either, Schema, ParseResult } from "effect"
@@ -103,13 +100,11 @@ Decoding failed:
 */
 ```
 
-This adjustment ensures that the formatter displays all errors related to the input, providing a more detailed diagnostic of what went wrong.
-
 ### ParseIssueTitle Annotation
 
-When a decoding or encoding operation fails, it's useful to have additional details in the default error message returned by `TreeFormatter` to understand exactly which value caused the operation to fail. To achieve this, you can set an annotation that depends on the value undergoing the operation and can return an excerpt of it, making it easier to identify the problematic value. A common scenario is when the entity being validated has an `id` field. The `ParseIssueTitle` annotation facilitates this kind of analysis during error handling.
+The `parseIssueTitle` annotation allows you to add dynamic context to error messages by generating titles based on the value being validated. For instance, it can include an ID from the validated object, making it easier to identify specific issues in complex or nested data structures.
 
-The type of the annotation is:
+**Annotation Type**
 
 ```ts
 export type ParseIssueTitleAnnotation = (
@@ -117,19 +112,22 @@ export type ParseIssueTitleAnnotation = (
 ) => string | undefined
 ```
 
-If you set this annotation on a schema and the provided function returns a `string`, then that string is used as the title by `TreeFormatter`, unless a `message` annotation (which has the highest priority) has also been set. If the function returns `undefined`, then the default title used by `TreeFormatter` is determined with the following priorities:
+**Return Value**:
 
-1. `identifier` annotation
-2. `title` annotation
-3. `description` annotation
-4. default TypeScript-like syntax
+- If the function returns a `string`, the `TreeFormatter` uses it as the title unless a `message` annotation is present (which takes precedence).
+- If the function returns `undefined`, the `TreeFormatter` determines the title based on the following priority:
+  1. `identifier` annotation
+  2. `title` annotation
+  3. `description` annotation
+  4. Default TypeScript-like schema representation
 
-**Example**
+**Example** (Dynamic Titles Using `parseIssueTitle`)
 
 ```ts twoslash
 import type { ParseResult } from "effect"
 import { Schema } from "effect"
 
+// Function to generate titles for OrderItem issues
 const getOrderItemId = ({ actual }: ParseResult.ParseIssue) => {
   if (Schema.is(Schema.Struct({ id: Schema.String }))(actual)) {
     return `OrderItem with id: ${actual.id}`
@@ -145,6 +143,7 @@ const OrderItem = Schema.Struct({
   parseIssueTitle: getOrderItemId
 })
 
+// Function to generate titles for Order issues
 const getOrderId = ({ actual }: ParseResult.ParseIssue) => {
   if (Schema.is(Schema.Struct({ id: Schema.Number }))(actual)) {
     return `Order with id: ${actual.id}`
@@ -162,7 +161,7 @@ const Order = Schema.Struct({
 
 const decode = Schema.decodeUnknownSync(Order, { errors: "all" })
 
-// No id available, so the `identifier` annotation is used as the title
+// Case 1: No id available, uses the `identifier` annotation
 decode({})
 /*
 throws
@@ -175,7 +174,7 @@ ParseError: Order
    └─ is missing
 */
 
-// An id is available, so the `parseIssueTitle` annotation is used as the title
+// Case 2: ID present, uses the dynamic `parseIssueTitle` annotation
 decode({ id: 1 })
 /*
 throws
@@ -186,6 +185,7 @@ ParseError: Order with id: 1
    └─ is missing
 */
 
+// Case 3: Nested issues with IDs for both Order and OrderItem
 decode({ id: 1, items: [{ id: "22b", price: "100" }] })
 /*
 throws
@@ -203,15 +203,11 @@ ParseError: Order with id: 1
 */
 ```
 
-In the examples above, we can see how the `parseIssueTitle` annotation helps provide meaningful error messages when decoding fails.
-
 ## ArrayFormatter
 
-The `ArrayFormatter` offers an alternative method for formatting errors within `effect/Schema`, organizing them into a more structured and easily navigable array format. This formatter is especially useful when you need a clear overview of all issues detected during the decoding or encoding processes.
+The `ArrayFormatter` provides a structured, array-based approach to formatting errors. It represents each error as an object, making it easier to analyze and address multiple issues during data decoding or encoding. Each error object includes properties like `_tag`, `path`, and `message` for clarity.
 
-The `ArrayFormatter` formats errors as an array of objects, where each object represents a distinct issue and includes properties such as `_tag`, `path`, and `message`. This structured format can help developers quickly identify and address multiple issues in data processing.
-
-Here's an example of how it works:
+**Example** (Single Error in Array Format)
 
 ```ts twoslash
 import { Either, Schema, ParseResult } from "effect"
@@ -234,11 +230,17 @@ Decoding failed:
 */
 ```
 
-Each error is formatted as an object in an array, making it clear what the error is (`is missing`), where it occurred (`name`), and its type (`Missing`).
+In this example:
 
-**Handling Multiple Errors**
+- `_tag`: Indicates the type of error (`Missing`).
+- `path`: Specifies the location of the error in the data (`['name']`).
+- `message`: Describes the issue (`'is missing'`).
 
-By default, decoding functions like `decodeUnknownEither` return only the first encountered error. If you require a comprehensive list of all errors, you can modify the behavior by passing the `{ errors: "all" }` option:
+### Handling Multiple Errors
+
+By default, decoding functions like `Schema.decodeUnknownEither` report only the first error. To list all errors, use the `{ errors: "all" }` option.
+
+**Example** (Listing All Errors)
 
 ```ts twoslash
 import { Either, Schema, ParseResult } from "effect"
