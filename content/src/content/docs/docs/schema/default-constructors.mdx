@@ -7,16 +7,18 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components"
 
-When working with data structures, it's advantageous to be able to construct values that align with a specific schema effortlessly.
-For this purpose, we offer **default constructors** for several types of schemas, including `Structs`, `Records`, `filters`, and `brands`.
+When working with data structures, it can be helpful to create values that conform to a schema with minimal effort.
+For this purpose, the Schema module provides default constructors for various schema types, including `Structs`, `Records`, `filters`, and `brands`.
 
-<Aside type="note">
-  Remember, default constructors linked to a schema `Schema<A, I, R>` specifically relate to the `A` type rather than the `I` type.
+<Aside type="note" title="Constructor Scope">
+  Default constructors tied to a schema `Schema<A, I, R>` specifically operate on the `A` type, not the `I` type.
 </Aside>
 
 ## Structs
 
-**Example**
+Struct schemas allow you to define objects with specific fields and constraints. The `make` function can be used to create instances of a struct schema.
+
+**Example** (Creating Struct Instances)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -28,7 +30,7 @@ const Struct = Schema.Struct({
 // Successful creation
 Struct.make({ name: "a" })
 
-// This will cause an error because the name is empty
+// This will throw an error because the name is empty
 Struct.make({ name: "" })
 /*
 throws
@@ -40,8 +42,9 @@ ParseError: { readonly name: NonEmptyString }
 */
 ```
 
-There are scenarios where you might want to bypass validation during instantiation.
-Although not typically recommended, `effect/Schema` allows for this flexibility:
+In some cases, you might need to bypass validation. While not recommended in most scenarios, `make` provides an option to disable validation.
+
+**Example** (Bypassing Validation)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -50,16 +53,18 @@ const Struct = Schema.Struct({
   name: Schema.NonEmptyString
 })
 
-// Bypasses validation, thus avoiding errors
+// Bypass validation during instantiation
 Struct.make({ name: "" }, true)
 
-// or more explicitly
+// Or use the `disableValidation` option explicitly
 Struct.make({ name: "" }, { disableValidation: true })
 ```
 
 ## Records
 
-**Example**
+Record schemas allow you to define key-value mappings where the keys and values must meet specific criteria.
+
+**Example** (Creating Record Instances)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -72,7 +77,7 @@ const Record = Schema.Record({
 // Successful creation
 Record.make({ a: "a", b: "b" })
 
-// This will cause an error because 'b' is empty
+// This will throw an error because 'b' is empty
 Record.make({ a: "a", b: "" })
 /*
 throws
@@ -89,7 +94,9 @@ Record.make({ a: "a", b: "" }, { disableValidation: true })
 
 ## Filters
 
-**Example**
+Filters allow you to define constraints on individual values.
+
+**Example** (Using Filters to Enforce Ranges)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -99,7 +106,7 @@ const MyNumber = Schema.Number.pipe(Schema.between(1, 10))
 // Successful creation
 const n = MyNumber.make(5)
 
-// This will cause an error because the number is outside the valid range
+// This will throw an error because the number is outside the valid range
 MyNumber.make(20)
 /*
 throws
@@ -114,7 +121,9 @@ MyNumber.make(20, { disableValidation: true })
 
 ## Branded Types
 
-**Example**
+Branded schemas add metadata to a value to give it a more specific type, while still retaining its original type.
+
+**Example** (Creating Branded Values)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -127,7 +136,7 @@ const BrandedNumberSchema = Schema.Number.pipe(
 // Successful creation
 const n = BrandedNumberSchema.make(5)
 
-// This will cause an error because the number is outside the valid range
+// This will throw an error because the number is outside the valid range
 BrandedNumberSchema.make(20)
 /*
 throws
@@ -140,30 +149,39 @@ ParseError: a number between 1 and 10 & Brand<"MyNumber">
 BrandedNumberSchema.make(20, { disableValidation: true })
 ```
 
-When utilizing our default constructors, it's important to grasp the type of value they generate.
-In the `BrandedNumberSchema` example, the return type of the constructor is `number & Brand<"MyNumber">`, indicating that the resulting value is a number with the added branding "MyNumber".
+When using default constructors, it is helpful to understand the type of value they produce.
 
-This differs from the filter example where the return type is simply `number`.
-The branding offers additional insights about the type, facilitating the identification and manipulation of your data.
+For instance, in the `BrandedNumberSchema` example, the return type of the constructor is `number & Brand<"MyNumber">`. This indicates that the resulting value is a `number` with additional branding information, `"MyNumber"`.
 
-Note that default constructors are "unsafe" in the sense that if the input does not conform to the schema, the constructor throws an error containing a description of what is wrong.
-This is because the goal of default constructors is to provide a quick way to create compliant values (for example, for writing tests or configurations, or in any situation where it is assumed that the input passed to the constructors is valid and the opposite situation is exceptional).
-To have a "safe" constructor, you can use `Schema.validateEither`:
+This behavior contrasts with the filter example, where the return type is simply `number`. Branding adds an extra layer of type information, which can assist in identifying and working with your data more effectively.
+
+## Error Handling in Constructors
+
+Default constructors are considered "unsafe" because they throw an error if the input does not conform to the schema. This error includes a detailed description of what went wrong. The intention behind default constructors is to provide a straightforward way to create valid values, such as for tests or configurations, where invalid inputs are expected to be exceptional cases.
+
+If you need a "safe" constructor that does not throw errors but instead returns a result indicating success or failure, you can use `Schema.validateEither`.
+
+**Example** (Using `Schema.validateEither` for Safe Validation)
 
 ```ts twoslash
 import { Schema } from "effect"
 
 const MyNumber = Schema.Number.pipe(Schema.between(1, 10))
 
-const ctor = Schema.validateEither(MyNumber)
+// Create a safe constructor that validates the input
+const makeMyNumber = Schema.validateEither(MyNumber)
 
-console.log(ctor(5))
+// Valid input returns a Right value
+console.log(makeMyNumber(5))
 /*
+Output:
 { _id: 'Either', _tag: 'Right', right: 5 }
 */
 
-console.log(ctor(20))
+// Invalid input returns a Left value with detailed error information
+console.log(makeMyNumber(20))
 /*
+Output:
 {
   _id: 'Either',
   _tag: 'Left',
@@ -179,10 +197,11 @@ console.log(ctor(20))
 
 ## Setting Default Values
 
-When constructing objects, it's common to want to assign default values to certain fields to simplify the creation of new instances.
-The `Schema.withConstructorDefault` function allows you to manage the optionality of a field in your default constructor.
+When creating objects, you might want to assign default values to certain fields to simplify object construction. The `Schema.withConstructorDefault` function lets you handle default values, making fields optional in the default constructor.
 
-**Example** (Without Default)
+**Example** (Struct with Required Fields)
+
+In this example, all fields are required when creating a new instance.
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -192,11 +211,16 @@ const Person = Schema.Struct({
   age: Schema.Number
 })
 
-// Both name and age are required
-Person.make({ name: "John", age: 30 })
+// Both name and age must be provided
+console.log(Person.make({ name: "John", age: 30 }))
+/*
+Output: { name: 'John', age: 30 }
+*/
 ```
 
-**Example** (With Default)
+**Example** (Struct with Default Value)
+
+Here, the `age` field is optional because it has a default value of `0`.
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -213,13 +237,23 @@ const Person = Schema.Struct({
 console.log(Person.make({ name: "John" }))
 /*
 Output:
-{ age: 0, name: 'John' }
+{ name: 'John', age: 0 }
+*/
+
+console.log(Person.make({ name: "John", age: 30 }))
+/*
+Output:
+{ name: 'John', age: 30 }
 */
 ```
 
-In the second example, notice how the `age` field is now optional and defaults to `0` when not provided.
+### Lazy Evaluation of Defaults
 
-Defaults are **lazily evaluated**, meaning that a new instance of the default is generated every time the constructor is called:
+Defaults are lazily evaluated, meaning that a new instance of the default is generated every time the constructor is called:
+
+**Example** (Lazy Evaluation of Defaults)
+
+In this example, the `timestamp` field generates a new value for each instance.
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -237,15 +271,23 @@ const Person = Schema.Struct({
 })
 
 console.log(Person.make({ name: "name1" }))
-// { age: 0, timestamp: 1714232909221, name: 'name1' }
+/*
+Example Output:
+{ age: 0, timestamp: 1714232909221, name: 'name1' }
+*/
 
 console.log(Person.make({ name: "name2" }))
-// { age: 0, timestamp: 1714232909227, name: 'name2' }
+/*
+Example Output:
+{ age: 0, timestamp: 1714232909227, name: 'name2' }
+*/
 ```
 
-Note how the `timestamp` field varies.
+### Reusing Defaults Across Schemas
 
 Default values are also "portable", meaning that if you reuse the same property signature in another schema, the default is carried over:
+
+**Example** (Reusing Defaults in Another Schema)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -267,10 +309,18 @@ const AnotherSchema = Schema.Struct({
   age: Person.fields.age
 })
 
-console.log(AnotherSchema.make({ foo: "bar" })) // => { foo: 'bar', age: 0 }
+console.log(AnotherSchema.make({ foo: "bar" }))
+/*
+Output:
+{ foo: 'bar', age: 0 }
+*/
 ```
 
-Defaults can also be applied using the `Class` API:
+### Using Defaults in Classes
+
+Default values can also be applied when working with the `Class` API, ensuring consistency across class-based schemas.
+
+**Example** (Defaults in a Class)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -288,8 +338,14 @@ class Person extends Schema.Class<Person>("Person")({
 }) {}
 
 console.log(new Person({ name: "name1" }))
-// Person { age: 0, timestamp: 1714400867208, name: 'name1' }
+/*
+Example Output:
+Person { age: 0, timestamp: 1714400867208, name: 'name1' }
+*/
 
 console.log(new Person({ name: "name2" }))
-// Person { age: 0, timestamp: 1714400867215, name: 'name2' }
+/*
+Example Output:
+Person { age: 0, timestamp: 1714400867215, name: 'name2' }
+*/
 ```
