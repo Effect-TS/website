@@ -104,7 +104,6 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
                   noSemanticValidation: false,
                 })
               })),
-              Effect.scoped,
               Effect.forkScoped
             )
             if (command !== undefined) {
@@ -395,12 +394,7 @@ function setupWorkspaceFormatters(workspace: Workspace) {
       Effect.ignoreLogged
     )
 
-    const packageJson = workspace.findFile("dprint.json")
-    if (Option.isNone(packageJson)) {
-      return
-    }
-
-    const path = yield* Effect.orDie(workspace.fullPathTo(packageJson.value[0]))
+    const path = yield* Effect.orDie(workspace.fullPathTo(config.value[0]))
     const [initial, updates] = yield* container.watchFile(path).pipe(
       Stream.peel(Sink.head())
     )
