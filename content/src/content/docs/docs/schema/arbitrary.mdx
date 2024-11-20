@@ -1,6 +1,6 @@
 ---
-title: Effect Schema to Arbitrary
-description: Effect Schema to Arbitrary
+title: Schema to Arbitrary
+description: Schema to Arbitrary
 sidebar:
   label: Arbitrary
   order: 14
@@ -14,19 +14,21 @@ The `Arbitrary.make` function allows for the creation of random values that alig
 This function returns an `Arbitrary<A>` from the [fast-check](https://github.com/dubzzz/fast-check) library,
 which is particularly useful for generating random test data that adheres to the defined schema constraints.
 
-**Example**
+**Example** (Generating Arbitrary Data for a Schema)
 
 ```ts twoslash
 import { Arbitrary, FastCheck, Schema } from "effect"
 
+// Define a Person schema with constraints
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
   age: Schema.NumberFromString.pipe(Schema.int(), Schema.between(0, 200))
 })
 
-// This will generate an Arbitrary for the Person schema.
+// Create an Arbitrary based on the schema
 const PersonArbitraryType = Arbitrary.make(Person)
 
+// Generate random samples from the Arbitrary
 console.log(FastCheck.sample(PersonArbitraryType, 2))
 /*
 Example Output:
@@ -42,35 +44,37 @@ Example Output:
 
 ## Transformations and Arbitrary Generation
 
-The generation of arbitrary data requires a clear understanding of how transformations and filters are considered within a schema:
+When generating arbitrary data, it is important to understand how transformations and filters are handled within a schema:
 
 <Aside type="caution" title="Filters Ignored">
   Filters applied before the last transformation in the transformation
   chain are not considered during the generation of arbitrary data.
 </Aside>
 
-**Illustrative Example**
+**Example** (Filters and Transformations)
 
 ```ts twoslash
 import { Arbitrary, FastCheck, Schema } from "effect"
 
+// Schema with filters before the transformation
 const schema1 = Schema.compose(Schema.NonEmptyString, Schema.Trim).pipe(
   Schema.maxLength(500)
 )
 
-// This might produce empty strings, despite the `NonEmpty` filter, due to the sequence of filters.
+// May produce empty strings due to ignored NonEmpty filter
 console.log(FastCheck.sample(Arbitrary.make(schema1), 2))
 /*
 Example Output:
 [ '', '"Ry' ]
 */
 
+// Schema with filters applied after transformations
 const schema2 = Schema.Trim.pipe(
   Schema.nonEmptyString(),
   Schema.maxLength(500)
 )
 
-// This configuration ensures no empty strings are produced, adhering to the `nonEmpty()` filter properly.
+// Adheres to all filters, avoiding empty strings
 console.log(FastCheck.sample(Arbitrary.make(schema2), 2))
 /*
 Example Output:
@@ -80,37 +84,39 @@ Example Output:
 
 **Explanation:**
 
-- **Schema 1**: Takes into account `Schema.maxLength(500)` since it is applied after the `Schema.Trim` transformation, but ignores the `Schema.NonEmptyString` as it precedes the transformations.
-- **Schema 2**: Adheres fully to all filters because they are correctly sequenced after transformations, preventing the generation of undesired data.
+- `schema1`: Takes into account `Schema.maxLength(500)` since it is applied after the `Schema.Trim` transformation, but ignores the `Schema.NonEmptyString` as it precedes the transformations.
+- `schema2`: Adheres fully to all filters because they are correctly sequenced after transformations, preventing the generation of undesired data.
 
 ### Best Practices
 
-For effective and clear data generation, it's advisable to organize transformations and filters methodically. A suggested pattern is:
+To ensure consistent and valid arbitrary data generation, follow these guidelines:
 
-1. Filters for the initial type (`I`).
-2. Followed by transformations.
-3. And then filters for the transformed type (`A`).
+1. **Apply Filters First**: Define filters for the initial type (`I`).
+2. **Apply Transformations**: Add transformations to convert the data.
+3. **Apply Final Filters**: Use filters for the transformed type (`A`).
 
 This setup ensures that each stage of data processing is precise and well-defined.
 
-**Illustrative Example**
+**Example** (Avoid Mixed Filters and Transformations)
 
 Avoid haphazard combinations of transformations and filters:
 
 ```ts twoslash
 import { Schema } from "effect"
 
-// Example of less optimal structuring where transformations and filters are mixed:
-const schema = Schema.compose(Schema.Lowercase, Schema.Trim)
+// Less optimal approach: Mixing transformations and filters
+const problematic = Schema.compose(Schema.Lowercase, Schema.Trim)
 ```
 
 Prefer a structured approach by separating transformation steps from filter applications:
 
+**Example** (Preferred Structured Approach)
+
 ```ts twoslash
 import { Schema } from "effect"
 
-// Recommended approach: Separate transformations from filters
-const schema = Schema.transform(
+// Recommended: Separate transformations and filters
+const improved = Schema.transform(
   Schema.String,
   Schema.String.pipe(Schema.trimmed(), Schema.lowercased()),
   {
@@ -123,14 +129,14 @@ const schema = Schema.transform(
 
 ## Customizing Arbitrary Data Generation
 
-You can define how arbitrary data is generated by utilizing the `arbitrary` annotation in your schema definitions.
+You can customize how arbitrary data is generated using the `arbitrary` annotation in schema definitions.
 
-**Example**
+**Example** (Custom Arbitrary Generator)
 
 ```ts twoslash
 import { Schema } from "effect"
 
-// Define a schema with a custom generator for natural numbers.
+// Schema with a custom generator for natural numbers
 const schema = Schema.Number.annotations({
   arbitrary: (/**typeParameters**/) => (fc) => fc.nat()
 })
@@ -145,12 +151,12 @@ This setup enables you to return an `Arbitrary` that precisely generates the typ
   before will be disregarded.
 </Aside>
 
-**Illustrative Example**
+**Example** (Handling Filters with Custom Generators)
 
 ```ts twoslash
 import { Arbitrary, FastCheck, Schema } from "effect"
 
-// Here, the 'positive' filter is overridden by the custom arbitrary definition
+// Custom generator that overrides the 'positive' filter
 const problematic = Schema.Number.pipe(Schema.positive()).annotations({
   arbitrary: () => (fc) => fc.integer()
 })
@@ -161,7 +167,7 @@ Example Output:
 [ -1600163302, -6 ]
 */
 
-// Here, the 'positive' filter is applied after the arbitrary customization, ensuring it is considered
+// Custom generator with 'positive' filter applied after the customization
 const improved = Schema.Number.annotations({
   arbitrary: () => (fc) => fc.integer()
 }).pipe(Schema.positive())
