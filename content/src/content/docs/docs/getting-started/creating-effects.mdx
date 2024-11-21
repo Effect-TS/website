@@ -37,6 +37,9 @@ The `Effect.succeed` constructor is used to create an effect that will always su
 import { Effect } from "effect"
 
 // Creating an effect that represents a successful scenario
+//
+//      ┌─── Effect<number, never, never>
+//      ▼
 const success = Effect.succeed(42)
 ```
 
@@ -64,6 +67,9 @@ When a computation may fail, it's important to manage failure explicitly. The `E
 import { Effect } from "effect"
 
 // Creating an effect that represents a failure scenario
+//
+//      ┌─── Effect<never, Error, never>
+//      ▼
 const failure = Effect.fail(
   new Error("Operation failed due to network error")
 )
@@ -96,6 +102,8 @@ class HttpError {
   readonly _tag = "HttpError"
 }
 
+//      ┌─── Effect<never, HttpError, never>
+//      ▼
 const program = Effect.fail(new HttpError())
 ```
 
@@ -193,6 +201,8 @@ const log = (message: string) =>
     console.log(message) // side effect
   })
 
+//      ┌─── Effect<void, never, never>
+//      ▼
 const program = log("Hello, World!")
 ```
 
@@ -228,6 +238,8 @@ const parse = (input: string) =>
   // This might throw an error if input is not valid JSON
   Effect.try(() => JSON.parse(input))
 
+//      ┌─── Effect<any, UnknownException, never>
+//      ▼
 const program = parse("")
 ```
 
@@ -242,7 +254,7 @@ You might want to transform the caught exception into a more specific error or p
 
 **Example** (Custom Error Handling)
 
-```ts {8}
+```ts twoslash {8}
 import { Effect } from "effect"
 
 const parse = (input: string) =>
@@ -253,6 +265,8 @@ const parse = (input: string) =>
     catch: (unknown) => new Error(`something went wrong ${unknown}`)
   })
 
+//      ┌─── Effect<any, Error, never>
+//      ▼
 const program = parse("")
 ```
 
@@ -292,6 +306,8 @@ const delay = (message: string) =>
       })
   )
 
+//      ┌─── Effect<string, never, never>
+//      ▼
 const program = delay("Async operation completed successfully!")
 ```
 
@@ -324,6 +340,8 @@ const getTodo = (id: number) =>
     fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
   )
 
+//      ┌─── Effect<Response, UnknownException, never>
+//      ▼
 const program = getTodo(1)
 ```
 
@@ -349,6 +367,8 @@ const getTodo = (id: number) =>
     catch: (unknown) => new Error(`something went wrong ${unknown}`)
   })
 
+//      ┌─── Effect<Response, Error, never>
+//      ▼
 const program = getTodo(1)
 ```
 
@@ -422,7 +442,7 @@ In this example:
 - If the fiber running this effect is interrupted, the cleanup effect (which deletes the file) is executed.
 - This ensures that resources like open file handles are cleaned up properly when the operation is canceled.
 
-```ts
+```ts twoslash
 import { Effect, Fiber } from "effect"
 import * as NodeFS from "node:fs"
 
