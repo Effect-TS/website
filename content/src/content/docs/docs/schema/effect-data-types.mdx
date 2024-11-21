@@ -168,12 +168,7 @@ import { Option } from "effect"
 
 const schema = Schema.Option(Schema.NumberFromString)
 
-//     ┌─── {
-//     |      readonly _tag: "None";
-//     |    } | {
-//     |      readonly _tag: "Some";
-//     |      readonly value: string;
-//     |    }
+//     ┌─── OptionEncoded<string>
 //     ▼
 type Encoded = typeof schema.Encoded
 
@@ -203,7 +198,7 @@ console.log(encode(Option.some(1)))
 
 ### OptionFromSelf
 
-The `Schema.OptionFromSelf` function is designed for scenarios where `Option` values are already in the `Option` format and need to be decoded or encoded while transforming the inner value according to the schema.
+The `Schema.OptionFromSelf` function is designed for scenarios where `Option` values are already in the `Option` format and need to be decoded or encoded while transforming the inner value according to the provided schema.
 
 **Syntax**
 
@@ -545,11 +540,11 @@ const schema = Schema.Either({
   right: Schema.NumberFromString
 })
 
-//     ┌─── RightEncoded<string> | LeftEncoded<string>
+//     ┌─── EitherEncoded<string, string>
 //     ▼
 type Encoded = typeof schema.Encoded
 
-//     ┌─── Either<string, number>
+//     ┌─── Either<number, string>
 //     ▼
 type Type = typeof schema.Type
 
@@ -575,7 +570,7 @@ console.log(encode(Either.right(1)))
 
 ### EitherFromSelf
 
-The `Schema.EitherFromSelf` function is designed for scenarios where `Either` values are already in the `Either` format and need to be decoded or encoded while transforming the inner valued according to the schemas.
+The `Schema.EitherFromSelf` function is designed for scenarios where `Either` values are already in the `Either` format and need to be decoded or encoded while transforming the inner valued according to the provided schemas.
 
 **Syntax**
 
@@ -614,7 +609,7 @@ const schema = Schema.EitherFromSelf({
 //     ▼
 type Encoded = typeof schema.Encoded
 
-//     ┌─── Either<string, number>
+//     ┌─── Either<number, string>
 //     ▼
 type Type = typeof schema.Type
 
@@ -679,7 +674,7 @@ const schema = Schema.EitherFromUnion({
 //     ▼
 type Encoded = typeof schema.Encoded
 
-//     ┌─── Either<boolean, number>
+//     ┌─── Either<number, boolean>
 //     ▼
 type Type = typeof schema.Type
 
@@ -701,6 +696,180 @@ console.log(encode(Either.left(true)))
 
 console.log(encode(Either.right(1)))
 // Output: "1"
+```
+
+## Exit
+
+### Exit
+
+The `Schema.Exit` function is useful for converting an `Exit` into a JSON-serializable format.
+
+**Syntax**
+
+```ts showLineNumbers=false
+Schema.Exit(options: {
+  failure: Schema<FA, FI, FR>,
+  success: Schema<SA, SI, SR>,
+  defect: Schema<DA, DI, DR>
+})
+```
+
+##### Decoding
+
+| Input                                              | Output                                                                                                                                            |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{ _tag: "Failure", cause: CauseEncoded<FI, DI> }` | Converted to `Exit.failCause(Cause<FA>)`, where `CauseEncoded<FI, DI>` is decoded into `Cause<FA>` using the inner `failure` and `defect` schemas |
+| `{ _tag: "Success", value: SI }`                   | Converted to `Exit.succeed(SA)`, where `SI` is decoded into `SA` using the inner `success` schema                                                 |
+
+##### Encoding
+
+| Input                       | Output                                                                                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Exit.failCause(Cause<FA>)` | Converted to `{ _tag: "Failure", cause: CauseEncoded<FI, DI> }`, where `Cause<FA>` is encoded into `CauseEncoded<FI, DI>` using the inner `failure` and `defect` schemas |
+| `Exit.succeed(SA)`          | Converted to `{ _tag: "Success", value: SI }`, where `SA` is encoded into `SI` using the inner `success` schema                                                          |
+
+**Example**
+
+```ts twoslash
+import { Schema, Exit } from "effect"
+
+const schema = Schema.Exit({
+  failure: Schema.String,
+  success: Schema.NumberFromString,
+  defect: Schema.String
+})
+
+//     ┌─── ExitEncoded<string, string, string>
+//     ▼
+type Encoded = typeof schema.Encoded
+
+//     ┌─── Exit<number, string>
+//     ▼
+type Type = typeof schema.Type
+
+const decode = Schema.decodeUnknownSync(schema)
+const encode = Schema.encodeSync(schema)
+
+// Decoding examples
+
+console.log(
+  decode({ _tag: "Failure", cause: { _tag: "Fail", error: "a" } })
+)
+/*
+Output:
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'a' }
+}
+*/
+
+console.log(decode({ _tag: "Success", value: "1" }))
+/*
+Output:
+{ _id: 'Exit', _tag: 'Success', value: 1 }
+*/
+
+// Encoding examples
+
+console.log(encode(Exit.fail("a")))
+/*
+Output:
+{ _tag: 'Failure', cause: { _tag: 'Fail', error: 'a' } }
+ */
+
+console.log(encode(Exit.succeed(1)))
+/*
+Output:
+{ _tag: 'Success', value: '1' }
+*/
+```
+
+### ExitFromSelf
+
+The `Schema.ExitFromSelf` function is designed for scenarios where `Exit` values are already in the `Exit` format and need to be decoded or encoded while transforming the inner valued according to the provided schemas.
+
+**Syntax**
+
+```ts showLineNumbers=false
+Schema.ExitFromSelf(options: {
+  failure: Schema<FA, FI, FR>,
+  success: Schema<SA, SI, SR>,
+  defect: Schema<DA, DI, DR>
+})
+```
+
+##### Decoding
+
+| Input                       | Output                                                                                                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `Exit.failCause(Cause<FI>)` | Converted to `Exit.failCause(Cause<FA>)`, where `Cause<FI>` is decoded into `Cause<FA>` using the inner `failure` and `defect` schemas |
+| `Exit.succeed(SI)`          | Converted to `Exit.succeed(SA)`, where `SI` is decoded into `SA` using the inner `success` schema                                      |
+
+##### Encoding
+
+| Input                       | Output                                                                                                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `Exit.failCause(Cause<FA>)` | Converted to `Exit.failCause(Cause<FI>)`, where `Cause<FA>` is decoded into `Cause<FI>` using the inner `failure` and `defect` schemas |
+| `Exit.succeed(SA)`          | Converted to `Exit.succeed(SI)`, where `SA` is encoded into `SI` using the inner `success` schema                                      |
+
+**Example**
+
+```ts twoslash
+import { Schema, Exit } from "effect"
+
+const schema = Schema.ExitFromSelf({
+  failure: Schema.String,
+  success: Schema.NumberFromString,
+  defect: Schema.String
+})
+
+//     ┌─── Exit<string, string>
+//     ▼
+type Encoded = typeof schema.Encoded
+
+//     ┌─── Exit<number, string>
+//     ▼
+type Type = typeof schema.Type
+
+const decode = Schema.decodeUnknownSync(schema)
+const encode = Schema.encodeSync(schema)
+
+// Decoding examples
+
+console.log(decode(Exit.fail("a")))
+/*
+Output:
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'a' }
+}
+*/
+
+console.log(decode(Exit.succeed("1")))
+/*
+Output:
+{ _id: 'Exit', _tag: 'Success', value: 1 }
+*/
+
+// Encoding examples
+
+console.log(encode(Exit.fail("a")))
+/*
+Output:
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Fail', failure: 'a' }
+}
+*/
+
+console.log(encode(Exit.succeed(1)))
+/*
+Output:
+{ _id: 'Exit', _tag: 'Success', value: '1' }
+*/
 ```
 
 ## ReadonlySet
@@ -758,7 +927,7 @@ console.log(encode(new Set([1, 2, 3])))
 
 ### ReadonlySetFromSelf
 
-The `Schema.ReadonlySetFromSelf` function is designed for scenarios where `ReadonlySet` values are already in the `ReadonlySet` format and need to be decoded or encoded while transforming the inner values according to the schema.
+The `Schema.ReadonlySetFromSelf` function is designed for scenarios where `ReadonlySet` values are already in the `ReadonlySet` format and need to be decoded or encoded while transforming the inner values according to the provided schema.
 
 **Syntax**
 
@@ -882,7 +1051,7 @@ console.log(
 
 ### ReadonlyMapFromSelf
 
-The `Schema.ReadonlyMapFromSelf` function is designed for scenarios where `ReadonlyMap` values are already in the `ReadonlyMap` format and need to be decoded or encoded while transforming the inner values according to the schemas.
+The `Schema.ReadonlyMapFromSelf` function is designed for scenarios where `ReadonlyMap` values are already in the `ReadonlyMap` format and need to be decoded or encoded while transforming the inner values according to the provided schemas.
 
 **Syntax**
 
@@ -1080,7 +1249,7 @@ console.log(encode(HashSet.fromIterable([1, 2, 3])))
 
 ### HashSetFromSelf
 
-The `Schema.HashSetFromSelf` function is designed for scenarios where `HashSet` values are already in the `HashSet` format and need to be decoded or encoded while transforming the inner values according to the schema.
+The `Schema.HashSetFromSelf` function is designed for scenarios where `HashSet` values are already in the `HashSet` format and need to be decoded or encoded while transforming the inner values according to the provided schema.
 
 **Syntax**
 
@@ -1204,7 +1373,7 @@ console.log(
 
 ### HashMapFromSelf
 
-The `Schema.HashMapFromSelf` function is designed for scenarios where `HashMap` values are already in the `HashMap` format and need to be decoded or encoded while transforming the inner values according to the schemas.
+The `Schema.HashMapFromSelf` function is designed for scenarios where `HashMap` values are already in the `HashMap` format and need to be decoded or encoded while transforming the inner values according to the provided schemas.
 
 **Syntax**
 
@@ -1332,7 +1501,7 @@ console.log(encode(SortedSet.fromIterable(Number.Order)([1, 2, 3])))
 
 ### SortedSetFromSelf
 
-The `Schema.SortedSetFromSelf` function is designed for scenarios where `SortedSet` values are already in the `SortedSet` format and need to be decoded or encoded while transforming the inner values according to the schema.
+The `Schema.SortedSetFromSelf` function is designed for scenarios where `SortedSet` values are already in the `SortedSet` format and need to be decoded or encoded while transforming the inner values according to the provided schema.
 
 **Syntax**
 
