@@ -45,7 +45,7 @@ Processing complete.
 
 If the operation exceeds the specified duration, a `TimeoutException` is raised:
 
-```ts
+```ts twoslash
 import { Effect } from "effect"
 
 const task = Effect.gen(function* () {
@@ -55,6 +55,8 @@ const task = Effect.gen(function* () {
   return "Result"
 })
 
+// Output will show a TimeoutException as the task takes longer
+// than the specified timeout duration
 const timedEffect = task.pipe(Effect.timeout("1 second"))
 
 Effect.runPromiseExit(timedEffect).then(console.log)
