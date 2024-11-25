@@ -13,8 +13,8 @@ import starlight from "@astrojs/starlight"
 import tailwind from "@astrojs/tailwind"
 import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections"
 import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers"
+import ecTwoSlash from "expressive-code-twoslash"
 import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground"
-import { pluginTwoslash } from "./src/plugins/expressive-code/twoslash"
 import { effectPlaygroundPlugin } from "./src/plugins/starlight/playground"
 import { monacoEditorPlugin } from "./src/plugins/vite/monaco-editor"
 
@@ -141,7 +141,7 @@ export default defineConfig({
           pluginCollapsibleSections(),
           pluginLineNumbers(),
           pluginOpenInPlayground(),
-          pluginTwoslash({ explicitTrigger: true })
+          ecTwoSlash()
         ],
         themes: ["github-light", "github-dark"]
       },
