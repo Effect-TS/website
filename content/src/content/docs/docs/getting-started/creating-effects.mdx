@@ -15,6 +15,7 @@ In this guide, we will cover some of the common methods that you can use to crea
 In traditional programming, when an error occurs, it is often handled by throwing an exception:
 
 ```ts twoslash
+// Type signature doesn't show possible exceptions
 const divide = (a: number, b: number): number => {
   if (b === 0) {
     throw new Error("Cannot divide by zero")
@@ -29,15 +30,16 @@ To address this issue, Effect introduces dedicated constructors for creating eff
 
 ### succeed
 
-The `Effect.succeed` constructor is used to create an effect that will always succeed.
+Creates an `Effect` that always succeeds with a given value.
+
+Use this function when you need an effect that completes successfully with a specific value
+without any errors or external dependencies.
 
 **Example** (Creating a Successful Effect)
 
 ```ts twoslash
 import { Effect } from "effect"
 
-// Creating an effect that represents a successful scenario
-//
 //      ┌─── Effect<number, never, never>
 //      ▼
 const success = Effect.succeed(42)
@@ -59,15 +61,18 @@ Effect<number, never, never>
 
 ### fail
 
-When a computation may fail, it's important to manage failure explicitly. The `Effect.fail` constructor allows you to represent an error in a type-safe way.
+Creates an `Effect` that represents an error that can be recovered from.
+
+Use this function to explicitly signal an error in an `Effect`. The error
+will keep propagating unless it is handled. You can handle the error with
+functions like [Effect.catchAll](/docs/error-management/expected-errors/#catchall) or
+[Effect.catchTag](/docs/error-management/expected-errors/#catchtag).
 
 **Example** (Creating a Failed Effect)
 
 ```ts twoslash
 import { Effect } from "effect"
 
-// Creating an effect that represents a failure scenario
-//
 //      ┌─── Effect<never, Error, never>
 //      ▼
 const failure = Effect.fail(
@@ -188,10 +193,19 @@ To model synchronous side effects, Effect provides the `Effect.sync` and `Effect
 
 ### sync
 
-When working with side effects that are synchronous — meaning they don't involve asynchronous operations like fetching data from the internet — you can use the `Effect.sync` function.
-This function is ideal when you are certain these operations **won't produce any errors**.
+Creates an `Effect` that represents a synchronous side-effectful computation.
+
+Use `Effect.sync` when you are sure the operation will not fail.
+
+The provided function (`thunk`) must not throw errors; if it does, the error will be treated as a ["defect"](/docs/error-management/unexpected-errors/).
+
+This defect is not a standard error but indicates a flaw in the logic that was expected to be error-free.
+You can think of it similar to an unexpected crash in the program, which can be further managed or logged using tools like [Effect.catchAllDefect](/docs/error-management/unexpected-errors/#catchalldefect).
+This feature ensures that even unexpected failures in your application are not lost and can be handled appropriately.
 
 **Example** (Logging a Message)
+
+In the example below, `Effect.sync` is used to defer the side-effect of writing to the console.
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -206,26 +220,14 @@ const log = (message: string) =>
 const program = log("Hello, World!")
 ```
 
-In the above example, `Effect.sync` is used to defer the side-effect of writing to the console.
-
-Important Notes:
-
-- **Execution**: The side effect (logging to the console) encapsulated within `program` won't occur until the effect is explicitly [run](/docs/getting-started/running-effects/). This allows you to define side effects at one point in your code and control when they are activated, improving manageability and predictability of side effects in larger applications.
-- **Error Handling**: It's crucial that the function you pass to `Effect.sync` does not throw any errors. If you anticipate potential errors, consider using [try](#try) instead, which handles errors gracefully.
-
-<Aside type="danger" title="Do Not Throw">
-  The thunk passed to `Effect.sync` should never throw errors.
-</Aside>
-
-**Handling Unexpected Errors**. Despite your best efforts to avoid errors in the function passed to `Effect.sync`, if an error does occur, it results in a "defect".
-This defect is not a standard error but indicates a flaw in the logic that was expected to be error-free.
-You can think of it similar to an unexpected crash in the program, which can be further managed or logged using tools like [Effect.catchAllDefect](/docs/error-management/unexpected-errors/#catchalldefect).
-This feature ensures that even unexpected failures in your application are not lost and can be handled appropriately.
+The side effect (logging to the console) encapsulated within `program` won't occur until the effect is explicitly run (see the [Running Effects](/docs/getting-started/running-effects/) section for more details). This allows you to define side effects at one point in your code and control when they are activated, improving manageability and predictability of side effects in larger applications.
 
 ### try
 
-In situations where you need to perform synchronous operations that might fail, such as parsing JSON, you can use the `Effect.try` constructor from the Effect library.
-This constructor is designed to handle operations that could throw exceptions by capturing those exceptions and transforming them into manageable errors within the Effect framework.
+Creates an `Effect` that represents a synchronous computation that might fail.
+
+In situations where you need to perform synchronous operations that might fail, such as parsing JSON, you can use the `Effect.try` constructor.
+This constructor is designed to handle operations that could throw exceptions by capturing those exceptions and transforming them into manageable errors.
 
 **Example** (Safe JSON Parsing)
 
@@ -288,8 +290,15 @@ To overcome these limitations, Effect introduces dedicated constructors for crea
 
 ### promise
 
-This constructor is similar to a regular `Promise`, where you're confident that the asynchronous operation will **always succeed**.
-It allows you to create an `Effect` that represents successful completion without considering potential errors. However, it's essential to ensure that the underlying Promise never rejects.
+Creates an `Effect` that represents an asynchronous computation guaranteed to succeed.
+
+Use `Effect.promise` when you are sure the operation will not reject.
+
+The provided function (`thunk`) returns a `Promise` that should never reject; if it does, the error will be treated as a ["defect"](/docs/error-management/unexpected-errors/).
+
+This defect is not a standard error but indicates a flaw in the logic that was expected to be error-free.
+You can think of it similar to an unexpected crash in the program, which can be further managed or logged using tools like [Effect.catchAllDefect](/docs/error-management/unexpected-errors/#catchalldefect).
+This feature ensures that even unexpected failures in your application are not lost and can be handled appropriately.
 
 **Example** (Delayed Message)
 
@@ -317,16 +326,11 @@ The `program` value has the type `Effect<string, never, never>` and can be inter
 - does not produce any expected error (`never`)
 - does not require any context (`never`)
 
-<Aside type="danger" title="Avoid Rejections">
-  The `Promise` within the thunk passed to `Effect.promise` should never
-  reject.
-</Aside>
-
-If, despite precautions, the thunk passed to `Effect.promise` does reject, an `Effect` containing a [defect](/docs/error-management/unexpected-errors/) is created, similar to what happens when using the [Effect.die](/docs/error-management/unexpected-errors/#die--diemessage) function.
-
 ### tryPromise
 
-Unlike `Effect.promise`, this constructor is suitable when the underlying `Promise` **might reject**.
+Creates an `Effect` that represents an asynchronous computation that might fail.
+
+Unlike `Effect.promise`, this constructor is suitable when the underlying `Promise` might reject.
 It provides a way to catch errors and handle them appropriately.
 By default if an error occurs, it will be caught and propagated to the error channel as as an `UnknownException`.
 
@@ -336,6 +340,7 @@ By default if an error occurs, it will be caught and propagated to the error cha
 import { Effect } from "effect"
 
 const getTodo = (id: number) =>
+  // Will catch any errors and propagate them as UnknownException
   Effect.tryPromise(() =>
     fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
   )
@@ -373,6 +378,8 @@ const program = getTodo(1)
 ```
 
 ## From a Callback
+
+Creates an `Effect` from a callback-based asynchronous function.
 
 Sometimes you have to work with APIs that don't support `async/await` or `Promise` and instead use the callback style.
 To handle callback-based APIs, Effect provides the `Effect.async` constructor.

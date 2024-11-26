@@ -288,11 +288,75 @@ const recovered = Effect.gen(function* () {
 })
 ```
 
+### option
+
+Transforms an effect to encapsulate both failure and success using the [Option](/docs/data-types/option/) data type.
+
+The `Effect.option` function wraps the success or failure of an effect within the
+`Option` type, making both cases explicit. If the original effect succeeds,
+its value is wrapped in `Option.some`. If it fails, the failure is mapped to
+`Option.none`.
+
+The resulting effect cannot fail directly, as the error type is set to `never`. However, fatal errors like defects are not encapsulated.
+
+**Example** (Using `Effect.option` to Handle Errors)
+
+```ts twoslash
+import { Effect } from "effect"
+
+const maybe1 = Effect.option(Effect.succeed(1))
+
+Effect.runPromiseExit(maybe1).then(console.log)
+/*
+Output:
+{
+  _id: 'Exit',
+  _tag: 'Success',
+  value: { _id: 'Option', _tag: 'Some', value: 1 }
+}
+*/
+
+const maybe2 = Effect.option(Effect.fail("Uh oh!"))
+
+Effect.runPromiseExit(maybe2).then(console.log)
+/*
+Output:
+{
+  _id: 'Exit',
+  _tag: 'Success',
+  value: { _id: 'Option', _tag: 'None' }
+}
+*/
+
+const maybe3 = Effect.option(Effect.die("Boom!"))
+
+Effect.runPromiseExit(maybe3).then(console.log)
+/*
+Output:
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', _tag: 'Die', defect: 'Boom!' }
+}
+*/
+```
+
 ### catchAll
 
-The `Effect.catchAll` function allows you to catch any error that occurs in the program and provide a fallback.
+Handles all errors in an effect by providing a fallback effect.
 
-**Example** (Catching All Errors with `Effect.catchAll`)
+The `Effect.catchAll` function catches any errors that may occur during the
+execution of an effect and allows you to handle them by specifying a fallback
+effect. This ensures that the program continues without failing by recovering
+from errors using the provided fallback logic.
+
+<Aside type="note" title="Recoverable Errors Only">
+  `Effect.catchAll` only handles recoverable errors. It will not recover
+  from unrecoverable defects. See [Effect.catchAllCause](#catchallcause)
+  for handling all types of failures.
+</Aside>
+
+**Example** (Providing Recovery Logic for Recoverable Errors)
 
 ```ts twoslash
 import { Effect, Random } from "effect"
@@ -336,30 +400,47 @@ const recovered: Effect<string, never, never>
 
 indicating that all errors have been handled.
 
+### catchAllCause
+
+Handles both recoverable and unrecoverable errors by providing a recovery effect.
+
+The `Effect.catchAllCause` function allows you to handle all errors, including
+unrecoverable defects, by providing a recovery effect. The recovery logic is
+based on the `Cause` of the error, which provides detailed information about
+the failure.
+
+**Example** (Recovering from All Errors)
+
+```ts twoslash
+import { Cause, Effect } from "effect"
+
+// Define an effect that may fail with a recoverable or unrecoverable error
+const program = Effect.fail("Something went wrong!")
+
+// Recover from all errors by examining the cause
+const recovered = program.pipe(
+  Effect.catchAllCause((cause) =>
+    Cause.isFailType(cause)
+      ? Effect.succeed("Recovered from a regular error")
+      : Effect.succeed("Recovered from a defect")
+  )
+)
+
+Effect.runPromise(recovered).then(console.log)
+// Output: "Recovered from a regular error"
+```
+
+<Aside type="tip" title="When to Recover from Defects">
+  Defects are unexpected errors that typically shouldn't be recovered
+  from, as they often indicate serious issues. However, in some cases,
+  such as dynamically loaded plugins, controlled recovery might be needed.
+</Aside>
+
 ## Catching Some Errors
 
 ### either
 
-The `Effect.either` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Either](/docs/data-types/either/) data type:
-
-```ts showLineNumbers=false
-Effect<A, E, R> -> Effect<Either<A, E>, never, R>
-```
-
-This means if you have an effect with the following type:
-
-```ts showLineNumbers=false
-Effect<string, HttpError, never>
-```
-
-and you call `Effect.either` on it, the type becomes:
-
-```ts showLineNumbers=false
-Effect<Either<string, HttpError>, never, never>
-```
-
-The resulting effect cannot fail because the potential failure is now represented within the `Either`'s `Left` type.
-The error type of the returned `Effect` is specified as `never`, confirming that the effect is structured to not fail.
+The [`Effect.either`](#either) function, which was previously shown as a way to catch all errors, can also be used to catch specific errors.
 
 By yielding an `Either`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function.
 
@@ -470,7 +551,13 @@ indicating that all errors have been handled.
 
 ### catchSome
 
-If we want to catch and recover from only some types of errors and effectfully attempt recovery, we can use the `Effect.catchSome` function.
+Catches and recovers from specific types of errors, allowing you to attempt recovery only for certain errors.
+
+`Effect.catchSome` lets you selectively catch and handle errors of certain
+types by providing a recovery effect for specific errors. If the error
+matches a condition, recovery is attempted; if not, it doesn't affect the
+program. This function doesn't alter the error type, meaning the error type
+remains the same as in the original effect.
 
 **Example** (Handling Specific Errors with `Effect.catchSome`)
 
@@ -515,7 +602,7 @@ const recovered = program.pipe(
 
 In the code above, `Effect.catchSome` takes a function that examines the error and decides whether to attempt recovery or not. If the error matches a specific condition, recovery can be attempted by returning `Option.some(effect)`. If no recovery is possible, you can simply return `Option.none()`.
 
-It's important to note that while `Effect.catchSome` lets you catch specific errors, it **doesn't alter the error type** itself.
+It's important to note that while `Effect.catchSome` lets you catch specific errors, it doesn't alter the error type itself.
 Therefore, the resulting effect will still have the same error type as the original effect:
 
 ```ts "HttpError | ValidationError" showLineNumbers=false
@@ -524,7 +611,13 @@ const recovered: Effect<string, HttpError | ValidationError, never>
 
 ### catchIf
 
-Similar to `Effect.catchSome`, the function `Effect.catchIf` allows you to recover from specific errors based on a predicate.
+Recovers from specific errors based on a predicate.
+
+`Effect.catchIf` works similarly to [`Effect.catchSome`](#catchsome), but it allows you to
+recover from errors by providing a predicate function. If the predicate
+matches the error, the recovery effect is applied. This function doesn't
+alter the error type, so the resulting effect still carries the original
+error type unless a user-defined type guard is used to narrow the type.
 
 **Example** (Catching Specific Errors with a Predicate)
 
@@ -615,9 +708,17 @@ const recovered = program.pipe(
 
 ### catchTag
 
-If your program's errors are **all tagged** with a `_tag` field that acts as a discriminator you can use the `Effect.catchTag` function to catch and handle specific errors with precision.
+Catches and handles specific errors by their `_tag` field, which is used as a discriminator.
 
-**Example** (Handling Errors by Tag with `Effect.catchTag`)
+`Effect.catchTag` is useful when your errors are tagged with a `_tag` field
+that identifies the error type. You can use this function to handle specific
+error types by matching the `_tag` value. This allows for precise error
+handling, ensuring that only specific errors are caught and handled.
+
+The error type must have a `_tag` field to use `Effect.catchTag`. This field
+is used to identify and match errors.
+
+**Example** (Handling Errors by Tag)
 
 ```ts twoslash
 import { Effect, Random } from "effect"
@@ -717,16 +818,21 @@ const recovered: Effect<string, never, never>
 indicating that all errors have been handled.
 
 <Aside type="caution" title="Error Type Requirement">
-  It is important to ensure that the error type used with
-  `Effect.catchTag` has a `readonly _tag` discriminant field. This field
-  is required for the matching and handling of specific error tags.
+  The error type must have a readonly `_tag` field to use `catchTag`. This
+  field is used to identify and match errors.
 </Aside>
 
 ### catchTags
 
-Instead of using the [`Effect.catchTag`](#catchtag) function multiple times to handle individual error types, we have a more convenient option called `Effect.catchTags`. With `Effect.catchTags`, we can handle multiple errors in a single block of code.
+Handles multiple errors in a single block of code using their `_tag` field.
 
-**Example** (Handling Multiple Error Types with `catchTags`)
+`Effect.catchTags` is a convenient way to handle multiple error types at
+once. Instead of using [`Effect.catchTag`](#catchtag) multiple times, you can pass an
+object where each key is an error type's `_tag`, and the value is the handler
+for that specific error. This allows you to catch and recover from multiple
+error types in a single call.
+
+**Example** (Handling Multiple Tagged Error Types at Once)
 
 ```ts twoslash
 import { Effect, Random } from "effect"
@@ -769,7 +875,6 @@ This function takes an object where each property represents a specific error `_
 and the corresponding value is the error handler function to be executed when that particular error occurs.
 
 <Aside type="caution" title="Error Type Requirement">
-  It is important to ensure that all the error types used with
-  `Effect.catchTags` have a `readonly _tag` discriminant field. This field
-  is required for the matching and handling of specific error tags.
+  The error type must have a readonly `_tag` field to use `catchTag`. This
+  field is used to identify and match errors.
 </Aside>
