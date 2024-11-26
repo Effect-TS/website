@@ -176,12 +176,12 @@ const program = Effect.gen(function* () {
         `RuntimeException defect caught: ${cause.defect.message}`
       )
     } else {
-      yield* Console.log("Unknown defect caught.")
+      yield* Console.log("Unknown failure caught.")
     }
   }
 })
 
-// We get an Exit.Success because we caught all defects
+// We get an Exit.Success because we caught all failures
 Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
@@ -234,6 +234,12 @@ A defect refers to an error that cannot be anticipated in advance, and there is 
 
 However, in some specific cases, such as when dealing with dynamically loaded plugins, a controlled recovery approach might be necessary. For example, if our application supports runtime loading of plugins and a defect occurs within a plugin, we may choose to log the defect and then reload only the affected plugin instead of crashing the entire application. This allows for a more resilient and uninterrupted operation of the application.
 
+<Aside type="tip" title="When to Recover from Defects">
+  Defects are unexpected errors that typically shouldn't be recovered
+  from, as they often indicate serious issues. However, in some cases,
+  such as dynamically loaded plugins, controlled recovery might be needed.
+</Aside>
+
 ### catchSomeDefect
 
 The `Effect.catchSomeDefect` function in Effect allows you to recover from specific defects using a provided partial function.
@@ -275,3 +281,9 @@ Output:
 ```
 
 It's important to understand that `catchSomeDefect` can only handle defects, not [expected errors](/docs/error-management/expected-errors/) (such as those caused by `Effect.fail`) or [interruptions](/docs/concurrency/basic-concurrency/#interruptions) in execution (such as when using `Effect.interrupt`).
+
+<Aside type="tip" title="When to Recover from Defects">
+  Defects are unexpected errors that typically shouldn't be recovered
+  from, as they often indicate serious issues. However, in some cases,
+  such as dynamically loaded plugins, controlled recovery might be needed.
+</Aside>

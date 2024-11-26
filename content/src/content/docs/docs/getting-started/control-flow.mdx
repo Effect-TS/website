@@ -55,6 +55,29 @@ const validateWeightOrFail = (
 
 ## Conditional Operators
 
+### if
+
+Executes one of two effects based on a condition evaluated by an effectful predicate.
+
+Use `Effect.if` to run one of two effects depending on whether the predicate effect
+evaluates to `true` or `false`. If the predicate is `true`, the `onTrue` effect
+is executed. If it is `false`, the `onFalse` effect is executed instead.
+
+**Example** (Simulating a Coin Flip)
+
+In this example, we simulate a virtual coin flip using `Random.nextBoolean` to generate a random boolean value. If the value is `true`, the `onTrue` effect logs "Head". If the value is `false`, the `onFalse` effect logs "Tail".
+
+```ts twoslash
+import { Effect, Random, Console } from "effect"
+
+const flipTheCoin = Effect.if(Random.nextBoolean, {
+  onTrue: () => Console.log("Head"), // Runs if the predicate is true
+  onFalse: () => Console.log("Tail") // Runs if the predicate is false
+})
+
+Effect.runFork(flipTheCoin)
+```
+
 ### when
 
 Conditionally executes an effect based on a boolean condition.
@@ -139,29 +162,6 @@ Example Output:
 ### unless / unlessEffect
 
 The `Effect.unless` and `Effect.unlessEffect` functions are similar to the `when*` functions, but they are equivalent to the `if (!condition) expression` construct.
-
-### if
-
-Executes one of two effects based on a condition evaluated by an effectful predicate.
-
-Use `Effect.if` to run one of two effects depending on whether the predicate effect
-evaluates to `true` or `false`. If the predicate is `true`, the `onTrue` effect
-is executed. If it is `false`, the `onFalse` effect is executed instead.
-
-**Example** (Simulating a Coin Flip)
-
-In this example, we simulate a virtual coin flip using `Random.nextBoolean` to generate a random boolean value. If the value is `true`, the `onTrue` effect logs "Head". If the value is `false`, the `onFalse` effect logs "Tail".
-
-```ts twoslash
-import { Effect, Random, Console } from "effect"
-
-const flipTheCoin = Effect.if(Random.nextBoolean, {
-  onTrue: () => Console.log("Head"), // Runs if the predicate is true
-  onFalse: () => Console.log("Tail") // Runs if the predicate is false
-})
-
-Effect.runFork(flipTheCoin)
-```
 
 ## Zipping
 
@@ -274,7 +274,7 @@ timestamp=... level=INFO fiber=#2 message="task2 done"
 */
 ```
 
-## Loop Operators
+## Looping
 
 ### loop
 
@@ -477,6 +477,8 @@ undefined
 ```
 
 In this case, the effects still run for each element, but the results are discarded, so the final output is `undefined`.
+
+## Collecting
 
 ### all
 
