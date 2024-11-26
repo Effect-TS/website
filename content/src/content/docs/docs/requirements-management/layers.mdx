@@ -714,12 +714,16 @@ const MainLive = DatabaseLive.pipe(
   Layer.provide(ConfigLive)
 )
 
+//      ┌─── Effect<unknown, never, Database>
+//      ▼
 const program = Effect.gen(function* () {
   const database = yield* Database
   const result = yield* database.query("SELECT * FROM users")
   return result
 })
 
+//      ┌─── Effect<unknown, never, never>
+//      ▼
 const runnable = Effect.provide(program, MainLive)
 
 Effect.runPromise(runnable).then(console.log)
@@ -731,3 +735,5 @@ Output:
 }
 */
 ```
+
+Note that the `runnable` requirements type is `never`, indicating that the program does not require any additional services to run.

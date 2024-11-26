@@ -19,48 +19,74 @@ In those cases terminating the execution of the effect and moving into reporting
 
 The following functions and combinators allow for termination of the effect and are often used to convert values of type `Effect<A, E, R>` into values of type `Effect<A, never, R>` allowing the programmer an escape hatch from having to handle and recover from errors for which there is no sensible way to recover.
 
-### die / dieMessage
+### die
 
-The `Effect.die` function returns an effect that throws a specified error, while `Effect.dieMessage` throws a `RuntimeException` with a specified text message. These functions are useful for terminating a fiber when a defect, a critical and unexpected error, is detected in the code.
+The `Effect.die` function returns an effect that throws a specified error. It is used to terminate a fiber when a defect, a critical and unexpected error, is detected in the code.
 
 **Example** (Terminating on Division by Zero with `Effect.die`)
 
 ```ts twoslash
 import { Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<number> =>
+const divide = (a: number, b: number) =>
   b === 0
     ? Effect.die(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-Effect.runPromise(divide(1, 0))
-// throws Error: Cannot divide by zero
+//      ┌─── Effect<number, never, never>
+//      ▼
+const program = divide(1, 0)
+
+Effect.runPromise(program).catch(console.error)
+/*
+Output:
+(FiberFailure) Error: Cannot divide by zero
+  ...stack trace...
+*/
 ```
 
-**Example** (Returning a RuntimeException with `Effect.dieMessage`)
+Note that the error channel type of the effect is `never`, indicating that the effect does not handle failures and will terminate the fiber when an error occurs.
+
+### dieMessage
+
+The `Effect.dieMessage` function returns an effect that throws a `RuntimeException` with a specified text message. It is used to terminate a fiber when a defect, a critical and unexpected error, is detected in the code.
+
+**Example** (Terminating on Division by Zero with `Effect.dieMessage`)
 
 ```ts twoslash
 import { Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<number> =>
+const divide = (a: number, b: number) =>
   b === 0
     ? Effect.dieMessage("Cannot divide by zero")
     : Effect.succeed(a / b)
 
-Effect.runPromise(divide(1, 0))
-// throws RuntimeException: Cannot divide by zero
+//      ┌─── Effect<number, never, never>
+//      ▼
+const program = divide(1, 0)
+
+Effect.runPromise(program).catch(console.error)
+/*
+Output:
+(FiberFailure) RuntimeException: Cannot divide by zero
+  ...stack trace...
+*/
 ```
+
+Note that the error channel type of the effect is `never`, indicating that the effect does not handle failures and will terminate the fiber when an error occurs.
+
+## Fallback
 
 ### orDie
 
 The `Effect.orDie` function converts an effect's failure into a termination of the fiber, removing the error from the type of the effect. It is useful when you encounter failures that you do not intend to handle or recover from.
 
-**Example** (Converting Failure to Defect with `Effect.orDie`)
+**Example** (Converting Failure to Defect)
 
 ```ts twoslash
 import { Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
+const divide = (a: number, b: number) =>
   b === 0
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
@@ -69,8 +95,12 @@ const divide = (a: number, b: number): Effect.Effect<number, Error> =>
 //      ▼
 const program = Effect.orDie(divide(1, 0))
 
-Effect.runPromise(program)
-// throws Error: Cannot divide by zero
+Effect.runPromise(program).catch(console.error)
+/*
+Output:
+(FiberFailure) Error: Cannot divide by zero
+  ...stack trace...
+*/
 ```
 
 After using `Effect.orDie`, the error channel type of the `program` is `never`, meaning that the effect no longer handles failures, and will terminate the fiber when an error occurs.
@@ -79,12 +109,12 @@ After using `Effect.orDie`, the error channel type of the `program` is `never`, 
 
 Similar to `Effect.orDie`, the `Effect.orDieWith` function transforms an effect's failure into a termination of the fiber using a specified mapping function. It allows you to customize the error message before terminating the fiber.
 
-**Example** (Customizing Defect Message with `Effect.orDieWith`)
+**Example** (Customizing Defect Message)
 
 ```ts twoslash
 import { Effect } from "effect"
 
-const divide = (a: number, b: number): Effect.Effect<number, Error> =>
+const divide = (a: number, b: number) =>
   b === 0
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
@@ -96,8 +126,12 @@ const program = Effect.orDieWith(
   (error) => new Error(`defect: ${error.message}`)
 )
 
-Effect.runPromise(program)
-// throws Error: defect: Cannot divide by zero
+Effect.runPromise(program).catch(console.error)
+/*
+Output:
+(FiberFailure) Error: defect: Cannot divide by zero
+  ...stack trace...
+*/
 ```
 
 After using `Effect.orDieWith`, the error channel type of the `program` is `never`, just like with `Effect.orDie`.
