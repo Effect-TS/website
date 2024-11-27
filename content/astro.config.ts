@@ -195,7 +195,7 @@ export default defineConfig({
               name: "Tim Smart",
               title: "Founding Engineer",
               picture: "/authors/tim_smart.png",
-              url: "https://github.com/timsmart"
+              url: "https://github.com/tim-smart"
             }
           }
         }),
