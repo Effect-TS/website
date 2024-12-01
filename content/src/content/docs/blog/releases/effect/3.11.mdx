@@ -1,0 +1,83 @@
+---
+title: Effect 3.11 (Release)
+excerpt: New Effect release featuring Effect.fn, Micro improvements, and more!
+date: 2024-12-02
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.11 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## Effect.fn
+
+The `Effect.fn` api allows you to create a function that is automatically traced, and also
+attaches the location where the function was called to any error traces.
+
+It also doubles as a `pipe` function, allowing you to create a pipeline after the function
+definition.
+
+```ts
+import { Effect } from "effect"
+
+const logExample = Effect.fn("example")(function* <N extends number>(n: N) {
+  yield* Effect.annotateCurrentSpan("n", n)
+  yield* Effect.logInfo(`got: ${n}`)
+  yield* Effect.fail(new Error())
+}, Effect.delay("1 second"))
+
+Effect.runFork(logExample(100).pipe(Effect.catchAllCause(Effect.logError)))
+```
+
+## Time zone support in Cron
+
+Cron expressions using the `Cron` module now support time zones. You can specify a time zone
+when creating a cron instance when using `Cron.make` or `Cron.parse`.
+
+## Context.Reference
+
+You can now create a `Context.Tag` that also has a default value.
+
+```ts
+import { Context } from "effect"
+
+export class SpecialNumber extends Context.Reference<SpecialNumber>()(
+  "SpecialNumber",
+  { defaultValue: () => 2048 }
+) {}
+
+```
+
+## Micro runtime changes
+
+Micro execution is now using a fiber-runtime based model. This results in the following benefits:
+
+- Improved performance
+- Improved interruption model
+- Consistency with the Effect data type
+
+`Env` & `EnvRef` have been removed in favour of `Context.Reference`.
+
+## Effect.scopedWith
+
+`Effect.scopedWith` allows you to create & use a `Scope` without adding it to the Effect's requirements.
+
+```ts
+import { Effect, Scope } from "effect"
+
+Effect.scopedWith((scope) => Scope.addFinalizer(scope, Effect.log("finalized")))
+```
+
+## BigDecimal updates
+
+- `BigDecimal.toExponential` added - format a BigDecimal as a string in exponential notation.
+- `BigDecimal.fromNumber` has been deprecated in favour of `BigDecimal.unsafeFromNumber`.
+
+## Other changes
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
