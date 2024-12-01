@@ -6,6 +6,7 @@ import * as Layer from "effect/Layer"
 import { rpcClient } from "@/services/shorten/client"
 import { ShortenRequest } from "@/services/shorten/domain"
 import { WorkspaceCompression } from "../services/compression"
+import { WorkspaceDownload } from "../services/download"
 import { WebContainer } from "../services/webcontainer"
 import { editorRx } from "./editor"
 import type { RxWorkspaceHandle } from "./workspace"
@@ -14,7 +15,8 @@ const runtime = Rx.runtime(Layer.mergeAll(
   Clipboard.layer,
   FetchHttpClient.layer,
   WebContainer.Default,
-  WorkspaceCompression.Default
+  WorkspaceCompression.Default,
+  WorkspaceDownload.Default
 ))
 
 export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
@@ -22,6 +24,7 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
     Effect.gen(function*() {
       const container = yield* WebContainer
       const compression = yield* WorkspaceCompression
+      const zip = yield* WorkspaceDownload
       const client = yield* rpcClient
       const workspace = get.once(handle.workspaceRx)
       const editor = yield* Result.toExit(
@@ -37,7 +40,13 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
       const hash = yield* client(new ShortenRequest({ text: compressed }))
       const url = new URL(location.href)
       url.hash = hash
-      return url.toString()
+
+      const zipFile = yield* zip.pack(workspace, container.readFileString)
+
+      return {
+        url: url.toString(),
+        zipFile: { name: `play-${hash}.zip`, content: zipFile }
+      }
     }).pipe(
       Effect.tapErrorCause(Effect.logError)
     )

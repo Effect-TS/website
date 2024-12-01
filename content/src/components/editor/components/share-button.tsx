@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, Fragment } from "react"
-import { CheckIcon, CopyIcon, LoaderCircleIcon } from "lucide-react"
+import { CheckIcon, CopyIcon, DownloadIcon, LoaderCircleIcon } from "lucide-react"
 import { useRxSet, useRxValue, Result } from "@effect-rx/rx-react"
 import * as Match from "effect/Match"
 import { Button } from "@/components/ui/button"
@@ -58,10 +58,34 @@ function ShareContent() {
   }, [copied, setCopied])
   const handleCopyLink = useCallback(() => {
     if (Result.isSuccess(result)) {
-      navigator.clipboard.writeText(result.value)
+      navigator.clipboard.writeText(result.value.url)
       setCopied(true)
     }
   }, [setCopied, result])
+
+  const [downloaded, setDownloaded] = useState(false)
+  useEffect(() => {
+    if (!downloaded) return
+    const timeout = setTimeout(() => {
+      setDownloaded(false)
+    }, 2000)
+    return () => {
+      clearTimeout(timeout)
+    }
+  }, [downloaded, setDownloaded])
+  const handleDownloadLink = useCallback(() => {
+    if (Result.isSuccess(result)) {
+      var blobUrl = URL.createObjectURL(result.value.zipFile.content)
+
+      var link = document.createElement("a")
+      link.href = blobUrl
+      link.download = result.value.zipFile.name
+      link.innerText = "Click here to download the file"
+      document.body.appendChild(link)
+      link.click()
+      setDownloaded(true)
+    }
+  }, [setDownloaded, result])
 
   return (
     <Fragment>
@@ -90,7 +114,7 @@ function ShareContent() {
                     : "An unexpected error occurred."
               }),
               onDefect: (_) => "An unexpected error occurred.",
-              onSuccess: ({ value }) => value
+              onSuccess: ({ value }) => value.url
             })}
             readOnly
             className={cn(
@@ -112,6 +136,29 @@ function ShareContent() {
             : result.waiting
               ? <LoaderCircleIcon className="animate-spin" size={16} />
               : <CopyIcon size={16} />
+          }
+        </Button>
+      </div>
+
+      <div className="flex items-center space-x-2 pt-4">
+        <div className="grid flex-1 gap-2">
+          <p className="text-sm font-medium text-[--sl-color-text]">
+            Or download the files locally
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          className="px-3 bg-[--sl-color-bg] hover:bg-[--sl-color-gray-6] dark:hover:bg-[--sl-color-gray-5] ring-1 ring-ring cursor-pointer transition-colors"
+          disabled={result.waiting || Result.isFailure(result)}
+          onClick={handleDownloadLink}
+        >
+          <span className="sr-only">Download</span>
+          {downloaded 
+            ? <CheckIcon size={16} />
+            : result.waiting
+              ? <LoaderCircleIcon className="animate-spin" size={16} />
+              : <DownloadIcon size={16} />
           }
         </Button>
       </div>
