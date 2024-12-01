@@ -134,7 +134,7 @@ export default defineConfig({
         "./src/styles/twoslash.css"
       ],
       editLink: {
-        baseUrl: "https://github.com/Effect-TS/website/edit/main/docs/"
+        baseUrl: "https://github.com/Effect-TS/website/blob/main/content/src/content/docs/docs/"
       },
       expressiveCode: {
         plugins: [
