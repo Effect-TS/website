@@ -672,8 +672,8 @@ Effect.runPromise(
 )
 /*
 Output:
-{ _id: 'Chunk', values: [ 2, 4, 6, 8 ] }
 { _id: 'Chunk', values: [ 1, 3, 5, 7, 9 ] }
+{ _id: 'Chunk', values: [ 2, 4, 6, 8 ] }
 */
 ```
 
@@ -691,7 +691,7 @@ import { Stream, Effect, Either } from "effect"
 const program = Stream.range(1, 9).pipe(
   Stream.partitionEither(
     // Simulate an effectful computation
-    (n) => Effect.succeed(n % 2 === 0 ? Either.left(n) : Either.right(n)),
+    (n) => Effect.succeed(n % 2 === 0 ? Either.right(n) : Either.left(n)),
     { bufferSize: 5 }
   )
 )
@@ -707,8 +707,8 @@ Effect.runPromise(
 )
 /*
 Output:
-{ _id: 'Chunk', values: [ 2, 4, 6, 8 ] }
 { _id: 'Chunk', values: [ 1, 3, 5, 7, 9 ] }
+{ _id: 'Chunk', values: [ 2, 4, 6, 8 ] }
 */
 ```
 
