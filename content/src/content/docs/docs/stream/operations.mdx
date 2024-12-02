@@ -650,7 +650,7 @@ Partitioning a stream involves dividing it into two distinct streams based on a 
 
 The `Stream.partition` function takes a predicate (a condition) as input and divides the original stream into two substreams. One substream will contain elements that meet the condition, while the other contains those that do not. Both resulting substreams are wrapped in a `Scope` type.
 
-**Example** (Partitioning a Stream into Even and Odd Numbers)
+**Example** (Partitioning a Stream into Odd and Even Numbers)
 
 ```ts twoslash
 import { Stream, Effect } from "effect"
@@ -664,9 +664,9 @@ const program = Stream.range(1, 9).pipe(
 Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
-      const [evens, odds] = yield* program
-      console.log(yield* Stream.runCollect(evens))
+      const [odds, evens] = yield* program
       console.log(yield* Stream.runCollect(odds))
+      console.log(yield* Stream.runCollect(evens))
     })
   )
 )
@@ -699,9 +699,9 @@ const program = Stream.range(1, 9).pipe(
 Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
-      const [evens, odds] = yield* program
-      console.log(yield* Stream.runCollect(evens))
+      const [odds, evens] = yield* program
       console.log(yield* Stream.runCollect(odds))
+      console.log(yield* Stream.runCollect(evens))
     })
   )
 )
