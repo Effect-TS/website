@@ -58,10 +58,11 @@ which mirror those of the `Effect` type.
 
 ### MicroExit
 
-The `MicroExit` type is a streamlined version of the [Exit](/docs/data-types/exit/) type, designed to capture the outcome of a `Micro` computation. It uses the [Either](/docs/data-types/either/) data type to distinguish between successful outcomes and failures:
+The `MicroExit` type is a streamlined version of the [Exit](/docs/data-types/exit/) type, designed to capture the outcome of a `Micro` computation.
+It can either be successful, containing a value of type `A`, or it can fail, containing an error of type `E` wrapped in a `MicroCause`.
 
 ```ts showLineNumbers=false
-type MicroExit<A, E> = Either<A, MicroCause<E>>
+type MicroExit<A, E> = MicroExit.Success<A, E> | MicroExit.Failure<A, E>
 ```
 
 ### MicroCause
@@ -117,11 +118,11 @@ Below, you'll find a series of comparisons between the functionalities of `Effec
 
 ## Running Effects
 
-| Effect                  | Micro                     |                                                |
-| ----------------------- | ------------------------- | ---------------------------------------------- |
-| `Effect.runSyncExit`    | ⚠️ `Micro.runSyncExit`    | returns a `MicroExit` instead of an `Exit`     |
-| `Effect.runPromiseExit` | ⚠️ `Micro.runPromiseExit` | returns a `MicroExit` instead of an `Exit`     |
-| `Effect.runFork`        | ⚠️ `Micro.runFork`        | returns a `Handle` instead of a `RuntimeFiber` |
+| Effect                  | Micro                     |                                               |
+| ----------------------- | ------------------------- | --------------------------------------------- |
+| `Effect.runSyncExit`    | ⚠️ `Micro.runSyncExit`    | returns a `MicroExit` instead of an `Exit`    |
+| `Effect.runPromiseExit` | ⚠️ `Micro.runPromiseExit` | returns a `MicroExit` instead of an `Exit`    |
+| `Effect.runFork`        | ⚠️ `Micro.runFork`        | returns a `Fiber` instead of a `RuntimeFiber` |
 
 ### runSyncExit
 
@@ -136,14 +137,27 @@ const result1 = Micro.runSyncExit(Micro.succeed(1))
 console.log(result1)
 /*
 Output:
-{ _id: 'Either', _tag: 'Right', right: 1 }
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Success",
+  "value": 1
+}
 */
 
 const result2 = Micro.runSyncExit(Micro.fail("my error"))
 console.log(result2)
 /*
 Output:
-{ _id: 'Either', _tag: 'Left', left: MicroCause.Fail: my error }
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Failure",
+  "cause": {
+    "_tag": "Fail",
+    "traces": [],
+    "name": "MicroCause.Fail",
+    "error": "my error"
+  }
+}
 */
 ```
 
@@ -159,13 +173,26 @@ import { Micro } from "effect"
 Micro.runPromiseExit(Micro.succeed(1)).then(console.log)
 /*
 Output:
-{ _id: 'Either', _tag: 'Right', right: 1 }
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Success",
+  "value": 1
+}
 */
 
 Micro.runPromiseExit(Micro.fail("my error")).then(console.log)
 /*
 Output:
-{ _id: 'Either', _tag: 'Left', left: MicroCause.Fail: my error }
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Failure",
+  "cause": {
+    "_tag": "Fail",
+    "traces": [],
+    "name": "MicroCause.Fail",
+    "error": "my error"
+  }
+}
 */
 ```
 
@@ -190,7 +217,11 @@ console.log("observing...")
 /*
 Output:
 observing...
-{ _id: 'Either', _tag: 'Right', right: 42 }
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Success",
+  "value": 42
+}
 */
 ```
 
@@ -317,9 +348,9 @@ random number: 0.8241872233134417
 
 ## Concurrency
 
-| Effect              | Micro                 |                                    |
-| ------------------- | --------------------- | ---------------------------------- |
-| `Effect.fork`       | ⚠️ `Micro.fork`       | `Handle` instead of `RuntimeFiber` |
-| `Effect.forkDaemon` | ⚠️ `Micro.forkDaemon` | `Handle` instead of `RuntimeFiber` |
-| `Effect.forkIn`     | ⚠️ `Micro.forkIn`     | `Handle` instead of `RuntimeFiber` |
-| `Effect.forkScoped` | ⚠️ `Micro.forkScoped` | `Handle` instead of `RuntimeFiber` |
+| Effect              | Micro                 |                                   |
+| ------------------- | --------------------- | --------------------------------- |
+| `Effect.fork`       | ⚠️ `Micro.fork`       | `Fiber` instead of `RuntimeFiber` |
+| `Effect.forkDaemon` | ⚠️ `Micro.forkDaemon` | `Fiber` instead of `RuntimeFiber` |
+| `Effect.forkIn`     | ⚠️ `Micro.forkIn`     | `Fiber` instead of `RuntimeFiber` |
+| `Effect.forkScoped` | ⚠️ `Micro.forkScoped` | `Fiber` instead of `RuntimeFiber` |

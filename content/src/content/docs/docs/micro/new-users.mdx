@@ -108,15 +108,12 @@ which mirror those of the `Effect` type:
 
 ## The MicroExit Type
 
-The `MicroExit` type is designed to capture the outcome of a `Micro` computation. It uses the [Either](/docs/data-types/either/) data type to distinguish between successful outcomes and failures:
+The `MicroExit` type is used to represent the result of a `Micro` computation.
+It can either be successful, containing a value of type `A`, or it can fail, containing an error of type `E` wrapped in a `MicroCause`.
 
 ```ts showLineNumbers=false
-type MicroExit<A, E> = Either<A, MicroCause<E>>
+type MicroExit<A, E> = MicroExit.Success<A, E> | MicroExit.Failure<A, E>
 ```
-
-`A` represents the success value of the computation.
-
-`E` represents the type of error, encapsulated within a `MicroCause`.
 
 ## The MicroCause Type
 
@@ -264,7 +261,11 @@ This guide shows how to wrap a `Promise`-based API using the `Micro` library fro
    )
    /*
    Output:
-   { _id: 'Either', _tag: 'Right', right: 'Sunny' }
+   {
+     "_id": "effect/Micro/Exit",
+     "_tag": "Success",
+     "value": "Sunny"
+   }
    */
    ```
 
@@ -402,9 +403,9 @@ Micro.runPromiseExit(recovered).then(console.log)
 /*
 Example Output:
 {
-  _id: 'Either',
-  _tag: 'Right',
-  right: 'Recovering from ValidationError'
+  "_id": "effect/Micro/Exit",
+  "_tag": "Success",
+  "value": "Recovering from ValidationError"
 }
 */
 ```
@@ -452,7 +453,11 @@ const recovered = program.pipe(
 Micro.runPromiseExit(recovered).then(console.log)
 /*
 Example Output:
-{ _id: 'Either', _tag: 'Right', right: 'Recovering from HttpError' }
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Success",
+  "value": "Recovering from HttpError"
+}
 */
 ```
 
@@ -502,9 +507,9 @@ Micro.runPromiseExit(recovered).then(console.log)
 /*
 Example Output:
 {
-  _id: 'Either',
-  _tag: 'Right',
-  right: 'Recovering from HttpError'
+  "_id": "effect/Micro/Exit",
+  "_tag": "Success",
+  "value": "Recovering from HttpError"
 }
 */
 ```
@@ -546,7 +551,10 @@ const divide = (a: number, b: number): Micro.Micro<number> =>
     : Micro.succeed(a / b)
 
 Micro.runPromise(divide(1, 0))
-// throws Error: Cannot divide by zero
+/*
+throws:
+DieImpl [(MicroCause.Die) Error]: Cannot divide by zero
+*/
 ```
 
 ### orDie
@@ -568,7 +576,10 @@ const divide = (a: number, b: number): Micro.Micro<number, Error> =>
 const program = Micro.orDie(divide(1, 0))
 
 Micro.runPromise(program)
-// throws Error: Cannot divide by zero
+/*
+throws:
+DieImpl [(MicroCause.Die) Error]: Cannot divide by zero
+*/
 ```
 
 ### catchAllDefect
@@ -595,7 +606,10 @@ Micro.runPromiseExit(program).then((exit) => console.log(exit))
 /*
 Output:
 Unknown defect caught: Boom!
-{ _id: 'Either', _tag: 'Right', right: undefined }
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Success"
+}
 */
 ```
 
@@ -631,7 +645,11 @@ const program = Micro.orElseSucceed(validate(-1), () => 18)
 console.log(Micro.runSyncExit(program))
 /*
 Output:
-{ _id: 'Either', _tag: 'Right', right: 18 }
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Success",
+  "value": 18
+}
 */
 ```
 
@@ -823,10 +841,16 @@ When an operation does not finish within the specified duration, the behavior of
    Output:
    Start processing...
    {
-     _id: 'Either',
-     _tag: 'Left',
-     left: (MicroCause.Fail) TimeoutException
-         ...stack trace...
+     "_id": "effect/Micro/Exit",
+     "_tag": "Failure",
+     "cause": {
+       "_tag": "Fail",
+       "traces": [],
+       "name": "(MicroCause.Fail) TimeoutException",
+       "error": {
+         "_tag": "TimeoutException"
+       }
+     }
    }
    */
    ```
@@ -856,10 +880,16 @@ When an operation does not finish within the specified duration, the behavior of
    Start processing...
    Processing complete.
    {
-     _id: 'Either',
-     _tag: 'Left',
-     left: (MicroCause.Fail) TimeoutException
-         ...stack trace...
+     "_id": "effect/Micro/Exit",
+     "_tag": "Failure",
+     "cause": {
+       "_tag": "Fail",
+       "traces": [],
+       "name": "(MicroCause.Fail) TimeoutException",
+       "error": {
+         "_tag": "TimeoutException"
+       }
+     }
    }
    */
    ```
@@ -1050,10 +1080,16 @@ Micro.runPromiseExit(program).then(console.log)
 /*
 Output:
 {
-  _id: 'Either',
-  _tag: 'Left',
-  left: (MicroCause.Fail) Error: Oh no!
-      ...stack trace...
+  "_id": "effect/Micro/Exit",
+  "_tag": "Failure",
+  "cause": {
+    "_tag": "Fail",
+    "traces": [],
+    "name": "(MicroCause.Fail) Error",
+    "error": {
+      "message": "Oh no!"
+    }
+  }
 }
 */
 ```
@@ -1275,7 +1311,7 @@ const runnable = Micro.scoped(program)
 Micro.runPromise(runnable).then(console.log, console.error)
 /*
 Output:
-finalizer after Right
+finalizer after Success
 1
 */
 ```
@@ -1300,8 +1336,17 @@ const runnable = Micro.scoped(program)
 Micro.runPromiseExit(runnable).then(console.log)
 /*
 Output:
-finalizer after Left
-{ _id: 'Either', _tag: 'Left', left: MicroCause.Fail: Uh oh! }
+finalizer after Failure
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Failure",
+  "cause": {
+    "_tag": "Fail",
+    "traces": [],
+    "name": "MicroCause.Fail",
+    "error": "Uh oh!"
+  }
+}
 */
 ```
 
@@ -1516,7 +1561,16 @@ Output:
 success
 success
 failure
-{ _id: 'Either', _tag: 'Left', left: MicroCause.Fail: Uh oh! }
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Failure",
+  "cause": {
+    "_tag": "Fail",
+    "traces": [],
+    "name": "MicroCause.Fail",
+    "error": "Uh oh!"
+  }
+}
 */
 ```
 
@@ -1739,7 +1793,7 @@ Output:
 ### Forking Effects
 
 One of the fundamental ways to create a fiber is by forking an existing effect.
-When you fork an effect, it starts executing the effect on a new fiber, giving you a reference (`Handle`) to this newly-created fiber.
+When you fork an effect, it starts executing the effect on a new fiber, giving you a reference to this newly-created fiber.
 
 The following code demonstrates how to create a single fiber using the `Micro.fork` function. This fiber will execute the function `fib(100)` independently of the main fiber:
 
@@ -1753,19 +1807,16 @@ const fib = (n: number): Micro.Micro<number> =>
     ? Micro.succeed(n)
     : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Micro<Handle<number, never>, never, never>
+//      ┌─── Micro<Fiber<number, never>, never, never>
 //      ▼
 const fib10Fiber = Micro.fork(fib(10))
 ```
 
 ### Joining Fibers
 
-A common operation with fibers is joining them using the `.join` property.
-This property returns a `Micro` that will succeed or fail based on the outcome of the fiber it joins:
-
 **Example** (Joining a Fiber)
 
-```ts twoslash
+```ts TODO
 import { Micro } from "effect"
 
 const fib = (n: number): Micro.Micro<number> =>
@@ -1773,7 +1824,7 @@ const fib = (n: number): Micro.Micro<number> =>
     ? Micro.succeed(n)
     : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Micro<Handle<number, never>, never, never>
+//      ┌─── Micro<Fiber<number, never>, never, never>
 //      ▼
 const fib10Fiber = Micro.fork(fib(10))
 
@@ -1785,13 +1836,14 @@ const program = Micro.gen(function* () {
   console.log(n)
 })
 
-Micro.runPromise(program) // Output: 55
+Micro.runPromise(program)
+// Output: 55
 ```
 
 ### Awaiting Fibers
 
-Another useful property for fibers is `.await`.
-This property returns an effect containing a `MicroExit` value, which provides detailed information about how the fiber completed.
+Another useful function for fibers is `Micro.fiberAwait`.
+This function returns an effect containing a `MicroExit` value, which provides detailed information about how the fiber completed.
 
 **Example** (Awaiting Fiber Completion)
 
@@ -1803,7 +1855,7 @@ const fib = (n: number): Micro.Micro<number> =>
     ? Micro.succeed(n)
     : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Micro<Handle<number, never>, never, never>
+//      ┌─── Micro<Fiber<number, never>, never, never>
 //      ▼
 const fib10Fiber = Micro.fork(fib(10))
 
@@ -1811,12 +1863,19 @@ const program = Micro.gen(function* () {
   // Retrieve the fiber
   const fiber = yield* fib10Fiber
   // Await its completion and get the MicroExit result
-  const exit = yield* fiber.await
+  const exit = yield* Micro.fiberAwait(fiber)
   console.log(exit)
 })
 
 Micro.runPromise(program)
-// Output: { _id: 'Either', _tag: 'Right', right: 55 }
+/*
+Output:
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Success",
+  "value": 55
+}
+*/
 ```
 
 ## Interruptions
@@ -1851,8 +1910,9 @@ const program = Micro.gen(function* () {
     )
   )
   yield* Micro.sleep(30)
+  // TODO: doesn't return exit anymore
   // Interrupt the fiber and get the MicroExit result
-  const exit = yield* fiber.interrupt
+  const exit = yield* Micro.fiberInterrupt(fiber)
   console.log(exit)
 })
 
@@ -1861,11 +1921,7 @@ Micro.runPromise(program)
 Output:
 Hi!
 Hi!
-{
-  _id: 'Either',
-  _tag: 'Left',
-  left: MicroCause.Interrupt: interrupted
-}
+undefined
 */
 ```
 
@@ -1891,7 +1947,10 @@ Micro.runPromiseExit(program).then(console.log)
 Output:
 start
 done
-{ _id: 'Either', _tag: 'Right', right: undefined }
+{
+  "_id": "effect/Micro/Exit",
+  "_tag": "Success"
+}
 */
 ```
 
@@ -1914,9 +1973,13 @@ Micro.runPromiseExit(program).then(console.log)
 Output:
 start
 {
-  _id: 'Either',
-  _tag: 'Left',
-  left: MicroCause.Interrupt: interrupted
+  "_id": "effect/Micro/Exit",
+  "_tag": "Failure",
+  "cause": {
+    "_tag": "Interrupt",
+    "traces": [],
+    "name": "MicroCause.Interrupt"
+  }
 }
 */
 ```
@@ -1956,9 +2019,9 @@ start #2
 start #3
 done #1
 {
-  "_id": "Either",
-  "_tag": "Left",
-  "left": {
+  "_id": "effect/Micro/Exit",
+  "_tag": "Failure",
+  "cause": {
     "_tag": "Interrupt",
     "traces": [],
     "name": "MicroCause.Interrupt"
