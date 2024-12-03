@@ -262,7 +262,7 @@ This guide shows how to wrap a `Promise`-based API using the `Micro` library fro
    /*
    Output:
    {
-     "_id": "effect/Micro/Exit",
+     "_id": "MicroExit",
      "_tag": "Success",
      "value": "Sunny"
    }
@@ -403,7 +403,7 @@ Micro.runPromiseExit(recovered).then(console.log)
 /*
 Example Output:
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Success",
   "value": "Recovering from ValidationError"
 }
@@ -454,7 +454,7 @@ Micro.runPromiseExit(recovered).then(console.log)
 /*
 Example Output:
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Success",
   "value": "Recovering from HttpError"
 }
@@ -507,7 +507,7 @@ Micro.runPromiseExit(recovered).then(console.log)
 /*
 Example Output:
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Success",
   "value": "Recovering from HttpError"
 }
@@ -553,7 +553,8 @@ const divide = (a: number, b: number): Micro.Micro<number> =>
 Micro.runPromise(divide(1, 0))
 /*
 throws:
-DieImpl [(MicroCause.Die) Error]: Cannot divide by zero
+Die [(MicroCause.Die) Error]: Cannot divide by zero
+  ...stack trace...
 */
 ```
 
@@ -578,7 +579,8 @@ const program = Micro.orDie(divide(1, 0))
 Micro.runPromise(program)
 /*
 throws:
-DieImpl [(MicroCause.Die) Error]: Cannot divide by zero
+Die [(MicroCause.Die) Error]: Cannot divide by zero
+  ...stack trace...
 */
 ```
 
@@ -607,7 +609,7 @@ Micro.runPromiseExit(program).then((exit) => console.log(exit))
 Output:
 Unknown defect caught: Boom!
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Success"
 }
 */
@@ -646,7 +648,7 @@ console.log(Micro.runSyncExit(program))
 /*
 Output:
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Success",
   "value": 18
 }
@@ -841,7 +843,7 @@ When an operation does not finish within the specified duration, the behavior of
    Output:
    Start processing...
    {
-     "_id": "effect/Micro/Exit",
+     "_id": "MicroExit",
      "_tag": "Failure",
      "cause": {
        "_tag": "Fail",
@@ -880,7 +882,7 @@ When an operation does not finish within the specified duration, the behavior of
    Start processing...
    Processing complete.
    {
-     "_id": "effect/Micro/Exit",
+     "_id": "MicroExit",
      "_tag": "Failure",
      "cause": {
        "_tag": "Fail",
@@ -1080,7 +1082,7 @@ Micro.runPromiseExit(program).then(console.log)
 /*
 Output:
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Failure",
   "cause": {
     "_tag": "Fail",
@@ -1312,7 +1314,7 @@ Micro.runPromise(runnable).then(console.log, console.error)
 /*
 Output:
 finalizer after Success
-1
+some result
 */
 ```
 
@@ -1338,7 +1340,7 @@ Micro.runPromiseExit(runnable).then(console.log)
 Output:
 finalizer after Failure
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Failure",
   "cause": {
     "_tag": "Fail",
@@ -1562,7 +1564,7 @@ success
 success
 failure
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Failure",
   "cause": {
     "_tag": "Fail",
@@ -1807,16 +1809,19 @@ const fib = (n: number): Micro.Micro<number> =>
     ? Micro.succeed(n)
     : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Micro<Fiber<number, never>, never, never>
+//      ┌─── Micro<MicroFiber<number, never>, never, never>
 //      ▼
 const fib10Fiber = Micro.fork(fib(10))
 ```
 
 ### Joining Fibers
 
+A common operation with fibers is joining them using the `Micro.fiberJoin` function.
+This function returns a `Micro` that will succeed or fail based on the outcome of the fiber it joins:
+
 **Example** (Joining a Fiber)
 
-```ts TODO
+```ts twoslash
 import { Micro } from "effect"
 
 const fib = (n: number): Micro.Micro<number> =>
@@ -1824,7 +1829,7 @@ const fib = (n: number): Micro.Micro<number> =>
     ? Micro.succeed(n)
     : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Micro<Fiber<number, never>, never, never>
+//      ┌─── Micro<MicroFiber<number, never>, never, never>
 //      ▼
 const fib10Fiber = Micro.fork(fib(10))
 
@@ -1832,7 +1837,7 @@ const program = Micro.gen(function* () {
   // Retrieve the fiber
   const fiber = yield* fib10Fiber
   // Join the fiber and get the result
-  const n = yield* fiber.join
+  const n = yield* Micro.fiberJoin(fiber)
   console.log(n)
 })
 
@@ -1855,7 +1860,7 @@ const fib = (n: number): Micro.Micro<number> =>
     ? Micro.succeed(n)
     : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Micro<Fiber<number, never>, never, never>
+//      ┌─── Micro<MicroFiber<number, never>, never, never>
 //      ▼
 const fib10Fiber = Micro.fork(fib(10))
 
@@ -1871,7 +1876,7 @@ Micro.runPromise(program)
 /*
 Output:
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Success",
   "value": 55
 }
@@ -1910,10 +1915,8 @@ const program = Micro.gen(function* () {
     )
   )
   yield* Micro.sleep(30)
-  // TODO: doesn't return exit anymore
-  // Interrupt the fiber and get the MicroExit result
-  const exit = yield* Micro.fiberInterrupt(fiber)
-  console.log(exit)
+  // Interrupt the fiber
+  yield* Micro.fiberInterrupt(fiber)
 })
 
 Micro.runPromise(program)
@@ -1921,7 +1924,6 @@ Micro.runPromise(program)
 Output:
 Hi!
 Hi!
-undefined
 */
 ```
 
@@ -1948,7 +1950,7 @@ Output:
 start
 done
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Success"
 }
 */
@@ -1973,7 +1975,7 @@ Micro.runPromiseExit(program).then(console.log)
 Output:
 start
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Failure",
   "cause": {
     "_tag": "Interrupt",
@@ -2019,7 +2021,7 @@ start #2
 start #3
 done #1
 {
-  "_id": "effect/Micro/Exit",
+  "_id": "MicroExit",
   "_tag": "Failure",
   "cause": {
     "_tag": "Interrupt",
