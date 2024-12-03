@@ -163,14 +163,23 @@ Effect.runPromise(instrumented.pipe(Effect.provide(NodeSdkLive)))
 /*
 Example Output:
 {
-  traceId: 'd0f730abfc366205806469596092b239',
+  resource: {
+    attributes: {
+      'service.name': 'example',
+      'telemetry.sdk.language': 'nodejs',
+      'telemetry.sdk.name': '@effect/opentelemetry',
+      'telemetry.sdk.version': '1.28.0'
+    }
+  },
+  instrumentationScope: { name: 'example', version: undefined, schemaUrl: undefined },
+  traceId: '673c06608bd815f7a75bf897ef87e186',
   parentId: undefined,
   traceState: undefined,
   name: 'myspan',
-  id: 'ab4e42592e7f1f7c',
+  id: '401b2846170cd17b',
   kind: 0,
-  timestamp: 1697040012664380.5,
-  duration: 2895.769,
+  timestamp: 1733220735529855.5,
+  duration: 102079.958,
   attributes: {},
   status: { code: 1 },
   events: [],
@@ -226,17 +235,39 @@ Effect.runPromiseExit(program.pipe(Effect.provide(NodeSdkLive))).then(
 /*
 Example Output:
 {
-  traceId: '760510a3f9a0881a09de990c87ec1cef',
+  resource: {
+    attributes: {
+      'service.name': 'example',
+      'telemetry.sdk.language': 'nodejs',
+      'telemetry.sdk.name': '@effect/opentelemetry',
+      'telemetry.sdk.version': '1.28.0'
+    }
+  },
+  instrumentationScope: { name: 'example', version: undefined, schemaUrl: undefined },
+  traceId: 'eee9619866179f209b7aae277283e71f',
   parentId: undefined,
   traceState: undefined,
   name: 'myspan',
-  id: 'a528e38e82e848a5',
+  id: '3a5725c91884c9e1',
   kind: 0,
-  timestamp: 1697091363002970.5,
-  duration: 110371.664,
-  attributes: {},
-  status: { code: 2, message: 'Error: Oh no!' },
-  events: [],
+  timestamp: 1733220830575626,
+  duration: 106578.042,
+  attributes: {
+    'code.stacktrace': 'at <anonymous> (/Users/giuliocanti/Documents/GitHub/website/content/dev/index.ts:10:10)'
+  },
+  status: { code: 2, message: 'Oh no!' },
+  events: [
+    {
+      name: 'exception',
+      attributes: {
+        'exception.type': 'Error',
+        'exception.message': 'Oh no!',
+        'exception.stacktrace': 'Error: Oh no!'
+      },
+      time: [ 1733220830, 682204083 ],
+      droppedAttributesCount: 0
+    }
+  ],
   links: []
 }
 {
@@ -283,14 +314,23 @@ Effect.runPromise(program.pipe(Effect.provide(NodeSdkLive)))
 /*
 Example Output:
 {
-  traceId: '869c9d74d9db14a4ba4393ca8e0f61db',
+  resource: {
+    attributes: {
+      'service.name': 'example',
+      'telemetry.sdk.language': 'nodejs',
+      'telemetry.sdk.name': '@effect/opentelemetry',
+      'telemetry.sdk.version': '1.28.0'
+    }
+  },
+  instrumentationScope: { name: 'example', version: undefined, schemaUrl: undefined },
+  traceId: 'c8120e01c0f1ea83ccc1d388e5cdebd3',
   parentId: undefined,
   traceState: undefined,
   name: 'myspan',
-  id: '31eb49570d197f8d',
+  id: '81c430ba4979f1db',
   kind: 0,
-  timestamp: 1697045981663321.5,
-  duration: 109563.353,
+  timestamp: 1733220874356084,
+  duration: 102821.417,
   attributes: { key: 'value' },
   status: { code: 1 },
   events: [],
@@ -303,7 +343,7 @@ Example Output:
 
 In the context of tracing, logs are converted into "Span Events." These events offer structured insights into your application's activities and provide a timeline of when specific operations occurred.
 
-```ts twoslash
+```ts twoslash {47}
 import { Effect } from "effect"
 import { NodeSdk } from "@effect/opentelemetry"
 import {
@@ -328,21 +368,30 @@ Effect.runPromise(program.pipe(Effect.provide(NodeSdkLive)))
 /*
 Example Output:
 {
-  traceId: 'ad708d58c15f9e5c7b5cca2eeb6838a2',
+  resource: {
+    attributes: {
+      'service.name': 'example',
+      'telemetry.sdk.language': 'nodejs',
+      'telemetry.sdk.name': '@effect/opentelemetry',
+      'telemetry.sdk.version': '1.28.0'
+    }
+  },
+  instrumentationScope: { name: 'example', version: undefined, schemaUrl: undefined },
+  traceId: 'b0f4f012b5b13c0a040f7002a1d7b020',
   parentId: undefined,
   traceState: undefined,
   name: 'myspan',
-  id: '4353fd47423e786a',
+  id: 'b9ba8472002715a8',
   kind: 0,
-  timestamp: 1697043230170724.2,
-  duration: 112052.514,
+  timestamp: 1733220905504162.2,
+  duration: 103790,
   attributes: {},
   status: { code: 1 },
   events: [
     {
       name: 'Hello',
       attributes: { 'effect.fiberId': '#0', 'effect.logLevel': 'INFO' }, // Log attributes
-      time: [ 1697043230, 280923805 ], // Event timestamp
+      time: [ 1733220905, 607761042 ], // Event timestamp
       droppedAttributesCount: 0
     }
   ],
@@ -366,7 +415,7 @@ Spans can be nested to represent a hierarchy of operations. This allows you to t
 
 **Example** (Nesting Spans in a Trace)
 
-```ts twoslash "b953d6c7d37ad93d"
+```ts twoslash "a09e5c3fdfdbbc1d"
 import { Effect } from "effect"
 import { NodeSdk } from "@effect/opentelemetry"
 import {
@@ -396,28 +445,46 @@ Effect.runPromise(parent.pipe(Effect.provide(NodeSdkLive)))
 /*
 Example Output:
 {
-  traceId: '92fe81f1454d9c099198568cf867dc59',
-  parentId: 'b953d6c7d37ad93d', // This indicates the span is a child of 'parent'
+  resource: {
+    attributes: {
+      'service.name': 'example',
+      'telemetry.sdk.language': 'nodejs',
+      'telemetry.sdk.name': '@effect/opentelemetry',
+      'telemetry.sdk.version': '1.28.0'
+    }
+  },
+  instrumentationScope: { name: 'example', version: undefined, schemaUrl: undefined },
+  traceId: 'a9cd69ad70698a0c7b7b774597c77d39',
+  parentId: 'a09e5c3fdfdbbc1d', // This indicates the span is a child of 'parent'
   traceState: undefined,
   name: 'child',
-  id: '2fd19c8c23ebc7e8', // Unique ID for the child span
+  id: '210d2f9b648389a4', // Unique ID for the child span
   kind: 0,
-  timestamp: 1697043815321888.2,
-  duration: 106536.264,
+  timestamp: 1733220970590126.2,
+  duration: 101579.875,
   attributes: {},
   status: { code: 1 },
   events: [],
   links: []
 }
 {
-  traceId: '92fe81f1454d9c099198568cf867dc59',
+  resource: {
+    attributes: {
+      'service.name': 'example',
+      'telemetry.sdk.language': 'nodejs',
+      'telemetry.sdk.name': '@effect/opentelemetry',
+      'telemetry.sdk.version': '1.28.0'
+    }
+  },
+  instrumentationScope: { name: 'example', version: undefined, schemaUrl: undefined },
+  traceId: 'a9cd69ad70698a0c7b7b774597c77d39',
   parentId: undefined, // Indicates this is the root span
   traceState: undefined,
   name: 'parent',
-  id: 'b953d6c7d37ad93d', // Unique ID for the parent span
+  id: 'a09e5c3fdfdbbc1d', // Unique ID for the parent span
   kind: 0,
-  timestamp: 1697043815292133.2,
-  duration: 149724.295,
+  timestamp: 1733220970569015.2,
+  duration: 132612.208,
   attributes: {},
   status: { code: 1 },
   events: [],
