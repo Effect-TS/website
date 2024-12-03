@@ -58,10 +58,11 @@ which mirror those of the `Effect` type.
 
 ### MicroExit
 
-The `MicroExit` type is a streamlined version of the [Exit](/docs/data-types/exit/) type, designed to capture the outcome of a `Micro` computation. It uses the [Either](/docs/data-types/either/) data type to distinguish between successful outcomes and failures:
+The `MicroExit` type is a streamlined version of the [Exit](/docs/data-types/exit/) type, designed to capture the outcome of a `Micro` computation.
+It can either be successful, containing a value of type `A`, or it can fail, containing an error of type `E` wrapped in a `MicroCause`.
 
 ```ts showLineNumbers=false
-type MicroExit<A, E> = Either<A, MicroCause<E>>
+type MicroExit<A, E> = MicroExit.Success<A, E> | MicroExit.Failure<A, E>
 ```
 
 ### MicroCause
@@ -104,24 +105,24 @@ Below, you'll find a series of comparisons between the functionalities of `Effec
 
 ## Creating Effects
 
-| Effect                 | Micro                   |                                      |
-| ---------------------- | ----------------------- | ------------------------------------ |
-| `Effect.try`           | ⚠️ `Micro.try`          | requires a `try` block               |
-| `Effect.tryPromise`    | ⚠️ `Micro.tryPromise`   | requires a `try` block               |
-| `Effect.sleep`         | ⚠️ `Micro.sleep`        | only handles milliseconds            |
-| `Effect.failCause`     | ⚠️ `Micro.failWith`     | uses `MicroCause` instead of `Cause` |
-| `Effect.failCauseSync` | ⚠️ `Micro.failWithSync` | uses `MicroCause` instead of `Cause` |
-| ❌                     | `Micro.make`            |                                      |
-| ❌                     | `Micro.fromOption`      |                                      |
-| ❌                     | `Micro.fromEither`      |                                      |
+| Effect                 | Micro                | ⚠️                                   |
+| ---------------------- | -------------------- | ------------------------------------ |
+| `Effect.try`           | `Micro.try`          | requires a `try` block               |
+| `Effect.tryPromise`    | `Micro.tryPromise`   | requires a `try` block               |
+| `Effect.sleep`         | `Micro.sleep`        | only handles milliseconds            |
+| `Effect.failCause`     | `Micro.failWith`     | uses `MicroCause` instead of `Cause` |
+| `Effect.failCauseSync` | `Micro.failWithSync` | uses `MicroCause` instead of `Cause` |
+| ❌                     | `Micro.make`         |                                      |
+| ❌                     | `Micro.fromOption`   |                                      |
+| ❌                     | `Micro.fromEither`   |                                      |
 
 ## Running Effects
 
-| Effect                  | Micro                     |                                                |
-| ----------------------- | ------------------------- | ---------------------------------------------- |
-| `Effect.runSyncExit`    | ⚠️ `Micro.runSyncExit`    | returns a `MicroExit` instead of an `Exit`     |
-| `Effect.runPromiseExit` | ⚠️ `Micro.runPromiseExit` | returns a `MicroExit` instead of an `Exit`     |
-| `Effect.runFork`        | ⚠️ `Micro.runFork`        | returns a `Handle` instead of a `RuntimeFiber` |
+| Effect                  | Micro                  | ⚠️                                                 |
+| ----------------------- | ---------------------- | -------------------------------------------------- |
+| `Effect.runSyncExit`    | `Micro.runSyncExit`    | returns a `MicroExit` instead of an `Exit`         |
+| `Effect.runPromiseExit` | `Micro.runPromiseExit` | returns a `MicroExit` instead of an `Exit`         |
+| `Effect.runFork`        | `Micro.runFork`        | returns a `MicroFiber` instead of a `RuntimeFiber` |
 
 ### runSyncExit
 
@@ -136,14 +137,27 @@ const result1 = Micro.runSyncExit(Micro.succeed(1))
 console.log(result1)
 /*
 Output:
-{ _id: 'Either', _tag: 'Right', right: 1 }
+{
+  "_id": "MicroExit",
+  "_tag": "Success",
+  "value": 1
+}
 */
 
 const result2 = Micro.runSyncExit(Micro.fail("my error"))
 console.log(result2)
 /*
 Output:
-{ _id: 'Either', _tag: 'Left', left: MicroCause.Fail: my error }
+{
+  "_id": "MicroExit",
+  "_tag": "Failure",
+  "cause": {
+    "_tag": "Fail",
+    "traces": [],
+    "name": "MicroCause.Fail",
+    "error": "my error"
+  }
+}
 */
 ```
 
@@ -159,57 +173,77 @@ import { Micro } from "effect"
 Micro.runPromiseExit(Micro.succeed(1)).then(console.log)
 /*
 Output:
-{ _id: 'Either', _tag: 'Right', right: 1 }
+{
+  "_id": "MicroExit",
+  "_tag": "Success",
+  "value": 1
+}
 */
 
 Micro.runPromiseExit(Micro.fail("my error")).then(console.log)
 /*
 Output:
-{ _id: 'Either', _tag: 'Left', left: MicroCause.Fail: my error }
+{
+  "_id": "MicroExit",
+  "_tag": "Failure",
+  "cause": {
+    "_tag": "Fail",
+    "traces": [],
+    "name": "MicroCause.Fail",
+    "error": "my error"
+  }
+}
 */
 ```
 
 ### runFork
 
-The `Micro.runFork` function executes the effect and return a `Handle` that can be awaited, joined, or aborted.
+The `Micro.runFork` function executes the effect and return a `MicroFiber` that can be awaited, joined, or aborted.
 
-You can listen for the result by adding an observer using the handle's `addObserver` method.
+You can listen for the result by adding an observer using the `addObserver` method.
 
 **Example** (Observing an Asynchronous Effect)
 
 ```ts twoslash
 import { Micro } from "effect"
 
-const handle = Micro.succeed(42).pipe(Micro.delay(1000), Micro.runFork)
+//      ┌─── MicroFiber<number, never>
+//      ▼
+const fiber = Micro.succeed(42).pipe(Micro.delay(1000), Micro.runFork)
 
 // Attach an observer to log the result when the effect completes
-handle.addObserver((result) => {
+fiber.addObserver((result) => {
   console.log(result)
 })
+
 console.log("observing...")
 /*
 Output:
 observing...
-{ _id: 'Either', _tag: 'Right', right: 42 }
+{
+  "_id": "MicroExit",
+  "_tag": "Success",
+  "value": 42
+}
 */
 ```
 
 ## Building Pipelines
 
-| Effect             | Micro                |                                                         |
-| ------------------ | -------------------- | ------------------------------------------------------- |
-| `Effect.andThen`   | ⚠️ `Micro.andThen`   | doesn't handle `Promise` or `() => Promise` as argument |
-| `Effect.tap`       | ⚠️ `Micro.tap`       | doesn't handle `() => Promise` as argument              |
-| `Effect.all`       | ⚠️ `Micro.all`       | no `batching` and `mode` options                        |
-| `Effect.forEach`   | ⚠️ `Micro.forEach`   | no `batching` option                                    |
-| `Effect.filter`    | ⚠️ `Micro.filter`    | no `batching` option                                    |
-| `Effect.filterMap` | ⚠️ `Micro.filterMap` | effectful                                               |
+| Effect             | Micro             | ⚠️                                                      |
+| ------------------ | ----------------- | ------------------------------------------------------- |
+| `Effect.andThen`   | `Micro.andThen`   | doesn't handle `Promise` or `() => Promise` as argument |
+| `Effect.tap`       | `Micro.tap`       | doesn't handle `() => Promise` as argument              |
+| `Effect.all`       | `Micro.all`       | no `batching` and `mode` options                        |
+| `Effect.forEach`   | `Micro.forEach`   | no `batching` option                                    |
+| `Effect.filter`    | `Micro.filter`    | no `batching` option                                    |
+| `Effect.filterMap` | `Micro.filterMap` | the filter is effectful                                 |
 
 ## Expected Errors
 
-| Effect        | Micro           |                                            |
-| ------------- | --------------- | ------------------------------------------ |
-| `Effect.exit` | ⚠️ `Micro.exit` | returns a `MicroExit` instead of an `Exit` |
+| Effect        | Micro        | ⚠️                                         |
+| ------------- | ------------ | ------------------------------------------ |
+| `Effect.exit` | `Micro.exit` | returns a `MicroExit` instead of an `Exit` |
 
 ## Unexpected Errors
 
@@ -257,23 +291,23 @@ random number: 0.8241872233134417
 
 ## Scope
 
-| Effect       | Micro                |                                             |
-| ------------ | -------------------- | ------------------------------------------- |
-| `Scope`      | ⚠️ `MicroScope`      | returns a `MicroScope` instead of a `Scope` |
-| `Scope.make` | ⚠️ `Micro.scopeMake` | returns a `MicroScope` instead of a `Scope` |
+| Effect       | Micro             | ⚠️                                          |
+| ------------ | ----------------- | ------------------------------------------- |
+| `Scope`      | `MicroScope`      | returns a `MicroScope` instead of a `Scope` |
+| `Scope.make` | `Micro.scopeMake` | returns a `MicroScope` instead of a `Scope` |
 
 ## Retrying
 
-| Effect         | Micro            |                     |
-| -------------- | ---------------- | ------------------- |
-| `Effect.retry` | ⚠️ `Micro.retry` | different `options` |
+| Effect         | Micro         | ⚠️                  |
+| -------------- | ------------- | ------------------- |
+| `Effect.retry` | `Micro.retry` | different `options` |
 
 ## Repetition
 
-| Effect                               | Micro                 |                     |
-| ------------------------------------ | --------------------- | ------------------- |
-| `Effect.repeat`                      | ⚠️ `Micro.repeat`     | different `options` |
-| ❌ (`Effect.exit` + `Effect.repeat`) | ⚠️ `Micro.repeatExit` |                     |
+| Effect          | Micro              | ⚠️                  |
+| --------------- | ------------------ | ------------------- |
+| `Effect.repeat` | `Micro.repeat`     | different `options` |
+| ❌              | `Micro.repeatExit` |                     |
 
 ## Timing out
 
@@ -283,43 +317,43 @@ random number: 0.8241872233134417
 
 ## Sandboxing
 
-| Effect           | Micro              |                                       |
-| ---------------- | ------------------ | ------------------------------------- |
-| `Effect.sandbox` | ⚠️ `Micro.sandbox` | `MicroCause<E>` instead of `Cause<E>` |
+| Effect           | Micro           | ⚠️                                              |
+| ---------------- | --------------- | ----------------------------------------------- |
+| `Effect.sandbox` | `Micro.sandbox` | returns a `MicroCause<E>` instead of `Cause<E>` |
 
 ## Error Channel Operations
 
-| Effect                 | Micro                    |                                       |
+| Effect                 | Micro                    | ⚠️                                    |
 | ---------------------- | ------------------------ | ------------------------------------- |
 | ❌                     | `Micro.filterOrFailWith` |                                       |
-| `Effect.tapErrorCause` | ⚠️ `Micro.tapErrorCause` | `MicroCause<E>` instead of `Cause<E>` |
+| `Effect.tapErrorCause` | `Micro.tapErrorCause`    | `MicroCause<E>` instead of `Cause<E>` |
 | ❌                     | `Micro.tapCauseIf`       |                                       |
-| `Effect.tapDefect`     | ⚠️ `Micro.tapDefect`     | `unknown` instead of `Cause<never>`   |
+| `Effect.tapDefect`     | `Micro.tapDefect`        | `unknown` instead of `Cause<never>`   |
 
 ## Requirements Management
 
-| Effect           | Micro                     |                        |
-| ---------------- | ------------------------- | ---------------------- |
-| `Effect.provide` | ⚠️ `Micro.provideContext` | only handles `Context` |
-| ❌               | `Micro.provideScope`      |                        |
-| ❌               | `Micro.service`           |                        |
+| Effect           | Micro                  | ⚠️                     |
+| ---------------- | ---------------------- | ---------------------- |
+| `Effect.provide` | `Micro.provideContext` | only handles `Context` |
+| ❌               | `Micro.provideScope`   |                        |
+| ❌               | `Micro.service`        |                        |
 
 ## Scoping, Resources and Finalization
 
-| Effect                     | Micro                        |                                          |
-| -------------------------- | ---------------------------- | ---------------------------------------- |
-| `Effect.addFinalizer`      | ⚠️ `Micro.addFinalizer`      | `MicroExit` instead of `Exit` and no `R` |
-| `Effect.acquireRelease`    | ⚠️ `Micro.acquireRelease`    | `MicroExit` instead of `Exit`            |
-| `Effect.acquireUseRelease` | ⚠️ `Micro.acquireUseRelease` | `MicroExit` instead of `Exit`            |
-| `Effect.onExit`            | ⚠️ `Micro.onExit`            | `MicroExit` instead of `Exit`            |
-| `Effect.onError`           | ⚠️ `Micro.onError`           | uses `MicroCause` instead of `Cause`     |
-| ❌                         | `Micro.onExitIf`             |                                          |
+| Effect                     | Micro                     | ⚠️                                       |
+| -------------------------- | ------------------------- | ---------------------------------------- |
+| `Effect.addFinalizer`      | `Micro.addFinalizer`      | `MicroExit` instead of `Exit` and no `R` |
+| `Effect.acquireRelease`    | `Micro.acquireRelease`    | `MicroExit` instead of `Exit`            |
+| `Effect.acquireUseRelease` | `Micro.acquireUseRelease` | `MicroExit` instead of `Exit`            |
+| `Effect.onExit`            | `Micro.onExit`            | `MicroExit` instead of `Exit`            |
+| `Effect.onError`           | `Micro.onError`           | uses `MicroCause` instead of `Cause`     |
+| ❌                         | `Micro.onExitIf`          |                                          |
 
 ## Concurrency
 
-| Effect              | Micro                 |                                    |
-| ------------------- | --------------------- | ---------------------------------- |
-| `Effect.fork`       | ⚠️ `Micro.fork`       | `Handle` instead of `RuntimeFiber` |
-| `Effect.forkDaemon` | ⚠️ `Micro.forkDaemon` | `Handle` instead of `RuntimeFiber` |
-| `Effect.forkIn`     | ⚠️ `Micro.forkIn`     | `Handle` instead of `RuntimeFiber` |
-| `Effect.forkScoped` | ⚠️ `Micro.forkScoped` | `Handle` instead of `RuntimeFiber` |
+| Effect              | Micro              | ⚠️                                     |
+| ------------------- | ------------------ | -------------------------------------- |
+| `Effect.fork`       | `Micro.fork`       | `MicroFiber` instead of `RuntimeFiber` |
+| `Effect.forkDaemon` | `Micro.forkDaemon` | `MicroFiber` instead of `RuntimeFiber` |
+| `Effect.forkIn`     | `Micro.forkIn`     | `MicroFiber` instead of `RuntimeFiber` |
+| `Effect.forkScoped` | `Micro.forkScoped` | `MicroFiber` instead of `RuntimeFiber` |
