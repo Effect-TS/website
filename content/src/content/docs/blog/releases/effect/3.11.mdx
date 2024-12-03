@@ -4,6 +4,7 @@ excerpt: New Effect release featuring Effect.fn, Micro improvements, and more!
 date: 2024-12-02
 authors:
   - tim_smart
+  - giulio_canti
 tags:
   - Releases
   - Effect
@@ -14,22 +15,190 @@ and improvements. Here's a summary of what's new:
 
 ## Effect.fn
 
-The `Effect.fn` api allows you to create a function that is automatically traced, and also
-attaches the location where the function was called to any error traces.
+The `Effect.fn` API allows you to create a function that is automatically traced, and also
+attaches the location where the function was called to any error traces, helping you track the source of failures.
 
-It also doubles as a `pipe` function, allowing you to create a pipeline after the function
-definition.
+**Example** (Creating a traced function)
 
 ```ts
 import { Effect } from "effect"
 
-const logExample = Effect.fn("example")(function* <N extends number>(n: N) {
+const logExample = Effect.fn("example")(function* <N extends number>(
+  n: N
+) {
   yield* Effect.annotateCurrentSpan("n", n)
   yield* Effect.logInfo(`got: ${n}`)
   yield* Effect.fail(new Error())
-}, Effect.delay("1 second"))
+})
+```
 
-Effect.runFork(logExample(100).pipe(Effect.catchAllCause(Effect.logError)))
+Let's see it in action by exporting the traces to the console:
+
+**Example** (Exporting traces to the console)
+
+In the output below, you can see the location where the function was called.
+
+```ts {16} ":16:17"
+import { Effect } from "effect"
+import { NodeSdk } from "@effect/opentelemetry"
+import {
+  ConsoleSpanExporter,
+  BatchSpanProcessor
+} from "@opentelemetry/sdk-trace-base"
+
+const logExample = Effect.fn("example")(function* <N extends number>(
+  n: N
+) {
+  yield* Effect.annotateCurrentSpan("n", n)
+  yield* Effect.logInfo(`got: ${n}`)
+  yield* Effect.fail(new Error())
+})
+
+const program = logExample(100).pipe(
+  Effect.catchAllCause(Effect.logError)
+)
+
+const NodeSdkLive = NodeSdk.layer(() => ({
+  resource: { serviceName: "example" },
+  // Export span data to the console
+  spanProcessor: new BatchSpanProcessor(new ConsoleSpanExporter())
+}))
+
+Effect.runFork(program.pipe(Effect.provide(NodeSdkLive)))
+/*
+Output:
+{
+  resource: {
+    attributes: {
+      'service.name': 'example',
+      'telemetry.sdk.language': 'nodejs',
+      'telemetry.sdk.name': '@effect/opentelemetry',
+      'telemetry.sdk.version': '1.28.0'
+    }
+  },
+  instrumentationScope: { name: 'example', version: undefined, schemaUrl: undefined },
+  traceId: 'f9ffd211c2f6efc66e11d8aab3466e3f',
+  parentId: undefined,
+  traceState: undefined,
+  name: 'example',
+  id: '2949fa70d80fe0f4',
+  kind: 0,
+  timestamp: 1733217197993387.8,
+  duration: 5023.958,
+  attributes: {
+    n: 100,
+    'code.stacktrace': 'at <anonymous> (/path/to/file/index.ts:16:17)'
+  },
+  status: { code: 2, message: 'An error has occurred' },
+  events: [
+    {
+      name: 'got: 100',
+      attributes: { 'effect.fiberId': '#0', 'effect.logLevel': 'INFO' },
+      time: [ 1733217197, 995354750 ],
+      droppedAttributesCount: 0
+    },
+    {
+      name: 'exception',
+      attributes: {
+        'exception.type': 'Error',
+        'exception.message': 'An error has occurred',
+        'exception.stacktrace': 'Error: An error has occurred\n' +
+          '    at <anonymous> (/path/to/file/index.ts:13:22)\n' +
+          '    at example (/path/to/file/index.ts:16:17)'
+      },
+      time: [ 1733217197, 998411750 ],
+      droppedAttributesCount: 0
+    }
+  ],
+  links: []
+}
+*/
+```
+
+### Effect.fn with a pipeline
+
+The `Effect.fn` API also acts as a `pipe` function, allowing you to create a pipeline after the function definition.
+
+**Example** (Creating a traced function with a pipeline)
+
+In this example, `Effect.fn` is used not only to define the traced function but also to create a pipeline by chaining `Effect.delay` after the function, adding a delay of "1 second" to the execution.
+
+```ts {9-10}
+import { Effect } from "effect"
+
+const logExample = Effect.fn("example")(
+  function* <N extends number>(n: N) {
+    yield* Effect.annotateCurrentSpan("n", n)
+    yield* Effect.logInfo(`got: ${n}`)
+    yield* Effect.fail(new Error())
+  },
+  // Add a delay to the effect
+  Effect.delay("1 second")
+)
+```
+
+## Context.Reference
+
+You can now create a tag with a default value.
+
+**Example** (Declaring a Tag with a default value)
+
+In this example, you don't have to explicitly provide the `SpecialNumber` implementation.
+The default value is automatically used when the service is accessed.
+
+```ts
+import { Context, Effect } from "effect"
+
+class SpecialNumber extends Context.Reference<SpecialNumber>()(
+  "SpecialNumber",
+  { defaultValue: () => 2048 }
+) {}
+
+//      ┌─── Effect<void, never, never>
+//      ▼
+const program = Effect.gen(function* () {
+  const specialNumber = yield* SpecialNumber
+  console.log(`The special number is ${specialNumber}`)
+})
+
+// No need to provide the SpecialNumber implementation
+Effect.runPromise(program)
+// Output: The special number is 2048
+```
+
+**Example** (Overriding the default value)
+
+In this example, the default value is overridden by providing a different implementation for the `SpecialNumber` service.
+
+```ts
+import { Context, Effect } from "effect"
+
+class SpecialNumber extends Context.Reference<SpecialNumber>()(
+  "SpecialNumber",
+  { defaultValue: () => 2048 }
+) {}
+
+const program = Effect.gen(function* () {
+  const specialNumber = yield* SpecialNumber
+  console.log(`The special number is ${specialNumber}`)
+})
+
+Effect.runPromise(program.pipe(Effect.provideService(SpecialNumber, -1)))
+// Output: The special number is -1
+```
+
+## Effect.scopedWith
+
+`Effect.scopedWith` allows you to create and use a `Scope` without adding it to the Effect's requirements.
+
+```ts
+import { Effect, Scope } from "effect"
+
+//      ┌─── Effect<void, never, never>
+//      ▼
+const program = Effect.scopedWith((scope) =>
+  Scope.addFinalizer(scope, Effect.log("finalized"))
+)
 ```
 
 ## Time zone support in Cron
@@ -37,19 +206,10 @@ Effect.runFork(logExample(100).pipe(Effect.catchAllCause(Effect.logError)))
 Cron expressions using the `Cron` module now support time zones. You can specify a time zone
 when creating a cron instance when using `Cron.make` or `Cron.parse`.
 
-## Context.Reference
+## BigDecimal updates
 
-You can now create a `Context.Tag` that also has a default value.
-
-```ts
-import { Context } from "effect"
-
-export class SpecialNumber extends Context.Reference<SpecialNumber>()(
-  "SpecialNumber",
-  { defaultValue: () => 2048 }
-) {}
-
-```
+- `BigDecimal.toExponential` added - format a BigDecimal as a string in exponential notation.
+- `BigDecimal.fromNumber` has been deprecated in favour of `BigDecimal.unsafeFromNumber`.
 
 ## Micro runtime changes
 
@@ -59,22 +219,111 @@ Micro execution is now using a fiber-runtime based model. This results in the fo
 - Improved interruption model
 - Consistency with the Effect data type
 
-`Env` & `EnvRef` have been removed in favour of `Context.Reference`.
+### Env & EnvRef
 
-## Effect.scopedWith
+`Env` & `EnvRef` have been removed in favor of [`Context.Reference`](#contextreference).
 
-`Effect.scopedWith` allows you to create & use a `Scope` without adding it to the Effect's requirements.
+### MicroExit
 
-```ts
-import { Effect, Scope } from "effect"
+The `MicroExit` data type is no longer based on `Either`:
 
-Effect.scopedWith((scope) => Scope.addFinalizer(scope, Effect.log("finalized")))
+Before:
+
+```ts showLineNumbers=false
+type MicroExit<A, E> = Either<A, MicroCause<E>>
 ```
 
-## BigDecimal updates
+After:
 
-- `BigDecimal.toExponential` added - format a BigDecimal as a string in exponential notation.
-- `BigDecimal.fromNumber` has been deprecated in favour of `BigDecimal.unsafeFromNumber`.
+```ts showLineNumbers=false
+type MicroExit<A, E> = MicroExit.Success<A, E> | MicroExit.Failure<A, E>
+```
+
+### Joining Fibers
+
+`fiber.join` has been replaced with `Micro.fiberJoin`.
+
+```ts del={13} ins={14}
+import { Micro } from "effect"
+
+const fib = (n: number): Micro.Micro<number> =>
+  n < 2
+    ? Micro.succeed(n)
+    : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
+
+const fib10Fiber = Micro.fork(fib(10))
+
+const program = Micro.gen(function* () {
+  const fiber = yield* fib10Fiber
+  // Join the fiber and get the result
+  const n = yield* fiber.join
+  const n = yield* Micro.fiberJoin(fiber)
+  console.log(n)
+})
+
+Micro.runPromise(program)
+// Output: 55
+```
+
+### Awaiting Fibers
+
+`fiber.await` has been replaced with `Micro.fiberAwait`.
+
+```ts del={13} ins={14}
+import { Micro } from "effect"
+
+const fib = (n: number): Micro.Micro<number> =>
+  n < 2
+    ? Micro.succeed(n)
+    : Micro.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
+
+const fib10Fiber = Micro.fork(fib(10))
+
+const program = Micro.gen(function* () {
+  const fiber = yield* fib10Fiber
+  // Await its completion and get the MicroExit result
+  const exit = yield* fiber.await
+  const exit = yield* Micro.fiberAwait(fiber)
+  console.log(exit)
+})
+
+Micro.runPromise(program)
+/*
+Output:
+{
+  "_id": "MicroExit",
+  "_tag": "Success",
+  "value": 55
+}
+*/
+```
+
+### Interrupting Fibers
+
+`fiber.interrupt` has been replaced with `Micro.fiberInterrupt`.
+
+```ts del={11} ins={12}
+import { Micro } from "effect"
+
+const program = Micro.gen(function* () {
+  const fiber = yield* Micro.fork(
+    Micro.forever(
+      Micro.sync(() => console.log("Hi!")).pipe(Micro.delay(10))
+    )
+  )
+  yield* Micro.sleep(30)
+  // Interrupt the fiber
+  yield* fiber.interrupt
+  yield* Micro.fiberInterrupt(fiber)
+})
+
+Micro.runPromise(program)
+/*
+Output:
+Hi!
+Hi!
+*/
+```
 
 ## Other changes
 
