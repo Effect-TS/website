@@ -11,7 +11,6 @@ export const { getStaticPaths, GET } = OGImageRoute({
   pages,
   param: "path",
   getImageOptions: (_path, page: Page) => {
-    console.log(page.data)
     return {
       title: page.data.title,
       description: page.data.description || ("excerpt" in page.data && page.data.excerpt) || "",
