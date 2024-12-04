@@ -286,14 +286,23 @@ You can achieve this by utilizing an overload that accepts the reference as the 
 ```ts twoslash
 import { Effect } from "effect"
 
-class MyService {
+class MyClass {
   readonly local = 1
   compute = Effect.gen(this, function* () {
-    return yield* Effect.succeed(this.local + 1)
+    const n = this.local + 1
+
+    yield* Effect.log(`Computed value: ${n}`)
+
+    return n
   })
 }
 
-console.log(Effect.runSync(new MyService().compute)) // Output: 2
+Effect.runPromise(new MyClass().compute).then(console.log)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message="Computed value: 2"
+2
+*/
 ```
 
 ## Adapter <Badge text="Deprecated" variant="caution" />
