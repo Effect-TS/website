@@ -15,6 +15,7 @@ import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-s
 import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers"
 import ecTwoSlash from "expressive-code-twoslash"
 import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground"
+import { pluginTwoslashPagefind } from "./src/plugins/expressive-code/twoslash-pagefind"
 import { effectPlaygroundPlugin } from "./src/plugins/starlight/playground"
 import { monacoEditorPlugin } from "./src/plugins/vite/monaco-editor"
 
@@ -141,7 +142,8 @@ export default defineConfig({
           pluginCollapsibleSections(),
           pluginLineNumbers(),
           pluginOpenInPlayground(),
-          ecTwoSlash()
+          ecTwoSlash(),
+          pluginTwoslashPagefind()
         ],
         themes: ["github-light", "github-dark"]
       },
