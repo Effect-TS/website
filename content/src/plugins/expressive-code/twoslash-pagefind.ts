@@ -1,5 +1,5 @@
 import type { ExpressiveCodePlugin } from "@expressive-code/core"
-import { h, selectAll } from "@expressive-code/core/hast"
+import { selectAll } from "@expressive-code/core/hast"
 
 export function pluginTwoslashPagefind(): ExpressiveCodePlugin {
   return {
