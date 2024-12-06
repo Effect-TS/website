@@ -20,9 +20,9 @@ Classes offer several features that simplify the schema creation process:
 
 To define a class using `Schema.Class`, you need to specify:
 
-- The type of the class being created.
-- A unique identifier for the class.
-- The desired fields.
+- The **type** of the class being created.
+- A unique **identifier** for the class.
+- The desired **fields**.
 
 **Example** (Defining a Schema Class)
 
@@ -60,6 +60,15 @@ Output:
 Person { id: 1, name: 'John' }
 */
 ```
+
+<Aside type="note" title="Why Use Identifiers?">
+  You need to specify an identifier to make the class global. This ensures that two classes with the same identifier refer to the same instance, avoiding reliance on `instanceof` checks.
+
+This behavior is similar to how we handle other class-based APIs like [Context.Tag](/docs/requirements-management/services/#creating-a-service).
+
+Using a unique identifier is particularly useful in scenarios where live reloads can occur, as it helps preserve the instance across reloads. It ensures there is no duplication of instances (although it shouldn't happen, some bundlers and frameworks can behave unpredictably).
+
+</Aside>
 
 ### Defining Classes Without Fields
 
@@ -411,6 +420,22 @@ console.log(String(Person.ast))
 // Output: (Person (Encoded side) <-> To)
 ```
 
+By default, the unique identifier used to define the class is also applied as the default `identifier` annotation for the Class Schema.
+
+**Example** (Default Identifier Annotation Behavior)
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+
+console.log(String(Person.ast))
+// Output: (Person (Encoded side) <-> Person)
+```
+
 ## Recursive Schemas
 
 The `Schema.suspend` combinator is useful when you need to define a schema that depends on itself, like in the case of recursive data structures.
@@ -594,7 +619,7 @@ console.log(error.stack) // access the stack trace
 
 ## Extending existing Classes
 
-The `extend` static utility allows you to enhance an existing schema class by adding additional fields and functionality. This approach helps in building on top of existing schemas without redefining them from scratch.
+The `extend` static utility allows you to enhance an existing schema class by adding **additional** fields and functionality. This approach helps in building on top of existing schemas without redefining them from scratch.
 
 **Example** (Extending a Schema Class)
 
@@ -629,6 +654,34 @@ const john = new PersonWithAge({ id: 1, name: "John", age: 25 })
 console.log(john.upperName) // Output: "JOHN"
 console.log(john.isAdult) // Output: true
 ```
+
+Note that you can only add additional fields when extending a class.
+
+**Example** (Attempting to Overwrite Existing Fields)
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {
+  get upperName() {
+    return this.name.toUpperCase()
+  }
+}
+
+class BadExtension extends Person.extend<BadExtension>("BadExtension")({
+  name: Schema.Number
+}) {}
+/*
+throws:
+Error: Duplicate property signature
+details: Duplicate key "name"
+*/
+```
+
+This error occurs because allowing fields to be overwritten is not safe. It could interfere with any getters or methods defined on the class that rely on the original definition. For example, in this case, the `upperName` getter would break if the `name` field was changed to a number.
 
 ## Transformations
 
