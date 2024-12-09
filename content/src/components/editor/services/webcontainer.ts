@@ -447,8 +447,7 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
       Effect.tap((process) =>
         Stream.fromReadableStream(() => process.output, identity).pipe(
           Stream.orDie,
-          Stream.encodeText,
-          Stream.pipeThroughChannel(Ndjson.unpackSchema(Request)({
+          Stream.pipeThroughChannel(Ndjson.unpackSchemaString(Request)({
             ignoreEmptyLines: true
           })),
           Stream.runForEach((event) =>
