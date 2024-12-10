@@ -41,8 +41,8 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
       )
       const hash = yield* client(new ShortenRequest({ text: compressed }))
       const url = new URL(
-        window.location.origin,
-        window.location.pathname
+        window.location.pathname,
+        window.location.origin
       )
       url.hash = hash
 
