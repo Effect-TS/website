@@ -1,0 +1,49 @@
+---
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
+import type { StarlightPageProps } from "@astrojs/starlight/props"
+import { getPodcastEntries } from "@/lib/content/podcast"
+import type { GetStaticPathsResult } from "astro"
+
+export const prerender = true
+
+export async function getStaticPaths() {
+  const episodes = await getPodcastEntries()
+  return [
+    {
+      params: {
+        prefix: "podcast"
+      }
+    }
+  ] satisfies GetStaticPathsResult
+}
+
+const pageProps: StarlightPageProps = {
+  frontmatter: {
+    title: "Cause & Effect Podcast",
+    tableOfContents: false,
+    template: "splash",
+  },
+  hasSidebar: false,
+}
+---
+
+<StarlightPage {...pageProps}>
+  <main>TODO</main> 
+</StarlightPage>
+
+<style>
+:global(.content-panel:first-of-type) {
+  display: none;
+}
+
+:global(.content-panel) {
+  border-top: none !important;
+  padding: 0;
+}
+
+:global(.sl-container) {
+  max-width: unset;
+  margin: unset;
+  margin-inline: unset;
+}
+</style>

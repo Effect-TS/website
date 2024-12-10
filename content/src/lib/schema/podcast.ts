@@ -2,6 +2,50 @@ import { reference, z } from "astro:content"
 
 export const podcastSchema = z.object({
   /**
+   * A non-zero integer representing the episode number.
+   */
+  episode: z.number().int().min(1),
+  /**
+   * The episode’s globally unique identifier.
+   */
+  guid: z.string().min(1),
+  /**
+   * A reference to the transcript for this podcast episode.
+   */
+  transcript: reference("transcripts"),
+  /**
+   * The date and time when an episode was released.
+   */
+  publicationDate: z
+    .string()
+    .datetime({ offset: true })
+    .transform((s) => new Date(s)),
+  /**
+   * The artwork for the episode.
+   */
+  image: z.string(),
+  /**
+   * The duration of an episode in seconds.
+   */
+  duration: z.number().int().min(1),
+  /**
+   * The episode content, file size, and file type information.
+   */
+  enclosure: z.object({
+    /**
+     * The URL which points to the podcast media file.
+     */
+    url: z.string().min(1),
+    /**
+     * The file size in bytes.
+     */
+    length: z.number().int(),
+    /**
+     * The type of the podcast media file.
+     */
+    type: z.string().min(1)
+  }),
+  /**
    * The details of the YouTube video associated with the podcast.
    */
   youtube: z.object({
@@ -9,15 +53,9 @@ export const podcastSchema = z.object({
     title: z.string().optional()
   }),
   /**
-   * A reference to the transcript for this podcast episode.
+   * The list of keywords associated with the podcast episode.
    */
-  transcript: reference("transcripts"),
-  /**
-   * The date of the blog post which must be a valid YAML timestamp.
-   *
-   * @see https://yaml.org/type/timestamp.html
-   */
-  date: z.date()
+  keywords: z.array(z.string())
 })
 
 export type Podcast = z.TypeOf<typeof podcastSchema>

@@ -22,6 +22,6 @@ export async function getPodcastEntries() {
     }
   }
 
-  return podcastEntries.sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  return podcastEntries.sort((a, b) => b.data.publicationDate.getTime() - a.data.publicationDate.getTime())
 }
 

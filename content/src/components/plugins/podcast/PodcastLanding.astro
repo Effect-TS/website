@@ -1,0 +1,212 @@
+---
+import type { GetStaticPathsResult, InferGetStaticPropsType } from "astro"
+import { Icon, LinkButton } from "@astrojs/starlight/components"
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
+import type { StarlightPageProps } from "@astrojs/starlight/props"
+import ApplePodcastsIcon from "@/components/icons/ApplePodcastsIcon.astro"
+import SpotifyIcon from "@/components/icons/SpotifyIcon.astro"
+import YouTubeIcon from "@/components/icons/YouTubeIcon.astro"
+import { getPodcastEntries } from "@/lib/content/podcast"
+
+export const prerender = true
+
+export async function getStaticPaths() {
+  const entries = await getPodcastEntries()
+  const episodes = entries
+    .sort((a, b) => b.data.episode - a.data.episode)
+    .slice(0, 3)
+  return [
+    {
+      params: {
+        prefix: "podcast"
+      },
+      props: {
+        episodes
+      }
+    }
+  ] satisfies GetStaticPathsResult
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>
+
+const { episodes } = Astro.props
+
+const pageProps: StarlightPageProps = {
+  frontmatter: {
+    title: "Cause & Effect Podcast",
+    tableOfContents: false,
+    template: "splash",
+  },
+  hasSidebar: false,
+}
+
+const providerLinks = [
+  {
+    label: "Spotify",
+    icon: SpotifyIcon,
+    href: "https://open.spotify.com/show/4QTFiem4o0G9V2vXtv8vMU",
+    class: "text-emerald-700 dark:text-emerald-400 border-emerald-700 dark:border-emerald-400"
+  },
+  {
+    label: "Apple Podcasts",
+    icon: ApplePodcastsIcon,
+    href: "https://podcasts.apple.com/us/podcast/cause-effect/id1781879869",
+    class: "text-violet-700 dark:text-violet-400 border-violet-700 dark:border-violet-400"
+  },
+  {
+    label: "YouTube",
+    icon: YouTubeIcon,
+    href: "https://youtube.com/playlist?list=PLDf3uQLaK2B_jaZ5Fy7IPNq0FIViV_CQl&si=ON5wSnTE5stFfeNM",
+    class: "text-red-700 dark:text-red-400 border-red-700 dark:border-red-400"
+  },
+] as const
+---
+
+<StarlightPage {...pageProps}>
+  {/* Hero Section */}
+  <section class="relative not-content">
+    {/* Grid pattern overlay */}
+    <div class="
+      absolute bottom-0 left-0 right-0 top-0 border-l border-l-[hsla(0,0%,31%,0.05)] bg-[size:24px_24px] bg-repeat-round
+      bg-[linear-gradient(to_right,transparent_calc(100%-1px),hsla(0,0%,31%,0.1)_calc(100%-1px)_100%),linear-gradient(to_bottom,hsla(0,0%,31%,0.1)_1px,transparent_1px)]
+      dark:bg-[linear-gradient(to_right,transparent_calc(100%-1px),hsla(0,0%,31%,0.2)_calc(100%-1px)_100%),linear-gradient(to_bottom,hsla(0,0%,31%,0.2)_1px,transparent_1px)]
+      [mask-image:radial-gradient(ellipse_90%_100%_at_top,#000_70%,transparent_110%)] md:[mask-image:radial-gradient(ellipse_60%_100%_at_50%_0%,#000_70%,transparent_110%)]" />
+
+    {/* Hero Content */}
+    <div class="relative mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="container mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 md:pt-24 pb-6 sm:pb-12">
+        <div class="flex flex-col items-center space-y-4">
+          <h1 class="text-4xl sm:text-5xl md:text-6xl text-[var(--sl-color-white)] font-bold">Cause &amp; Effect</h1>
+          <p class="max-w-2xl text-xl sm:text-2xl text-center">
+            A podcast exploring how engineers are using Effect to build reliable, production-grade software in TypeScript
+          </p>
+          <div class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-8">
+            {providerLinks.map(({ href, label, icon: ProviderIcon, ...props }) => (
+              <a 
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                class:list={["flex items-center justify-center gap-2 px-4 py-1 bg-[--sl-color-bg] dark:bg-[--sl-color-bg-nav] hover:bg-[--sl-color-text-accent] hover:text-[--sl-color-black] text-[--sl-color-white] font-semibold border hover:border-[--sl-color-text-accent] rounded-full no-underline cursor-pointer transition-colors", props.class]}
+              >
+                <ProviderIcon class="h-6" />
+                <span>{label}</span>
+              </a>
+            ))}
+          </div>
+          <a
+            href="/podcast/rss.xml"
+            class="inline-flex items-center justify-center gap-2 px-4 py-1 border border-[--sl-color-white] text-[--sl-color-white] font-semibold rounded-full bg-[var(--sl-color-bg)] dark:bg-[var(--sl-color-bg-nav)] hover:bg-[var(--sl-color-text-accent)] hover:text-[var(--sl-color-black)] transition-colors no-underline"
+          >
+            <Icon name="rss" />
+            <span>RSS Feed</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* Episodes Section */}
+  <section class="py-6 md:py-12 not-content bg-[--sl-color-bg-nav] dark:bg-[--sl-color-bg] border-y border-y-[--sl-color-gray-5]">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="mb-6 text-3xl text-[--sl-color-white] text-center font-bold">
+        Latest Episodes
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {episodes.map((episode) => (
+          <div class="flex flex-col bg-[var(--sl-color-bg)] dark:bg-[var(--sl-color-bg-nav)] rounded-lg shadow-md">
+            <div class="flex flex-col space-y-1.5 p-6">
+              <img
+                src={`https://img.youtube.com/vi/${episode.data.youtube.id}/hqdefault.jpg`}
+                alt="The thumbnail for the episode"
+                class="rounded-t-lg object-cover aspect-video"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+            <div class="p-6 pt-0 flex-grow">
+              <h3 class="mb-2 text-2xl text-[var(--sl-color-white)] font-semibold leading-tight tracking-tight">
+                {episode.data.title}
+              </h3>
+              <p class="text-sm">{episode.data.description}</p>
+            </div>
+            <div class="flex items-center p-6 pt-0">
+              <LinkButton
+                href={`/podcast/episodes/${episode.slug.replace("podcast/", "")}/`}
+                icon="right-arrow"
+                iconPlacement="end"
+                class="!m-0 px-4 py-2 rounded-sm"
+              >
+                Episode Notes
+              </LinkButton>
+            </div>
+          </div>
+        ))}
+        {episodes.length < 3 && (
+          <div class="flex flex-col text-xl items-center justify-center">
+            <h3>... more episodes coming soon!</h3>
+          </div>
+        )}
+      </div>
+    </div>
+    <div class="flex justify-center mt-12">
+      <LinkButton
+        href="/podcast/episodes/"
+        variant="secondary"
+        class="!m-0 px-4 py-2 text-lg bg-[var(--sl-color-bg)] dark:bg-[var(--sl-color-bg-nav)] hover:bg-[var(--sl-color-text-accent)] hover:text-[var(--sl-color-black)] rounded-sm transition-colors"
+      >
+        View All Episodes
+      </LinkButton>
+    </div>
+  </section>
+
+  {/* About Section */}
+  <section class="not-content pt-6 md:pt-12">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-32">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start justify-start">
+        <div class="col-span-1">
+          <img
+            src="https://img.transistor.fm/_BE8RBuq4CrOzXpIpGbsJ25926zhpuV8kaUExYHteoU/rs:fill:3000:3000:1/q:60/aHR0cHM6Ly9pbWct/dXBsb2FkLXByb2R1/Y3Rpb24udHJhbnNp/c3Rvci5mbS85MGFj/MGUzYzg4ODZmMDI1/NGJlNjZmMWNhYmJj/Njg1MC5wbmc.jpg"
+            alt="The name of the podcast, Cause & Effect"
+            class="w-full h-auto rounded-lg"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+        <div class="max-w-[720px] col-span-1 md:col-span-2">
+          <h2 class="mb-4 text-3xl md:text-4xl text-[var(--sl-color-white)] font-bold">
+            About Cause &amp; Effect
+          </h2>
+          <p class="mb-4 text-base">
+            Cause &amp; Effect is a recurring podcast where we explore how software engineers are using Effect
+            to build reliable, production-grade software with TypeScript.
+          </p>
+          <p class="mb-4 text-base">
+            Hosted by Johannes Schickling, each episode brings on different guests to discuss real-world challenges
+            that developers face when building robust applications.
+          </p>
+          <p class="text-base">
+            Whether you are just starting out with Effect or are already using it in production, Cause &amp; Effect
+            offers insights and practical tips to enhance your development journey with Effect!
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+</StarlightPage>
+
+<style>
+:global(.content-panel:first-of-type) {
+  display: none;
+}
+
+:global(.content-panel) {
+  border-top: none !important;
+  padding: 0;
+}
+
+:global(.sl-container) {
+  max-width: unset;
+  margin: unset;
+  margin-inline: unset;
+}
+</style>
