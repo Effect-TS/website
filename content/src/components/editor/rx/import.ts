@@ -16,10 +16,9 @@ import {
 } from "../domain/workspace"
 import { WorkspaceCompression } from "../services/compression"
 
-const runtime = Rx.runtime(Layer.mergeAll(
-  FetchHttpClient.layer,
-  WorkspaceCompression.Default
-))
+const runtime = Rx.runtime(
+  Layer.mergeAll(FetchHttpClient.layer, WorkspaceCompression.Default)
+)
 
 const main = makeFile(
   "main.ts",
@@ -63,9 +62,9 @@ const defaultWorkspace = new Workspace({
     "@effect/platform": "latest",
     "@effect/platform-node": "latest",
     "@types/node": "latest",
-    "effect": "latest",
+    effect: "latest",
     "tsc-watch": "latest",
-    "typescript": "latest"
+    typescript: "latest"
   },
   shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
   initialFilePath: "src/main.ts",
@@ -77,7 +76,7 @@ function makeDefaultWorkspace() {
 }
 
 export const importRx = runtime.rx((get) =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const hash = get(hashRx)
     if (Option.isNone(hash)) {
       const params = new URLSearchParams(window.location.search)
@@ -85,7 +84,6 @@ export const importRx = runtime.rx((get) =>
         const code = params.get("code")!
         const content = yield* Encoding.decodeBase64UrlString(code)
         const node = makeFile("main.ts", content, false)
-        console.log({ code, content })
         return defaultWorkspace.replaceNode(main, node)
       }
       return makeDefaultWorkspace()
@@ -101,8 +99,8 @@ export const importRx = runtime.rx((get) =>
     }
 
     const compression = yield* WorkspaceCompression
-    return yield* compression.decompress(compressed.value).pipe(
-      Effect.orElseSucceed(makeDefaultWorkspace)
-    )
+    return yield* compression
+      .decompress(compressed.value)
+      .pipe(Effect.orElseSucceed(makeDefaultWorkspace))
   })
 )
