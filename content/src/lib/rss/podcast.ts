@@ -63,20 +63,25 @@ export async function getRSSOptions(
     items: await Promise.all(
       entries.map(async (entry) => {
         const slug = entry.slug.replace("podcast/", "")
+        const url = `${feedSite}/podcast/episodes/${slug}/`
         return {
           title: entry.data.title,
-          link: `${feedSite}/podcast/episodes/${slug}/`,
+          link: url,
           pubDate: entry.data.publicationDate,
           categories: entry.data.tags,
-          description: await getRSSDescription(entry),
-          content: await getRSSContent(entry, feedSite, container),
+          description: `<![CDATA[${await getRSSDescription(entry)}]]>`,
+          content: `<![CDATA[${await getRSSContent(
+            entry,
+            feedSite,
+            container
+          )}]][`,
           enclosure: {
             url: entry.data.enclosure.url,
             length: entry.data.enclosure.length,
             type: entry.data.enclosure.type
           },
           customData: [
-            `<guid>${entry.data.guid}</guid>`,
+            `<guid isPermaLink="true">${url}</guid>`,
             `<itunes:duration>${entry.data.duration}</itunes:duration>`,
             "<itunes:duration>false</itunes:duration>",
             `<itunes:episode>${entry.data.episode}</itunes:episode>`,

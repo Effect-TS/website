@@ -6,10 +6,6 @@ export const podcastSchema = z.object({
    */
   episode: z.number().int().min(1),
   /**
-   * The episode’s globally unique identifier.
-   */
-  guid: z.string().min(1),
-  /**
    * A reference to the transcript for this podcast episode.
    */
   transcript: reference("transcripts"),
