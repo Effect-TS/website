@@ -10,6 +10,10 @@ export const podcastSchema = z.object({
    */
   transcript: reference("transcripts"),
   /**
+   * The artwork for the episode.
+   */
+  image: z.string(),
+  /**
    * The date and time when an episode was released.
    */
   publicationDate: z

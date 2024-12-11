@@ -44,16 +44,13 @@ export async function getRSSOptions(
     },
     customData: [
       "<language>en</language>",
-      "<guid>d45c229b-74f9-55d3-b3e6-f55149125752</guid>",
       "<copyright>Copyright © Effectful Technologies Inc.</copyright>",
       "<pubDate>Wed, 27 Nov 2024 12:32:30 +0100</pubDate>",
       "<itunes:author>Effectful Technologies Inc.</itunes:author>",
       '<itunes:category text="Technology"/>',
-      "<itunes:type>episodic<itunes:type/>",
-      "<itunes:type>episodic<itunes:type/>",
+      "<itunes:type>episodic</itunes:type>",
       '<itunes:image href="https://img.transistor.fm/_BE8RBuq4CrOzXpIpGbsJ25926zhpuV8kaUExYHteoU/rs:fill:3000:3000:1/q:60/aHR0cHM6Ly9pbWct/dXBsb2FkLXByb2R1/Y3Rpb24udHJhbnNp/c3Rvci5mbS85MGFj/MGUzYzg4ODZmMDI1/NGJlNjZmMWNhYmJj/Njg1MC5wbmc.jpg"/>',
       "<itunes:summary>Explore how software engineers use Effect to build reliable, production-ready software in TypeScript.</itunes:summary>",
-      "<itunes:subtitle>Explore how software engineers use Effect to build reliable, production-ready software in TypeScript.</itunes:subtitle>",
       "<itunes:subtitle>Explore how software engineers use Effect to build reliable, production-ready software in TypeScript.</itunes:subtitle>",
       "<itunes:keywords>typescript, production-grade software, functional programming</itunes:keywords>",
       "<itunes:owner><itunes:name>Effectful Technologies Inc.</itunes:name><itunes:email>contact@effectful.co</itunes:email></itunes:owner>",
@@ -69,23 +66,18 @@ export async function getRSSOptions(
           link: url,
           pubDate: entry.data.publicationDate,
           categories: entry.data.tags,
-          description: `<![CDATA[${await getRSSDescription(entry)}]]>`,
-          content: `<![CDATA[${await getRSSContent(
-            entry,
-            feedSite,
-            container
-          )}]][`,
+          description: await getRSSDescription(entry),
+          content: await getRSSContent(entry, feedSite, container),
           enclosure: {
             url: entry.data.enclosure.url,
             length: entry.data.enclosure.length,
             type: entry.data.enclosure.type
           },
           customData: [
-            `<guid isPermaLink="true">${url}</guid>`,
             `<itunes:duration>${entry.data.duration}</itunes:duration>`,
-            "<itunes:duration>false</itunes:duration>",
             `<itunes:episode>${entry.data.episode}</itunes:episode>`,
-            "<itunes:episodeType>episodic</itunes:episodeType>"
+            "<itunes:episodeType>episodic</itunes:episodeType>",
+            "<itunes:explicit>false</itunes:explicit>"
           ].join("")
         }
       })
