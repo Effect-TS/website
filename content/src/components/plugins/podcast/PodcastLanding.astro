@@ -60,6 +60,12 @@ const providerLinks = [
     class: "text-red-700 dark:text-red-400 border-red-700 dark:border-red-400"
   },
 ] as const
+
+function formatSeconds(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
 ---
 
 <StarlightPage {...pageProps}>
@@ -70,19 +76,19 @@ const providerLinks = [
       absolute bottom-0 left-0 right-0 top-0 border-l border-l-[hsla(0,0%,31%,0.05)] bg-[size:24px_24px] bg-repeat-round
       bg-[linear-gradient(to_right,transparent_calc(100%-1px),hsla(0,0%,31%,0.1)_calc(100%-1px)_100%),linear-gradient(to_bottom,hsla(0,0%,31%,0.1)_1px,transparent_1px)]
       dark:bg-[linear-gradient(to_right,transparent_calc(100%-1px),hsla(0,0%,31%,0.2)_calc(100%-1px)_100%),linear-gradient(to_bottom,hsla(0,0%,31%,0.2)_1px,transparent_1px)]
-      [mask-image:radial-gradient(ellipse_90%_100%_at_top,#000_70%,transparent_110%)] md:[mask-image:radial-gradient(ellipse_60%_100%_at_50%_0%,#000_70%,transparent_110%)]" />
+      [mask-image:radial-gradient(ellipse_90%_100%_at_top,#000_70%,transparent_110%)] md:[mask-image:radial-gradient(ellipse_90%_100%_at_20%_0%,#000_70%,transparent_110%)]" />
 
     {/* Hero Content */}
-    <div class="relative mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="container mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 md:pt-24 pb-6 sm:pb-12">
-        <div class="flex flex-col items-center space-y-4">
-          <h1 class="text-4xl sm:text-5xl md:text-6xl text-[var(--sl-color-white)] font-bold">Cause &amp; Effect</h1>
-          <p class="max-w-2xl text-xl sm:text-2xl text-center">
+    <div class="relative mx-auto md:mx-0 px-4 sm:px-6 lg:px-8">
+      <div class="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 md:pt-24 pb-6 sm:pb-12">
+        <div class="flex flex-col space-y-4">
+          <h1 class="text-4xl sm:text-5xl md:text-6xl text-[var(--sl-color-white)] text-center md:text-start font-bold">Cause &amp; Effect</h1>
+          <p class="max-w-2xl text-xl sm:text-2xl text-center md:text-start">
             A podcast exploring how engineers are using Effect to build reliable, production-grade software in TypeScript
           </p>
-          <div class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-8">
+          <div class="hidden sm:flex flex-row items-center justify-center md:justify-start space-y-4 sm:space-y-0 sm:space-x-4">
             {providerLinks.map(({ href, label, icon: ProviderIcon, ...props }) => (
-              <a 
+              <a
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -93,104 +99,69 @@ const providerLinks = [
               </a>
             ))}
           </div>
-          <a
-            href="/podcast/rss.xml"
-            class="inline-flex items-center justify-center gap-2 px-4 py-1 border border-[--sl-color-white] text-[--sl-color-white] font-semibold rounded-full bg-[var(--sl-color-bg)] dark:bg-[var(--sl-color-bg-nav)] hover:bg-[var(--sl-color-text-accent)] hover:text-[var(--sl-color-black)] transition-colors no-underline"
-          >
-            <Icon name="rss" />
-            <span>RSS Feed</span>
-          </a>
+          <div class="flex justify-center md:justify-start">
+            <a
+              href="/podcast/rss.xml"
+              class="flex items-center justify-center gap-2 px-4 py-1 border border-[--sl-color-white] text-[--sl-color-white] font-semibold rounded-full bg-[var(--sl-color-bg)] dark:bg-[var(--sl-color-bg-nav)] hover:bg-[var(--sl-color-text-accent)] hover:text-[var(--sl-color-black)] transition-colors no-underline"
+            >
+              <Icon name="rss" />
+              <span>RSS Feed</span>
+            </a>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
   {/* Episodes Section */}
-  <section class="py-6 md:py-12 not-content bg-[--sl-color-bg-nav] dark:bg-[--sl-color-bg] border-y border-y-[--sl-color-gray-5]">
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-      <h2 class="mb-6 text-3xl text-[--sl-color-white] text-center font-bold">
-        Latest Episodes
-      </h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {episodes.map((episode) => (
-          <div class="flex flex-col bg-[var(--sl-color-bg)] dark:bg-[var(--sl-color-bg-nav)] rounded-lg shadow-md">
-            <div class="flex flex-col space-y-1.5 p-6">
-              <img
-                src={`https://img.youtube.com/vi/${episode.data.youtube.id}/hqdefault.jpg`}
-                alt="The thumbnail for the episode"
-                class="rounded-t-lg object-cover aspect-video"
-                loading="lazy"
-                decoding="async"
-              />
-            </div>
-            <div class="p-6 pt-0 flex-grow">
-              <h3 class="mb-2 text-2xl text-[var(--sl-color-white)] font-semibold leading-tight tracking-tight">
-                {episode.data.title}
-              </h3>
-              <p class="text-sm">{episode.data.description}</p>
-            </div>
-            <div class="flex items-center p-6 pt-0">
-              <LinkButton
-                href={`/podcast/episodes/${episode.slug.replace("podcast/", "")}/`}
-                icon="right-arrow"
-                iconPlacement="end"
-                class="!m-0 px-4 py-2 rounded-sm"
-              >
-                Episode Notes
-              </LinkButton>
-            </div>
-          </div>
-        ))}
-        {episodes.length < 3 && (
-          <div class="flex flex-col text-xl items-center justify-center">
-            <h3>... more episodes coming soon!</h3>
-          </div>
-        )}
-      </div>
-    </div>
-    <div class="flex justify-center mt-12">
-      <LinkButton
-        href="/podcast/episodes/"
-        variant="secondary"
-        class="!m-0 px-4 py-2 text-lg bg-[var(--sl-color-bg)] dark:bg-[var(--sl-color-bg-nav)] hover:bg-[var(--sl-color-text-accent)] hover:text-[var(--sl-color-black)] rounded-sm transition-colors"
-      >
-        View All Episodes
-      </LinkButton>
-    </div>
-  </section>
-
-  {/* About Section */}
-  <section class="not-content pt-6 md:pt-12">
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-32">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start justify-start">
-        <div class="col-span-1">
-          <img
-            src="https://img.transistor.fm/_BE8RBuq4CrOzXpIpGbsJ25926zhpuV8kaUExYHteoU/rs:fill:3000:3000:1/q:60/aHR0cHM6Ly9pbWct/dXBsb2FkLXByb2R1/Y3Rpb24udHJhbnNp/c3Rvci5mbS85MGFj/MGUzYzg4ODZmMDI1/NGJlNjZmMWNhYmJj/Njg1MC5wbmc.jpg"
-            alt="The name of the podcast, Cause & Effect"
-            class="w-full h-auto rounded-lg"
-            loading="lazy"
-            decoding="async"
-          />
-        </div>
-        <div class="max-w-[720px] col-span-1 md:col-span-2">
-          <h2 class="mb-4 text-3xl md:text-4xl text-[var(--sl-color-white)] font-bold">
-            About Cause &amp; Effect
-          </h2>
-          <p class="mb-4 text-base">
-            Cause &amp; Effect is a recurring podcast where we explore how software engineers are using Effect
-            to build reliable, production-grade software with TypeScript.
-          </p>
-          <p class="mb-4 text-base">
-            Hosted by Johannes Schickling, each episode brings on different guests to discuss real-world challenges
-            that developers face when building robust applications.
-          </p>
-          <p class="text-base">
-            Whether you are just starting out with Effect or are already using it in production, Cause &amp; Effect
-            offers insights and practical tips to enhance your development journey with Effect!
-          </p>
-        </div>
-      </div>
-    </div>
+  <section class="py-6 md:py-12 px-4 sm:px-6 lg:px-8 border-y border-y-[--sl-color-gray-5] not-content">
+    <ul class="container mx-auto p-0 max-w-screen-xl space-y-4 md:space-y-8 list-none">
+      {episodes.map((episode) => {
+        const episodeNumber = `#${episode.data.episode}`
+        const podcastUrl = `/podcast/episodes/${episode.slug.replace("podcast/", "")}/`
+        const date = episode.data.publicationDate.toLocaleDateString(undefined, {
+          dateStyle: "medium"
+        })
+        return (
+          <li aria-labelledby={episode.data.title} class="card group relative hover:bg-[--sl-color-bg-nav] rounded-lg">
+            <article class="flex flex-col md:flex-row p-4 gap-6">
+              <div class="flex flex-col">
+                <img
+                  src={`https://img.youtube.com/vi/${episode.data.youtube.id}/hqdefault.jpg`}
+                  alt="The thumbnail for the episode"
+                  class="max-w-80 object-cover aspect-video rounded-lg"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+              <div class="max-w-screen-sm flex flex-col justify-between">
+                <div>
+                  <h2 class="mb-1 font-semibold line-clamp-1 leading-none">
+                    <a
+                      href={podcastUrl}
+                      class="text-xl text-[--sl-color-white] font-semibold no-underline focus:underline group-focus:focus:no-underline not-content"
+                      arial-label={episode.data.title}
+                    >
+                      {episodeNumber}&colon; {episode.data.title}
+                    </a>
+                  </h2>
+                  <p class="max-w-3xl mb-2 line-clamp-3">
+                    {episode.data.description}
+                  </p>
+                </div>
+                <div class="flex gap-4 text-sm line-clamp-1">
+                  <time datetime={date}>{date}</time>
+                  <span>•</span>
+                  <span>{formatSeconds(episode.data.duration)}</span>
+                  <span>•</span>
+                  <span>Episode {episodeNumber}</span>
+                </div>
+              </div>
+            </article>
+          </li>
+        )
+      })}
+    </ul>
   </section>
 </StarlightPage>
 
@@ -210,3 +181,25 @@ const providerLinks = [
   margin-inline: unset;
 }
 </style>
+
+<script>
+  // Allow users to be able to select text on podcast link cards
+  const cards = document.querySelectorAll(".card")
+  cards.forEach((card) => {
+    let down: number | undefined
+    let up: number | undefined
+    const link = card.querySelector("h2 a")
+    // Add the cursor style via JS - if the script fails, we do not
+    // want the user to think they can navigate
+    card.style.cursor = "pointer"
+    card.onmousedown = () => {
+      down = +new Date()
+    }
+    card.onmouseup = () => {
+      up = +new Date()
+      if ((up - down) < 200) {
+        link.click()
+      }
+    }
+  })
+</script>
