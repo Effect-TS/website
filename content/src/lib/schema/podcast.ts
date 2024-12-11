@@ -49,9 +49,9 @@ export const podcastSchema = z.object({
     title: z.string().optional()
   }),
   /**
-   * The list of keywords associated with the podcast episode.
+   * The list of tags associated with the podcast episode.
    */
-  keywords: z.array(z.string())
+  tags: z.array(z.string())
 })
 
 export type Podcast = z.TypeOf<typeof podcastSchema>

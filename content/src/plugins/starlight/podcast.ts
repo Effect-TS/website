@@ -4,7 +4,7 @@ export function effectPodcastPlugin(): StarlightPlugin {
   return {
     name: "starlight-effect-podcast-plugin",
     hooks: {
-      setup({ addIntegration }) {
+      setup({ addIntegration, astroConfig }) {
         addIntegration({
           name: "effect-playground-integration",
           hooks: {
@@ -23,11 +23,14 @@ export function effectPodcastPlugin(): StarlightPlugin {
                 prerender: true
               })
 
-              injectRoute({
-                entrypoint: "./src/components/plugins/podcast/rss.xml.ts",
-                pattern: "/[...prefix]/rss.xml",
-                prerender: true
-              })
+              if (astroConfig.site) {
+                injectRoute({
+                  entrypoint:
+                    "./src/components/plugins/podcast/rss.xml.ts",
+                  pattern: "/[...prefix]/rss.xml",
+                  prerender: true
+                })
+              }
             }
           }
         })
