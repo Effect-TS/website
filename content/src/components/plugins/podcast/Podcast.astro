@@ -1,6 +1,6 @@
 ---
 import type { GetStaticPathsResult, InferGetStaticPropsType } from "astro"
-import { Icon, LinkButton } from "@astrojs/starlight/components"
+import { Icon } from "@astrojs/starlight/components"
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
 import type { StarlightPageProps } from "@astrojs/starlight/props"
 import ApplePodcastsIcon from "@/components/icons/ApplePodcastsIcon.astro"
@@ -42,23 +42,20 @@ const pageProps: StarlightPageProps = {
 
 const providerLinks = [
   {
-    label: "Spotify",
-    icon: SpotifyIcon,
-    href: "https://open.spotify.com/show/4QTFiem4o0G9V2vXtv8vMU",
-    class: "text-emerald-700 dark:text-emerald-400 border-emerald-700 dark:border-emerald-400"
-  },
-  {
-    label: "Apple Podcasts",
-    icon: ApplePodcastsIcon,
-    href: "https://podcasts.apple.com/us/podcast/cause-effect/id1781879869",
-    class: "text-violet-700 dark:text-violet-400 border-violet-700 dark:border-violet-400"
-  },
-  {
-    label: "YouTube",
-    icon: YouTubeIcon,
+    label: "Watch on YouTube",
     href: "https://youtube.com/playlist?list=PLDf3uQLaK2B_jaZ5Fy7IPNq0FIViV_CQl&si=ON5wSnTE5stFfeNM",
-    class: "text-red-700 dark:text-red-400 border-red-700 dark:border-red-400"
+    icon: YouTubeIcon
   },
+  {
+    label: "Listen on Apple Podcasts",
+    href: "https://podcasts.apple.com/us/podcast/cause-effect/id1781879869",
+    icon: ApplePodcastsIcon
+  },
+  {
+    label: "Listen on Spotify",
+    href: "https://open.spotify.com/show/4QTFiem4o0G9V2vXtv8vMU",
+    icon: SpotifyIcon
+  }
 ] as const
 
 function formatSeconds(seconds: number): string {
@@ -71,7 +68,7 @@ function formatSeconds(seconds: number): string {
 <StarlightPage {...pageProps}>
   {/* Hero Section */}
   <section class="relative not-content" data-pagefind-ignore>
-    {/* Grid pattern overlay */}
+    {/* Grid Overlay */}
     <div class="
       absolute bottom-0 left-0 right-0 top-0 border-l border-l-[hsla(0,0%,31%,0.05)] bg-[size:24px_24px] bg-repeat-round
       bg-[linear-gradient(to_right,transparent_calc(100%-1px),hsla(0,0%,31%,0.1)_calc(100%-1px)_100%),linear-gradient(to_bottom,hsla(0,0%,31%,0.1)_1px,transparent_1px)]
@@ -86,16 +83,16 @@ function formatSeconds(seconds: number): string {
           <p class="max-w-2xl text-xl sm:text-2xl text-center md:text-start">
             A podcast exploring how engineers are using Effect to build reliable, production-grade software in TypeScript
           </p>
-          <div class="hidden sm:flex flex-row items-center justify-center md:justify-start space-y-4 sm:space-y-0 sm:space-x-4">
-            {providerLinks.map(({ href, label, icon: ProviderIcon, ...props }) => (
+          <div class="flex flex-col sm:flex-row items-center justify-center md:justify-start space-y-4 sm:space-y-0 sm:space-x-4 lg:space-x-8">
+            {providerLinks.map(({ href, label, icon: Icon }) => (
               <a
                 href={href}
+                aria-label={label}
                 target="_blank"
                 rel="noopener noreferrer"
-                class:list={["flex items-center justify-center gap-2 px-4 py-1 bg-[--sl-color-bg] dark:bg-[--sl-color-bg-nav] hover:bg-[--sl-color-text-accent] hover:text-[--sl-color-black] text-[--sl-color-white] font-semibold border hover:border-[--sl-color-text-accent] rounded-full no-underline cursor-pointer transition-colors", props.class]}
+                class="flex items-center"
               >
-                <ProviderIcon class="h-6" />
-                <span>{label}</span>
+                <Icon aria-hidden="true" />
               </a>
             ))}
           </div>
