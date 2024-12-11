@@ -160,10 +160,10 @@ export async function stripMarkdown(markdown: string) {
 function getRSSDescription(
   entry: PodcastCollectionEntry
 ): Promise<string> | undefined {
-  if (!entry.data.excerpt) {
+  if (!entry.data.description) {
     return
   }
-  return stripMarkdown(entry.data.excerpt)
+  return stripMarkdown(entry.data.description)
 }
 
 function stripTrailingSlash(path: string) {
