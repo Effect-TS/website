@@ -77,7 +77,8 @@ export async function getRSSOptions(
             `<itunes:duration>${entry.data.duration}</itunes:duration>`,
             `<itunes:episode>${entry.data.episode}</itunes:episode>`,
             "<itunes:episodeType>episodic</itunes:episodeType>",
-            "<itunes:explicit>false</itunes:explicit>"
+            "<itunes:explicit>false</itunes:explicit>",
+            `<itunes:image>${entry.data.image}</itunes:image>`
           ].join("")
         }
       })
