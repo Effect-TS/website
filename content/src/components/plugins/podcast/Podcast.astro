@@ -181,20 +181,21 @@ function formatSeconds(seconds: number): string {
 
 <script>
   // Allow users to be able to select text on podcast link cards
-  const cards = document.querySelectorAll(".card")
+  const cards = document.querySelectorAll<HTMLLIElement>(".card")
   cards.forEach((card) => {
     let down: number | undefined
     let up: number | undefined
-    const link = card.querySelector("h2 a")
+    const link = card.querySelector<HTMLAnchorElement>("h2 a") 
     // Add the cursor style via JS - if the script fails, we do not
     // want the user to think they can navigate
+    card.append
     card.style.cursor = "pointer"
     card.onmousedown = () => {
       down = +new Date()
     }
     card.onmouseup = () => {
       up = +new Date()
-      if ((up - down) < 200) {
+      if (link && down && (up - down) < 200) {
         link.click()
       }
     }
