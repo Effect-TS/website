@@ -11,14 +11,14 @@ export function effectPodcastPlugin(): StarlightPlugin {
             "astro:config:setup": ({ injectRoute }) => {
               injectRoute({
                 entrypoint:
-                  "./src/components/plugins/podcast/PodcastLanding.astro",
+                  "./src/components/plugins/podcast/Podcast.astro",
                 pattern: "/[...prefix]",
                 prerender: true
               })
 
               injectRoute({
                 entrypoint:
-                  "./src/components/plugins/podcast/PodcastEpisode.astro",
+                  "./src/components/plugins/podcast/Episode.astro",
                 pattern: "/[...prefix]/episodes/[...episode]",
                 prerender: true
               })

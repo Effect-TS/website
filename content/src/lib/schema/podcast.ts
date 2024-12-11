@@ -21,10 +21,6 @@ export const podcastSchema = z.object({
     .datetime({ offset: true })
     .transform((s) => new Date(s)),
   /**
-   * The artwork for the episode.
-   */
-  image: z.string(),
-  /**
    * The duration of an episode in seconds.
    */
   duration: z.number().int().min(1),

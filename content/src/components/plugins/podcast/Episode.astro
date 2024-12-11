@@ -18,7 +18,7 @@ export async function getStaticPaths() {
       episode: entry.slug.replace("podcast", "")
     },
     props: {
-      id: entries.length - index,
+      episode: entry.data.episode,
       title: entry.data.title,
       description: entry.data.description,
       youtube: entry.data.youtube,
@@ -34,7 +34,7 @@ export async function getStaticPaths() {
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>
 
-const { id, title, description, youtube, date } = Astro.props
+const { episode, title, description, youtube, date } = Astro.props
 const { Content } = await Astro.props.render()
 const transcript = await getEntry(Astro.props.transcript)
 
@@ -67,7 +67,7 @@ const pageProps: StarlightPageProps = {
         {date}
       </div>
       <h2 class="!mt-2 !mb-8 !text-3xl lg:!text-4xl text-black dark:text-white">
-        <span>#{id}: </span>
+        <span>#{episode}: </span>
         <span>{title}</span>
       </h2>
       <p>{description}</p>
