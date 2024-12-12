@@ -9,16 +9,17 @@ import { LogoDark } from "../atoms/logo-dark"
 
 const menus = [
   {
-    name: "Docs",
+    name: "Community",
     items: [
-      { name: "Getting Started", href: "/docs/quickstart" },
-      { name: "Guides", href: "/docs/guides" },
-      { name: "API", href: "/docs/other/api-reference" }
+      { name: "Docs", href: "/docs/getting-started/introduction/" },
+      { name: "Blog", href: "/blog/" },
+      { name: "API", href: "/docs/additional-resources/api-reference/" },
     ]
   },
   {
-    name: "Company",
+    name: "Other",
     items: [
+      { name: "Merch", href: "/merch/" },
       { name: "Effectful", href: "https://www.effectful.co/", blank: true }
     ]
   },
