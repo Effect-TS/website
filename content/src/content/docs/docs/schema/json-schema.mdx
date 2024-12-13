@@ -112,6 +112,7 @@ console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
 Output:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "string",
   "enum": [
     "a"
   ]
@@ -131,6 +132,7 @@ console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
 Output:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "string",
   "enum": [
     "a",
     "b"
@@ -477,12 +479,14 @@ Output:
   "$comment": "/schemas/enums",
   "anyOf": [
     {
+      "type": "number",
       "title": "Apple",
       "enum": [
         0
       ]
     },
     {
+      "type": "number",
       "title": "Banana",
       "enum": [
         1
@@ -506,6 +510,7 @@ Output:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "string",
+  "title": "`a${number}`",
   "description": "a template literal",
   "pattern": "^a[+-]?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?$"
 }
@@ -552,6 +557,7 @@ console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
 Output:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "string",
   "enum": [
     "a",
     "b"
@@ -585,6 +591,18 @@ console.log(JSON.stringify(jsonSchema, null, 2))
 Output:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$defs": {
+    "Name": {
+      "type": "string",
+      "description": "a string",
+      "title": "string"
+    },
+    "Age": {
+      "type": "number",
+      "description": "a number",
+      "title": "number"
+    }
+  },
   "type": "object",
   "required": [
     "name",
@@ -598,19 +616,7 @@ Output:
       "$ref": "#/$defs/Age"
     }
   },
-  "additionalProperties": false,
-  "$defs": {
-    "Name": {
-      "type": "string",
-      "description": "a string",
-      "title": "string"
-    },
-    "Age": {
-      "type": "number",
-      "description": "a number",
-      "title": "number"
-    }
-  }
+  "additionalProperties": false
 }
 */
 ```
@@ -732,7 +738,6 @@ console.log(JSON.stringify(jsonSchema, null, 2))
 Output:
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$ref": "#/$defs/Category",
   "$defs": {
     "Category": {
       "type": "object",
@@ -753,7 +758,8 @@ Output:
       },
       "additionalProperties": false
     }
-  }
+  },
+  "$ref": "#/$defs/Category"
 }
 */
 ```
@@ -968,7 +974,8 @@ Output:
   ],
   "properties": {
     "a": {
-      "type": "string"
+      "type": "string",
+      "contentMediaType": "application/json"
     }
   },
   "additionalProperties": false
