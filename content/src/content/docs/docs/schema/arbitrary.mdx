@@ -132,47 +132,16 @@ You can customize how arbitrary data is generated using the `arbitrary` annotati
 **Example** (Custom Arbitrary Generator)
 
 ```ts twoslash
-import { Schema } from "effect"
+import { Arbitrary, FastCheck, Schema } from "effect"
 
 // Schema with a custom generator for natural numbers
 const schema = Schema.Number.annotations({
-  arbitrary: (/**typeParameters**/) => (fc) => fc.nat()
+  arbitrary: () => (fc) => fc.nat()
 })
+
+console.log(FastCheck.sample(Arbitrary.make(schema), 2))
+// Example Output: [ 468554006, 2147483627 ]
 ```
 
-The annotation allows access to any type parameters via the first argument (`typeParameters`) and the complete export of the fast-check library (`fc`).
+The annotation allows access the complete export of the fast-check library (`fc`).
 This setup enables you to return an `Arbitrary` that precisely generates the type of data desired.
-
-<Aside type="caution" title="Customization May Disrupt Filters">
-  Customizing a schema can disrupt previously applied filters. Filters set
-  after the customization will remain effective, while those applied
-  before will be disregarded.
-</Aside>
-
-**Example** (Handling Filters with Custom Generators)
-
-```ts twoslash
-import { Arbitrary, FastCheck, Schema } from "effect"
-
-// Custom generator that overrides the 'positive' filter
-const problematic = Schema.Number.pipe(Schema.positive()).annotations({
-  arbitrary: () => (fc) => fc.integer()
-})
-
-console.log(FastCheck.sample(Arbitrary.make(problematic), 2))
-/*
-Example Output:
-[ -1600163302, -6 ]
-*/
-
-// Custom generator with 'positive' filter applied after the customization
-const improved = Schema.Number.annotations({
-  arbitrary: () => (fc) => fc.integer()
-}).pipe(Schema.positive())
-
-console.log(FastCheck.sample(Arbitrary.make(improved), 2))
-/*
-Example Output:
-[ 7, 1518247613 ]
-*/
-```
