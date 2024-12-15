@@ -8,74 +8,177 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components"
 
-Transformations play a key role in working with schemas, especially when you need to convert data from one type to another, such as parsing a string into a number or converting a date string into a `Date` object.
+Transformations are important when working with schemas. They allow you to change data from one type to another. For example, you might parse a string into a number or convert a date string into a `Date` object.
+
+The [Schema.transform](#transform) and [Schema.transformOrFail](#transformorfail) functions help you connect two schemas so you can convert data between them.
 
 ## transform
 
-The `Schema.transform` function is designed to facilitate these conversions by linking two schemas together: one for the input type and one for the output type.
+`Schema.transform` creates a new schema by taking the output of one schema (the "source") and making it the input of another schema (the "target"). Use this when you know the transformation will always succeed. If it might fail, use [Schema.transformOrFail](#transformorfail) instead.
 
-Here's an overview of the `Schema.transform` function, which accepts five parameters:
+### Understanding Input and Output
 
-| Parameter  | Description                                                                        | Type                                                                                                      |
-| ---------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **from**   | The source schema, representing the starting point of the transformation.          | `Schema<B, A, R1>` where `A` is the input type and `B` is the intermediate type after initial validation. |
-| **to**     | The target schema, representing the endpoint of the transformation.                | `Schema<D, C, R2>` where `C` is the transformed type from `B`, and `D` is the final output type.          |
-| **decode** | A function that converts an intermediate value of type `B` to a value of type `C`. | `(b: B, a: A) => C`                                                                                       |
-| **encode** | A function that reverses the transformation, converting type `C` back to type `B`. | `(c: C, d: D) => B`                                                                                       |
-| **strict** | optional (but recommended)                                                         | `boolean`                                                                                                 |
+"Output" and "input" depend on what you are doing (decoding or encoding):
 
-This function results in a schema `Schema<D, A, R1 | R2>`, integrating both the dependencies and transformations of the `from` and `to` schemas.
+**When decoding:**
 
-**Example** (Doubling a Number)
+- The source schema `Schema<SourceType, SourceEncoded>` produces a `SourceType`.
+- The target schema `Schema<TargetType, TargetEncoded>` expects a `TargetEncoded`.
+- The decoding path looks like this: `SourceEncoded` → `TargetType`.
 
-Here's an example that demonstrates a schema transformation to double an input number:
+If `SourceType` and `TargetEncoded` differ, you can provide a `decode` function to convert the source schema's output into the target schema's input.
+
+**When encoding:**
+
+- The target schema `Schema<TargetType, TargetEncoded>` produces a `TargetEncoded`.
+- The source schema `Schema<SourceType, SourceEncoded>` expects a `SourceType`.
+- The encoding path looks like this: `TargetType` → `SourceEncoded`.
+
+If `TargetEncoded` and `SourceType` differ, you can provide an `encode` function to convert the target schema's output into the source schema's input.
+
+### Combining Two Primitive Schemas
+
+In this example, we start with a schema that accepts `"on"` or `"off"` and transform it into a boolean schema. The `decode` function turns `"on"` into `true` and `"off"` into `false`. The `encode` function does the reverse. This gives us a `Schema<boolean, "on" | "off">`.
+
+**Example** (Converting a String to a Boolean)
 
 ```ts twoslash
 import { Schema } from "effect"
 
-// Define a transformation that doubles the input number
-const Double = Schema.transform(
-  // Source schema
-  Schema.Number,
-  // Target schema
-  Schema.Number,
+// Convert "on"/"off" to boolean and back
+const BooleanFromString = Schema.transform(
+  // Source schema: "on" or "off"
+  Schema.Literal("on", "off"),
+  // Target schema: boolean
+  Schema.Boolean,
   {
     // optional but you get better error messages from TypeScript
     strict: true,
-    // Transformation function to double the number
-    decode: (n) => n * 2,
-    // Reverse transformation to revert to the original number
-    encode: (n) => n / 2
+    // Transformation to convert the output of the
+    // source schema ("on" | "off") into the input of the
+    // target schema (boolean)
+    decode: (literal) => literal === "on", // Always succeeds here
+    // Reverse transformation
+    encode: (bool) => (bool ? "on" : "off")
   }
 )
 
-//     ┌─── number
+//     ┌─── "on" | "off"
 //     ▼
-type Encoded = typeof Double.Encoded
+type Encoded = typeof BooleanFromString.Encoded
 
-//     ┌─── number
+//     ┌─── boolean
 //     ▼
-type Type = typeof Double.Type
+type Type = typeof BooleanFromString.Type
 
-console.log(Schema.decodeUnknownSync(Double)(2))
-// Output: 4
+console.log(Schema.decodeUnknownSync(BooleanFromString)("on"))
+// Output: true
+```
 
-console.log(Schema.encodeUnknownSync(Double)(4))
-// Output: 2
+The `decode` function above never fails by itself. However, the full decoding process can still fail if the input does not fit the source schema. For example, if you provide `"wrong"` instead of `"on"` or `"off"`, the source schema will fail before calling `decode`.
+
+**Example** (Handling Invalid Input)
+
+```ts twoslash collapse={4-12}
+import { Schema } from "effect"
+
+// Convert "on"/"off" to boolean and back
+const BooleanFromString = Schema.transform(
+  Schema.Literal("on", "off"),
+  Schema.Boolean,
+  {
+    strict: true,
+    decode: (s) => s === "on",
+    encode: (bool) => (bool ? "on" : "off")
+  }
+)
+
+// Providing input not allowed by the source schema
+Schema.decodeUnknownSync(BooleanFromString)("wrong")
+/*
+throws:
+ParseError: ("on" | "off" <-> boolean)
+└─ Encoded side transformation failure
+   └─ "on" | "off"
+      ├─ Expected "on", actual "wrong"
+      └─ Expected "off", actual "wrong"
+*/
+```
+
+### Combining Two Transformation Schemas
+
+Below is an example where both the source and target schemas transform their data:
+
+- The source schema is `Schema.NumberFromString`, which is `Schema<number, string>`.
+- The target schema is `BooleanFromString` (defined above), which is `Schema<boolean, "on" | "off">`.
+
+This example involves four types and requires two conversions:
+
+- When decoding, convert a `number` into `"on" | "off"`. For example, treat any positive number as `"on"`.
+- When encoding, convert `"on" | "off"` back into a `number`. For example, treat `"on"` as `1` and `"off"` as `-1`.
+
+By composing these transformations, we get a schema that decodes a string into a boolean and encodes a boolean back into a string. The resulting schema is `Schema<boolean, string>`.
+
+**Example** (Combining Two Transformation Schemas)
+
+```ts twoslash collapse={4-12}
+import { Schema } from "effect"
+
+// Convert "on"/"off" to boolean and back
+const BooleanFromString = Schema.transform(
+  Schema.Literal("on", "off"),
+  Schema.Boolean,
+  {
+    strict: true,
+    decode: (s) => s === "on",
+    encode: (bool) => (bool ? "on" : "off")
+  }
+)
+
+const BooleanFromNumericString = Schema.transform(
+  // Source schema: Convert string -> number
+  Schema.NumberFromString,
+  // Target schema: Convert "on"/"off" -> boolean
+  BooleanFromString,
+  {
+    strict: true,
+    // If number is positive, use "on", otherwise "off"
+    decode: (n) => (n > 0 ? "on" : "off"),
+    // If boolean is true, use 1, otherwise -1
+    encode: (bool) => (bool ? 1 : -1)
+  }
+)
+
+//     ┌─── string
+//     ▼
+type Encoded = typeof BooleanFromNumericString.Encoded
+
+//     ┌─── boolean
+//     ▼
+type Type = typeof BooleanFromNumericString.Type
+
+console.log(Schema.decodeUnknownSync(BooleanFromNumericString)("100"))
+// Output: true
 ```
 
 **Example** (Converting an array to a ReadonlySet)
 
-Here's how you can convert an array to a `ReadonlySet`:
+In this example, we convert an array into a `ReadonlySet`. The `decode` function takes an array and creates a new `ReadonlySet`. The `encode` function converts the set back into an array. We also provide the schema of the array items so they are properly validated.
 
 ```ts twoslash
 import { Schema } from "effect"
 
+// This function builds a schema that converts between a readonly array
+// and a readonly set of items
 const ReadonlySetFromArray = <A, I, R>(
   itemSchema: Schema.Schema<A, I, R>
 ): Schema.Schema<ReadonlySet<A>, ReadonlyArray<I>, R> =>
   Schema.transform(
+    // Source schema: array of items
     Schema.Array(itemSchema),
+    // Target schema: readonly set of items
+    // **IMPORTANT** We use `Schema.typeSchema` here to obtain the schema
+    // of the items to avoid decoding the elements twice
     Schema.ReadonlySetFromSelf(Schema.typeSchema(itemSchema)),
     {
       strict: true,
@@ -101,95 +204,12 @@ console.log(Schema.encodeSync(schema)(new Set(["a", "b", "c"])))
 // Output: [ 'a', 'b', 'c' ]
 ```
 
-<Aside type="note">
+<Aside type="note" title="Why Schema.typeSchema is used">
   Please note that to define the target schema, we used
   [Schema.typeSchema](/docs/schema/projections/#typeschema). This is
   because the decoding/encoding of the elements is already handled by the
-  `from` schema, `Schema.Array(itemSchema)`.
+  `from` schema: `Schema.Array(itemSchema)`, avoiding double decoding.
 </Aside>
-
-**Example** (Trim Whitespace)
-
-Here's how to use the `transform` function to trim whitespace from strings:
-
-```ts twoslash
-import { Schema } from "effect"
-
-const Trim = Schema.transform(
-  // Source schema: accepts any string
-  Schema.String,
-  // Target schema: also accepts any string
-  Schema.String,
-  {
-    strict: true,
-    // Trim the string during decoding
-    decode: (s) => s.trim(),
-    // No change during encoding
-    encode: (s) => s
-  }
-)
-
-//     ┌─── string
-//     ▼
-type Encoded = typeof Trim.Encoded
-
-//     ┌─── string
-//     ▼
-type Type = typeof Trim.Type
-
-console.log(Schema.decodeUnknownSync(Trim)("a  "))
-// Output: "a"
-
-console.log(Schema.encodeUnknownSync(Trim)("a  "))
-// Output: "a  "
-```
-
-This schema automatically trims leading and trailing whitespace from a string during decoding. During encoding, it returns the string unchanged.
-
-### Improving the Transformation with a Filter
-
-To ensure that strings are not only trimmed but also validated to exclude untrimmed inputs, you can restrict the target schema to only accept strings that are already trimmed:
-
-```ts twoslash
-import { Schema } from "effect"
-
-const Trim = Schema.transform(
-  // Source schema: accepts any string
-  Schema.String,
-  // Target schema now only accepts strings that are trimmed
-  Schema.String.pipe(Schema.filter((s) => s === s.trim())),
-  {
-    strict: true,
-    // Trim the string during decoding
-    decode: (s) => s.trim(),
-    // No change during encoding
-    encode: (s) => s
-  }
-)
-
-//     ┌─── string
-//     ▼
-type Encoded = typeof Trim.Encoded
-
-//     ┌─── string
-//     ▼
-type Type = typeof Trim.Type
-
-console.log(JSON.stringify(Schema.encodeUnknownSync(Trim)("a")))
-// Output: "a"
-
-console.log(JSON.stringify(Schema.encodeUnknownSync(Trim)("a  ")))
-/*
-throws:
-ParseError: (string <-> { string | filter })
-└─ Type side transformation failure
-   └─ { string | filter }
-      └─ Predicate refinement failure
-         └─ Expected { string | filter }, actual "a  "
-*/
-```
-
-In this improved example, the target schema is piped through a `Schema.filter` function. This function checks that the string is equal to its trimmed version, effectively ensuring that only strings without leading or trailing whitespace are considered valid. This is particularly useful for maintaining data integrity and can help prevent errors or inconsistencies in data processing.
 
 ### Non-strict option
 
@@ -200,14 +220,15 @@ In some cases, strict type checking can create issues during data transformation
 Let's consider the scenario where you need to define a constructor `clamp` that ensures a number falls within a specific range. This function returns a schema that "clamps" a number to a specified minimum and maximum range:
 
 ```ts twoslash
-import { Schema } from "effect"
-import { Number } from "effect"
+import { Schema, Number } from "effect"
 
 const clamp =
   (minimum: number, maximum: number) =>
   <A extends number, I, R>(self: Schema.Schema<A, I, R>) =>
     Schema.transform(
+      // Source schema
       self,
+      // Target schema: filter based on min/max range
       self.pipe(
         Schema.typeSchema,
         Schema.filter((a) => a <= minimum || a >= maximum)
@@ -215,21 +236,23 @@ const clamp =
       // @ts-expect-error
       {
         strict: true,
+        // Clamp the number within the specified range
         decode: (a) => Number.clamp(a, { minimum, maximum }),
         encode: (a) => a
       }
     )
-/*
+```
+
+In this example, `Number.clamp` returns a `number` that might not be recognized as the specific `A` type. This leads to a type mismatch under strict checking:
+
+```text showLineNumbers=false
 Argument of type '{ strict: true; decode: (a: A) => number; encode: (a: A) => A; }' is not assignable to parameter of type '{ readonly decode: (fromA: A, fromI: I) => A; readonly encode: (toI: A, toA: A) => A; readonly strict?: true; } | { readonly decode: (fromA: A, fromI: I) => unknown; readonly encode: (toI: A, toA: A) => unknown; readonly strict: false; }'.
   The types returned by 'decode(...)' are incompatible between these types.
     Type 'number' is not assignable to type 'A'.
       'number' is assignable to the constraint of type 'A', but 'A' could be instantiated with a different subtype of constraint 'number'.ts(2345)
-*/
 ```
 
-In this code, `Number.clamp` is a function that adjusts the given number to stay within the specified range. However, the return type of `Number.clamp` may not strictly be of type `A` but just a `number`, which can lead to type mismatches according to TypeScript's strict type-checking.
-
-There are two ways to resolve the type mismatch:
+There are two ways to resolve this issue:
 
 1. **Using Type Assertion**:
    Adding a type cast can enforce the return type to be treated as type `A`:
@@ -242,8 +265,7 @@ There are two ways to resolve the type mismatch:
    Setting `strict: false` in the transformation options allows the schema to bypass some of TypeScript's type-checking rules, accommodating the type discrepancy:
 
    ```ts twoslash
-   import { Schema } from "effect"
-   import { Number } from "effect"
+   import { Schema, Number } from "effect"
 
    const clamp =
      (minimum: number, maximum: number) =>
@@ -303,10 +325,13 @@ A common use case for `Schema.transformOrFail` is converting string representati
 import { ParseResult, Schema } from "effect"
 
 export const NumberFromString = Schema.transformOrFail(
-  Schema.String, // Source schema: accepts any string
-  Schema.Number, // Target schema: expects a number
+  // Source schema: accepts any string
+  Schema.String,
+  // Target schema: expects a number
+  Schema.Number,
   {
-    strict: true, // Optional: enables better TypeScript error messages
+    // optional but you get better error messages from TypeScript
+    strict: true,
     decode: (input, options, ast) => {
       const parsed = parseFloat(input)
       // If parsing fails (NaN), return a ParseError with a custom error
@@ -314,9 +339,12 @@ export const NumberFromString = Schema.transformOrFail(
         return ParseResult.fail(
           // Create a Type Mismatch error
           new ParseResult.Type(
-            ast, // Provide the schema's abstract syntax tree for context
-            input, // Include the problematic input
-            "Failed to convert string to number" // Custom error message
+            // Provide the schema's abstract syntax tree for context
+            ast,
+            // Include the problematic input
+            input,
+            // Optional custom error message
+            "Failed to convert string to number"
           )
         )
       }
