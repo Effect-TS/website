@@ -210,70 +210,139 @@ Output:
 */
 ```
 
-## Raising Errors
+## How to Raise Errors
 
-The `Effect.gen` API allows you to incorporate error handling directly into your program flow by yielding failed effects.
-This mechanism, achieved through `Effect.fail`, is demonstrated in the example below.
+The `Effect.gen` API lets you integrate error handling directly into your workflow by yielding failed effects.
+You can introduce errors with `Effect.fail`, as shown in the example below.
 
-**Example** (Error in Program Flow)
-
-```ts twoslash
-import { Effect } from "effect"
-
-const program = Effect.gen(function* () {
-  console.log("Task1...")
-  console.log("Task2...")
-  // Introduce an error into the flow
-  yield* Effect.fail("Something went wrong!")
-})
-
-Effect.runPromiseExit(program).then(console.log)
-/*
-Output:
-Task1...
-Task2...
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Something went wrong!' }
-}
-*/
-```
-
-## The Role of Short-Circuiting
-
-When working with the `Effect.gen` API, it's important to understand how it manages errors.
-This API is designed to **short-circuit the execution** upon encountering the **first error**.
-
-What does this mean for you as a developer? Well, let's say you have a chain of operations or a collection of effects to be executed in sequence. If any error occurs during the execution of one of these effects, the remaining computations will be skipped, and the error will be propagated to the final result.
-
-In simpler terms, the short-circuiting behavior ensures that if something goes wrong at any step of your program it will immediately stop and return the error to let you know that something went wrong.
-
-**Example** (Short-Circuiting on Error)
+**Example** (Introducing an Error into the Flow)
 
 ```ts twoslash
-import { Effect } from "effect"
+import { Effect, Console } from "effect"
+
+const task1 = Console.log("task1...")
+const task2 = Console.log("task2...")
 
 const program = Effect.gen(function* () {
-  console.log("Task1...")
-  console.log("Task2...")
+  // Perform some tasks
+  yield* task1
+  yield* task2
+  // Introduce an error
   yield* Effect.fail("Something went wrong!")
-  console.log("This won't be executed")
 })
 
 Effect.runPromise(program).then(console.log, console.error)
 /*
 Output:
-Task1...
-Task2...
+task1...
+task2...
 (FiberFailure) Error: Something went wrong!
 */
 ```
 
-<Aside type="note" title="Further Reading">
-  If you want to dive deeper into error handling with Effect, you can
-  explore the ["Error
-  Management"](/docs/error-management/two-error-types/) section.
+## The Role of Short-Circuiting
+
+When working with `Effect.gen`, it is important to understand how it handles errors.
+This API will stop execution at the **first error** it encounters and return that error.
+
+How does this affect your code? If you have several operations in sequence, once any one of them fails, the remaining operations will not run, and the error will be returned.
+
+In simpler terms, if something fails at any point, the program will stop right there and deliver the error to you.
+
+**Example** (Halting Execution at the First Error)
+
+```ts twoslash
+import { Effect, Console } from "effect"
+
+const task1 = Console.log("task1...")
+const task2 = Console.log("task2...")
+const failure = Effect.fail("Something went wrong!")
+const task4 = Console.log("task4...")
+
+const program = Effect.gen(function* () {
+  yield* task1
+  yield* task2
+  // The program stops here due to the error
+  yield* failure
+  // The following lines never run
+  yield* task4
+  return "some result"
+})
+
+Effect.runPromise(program).then(console.log, console.error)
+/*
+Output:
+task1...
+task2...
+(FiberFailure) Error: Something went wrong!
+*/
+```
+
+Even though execution never reaches code after a failure, TypeScript may still assume that the code below the error is reachable unless you explicitly return after the failure.
+
+For example, consider the following scenario where you want to narrow the type of a variable:
+
+**Example** (Type Narrowing without Explicit Return)
+
+```ts twoslash
+import { Effect } from "effect"
+
+type User = {
+  readonly name: string
+}
+
+// Imagine this function checks a database or an external service
+declare function getUserById(id: string): Effect.Effect<User | undefined>
+
+function greetUser(id: string) {
+  return Effect.gen(function* () {
+    const user = yield* getUserById(id)
+
+    if (user === undefined) {
+      // Even though we fail here, TypeScript still thinks
+      // 'user' might be undefined later
+      yield* Effect.fail(`User with id ${id} not found`)
+    }
+
+    // @ts-expect-error user is possibly 'undefined'.ts(18048)
+    return `Hello, ${user.name}!`
+  })
+}
+```
+
+In this example, TypeScript still considers `user` possibly `undefined` because there is no explicit return after the failure.
+
+To fix this, explicitly return right after calling `Effect.fail`:
+
+**Example** (Type Narrowing with Explicit Return)
+
+```ts twoslash {15}
+import { Effect } from "effect"
+
+type User = {
+  readonly name: string
+}
+
+declare function getUserById(id: string): Effect.Effect<User | undefined>
+
+function greetUser(id: string) {
+  return Effect.gen(function* () {
+    const user = yield* getUserById(id)
+
+    if (user === undefined) {
+      // Explicitly return after failing
+      return yield* Effect.fail(`User with id ${id} not found`)
+    }
+
+    // Now TypeScript knows that 'user' is not undefined
+    return `Hello, ${user.name}!`
+  })
+}
+```
+
+<Aside type="note" title="Further Learning">
+  To learn more about error handling in Effect, refer to the [Error
+  Management](/docs/error-management/two-error-types/) section.
 </Aside>
 
 ## Passing `this`
