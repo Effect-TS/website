@@ -20,7 +20,7 @@ export interface NavigationLink {
 const links: Array<NavigationLink> = [
   { name: "Docs", href: "/docs" },
   { name: "Blog", href: "/blog" },
-  // { name: "Tutorials", href: "/tutorials/basics" },
+  { name: "Podcast", href: "/podcast" },
   { name: "Play", href: "/play", reload: true },
   { name: "Effect Days", href: "/events/effect-days", blank: true }
 ]
