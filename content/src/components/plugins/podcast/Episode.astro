@@ -1,0 +1,89 @@
+---
+import type { GetStaticPathsResult, InferGetStaticPropsType } from "astro"
+import { getEntry } from "astro:content"
+import { Icon } from "@astrojs/starlight/components"
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
+import type { StarlightPageProps } from "@astrojs/starlight/props"
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Transcript from "@/components/podcast/Transcript.astro"
+import { getPodcastEntries } from "@/lib/content/podcast"
+
+export const prerender = true
+
+export async function getStaticPaths() {
+  const entries = await getPodcastEntries()
+  const episodes = entries.map((entry) => ({
+    params: {
+      prefix: "podcast",
+      episode: entry.slug.replace("podcast", "")
+    },
+    props: {
+      episode: entry.data.episode,
+      title: entry.data.title,
+      description: entry.data.description,
+      youtube: entry.data.youtube,
+      transcript: entry.data.transcript,
+      date: entry.data.publicationDate.toLocaleDateString(undefined, {
+        dateStyle: "medium"
+      }),
+      render: entry.render
+    }
+  }))
+  return episodes satisfies GetStaticPathsResult
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>
+
+const { episode, title, description, youtube, date } = Astro.props
+const { Content } = await Astro.props.render()
+const transcript = await getEntry(Astro.props.transcript)
+
+const pageProps: StarlightPageProps = {
+  frontmatter: {
+    title: "Cause & Effect Podcast",
+    tableOfContents: false, 
+  },
+  hasSidebar: false,
+}
+---
+
+<StarlightPage {...pageProps}>
+  <div class="relative flex flex-col lg:flex-row items-start">
+    <aside class="lg:sticky w-full lg:w-1/2 md:top-40 mb-4 md:mb-8 lg:pr-8 flex flex-col shrink-0">
+      <div class="p-px rounded-2xl shrink-0 overflow-hidden aspect-video order-2 lg:order-1">
+        <div class="w-full h-full bg-[--sl-color-gray-5] dark:bg-[--sl-color-bg-nav] p-1.5 rounded-[15px] overflow-hidden">
+          <div class="relative w-full h-full border border-[var(--sl-color-bg)] rounded-[9px] overflow-hidden">
+            <YouTube id={youtube.id} title={youtube.title} class="max-w-none" />
+          </div> 
+        </div>
+      </div>
+      <a href="/podcast/" class="flex mb-2 lg:mb-0 lg:mt-2 font-medium order-1 lg:order2 no-underline hover:underline">
+        <Icon name="right-arrow" class="h-3 mr-1 rotate-180" />
+        <span>All Episodes</span>
+      </a>
+    </aside>
+    <main class="max-w-3xl !m-0 grow lg:pl-8 pb-24 overflow-hidden">
+      <div class="!mt-1">
+        {date}
+      </div>
+      <h2 class="!mt-2 !mb-8 !text-3xl lg:!text-4xl text-black dark:text-white">
+        <span>#{episode}: </span>
+        <span>{title}</span>
+      </h2>
+      <p>{description}</p>
+      <section class="!mt-8">
+        <Content />
+        <a 
+          href="https://discord.gg/effect-ts" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          class="flex items-center gap-2 mt-8 pb-8 font-medium border-b border-b-[var(--sl-color-hairline)] no-underline hover:underline"
+        >
+          <Icon name="discord" />
+          <span>Discuss this episode on Discord</span>
+        </a>
+        <Transcript transcript={transcript.data} />
+      </section>
+    </main>
+  </div>
+</StarlightPage>

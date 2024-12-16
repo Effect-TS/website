@@ -14,7 +14,7 @@ export function effectPlaygroundPlugin({ pattern }: {
           hooks: {
             "astro:config:setup": ({ injectRoute }) => {
               injectRoute({
-                entrypoint: "./src/components/plugins/Playground.astro",
+                entrypoint: "./src/components/plugins/playground/Playground.astro",
                 pattern,
                 prerender: false
               })

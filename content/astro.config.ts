@@ -17,6 +17,7 @@ import ecTwoSlash from "expressive-code-twoslash"
 import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground"
 import { pluginTwoslashPagefind } from "./src/plugins/expressive-code/twoslash-pagefind"
 import { effectPlaygroundPlugin } from "./src/plugins/starlight/playground"
+import { effectPodcastPlugin } from "./src/plugins/starlight/podcast"
 import { monacoEditorPlugin } from "./src/plugins/vite/monaco-editor"
 
 const VERCEL_PREVIEW_DOMAIN =
@@ -85,6 +86,9 @@ export default defineConfig({
       enabled: true
     }
   }),
+  experimental: {
+    contentLayer: true
+  },
   markdown: {
     rehypePlugins: [
       [rehypeMermaid, rehypeMermaidOptions],
@@ -206,7 +210,8 @@ export default defineConfig({
         }),
         effectPlaygroundPlugin({
           pattern: "/play"
-        })
+        }),
+        effectPodcastPlugin()
       ],
       sidebar: [
         {
