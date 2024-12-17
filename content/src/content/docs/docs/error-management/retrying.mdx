@@ -17,13 +17,13 @@ Whether you're working on network requests, database interactions, or any other 
 
 ## retry
 
-The `Effect.retry` function allows you to retry a failing effect according to a defined policy.
+The `Effect.retry` function takes an effect and a [Schedule](/docs/scheduling/introduction/) policy, and will automatically retry the effect if it fails, following the rules of the policy.
 
-**Syntax**
+If the effect ultimately succeeds, the result will be returned.
 
-```ts showLineNumbers=false
-Effect.retry(effect, policy)
-```
+If the maximum retries are exhausted and the effect still fails, the failure is propagated.
+
+This can be useful when dealing with intermittent failures, such as network issues or temporary resource unavailability. By defining a retry policy, you can control the number of retries, the delay between them, and when to stop retrying.
 
 **Example** (Retrying with a Fixed Delay)
 
@@ -60,7 +60,7 @@ yay!
 */
 ```
 
-## retry n times
+### Retrying n Times Immediately
 
 You can also retry a failing effect a set number of times with a simpler policy that retries immediately:
 
@@ -94,59 +94,11 @@ success
 */
 ```
 
-## retryOrElse
-
-The `Effect.retryOrElse` function allows you to define a fallback strategy if all retries fail. It provides a way to handle errors gracefully by specifying an alternative effect to run after the retries are exhausted.
-
-**Syntax**
-
-```ts showLineNumbers=false
-Effect.retryOrElse(effect, policy, fallback)
-```
-
-**Example** (Retrying with Fallback)
-
-```ts twoslash
-import { Effect, Schedule, Console } from "effect"
-
-let count = 0
-
-// Simulates an effect with possible failures
-const task = Effect.async<string, Error>((resume) => {
-  if (count <= 2) {
-    count++
-    console.log("failure")
-    resume(Effect.fail(new Error()))
-  } else {
-    console.log("success")
-    resume(Effect.succeed("yay!"))
-  }
-})
-
-// Retry the task with a delay between retries and a maximum of 2 retries
-const policy = Schedule.addDelay(Schedule.recurs(2), () => "100 millis")
-
-// If all retries fail, run the fallback effect
-const repeated = Effect.retryOrElse(task, policy, () =>
-  Console.log("orElse").pipe(Effect.as("default value"))
-)
-
-Effect.runPromise(repeated).then(console.log)
-/*
-Output:
-failure
-failure
-failure
-orElse
-default value
-*/
-```
-
-## Retrying Based on a Condition
+### Retrying Based on a Condition
 
 You can customize how retries are managed by specifying conditions. Use the `until` or `while` options to control when retries stop.
 
-**Example** (Retrying Until a Condition is Met)
+**Example** (Retrying Until a Specific Condition is Met)
 
 ```ts twoslash
 import { Effect } from "effect"
@@ -184,3 +136,52 @@ Action called 3 time(s)
   if your retry condition is based on successful outcomes rather than
   errors.
 </Aside>
+
+## retryOrElse
+
+The `Effect.retryOrElse` function attempts to retry a failing effect multiple times according to a defined [Schedule](/docs/scheduling/introduction/) policy.
+
+If the retries are exhausted and the effect still fails, it runs a fallback effect instead.
+
+This function is useful when you want to handle failures gracefully by specifying an alternative action after repeated failures.
+
+**Example** (Retrying with Fallback)
+
+```ts twoslash
+import { Effect, Schedule, Console } from "effect"
+
+let count = 0
+
+// Simulates an effect with possible failures
+const task = Effect.async<string, Error>((resume) => {
+  if (count <= 2) {
+    count++
+    console.log("failure")
+    resume(Effect.fail(new Error()))
+  } else {
+    console.log("success")
+    resume(Effect.succeed("yay!"))
+  }
+})
+
+// Retry the task with a delay between retries and a maximum of 2 retries
+const policy = Schedule.addDelay(Schedule.recurs(2), () => "100 millis")
+
+// If all retries fail, run the fallback effect
+const repeated = Effect.retryOrElse(
+  task,
+  policy,
+  // fallback
+  () => Console.log("orElse").pipe(Effect.as("default value"))
+)
+
+Effect.runPromise(repeated).then(console.log)
+/*
+Output:
+failure
+failure
+failure
+orElse
+default value
+*/
+```
