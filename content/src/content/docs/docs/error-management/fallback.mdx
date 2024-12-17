@@ -11,7 +11,11 @@ This page explains various techniques for handling failures and creating fallbac
 
 ## orElse
 
-We can attempt one effect, and if it fails, try another effect using the `Effect.orElse` function.
+`Effect.orElse` allows you to attempt to run an effect, and if it fails, you
+can provide a fallback effect to run instead.
+
+This is useful for handling failures gracefully by defining an alternative effect to execute if the first
+one encounters an error.
 
 **Example** (Handling Fallback with `Effect.orElse`)
 
@@ -35,7 +39,12 @@ console.log(Effect.runSync(program2))
 
 ## orElseFail
 
-The `Effect.orElseFail` function will replace the original failure with a new failure value:
+`Effect.orElseFail` allows you to replace the failure from one effect with a
+custom failure value. If the effect fails, you can provide a new failure to
+be returned instead of the original one.
+
+This function only applies to failed effects. If the effect
+succeeds, it will remain unaffected.
 
 **Example** (Replacing Failure with `Effect.orElseFail`)
 
@@ -67,7 +76,19 @@ Output:
 
 ## orElseSucceed
 
-The `Effect.orElseSucceed` function will replace the original failure with a success value, ensuring the effect cannot fail:
+`Effect.orElseSucceed` allows you to replace the failure of an effect with a
+success value. If the effect fails, it will instead succeed with the provided
+value, ensuring the effect always completes successfully.
+
+This is useful when you want to guarantee a successful result regardless of whether the original
+effect failed.
+
+The function ensures that any failure is effectively "swallowed" and replaced
+by a successful value, which can be helpful for providing default values in
+case of failure.
+
+This function only applies to failed effects. If the effect
+already succeeds, it will remain unchanged.
 
 **Example** (Replacing Failure with Success using `Effect.orElseSucceed`)
 
@@ -95,7 +116,21 @@ Output:
 
 ## firstSuccessOf
 
-The `Effect.firstSuccessOf` function helps run a series of effects and returns the result of the first successful one. If none of the effects succeed, it fails with the error from the last effect in the series.
+`Effect.firstSuccessOf` allows you to try multiple effects in sequence, and
+as soon as one of them succeeds, it returns that result. If all effects fail,
+it returns the error of the last effect in the list.
+
+This is useful when you
+have several potential alternatives and want to use the first one that works.
+
+This function is sequential, meaning that the `Effect` values in the iterable
+will be executed in sequence, and the first one that succeeds will determine
+the outcome of the resulting `Effect` value.
+
+<Aside type="caution" title="Empty Collection Error">
+  If the collection provided to the `Effect.firstSuccessOf` function is
+  empty, it will throw an `IllegalArgumentException` error.
+</Aside>
 
 **Example** (Finding Configuration with Fallbacks)
 
@@ -151,8 +186,3 @@ Config for node3 found
 { host: 'node3.example.com', port: 8080, apiKey: '12345-abcde' }
 */
 ```
-
-<Aside type="danger" title="Empty Collection Error">
-  If the collection provided to the `Effect.firstSuccessOf` function is
-  empty, it will throw an `IllegalArgumentException` error.
-</Aside>
