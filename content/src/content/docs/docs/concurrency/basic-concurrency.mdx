@@ -543,11 +543,9 @@ task2 interrupted
 
 ### raceAll
 
-This function takes two effects and runs them concurrently. The first effect
-that successfully completes will determine the result of the race, and the
-other effect will be interrupted.
+This function runs multiple effects concurrently and returns the result of the first one to succeed. If one effect succeeds, the others will be interrupted.
 
-If none of the effects succeed, the function will fail with the last error.
+If none of the effects succeed, the function will fail with the last error encountered.
 
 This is useful when you want to race multiple effects, but only care
 about the first one to succeed. It is commonly used in cases like timeouts,
@@ -741,7 +739,7 @@ The `Effect.raceFirst` function safely interrupts the "loser" effect once the ot
 If you want a quicker return, you can disconnect the interrupt signal for both effects. Instead of calling:
 
 ```ts showLineNumbers=false
-Effect.raceFirst(task1, task2)`
+Effect.raceFirst(task1, task2)
 ```
 
 You can use:
