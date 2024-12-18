@@ -1,6 +1,6 @@
 ---
 import type { GetStaticPathsResult, InferGetStaticPropsType } from "astro"
-import { getEntry } from "astro:content"
+import { getEntry, render } from "astro:content"
 import { Icon } from "@astrojs/starlight/components"
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
 import type { StarlightPageProps } from "@astrojs/starlight/props"
@@ -15,18 +15,10 @@ export async function getStaticPaths() {
   const episodes = entries.map((entry) => ({
     params: {
       prefix: "podcast",
-      episode: entry.slug.replace("podcast", "")
+      episode: entry.id.replace("podcast", "")
     },
     props: {
-      episode: entry.data.episode,
-      title: entry.data.title,
-      description: entry.data.description,
-      youtube: entry.data.youtube,
-      transcript: entry.data.transcript,
-      date: entry.data.publicationDate.toLocaleDateString(undefined, {
-        dateStyle: "medium"
-      }),
-      render: entry.render
+      episode: entry
     }
   }))
   return episodes satisfies GetStaticPathsResult
@@ -34,9 +26,17 @@ export async function getStaticPaths() {
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>
 
-const { episode, title, description, youtube, date } = Astro.props
-const { Content } = await Astro.props.render()
-const transcript = await getEntry(Astro.props.transcript)
+const { episode } = Astro.props
+
+const episodeNumber = episode.data.episode
+const title = episode.data.title
+const description = episode.data.description
+const youtube = episode.data.youtube
+const date = episode.data.publicationDate.toLocaleDateString(undefined, {
+  dateStyle: "medium"
+})
+const { Content } = await render(episode)
+const transcript = await getEntry(episode.data.transcript)
 
 const pageProps: StarlightPageProps = {
   frontmatter: {
@@ -67,7 +67,7 @@ const pageProps: StarlightPageProps = {
         {date}
       </div>
       <h2 class="!mt-2 !mb-8 !text-3xl lg:!text-4xl text-black dark:text-white">
-        <span>#{episode}: </span>
+        <span>#{episodeNumber}: </span>
         <span>{title}</span>
       </h2>
       <p>{description}</p>

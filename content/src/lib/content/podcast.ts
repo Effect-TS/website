@@ -1,15 +1,13 @@
 import { getCollection, type CollectionEntry } from "astro:content"
-import type { Podcast } from "../schema/podcast";
+import type { Podcast } from "../schema/podcast"
 
 export interface PodcastCollectionEntry {
-  body: string
-  collection: string
-  data: Podcast & CollectionEntry<"docs">["data"]
   id: string
-  render: () => Promise<{
-    Content: import('astro').MarkdownInstance<object>['Content']
-  }>
-  slug: string
+  body?: string
+  collection: "docs"
+  data: Podcast & CollectionEntry<"docs">["data"]
+  rendered?: RenderedContent
+  filePath?: string
 }
 
 export async function getPodcastEntries() {
@@ -22,6 +20,9 @@ export async function getPodcastEntries() {
     }
   }
 
-  return podcastEntries.sort((a, b) => b.data.publicationDate.getTime() - a.data.publicationDate.getTime())
+  return podcastEntries.sort((a, b) => {
+    return (
+      b.data.publicationDate.getTime() - a.data.publicationDate.getTime()
+    )
+  })
 }
-

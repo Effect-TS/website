@@ -1,5 +1,5 @@
 import { defineConfig } from "astro/config"
-import vercel from "@astrojs/vercel/serverless"
+import vercel from "@astrojs/vercel"
 import { h } from "hastscript"
 import rehypeMermaid, { type RehypeMermaidOptions } from "rehype-mermaid"
 import rehypeAutolinkHeadings, {
@@ -21,8 +21,7 @@ import { effectPodcastPlugin } from "./src/plugins/starlight/podcast"
 import { monacoEditorPlugin } from "./src/plugins/vite/monaco-editor"
 
 const VERCEL_PREVIEW_DOMAIN =
-  process.env.VERCEL_ENV !== "production" &&
-  process.env.VERCEL_BRANCH_URL
+  process.env.VERCEL_ENV !== "production" && process.env.VERCEL_BRANCH_URL
 
 const domain = VERCEL_PREVIEW_DOMAIN || "effect.website"
 
@@ -79,16 +78,13 @@ const rehypeAutolinkHeadingsOptions: RehypeAutolinkHeadingsOptions = {
 
 export default defineConfig({
   site,
-  output: "hybrid",
+  output: "static",
   trailingSlash: "always",
   adapter: vercel({
     webAnalytics: {
       enabled: true
     }
   }),
-  experimental: {
-    contentLayer: true
-  },
   markdown: {
     rehypePlugins: [
       [rehypeMermaid, rehypeMermaidOptions],
