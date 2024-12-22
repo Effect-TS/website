@@ -1,0 +1,101 @@
+---
+title: Effect 3.12 (Release)
+excerpt: New Effect release featuring Effect.fn & Cron improvements, Schema additions, and more!
+date: 2024-12-23
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.12 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## Effect.fn improvements
+
+- Stack traces will now include the location where the function was defined, not just where it was called.
+- A variant has been added that allows you to directly pass the function body.
+- `Effect.fnUntraced` has been added which allows you to create a function that is not traced, for when performance is critical.
+
+```ts
+import { NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
+
+const boomFunction = Effect.fn(function*(n: number) { // line 4
+  yield* Effect.annotateCurrentSpan("n", n)
+  yield* Effect.fail(new Error("boom")) // line 6
+})
+
+boomFunction(42).pipe( // line 9
+  Effect.catchAllCause(Effect.logError),
+  NodeRuntime.runMain
+)
+
+/*
+Output:
+
+[09:33:00.998] ERROR (#0):
+  Error: boom
+      at <anonymous> (/Volumes/Code/effect/effect/scratchpad/fn.ts:6:22)
+      at <anonymous> (/Volumes/Code/effect/effect/scratchpad/fn.ts:4:29)
+      at <anonymous> (/Volumes/Code/effect/effect/scratchpad/fn.ts:9:1)
+*/
+```
+
+## Runtime.Context type extractor
+
+You can now easily extract the `R` (requirements) type from a `Runtime`.
+
+```ts
+import { Runtime } from "effect"
+
+declare const runtime: Runtime<"ServiceA" | "ServiceB">
+
+// "ServiceA" | "ServiceB"
+type Extracted = Runtime.Runtime.Context<typeof runtime>
+```
+
+## Context.mergeAll
+
+This API allows you to merge multiple Context instances into a single one.
+
+```ts
+import { Context } from "effect"
+
+declare const contextA: Context.Context<"A">
+declare const contextB: Context.Context<"B">
+declare const contextC: Context.Context<"C">
+
+// Context.Context<"A" | "B" | "C">
+const merged = Context.mergeAll(contextA, contextB, contextC)
+```
+
+## Cron improvements
+
+- Cron expressions now support second granularity.
+- Added `Cron.unsafeParse` which throws an error if the expression is invalid
+
+```ts
+import { Cron } from "effect"
+
+// At 04:00:30 on every day-of-month from 8 through 14.
+const cron = Cron.unsafeParse("30 0 4 8-14 * 0-6")
+const either = Cron.parse("30 0 4 8-14 * 0-6")
+
+// `cron` is a `Cron` instance instead of an `Either` type
+```
+
+## Schema additions
+
+Some new schema types & combinators have been added:
+
+- `DateTimeUtcFromDate` - Transform a `Date` to a `DateTime.Utc`.
+- `StringFromUriComponent` - Transform a URI component encoded string to a regular string.
+- `headNonEmpty` - Get the first element of a non-empty array.
+
+## Other changes
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
