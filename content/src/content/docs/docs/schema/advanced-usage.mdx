@@ -1809,7 +1809,7 @@ details: cannot extend string with number
 */
 ```
 
-**Example** (xtending a Refinement with Another Refinement)
+**Example** (Extending a Refinement with Another Refinement)
 
 In this example, we extend two refinements, `Integer` and `Positive`, creating a schema that enforces both integer and positivity constraints.
 
@@ -1826,19 +1826,19 @@ const PositiveInteger = Schema.asSchema(Schema.extend(Positive, Integer))
 Schema.decodeUnknownSync(PositiveInteger)(-1)
 /*
 throws
-ParseError: Int & Brand<"Int">
+ParseError: positive & Brand<"Positive"> & int & Brand<"Int">
 └─ From side refinement failure
-  └─ Positive & Brand<"Positive">
+   └─ positive & Brand<"Positive">
       └─ Predicate refinement failure
-        └─ Expected Positive & Brand<"Positive">, actual -1
+         └─ Expected a positive number, actual -1
 */
 
 Schema.decodeUnknownSync(PositiveInteger)(1.1)
 /*
 throws
-ParseError: Int & Brand<"Int">
+ParseError: positive & Brand<"Positive"> & int & Brand<"Int">
 └─ Predicate refinement failure
-  └─ Expected Int & Brand<"Int">, actual 1.1
+   └─ Expected an integer, actual 1.1
 */
 ```
 
