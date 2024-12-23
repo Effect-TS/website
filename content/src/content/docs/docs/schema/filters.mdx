@@ -339,7 +339,9 @@ Schema.String.pipe(Schema.maxLength(5))
 // Specifies minimum length of a string
 Schema.String.pipe(Schema.minLength(5))
 
-// Equivalent to ensuring the string has a minimum length of 1
+// Equivalent to minLength(1)
+Schema.String.pipe(Schema.nonEmptyString())
+// or
 Schema.NonEmptyString
 
 // Specifies exact length of a string
@@ -406,30 +408,51 @@ Schema.Number.pipe(Schema.between(-2, 2))
 
 // Specifies that the value must be an integer
 Schema.Number.pipe(Schema.int())
+// or
+Schema.Int
 
 // Ensures the value is not NaN
 Schema.Number.pipe(Schema.nonNaN())
+// or
+Schema.NonNaN
 
-// Ensures the value is finite and not Infinity or -Infinity
+// Ensures that the provided value is a finite number
+// (excluding NaN, +Infinity, and -Infinity)
 Schema.Number.pipe(Schema.finite())
+// or
+Schema.Finite
 
 // Specifies a positive number (> 0)
 Schema.Number.pipe(Schema.positive())
+// or
+Schema.Positive
 
 // Specifies a non-negative number (>= 0)
 Schema.Number.pipe(Schema.nonNegative())
+// or
+Schema.NonNegative
+
+// A non-negative integer
+Schema.NonNegativeInt
 
 // Specifies a negative number (< 0)
 Schema.Number.pipe(Schema.negative())
+// or
+Schema.Negative
 
 // Specifies a non-positive number (<= 0)
 Schema.Number.pipe(Schema.nonPositive())
+// or
+Schema.NonPositive
 
 // Specifies a number that is evenly divisible by 5
 Schema.Number.pipe(Schema.multipleOf(5))
+
+// A 8-bit unsigned integer (0 to 255)
+Schema.Uint8
 ```
 
-### Array Filters
+### ReadonlyArray Filters
 
 Here is a list of useful array filters provided by the Schema module:
 
@@ -444,6 +467,32 @@ Schema.Array(Schema.Number).pipe(Schema.minItems(2))
 
 // Specifies the exact number of items in the array
 Schema.Array(Schema.Number).pipe(Schema.itemsCount(2))
+```
+
+### Date Filters
+
+```ts twoslash
+import { Schema } from "effect"
+
+// Specifies a valid date (rejects values like `new Date("Invalid Date")`)
+Schema.DateFromSelf.pipe(Schema.validDate())
+// or
+Schema.ValidDateFromSelf
+
+// Specifies a date greater than the current date
+Schema.Date.pipe(Schema.greaterThanDate(new Date()))
+
+// Specifies a date greater than or equal to the current date
+Schema.Date.pipe(Schema.greaterThanOrEqualToDate(new Date()))
+
+// Specifies a date less than the current date
+Schema.Date.pipe(Schema.lessThanDate(new Date()))
+
+// Specifies a date less than or equal to the current date
+Schema.Date.pipe(Schema.lessThanOrEqualToDate(new Date()))
+
+// Specifies a date between two dates
+Schema.Date.pipe(Schema.betweenDate(new Date(0), new Date()))
 ```
 
 ### BigInt Filters
@@ -470,15 +519,23 @@ Schema.BigInt.pipe(Schema.betweenBigInt(-2n, 2n))
 
 // Specifies a positive BigInt (> 0n)
 Schema.BigInt.pipe(Schema.positiveBigInt())
+// or
+Schema.PositiveBigIntFromSelf
 
 // Specifies a non-negative BigInt (>= 0n)
 Schema.BigInt.pipe(Schema.nonNegativeBigInt())
+// or
+Schema.NonNegativeBigIntFromSelf
 
 // Specifies a negative BigInt (< 0n)
 Schema.BigInt.pipe(Schema.negativeBigInt())
+// or
+Schema.NegativeBigIntFromSelf
 
 // Specifies a non-positive BigInt (<= 0n)
 Schema.BigInt.pipe(Schema.nonPositiveBigInt())
+// or
+Schema.NonPositiveBigIntFromSelf
 ```
 
 ### BigDecimal Filters
@@ -486,33 +543,32 @@ Schema.BigInt.pipe(Schema.nonPositiveBigInt())
 Here is a list of useful `BigDecimal` filters provided by the Schema module:
 
 ```ts twoslash
-import { Schema } from "effect"
-import { BigDecimal } from "effect"
+import { Schema, BigDecimal } from "effect"
 
 // Specifies a BigDecimal greater than 5
 Schema.BigDecimal.pipe(
-  Schema.greaterThanBigDecimal(BigDecimal.fromNumber(5))
+  Schema.greaterThanBigDecimal(BigDecimal.unsafeFromNumber(5))
 )
 
 // Specifies a BigDecimal greater than or equal to 5
 Schema.BigDecimal.pipe(
-  Schema.greaterThanOrEqualToBigDecimal(BigDecimal.fromNumber(5))
+  Schema.greaterThanOrEqualToBigDecimal(BigDecimal.unsafeFromNumber(5))
 )
 // Specifies a BigDecimal less than 5
 Schema.BigDecimal.pipe(
-  Schema.lessThanBigDecimal(BigDecimal.fromNumber(5))
+  Schema.lessThanBigDecimal(BigDecimal.unsafeFromNumber(5))
 )
 
 // Specifies a BigDecimal less than or equal to 5
 Schema.BigDecimal.pipe(
-  Schema.lessThanOrEqualToBigDecimal(BigDecimal.fromNumber(5))
+  Schema.lessThanOrEqualToBigDecimal(BigDecimal.unsafeFromNumber(5))
 )
 
 // Specifies a BigDecimal between -2 and 2, inclusive
 Schema.BigDecimal.pipe(
   Schema.betweenBigDecimal(
-    BigDecimal.fromNumber(-2),
-    BigDecimal.fromNumber(2)
+    BigDecimal.unsafeFromNumber(-2),
+    BigDecimal.unsafeFromNumber(2)
   )
 )
 
@@ -531,7 +587,7 @@ Schema.BigDecimal.pipe(Schema.nonPositiveBigDecimal())
 
 ### Duration Filters
 
-Here is a list of useful `Duration` filters provided by the Schema module:
+Here is a list of useful [Duration](/docs/data-types/duration/) filters provided by the Schema module:
 
 ```ts twoslash
 import { Schema } from "effect"
