@@ -155,7 +155,7 @@ ParseError: Person
 └─ ["name"]
    └─ Name
       └─ Predicate refinement failure
-         └─ Expected Name, actual ""
+         └─ Expected a non empty string, actual ""
 */
 ```
 
@@ -193,7 +193,7 @@ const schema = Schema.transformOrFail(
 Schema.decodeUnknownSync(schema)(null)
 /*
 throws:
-ParseError: (string <-> a string at least 2 character(s) long)
+ParseError: (string <-> minLength(2))
 └─ Encoded side transformation failure
    └─ Expected string, actual null
 */
@@ -202,18 +202,18 @@ ParseError: (string <-> a string at least 2 character(s) long)
 Schema.decodeUnknownSync(schema)("")
 /*
 throws:
-ParseError: (string <-> a string at least 2 character(s) long)
+ParseError: (string <-> minLength(2))
 └─ Transformation process failure
-   └─ Expected (string <-> a string at least 2 character(s) long), actual ""
+   └─ Expected (string <-> minLength(2)), actual ""
 */
 
 // Type side failure
 Schema.decodeUnknownSync(schema)("a")
 /*
 throws:
-ParseError: (string <-> a string at least 2 character(s) long)
+ParseError: (string <-> minLength(2))
 └─ Type side transformation failure
-   └─ a string at least 2 character(s) long
+   └─ minLength(2)
       └─ Predicate refinement failure
          └─ Expected a string at least 2 character(s) long, actual "a"
 */
@@ -314,11 +314,11 @@ try {
 } catch (e: any) {
   console.log(e.message)
   /*
-  a string at most 2 character(s) long
-  └─ From side refinement failure
-    └─ a string at least 1 character(s) long
-        └─ From side refinement failure
-          └─ Expected string, actual null
+   minLength(1) & maxLength(2)
+   └─ From side refinement failure
+      └─ minLength(1)
+         └─ From side refinement failure
+            └─ Expected string, actual null
   */
 }
 
@@ -327,11 +327,11 @@ try {
 } catch (e: any) {
   console.log(e.message)
   /*
-  a string at most 2 character(s) long
-  └─ From side refinement failure
-    └─ a string at least 1 character(s) long
-        └─ Predicate refinement failure
-          └─ Expected a string at least 1 character(s) long, actual ""
+   minLength(1) & maxLength(2)
+   └─ From side refinement failure
+      └─ minLength(1)
+         └─ Predicate refinement failure
+            └─ Expected a string at least 1 character(s) long, actual ""
   */
 }
 
@@ -475,8 +475,7 @@ The custom message system becomes especially handy when dealing with complex sch
 **Example** (Custom Error Messages in Nested Schemas)
 
 ```ts twoslash
-import { Schema } from "effect"
-import { pipe } from "effect"
+import { Schema, pipe } from "effect"
 
 const schema = Schema.Struct({
   outcomes: pipe(
@@ -503,7 +502,7 @@ Schema.decodeUnknownSync(schema, { errors: "all" })({
 })
 /*
 throws
-ParseError: { readonly outcomes: an array of at least 1 items }
+ParseError: { readonly outcomes: minItems(1) }
 └─ ["outcomes"]
    └─ error_min_length_field
 */
@@ -517,17 +516,17 @@ Schema.decodeUnknownSync(schema, { errors: "all" })({
 })
 /*
 throws
-ParseError: { readonly outcomes: an array of at least 1 items }
+ParseError: { readonly outcomes: minItems(1) }
 └─ ["outcomes"]
-   └─ an array of at least 1 items
+   └─ minItems(1)
       └─ From side refinement failure
-         └─ ReadonlyArray<{ readonly id: string; readonly text: a string at most 50 character(s) long }>
+         └─ ReadonlyArray<{ readonly id: string; readonly text: minLength(1) & maxLength(50) }>
             ├─ [0]
-            │  └─ { readonly id: string; readonly text: a string at most 50 character(s) long }
+            │  └─ { readonly id: string; readonly text: minLength(1) & maxLength(50) }
             │     └─ ["text"]
             │        └─ error_required_field
             └─ [2]
-               └─ { readonly id: string; readonly text: a string at most 50 character(s) long }
+               └─ { readonly id: string; readonly text: minLength(1) & maxLength(50) }
                   └─ ["text"]
                      └─ error_max_length_field
 */

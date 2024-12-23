@@ -887,6 +887,29 @@ Uint8Array(8) [
 */
 ```
 
+### StringFromUriComponent
+
+Decodes a URI-encoded string into a UTF-8 string. It is useful for encoding and decoding data in URLs.
+
+**Example** (Decoding URI Component)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const PaginationSchema = Schema.Struct({
+  maxItemPerPage: Schema.Number,
+  page: Schema.Number
+})
+
+const UrlSchema = Schema.compose(
+  Schema.StringFromUriComponent,
+  Schema.parseJson(PaginationSchema)
+)
+
+console.log(Schema.encodeSync(UrlSchema)({ maxItemPerPage: 10, page: 1 }))
+// Output: %7B%22maxItemPerPage%22%3A10%2C%22page%22%3A1%7D
+```
+
 ## Number Transformations
 
 ### NumberFromString

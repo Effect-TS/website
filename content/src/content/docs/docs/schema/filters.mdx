@@ -132,14 +132,19 @@ ParseError: LongString
    └─ a string at least 10 characters long
 */
 
-console.log(JSONSchema.make(LongString))
+console.log(JSON.stringify(JSONSchema.make(LongString), null, 2))
 /*
 Output:
 {
-  '$schema': 'http://json-schema.org/draft-07/schema#',
-  type: 'string',
-  description: 'Lorem ipsum dolor sit amet, ...',
-  minLength: 10
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$defs": {
+    "LongString": {
+      "type": "string",
+      "description": "Lorem ipsum dolor sit amet, ...",
+      "minLength": 10
+    }
+  },
+  "$ref": "#/$defs/LongString"
 }
 */
 ```
@@ -176,7 +181,7 @@ console.log(
   JSON.stringify(
     Schema.decodeUnknownEither(MyForm)({
       password: "abc",
-      confirm_password: "d" // Confirm password does not match
+      confirm_password: "abd" // Confirm password does not match
     }).pipe(
       Either.mapLeft((error) =>
         ParseResult.ArrayFormatter.formatErrorSync(error)
@@ -257,7 +262,7 @@ console.log(
   JSON.stringify(
     Schema.decodeUnknownEither(MyForm)({
       password: "abc",
-      confirm_password: "d" // Confirm password does not match
+      confirm_password: "abd" // Confirm password does not match
     }).pipe(
       Either.mapLeft((error) =>
         ParseResult.ArrayFormatter.formatErrorSync(error)

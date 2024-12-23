@@ -47,9 +47,7 @@ The `effect/Schema` module takes advantage of the `exactOptionalPropertyTypes` o
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
-  name: Schema.optionalWith(Schema.String.pipe(Schema.nonEmptyString()), {
-    exact: true
-  })
+  name: Schema.optionalWith(Schema.NonEmptyString, { exact: true })
 })
 
 type Type = Schema.Schema.Type<typeof Person>
@@ -78,9 +76,7 @@ If, for some reason, you can't enable the `exactOptionalPropertyTypes` option (p
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
-  name: Schema.optionalWith(Schema.String.pipe(Schema.nonEmptyString()), {
-    exact: true
-  })
+  name: Schema.optionalWith(Schema.NonEmptyString, { exact: true })
 })
 
 type Type = Schema.Schema.Type<typeof Person>
@@ -94,9 +90,9 @@ type Type = {
 Schema.decodeSync(Person)({ name: undefined })
 /*
 throws:
-ParseError: { readonly name?: a non empty string }
+ParseError: { readonly name?: NonEmptyString }
 └─ ["name"]
-   └─ a non empty string
+   └─ NonEmptyString
       └─ From side refinement failure
          └─ Expected string, actual undefined
 */
