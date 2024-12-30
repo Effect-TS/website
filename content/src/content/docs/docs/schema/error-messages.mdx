@@ -560,9 +560,9 @@ class Messages extends Context.Tag("Messages")<
 // that depends on the Messages service
 const Name = Schema.NonEmptyString.annotations({
   message: () =>
-    Effect.gen(function* (_) {
+    Effect.gen(function* () {
       // Attempt to retrieve the Messages service
-      const service = yield* _(Effect.serviceOption(Messages))
+      const service = yield* Effect.serviceOption(Messages)
       // Use a fallback message if the service is not available
       return Option.match(service, {
         onNone: () => "Invalid string",

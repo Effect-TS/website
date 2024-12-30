@@ -386,14 +386,14 @@ import { Metric, Array, Random, Effect } from "effect"
 const timer = Metric.timerWithBoundaries("timer", Array.range(1, 10))
 
 // Define a task that simulates random wait times
-const task = Effect.gen(function* (_) {
+const task = Effect.gen(function* () {
   // Generate a random value between 1 and 10
   const n = yield* Random.nextIntBetween(1, 10)
   // Simulate a delay based on the random value
   yield* Effect.sleep(`${n} millis`)
 })
 
-const program = Effect.gen(function* (_) {
+const program = Effect.gen(function* () {
   // Track the duration of the task and repeat it 100 times
   yield* Metric.trackDuration(task, timer).pipe(Effect.repeatN(99))
 
@@ -475,7 +475,7 @@ const responseTimeSummary = Metric.summary({
   description: "Measures the distribution of response times"
 })
 
-const program = Effect.gen(function* (_) {
+const program = Effect.gen(function* () {
   // Record 100 random response times between 1 and 120 ms
   yield* responseTimeSummary(Random.nextIntBetween(1, 120)).pipe(
     Effect.repeatN(99)
@@ -533,7 +533,7 @@ const task = Effect.gen(function* () {
 })
 
 // Program that simulates random errors and tracks their occurrences
-const program = Effect.gen(function* (_) {
+const program = Effect.gen(function* () {
   yield* errorFrequency(task).pipe(Effect.repeatN(99))
 
   // Retrieve and log the current state of the summary
