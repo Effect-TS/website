@@ -583,7 +583,7 @@ The outer scope is about to be closed!
 
 Forked fibers begin execution after the current fiber completes or yields.
 
-**Example** (Fiber Starting After Value Change)
+**Example** (Late Fiber Start Captures Only One Value)
 
 In the following example, the `changes` stream only captures a single value, `2`.
 This happens because the fiber created by `Effect.fork` starts **after** the value is updated.
@@ -611,12 +611,18 @@ SubscriptionRef changed to 2
 */
 ```
 
-If we add `Effect.yieldNow()` to allow the current fiber to yield, the stream will capture all values.
-This happens because the fiber running the stream has a chance to start before the values change.
+If you add a short delay with `Effect.sleep()` or call `Effect.yieldNow()`, you allow the current fiber to yield. This gives the forked fiber enough time to start and collect all values before they are updated.
 
-**Example** (Forcing Fiber to Yield)
+<Aside type="caution" title="Fiber Execution is Non-Deterministic">
+  Keep in mind that the timing of fiber execution is not deterministic,
+  and many factors can affect when a fiber starts. Do not rely on the idea
+  that a single yield always ensures your fiber begins at a particular
+  time.
+</Aside>
 
-```ts twoslash ins={13}
+**Example** (Delay Allows Fiber to Capture All Values)
+
+```ts twoslash ins={14}
 import { Effect, SubscriptionRef, Stream, Console } from "effect"
 
 const program = Effect.gen(function* () {
@@ -628,8 +634,10 @@ const program = Effect.gen(function* () {
     // Fork a fiber to run the stream
     Effect.fork
   )
-  // Yield to allow the fiber to start
-  yield* Effect.yieldNow()
+
+  // Allow the fiber a chance to start
+  yield* Effect.sleep("100 millis")
+
   yield* SubscriptionRef.set(ref, 1)
   yield* SubscriptionRef.set(ref, 2)
 })
