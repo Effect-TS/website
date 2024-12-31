@@ -7,8 +7,10 @@ import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 
 const make = (url: string, token: Redacted.Redacted) =>
-  Effect.gen(function*() {
-    const { createClient } = yield* Effect.promise(() => import("@vercel/kv"))
+  Effect.gen(function* () {
+    const { createClient } = yield* Effect.promise(
+      () => import("@vercel/kv")
+    )
     const kv = createClient({ url, token: Redacted.value(token) })
     return KVS.makeStringOnly({
       get: (key) =>
@@ -66,7 +68,7 @@ export const VercelKVSLive = (url: string, token: Redacted.Redacted) =>
   Layer.effect(KVS.KeyValueStore, make(url, token))
 
 export const VercelOrMemoryKVS = Layer.unwrapEffect(
-  Effect.gen(function*(_) {
+  Effect.gen(function* () {
     if (process.env.NODE_ENV === "development") return KVS.layerMemory
     const config = yield* Config.all({
       url: Config.string("KV_REST_API_URL"),
