@@ -277,9 +277,13 @@ To summarize:
 
 Fibers can be interrupted in various ways. Let's explore some of these scenarios and see examples of how to interrupt fibers in Effect.
 
-### Effect.interrupt
+### interrupt
 
 A fiber can be interrupted using the `Effect.interrupt` effect on that particular fiber.
+
+This effect models the explicit interruption of the fiber in which it runs.
+When executed, it causes the fiber to stop its operation immediately, capturing the interruption details such as the fiber's ID and its start time.
+The resulting interruption can be observed in the [Exit](/docs/data-types/exit/) type if the effect is run with functions like [runPromiseExit](/docs/getting-started/running-effects/#runpromiseexit).
 
 **Example** (Without Interruption)
 
@@ -289,17 +293,18 @@ In this case, the program runs without any interruption, logging the start and c
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
-  yield* Effect.log("start")
+  console.log("start")
   yield* Effect.sleep("2 seconds")
-  yield* Effect.log("done")
+  console.log("done")
+  return "some result"
 })
 
 Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
-timestamp=... level=INFO fiber=#0 message=start
-timestamp=... level=INFO fiber=#0 message=done
-{ _id: 'Exit', _tag: 'Success', value: undefined }
+start
+done
+{ _id: 'Exit', _tag: 'Success', value: 'some result' }
 */
 ```
 
@@ -311,16 +316,17 @@ Here, the fiber is interrupted after the log `"start"` but before the `"done"` l
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
-  yield* Effect.log("start")
+  console.log("start")
   yield* Effect.sleep("2 seconds")
   yield* Effect.interrupt
-  yield* Effect.log("done")
+  console.log("done")
+  return "some result"
 })
 
 Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
-timestamp=... level=INFO fiber=#0 message=start
+start
 {
   _id: 'Exit',
   _tag: 'Failure',
@@ -338,28 +344,82 @@ timestamp=... level=INFO fiber=#0 message=start
 */
 ```
 
-When a fiber is interrupted, the cause of the interruption is captured, including details like the fiber's ID and when it started.
+### onInterrupt
+
+Registers a cleanup effect to run when an effect is interrupted.
+
+This function allows you to specify an effect to run when the fiber is interrupted. This effect will be executed
+when the fiber is interrupted, allowing you to perform cleanup or other actions.
+
+**Example** (Running a Cleanup Action on Interruption)
+
+In this example, we set up a handler that logs "Cleanup completed" whenever the fiber is interrupted. We then show three cases: a successful effect, a failing effect, and an interrupted effect, demonstrating how the handler is triggered depending on how the effect ends.
+
+```ts twoslash
+import { Console, Effect } from "effect"
+
+// This handler is executed when the fiber is interrupted
+const handler = Effect.onInterrupt((_fibers) =>
+  Console.log("Cleanup completed")
+)
+
+const success = Console.log("Task completed").pipe(
+  Effect.as("some result"),
+  handler
+)
+
+Effect.runFork(success)
+/*
+Output:
+Task completed
+*/
+
+const failure = Console.log("Task failed").pipe(
+  Effect.andThen(Effect.fail("some error")),
+  handler
+)
+
+Effect.runFork(failure)
+/*
+Output:
+Task failed
+*/
+
+const interruption = Console.log("Task interrupted").pipe(
+  Effect.andThen(Effect.interrupt),
+  handler
+)
+
+Effect.runFork(interruption)
+/*
+Output:
+Task interrupted
+Cleanup completed
+*/
+```
 
 ### Interruption of Concurrent Effects
 
 When running multiple effects concurrently, such as with `Effect.forEach`, if one of the effects is interrupted, it causes all concurrent effects to be interrupted as well.
 
+The resulting [cause](/docs/data-types/cause/) includes information about which fibers were interrupted.
+
 **Example** (Interrupting Concurrent Effects)
 
 ```ts twoslash
-import { Effect } from "effect"
+import { Effect, Console } from "effect"
 
 const program = Effect.forEach(
   [1, 2, 3],
   (n) =>
     Effect.gen(function* () {
-      yield* Effect.log(`start #${n}`)
+      console.log(`start #${n}`)
       yield* Effect.sleep(`${n} seconds`)
       if (n > 1) {
         yield* Effect.interrupt
       }
-      yield* Effect.log(`done #${n}`)
-    }),
+      console.log(`done #${n}`)
+    }).pipe(Effect.onInterrupt(() => Console.log(`interrupted #${n}`))),
   { concurrency: "unbounded" }
 )
 
@@ -368,10 +428,12 @@ Effect.runPromiseExit(program).then((exit) =>
 )
 /*
 Output:
-timestamp=... level=INFO fiber=#1 message="start #1"
-timestamp=... level=INFO fiber=#2 message="start #2"
-timestamp=... level=INFO fiber=#3 message="start #3"
-timestamp=... level=INFO fiber=#1 message="done #1"
+start #1
+start #2
+start #3
+done #1
+interrupted #2
+interrupted #3
 {
   "_id": "Exit",
   "_tag": "Failure",
