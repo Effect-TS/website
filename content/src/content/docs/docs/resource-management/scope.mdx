@@ -440,6 +440,177 @@ Task Finalizer
 */
 ```
 
+## Finalization
+
+In many languages, the `try` / `finally` construct provides a way to ensure that, when the try block finishes (normally or with an error), the code in the finally block always runs. Effect offers a similar feature through the `Effect.ensuring` function.
+
+For higher-level approaches with automatic acquisition and release, see the [acquireRelease](#acquirerelease) family of functions.
+
+### ensuring
+
+This function makes sure a finalizer effect always runs once the main effect begins, whether the effect succeeds, fails, or is interrupted.
+
+This can be helpful when you need cleanup steps or final actions in all situations, such as releasing resources or logging messages.
+
+If you need access to the effect's result, consider using [onExit](#onexit).
+
+**Example** (Running a Finalizer in All Outcomes)
+
+```ts twoslash
+import { Console, Effect } from "effect"
+
+const handler = Effect.ensuring(Console.log("Cleanup completed"))
+
+const success = Console.log("Task completed").pipe(
+  Effect.as("some result"),
+  handler
+)
+
+Effect.runFork(success)
+/*
+Output:
+Task completed
+Cleanup completed
+*/
+
+const failure = Console.log("Task failed").pipe(
+  Effect.andThen(Effect.fail("some error")),
+  handler
+)
+
+Effect.runFork(failure)
+/*
+Output:
+Task failed
+Cleanup completed
+*/
+
+const interruption = Console.log("Task interrupted").pipe(
+  Effect.andThen(Effect.interrupt),
+  handler
+)
+
+Effect.runFork(interruption)
+/*
+Output:
+Task interrupted
+Cleanup completed
+*/
+```
+
+### onExit
+
+This function runs a cleanup step once the main effect finishes, regardless of whether it succeeds, fails, or is interrupted.
+
+It passes the [Exit](/docs/data-types/exit/) value to the cleanup function, which reveals how the effect ended:
+
+- If the effect succeeds, the `Exit` holds the success value.
+- If it fails, the `Exit` includes the error or failure cause.
+- If it is interrupted, the `Exit` reflects that interruption.
+
+The cleanup step itself is uninterruptible, which can help manage resources in complex or high-concurrency cases.
+
+**Example** (Running a Cleanup Function in All Outcomes)
+
+```ts twoslash
+import { Console, Effect, Exit } from "effect"
+
+// Define a cleanup function that logs the outcome of the effect
+const handler = Effect.onExit((exit) =>
+  Console.log(`Cleanup completed: ${Exit.getOrElse(exit, String)}`)
+)
+
+const success = Console.log("Task completed").pipe(
+  Effect.as("some result"),
+  handler
+)
+
+Effect.runFork(success)
+/*
+Output:
+Task completed
+Cleanup completed: some result
+*/
+
+const failure = Console.log("Task failed").pipe(
+  Effect.andThen(Effect.fail("some error")),
+  handler
+)
+
+Effect.runFork(failure)
+/*
+Output:
+Task failed
+Cleanup completed: Error: some error
+*/
+
+const interruption = Console.log("Task interrupted").pipe(
+  Effect.andThen(Effect.interrupt),
+  handler
+)
+
+Effect.runFork(interruption)
+/*
+Output:
+Task interrupted
+Cleanup completed: All fibers interrupted without errors.
+*/
+```
+
+### onError
+
+This function lets you attach a cleanup effect that runs whenever the calling effect fails, passing the cause of the failure to the cleanup effect.
+
+You can use it to perform actions such as logging, releasing resources, or applying additional recovery steps.
+
+The cleanup effect will also run if the failure is caused by interruption, and it is uninterruptible, so it always finishes once it starts.
+
+**Example** (Cleanup on Failure)
+
+```ts twoslash
+import { Console, Effect } from "effect"
+
+// This handler logs the failure cause when the effect fails
+const handler = Effect.onError((cause) =>
+  Console.log(`Cleanup completed: ${cause}`)
+)
+
+const success = Console.log("Task completed").pipe(
+  Effect.as("some result"),
+  handler
+)
+
+Effect.runFork(success)
+/*
+Output:
+Task completed
+*/
+
+const failure = Console.log("Task failed").pipe(
+  Effect.andThen(Effect.fail("some error")),
+  handler
+)
+
+Effect.runFork(failure)
+/*
+Output:
+Task failed
+Cleanup completed: Error: some error
+*/
+
+const interruption = Console.log("Task interrupted").pipe(
+  Effect.andThen(Effect.interrupt),
+  handler
+)
+
+Effect.runFork(interruption)
+/*
+Output:
+Task interrupted
+Cleanup completed: All fibers interrupted without errors.
+*/
+```
+
 ## Defining Resources
 
 ### acquireRelease
