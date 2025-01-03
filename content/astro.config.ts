@@ -189,7 +189,7 @@ export default defineConfig({
               name: "Mirela Prifti",
               title: "Community Manager",
               picture: "/authors/mirela_prifti.png",
-              url: "https://twitter.com/mirepri4"
+              url: "https://twitter.com/MirelaPriftix"
             },
             michael_arnaldi: {
               name: "Michael Arnaldi",
