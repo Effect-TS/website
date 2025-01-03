@@ -737,3 +737,160 @@ Output:
 ```
 
 Note that the `runnable` requirements type is `never`, indicating that the program does not require any additional services to run.
+
+## Converting a Layer to an Effect
+
+Sometimes your entire application might be a Layer, for example, an HTTP server. You can convert that layer to an effect with `Layer.launch`. It constructs the layer and keeps it alive until interrupted.
+
+**Example** (Launching an HTTP Server Layer)
+
+```ts twoslash
+import { Console, Context, Effect, Layer } from "effect"
+
+class HTTPServer extends Context.Tag("HTTPServer")<HTTPServer, void>() {}
+
+// Simulating an HTTP server
+const server = Layer.effect(
+  HTTPServer,
+  // Log a message to simulate a server starting
+  Console.log("Listening on http://localhost:3000")
+)
+
+// Converts the layer to an effect and runs it
+Effect.runFork(Layer.launch(server))
+/*
+Output:
+Listening on http://localhost:3000
+...
+*/
+```
+
+## Tapping
+
+The `Layer.tap` and `Layer.tapError` functions allow you to perform additional effects based on the success or failure of a layer. These operations do not modify the layer's signature but are useful for logging or performing side effects during layer construction.
+
+- `Layer.tap`: Executes a specified effect when the layer is successfully acquired.
+- `Layer.tapError`: Executes a specified effect when the layer fails to acquire.
+
+**Example** (Logging Success and Failure During Layer Acquisition)
+
+```ts twoslash
+import { Config, Context, Effect, Layer, Console } from "effect"
+
+class HTTPServer extends Context.Tag("HTTPServer")<HTTPServer, void>() {}
+
+// Simulating an HTTP server
+const server = Layer.effect(
+  HTTPServer,
+  Effect.gen(function* () {
+    const host = yield* Config.string("HOST")
+    console.log(`Listening on http://localhost:${host}`)
+  })
+).pipe(
+  // Log a message if the layer acquisition succeeds
+  Layer.tap((ctx) =>
+    Console.log(`layer acquisition succeeded with:\n${ctx}`)
+  ),
+  // Log a message if the layer acquisition fails
+  Layer.tapError((err) =>
+    Console.log(`layer acquisition failed with:\n${err}`)
+  )
+)
+
+Effect.runFork(Layer.launch(server))
+/*
+Output:
+layer acquisition failed with:
+(Missing data at HOST: "Expected HOST to exist in the process context")
+*/
+```
+
+## Error Handling
+
+When constructing layers, it is important to handle potential errors. The Effect library provides tools like `Layer.catchAll` and `Layer.orElse` to manage errors and define fallback layers in case of failure.
+
+### catchAll
+
+The `Layer.catchAll` function allows you to recover from errors during layer construction by specifying a fallback layer. This can be useful for handling specific error cases and ensuring the application can continue with an alternative setup.
+
+**Example** (Recovering from Errors During Layer Construction)
+
+```ts twoslash
+import { Config, Context, Effect, Layer } from "effect"
+
+class HTTPServer extends Context.Tag("HTTPServer")<HTTPServer, void>() {}
+
+// Simulating an HTTP server
+const server = Layer.effect(
+  HTTPServer,
+  Effect.gen(function* () {
+    const host = yield* Config.string("HOST")
+    console.log(`Listening on http://localhost:${host}`)
+  })
+).pipe(
+  // Recover from errors during layer construction
+  Layer.catchAll((configError) =>
+    Layer.effect(
+      HTTPServer,
+      Effect.gen(function* () {
+        console.log(`Recovering from error:\n${configError}`)
+        console.log(`Listening on http://localhost:3000`)
+      })
+    )
+  )
+)
+
+Effect.runFork(Layer.launch(server))
+/*
+Output:
+Recovering from error:
+(Missing data at HOST: "Expected HOST to exist in the process context")
+Listening on http://localhost:3000
+...
+*/
+```
+
+### orElse
+
+The `Layer.orElse` function provides a simpler way to fall back to an alternative layer if the initial layer fails. Unlike `Layer.catchAll`, it does not receive the error as input. Use this when you only need to provide a default layer without reacting to specific errors.
+
+**Example** (Fallback to an Alternative Layer)
+
+```ts twoslash
+import { Config, Context, Effect, Layer } from "effect"
+
+class Database extends Context.Tag("Database")<Database, void>() {}
+
+// Simulating a database connection
+const postgresDatabaseLayer = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const databaseConnectionString = yield* Config.string(
+      "CONNECTION_STRING"
+    )
+    console.log(
+      `Connecting to database with: ${databaseConnectionString}`
+    )
+  })
+)
+
+// Simulating an in-memory database connection
+const inMemoryDatabaseLayer = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    console.log(`Connecting to in-memory database`)
+  })
+)
+
+// Fallback to in-memory database if PostgreSQL connection fails
+const database = postgresDatabaseLayer.pipe(
+  Layer.orElse(() => inMemoryDatabaseLayer)
+)
+
+Effect.runFork(Layer.launch(database))
+/*
+Output:
+Connecting to in-memory database
+...
+*/
+```
