@@ -1,0 +1,161 @@
+---
+title: DateTime
+description: Work with precise points in time using Effect's DateTime, supporting creation, comparison, and arithmetic operations for efficient time handling.
+sidebar:
+  order: 5
+---
+
+Working with dates and times in JavaScript can be challenging. The built-in `Date` object mutates its internal state, and time zone handling can be confusing. These design choices can lead to errors when working on applications that rely on date-time accuracy, such as scheduling systems, timestamping services, or logging utilities.
+
+The DateTime module aims to address these limitations by offering:
+
+- **Immutable Data**: Each `DateTime` is an immutable structure, reducing mistakes related to in-place mutations.
+- **Time Zone Support**: `DateTime` provides robust support for time zones, including automatic daylight saving time adjustments.
+- **Arithmetic Operations**: You can perform arithmetic operations on `DateTime` instances, such as adding or subtracting durations.
+
+## The DateTime Type
+
+A `DateTime` represents a specific point in time. It can optionally include a time zone.
+
+```ts showLineNumbers=false
+type DateTime = Utc | Zoned
+
+interface Utc {
+  readonly _tag: "Utc"
+  readonly epochMillis: number
+}
+
+interface Zoned {
+  readonly _tag: "Zoned"
+  readonly epochMillis: number
+  readonly zone: TimeZone
+}
+
+type TimeZone = TimeZone.Offset | TimeZone.Named
+
+interface Offset {
+  readonly _tag: "Offset"
+  readonly offset: number
+}
+
+interface Named {
+  readonly _tag: "Named"
+  readonly id: string
+}
+```
+
+## Constructors
+
+### unsafeFromDate
+
+Creates a `DateTime` from a JavaScript `Date`.
+Throws an `IllegalArgumentException` if the `Date` is invalid.
+
+**Example** (Creating a DateTime from a Date)
+
+```ts twoslash
+import { DateTime } from "effect"
+
+DateTime.unsafeFromDate(new Date())
+```
+
+### unsafeMake
+
+Creates a `DateTime` from any of the following:
+
+- A `DateTime`
+- A JavaScript `Date` object (throws `IllegalArgumentException` if invalid)
+- A `number` representing milliseconds since the Unix epoch
+- An object specifying parts of a date (e.g., `{ year: 2024 }`)
+- A `string` parseable by `Date.parse`
+
+**Example** (Creating a DateTime with unsafeMake)
+
+```ts twoslash
+import { DateTime } from "effect"
+
+// Create from a Date object
+DateTime.unsafeMake(new Date())
+
+// Create from parts
+console.log(DateTime.unsafeMake({ year: 2024 }))
+// Output: DateTime.Utc(2024-01-01T00:00:00.000Z)
+
+// Create from a string
+console.log(DateTime.unsafeMake("2024-01-01"))
+// Output: DateTime.Utc(2024-01-01T00:00:00.000Z)
+```
+
+### make
+
+Similar to `unsafeMake`, but returns an `Option<DateTime>` instead of throwing an error if the input is invalid. A `None` value indicates an invalid input.
+
+**Example** (Creating a DateTime Safely)
+
+```ts twoslash
+import { DateTime } from "effect"
+
+// Create from a Date object
+DateTime.make(new Date())
+
+// Create from parts
+console.log(DateTime.make({ year: 2024 }))
+// Output: { _id: 'Option', _tag: 'Some', value: '2024-01-01T00:00:00.000Z' }
+
+// Create from a string
+console.log(DateTime.make("2024-01-01"))
+// Output: { _id: 'Option', _tag: 'Some', value: '2024-01-01T00:00:00.000Z' }
+```
+
+### unsafeMakeZoned
+
+Creates a `DateTime.Zoned` by calling `DateTime.unsafeMake` and assigning a time zone.
+The input is treated as UTC unless `adjustForTimeZone` is set to `true`, which tells the constructor to assume the input is in the provided time zone.
+
+Throws an `IllegalArgumentException` if the date-time input or time zone is invalid.
+
+**Example** (Creating a Zoned DateTime)
+
+```ts twoslash
+import { DateTime } from "effect"
+
+// Create from a Date object
+DateTime.unsafeMakeZoned(new Date(), { timeZone: "Europe/London" })
+
+// Create from parts
+console.log(
+  DateTime.unsafeMakeZoned({ year: 2024 }, { timeZone: "Europe/London" })
+)
+// Output: DateTime.Zoned(2024-01-01T00:00:00.000+00:00[Europe/London])
+
+// Create from a string
+console.log(
+  DateTime.unsafeMakeZoned("2024-01-01", { timeZone: "Europe/London" })
+)
+// Output: DateTime.Zoned(2024-01-01T00:00:00.000+00:00[Europe/London])
+```
+
+### makeZoned
+
+Similar to `unsafeMakeZoned`, but returns an `Option<DateTime>` instead of throwing an error if the input is invalid. A `None` value indicates an invalid input.
+
+**Example** (Safely Creating a Zoned DateTime)
+
+```ts twoslash
+import { DateTime } from "effect"
+
+// Create from a Date object
+DateTime.makeZoned(new Date(), { timeZone: "Europe/London" })
+
+// Create from parts
+console.log(
+  DateTime.makeZoned({ year: 2024 }, { timeZone: "Europe/London" })
+)
+// Output: { _id: 'Option', _tag: 'Some', value: '2024-01-01T00:00:00.000Z' }
+
+// Create from a string
+console.log(
+  DateTime.makeZoned("2024-01-01", { timeZone: "Europe/London" })
+)
+// Output: { _id: 'Option', _tag: 'Some', value: '2024-01-01T00:00:00.000Z' }
+```
