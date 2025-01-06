@@ -15,7 +15,31 @@ The DateTime module aims to address these limitations by offering:
 
 ## The DateTime Type
 
-A `DateTime` represents a specific point in time. It can optionally include a time zone.
+A `DateTime` represents a moment in time. It can be stored as either a simple UTC value or as a value with an associated time zone. Storing time this way helps you manage both precise timestamps and the context for how that time should be displayed or interpreted.
+
+There are two main variants of `DateTime`:
+
+1. **Utc**:
+   An immutable structure that uses `epochMillis` (milliseconds since the Unix epoch) to represent a point in time in Coordinated Universal Time (UTC).
+
+2. **Zoned**:
+   Includes `epochMillis` along with a `TimeZone`, allowing you to attach an offset or a named region (like "America/New_York") to the timestamp.
+
+### Why Have Two Variants?
+
+- **Utc** is straightforward if you only need a universal reference without relying on local time zones.
+- **Zoned** is helpful when you need to keep track of time zone information for tasks such as converting to local times or adjusting for daylight saving time.
+
+### TimeZone Variants
+
+A `TimeZone` can be either:
+
+- **Offset**: Represents a fixed offset from UTC (for example, UTC+2 or UTC-5).
+- **Named**: Uses a named region (e.g., "Europe/London" or "America/New_York") that automatically accounts for region-specific rules like daylight saving time changes.
+
+### TypeScript Definition
+
+Below is the TypeScript definition for the `DateTime` type:
 
 ```ts showLineNumbers=false
 type DateTime = Utc | Zoned
@@ -33,14 +57,16 @@ interface Zoned {
 
 type TimeZone = TimeZone.Offset | TimeZone.Named
 
-interface Offset {
-  readonly _tag: "Offset"
-  readonly offset: number
-}
+declare namespace TimeZone {
+  interface Offset {
+    readonly _tag: "Offset"
+    readonly offset: number
+  }
 
-interface Named {
-  readonly _tag: "Named"
-  readonly id: string
+  interface Named {
+    readonly _tag: "Named"
+    readonly id: string
+  }
 }
 ```
 
@@ -63,7 +89,7 @@ DateTime.unsafeFromDate(new Date())
 
 Creates a `DateTime` from any of the following:
 
-- A `DateTime`
+- Another `DateTime`
 - A JavaScript `Date` object (throws `IllegalArgumentException` if invalid)
 - A `number` representing milliseconds since the Unix epoch
 - An object specifying parts of a date (e.g., `{ year: 2024 }`)
@@ -158,4 +184,237 @@ console.log(
   DateTime.makeZoned("2024-01-01", { timeZone: "Europe/London" })
 )
 // Output: { _id: 'Option', _tag: 'Some', value: '2024-01-01T00:00:00.000Z' }
+```
+
+### makeZonedFromString
+
+Creates a `DateTime.Zoned` by parsing a string in the format `YYYY-MM-DDTHH:mm:ss.sss+HH:MM[Time/Zone]`.
+Returns `None` if parsing fails.
+
+```ts twoslash
+import { DateTime } from "effect"
+
+//      ┌─── Option<DateTime.Zoned>
+//      ▼
+const zoned = DateTime.makeZonedFromString(
+  "2024-01-01T00:00:00+01:00[Europe/Berlin]"
+)
+```
+
+### now
+
+Provides the current UTC time as a `DateTime.Utc`, using the [Clock](/docs/requirements-management/default-services/) service.
+
+```ts twoslash
+import { DateTime, Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  //      ┌─── DateTime.Utc
+  //      ▼
+  const currentTime = yield* DateTime.now
+})
+```
+
+### unsafeNow
+
+Retrieves the current UTC time immediately using `Date.now()`, without the [Clock](/docs/requirements-management/default-services/) service.
+
+```ts twoslash
+import { DateTime } from "effect"
+
+//      ┌─── DateTime.Utc
+//      ▼
+const currentTime = DateTime.unsafeNow()
+```
+
+## Guards
+
+These functions check if an unknown value or a given `DateTime` is of a specific type.
+
+| Function           | Description                                    |
+| ------------------ | ---------------------------------------------- |
+| `isDateTime`       | Checks if a value is a `DateTime`.             |
+| `isTimeZone`       | Checks if a value is a `TimeZone`.             |
+| `isTimeZoneOffset` | Checks if a value is a `TimeZone.Offset`.      |
+| `isTimeZoneNamed`  | Checks if a value is a `TimeZone.Named`.       |
+| `isUtc`            | Checks if a `DateTime` is the `Utc` variant.   |
+| `isZoned`          | Checks if a `DateTime` is the `Zoned` variant. |
+
+**Example**
+
+```ts twoslash
+import { DateTime } from "effect"
+
+function printDateTimeInfo(x: unknown) {
+  if (DateTime.isDateTime(x)) {
+    console.log("This is a valid DateTime")
+  } else {
+    console.log("Not a DateTime")
+  }
+}
+```
+
+## Time Zone Management
+
+These functions help manage or convert time zones on a `DateTime`.
+
+| Function              | Description                                                                  |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `setZone`             | Creates a `DateTime.Zoned` from `dateTime` by applying the given `TimeZone`. |
+| `setZoneOffset`       | Creates a `DateTime.Zoned` from `dateTime` using a fixed offset (in ms).     |
+| `zoneUnsafeMakeNamed` | Creates a named time zone or throws if the identifier is invalid.            |
+| `zoneMakeOffset`      | Creates a `TimeZone.Offset` from a numeric offset in milliseconds.           |
+| `zoneMakeNamed`       | Creates a `TimeZone.Named` or returns `None` if invalid.                     |
+| `zoneMakeNamedEffect` | Creates a `TimeZone.Named` or fails with `IllegalArgumentException`.         |
+| `zoneMakeLocal`       | Creates a named time zone from the system's local time zone.                 |
+| `zoneFromString`      | Attempts to parse a time zone from a string, returning `None` if invalid.    |
+| `zoneToString`        | Returns a string representation of a `TimeZone`.                             |
+| `setZoneNamed`        | Attempts to apply a named time zone to `dateTime` (returns `Option<Zoned>`). |
+| `unsafeSetZoneNamed`  | Applies a named time zone or throws if invalid.                              |
+
+**Example** (Applying a Time Zone to a DateTime)
+
+```ts twoslash
+import { DateTime } from "effect"
+
+//     ┌─── DateTime.Utc
+//     ▼
+const utc = DateTime.unsafeMake("2024-01-01")
+
+//      ┌─── DateTime.Zoned
+//      ▼
+const zoned = DateTime.setZone(
+  utc,
+  DateTime.zoneUnsafeMakeNamed("America/New_York")
+)
+
+console.log(zoned)
+// Output: DateTime.Zoned(2023-12-31T19:00:00.000-05:00[America/New_York])
+```
+
+## Comparisons
+
+The module offers a variety of functions to compare `DateTime` values.
+
+| Function                                     | Description                                                  |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| `distance`                                   | Returns the difference (in ms) between two `DateTime`s.      |
+| `distanceDurationEither`                     | Returns a `Left` or `Right` `Duration` depending on order.   |
+| `distanceDuration`                           | Returns a `Duration` indicating how far apart two times are. |
+| `min`                                        | Returns the earlier of two `DateTime` values.                |
+| `max`                                        | Returns the later of two `DateTime` values.                  |
+| `greaterThan`, `greaterThanOrEqualTo`, etc.  | Checks ordering between two `DateTime` values.               |
+| `between`                                    | Checks if `self` lies within the given bounds.               |
+| `isFuture`, `isPast`, `unsafeIsFuture`, etc. | Checks if a `DateTime` is in the future or past.             |
+
+**Example** (Finding the Distance Between Two DateTimes)
+
+```ts twoslash
+import { DateTime } from "effect"
+
+const utc1 = DateTime.unsafeMake("2025-01-01T00:00:00Z")
+const utc2 = DateTime.add(utc1, { days: 1 })
+
+console.log(DateTime.distance(utc1, utc2))
+// Output: 86400000 (one day)
+```
+
+## Conversions
+
+You can convert `DateTime` values into JavaScript `Date` objects or other forms.
+
+| Function         | Description                                                             |
+| ---------------- | ----------------------------------------------------------------------- |
+| `toDateUtc`      | Returns a JavaScript `Date` in UTC.                                     |
+| `toDate`         | Applies the time zone (if present) and converts to a JavaScript `Date`. |
+| `zonedOffset`    | For a `Zoned` DateTime, returns the time zone offset in ms.             |
+| `zonedOffsetIso` | For a `Zoned` DateTime, returns an ISO offset string like "+01:00".     |
+| `toEpochMillis`  | Returns the Unix epoch time in milliseconds.                            |
+| `removeTime`     | Returns a `DateTime.Utc` with the time cleared (only date remains).     |
+
+## Parts
+
+You can extract or set individual parts (e.g., year, month, day) from a `DateTime`.
+
+| Function                   | Description                                                            |
+| -------------------------- | ---------------------------------------------------------------------- |
+| `toParts`                  | Returns time zone adjusted date parts (including weekday).             |
+| `toPartsUtc`               | Returns UTC date parts.                                                |
+| `getPart` / `getPartUtc`   | Retrieves a specific part (e.g., `"year"` or `"month"`) from the date. |
+| `setParts` / `setPartsUtc` | Updates certain parts of a date, preserving or ignoring the time zone. |
+
+**Example** (Extracting Parts from a DateTime)
+
+```ts twoslash
+import { DateTime } from "effect"
+
+const zoned = DateTime.setZone(
+  DateTime.unsafeMake("2024-01-01"),
+  DateTime.zoneUnsafeMakeNamed("Europe/Rome")
+)
+
+console.log(DateTime.getPart(zoned, "month"))
+// Output: 1
+```
+
+## Math
+
+These functions add, subtract, or modify date-time values.
+
+| Function           | Description                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `addDuration`      | Adds a duration-like string (e.g., `"5 minutes"`) to a `DateTime`.                         |
+| `subtractDuration` | Subtracts a duration-like string.                                                          |
+| `add`              | Adds numeric parts (e.g., `{ hours: 2 }`) to a `DateTime`.                                 |
+| `subtract`         | Subtracts numeric parts.                                                                   |
+| `startOf`          | Moves a `DateTime` to the start of the given unit (e.g., the beginning of a day or month). |
+| `endOf`            | Moves a `DateTime` to the end of the given unit.                                           |
+| `nearest`          | Rounds a `DateTime` to the nearest specified unit.                                         |
+
+## Formatting
+
+The module supports several formatting options, leveraging JavaScript's `Intl.DateTimeFormat` API or returning ISO strings.
+
+| Function           | Description                                                          |
+| ------------------ | -------------------------------------------------------------------- |
+| `format`           | Formats using the time zone or offset of `self`.                     |
+| `formatLocal`      | Uses the system's local time zone and locale for formatting.         |
+| `formatUtc`        | Forces UTC formatting.                                               |
+| `formatIntl`       | Uses a provided `Intl.DateTimeFormat`.                               |
+| `formatIso`        | Returns an ISO 8601 string in UTC.                                   |
+| `formatIsoDate`    | Returns an ISO date string, adjusted for the time zone.              |
+| `formatIsoDateUtc` | Returns an ISO date string in UTC.                                   |
+| `formatIsoOffset`  | Formats a `Zoned` as a string with an offset like "+01:00".          |
+| `formatIsoZoned`   | Formats a `Zoned` in the form `YYYY-MM-DDTHH:mm:ss.sss+HH:MM[Zone]`. |
+
+## Layers for Current Time Zone
+
+You can configure a "current time zone" service in your application, allowing you to automatically zone date-time values.
+
+| Function                 | Description                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `CurrentTimeZone`        | A service tag for the current time zone.                                      |
+| `setZoneCurrent`         | Sets a `DateTime` to use the current time zone.                               |
+| `withCurrentZone`        | Provides an effect with a specified time zone.                                |
+| `withCurrentZoneLocal`   | Uses the system's local time zone for the effect.                             |
+| `withCurrentZoneOffset`  | Uses a fixed offset (in ms) for the effect.                                   |
+| `withCurrentZoneNamed`   | Uses a named time zone identifier (e.g., "Europe/London").                    |
+| `nowInCurrentZone`       | Retrieves the current time as a `DateTime.Zoned` in the configured time zone. |
+| `layerCurrentZone`       | Creates a Layer providing the `CurrentTimeZone` service.                      |
+| `layerCurrentZoneOffset` | Creates a Layer from a fixed offset.                                          |
+| `layerCurrentZoneNamed`  | Creates a Layer from a named time zone, failing if invalid.                   |
+| `layerCurrentZoneLocal`  | Creates a Layer from the system's local time zone.                            |
+
+**Example** (Using the Current Time Zone in an Effect)
+
+```ts twoslash
+import { DateTime, Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  const zonedNow = yield* DateTime.nowInCurrentZone
+  console.log(zonedNow)
+}).pipe(DateTime.withCurrentZoneNamed("Europe/London"))
+
+Effect.runFork(program)
+// Example Output: DateTime.Zoned(2025-01-06T18:36:38.573+00:00[Europe/London])
 ```
