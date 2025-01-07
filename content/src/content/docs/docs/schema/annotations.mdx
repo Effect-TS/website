@@ -76,7 +76,7 @@ For more complex schemas like `Struct`, `Array`, or `Union` that contain multipl
 type ConcurrencyAnnotation = number | "unbounded" | "inherit" | undefined
 ```
 
-Here’s a shorter version presented in a table:
+Here's a shorter version presented in a table:
 
 | Value         | Description                                                     |
 | ------------- | --------------------------------------------------------------- |
@@ -224,7 +224,7 @@ timestamp=2024-07-25T13:22:37.706Z level=INFO fiber=#0 message=Type
 
 ## Custom Annotations
 
-In addition to built-in annotations, you can define custom annotations to meet specific requirements. For instance, here’s how to create a `deprecated` annotation:
+In addition to built-in annotations, you can define custom annotations to meet specific requirements. For instance, here's how to create a `deprecated` annotation:
 
 **Example** (Defining a Custom Annotation)
 
@@ -256,20 +256,54 @@ Output:
 */
 ```
 
-You can retrieve custom annotations using the `AST.getAnnotation` helper method.
+To make your new custom annotation type-safe, you can use a module augmentation. In the next example, we want our custom annotation to be a boolean.
 
-**Example** (Reading a Custom Annotation)
+**Example** (Adding Type Safety to Custom Annotations)
 
-```ts twoslash collapse={4-10}
-import { SchemaAST, Schema } from "effect"
-import { Option } from "effect"
+```ts twoslash
+import { Schema } from "effect"
 
-// Define the unique identifier for the custom annotation
 const DeprecatedId = Symbol.for(
   "some/unique/identifier/for/your/custom/annotation"
 )
 
-// Create a schema with the custom annotation
+// Module augmentation
+declare module "effect/Schema" {
+  namespace Annotations {
+    interface GenericSchema<A> extends Schema<A> {
+      [DeprecatedId]?: boolean
+    }
+  }
+}
+
+const MyString = Schema.String.annotations({
+  // @ts-expect-error
+  [DeprecatedId]: "bad value"
+  // Type of computed property's value is 'string',
+  // which is not assignable to type 'boolean'.ts(2418)
+})
+```
+
+You can retrieve custom annotations using the `SchemaAST.getAnnotation` helper function.
+
+**Example** (Retrieving a Custom Annotation)
+
+```ts twoslash collapse={4-16}
+import { SchemaAST, Schema } from "effect"
+import { Option } from "effect"
+
+const DeprecatedId = Symbol.for(
+  "some/unique/identifier/for/your/custom/annotation"
+)
+
+declare module "effect/Schema" {
+  namespace Annotations {
+    interface GenericSchema<A> extends Schema<A> {
+      [DeprecatedId]?: boolean
+    }
+  }
+}
+
 const MyString = Schema.String.annotations({ [DeprecatedId]: true })
 
 // Helper function to check if a schema is marked as deprecated
@@ -278,6 +312,9 @@ const isDeprecated = <A, I, R>(schema: Schema.Schema<A, I, R>): boolean =>
     Option.getOrElse(() => false)
   )
 
-console.log(isDeprecated(Schema.String)) // Output: false
-console.log(isDeprecated(MyString)) // Output: true
+console.log(isDeprecated(Schema.String))
+// Output: false
+
+console.log(isDeprecated(MyString))
+// Output: true
 ```
