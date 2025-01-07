@@ -72,7 +72,7 @@ declare namespace TimeZone {
 
 ## The DateTime.Parts Type
 
-The `DateTime.Parts` type represents the components of a date, such as the year, month, and day.
+The `DateTime.Parts` type defines the main components of a date, such as the year, month, day, hours, minutes, and seconds.
 
 ```ts showLineNumbers=false
 namespace DateTime {
@@ -295,7 +295,7 @@ if (Option.isSome(zoned)) {
 
 Provides the current UTC time as a `Effect<Utc>`, using the [Clock](/docs/requirements-management/default-services/) service.
 
-**Example** (Getting the Current Time in UTC)
+**Example** (Retrieving the Current UTC Time)
 
 ```ts twoslash
 import { DateTime, Effect } from "effect"
@@ -317,7 +317,7 @@ const program = Effect.gen(function* () {
 
 Retrieves the current UTC time immediately using `Date.now()`, without the [Clock](/docs/requirements-management/default-services/) service.
 
-**Example** (Getting the Current Time Immediately)
+**Example** (Getting the Current UTC Time Immediately)
 
 ```ts twoslash
 import { DateTime } from "effect"
@@ -338,7 +338,7 @@ const currentTime = DateTime.unsafeNow()
 | `isUtc`            | Checks if a `DateTime` is the `Utc` variant.   |
 | `isZoned`          | Checks if a `DateTime` is the `Zoned` variant. |
 
-**Example**
+**Example** (Validating a DateTime)
 
 ```ts twoslash
 import { DateTime } from "effect"
@@ -373,14 +373,20 @@ function printDateTimeInfo(x: unknown) {
 ```ts twoslash
 import { DateTime } from "effect"
 
+// Create a UTC DateTime
+//
 //     ┌─── Utc
 //     ▼
 const utc = DateTime.unsafeMake("2024-01-01")
 
+// Create a named time zone for New York
+//
 //      ┌─── TimeZone.Named
 //      ▼
 const zoneNY = DateTime.zoneUnsafeMakeNamed("America/New_York")
 
+// Apply it to the DateTime
+//
 //      ┌─── Zoned
 //      ▼
 const zoned = DateTime.setZone(utc, zoneNY)
@@ -408,12 +414,12 @@ If the input string is invalid, `Option.none()` is returned.
 ```ts twoslash
 import { DateTime, Option } from "effect"
 
-// Parsing a numeric offset
+// Attempt to parse a numeric offset
 const offsetZone = DateTime.zoneFromString("+01:00")
 console.log(Option.isSome(offsetZone))
 // Output: true
 
-// Parsing an IANA time zone
+// Attempt to parse an IANA time zone
 const namedZone = DateTime.zoneFromString("Europe/London")
 console.log(Option.isSome(namedZone))
 // Output: true
@@ -475,12 +481,12 @@ console.log(DateTime.distanceDuration(utc1, utc2))
 
 ## Parts
 
-| Function                   | Description                                                                    |
-| -------------------------- | ------------------------------------------------------------------------------ |
-| `toParts`                  | Returns time zone adjusted date parts (including weekday: `PartsWithWeekday`). |
-| `toPartsUtc`               | Returns UTC date parts (including weekday: `PartsWithWeekday`).                |
-| `getPart` / `getPartUtc`   | Retrieves a specific part (e.g., `"year"` or `"month"`) from the date.         |
-| `setParts` / `setPartsUtc` | Updates certain parts of a date, preserving or ignoring the time zone.         |
+| Function                   | Description                                                            |
+| -------------------------- | ---------------------------------------------------------------------- |
+| `toParts`                  | Returns time zone adjusted date parts (including weekday).             |
+| `toPartsUtc`               | Returns UTC date parts (including weekday).                            |
+| `getPart` / `getPartUtc`   | Retrieves a specific part (e.g., `"year"` or `"month"`) from the date. |
+| `setParts` / `setPartsUtc` | Updates certain parts of a date, preserving or ignoring the time zone. |
 
 **Example** (Extracting Parts from a DateTime)
 
@@ -543,6 +549,7 @@ console.log(DateTime.getPart(zoned, "month"))
 ```ts twoslash
 import { DateTime, Effect } from "effect"
 
+// Retrieve the current time in the "Europe/London" time zone
 const program = Effect.gen(function* () {
   const zonedNow = yield* DateTime.nowInCurrentZone
   console.log(zonedNow)
