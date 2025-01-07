@@ -85,6 +85,10 @@ namespace DateTime {
     readonly month: number
     readonly year: number
   }
+
+  interface PartsWithWeekday extends Parts {
+    readonly weekDay: number
+  }
 }
 ```
 
@@ -471,12 +475,12 @@ console.log(DateTime.distanceDuration(utc1, utc2))
 
 ## Parts
 
-| Function                   | Description                                                            |
-| -------------------------- | ---------------------------------------------------------------------- |
-| `toParts`                  | Returns time zone adjusted date parts (including weekday).             |
-| `toPartsUtc`               | Returns UTC date parts.                                                |
-| `getPart` / `getPartUtc`   | Retrieves a specific part (e.g., `"year"` or `"month"`) from the date. |
-| `setParts` / `setPartsUtc` | Updates certain parts of a date, preserving or ignoring the time zone. |
+| Function                   | Description                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `toParts`                  | Returns time zone adjusted date parts (including weekday: `PartsWithWeekday`). |
+| `toPartsUtc`               | Returns UTC date parts (including weekday: `PartsWithWeekday`).                |
+| `getPart` / `getPartUtc`   | Retrieves a specific part (e.g., `"year"` or `"month"`) from the date.         |
+| `setParts` / `setPartsUtc` | Updates certain parts of a date, preserving or ignoring the time zone.         |
 
 **Example** (Extracting Parts from a DateTime)
 
@@ -496,8 +500,8 @@ console.log(DateTime.getPart(zoned, "month"))
 
 | Function           | Description                                                                                |
 | ------------------ | ------------------------------------------------------------------------------------------ |
-| `addDuration`      | Adds a `Duration` (e.g., `"5 minutes"`) to a `DateTime`.                                   |
-| `subtractDuration` | Subtracts `Duration`.                                                                      |
+| `addDuration`      | Adds the given `Duration` to a `DateTime`.                                                 |
+| `subtractDuration` | Subtracts the given `Duration` from a `DateTime`.                                          |
 | `add`              | Adds numeric parts (e.g., `{ hours: 2 }`) to a `DateTime`.                                 |
 | `subtract`         | Subtracts numeric parts.                                                                   |
 | `startOf`          | Moves a `DateTime` to the start of the given unit (e.g., the beginning of a day or month). |
@@ -508,7 +512,7 @@ console.log(DateTime.getPart(zoned, "month"))
 
 | Function           | Description                                                          |
 | ------------------ | -------------------------------------------------------------------- |
-| `format`           | Formats using the time zone or offset of `self`.                     |
+| `format`           | Formats a `DateTime` as a string using the `DateTimeFormat` API.     |
 | `formatLocal`      | Uses the system's local time zone and locale for formatting.         |
 | `formatUtc`        | Forces UTC formatting.                                               |
 | `formatIntl`       | Uses a provided `Intl.DateTimeFormat`.                               |
@@ -545,5 +549,8 @@ const program = Effect.gen(function* () {
 }).pipe(DateTime.withCurrentZoneNamed("Europe/London"))
 
 Effect.runFork(program)
-// Example Output: DateTime.Zoned(2025-01-06T18:36:38.573+00:00[Europe/London])
+/*
+Example Output:
+DateTime.Zoned(2025-01-06T18:36:38.573+00:00[Europe/London])
+*/
 ```
