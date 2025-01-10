@@ -1,6 +1,6 @@
 ---
 title: Introduction to Effect Platform
-description: Build cross-platform applications with unified abstractions for Node.js, Bun, and browsers using @effect/platform.
+description: Build cross-platform applications with unified abstractions for Node.js, Deno, Bun, and browsers using @effect/platform.
 sidebar:
   label: Introduction
   order: 0
@@ -13,12 +13,12 @@ import {
   Badge
 } from "@astrojs/starlight/components"
 
-`@effect/platform` is a library for building platform-independent abstractions in environments such as Node.js, Bun, and browsers.
+`@effect/platform` is a library for building platform-independent abstractions in environments such as Node.js, Deno, Bun, and browsers.
 
 With `@effect/platform`, you can integrate abstract services like [FileSystem](/docs/platform/file-system/) or [Terminal](/docs/platform/terminal/) into your program.
 When assembling your final application, you can provide specific [layers](/docs/requirements-management/layers/) for the target platform using the corresponding packages:
 
-- `@effect/platform-node` for Node.js
+- `@effect/platform-node` for Node.js or Deno
 - `@effect/platform-bun` for Bun
 - `@effect/platform-browser` for browsers
 
@@ -88,6 +88,14 @@ bun add @effect/platform
 
 </TabItem>
 
+<TabItem label="Deno" icon="deno">
+
+```sh showLineNumbers=false
+deno add npm:@effect/platform
+```
+
+</TabItem>
+
 </Tabs>
 
 ## Getting Started with Cross-Platform Programming
@@ -111,7 +119,7 @@ const program = Effect.gen(function* () {
 })
 ```
 
-### Running the Program in Node.js
+### Running the Program in Node.js or Deno
 
 First, install the Node.js-specific package:
 
@@ -141,6 +149,14 @@ yarn add @effect/platform-node
 
 </TabItem>
 
+<TabItem label="Deno" icon="deno">
+
+```sh showLineNumbers=false
+deno add npm:@effect/platform-node
+```
+
+</TabItem>
+
 </Tabs>
 
 Update the program to load the Node.js-specific context:
@@ -165,7 +181,7 @@ const program = Effect.gen(function* () {
 NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
 ```
 
-Finally, run the program in Node.js using `tsx`:
+Finally, run the program in Node.js using `tsx`, or directly in Deno:
 
 <Tabs syncKey="package-manager">
 
@@ -192,6 +208,21 @@ pnpm dlx tsx index.ts
 ```sh showLineNumbers=false
 yarn dlx tsx index.ts
 # Output: tmp/file.txt
+```
+
+</TabItem>
+
+<TabItem label="Deno" icon="deno">
+
+```sh showLineNumbers=false
+deno run index.ts
+# Output: tmp/file.txt
+
+# or
+
+deno run -RE index.ts
+# Output: tmp/file.txt
+# (granting required Read and Environment permissions without being prompted)
 ```
 
 </TabItem>
