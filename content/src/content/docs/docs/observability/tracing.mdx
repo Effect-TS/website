@@ -6,7 +6,12 @@ sidebar:
   order: 2
 ---
 
-import { Tabs, TabItem, Steps } from "@astrojs/starlight/components"
+import {
+  Tabs,
+  TabItem,
+  Steps,
+  Aside
+} from "@astrojs/starlight/components"
 
 Although logs and metrics are useful to understand the behavior of individual services, they are not enough to provide a complete overview of the lifetime of a request in a distributed system.
 
@@ -72,13 +77,13 @@ Choose your package manager and install the necessary libraries:
    <TabItem label="npm" icon="seti:npm">
 
 ```sh showLineNumbers=false
+# Install the main library for integrating OpenTelemetry with Effect
 npm install @effect/opentelemetry
+
+# Install the required OpenTelemetry SDKs for tracing and metrics
 npm install @opentelemetry/sdk-trace-base
-# For NodeJS applications
 npm install @opentelemetry/sdk-trace-node
-# For browser applications
 npm install @opentelemetry/sdk-trace-web
-# If you also need to export metrics
 npm install @opentelemetry/sdk-metrics
 ```
 
@@ -87,13 +92,13 @@ npm install @opentelemetry/sdk-metrics
    <TabItem label="pnpm" icon="pnpm">
 
 ```sh showLineNumbers=false
+# Install the main library for integrating OpenTelemetry with Effect
 pnpm add @effect/opentelemetry
+
+# Install the required OpenTelemetry SDKs for tracing and metrics
 pnpm add @opentelemetry/sdk-trace-base
-# For NodeJS applications
 pnpm add @opentelemetry/sdk-trace-node
-# For browser applications
 pnpm add @opentelemetry/sdk-trace-web
-# If you also need to export metrics
 pnpm add @opentelemetry/sdk-metrics
 ```
 
@@ -102,13 +107,13 @@ pnpm add @opentelemetry/sdk-metrics
    <TabItem label="Yarn" icon="seti:yarn">
 
 ```sh showLineNumbers=false
+# Install the main library for integrating OpenTelemetry with Effect
 yarn add @effect/opentelemetry
+
+# Install the required OpenTelemetry SDKs for tracing and metrics
 yarn add @opentelemetry/sdk-trace-base
-# For NodeJS applications
 yarn add @opentelemetry/sdk-trace-node
-# For browser applications
 yarn add @opentelemetry/sdk-trace-web
-# If you also need to export metrics
 yarn add @opentelemetry/sdk-metrics
 ```
 
@@ -117,19 +122,25 @@ yarn add @opentelemetry/sdk-metrics
    <TabItem label="Bun" icon="bun">
 
 ```sh showLineNumbers=false
+# Install the main library for integrating OpenTelemetry with Effect
 bun add @effect/opentelemetry
+
+# Install the required OpenTelemetry SDKs for tracing and metrics
 bun add @opentelemetry/sdk-trace-base
-# For NodeJS applications
 bun add @opentelemetry/sdk-trace-node
-# For browser applications
 bun add @opentelemetry/sdk-trace-web
-# If you also need to export metrics
 bun add @opentelemetry/sdk-metrics
 ```
 
    </TabItem>
 
    </Tabs>
+
+<Aside type="note" title="Peer Dependency">
+  The `@opentelemetry/api` package is a peer dependency of
+  `@effect/opentelemetry`. If your package manager does not automatically
+  install peer dependencies, you must add it manually.
+</Aside>
 
 ### Printing a Span to the Console
 
