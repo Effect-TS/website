@@ -540,14 +540,14 @@ Output:
 */
 
 // Layer to provide a failing validation service
-const FaailureTest = Layer.succeed(Validation, {
+const FailureTest = Layer.succeed(Validation, {
   validatePeopleid: (_) => Effect.fail(new Error("404"))
 })
 
 // Run a decode operation that will fail
 Effect.runPromiseExit(
   Schema.decodeUnknown(PeopleIdFromString)("fail").pipe(
-    Effect.provide(FaailureTest)
+    Effect.provide(FailureTest)
   )
 ).then(console.log)
 /*
