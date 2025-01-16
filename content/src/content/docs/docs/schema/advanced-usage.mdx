@@ -1459,36 +1459,40 @@ In this function:
   - `Option.none()` as an input argument indicates a missing field in the input.
   - Returning `Option.none()` from either function will omit the field in the output.
 
-**Example** (Omitting Empty Strings from Output)
+**Example** (Omitting Empty Strings from the Output)
 
 Consider an optional field of type `string` where empty strings in the input should be removed from the output.
 
 ```ts twoslash
-import { Schema } from "effect"
-import { identity, Option } from "effect"
+import { Option, Schema } from "effect"
 
 const schema = Schema.Struct({
   nonEmpty: Schema.optionalToOptional(Schema.String, Schema.String, {
-    decode: (input) => {
-      if (Option.isNone(input)) {
-        // If the field is absent in the input,
-        // return Option.none() to omit it in the output
+    //         ┌─── Option<string>
+    //         ▼
+    decode: (maybeString) => {
+      if (Option.isNone(maybeString)) {
+        // If `maybeString` is `None`, the field is absent in the input.
+        // Return Option.none() to omit it in the output.
         return Option.none()
       }
-      const value = input.value
+      // Extract the value from the `Some` instance
+      const value = maybeString.value
       if (value === "") {
         // Treat empty strings as missing in the output
-        // by returning Option.none()
+        // by returning Option.none().
         return Option.none()
       }
-      // Non-empty strings are included in the output
+      // Include non-empty strings in the output.
       return Option.some(value)
     },
-    // Here in the encoding part, we can decide to handle things
-    // in the same way as in the decoding phase or handle them differently.
-    // For example, we can leave everything unchanged
-    // and use the identity function
-    encode: identity
+    // In the encoding phase, you can decide to process the field
+    // similarly to the decoding phase or use a different logic.
+    // Here, the logic is left unchanged.
+    //
+    //         ┌─── Option<string>
+    //         ▼
+    encode: (maybeString) => maybeString
   })
 })
 
@@ -1515,6 +1519,21 @@ console.log(encode({ nonEmpty: "a non-empty string" }))
 // Output: { nonEmpty: 'a non-empty string' }
 ```
 
+You can simplify the decoding logic with `Option.filter`, which filters out unwanted values in a concise way.
+
+**Example** (Using `Option.filter` for Decoding)
+
+```ts twoslash
+import { identity, Option, Schema } from "effect"
+
+const schema = Schema.Struct({
+  nonEmpty: Schema.optionalToOptional(Schema.String, Schema.String, {
+    decode: Option.filter((s) => s !== ""),
+    encode: identity
+  })
+})
+```
+
 ### optionalToRequired
 
 The `Schema.optionalToRequired` API lets you transform an optional field into a required one, with custom logic to handle cases when the field is missing in the input.
@@ -1539,29 +1558,44 @@ In this function:
   - Passing `Option.none()` to `decode` means the field is absent in the input. The function can then return a default value for the output.
   - Returning `Option.none()` in `encode` will omit the field in the output.
 
-**Example** (Setting a Default Value for a Missing Field)
+**Example** (Setting `null` as Default for Missing Field)
 
-In this example, if the input object lacks the `maybe` field, we will provide a default value for it in the output.
+This example demonstrates how to use `optionalToRequired` to provide a `null` default value when the `nullable` field is missing in the input. During encoding, fields with a value of `null` are omitted from the output.
 
 ```ts twoslash
-import { Schema } from "effect"
-import { Option } from "effect"
+import { Option, Schema } from "effect"
 
 const schema = Schema.Struct({
-  maybe: Schema.optionalToRequired(Schema.String, Schema.String, {
-    decode: (input) => {
-      if (Option.isNone(input)) {
-        // Assign a default value for the output
-        // when the field is absent in the input
-        return "default value"
-      }
-      // Use the input's value for the output if the field is present
-      return input.value
-    },
-    // During encoding, we can choose to handle things differently,
-    // or simply return the same value present in the input for the output
-    encode: (a) => Option.some(a)
-  })
+  nullable: Schema.optionalToRequired(
+    // Input schema for an optional string
+    Schema.String,
+    // Output schema allowing null or string
+    Schema.NullOr(Schema.String),
+    {
+      //         ┌─── Option<string>
+      //         ▼
+      decode: (maybeString) => {
+        if (Option.isNone(maybeString)) {
+          // If `maybeString` is `None`, the field is absent in the input.
+          // Return `null` as the default value for the output.
+          return null
+        }
+        // Extract the value from the `Some` instance
+        // and use it as the output.
+        return maybeString.value
+      },
+      // During encoding, treat `null` as an absent field
+      //
+      //         ┌─── string | null
+      //         ▼
+      encode: (stringOrNull) =>
+        stringOrNull === null
+          ? // Omit the field by returning `None`
+            Option.none()
+          : // Include the field by returning `Some`
+            Option.some(stringOrNull)
+    }
+  )
 })
 
 // Decoding examples
@@ -1569,16 +1603,37 @@ const schema = Schema.Struct({
 const decode = Schema.decodeUnknownSync(schema)
 
 console.log(decode({}))
-// Output: { maybe: 'default value' }
-console.log(decode({ maybe: "present value" }))
-// Output: { maybe: 'present value' }
+// Output: { nullable: null }
+console.log(decode({ nullable: "a value" }))
+// Output: { nullable: 'a value' }
 
 // Encoding examples
 
 const encode = Schema.encodeSync(schema)
 
-console.log(encode({ maybe: "present value" }))
-// Output: { maybe: 'present value' }
+console.log(encode({ nullable: "a value" }))
+// Output: { nullable: 'a value' }
+console.log(encode({ nullable: null }))
+// Output: {}
+```
+
+You can streamline the decoding and encoding logic using `Option.getOrElse` and `Option.liftPredicate` for concise and readable transformations.
+
+**Example** (Using `Option.getOrElse` and `Option.liftPredicate`)
+
+```ts twoslash
+import { Option, Schema } from "effect"
+
+const schema = Schema.Struct({
+  nullable: Schema.optionalToRequired(
+    Schema.String,
+    Schema.NullOr(Schema.String),
+    {
+      decode: Option.getOrElse(() => null),
+      encode: Option.liftPredicate((value) => value !== null)
+    }
+  )
+})
 ```
 
 ### requiredToOptional
@@ -1608,15 +1663,32 @@ With `decode` and `encode` functions, you control the presence or absence of the
 In this example, the `name` field is required but treated as optional if it is an empty string. During decoding, an empty string in `name` is considered absent, while encoding ensures a value (using an empty string as a default if `name` is absent).
 
 ```ts twoslash
-import { Schema } from "effect"
-import { Option } from "effect"
+import { Option, Schema } from "effect"
 
 const schema = Schema.Struct({
   name: Schema.requiredToOptional(Schema.String, Schema.String, {
-    // Treat empty string as a missing value
-    decode: Option.liftPredicate((s) => s !== ""),
-    // Provide an empty string as default if the field is missing
-    encode: Option.getOrElse(() => "")
+    //         ┌─── string
+    //         ▼
+    decode: (string) => {
+      // Treat empty string as a missing value
+      if (string === "") {
+        // Omit the field by returning `None`
+        return Option.none()
+      }
+      // Otherwise, return the string as is
+      return Option.some(string)
+    },
+    //         ┌─── Option<string>
+    //         ▼
+    encode: (maybeString) => {
+      // Check if the field is missing
+      if (Option.isNone(maybeString)) {
+        // Provide an empty string as default
+        return ""
+      }
+      // Otherwise, return the string as is
+      return maybeString.value
+    }
   })
 })
 
@@ -1637,6 +1709,21 @@ console.log(encode({ name: "John" }))
 // Output: { name: 'John' }
 console.log(encode({}))
 // Output: { name: '' }
+```
+
+You can streamline the decoding and encoding logic using `Option.liftPredicate` and `Option.getOrElse` for concise and readable transformations.
+
+**Example** (Using `Option.liftPredicate` and `Option.getOrElse`)
+
+```ts twoslash
+import { Option, Schema } from "effect"
+
+const schema = Schema.Struct({
+  name: Schema.requiredToOptional(Schema.String, Schema.String, {
+    decode: Option.liftPredicate((s) => s !== ""),
+    encode: Option.getOrElse(() => "")
+  })
+})
 ```
 
 ## Extending Schemas
