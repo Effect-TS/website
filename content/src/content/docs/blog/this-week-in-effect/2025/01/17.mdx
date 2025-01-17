@@ -1,0 +1,192 @@
+---
+title: This Week in Effect - 2025-01-17
+excerpt: Sandro Maglione speaking at the Effect Days. "Re-building Contentlayer with Effect (Part 10)" by Maxwell Brown and Tim Smart. Technical updates in Effect.
+date: 2025-01-17
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+  - michael_arnaldi
+tags:
+  - This Week In Effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week In Effect (**TWIE**) - your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is a powerful TypeScript library that helps developers create complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you’ll find links to our documentation as well as our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+Recent major updates:
+
+- The [Effect Days](https://effect.website/events/effect-days) conference is returning this March 2025! 🎉
+- The [Effect community](https://discord.gg/effect-ts) on Discord reached 3770+ members!
+- [Effect 3.12](https://effect.website/blog/releases/effect/312) has been released.
+
+&nbsp;
+## Technology
+
+Here are all the technical changes from this week.
+
+### Effect Core
+- [Fix color option for Logger.prettyLogger](https://github.com/Effect-TS/effect/pull/4236) (Bug Fix)
+- [Refactor dtslint/Unify.ts to utilize hole](https://github.com/Effect-TS/effect/pull/4241) (Refactor)
+- [Improve pattern handling by merging multiple patterns into a union](https://github.com/Effect-TS/effect/pull/4244) (Bug Fix)
+- [Allow Schema.TemplateLiteral to handle strings with linebreaks](https://github.com/Effect-TS/effect/pull/4252) (Bug Fix)
+- [Improve DateTime type preservation](https://github.com/Effect-TS/effect/pull/4255) (Improvement)
+- [Use non-enumerable properties for mutable fields of DateTime objects](https://github.com/Effect-TS/effect/pull/4253) (Improvement)
+- [Layer.retry and MetricPolling.retry signatures](https://github.com/Effect-TS/effect/pull/4231) (Bug Fix)
+- [Schema: Correct BigInt and BigIntFromNumber identifier annotations to follow naming conventions](https://github.com/Effect-TS/effect/pull/4257) (Bug Fix)
+- [Schema: improve error messages for invalid transformations](https://github.com/Effect-TS/effect/pull/4259) (Improvement)
+- [Schema: update error messages and annotations for JSON transformations](https://github.com/Effect-TS/effect/pull/4260) (Improvement)
+- [Schema: fix Symbol identifier annotation](https://github.com/Effect-TS/effect/pull/4261) (Bug Fix)
+- [Schema: update Symbol encoding to use Symbol.keyFor](https://github.com/Effect-TS/effect/pull/4262) (Improvement)
+- [Add support for symbols in the Issue definition within platform/HttpApiError](https://github.com/Effect-TS/effect/pull/4264) (Feature)
+- [Schema: Replace the TimeZoneFromSelf interface with a class definition and fix the arbitraries for DateTimeUtcFromSelf and DateTimeZonedFromSelf](https://github.com/Effect-TS/effect/pull/4266) (Refactor)
+- [Ensure DateTime.Zoned produces valid dates](https://github.com/Effect-TS/effect/pull/4267) (Bug Fix)
+- [Schema: Extend Support for Array filters](https://github.com/Effect-TS/effect/pull/4273) (Bug Fix)
+- [Fix formatting of time zone offsets that round to 60 minutes](https://github.com/Effect-TS/effect/pull/4276) (Bug Fix)
+- [Improve performance of Effect.forkIn](https://github.com/Effect-TS/effect/pull/4279) (Improvement)
+- [Refactor Chunk.toArray tests for clarity and coverage](https://github.com/Effect-TS/effect/pull/4283) (Refactor)
+- [Add RcMap.invalidate api, for removing a resource from an RcMap](https://github.com/Effect-TS/effect/pull/4278) (Feature, next-minor)
+- [Add RcMap.touch, for reseting the idle timeout for an item](https://github.com/Effect-TS/effect/pull/4281) (Feature, next-minor)
+- [Reduce churn of RcMap idle timeout fiber](https://github.com/Effect-TS/effect/pull/4282) (Bug Fix, next-minor)
+
+
+### Effect CLI 
+- [Ensure ConfigError is surfaced by fallback Config](https://github.com/Effect-TS/effect/pull/4275) (Bug Fix)
+
+
+### Effect Experimental
+- [Add experimental EventLog modules](https://github.com/Effect-TS/effect/pull/3978) (Feature)
+
+
+### Effect Platform
+- [Platform: add OpenAPI.fromApi tests + docs refactoring](https://github.com/Effect-TS/effect/pull/4226) (Feature, Documentation Update)
+- [Ensure the encoding kind of error responses is respected in the OpenAPI spec](https://github.com/Effect-TS/effect/pull/4233) (Bug Fix)
+- [Deduplicate errors in OpenApi.fromApi](https://github.com/Effect-TS/effect/pull/4234) (Bug Fix)
+- [Centralize subroutines in fromApi](https://github.com/Effect-TS/effect/pull/4235) (Enhancement)
+- [Make OpenApiSpec mutable to make handling it more convenient](https://github.com/Effect-TS/effect/pull/4237) (Enhancement)
+- [Fix parcel watcher exports](https://github.com/Effect-TS/effect/pull/4242) (Bug Fix)
+- [Url module](https://github.com/Effect-TS/effect/pull/4177) (Feature)
+- [Url module: add tests and docs](https://github.com/Effect-TS/effect/pull/4246) (Documentation Update)
+- [Add OpenApiJsonSchema module documentation and examples](https://github.com/Effect-TS/effect/pull/4247) (Documentation Update)
+- [Add runMain docs](https://github.com/Effect-TS/effect/pull/4249) (Documentation Update)
+- [Update HttpApi to remove wildcard support for better OpenAPI compatibility](https://github.com/Effect-TS/effect/pull/4245) (Bug Fix)
+- [Add HttpClient.tapError](https://github.com/Effect-TS/effect/pull/4225) (Feature)
+- [Add isHttpMethod refinement](https://github.com/Effect-TS/effect/pull/4250) (Feature)
+- [Add support for symbols in the Issue definition within platform/HttpApiError](https://github.com/Effect-TS/effect/pull/4264) (Feature)
+- [Simplify HttpApi path regex for parameters](https://github.com/Effect-TS/effect/pull/4277) (Optimization)
+
+
+### Effect SQL
+- [Add experimental EventLog modules](https://github.com/Effect-TS/effect/pull/3978) (Feature)
+
+
+### Effect Vitest
+- [Use fast-check re-export](https://github.com/Effect-TS/effect/pull/4232) (Feature)
+- [Add fails method](https://github.com/Effect-TS/effect/pull/3973) (Feature)
+- [Fix it.prop type signature](https://github.com/Effect-TS/effect/pull/4227) (Bug Fix)
+- [Ensure vitest .layer api uses TestServices for provided layer](https://github.com/Effect-TS/effect/pull/4254) (Bug Fix)
+
+
+### General Chores
+- [Update pages workflow to use non-deprecated actions](https://github.com/Effect-TS/effect/pull/4274)
+- [Internal: remove deprecated adapter in src folders](https://github.com/Effect-TS/effect/pull/4285)
+
+
+&nbsp;
+## Community highlights
+
+- This week we celebrate another community milestone: Effect reached 8k stars on GitHub🌟
+  <Tweet id="1879494349807116688" />
+
+- [Jesse Kelly](https://github.com/jessekelly881) created a [Zenstack plugin](https://github.com/jessekelly881/zenstack-effect) for Effect. 
+
+- Cosimo Matteini and Andrea Vallotti created a [toolkit](https://github.com/doubleloop-io/effect-mongodb) to use MongoDB with Effect.
+
+- Dillon Mulroy livestreamed four episodes of his series **Freelance project with TypeScript, Svelte 5, and EffectTS 🚀** on his Twitch channel.
+  <TwitchPlayerNonInteractive video="2352196219" />
+
+&nbsp;
+## Effect Days 2025
+The Effect Days conference is happening on March 19-21, 2025, and it’s the perfect chance to connect with the Effect community and celebrate the Effect ecosystem in person! [Get your ticket! 🎟️](https://effect.website/events/effect-days)
+  <Tweet id="1875510026896597173" />
+
+This week, we announced [Sandro Maglione](https://x.com/SandroMaglione) as a conference speaker. Sandro is a tech content creator and Effect advocate!
+
+<Tweet id="1878759074390839422" />
+
+Shout out to one of our sponsors, [Inato](https://inato.com/), a global clinical trial marketplace that brings research to patients where they live. The Inato team is a long-time supporter of Effect and actively advocates for it within the developer community.
+  <Tweet id="1876251657811726345" />
+
+
+&nbsp;
+## Effect content update
+
+- Maxwell Brown and Tim Smart were live on X(Twitter) and Twitch on Tuesday with a new episode of **Reimagining ContentLayer with Effect**.
+<Tweet id="1879651556032909663" />
+
+- The ninth episode of **Re-building Contentlayer with Effect** has been published on the Effect YouTube Channel.
+
+  <YouTube
+    id="https://www.youtube.com/embed/A9Q12J0SrgM?si=zPkeVN2KuefVFoge"
+    title="Re-building Contentlayer with Effect (Part 9)"
+  />
+
+
+&nbsp;
+## Cause & Effect Podcast
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling, and available on [Youtube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/1861446144137531585), and audio platforms like [Spotify](https://open.spotify.com/episode/7Bkn7A8EXnoqWWmI0czAdz) and [Apple Podcast](https://podcasts.apple.com/us/podcast/cause-effect/id1781879869). This podcast highlights stories from software engineers and companies using Effect in production. Each episode explores their journey of adopting Effect, the learning process, the challenges faced, and the benefits of integrating Effect into their tech stack.
+
+In our first episode, we were joined by [Attila Večerek](https://x.com/attilavecerek), Tech Lead & Staff Engineer, who discussed how [Zendesk](https://www.zendesk.com) incrementally adopted Effect in a polyglot environment with a large codebase. Give it a listen and let us know what you think on our social media or [Discord](https://discord.gg/effect-ts)!
+
+<YouTube
+  id="https://youtu.be/rNAqPHBQFEQ"
+  title="Adopting Effect at Zendesk w/ Attila Večerek | Cause & Effect #1"
+/>
+
+&nbsp;
+## Effect Merch Store
+In December 2024, we unveiled the [Effect Merch Store](https://effect.website/merch), with a selection of Effect-branded items designed for the community. All orders are processed through [Printful](https://www.printful.com/).
+  <Tweet id="1868605126862385238" />
+
+
+&nbsp;
+## Effect job opportunities
+
+More and more companies are adopting Effect in their projects—here’s a list of exciting job opportunities that include Effect in their tech stack:
+
+- **Superwall**: [Full-stack TS developer](https://twitter.com/jakemor/status/1854248980454228411) with backend & infrastructure experience.
+
+- **Expand.ai**: [Software Engineer](https://twitter.com/getexpandai/status/1858674403430854823)
+
+- **Platonic Systems**: [Remote Effect Engineers](https://twitter.com/platonicsystems/status/1861470819861311945)
+
+- **Inato**: [Senior Product Engineer](https://jobs.lever.co/inato/2bbbe759-d4ce-4cc4-8267-8bc998189469)
+
+- **Medbill.ai**: [Founding Software Engineers (full-stack and backend)](https://www.linkedin.com/posts/codingtom_medbill-ai-activity-7260092522708762624-N7TH)
+
+- **inRev**: [Senior Software Engineer](https://jobs.gusto.com/postings/inrev-llc-senior-full-stack-engineer-332c0453-fd2d-457f-b30c-f5a0e999cbc5)
+
+- **Oneiro Solutions**: Software Engineer - Core Team. [Join our Discord](https://discord.com/channels/795981131316985866/796153351372275743) and DM **leighman** for further info.
+
+- **Microsub**: [TS Developer](https://x.com/0xdownshift/status/1880013835878154510)
+
+*Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies.*
+
+
+&nbsp;
+## Closing notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
