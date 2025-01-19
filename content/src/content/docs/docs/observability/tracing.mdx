@@ -688,3 +688,21 @@ Now, let's simulate traces using a sample Node.js application. We'll provide you
    ![Traces in Grafana Tempo](../_assets/trace.png "An image displaying an application trace visualized as a waterfall diagram in Grafana Tempo")
 
 </Steps>
+
+## Integrations
+
+### Sentry
+
+To send span data directly to Sentry for analysis, replace the default span processor with Sentry's implementation. This allows you to use Sentry as a backend for tracing and debugging.
+
+**Example** (Configuring Sentry for Tracing)
+
+```ts twoslash
+import { NodeSdk } from "@effect/opentelemetry"
+import { SentrySpanProcessor } from "@sentry/opentelemetry"
+
+const NodeSdkLive = NodeSdk.layer(() => ({
+  resource: { serviceName: "example" },
+  spanProcessor: new SentrySpanProcessor()
+}))
+```
