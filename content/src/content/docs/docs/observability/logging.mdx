@@ -282,6 +282,47 @@ timestamp=... level=INFO fiber=#0 message=message2 key=value
 
 In this example, all logs generated within the `program` will include the annotation `key=value`.
 
+<Aside type="tip" title="Scope of Annotations">
+  Annotations applied with `Effect.annotateLogs` are automatically added
+  to all logs generated within the annotated effect's scope, including
+  logs from nested effects.
+</Aside>
+
+### Annotations with Nested Effects
+
+Annotations propagate to all logs generated within nested or downstream effects. This ensures that logs from any child effects inherit the parent effect's annotations.
+
+**Example** (Propagating Annotations to Nested Effects)
+
+In this example, the annotation `key=value` is included in all logs, even those from the nested `anotherProgram` effect.
+
+```ts twoslash
+import { Effect } from "effect"
+
+// Define a child program that logs an error
+const anotherProgram = Effect.gen(function* () {
+  yield* Effect.logError("error1")
+})
+
+// Define the main program
+const program = Effect.gen(function* () {
+  yield* Effect.log("message1")
+  yield* Effect.log("message2")
+  yield* anotherProgram // Call the nested program
+}).pipe(
+  // Attach an annotation to all logs in the scope
+  Effect.annotateLogs("key", "value")
+)
+
+Effect.runFork(program)
+/*
+Output:
+timestamp=... level=INFO fiber=#0 message=message1 key=value
+timestamp=... level=INFO fiber=#0 message=message2 key=value
+timestamp=... level=ERROR fiber=#0 message=error1 key=value
+*/
+```
+
 ### Adding Multiple Annotations
 
 You can also apply multiple annotations at once by passing an object with key/value pairs. Each key/value pair will be added to every log entry within the effect.
