@@ -242,19 +242,68 @@ type MessageAnnotation = (issue: ParseIssue) =>
 | `Effect<string>`                       | Utilizes dynamic messages that can incorporate results from **synchronous** processes or rely on **optional** dependencies.                                                                                                                                  |
 | Object (with `message` and `override`) | Allows you to define a specific error message along with a boolean flag (`override`). This flag determines if the custom message should supersede any default or nested custom messages, providing precise control over the error output displayed to users. |
 
-**Example** (Custom Error Message for a String Schema)
+**Example** (Adding a Custom Error Message to a String Schema)
 
 ```ts twoslash
 import { Schema } from "effect"
 
-const MyString = Schema.String.annotations({
-  message: () => "not a string"
-})
+// Define a string schema without a custom message
+const MyString = Schema.String
 
+// Attempt to decode `null`, resulting in a default error message
 Schema.decodeUnknownSync(MyString)(null)
 /*
 throws:
+ParseError: Expected string, actual null
+*/
+
+// Define a string schema with a custom error message
+const MyStringWithMessage = Schema.String.annotations({
+  message: () => "not a string"
+})
+
+// Decode with the custom schema, showing the new error message
+Schema.decodeUnknownSync(MyStringWithMessage)(null)
+/*
+throws:
 ParseError: not a string
+*/
+```
+
+**Example** (Custom Error Message for a Union Schema with Override Option)
+
+```ts twoslash "override: true"
+import { Schema } from "effect"
+
+// Define a union schema without a custom message
+const MyUnion = Schema.Union(Schema.String, Schema.Number)
+
+// Decode `null`, resulting in default union error messages
+Schema.decodeUnknownSync(MyUnion)(null)
+/*
+throws:
+ParseError: string | number
+├─ Expected string, actual null
+└─ Expected number, actual null
+*/
+
+// Define a union schema with a custom message and override flag
+const MyUnionWithMessage = Schema.Union(
+  Schema.String,
+  Schema.Number
+).annotations({
+  message: () => ({
+    message: "Please provide a string or a number",
+    // Ensures this message replaces all nested messages
+    override: true
+  })
+})
+
+// Decode with the custom schema, showing the new error message
+Schema.decodeUnknownSync(MyUnionWithMessage)(null)
+/*
+throws:
+ParseError: Please provide a string or a number
 */
 ```
 
