@@ -247,6 +247,67 @@ Output:
 */
 ```
 
+### Nested Structs and Shallow Defaults
+
+Default values in schemas are shallow, meaning that defaults defined in nested structs do not automatically propagate to the top-level constructor.
+
+**Example** (Shallow Defaults in Nested Structs)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const Config = Schema.Struct({
+  // Define a nested struct with a default value
+  web: Schema.Struct({
+    application_url: Schema.String.pipe(
+      Schema.propertySignature,
+      Schema.withConstructorDefault(() => "http://localhost")
+    ),
+    application_port: Schema.Number
+  })
+})
+
+// This will cause a type error because `application_url`
+// is missing in the nested struct
+// @ts-expect-error
+Config.make({ web: { application_port: 3000 } })
+```
+
+This behavior occurs because the `Schema` interface does not include a type parameter to carry over default constructor types from nested structs.
+
+To work around this limitation, extract the constructor for the nested struct and apply it to its fields directly. This ensures that the nested defaults are respected.
+
+**Example** (Using Nested Struct Constructors)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const Config = Schema.Struct({
+  web: Schema.Struct({
+    application_url: Schema.String.pipe(
+      Schema.propertySignature,
+      Schema.withConstructorDefault(() => "http://localhost")
+    ),
+    application_port: Schema.Number
+  })
+})
+
+// Extract the nested struct constructor
+const { web: Web } = Config.fields
+
+// Use the constructor for the nested struct
+console.log(Config.make({ web: Web.make({ application_port: 3000 }) }))
+/*
+Output:
+{
+  web: {
+    application_url: 'http://localhost',
+    application_port: 3000
+  }
+}
+*/
+```
+
 ### Lazy Evaluation of Defaults
 
 Defaults are lazily evaluated, meaning that a new instance of the default is generated every time the constructor is called:
