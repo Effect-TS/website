@@ -1,0 +1,29 @@
+---
+import type { GetStaticPathsResult, InferGetStaticPropsType } from "astro"
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
+import type { StarlightPageProps } from "@astrojs/starlight/props"
+
+export const prerender = true
+
+export async function getStaticPaths() {
+  return [
+    {
+      params: {
+        tutorial: "intro"
+      }
+    }
+  ] satisfies GetStaticPathsResult
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>
+
+const pageProps: StarlightPageProps = {
+  frontmatter: {
+    title: "Effect Tutorials",
+  },
+}
+---
+
+<StarlightPage {...pageProps}>
+  <div>Tutorial</div>
+</StarlightPage>
