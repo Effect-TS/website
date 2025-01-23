@@ -2,6 +2,10 @@ import { reference, z } from "astro:content"
 
 export const podcastSchema = z.object({
   /**
+   * Required at the moment to differentiate a podcast schema from others.
+   */
+  type: z.literal("Podcast"),
+  /**
    * A non-zero integer representing the episode number.
    */
   episode: z.number().int().min(1),
