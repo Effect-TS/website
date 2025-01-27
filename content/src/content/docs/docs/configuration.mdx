@@ -482,6 +482,30 @@ Effect.runPromise(Effect.provide(program, layer))
 
 This approach helps you create isolated tests that don't rely on external environment variables, ensuring your tests run consistently with mock configurations.
 
+<Aside type="caution" title="Namespace Separator">
+  When specifying nested configurations in the map, you must use `.` to
+  separate levels of the namespace (e.g., `SERVER.PORT`) instead of `_`.
+  For example, `SERVER_PORT` will not be recognized as a nested key.
+</Aside>
+
+**Example** (Providing Nested Configuration Values)
+
+```ts twoslash
+import { Config, ConfigProvider, Layer, Effect } from "effect"
+
+const config = Config.nested(Config.number("PORT"), "SERVER")
+
+const mockConfigProvider = ConfigProvider.fromMap(
+  // Use '.' as a separator for nested keys
+  new Map([["SERVER.PORT", "8080"]])
+)
+
+Effect.runPromise(
+  Effect.provide(config, Layer.setConfigProvider(mockConfigProvider))
+).then(console.log)
+// Output: 8080
+```
+
 ## Redacted
 
 The `Config.redacted` function is used to handle sensitive information safely. It parses the configuration value and wraps it in a `Redacted<string>`, a specialized [data type](/docs/data-types/redacted/) designed to protect secrets.
