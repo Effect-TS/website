@@ -430,8 +430,8 @@ const serviceConfig = Config.map(
 
 Now, if you run your application with this configuration setup, it will look for the following environment variables:
 
-- `SERVER.HOST` for the host value
-- `SERVER.PORT` for the port value
+- `SERVER_HOST` for the host value
+- `SERVER_PORT` for the port value
 - `TIMEOUT` for the timeout value
 
 This structured approach keeps your configuration more organized, especially when dealing with multiple services or complex applications.
@@ -481,6 +481,30 @@ Effect.runPromise(Effect.provide(program, layer))
 ```
 
 This approach helps you create isolated tests that don't rely on external environment variables, ensuring your tests run consistently with mock configurations.
+
+<Aside type="caution" title="Namespace Separator">
+  When specifying nested configurations in the map, you must use `.` to
+  separate levels of the namespace (e.g., `SERVER.PORT`) instead of `_`.
+  For example, `SERVER_PORT` will not be recognized as a nested key.
+</Aside>
+
+**Example** (Providing Nested Configuration Values)
+
+```ts twoslash
+import { Config, ConfigProvider, Layer, Effect } from "effect"
+
+const config = Config.nested(Config.number("PORT"), "SERVER")
+
+const mockConfigProvider = ConfigProvider.fromMap(
+  // Use '.' as a separator for nested keys
+  new Map([["SERVER.PORT", "8080"]])
+)
+
+Effect.runPromise(
+  Effect.provide(config, Layer.setConfigProvider(mockConfigProvider))
+).then(console.log)
+// Output: 8080
+```
 
 ## Redacted
 
