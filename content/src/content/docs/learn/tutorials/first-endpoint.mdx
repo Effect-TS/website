@@ -1,0 +1,262 @@
+---
+type: Tutorial
+title: Migrating our first endpoint
+tags:
+  - some
+  - tags
+sidebar:
+  order: 2
+---
+
+The first step to migrating this to Effect is to launch the Express.js server
+with Effect instead of the traditional `app.listen`. Because the Express.js
+`app` is a function that returns a node `http.Server` under the hood, it slots
+nicely into Effect's `HttpServer` abstraction.
+
+```ts twoslash {3-6, 14-21}
+import express from "express"
+
+import { HttpRouter, HttpServer } from "@effect/platform"
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Layer } from "effect"
+import { createServer } from "node:http"
+
+const app = express()
+
+app.get("/health", (req, res) => {
+  res.type("text/plain").send("ok")
+})
+
+NodeRuntime.runMain(
+  Layer.launch(
+    Layer.provide(
+      HttpServer.serve(HttpRouter.empty),
+      NodeHttpServer.layer(() => createServer(app), { port: 3000 }),
+    ),
+  ),
+)
+```
+
+And we can run the resulting code like so:
+
+```shell
+bun add @effect/platform @effect/platform-node
+bun run index.ts
+```
+
+We haven't changed anything about how the server behaves. It still exposes a
+single endpoint, `http://localhost:3000/health`, and that still returns `ok`.
+But we've wrapped the Express.js app in a way that will allow us to define new
+endpoints using Effect while still responding to our existing endpoints in
+Express.js.
+
+There's a lot of new things happening at the bottom of our file. For the time
+being we're going to ignore most of it and focus on migrating an endpoint to
+Effect. I promise by the time we're done, you'll understand every line we added
+above.
+
+First, let's break out our router, `HttpRouter.empty`, out into its own variable
+so it's easier to add to.
+
+```ts twoslash
+import { HttpRouter } from "@effect/platform"
+// ---cut---
+const router = HttpRouter.empty
+```
+
+And let's define the function we want to run when we hit the `/health` endpoint:
+
+```ts twoslash
+import { HttpServerResponse } from "@effect/platform"
+// ---cut---
+function health() {
+  return HttpServerResponse.text("ok")
+}
+```
+
+`HttpServerResponse` is Effect's class for generating HTTP responses, we need to
+use it for any responses returned from our endpoints defined with Effect.
+
+The way we wire these things together is going to look a bit strange, but bear
+with me.
+
+```ts twoslash
+import { HttpServerResponse, HttpRouter } from "@effect/platform"
+import { Effect } from "effect"
+// ---cut---
+function health() {
+  return HttpServerResponse.text("ok")
+}
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", Effect.sync(health)),
+)
+```
+
+What on earth are `Effect.sync` and `.pipe`?
+
+## The Effect Type
+
+At the core of Effect is... well, the `Effect`. You can think of an `Effect` as
+a lazy computation, similar to a function that hasn't been called yet.
+
+Here's an example of an `Effect` that returns the string `"Hello, world!"`:
+
+```ts twoslash
+import { Effect } from "effect"
+// ---cut---
+Effect.promise(async () => "Hello, world!")
+```
+
+`Effect.promise` takes a function that returns a `Promise` and creates an
+`Effect` out of it. `Effect.sync` works exactly the same, except it takes a
+synchronous function instead of an asynchronous one.
+
+If we want to run this Effect, we can use `Effect.runPromise`:
+
+```ts twoslash {2}
+import { Effect } from "effect"
+// ---cut---
+const promise = Effect.promise(async () => "Hello, world!")
+const result = await Effect.runPromise(promise);
+console.log(result)
+// => "Hello, world!"
+```
+
+What if you want to run an Effect that calls another Effect? You can use
+`Effect.gen` to do that:
+
+```ts twoslash {2-5}
+import { Effect } from "effect"
+// ---cut---
+const promise = Effect.promise(async () => "Hello, world!")
+const gen = Effect.gen(function* () {
+  const str = yield* promise
+  return str.toUpperCase()
+})
+const result = await Effect.runPromise(gen)
+console.log(result)
+// => "HELLO, WORLD!"
+```
+
+This makes use of JavaScript's [generator functions][1]. You can think of the
+`yield*` keyword as being very similar to `await`ing a `Promise`. Under the
+hood, all `Effect`s are generators, and `yield*`ing one passes it to the Effect
+runtime and waits for the result.
+
+Given that all we want to do above is call `.toUpperCase()` on the result
+of `promise`, the scaffolding of `Effect.gen` may feel heavy. Effect gives us
+a suite of tools to work with `Effect`s, and one of those tools is `pipe`:
+
+```ts twoslash {2}
+import { Effect } from "effect"
+// ---cut---
+const promise = Effect.promise(async () => "Hello, world!")
+const upper = promise.pipe(Effect.map((s) => s.toUpperCase()))
+const result = await Effect.runPromise(upper)
+console.log(result)
+// => "HELLO, WORLD!"
+```
+
+`pipe` passes the result of one computation as input to another. Here,
+`Effect.map` transforms the result of the first `Effect` with the function
+provided.
+
+We can `pipe` as many `Effect`s together as we like:
+
+```ts twoslash {2-7}
+import { Effect } from "effect"
+// ---cut---
+const promise = Effect.promise(async () => "Hello, world!")
+const upper = promise.pipe(
+  Effect.map((s) => s.toUpperCase()),
+  Effect.map((s) => s.split("")),
+  Effect.map((s) => s.reverse()),
+  Effect.map((s) => s.join("")),
+)
+const result = await Effect.runPromise(upper)
+console.log(result)
+// => "!DLROW ,OLLEH"
+```
+
+This should give us just enough to carry on with migrating our first endpoint
+to Effect. As we continue through this tutorial, we'll introduce more and more
+things you can do with the `Effect` type.
+
+## Understanding `HttpRouter`
+
+Looking back at our `HttpRouter`, we used `pipe` to add a new endpoint to our
+app:
+
+```ts twoslash
+import { HttpRouter, HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+function health() {
+  return HttpServerResponse.text("ok")
+}
+// ---cut---
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", Effect.sync(health)),
+);
+```
+
+`HttpRouter` is a data structure that represents a collection of routes. The
+simplest router is one with no routes at all, and Effect exposes that to us as
+the `HttpRouter.empty` value. Under the hood, this is itself an `Effect`:
+
+```ts twoslash
+import { HttpRouter } from "@effect/platform"
+import { Effect } from "effect"
+// ---cut---
+console.log(Effect.isEffect(HttpRouter.empty))
+// => true
+```
+
+The helper `HttpRouter.get` takes an `HttpRouter` as an argument and returns a
+new `HttpRouter` with the given route added. If we wanted to, we could have done
+this much more directly:
+
+```ts twoslash
+import { HttpRouter, HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+function health() {
+  return HttpServerResponse.text("ok")
+}
+// ---cut---
+const router = HttpRouter.get("/health", Effect.sync(health))(HttpRouter.empty)
+```
+
+This is exactly the same as the `pipe` version, except that if we wanted to add
+multiple routes it gets unwieldy quickly:
+
+```ts twoslash
+import { HttpRouter, HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+function health() {
+  return HttpServerResponse.text("ok")
+}
+function status() {
+  return HttpServerResponse.text("ok")
+}
+function version() {
+  return HttpServerResponse.text("ok")
+}
+// ---cut---
+HttpRouter.get("/health", Effect.sync(health))(
+  HttpRouter.get("/status", Effect.sync(status))(
+    HttpRouter.get("/version", Effect.sync(version))(
+      HttpRouter.empty,
+    ),
+  ),
+)
+
+// vs
+
+HttpRouter.empty.pipe(
+  HttpRouter.get("/version", Effect.sync(version)),
+  HttpRouter.get("/status", Effect.sync(status)),
+  HttpRouter.get("/health", Effect.sync(health)),
+)
+```
+
+[1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*
