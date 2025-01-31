@@ -57,7 +57,7 @@ with Effect instead of the traditional `app.listen`. Because the Express.js
 `app` is a function that returns a node `http.Server` under the hood, it slots
 nicely into Effect's `HttpServer` abstraction.
 
-```typescript
+```ts twoslash
 import express from "express"
 
 // New imports
@@ -104,13 +104,17 @@ above.
 First, let's break out our router, `HttpRouter.empty`, out into its own variable
 so it's easier to add to.
 
-```typescript
+```ts twoslash
+import { HttpRouter } from "@effect/platform"
+// ---cut---
 const router = HttpRouter.empty
 ```
 
 And let's define the function we want to run when we hit the `/health` endpoint:
 
-```typescript
+```ts twoslash
+import { HttpServerResponse } from "@effect/platform"
+// ---cut---
 function health() {
   return HttpServerResponse.text("ok")
 }
@@ -122,7 +126,10 @@ use it for any responses returned from our endpoints defined with Effect.
 The way we wire these things together is going to look a bit strange, but bear
 with me.
 
-```typescript
+```ts twoslash
+import { HttpServerResponse, HttpRouter } from "@effect/platform"
+import { Effect } from "effect"
+// ---cut---
 function health() {
   return HttpServerResponse.text("ok")
 }
@@ -142,7 +149,9 @@ until you run it.
 
 Here are some examples of simple `Effect`s:
 
-```typescript
+```ts twoslash
+import { Effect } from "effect"
+// ---cut---
 const sync = Effect.sync(() => "Hello, world!")
 const promise = Effect.promise(async () => "Hello, world!")
 const succeed = Effect.succeed("Hello, world!")
@@ -152,7 +161,12 @@ Above we have examples of synchronous, asynchronous, and static Effects. None of
 them will do anything as defined there, they need to be run. There are several
 ways to run Effects.
 
-```typescript
+```ts twoslash
+import { Effect } from "effect"
+const sync = Effect.sync(() => "Hello, world!")
+const promise = Effect.promise(async () => "Hello, world!")
+const succeed = Effect.succeed("Hello, world!")
+// ---cut---
 const resultSync = Effect.runSync(sync)
 const resultPromise = await Effect.runPromise(promise);
 const resultSucceed = Effect.runSync(succeed)
@@ -172,7 +186,10 @@ respectively.
 What if you want to run an Effect that calls another Effect? You can use
 `Effect.gen` to do that:
 
-```typescript
+```ts twoslash
+import { Effect } from "effect"
+const promise = Effect.promise(async () => "Hello, world!")
+// ---cut---
 const gen = Effect.gen(function* () {
   const result = yield* promise
   return result.toUpperCase()
@@ -187,7 +204,10 @@ Given that all we really want to do above is call `.toUpperCase()` on the result
 of `promise`, the scaffolding of `Effect.gen` feels a bit heavy. Effect gives us
 plenty of tools to work with `Effect`s, one of which is `pipe`:
 
-```typescript
+```ts twoslash
+import { Effect } from "effect"
+const promise = Effect.promise(async () => "Hello, world!")
+// ---cut---
 const upper = promise.pipe(Effect.map((s) => s.toUpperCase()))
 const result = await Effect.runPromise(upper)
 console.log(result)
@@ -200,7 +220,10 @@ provided.
 
 We can `pipe` as many `Effect`s together as we like:
 
-```typescript
+```ts twoslash
+import { Effect } from "effect"
+const promise = Effect.promise(async () => "Hello, world!")
+// ---cut---
 const upper = promise.pipe(
   Effect.map((s) => s.toUpperCase()),
   Effect.map((s) => s.split("")),
@@ -216,7 +239,13 @@ console.log(result)
 
 Looking back at `HttpRouter`, we used `pipe` to add a new endpoint to our app:
 
-```typescript
+```ts twoslash
+import { HttpRouter, HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+function health() {
+  return HttpServerResponse.text("ok")
+}
+// ---cut---
 const router = HttpRouter.empty.pipe(
   HttpRouter.get("/health", Effect.sync(health)),
 );
@@ -226,7 +255,10 @@ const router = HttpRouter.empty.pipe(
 simplest router is one with no routes at all, and Effect exposes that to us as
 the `HttpRouter.empty` value. Under the hood, this is itself an `Effect`:
 
-```typescript
+```ts twoslash
+import { HttpRouter } from "@effect/platform"
+import { Effect } from "effect"
+// ---cut---
 console.log(Effect.isEffect(HttpRouter.empty))
 // true
 ```
@@ -235,14 +267,32 @@ The helper `HttpRouter.get` takes as input an `HttpRouter` and returns a new
 `HttpRouter` with the given route added. If we wanted to, we could have done
 this much more directly:
 
-```typescript
+```ts twoslash
+import { HttpRouter, HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+function health() {
+  return HttpServerResponse.text("ok")
+}
+// ---cut---
 const router = HttpRouter.get("/health", Effect.sync(health))(HttpRouter.empty)
 ```
 
 This is exactly the same as the `pipe` version, except that if we wanted to add
 multiple routes it gets unwieldy quickly:
 
-```typescript
+```ts twoslash
+import { HttpRouter, HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+function health() {
+  return HttpServerResponse.text("ok")
+}
+function status() {
+  return HttpServerResponse.text("ok")
+}
+function version() {
+  return HttpServerResponse.text("ok")
+}
+// ---cut---
 HttpRouter.get("/health", Effect.sync(health))(
   HttpRouter.get("/status", Effect.sync(status))(
     HttpRouter.get("/version", Effect.sync(version))(
