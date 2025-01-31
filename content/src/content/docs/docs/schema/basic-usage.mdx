@@ -418,6 +418,41 @@ const schema = Schema.Union(Schema.String, Schema.Number)
 type Type = typeof schema.Type
 ```
 
+### Union Member Evaluation Order
+
+When decoding, union members are evaluated in the order they are defined. If a value matches the first member, it will be decoded using that schema. If not, the decoding process moves on to the next member.
+
+If multiple schemas could decode the same value, the order matters. Placing a more general schema before a more specific one may result in missing properties, as the first matching schema will be used.
+
+**Example** (Handling Overlapping Schemas in a Union)
+
+```ts twoslash
+import { Schema } from "effect"
+
+// Define two overlapping schemas
+
+const Member1 = Schema.Struct({
+  a: Schema.String
+})
+
+const Member2 = Schema.Struct({
+  a: Schema.String,
+  b: Schema.Number
+})
+
+// ❌ Define a union where Member1 appears first
+const Bad = Schema.Union(Member1, Member2)
+
+console.log(Schema.decodeUnknownSync(Bad)({ a: "a", b: 12 }))
+// Output: { a: 'a' }  (Member1 matched first, so `b` was ignored)
+
+// ✅ Define a union where Member2 appears first
+const Good = Schema.Union(Member2, Member1)
+
+console.log(Schema.decodeUnknownSync(Good)({ a: "a", b: 12 }))
+// Output: { a: 'a', b: 12 } (Member2 matched first, so `b` was included)
+```
+
 ### Union of Literals
 
 While you can create a union of literals by combining individual literal schemas:
