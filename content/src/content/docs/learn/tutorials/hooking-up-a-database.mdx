@@ -1,0 +1,195 @@
+---
+type: Tutorial
+title: Hooking up a database
+tags:
+  - some
+  - tags
+sidebar:
+  order: 3
+---
+
+The next endpoint we're going to migrate is one that lists all of the users in a
+database. For illustrative purposes, we're going to use SQLite using Bun's
+built-in connector, but the technique we'll cover will work for
+whatever database you're using, and however you're connecting to it.
+
+First, let's take a look at our app in full with our new endpoint added to
+it:
+
+```ts twoslash {8-9,13-17} title=index.ts
+import express from "express"
+
+import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+
+import { Database } from "bun:sqlite";
+const db = new Database("sqlite.db");
+
+const app = express();
+
+app.get("/users", (req, res) => {
+  res.send({
+    users: db.prepare("SELECT * FROM users").all(),
+  });
+});
+
+export const health = Effect.sync(() => {
+  return HttpServerResponse.text("ok")
+})
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", health),
+)
+
+NodeRuntime.runMain(
+  Layer.launch(
+    Layer.provide(
+      HttpServer.serve(router),
+      NodeHttpServer.layer(() => createServer(app), { port: 3000 }),
+    ),
+  ),
+)
+```
+
+To create our example `sqlite.db` file, you can run the following commands:
+
+```shell
+$ sqlite3 sqlite.db
+sqlite> CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);
+sqlite> INSERT INTO users (name) VALUES ("Alice");
+sqlite> INSERT INTO users (name) VALUES ("Bob");
+```
+
+Then you can run the server with:
+
+```shell
+$ bun index.ts
+```
+
+And in other shell we can test the endpoint:
+
+```shell
+$ curl http://localhost:3000/users
+{"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}⏎
+```
+
+## The direct approach
+
+If we were to copy what we did with the `/health` endpoint, we'd end up with
+code that looked like this:
+
+```ts twoslash
+import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+
+import { Database } from "bun:sqlite";
+const db = new Database("sqlite.db");
+export const health = Effect.sync(() => {
+  return HttpServerResponse.text("ok")
+})
+//---cut---
+// @errors: 2379
+const users = Effect.sync(() => {
+  return HttpServerResponse.json({
+    users: db.prepare("SELECT * FROM users").all(),
+  })
+})
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", health),
+  HttpRouter.get("/users", users),
+)
+```
+
+This doesn't work, because converting a JavaScript object to JSON might fail, so
+`HttpServerResponse.json` returns an Effect that can fail, unlike
+`HttpServerResponse.text` which directly returns an `HttpServerResponse` because
+it cannot fail.
+
+## Error handling in Effect
+
+When we introduced the `Effect` type in the previous section, we dealt
+exclusively with Effects that couldn't fail. That won't get us very far if
+we're building anything non-trivial, so let's talk about error handling.
+
+`Effect` is a generic type that takes 3 type arguments:
+
+```typescript
+Effect<Success, Error, Requirements>
+```
+
+`Success` is the type the Effect returns when it succeeds, `Error` is the type
+it returns when it fails, and we'll talk about `Requirements` a bit later.
+
+When we created our example Effects in the previous section, these all took on
+the type `Effect<string, never, never>`.
+
+```ts twoslash
+import { Effect } from "effect"
+//---cut---
+Effect.sync(() => "Hello, world!")
+//=> Effect.Effect<string, never, never>
+```
+
+This means they will return a `string` on success, and never fail.
+
+The Effect that `HttpServerResponse.json` returns is of type
+`Effect<HttpServerResponse, HttpBodyError, never>`. So when we try to return
+it from our `users` handler, we end up wrapping one Effect in another.
+
+```ts twoslash
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+
+import { Database } from "bun:sqlite";
+const db = new Database("sqlite.db");
+//---cut---
+const users = Effect.sync(() => {
+//    ^?
+  return HttpServerResponse.json({
+    users: db.prepare("SELECT * FROM users").all(),
+  })
+})
+```
+
+And this causes the type mismatch error we saw earlier. Let's fix it.
+
+## More pipes
+
+We saw `pipe` used in our `HttpRouter`, and we're going to use it again here.
+The `pipe` function is fundamental to Effect, you're going to see it a lot.
+
+Let's express our `users` handler in a different way:
+
+```ts twoslash
+import { HttpServerResponse, HttpRouter } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+import { Database } from "bun:sqlite";
+const db = new Database("sqlite.db");
+export const health = Effect.sync(() => {
+  return HttpServerResponse.text("ok")
+})
+//---cut---
+const users = Effect.sync(() => {
+  return { users: db.prepare("SELECT * FROM users").all() }
+}).pipe(
+  (body) => HttpServerResponse.json(body)
+)
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", health),
+  HttpRouter.get("/users", users),
+)
+```
+
+This no longer gives us a type error. We've split our computation into two
+parts: fetching the data with `Effect.sync`, and serializing it with
+`HttpServerResponse.json`. The call to `pipe` takes the result of the first
+Effect and passes it to `HttpServerResponse.json`, flattening any nesting in
+the process.
