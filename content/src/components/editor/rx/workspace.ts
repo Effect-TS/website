@@ -85,7 +85,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
             writer.write(`cd "${workspace.name}" && clear\n`)
             /**
              * Install dependencies, acquire types, and setup formatters in the 
-             * background, and once complete, enable diagnostics for the editor
+             * background
              */
             const fiber = yield* handle.spawn(workspace.prepare).pipe(
               Effect.tap((process) => {
