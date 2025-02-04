@@ -3,9 +3,9 @@ import * as monaco from "@effect/monaco-editor"
 import { createStreaming, type Formatter } from "@dprint/formatter"
 import * as Array from "effect/Array"
 import * as Cache from "effect/Cache"
-import * as Fiber from "effect/Fiber"
 import * as Effect from "effect/Effect"
 import * as Either from "effect/Either"
+import * as Fiber from "effect/Fiber"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Sink from "effect/Sink"
@@ -98,12 +98,6 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
               Effect.flatMap((process) => Effect.promise(() => process.exit)),
               Effect.zipRight(setupWorkspaceTypeAcquisition(workspace)),
               Effect.zipRight(setupWorkspaceFormatters(workspace)),
-              Effect.zipRight(Effect.sync(() => {
-                monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-                  noSyntaxValidation: false,
-                  noSemanticValidation: false,
-                })
-              })),
               Effect.forkScoped
             )
             if (command !== undefined) {

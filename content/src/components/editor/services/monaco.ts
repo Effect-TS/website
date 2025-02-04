@@ -7,7 +7,7 @@ import { ChromeDevTools, Dracula } from "./monaco/themes"
 type MonacoApi = typeof import("@effect/monaco-editor")
 
 export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
-  scoped: Effect.gen(function*() {
+  scoped: Effect.gen(function* () {
     monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true)
 
     monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
@@ -19,11 +19,6 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
       target: 99 // ts.ScriptTarget.ESNext
     })
 
-    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-      noSemanticValidation: true,
-      noSyntaxValidation: true,
-    })
-
     monaco.editor.defineTheme("chrome-devtools", ChromeDevTools)
     monaco.editor.defineTheme("dracula", Dracula)
 
@@ -31,14 +26,17 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
     setupTwoslashIntegration(monaco)
 
     /**
-     * Creates a new Monaco editor and attaches it to the specified HTML 
+     * Creates a new Monaco editor and attaches it to the specified HTML
      * element.
      *
      * The editor will be disposed when the associated scope is closed.
      */
     function createEditor(element: HTMLElement) {
-      return Effect.gen(function*() {
-        const viewStates = new Map<string, monaco.editor.ICodeEditorViewState | null>()
+      return Effect.gen(function* () {
+        const viewStates = new Map<
+          string,
+          monaco.editor.ICodeEditorViewState | null
+        >()
 
         /**
          * The editor that was created.
@@ -67,7 +65,7 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
         function loadModel(model: monaco.editor.ITextModel) {
           return Effect.sync(() => {
             const current = editor.getModel()
-            // If the current model matches the model to load, there is no further 
+            // If the current model matches the model to load, there is no further
             // work to do and we can return the model directly
             if (current !== null && current === model) {
               return model
@@ -88,7 +86,7 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
         }
 
         /**
-         * A stream of changes made to the content of the editor's currently 
+         * A stream of changes made to the content of the editor's currently
          * loaded model.
          */
         const content = Stream.async<string>((emit) => {
@@ -110,13 +108,13 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
       createEditor
     } as const
   })
-}) { }
+}) {}
 
 function setupCompletionItemProviders(monaco: MonacoApi) {
   const previousRegistrationProvider =
     monaco.languages.registerCompletionItemProvider
 
-  monaco.languages.registerCompletionItemProvider = function(
+  monaco.languages.registerCompletionItemProvider = function (
     language: monaco.languages.LanguageSelector,
     provider: monaco.languages.CompletionItemProvider
   ): monaco.IDisposable {
@@ -136,7 +134,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
     ) {
       // Hack required for converting a `ts.TextChange` to a `ts.TextEdit` - see
       // toTextEdit function defined below
-      ; (this as any).__model = model
+      ;(this as any).__model = model
 
       const wordInfo = model.getWordUntilPosition(position)
       const wordRange = new monaco.Range(
@@ -155,7 +153,11 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
       }
 
       const info: ts.CompletionInfo | undefined =
-        await worker.getCompletionsAtPosition(resource.toString(), offset, {})
+        await worker.getCompletionsAtPosition(
+          resource.toString(),
+          offset,
+          {}
+        )
 
       if (!info || model.isDisposed()) {
         return
@@ -202,7 +204,8 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
       return { suggestions }
     }
 
-    interface CustomCompletionItem extends monaco.languages.CompletionItem {
+    interface CustomCompletionItem
+      extends monaco.languages.CompletionItem {
       readonly label: string
       readonly uri: monaco.Uri
       readonly position: monaco.Position
@@ -245,7 +248,9 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
           displayPartsToString(details.displayParts),
         additionalTextEdits: autoImports?.textEdits,
         documentation: {
-          value: (this.constructor as any).createDocumentationString(details)
+          value: (this.constructor as any).createDocumentationString(
+            details
+          )
         }
       } as CustomCompletionItem
     }
@@ -286,8 +291,13 @@ function getAutoImports(
   // If the newly entered text does not start with `import ...`, then it will be
   // potentially added to an existing import and can most likely be accepted
   // without modification
-  if (textChanges.every((textChange: any) => !/import/.test(textChange.newText))) {
-    const specifier = codeAction.description.match(/from ["'](.+)["']/)![1]
+  if (
+    textChanges.every(
+      (textChange: any) => !/import/.test(textChange.newText)
+    )
+  ) {
+    const specifier =
+      codeAction.description.match(/from ["'](.+)["']/)![1]
     return {
       detailText: `Auto import from '${specifier}'`,
       textEdits: textChanges.map((textChange) =>
@@ -439,11 +449,13 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
         if (model.isDisposed()) {
           return {
             hints: [],
-            dispose: () => { }
+            dispose: () => {}
           }
         }
 
-        const matches = text.matchAll(inlineQueryRegex) as unknown as RegExpGroups<"start" | "end">
+        const matches = text.matchAll(
+          inlineQueryRegex
+        ) as unknown as RegExpGroups<"start" | "end">
 
         for (const _match of matches) {
           if (_match.index === undefined) {
@@ -453,7 +465,7 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
           if (cancellationToken.isCancellationRequested) {
             return {
               hints: [],
-              dispose: () => { }
+              dispose: () => {}
             }
           }
           const [line] = _match
@@ -466,7 +478,9 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
             startIndex + offset + _match.index
           )
           const endIndex = line.lastIndexOf(querySymbol) + 2
-          const endPos = model.getPositionAt(endIndex + offset + _match.index)
+          const endPos = model.getPositionAt(
+            endIndex + offset + _match.index
+          )
 
           const quickInfo = await getLeftMostQuickInfoOfLine(worker, {
             model,
@@ -500,7 +514,7 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
           if (cancellationToken.isCancellationRequested) {
             return {
               hints: [],
-              dispose: () => { }
+              dispose: () => {}
             }
           }
 
@@ -524,7 +538,7 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
         }
         return {
           hints: results,
-          dispose: () => { }
+          dispose: () => {}
         }
       }
     }
@@ -547,7 +561,10 @@ function createHint(options: {
 
   return {
     kind: monaco.languages.InlayHintKind.Type,
-    position: new monaco.Position(position.lineNumber, position.column + 1),
+    position: new monaco.Position(
+      position.lineNumber,
+      position.column + 1
+    ),
     label: text,
     paddingLeft: true
   }
