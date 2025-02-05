@@ -9,50 +9,43 @@ import { Aside } from "@astrojs/starlight/components"
 
 Schedules define stateful, possibly effectful, recurring schedules of events, and compose in a variety of ways. Combinators allow us to take schedules and combine them together to get other schedules.
 
-To demonstrate the functionality of different schedules, we will use the following helper function that logs the delay between executions.
+To demonstrate the functionality of different schedules, we will use the following helper function
+that logs each repetition along with the corresponding delay in milliseconds, formatted as:
 
-```ts twoslash collapse={7-33}
-import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
-
-const log = <A, Out>(
-  action: Effect.Effect<A>,
-  schedule: Schedule.Schedule<Out, void>
-): void => {
-  let start = 0
-  let i = 0
-
-  Effect.gen(function* () {
-    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
-      function* () {
-        yield* action
-        const now = yield* TestClock.currentTimeMillis
-        console.log(
-          i === 0
-            ? `delay: ${now - start}`
-            : i === 10
-            ? "..."
-            : `#${i} delay: ${now - start}`
-        )
-        i++
-        start = now
-      }
-    ).pipe(
-      Effect.repeat(
-        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
-      ),
-      Effect.fork
-    )
-    yield* TestClock.adjust(Infinity)
-    yield* Fiber.join(fiber)
-  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
-}
+```text showLineNumbers=false
+#<repetition>: <delay in ms>
 ```
 
-<Aside type="note" title="Implementation Details">
-  The `log` helper uses [TestClock](/docs/testing/testclock/) to simulate
-  time passing. This allows us to observe the behavior of schedules as if
-  time were advancing in a real-world scenario.
-</Aside>
+**Helper** (Logging Execution Delays)
+
+```ts twoslash
+import { Array, Chunk, Duration, Effect, Schedule } from "effect"
+
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.DurationInput = 0
+): void => {
+  const maxRecurs = 10 // Limit the number of executions
+  const delays = Chunk.toArray(
+    Effect.runSync(
+      Schedule.run(
+        Schedule.delays(Schedule.addDelay(schedule, () => delay)),
+        Date.now(),
+        Array.range(0, maxRecurs)
+      )
+    )
+  )
+  delays.forEach((duration, i) => {
+    console.log(
+      i === maxRecurs
+        ? "..." // Indicate truncation if there are more executions
+        : i === delays.length - 1
+        ? "(end)" // Mark the last execution
+        : `#${i + 1}: ${Duration.toMillis(duration)}ms`
+    )
+  })
+}
+```
 
 ## Composition
 
@@ -66,110 +59,94 @@ Schedules can be composed in different ways:
 
 ### Union
 
-Combines two schedules using union. The schedule recurs as long as one of the schedules wants to, using the minimum delay between recurrences.
+Combines two schedules and recurs if either schedule wants to continue, using the shorter delay.
 
-**Example** (Union of Exponential and Spaced Schedules)
+**Example** (Combining Exponential and Spaced Intervals)
 
-```ts twoslash collapse={3-34}
-import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+```ts twoslash collapse={3-26}
+import { Array, Chunk, Duration, Effect, Schedule } from "effect"
 
-const log = <A, Out>(
-  action: Effect.Effect<A>,
-  schedule: Schedule.Schedule<Out, void>
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.DurationInput = 0
 ): void => {
-  let start = 0
-  let i = 0
-
-  Effect.gen(function* () {
-    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
-      function* () {
-        yield* action
-        const now = yield* TestClock.currentTimeMillis
-        console.log(
-          i === 0
-            ? `delay: ${now - start}`
-            : i === 10
-            ? "..."
-            : `#${i} delay: ${now - start}`
-        )
-        i++
-        start = now
-      }
-    ).pipe(
-      Effect.repeat(
-        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
-      ),
-      Effect.fork
+  const maxRecurs = 10
+  const delays = Chunk.toArray(
+    Effect.runSync(
+      Schedule.run(
+        Schedule.delays(Schedule.addDelay(schedule, () => delay)),
+        Date.now(),
+        Array.range(0, maxRecurs)
+      )
     )
-    yield* TestClock.adjust(Infinity)
-    yield* Fiber.join(fiber)
-  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+  )
+  delays.forEach((duration, i) => {
+    console.log(
+      i === maxRecurs
+        ? "..."
+        : i === delays.length - 1
+        ? "(end)"
+        : `#${i + 1}: ${Duration.toMillis(duration)}ms`
+    )
+  })
 }
 
 const schedule = Schedule.union(
   Schedule.exponential("100 millis"),
   Schedule.spaced("1 second")
 )
-const action = Effect.void
-log(action, schedule)
+
+log(schedule)
 /*
 Output:
-delay: 0
-#1 delay: 100  < exponential
-#2 delay: 200
-#3 delay: 400
-#4 delay: 800
-#5 delay: 1000 < spaced
-#6 delay: 1000
-#7 delay: 1000
-#8 delay: 1000
-#9 delay: 1000
+#1: 100ms  < exponential
+#2: 200ms
+#3: 400ms
+#4: 800ms
+#5: 1000ms < spaced
+#6: 1000ms
+#7: 1000ms
+#8: 1000ms
+#9: 1000ms
+#10: 1000ms
 ...
 */
 ```
 
-When we use the combined schedule with `Effect.repeat`, we observe that the effect is executed repeatedly based on the minimum delay between the two schedules. In this case, the delay alternates between the exponential schedule (increasing delay) and the spaced schedule (constant delay).
+The `Schedule.union` operator selects the shortest delay at each step, so when combining an exponential schedule with a spaced interval, the initial recurrences will follow the exponential backoff, then settle into the spaced interval once the delays exceed that value.
 
 ### Intersection
 
-Combines two schedules using intersection. The schedule recurs only if both schedules want to continue, using the maximum delay between them.
+Combines two schedules and recurs only if both schedules want to continue, using the longer delay.
 
-**Example** (Intersection of Exponential and Recurs Schedules)
+**Example** (Limiting Exponential Backoff with a Fixed Number of Retries)
 
-```ts twoslash collapse={3-34}
-import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+```ts twoslash collapse={3-26}
+import { Array, Chunk, Duration, Effect, Schedule } from "effect"
 
-const log = <A, Out>(
-  action: Effect.Effect<A>,
-  schedule: Schedule.Schedule<Out, void>
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.DurationInput = 0
 ): void => {
-  let start = 0
-  let i = 0
-
-  Effect.gen(function* () {
-    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
-      function* () {
-        yield* action
-        const now = yield* TestClock.currentTimeMillis
-        console.log(
-          i === 0
-            ? `delay: ${now - start}`
-            : i === 10
-            ? "..."
-            : `#${i} delay: ${now - start}`
-        )
-        i++
-        start = now
-      }
-    ).pipe(
-      Effect.repeat(
-        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
-      ),
-      Effect.fork
+  const maxRecurs = 10
+  const delays = Chunk.toArray(
+    Effect.runSync(
+      Schedule.run(
+        Schedule.delays(Schedule.addDelay(schedule, () => delay)),
+        Date.now(),
+        Array.range(0, maxRecurs)
+      )
     )
-    yield* TestClock.adjust(Infinity)
-    yield* Fiber.join(fiber)
-  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+  )
+  delays.forEach((duration, i) => {
+    console.log(
+      i === maxRecurs
+        ? "..."
+        : i === delays.length - 1
+        ? "(end)"
+        : `#${i + 1}: ${Duration.toMillis(duration)}ms`
+    )
+  })
 }
 
 const schedule = Schedule.intersect(
@@ -177,63 +154,52 @@ const schedule = Schedule.intersect(
   Schedule.recurs(5)
 )
 
-const action = Effect.void
-
-log(action, schedule)
+log(schedule)
 /*
 Output:
-delay: 0
-#1 delay: 10  < exponential
-#2 delay: 20
-#3 delay: 40
-#4 delay: 80
-#5 delay: 160
-(end)         < recurs
+#1: 10ms  < exponential
+#2: 20ms
+#3: 40ms
+#4: 80ms
+#5: 160ms
+(end)     < recurs
 */
 ```
 
-When we use the combined schedule with `Effect.repeat`, we observe that the effect is executed repeatedly only if both schedules want it to recur. The delay between recurrences is determined by the maximum delay between the two schedules. In this case, the delay follows the progression of the exponential schedule until the maximum number of recurrences specified by the recursive schedule is reached.
+The `Schedule.intersect` operator enforces both schedules' constraints. In this example, the schedule follows an exponential backoff but stops after 5 recurrences due to the `Schedule.recurs(5)` limit.
 
 ### Sequencing
 
-Combines two schedules in sequence. First, it follows the policy of the first schedule, then switches to the second schedule once the first completes.
+Combines two schedules by running the first one fully, then switching to the second.
 
-**Example** (Sequencing Recurs and Spaced Schedules)
+**Example** (Switching from Fixed Retries to Periodic Execution)
 
-```ts twoslash collapse={3-34}
-import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+```ts twoslash collapse={3-26}
+import { Array, Chunk, Duration, Effect, Schedule } from "effect"
 
-const log = <A, Out>(
-  action: Effect.Effect<A>,
-  schedule: Schedule.Schedule<Out, void>
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.DurationInput = 0
 ): void => {
-  let start = 0
-  let i = 0
-
-  Effect.gen(function* () {
-    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
-      function* () {
-        yield* action
-        const now = yield* TestClock.currentTimeMillis
-        console.log(
-          i === 0
-            ? `delay: ${now - start}`
-            : i === 10
-            ? "..."
-            : `#${i} delay: ${now - start}`
-        )
-        i++
-        start = now
-      }
-    ).pipe(
-      Effect.repeat(
-        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
-      ),
-      Effect.fork
+  const maxRecurs = 10
+  const delays = Chunk.toArray(
+    Effect.runSync(
+      Schedule.run(
+        Schedule.delays(Schedule.addDelay(schedule, () => delay)),
+        Date.now(),
+        Array.range(0, maxRecurs)
+      )
     )
-    yield* TestClock.adjust(Infinity)
-    yield* Fiber.join(fiber)
-  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+  )
+  delays.forEach((duration, i) => {
+    console.log(
+      i === maxRecurs
+        ? "..."
+        : i === delays.length - 1
+        ? "(end)"
+        : `#${i + 1}: ${Duration.toMillis(duration)}ms`
+    )
+  })
 }
 
 const schedule = Schedule.andThen(
@@ -241,284 +207,238 @@ const schedule = Schedule.andThen(
   Schedule.spaced("1 second")
 )
 
-const action = Effect.void
-
-log(action, schedule)
+log(schedule)
 /*
 Output:
-delay: 0
-#1 delay: 0    < recurs
-#2 delay: 0
-#3 delay: 0
-#4 delay: 0
-#5 delay: 0
-#6 delay: 1000 < spaced
-#7 delay: 1000
-#8 delay: 1000
-#9 delay: 1000
+#1: 0ms    < recurs
+#2: 0ms
+#3: 0ms
+#4: 0ms
+#5: 0ms
+#6: 1000ms < spaced
+#7: 1000ms
+#8: 1000ms
+#9: 1000ms
+#10: 1000ms
 ...
 */
 ```
 
-When we use the combined schedule with `Effect.repeat`, we observe that the effect follows the policy of the first schedule (recurs) until it completes the specified number of recurrences. After that, it switches to the policy of the second schedule (spaced) and continues repeating the effect with the fixed delay between recurrences.
+The first schedule runs until completion, after which the second schedule takes over. In this example, the effect initially executes 5 times with no delay, then continues every 1 second.
 
-## Jittering
+## Adding Randomness to Retry Delays
 
-A `jittered` is a combinator that takes one schedule and returns another schedule of the same type except for the delay which is applied randomly
+The `Schedule.jittered` combinator modifies a schedule by applying a random delay within a specified range.
 
 When a resource is out of service due to overload or contention, retrying and backing off doesn't help us. If all failed API calls are backed off to the same point of time, they cause another overload or contention. Jitter adds some amount of randomness to the delay of the schedule. This helps us to avoid ending up accidentally synchronizing and taking the service down by accident.
 
-[Research](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) shows that `Schedule.jittered(0.0, 1.0)` is very suitable for retrying.
+[Research](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/) suggests that `Schedule.jittered(0.0, 1.0)` is an effective way to introduce randomness in retries.
 
-**Example** (Jittered Exponential Schedule)
+**Example** (Jittered Exponential Backoff)
 
-```ts twoslash collapse={3-34}
-import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+```ts twoslash collapse={3-26}
+import { Array, Chunk, Duration, Effect, Schedule } from "effect"
 
-const log = <A, Out>(
-  action: Effect.Effect<A>,
-  schedule: Schedule.Schedule<Out, void>
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.DurationInput = 0
 ): void => {
-  let start = 0
-  let i = 0
-
-  Effect.gen(function* () {
-    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
-      function* () {
-        yield* action
-        const now = yield* TestClock.currentTimeMillis
-        console.log(
-          i === 0
-            ? `delay: ${now - start}`
-            : i === 10
-            ? "..."
-            : `#${i} delay: ${now - start}`
-        )
-        i++
-        start = now
-      }
-    ).pipe(
-      Effect.repeat(
-        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
-      ),
-      Effect.fork
+  const maxRecurs = 10
+  const delays = Chunk.toArray(
+    Effect.runSync(
+      Schedule.run(
+        Schedule.delays(Schedule.addDelay(schedule, () => delay)),
+        Date.now(),
+        Array.range(0, maxRecurs)
+      )
     )
-    yield* TestClock.adjust(Infinity)
-    yield* Fiber.join(fiber)
-  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+  )
+  delays.forEach((duration, i) => {
+    console.log(
+      i === maxRecurs
+        ? "..."
+        : i === delays.length - 1
+        ? "(end)"
+        : `#${i + 1}: ${Duration.toMillis(duration)}ms`
+    )
+  })
 }
 
 const schedule = Schedule.jittered(Schedule.exponential("10 millis"))
 
-const action = Effect.void
-
-log(action, schedule)
+log(schedule)
 /*
 Output:
-delay: 0
-#1 delay: 9.006765
-#2 delay: 20.549507999999996
-#3 delay: 45.86659000000001
-#4 delay: 77.055037
-#5 delay: 178.06722299999998
-#6 delay: 376.056965
-#7 delay: 728.732785
-#8 delay: 1178.174953
-#9 delay: 2331.4659370000004
+#1: 10.448486ms
+#2: 21.134521ms
+#3: 47.245117ms
+#4: 88.263184ms
+#5: 163.651367ms
+#6: 335.818848ms
+#7: 719.126709ms
+#8: 1266.18457ms
+#9: 2931.252441ms
+#10: 6121.593018ms
 ...
 */
 ```
 
-In this example, we use the `jittered` combinator to apply jitter to an exponential schedule. The exponential schedule increases the delay between each repetition exponentially. By adding jitter to the schedule, the delays become randomly adjusted within a certain range.
+The `Schedule.jittered` combinator introduces randomness to delays within a range. For example, applying jitter to an exponential backoff ensures that each retry occurs at a slightly different time, reducing the risk of overwhelming the system.
 
-## Filtering
+## Controlling Repetitions with Filters
 
-Schedules can be filtered using `Schedule.whileInput` or `Schedule.whileOutput` to control repetition based on input or output conditions.
+You can use `Schedule.whileInput` or `Schedule.whileOutput` to limit how long a schedule continues based on conditions applied to its input or output.
 
-**Example** (Filtering Output)
+**Example** (Stopping Based on Output)
 
-```ts twoslash collapse={3-34}
-import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+```ts twoslash collapse={3-26}
+import { Array, Chunk, Duration, Effect, Schedule } from "effect"
 
-const log = <A, Out>(
-  action: Effect.Effect<A>,
-  schedule: Schedule.Schedule<Out, void>
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.DurationInput = 0
 ): void => {
-  let start = 0
-  let i = 0
-
-  Effect.gen(function* () {
-    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
-      function* () {
-        yield* action
-        const now = yield* TestClock.currentTimeMillis
-        console.log(
-          i === 0
-            ? `delay: ${now - start}`
-            : i === 10
-            ? "..."
-            : `#${i} delay: ${now - start}`
-        )
-        i++
-        start = now
-      }
-    ).pipe(
-      Effect.repeat(
-        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
-      ),
-      Effect.fork
+  const maxRecurs = 10
+  const delays = Chunk.toArray(
+    Effect.runSync(
+      Schedule.run(
+        Schedule.delays(Schedule.addDelay(schedule, () => delay)),
+        Date.now(),
+        Array.range(0, maxRecurs)
+      )
     )
-    yield* TestClock.adjust(Infinity)
-    yield* Fiber.join(fiber)
-  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+  )
+  delays.forEach((duration, i) => {
+    console.log(
+      i === maxRecurs
+        ? "..."
+        : i === delays.length - 1
+        ? "(end)"
+        : `#${i + 1}: ${Duration.toMillis(duration)}ms`
+    )
+  })
 }
 
 const schedule = Schedule.whileOutput(Schedule.recurs(5), (n) => n <= 2)
 
-const action = Effect.void
-
-log(action, schedule)
+log(schedule)
 /*
 Output:
-delay: 0
-#1 delay: 0 < recurs
-#2 delay: 0
-#3 delay: 0
-(end)       < whileOutput
+#1: 0ms < recurs
+#2: 0ms
+#3: 0ms
+(end)   < whileOutput
 */
 ```
 
-In this example, we create a schedule using `Schedule.recurs(5)` to repeat a certain action up to 5 times. However, we apply the `whileOutput` combinator with a predicate that filters out outputs greater than 2. As a result, the schedule stops producing outputs once the value exceeds 2, and the repetition ends.
+`Schedule.whileOutput` filters repetitions based on the output of the schedule. In this example, the schedule stops once the output exceeds `2`, even though `Schedule.recurs(5)` allows up to 5 repetitions.
 
-## Modifying
+## Adjusting Delays Based on Output
 
-The `Schedule.modifyDelay` combinator allows you to adjust the delay of a schedule.
+The `Schedule.modifyDelay` combinator allows you to dynamically change the delay of a schedule based on the number of repetitions or other output conditions.
 
-**Example** (Modified Delay Schedule)
+**Example** (Reducing Delay After a Certain Number of Repetitions)
 
-```ts twoslash collapse={3-34}
-import { Effect, Schedule, TestClock, Fiber, TestContext } from "effect"
+```ts twoslash collapse={3-26}
+import { Array, Chunk, Duration, Effect, Schedule } from "effect"
 
-const log = <A, Out>(
-  action: Effect.Effect<A>,
-  schedule: Schedule.Schedule<Out, void>
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.DurationInput = 0
 ): void => {
-  let start = 0
-  let i = 0
-
-  Effect.gen(function* () {
-    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
-      function* () {
-        yield* action
-        const now = yield* TestClock.currentTimeMillis
-        console.log(
-          i === 0
-            ? `delay: ${now - start}`
-            : i === 10
-            ? "..."
-            : `#${i} delay: ${now - start}`
-        )
-        i++
-        start = now
-      }
-    ).pipe(
-      Effect.repeat(
-        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
-      ),
-      Effect.fork
+  const maxRecurs = 10
+  const delays = Chunk.toArray(
+    Effect.runSync(
+      Schedule.run(
+        Schedule.delays(Schedule.addDelay(schedule, () => delay)),
+        Date.now(),
+        Array.range(0, maxRecurs)
+      )
     )
-    yield* TestClock.adjust(Infinity)
-    yield* Fiber.join(fiber)
-  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+  )
+  delays.forEach((duration, i) => {
+    console.log(
+      i === maxRecurs
+        ? "..."
+        : i === delays.length - 1
+        ? "(end)"
+        : `#${i + 1}: ${Duration.toMillis(duration)}ms`
+    )
+  })
 }
 
 const schedule = Schedule.modifyDelay(
   Schedule.spaced("1 second"),
-  (_) => "100 millis"
+  (out, duration) => (out > 2 ? "100 millis" : duration)
 )
 
-const action = Effect.void
-
-log(action, schedule)
+log(schedule)
 /*
 Output:
-delay: 0
-#1 delay: 100 < modifyDelay
-#2 delay: 100
-#3 delay: 100
-#4 delay: 100
-#5 delay: 100
-#6 delay: 100
-#7 delay: 100
-#8 delay: 100
-#9 delay: 100
+#1: 1000ms
+#2: 1000ms
+#3: 1000ms
+#4: 100ms  < modifyDelay
+#5: 100ms
+#6: 100ms
+#7: 100ms
+#8: 100ms
+#9: 100ms
+#10: 100ms
 ...
 */
 ```
 
+The delay modification applies dynamically during execution. In this example, the first three repetitions follow the original `1-second` spacing. After that, the delay drops to `100 milliseconds`, making subsequent repetitions occur more frequently.
+
 ## Tapping
 
-Whenever we need to effectfully process each schedule input/output, we can use `Schedule.tapInput` and `Schedule.tapOutput`.
+`Schedule.tapInput` and `Schedule.tapOutput` allow you to perform additional effectful operations on a schedule's input or output without modifying its behavior.
 
-**Example** (Logging with tapOutput)
+**Example** (Logging Schedule Outputs)
 
-```ts twoslash collapse={10-41}
-import {
-  Effect,
-  Schedule,
-  TestClock,
-  Fiber,
-  TestContext,
-  Console
-} from "effect"
+```ts twoslash collapse={3-26}
+import { Array, Chunk, Duration, Effect, Schedule, Console } from "effect"
 
-const log = <A, Out>(
-  action: Effect.Effect<A>,
-  schedule: Schedule.Schedule<Out, void>
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.DurationInput = 0
 ): void => {
-  let start = 0
-  let i = 0
-
-  Effect.gen(function* () {
-    const fiber: Fiber.RuntimeFiber<[Out, number]> = yield* Effect.gen(
-      function* () {
-        yield* action
-        const now = yield* TestClock.currentTimeMillis
-        console.log(
-          i === 0
-            ? `delay: ${now - start}`
-            : i === 10
-            ? "..."
-            : `#${i} delay: ${now - start}`
-        )
-        i++
-        start = now
-      }
-    ).pipe(
-      Effect.repeat(
-        schedule.pipe(Schedule.intersect(Schedule.recurs(10)))
-      ),
-      Effect.fork
+  const maxRecurs = 10
+  const delays = Chunk.toArray(
+    Effect.runSync(
+      Schedule.run(
+        Schedule.delays(Schedule.addDelay(schedule, () => delay)),
+        Date.now(),
+        Array.range(0, maxRecurs)
+      )
     )
-    yield* TestClock.adjust(Infinity)
-    yield* Fiber.join(fiber)
-  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+  )
+  delays.forEach((duration, i) => {
+    console.log(
+      i === maxRecurs
+        ? "..."
+        : i === delays.length - 1
+        ? "(end)"
+        : `#${i + 1}: ${Duration.toMillis(duration)}ms`
+    )
+  })
 }
 
 const schedule = Schedule.tapOutput(Schedule.recurs(2), (n) =>
-  Console.log(`repeating ${n}`)
+  Console.log(`Schedule Output: ${n}`)
 )
 
-const action = Effect.void
-
-log(action, schedule)
+log(schedule)
 /*
 Output:
-delay: 0
-repeating 0
-#1 delay: 0
-repeating 1
-#2 delay: 0
-repeating 2
+Schedule Output: 0
+Schedule Output: 1
+Schedule Output: 2
+#1: 0ms
+#2: 0ms
+(end)
 */
 ```
+
+`Schedule.tapOutput` runs an effect before each recurrence, using the schedule's current output as input. This can be useful for logging, debugging, or triggering side effects.
