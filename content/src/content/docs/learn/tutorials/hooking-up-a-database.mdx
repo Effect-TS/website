@@ -53,7 +53,113 @@ NodeRuntime.runMain(
 )
 ```
 
-To create our example `sqlite.db` file, you can run the following commands:
+Before we continue, I'm going to make a modification to this since we learned
+about `pipe` in the previous section. We can replace the expression at the
+bottom of the file with this:
+
+```ts twoslash title=index.ts
+import express from "express"
+
+import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+
+import { Database } from "bun:sqlite";
+const db = new Database("sqlite.db");
+
+const app = express();
+
+app.get("/users", (req, res) => {
+  res.send({
+    users: db.prepare("SELECT * FROM users").all(),
+  });
+});
+
+export const health = Effect.sync(() => {
+  return HttpServerResponse.text("ok")
+})
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", health),
+)
+//---cut---
+HttpServer.serve(router).pipe(
+  Layer.provide(NodeHttpServer.layer(() => createServer(app), { port: 3000 })),
+  Layer.launch,
+  NodeRuntime.runMain
+)
+```
+
+If `pipe` isn't quite clicking for you yet, one way to visualise it is that
+you're passing some data through a sequence of functions.
+
+Take this example:
+
+```ts twoslash
+import { pipe } from "effect"
+
+const add = (x: number) => (y: number) => y + x;
+const mul = (x: number) => (y: number) => y * x;
+const sub = (x: number) => (y: number) => y - x;
+
+const result = pipe(
+  1,
+  add(2),
+  mul(3),
+  sub(1)
+)
+console.log(result)
+//=> 8
+```
+
+`add`, `mul`, and `sub` are all functions that return functions. So `add(2)`
+returns a function that can add 2 to a given number: `add(2)(1)` returns 3.
+Our pipeline starts with 1, then passes it through `add(2)`, `mul(3)`, and
+`sub(1)`, resulting in 8.
+
+One of the powers this gives you is the ability to add things easily into
+the pipeline.
+
+```ts twoslash
+import { pipe } from "effect"
+
+const add = (x: number) => (y: number) => y + x;
+const mul = (x: number) => (y: number) => y * x;
+const sub = (x: number) => (y: number) => y - x;
+const log = (s: string) => (y: number) => {
+  console.log(s, y);
+  return y;
+};
+
+const result = pipe(
+  1,
+  add(2),
+  log("1 + 2 ="),
+  mul(3),
+  log("  * 3 ="),
+  sub(1),
+  log("  - 1 ="),
+);
+```
+
+This prints the following, with `result` still being 8:
+
+```
+1 + 2 = 3
+  * 3 = 9
+  - 1 = 8
+```
+
+As we migrate more complex endpoints, we'll see how this ability to "tap into"
+the pipeline is really useful.
+
+## Creating our data
+
+To create our example `sqlite.db` file, make sure you have the `sqlite3` CLI
+command installed. You can this either by downloading binaries from the
+[official website](https://www.sqlite.org/download.html) or by using a package
+manager like `brew` on macOS or `apt` on Ubuntu.
 
 ```shell
 $ sqlite3 sqlite.db
@@ -68,7 +174,7 @@ Then you can run the server with:
 $ bun index.ts
 ```
 
-And in other shell we can test the endpoint:
+And in another shell we can test the endpoint:
 
 ```shell
 $ curl http://localhost:3000/users
@@ -105,10 +211,18 @@ const router = HttpRouter.empty.pipe(
 )
 ```
 
-This doesn't work, because converting a JavaScript object to JSON might fail, so
-`HttpServerResponse.json` returns an Effect that can fail, unlike
-`HttpServerResponse.text` which directly returns an `HttpServerResponse` because
-it cannot fail.
+This doesn't work, as we can see from the error. The reason is that
+`HttpServerResponse.json` is an operation that might fail. Not all JavaScript
+objects can be converted to JSON.
+
+```ts twoslash
+JSON.stringify({ big: 10n })
+//=> TypeError: JSON.stringify cannot serialize BigInt.
+```
+
+For this reason, `HttpServerResponse.json` returns an `Effect` that can fail.
+We didn't see this earlier because `HttpServerResponse.text` can't fail, and
+so just returns an `HttpServerResponse` directly.
 
 ## Error handling in Effect
 
@@ -157,39 +271,53 @@ const users = Effect.sync(() => {
 })
 ```
 
-And this causes the type mismatch error we saw earlier. Let's fix it.
+This is what the type error from earlier was trying to tell us. Here's the
+error again:
 
-## More pipes
+```text wrap
+Argument of type 'Effect<Effect<HttpServerResponse, HttpBodyError, never>, never, never>' is not assignable to parameter of type 'Handler<never, never>'
+```
 
-We saw `pipe` used in our `HttpRouter`, and we're going to use it again here.
-The `pipe` function is fundamental to Effect, you're going to see it a lot.
+Under the hood, a `Handler<never, never>` is an `Effect<HttpServerResponse,
+never, never>`. Because `Effect<HttpServerResponse, HttpBodyError, never>` is
+not an `HttpServerResponse`, the type checker gets upset with us.
 
-Let's express our `users` handler in a different way:
+It's possible to fix this with a call to `Effect.flatMap`:
 
 ```ts twoslash
-import { HttpServerResponse, HttpRouter } from "@effect/platform"
+import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
+
 import { Database } from "bun:sqlite";
 const db = new Database("sqlite.db");
-export const health = Effect.sync(() => {
-  return HttpServerResponse.text("ok")
-})
 //---cut---
 const users = Effect.sync(() => {
-  return { users: db.prepare("SELECT * FROM users").all() }
-}).pipe(
-  (body) => HttpServerResponse.json(body)
-)
+  return Effect.flatMap(
+    Effect.succeed({ users: db.prepare("SELECT * FROM users").all() }),
+    HttpServerResponse.json,
+  );
+});
+```
 
-const router = HttpRouter.empty.pipe(
-  HttpRouter.get("/health", health),
-  HttpRouter.get("/users", users),
-)
+But it is more idiomatic in Effect to use `pipe`:
+
+```ts twoslash
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+
+import { Database } from "bun:sqlite";
+const db = new Database("sqlite.db");
+//---cut---
+const users = Effect.sync(() => {
+  return {
+    users: db.prepare("SELECT * FROM users").all(),
+  };
+}).pipe(Effect.flatMap(HttpServerResponse.json));
 ```
 
 This no longer gives us a type error. We've split our computation into two
 parts: fetching the data with `Effect.sync`, and serializing it with
-`HttpServerResponse.json`. The call to `pipe` takes the result of the first
-Effect and passes it to `HttpServerResponse.json`, flattening any nesting in
-the process.
+`HttpServerResponse.json`. The `Effect.flatMap` in the middle of these two
+takes care of the accidental `Effect` nesting.

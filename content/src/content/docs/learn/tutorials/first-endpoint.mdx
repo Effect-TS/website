@@ -117,8 +117,8 @@ If we want to run this Effect, we can use `Effect.runPromise`:
 ```ts twoslash {2}
 import { Effect } from "effect"
 // ---cut---
-const promise = Effect.promise(async () => "Hello, world!")
-const result = await Effect.runPromise(promise);
+const effect = Effect.promise(async () => "Hello, world!")
+const result = await Effect.runPromise(effect);
 console.log(result)
 // => "Hello, world!"
 ```
@@ -129,9 +129,9 @@ What if you want to run an Effect that calls another Effect? You can use
 ```ts twoslash {2-5}
 import { Effect } from "effect"
 // ---cut---
-const promise = Effect.promise(async () => "Hello, world!")
+const effect = Effect.promise(async () => "Hello, world!")
 const gen = Effect.gen(function* () {
-  const str = yield* promise
+  const str = yield* effect
   return str.toUpperCase()
 })
 const result = await Effect.runPromise(gen)
@@ -145,14 +145,14 @@ hood, all `Effect`s are generators, and `yield*`ing one passes it to the Effect
 runtime and waits for the result.
 
 Given that all we want to do above is call `.toUpperCase()` on the result
-of `promise`, the scaffolding of `Effect.gen` may feel heavy. Effect gives us
+of `effect`, the scaffolding of `Effect.gen` may feel heavy. Effect gives us
 a suite of tools to work with `Effect`s, and one of those tools is `pipe`:
 
 ```ts twoslash {2}
 import { Effect } from "effect"
 // ---cut---
-const promise = Effect.promise(async () => "Hello, world!")
-const upper = promise.pipe(Effect.map((s) => s.toUpperCase()))
+const effect = Effect.promise(async () => "Hello, world!")
+const upper = effect.pipe(Effect.map((s) => s.toUpperCase()))
 const result = await Effect.runPromise(upper)
 console.log(result)
 // => "HELLO, WORLD!"
@@ -167,8 +167,8 @@ We can `pipe` as many `Effect`s together as we like:
 ```ts twoslash {2-7}
 import { Effect } from "effect"
 // ---cut---
-const promise = Effect.promise(async () => "Hello, world!")
-const upper = promise.pipe(
+const effect = Effect.promise(async () => "Hello, world!")
+const upper = effect.pipe(
   Effect.map((s) => s.toUpperCase()),
   Effect.map((s) => s.split("")),
   Effect.map((s) => s.reverse()),
