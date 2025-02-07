@@ -24,16 +24,16 @@ import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
 
-import { Database } from "bun:sqlite";
-const db = new Database("sqlite.db");
+import { Database } from "bun:sqlite"
+const db = new Database("sqlite.db")
 
-const app = express();
+const app = express()
 
 app.get("/users", (req, res) => {
   res.send({
     users: db.prepare("SELECT * FROM users").all(),
-  });
-});
+  })
+})
 
 export const health = Effect.sync(() => {
   return HttpServerResponse.text("ok")
@@ -65,16 +65,16 @@ import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
 
-import { Database } from "bun:sqlite";
-const db = new Database("sqlite.db");
+import { Database } from "bun:sqlite"
+const db = new Database("sqlite.db")
 
-const app = express();
+const app = express()
 
 app.get("/users", (req, res) => {
   res.send({
     users: db.prepare("SELECT * FROM users").all(),
-  });
-});
+  })
+})
 
 export const health = Effect.sync(() => {
   return HttpServerResponse.text("ok")
@@ -99,9 +99,9 @@ Take this example:
 ```ts twoslash
 import { pipe } from "effect"
 
-const add = (x: number) => (y: number) => y + x;
-const mul = (x: number) => (y: number) => y * x;
-const sub = (x: number) => (y: number) => y - x;
+const add = (x: number) => (y: number) => y + x
+const mul = (x: number) => (y: number) => y * x
+const sub = (x: number) => (y: number) => y - x
 
 const result = pipe(
   1,
@@ -124,13 +124,13 @@ the pipeline.
 ```ts twoslash
 import { pipe } from "effect"
 
-const add = (x: number) => (y: number) => y + x;
-const mul = (x: number) => (y: number) => y * x;
-const sub = (x: number) => (y: number) => y - x;
+const add = (x: number) => (y: number) => y + x
+const mul = (x: number) => (y: number) => y * x
+const sub = (x: number) => (y: number) => y - x
 const log = (s: string) => (y: number) => {
-  console.log(s, y);
-  return y;
-};
+  console.log(s, y)
+  return y
+}
 
 const result = pipe(
   1,
@@ -140,7 +140,7 @@ const result = pipe(
   log("  * 3 ="),
   sub(1),
   log("  - 1 ="),
-);
+)
 ```
 
 This prints the following, with `result` still being 8:
@@ -174,11 +174,31 @@ Then you can run the server with:
 $ bun index.ts
 ```
 
-And in another shell we can test the endpoint:
+And in another shell we can test the endpoint. I'm using
+[HTTPie](https://httpie.io/cli) throughout this tutorial, because the output is
+nicer than `curl`.
 
 ```shell
-$ curl http://localhost:3000/users
-{"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"}]}⏎
+$ http get localhost:3000/users
+HTTP/1.1 200 OK
+Content-Length: 57
+Content-Type: application/json charset=utf-8
+Date: Fri, 07 Feb 2025 11:36:19 GMT
+ETag: W/"39-6Qu85qIU12mhgGYWwHErQVfJRxI"
+X-Powered-By: Express
+
+{
+    "users": [
+        {
+            "id": 1,
+            "name": "Alice"
+        },
+        {
+            "id": 2,
+            "name": "Bob"
+        }
+    ]
+}
 ```
 
 ## The direct approach
@@ -192,8 +212,8 @@ import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
 
-import { Database } from "bun:sqlite";
-const db = new Database("sqlite.db");
+import { Database } from "bun:sqlite"
+const db = new Database("sqlite.db")
 export const health = Effect.sync(() => {
   return HttpServerResponse.text("ok")
 })
@@ -260,8 +280,8 @@ import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
 
-import { Database } from "bun:sqlite";
-const db = new Database("sqlite.db");
+import { Database } from "bun:sqlite"
+const db = new Database("sqlite.db")
 //---cut---
 const users = Effect.sync(() => {
 //    ^?
@@ -282,6 +302,8 @@ Under the hood, a `Handler<never, never>` is an `Effect<HttpServerResponse,
 never, never>`. Because `Effect<HttpServerResponse, HttpBodyError, never>` is
 not an `HttpServerResponse`, the type checker gets upset with us.
 
+## Fixing our nested Effects with `flatMap`
+
 It's possible to fix this with a call to `Effect.flatMap`:
 
 ```ts twoslash
@@ -289,15 +311,15 @@ import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
 
-import { Database } from "bun:sqlite";
-const db = new Database("sqlite.db");
+import { Database } from "bun:sqlite"
+const db = new Database("sqlite.db")
 //---cut---
 const users = Effect.sync(() => {
   return Effect.flatMap(
     Effect.succeed({ users: db.prepare("SELECT * FROM users").all() }),
     HttpServerResponse.json,
-  );
-});
+  )
+})
 ```
 
 But it is more idiomatic in Effect to use `pipe`:
@@ -307,17 +329,105 @@ import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
 
-import { Database } from "bun:sqlite";
-const db = new Database("sqlite.db");
+import { Database } from "bun:sqlite"
+const db = new Database("sqlite.db")
 //---cut---
 const users = Effect.sync(() => {
   return {
     users: db.prepare("SELECT * FROM users").all(),
-  };
-}).pipe(Effect.flatMap(HttpServerResponse.json));
+  }
+}).pipe(Effect.flatMap(HttpServerResponse.json))
 ```
 
 This no longer gives us a type error. We've split our computation into two
 parts: fetching the data with `Effect.sync`, and serializing it with
 `HttpServerResponse.json`. The `Effect.flatMap` in the middle of these two
 takes care of the accidental `Effect` nesting.
+
+## Adding error handling to our database query
+
+All this talk of error handling might have gotten you thinking: can't our
+database query fail? It can! If the database file doesn't exist, or the query
+is malformed, the `db.prepare` call will throw an error. When that happens,
+at the moment our endpoint will return a 500 error to the client.
+
+```shell
+$ mv sqlite.db sqlite.db.bak
+$ http get "localhost:3000/users"
+HTTP/1.1 500 Internal Server Error
+Content-Length: 0
+Date: Fri, 07 Feb 2025 11:29:30 GMT
+X-Powered-By: Express
+```
+
+Strictly speaking, a 500 error is correct here. Our server encountered an error
+because of a server-side problem, which is what the 500-class errors are for.
+But it's not good Effect to let exceptions bubble up like this.
+
+```ts twoslash
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+
+import { Database, SQLiteError } from "bun:sqlite"
+const db = new Database("sqlite.db")
+//---cut---
+const users = Effect.suspend(() => {
+  try {
+    return Effect.succeed({
+      users: db.prepare("SELECT * FROM users").all(),
+    });
+  } catch (e) {
+    if (e instanceof SQLiteError) {
+      return Effect.fail(e);
+    }
+    return Effect.die(e);
+  }
+}).pipe(Effect.flatMap(HttpServerResponse.json));
+```
+
+We've made a lot of changes here, let's go through them one at a time.
+
+1.  We're using `Effect.suspend` instead of `Effect.sync`. This is because
+   `Effect.sync` is not allowed to fail. If it does, it's treated as what Effect
+   calls a "defect", which are a special category of error that represent a bug
+   in your program. You can read more about them
+   [here](https://effect.website/docs/error-management/unexpected-errors/).
+2. Where `Effect.sync` allowed us to return a value directly, `Effect.suspend`
+   wants us to return an `Effect`. That's why we're using `Effect.succeed` to
+   wrap our users object, and `Effect.fail` to wrap our caught exception.
+3. We use `Effect.die` to signal a defect explicitly. Because the only type
+   of exception thrown by `db.prepare` is an `SQLiteError`, any other exception
+   is unexpected and likely a bug.
+
+What we get in return for all of these changes it **type safety**. We have told
+Effect that our database query can fail, and that information is now encoded
+into the type of our `users` handler.
+
+```ts twoslash
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+
+import { Database, SQLiteError } from "bun:sqlite"
+const db = new Database("sqlite.db")
+//---cut---
+const users = Effect.suspend(() => {
+//    ^?
+  try {
+    return Effect.succeed({
+      users: db.prepare("SELECT * FROM users").all(),
+    });
+  } catch (e) {
+    if (e instanceof SQLiteError) {
+      return Effect.fail(e);
+    }
+    return Effect.die(e);
+  }
+}).pipe(Effect.flatMap(HttpServerResponse.json));
+```
+
+This is one of the most powerful features of Effect: type safe error handling.
+To know that Bun's SQLite connector can only throw an `SQLiteError`, I had to
+read the source code. But with our `users` handler, that information is not
+only available to us as developers, but to the type checker as well.
