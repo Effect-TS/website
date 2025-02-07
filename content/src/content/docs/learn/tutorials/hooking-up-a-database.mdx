@@ -314,12 +314,10 @@ import { createServer } from "node:http"
 import { Database } from "bun:sqlite"
 const db = new Database("sqlite.db")
 //---cut---
-const users = Effect.sync(() => {
-  return Effect.flatMap(
-    Effect.succeed({ users: db.prepare("SELECT * FROM users").all() }),
-    HttpServerResponse.json,
-  )
-})
+const users = Effect.flatMap(
+  Effect.sync(() => ({ users: db.prepare("SELECT * FROM users").all() })),
+  HttpServerResponse.json,
+);
 ```
 
 But it is more idiomatic in Effect to use `pipe`:
