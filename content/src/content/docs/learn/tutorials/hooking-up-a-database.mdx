@@ -43,53 +43,15 @@ const router = HttpRouter.empty.pipe(
   HttpRouter.get("/health", health),
 )
 
-NodeRuntime.runMain(
-  Layer.launch(
-    Layer.provide(
-      HttpServer.serve(router),
-      NodeHttpServer.layer(() => createServer(app), { port: 3000 }),
-    ),
-  ),
-)
-```
-
-Before we continue, I'm going to make a modification to this since we learned
-about `pipe` in the previous section. We can replace the expression at the
-bottom of the file with this:
-
-```ts twoslash title=index.ts
-import express from "express"
-
-import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
-import { Effect, Layer } from "effect"
-import { createServer } from "node:http"
-
-import { Database } from "bun:sqlite"
-const db = new Database("sqlite.db")
-
-const app = express()
-
-app.get("/users", (req, res) => {
-  res.send({
-    users: db.prepare("SELECT * FROM users").all(),
-  })
-})
-
-export const health = Effect.sync(() => {
-  return HttpServerResponse.text("ok")
-})
-
-const router = HttpRouter.empty.pipe(
-  HttpRouter.get("/health", health),
-)
-//---cut---
 HttpServer.serve(router).pipe(
   Layer.provide(NodeHttpServer.layer(() => createServer(app), { port: 3000 })),
   Layer.launch,
   NodeRuntime.runMain
 )
 ```
+
+Notice that the `HttpServer.serve` expression at the bottom has been converted
+to use `pipe` instead of nesting function calls.
 
 If `pipe` isn't quite clicking for you yet, one way to visualise it is that
 you're passing some data through a sequence of functions.
@@ -121,7 +83,7 @@ Our pipeline starts with 1, then passes it through `add(2)`, `mul(3)`, and
 One of the powers this gives you is the ability to add things easily into
 the pipeline.
 
-```ts twoslash
+```ts twoslash {6-9,14,16,18}
 import { pipe } from "effect"
 
 const add = (x: number) => (y: number) => y + x
