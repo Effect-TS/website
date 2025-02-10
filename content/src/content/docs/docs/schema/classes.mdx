@@ -89,6 +89,45 @@ const noargs1 = new NoArgs()
 const noargs2 = new NoArgs({})
 ```
 
+### Defining Classes With Filters
+
+Filters allow you to validate input when decoding, encoding, or creating an instance. Instead of specifying raw fields, you can pass a `Schema.Struct` with a filter applied.
+
+**Example** (Applying a Filter to a Schema Class)
+
+```ts twoslash
+import { Schema } from "effect"
+
+class WithFilter extends Schema.Class<WithFilter>("WithFilter")(
+  Schema.Struct({
+    a: Schema.NumberFromString,
+    b: Schema.NumberFromString
+  }).pipe(
+    Schema.filter(({ a, b }) => a >= b || "a must be greater than b")
+  )
+) {}
+
+// Constructor
+console.log(new WithFilter({ a: 1, b: 2 }))
+/*
+throws:
+ParseError: WithFilter (Constructor)
+└─ Predicate refinement failure
+   └─ a must be greater than b
+*/
+
+// Decoding
+console.log(Schema.decodeUnknownSync(WithFilter)({ a: "1", b: "2" }))
+/*
+throws:
+ParseError: (WithFilter (Encoded side) <-> WithFilter)
+└─ Encoded side transformation failure
+   └─ WithFilter (Encoded side)
+      └─ Predicate refinement failure
+         └─ a must be greater than b
+*/
+```
+
 ## Validating Properties via Class Constructors
 
 When you define a class using `Schema.Class`, the constructor automatically checks that the provided properties adhere to the schema's rules.
