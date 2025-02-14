@@ -16,7 +16,7 @@ database. If you don't have Docker installed, I recommend following the
 When you're ready, you can start a Postgres container with:
 
 ```shell
-docker run -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 postgres
+docker run -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 postgres
 ```
 
 ## Creating our data
@@ -43,7 +43,7 @@ INSERT INTO users (name) VALUES ('Bob');
 Let's take a look at our app in full with new Express.js `/users` endpoint added
 to it:
 
-```ts twoslash {6,8-12,16-19,30} title=index.ts
+```ts twoslash {6,8,11-14,25} title=index.ts
 import express from "express";
 
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
@@ -51,12 +51,7 @@ import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 import { Client } from "pg";
 
-const db = new Client({
-  host: "localhost",
-  user: "postgres",
-  password: "mysecretpassword",
-});
-
+const db = new Client({ user: "postgres" });
 const app = express();
 
 app.get("/users", async (req, res) => {
@@ -133,11 +128,7 @@ import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
 import { Client } from "pg";
-const db = new Client({
-  host: "localhost",
-  user: "postgres",
-  password: "mysecretpassword",
-});
+const db = new Client({ user: "postgres" });
 const health = Effect.sync(() => {
   return HttpServerResponse.text("ok")
 })
@@ -203,11 +194,7 @@ import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
 import { Client } from "pg";
-const db = new Client({
-  host: "localhost",
-  user: "postgres",
-  password: "mysecretpassword",
-});
+const db = new Client({ user: "postgres" });
 //---cut---
 const users = Effect.promise(async () => {
 //    ^?
@@ -236,11 +223,7 @@ import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
 import { Client } from "pg";
-const db = new Client({
-  host: "localhost",
-  user: "postgres",
-  password: "mysecretpassword",
-});
+const db = new Client({ user: "postgres" });
 //---cut---
 const users = Effect.flatMap(
   Effect.promise(async () => {
@@ -258,11 +241,7 @@ import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
 import { Client } from "pg";
-const db = new Client({
-  host: "localhost",
-  user: "postgres",
-  password: "mysecretpassword",
-});
+const db = new Client({ user: "postgres" });
 //---cut---
 const users = Effect.promise(
   () => db.query("SELECT * FROM users")
@@ -345,16 +324,18 @@ the pipeline is really useful.
 ## Adding error handling to our database query
 
 All this talk of error handling might have gotten you thinking: can't our
-database query fail? It can! If the database file doesn't exist, or the query
-is malformed, the `db.prepare` call will throw an error. When that happens,
-at the moment our endpoint will return a 500 error to the client.
+database query fail? It can! If the query is malformed, `db.query` will throw an
+error. When that happens, at the moment our endpoint will return a 500 error to
+the client. Change the SQL query to `SELECT * FROM nonexistnet` and try it:
 
 ```shell
-$ mv sqlite.db sqlite.db.bak
-$ http get "localhost:3000/users"
+http get "localhost:3000/users"
+```
+
+```http
 HTTP/1.1 500 Internal Server Error
 Content-Length: 0
-Date: Fri, 07 Feb 2025 11:29:30 GMT
+Date: Fri, 14 Feb 2025 17:25:57 GMT
 X-Powered-By: Express
 ```
 
@@ -362,70 +343,53 @@ Strictly speaking, a 500 error is correct here. Our server encountered an error
 because of a server-side problem, which is what the 500-class errors are for.
 But it's not good Effect to let exceptions bubble up like this.
 
-```ts twoslash
-import { HttpServerResponse } from "@effect/platform"
-import { Effect, Layer } from "effect"
-import { createServer } from "node:http"
-
-import { Database, SQLiteError } from "bun:sqlite"
-const db = new Database("sqlite.db")
-//---cut---
-const users = Effect.suspend(() => {
-  try {
-    return Effect.succeed({
-      users: db.prepare("SELECT * FROM users").all(),
-    });
-  } catch (e) {
-    if (e instanceof SQLiteError) {
-      return Effect.fail(e);
-    }
-    return Effect.die(e);
-  }
-}).pipe(Effect.flatMap(HttpServerResponse.json));
-```
-
-We've made a lot of changes here, let's go through them one at a time.
-
-1.  We're using `Effect.suspend` instead of `Effect.sync`. This is because
-   `Effect.sync` is not allowed to fail. If it does, it's treated as what Effect
-   calls a "defect", which are a special category of error that represent a bug
-   in your program. You can read more about them
-   [here](https://effect.website/docs/error-management/unexpected-errors/).
-2. Where `Effect.sync` allowed us to return a value directly, `Effect.suspend`
-   wants us to return an `Effect`. That's why we're using `Effect.succeed` to
-   wrap our users object, and `Effect.fail` to wrap our caught exception.
-3. We use `Effect.die` to signal a defect explicitly. Because the only type
-   of exception thrown by `db.prepare` is an `SQLiteError`, any other exception
-   is unexpected and likely a bug.
-
-What we get in return for all of these changes it **type safety**. We have told
-Effect that our database query can fail, and that information is now encoded
-into the type of our `users` handler.
+A simple thing we can do is changing `Effect.promise` to `Effect.tryPromise`:
 
 ```ts twoslash
 import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
-
-import { Database, SQLiteError } from "bun:sqlite"
-const db = new Database("sqlite.db")
+import { Client } from "pg";
+const db = new Client({ user: "postgres" });
 //---cut---
-const users = Effect.suspend(() => {
-//    ^?
-  try {
-    return Effect.succeed({
-      users: db.prepare("SELECT * FROM users").all(),
-    });
-  } catch (e) {
-    if (e instanceof SQLiteError) {
-      return Effect.fail(e);
-    }
-    return Effect.die(e);
-  }
-}).pipe(Effect.flatMap(HttpServerResponse.json));
+const users = Effect.tryPromise(
+  () => db.query("SELECT * FROM users")
+).pipe(
+  Effect.map(({ rows }) => ({ users: rows })),
+  Effect.flatMap(HttpServerResponse.json)
+);
 ```
 
-This is one of the most powerful features of Effect: type safe error handling.
-To know that Bun's SQLite connector can only throw an `SQLiteError`, I had to
-read the source code. But with our `users` handler, that information is not
-only available to us as developers, but to the type checker as well.
+This changes the return type from:
+
+```typescript
+Effect<HttpServerResponse, HttpBodyError, never>
+```
+
+To:
+
+```typescript
+Effect<HttpServerResponse, UnknownException | HttpBodyError, never>
+```
+
+`Effect.promise` is assumed to always succeed. `Effect.tryPromise` is assumed
+to maybe throw an exception, but because TypeScript doesn't give us any way
+to know _what_ exception might be thrown, Effect defaults to `UnknownException`.
+
+We can improve on this:
+
+```ts twoslash
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+import { Client } from "pg";
+const db = new Client({ user: "postgres" });
+//---cut---
+const users = Effect.tryPromise({
+  try: () => db.query("SELECT * FROM users"),
+  catch: (error) => error,
+}).pipe(
+  Effect.map(({ rows }) => ({ users: rows })),
+  Effect.flatMap(HttpServerResponse.json)
+);
+```
