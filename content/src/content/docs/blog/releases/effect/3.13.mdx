@@ -1,0 +1,220 @@
+---
+title: Effect 3.13 (Release)
+excerpt: New Effect release featuring Effect.fn & Cron improvements, Schema additions, and more!
+date: 2025-02-14
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.13 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## Schema.standardSchemaV1
+
+This API allows you to generate a [Standard Schema v1](https://standardschema.dev/) object from an Effect Schema.
+
+```ts
+import { Schema } from "effect"
+
+const schema = Schema.Struct({
+  name: Schema.String
+})
+
+//      ┌─── StandardSchemaV1<{ readonly name: string; }>
+//      ▼
+const standardSchema = Schema.standardSchemaV1(schema)
+```
+
+## Effect.fn improvements
+
+`Effect.fn` has been improved to allow you to access the function arguments inside any of the pipeline functions.
+
+```ts
+import { Effect } from "effect"
+
+const fn = Effect.fn("my function")(
+  function* (n: number) {
+    yield* Effect.log(`n is ${n}`)
+  },
+  // you can now access the arguments here
+  (effect, n) => Effect.annotateLogs(effect, { n })
+)
+```
+
+## RcMap improvements
+
+- `RcMap.invalidate` has been added, for invalidating a resource at the given key.
+- `RcMap.touch` has been added, for refreshing the idle timeout of a resource at the given key.
+
+```ts
+import { Effect, RcMap } from "effect"
+
+Effect.gen(function* () {
+  const map = yield* RcMap.make({
+    lookup: (n: number) => Effect.succeed(n),
+    idleTimeToLive: "1 minute"
+  })
+
+  // retrieve the resource at key 1
+  yield* Effect.scoped(RcMap.get(map, 1))
+
+  // refresh the idle timeout of the resource at key 1
+  yield* RcMap.touch(map, 1)
+
+  // invalidate the resource at key 1
+  yield* RcMap.invalidate(map, 1)
+})
+```
+
+## Effect.transposeOption
+
+This function transforms an `Option<Effect<A, E, R>>` into an
+`Effect<Option<A>, E, R>`. If the `Option` is `None`, the resulting `Effect`
+will immediately succeed with a `None` value. If the `Option` is `Some`, the
+inner `Effect` will be executed, and its result wrapped in a `Some`.
+
+```ts
+import { Effect, Option } from "effect"
+
+//      ┌─── Option<Effect<number, never, never>>
+//      ▼
+const maybe = Option.some(Effect.succeed(42))
+
+//      ┌─── Effect<Option<number>, never, never>
+//      ▼
+const result = Effect.transposeOption(maybe)
+
+console.log(Effect.runSync(result))
+// Output: { _id: 'Option', _tag: 'Some', value: 42 }
+```
+
+## Effect.filterEffectOrElse
+
+`Effect.filterEffectOrElse` filters an effect with an effectful predicate, falling back to an alternative
+effect if the predicate fails.
+
+```ts
+import { Effect, pipe } from "effect"
+
+// Define a user interface
+interface User {
+  readonly name: string
+}
+
+// Simulate an asynchronous authentication function
+declare const auth: () => Promise<User | null>
+
+const program = pipe(
+  Effect.promise(() => auth()),
+  // Use filterEffectOrElse with an effectful predicate
+  Effect.filterEffectOrElse({
+    predicate: (user) => Effect.succeed(user !== null),
+    orElse: (user) => Effect.fail(new Error(`Unauthorized user: ${user}`))
+  })
+)
+```
+
+## Effect.filterEffectOrFail
+
+This new api allows you to filter an effect with an effectful predicate, failing with a custom error if the predicate fails.
+
+```ts
+import { Effect, pipe } from "effect"
+
+// Define a user interface
+interface User {
+  readonly name: string
+}
+
+// Simulate an asynchronous authentication function
+declare const auth: () => Promise<User | null>
+
+const program = pipe(
+  Effect.promise(() => auth()),
+  // Use filterEffectOrFail with an effectful predicate
+  Effect.filterEffectOrFail({
+    predicate: (user) => Effect.succeed(user !== null),
+    orFailWith: (user) => new Error(`Unauthorized user: ${user}`)
+  })
+)
+```
+
+## Effect.whenLogLevel
+
+`Effect.whenLogLevel` allows you to conditionally execute an effect when the specified log level is enabled.
+
+```ts
+import { Effect } from "effect"
+
+// Sleep for 1 second only when the minimum log level is "Debug" or lower
+Effect.sleep("1 second").pipe(Effect.whenLogLevel("Debug"))
+```
+
+## FiberMap, FiberSet & FiberHandle improvements
+
+- `awaitEmpty` has been added, which allows you to wait for all contained fibers to complete.
+- `makeRuntimePromise` & `runtimePromise` have been added, which allows you to run effects and get back a promise that will resolve when the effect completes.
+
+```ts
+import { Effect, FiberSet } from "effect"
+
+Effect.gen(function* () {
+  const set = yield* FiberSet.make<number>()
+
+  // create a runPromise function from a FiberSet
+  const runPromise = yield* FiberSet.runtimePromise(set)
+
+  // returns `Promise<number>`
+  runPromise(Effect.succeed(1))
+
+  // wait for all the fibers to complete
+  yield* FiberSet.awaitEmpty(set)
+})
+```
+
+## HashMap & HashSet improvements
+
+- `.toValues` has been added to `HashMap` and `HashSet`, which allows you to get an Array of their values.
+- `HashMap.some` has been added, which allows you to check if any of the entries satisfy a predicate.
+
+## Layer.updateService
+
+`Layer.updateService` has been added, which allows you to update a specific service during Layer creation.
+
+```ts
+import { Effect, Layer } from "effect"
+
+class MyService extends Effect.Service<MyService>()("MyService", {
+  succeed: {
+    name: "Tim" as string
+  }
+}) {}
+
+declare const RequiresMyService: Layer.Layer<never, never, MyService>
+
+const UpdateMyService = RequiresMyService.pipe(
+  // update the implementation of `MyService` before providing it to `RequiresMyService`
+  Layer.updateService(MyService, (obj) => ({
+    ...obj,
+    name: "John"
+  }))
+)
+```
+
+## Other changes
+
+- `Either.void` has been added, which is an `Either<void, never>`.
+- `DateTime.toUtc` has been added, for converting any `DateTime` object to a `DateTime.Utc` instance.
+- `Trie` type variance has been relaxed to be covariant.
+- `Differ` now implements the `Pipeable` interface.
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
+
+```
+
+```
