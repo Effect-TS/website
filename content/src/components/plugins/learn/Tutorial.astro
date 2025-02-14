@@ -1,0 +1,38 @@
+---
+import type { GetStaticPathsResult, InferGetStaticPropsType } from "astro"
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
+import type { StarlightPageProps } from "@astrojs/starlight/props"
+import { getTutorialEntries } from "@/lib/content/tutorial"
+
+export const prerender = true
+
+export async function getStaticPaths() {
+  const entries = await getTutorialEntries()
+  return entries.map((entry) => ({
+    params: {
+      prefix: "learn",
+      tutorial: entry.slug.replace("learn/tutorial", "")
+    },
+    props: {
+      tutorial: entry.data,
+      render: entry.render
+    }
+  })) satisfies GetStaticPathsResult
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>
+
+const pageProps: StarlightPageProps = {
+  frontmatter: {
+    title: "Effect Tutorials",
+  },
+}
+
+const { tutorial } = Astro.props
+const { Content } = await Astro.props.render()
+---
+
+<StarlightPage {...pageProps}>
+  <div>{tutorial.title}</div>
+  <Content />
+</StarlightPage>
