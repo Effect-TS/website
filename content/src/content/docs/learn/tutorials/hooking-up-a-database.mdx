@@ -9,49 +9,275 @@ sidebar:
 ---
 
 The next endpoint we're going to migrate is one that lists all of the users in a
-database. For illustrative purposes, we're going to use SQLite using Bun's
-built-in connector, but the technique we'll cover will work for
-whatever database you're using, and however you're connecting to it.
+database. For this tutorial I'm going to use Postgres running in Docker as our
+database. If you don't have Docker installed, I recommend following the
+[official getting started guide](https://www.docker.com/get-started/).
 
-First, let's take a look at our app in full with our new endpoint added to
-it:
+When you're ready, you can start a Postgres container with:
 
-```ts twoslash {8-9,13-17} title=index.ts
-import express from "express"
+```shell
+docker run -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 postgres
+```
 
+## Creating our data
+
+To create our `users` table and sample data, we're going to use the `psql`
+tool that's present inside of the Docker container we created. Open a new
+terminal and run:
+
+```shell
+docker exec -it $(docker ps -qf ancestor=postgres) psql -U postgres
+```
+
+This will drop you into a `psql` shell, with a prompt that starts `postgres=#`.
+From here you can run the following SQL commands:
+
+```sql
+CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT);
+INSERT INTO users (name) VALUES ('Alice');
+INSERT INTO users (name) VALUES ('Bob');
+```
+
+## The `/users` endpoint
+
+Let's take a look at our app in full with new Express.js `/users` endpoint added
+to it:
+
+```ts twoslash {6,8-12,16-19,30} title=index.ts
+import express from "express";
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import { HttpRouter, HttpServerResponse } from "@effect/platform";
+import { Effect } from "effect";
+import { Client } from "pg";
+
+const db = new Client({
+  host: "localhost",
+  user: "postgres",
+  password: "mysecretpassword",
+});
+
+const app = express();
+
+app.get("/users", async (req, res) => {
+  const { rows } = await db.query("SELECT * FROM users");
+  res.send({ users: rows });
+});
+
+function health() {
+  return HttpServerResponse.text("ok");
+}
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", Effect.sync(health))
+);
+
+const main = Effect.gen(function* () {
+  yield* Effect.promise(() => db.connect());
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000);
+  yield* Effect.never;
+});
+
+NodeRuntime.runMain(main);
+```
+
+We'll also need to add some new dependencies to our project:
+
+```shell
+bun add pg @types/pg
+```
+
+Then you can run the server with:
+
+```shell
+bun index.ts
+```
+
+And in another shell we can test the endpoint.
+
+```shell
+http get localhost:3000/users
+```
+
+```http
+HTTP/1.1 200 OK
+Content-Length: 57
+Content-Type: application/json; charset=utf-8
+Date: Fri, 14 Feb 2025 14:28:02 GMT
+ETag: W/"39-6Qu85qIU12mhgGYWwHErQVfJRxI"
+X-Powered-By: Express
+
+{
+    "users": [
+        {
+            "id": 1,
+            "name": "Alice"
+        },
+        {
+            "id": 2,
+            "name": "Bob"
+        }
+    ]
+}
+```
+
+## The direct approach
+
+If we were to copy what we did with the `/health` endpoint, we'd end up with
+code that looked like this:
+
+```ts twoslash
 import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
-
-import { Database } from "bun:sqlite"
-const db = new Database("sqlite.db")
-
-const app = express()
-
-app.get("/users", (req, res) => {
-  res.send({
-    users: db.prepare("SELECT * FROM users").all(),
-  })
-})
-
-export const health = Effect.sync(() => {
+import { Client } from "pg";
+const db = new Client({
+  host: "localhost",
+  user: "postgres",
+  password: "mysecretpassword",
+});
+const health = Effect.sync(() => {
   return HttpServerResponse.text("ok")
 })
+//---cut---
+// @errors: 2379
+const users = Effect.promise(async () => {
+  const { rows } = await db.query("SELECT * FROM users");
+  return HttpServerResponse.json({ users: rows });
+});
 
 const router = HttpRouter.empty.pipe(
   HttpRouter.get("/health", health),
-)
-
-HttpServer.serve(router).pipe(
-  Layer.provide(NodeHttpServer.layer(() => createServer(app), { port: 3000 })),
-  Layer.launch,
-  NodeRuntime.runMain
+  HttpRouter.get("/users", users),
 )
 ```
 
-Notice that the `HttpServer.serve` expression at the bottom has been converted
-to use `pipe` instead of nesting function calls.
+This doesn't work, as we can see from the error. The reason is that
+`HttpServerResponse.json` is an operation that might fail. Not all JavaScript
+objects can be converted to JSON.
+
+```ts twoslash
+JSON.stringify({ big: 10n })
+//=> TypeError: JSON.stringify cannot serialize BigInt.
+```
+
+For this reason, `HttpServerResponse.json` returns an `Effect` that can fail.
+We didn't see this earlier because `HttpServerResponse.text` can't fail, and
+so just returns an `HttpServerResponse` directly.
+
+## Error handling in Effect
+
+When we introduced the `Effect` type in the previous section, we dealt
+exclusively with Effects that couldn't fail. That won't get us very far if
+we're building anything non-trivial.
+
+`Effect` is a generic type that takes 3 arguments:
+
+```typescript
+Effect<Success, Error, Requirements>
+```
+
+`Success` is the type the Effect returns when it succeeds, `Error` is the type
+it returns when it fails, and we'll talk about `Requirements` a bit later.
+
+When we created our example Effects in the previous section, these all took on
+the type `Effect<string, never, never>`.
+
+```ts twoslash
+import { Effect } from "effect"
+//---cut---
+Effect.sync(() => "Hello, world!")
+//=> Effect.Effect<string, never, never>
+```
+
+This means they will return a `string` on success, and never fail.
+
+The Effect that `HttpServerResponse.json` returns is of type
+`Effect<HttpServerResponse, HttpBodyError, never>`. So when we try to return
+it from our `users` handler, we end up wrapping one Effect in another.
+
+```ts twoslash
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+import { Client } from "pg";
+const db = new Client({
+  host: "localhost",
+  user: "postgres",
+  password: "mysecretpassword",
+});
+//---cut---
+const users = Effect.promise(async () => {
+//    ^?
+  const { rows } = await db.query("SELECT * FROM users");
+  return HttpServerResponse.json({ users: rows });
+});
+```
+
+This is what the type error from earlier was trying to tell us. Here's the
+error again:
+
+```text wrap
+Argument of type 'Effect<Effect<HttpServerResponse, HttpBodyError, never>, never, never>' is not assignable to parameter of type 'Handler<never, never>'
+```
+
+Under the hood, a `Handler<never, never>` is an `Effect<HttpServerResponse,
+never, never>`. Because `Effect<HttpServerResponse, HttpBodyError, never>` is
+not an `HttpServerResponse`, the type checker gets upset with us.
+
+## Fixing our nested Effects with `flatMap`
+
+It's possible to fix this with a call to `Effect.flatMap`:
+
+```ts twoslash
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+import { Client } from "pg";
+const db = new Client({
+  host: "localhost",
+  user: "postgres",
+  password: "mysecretpassword",
+});
+//---cut---
+const users = Effect.flatMap(
+  Effect.promise(async () => {
+    const { rows } = await db.query("SELECT * FROM users");
+    return { users: rows };
+  }),
+  HttpServerResponse.json
+);
+```
+
+But it is more idiomatic in Effect to use `pipe`:
+
+```ts twoslash
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+import { Client } from "pg";
+const db = new Client({
+  host: "localhost",
+  user: "postgres",
+  password: "mysecretpassword",
+});
+//---cut---
+const users = Effect.promise(
+  () => db.query("SELECT * FROM users")
+).pipe(
+  Effect.map(({ rows }) => ({ users: rows })),
+  Effect.flatMap(HttpServerResponse.json)
+);
+```
+
+This no longer gives us a type error. We've split our computation into parts:
+fetching the data with `Effect.promise`, manipulating its shape with
+`Effect.map`, and serializing it with `HttpServerResponse.json`. The
+`Effect.flatMap` at the end care of the accidental `Effect` nesting.
+
+## An aside on pipes
 
 If `pipe` isn't quite clicking for you yet, one way to visualise it is that
 you're passing some data through a sequence of functions.
@@ -115,194 +341,6 @@ This prints the following, with `result` still being 8:
 
 As we migrate more complex endpoints, we'll see how this ability to "tap into"
 the pipeline is really useful.
-
-## Creating our data
-
-To create our example `sqlite.db` file, make sure you have the `sqlite3` CLI
-command installed. You can this either by downloading binaries from the
-[official website](https://www.sqlite.org/download.html) or by using a package
-manager like `brew` on macOS or `apt` on Ubuntu.
-
-```shell
-$ sqlite3 sqlite.db
-sqlite> CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);
-sqlite> INSERT INTO users (name) VALUES ("Alice");
-sqlite> INSERT INTO users (name) VALUES ("Bob");
-```
-
-Then you can run the server with:
-
-```shell
-$ bun index.ts
-```
-
-And in another shell we can test the endpoint. I'm using
-[HTTPie](https://httpie.io/cli) throughout this tutorial, because the output is
-nicer than `curl`.
-
-```shell
-$ http get localhost:3000/users
-HTTP/1.1 200 OK
-Content-Length: 57
-Content-Type: application/json charset=utf-8
-Date: Fri, 07 Feb 2025 11:36:19 GMT
-ETag: W/"39-6Qu85qIU12mhgGYWwHErQVfJRxI"
-X-Powered-By: Express
-
-{
-    "users": [
-        {
-            "id": 1,
-            "name": "Alice"
-        },
-        {
-            "id": 2,
-            "name": "Bob"
-        }
-    ]
-}
-```
-
-## The direct approach
-
-If we were to copy what we did with the `/health` endpoint, we'd end up with
-code that looked like this:
-
-```ts twoslash
-import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
-import { Effect, Layer } from "effect"
-import { createServer } from "node:http"
-
-import { Database } from "bun:sqlite"
-const db = new Database("sqlite.db")
-export const health = Effect.sync(() => {
-  return HttpServerResponse.text("ok")
-})
-//---cut---
-// @errors: 2379
-const users = Effect.sync(() => {
-  return HttpServerResponse.json({
-    users: db.prepare("SELECT * FROM users").all(),
-  })
-})
-
-const router = HttpRouter.empty.pipe(
-  HttpRouter.get("/health", health),
-  HttpRouter.get("/users", users),
-)
-```
-
-This doesn't work, as we can see from the error. The reason is that
-`HttpServerResponse.json` is an operation that might fail. Not all JavaScript
-objects can be converted to JSON.
-
-```ts twoslash
-JSON.stringify({ big: 10n })
-//=> TypeError: JSON.stringify cannot serialize BigInt.
-```
-
-For this reason, `HttpServerResponse.json` returns an `Effect` that can fail.
-We didn't see this earlier because `HttpServerResponse.text` can't fail, and
-so just returns an `HttpServerResponse` directly.
-
-## Error handling in Effect
-
-When we introduced the `Effect` type in the previous section, we dealt
-exclusively with Effects that couldn't fail. That won't get us very far if
-we're building anything non-trivial, so let's talk about error handling.
-
-`Effect` is a generic type that takes 3 type arguments:
-
-```typescript
-Effect<Success, Error, Requirements>
-```
-
-`Success` is the type the Effect returns when it succeeds, `Error` is the type
-it returns when it fails, and we'll talk about `Requirements` a bit later.
-
-When we created our example Effects in the previous section, these all took on
-the type `Effect<string, never, never>`.
-
-```ts twoslash
-import { Effect } from "effect"
-//---cut---
-Effect.sync(() => "Hello, world!")
-//=> Effect.Effect<string, never, never>
-```
-
-This means they will return a `string` on success, and never fail.
-
-The Effect that `HttpServerResponse.json` returns is of type
-`Effect<HttpServerResponse, HttpBodyError, never>`. So when we try to return
-it from our `users` handler, we end up wrapping one Effect in another.
-
-```ts twoslash
-import { HttpServerResponse } from "@effect/platform"
-import { Effect, Layer } from "effect"
-import { createServer } from "node:http"
-
-import { Database } from "bun:sqlite"
-const db = new Database("sqlite.db")
-//---cut---
-const users = Effect.sync(() => {
-//    ^?
-  return HttpServerResponse.json({
-    users: db.prepare("SELECT * FROM users").all(),
-  })
-})
-```
-
-This is what the type error from earlier was trying to tell us. Here's the
-error again:
-
-```text wrap
-Argument of type 'Effect<Effect<HttpServerResponse, HttpBodyError, never>, never, never>' is not assignable to parameter of type 'Handler<never, never>'
-```
-
-Under the hood, a `Handler<never, never>` is an `Effect<HttpServerResponse,
-never, never>`. Because `Effect<HttpServerResponse, HttpBodyError, never>` is
-not an `HttpServerResponse`, the type checker gets upset with us.
-
-## Fixing our nested Effects with `flatMap`
-
-It's possible to fix this with a call to `Effect.flatMap`:
-
-```ts twoslash
-import { HttpServerResponse } from "@effect/platform"
-import { Effect, Layer } from "effect"
-import { createServer } from "node:http"
-
-import { Database } from "bun:sqlite"
-const db = new Database("sqlite.db")
-//---cut---
-const users = Effect.flatMap(
-  Effect.sync(() => ({ users: db.prepare("SELECT * FROM users").all() })),
-  HttpServerResponse.json,
-);
-```
-
-But it is more idiomatic in Effect to use `pipe`:
-
-```ts twoslash
-import { HttpServerResponse } from "@effect/platform"
-import { Effect, Layer } from "effect"
-import { createServer } from "node:http"
-
-import { Database } from "bun:sqlite"
-const db = new Database("sqlite.db")
-//---cut---
-const users = Effect.sync(() => {
-  return {
-    users: db.prepare("SELECT * FROM users").all(),
-  }
-}).pipe(Effect.flatMap(HttpServerResponse.json))
-```
-
-This no longer gives us a type error. We've split our computation into two
-parts: fetching the data with `Effect.sync`, and serializing it with
-`HttpServerResponse.json`. The `Effect.flatMap` in the middle of these two
-takes care of the accidental `Effect` nesting.
 
 ## Adding error handling to our database query
 

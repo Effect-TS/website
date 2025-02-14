@@ -8,63 +8,54 @@ sidebar:
   order: 2
 ---
 
-The first step to migrating this to Effect is to launch the Express.js server
-with Effect instead of the traditional `app.listen`. Because the Express.js
-`app` is a function that returns a node `http.Server` under the hood, it slots
-nicely into Effect's `HttpServer` abstraction.
+The first step to migrating our Express.js app to Effect is to add some
+boilerplate that will allow us to write Effect endpoints that live alongside
+Express.js.
 
-```ts twoslash {3-6, 14-21} title=index.ts
-import express from "express"
+```ts twoslash {3-5,13-21} title=index.ts
+import express from "express";
 
-import { HttpRouter, HttpServer } from "@effect/platform"
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
-import { Layer } from "effect"
-import { createServer } from "node:http"
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import { HttpRouter } from "@effect/platform";
+import { Effect } from "effect";
 
-const app = express()
+const app = express();
 
 app.get("/health", (req, res) => {
-  res.type("text/plain").send("ok")
-})
+  res.type("text/plain").send("ok");
+});
 
-NodeRuntime.runMain(
-  Layer.launch(
-    Layer.provide(
-      HttpServer.serve(HttpRouter.empty),
-      NodeHttpServer.layer(() => createServer(app), { port: 3000 }),
-    ),
-  ),
-)
+const router = HttpRouter.empty;
+
+const main = Effect.gen(function* () {
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000);
+  yield* Effect.never;
+});
+
+NodeRuntime.runMain(main);
 ```
 
 And we can run the resulting code like so:
 
 ```shell
-$ bun add @effect/platform @effect/platform-node
-$ bun index.ts
+bun add @effect/platform @effect/platform-node
+bun index.ts
 ```
 
-We haven't changed anything about how the server behaves. It still exposes a
-single endpoint, `http://localhost:3000/health`, and that still returns `ok`.
-But we've wrapped the Express.js app in a way that will allow us to define new
-endpoints using Effect while still responding to our existing endpoints in
-Express.js.
+Our Express.js `/health` handler still works as expected, but we've wrapped the
+Express.js app in a way that will allow us to define endpoints using Effect
+while still responding to our existing endpoints in Express.js.
 
-There's a lot of new things happening at the bottom of our file. For the time
-being we're going to ignore most of it and focus on migrating an endpoint to
-Effect. I promise by the time we're done, you'll understand every line we added
-above.
+There's a lot of new things happening at the bottom of our file. What is
+`Effect.gen`, what are those `yield*`s doing, what is `Effect.never`. For the
+time being we're going to set these questions aside. It looks intimidating now,
+but if you stick with this tutorial to the end, it will not only make sense, but
+start to become second nature.
 
-First, let's break out our router, `HttpRouter.empty`, out into its own variable
-so it's easier to add to.
+## Our new `/health` handler
 
-```ts twoslash
-import { HttpRouter } from "@effect/platform"
-// ---cut---
-const router = HttpRouter.empty
-```
-
-And let's define the function we want to run when we hit the `/health` endpoint:
+The Effect equivalent of our Express.js `/health` handler looks like this:
 
 ```ts twoslash
 import { HttpServerResponse } from "@effect/platform"
@@ -75,10 +66,10 @@ function health() {
 ```
 
 `HttpServerResponse` is Effect's class for generating HTTP responses, we need to
-use it for any responses returned from our endpoints defined with Effect.
+use it for any responses returned from Effect.
 
-The way we wire these things together is going to look a bit strange, but bear
-with me.
+The way we wire this into our Effect `router` is going to look a little bit
+strange, but please stay with me:
 
 ```ts twoslash
 import { HttpServerResponse, HttpRouter } from "@effect/platform"
@@ -114,7 +105,7 @@ synchronous function instead of an asynchronous one.
 
 If we want to run this Effect, we can use `Effect.runPromise`:
 
-```ts twoslash {2}
+```ts twoslash
 import { Effect } from "effect"
 // ---cut---
 const effect = Effect.promise(async () => "Hello, world!")
@@ -126,7 +117,7 @@ console.log(result)
 What if you want to run an Effect that calls another Effect? You can use
 `Effect.gen` to do that:
 
-```ts twoslash {2-5}
+```ts twoslash {2-5,8}
 import { Effect } from "effect"
 // ---cut---
 const effect = Effect.promise(async () => "Hello, world!")
@@ -164,7 +155,7 @@ provided.
 
 We can `pipe` as many `Effect`s together as we like:
 
-```ts twoslash {2-7}
+```ts twoslash {2-7,10}
 import { Effect } from "effect"
 // ---cut---
 const effect = Effect.promise(async () => "Hello, world!")
@@ -258,5 +249,59 @@ HttpRouter.empty.pipe(
   HttpRouter.get("/health", Effect.sync(health)),
 )
 ```
+
+## The end result
+
+Here's the full code of our app with our `/health` endpoint being served by
+Effect:
+
+```ts twoslash {9-15}
+import express from "express";
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import { HttpRouter, HttpServerResponse } from "@effect/platform";
+import { Effect } from "effect";
+
+const app = express();
+
+function health() {
+  return HttpServerResponse.text("ok");
+}
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", Effect.sync(health))
+);
+
+const main = Effect.gen(function* () {
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000);
+  yield* Effect.never;
+});
+
+NodeRuntime.runMain(main);
+```
+
+And the output of the endpoint:
+
+```shell
+http get localhost:3000/health
+```
+
+```http
+HTTP/1.1 200 OK
+Content-Length: 2
+Content-Type: text/plain
+Date: Fri, 14 Feb 2025 13:51:39 GMT
+X-Powered-By: Express
+
+ok
+```
+
+This output has 2 small differences from the Express.js version:
+
+1. The `Content-Type` header is `text/plain` instead of `text/plain; charset=utf-8`.
+2. The `ETag` header is missing.
+
+TODO(samwho): explain how to close this gap.
 
 [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*
