@@ -44,37 +44,37 @@ Let's take a look at our app in full with new Express.js `/users` endpoint added
 to it:
 
 ```ts twoslash {6,8,11-14,25} title=index.ts
-import express from "express";
+import express from "express"
 
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Effect } from "effect";
-import { Client } from "pg";
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { HttpRouter, HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+import { Client } from "pg"
 
-const db = new Client({ user: "postgres" });
-const app = express();
+const db = new Client({ user: "postgres" })
+const app = express()
 
 app.get("/users", async (req, res) => {
-  const { rows } = await db.query("SELECT * FROM users");
-  res.send({ users: rows });
-});
+  const { rows } = await db.query("SELECT * FROM users")
+  res.send({ users: rows })
+})
 
 function health() {
-  return HttpServerResponse.text("ok");
+  return HttpServerResponse.text("ok")
 }
 
 const router = HttpRouter.empty.pipe(
   HttpRouter.get("/health", Effect.sync(health))
-);
+)
 
 const main = Effect.gen(function* () {
-  yield* Effect.promise(() => db.connect());
-  app.use(yield* NodeHttpServer.makeHandler(router));
-  app.listen(3000);
-  yield* Effect.never;
-});
+  yield* Effect.promise(() => db.connect())
+  app.use(yield* NodeHttpServer.makeHandler(router))
+  app.listen(3000)
+  yield* Effect.never
+})
 
-NodeRuntime.runMain(main);
+NodeRuntime.runMain(main)
 ```
 
 We'll also need to add some new dependencies to our project:
@@ -127,17 +127,17 @@ import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
-import { Client } from "pg";
-const db = new Client({ user: "postgres" });
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
 const health = Effect.sync(() => {
   return HttpServerResponse.text("ok")
 })
 //---cut---
 // @errors: 2379
 const users = Effect.promise(async () => {
-  const { rows } = await db.query("SELECT * FROM users");
-  return HttpServerResponse.json({ users: rows });
-});
+  const { rows } = await db.query("SELECT * FROM users")
+  return HttpServerResponse.json({ users: rows })
+})
 
 const router = HttpRouter.empty.pipe(
   HttpRouter.get("/health", health),
@@ -180,7 +180,7 @@ the type `Effect<string, never, never>`.
 import { Effect } from "effect"
 //---cut---
 const _ = Effect.sync(() => "Hello, world!")
-//        ^?
+//    ^?
 ```
 
 This means they will return a `string` on success, and never fail.
@@ -193,14 +193,14 @@ it from our `users` handler, we end up wrapping one Effect in another.
 import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
-import { Client } from "pg";
-const db = new Client({ user: "postgres" });
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
 //---cut---
 const users = Effect.promise(async () => {
 //    ^?
-  const { rows } = await db.query("SELECT * FROM users");
-  return HttpServerResponse.json({ users: rows });
-});
+  const { rows } = await db.query("SELECT * FROM users")
+  return HttpServerResponse.json({ users: rows })
+})
 ```
 
 This is what the type error from earlier was trying to tell us. Here's the
@@ -222,16 +222,16 @@ It's possible to fix this with a call to `Effect.flatMap`:
 import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
-import { Client } from "pg";
-const db = new Client({ user: "postgres" });
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
 //---cut---
 const users = Effect.flatMap(
   Effect.promise(async () => {
-    const { rows } = await db.query("SELECT * FROM users");
-    return { users: rows };
+    const { rows } = await db.query("SELECT * FROM users")
+    return { users: rows }
   }),
   HttpServerResponse.json
-);
+)
 ```
 
 But it is more idiomatic in Effect to use `pipe`:
@@ -240,15 +240,15 @@ But it is more idiomatic in Effect to use `pipe`:
 import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
-import { Client } from "pg";
-const db = new Client({ user: "postgres" });
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
 //---cut---
 const users = Effect.promise(
   () => db.query("SELECT * FROM users")
 ).pipe(
   Effect.map(({ rows }) => ({ users: rows })),
   Effect.flatMap(HttpServerResponse.json)
-);
+)
 ```
 
 This no longer gives us a type error. We've split our computation into parts:
@@ -341,7 +341,7 @@ X-Powered-By: Express
 
 Strictly speaking, a 500 error is correct here. Our server encountered an error
 because of a server-side problem, which is what the 500-class errors are for.
-But it's not good Effect to let exceptions bubble up like this.
+But it's not good Effect to let exceptions sneak by like this.
 
 A simple thing we can do is changing `Effect.promise` to `Effect.tryPromise`:
 
@@ -349,15 +349,15 @@ A simple thing we can do is changing `Effect.promise` to `Effect.tryPromise`:
 import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
-import { Client } from "pg";
-const db = new Client({ user: "postgres" });
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
 //---cut---
 const users = Effect.tryPromise(
   () => db.query("SELECT * FROM users")
 ).pipe(
   Effect.map(({ rows }) => ({ users: rows })),
   Effect.flatMap(HttpServerResponse.json)
-);
+)
 ```
 
 This changes the return type from:
@@ -378,18 +378,138 @@ to know _what_ exception might be thrown, Effect defaults to `UnknownException`.
 
 We can improve on this:
 
-```ts twoslash
+```ts twoslash {1,4-5}
 import { HttpServerResponse } from "@effect/platform"
 import { Effect, Layer } from "effect"
 import { createServer } from "node:http"
-import { Client } from "pg";
-const db = new Client({ user: "postgres" });
+import { Client} from "pg"
+const db = new Client({ user: "postgres" })
 //---cut---
+class UserFetchError extends Error {}
+
 const users = Effect.tryPromise({
   try: () => db.query("SELECT * FROM users"),
-  catch: (error) => error,
+  catch: (cause) => new UserFetchError("failed to fetch users", { cause }),
 }).pipe(
   Effect.map(({ rows }) => ({ users: rows })),
   Effect.flatMap(HttpServerResponse.json)
-);
+)
 ```
+
+We're using a different variant of `Effect.tryPromise` to give us more control
+over the type of the error that is returned. Becuase it's difficult to know what
+errors may be thrown by third-party libraries, it's idiomatic to create new
+error types that wrap the original error.
+
+Now our effect has the type:
+
+```typescript
+Effect<HttpServerResponse, UserFetchError | HttpBodyError, never>
+```
+
+Now our program is aware of what can go wrong _at the type level_. This
+information is completely missing if you're using exceptions in TypeScript.
+With this information we can ensure, and get TypeScript to verify for us,
+that things do not go wrong in unexpected ways.
+
+```ts twoslash
+// @errors: 2375
+import { Effect } from "effect"
+
+const effect = Effect.succeed(1).pipe(
+  Effect.tryMap({
+    try: (n) => n + 1,
+    catch: () => new Error(),
+  }),
+)
+
+const noError: Effect.Effect<number, never, never> = effect
+```
+
+The above code fails because we try to assign an Effect that can fail to a
+variable that expects an Effect that can't fail. We can fix this error in a
+few ways.
+
+By providing a default value:
+
+```ts twoslash {8}
+import { Effect } from "effect"
+
+const effect = Effect.succeed(1).pipe(
+  Effect.tryMap({
+    try: (n) => n + 1,
+    catch: () => new Error(),
+  }),
+  Effect.orElseSucceed(() => 0),
+)
+
+const noError: Effect.Effect<number, Error, never> = effect
+```
+
+Or by converting the error into what Effect calls a "defect":
+
+```ts twoslash {8}
+import { Effect } from "effect"
+
+const effect = Effect.succeed(1).pipe(
+  Effect.tryMap({
+    try: (n) => n + 1,
+    catch: () => new Error(),
+  }),
+  Effect.orDie
+)
+
+const noError: Effect.Effect<number, Error, never> = effect
+```
+
+This effectively recreates the behaviour of throwing an exception. Defects are
+critical errors that you don't want to handle. If you were to create a defect in
+an Effect handler, the result would be a 500 error returned to the user.
+
+## The end result
+
+Here's our full code so far:
+
+```ts twoslash title=index.ts
+import express from "express"
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import { HttpRouter, HttpServerResponse } from "@effect/platform";
+import { Effect } from "effect";
+import { Client } from "pg";
+
+const db = new Client({ user: "postgres" });
+
+const app = express();
+
+class UserFetchError extends Error {}
+const users = Effect.tryPromise({
+  try: () => db.query("SELECT * FROM users"),
+  catch: (cause) => new UserFetchError("failed to fetch users", { cause }),
+}).pipe(
+  Effect.map(({ rows }) => ({ users: rows })),
+  Effect.flatMap(HttpServerResponse.json),
+  Effect.orDie
+);
+
+function health() {
+  return HttpServerResponse.text("ok");
+}
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", Effect.sync(health)),
+  HttpRouter.get("/users", users),
+);
+
+const main = Effect.gen(function* () {
+  yield* Effect.promise(() => db.connect());
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000);
+  yield* Effect.never;
+});
+
+NodeRuntime.runMain(main);
+```
+
+Going forward, I'm going to trim older endpoints from the full code as we go so
+that the length of these code samples doesn't get overwhelming.

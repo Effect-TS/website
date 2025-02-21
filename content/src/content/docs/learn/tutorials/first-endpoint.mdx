@@ -13,27 +13,27 @@ boilerplate that will allow us to write Effect endpoints that live alongside
 Express.js.
 
 ```ts twoslash {3-5,13-21} title=index.ts
-import express from "express";
+import express from "express"
 
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { HttpRouter } from "@effect/platform"
+import { Effect } from "effect"
 
-const app = express();
+const app = express()
 
 app.get("/health", (req, res) => {
-  res.type("text/plain").send("ok");
-});
+  res.type("text/plain").send("ok")
+})
 
-const router = HttpRouter.empty;
+const router = HttpRouter.empty
 
 const main = Effect.gen(function* () {
-  app.use(yield* NodeHttpServer.makeHandler(router));
-  app.listen(3000);
-  yield* Effect.never;
-});
+  app.use(yield* NodeHttpServer.makeHandler(router))
+  app.listen(3000)
+  yield* Effect.never
+})
 
-NodeRuntime.runMain(main);
+NodeRuntime.runMain(main)
 ```
 
 And we can run the resulting code like so:
@@ -109,7 +109,7 @@ If we want to run this Effect, we can use `Effect.runPromise`:
 import { Effect } from "effect"
 // ---cut---
 const effect = Effect.promise(async () => "Hello, world!")
-const result = await Effect.runPromise(effect);
+const result = await Effect.runPromise(effect)
 console.log(result)
 // => "Hello, world!"
 ```
@@ -188,7 +188,7 @@ function health() {
 // ---cut---
 const router = HttpRouter.empty.pipe(
   HttpRouter.get("/health", Effect.sync(health)),
-);
+)
 ```
 
 `HttpRouter` is a data structure that represents a collection of routes. The
@@ -256,29 +256,29 @@ Here's the full code of our app with our `/health` endpoint being served by
 Effect:
 
 ```ts twoslash {9-15}
-import express from "express";
+import express from "express"
 
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Effect } from "effect";
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { HttpRouter, HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
 
-const app = express();
+const app = express()
 
 function health() {
-  return HttpServerResponse.text("ok");
+  return HttpServerResponse.text("ok")
 }
 
 const router = HttpRouter.empty.pipe(
   HttpRouter.get("/health", Effect.sync(health))
-);
+)
 
 const main = Effect.gen(function* () {
-  app.use(yield* NodeHttpServer.makeHandler(router));
-  app.listen(3000);
-  yield* Effect.never;
-});
+  app.use(yield* NodeHttpServer.makeHandler(router))
+  app.listen(3000)
+  yield* Effect.never
+})
 
-NodeRuntime.runMain(main);
+NodeRuntime.runMain(main)
 ```
 
 And the output of the endpoint:
