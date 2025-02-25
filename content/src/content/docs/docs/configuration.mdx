@@ -482,11 +482,9 @@ Effect.runPromise(Effect.provide(program, layer))
 
 This approach helps you create isolated tests that don't rely on external environment variables, ensuring your tests run consistently with mock configurations.
 
-<Aside type="caution" title="Namespace Separator">
-  When specifying nested configurations in the map, you must use `.` to
-  separate levels of the namespace (e.g., `SERVER.PORT`) instead of `_`.
-  For example, `SERVER_PORT` will not be recognized as a nested key.
-</Aside>
+### Handling Nested Configuration Values
+
+For more complex setups, configurations often include nested keys. By default, `ConfigProvider.fromMap` uses `.` as the separator for nested keys.
 
 **Example** (Providing Nested Configuration Values)
 
@@ -495,9 +493,32 @@ import { Config, ConfigProvider, Layer, Effect } from "effect"
 
 const config = Config.nested(Config.number("PORT"), "SERVER")
 
+// Mock configuration using '.' as the separator for nested keys
 const mockConfigProvider = ConfigProvider.fromMap(
-  // Use '.' as a separator for nested keys
   new Map([["SERVER.PORT", "8080"]])
+)
+
+Effect.runPromise(
+  Effect.provide(config, Layer.setConfigProvider(mockConfigProvider))
+).then(console.log)
+// Output: 8080
+```
+
+### Customizing the Path Delimiter
+
+If your configuration data uses a different separator (such as `_`), you can change the delimiter using the `pathDelim` option in `ConfigProvider.fromMap`.
+
+**Example** (Using a Custom Path Delimiter)
+
+```ts twoslash
+import { Config, ConfigProvider, Layer, Effect } from "effect"
+
+const config = Config.nested(Config.number("PORT"), "SERVER")
+
+// Mock configuration using '_' as the separator
+const mockConfigProvider = ConfigProvider.fromMap(
+  new Map([["SERVER_PORT", "8080"]]),
+  { pathDelim: "_" }
 )
 
 Effect.runPromise(
