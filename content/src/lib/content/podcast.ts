@@ -2,14 +2,13 @@ import { getCollection, type CollectionEntry } from "astro:content"
 import type { Podcast } from "../schema/podcast";
 
 export interface PodcastCollectionEntry {
+  id: string
   body: string
   collection: string
   data: Podcast & CollectionEntry<"docs">["data"]
-  id: string
   render: () => Promise<{
     Content: import('astro').MarkdownInstance<object>['Content']
   }>
-  slug: string
 }
 
 export async function getPodcastEntries() {

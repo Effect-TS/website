@@ -1,6 +1,6 @@
 ---
-import type { GetStaticPathsResult, InferGetStaticPropsType } from "astro"
-import { getEntry } from "astro:content"
+import type { GetStaticPathsResult } from "astro"
+import { getEntry, render } from "astro:content"
 import { Icon } from "@astrojs/starlight/components"
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
 import type { StarlightPageProps } from "@astrojs/starlight/props"
@@ -15,9 +15,10 @@ export async function getStaticPaths() {
   const episodes = entries.map((entry) => ({
     params: {
       prefix: "podcast",
-      episode: entry.slug.replace("podcast", "")
+      episode: entry.id.replace("podcast", "")
     },
     props: {
+      entry,
       episode: entry.data.episode,
       title: entry.data.title,
       description: entry.data.description,
@@ -26,16 +27,13 @@ export async function getStaticPaths() {
       date: entry.data.publicationDate.toLocaleDateString(undefined, {
         dateStyle: "medium"
       }),
-      render: entry.render
     }
   }))
   return episodes satisfies GetStaticPathsResult
 }
 
-type Props = InferGetStaticPropsType<typeof getStaticPaths>
-
-const { episode, title, description, youtube, date } = Astro.props
-const { Content } = await Astro.props.render()
+const { entry, episode, title, description, youtube, date } = Astro.props
+const { Content } = await render(entry as any)
 const transcript = await getEntry(Astro.props.transcript)
 
 const pageProps: StarlightPageProps = {
