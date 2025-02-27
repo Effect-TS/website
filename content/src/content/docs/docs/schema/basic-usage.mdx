@@ -1146,17 +1146,20 @@ const value = schema.value
 
 ## Structs
 
-The `Schema.Struct` constructor allows you to define a schema for an object with specific properties.
+### Property Signatures
+
+The `Schema.Struct` constructor defines a schema for an object with specific properties.
 
 **Example** (Defining a Struct Schema)
+
+This example defines a struct schema for an object with the following properties:
+
+- `name`: a string
+- `age`: a number
 
 ```ts twoslash
 import { Schema } from "effect"
 
-// Define a struct schema for an object with properties:
-// - "name" (string)
-// - "age" (number)
-//
 //      ┌─── Schema.Struct<{
 //      │      name: typeof Schema.String;
 //      │      age: typeof Schema.Number;
@@ -1167,15 +1170,20 @@ const schema = Schema.Struct({
   age: Schema.Number
 })
 
-//     ┌─── { readonly name: string; readonly age: number; }
+// The inferred TypeScript type from the schema
+//
+//     ┌─── {
+//     │      readonly name: string;
+//     │      readonly age: number;
+//     │    }
 //     ▼
 type Type = typeof schema.Type
 ```
 
-<Aside type="caution" title="Allows Any Data">
-  Note that `Schema.Struct({})` models the TypeScript type `{}`, which is
-  similar to `unknown`. This means that the schema will allow any type of
-  data to pass through without validation.
+<Aside type="caution" title="Empty Structs Allow Any Data">
+  Using `Schema.Struct({})` results in a TypeScript type `{}`, which
+  behaves similarly to `unknown`. This means that any data will be
+  considered valid, as there are no defined constraints.
 </Aside>
 
 ### Index Signatures
@@ -1192,53 +1200,131 @@ declare const Struct: (props, ...indexSignatures) => Struct<...>
 import { Schema } from "effect"
 
 // Define a struct with a specific property "a"
-// and an index signature for other properties
+// and an index signature allowing additional properties
 const schema = Schema.Struct(
-  {
-    a: Schema.Number
-  },
+  // Defined properties
+  { a: Schema.Number },
+  // Index signature: allows additional string keys with number values
   { key: Schema.String, value: Schema.Number }
 )
 
-//     ┌─── { readonly [x: string]: number; readonly a: number; }
+// The inferred TypeScript type:
+//
+//     ┌─── {
+//     │      readonly [x: string]: number;
+//     │      readonly a: number;
+//     │    }
 //     ▼
 type Type = typeof schema.Type
 ```
 
-Since the `Schema.Record` constructor returns a schema that exposes both the `key` and `value`, you can simplify the above code by using the `Schema.Record` constructor:
+**Example** (Using `Schema.Record`)
 
-**Example** (Simplifying with `Schema.Record`)
+You can achieve the same result using `Schema.Record`:
 
 ```ts twoslash
 import { Schema } from "effect"
 
+// Define a struct with a fixed property "a"
+// and a dynamic index signature using Schema.Record
 const schema = Schema.Struct(
   { a: Schema.Number },
   Schema.Record({ key: Schema.String, value: Schema.Number })
 )
 
-//     ┌─── { readonly [x: string]: number; readonly a: number; }
+// The inferred TypeScript type:
+//
+//     ┌─── {
+//     │      readonly [x: string]: number;
+//     │      readonly a: number;
+//     │    }
 //     ▼
 type Type = typeof schema.Type
 ```
 
-### Mutable Structs
+### Multiple Index Signatures
 
-By default, `Schema.Struct` generates a type with properties marked as `readonly`.
-To create a mutable version of the struct, use the `Schema.mutable` function, which makes the properties mutable in a **shallow** manner.
+You can define **one** index signature per key type (`string` or `symbol`). Defining multiple index signatures of the same type is not allowed.
 
-**Example** (Creating a Mutable Struct Schema)
+**Example** (Valid Multiple Index Signatures)
 
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.mutable(
-  Schema.Struct({ a: Schema.String, b: Schema.Number })
+// Define a struct with a fixed property "a"
+// and valid index signatures for both strings and symbols
+const schema = Schema.Struct(
+  { a: Schema.Number },
+  // String index signature
+  { key: Schema.String, value: Schema.Number },
+  // Symbol index signature
+  { key: Schema.SymbolFromSelf, value: Schema.Number }
 )
 
-//     ┌─── { a: string; b: number; }
+// The inferred TypeScript type:
+//
+//     ┌─── {
+//     │      readonly [x: string]: number;
+//     │      readonly [x: symbol]: number;
+//     │      readonly a: number;
+//     │    }
 //     ▼
 type Type = typeof schema.Type
+```
+
+Defining multiple index signatures of the same key type (`string` or `symbol`) will cause an error.
+
+**Example** (Invalid Multiple Index Signatures)
+
+```ts twoslash
+import { Schema } from "effect"
+
+Schema.Struct(
+  { a: Schema.Number },
+  // Attempting to define multiple string index signatures
+  { key: Schema.String, value: Schema.Number },
+  { key: Schema.String, value: Schema.Boolean }
+)
+/*
+throws:
+Error: Duplicate index signature
+details: string index signature
+*/
+```
+
+Be cautious when defining index signatures. If they conflict with fixed properties, the resulting TypeScript type may not behave as expected.
+
+**Example** (Conflicting Index Signature)
+
+```ts twoslash
+import { Schema } from "effect"
+
+// Attempting to define a conflicting index signature
+// The property "a" expects a number, but the index signature
+// allows only strings
+const schema = Schema.Struct(
+  { a: Schema.Number },
+  { key: Schema.String, value: Schema.String }
+)
+
+// ❌ Incorrect TypeScript type:
+//
+//     ┌─── {
+//     │      readonly [x: string]: string;
+//     │      readonly a: number;
+//     │    }
+//     ▼
+type Type = typeof schema.Type
+```
+
+The TypeScript compiler will flag this as an error when you define the type manually:
+
+```ts twoslash
+// @errors: 2411
+type Test = {
+  readonly [x: string]: string
+  readonly a: number
+}
 ```
 
 ### Exposed Values
@@ -1266,6 +1352,25 @@ const fields = schema.fields
 //      ┌─── readonly [Schema.Record$<typeof Schema.String, typeof Schema.Number>]
 //      ▼
 const records = schema.records
+```
+
+### Mutable Structs
+
+By default, `Schema.Struct` generates a type with properties marked as `readonly`.
+To create a mutable version of the struct, use the `Schema.mutable` function, which makes the properties mutable in a **shallow** manner.
+
+**Example** (Creating a Mutable Struct Schema)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const schema = Schema.mutable(
+  Schema.Struct({ a: Schema.String, b: Schema.Number })
+)
+
+//     ┌─── { a: string; b: number; }
+//     ▼
+type Type = typeof schema.Type
 ```
 
 ## Tagged Structs
@@ -1432,7 +1537,7 @@ console.log(Schema.decodeUnknownSync(MyDataSchema)(new MyData("name")))
 
 console.log(Schema.decodeUnknownSync(MyDataSchema)({ name: "name" }))
 /*
-throws
+throws:
 ParseError: Expected MyData, actual {"name":"name"}
 */
 ```
@@ -1483,7 +1588,7 @@ console.log(Schema.decodeUnknownSync(MyDataSchema)(MyData.make("name")))
 
 console.log(Schema.decodeUnknownSync(MyDataSchema)({ name: "name" }))
 /*
-throws
+throws:
 ParseError: Expected MyData, actual {"name":"name"}
 */
 ```
