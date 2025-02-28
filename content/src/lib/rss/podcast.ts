@@ -1,5 +1,6 @@
+import { render } from 'astro:content'
 import { experimental_AstroContainer as AstroContainer } from "astro/container"
-import { getContainerRenderer as getMDXRenderer } from "@astrojs/mdx"
+import mdxRenderer from '@astrojs/mdx/server.js'
 import type { RSSOptions } from "@astrojs/rss"
 import { Marked } from "marked"
 import markedPlaintify from "marked-plaintify"
@@ -14,9 +15,8 @@ import {
 import sanitize from "ultrahtml/transformers/sanitize"
 import {
   getPodcastEntries,
-  type PodcastCollectionEntry
+  type PodcastEntry
 } from "../content/podcast"
-import { loadRenderers } from "astro:container"
 
 export async function getRSSOptions(
   site: URL | undefined
@@ -24,8 +24,8 @@ export async function getRSSOptions(
   const entries = await getPodcastEntries()
   entries.splice(20)
 
-  const renderers = await loadRenderers([getMDXRenderer()])
-  const container = await AstroContainer.create({ renderers })
+  const container = await AstroContainer.create()
+  container.addServerRenderer({ name: "mdx", renderer: mdxRenderer })
 
   // The RSS route will only be injected if there is a `site` defined
   // in the Astro configuration file.
@@ -59,26 +59,26 @@ export async function getRSSOptions(
     ].join(""),
     items: await Promise.all(
       entries.map(async (entry) => {
-        const slug = entry.slug.replace("podcast/", "")
+        const slug = entry.id.replace("podcast/", "")
         const url = `${feedSite}/podcast/episodes/${slug}/`
         return {
           title: entry.data.title,
           link: url,
-          pubDate: entry.data.publicationDate,
-          categories: entry.data.tags,
+          pubDate: entry.data.podcast.publicationDate,
+          categories: entry.data.podcast.tags,
           description: await getRSSDescription(entry),
           content: await getRSSContent(entry, feedSite, container),
           enclosure: {
-            url: entry.data.enclosure.url,
-            length: entry.data.enclosure.length,
-            type: entry.data.enclosure.type
+            url: entry.data.podcast.enclosure.url,
+            length: entry.data.podcast.enclosure.length,
+            type: entry.data.podcast.enclosure.type
           },
           customData: [
-            `<itunes:duration>${entry.data.duration}</itunes:duration>`,
-            `<itunes:episode>${entry.data.episode}</itunes:episode>`,
+            `<itunes:duration>${entry.data.podcast.duration}</itunes:duration>`,
+            `<itunes:episode>${entry.data.podcast.episodeNumber}</itunes:episode>`,
             "<itunes:episodeType>episodic</itunes:episodeType>",
             "<itunes:explicit>false</itunes:explicit>",
-            `<itunes:image>${entry.data.image}</itunes:image>`
+            `<itunes:image>${entry.data.podcast.image}</itunes:image>`
           ].join("")
         }
       })
@@ -87,11 +87,11 @@ export async function getRSSOptions(
 }
 
 async function getRSSContent(
-  entry: PodcastCollectionEntry,
+  entry: PodcastEntry,
   baseURL: URL,
   container: AstroContainer
 ): Promise<string> {
-  const { Content } = await entry.render()
+  const { Content } = await render(entry)
   const html = await container.renderToString(Content)
 
   const content = await transform(html, [
@@ -156,7 +156,7 @@ export async function stripMarkdown(markdown: string) {
 }
 
 function getRSSDescription(
-  entry: PodcastCollectionEntry
+  entry: PodcastEntry
 ): Promise<string> | undefined {
   if (!entry.data.description) {
     return
