@@ -6,7 +6,7 @@ export function effectPodcastPlugin(): StarlightPlugin {
     hooks: {
       setup({ addIntegration, astroConfig }) {
         addIntegration({
-          name: "effect-playground-integration",
+          name: "effect-podcast-integration",
           hooks: {
             "astro:config:setup": ({ injectRoute }) => {
               injectRoute({
