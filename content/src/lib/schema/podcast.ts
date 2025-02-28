@@ -1,10 +1,10 @@
 import { reference, z } from "astro:content"
 
-export const podcastSchema = z.object({
+export const basePodcastSchema = z.object({
   /**
    * A non-zero integer representing the episode number.
    */
-  episode: z.number().int().min(1),
+  episodeNumber: z.number().int().min(1),
   /**
    * A reference to the transcript for this podcast episode.
    */
@@ -54,4 +54,8 @@ export const podcastSchema = z.object({
   tags: z.array(z.string())
 })
 
-export type Podcast = z.TypeOf<typeof podcastSchema>
+export const podcastSchema = z.object({
+  podcast: basePodcastSchema
+})
+
+export type Podcast = z.TypeOf<typeof basePodcastSchema>

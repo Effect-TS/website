@@ -1,40 +1,21 @@
 ---
-import type { GetStaticPathsResult } from "astro"
 import { getEntry, render } from "astro:content"
 import { Icon } from "@astrojs/starlight/components"
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
 import type { StarlightPageProps } from "@astrojs/starlight/props"
 import { YouTube } from "@astro-community/astro-embed-youtube"
 import Transcript from "@/components/podcast/Transcript.astro"
-import { getPodcastEntries } from "@/lib/content/podcast"
+import { getPodcastEpisodeStaticPaths } from "@/lib/content/podcast"
 
 export const prerender = true
 
 export async function getStaticPaths() {
-  const entries = await getPodcastEntries()
-  const episodes = entries.map((entry) => ({
-    params: {
-      prefix: "podcast",
-      episode: entry.id.replace("podcast", "")
-    },
-    props: {
-      entry,
-      episode: entry.data.episode,
-      title: entry.data.title,
-      description: entry.data.description,
-      youtube: entry.data.youtube,
-      transcript: entry.data.transcript,
-      date: entry.data.publicationDate.toLocaleDateString(undefined, {
-        dateStyle: "medium"
-      }),
-    }
-  }))
-  return episodes satisfies GetStaticPathsResult
+  return getPodcastEpisodeStaticPaths()
 }
 
-const { entry, episode, title, description, youtube, date } = Astro.props
-const { Content } = await render(entry as any)
-const transcript = await getEntry(Astro.props.transcript)
+const { entry, ...props } = Astro.props
+const { Content } = await render(entry)
+const transcript = await getEntry(props.transcript)
 
 const pageProps: StarlightPageProps = {
   frontmatter: {
@@ -51,7 +32,7 @@ const pageProps: StarlightPageProps = {
       <div class="p-px rounded-2xl shrink-0 overflow-hidden aspect-video order-2 lg:order-1">
         <div class="w-full h-full bg-[--sl-color-gray-5] dark:bg-[--sl-color-bg-nav] p-1.5 rounded-[15px] overflow-hidden">
           <div class="relative w-full h-full border border-[var(--sl-color-bg)] rounded-[9px] overflow-hidden">
-            <YouTube id={youtube.id} title={youtube.title} class="max-w-none" />
+            <YouTube id={props.youtube.id} title={props.youtube.title} class="max-w-none" />
           </div> 
         </div>
       </div>
@@ -62,13 +43,13 @@ const pageProps: StarlightPageProps = {
     </aside>
     <main class="max-w-3xl !m-0 grow lg:pl-8 pb-24 overflow-hidden">
       <div class="!mt-1">
-        {date}
+        {props.publicationDate}
       </div>
       <h2 class="!mt-2 !mb-8 !text-3xl lg:!text-4xl text-black dark:text-white">
-        <span>#{episode}: </span>
-        <span>{title}</span>
+        <span>#{props.episodeNumber}: </span>
+        <span>{props.title}</span>
       </h2>
-      <p>{description}</p>
+      <p>{props.description}</p>
       <section class="!mt-8">
         <Content />
         <a 
