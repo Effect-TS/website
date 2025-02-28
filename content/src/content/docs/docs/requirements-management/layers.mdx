@@ -1129,6 +1129,50 @@ Effect.runPromise(program.pipe(Effect.provide(Sync.Default)))
 // Example Output: The number is 3858843290019673
 ```
 
+**Example** (Managing a Service with Lifecycle Control)
+
+```ts twoslash
+import { Effect, Console } from "effect"
+
+class Scoped extends Effect.Service<Scoped>()("Scoped", {
+  scoped: Effect.gen(function* () {
+    // Acquire the resource and ensure it is properly released
+    const resource = yield* Effect.acquireRelease(
+      Console.log("Aquiring...").pipe(Effect.as("foo")),
+      () => Console.log("Releasing...")
+    )
+    // Register a finalizer to run when the effect is completed
+    yield* Effect.addFinalizer(() => Console.log("Shutting down"))
+    return { resource }
+  })
+}) {}
+
+//      ┌─── Effect<void, never, Resource>
+//      ▼
+const program = Effect.gen(function* () {
+  const resource = (yield* Scoped).resource
+  console.log(`The resource is ${resource}`)
+})
+
+Effect.runPromise(
+  program.pipe(
+    Effect.provide(
+      //       ┌─── Layer<Scoped, never, never>
+      //       ▼
+      Scoped.Default
+    )
+  )
+)
+/*
+Aquiring...
+The resource is foo
+Shutting down
+Releasing...
+*/
+```
+
+The `Scoped.Default` layer does not require `Scope` as a dependency, since `Scoped` itself manages its lifecycle.
+
 ### Enabling Direct Method Access
 
 By setting `accessors: true`, you can call service methods directly using the service tag instead of first extracting the service.
