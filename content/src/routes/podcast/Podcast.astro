@@ -1,30 +1,17 @@
 ---
-import type { GetStaticPathsResult, InferGetStaticPropsType } from "astro"
+import type { InferGetStaticPropsType } from "astro"
 import { Icon } from "@astrojs/starlight/components"
 import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro"
 import type { StarlightPageProps } from "@astrojs/starlight/props"
 import ApplePodcastsIcon from "@/components/icons/ApplePodcastsIcon.astro"
 import SpotifyIcon from "@/components/icons/SpotifyIcon.astro"
 import YouTubeIcon from "@/components/icons/YouTubeIcon.astro"
-import { getPodcastEntries } from "@/lib/content/podcast"
+import { getPodcastStaticPaths } from "@/lib/content/podcast"
 
 export const prerender = true
 
 export async function getStaticPaths() {
-  const entries = await getPodcastEntries()
-  const episodes = entries
-    .sort((a, b) => b.data.episode - a.data.episode)
-    .slice(0, 3)
-  return [
-    {
-      params: {
-        prefix: "podcast"
-      },
-      props: {
-        episodes
-      }
-    }
-  ] satisfies GetStaticPathsResult
+  return getPodcastStaticPaths()
 }
 
 export type Props = InferGetStaticPropsType<typeof getStaticPaths>
@@ -114,17 +101,16 @@ function formatSeconds(seconds: number): string {
   <section class="py-6 md:py-12 px-4 sm:px-6 lg:px-8 border-y border-y-[--sl-color-gray-5] not-content">
     <ul class="container mx-auto p-0 max-w-screen-xl space-y-4 md:space-y-8 list-none">
       {episodes.map((episode) => {
-        const episodeNumber = `#${episode.data.episode}`
-        const podcastUrl = `/podcast/episodes/${episode.slug.replace("podcast/", "")}/`
-        const date = episode.data.publicationDate.toLocaleDateString(undefined, {
+        const episodeNumber = `#${episode.episodeNumber}`
+        const date = episode.publicationDate.toLocaleDateString(undefined, {
           dateStyle: "medium"
         })
         return (
-          <li aria-labelledby={episode.data.title} class="card group relative hover:bg-[--sl-color-bg-nav] rounded-lg">
+          <li aria-labelledby={episode.title} class="card group relative hover:bg-[--sl-color-bg-nav] rounded-lg">
             <article class="flex flex-col md:flex-row p-4 gap-6">
               <div class="flex flex-col">
                 <img
-                  src={`https://img.youtube.com/vi/${episode.data.youtube.id}/hqdefault.jpg`}
+                  src={`https://img.youtube.com/vi/${episode.youtube.id}/hqdefault.jpg`}
                   alt="The thumbnail for the episode"
                   class="max-w-80 object-cover aspect-video rounded-lg"
                   loading="lazy"
@@ -135,21 +121,21 @@ function formatSeconds(seconds: number): string {
                 <div>
                   <h2 class="mb-1 font-semibold line-clamp-1 leading-none">
                     <a
-                      href={podcastUrl}
+                      href={episode.url}
                       class="text-xl text-[--sl-color-white] font-semibold no-underline focus:underline group-focus:focus:no-underline not-content"
-                      arial-label={episode.data.title}
+                      arial-label={episode.title}
                     >
-                      {episodeNumber}&colon; {episode.data.title}
+                      {episodeNumber}&colon; {episode.title}
                     </a>
                   </h2>
                   <p class="max-w-3xl mb-2 line-clamp-3">
-                    {episode.data.description}
+                    {episode.description}
                   </p>
                 </div>
                 <div class="flex gap-4 text-sm line-clamp-1">
                   <time datetime={date}>{date}</time>
                   <span>•</span>
-                  <span>{formatSeconds(episode.data.duration)}</span>
+                  <span>{formatSeconds(episode.duration)}</span>
                   <span>•</span>
                   <span>Episode {episodeNumber}</span>
                 </div>

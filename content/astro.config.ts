@@ -1,5 +1,5 @@
 import { defineConfig } from "astro/config"
-import vercel from "@astrojs/vercel/serverless"
+import vercel from "@astrojs/vercel"
 import { h } from "hastscript"
 import rehypeMermaid, { type RehypeMermaidOptions } from "rehype-mermaid"
 import rehypeAutolinkHeadings, {
@@ -16,8 +16,8 @@ import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers"
 import ecTwoSlash from "expressive-code-twoslash"
 import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground"
 import { pluginTwoslashPagefind } from "./src/plugins/expressive-code/twoslash-pagefind"
-import { effectPlaygroundPlugin } from "./src/plugins/starlight/playground"
-import { effectPodcastPlugin } from "./src/plugins/starlight/podcast"
+import { effectPlaygroundPlugin } from "./src/plugins/starlight/playground/plugin"
+import { effectPodcastPlugin } from "./src/plugins/starlight/podcast/plugin"
 import { monacoEditorPlugin } from "./src/plugins/vite/monaco-editor"
 
 const VERCEL_PREVIEW_DOMAIN =
@@ -79,16 +79,13 @@ const rehypeAutolinkHeadingsOptions: RehypeAutolinkHeadingsOptions = {
 
 export default defineConfig({
   site,
-  output: "hybrid",
+  output: "server",
   trailingSlash: "always",
   adapter: vercel({
     webAnalytics: {
       enabled: true
     }
   }),
-  experimental: {
-    contentLayer: true
-  },
   markdown: {
     rehypePlugins: [
       [rehypeMermaid, rehypeMermaidOptions],
