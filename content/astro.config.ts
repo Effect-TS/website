@@ -18,11 +18,11 @@ import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-pl
 import { pluginTwoslashPagefind } from "./src/plugins/expressive-code/twoslash-pagefind"
 import { effectPlaygroundPlugin } from "./src/plugins/starlight/playground"
 import { effectPodcastPlugin } from "./src/plugins/starlight/podcast"
+import { effectLearnPlugin } from "./src/plugins/starlight/learn"
 import { monacoEditorPlugin } from "./src/plugins/vite/monaco-editor"
 
 const VERCEL_PREVIEW_DOMAIN =
-  process.env.VERCEL_ENV !== "production" &&
-  process.env.VERCEL_BRANCH_URL
+  process.env.VERCEL_ENV !== "production" && process.env.VERCEL_BRANCH_URL
 
 const domain = VERCEL_PREVIEW_DOMAIN || "effect.website"
 
@@ -208,6 +208,7 @@ export default defineConfig({
         starlightLinksValidator({
           exclude: ["/events/effect-days*"]
         }),
+        effectLearnPlugin(),
         effectPlaygroundPlugin({
           pattern: "/play"
         }),
