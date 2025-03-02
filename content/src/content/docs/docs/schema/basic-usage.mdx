@@ -1145,6 +1145,67 @@ ParseError: { readonly [x: minLength(2)]: number }
 */
 ```
 
+### Transforming Keys
+
+The `Schema.Record` API does not support transformations on key schemas.
+Attempting to apply a transformation to keys will result in an `Unsupported key schema` error:
+
+**Example** (Attempting to Transform Keys)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const schema = Schema.Record({
+  key: Schema.Trim,
+  value: Schema.NumberFromString
+})
+/*
+throws:
+Error: Unsupported key schema
+schema (Transformation): Trim
+*/
+```
+
+<Aside type="note" title="Why Key Transformations Are Not Allowed">
+  This restriction exists because transformations can create conflicts if
+  multiple keys map to the same value after transformation. To prevent
+  these issues, key transformations must be handled explicitly by the
+  user.
+</Aside>
+
+To modify record keys, you must apply transformations outside of `Schema.Record`.
+A common approach is to use [Schema.transform](/docs/schema/transformations/#transform) to adjust keys during decoding.
+
+**Example** (Trimming Keys While Decoding)
+
+```ts twoslash
+import { Schema, Record, identity } from "effect"
+
+const schema = Schema.transform(
+  // Define the input schema with unprocessed keys
+  Schema.Record({
+    key: Schema.String,
+    value: Schema.NumberFromString
+  }),
+  // Define the output schema with transformed keys
+  Schema.Record({
+    key: Schema.Trimmed,
+    value: Schema.Number
+  }),
+  {
+    strict: true,
+    // Trim keys during decoding
+    decode: (record) => Record.mapKeys(record, (key) => key.trim()),
+    encode: identity
+  }
+)
+
+console.log(
+  Schema.decodeUnknownSync(schema)({ " key1 ": "1", key2: "2" })
+)
+// Output: { key1: 1, key2: 2 }
+```
+
 ### Mutable Records
 
 By default, `Schema.Record` generates a type marked as `readonly`.
