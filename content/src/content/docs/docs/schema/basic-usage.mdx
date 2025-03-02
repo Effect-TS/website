@@ -1084,7 +1084,7 @@ type Type = typeof schema.Type
 
 You can refine the key type with additional constraints.
 
-**Example** (Refined Keys with Minimum Length Constraint)
+**Example** (Filtering Keys by Minimum Length)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -1098,6 +1098,51 @@ const schema = Schema.Record({
 //     ┌─── { readonly [x: string]: number; }
 //     ▼
 type Type = typeof schema.Type
+```
+
+Refinements on keys act as filters rather than causing a decoding failure.
+If a key does not meet the constraints (such as a pattern or minimum length check),
+it is removed from the decoded output instead of triggering an error.
+
+**Example** (Keys That Do Not Meet Constraints Are Removed)
+
+```ts twoslash
+import { Schema } from "effect"
+
+const schema = Schema.Record({
+  key: Schema.String.pipe(Schema.minLength(2)),
+  value: Schema.Number
+})
+
+console.log(Schema.decodeUnknownSync(schema)({ a: 1, bb: 2 }))
+// Output: { bb: 2 } ("a" is removed because it is too short)
+```
+
+If you want decoding to fail when a key does not meet the constraints,
+you can set [`onExcessProperty`](/docs/schema/getting-started/#managing-excess-properties) to `"error"`.
+
+**Example** (Forcing an Error on Invalid Keys)
+
+```ts twoslash "onExcessProperty"
+import { Schema } from "effect"
+
+const schema = Schema.Record({
+  key: Schema.String.pipe(Schema.minLength(2)),
+  value: Schema.Number
+})
+
+console.log(
+  Schema.decodeUnknownSync(schema, { onExcessProperty: "error" })({
+    a: 1,
+    bb: 2
+  })
+)
+/*
+throws:
+ParseError: { readonly [x: minLength(2)]: number }
+└─ ["a"]
+   └─ is unexpected, expected: minLength(2)
+*/
 ```
 
 ### Mutable Records
