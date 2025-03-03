@@ -15,7 +15,7 @@ export const GET: APIRoute = async ({ site }) => {
 
 ${docs
   .map((doc) => {
-    const url = new URL(doc.slug, site)
+    const url = new URL(doc.id, site)
     return `- [${doc.data.title}](${url.href}/): ${doc.data.description}\n`
   })
   .join("")}
