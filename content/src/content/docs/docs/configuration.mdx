@@ -19,7 +19,7 @@ To make our application configurable, we need to understand three essential elem
 
 - **Config Frontend**: We utilize the instance of `Config<A>` to load the configuration data described by the instance (a `Config` is, in itself, an effect). This process leverages the current `ConfigProvider` to retrieve the configuration.
 
-- **Config Backend**: The `ConfigProvider` serves as the underlying engine that manages the configuration loading process. Effect comes with a default config provider as part of its default services. This default provider reads the configuration data from environment variables. If we want to use a custom config provider, we can utilize the `Layer.setConfigProvider` layer to configure the Effect runtime accordingly.
+- **Config Backend**: The `ConfigProvider` serves as the underlying engine that manages the configuration loading process. Effect comes with a default config provider as part of its default services. This default provider reads the configuration data from environment variables. If we want to use a custom config provider, we can utilize the `Effect.withConfigProvider` API to configure the Effect runtime accordingly.
 
 ## Basic Configuration Types
 
@@ -127,6 +127,70 @@ Application started: localhost:8080
 ```
 
 In this case, even though the `PORT` environment variable is not set, the program continues to run, using the default value of `8080` for the port. This ensures that the application remains functional without requiring every configuration to be explicitly provided.
+
+## Redacted
+
+The `Config.redacted` function is used to handle sensitive information safely. It parses the configuration value and wraps it in a `Redacted<string>`, a specialized [data type](/docs/data-types/redacted/) designed to protect secrets.
+
+When you log a `Redacted` value using `console.log`, the actual content remains hidden, providing an extra layer of security. To access the real value, you must explicitly use `Redacted.value`.
+
+**Example** (Handling Redacted Values)
+
+```ts twoslash title="redacted.ts"
+import { Effect, Config, Redacted } from "effect"
+
+const program = Effect.gen(function* () {
+  //      ┌─── Redacted<string>
+  //      ▼
+  const redacted = yield* Config.redacted("API_KEY")
+
+  // Log the redacted value, which won't reveal the actual secret
+  console.log(`Console output: ${redacted}`)
+
+  // Access the real value using Redacted.value and log it
+  console.log(`Actual value: ${Redacted.value(redacted)}`)
+})
+
+Effect.runPromise(program)
+```
+
+When this program is executed:
+
+```sh showLineNumbers=false
+API_KEY=my-api-key tsx redacted.ts
+```
+
+The output will look like this:
+
+```ansi showLineNumbers=false
+Console output: <redacted>
+Actual value: my-api-key
+```
+
+As shown, when logging the `Redacted` value using `console.log`, the output is `<redacted>`, ensuring that sensitive data remains concealed. However, by using `Redacted.value`, the true value (`"my-api-key"`) can be accessed and displayed, providing controlled access to the secret.
+
+### Wrapping a Config with Redacted
+
+By default, when you pass a string to `Config.redacted`, it returns a `Redacted<string>`. You can also pass a `Config` (such as `Config.number`) to ensure that only validated values are accepted. This adds an extra layer of security by ensuring that sensitive data is properly validated before being redacted.
+
+**Example** (Redacting and Validating a Number)
+
+```ts twoslash
+import { Effect, Config, Redacted } from "effect"
+
+const program = Effect.gen(function* () {
+  // Wrap the validated number configuration with redaction
+  //
+  //      ┌─── Redacted<number>
+  //      ▼
+  const redacted = yield* Config.redacted(Config.number("SECRET"))
+
+  console.log(`Console output: ${redacted}`)
+  console.log(`Actual value: ${Redacted.value(redacted)}`)
+})
+
+Effect.runPromise(program)
+```
 
 ## Constructors for Configurations
 
@@ -252,7 +316,7 @@ Fallback operators are useful when you want to provide alternative configuration
 In this example, the program requires two configuration values: `A` and `B`. We set up two configuration providers, each containing only one of the required values. Using the `orElse` operator, we combine these providers so the program can retrieve both `A` and `B`.
 
 ```ts twoslash title="orElse.ts"
-import { Config, ConfigProvider, Effect, Layer } from "effect"
+import { Config, ConfigProvider, Effect } from "effect"
 
 // A program that requires two configurations: A and B
 const program = Effect.gen(function* () {
@@ -268,11 +332,9 @@ const provider1 = ConfigProvider.fromMap(new Map([["A", "A"]]))
 const provider2 = ConfigProvider.fromMap(new Map([["B", "B"]]))
 
 // Use `orElse` to fall back from provider1 to provider2
-const layer = Layer.setConfigProvider(
-  provider1.pipe(ConfigProvider.orElse(() => provider2))
-)
+const provider = provider1.pipe(ConfigProvider.orElse(() => provider2))
 
-Effect.runPromise(Effect.provide(program, layer))
+Effect.runPromise(Effect.withConfigProvider(program, provider))
 ```
 
 If we run this program:
@@ -440,12 +502,14 @@ This structured approach keeps your configuration more organized, especially whe
 
 When testing services, there are times when you need to provide specific configurations for your tests. To simulate this, it's useful to mock the configuration backend that reads these values.
 
-You can achieve this using the `ConfigProvider.fromMap` constructor. This method allows you to create a configuration provider from a `Map<string, string>`, where the map represents the configuration data. You can then use this mock provider in place of the default one by calling `Layer.setConfigProvider`. This function returns a `Layer` that can override the default configuration for your tests.
+You can achieve this using the `ConfigProvider.fromMap` constructor.
+This method allows you to create a configuration provider from a `Map<string, string>`, where the map represents the configuration data.
+You can then use this mock provider in place of the default one by calling `Effect.withConfigProvider`.
 
 **Example** (Mocking a Config Provider for Testing)
 
 ```ts twoslash
-import { Config, ConfigProvider, Layer, Effect } from "effect"
+import { Config, ConfigProvider, Effect } from "effect"
 
 class HostPort {
   constructor(readonly host: string, readonly port: number) {}
@@ -472,11 +536,8 @@ const mockConfigProvider = ConfigProvider.fromMap(
   ])
 )
 
-// Override the default config provider with the mock provider
-const layer = Layer.setConfigProvider(mockConfigProvider)
-
 // Run the program using the mock config provider
-Effect.runPromise(Effect.provide(program, layer))
+Effect.runPromise(Effect.withConfigProvider(program, mockConfigProvider))
 // Output: Application started: localhost:8080
 ```
 
@@ -489,19 +550,22 @@ For more complex setups, configurations often include nested keys. By default, `
 **Example** (Providing Nested Configuration Values)
 
 ```ts twoslash
-import { Config, ConfigProvider, Layer, Effect } from "effect"
+import { Config, ConfigProvider, Effect } from "effect"
 
 const config = Config.nested(Config.number("PORT"), "SERVER")
+
+const program = Effect.gen(function* () {
+  const port = yield* config
+  console.log(`Server is running on port ${port}`)
+})
 
 // Mock configuration using '.' as the separator for nested keys
 const mockConfigProvider = ConfigProvider.fromMap(
   new Map([["SERVER.PORT", "8080"]])
 )
 
-Effect.runPromise(
-  Effect.provide(config, Layer.setConfigProvider(mockConfigProvider))
-).then(console.log)
-// Output: 8080
+Effect.runPromise(Effect.withConfigProvider(program, mockConfigProvider))
+// Output: Server is running on port 8080
 ```
 
 ### Customizing the Path Delimiter
@@ -511,9 +575,14 @@ If your configuration data uses a different separator (such as `_`), you can cha
 **Example** (Using a Custom Path Delimiter)
 
 ```ts twoslash
-import { Config, ConfigProvider, Layer, Effect } from "effect"
+import { Config, ConfigProvider, Effect } from "effect"
 
 const config = Config.nested(Config.number("PORT"), "SERVER")
+
+const program = Effect.gen(function* () {
+  const port = yield* config
+  console.log(`Server is running on port ${port}`)
+})
 
 // Mock configuration using '_' as the separator
 const mockConfigProvider = ConfigProvider.fromMap(
@@ -521,77 +590,13 @@ const mockConfigProvider = ConfigProvider.fromMap(
   { pathDelim: "_" }
 )
 
-Effect.runPromise(
-  Effect.provide(config, Layer.setConfigProvider(mockConfigProvider))
-).then(console.log)
-// Output: 8080
+Effect.runPromise(Effect.withConfigProvider(program, mockConfigProvider))
+// Output: Server is running on port 8080
 ```
 
-## Redacted
+## Deprecations
 
-The `Config.redacted` function is used to handle sensitive information safely. It parses the configuration value and wraps it in a `Redacted<string>`, a specialized [data type](/docs/data-types/redacted/) designed to protect secrets.
-
-When you log a `Redacted` value using `console.log`, the actual content remains hidden, providing an extra layer of security. To access the real value, you must explicitly use `Redacted.value`.
-
-**Example** (Handling Redacted Values)
-
-```ts twoslash title="redacted.ts"
-import { Effect, Config, Redacted } from "effect"
-
-const program = Effect.gen(function* () {
-  //      ┌─── Redacted<string>
-  //      ▼
-  const redacted = yield* Config.redacted("API_KEY")
-
-  // Log the redacted value, which won't reveal the actual secret
-  console.log(`Console output: ${redacted}`)
-
-  // Access the real value using Redacted.value and log it
-  console.log(`Actual value: ${Redacted.value(redacted)}`)
-})
-
-Effect.runPromise(program)
-```
-
-When this program is executed:
-
-```sh showLineNumbers=false
-API_KEY=my-api-key tsx redacted.ts
-```
-
-The output will look like this:
-
-```ansi showLineNumbers=false
-Console output: <redacted>
-Actual value: my-api-key
-```
-
-As shown, when logging the `Redacted` value using `console.log`, the output is `<redacted>`, ensuring that sensitive data remains concealed. However, by using `Redacted.value`, the true value (`"my-api-key"`) can be accessed and displayed, providing controlled access to the secret.
-
-### Wrapping a Config with Redacted
-
-By default, when you pass a string to `Config.redacted`, it returns a `Redacted<string>`. You can also pass a `Config` (such as `Config.number`) to ensure that only validated values are accepted. This adds an extra layer of security by ensuring that sensitive data is properly validated before being redacted.
-
-**Example** (Redacting and Validating a Number)
-
-```ts twoslash
-import { Effect, Config, Redacted } from "effect"
-
-const program = Effect.gen(function* () {
-  // Wrap the validated number configuration with redaction
-  //
-  //      ┌─── Redacted<number>
-  //      ▼
-  const redacted = yield* Config.redacted(Config.number("SECRET"))
-
-  console.log(`Console output: ${redacted}`)
-  console.log(`Actual value: ${Redacted.value(redacted)}`)
-})
-
-Effect.runPromise(program)
-```
-
-## Secret <Badge text="Deprecated" variant="caution" />
+### Secret <Badge text="Deprecated" variant="caution" />
 
 _Deprecated since version 3.3.0: Please use [Config.redacted](#redacted) for handling sensitive information going forward._
 
