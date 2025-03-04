@@ -15,7 +15,7 @@ Effect comes bundled with a straightforward default `ConfigProvider` that retrie
 
 To make our application configurable, we need to understand three essential elements:
 
-- **Config Description**: We describe the configuration data using an instance of `Config<A>`. If the configuration data is simple, such as a `string`, `number`, or `boolean`, we can use the built-in functions provided by the `Config` module. For more complex data types like [HostPort](#custom-configurations), we can combine primitive configs to create a custom configuration description.
+- **Config Description**: We describe the configuration data using an instance of `Config<A>`. If the configuration data is simple, such as a `string`, `number`, or `boolean`, we can use the built-in functions provided by the `Config` module. For more complex data types like [HostPort](#custom-configuration-types), we can combine primitive configs to create a custom configuration description.
 
 - **Config Frontend**: We utilize the instance of `Config<A>` to load the configuration data described by the instance (a `Config` is, in itself, an effect). This process leverages the current `ConfigProvider` to retrieve the configuration.
 
@@ -195,26 +195,25 @@ Effect.runPromise(program)
 
 ## Combining Configurations
 
-Effect provides several built-in constructors that allow you to define and manipulate configurations. These constructors take a `Config` as input and produce another `Config`, enabling more complex configuration structures.
+Effect provides several built-in combinators that allow you to define and manipulate configurations.
+These combinators take a `Config` as input and produce another `Config`, enabling more complex configuration structures.
 
-Here are some of the key constructors:
+| Combinator | Description                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| `array`    | Constructs a configuration for an array of values.                                                                  |
+| `chunk`    | Constructs a configuration for a sequence of values.                                                                |
+| `option`   | Returns an optional configuration. If the data is missing, the result will be `None`; otherwise, it will be `Some`. |
+| `repeat`   | Describes a sequence of values, each following the structure of the given config.                                   |
+| `hashSet`  | Constructs a configuration for a set of values.                                                                     |
+| `hashMap`  | Constructs a configuration for a key-value map.                                                                     |
 
-| Constructor | Description                                                                                                         |
-| ----------- | ------------------------------------------------------------------------------------------------------------------- |
-| `array`     | Constructs a configuration for an array of values.                                                                  |
-| `chunk`     | Constructs a configuration for a sequence of values.                                                                |
-| `option`    | Returns an optional configuration. If the data is missing, the result will be `None`; otherwise, it will be `Some`. |
-| `repeat`    | Describes a sequence of values, each following the structure of the given config.                                   |
-| `hashSet`   | Constructs a configuration for a set of values.                                                                     |
-| `hashMap`   | Constructs a configuration for a key-value map.                                                                     |
+Additionally, there are three special combinators for specific use cases:
 
-Additionally, there are three special constructors for specific use cases:
-
-| Constructor | Description                                                              |
-| ----------- | ------------------------------------------------------------------------ |
-| `succeed`   | Constructs a config that contains a predefined value.                    |
-| `fail`      | Constructs a config that fails with the specified error message.         |
-| `all`       | Combines multiple configurations into a tuple, struct, or argument list. |
+| Combinator | Description                                                              |
+| ---------- | ------------------------------------------------------------------------ |
+| `succeed`  | Constructs a config that contains a predefined value.                    |
+| `fail`     | Constructs a config that fails with the specified error message.         |
+| `all`      | Combines multiple configurations into a tuple, struct, or argument list. |
 
 **Example** (Using `array` Constructor)
 
@@ -353,13 +352,13 @@ A: A, B: B
 <Aside type="tip">
   In this example, we use `ConfigProvider.fromMap` to create a
   configuration provider from a simple JavaScript `Map`. This is
-  particularly useful for testing, as described in the [Testing
-  Configurable Services](#testing-configurable-services) section.
+  particularly useful for testing, as described in the [Mocking
+  Configurations in Tests](#mocking-configurations-in-tests) section.
 </Aside>
 
 ## Custom Configuration Types
 
-Effect allows you to define configurations for custom types by combining primitive configs using `Config` [operators](#operators) (such as `zip`, `orElse`, `map`) and [constructors](#constructors-for-configurations) (like `array`, `hashSet`).
+Effect allows you to define configurations for custom types by combining primitive configurations using [combinators](#combining-configurations) and [operators](#operators).
 
 For example, let's create a `HostPort` class, which has two fields: `host` and `port`.
 
@@ -721,7 +720,7 @@ Application started: localhost:8080
 
 ### Secret <Badge text="Deprecated" variant="caution" />
 
-_Deprecated since version 3.3.0: Please use [Config.redacted](#redacted) for handling sensitive information going forward._
+_Deprecated since version 3.3.0: Please use [Config.redacted](#handling-sensitive-values) for handling sensitive information going forward._
 
 The `Config.secret` function was previously used to secure sensitive information in a similar way to `Config.redacted`. It wraps configuration values in a `Secret` type, which also conceals details when logged but allows access via `Secret.value`.
 
