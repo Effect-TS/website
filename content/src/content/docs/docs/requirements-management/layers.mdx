@@ -1045,13 +1045,13 @@ const FileSystemTest = FileSystem.layerNoop({
   readFileString: () => Effect.succeed("File Content...")
 })
 
-const runnnable = program.pipe(
+const runnable = program.pipe(
   Effect.provide(Cache.DefaultWithoutDependencies),
   // Provide the mock file system
   Effect.provide(FileSystemTest)
 )
 
-Effect.runFork(runnnable)
+Effect.runFork(runnable)
 // Output: File Content...
 ```
 
@@ -1089,9 +1089,9 @@ const cache = new Cache({
 })
 
 // Provide the mock Cache service
-const runnnable = program.pipe(Effect.provideService(Cache, cache))
+const runnable = program.pipe(Effect.provideService(Cache, cache))
 
-Effect.runFork(runnnable)
+Effect.runFork(runnable)
 // Output: File Content...
 ```
 
