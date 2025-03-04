@@ -785,6 +785,60 @@ Output:
 */
 ```
 
+### Handling Defects in Serialization
+
+Effect provides a built-in `Defect` schema to handle JavaScript errors (`Error` instances) and other types of unrecoverable defects.
+
+- When decoding, it reconstructs `Error` instances if the input has a `message` and optionally a `name` and `stack`.
+- When encoding, it converts `Error` instances into plain objects that retain only essential properties.
+
+This is useful when transmitting errors across network requests or logging systems where `Error` objects do not serialize by default.
+
+**Example** (Encoding and Decoding Defects)
+
+```ts twoslash
+import { Schema, Exit } from "effect"
+
+const schema = Schema.Exit({
+  failure: Schema.String,
+  success: Schema.NumberFromString,
+  defect: Schema.Defect
+})
+
+const decode = Schema.decodeSync(schema)
+const encode = Schema.encodeSync(schema)
+
+console.log(encode(Exit.die(new Error("Message"))))
+/*
+Output:
+{
+  _tag: 'Failure',
+  cause: { _tag: 'Die', defect: { name: 'Error', message: 'Message' } }
+}
+*/
+
+console.log(encode(Exit.fail("a")))
+
+console.log(
+  decode({
+    _tag: "Failure",
+    cause: { _tag: "Die", defect: { name: "Error", message: "Message" } }
+  })
+)
+/*
+Output:
+{
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: {
+    _id: 'Cause',
+    _tag: 'Die',
+    defect: [Error: Message] { [cause]: [Object] }
+  }
+}
+*/
+```
+
 ### ExitFromSelf
 
 The `Schema.ExitFromSelf` function is designed for scenarios where `Exit` values are already in the `Exit` format and need to be decoded or encoded while transforming the inner valued according to the provided schemas.
