@@ -223,13 +223,13 @@ The following example demonstrates how to load an environment variable as an arr
 import { Config, Effect } from "effect"
 
 const program = Effect.gen(function* () {
-  const config = yield* Config.array(Config.string(), "MY_ARRAY")
+  const config = yield* Config.array(Config.string(), "MYARRAY")
   console.log(config)
 })
 
 Effect.runPromise(program)
 // Run:
-// MY_ARRAY=a,b,c,a npx tsx index.ts
+// MYARRAY=a,b,c,a npx tsx index.ts
 // Output:
 // [ 'a', 'b c', 'd', 'a' ]
 ```
@@ -240,15 +240,32 @@ Effect.runPromise(program)
 import { Config, Effect } from "effect"
 
 const program = Effect.gen(function* () {
-  const config = yield* Config.hashSet(Config.string(), "MY_SET")
+  const config = yield* Config.hashSet(Config.string(), "MYSET")
   console.log(config)
 })
 
 Effect.runPromise(program)
 // Run:
-// MY_SET=a,"b c",d,a npx tsx index.ts
+// MYSET=a,"b c",d,a npx tsx index.ts
 // Output:
 // { _id: 'HashSet', values: [ 'd', 'a', 'b c' ] }
+```
+
+**Example** (Using the `hashMap` combinator)
+
+```ts twoslash title="index.ts"
+import { Config, Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  const config = yield* Config.hashMap(Config.string(), "MYMAP")
+  console.log(config)
+})
+
+Effect.runPromise(program)
+// Run:
+// MYMAP_A=a MYMAP_B=b npx tsx index.ts
+// Output:
+// { _id: 'HashMap', values: [ [ 'A', 'a' ], [ 'B', 'b' ] ] }
 ```
 
 ## Operators
