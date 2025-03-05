@@ -215,35 +215,41 @@ Additionally, there are three special combinators for specific use cases:
 | `fail`     | Constructs a config that fails with the specified error message.         |
 | `all`      | Combines multiple configurations into a tuple, struct, or argument list. |
 
-**Example** (Using `array` Constructor)
+**Example** (Using the `array` combinator)
 
 The following example demonstrates how to load an environment variable as an array of strings using the `Config.array` constructor.
 
-```ts twoslash title="array.ts"
-import { Effect, Config } from "effect"
+```ts twoslash title="index.ts"
+import { Config, Effect } from "effect"
 
 const program = Effect.gen(function* () {
-  // Load array from env var MY_ARRAY
   const config = yield* Config.array(Config.string(), "MY_ARRAY")
   console.log(config)
 })
 
 Effect.runPromise(program)
+// Run:
+// MY_ARRAY=a,b,c,a npx tsx index.ts
+// Output:
+// [ 'a', 'b c', 'd', 'a' ]
 ```
 
-If we run this program with the following environment variable:
+**Example** (Using the `hashSet` combinator)
 
-```sh showLineNumbers=false
-MY_ARRAY=a,b,c npx tsx array.ts
+```ts twoslash title="index.ts"
+import { Config, Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  const config = yield* Config.hashSet(Config.string(), "MY_SET")
+  console.log(config)
+})
+
+Effect.runPromise(program)
+// Run:
+// MY_SET=a,"b c",d,a npx tsx index.ts
+// Output:
+// { _id: 'HashSet', values: [ 'd', 'a', 'b c' ] }
 ```
-
-The output will be:
-
-```ansi showLineNumbers=false
-[ 'a', 'b', 'c' ]
-```
-
-This shows how the `array` constructor converts a comma-separated string from an environment variable into an array of values, making configuration handling more flexible.
 
 ## Operators
 
