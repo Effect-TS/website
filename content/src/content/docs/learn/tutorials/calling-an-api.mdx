@@ -11,38 +11,38 @@ sidebar:
 Next up we're going to take a look at an endpoint that makes an API call to
 another service. Here's the code:
 
-```ts twoslash title=index.ts ins={9-19}
-import express from "express";
+```ts twoslash title=index.ts ins={9-19} showLineNumbers=false
+import express from "express"
 
-import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { HttpRouter } from "@effect/platform"
+import { Effect } from "effect"
 
-const app = express();
+const app = express()
 
 app.get("/wow", async (req, res) => {
-  const url = new URL(`https://owen-wilson-wow-api.onrender.com/wows/random`);
+  const url = new URL(`https://owen-wilson-wow-api.onrender.com/wows/random`)
 
-  const year = req.query.year;
+  const year = req.query.year
   if (typeof year === "string") {
-    url.searchParams.set("year", year);
+    url.searchParams.set("year", year)
   }
 
-  const wow = await fetch(url.toString());
-  res.json(await wow.json());
-});
+  const wow = await fetch(url.toString())
+  res.json(await wow.json())
+})
 
 const router = HttpRouter.empty
 
 const main = Effect.gen(function* () {
-  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.use(yield* NodeHttpServer.makeHandler(router))
   app.listen(3000, () => {
-    console.log("Server is running on http://localhost:3000");
-  });
-  yield* Effect.never;
-});
+    console.log("Server is running on http://localhost:3000")
+  })
+  yield* Effect.never
+})
 
-NodeRuntime.runMain(main);
+NodeRuntime.runMain(main)
 ```
 
 I've removed our `/health` and `/users` endpoints to keep the code to a
@@ -60,18 +60,18 @@ run into a problem: how do we reference the HTTP request object? We need to
 get the `year` from the query parameters, but if you look back at our 
 `/users` endpoint, you'll see that there's no request object.
 
-```ts twoslash
-import { Effect } from "effect";
-import { HttpServerResponse } from "@effect/platform";
-import { Client } from "pg";
-const db = new Client({ user: "postgres" });
+```ts twoslash showLineNumbers=false
+import { Effect } from "effect"
+import { HttpServerResponse } from "@effect/platform"
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
 //---cut---
 const users = Effect.promise(
   () => db.query("SELECT * FROM users"),
 ).pipe(
   Effect.map(({ rows }) => ({ users: rows })),
   Effect.flatMap(HttpServerResponse.json),
-);
+)
 ```
 
 The way that Effect exposes the request object is through the
@@ -79,39 +79,39 @@ The way that Effect exposes the request object is through the
 to get the result of one Effect while inside another, and we can do the same
 here.
 
-```ts twoslash
-import { Effect } from "effect";
+```ts twoslash showLineNumbers=false
+import { Effect } from "effect"
 //---cut---
-import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { HttpServerRequest, HttpServerResponse } from "@effect/platform"
 
 const query = Effect.gen(function* () {
-  const req = yield* HttpServerRequest.HttpServerRequest;
-  return yield* HttpServerResponse.json({ url: req.url });
-});
+  const req = yield* HttpServerRequest.HttpServerRequest
+  return yield* HttpServerResponse.json({ url: req.url })
+})
 ```
 
 If we wire this handler up as a new `/query` endpoint in our application:
 
-```ts twoslash
-import { Effect } from "effect";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
+```ts twoslash showLineNumbers=false
+import { Effect } from "effect"
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform"
 const query = Effect.gen(function* () {
-  const req = yield* HttpServerRequest.HttpServerRequest;
-  return yield* HttpServerResponse.json({ url: req.url });
-});
+  const req = yield* HttpServerRequest.HttpServerRequest
+  return yield* HttpServerResponse.json({ url: req.url })
+})
 //---cut---
 const router = HttpRouter.empty.pipe(
   HttpRouter.get("/query", query),
-);
+)
 ```
 
 We can call it like so:
 
-```shell
+```shell showLineNumbers=false
 http get "localhost:3000/query?year=2010"
 ```
 
-```http
+```http showLineNumbers=false
 HTTP/1.1 200 OK
 Content-Length: 16
 Content-Type: application/json
@@ -127,19 +127,19 @@ X-Powered-By: Express
 
 Let's look a bit closer at our `query` Effect:
 
-```ts twoslash
+```ts twoslash showLineNumbers=false
 import {
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
-} from "@effect/platform";
-import { Effect } from "effect";
+} from "@effect/platform"
+import { Effect } from "effect"
 //---cut---
 const query = Effect.gen(function* () {
   //  ^?
-  const req = yield* HttpServerRequest.HttpServerRequest;
-  return yield* HttpServerResponse.json({ url: req.url });
-});
+  const req = yield* HttpServerRequest.HttpServerRequest
+  return yield* HttpServerResponse.json({ url: req.url })
+})
 ```
 
 An Effect that returns an `HttpServerResponse`, may throw an `HttpBodyError`,
@@ -149,20 +149,20 @@ that, to execute, this Effect requires an `HttpServerRequest`.
 
 If we were to try and run this Effect directly, we would get a type error:
 
-```ts twoslash
+```ts twoslash showLineNumbers=false
 // @errors: 2379
 import {
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
-} from "@effect/platform";
-import { Effect } from "effect";
+} from "@effect/platform"
+import { Effect } from "effect"
 const query = Effect.gen(function* () {
-  const req = yield* HttpServerRequest.HttpServerRequest;
-  return yield* HttpServerResponse.json({ url: req.url });
-});
+  const req = yield* HttpServerRequest.HttpServerRequest
+  return yield* HttpServerResponse.json({ url: req.url })
+})
 //---cut---
-Effect.runPromise(query);
+Effect.runPromise(query)
 ```
 
 What this is telling us is that this Effect cannot be run unless an
@@ -181,8 +181,8 @@ unique identifier for the service, and the value being the service itself.
 Effect uses a special type called a `Tag` as the unique identifier for services,
 and the syntax for defining one is unusual so bear with me here:
 
-```ts twoslash
-import { Context, Effect } from "effect";
+```ts twoslash showLineNumbers=false
+import { Context, Effect } from "effect"
 //---cut---
 class FavouriteNumber extends Context.Tag("FavouriteNumber")<
   FavouriteNumber,
@@ -190,9 +190,9 @@ class FavouriteNumber extends Context.Tag("FavouriteNumber")<
 >() {}
 
 const effect = Effect.gen(function* () {
-  const n = yield* FavouriteNumber;
-  console.log(`My favourite number is ${n}`);
-});
+  const n = yield* FavouriteNumber
+  console.log(`My favourite number is ${n}`)
+})
 ```
 
 The class declaration at the top defines the tag as well as the type for the
@@ -205,33 +205,33 @@ be able to run this Effect.
 
 Here's how we would implement and then provide the service:
 
-```ts twoslash
-import { Context, Effect } from "effect";
+```ts twoslash showLineNumbers=false
+import { Context, Effect } from "effect"
 class FavouriteNumber extends Context.Tag("FavouriteNumber")<
   FavouriteNumber,
   number
 >() {}
 
 const effect = Effect.gen(function* () {
-  const n = yield* FavouriteNumber;
-  console.log(`My favourite number is ${n}`);
-});
+  const n = yield* FavouriteNumber
+  console.log(`My favourite number is ${n}`)
+})
 //---cut---
 Effect.runPromise(
   effect.pipe(Effect.provideService(FavouriteNumber, 42))
-);
+)
 // => My favourite number is 42
 
 Effect.runPromise(
   effect.pipe(Effect.provideService(FavouriteNumber, 100))
-);
+)
 // => My favourite number is 100
 ```
 
 Providing a service to an Effect ends up changing its type, too.
 
-```ts twoslash
-import { Context, Effect } from "effect";
+```ts twoslash showLineNumbers=false
+import { Context, Effect } from "effect"
 class FavouriteNumber extends Context.Tag("FavouriteNumber")<
   FavouriteNumber,
   number
@@ -239,25 +239,25 @@ class FavouriteNumber extends Context.Tag("FavouriteNumber")<
 //---cut---
 const needsRequirements = Effect.gen(function* () {
 //    ^?
-  const n = yield* FavouriteNumber;
-  console.log(`My favourite number is ${n}`);
-});
+  const n = yield* FavouriteNumber
+  console.log(`My favourite number is ${n}`)
+})
 
 const hasRequirements = needsRequirements.pipe(
 //    ^?
   Effect.provideService(FavouriteNumber, 42)
-);
+)
 ```
 
 We go from:
 
-```
+``` showLineNumbers=false
 Effect<void, never, FavouriteNumber>
 ```
 
 To:
 
-```
+``` showLineNumbers=false
 Effect<void, never, never>
 ```
 
@@ -277,46 +277,46 @@ something useful with it!
 
 Here's where we left our `/query` endpoint:
 
-```ts twoslash
+```ts twoslash showLineNumbers=false
 import {
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
-} from "@effect/platform";
-import { Effect } from "effect";
+} from "@effect/platform"
+import { Effect } from "effect"
 //---cut---
 const query = Effect.gen(function* () {
-  const req = yield* HttpServerRequest.HttpServerRequest;
-  return yield* HttpServerResponse.json({ url: req.url });
-});
+  const req = yield* HttpServerRequest.HttpServerRequest
+  return yield* HttpServerResponse.json({ url: req.url })
+})
 ```
 
 We want to take that `req.url` and parse out the `year` query parameter. We can
 do this with the `URL` class.
 
-```ts twoslash ins={3-4}
+```ts twoslash ins={3-4} showLineNumbers=false
 import {
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
-} from "@effect/platform";
-import { Effect } from "effect";
+} from "@effect/platform"
+import { Effect } from "effect"
 //---cut---
 const query = Effect.gen(function* () {
-  const req = yield* HttpServerRequest.HttpServerRequest;
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const year = url.searchParams.get("year");
-  return yield* HttpServerResponse.json({ year });
-});
+  const req = yield* HttpServerRequest.HttpServerRequest
+  const url = new URL(req.url, `http://${req.headers.host}`)
+  const year = url.searchParams.get("year")
+  return yield* HttpServerResponse.json({ year })
+})
 ```
 
 And now we can see the year in the response:
 
-```shell
+```shell showLineNumbers=false
 http get "localhost:3000/query?year=2010"
 ```
 
-```http
+```http showLineNumbers=false
 HTTP/1.1 200 OK
 Content-Length: 15
 Content-Type: application/json
@@ -333,42 +333,42 @@ X-Powered-By: Express
 Now that we have the `year` query parameter, we can use it to filter the results
 from the API.
 
-```ts twoslash ins={6-18}
+```ts twoslash ins={6-18} showLineNumbers=false
 import {
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
-} from "@effect/platform";
-import { Effect } from "effect";
+} from "@effect/platform"
+import { Effect } from "effect"
 //---cut---
 const query = Effect.gen(function* () {
-  const req = yield* HttpServerRequest.HttpServerRequest;
-  const requestUrl = new URL(req.url, `http://${req.headers.host}`);
-  const year = requestUrl.searchParams.get("year");
+  const req = yield* HttpServerRequest.HttpServerRequest
+  const requestUrl = new URL(req.url, `http://${req.headers.host}`)
+  const year = requestUrl.searchParams.get("year")
 
   const apiUrl = new URL(
     "https://owen-wilson-wow-api.onrender.com/wows/random"
-  );
+  )
   if (year !== null) {
-    apiUrl.searchParams.set("year", year);
+    apiUrl.searchParams.set("year", year)
   }
 
   const response = yield* Effect.promise(async () => {
-    const resp = await fetch(apiUrl.toString());
-    return await resp.json();
-  });
+    const resp = await fetch(apiUrl.toString())
+    return await resp.json()
+  })
 
-  return yield* HttpServerResponse.json(response);
-});
+  return yield* HttpServerResponse.json(response)
+})
 ```
 
 And querying this endpoint we now get the filtered results:
 
-```shell
+```shell showLineNumbers=false
 http get "localhost:3000/query?year=2010"
 ```
 
-```http
+```http showLineNumbers=false
 HTTP/1.1 200 OK
 Content-Length: 1066
 Content-Type: application/json
