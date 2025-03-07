@@ -164,3 +164,237 @@ const query = Effect.gen(function* () {
 //---cut---
 Effect.runPromise(query);
 ```
+
+What this is telling us is that this Effect cannot be run unless an
+`HttpServerRequest` is provided to it.
+
+## Providing requirements
+
+The way we provide an Effect with things it needs is through the use of
+"services." If you've used dependency injection in other languages, Effect's
+services are the same idea.
+
+To keep track of what services are available, Effect maintains an internal
+context object. You can think of this as a map of services, with the key being a
+unique identifier for the service, and the value being the service itself.
+
+Effect uses a special type called a `Tag` as the unique identifier for services,
+and the syntax for defining one is unusual so bear with me here:
+
+```ts twoslash
+import { Context, Effect } from "effect";
+//---cut---
+class FavouriteNumber extends Context.Tag("FavouriteNumber")<
+  FavouriteNumber,
+  number
+>() {}
+
+const effect = Effect.gen(function* () {
+  const n = yield* FavouriteNumber;
+  console.log(`My favourite number is ${n}`);
+});
+```
+
+The class declaration at the top defines the tag as well as the type for the
+service. In this example we just return a `number`, but if you wanted to you
+could return a more complex object.
+
+In the `Effect.gen` call we `yield*` the tag to get the value of the service.
+Note that we haven't created an implementation of the service yet, so we won't
+be able to run this Effect.
+
+Here's how we would implement and then provide the service:
+
+```ts twoslash
+import { Context, Effect } from "effect";
+class FavouriteNumber extends Context.Tag("FavouriteNumber")<
+  FavouriteNumber,
+  number
+>() {}
+
+const effect = Effect.gen(function* () {
+  const n = yield* FavouriteNumber;
+  console.log(`My favourite number is ${n}`);
+});
+//---cut---
+Effect.runPromise(
+  effect.pipe(Effect.provideService(FavouriteNumber, 42))
+);
+// => My favourite number is 42
+
+Effect.runPromise(
+  effect.pipe(Effect.provideService(FavouriteNumber, 100))
+);
+// => My favourite number is 100
+```
+
+Providing a service to an Effect ends up changing its type, too.
+
+```ts twoslash
+import { Context, Effect } from "effect";
+class FavouriteNumber extends Context.Tag("FavouriteNumber")<
+  FavouriteNumber,
+  number
+>() {}
+//---cut---
+const needsRequirements = Effect.gen(function* () {
+//    ^?
+  const n = yield* FavouriteNumber;
+  console.log(`My favourite number is ${n}`);
+});
+
+const hasRequirements = needsRequirements.pipe(
+//    ^?
+  Effect.provideService(FavouriteNumber, 42)
+);
+```
+
+We go from:
+
+```
+Effect<void, never, FavouriteNumber>
+```
+
+To:
+
+```
+Effect<void, never, never>
+```
+
+So each Effect can be thought of as a self-contained program. Services are its
+inputs, it has an output, and it can error. Effect forces us to be more
+deliberate about what our programs need to run, and that makes it easier to
+reason about them.
+
+So how is `HttpServerRequest` provided to our `query` Effect? It's the
+`NodeHttpServer.makeHandler` function that does this. It takes our `HttpRouter`
+Effect and provides a service to it that we can get the current request from.
+
+## Parsing the query string
+
+Now we know about services, and how the request object gets to us, let's do
+something useful with it!
+
+Here's where we left our `/query` endpoint:
+
+```ts twoslash
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Effect } from "effect";
+//---cut---
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest;
+  return yield* HttpServerResponse.json({ url: req.url });
+});
+```
+
+We want to take that `req.url` and parse out the `year` query parameter. We can
+do this with the `URL` class.
+
+```ts twoslash ins={3-4}
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Effect } from "effect";
+//---cut---
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest;
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const year = url.searchParams.get("year");
+  return yield* HttpServerResponse.json({ year });
+});
+```
+
+And now we can see the year in the response:
+
+```shell
+http get "localhost:3000/query?year=2010"
+```
+
+```http
+HTTP/1.1 200 OK
+Content-Length: 15
+Content-Type: application/json
+Date: Fri, 07 Mar 2025 14:21:50 GMT
+X-Powered-By: Express
+
+{
+    "year": "2010"
+}
+```
+
+## Calling the API
+
+Now that we have the `year` query parameter, we can use it to filter the results
+from the API.
+
+```ts twoslash ins={6-18}
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Effect } from "effect";
+//---cut---
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest;
+  const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+  const year = requestUrl.searchParams.get("year");
+
+  const apiUrl = new URL(
+    "https://owen-wilson-wow-api.onrender.com/wows/random"
+  );
+  if (year !== null) {
+    apiUrl.searchParams.set("year", year);
+  }
+
+  const response = yield* Effect.promise(async () => {
+    const resp = await fetch(apiUrl.toString());
+    return await resp.json();
+  });
+
+  return yield* HttpServerResponse.json(response);
+});
+```
+
+And querying this endpoint we now get the filtered results:
+
+```shell
+http get "localhost:3000/query?year=2010"
+```
+
+```http
+HTTP/1.1 200 OK
+Content-Length: 1066
+Content-Type: application/json
+Date: Fri, 07 Mar 2025 14:45:01 GMT
+X-Powered-By: Express
+
+[
+    {
+        "audio": "https://assets.ctfassets.net/bs8ntwkklfua/3B0YwIinFRjyDhg87ubLnm/e7ca0400c19fe1fe118ebc2901dc3518/Little_Fockers_Wow_1.mp3",
+        "character": "Kevin Rawley",
+        "current_wow_in_movie": 1,
+        "director": "Paul Weitz",
+        "full_line": "Wow.",
+        "movie": "Little Fockers",
+        "movie_duration": "01:37:40",
+        "poster": "https://images.ctfassets.net/bs8ntwkklfua/2uitJuVd7wiuh57N42VotB/97be419cc8d17405b256bf6f63afd461/Little_Fockers_Poster.jpg",
+        "release_date": "2010-12-22",
+        "timestamp": "00:26:32",
+        "total_wows_in_movie": 2,
+        "video": {
+            "1080p": "https://videos.ctfassets.net/bs8ntwkklfua/6sQcwSbOHUtQwSa2AiGVx4/4bd91b3f82378c6cec36003010b6bc7b/Little_Fockers_Wow_1_1080p.mp4",
+            "360p": "https://videos.ctfassets.net/bs8ntwkklfua/4NRdmxRxOFF7u8uSDCDpbz/f948d2f764468c89f5e37fa2b3804661/Little_Fockers_Wow_1_360p.mp4",
+            "480p": "https://videos.ctfassets.net/bs8ntwkklfua/5jBrCwue7YyNWATPMsnEM3/3897126fa0cacee7817cb798db85a829/Little_Fockers_Wow_1_480p.mp4",
+            "720p": "https://videos.ctfassets.net/bs8ntwkklfua/1MgGCFiDEMuDtZf5pPXZrq/9abb8fedcf84c2aad104a993cab043ef/Little_Fockers_Wow_1_720p.mp4"
+        },
+        "year": 2010
+    }
+]
+```
