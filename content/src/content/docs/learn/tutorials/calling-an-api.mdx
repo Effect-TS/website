@@ -11,22 +11,17 @@ sidebar:
 Next up we're going to take a look at an endpoint that makes an API call to
 another service. Here's the code:
 
-```ts twoslash title=index.ts {14-24}
+```ts twoslash title=index.ts ins={9-19}
 import express from "express";
 
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
-import { Client } from "pg";
-
-const db = new Client({ user: "postgres" });
 
 const app = express();
 
-const BASE_URL = "https://owen-wilson-wow-api.onrender.com";
-
 app.get("/wow", async (req, res) => {
-  const url = new URL(`${BASE_URL}/wows/random`);
+  const url = new URL(`https://owen-wilson-wow-api.onrender.com/wows/random`);
 
   const year = req.query.year;
   if (typeof year === "string") {
@@ -40,51 +35,77 @@ app.get("/wow", async (req, res) => {
 const router = HttpRouter.empty
 
 const main = Effect.gen(function* () {
-  yield* Effect.promise(() => db.connect());
   app.use(yield* NodeHttpServer.makeHandler(router));
-  app.listen(3000);
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000");
+  });
   yield* Effect.never;
 });
 
 NodeRuntime.runMain(main);
 ```
 
+I've removed our `/health` and `/users` endpoints to keep the code to a
+reasonable length.
+
 For a bit of fun I've chosen the [Owen Wilson Wow
 API](https://owen-wilson-wow-api.onrender.com/) as our API to call. I've also
 decided to use a query parameter to filter the results by year, to show how this
 works in Effect.
 
-## Using `Effect.tryPromise`
+## Referencing the current request
 
-If we were to reach straight away for `Effect.tryPromise`, we would quickly
+If we were to reach straight away for `Effect.promise`, we would quickly
 run into a problem: how do we reference the HTTP request object? We need to
 get the `year` from the query parameters, but if you look back at our 
 `/users` endpoint, you'll see that there's no request object.
 
-Here's one way to do it.
+```ts twoslash
+import { Effect } from "effect";
+import { HttpServerResponse } from "@effect/platform";
+import { Client } from "pg";
+const db = new Client({ user: "postgres" });
+//---cut---
+const users = Effect.promise(
+  () => db.query("SELECT * FROM users"),
+).pipe(
+  Effect.map(({ rows }) => ({ users: rows })),
+  Effect.flatMap(HttpServerResponse.json),
+);
+```
+
+The way that Effect exposes the request object is through the
+`HttpServerRequest` Effect. Near the start of this tutorial we used `Effect.gen`
+to get the result of one Effect while inside another, and we can do the same
+here.
 
 ```ts twoslash
-import {
-  HttpMiddleware,
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from "@effect/platform";
 import { Effect } from "effect";
 //---cut---
-const query = HttpServerRequest.HttpServerRequest.pipe(
-  Effect.map((req) => ({ url: req.url })),
-  Effect.flatMap(HttpServerResponse.json)
-);
+import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest;
+  return yield* HttpServerResponse.json({ url: req.url });
+});
+```
+
+If we wire this handler up as a new `/query` endpoint in our application:
+
+```ts twoslash
+import { Effect } from "effect";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest;
+  return yield* HttpServerResponse.json({ url: req.url });
+});
+//---cut---
 const router = HttpRouter.empty.pipe(
   HttpRouter.get("/query", query),
 );
 ```
 
-We can pipe `HttpServerRequest` into a new `Effect` that extracts the URL from
-it and displays the result in JSON. Requesting this endpoint works as you might
-expect:
+We can call it like so:
 
 ```shell
 http get "localhost:3000/query?year=2010"
@@ -102,63 +123,9 @@ X-Powered-By: Express
 }
 ```
 
-But a simpler and more idiomatic way to do this is with `Effect.gen`: 
+## Effect requirements
 
-```ts twoslash
-import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from "@effect/platform";
-import { Effect } from "effect";
-//---cut---
-const query = Effect.gen(function* () {
-  const req = yield* HttpServerRequest.HttpServerRequest;
-  return yield* HttpServerResponse.json({ url: req.url });
-});
-```
-
-## Using `Effect.gen`
-
-You've actually seen `Effect.gen` before this section of the tutorial. Right
-at the very beginning, we defined our main function using `Effect.gen`:
-
-```ts twoslash
-import express from "express";
-import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from "@effect/platform";
-import { Effect } from "effect";
-import { Client } from "pg";
-import { NodeHttpServer } from "@effect/platform-node";
-const db = new Client({ user: "postgres" });
-const app = express();
-const router = HttpRouter.empty
-//---cut---
-const main = Effect.gen(function* () {
-  yield* Effect.promise(() => db.connect());
-  app.use(yield* NodeHttpServer.makeHandler(router));
-  app.listen(3000);
-  yield* Effect.never;
-});
-```
-
-The power of `Effect.gen` is that it allows you to use Effects in a very similar
-way to how you use Promises. You can think of `function*` as defining an async
-function, and `yield*` as `await`.
-
-In reality, `function*` defines a [generator
-function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*),
-and `yield*` [yields
-control](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/yield*)
-to another generator function. This syntax allows Effect to create an
-async/await like experience that can communicate with the runtime and propagate
-types correctly.
-
-Speaking of types, let's take a look at the type returned from our `Effect.gen`
-call:
+Let's look a bit closer at our `query` Effect:
 
 ```ts twoslash
 import {
@@ -175,7 +142,7 @@ const query = Effect.gen(function* () {
 });
 ```
 
-An Effect that reutrns an `HttpServerResponse`, may throw an `HttpBodyError`,
+An Effect that returns an `HttpServerResponse`, may throw an `HttpBodyError`,
 but also, for the first time, has something other than `never` in that third
 spot. As a reminder, this is the `Requirement` type. What it's saying here is
 that, to execute, this Effect requires an `HttpServerRequest`.

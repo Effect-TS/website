@@ -8,16 +8,44 @@ sidebar:
   order: 1
 ---
 
-In this tutorial we're going to migrate an Express.js app to Effect. We'll learn
-how to configure your existing Express.js codebase to allow migrating endpoints
-one at a time, adopting Effect incrementally. We'll start with the base set of
-Effect concepts you'll need to migrate the simplest endpoint possible, and we'll
-introduce new concepts as we migrate more complex endpoints.
+## Who this is for
 
-## Our Express.js app
+This tutorial assumes you are:
 
-We'll start with a simple Express.js app that has a single health checking
-endpoint.
+- New to Effect
+- Not new to TypeScript / web development
+- Want to use Effect in a new or existing project
+
+If you're new to TypeScript you may still be able to follow along, but we aren't
+going to be explaining concepts like generics or async/await. You'll get more
+value from this tutorial, and from Effect, if you're already familiar with the
+TypeScript language.
+
+## How we will teach you
+
+Effect is crafted from decades of experience and frustration with building web
+applications. It uses advanced features of the TypeScript language and builds on
+ideas from functional programming. As a result, **Effect has a steep learning
+curve**. But the promise we make you is that **if you invest the time required
+to learn Effect, it will pay for itself many times over.**
+
+We're going to teach you Effect by example, starting from familiar ground and
+introducing new ideas one at a time. This tutorial isn't going to jump straight
+to best practices. To get there, we have to build up a foundation of knowledge
+about Effect.
+
+## What we're going to build
+
+We're going to build a backend web application. It will have configuration,
+connect to a database, and call out to other APIs.
+
+To put Effect into context, we're going to build our application twice.  First
+using [Express][1], a popular web framework for Node.js, and then with Effect.
+Don't worry if you don't know or use Express, we'll explain everything as we
+go.
+
+This is the code we're going to start with. It defines an Express app with a
+single endpoint, `GET /health`, that listens on port 3000.
 
 ```ts twoslash title=index.ts
 import express from "express"
@@ -33,16 +61,24 @@ app.listen(3000, () => {
 })
 ```
 
+## Getting set up
+
+To get the most value out of this tutorial, follow along as you read. Copy or
+type out the code examples, run them, try changing things to see what happens.
+It doesn't matter if you break things, you can always come back and get the
+working code.  If all you do is read these words, you'll miss out on the most
+important part of learning: doing.
+
 Create a new TypeScript project using your favourite package manager. I'm using
 `bun`:
 
 ```shell
-mkdir express-to-effect
-cd express-to-effect
+mkdir express-tutorial
+cd express-tutorial
 bun init
 ```
 
-Save our Express.js app into `index.ts` and run it to make sure it works:
+Save our Expresss app into `index.ts` and run it to make sure it works:
 
 ```shell
 bun add express
@@ -67,3 +103,5 @@ ok
 
 I'm using [HTTPie](https://httpie.io/cli) throughout this tutorial, because the
 output is nicer than `curl`.
+
+[1]: https://expressjs.com/

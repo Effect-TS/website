@@ -8,7 +8,9 @@ sidebar:
   order: 3
 ---
 
-The next endpoint we're going to migrate is one that lists all of the users in a
+import { Aside } from "@astrojs/starlight/components"
+
+The next endpoint we're going to write is one that lists all of the users in a
 database. For this tutorial I'm going to use Postgres running in Docker as our
 database. If you don't have Docker installed, I recommend following the
 [official getting started guide](https://www.docker.com/get-started/).
@@ -16,12 +18,20 @@ database. If you don't have Docker installed, I recommend following the
 When you're ready, you can start a Postgres container with:
 
 ```shell
-docker run -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 postgres
+docker run -d -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 postgres:17
 ```
 
-## Creating our data
+<Aside type="note" title="I can't use Docker!">
+If you aren't able to run Docker locally, for example because your work's laptop
+policy doesn't allow it, an alternative is to use a hosted Postgres service.
+For example, [Neon](https://neondb.com/) offers a free tier that should be
+more than enough for this tutorial. They also offer a web-based UI for creating
+tables and rows.
+</Aside>
 
-To create our `users` table and sample data, we're going to use the `psql`
+## Creating test data
+
+To create our `users` table and data, we're going to use the `psql`
 tool that's present inside of the Docker container we created. Open a new
 terminal and run:
 
@@ -38,12 +48,24 @@ INSERT INTO users (name) VALUES ('Alice');
 INSERT INTO users (name) VALUES ('Bob');
 ```
 
+To exit `psql`, type `\q` and press enter.
+
 ## The `/users` endpoint
 
-Let's take a look at our app in full with new Express.js `/users` endpoint added
-to it:
+To talk to Postgres we'll need a client library. We're going to use `pg` for
+this tutorial. You can install it with:
 
-```ts twoslash {6,8,11-14,25} title=index.ts
+```shell
+bun add pg @types/pg
+```
+
+To start with, we're going to hardcode our database connection details. Later
+on we'll learn how to use Effect to manage our app's configuration.
+
+Here's the code for our app in full, with a new `/users` endpoint added in
+Express:
+
+```ts twoslash ins={6,8,11-14,25} title=index.ts
 import express from "express"
 
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
@@ -59,37 +81,33 @@ app.get("/users", async (req, res) => {
   res.send({ users: rows })
 })
 
-function health() {
+const health = Effect.sync(() => {
   return HttpServerResponse.text("ok")
-}
+})
 
 const router = HttpRouter.empty.pipe(
-  HttpRouter.get("/health", Effect.sync(health))
+  HttpRouter.get("/health", health)
 )
 
 const main = Effect.gen(function* () {
   yield* Effect.promise(() => db.connect())
   app.use(yield* NodeHttpServer.makeHandler(router))
-  app.listen(3000)
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000")
+  })
   yield* Effect.never
 })
 
 NodeRuntime.runMain(main)
 ```
 
-We'll also need to add some new dependencies to our project:
-
-```shell
-bun add pg @types/pg
-```
-
-Then you can run the server with:
+We can run this code with:
 
 ```shell
 bun index.ts
 ```
 
-And in another shell we can test the endpoint.
+And in another shell we can test the new endpoint:
 
 ```shell
 http get localhost:3000/users
@@ -234,7 +252,8 @@ const users = Effect.flatMap(
 )
 ```
 
-But it is more idiomatic in Effect to use `pipe`:
+And remembering what we learned about `pipe`, we can rewrite this to be a bit
+more readable:
 
 ```ts twoslash
 import { HttpServerResponse } from "@effect/platform"
@@ -254,7 +273,8 @@ const users = Effect.promise(
 This no longer gives us a type error. We've split our computation into parts:
 fetching the data with `Effect.promise`, manipulating its shape with
 `Effect.map`, and serializing it with `HttpServerResponse.json`. The
-`Effect.flatMap` at the end takes care of the accidental `Effect` nesting we had in our previous implementation.
+`Effect.flatMap` at the end takes care of the `Effect` nesting we had in our
+previous implementation.
 
 ## An aside on pipes
 
@@ -288,7 +308,7 @@ Our pipeline starts with 1, then passes it through `add(2)`, `mul(3)`, and
 One of the powers this gives you is the ability to add things easily into
 the pipeline.
 
-```ts twoslash {6-9,14,16,18}
+```ts twoslash ins={6-9,14,16,18}
 import { pipe } from "effect"
 
 const add = (x: number) => (y: number) => y + x
@@ -321,156 +341,11 @@ This prints the following, with `result` still being 8:
 As we migrate more complex endpoints, we'll see how this ability to "tap into"
 the pipeline is really useful.
 
-## Adding error handling to our database query
-
-All this talk of error handling might have gotten you thinking: can't our
-database query fail? It can! If the query is malformed, `db.query` will throw an
-error. When that happens, our endpoint will currently return a 500 error to
-the client. Change the SQL query to `SELECT * FROM nonexistent` and try it:
-
-```shell
-http get "localhost:3000/users"
-```
-
-```http
-HTTP/1.1 500 Internal Server Error
-Content-Length: 0
-Date: Fri, 14 Feb 2025 17:25:57 GMT
-X-Powered-By: Express
-```
-
-Strictly speaking, a 500 error is correct here. Our server encountered an error
-because of a server-side problem, which is what the 500-class errors are for.
-But it's not good Effect to let exceptions sneak by like this.
-
-A simple thing we can do is changing `Effect.promise` to `Effect.tryPromise`:
-
-```ts twoslash
-import { HttpServerResponse } from "@effect/platform"
-import { Effect, Layer } from "effect"
-import { createServer } from "node:http"
-import { Client } from "pg"
-const db = new Client({ user: "postgres" })
-//---cut---
-const users = Effect.tryPromise(
-  () => db.query("SELECT * FROM users")
-).pipe(
-  Effect.map(({ rows }) => ({ users: rows })),
-  Effect.flatMap(HttpServerResponse.json)
-)
-```
-
-This changes the return type from:
-
-```typescript
-Effect<HttpServerResponse, HttpBodyError, never>
-```
-
-To:
-
-```typescript
-Effect<HttpServerResponse, UnknownException | HttpBodyError, never>
-```
-
-`Effect.promise` is assumed to always succeed. `Effect.tryPromise` is assumed
-to maybe throw an exception, but because TypeScript doesn't give us any way
-to know _what_ exception might be thrown, Effect defaults to `UnknownException`.
-
-We can improve on this:
-
-```ts twoslash {1,4-5}
-import { HttpServerResponse } from "@effect/platform"
-import { Effect, Layer } from "effect"
-import { createServer } from "node:http"
-import { Client} from "pg"
-const db = new Client({ user: "postgres" })
-//---cut---
-class UserFetchError extends Error {}
-
-const users = Effect.tryPromise({
-  try: () => db.query("SELECT * FROM users"),
-  catch: (cause) => new UserFetchError("failed to fetch users", { cause }),
-}).pipe(
-  Effect.map(({ rows }) => ({ users: rows })),
-  Effect.flatMap(HttpServerResponse.json)
-)
-```
-
-We're using a different variant of `Effect.tryPromise` to give us more control
-over the type of the error that is returned. Becuase it's difficult to know what
-errors may be thrown by third-party libraries, it's idiomatic to create new
-error types that wrap the original error.
-
-Now our effect has the type:
-
-```typescript
-Effect<HttpServerResponse, UserFetchError | HttpBodyError, never>
-```
-
-Now our program is aware of what can go wrong _at the type level_. This
-information is completely missing if you're using exceptions in TypeScript.
-With this information we can ensure, and get TypeScript to verify for us,
-that things do not go wrong in unexpected ways.
-
-```ts twoslash
-// @errors: 2375
-import { Effect } from "effect"
-
-const effect = Effect.succeed(1).pipe(
-  Effect.tryMap({
-    try: (n) => n + 1,
-    catch: () => new Error(),
-  }),
-)
-
-const noError: Effect.Effect<number, never, never> = effect
-```
-
-The above code fails because we try to assign an Effect that can fail to a
-variable that expects an Effect that can't fail. We can fix this error in a
-few ways.
-
-By providing a default value:
-
-```ts twoslash {8}
-import { Effect } from "effect"
-
-const effect = Effect.succeed(1).pipe(
-  Effect.tryMap({
-    try: (n) => n + 1,
-    catch: () => new Error(),
-  }),
-  Effect.orElseSucceed(() => 0),
-)
-
-const noError: Effect.Effect<number, Error, never> = effect
-```
-
-Or by converting the error into what Effect calls a "defect":
-
-```ts twoslash {8}
-import { Effect } from "effect"
-
-const effect = Effect.succeed(1).pipe(
-  Effect.tryMap({
-    try: (n) => n + 1,
-    catch: () => new Error(),
-  }),
-  Effect.orDie
-)
-
-const noError: Effect.Effect<number, Error, never> = effect
-```
-
-This effectively recreates the behaviour of throwing an exception. Defects are
-critical errors that you don't want to handle. If you were to create a defect in
-an Effect handler, the result would be a 500 error returned to the user.
-
 ## The end result
 
-Here's our full code so far:
+Here's our full code so far, with new lines highlighted:
 
-```ts twoslash title=index.ts
+```ts twoslash title=index.ts ins={6,8,12-17,25,29}
 import express from "express"
 
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
@@ -482,34 +357,30 @@ const db = new Client({ user: "postgres" });
 
 const app = express();
 
-class UserFetchError extends Error {}
-const users = Effect.tryPromise({
-  try: () => db.query("SELECT * FROM users"),
-  catch: (cause) => new UserFetchError("failed to fetch users", { cause }),
-}).pipe(
+const users = Effect.promise(
+  () => db.query("SELECT * FROM users"),
+).pipe(
   Effect.map(({ rows }) => ({ users: rows })),
   Effect.flatMap(HttpServerResponse.json),
-  Effect.orDie
 );
 
-function health() {
+const health = Effect.sync(() => {
   return HttpServerResponse.text("ok");
-}
+})
 
 const router = HttpRouter.empty.pipe(
-  HttpRouter.get("/health", Effect.sync(health)),
+  HttpRouter.get("/health", health),
   HttpRouter.get("/users", users),
 );
 
 const main = Effect.gen(function* () {
   yield* Effect.promise(() => db.connect());
   app.use(yield* NodeHttpServer.makeHandler(router));
-  app.listen(3000);
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000");
+  });
   yield* Effect.never;
 });
 
 NodeRuntime.runMain(main);
 ```
-
-Going forward, I'm going to trim older endpoints from the full code as we go so
-that the length of these code samples doesn't get overwhelming.
