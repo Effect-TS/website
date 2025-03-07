@@ -1,0 +1,466 @@
+---
+type: Tutorial
+title: Hooking up a database
+tags:
+  - some
+  - tags
+sidebar:
+  order: 3
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+The next endpoint we're going to write is one that lists all of the users in a
+database. For this tutorial I'm going to use Postgres running in Docker as our
+database. If you don't have Docker installed, I recommend following the
+[official getting started guide](https://www.docker.com/get-started/).
+
+When you're ready, you can start a Postgres container with:
+
+```shell showLineNumbers=false
+docker run -d -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 postgres:17
+```
+
+<Aside type="note" title="I can't use Docker!">
+If you aren't able to run Docker locally, for example because your work's laptop
+policy doesn't allow it, an alternative is to use a hosted Postgres service.
+For example, [Neon](https://neondb.com/) offers a free tier that should be
+more than enough for this tutorial. They also offer a web-based UI for creating
+tables and rows.
+</Aside>
+
+## Creating test data
+
+To create our `users` table and data, we're going to use the `psql`
+tool that's present inside of the Docker container we created. Open a new
+terminal and run:
+
+```shell showLineNumbers=false
+docker exec -it $(docker ps -qf ancestor=postgres) psql -U postgres
+```
+
+This will drop you into a `psql` shell, with a prompt that starts `postgres=#`.
+From here you can run the following SQL commands:
+
+```sql showLineNumbers=false
+CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT)
+INSERT INTO users (name) VALUES ('Alice')
+INSERT INTO users (name) VALUES ('Bob')
+```
+
+To exit `psql`, type `\q` and press enter.
+
+## The `/users` endpoint
+
+To talk to Postgres we'll need a client library. We're going to use `pg` for
+this tutorial. You can install it with:
+
+```shell showLineNumbers=false
+bun add pg @types/pg
+```
+
+To start with, we're going to hardcode our database connection details. Later
+on we'll learn how to use Effect to manage our app's configuration.
+
+Here's the code for our app in full, with a new `/users` endpoint added in
+Express:
+
+```ts twoslash ins={6,8,11-14,25} title=index.ts showLineNumbers=false
+import express from "express"
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { HttpRouter, HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+import { Client } from "pg"
+
+const db = new Client({ user: "postgres" })
+const app = express()
+
+app.get("/users", async (req, res) => {
+  const { rows } = await db.query("SELECT * FROM users")
+  res.send({ users: rows })
+})
+
+const health = Effect.sync(() => {
+  return HttpServerResponse.text("ok")
+})
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", health)
+)
+
+const main = Effect.gen(function* () {
+  yield* Effect.promise(() => db.connect())
+  app.use(yield* NodeHttpServer.makeHandler(router))
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000")
+  })
+  yield* Effect.never
+})
+
+NodeRuntime.runMain(main)
+```
+
+We can run this code with:
+
+```shell showLineNumbers=false
+bun index.ts
+```
+
+And in another shell we can test the new endpoint:
+
+```shell showLineNumbers=false
+http get localhost:3000/users
+```
+
+```http showLineNumbers=false
+HTTP/1.1 200 OK
+Content-Length: 57
+Content-Type: application/json; charset=utf-8
+Date: Fri, 14 Feb 2025 14:28:02 GMT
+ETag: W/"39-6Qu85qIU12mhgGYWwHErQVfJRxI"
+X-Powered-By: Express
+
+{
+    "users": [
+        {
+            "id": 1,
+            "name": "Alice"
+        },
+        {
+            "id": 2,
+            "name": "Bob"
+        }
+    ]
+}
+```
+
+## The direct approach
+
+If we were to copy what we did with the `/health` endpoint, we'd end up with
+code that looked like this:
+
+```ts twoslash showLineNumbers=false
+import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
+const health = Effect.sync(() => {
+  return HttpServerResponse.text("ok")
+})
+//---cut---
+// @errors: 2379
+const users = Effect.promise(async () => {
+  const { rows } = await db.query("SELECT * FROM users")
+  return HttpServerResponse.json({ users: rows })
+})
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", health),
+  HttpRouter.get("/users", users),
+)
+```
+
+This doesn't work, as we can see from the error. The reason is that
+`HttpServerResponse.json` is an operation that might fail. Not all JavaScript
+objects can be converted to JSON.
+
+```ts twoslash showLineNumbers=false
+JSON.stringify({ big: 10n })
+//=> TypeError: JSON.stringify cannot serialize BigInt.
+```
+
+For this reason, `HttpServerResponse.json` returns an `Effect` that can fail.
+We didn't see this earlier because `HttpServerResponse.text` can't fail, and
+so just returns an `HttpServerResponse` directly.
+
+## Error handling in Effect
+
+When we introduced the `Effect` type in the previous section, we dealt
+exclusively with Effects that couldn't fail. That won't get us very far if
+we're building anything non-trivial.
+
+`Effect` is a generic type that takes 3 type arguments:
+
+```typescript showLineNumbers=false
+Effect<Success, Error, Requirements>
+```
+
+`Success` is the type the Effect returns when it succeeds, `Error` is the type
+it returns when it fails, and we'll talk about `Requirements` in the next
+section.
+
+When we created our example Effects in the previous section, these all took on
+the type `Effect<string, never, never>`.
+
+```ts twoslash showLineNumbers=false
+import { Effect } from "effect"
+//---cut---
+const _ = Effect.sync(() => "Hello, world!")
+//    ^?
+```
+
+This means they will return a `string` on success, and never fail.
+
+<Aside type="note" title="The never type">
+In TypeScript, `never` is a special type that represents a value that can never
+exist. You may not have had to use it before, but it's a useful tool for
+communicating to the type checker that something can't happen.
+
+For example:
+
+```ts twoslash showLineNumbers=false
+function getName(): string | null {
+  if (Math.random() > 0.5) {
+    return null
+  } else {
+    return "Alice"
+  }
+}
+
+function throwAnError() {
+  throw new Error("This function always throws an error")
+}
+```
+
+```ts twoslash showLineNumbers=false
+// @errors: 18047
+function getName(): string | null {
+  if (Math.random() > 0.5) {
+    return null
+  } else {
+    return "Alice"
+  }
+}
+
+function throwAnError() {
+  throw new Error("This function always throws an error")
+}
+//---cut---
+const name = getName()
+if (name === null) {
+  throwAnError()
+}
+console.log(name.toUpperCase())
+```
+
+Even though _we_ know that `name` can't be null in the last line of this
+example, TypeScript doesn't. We can fix this by using `never`:
+
+```ts twoslash del={1} ins={2} showLineNumbers=false
+// @noErrors
+function throwAnError() {
+function throwAnError(): never {
+  throw new Error("This function always throws an error")
+}
+```
+
+Because `throwAnError` has a return type of `never`, TypeScript knows that the
+`name` variable can't be `null` at the point where we call `toUpperCase`.
+Without the `never`, TypeScript would give us an error on the `toUpperCase`
+call.
+
+```ts twoslash showLineNumbers=false
+function getName(): string | null {
+  if (Math.random() > 0.5) {
+    return null
+  } else {
+    return "Alice"
+  }
+}
+function throwAnError(): never {
+  throw new Error("This function always throws an error")
+}
+//---cut---
+const name = getName()
+if (name === null) {
+  throwAnError()
+}
+console.log(name.toUpperCase())
+//          ^?
+```
+</Aside>
+
+The Effect that `HttpServerResponse.json` returns is of type
+`Effect<HttpServerResponse, HttpBodyError, never>`. So when we try to return
+it from our `users` handler, we end up wrapping one Effect in another.
+
+```ts twoslash showLineNumbers=false
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
+//---cut---
+const users = Effect.promise(async () => {
+//    ^?
+  const { rows } = await db.query("SELECT * FROM users")
+  return HttpServerResponse.json({ users: rows })
+})
+```
+
+This is what the type error from earlier was trying to tell us. Here's the
+error again:
+
+```text wrap showLineNumbers=false
+Argument of type 'Effect<Effect<HttpServerResponse, HttpBodyError, never>, never, never>' is not assignable to parameter of type 'Handler<never, never>'
+```
+
+Under the hood, a `Handler<never, never>` is just a type alias for `Effect<HttpServerResponse,
+never, never>`. Because `Effect<HttpServerResponse, HttpBodyError, never>` is
+not an `HttpServerResponse`, the type checker gets upset with us.
+
+## Fixing our nested Effects with `flatMap`
+
+It's possible to fix this with a call to `Effect.flatMap`:
+
+```ts twoslash showLineNumbers=false
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
+//---cut---
+const users = Effect.flatMap(
+  Effect.promise(async () => {
+    const { rows } = await db.query("SELECT * FROM users")
+    return { users: rows }
+  }),
+  HttpServerResponse.json
+)
+```
+
+And remembering what we learned about `pipe`, we can rewrite this to be a bit
+more readable:
+
+```ts twoslash showLineNumbers=false
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Layer } from "effect"
+import { createServer } from "node:http"
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
+//---cut---
+const users = Effect.promise(
+  () => db.query("SELECT * FROM users")
+).pipe(
+  Effect.map(({ rows }) => ({ users: rows })),
+  Effect.flatMap(HttpServerResponse.json)
+)
+```
+
+This no longer gives us a type error. We've split our computation into parts:
+fetching the data with `Effect.promise`, manipulating its shape with
+`Effect.map`, and serializing it with `HttpServerResponse.json`. The
+`Effect.flatMap` at the end takes care of the `Effect` nesting we had in our
+previous implementation.
+
+## An aside on pipes
+
+If `pipe` isn't quite clicking for you yet, one way to visualise it is that
+you're passing some data through a sequence of functions.
+
+Take this example:
+
+```ts twoslash showLineNumbers=false
+import { pipe } from "effect"
+
+const add = (x: number) => (y: number) => y + x
+const mul = (x: number) => (y: number) => y * x
+const sub = (x: number) => (y: number) => y - x
+
+const result = pipe(
+  1,
+  add(2),
+  mul(3),
+  sub(1)
+)
+console.log(result)
+//=> 8
+```
+
+`add`, `mul`, and `sub` are all functions that return functions. So `add(2)`
+returns a function that can add 2 to a given number: `add(2)(1)` returns 3.
+Our pipeline starts with 1, then passes it through `add(2)`, `mul(3)`, and
+`sub(1)`, resulting in 8.
+
+One of the powers this gives you is the ability to add things easily into
+the pipeline.
+
+```ts twoslash ins={6-9,14,16,18} showLineNumbers=false
+import { pipe } from "effect"
+
+const add = (x: number) => (y: number) => y + x
+const mul = (x: number) => (y: number) => y * x
+const sub = (x: number) => (y: number) => y - x
+const log = (s: string) => (y: number) => {
+  console.log(s, y)
+  return y
+}
+
+const result = pipe(
+  1,
+  add(2),
+  log("1 + 2 ="),
+  mul(3),
+  log("  * 3 ="),
+  sub(1),
+  log("  - 1 ="),
+)
+```
+
+This prints the following, with `result` still being 8:
+
+```
+1 + 2 = 3
+  * 3 = 9
+  - 1 = 8
+```
+
+As we migrate more complex endpoints, we'll see how this ability to "tap into"
+the pipeline is really useful.
+
+## The end result
+
+Here's our full code so far, with new lines highlighted:
+
+```ts twoslash title=index.ts ins={6,8,12-17,25,29} showLineNumbers=false
+import express from "express"
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { HttpRouter, HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+import { Client } from "pg"
+
+const db = new Client({ user: "postgres" })
+
+const app = express()
+
+const users = Effect.promise(
+  () => db.query("SELECT * FROM users"),
+).pipe(
+  Effect.map(({ rows }) => ({ users: rows })),
+  Effect.flatMap(HttpServerResponse.json),
+)
+
+const health = Effect.sync(() => {
+  return HttpServerResponse.text("ok")
+})
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/health", health),
+  HttpRouter.get("/users", users),
+)
+
+const main = Effect.gen(function* () {
+  yield* Effect.promise(() => db.connect())
+  app.use(yield* NodeHttpServer.makeHandler(router))
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000")
+  })
+  yield* Effect.never
+})
+
+NodeRuntime.runMain(main)
+```
