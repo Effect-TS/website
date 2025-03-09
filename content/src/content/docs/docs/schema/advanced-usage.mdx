@@ -389,7 +389,7 @@ age: PropertySignature<
 | `ToToken`    | Indicates field requirement: `"?:"` for optional, `":"` for required                                                |
 | `ToType`     | Type of the "To" field                                                                                              |
 | `FromKey`    | (Optional, default = `never`) Indicates the source field key, typically the same as "To" field key unless specified |
-| `FormToken`  | Indicates source field requirement: `"?:"` for optional, `":"` for required                                         |
+| `FromToken`  | Indicates source field requirement: `"?:"` for optional, `":"` for required                                         |
 | `FromType`   | Type of the "From" field                                                                                            |
 | `HasDefault` | Indicates if there is a constructor default value (Boolean)                                                         |
 
@@ -407,7 +407,7 @@ This means:
 | `ToToken`    | `":"` indicates that the `age` field is required                           |
 | `ToType`     | Type of the `age` field is `number`                                        |
 | `FromKey`    | `never` indicates that the decoding occurs from the same field named `age` |
-| `FormToken`  | `":"` indicates that the decoding occurs from a required `age` field       |
+| `FromToken`  | `":"` indicates that the decoding occurs from a required `age` field       |
 | `FromType`   | Type of the "From" field is `string`                                       |
 | `HasDefault` | `false`: indicates there is no default value                               |
 
@@ -1747,13 +1747,13 @@ Structs provide access to their fields through the `fields` property, which allo
 ```ts twoslash
 import { Schema } from "effect"
 
-const Orginal = Schema.Struct({
+const Original = Schema.Struct({
   a: Schema.String,
   b: Schema.String
 })
 
 const Extended = Schema.Struct({
-  ...Orginal.fields,
+  ...Original.fields,
   // Adding new fields
   c: Schema.String,
   d: Schema.String
