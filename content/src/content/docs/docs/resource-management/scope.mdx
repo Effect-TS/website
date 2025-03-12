@@ -2,16 +2,10 @@
 title: Scope
 description: Learn how Effect simplifies resource management with Scopes, ensuring efficient cleanup and safe resource handling in long-running applications.
 sidebar:
-  order: 0
+  order: 1
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components"
-
-In long-running applications, managing resources efficiently is essential, particularly when building large-scale systems. If resources like socket connections, database connections, or file descriptors are not properly managed, it can lead to resource leaks, which degrade application performance and reliability. Effect provides constructs that help ensure resources are properly managed and released, even in cases where exceptions occur.
-
-By ensuring that every time a resource is acquired, there is a corresponding mechanism to release it, Effect simplifies the process of resource management in your application.
-
-## The Scope Data Type
 
 The `Scope` data type is a core construct in Effect for managing resources in a safe and composable way.
 
@@ -57,14 +51,6 @@ In the above example, finalizers are added to the scope, and when the scope is c
 This reverse order is important because it ensures that resources are released in the correct sequence.
 
 For instance, if you acquire a network connection and then access a file on a remote server, the file must be closed before the network connection to avoid errors.
-
-<Aside type="tip" title="High-Level Resource Management">
-  Although managing scopes directly with `Scope` is possible, it's more
-  common to use higher-level functions like
-  [Effect.addFinalizer](#addfinalizer) or
-  [Effect.acquireUseRelease](#acquireuserelease), which handle much of the
-  complexity for you.
-</Aside>
 
 ## addFinalizer
 
@@ -440,188 +426,16 @@ Task Finalizer
 */
 ```
 
-## Finalization
-
-In many languages, the `try` / `finally` construct provides a way to ensure that, when the try block finishes (normally or with an error), the code in the finally block always runs. Effect offers a similar feature through the `Effect.ensuring` function.
-
-For higher-level approaches with automatic acquisition and release, see the [acquireRelease](#acquirerelease) family of functions.
-
-### ensuring
-
-This function makes sure a finalizer effect always runs once the main effect begins, whether the effect succeeds, fails, or is interrupted.
-
-This can be helpful when you need cleanup steps or final actions in all situations, such as releasing resources or logging messages.
-
-If you need access to the effect's result, consider using [onExit](#onexit).
-
-**Example** (Running a Finalizer in All Outcomes)
-
-```ts twoslash
-import { Console, Effect } from "effect"
-
-const handler = Effect.ensuring(Console.log("Cleanup completed"))
-
-const success = Console.log("Task completed").pipe(
-  Effect.as("some result"),
-  handler
-)
-
-Effect.runFork(success)
-/*
-Output:
-Task completed
-Cleanup completed
-*/
-
-const failure = Console.log("Task failed").pipe(
-  Effect.andThen(Effect.fail("some error")),
-  handler
-)
-
-Effect.runFork(failure)
-/*
-Output:
-Task failed
-Cleanup completed
-*/
-
-const interruption = Console.log("Task interrupted").pipe(
-  Effect.andThen(Effect.interrupt),
-  handler
-)
-
-Effect.runFork(interruption)
-/*
-Output:
-Task interrupted
-Cleanup completed
-*/
-```
-
-### onExit
-
-This function runs a cleanup step once the main effect finishes, regardless of whether it succeeds, fails, or is interrupted.
-
-It passes the [Exit](/docs/data-types/exit/) value to the cleanup function, which reveals how the effect ended:
-
-- If the effect succeeds, the `Exit` holds the success value.
-- If it fails, the `Exit` includes the error or failure cause.
-- If it is interrupted, the `Exit` reflects that interruption.
-
-The cleanup step itself is uninterruptible, which can help manage resources in complex or high-concurrency cases.
-
-**Example** (Running a Cleanup Function in All Outcomes)
-
-```ts twoslash
-import { Console, Effect, Exit } from "effect"
-
-// Define a cleanup function that logs the outcome of the effect
-const handler = Effect.onExit((exit) =>
-  Console.log(`Cleanup completed: ${Exit.getOrElse(exit, String)}`)
-)
-
-const success = Console.log("Task completed").pipe(
-  Effect.as("some result"),
-  handler
-)
-
-Effect.runFork(success)
-/*
-Output:
-Task completed
-Cleanup completed: some result
-*/
-
-const failure = Console.log("Task failed").pipe(
-  Effect.andThen(Effect.fail("some error")),
-  handler
-)
-
-Effect.runFork(failure)
-/*
-Output:
-Task failed
-Cleanup completed: Error: some error
-*/
-
-const interruption = Console.log("Task interrupted").pipe(
-  Effect.andThen(Effect.interrupt),
-  handler
-)
-
-Effect.runFork(interruption)
-/*
-Output:
-Task interrupted
-Cleanup completed: All fibers interrupted without errors.
-*/
-```
-
-### onError
-
-This function lets you attach a cleanup effect that runs whenever the calling effect fails, passing the cause of the failure to the cleanup effect.
-
-You can use it to perform actions such as logging, releasing resources, or applying additional recovery steps.
-
-The cleanup effect will also run if the failure is caused by interruption, and it is uninterruptible, so it always finishes once it starts.
-
-**Example** (Cleanup on Failure)
-
-```ts twoslash
-import { Console, Effect } from "effect"
-
-// This handler logs the failure cause when the effect fails
-const handler = Effect.onError((cause) =>
-  Console.log(`Cleanup completed: ${cause}`)
-)
-
-const success = Console.log("Task completed").pipe(
-  Effect.as("some result"),
-  handler
-)
-
-Effect.runFork(success)
-/*
-Output:
-Task completed
-*/
-
-const failure = Console.log("Task failed").pipe(
-  Effect.andThen(Effect.fail("some error")),
-  handler
-)
-
-Effect.runFork(failure)
-/*
-Output:
-Task failed
-Cleanup completed: Error: some error
-*/
-
-const interruption = Console.log("Task interrupted").pipe(
-  Effect.andThen(Effect.interrupt),
-  handler
-)
-
-Effect.runFork(interruption)
-/*
-Output:
-Task interrupted
-Cleanup completed: All fibers interrupted without errors.
-*/
-```
-
 ## Defining Resources
 
 ### acquireRelease
 
 The `Effect.acquireRelease(acquire, release)` function allows you to define resources that are acquired and safely released when they are no longer needed. This is useful for managing resources such as file handles, database connections, or network sockets.
 
-To use `Effect.acquireRelease`, you need to define three actions:
+To use `Effect.acquireRelease`, you need to define two actions:
 
 1. **Acquiring the Resource**: An effect describing the acquisition of the resource, e.g., opening a file or establishing a database connection.
-2. **Using the Resource**: An effect describing the actual process to produce a result, e.g., reading from the file or querying the database.
-3. **Releasing the Resource**: The clean-up effect that ensures the resource is properly released, e.g., closing the file or the connection.
+2. **Releasing the Resource**: The clean-up effect that ensures the resource is properly released, e.g., closing the file or the connection.
 
 The acquisition process is **uninterruptible** to ensure that partial resource acquisition doesn't leave your system in an inconsistent state.
 
@@ -785,62 +599,451 @@ Resource released
 */
 ```
 
-### acquireUseRelease
+### Example Pattern: Sequencing Operations
 
-The `Effect.acquireUseRelease` function is a specialized version of the `Effect.acquireRelease` function that simplifies resource management by automatically handling the scoping of resources.
+In certain scenarios, you might need to perform a sequence of chained operations where the success of each operation depends on the previous one. However, if any of the operations fail, you would want to reverse the effects of all previous successful operations. This pattern is valuable when you need to ensure that either all operations succeed, or none of them have any effect at all.
 
-```ts showLineNumbers=false
-Effect.acquireUseRelease(acquire, use, release)
-```
+Let's go through an example of implementing this pattern. Suppose we want to create a "Workspace" in our application, which involves creating an S3 bucket, an ElasticSearch index, and a Database entry that relies on the previous two.
 
-The main difference is that `Effect.acquireUseRelease` eliminates the need to manually call `Effect.scoped` to manage the resource's scope. It has additional knowledge about when you are done using the resource created with the `acquire` step. This is achieved by providing a `use` argument, which represents the function that operates on the acquired resource. As a result, `Effect.acquireUseRelease` can automatically determine when it should execute the release step.
+To begin, we define the domain model for the required [services](/docs/requirements-management/services/):
 
-**Example** (Automatically Managing Resource Lifetime)
+- `S3`
+- `ElasticSearch`
+- `Database`
 
-```ts twoslash collapse={3-31}
-import { Effect, Console } from "effect"
+```ts twoslash
+import { Effect, Context } from "effect"
 
-// Define an interface for a resource
-interface MyResource {
-  readonly contents: string
-  readonly close: () => Promise<void>
+class S3Error {
+  readonly _tag = "S3Error"
 }
 
-// Simulate resource acquisition
-const getMyResource = (): Promise<MyResource> =>
-  Promise.resolve({
-    contents: "lorem ipsum",
-    close: () =>
-      new Promise((resolve) => {
-        console.log("Resource released")
-        resolve()
-      })
-  })
+interface Bucket {
+  readonly name: string
+}
 
-// Define how the resource is acquired
-const acquire = Effect.tryPromise({
-  try: () =>
-    getMyResource().then((res) => {
-      console.log("Resource acquired")
-      return res
-    }),
-  catch: () => new Error("getMyResourceError")
+class S3 extends Context.Tag("S3")<
+  S3,
+  {
+    readonly createBucket: Effect.Effect<Bucket, S3Error>
+    readonly deleteBucket: (bucket: Bucket) => Effect.Effect<void>
+  }
+>() {}
+
+class ElasticSearchError {
+  readonly _tag = "ElasticSearchError"
+}
+
+interface Index {
+  readonly id: string
+}
+
+class ElasticSearch extends Context.Tag("ElasticSearch")<
+  ElasticSearch,
+  {
+    readonly createIndex: Effect.Effect<Index, ElasticSearchError>
+    readonly deleteIndex: (index: Index) => Effect.Effect<void>
+  }
+>() {}
+
+class DatabaseError {
+  readonly _tag = "DatabaseError"
+}
+
+interface Entry {
+  readonly id: string
+}
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    readonly createEntry: (
+      bucket: Bucket,
+      index: Index
+    ) => Effect.Effect<Entry, DatabaseError>
+    readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
+  }
+>() {}
+```
+
+Next, we define the three create actions and the overall transaction (`make`) for the
+
+```ts twoslash collapse={3-52}
+import { Effect, Context, Exit } from "effect"
+
+class S3Error {
+  readonly _tag = "S3Error"
+}
+
+interface Bucket {
+  readonly name: string
+}
+
+class S3 extends Context.Tag("S3")<
+  S3,
+  {
+    readonly createBucket: Effect.Effect<Bucket, S3Error>
+    readonly deleteBucket: (bucket: Bucket) => Effect.Effect<void>
+  }
+>() {}
+
+class ElasticSearchError {
+  readonly _tag = "ElasticSearchError"
+}
+
+interface Index {
+  readonly id: string
+}
+
+class ElasticSearch extends Context.Tag("ElasticSearch")<
+  ElasticSearch,
+  {
+    readonly createIndex: Effect.Effect<Index, ElasticSearchError>
+    readonly deleteIndex: (index: Index) => Effect.Effect<void>
+  }
+>() {}
+
+class DatabaseError {
+  readonly _tag = "DatabaseError"
+}
+
+interface Entry {
+  readonly id: string
+}
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    readonly createEntry: (
+      bucket: Bucket,
+      index: Index
+    ) => Effect.Effect<Entry, DatabaseError>
+    readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
+  }
+>() {}
+
+// Create a bucket, and define the release function that deletes the
+// bucket if the operation fails.
+const createBucket = Effect.gen(function* () {
+  const { createBucket, deleteBucket } = yield* S3
+  return yield* Effect.acquireRelease(createBucket, (bucket, exit) =>
+    // The release function for the Effect.acquireRelease operation is
+    // responsible for handling the acquired resource (bucket) after the
+    // main effect has completed. It is called regardless of whether the
+    // main effect succeeded or failed. If the main effect failed,
+    // Exit.isFailure(exit) will be true, and the function will perform
+    // a rollback by calling deleteBucket(bucket). If the main effect
+    // succeeded, Exit.isFailure(exit) will be false, and the function
+    // will return Effect.void, representing a successful, but
+    // do-nothing effect.
+    Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.void
+  )
 })
 
-// Define how the resource is released
-const release = (res: MyResource) => Effect.promise(() => res.close())
+// Create an index, and define the release function that deletes the
+// index if the operation fails.
+const createIndex = Effect.gen(function* () {
+  const { createIndex, deleteIndex } = yield* ElasticSearch
+  return yield* Effect.acquireRelease(createIndex, (index, exit) =>
+    Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
+  )
+})
 
-const use = (res: MyResource) => Console.log(`content is ${res.contents}`)
+// Create an entry in the database, and define the release function that
+// deletes the entry if the operation fails.
+const createEntry = (bucket: Bucket, index: Index) =>
+  Effect.gen(function* () {
+    const { createEntry, deleteEntry } = yield* Database
+    return yield* Effect.acquireRelease(
+      createEntry(bucket, index),
+      (entry, exit) =>
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
+    )
+  })
 
-//      ┌─── Effect<void, Error, never>
-//      ▼
-const program = Effect.acquireUseRelease(acquire, use, release)
-
-Effect.runPromise(program)
-/*
-Output:
-Resource acquired
-content is lorem ipsum
-Resource released
-*/
+const make = Effect.scoped(
+  Effect.gen(function* () {
+    const bucket = yield* createBucket
+    const index = yield* createIndex
+    return yield* createEntry(bucket, index)
+  })
+)
 ```
+
+We then create simple service implementations to test the behavior of our Workspace code.
+To achieve this, we will utilize [layers](/docs/requirements-management/layers/) to construct test
+These layers will be able to handle various scenarios, including errors, which we can control using the `FailureCase` type.
+
+```ts twoslash collapse={3-99}
+import { Effect, Context, Layer, Console, Exit } from "effect"
+
+class S3Error {
+  readonly _tag = "S3Error"
+}
+
+interface Bucket {
+  readonly name: string
+}
+
+class S3 extends Context.Tag("S3")<
+  S3,
+  {
+    readonly createBucket: Effect.Effect<Bucket, S3Error>
+    readonly deleteBucket: (bucket: Bucket) => Effect.Effect<void>
+  }
+>() {}
+
+class ElasticSearchError {
+  readonly _tag = "ElasticSearchError"
+}
+
+interface Index {
+  readonly id: string
+}
+
+class ElasticSearch extends Context.Tag("ElasticSearch")<
+  ElasticSearch,
+  {
+    readonly createIndex: Effect.Effect<Index, ElasticSearchError>
+    readonly deleteIndex: (index: Index) => Effect.Effect<void>
+  }
+>() {}
+
+class DatabaseError {
+  readonly _tag = "DatabaseError"
+}
+
+interface Entry {
+  readonly id: string
+}
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    readonly createEntry: (
+      bucket: Bucket,
+      index: Index
+    ) => Effect.Effect<Entry, DatabaseError>
+    readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
+  }
+>() {}
+
+// Create a bucket, and define the release function that deletes the
+// bucket if the operation fails.
+const createBucket = Effect.gen(function* () {
+  const { createBucket, deleteBucket } = yield* S3
+  return yield* Effect.acquireRelease(createBucket, (bucket, exit) =>
+    // The release function for the Effect.acquireRelease operation is
+    // responsible for handling the acquired resource (bucket) after the
+    // main effect has completed. It is called regardless of whether the
+    // main effect succeeded or failed. If the main effect failed,
+    // Exit.isFailure(exit) will be true, and the function will perform
+    // a rollback by calling deleteBucket(bucket). If the main effect
+    // succeeded, Exit.isFailure(exit) will be false, and the function
+    // will return Effect.void, representing a successful, but
+    // do-nothing effect.
+    Exit.isFailure(exit) ? deleteBucket(bucket) : Effect.void
+  )
+})
+
+// Create an index, and define the release function that deletes the
+// index if the operation fails.
+const createIndex = Effect.gen(function* () {
+  const { createIndex, deleteIndex } = yield* ElasticSearch
+  return yield* Effect.acquireRelease(createIndex, (index, exit) =>
+    Exit.isFailure(exit) ? deleteIndex(index) : Effect.void
+  )
+})
+
+// Create an entry in the database, and define the release function that
+// deletes the entry if the operation fails.
+const createEntry = (bucket: Bucket, index: Index) =>
+  Effect.gen(function* () {
+    const { createEntry, deleteEntry } = yield* Database
+    return yield* Effect.acquireRelease(
+      createEntry(bucket, index),
+      (entry, exit) =>
+        Exit.isFailure(exit) ? deleteEntry(entry) : Effect.void
+    )
+  })
+
+const make = Effect.scoped(
+  Effect.gen(function* () {
+    const bucket = yield* createBucket
+    const index = yield* createIndex
+    return yield* createEntry(bucket, index)
+  })
+)
+
+// The `FailureCaseLiterals` type allows us to provide different error
+// scenarios while testing our
+//
+// For example, by providing the value "S3", we can simulate an error
+// scenario specific to the S3 service. This helps us ensure that our
+// program handles errors correctly and behaves as expected in various
+// situations.
+//
+// Similarly, we can provide other values like "ElasticSearch" or
+// "Database" to simulate error scenarios for those  In cases
+// where we want to test the absence of errors, we can provide
+// `undefined`. By using this parameter, we can thoroughly test our
+// services and verify their behavior under different error conditions.
+type FailureCaseLiterals = "S3" | "ElasticSearch" | "Database" | undefined
+
+class FailureCase extends Context.Tag("FailureCase")<
+  FailureCase,
+  FailureCaseLiterals
+>() {}
+
+// Create a test layer for the S3 service
+
+const S3Test = Layer.effect(
+  S3,
+  Effect.gen(function* () {
+    const failureCase = yield* FailureCase
+    return {
+      createBucket: Effect.gen(function* () {
+        console.log("[S3] creating bucket")
+        if (failureCase === "S3") {
+          return yield* Effect.fail(new S3Error())
+        } else {
+          return { name: "<bucket.name>" }
+        }
+      }),
+      deleteBucket: (bucket) =>
+        Console.log(`[S3] delete bucket ${bucket.name}`)
+    }
+  })
+)
+
+// Create a test layer for the ElasticSearch service
+
+const ElasticSearchTest = Layer.effect(
+  ElasticSearch,
+  Effect.gen(function* () {
+    const failureCase = yield* FailureCase
+    return {
+      createIndex: Effect.gen(function* () {
+        console.log("[ElasticSearch] creating index")
+        if (failureCase === "ElasticSearch") {
+          return yield* Effect.fail(new ElasticSearchError())
+        } else {
+          return { id: "<index.id>" }
+        }
+      }),
+      deleteIndex: (index) =>
+        Console.log(`[ElasticSearch] delete index ${index.id}`)
+    }
+  })
+)
+
+// Create a test layer for the Database service
+
+const DatabaseTest = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const failureCase = yield* FailureCase
+    return {
+      createEntry: (bucket, index) =>
+        Effect.gen(function* () {
+          console.log(
+            "[Database] creating entry for bucket" +
+              `${bucket.name} and index ${index.id}`
+          )
+          if (failureCase === "Database") {
+            return yield* Effect.fail(new DatabaseError())
+          } else {
+            return { id: "<entry.id>" }
+          }
+        }),
+      deleteEntry: (entry) =>
+        Console.log(`[Database] delete entry ${entry.id}`)
+    }
+  })
+)
+
+// Merge all the test layers for S3, ElasticSearch, and Database
+// services into a single layer
+const layer = Layer.mergeAll(S3Test, ElasticSearchTest, DatabaseTest)
+
+// Create a runnable effect to test the Workspace code. The effect is
+// provided with the test layer and a FailureCase service with undefined
+// value (no failure case).
+const runnable = make.pipe(
+  Effect.provide(layer),
+  Effect.provideService(FailureCase, undefined)
+)
+
+Effect.runPromise(Effect.either(runnable)).then(console.log)
+```
+
+Let's examine the test results for the scenario where `FailureCase` is set to `undefined` (happy path):
+
+```ansi showLineNumbers=false
+[S3] creating bucket
+[ElasticSearch] creating index
+[Database] creating entry for bucket <bucket.name> and index <index.id>
+{
+  _id: "Either",
+  _tag: "Right",
+  right: {
+    id: "<entry.id>"
+  }
+}
+```
+
+In this case, all operations succeed, and we see a successful result with `right({ id: '<entry.id>' })`.
+
+Now, let's simulate a failure in the `Database`:
+
+```ts showLineNumbers=false
+const runnable = make.pipe(
+  Effect.provide(layer),
+  Effect.provideService(FailureCase, "Database")
+)
+```
+
+The console output will be:
+
+```ansi showLineNumbers=false
+[S3] creating bucket
+[ElasticSearch] creating index
+[Database] creating entry for bucket <bucket.name> and index <index.id>
+[ElasticSearch] delete index <index.id>
+[S3] delete bucket <bucket.name>
+{
+  _id: "Either",
+  _tag: "Left",
+  left: {
+    _tag: "DatabaseError"
+  }
+}
+```
+
+You can observe that once the `Database` error occurs, there is a complete rollback that deletes the `ElasticSearch` index first and then the associated `S3` bucket. The result is a failure with `left(new DatabaseError())`.
+
+Let's now make the index creation fail instead:
+
+```ts showLineNumbers=false
+const runnable = make.pipe(
+  Effect.provide(layer),
+  Effect.provideService(FailureCase, "ElasticSearch")
+)
+```
+
+In this case, the console output will be:
+
+```ansi showLineNumbers=false
+[S3] creating bucket
+[ElasticSearch] creating index
+[S3] delete bucket <bucket.name>
+{
+  _id: "Either",
+  _tag: "Left",
+  left: {
+    _tag: "ElasticSearchError"
+  }
+}
+```
+
+As expected, once the `ElasticSearch` index creation fails, there is a rollback that deletes the `S3` bucket. The result is a failure with `left(new ElasticSearchError())`.
