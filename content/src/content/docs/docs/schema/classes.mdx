@@ -16,6 +16,12 @@ Classes offer several features that simplify the schema creation process:
 - **Shared Functionality**: You can incorporate shared functionality using class methods or getters.
 - **Value Hashing and Equality**: Utilize the built-in capability for checking value equality and applying hashing (thanks to `Class` implementing [Data.Class](/docs/data-types/data/#class)).
 
+<Aside type="caution" title="Class Schemas Are Transformations">
+  Classes defined with `Schema.Class` act as
+  [transformations](/docs/schema/transformations/). See [Class Schemas are
+  Transformations](#class-schemas-are-transformations) for details.
+</Aside>
+
 ## Definition
 
 To define a class using `Schema.Class`, you need to specify:
@@ -69,6 +75,36 @@ This behavior is similar to how we handle other class-based APIs like [Context.T
 Using a unique identifier is particularly useful in scenarios where live reloads can occur, as it helps preserve the instance across reloads. It ensures there is no duplication of instances (although it shouldn't happen, some bundlers and frameworks can behave unpredictably).
 
 </Aside>
+
+### Class Schemas are Transformations
+
+Class schemas [transform](/docs/schema/transformations/) a struct schema into a [declaration](/docs/schema/advanced-usage/#declaring-new-data-types) schema that represents a class type.
+
+- When decoding, a plain object is converted into an instance of the class.
+- When encoding, a class instance is converted back into a plain object.
+
+**Example** (Decoding and Encoding a Class)
+
+```ts twoslash
+import { Schema } from "effect"
+
+class Person extends Schema.Class<Person>("Person")({
+  id: Schema.Number,
+  name: Schema.NonEmptyString
+}) {}
+
+const person = Person.make({ id: 1, name: "John" })
+
+// Decode from a plain object into a class instance
+const decoded = Schema.decodeUnknownSync(Person)({ id: 1, name: "John" })
+console.log(decoded)
+// Output: Person { id: 1, name: 'John' }
+
+// Encode a class instance back into a plain object
+const encoded = Schema.encodeUnknownSync(Person)(person)
+console.log(encoded)
+// Output: { id: 1, name: 'John' }
+```
 
 ### Defining Classes Without Fields
 
