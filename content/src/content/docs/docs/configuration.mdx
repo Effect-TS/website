@@ -665,6 +665,33 @@ Output:
 Application started: localhost:8080
 ```
 
+### Loading Configuration from JSON
+
+The `ConfigProvider.fromJson` function creates a `ConfigProvider` that loads values from a JSON object.
+
+**Example** (Reading Nested Configuration from JSON)
+
+```ts twoslash
+import { Config, ConfigProvider, Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  // Read SERVER_HOST and SERVER_PORT as nested configuration values
+  const port = yield* Config.nested(Config.number("PORT"), "SERVER")
+  const host = yield* Config.nested(Config.string("HOST"), "SERVER")
+  console.log(`Application started: ${host}:${port}`)
+})
+
+Effect.runPromise(
+  Effect.withConfigProvider(
+    program,
+    ConfigProvider.fromJson(
+      JSON.parse(`{"SERVER":{"PORT":8080,"HOST":"localhost"}}`)
+    )
+  )
+)
+// Output: Application started: localhost:8080
+```
+
 ### Using Nested Configuration Namespaces
 
 The `ConfigProvider.nested` function allows **grouping configuration values** under a namespace.
