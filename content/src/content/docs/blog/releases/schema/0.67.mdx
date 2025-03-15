@@ -1,4 +1,5 @@
 ---
+pagefind: false
 title: Schema 0.67 (Release)
 excerpt: Release post highlighting new additions and breaking changes
 date: 2024-05-10
@@ -179,7 +180,9 @@ Our new `Schema.withDecodingDefault` combinator makes it easy to handle the opti
 import { Schema } from "@effect/schema"
 
 const MySchema = Schema.Struct({
-  a: Schema.optional(Schema.String).pipe(Schema.withDecodingDefault(() => ""))
+  a: Schema.optional(Schema.String).pipe(
+    Schema.withDecodingDefault(() => "")
+  )
 })
 
 console.log(Schema.decodeUnknownSync(MySchema)({}))

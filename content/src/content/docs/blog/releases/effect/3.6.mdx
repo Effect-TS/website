@@ -1,4 +1,5 @@
 ---
+pagefind: false
 title: Effect 3.6 (Release)
 excerpt: Release post highlighting new additions and changes
 date: 2024-07-30
@@ -38,7 +39,7 @@ Effect.gen(function* () {
   // The UTC portion of the `DateTime` is preserved and only the time zone is
   // changed
   const sydneyTime = tomorrow.pipe(
-    DateTime.unsafeSetZoneNamed("Australia/Sydney"),
+    DateTime.unsafeSetZoneNamed("Australia/Sydney")
   )
 }).pipe(DateTime.withCurrentZoneNamed("America/New_York"))
 ```
@@ -51,23 +52,23 @@ You can customize the buffer size and strategy by passing an object as the
 second argument with the `bufferSize` and `strategy` fields.
 
 ```ts
-import { Effect, Stream } from "effect";
+import { Effect, Stream } from "effect"
 
 Stream.asyncPush<string>(
   (emit) =>
     Effect.acquireRelease(
       Effect.gen(function* () {
-        yield* Effect.log("subscribing");
-        return setInterval(() => emit.single("tick"), 1000);
+        yield* Effect.log("subscribing")
+        return setInterval(() => emit.single("tick"), 1000)
       }),
       (handle) =>
         Effect.gen(function* () {
-          yield* Effect.log("unsubscribing");
-          clearInterval(handle);
-        }),
+          yield* Effect.log("unsubscribing")
+          clearInterval(handle)
+        })
     ),
-  { bufferSize: 16, strategy: "dropping" },
-);
+  { bufferSize: 16, strategy: "dropping" }
+)
 ```
 
 ## Struct.keys api
@@ -95,9 +96,12 @@ query builder apis.
 
 ```ts
 // create a Tag with your `Database` type
-class KyselyDB extends Context.Tag("KyselyDB")<KyselyDB, Kysely<Database>>() {}
+class KyselyDB extends Context.Tag("KyselyDB")<
+  KyselyDB,
+  Kysely<Database>
+>() {}
 
-Effect.gen(function*() {
+Effect.gen(function* () {
   // access the service and execute queries
   const db = yield* KyselyDB
 
@@ -106,9 +110,15 @@ Effect.gen(function*() {
     .addColumn("id", "integer", (c) => c.primaryKey().autoIncrement())
     .addColumn("userName", "text", (c) => c.notNull())
 
-  const inserted = yield* db.insertInto("users").values({ userName: "Alice" }).returningAll()
+  const inserted = yield* db
+    .insertInto("users")
+    .values({ userName: "Alice" })
+    .returningAll()
   const selected = yield* db.selectFrom("users").selectAll()
-  const updated = yield* db.updateTable("users").set({ userName: "Bob" }).returningAll()
+  const updated = yield* db
+    .updateTable("users")
+    .set({ userName: "Bob" })
+    .returningAll()
   const deleted = yield* db.deleteFrom("users").returningAll()
 })
 ```

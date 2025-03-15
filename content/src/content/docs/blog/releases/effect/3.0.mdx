@@ -1,4 +1,5 @@
 ---
+pagefind: false
 title: Effect 3.0 (Release)
 excerpt: Release post highlighting new additions and breaking changes
 date: 2024-04-16
@@ -305,7 +306,9 @@ export const getTodo = (
     HttpClientResponse.json,
     Effect.timeout("1 second"),
     Effect.retry(
-      Schedule.exponential(1000).pipe(Schedule.compose(Schedule.recurs(3)))
+      Schedule.exponential(1000).pipe(
+        Schedule.compose(Schedule.recurs(3))
+      )
     ),
     Effect.withSpan("getTodo", { attributes: { id } })
   )

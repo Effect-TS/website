@@ -1,4 +1,5 @@
 ---
+pagefind: false
 title: Effect 3.2 (Release)
 excerpt: Release post highlighting new additions and changes
 date: 2024-05-20
@@ -34,7 +35,7 @@ To disable this feature, pass `captureStackTrace: false` to the `Effect.withSpan
 
 ```ts
 Effect.log("Hello World").pipe(
-  Effect.withSpan("my span", { captureStackTrace: false }),
+  Effect.withSpan("my span", { captureStackTrace: false })
 )
 ```
 
@@ -53,15 +54,15 @@ This api allows you to define an effectful function that is wrapped with a span.
 You can also use the function arguments to generate the span options.
 
 ```ts
-import { Effect } from "effect";
+import { Effect } from "effect"
 
 const getTodo = Effect.functionWithSpan({
   body: (id: number) => Effect.succeed(`Got todo ${id}!`),
   options: (id) => ({
     name: `getTodo-${id}`,
-    attributes: { id },
-  }),
-});
+    attributes: { id }
+  })
+})
 ```
 
 ## Array.Do notation
@@ -73,9 +74,12 @@ sequential manner.
 const props = pipe(
   Array.Do,
   Array.bind("size", () => ["small", "medium", "large"] as const),
-  Array.bind("theme", () => ["dark", "light", "contrast-light", "contrast-dark"] as const),
+  Array.bind(
+    "theme",
+    () => ["dark", "light", "contrast-light", "contrast-dark"] as const
+  ),
   Array.bind("disabled", () => [false, true]),
-  Array.bind("loading", () => [false, true]),
+  Array.bind("loading", () => [false, true])
 )
 ```
 
@@ -88,7 +92,7 @@ context / requirements, you can use the `Stream.toReadableStreamEffect` or
 ## $is & $match helpers added to Data.TaggedEnum
 
 The `$is` and `$match` helpers have been added to the
-`Data.TaggedEnum.WithGenerics` constructors.  You can use these apis to perform
+`Data.TaggedEnum.WithGenerics` constructors. You can use these apis to perform
 type-safe checks and pattern matching.
 
 ```ts
@@ -102,7 +106,8 @@ type Result<E, A> = Data.TaggedEnum<{
 interface ResultDefinition extends Data.TaggedEnum.WithGenerics<2> {
   readonly taggedEnum: Result<this["A"], this["B"]>
 }
-const { $is, $match, Failure, Success } = Data.taggedEnum<ResultDefinition>()
+const { $is, $match, Failure, Success } =
+  Data.taggedEnum<ResultDefinition>()
 
 const result: Result<string, number> = Success({ value: 1 })
 

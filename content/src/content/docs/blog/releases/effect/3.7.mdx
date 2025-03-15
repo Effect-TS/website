@@ -1,4 +1,5 @@
 ---
+pagefind: false
 title: Effect 3.7 (Release)
 excerpt: Release post highlighting new additions and changes
 date: 2024-08-30
@@ -35,15 +36,15 @@ const result = Effect.Do.pipe(
   Effect.bindAll(
     ({ x }) => ({
       a: Effect.succeed(x + 1),
-      b: Effect.succeed("foo"),
+      b: Effect.succeed("foo")
     }),
-    { concurrency: 2 },
-  ),
+    { concurrency: 2 }
+  )
 )
 assert.deepStrictEqual(Effect.runSync(result), {
   x: 2,
   a: 3,
-  b: "foo",
+  b: "foo"
 })
 ```
 
@@ -55,10 +56,10 @@ as the winner and continue to emit items. The other stream will be interrupted.
 ```ts
 import { Stream, Schedule, Console, Effect } from "effect"
 
-const stream = Stream.fromSchedule(Schedule.spaced('2 millis')).pipe(
-  Stream.race(Stream.fromSchedule(Schedule.spaced('1 millis'))),
+const stream = Stream.fromSchedule(Schedule.spaced("2 millis")).pipe(
+  Stream.race(Stream.fromSchedule(Schedule.spaced("1 millis"))),
   Stream.take(6),
-  Stream.tap(n => Console.log(n))
+  Stream.tap((n) => Console.log(n))
 )
 
 Effect.runPromise(Stream.runDrain(stream))
@@ -85,7 +86,7 @@ you can now use the `propagateInterruption` option.
 ```ts
 import { Effect, FiberHandle } from "effect"
 
-Effect.gen(function*() {
+Effect.gen(function* () {
   const handle = yield* FiberHandle.make()
 
   // run a fiber and propagate interrupts
