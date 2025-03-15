@@ -1,4 +1,5 @@
 ---
+pagefind: false
 title: Effect 3.8 (Release)
 excerpt: Release post highlighting new additions and changes
 date: 2024-09-16
@@ -56,7 +57,7 @@ It will return an `Option<A>` from the result of the effect, depending on whethe
 ```ts
 import { Effect } from "effect"
 
-Effect.gen(function*() {
+Effect.gen(function* () {
   const semaphore = yield* Effect.makeSemaphore(1)
 
   // returns Option.some("foo")
@@ -105,16 +106,11 @@ It is useful when you want to share a `Stream`, and ensure any resources are fin
 ```ts
 import { Effect, Stream } from "effect"
 
-Effect.gen(function*() {
+Effect.gen(function* () {
   const sharedStream = yield* Effect.acquireRelease(
-    Effect.log("Stream acquired").pipe(
-      Effect.as(Stream.never)
-    ),
+    Effect.log("Stream acquired").pipe(Effect.as(Stream.never)),
     () => Effect.log("Stream released")
-  ).pipe(
-    Stream.unwrapScoped,
-    Stream.share({ capacity: 16 })
-  )
+  ).pipe(Stream.unwrapScoped, Stream.share({ capacity: 16 }))
 
   // Nothing is logged yet
 
@@ -256,7 +252,11 @@ You can now access the available keys of a `RcMap` or `MutableMap` using the `ke
 For example:
 
 ```ts
-const map = MutableHashMap.make([["a", "a"], ["b", "b"], ["c", "c"]])
+const map = MutableHashMap.make([
+  ["a", "a"],
+  ["b", "b"],
+  ["c", "c"]
+])
 const keys = MutableHashMap.keys(map) // ["a", "b", "c"]
 ```
 

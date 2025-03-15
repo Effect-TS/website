@@ -1,4 +1,5 @@
 ---
+pagefind: false
 title: From React to Effect
 excerpt: If you know React you already know Effect to a great extent. Let's explore how the mental model of Effect maps to the concept you already know from React.
 date: 2024-08-17
@@ -34,16 +35,16 @@ You may be familiar to writing code that looks like the following:
 
 ```tsx
 const App = () => {
-  return <div>Hello World</div>;
-};
+  return <div>Hello World</div>
+}
 ```
 
 Removing JSX, the above code becomes:
 
 ```ts
 const App = () => {
-  return React.createElement("div", { children: "Hello World" });
-};
+  return React.createElement("div", { children: "Hello World" })
+}
 ```
 
 So we can say that a **component** is a **function** that returns **react elements**, or better framed a component is a **description** or **blueprint** of a UI.
@@ -51,14 +52,14 @@ So we can say that a **component** is a **function** that returns **react elemen
 Only when we **mount** a component into a specific DOM node (in our example below called "root") our code is **executed** and the resulting description produces the **side-effects** that end up creating the final UI.
 
 ```tsx
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
+import { StrictMode } from "react"
+import { createRoot } from "react-dom/client"
+import App from "./App.tsx"
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
-  </StrictMode>,
+  </StrictMode>
 )
 ```
 
@@ -66,28 +67,28 @@ Let's verify what we've just explained:
 
 ```tsx
 const MyComponent = () => {
-  console.log("MyComponent Invoked");
-  return <div>MyComponent</div>;
-};
+  console.log("MyComponent Invoked")
+  return <div>MyComponent</div>
+}
 
 const App = () => {
-  <MyComponent />;
-  return <div>Hello World</div>;
-};
+  ;<MyComponent />
+  return <div>Hello World</div>
+}
 ```
 
 If we run this code, which translates to:
 
 ```ts
 const MyComponent = () => {
-  console.log("MyComponent Invoked");
-  return React.createElement("div", { children: "MyComponent" });
-};
+  console.log("MyComponent Invoked")
+  return React.createElement("div", { children: "MyComponent" })
+}
 
 const App = () => {
-  React.createElement(MyComponent);
-  return React.createElement("div", { children: "Hello World" });
-};
+  React.createElement(MyComponent)
+  return React.createElement("div", { children: "Hello World" })
+}
 ```
 
 we won't see any `"MyComponent Invoked"` messages in the browser console.
@@ -100,13 +101,13 @@ Changing the code to:
 
 ```tsx
 const MyComponent = () => {
-  console.log("MyComponent Invoked");
-  return <div>MyComponent</div>;
-};
+  console.log("MyComponent Invoked")
+  return <div>MyComponent</div>
+}
 
 const App = () => {
-  return <MyComponent />;
-};
+  return <MyComponent />
+}
 ```
 
 will log the `"MyComponent Invoked"` message to the console, which means side-effects are being performed.
@@ -119,8 +120,8 @@ Let's take a look at some of the superpowers that React gains from this model, f
 
 ```tsx
 const MyComponent = (props: { message: string }) => {
-  return <div>MyComponent: {props.message}</div>;
-};
+  return <div>MyComponent: {props.message}</div>
+}
 
 const App = () => {
   return (
@@ -129,57 +130,57 @@ const App = () => {
       <MyComponent message="Bar" />
       <MyComponent message="Baz" />
     </div>
-  );
-};
+  )
+}
 ```
 
-This example is somewhat contrived, but if your component does something interesting (such as modeling a button) this can be quite powerful.  You can reuse the`Button` component in multiple places without rewriting its logic.
+This example is somewhat contrived, but if your component does something interesting (such as modeling a button) this can be quite powerful. You can reuse the`Button` component in multiple places without rewriting its logic.
 
 A React component may also crash and throw an error, and React provides mechanisms which allow for recovering from such errors in parent components. Once the error has been caught in the parent component, alternative actions, such as rendering an alternative UI, can be performed.
 
 ```tsx
 export declare namespace ErrorBoundary {
   interface Props {
-    fallback: React.ReactNode;
-    children: React.ReactNode;
+    fallback: React.ReactNode
+    children: React.ReactNode
   }
 }
 
 export class ErrorBoundary extends React.Component<ErrorBoundary.Props> {
   state: {
-    hasError: boolean;
-  };
+    hasError: boolean
+  }
 
   constructor(props: React.PropsWithChildren<ErrorBoundary.Props>) {
-    super(props);
-    this.state = { hasError: false };
+    super(props)
+    this.state = { hasError: false }
   }
 
   static getDerivedStateFromError() {
-    return { hasError: true };
+    return { hasError: true }
   }
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback;
+      return this.props.fallback
     }
 
-    return this.props.children;
+    return this.props.children
   }
 }
 
 const MyComponent = () => {
-  throw new Error("Something went deeply wrong");
-  return <div>MyComponent</div>;
-};
+  throw new Error("Something went deeply wrong")
+  return <div>MyComponent</div>
+}
 
 const App = () => {
   return (
     <ErrorBoundary fallback={<div>Fallback Component!!!</div>}>
       <MyComponent />
     </ErrorBoundary>
-  );
-};
+  )
+}
 ```
 
 While the provided API to catch errors in components may not be very nice, it is not very common to throw within React components. The only real case where one would throw in a component is to throw a `Promise` that can then be `await`-ed by the nearest `Suspense` boundary, allowing components to perform asynchronous work.
@@ -187,29 +188,29 @@ While the provided API to catch errors in components may not be very nice, it is
 Let's have a look:
 
 ```tsx
-let resolved = false;
+let resolved = false
 
 const promiseToAwait = new Promise((resolve) => {
   setTimeout(() => {
-    resolved = true;
-    resolve(resolved);
-  }, 1000);
-});
+    resolved = true
+    resolve(resolved)
+  }, 1000)
+})
 
 const MyComponent = () => {
   if (!resolved) {
-    throw promiseToAwait;
+    throw promiseToAwait
   }
-  return <div>MyComponent</div>;
-};
+  return <div>MyComponent</div>
+}
 
 const App = () => {
   return (
     <Suspense fallback={<div>Waiting...</div>}>
       <MyComponent />
     </Suspense>
-  );
-};
+  )
+}
 ```
 
 This API is fairly low-level, but there are libraries which leverage it internally to provide features such as smooth data fetching (mandatory shout out to [React Query](https://tanstack.com/query/latest/docs/framework/react/guides/suspense)) and data streaming from SSR with server components (the new buzz).
@@ -217,21 +218,21 @@ This API is fairly low-level, but there are libraries which leverage it internal
 Additionally, because React components are a **description** of the UI to render, a React component can access contextual data provided by parent components. Let's have a look:
 
 ```tsx
-const ContextualData = React.createContext(0);
+const ContextualData = React.createContext(0)
 
 const MyComponent = () => {
-  const context = React.useContext(ContextualData);
+  const context = React.useContext(ContextualData)
 
-  return <div>MyComponent: {context}</div>;
-};
+  return <div>MyComponent: {context}</div>
+}
 
 const App = () => {
   return (
     <ContextualData.Provider value={100}>
       <MyComponent />
     </ContextualData.Provider>
-  );
-};
+  )
+}
 ```
 
 in the above code we defined a piece of contextual data, a number, and we provided it from the top level `App` component, this way when React renders `MyComponent` the component will read the fresh data provided from above.
@@ -240,7 +241,7 @@ in the above code we defined a piece of contextual data, a number, and we provid
 
 You might ask, why are we spending so much time talking about React? How does this relate to Effect? In the same way that React was, and still is, important for developing powerful user interfaces, Effect is equally important for writing general purpose code. Over the past two decades JS & TS evolved a lot, and thanks to the ideas brought forward by Node.js we now develop full stack applications on top of what people initially thought was a toy language.
 
-As the complexity of our JS / TS programs grow, we again find ourselves in a situation where the demands we put on the platform exceed the capabilities provided by the language. Just like building complex UIs on top of jQuery would be quite a difficult task, developing production-grade applications on top of plain  JS / TS has become increasingly painful.
+As the complexity of our JS / TS programs grow, we again find ourselves in a situation where the demands we put on the platform exceed the capabilities provided by the language. Just like building complex UIs on top of jQuery would be quite a difficult task, developing production-grade applications on top of plain JS / TS has become increasingly painful.
 
 Production-grade application code has requirements such as:
 
@@ -274,7 +275,9 @@ const printHelloWorld = print("Hello World")
 ```
 
 <br />
-<a href="https://effect.website/play#9599967a15cf" target="_blank">Open in Playground</a>
+<a href="https://effect.website/play#9599967a15cf" target="_blank">
+  Open in Playground
+</a>
 
 Just like we've seen with React, simply creating an Effect does not result in execution of any side-effects. In fact, just like a component in React, an Effect is nothing more than a blueprint of what we want our program to do. Only when we execute the blueprint do the side-effects kick-off. Let's see how:
 
@@ -292,7 +295,9 @@ Effect.runPromise(printHelloWorld)
 ```
 
 <br />
-<a href="https://effect.website/play#b36bac0a41ca" target="_blank">Open in Playground</a>
+<a href="https://effect.website/play#b36bac0a41ca" target="_blank">
+  Open in Playground
+</a>
 
 Now we have our `"Hello World"` message being printed to the console.
 
@@ -306,7 +311,7 @@ const print = (message: string) =>
     console.log(message)
   })
 
-const printMessages = Effect.gen(function*() {
+const printMessages = Effect.gen(function* () {
   yield* print("Hello World")
   yield* print("We're getting messages")
 })
@@ -315,7 +320,9 @@ Effect.runPromise(printMessages)
 ```
 
 <br />
-<a href="https://effect.website/play#b5058f3ac17b" target="_blank">Open in Playground</a>
+<a href="https://effect.website/play#b5058f3ac17b" target="_blank">
+  Open in Playground
+</a>
 
 You can mentally map `yield*` to `await` and `Effect.gen(function*() { })` to `async function() {}` with the sole difference that if you want to pass arguments, you would need to define a new lambda. For example:
 
@@ -328,7 +335,7 @@ const print = (message: string) =>
   })
 
 const printMessages = (messages: number) =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     for (let i = 0; i < messages; i++) {
       yield* print(`message: ${i}`)
     }
@@ -338,7 +345,9 @@ Effect.runPromise(printMessages(10))
 ```
 
 <br />
-<a href="https://effect.website/play#3c5c45b473a4" target="_blank">Open in Playground</a>
+<a href="https://effect.website/play#3c5c45b473a4" target="_blank">
+  Open in Playground
+</a>
 
 Just like we can raise errors within React components and handle them in parent components, we can also raise errors in an Effect and handle them within parent Effects:
 
@@ -354,7 +363,7 @@ class InvalidRandom extends Error {
   message = "Invalid Random Number"
 }
 
-const printOrFail = Effect.gen(function*() {
+const printOrFail = Effect.gen(function* () {
   if (Math.random() > 0.5) {
     yield* print("Hello World")
   } else {
@@ -371,7 +380,9 @@ Effect.runPromise(program)
 ```
 
 <br />
-<a href="https://effect.website/play#a35378f5d2ab" target="_blank">Open in Playground</a>
+<a href="https://effect.website/play#a35378f5d2ab" target="_blank">
+  Open in Playground
+</a>
 
 The above code will randomly fail with a `InvalidRandom` error, which we then recover from a parent Effect using `Effect.catchAll`. In this case, the recovery logic is to simply log the error message to the console.
 
@@ -397,9 +408,12 @@ const print = (message: string) =>
     console.log(message)
   })
 
-class ContextualData extends Context.Tag("ContextualData")<ContextualData, number>() {}
+class ContextualData extends Context.Tag("ContextualData")<
+  ContextualData,
+  number
+>() {}
 
-const printFromContext = Effect.gen(function*() {
+const printFromContext = Effect.gen(function* () {
   const n = yield* ContextualData
 
   yield* print(`Contextual Data is: ${n}`)
@@ -413,7 +427,9 @@ Effect.runPromise(program)
 ```
 
 <br />
-<a href="https://effect.website/play#88051688ce37" target="_blank">Open in Playground</a>
+<a href="https://effect.website/play#88051688ce37" target="_blank">
+  Open in Playground
+</a>
 
 What separates Effect from React here is that we are not forced to provide a default implementation for our context. Effect keeps track of all requirements of our program in its third type parameter, and will prohibit execution of an Effect that does not have all requirements fulfilled.
 

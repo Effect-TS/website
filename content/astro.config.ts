@@ -19,10 +19,10 @@ import { pluginTwoslashPagefind } from "./src/plugins/expressive-code/twoslash-p
 import { effectPlaygroundPlugin } from "./src/plugins/starlight/playground/plugin"
 import { effectPodcastPlugin } from "./src/plugins/starlight/podcast/plugin"
 import { monacoEditorPlugin } from "./src/plugins/vite/monaco-editor"
+// import node from "@astrojs/node"
 
 const VERCEL_PREVIEW_DOMAIN =
-  process.env.VERCEL_ENV !== "production" &&
-  process.env.VERCEL_BRANCH_URL
+  process.env.VERCEL_ENV !== "production" && process.env.VERCEL_BRANCH_URL
 
 const domain = VERCEL_PREVIEW_DOMAIN || "effect.website"
 
@@ -81,6 +81,10 @@ export default defineConfig({
   site,
   output: "server",
   trailingSlash: "always",
+  // uncomment this to enable local preview (`pnpm build` + `pnpm preview`)
+  // adapter: node({
+  //   mode: "standalone"
+  // }),
   adapter: vercel({
     webAnalytics: {
       enabled: true

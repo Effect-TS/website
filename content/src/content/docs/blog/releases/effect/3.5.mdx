@@ -1,4 +1,5 @@
 ---
+pagefind: false
 title: Effect 3.5 (Release)
 excerpt: Release post highlighting new additions and changes
 date: 2024-07-10
@@ -47,7 +48,7 @@ Effect.gen(function* () {
   const map = yield* RcMap.make({
     lookup: (key: string) =>
       Effect.acquireRelease(Effect.succeed(`acquired ${key}`), () =>
-        Effect.log(`releasing ${key}`),
+        Effect.log(`releasing ${key}`)
       )
   })
 
@@ -80,12 +81,18 @@ The `replay` option adds a replay buffer in front of the given PubSub. The buffe
 replay the last `n` messages to any new subscriber.
 
 ```ts
-Effect.gen(function*() {
+Effect.gen(function* () {
   const messages = [1, 2, 3, 4, 5]
-  const pubsub = yield* PubSub.bounded<number>({ capacity: 16, replay: 3 })
+  const pubsub = yield* PubSub.bounded<number>({
+    capacity: 16,
+    replay: 3
+  })
   yield* PubSub.publishAll(pubsub, messages)
   const sub = yield* PubSub.subscribe(pubsub)
-  assert.deepStrictEqual(Chunk.toReadonlyArray(yield* Queue.takeAll(sub)), [3, 4, 5])
+  assert.deepStrictEqual(
+    Chunk.toReadonlyArray(yield* Queue.takeAll(sub)),
+    [3, 4, 5]
+  )
 })
 ```
 
@@ -126,9 +133,12 @@ You can now customize the output buffer options for `Stream.async*`:
 ```ts
 import { Stream } from "effect"
 
-Stream.async((emit) => {
-  // ...
-}, { bufferSize: 16, strategy: "dropping" })
+Stream.async(
+  (emit) => {
+    // ...
+  },
+  { bufferSize: 16, strategy: "dropping" }
+)
 ```
 
 ## Stream PubSub options
@@ -146,22 +156,22 @@ import { Schedule, Stream } from "effect"
 Stream.fromSchedule(Schedule.spaced(1000)).pipe(
   Stream.toPubSub({
     capacity: 16, // or "unbounded"
-    strategy: "dropping", // or "sliding" / "suspend"
-  }),
+    strategy: "dropping" // or "sliding" / "suspend"
+  })
 )
 
 // also for the broadcast apis
 Stream.fromSchedule(Schedule.spaced(1000)).pipe(
   Stream.broadcastDynamic({
     capacity: 16,
-    strategy: "dropping",
-  }),
+    strategy: "dropping"
+  })
 )
 ```
 
 ## Stream type fixes
 
-- `Stream` & `Channel` run* methods now exclude `Scope` from the `R` type.
+- `Stream` & `Channel` run\* methods now exclude `Scope` from the `R` type.
 - Use of `Stream.DynamicTuple` has been replaced with `Types.TupleOf`.
 - Use `left` / `right` naming instead of `self` / `that` in `Stream.mergeRight` & `Stream.mergeLeft`.
 

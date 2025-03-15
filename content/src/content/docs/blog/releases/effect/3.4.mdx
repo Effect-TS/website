@@ -1,4 +1,5 @@
 ---
+pagefind: false
 title: Effect 3.4 (Release)
 excerpt: Release post highlighting new additions and changes
 date: 2024-06-20
@@ -19,11 +20,15 @@ The HTTP modules in `@effect/platform` have been reorganized to have a flat stru
 Instead of a single import, you now import the specific modules you need:
 
 ```ts
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse
+} from "@effect/platform"
 
 HttpClientRequest.get("/").pipe(
   HttpClient.fetchOk,
-  HttpClientResponse.json,
+  HttpClientResponse.json
 )
 ```
 
@@ -43,7 +48,7 @@ At a minimum, Micro adds 5kb gzipped to your bundle, and scales with the amount 
 import { ensure } from "effect/Array"
 
 // lets say you are not 100% sure if it's a member or a collection
-declare const someValue: {foo: string} | Array<{foo: string}>
+declare const someValue: { foo: string } | Array<{ foo: string }>
 
 // $ExpectType ({ foo: string })[]
 const normalized = ensure(someValue)
@@ -67,7 +72,7 @@ The `Tuple.at` api can be used to retrieve an element at a specified index from 
 ```ts
 import { Tuple } from "effect"
 
-assert.deepStrictEqual(Tuple.at([1, 'hello', true], 1), 'hello')
+assert.deepStrictEqual(Tuple.at([1, "hello", true], 1), "hello")
 ```
 
 ## Added Chunk.lastNonEmpty
