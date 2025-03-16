@@ -319,6 +319,11 @@ export default defineConfig({
           label: "Additional Resources",
           autogenerate: { directory: "docs/additional-resources" },
           collapsed: false
+        },
+        {
+          label: "Troubleshooting",
+          autogenerate: { directory: "docs/troubleshooting" },
+          collapsed: false
         }
       ]
     })

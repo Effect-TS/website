@@ -1,0 +1,65 @@
+---
+title: Effect (v3)
+description: Troubleshooting guide for Effect errors (v3).
+sidebar:
+  order: 1
+---
+
+If you get stuck, please try discussing the issue on the Effect [Discord](https://discord.gg/effect-ts) or posting a question to [Stackoverflow](https://stackoverflow.com/questions/tagged/effect-ts).
+If you've found a bug, or Effect can't meet your needs, please try [raising an issue](https://github.com/Effect-TS/effect/issues).
+
+## JSONSchema
+
+### JSONSchema: Missing jsonSchema annotation
+
+This error occurs when attempting to generate a JSON Schema for a type that has no direct representation in JSON Schema, such as `bigint`.
+
+To resolve this, add a `jsonSchema` annotation to specify how the type should be represented.
+
+For refined schemas, ensure that each refinement includes a `jsonSchema` annotation that describes its constraints.
+
+For more details, see [Customizing JSON Schema Generation](/docs/schema/json-schema/#customizing-json-schema-generation).
+
+### JSONSchema: Missing identifier annotation for recursive schemas
+
+This error occurs when generating a JSON Schema for a recursive or mutually recursive schema that lacks an `identifier` annotation.
+
+Recursive schemas need a unique `identifier` annotation to ensure correct references in the generated JSON Schema. Without it, the schema generator cannot resolve the self-referencing structure.
+
+To resolve this, ensure that recursive schemas include an `identifier` annotation.
+
+For more details, see [Recursive and Mutually Recursive Schemas](/docs/schema/json-schema/#recursive-and-mutually-recursive-schemas).
+
+### JSONSchema: Unsupported Post Rest Elements
+
+This error occurs when generating a JSON Schema for a tuple that includes **post-rest elements**, elements appearing after a rest parameter.
+JSON Schema does not support this structure.
+
+**Example**
+
+```ts twoslash
+import { Schema } from "effect"
+
+//             Element after a rest parameter ───┐
+// Rest Parameter ────────────────┐              |
+//                                ▼              ▼
+const schema = Schema.Tuple([], Schema.Number, Schema.String)
+```
+
+### JSONSchema: Unsupported Key
+
+This error occurs when attempting to generate a JSON Schema for a structure that includes unsupported key types, such as `symbol`.
+JSON Schema only supports string-based keys.
+
+**Example**
+
+```ts twoslash
+import { Schema } from "effect"
+
+// Schema with a symbol key (not allowed in JSON Schema)
+const schema = Schema.Struct({
+  [Symbol.for("my-symbol")]: Schema.String
+})
+```
+
+as there is no way to represent this in JSON Schema.
