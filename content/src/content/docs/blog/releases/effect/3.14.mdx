@@ -1,0 +1,166 @@
+---
+pagefind: false
+title: Effect 3.14 (Release)
+excerpt: New Effect release featuring LayerMap module, @effect/rpc refactor, and more.
+date: 2025-03-20
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.14 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## LayerMap module
+
+A `LayerMap` allows you to create a map of Layer's that can be used to
+dynamically access resources based on a key.
+
+Here is an example of how you can use a `LayerMap` to create a service that
+provides access to multiple OpenAI completions services.
+
+```ts
+import { Completions } from "@effect/ai"
+import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
+import { FetchHttpClient } from "@effect/platform"
+import { NodeRuntime } from "@effect/platform-node"
+import { Config, Effect, Layer, LayerMap } from "effect"
+
+// create the openai client layer
+const OpenAiLayer = OpenAiClient.layerConfig({
+  apiKey: Config.redacted("OPENAI_API_KEY")
+}).pipe(Layer.provide(FetchHttpClient.layer))
+
+// create a service that wraps a LayerMap
+class AiClients extends LayerMap.Service<AiClients>()("AiClients", {
+  // this LayerMap will provide the ai Completions service
+  provides: Completions.Completions,
+
+  // define the lookup function for the layer map
+  //
+  // The returned Layer will be used to provide the Completions service for the
+  // given model.
+  lookup: (model: OpenAiCompletions.Model) =>
+    OpenAiCompletions.layer({ model }),
+
+  // If a layer is not used for a certain amount of time, it can be removed
+  idleTimeToLive: "5 seconds",
+
+  // Supply the dependencies for the layers in the LayerMap
+  dependencies: [OpenAiLayer]
+}) {}
+
+// usage
+Effect.gen(function* () {
+  // access and use the generic Completions service
+  const ai = yield* Completions.Completions
+  const response = yield* ai.create("Hello, world!")
+  console.log(response.text)
+}).pipe(
+  // use the AiClients service to provide a variant of the Completions service
+  AiClients.provide("gpt-4o"),
+  // provide the LayerMap service
+  Effect.provide(AiClients.Default),
+  NodeRuntime.runMain
+)
+```
+
+## @effect/rpc refactor
+
+The `@effect/rpc` package has undergone a refactor to improve the ergonomics of the API, and to make it more modular.
+
+To read more about the changes, take a look at the [README](https://github.com/Effect-TS/effect/blob/main/packages/rpc/README.md).
+
+## Effect.linkSpanCurrent
+
+Effect.linkSpanCurrent allows you to link a span to the current span in the context.
+
+```ts
+import { Effect } from "effect"
+
+Effect.gen(function* () {
+  const childSpan = yield* Effect.makeSpan("linked")
+  // link the "linked" span to the "parent" span
+  yield* Effect.linkSpanCurrent(childSpan)
+}).pipe(Effect.withSpan("parent"))
+```
+
+## Dual Runtime apis
+
+All of the `Runtime.run*` apis from the `Runtime` module now have dual signatures.
+
+```ts
+import { Effect, Runtime } from "effect"
+
+const program = Effect.log("Hello, World!")
+
+// You can run the effect by passing all arguments
+Runtime.runFork(Runtime.defaultRuntime, program)
+
+// Or using partial application
+Runtime.runFork(Runtime.defaultRuntime)(program)
+```
+
+## Option transpose apis
+
+### Effect.transposeMapOption
+
+Applies an `Effect` on an `Option` and transposes the result.
+
+- If the `Option` is `None`, the resulting `Effect` will immediately succeed with a `None` value.
+- If the `Option` is `Some`, the effectful operation will be executed on the inner value, and its result wrapped in a `Some`.
+
+```ts
+import { Effect, Option, pipe } from "effect"
+
+//          ┌─── Effect<Option<number>, never, never>>
+//          ▼
+const noneResult = pipe(
+  Option.none(),
+  Effect.transposeMapOption(() => Effect.succeed(42)) // will not be executed
+)
+console.log(Effect.runSync(noneResult))
+// Output: { _id: 'Option', _tag: 'None' }
+
+//          ┌─── Effect<Option<number>, never, never>>
+//          ▼
+const someSuccessResult = pipe(
+  Option.some(42),
+  Effect.transposeMapOption((value) => Effect.succeed(value * 2))
+)
+console.log(Effect.runSync(someSuccessResult))
+// Output: { _id: 'Option', _tag: 'Some', value: 84 }
+```
+
+### Either.transposeOption
+
+This function transforms an `Option<Either<A, E>>` into an
+`Either<Option<A>, E>`. If the `Option` is `None`, the resulting `Either`
+will be a `Right` with a `None` value. If the `Option` is `Some`, the
+inner `Either` will be executed, and its result wrapped in a `Some`.
+
+```ts
+import { Effect, Either, Option } from "effect"
+
+//      ┌─── Option<Either<number, never>>
+//      ▼
+const maybe = Option.some(Either.right(42))
+
+//      ┌─── Either<Option<number>, never, never>
+//      ▼
+const result = Either.transposeOption(maybe)
+
+console.log(Effect.runSync(result))
+// Output: { _id: 'Option', _tag: 'Some', value: 42 }
+```
+
+## Other changes
+
+- `DateTime.nowAsDate` was added, which returns the current time as a JS `Date` object.
+- `HashMap.every` was added, which checks if every entry in the `HashMap` satisfies a predicate.
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
