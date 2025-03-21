@@ -93,6 +93,24 @@ Output:
 Application started: localhost:8080
 ```
 
+## Using Config with Schema
+
+You can define and decode configuration values using a schema.
+
+**Example** (Decoding a Configuration Value)
+
+```ts twoslash
+import { Effect, Schema } from "effect"
+
+// Define a config that expects a string with at least 4 characters
+const myConfig = Schema.Config(
+  "Foo",
+  Schema.String.pipe(Schema.minLength(4))
+)
+```
+
+For more information, see the [Schema.Config](/docs/schema/effect-data-types/#config) documentation.
+
 ## Providing Default Values
 
 Sometimes, you may encounter situations where an environment variable is missing, leading to an incomplete configuration. To address this, Effect provides the `Config.withDefault` function, which allows you to specify a default value. This fallback ensures that your application continues to function even if a required environment variable is not set.

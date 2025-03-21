@@ -71,40 +71,44 @@ console.log(Equal.equals(person1, person2))
 
 ## Config
 
-The `Schema.Config` function allows you to validate and manage application configuration settings using structured schemas. It ensures consistency in configuration data and provides detailed feedback for validation errors.
+The `Schema.Config` function allows you to decode and manage application configuration settings using structured schemas.
+It ensures consistency in configuration data and provides detailed feedback for decoding errors.
 
 **Syntax**
 
 ```ts showLineNumbers=false
-Config: <A>(name: string, schema: Schema<A, string>) => Config<A>
+Config: <A, I extends string>(name: string, schema: Schema<A, I>) =>
+  Config<A>
 ```
 
-This function requires two parameters:
+This function takes two arguments:
 
 - `name`: Identifier for the configuration setting.
 - `schema`: Schema describing the expected data type and structure.
 
-The function returns a [Config](/docs/configuration/) object that is directly integrated with your application's configuration management system.
+It returns a [Config](/docs/configuration/) object that integrates with your application's configuration system.
 
-The `Schema.Config` function operates through the following steps:
+The Encoded type `I` must extend `string`, so the schema must be able to decode from a string, this includes schemas like `Schema.String`, `Schema.Literal("...")`, or `Schema.NumberFromString`, possibly with refinements applied.
 
-1. **Fetching Configuration**: The configuration value is retrieved based on its name.
-2. **Validation**: The value is then validated against the schema. If the value does not conform to the schema, the function formats and returns detailed validation errors.
-3. **Error Formatting**: Errors are formatted using `TreeFormatter.formatErrorSync` to provide clear, actionable error messages.
+Behind the scenes, `Schema.Config` follows these steps:
 
-**Example** (Validating Configuration Settings)
+1. **Fetch the value** using the provided name (e.g. from an environment variable).
+2. **Decode the value** using the given schema. If the value is invalid, decoding fails.
+3. **Format any errors** using [TreeFormatter.formatErrorSync](/docs/schema/error-formatters/#treeformatter-default), which helps produce readable and detailed error messages.
+
+**Example** (Decoding a Configuration Value)
 
 ```ts twoslash filename="config.ts"
-import { Schema } from "effect"
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
 
-const myconfig = Schema.Config(
+// Define a config that expects a string with at least 4 characters
+const myConfig = Schema.Config(
   "Foo",
   Schema.String.pipe(Schema.minLength(4))
 )
 
 const program = Effect.gen(function* () {
-  const foo = yield* myconfig
+  const foo = yield* myConfig
   console.log(`ok: ${foo}`)
 })
 
@@ -113,26 +117,31 @@ Effect.runSync(program)
 
 To test the configuration, execute the following commands:
 
-- **Test** (with Missing Configuration Data)
-  ```sh showLineNumbers=false
-  npx tsx config.ts
-  # Output:
-  # [(Missing data at Foo: "Expected Foo to exist in the process context")]
-  ```
-- **Test** (with Invalid Data)
-  ```sh showLineNumbers=false
-  Foo=bar npx tsx config.ts
-  # Output:
-  # [(Invalid data at Foo: "a string at least 4 character(s) long
-  # └─ Predicate refinement failure
-  #    └─ Expected a string at least 4 character(s) long, actual "bar"")]
-  ```
-- **Test** (with Valid Data)
-  ```sh showLineNumbers=false
-  Foo=foobar npx tsx config.ts
-  # Output:
-  # ok: foobar
-  ```
+**Test** (with Missing Configuration Data)
+
+```sh showLineNumbers=false
+npx tsx config.ts
+# Output:
+# [(Missing data at Foo: "Expected Foo to exist in the process context")]
+```
+
+**Test** (with Invalid Data)
+
+```sh showLineNumbers=false
+Foo=bar npx tsx config.ts
+# Output:
+# [(Invalid data at Foo: "a string at least 4 character(s) long
+# └─ Predicate refinement failure
+#    └─ Expected a string at least 4 character(s) long, actual "bar"")]
+```
+
+**Test** (with Valid Data)
+
+```sh showLineNumbers=false
+Foo=foobar npx tsx config.ts
+# Output:
+# ok: foobar
+```
 
 ## Option
 
