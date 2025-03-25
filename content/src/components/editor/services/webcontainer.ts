@@ -1,5 +1,5 @@
 import { Request } from "@effect/experimental/DevTools/Domain"
-import * as Ndjson from "@effect/experimental/Ndjson"
+import * as Ndjson from "@effect/platform/Ndjson"
 import { WebContainer as WC, type FileSystemTree } from "@webcontainer/api"
 import * as monaco from "@effect/monaco-editor/esm/vs/editor/editor.api"
 import * as Effect from "effect/Effect"
