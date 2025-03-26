@@ -8,7 +8,6 @@ import { usePathname } from "next/navigation"
 import { ThemeSwitcher } from "../atoms/theme-switcher"
 import { LogoDark } from "../atoms/logo-dark"
 import React from "react"
-import { EffectDaysBanner } from "./banner"
 
 export interface NavigationLink {
   readonly name: string
@@ -22,7 +21,6 @@ const links: Array<NavigationLink> = [
   { name: "Blog", href: "/blog" },
   { name: "Podcast", href: "/podcast" },
   { name: "Play", href: "/play", reload: true },
-  { name: "Effect Days", href: "/events/effect-days", blank: true }
 ]
 
 const socials = [
@@ -43,7 +41,6 @@ export const Navigation: React.FC<{
         className={`${inline ? "relative" : "fixed top-0 inset-x-0"
           } backdrop-blur z-30 bg-white/70 dark:bg-[#09090B]/70 text-zinc-700 dark:text-zinc-400`}
       >
-        {pathname === "/" && <EffectDaysBanner />}
         <div
           className={`w-full ${inline
             ? "border-b dark:border-neutral-700"

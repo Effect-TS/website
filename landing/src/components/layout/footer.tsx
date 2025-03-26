@@ -20,7 +20,6 @@ const menus = [
     name: "Other",
     items: [
       { name: "Merch", href: "/merch/", blank: true },
-      { name: "Effect Days", href: "/events/effect-days/", blank: true },
       { name: "Effectful", href: "https://www.effectful.co/", blank: true }
     ]
   },
@@ -57,9 +56,8 @@ export const Footer = () => {
       <footer className="bg-zinc-50 dark:bg-black text-zinc-700 dark:text-zinc-400 text-sm">
         <Divider />
         <div
-          className={`w-full ${
-            wide ? "max-w-screen-2xl" : "max-w-screen-xl"
-          } mx-auto px-4 sm:px-8 lg:px-16 py-24 flex flex-col sm:flex-row gap-10 justify-between`}
+          className={`w-full ${wide ? "max-w-screen-2xl" : "max-w-screen-xl"
+            } mx-auto px-4 sm:px-8 lg:px-16 py-24 flex flex-col sm:flex-row gap-10 justify-between`}
         >
           <div>
             <Logo className="hidden dark:block h-7 sm:h-8" />
