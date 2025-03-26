@@ -86,9 +86,11 @@ bun add effect
 
 First let's define a simple interaction with an LLM:
 
+**Example** (Using the `Completions` Service to Generate a Dad Joke)
+
 ```ts twoslash
 import { Completions } from "@effect/ai"
-import { Console, Effect } from "effect"
+import { Effect } from "effect"
 
 // Using `Completions` will add it to your program's requirements
 //
@@ -98,33 +100,31 @@ const generateDadJoke = Effect.gen(function*() {
   // Extract the `Completions` service from the Effect environment
   const completions = yield* Completions.Completions
   // Use the `Completions` service to generate some text
-  return yield* completions.create("Generate a hilarious dad joke").pipe(
-    // Log the response text to the console
-    Effect.andThen((response) => Console.log(response.text))
-  )
+  const response = yield* completions.create("Generate a dad joke")
+  // Log the generated text to the console
+  console.log(response.text)
 })
 ```
-
-The above program uses the `Completions` service from the base `@effect/ai` package to describe using an LLM to create a text completion (in this case generating a hilarious dad joke). The result of the text generation is then logged to the console.
 
 <Aside type="note" title="Declarative LLM Interactions">
   Notice that the above code does not know or care which LLM provider (OpenAi, Anthropic, etc.) will be used. Instead, we focus on _what_ we want to accomplish (i.e. our business logic), not _how_ to accomplish it.
 </Aside>
 
-## Select an LLM Model
+## Select an LLM Provider
 
 Next, we need to select which provider we want to use to satisfy the `Completions` requirement of our `generateDadJoke` program:
 
-```ts twoslash {1,17,25,27} collapse={5-10}
+**Example** (Providing a Concrete Model to Satisfy the `Completions` Requirement)
+
+```ts twoslash collapse={5-9}
 import { OpenAiCompletions } from "@effect/ai-openai"
 import { Completions } from "@effect/ai"
 import { Console, Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
   const completions = yield* Completions.Completions
-  return yield* completions.create("Generate a hilarious dad joke").pipe(
-    Effect.andThen((response) => Console.log(response.text))
-  )
+  const response = yield* completions.create("Generate a dad joke")
+  console.log(response.text)
 })
 
 // Create an `AiModel` which provides a concrete implementation of 
@@ -146,7 +146,7 @@ const main = Effect.gen(function*() {
 })
 ```
 
-Before we can finish satisfying requirements and make our program runnable, it is important that we understand the purpose of the `AiModel` data type.
+Before moving on, it is important that we understand the purpose of the `AiModel` data type.
 
 ## Understanding `AiModel`
 
@@ -167,7 +167,7 @@ This allows Effect to track which services should be added to the requirements o
 
 To create an `AiModel`, you can use the model-specific factory from one of Effect's provider integration packages. 
 
-For example:
+**Example** (Defining an `AiModel` to Interact with OpenAi)
 
 ```ts showLineNumbers=false
 import { OpenAiCompletions } from "@effect/ai-openai"
@@ -184,7 +184,7 @@ This creates an `AiModel` that:
 
 ### Building an `AiModel`
 
-When you build an `AiModel`, you get back a `Provider<Provides>`:
+When you build an `AiModel<Provides, Requires>`, you get back a `Provider<Provides>`:
 
 ```ts showLineNumbers=false
 Effect.gen(function*() {
@@ -240,7 +240,9 @@ If we know that one model or provider performs better at a given task than anoth
 
 For example, if we know Anthropic's Claude generates some really great dad jokes, we can mix it into our existing program with just a few lines of code:
 
-```ts twoslash {1,14,20,23} collapse={6-11}
+**Example** (Mixing Multiple Providers and Models)
+
+```ts twoslash {23} collapse={6-11}
 import { AnthropicCompletions } from "@effect/ai-anthropic"
 import { OpenAiCompletions } from "@effect/ai-openai"
 import { Completions } from "@effect/ai"
@@ -267,13 +269,15 @@ const main = Effect.gen(function*() {
 })
 ```
 
-Because Effect performs type-level dpeendency tracking, we can see that an `AnthropicClient` must now also be provided to make our program runnable.
+Because Effect performs type-level dependency tracking, we can see that an `AnthropicClient` must now also be provided to make our program runnable.
 
 **Abstractability**
 
 Because there is separation between _building_ an `AiModel` and _providing_ its services, we can very nicely support the service constructor pattern.
 
 For example, in the code below the `main` program is only dependent upon the `DadJokes` service. All AI requirements are abstracted away into `Layer` composition.
+
+**Example** (Abstracting LLM Interactions into a Service)
 
 ```ts twoslash collapse={14-19}
 import { AnthropicCompletions } from "@effect/ai-anthropic"
