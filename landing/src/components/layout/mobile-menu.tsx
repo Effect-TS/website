@@ -4,7 +4,6 @@ import { FC, useEffect, useState } from "react"
 import { Icon } from "../icons"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { ThemeSwitcher } from "../atoms/theme-switcher"
 
 export const MobileMenu: FC<{
   menu: { name: string; href: string }[]
