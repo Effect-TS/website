@@ -22,7 +22,7 @@ import { Effect } from "effect"
 
 const app = express()
 
-app.get("/search", async (req, res) => {
+app.get("/query", async (req, res) => {
   const query = req.query.q
   if (typeof query !== "string") {
     res.status(400).send("Query parameter 'q' is required")
@@ -395,4 +395,58 @@ http -pb get "localhost:3000/query?q=typescript"
         }
     ]
 }
+```
+
+## The end result
+
+Here is the full code for the endpoint we've written in this section. Again,
+this doesn't include the `/health` and `/users` endpoints to keep the code
+to a reasonable length.
+
+```ts twoslash title=index.ts ins={13-31,34} showLineNumbers=false
+import express from "express";
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Effect } from "effect";
+
+const app = express();
+
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest;
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const q = url.searchParams.get("q");
+
+  if (!q) {
+    return yield* HttpServerResponse.json(
+      { error: "Query parameter 'q' is required" },
+      { status: 400 }
+    );
+  }
+
+  const response = yield* Effect.promise(async () => {
+    const api = `https://en.wikipedia.org/w/rest.php/v1/search/page?q=${q}&limit=1`;
+    return fetch(api).then((resp) => resp.json());
+  });
+
+  return yield* HttpServerResponse.json(response);
+});
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/query", query)
+);
+
+const main = Effect.gen(function* () {
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000");
+  });
+  yield* Effect.never;
+});
+
+NodeRuntime.runMain(main);
 ```

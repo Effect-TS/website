@@ -33,16 +33,16 @@ tool that's present inside of the Docker container we created. Open a new
 terminal and run:
 
 ```shell showLineNumbers=false
-docker exec -it $(docker ps -qf ancestor=postgres) psql -U postgres
+docker exec -it $(docker ps -qf ancestor=postgres:17) psql -U postgres
 ```
 
 This will drop you into a `psql` shell, with a prompt that starts `postgres=#`.
 From here you can run the following SQL commands:
 
 ```sql showLineNumbers=false
-CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT)
-INSERT INTO users (name) VALUES ('Alice')
-INSERT INTO users (name) VALUES ('Bob')
+CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT);
+INSERT INTO users (name) VALUES ('Alice');
+INSERT INTO users (name) VALUES ('Bob');
 ```
 
 To exit `psql`, type `\q` and press enter.
