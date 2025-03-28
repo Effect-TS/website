@@ -1,0 +1,452 @@
+---
+type: Tutorial
+title: Calling an API
+tags:
+  - some
+  - tags
+sidebar:
+  order: 4
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+Next up we're going to take a look at an endpoint that makes an API call to
+another service. Here's the code:
+
+```ts twoslash title=index.ts ins={9-19} showLineNumbers=false
+import express from "express"
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { HttpRouter } from "@effect/platform"
+import { Effect } from "effect"
+
+const app = express()
+
+app.get("/query", async (req, res) => {
+  const query = req.query.q
+  if (typeof query !== "string") {
+    res.status(400).send("Query parameter 'q' is required")
+    return
+  }
+
+  const url = `https://en.wikipedia.org/w/rest.php/v1/search/page?q=${query}&limit=1`
+  const results = await fetch(url)
+  res.json(await results.json())
+})
+
+const router = HttpRouter.empty
+
+const main = Effect.gen(function* () {
+  app.use(yield* NodeHttpServer.makeHandler(router))
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000")
+  })
+  yield* Effect.never
+})
+
+NodeRuntime.runMain(main)
+```
+
+I've removed our `/health` and `/users` endpoints to keep the code to a
+reasonable length.
+
+We're using the [Wikipedia Search API](https://www.mediawiki.org/wiki/API%3AREST_API)
+as an example, and I've also used a query parameter `q` to use in the request,
+to show how this works in Effect.
+
+## Referencing the current request
+
+If we were to reach straight away for `Effect.promise`, we would quickly
+run into a problem: how do we reference the current request object? We need to
+get the `q` from the query parameters, but if you look back at our 
+`/users` endpoint, you'll see that there's no request object.
+
+```ts twoslash showLineNumbers=false
+import { Effect } from "effect"
+import { HttpServerResponse } from "@effect/platform"
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
+//---cut---
+const users = Effect.promise(async () => {
+  const { rows } = await db.query("SELECT * FROM users")
+  return { users: rows }
+}).pipe(
+  Effect.flatMap((body) => HttpServerResponse.json(body))
+)
+```
+
+The way that Effect exposes the request object is through the
+`HttpServerRequest` Effect. Near the start of this tutorial we used `Effect.gen`
+to get the result of one Effect while inside another, and we can do the same
+here.
+
+```ts twoslash showLineNumbers=false
+import { Effect } from "effect"
+//---cut---
+import { HttpServerRequest, HttpServerResponse } from "@effect/platform"
+
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest
+  return yield* HttpServerResponse.json({ url: req.url })
+})
+```
+
+If we add this handler as a new `/query` endpoint in our application:
+
+```ts twoslash showLineNumbers=false
+import { Effect } from "effect"
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform"
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest
+  return yield* HttpServerResponse.json({ url: req.url })
+})
+//---cut---
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/query", query),
+)
+```
+
+We can call it like so:
+
+```shell showLineNumbers=false
+http -pb get "localhost:3000/query?q=typescript"
+```
+
+```json showLineNumbers=false
+{
+    "url": "/query?q=typescript"
+}
+```
+
+## Effect requirements
+
+Let's look a bit closer at our `query` Effect:
+
+```ts twoslash showLineNumbers=false
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform"
+import { Effect } from "effect"
+//---cut---
+const query = Effect.gen(function* () {
+  //  query: Effect<HttpServerResponse, HttpBodyError, HttpServerRequest>
+  const req = yield* HttpServerRequest.HttpServerRequest
+  return yield* HttpServerResponse.json({ url: req.url })
+})
+```
+
+An Effect that returns an `HttpServerResponse`, may throw an `HttpBodyError`,
+but also, for the first time, has something other than `never` in that third
+spot. As a reminder, this is the `Requirement` type. What it's saying here is
+that, to execute, this Effect requires an `HttpServerRequest`.
+
+If we were to try and run this Effect directly, we would get a type error:
+
+```ts twoslash showLineNumbers=false
+// @errors: 2379
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform"
+import { Effect } from "effect"
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest
+  return yield* HttpServerResponse.json({ url: req.url })
+})
+//---cut---
+Effect.runPromise(query)
+```
+
+What this is telling us is that this Effect cannot be run unless an
+`HttpServerRequest` is provided to it.
+
+## Providing requirements
+
+One way we can provide an Effect with things it needs is through the use of
+"services." If you've used dependency injection in other languages, Effect's
+services are the same idea.
+
+To keep track of what services are available, Effect maintains an internal
+"context" object. You can think of this as a map of services, with the key being
+a unique identifier for the service, and the value being the service itself.
+
+Effect uses a type called a `Tag` as the unique identifier for services. The
+way that tags are defined is quite complex, but this complexity is necessary
+in order to get the level of type safety that Effect provides.
+
+```ts twoslash showLineNumbers=false
+import { Context, Effect } from "effect"
+//---cut---
+class FavouriteNumber extends Context.Tag("FavouriteNumber")<
+  FavouriteNumber,
+  number
+>() {}
+```
+
+You will typically make tags once per service and then forget about them, so
+don't worry too much about memorising this syntax. The important things to note
+are that:
+
+- The service is called `FavouriteNumber`.
+- It returns a `number`.
+
+To use this service in an `Effect` we can use `Effect.gen` as we saw in the
+previous section.
+
+```ts twoslash showLineNumbers=false
+import { Context, Effect } from "effect"
+class FavouriteNumber extends Context.Tag("FavouriteNumber")<
+  FavouriteNumber,
+  number
+>() {}
+//---cut---
+const printNum = Effect.gen(function* () {
+  const n = yield* FavouriteNumber
+  console.log(`My favourite number is ${n}`)
+})
+```
+
+Lastly, we won't be able to run this `Effect` until we provide an implementation
+of the `FavouriteNumber` service to it, which we can do with
+`Effect.provideService`.
+
+```ts twoslash showLineNumbers=false
+import { Context, Effect } from "effect"
+class FavouriteNumber extends Context.Tag("FavouriteNumber")<
+  FavouriteNumber,
+  number
+>() {}
+
+const printNum = Effect.gen(function* () {
+  const n = yield* FavouriteNumber
+  console.log(`My favourite number is ${n}`)
+})
+//---cut---
+Effect.runPromise(
+  printNum.pipe(Effect.provideService(FavouriteNumber, 42))
+)
+// => My favourite number is 42
+
+Effect.runPromise(
+  printNum.pipe(Effect.provideService(FavouriteNumber, 100))
+)
+// => My favourite number is 100
+```
+
+Providing a service to an Effect ends up changing its type, too.
+
+```ts twoslash showLineNumbers=false
+import { Context, Effect } from "effect"
+class FavouriteNumber extends Context.Tag("FavouriteNumber")<
+  FavouriteNumber,
+  number
+>() {}
+//---cut---
+const needsRequirements = Effect.gen(function* () {
+  //  needsRequirements: Effect<void, never, FavouriteNumber>
+  const n = yield* FavouriteNumber
+  console.log(`My favourite number is ${n}`)
+})
+
+const hasRequirements = needsRequirements.pipe(
+  //  hasRequirements: Effect<void, never, never>
+  Effect.provideService(FavouriteNumber, 42)
+)
+```
+
+We go from:
+
+``` showLineNumbers=false
+Effect<void, never, FavouriteNumber>
+```
+
+To:
+
+``` showLineNumbers=false
+Effect<void, never, never>
+```
+
+So each Effect can be thought of as a self-contained program. Its requirements
+are its inputs, its success value is its output, and it can error. Effect forces
+us to be more deliberate about our programs. Everything each Effect needs to run
+is encoded into the type system, and this enables TypeScript to help us more
+deeply than it would normally be able to.
+
+<Aside>
+You might be wondering how `HttpServerRequest` is provided to our handlers.
+
+The `NodeHttpServer.makeHandler` function that we included as part of our first
+bit of boilerplate code is what provides this. It takes our `HttpRouter` Effect
+and provides a service to it that satisfies the `HttpServerRequest` requirement.
+</Aside>
+
+## Parsing the query string
+
+Now we know about services, and how the request object gets to us, let's do
+something useful with it!
+
+Here's where we left our `/query` endpoint:
+
+```ts twoslash showLineNumbers=false
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform"
+import { Effect } from "effect"
+//---cut---
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest
+  return yield* HttpServerResponse.json({ url: req.url })
+})
+```
+
+We want to take that `req.url` and parse out the `q` query parameter. We can
+do this with the `URL` class.
+
+```ts twoslash ins={3-4} showLineNumbers=false
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform"
+import { Effect } from "effect"
+//---cut---
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest
+  const url = new URL(req.url, `http://${req.headers.host}`)
+  const q = url.searchParams.get("q")
+  return yield* HttpServerResponse.json({ q })
+})
+```
+
+And now we can see the year in the response:
+
+```shell showLineNumbers=false
+http -pb get "localhost:3000/query?q=typescript"
+```
+
+```http showLineNumbers=false
+{
+    "q": "typescript"
+}
+```
+
+## Calling the API
+
+Now that we have the `q` query parameter, we can use it to filter the results
+from the API.
+
+```ts twoslash ins={6-18} showLineNumbers=false
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform"
+import { Effect } from "effect"
+//---cut---
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest;
+  const url = new URL(req.url, `http://${req.headers.host}`)
+  const q = url.searchParams.get("q");
+
+  if (!q) {
+    return yield* HttpServerResponse.json(
+      { error: "Query parameter 'q' is required" },
+      { status: 400 }
+    );
+  }
+
+  const response = yield* Effect.promise(async () => {
+    const api = `https://en.wikipedia.org/w/rest.php/v1/search/page?q=${q}&limit=1`;
+    return fetch(api).then((resp) => resp.json());
+  });
+
+  return yield* HttpServerResponse.json(response);
+});
+```
+
+And querying this endpoint we now get the filtered results:
+
+```shell showLineNumbers=false
+http -pb get "localhost:3000/query?q=typescript"
+```
+
+```json showLineNumbers=false
+{
+    "pages": [
+        {
+            "description": "Programming language and superset of JavaScript",
+            "excerpt": "<span class=\"searchmatch\">TypeScript</span> (abbreviated as TS) is a free and open-source high-level programming language developed by Microsoft that adds static typing with optional type",
+            "id": 8157205,
+            "key": "TypeScript",
+            "matched_title": null,
+            "thumbnail": {
+                "duration": null,
+                "height": 60,
+                "mimetype": "image/svg+xml",
+                "url": "//upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Typescript.svg/60px-Typescript.svg.png",
+                "width": 60
+            },
+            "title": "TypeScript"
+        }
+    ]
+}
+```
+
+## The end result
+
+Here is the full code for the endpoint we've written in this section. Again,
+this doesn't include the `/health` and `/users` endpoints to keep the code
+to a reasonable length.
+
+```ts twoslash title=index.ts ins={13-31,34} showLineNumbers=false
+import express from "express";
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Effect } from "effect";
+
+const app = express();
+
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest;
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const q = url.searchParams.get("q");
+
+  if (!q) {
+    return yield* HttpServerResponse.json(
+      { error: "Query parameter 'q' is required" },
+      { status: 400 }
+    );
+  }
+
+  const response = yield* Effect.promise(async () => {
+    const api = `https://en.wikipedia.org/w/rest.php/v1/search/page?q=${q}&limit=1`;
+    return fetch(api).then((resp) => resp.json());
+  });
+
+  return yield* HttpServerResponse.json(response);
+});
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/query", query)
+);
+
+const main = Effect.gen(function* () {
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000");
+  });
+  yield* Effect.never;
+});
+
+NodeRuntime.runMain(main);
+```

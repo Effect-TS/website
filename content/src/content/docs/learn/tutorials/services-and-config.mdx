@@ -1,0 +1,381 @@
+---
+type: Tutorial
+title: Services and Config
+tags:
+  - some
+  - tags
+sidebar:
+  order: 5
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+In the previous sections we've seen how to write endpoints in Effect that call
+out to databases and other APIs. 
+
+In this section we're going to revisit that code and write it more
+"Effectfully." We're going to create services for our database and external API
+calls, and use Effect's `Config` module to pass configuration to our
+application. This will align our code more with the Effect best practices.
+
+We're going to start out creating a service for our database. As a reminder,
+here's what our `/users` endpoint looked like:
+
+```ts twoslash showLineNumbers=false
+import { HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+import { Client } from "pg"
+
+const db = new Client({ user: "postgres" })
+//---cut---
+const users = Effect.promise(async () => {
+  const { rows } = await db.query("SELECT * FROM users")
+  return { users: rows }
+}).pipe(
+  Effect.flatMap((body) => HttpServerResponse.json(body))
+)
+```
+
+## Defining a Database service
+
+The first thing we need is a `Tag` for this service, which looks like this:
+
+```ts twoslash showLineNumbers=false
+import { Context, Effect } from "effect";
+//---cut---
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<any[], never, never>;
+  }
+>() {}
+```
+
+And then we can use the `Database.of` method to create an instance of the service:
+
+```ts twoslash showLineNumbers=false
+import { Context, Effect } from "effect";
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<any[], never, never>;
+  }
+>() {}
+//---cut---
+const DatabaseLive = Database.of({
+    getUsers: () => Effect.promise(async () => {
+        const { rows } = await db.query("SELECT * FROM users")
+        return rows
+    }),
+})
+```
+
+The choice of `DatabaseLive` for the name is a common convention you will see
+in Effect code, where "live" is referring to the fact that this is the version
+of this service we will use in live, production code.
+
+When originally implementing the `/users` endpoint, I glossed over the fact that
+database calls can fail. I'm going to right that wrong here by using
+`Effect.tryPromise` and wrapping any error we get back from `pg`.
+
+```ts twoslash ins={1-3,8,15-19} showLineNumbers=false
+import { Context, Effect } from "effect";
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
+//---cut---
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<any[], DatabaseError, never>;
+  }
+>() {}
+
+const DatabaseLive = Database.of({
+  getUsers: () =>
+    Effect.gen(function* () {
+      const { rows } = yield* Effect.tryPromise({
+        try: () => db.query("SELECT * FROM users"),
+        catch: (cause) => new DatabaseError("Failed to fetch users", { cause }),
+      });
+      return rows;
+    }),
+});
+```
+
+Where `Effect.promise` takes a function that returns a `Promise<T>` and
+creates an `Effect<T, never, never>`, `Effect.tryPromise` takes two functions:
+
+1. `try`: a function that returns a `Promise<T>`
+2. `catch`: a function that takes any error from the `Promise` and returns a
+   value of type `E`
+
+The result is an `Effect<T, E, never>`. This is a way of taking async/await code
+and turning it into Effect code, complete with typed errors.
+
+Also noteworthy is that our `DatabaseError` class has a `_tag` property. This
+will come in useful later on in this section, and I'll explain why when it does.
+
+The last touch I want to put on this service for now is to get rid of that
+`any[]` type in the `getUsers` method. Let's create a proper `User` type and use
+that instead.
+
+```ts twoslash ins={1-4,9,20} showLineNumbers=false
+import { Context, Effect } from "effect";
+import { Client } from "pg"
+const db = new Client({ user: "postgres" })
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+//---cut---
+interface User {
+    id: string
+    name: string
+}
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<User[], DatabaseError, never>;
+  }
+>() {}
+
+const DatabaseLive = Database.of({
+  getUsers: () =>
+    Effect.gen(function* () {
+      const { rows } = yield* Effect.tryPromise({
+        try: () => db.query("SELECT * FROM users"),
+        catch: (cause) => new DatabaseError("Failed to fetch users", { cause }),
+      });
+      return rows as User[];
+    }),
+});
+```
+
+## Using our Database service
+
+Now that we've defined `Database`, we can use it to simplify our `/users`
+endpoint. Here's what it looks like now:
+
+```ts twoslash showLineNumbers=false
+import { HttpServerResponse } from "@effect/platform"
+import { Effect } from "effect"
+import { Client } from "pg"
+
+const db = new Client({ user: "postgres" })
+//---cut---
+const users = Effect.promise(async () => {
+  const { rows } = await db.query("SELECT * FROM users")
+  return { users: rows }
+}).pipe(
+  Effect.flatMap((body) => HttpServerResponse.json(body))
+)
+```
+
+And here's what it looks like with our new `Database` service:
+
+```ts twoslash showLineNumbers=false
+import { HttpServerResponse } from "@effect/platform"
+import { Effect, Context } from "effect"
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+interface User {
+    id: string
+    name: string
+}
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<User[], DatabaseError, never>;
+  }
+>() {}
+//---cut---
+const users = Effect.gen(function* () {
+  const db = yield* Database;
+  const users = yield* db.getUsers();
+  return yield* HttpServerResponse.json(users);
+});
+```
+
+How cool is that? Take a close look at the type of our `users` handler now:
+
+```typescript
+Effect<HttpServerResponse, DatabaseError | HttpBodyError, Database>
+```
+
+We can tell at a glance that this handler can fail with either a `DatabaseError`
+or a `HttpBodyError`, and it needs a `Database` in order to do its work.
+If you've been following along, you'll also have noticed now that there's a new
+error at the bottom of our code:
+
+```ts twoslash showLineNumbers=false
+// @errors: 2769
+import express from "express";
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Context, Effect } from "effect";
+import { Client } from "pg";
+
+const db = new Client({ user: "postgres" });
+const app = express();
+
+interface User {
+  id: string;
+  name: string;
+}
+
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<User[], DatabaseError, never>;
+  }
+>() {}
+
+const users = Effect.gen(function* () {
+  const db = yield* Database;
+  const users = yield* db.getUsers();
+  return yield* HttpServerResponse.json(users);
+});
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/users", users)
+);
+
+const main = Effect.gen(function* () {
+  yield* Effect.promise(() => db.connect());
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000");
+  });
+  yield* Effect.never;
+});
+//---cut---
+NodeRuntime.runMain(main);
+```
+
+This is because the `Database` requirement of our `users` handler is not
+satisfied. We need to provide a `Database` instance to our `main` Effect.
+
+
+```ts twoslash ins={8-10} showLineNumbers=false
+import express from "express";
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Context, Effect } from "effect";
+import { Client } from "pg";
+
+const db = new Client({ user: "postgres" });
+const app = express();
+
+interface User {
+  id: string;
+  name: string;
+}
+
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<User[], DatabaseError, never>;
+  }
+>() {}
+
+const DatabaseLive = Database.of({
+  getUsers: () =>
+    Effect.gen(function* () {
+      const { rows } = yield* Effect.tryPromise({
+        try: () => db.query("SELECT * FROM users"),
+        catch: (cause) => new DatabaseError("Failed to fetch users", { cause }),
+      });
+      return rows;
+    }),
+});
+
+const users = Effect.gen(function* () {
+  const db = yield* Database;
+  const users = yield* db.getUsers();
+  return yield* HttpServerResponse.json(users);
+});
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/users", users)
+);
+
+//---cut---
+const main = Effect.gen(function* () {
+  yield* Effect.promise(() => db.connect());
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000");
+  });
+  yield* Effect.never;
+}).pipe(
+    Effect.provideService(Database, DatabaseLive),
+);
+NodeRuntime.runMain(main);
+```
+
+## Services that depend on other services
+
+Our `Database` service has added modularity to our code, but there's still that
+pesky `Client` instance hanging around. Technically, our `Database` service
+depends on that `Client` instance being available and connected. We should
+represent this in the type system.
+
+### Layers
+
+The way that Effect handles services that depend on other services is through
+the `Layer` system. Layers exist simply to encode the dependencies between
+services, and we can start by creating a "base" layer that providers our
+`pg` `Client` instance.
+
+```ts twoslash showLineNumbers=false
+import { Context, Effect, Layer } from "effect";
+import { Client } from "pg";
+
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+//---cut---
+class PostgresClient extends Context.Tag("PostgresClient")<
+  PostgresClient,
+  { connect: () => Effect.Effect<Client, DatabaseError, never> }
+>() {}
+
+const PostgresClientLive = Layer.succeed(PostgresClient, {
+  connect: () =>
+    Effect.gen(function* () {
+      const db = new Client({ user: "postgres" });
+      yield* Effect.tryPromise({
+        try: () => db.connect(),
+        catch: (cause) =>
+          new DatabaseError("Failed to connect to database", { cause }),
+      });
+      return db;
+    }),
+});
+```
