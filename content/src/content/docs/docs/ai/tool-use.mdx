@@ -1,0 +1,316 @@
+---
+title: Tool Use
+description: Equip your LLM interactions with the ability to use tools to perform specific actions
+sidebar:
+  order: 3
+---
+
+Language models are great at generating text, but often we need them to take **real-world actions**, such as querying an API, accessing a database, or calling a service. Most LLM providers support this through **tool use** (also known as *function calling*), where you expose specific operations in your application that the model can invoke. 
+
+Based on the input it receives, a model may choose to **invoke (or call)** one or more tools to augment its response. Your application then runs the corresponding logic for the tool using the parameters provided by the model. You then return the result to the model, allowing it to include the output in its final response.
+
+The `AiToolkit` simplifies tool integration by offering a structured, type-safe approach to defining tools. It takes care of all the wiring between the model and your application - all you have to do is define the tool and implement its behavior.
+
+## Defining a Tool 
+
+Let’s walk through a complete example of how to define, implement, and use a tool that fetches a dad joke from the [icanhazdadjoke.com](https://icanhazdadjoke.com) API.
+
+### 1. Define the Tool 
+
+We start by defining a tool as a tagged request using `Schema.TaggedRequest`. This describes what parameters the tool accepts (its `payload`) and what it returns (either `success` or `failure`):
+
+**Example** (Defining a Tool Call Request)
+
+```ts twoslash
+import { Schema } from "effect"
+
+class GetDadJoke extends Schema.TaggedRequest<GetDadJoke>()("GetDadJoke", {
+  payload: {
+    searchTerm: Schema.String.annotations({
+      description: "The search term to use to find dad jokes"
+    })
+  },
+  success: Schema.String,
+  failure: Schema.Never
+}, {
+  description: "Get a hilarious dad joke from the icanhazdadjoke API"
+}) {}
+```
+
+Based on the above, a request to call the `GetDadJoke` tool:
+- Takes a single `searchTerm` parameter
+- Succeeds with a string (i.e. the joke)
+- Never fails
+
+### 2. Create a Toolkit
+
+Once we have a tool request defined, we can use `AiToolkit.empty` to create an empty `AiToolkit` and then `.add(...)` our `GetDadJoke` tool request to it: 
+
+**Example** (Creating an `AiToolkit`)
+
+```ts twoslash collapse={1-14}
+import { Schema } from "effect"
+
+class GetDadJoke extends Schema.TaggedRequest<GetDadJoke>()("GetDadJoke", {
+  payload: {
+    searchTerm: Schema.String.annotations({
+      description: "The search term to use to find dad jokes"
+    })
+  },
+  success: Schema.String,
+  failure: Schema.Never
+}, {
+  description: "Get a hilarious dad joke from the icanhazdadjoke API"
+}) {}
+
+import { AiToolkit } from "@effect/ai"
+
+const DadJokeTools = AiToolkit.empty.add(GetDadJoke)
+```
+
+### 3. Implement the Logic
+
+The `.implement(...)` method on an `AiToolkit` allows you to define the handlers for each tool in the toolkit. Because `.implement(...)` takes an `Effect`, we can access services from our application to implement the tool call handlers. 
+
+**Example** (Implementing an `AiToolkit`)
+
+```ts twoslash collapse={1-58}
+import { AiToolkit } from "@effect/ai"
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
+import { NodeHttpClient } from "@effect/platform-node"
+import { Array, Effect, Schema } from "effect"
+
+class DadJoke extends Schema.Class<DadJoke>("DadJoke")({
+  id: Schema.String,
+  joke: Schema.String
+}) {}
+
+class SearchResponse extends Schema.Class<SearchResponse>("SearchResponse")({
+  results: Schema.Array(DadJoke)
+}) {}
+
+class ICanHazDadJoke extends Effect.Service<ICanHazDadJoke>()("ICanHazDadJoke", {
+  dependencies: [NodeHttpClient.layerUndici],
+  effect: Effect.gen(function*() {
+    const httpClient = yield* HttpClient.HttpClient
+    const httpClientOk = httpClient.pipe(
+      HttpClient.filterStatusOk,
+      HttpClient.mapRequest(HttpClientRequest.prependUrl("https://icanhazdadjoke.com"))
+    )
+
+    const search = Effect.fn("ICanHazDadJoke.search")(
+      function*(params: typeof GetDadJoke.Type) {
+        return yield* httpClientOk.get("/search", {
+          acceptJson: true,
+          urlParams: { ...params }
+        }).pipe(
+          Effect.flatMap(HttpClientResponse.schemaBodyJson(SearchResponse)),
+          Effect.flatMap(({ results }) => Array.head(results)),
+          Effect.map((joke) => joke.joke),
+          Effect.scoped,
+          Effect.orDie
+        )
+      }
+    )
+
+    return {
+      search
+    } as const
+  })
+}) {}
+
+class GetDadJoke extends Schema.TaggedRequest<GetDadJoke>()("GetDadJoke", {
+  payload: {
+    searchTerm: Schema.String.annotations({
+      description: "The search term to use to find dad jokes"
+    })
+  },
+  success: Schema.String,
+  failure: Schema.Never
+}, {
+  description: "Get a hilarious dad joke from the icanhazdadjoke API"
+}) {}
+
+const DadJokeTools = AiToolkit.empty.add(GetDadJoke)
+
+const DadJokeToolsLayer = DadJokeTools.implement((handlers) =>
+  Effect.gen(function*() {
+    // Extract the `ICanHazDadJoke` service from our application
+    const icanhazdadjoke = yield* ICanHazDadJoke
+    return handlers
+      // Implement the handler for the `GetDadJoke` tool call request
+      .handle("GetDadJoke", (params) => icanhazdadjoke.search(params))
+  })
+)
+```
+
+In the code above:
+- We access the `ICanHazDadJoke` service from our application
+- Register a handler for the `GetDadJoke` tool using `.handle("GetDadJoke", ...)`
+- Use the `.search` method on our `ICanHazDadJoke` service to search for a dad joke based on the tool call parameters
+
+The result of calling `.implement` on an `AiToolkit` is a `Layer` that contains the handlers for all the tools in our toolkit. 
+
+Because of this, it is quite simple to test an `AiToolkit` by `.implement`-ing a separate `Layer` specifically for testing.
+
+### 4. Give the Tools to the Model
+
+Once the tools are defined and implemented, you can pass them along to the model at request time. Behind the scenes, the model is given a structured description of each tool and can choose to call one or more of them when responding to input.
+
+**Example** (Using an `AiToolkit` in `Completions.toolkit`)
+
+```ts twoslash collapse={1-17}
+import { AiToolkit, Completions } from "@effect/ai"
+import { Effect, Schema } from "effect"
+
+class GetDadJoke extends Schema.TaggedRequest<GetDadJoke>()("GetDadJoke", {
+  payload: {
+    searchTerm: Schema.String.annotations({
+      description: "The search term to use to find dad jokes"
+    })
+  },
+  success: Schema.String,
+  failure: Schema.Never
+}, {
+  description: "Get a hilarious dad joke from the icanhazdadjoke API"
+}) {}
+
+const DadJokeTools = AiToolkit.empty.add(GetDadJoke)
+
+const generateDadJoke = Effect.gen(function*() {
+  const completions = yield* Completions.Completions
+  const tools = yield* DadJokeTools
+  const response = yield* completions.toolkit({
+    input: "Generate a dad joke",
+    tools
+  })
+  console.log(response.value)
+  return response
+})
+```
+
+In the code above:
+- We `yield*` the `AiToolkit` to gain access to our tools
+- We use `Completions.toolkit` to perform text generation supported by our tools (if required)
+- We log the result to the console
+
+### 5. Bring It All Together
+
+To make the program executable, we must provide the implementation of our tool call handlers:
+
+**Example** (Providing the Tool Call Handlers to a Program)
+
+```ts twoslash /DadJokeToolsLayer/ collapse={1-69}
+import { AiToolkit, Completions } from "@effect/ai"
+import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform"
+import { NodeHttpClient } from "@effect/platform-node"
+import { Array, Config, Effect, Layer, Schema } from "effect"
+
+class DadJoke extends Schema.Class<DadJoke>("DadJoke")({
+  id: Schema.String,
+  joke: Schema.String
+}) {}
+
+class SearchResponse extends Schema.Class<SearchResponse>("SearchResponse")({
+  results: Schema.Array(DadJoke)
+}) {}
+
+class ICanHazDadJoke extends Effect.Service<ICanHazDadJoke>()("ICanHazDadJoke", {
+  dependencies: [NodeHttpClient.layerUndici],
+  effect: Effect.gen(function*() {
+    const httpClient = yield* HttpClient.HttpClient
+    const httpClientOk = httpClient.pipe(
+      HttpClient.filterStatusOk,
+      HttpClient.mapRequest(HttpClientRequest.prependUrl("https://icanhazdadjoke.com"))
+    )
+
+    const search = Effect.fn("ICanHazDadJoke.search")(
+      function*(params: typeof GetDadJoke.Type) {
+        return yield* httpClientOk.get("/search", {
+          acceptJson: true,
+          urlParams: { ...params }
+        }).pipe(
+          Effect.flatMap(HttpClientResponse.schemaBodyJson(SearchResponse)),
+          Effect.flatMap(({ results }) => Array.head(results)),
+          Effect.map((joke) => joke.joke),
+          Effect.scoped,
+          Effect.orDie
+        )
+      }
+    )
+
+    return {
+      search
+    } as const
+  })
+}) {}
+
+class GetDadJoke extends Schema.TaggedRequest<GetDadJoke>()("GetDadJoke", {
+  payload: {
+    searchTerm: Schema.String.annotations({
+      description: "The search term to use to find dad jokes"
+    })
+  },
+  success: Schema.String,
+  failure: Schema.Never
+}, {
+  description: "Get a hilarious dad joke from the icanhazdadjoke API"
+}) {}
+
+const DadJokeTools = AiToolkit.empty.add(GetDadJoke)
+
+const DadJokeToolsLayer = DadJokeTools.implement((handlers) =>
+  Effect.gen(function*() {
+    // Extract the `ICanHazDadJoke` service from our application
+    const icanhazdadjoke = yield* ICanHazDadJoke
+    return handlers
+      // Implement the handler for the `GetDadJoke` tool call request
+      .handle("GetDadJoke", (params) => icanhazdadjoke.search(params))
+  })
+).pipe(Layer.provide(ICanHazDadJoke.Default))
+
+const generateDadJoke = Effect.gen(function*() {
+  const completions = yield* Completions.Completions
+  const tools = yield* DadJokeTools
+  const response = yield* completions.toolkit({
+    input: "Generate a dad joke",
+    tools
+  })
+  console.log(response.value)
+  return response
+})
+
+const program = Effect.gen(function*() {
+  const model = yield* OpenAiCompletions.model("gpt-4o")
+  const response = yield* model.provide(generateDadJoke)
+})
+
+const OpenAi = OpenAiClient.layerConfig({
+  apiKey: Config.redacted("OPENAI_API_KEY")
+}).pipe(Layer.provide(NodeHttpClient.layerUndici))
+
+program.pipe(
+  Effect.provide([OpenAi, DadJokeToolsLayer]),
+  Effect.runPromise
+)
+```
+
+## Benefits 
+
+**Type Safe**
+
+Every tool is fully described using Effect's `Schema`, including inputs, outputs, and descriptions.
+
+**Effect Native** 
+
+Tool call behavior is defined using Effect, so they can leverage all the power of Effect. This is especially useful when you need to access other services to support the implementation of your tool call handlers.
+
+**Injectable**
+
+Because implementing the handlers for an `AiToolkit` results in a `Layer`, providing alternate implementation of tool call handlers in different environments is as simple as providing a different `Layer` to your program.
+
+**Separation of Concerns**
+
+The definition of a tool call request is cleanly separated from both the implementation of the tool behavior, as well as the business logic that calls the model. 
+
