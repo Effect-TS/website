@@ -304,6 +304,12 @@ export default defineConfig({
           collapsed: false
         },
         {
+          label: "AI",
+          badge: { text: "Unstable", variant: "caution" },
+          autogenerate: { directory: "docs/ai" },
+          collapsed: false
+        },
+        {
           label: "Micro",
           badge: { text: "Unstable", variant: "caution" },
           autogenerate: { directory: "docs/micro" },
