@@ -28,7 +28,10 @@ but to make sure this tutorial is as widely applicable as possible, I'm going
 to use `@effect/platform-node`.
 </Aside>
 
-Then make the highlighted changes to our Express app:
+The first step is to introduce some boilerplate code that will allow us to
+serve both Effect and Express endpoints at the same time. I'm not expecting you
+to understand everything you read in the following code block, all will be
+explained as we progress through this tutorial.
 
 ```ts twoslash ins={3-5,16-26} del={13-15} title=index.ts showLineNumbers=false
 import express from "express"
@@ -57,12 +60,6 @@ const main = Effect.gen(function* () {
 })
 
 NodeRuntime.runMain(main)
-```
-
-And we can run the resulting code like so:
-
-```shell showLineNumbers=false
-bun index.ts
 ```
 
 Our Express `/health` handler still works as expected, but we've wrapped the
@@ -126,8 +123,7 @@ Effect.sync(() => "Hello, world!")
 
 <Aside type="note">
 Returning a static value like this isn't something you would do in practice.
-The examples below are intentionally simple string manipulations to demonstrate
-how to use the `Effect` type.
+The examples below are simplified to demonstrate how to use the `Effect` type.
 </Aside>
 
 `Effect.sync` takes a function and creates an `Effect` out of it. If you need to
@@ -139,13 +135,12 @@ import { Effect } from "effect"
 Effect.promise(async () => "Hello, world!")
 ```
 
-If we want to run these Effects, we can use `Effect.runSync` and
-`Effect.runPromise`:
+If we want to run these Effects, we can use `Effect.runPromise`:
 
 ```ts twoslash showLineNumbers=false
 import { Effect } from "effect"
 // ---cut---
-const syncResult = Effect.runSync(
+const syncResult = Effect.runPromise(
   Effect.sync(() => "Hello, world!")
 )
 console.log(syncResult)
@@ -158,8 +153,12 @@ console.log(asyncResult)
 // => "Hello, world!"
 ```
 
-What if you want to run an Effect that calls another Effect? You can use
-`Effect.gen` to do that:
+`Effect.runPromise` runs an Effect and returns a `Promise` that resolves to the
+result of the Effect. You can pass both synchronous and asynchronous Effects to
+`Effect.runPromise`, and it will handle them both.
+
+What if you want to run an Effect that uses the result of another Effect? You
+can use `Effect.gen` to do that:
 
 ```ts twoslash showLineNumbers=false
 import { Effect } from "effect"
@@ -174,15 +173,14 @@ console.log(result)
 // => "HELLO, WORLD!"
 ```
 
-This makes use of JavaScript's [generator functions][1]. The way Effect uses
-them, if you think of an Effect as being like a `Promise`, `yield*`ing an
-`Effect` is the same as `await`ing a `Promise`.  Under the hood, all `Effect`s
-are generators, and `yield*`ing one passes it to the Effect runtime and waits
-for the result.
+This makes use of JavaScript's [generator functions][1].  You can think of an
+Effect as being like a `Promise`, and `yield*`ing an `Effect` is the same as
+`await`ing a `Promise`.  Under the hood, all `Effect`s are generators, and
+`yield*`ing one passes it to the Effect runtime and waits for the result.
 
 `Effect.gen` is one of the most versatile ways to create Effects, and you'll use
-it a lot. Another thing you'll see used a lot is `Effect.pipe`. Here's the same
-code as above, but using `Effect.pipe`:
+it a lot. Another thing you'll see used a lot is `Effect.pipe`. Here's an
+example that does the same work as code as above, but using `Effect.pipe`:
 
 ```ts twoslash showLineNumbers=false
 import { Effect } from "effect"
@@ -190,7 +188,7 @@ import { Effect } from "effect"
 const effect = Effect.sync(() => "Hello, world!").pipe(
   Effect.map((s) => s.toUpperCase())
 )
-const result = await Effect.runSync(effect)
+const result = await Effect.runPromise(effect)
 console.log(result)
 // => "HELLO, WORLD!"
 ```
@@ -210,7 +208,7 @@ const effect = Effect.sync(() => "Hello, world!").pipe(
   Effect.map((s) => s.reverse()),
   Effect.map((s) => s.join("")),
 )
-const result = await Effect.runSync(effect)
+const result = await Effect.runPromise(effect)
 console.log(result)
 // => "!DLROW ,OLLEH"
 ```
@@ -264,7 +262,8 @@ HttpRouter.empty.pipe(HttpRouter.get("/health", health))
 HttpRouter.get("/health", health)(HttpRouter.empty)
 ```
 
-If we add a few more routes, we can see how this gets quickly out of hand:
+If we add a few more routes, though, we can see how this gets quickly out of
+hand:
 
 ```ts twoslash showLineNumbers=false
 import { HttpRouter, HttpServerResponse } from "@effect/platform"
@@ -332,24 +331,11 @@ NodeRuntime.runMain(main)
 And the output of the endpoint:
 
 ```shell showLineNumbers=false
-http get localhost:3000/health
+http -pb get localhost:3000/health
 ```
 
 ```http showLineNumbers=false
-HTTP/1.1 200 OK
-Content-Length: 2
-Content-Type: text/plain
-Date: Fri, 14 Feb 2025 13:51:39 GMT
-X-Powered-By: Express
-
 ok
 ```
-
-This output has 2 small differences from the Express version:
-
-1. The `Content-Type` header is `text/plain` instead of `text/plain; charset=utf-8`.
-2. The `ETag` header is missing.
-
-TODO(samwho): explain how to close this gap.
 
 [1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*

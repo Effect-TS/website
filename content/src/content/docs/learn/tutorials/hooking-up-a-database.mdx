@@ -24,9 +24,6 @@ docker run -d -e POSTGRES_HOST_AUTH_METHOD=trust -p 5432:5432 postgres:17
 <Aside type="note" title="I can't use Docker!">
 If you aren't able to run Docker locally, for example because your work's laptop
 policy doesn't allow it, an alternative is to use a hosted Postgres service.
-For example, [Neon](https://neondb.com/) offers a free tier that should be
-more than enough for this tutorial. They also offer a web-based UI for creating
-tables and rows.
 </Aside>
 
 ## Creating test data
@@ -56,7 +53,8 @@ To talk to Postgres we'll need a client library. We're going to use `pg` for
 this tutorial. You can install it with:
 
 ```shell showLineNumbers=false
-bun add pg @types/pg
+bun add pg 
+bun add -D @types/pg
 ```
 
 To start with, we're going to hardcode our database connection details. Later
@@ -101,26 +99,14 @@ const main = Effect.gen(function* () {
 NodeRuntime.runMain(main)
 ```
 
-We can run this code with:
+Here's what you should see when you run this code and you've set up your
+Postgres database correctly:
 
 ```shell showLineNumbers=false
-bun index.ts
+http -pb get localhost:3000/users
 ```
 
-And in another shell we can test the new endpoint:
-
-```shell showLineNumbers=false
-http get localhost:3000/users
-```
-
-```http showLineNumbers=false
-HTTP/1.1 200 OK
-Content-Length: 57
-Content-Type: application/json; charset=utf-8
-Date: Fri, 14 Feb 2025 14:28:02 GMT
-ETag: W/"39-6Qu85qIU12mhgGYWwHErQVfJRxI"
-X-Powered-By: Express
-
+```json showLineNumbers=false
 {
     "users": [
         {
@@ -138,7 +124,7 @@ X-Powered-By: Express
 ## The direct approach
 
 If we were to copy what we did with the `/health` endpoint, we'd end up with
-code that looked like this:
+broken code. Here's how it would look:
 
 ```ts twoslash showLineNumbers=false
 import { HttpRouter, HttpServer, HttpServerResponse } from "@effect/platform"
@@ -163,18 +149,18 @@ const router = HttpRouter.empty.pipe(
 )
 ```
 
-This doesn't work, as we can see from the error. The reason is that
-`HttpServerResponse.json` is an operation that might fail. Not all JavaScript
-objects can be converted to JSON.
+Effect error messages can be difficult to decipher at first. What this one is
+trying to tell us is that our `users` HTTP handler does not return the expected
+type. The reason for this is that `HttpServerResponse.json` is an operation that
+might fail. Not all JavaScript objects can be converted to JSON.
 
 ```ts twoslash showLineNumbers=false
 JSON.stringify({ big: 10n })
 //=> TypeError: JSON.stringify cannot serialize BigInt.
 ```
 
-For this reason, `HttpServerResponse.json` returns an `Effect` that can fail.
-We didn't see this earlier because `HttpServerResponse.text` can't fail, and
-so just returns an `HttpServerResponse` directly.
+Because it can fail, instead of returning an `HttpServerResponse` directly,
+it returns another `Effect`.
 
 ## Error handling in Effect
 
@@ -198,11 +184,23 @@ the type `Effect<string, never, never>`.
 ```ts twoslash showLineNumbers=false
 import { Effect } from "effect"
 //---cut---
-const _ = Effect.sync(() => "Hello, world!")
-//    ^?
+const s = Effect.sync(() => "Hello, world!")
+// s: Effect<string, never, never>
 ```
 
 This means they will return a `string` on success, and never fail.
+
+When an `Effect` _can_ fail, its return value with have a different type. For
+example, the `HttpServerResponse.json` function returns a value of type:
+
+```typescript showLineNumbers=false
+Effect<HttpServerResponse, HttpBodyError, never>
+```
+
+This means that it will return an `HttpServerResponse` on success, and an
+`HttpBodyError` on failure. This pushing of errors into the type system is one
+of the key features of Effect. It makes it much harder for us to forget to
+handle edge cases, and leads to more robust and reliable products.
 
 <Aside type="note" title="The never type">
 In TypeScript, `never` is a special type that represents a value that can never
@@ -212,12 +210,8 @@ communicating to the type checker that something can't happen.
 For example:
 
 ```ts twoslash showLineNumbers=false
-function getName(): string | null {
-  if (Math.random() > 0.5) {
-    return null
-  } else {
-    return "Alice"
-  }
+function getName() {
+  return Math.random() > 0.5 ? null : "Alice"
 }
 
 function throwAnError() {
@@ -227,12 +221,9 @@ function throwAnError() {
 
 ```ts twoslash showLineNumbers=false
 // @errors: 18047
-function getName(): string | null {
-  if (Math.random() > 0.5) {
-    return null
-  } else {
-    return "Alice"
-  }
+// @noErrors
+function getName() {
+  return Math.random() > 0.5 ? null : "Alice"
 }
 
 function throwAnError() {
@@ -244,6 +235,7 @@ if (name === null) {
   throwAnError()
 }
 console.log(name.toUpperCase())
+// Error ts(18047): 'name' is possibly 'null'.
 ```
 
 Even though _we_ know that `name` can't be null in the last line of this
@@ -257,10 +249,8 @@ function throwAnError(): never {
 }
 ```
 
-Because `throwAnError` has a return type of `never`, TypeScript knows that the
-`name` variable can't be `null` at the point where we call `toUpperCase`.
-Without the `never`, TypeScript would give us an error on the `toUpperCase`
-call.
+Now TypeScript knows that `throwAnError` will never return, it correctly narrows
+the type of `name` to `string` in the last line.
 
 ```ts twoslash showLineNumbers=false
 function getName(): string | null {
@@ -279,13 +269,12 @@ if (name === null) {
   throwAnError()
 }
 console.log(name.toUpperCase())
-//          ^?
 ```
 </Aside>
 
-The Effect that `HttpServerResponse.json` returns is of type
-`Effect<HttpServerResponse, HttpBodyError, never>`. So when we try to return
-it from our `users` handler, we end up wrapping one Effect in another.
+## Fixing our nested Effects with `flatMap`
+
+We can solve all of our problems with a call to `Effect.flatMap`:
 
 ```ts twoslash showLineNumbers=false
 import { HttpServerResponse } from "@effect/platform"
@@ -295,73 +284,28 @@ import { Client } from "pg"
 const db = new Client({ user: "postgres" })
 //---cut---
 const users = Effect.promise(async () => {
-//    ^?
   const { rows } = await db.query("SELECT * FROM users")
-  return HttpServerResponse.json({ users: rows })
-})
-```
-
-This is what the type error from earlier was trying to tell us. Here's the
-error again:
-
-```text wrap showLineNumbers=false
-Argument of type 'Effect<Effect<HttpServerResponse, HttpBodyError, never>, never, never>' is not assignable to parameter of type 'Handler<never, never>'
-```
-
-Under the hood, a `Handler<never, never>` is just a type alias for `Effect<HttpServerResponse,
-never, never>`. Because `Effect<HttpServerResponse, HttpBodyError, never>` is
-not an `HttpServerResponse`, the type checker gets upset with us.
-
-## Fixing our nested Effects with `flatMap`
-
-It's possible to fix this with a call to `Effect.flatMap`:
-
-```ts twoslash showLineNumbers=false
-import { HttpServerResponse } from "@effect/platform"
-import { Effect, Layer } from "effect"
-import { createServer } from "node:http"
-import { Client } from "pg"
-const db = new Client({ user: "postgres" })
-//---cut---
-const users = Effect.flatMap(
-  Effect.promise(async () => {
-    const { rows } = await db.query("SELECT * FROM users")
-    return { users: rows }
-  }),
-  HttpServerResponse.json
+  return { users: rows }
+}).pipe(
+  Effect.flatMap((body) => HttpServerResponse.json(body))
 )
 ```
 
-And remembering what we learned about `pipe`, we can rewrite this to be a bit
-more readable:
-
-```ts twoslash showLineNumbers=false
-import { HttpServerResponse } from "@effect/platform"
-import { Effect, Layer } from "effect"
-import { createServer } from "node:http"
-import { Client } from "pg"
-const db = new Client({ user: "postgres" })
-//---cut---
-const users = Effect.promise(
-  () => db.query("SELECT * FROM users")
-).pipe(
-  Effect.map(({ rows }) => ({ users: rows })),
-  Effect.flatMap(HttpServerResponse.json)
-)
-```
-
-This no longer gives us a type error. We've split our computation into parts:
-fetching the data with `Effect.promise`, manipulating its shape with
-`Effect.map`, and serializing it with `HttpServerResponse.json`. The
-`Effect.flatMap` at the end takes care of the `Effect` nesting we had in our
-previous implementation.
+The `Effect.flatMap` takes in the body object we want to serialise, passes it to
+`HttpServerResponse.json`, and rather than returning a wrapped `Effect` it will
+_replace_ the original `Effect` with the new one from `HttpServerResponse.json`.
+The result is that our handler has the correct return type and we no longer
+have any type errors.
 
 ## An aside on pipes
 
-If `pipe` isn't quite clicking for you yet, one way to visualise it is that
-you're passing some data through a sequence of functions.
+If you're new to functional programming, you might be finding `pipe` difficult
+to understand. That's perfectly normal! You can skip this section if you feel
+comfortable with `pipe`, but if you don't I'm going to show you some more
+examples to help you understand it.
 
-Take this example:
+You can visualise a `pipe` as a series of functions that will be called in order
+on a value. The value gets "fed" through the pipe.
 
 ```ts twoslash showLineNumbers=false
 import { pipe } from "effect"
@@ -437,11 +381,11 @@ const db = new Client({ user: "postgres" })
 
 const app = express()
 
-const users = Effect.promise(
-  () => db.query("SELECT * FROM users"),
-).pipe(
-  Effect.map(({ rows }) => ({ users: rows })),
-  Effect.flatMap(HttpServerResponse.json),
+const users = Effect.promise(async () => {
+  const { rows } = await db.query("SELECT * FROM users")
+  return { users: rows }
+}).pipe(
+  Effect.flatMap((body) => HttpServerResponse.json(body))
 )
 
 const health = Effect.sync(() => {

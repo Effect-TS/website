@@ -8,6 +8,8 @@ sidebar:
   order: 4
 ---
 
+import { Aside } from "@astrojs/starlight/components"
+
 Next up we're going to take a look at an endpoint that makes an API call to
 another service. Here's the code:
 
@@ -20,16 +22,16 @@ import { Effect } from "effect"
 
 const app = express()
 
-app.get("/wow", async (req, res) => {
-  const url = new URL(`https://owen-wilson-wow-api.onrender.com/wows/random`)
-
-  const year = req.query.year
-  if (typeof year === "string") {
-    url.searchParams.set("year", year)
+app.get("/search", async (req, res) => {
+  const query = req.query.q
+  if (typeof query !== "string") {
+    res.status(400).send("Query parameter 'q' is required")
+    return
   }
 
-  const wow = await fetch(url.toString())
-  res.json(await wow.json())
+  const url = `https://en.wikipedia.org/w/rest.php/v1/search/page?q=${query}&limit=1`
+  const results = await fetch(url)
+  res.json(await results.json())
 })
 
 const router = HttpRouter.empty
@@ -48,16 +50,15 @@ NodeRuntime.runMain(main)
 I've removed our `/health` and `/users` endpoints to keep the code to a
 reasonable length.
 
-For a bit of fun I've chosen the [Owen Wilson Wow
-API](https://owen-wilson-wow-api.onrender.com/) as our API to call. I've also
-decided to use a query parameter to filter the results by year, to show how this
-works in Effect.
+We're using the [Wikipedia Search API](https://www.mediawiki.org/wiki/API%3AREST_API)
+as an example, and I've also used a query parameter `q` to use in the request,
+to show how this works in Effect.
 
 ## Referencing the current request
 
 If we were to reach straight away for `Effect.promise`, we would quickly
-run into a problem: how do we reference the HTTP request object? We need to
-get the `year` from the query parameters, but if you look back at our 
+run into a problem: how do we reference the current request object? We need to
+get the `q` from the query parameters, but if you look back at our 
 `/users` endpoint, you'll see that there's no request object.
 
 ```ts twoslash showLineNumbers=false
@@ -66,11 +67,11 @@ import { HttpServerResponse } from "@effect/platform"
 import { Client } from "pg"
 const db = new Client({ user: "postgres" })
 //---cut---
-const users = Effect.promise(
-  () => db.query("SELECT * FROM users"),
-).pipe(
-  Effect.map(({ rows }) => ({ users: rows })),
-  Effect.flatMap(HttpServerResponse.json),
+const users = Effect.promise(async () => {
+  const { rows } = await db.query("SELECT * FROM users")
+  return { users: rows }
+}).pipe(
+  Effect.flatMap((body) => HttpServerResponse.json(body))
 )
 ```
 
@@ -90,7 +91,7 @@ const query = Effect.gen(function* () {
 })
 ```
 
-If we wire this handler up as a new `/query` endpoint in our application:
+If we add this handler as a new `/query` endpoint in our application:
 
 ```ts twoslash showLineNumbers=false
 import { Effect } from "effect"
@@ -108,18 +109,12 @@ const router = HttpRouter.empty.pipe(
 We can call it like so:
 
 ```shell showLineNumbers=false
-http get "localhost:3000/query?year=2010"
+http -pb get "localhost:3000/query?q=typescript"
 ```
 
-```http showLineNumbers=false
-HTTP/1.1 200 OK
-Content-Length: 16
-Content-Type: application/json
-Date: Fri, 21 Feb 2025 16:41:03 GMT
-X-Powered-By: Express
-
+```json showLineNumbers=false
 {
-    "url": "/query?year=2010"
+    "url": "/query?q=typescript"
 }
 ```
 
@@ -136,7 +131,7 @@ import {
 import { Effect } from "effect"
 //---cut---
 const query = Effect.gen(function* () {
-  //  ^?
+  //  query: Effect<HttpServerResponse, HttpBodyError, HttpServerRequest>
   const req = yield* HttpServerRequest.HttpServerRequest
   return yield* HttpServerResponse.json({ url: req.url })
 })
@@ -170,16 +165,17 @@ What this is telling us is that this Effect cannot be run unless an
 
 ## Providing requirements
 
-The way we provide an Effect with things it needs is through the use of
+One way we can provide an Effect with things it needs is through the use of
 "services." If you've used dependency injection in other languages, Effect's
 services are the same idea.
 
 To keep track of what services are available, Effect maintains an internal
-context object. You can think of this as a map of services, with the key being a
-unique identifier for the service, and the value being the service itself.
+"context" object. You can think of this as a map of services, with the key being
+a unique identifier for the service, and the value being the service itself.
 
-Effect uses a special type called a `Tag` as the unique identifier for services,
-and the syntax for defining one is unusual so bear with me here:
+Effect uses a type called a `Tag` as the unique identifier for services. The
+way that tags are defined is quite complex, but this complexity is necessary
+in order to get the level of type safety that Effect provides.
 
 ```ts twoslash showLineNumbers=false
 import { Context, Effect } from "effect"
@@ -188,22 +184,34 @@ class FavouriteNumber extends Context.Tag("FavouriteNumber")<
   FavouriteNumber,
   number
 >() {}
+```
 
-const effect = Effect.gen(function* () {
+You will typically make tags once per service and then forget about them, so
+don't worry too much about memorising this syntax. The important things to note
+are that:
+
+- The service is called `FavouriteNumber`.
+- It returns a `number`.
+
+To use this service in an `Effect` we can use `Effect.gen` as we saw in the
+previous section.
+
+```ts twoslash showLineNumbers=false
+import { Context, Effect } from "effect"
+class FavouriteNumber extends Context.Tag("FavouriteNumber")<
+  FavouriteNumber,
+  number
+>() {}
+//---cut---
+const printNum = Effect.gen(function* () {
   const n = yield* FavouriteNumber
   console.log(`My favourite number is ${n}`)
 })
 ```
 
-The class declaration at the top defines the tag as well as the type for the
-service. In this example we just return a `number`, but if you wanted to you
-could return a more complex object.
-
-In the `Effect.gen` call we `yield*` the tag to get the value of the service.
-Note that we haven't created an implementation of the service yet, so we won't
-be able to run this Effect.
-
-Here's how we would implement and then provide the service:
+Lastly, we won't be able to run this `Effect` until we provide an implementation
+of the `FavouriteNumber` service to it, which we can do with
+`Effect.provideService`.
 
 ```ts twoslash showLineNumbers=false
 import { Context, Effect } from "effect"
@@ -212,18 +220,18 @@ class FavouriteNumber extends Context.Tag("FavouriteNumber")<
   number
 >() {}
 
-const effect = Effect.gen(function* () {
+const printNum = Effect.gen(function* () {
   const n = yield* FavouriteNumber
   console.log(`My favourite number is ${n}`)
 })
 //---cut---
 Effect.runPromise(
-  effect.pipe(Effect.provideService(FavouriteNumber, 42))
+  printNum.pipe(Effect.provideService(FavouriteNumber, 42))
 )
 // => My favourite number is 42
 
 Effect.runPromise(
-  effect.pipe(Effect.provideService(FavouriteNumber, 100))
+  printNum.pipe(Effect.provideService(FavouriteNumber, 100))
 )
 // => My favourite number is 100
 ```
@@ -238,13 +246,13 @@ class FavouriteNumber extends Context.Tag("FavouriteNumber")<
 >() {}
 //---cut---
 const needsRequirements = Effect.gen(function* () {
-//    ^?
+  //  needsRequirements: Effect<void, never, FavouriteNumber>
   const n = yield* FavouriteNumber
   console.log(`My favourite number is ${n}`)
 })
 
 const hasRequirements = needsRequirements.pipe(
-//    ^?
+  //  hasRequirements: Effect<void, never, never>
   Effect.provideService(FavouriteNumber, 42)
 )
 ```
@@ -261,14 +269,19 @@ To:
 Effect<void, never, never>
 ```
 
-So each Effect can be thought of as a self-contained program. Services are its
-inputs, it has an output, and it can error. Effect forces us to be more
-deliberate about what our programs need to run, and that makes it easier to
-reason about them.
+So each Effect can be thought of as a self-contained program. Its requirements
+are its inputs, its success value is its output, and it can error. Effect forces
+us to be more deliberate about our programs. Everything each Effect needs to run
+is encoded into the type system, and this enables TypeScript to help us more
+deeply than it would normally be able to.
 
-So how is `HttpServerRequest` provided to our `query` Effect? It's the
-`NodeHttpServer.makeHandler` function that does this. It takes our `HttpRouter`
-Effect and provides a service to it that we can get the current request from.
+<Aside>
+You might be wondering how `HttpServerRequest` is provided to our handlers.
+
+The `NodeHttpServer.makeHandler` function that we included as part of our first
+bit of boilerplate code is what provides this. It takes our `HttpRouter` Effect
+and provides a service to it that satisfies the `HttpServerRequest` requirement.
+</Aside>
 
 ## Parsing the query string
 
@@ -291,7 +304,7 @@ const query = Effect.gen(function* () {
 })
 ```
 
-We want to take that `req.url` and parse out the `year` query parameter. We can
+We want to take that `req.url` and parse out the `q` query parameter. We can
 do this with the `URL` class.
 
 ```ts twoslash ins={3-4} showLineNumbers=false
@@ -305,32 +318,26 @@ import { Effect } from "effect"
 const query = Effect.gen(function* () {
   const req = yield* HttpServerRequest.HttpServerRequest
   const url = new URL(req.url, `http://${req.headers.host}`)
-  const year = url.searchParams.get("year")
-  return yield* HttpServerResponse.json({ year })
+  const q = url.searchParams.get("q")
+  return yield* HttpServerResponse.json({ q })
 })
 ```
 
 And now we can see the year in the response:
 
 ```shell showLineNumbers=false
-http get "localhost:3000/query?year=2010"
+http -pb get "localhost:3000/query?q=typescript"
 ```
 
 ```http showLineNumbers=false
-HTTP/1.1 200 OK
-Content-Length: 15
-Content-Type: application/json
-Date: Fri, 07 Mar 2025 14:21:50 GMT
-X-Powered-By: Express
-
 {
-    "year": "2010"
+    "q": "typescript"
 }
 ```
 
 ## Calling the API
 
-Now that we have the `year` query parameter, we can use it to filter the results
+Now that we have the `q` query parameter, we can use it to filter the results
 from the API.
 
 ```ts twoslash ins={6-18} showLineNumbers=false
@@ -342,59 +349,50 @@ import {
 import { Effect } from "effect"
 //---cut---
 const query = Effect.gen(function* () {
-  const req = yield* HttpServerRequest.HttpServerRequest
-  const requestUrl = new URL(req.url, `http://${req.headers.host}`)
-  const year = requestUrl.searchParams.get("year")
+  const req = yield* HttpServerRequest.HttpServerRequest;
+  const url = new URL(req.url, `http://${req.headers.host}`)
+  const q = url.searchParams.get("q");
 
-  const apiUrl = new URL(
-    "https://owen-wilson-wow-api.onrender.com/wows/random"
-  )
-  if (year !== null) {
-    apiUrl.searchParams.set("year", year)
+  if (!q) {
+    return yield* HttpServerResponse.json(
+      { error: "Query parameter 'q' is required" },
+      { status: 400 }
+    );
   }
 
   const response = yield* Effect.promise(async () => {
-    const resp = await fetch(apiUrl.toString())
-    return await resp.json()
-  })
+    const api = `https://en.wikipedia.org/w/rest.php/v1/search/page?q=${q}&limit=1`;
+    return fetch(api).then((resp) => resp.json());
+  });
 
-  return yield* HttpServerResponse.json(response)
-})
+  return yield* HttpServerResponse.json(response);
+});
 ```
 
 And querying this endpoint we now get the filtered results:
 
 ```shell showLineNumbers=false
-http get "localhost:3000/query?year=2010"
+http -pb get "localhost:3000/query?q=typescript"
 ```
 
-```http showLineNumbers=false
-HTTP/1.1 200 OK
-Content-Length: 1066
-Content-Type: application/json
-Date: Fri, 07 Mar 2025 14:45:01 GMT
-X-Powered-By: Express
-
-[
-    {
-        "audio": "https://assets.ctfassets.net/bs8ntwkklfua/3B0YwIinFRjyDhg87ubLnm/e7ca0400c19fe1fe118ebc2901dc3518/Little_Fockers_Wow_1.mp3",
-        "character": "Kevin Rawley",
-        "current_wow_in_movie": 1,
-        "director": "Paul Weitz",
-        "full_line": "Wow.",
-        "movie": "Little Fockers",
-        "movie_duration": "01:37:40",
-        "poster": "https://images.ctfassets.net/bs8ntwkklfua/2uitJuVd7wiuh57N42VotB/97be419cc8d17405b256bf6f63afd461/Little_Fockers_Poster.jpg",
-        "release_date": "2010-12-22",
-        "timestamp": "00:26:32",
-        "total_wows_in_movie": 2,
-        "video": {
-            "1080p": "https://videos.ctfassets.net/bs8ntwkklfua/6sQcwSbOHUtQwSa2AiGVx4/4bd91b3f82378c6cec36003010b6bc7b/Little_Fockers_Wow_1_1080p.mp4",
-            "360p": "https://videos.ctfassets.net/bs8ntwkklfua/4NRdmxRxOFF7u8uSDCDpbz/f948d2f764468c89f5e37fa2b3804661/Little_Fockers_Wow_1_360p.mp4",
-            "480p": "https://videos.ctfassets.net/bs8ntwkklfua/5jBrCwue7YyNWATPMsnEM3/3897126fa0cacee7817cb798db85a829/Little_Fockers_Wow_1_480p.mp4",
-            "720p": "https://videos.ctfassets.net/bs8ntwkklfua/1MgGCFiDEMuDtZf5pPXZrq/9abb8fedcf84c2aad104a993cab043ef/Little_Fockers_Wow_1_720p.mp4"
-        },
-        "year": 2010
-    }
-]
+```json showLineNumbers=false
+{
+    "pages": [
+        {
+            "description": "Programming language and superset of JavaScript",
+            "excerpt": "<span class=\"searchmatch\">TypeScript</span> (abbreviated as TS) is a free and open-source high-level programming language developed by Microsoft that adds static typing with optional type",
+            "id": 8157205,
+            "key": "TypeScript",
+            "matched_title": null,
+            "thumbnail": {
+                "duration": null,
+                "height": 60,
+                "mimetype": "image/svg+xml",
+                "url": "//upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Typescript.svg/60px-Typescript.svg.png",
+                "width": 60
+            },
+            "title": "TypeScript"
+        }
+    ]
+}
 ```
