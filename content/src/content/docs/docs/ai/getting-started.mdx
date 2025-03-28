@@ -94,7 +94,7 @@ import { Effect } from "effect"
 
 // Using `Completions` will add it to your program's requirements
 //
-//          ┌─── Effect<void, AiError, Completions>
+//          ┌─── Effect<AiResponse, AiError, Completions>
 //          ▼
 const generateDadJoke = Effect.gen(function*() {
   // Extract the `Completions` service from the Effect environment
@@ -103,6 +103,8 @@ const generateDadJoke = Effect.gen(function*() {
   const response = yield* completions.create("Generate a dad joke")
   // Log the generated text to the console
   console.log(response.text)
+  // Return the response
+  return response
 })
 ```
 
@@ -116,15 +118,16 @@ Next, we need to select which provider we want to use to satisfy the `Completion
 
 **Example** (Providing a Concrete Model to Satisfy the `Completions` Requirement)
 
-```ts twoslash collapse={5-9}
+```ts twoslash collapse={5-10}
 import { OpenAiCompletions } from "@effect/ai-openai"
 import { Completions } from "@effect/ai"
-import { Console, Effect } from "effect"
+import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
   const completions = yield* Completions.Completions
   const response = yield* completions.create("Generate a dad joke")
   console.log(response.text)
+  return response
 })
 
 // Create an `AiModel` which provides a concrete implementation of 
@@ -142,7 +145,7 @@ const main = Effect.gen(function*() {
   // Build the `AiModel` into a `Provider`
   const gpt4o = yield* Gpt4o
   // Provide the implementation of `Completions` to `generateDadJoke`
-  yield* gpt4o.provide(generateDadJoke)
+  const response = yield* gpt4o.provide(generateDadJoke)
 })
 ```
 
@@ -215,22 +218,22 @@ For example, we can re-use the same built model to provide `Completions` to mult
 ```ts twoslash {16-18} collapse={5-10}
 import { OpenAiCompletions } from "@effect/ai-openai"
 import { Completions } from "@effect/ai"
-import { Console, Effect } from "effect"
+import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
   const completions = yield* Completions.Completions
-  return yield* completions.create("Generate a hilarious dad joke").pipe(
-    Effect.andThen((response) => Console.log(response.text))
-  )
+  const response = yield* completions.create("Generate a dad joke")
+  console.log(response.text)
+  return response
 })
 
 const Gpt4o = OpenAiCompletions.model("gpt-4o")
 
 const main = Effect.gen(function*() {
   const gpt = yield* Gpt4o
-  yield* gpt.provide(generateDadJoke)
-  yield* gpt.provide(generateDadJoke)
-  yield* gpt.provide(generateDadJoke)
+  const res1 = yield* gpt.provide(generateDadJoke)
+  const res2 = yield* gpt.provide(generateDadJoke)
+  const res3 = yield* gpt.provide(generateDadJoke)
 })
 ```
 
@@ -246,13 +249,13 @@ For example, if we know Anthropic's Claude generates some really great dad jokes
 import { AnthropicCompletions } from "@effect/ai-anthropic"
 import { OpenAiCompletions } from "@effect/ai-openai"
 import { Completions } from "@effect/ai"
-import { Console, Effect } from "effect"
+import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
   const completions = yield* Completions.Completions
-  return yield* completions.create("Generate a hilarious dad joke").pipe(
-    Effect.andThen((response) => Console.log(response.text))
-  )
+  const response = yield* completions.create("Generate a dad joke")
+  console.log(response.text)
+  return response
 })
 
 const Gpt4o = OpenAiCompletions.model("gpt-4o")
@@ -263,9 +266,9 @@ const Claude37 = AnthropicCompletions.model("claude-3-7-sonnet-latest")
 const main = Effect.gen(function*() {
   const gpt = yield* Gpt4o
   const claude = yield* Claude37
-  yield* gpt.provide(generateDadJoke)
-  yield* gpt.provide(generateDadJoke)
-  yield* claude.provide(generateDadJoke)
+  const res1 = yield* gpt.provide(generateDadJoke)
+  const res2 = yield* gpt.provide(generateDadJoke)
+  const res3 = yield* claude.provide(generateDadJoke)
 })
 ```
 
@@ -283,7 +286,7 @@ For example, in the code below the `main` program is only dependent upon the `Da
 import { AnthropicCompletions } from "@effect/ai-anthropic"
 import { OpenAiCompletions } from "@effect/ai-openai"
 import { Completions } from "@effect/ai"
-import { Console, Effect } from "effect"
+import { Effect } from "effect"
 
 const Gpt4o = OpenAiCompletions.model("gpt-4o")
 const Claude37 = AnthropicCompletions.model("claude-3-7-sonnet-latest")
@@ -295,9 +298,9 @@ class DadJokes extends Effect.Service<DadJokes>()("app/DadJokes", {
 
     const generateDadJoke = Effect.gen(function*() {
       const completions = yield* Completions.Completions
-      return yield* completions.create("Generate a hilarious dad joke").pipe(
-        Effect.andThen((response) => Console.log(response.text))
-      )
+      const response = yield* completions.create("Generate a dad joke")
+      console.log(response.text)
+      return response
     })
 
     return {
@@ -314,8 +317,8 @@ class DadJokes extends Effect.Service<DadJokes>()("app/DadJokes", {
 //     ▼
 const main = Effect.gen(function*() {
   const dadJokes = yield* DadJokes
-  yield* dadJokes.generateDadJoke
-  yield* dadJokes.generateReallyGroanInducingDadJoke
+  const res1 = yield* dadJokes.generateDadJoke
+  const res2 = yield* dadJokes.generateReallyGroanInducingDadJoke
 })
 
 // The AI requirements are abstracted away into `Layer` composition
@@ -334,13 +337,13 @@ Let's take another look at our program from earlier:
 ```ts twoslash "OpenAiClient" collapse={5-12}
 import { OpenAiCompletions } from "@effect/ai-openai"
 import { Completions } from "@effect/ai"
-import { Console, Effect } from "effect"
+import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
   const completions = yield* Completions.Completions
-  return yield* completions.create("Generate a hilarious dad joke").pipe(
-    Effect.andThen((response) => Console.log(response.text))
-  )
+  const response = yield* completions.create("Generate a dad joke")
+  console.log(response.text)
+  return response
 })
 
 const Gpt4o = OpenAiCompletions.model("gpt-4o")
@@ -349,7 +352,7 @@ const Gpt4o = OpenAiCompletions.model("gpt-4o")
 //     ▼
 const main = Effect.gen(function*() {
   const gpt4o = yield* Gpt4o
-  yield* gpt4o.provide(generateDadJoke)
+  const response = yield* gpt4o.provide(generateDadJoke)
 })
 ```
 
@@ -357,25 +360,25 @@ We can see that our `main` program still requires us to provide an `OpenAiClient
 
 Each of our provider integration packages exports a client module that can be used to construct a client for that provider.
 
-For example:
+**Example** (Creating a Client Layer for an LLM Provider)
 
 ```ts twoslash /{ (OpenAiClient),/ {24-26} collapse={5-17}
 import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
 import { Completions } from "@effect/ai"
-import { Config, Console, Effect } from "effect"
+import { Config, Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
   const completions = yield* Completions.Completions
-  return yield* completions.create("Generate a hilarious dad joke").pipe(
-    Effect.andThen((response) => Console.log(response.text))
-  )
+  const response = yield* completions.create("Generate a dad joke")
+  console.log(response.text)
+  return response
 })
 
 const Gpt4o = OpenAiCompletions.model("gpt-4o")
 
 const main = Effect.gen(function*() {
   const gpt4o = yield* Gpt4o
-  yield* gpt4o.provide(generateDadJoke)
+  const response = yield* gpt4o.provide(generateDadJoke)
 })
 
 // Create a `Layer` which produces an `OpenAiClient` and requires
@@ -398,20 +401,20 @@ For example, if we know we are going to run this code in NodeJS, we can utilize 
 import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
 import { Completions } from "@effect/ai"
 import { NodeHttpClient } from "@effect/platform-node"
-import { Config, Console, Effect, Layer } from "effect"
+import { Config, Effect, Layer } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
   const completions = yield* Completions.Completions
-  return yield* completions.create("Generate a hilarious dad joke").pipe(
-    Effect.andThen((response) => Console.log(response.text))
-  )
+  const response = yield* completions.create("Generate a dad joke")
+  console.log(response.text)
+  return response
 })
 
 const Gpt4o = OpenAiCompletions.model("gpt-4o")
 
 const main = Effect.gen(function*() {
   const gpt4o = yield* Gpt4o
-  yield* gpt4o.provide(generateDadJoke)
+  const response = yield* gpt4o.provide(generateDadJoke)
 })
 
 // Create a `Layer` which produces an `OpenAiClient` and requires
@@ -441,20 +444,20 @@ Our final program looks like the following:
 import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
 import { Completions } from "@effect/ai"
 import { NodeHttpClient } from "@effect/platform-node"
-import { Config, Console, Effect, Layer } from "effect"
+import { Config, Effect, Layer } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
   const completions = yield* Completions.Completions
-  return yield* completions.create("Generate a hilarious dad joke").pipe(
-    Effect.andThen((response) => Console.log(response.text))
-  )
+  const response = yield* completions.create("Generate a dad joke")
+  console.log(response.text)
+  return response
 })
 
 const Gpt4o = OpenAiCompletions.model("gpt-4o")
 
 const main = Effect.gen(function*() {
   const gpt4o = yield* Gpt4o
-  yield* gpt4o.provide(generateDadJoke)
+  const response = yield* gpt4o.provide(generateDadJoke)
 })
 
 const OpenAi = OpenAiClient.layerConfig({
