@@ -1,13 +1,11 @@
 import { Rx } from "@effect-rx/rx-react"
-import * as RpcClient from "@effect/rpc/RpcClient"
 import * as Effect from "effect/Effect"
 import * as Encoding from "effect/Encoding"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as String from "effect/String"
 import { hashRx } from "@/rx/location"
-import { ShortenClientLayer } from "@/services/shorten/client"
-import { ShortenRpcs } from "@/services/shorten/rpc"
+import { ShortenClient } from "@/services/shorten/client"
 import {
   makeDirectory,
   makeFile,
@@ -18,7 +16,7 @@ import { WorkspaceCompression } from "../services/compression"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(
-    ShortenClientLayer,
+    ShortenClient.Default,
     WorkspaceCompression.Default
   )
 )
@@ -92,8 +90,8 @@ export const importRx = runtime.rx((get) =>
       return makeDefaultWorkspace()
     }
 
-    const client = yield* RpcClient.make(ShortenRpcs)
-    const compressed = yield* client.RetrieveRequest({ hash: hash.value })
+    const client = yield* ShortenClient
+    const compressed = yield* client.retrieve({ hash: hash.value })
 
     if (Option.isNone(compressed)) {
       return makeDefaultWorkspace()
