@@ -101,5 +101,5 @@ export const importRx = runtime.rx((get) =>
     return yield* compression
       .decompress(compressed.value)
       .pipe(Effect.orElseSucceed(makeDefaultWorkspace))
-  }).pipe(Effect.scoped)
+  })
 )
