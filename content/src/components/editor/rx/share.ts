@@ -1,4 +1,4 @@
-import { Result, Rx } from "@effect-rx/rx-react"
+import { Rx } from "@effect-rx/rx-react"
 import * as Clipboard from "@effect/platform-browser/Clipboard"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -27,9 +27,7 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
       const zip = yield* WorkspaceDownload
       const client = yield* ShortenClient
       const workspace = get.once(handle.workspaceRx)
-      const editor = yield* Result.toExit(
-        get.once(editorRx(handle).editor)
-      ).pipe(Effect.orDie)
+      const editor = yield* get.resultOnce(editorRx(handle).editor)
 
       yield* editor.save
 
