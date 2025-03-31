@@ -1,25 +1,18 @@
 import type { APIRoute } from "astro"
-import * as Router from "@effect/rpc/RpcRouter"
-import * as ManagedRuntime from "effect/ManagedRuntime"
-import * as Effect from "effect/Effect"
-import { shortenRouter } from "@/services/shorten/rpc"
-import { Shorten } from "@/services/shorten/service"
+import * as Layer from "effect/Layer"
+import * as RpcServer from "@effect/rpc/RpcServer"
+import * as RpcSerialization from "@effect/rpc/RpcSerialization"
+import { ShortenLayer, ShortenRpcs } from "@/services/shorten/rpc"
+import * as HttpServer from "@effect/platform/HttpServer"
 
 export const prerender = false
 
-const router = Router.make(shortenRouter)
-
-export type RpcRouter = typeof router
-
-const runtime = ManagedRuntime.make(Shorten.Default)
-const handler = Router.toHandlerNoStream(router)
-
-export const POST: APIRoute = async ({ request }) => {
-  return Effect.promise(() => request.json()).pipe(
-    Effect.flatMap((json) => handler(json)),
-    Effect.map((response) => new Response(JSON.stringify(response), { status: 200 })),
-    runtime.runPromise
+const handler = RpcServer.toWebHandler(ShortenRpcs, {
+  layer: Layer.mergeAll(
+    ShortenLayer,
+    RpcSerialization.layerJson,
+    HttpServer.layerContext
   )
-}
+})
 
-
+export const POST: APIRoute = ({ request }) => handler.handler(request)

@@ -1,13 +1,11 @@
 import { Rx } from "@effect-rx/rx-react"
-import * as FetchHttpClient from "@effect/platform/FetchHttpClient"
 import * as Effect from "effect/Effect"
 import * as Encoding from "effect/Encoding"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as String from "effect/String"
 import { hashRx } from "@/rx/location"
-import { rpcClient } from "@/services/shorten/client"
-import { RetrieveRequest } from "@/services/shorten/domain"
+import { ShortenClient } from "@/services/shorten/client"
 import {
   makeDirectory,
   makeFile,
@@ -17,7 +15,10 @@ import {
 import { WorkspaceCompression } from "../services/compression"
 
 const runtime = Rx.runtime(
-  Layer.mergeAll(FetchHttpClient.layer, WorkspaceCompression.Default)
+  Layer.mergeAll(
+    ShortenClient.Default,
+    WorkspaceCompression.Default
+  )
 )
 
 const main = makeFile(
@@ -76,7 +77,7 @@ function makeDefaultWorkspace() {
 }
 
 export const importRx = runtime.rx((get) =>
-  Effect.gen(function* () {
+  Effect.gen(function*() {
     const hash = get(hashRx)
     if (Option.isNone(hash)) {
       const params = new URLSearchParams(window.location.search)
@@ -89,10 +90,8 @@ export const importRx = runtime.rx((get) =>
       return makeDefaultWorkspace()
     }
 
-    const client = yield* rpcClient
-    const compressed = yield* client(
-      new RetrieveRequest({ hash: hash.value })
-    )
+    const client = yield* ShortenClient
+    const compressed = yield* client.retrieve({ hash: hash.value })
 
     if (Option.isNone(compressed)) {
       return makeDefaultWorkspace()
