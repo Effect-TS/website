@@ -1,0 +1,320 @@
+---
+pagefind: false
+title: Developing AI Applications with Effect
+excerpt: A post highlighting the new Effect AI integration packages 
+date: 2025-04-01
+authors:
+  - maxwell_brown
+tags:
+  - Miscellaneous
+---
+
+Integrating with large language models (LLMs) has become essential for developing modern applications. Whether you're generating content, analyzing data, or building conversational interfaces, adding AI-powered features to your application has the potential to enhance your product's capabilities and improve user experience.
+
+However, successfully integrating LLM-powered interactions into an application can be quite challenging. Developers must navigate a complex landscape of potential failures: network errors, provider outages, rate limits, and more, all while keeping the underlying application stable and responsive for the end user. In addition, the differences between LLM provider APIs can force developers to write brittle "glue code" which can become a significant source of technical debt. 
+
+Today, we are going to discuss [Effect's AI integration packages](/docs/ai/introduction/) — a set of libraries designed to make working with LLMs simple, flexible, and provider-agnostic. 
+
+## Why Effect for AI?
+
+Effect's AI packages provide simple, composable building blocks to model LLM interactions in a **safe**, **declarative**, and **composable** manner. With Effect's AI integrations, you can:
+
+🔌 **Write Provider-Agnostic Business Logic**
+
+Define your LLM interactions once and plug in the specific provider you need later. Switch between any supported provider without changing your business logic.
+  
+🧪 **Test LLM Interactions**
+
+Test your LLM interactions by simply providing mock service implementations during testing to ensure your AI-dependent business logic is executed in the way that you expect.
+
+🧵 **Utilize Structured Concurrency**
+
+Run concurrent LLM calls, cancel stale requests, stream partial results, or race multiple providers — all safely managed by Effect's structured concurrency model.
+
+🔍 **Gain Deep Observability**
+
+Instrument your LLM interactions with Effect's built-in tracing, logging, and metrics to identify performance bottlenecks or failures in production.
+
+## Understanding the Package Ecosystem
+
+Effect's AI ecosystem consists of several focused packages, each with a specific purpose:
+
+- **`@effect/ai`**: The core package that defines provider-agnostic services and abstractions for interacting with LLMs
+  
+- **`@effect/ai-openai`**: Concrete implementations of AI services backed by the OpenAI API
+
+- **`@effect/ai-anthropic`**: Concrete implementations of AI services backed by the Anthropic API
+
+This architecture allows you to describe your LLM interactions with provider-agnostic services, and the provide a concrete implementation once you are ready to run your program. 
+
+## Core Concepts
+
+### Provider-Agnostic Programming
+
+The central philosophy behind Effect's AI integrations is **provider-agnostic programming**. 
+
+Instead of hardcoding calls to a specific LLM provider's API, you describe your interaction using generic services provided by the base `@effect/ai` package.
+
+Let's look at a simple example to understand this concept better:
+
+```ts twoslash
+import { Completions } from "@effect/ai"
+import { Effect } from "effect"
+
+// Define a provider-agnostic AI interaction
+const generateDadJoke = Effect.gen(function*() {
+  // Get the Completions service from the Effect environment
+  const completions = yield* Completions.Completions
+  
+  // Use the service to generate text
+  const response = yield* completions.create("Generate a dad joke")
+  
+  // Return the response
+  return response
+})
+```
+
+Notice that this code doesn't specify which LLM provider to use - it simply describes *what* we want to do (generate a dad joke), not *how* or *where* to do it. 
+
+This separation of concerns is at the heart of Effect's approach to LLM interactions.
+
+### The `AiModel` Abstraction
+
+To bridge the gap between provider-agnostic business logic and concrete LLM providers, Effect introduces the `AiModel` abstraction. 
+
+An `AiModel` represents a specific LLM from a provider that can be used to satisfy service requirements, such as `Completions` or `Embeddings`.
+
+Here is an example of how you can create and use an `AiModel` designed to satisfy the `Completions` service using OpenAI:
+
+```ts twoslash collapse={4-16}
+import { OpenAiCompletions } from "@effect/ai-openai"
+import { Effect } from "effect"
+
+import { Completions } from "@effect/ai"
+
+// Define a provider-agnostic AI interaction
+const generateDadJoke = Effect.gen(function*() {
+  // Get the Completions service from the Effect environment
+  const completions = yield* Completions.Completions
+  
+  // Use the service to generate text
+  const response = yield* completions.create("Generate a dad joke")
+  
+  // Return the response
+  return response
+})
+
+// Create an AiModel for OpenAI's GPT-4o
+const Gpt4o = OpenAiCompletions.model("gpt-4o")
+
+// Use the model to provide the Completions service to our program
+const main = Effect.gen(function*() {
+  // Build the AiModel into a Provider
+  const gpt4o = yield* Gpt4o
+  
+  // Provide the implementation to our generateDadJoke program
+  const response = yield* gpt4o.provide(generateDadJoke)
+  
+  console.log(response.text)
+})
+```
+
+This approach offers several key benefits:
+
+1. **Reusability**: You can reuse the same model for multiple operations
+2. **Flexibility**: Easily switch between providers or models based on your needs
+3. **Abstractability**: Extract your AI logic into services that hide implementation details
+
+### End-to-End Example
+
+Now let's walk through a complete example of setting up an LLM interaction with Effect:
+
+```ts twoslash
+import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
+import { Completions } from "@effect/ai"
+import { NodeHttpClient } from "@effect/platform-node"
+import { Config, Effect, Layer } from "effect"
+
+// 1. Define our provider-agnostic AI interaction
+const generateDadJoke = Effect.gen(function*() {
+  const completions = yield* Completions.Completions
+  const response = yield* completions.create("Generate a dad joke")
+  return response
+})
+
+// 2. Create an AiModel for a specific provider and model
+const Gpt4o = OpenAiCompletions.model("gpt-4o")
+
+// 3. Create a program that uses the model
+const main = Effect.gen(function*() {
+  const gpt4o = yield* Gpt4o
+  const response = yield* gpt4o.provide(generateDadJoke)
+  console.log(response.text)
+})
+
+// 4. Create a Layer that provides the OpenAI client
+const OpenAi = OpenAiClient.layerConfig({
+  apiKey: Config.redacted("OPENAI_API_KEY")
+})
+
+// 5. Provide an HTTP client implementation
+const OpenAiWithHttp = Layer.provide(OpenAi, NodeHttpClient.layerUndici)
+
+// 6. Run the program with the provided dependencies
+main.pipe(
+  Effect.provide(OpenAiWithHttp),
+  Effect.runPromise
+)
+```
+
+## Advanced Features
+
+### Error Handling
+
+One of Effect's greatest strengths is its robust error handling, which is particularly valuable for LLM interactions where failure scenarios can be complex and varied. With Effect, these errors are typed and can be handled explicitly. 
+
+For example, if our `generateDadJoke` program were re-written to possibly fail with a `RateLimitError` or an `InvalidInputError`, we could write logic to handle those errors:
+
+```ts twoslash collapse={4-14}
+import { AiResponse, AiRole } from "@effect/ai"
+import { Effect } from "effect"
+
+import { Completions } from "@effect/ai"
+import { Data } from "effect"
+
+class RateLimitError extends Data.TaggedError("RateLimitError") {}
+class InvalidInputError extends Data.TaggedError("InvalidInputError") {}
+
+declare const generateDadJoke: Effect.Effect<
+  AiResponse.AiResponse, 
+  RateLimitError | InvalidInputError, 
+  Completions.Completions
+>
+
+const withErrorHandling = generateDadJoke.pipe(
+  Effect.catchTags({
+    RateLimitError: (error) => 
+      Effect.logError("Rate limited, retrying in a moment").pipe(
+        Effect.delay("1 seconds"),
+        Effect.andThen(generateDadJoke)
+      ),
+    InvalidInputError: (error) => 
+      Effect.succeed(AiResponse.AiResponse.fromText({ 
+        role: AiRole.model,
+        content: "I couldn't generate a joke right now." 
+      }))
+  })
+)
+```
+
+### Structured Execution Plans 
+
+For more complex scenarios where you need reliability across multiple providers, Effect offers the powerful [`AiPlan` abstraction](/docs/ai/planning-llm-interactions/). 
+
+`AiPlan` lets you create a structured execution plan for your LLM interactions with built-in retry logic, fallback strategies, and error handling:
+
+```ts twoslash collapse={6-12}
+import { AiPlan } from "@effect/ai"
+import { OpenAiCompletions } from "@effect/ai-openai"
+import { AnthropicCompletions } from "@effect/ai-anthropic"
+import { Data, Effect, Schedule } from "effect"
+
+import { Completions } from "@effect/ai"
+
+const generateDadJoke = Effect.gen(function*() {
+  const completions = yield* Completions.Completions
+  const response = yield* completions.create("Generate a dad joke")
+  return response
+})
+
+// Define domain-specific error types
+class NetworkError extends Data.TaggedError("NetworkError") {}
+class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
+
+// Build a resilient plan that:
+// - Attempts to use OpenAI's `"gpt-4o"` model up to 3 times 
+// - Waits with an exponential backoff between attempts
+// - Only re-attempts the call to OpenAI if the error is a `NetworkError`
+// - Falls back to using Anthropic otherwise
+const DadJokePlan = AiPlan.fromModel(OpenAiCompletions.model("gpt-4o"), {
+  attempts: 3,
+  schedule: Schedule.exponential("100 millis"),
+  while: (error: NetworkError | ProviderOutage) => 
+    error._tag === "NetworkError"
+}).pipe(
+  AiPlan.withFallback({
+    model: AnthropicCompletions.model("claude-3-7-sonnet-latest"),
+  })
+)
+
+// Use the plan just like an AiModel
+const main = Effect.gen(function*() {
+  const plan = yield* DadJokePlan
+  const response = yield* plan.provide(generateDadJoke)
+})
+```
+
+With `AiPlan`, you can:
+
+- Create sophisticated retry policies with configurable backoff strategies
+- Define fallback chains across multiple providers
+- Specify which error types should trigger retries vs. fallbacks
+
+This is particularly valuable for production systems where reliability is critical, as it allows you to leverage multiple LLM providers as fallbacks for one other, all while keeping your business logic provider-agnostic.
+
+### Concurrency Control
+
+Effect's structured concurrency model also makes it easy to manage concurrent LLM interactions:
+
+```ts twoslash collapse={3-9}
+import { Effect } from "effect"
+
+import { Completions } from "@effect/ai"
+
+const generateDadJoke = Effect.gen(function*() {
+  const completions = yield* Completions.Completions
+  const response = yield* completions.create("Generate a dad joke")
+  return response
+})
+
+// Generate multiple jokes concurrently
+const concurrentDadJokes = Effect.all([
+  generateDadJoke,
+  generateDadJoke,
+  generateDadJoke
+], { concurrency: 2 }) // Limit to 2 concurrent requests
+```
+
+### Streaming Responses
+
+Effect's AI integrations support streaming responses via Effect's [`Stream` type](/docs/stream/introduction/): 
+
+```ts twoslash
+import { Completions } from "@effect/ai"
+import { Effect, Stream } from "effect"
+
+const streamingJoke = Effect.gen(function*() {
+  const completions = yield* Completions.Completions
+  
+  // Create a streaming response
+  const stream = completions.stream("Tell me a long dad joke")
+  
+  // Process each chunk as it arrives
+  return yield* stream.pipe(
+    Stream.runForEach(chunk => 
+      Effect.sync(() => {
+        process.stdout.write(chunk.text)
+      })
+    )
+  )
+})
+```
+## Conclusion
+
+Whether you're building an intelligent agent, an interactive chat application, or a system that leverages LLMs for background tasks, Effect's AI packages provide all the tools you need and more. Our provider-agnostic approach will ensure your code remains adaptable as the AI landscape continues to evolve.
+
+Ready to try out Effect for your next AI application? Take a look at our [Getting Started guide](/docs/ai/getting-started/).
+
+The Effect AI integration packages are currently in the experimental/alpha stage, but we encourage you to give them a try and provide feedback to help us improve and expand their capabilities.
+
+We're excited to see what you build! Check out the [full documentation](/docs/ai/introduction/) to dive deeper, and join our community to share your experiences and get help along the way.
