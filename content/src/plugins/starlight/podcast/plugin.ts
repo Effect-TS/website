@@ -4,24 +4,19 @@ export function effectPodcastPlugin(): StarlightPlugin {
   return {
     name: "starlight-effect-podcast-plugin",
     hooks: {
-      'config:setup'({ addIntegration, addRouteMiddleware, astroConfig }) {
-        addRouteMiddleware({ entrypoint: "./src/plugins/starlight/podcast/middleware.ts" })
+      'config:setup'({ addIntegration, addRouteMiddleware, astroConfig, }) {
+        addRouteMiddleware({
+          entrypoint: "./src/plugins/starlight/podcast/middleware.ts"
+        })
 
         addIntegration({
-          name: "effect-playground-integration",
+          name: "starlight-effect-podcast-integration",
           hooks: {
             "astro:config:setup": ({ injectRoute }) => {
               injectRoute({
                 entrypoint:
                   "./src/routes/podcast/Podcast.astro",
                 pattern: "/[...prefix]",
-                prerender: true
-              })
-
-              injectRoute({
-                entrypoint:
-                  "./src/routes/podcast/PodcastEpisode.astro",
-                pattern: "/[...prefix]/episodes/[...episode]",
                 prerender: true
               })
 

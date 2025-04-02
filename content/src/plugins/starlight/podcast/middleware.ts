@@ -1,29 +1,18 @@
 import { defineRouteMiddleware } from "@astrojs/starlight/route-data"
-import type { PodcastData } from "./data"
-import { getPodcastEntries } from "@/lib/content/podcast"
+import { isPodcastEntry } from "@/lib/podcast"
 
-export const onRequest = defineRouteMiddleware(async (context) => {
-  context.locals.effectPodcast = await getPodcastData()
-})
+export const onRequest = defineRouteMiddleware((context) => {
+  const { starlightRoute } = context.locals
+  const { entry } = starlightRoute
 
-async function getPodcastData(): Promise<PodcastData> {
-  return {
-    episodes: await getPodcastEpisodesData()
+  if (isPodcastEntry(entry)) {
+    entry.data = {
+      ...entry.data,
+      pagefind: false,
+      template: 'splash',
+    }
+    starlightRoute.hasSidebar = false
+    starlightRoute.pagination = { prev: undefined, next: undefined }
+    starlightRoute.toc = undefined
   }
-}
-
-async function getPodcastEpisodesData(): Promise<PodcastData["episodes"]> {
-  const entries = await getPodcastEntries()
-  return entries.map((entry) => ({
-    title: entry.data.title,
-    description: entry.data.description,
-    episodeNumber: entry.data.podcast.episodeNumber,
-    publicationDate: entry.data.podcast.publicationDate,
-    image: entry.data.podcast.image,
-    duration: entry.data.podcast.duration,
-    transcript: entry.data.podcast.transcript,
-    enclosure: entry.data.podcast.enclosure,
-    youtube: entry.data.podcast.youtube,
-    tags: entry.data.podcast.tags
-  }))
-}
+})

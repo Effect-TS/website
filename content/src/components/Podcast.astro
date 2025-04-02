@@ -1,0 +1,97 @@
+---
+import { Icon } from "@astrojs/starlight/components"
+import MarkdownContent from "@astrojs/starlight/components/MarkdownContent.astro"
+import Transcript from "@/components/Transcript.astro"
+import VideoPlayer from "@/components/VideoPlayer.astro"
+import type { Podcast } from "@/lib/podcast"
+
+interface Props {
+  readonly podcast: Podcast
+}
+
+const { entry } = Astro.locals.starlightRoute
+const { title, description } = entry.data
+const { podcast } = Astro.props
+---
+
+<div class="relative flex flex-col lg:flex-row items-start">
+  <aside
+    class="lg:sticky w-full lg:w-1/2 md:top-24 mb-4 md:mb-8 lg:pr-8 flex flex-col shrink-0"
+  >
+    <div
+      class="p-px rounded-2xl shrink-0 overflow-hidden aspect-video order-2 lg:order-1"
+    >
+      <div
+        class="w-full h-full bg-[--sl-color-gray-5] dark:bg-[--sl-color-bg-nav] p-1.5 rounded-[15px] overflow-hidden"
+      >
+        <div
+          class="relative w-full h-full border border-[var(--sl-color-bg)] rounded-[9px] overflow-hidden"
+        >
+          <VideoPlayer
+            id={podcast.youtube.id}
+            title={podcast.youtube.title}
+          />
+        </div>
+      </div>
+    </div>
+    <a
+      href="/podcast/"
+      class="flex mb-2 lg:mb-0 lg:mt-2 font-medium order-1 lg:order2 no-underline hover:underline"
+    >
+      <Icon name="right-arrow" class="h-auto mr-1 rotate-180" />
+      <span>All Episodes</span>
+    </a>
+  </aside>
+  <main class="max-w-3xl !m-0 grow lg:pl-8 pb-24 overflow-hidden">
+    <div class="!mt-1">
+      {
+        podcast.publicationDate.toLocaleDateString("en-US", {
+          dateStyle: "medium"
+        })
+      }
+    </div>
+    <h2
+      class="!mt-2 !mb-8 !text-3xl lg:!text-4xl text-black dark:text-white"
+    >
+      <span>#{podcast.episodeNumber}: </span>
+      <span>{title}</span>
+    </h2>
+    <p>{description}</p>
+    <section class="!mt-8">
+      <MarkdownContent {...Astro.props}>
+        <slot />
+      </MarkdownContent>
+      <a
+        href="https://discord.gg/effect-ts"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-2 mt-8 pb-8 font-medium border-b border-b-[var(--sl-color-hairline)] no-underline hover:underline"
+      >
+        <Icon name="discord" />
+        <span>Discuss this episode on Discord</span>
+      </a>
+      <Transcript path={podcast.transcript} />
+    </section>
+  </main>
+</div>
+
+<style>
+  /* Hide the page title */
+  :global(.content-panel:has(h1#_top:not([data-page-title]))) {
+    display: none;
+  }
+
+  /* Remove the top border from content panels */
+  :global(.content-panel) {
+    border-top: none !important;
+  }
+
+  /* Prevent links from changing color after visiting */
+  a,
+  a:hover,
+  a:visited,
+  a:active {
+    color: inherit;
+    text-decoration: none;
+  }
+</style>

@@ -117,9 +117,10 @@ export default defineConfig({
       title: "Effect Documentation",
       lastUpdated: true,
       components: {
-        Head: "./src/components/overrides/Head.astro",
-        SocialIcons: "./src/components/overrides/SocialIcons.astro",
-        ThemeSelect: "./src/components/overrides/ThemeSelect.astro"
+        Head: "./src/components/starlight/Head.astro",
+        MarkdownContent: "./src/components/starlight/MarkdownContent.astro",
+        SocialIcons: "./src/components/starlight/SocialIcons.astro",
+        ThemeSelect: "./src/components/starlight/ThemeSelect.astro"
       },
       customCss: [
         // tye styles for the navigation header
