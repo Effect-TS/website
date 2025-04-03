@@ -1,0 +1,19 @@
+---
+import { isPodcastEntry } from "@/lib/podcast"
+import Default from "@astrojs/starlight/components/MarkdownContent.astro"
+import Podcast from "@/components/Podcast.astro"
+
+const { entry } = Astro.locals.starlightRoute
+---
+
+{
+  isPodcastEntry(entry) ? (
+    <Podcast podcast={entry.data.podcast}>
+      <slot />
+    </Podcast>
+  ) : (
+    <Default {...Astro.props}>
+      <slot />
+    </Default>
+  )
+}

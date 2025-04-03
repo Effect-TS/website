@@ -16,7 +16,7 @@ import sanitize from "ultrahtml/transformers/sanitize"
 import {
   getPodcastEntries,
   type PodcastEntry
-} from "../content/podcast"
+} from "@/lib/podcast"
 
 export async function getRSSOptions(
   site: URL | undefined

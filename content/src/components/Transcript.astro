@@ -1,0 +1,63 @@
+---
+import fs from "node:fs/promises"
+
+import { AstroError } from "astro/errors"
+import SrtParser from "srt-parser-2"
+import starlightProject from "virtual:starlight/project-context"
+
+interface Props {
+  readonly path: string
+}
+
+const { entry } = Astro.locals.starlightRoute
+const { path } = Astro.props
+
+let transcript: ReturnType<SrtParser["fromSrt"]> = []
+
+if (path) {
+  const url = new URL(path, starlightProject.root)
+  let content: Buffer
+  try {
+    content = await fs.readFile(url)
+  } catch {
+    throw new AstroError(
+      `Failed to read transcript file from \`${url.pathname}\`.`,
+      `Make sure the transcript file path provided in the video entry frontmatter is correct.
+
+- Entry: \`${entry.filePath}\`
+- Transcript: \`${path}\`
+
+If you believe this is a bug, please file an issue at https://github.com/HiDeoo/starlight-videos/issues/new/choose`
+    )
+  }
+  transcript = new SrtParser().fromSrt(content.toString())
+}
+
+function formatStartTime(startTime: string) {
+  startTime = startTime.replace(/,\d+$/, "")
+  const segments = startTime.split(":")
+  const time = [segments.at(1), segments.at(2)]
+  if (segments.at(0) !== "00") time.unshift(segments.at(0))
+  return time.join(":")
+}
+---
+
+{
+  transcript.length > 0 && (
+    <>
+      <h2 class="mb-2">Transcript</h2>
+      <blockquote class="ml-2 space-y-2">
+        {transcript.map((sub) => {
+          return (
+            <p class="flex items-baseline gap-4">
+              <code class="shrink-0 text-xs text-muted-foreground font-mono select-none">
+                {formatStartTime(sub.startTime)}
+              </code>
+              <span class="leading-snug">{sub.text}</span>
+            </p>
+          )
+        })}
+      </blockquote>
+    </>
+  )
+}

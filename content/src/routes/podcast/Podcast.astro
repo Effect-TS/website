@@ -6,7 +6,7 @@ import type { StarlightPageProps } from "@astrojs/starlight/props"
 import ApplePodcastsIcon from "@/components/icons/ApplePodcastsIcon.astro"
 import SpotifyIcon from "@/components/icons/SpotifyIcon.astro"
 import YouTubeIcon from "@/components/icons/YouTubeIcon.astro"
-import { getPodcastStaticPaths } from "@/lib/content/podcast"
+import { getPodcastStaticPaths } from "@/lib/podcast"
 
 export const prerender = true
 
@@ -22,9 +22,9 @@ const pageProps: StarlightPageProps = {
   frontmatter: {
     title: "Cause & Effect Podcast",
     tableOfContents: false,
-    template: "splash",
+    template: "splash"
   },
-  hasSidebar: false,
+  hasSidebar: false
 }
 
 const providerLinks = [
@@ -46,9 +46,9 @@ const providerLinks = [
 ] as const
 
 function formatSeconds(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  const minutes = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
 }
 ---
 
@@ -56,32 +56,47 @@ function formatSeconds(seconds: number): string {
   {/* Hero Section */}
   <section class="relative not-content" data-pagefind-ignore>
     {/* Grid Overlay */}
-    <div class="
-      absolute bottom-0 left-0 right-0 top-0 border-l border-l-[hsla(0,0%,31%,0.05)] bg-[size:24px_24px] bg-repeat-round
+    <div
+      class="absolute bottom-0 left-0 right-0 top-0 border-l border-l-[hsla(0,0%,31%,0.05)] bg-[size:24px_24px] bg-repeat-round
       bg-[linear-gradient(to_right,transparent_calc(100%-1px),hsla(0,0%,31%,0.1)_calc(100%-1px)_100%),linear-gradient(to_bottom,hsla(0,0%,31%,0.1)_1px,transparent_1px)]
       dark:bg-[linear-gradient(to_right,transparent_calc(100%-1px),hsla(0,0%,31%,0.2)_calc(100%-1px)_100%),linear-gradient(to_bottom,hsla(0,0%,31%,0.2)_1px,transparent_1px)]
-      [mask-image:radial-gradient(ellipse_90%_100%_at_top,#000_70%,transparent_110%)] md:[mask-image:radial-gradient(ellipse_90%_100%_at_20%_0%,#000_70%,transparent_110%)]" />
+      [mask-image:radial-gradient(ellipse_90%_100%_at_top,#000_70%,transparent_110%)] md:[mask-image:radial-gradient(ellipse_90%_100%_at_20%_0%,#000_70%,transparent_110%)]"
+    >
+    </div>
 
     {/* Hero Content */}
     <div class="relative mx-auto md:mx-0 px-4 sm:px-6 lg:px-8">
-      <div class="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 md:pt-24 pb-6 sm:pb-12">
+      <div
+        class="container mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 md:pt-24 pb-6 sm:pb-12"
+      >
         <div class="flex flex-col space-y-4">
-          <h1 class="text-4xl sm:text-5xl md:text-6xl text-[var(--sl-color-white)] text-center md:text-start font-bold">Cause &amp; Effect</h1>
-          <p class="max-w-2xl text-xl sm:text-2xl text-center md:text-start">
-            A podcast exploring how engineers are using Effect to build reliable, production-grade software in TypeScript
+          <h1
+            class="text-4xl sm:text-5xl md:text-6xl text-[var(--sl-color-white)] text-center md:text-start font-bold"
+          >
+            Cause &amp; Effect
+          </h1>
+          <p
+            class="max-w-2xl text-xl sm:text-2xl text-center md:text-start"
+          >
+            A podcast exploring how engineers are using Effect to build
+            reliable, production-grade software in TypeScript
           </p>
-          <div class="flex flex-col sm:flex-row items-center justify-center md:justify-start space-y-4 sm:space-y-0 sm:space-x-4 lg:space-x-8">
-            {providerLinks.map(({ href, label, icon: Icon }) => (
-              <a
-                href={href}
-                aria-label={label}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="flex items-center"
-              >
-                <Icon aria-hidden="true" />
-              </a>
-            ))}
+          <div
+            class="flex flex-col sm:flex-row items-center justify-center md:justify-start space-y-4 sm:space-y-0 sm:space-x-4 lg:space-x-8"
+          >
+            {
+              providerLinks.map(({ href, label, icon: Icon }) => (
+                <a
+                  href={href}
+                  aria-label={label}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center"
+                >
+                  <Icon aria-hidden="true" />
+                </a>
+              ))
+            }
           </div>
           <div class="flex justify-center md:justify-start">
             <a
@@ -98,71 +113,86 @@ function formatSeconds(seconds: number): string {
   </section>
 
   {/* Episodes Section */}
-  <section class="py-6 md:py-12 px-4 sm:px-6 lg:px-8 border-y border-y-[--sl-color-gray-5] not-content">
-    <ul class="container mx-auto p-0 max-w-screen-xl space-y-4 md:space-y-8 list-none">
-      {episodes.map((episode) => {
-        const episodeNumber = `#${episode.episodeNumber}`
-        const date = episode.publicationDate.toLocaleDateString(undefined, {
-          dateStyle: "medium"
+  <section
+    class="py-6 md:py-12 px-4 sm:px-6 lg:px-8 border-y border-y-[--sl-color-gray-5] not-content"
+  >
+    <ul
+      class="container mx-auto p-0 max-w-screen-xl space-y-4 md:space-y-8 list-none"
+    >
+      {
+        episodes.map((episode) => {
+          const episodeNumber = `#${episode.episodeNumber}`
+          const date = episode.publicationDate.toLocaleDateString(
+            "en-US",
+            {
+              dateStyle: "medium"
+            }
+          )
+          return (
+            <li
+              aria-labelledby={episode.title}
+              class="card group relative hover:bg-[--sl-color-bg-nav] rounded-lg"
+            >
+              <article class="flex flex-col md:flex-row p-4 gap-6">
+                <div class="flex flex-col">
+                  <img
+                    src={`https://img.youtube.com/vi/${episode.youtube.id}/hqdefault.jpg`}
+                    alt="The thumbnail for the episode"
+                    class="max-w-80 object-cover aspect-video rounded-lg"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+                <div class="max-w-screen-sm flex flex-col justify-between">
+                  <div>
+                    <h2 class="mb-1 font-semibold line-clamp-1 leading-none">
+                      <a
+                        href={`/${episode.id}/`}
+                        class="text-xl text-[--sl-color-white] font-semibold no-underline focus:underline group-focus:focus:no-underline not-content"
+                        arial-label={episode.title}
+                      >
+                        {episodeNumber}&colon; {episode.title}
+                      </a>
+                    </h2>
+                    <p class="max-w-3xl mb-2 line-clamp-3">
+                      {episode.description}
+                    </p>
+                  </div>
+                  <div class="flex gap-4 text-sm line-clamp-1">
+                    <time datetime={date}>{date}</time>
+                    <span>•</span>
+                    <span>{formatSeconds(episode.duration)}</span>
+                    <span>•</span>
+                    <span>Episode {episodeNumber}</span>
+                  </div>
+                </div>
+              </article>
+            </li>
+          )
         })
-        return (
-          <li aria-labelledby={episode.title} class="card group relative hover:bg-[--sl-color-bg-nav] rounded-lg">
-            <article class="flex flex-col md:flex-row p-4 gap-6">
-              <div class="flex flex-col">
-                <img
-                  src={`https://img.youtube.com/vi/${episode.youtube.id}/hqdefault.jpg`}
-                  alt="The thumbnail for the episode"
-                  class="max-w-80 object-cover aspect-video rounded-lg"
-                  loading="lazy"
-                  decoding="async"
-                />
-              </div>
-              <div class="max-w-screen-sm flex flex-col justify-between">
-                <div>
-                  <h2 class="mb-1 font-semibold line-clamp-1 leading-none">
-                    <a
-                      href={episode.url}
-                      class="text-xl text-[--sl-color-white] font-semibold no-underline focus:underline group-focus:focus:no-underline not-content"
-                      arial-label={episode.title}
-                    >
-                      {episodeNumber}&colon; {episode.title}
-                    </a>
-                  </h2>
-                  <p class="max-w-3xl mb-2 line-clamp-3">
-                    {episode.description}
-                  </p>
-                </div>
-                <div class="flex gap-4 text-sm line-clamp-1">
-                  <time datetime={date}>{date}</time>
-                  <span>•</span>
-                  <span>{formatSeconds(episode.duration)}</span>
-                  <span>•</span>
-                  <span>Episode {episodeNumber}</span>
-                </div>
-              </div>
-            </article>
-          </li>
-        )
-      })}
+      }
     </ul>
   </section>
 </StarlightPage>
 
 <style>
-:global(.content-panel:first-of-type) {
-  display: none;
-}
+  /* Hide the page title */
+  :global(.content-panel:has(h1#_top:not([data-page-title]))) {
+    display: none;
+  }
 
-:global(.content-panel) {
-  border-top: none !important;
-  padding: 0;
-}
+  /* Remove the top border and padding from content panels */
+  :global(.content-panel) {
+    border-top: none !important;
+    padding: 0;
+  }
 
-:global(.sl-container) {
-  max-width: unset;
-  margin: unset;
-  margin-inline: unset;
-}
+  /* Allow content to take up the full page width */
+  :global(.sl-container) {
+    max-width: unset;
+    margin: unset;
+    margin-inline: unset;
+  }
 </style>
 
 <script>
@@ -171,7 +201,7 @@ function formatSeconds(seconds: number): string {
   cards.forEach((card) => {
     let down: number | undefined
     let up: number | undefined
-    const link = card.querySelector<HTMLAnchorElement>("h2 a") 
+    const link = card.querySelector<HTMLAnchorElement>("h2 a")
     // Add the cursor style via JS - if the script fails, we do not
     // want the user to think they can navigate
     card.append
@@ -181,7 +211,7 @@ function formatSeconds(seconds: number): string {
     }
     card.onmouseup = () => {
       up = +new Date()
-      if (link && down && (up - down) < 200) {
+      if (link && down && up - down < 200) {
         link.click()
       }
     }
