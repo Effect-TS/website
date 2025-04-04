@@ -64,17 +64,13 @@ class Database extends Context.Tag("Database")<
   }
 >() {}
 //---cut---
-const DatabaseLive = Database.of({
+const DatabaseService = Database.of({
     getUsers: () => Effect.promise(async () => {
         const { rows } = await db.query("SELECT * FROM users")
         return rows
     }),
 })
 ```
-
-The choice of `DatabaseLive` for the name is a common convention you will see
-in Effect code, where "live" is referring to the fact that this is the version
-of this service we will use in live, production code.
 
 When originally implementing the `/users` endpoint, I glossed over the fact that
 database calls can fail. I'm going to right that wrong here by using
@@ -96,7 +92,7 @@ class Database extends Context.Tag("Database")<
   }
 >() {}
 
-const DatabaseLive = Database.of({
+const DatabaseService = Database.of({
   getUsers: () =>
     Effect.gen(function* () {
       const { rows } = yield* Effect.tryPromise({
@@ -145,7 +141,7 @@ class Database extends Context.Tag("Database")<
   }
 >() {}
 
-const DatabaseLive = Database.of({
+const DatabaseService = Database.of({
   getUsers: () =>
     Effect.gen(function* () {
       const { rows } = yield* Effect.tryPromise({
@@ -304,7 +300,7 @@ class Database extends Context.Tag("Database")<
   }
 >() {}
 
-const DatabaseLive = Database.of({
+const DatabaseService = Database.of({
   getUsers: () =>
     Effect.gen(function* () {
       const { rows } = yield* Effect.tryPromise({
@@ -334,7 +330,7 @@ const main = Effect.gen(function* () {
   });
   yield* Effect.never;
 }).pipe(
-    Effect.provideService(Database, DatabaseLive),
+    Effect.provideService(Database, DatabaseService),
 );
 NodeRuntime.runMain(main);
 ```
@@ -366,7 +362,7 @@ class PostgresClient extends Context.Tag("PostgresClient")<
   { connect: () => Effect.Effect<Client, DatabaseError, never> }
 >() {}
 
-const PostgresClientLive = Layer.succeed(PostgresClient, {
+const PostgresClientLayer = Layer.succeed(PostgresClient, {
   connect: () =>
     Effect.gen(function* () {
       const db = new Client({ user: "postgres" });
