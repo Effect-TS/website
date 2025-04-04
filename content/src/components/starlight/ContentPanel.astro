@@ -1,0 +1,51 @@
+---
+import { isBlogRoot } from "@/lib/blog"
+import { isPlaygroundRoot } from "@/lib/playground"
+import { isPodcastEntry } from "@/lib/podcast"
+
+const { entry } = Astro.locals.starlightRoute
+
+const shouldRenderTitle = !(
+  isBlogRoot(entry.id) ||
+  isPlaygroundRoot(entry.id) ||
+  isPodcastEntry(entry)
+)
+const pageTitleDisplay = shouldRenderTitle ? "block" : "none"
+const borderTop = shouldRenderTitle ? "initial" : "none"
+---
+
+<div class="content-panel">
+  <div class="sl-container"><slot /></div>
+</div>
+
+<style define:vars={{ borderTop, pageTitleDisplay }}>
+  .content-panel {
+    padding: 1.5rem var(--sl-content-pad-x);
+  }
+
+  .content-panel:has(h1#_top:not([data-page-title])) {
+    display: var(--pageTitleDisplay);
+  }
+
+  .content-panel + .content-panel {
+    border-top: 1px solid var(--sl-color-hairline);
+  }
+
+  .content-panel:nth-of-type(2) {
+    border-top: var(--borderTop);
+  }
+
+  .sl-container {
+    max-width: var(--sl-content-width);
+  }
+
+  .sl-container > :global(* + *) {
+    margin-top: 1.5rem;
+  }
+
+  @media (min-width: 72rem) {
+    .sl-container {
+      margin-inline: var(--sl-content-margin-inline, auto);
+    }
+  }
+</style>
