@@ -14,25 +14,32 @@ This tutorial assumes you are:
 
 - New to Effect
 - Not new to TypeScript / web development
-- Want to use Effect in a new or existing project
+- Are interested in using Effect in a new or existing project
+- (Optional) Have attempted to read the docs before and gotten quickly confused
 
 If you're new to TypeScript you may still be able to follow along, but we aren't
 going to be explaining concepts like generics or async/await. You'll get more
 value from this tutorial, and from Effect, if you're already familiar with the
-TypeScript language.
+TypeScript language. A good place to start is the [TypeScript
+Handbook](https://www.typescriptlang.org/docs/handbook/intro.html).
 
 ## How we will teach you
 
-Effect is crafted from decades of experience and frustration with building web
+Effect is crafted from decades of experience building production web
 applications. It uses advanced features of the TypeScript language and builds on
 ideas from functional programming. As a result, **Effect has a steep learning
-curve**. But the promise we make you is that **if you invest the time required
-to learn Effect, it will pay for itself many times over.**
+curve**. But the promise we make to you is that **if you invest the time to
+learn Effect, it will pay for itself many times over.**
 
 We're going to teach you Effect by example, starting from familiar ground and
 introducing new ideas one at a time. This tutorial isn't going to jump straight
 to best practices. To get there, we have to build up a foundation of knowledge
 about Effect.
+
+By the end of this tutorial you will understand the core concepts of Effect,
+enough to be able to dive into the documentation and understand what you're
+looking at. You will also have seen how to gradually introduce Effect into an
+existing codebase, in a way that allows you to commit incrementally and safely.
 
 ## What we're going to build
 
@@ -52,10 +59,14 @@ import express from "express"
 
 const app = express()
 
+// Define an HTTP handler on `GET /health` that returns a 200 OK response
+// with the text "ok"
 app.get("/health", (req, res) => {
   res.type("text/plain").send("ok")
 })
 
+// Start listening on port 3000. Log a message to the console when the server is
+// ready. This function call doesn't return unless the process is killed.
 app.listen(3000, () => {
   console.log("Server is running on http://localhost:3000")
 })
@@ -65,9 +76,9 @@ app.listen(3000, () => {
 
 To get the most value out of this tutorial, follow along as you read. Copy or
 type out the code examples, run them, try changing things to see what happens.
-It doesn't matter if you break things, you can always come back and get the
-working code.  If all you do is read these words, you'll miss out on the most
-important part of learning: doing.
+It doesn't matter if you break something, you can always come back here and get
+the working code. If all you do is read the words of this tutorial, you'll miss
+out on the most important part of learning: doing.
 
 Create a new TypeScript project using your favourite package manager. I'm using
 `bun`:

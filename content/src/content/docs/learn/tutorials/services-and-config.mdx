@@ -200,14 +200,14 @@ const users = Effect.gen(function* () {
 });
 ```
 
-How cool is that? Take a close look at the type of our `users` handler now:
+Take a close look at the type of our `users` handler now:
 
 ```typescript
 Effect<HttpServerResponse, DatabaseError | HttpBodyError, Database>
 ```
 
 We can tell at a glance that this handler can fail with either a `DatabaseError`
-or a `HttpBodyError`, and it needs a `Database` in order to do its work.
+or an `HttpBodyError`, and it needs a `Database` in order to do its work.
 If you've been following along, you'll also have noticed now that there's a new
 error at the bottom of our code:
 
@@ -335,19 +335,24 @@ const main = Effect.gen(function* () {
 NodeRuntime.runMain(main);
 ```
 
+This resolves the error and "injects" the `Database` dependency into our
+program. This creates a separation between our program and the database it uses,
+such that it would be easy to swap out a new database implementation without
+having to modify any of our application code. So if you wanted to use a
+different database in development or testing, it would be easy to do so.
+
 ## Services that depend on other services
 
 Our `Database` service has added modularity to our code, but there's still that
-pesky `Client` instance hanging around. Technically, our `Database` service
+pesky `Client` instance in the global scope. Technically, our `Database` service
 depends on that `Client` instance being available and connected. We should
 represent this in the type system.
 
 ### Layers
 
 The way that Effect handles services that depend on other services is through
-the `Layer` system. Layers exist simply to encode the dependencies between
-services, and we can start by creating a "base" layer that providers our
-`pg` `Client` instance.
+the `Layer` system. Layers exist to encode dependencies between services, and we
+can start by creating a "base" layer that provides our `pg` `Client` instance.
 
 ```ts twoslash showLineNumbers=false
 import { Context, Effect, Layer } from "effect";
@@ -375,3 +380,545 @@ const PostgresClientLayer = Layer.succeed(PostgresClient, {
     }),
 });
 ```
+
+The type of `PostgresClientLayer` is `Layer<PostgresClient, never, never>`.
+The generic parameters of a `Layer` are:
+
+1. `Out`: the types that this layer provides
+2. `Error`: the type of error that this layer can fail with
+3. `Requirements`: the requirements needed to build this layer
+
+So we've created a layer that can output a `PostgresClient`, doesn't fail,
+and doesn't need anything. 
+
+We can make use of this new `PostgresClient` tag in our `Database` service.
+We're going to redefine our `Database` service as a `Layer` using
+`Layer.effect`.  This will allow us to encode our dependencies on the `Layer`,
+rather than on the Effects returned from our service methods.
+
+```ts twoslash showLineNumbers=false
+import { Context, Effect, Layer } from "effect";
+import { Client } from "pg";
+interface User {
+  id: string;
+  name: string;
+}
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<User[], DatabaseError, never>;
+  }
+>() {}
+class PostgresClient extends Context.Tag("PostgresClient")<
+  PostgresClient,
+  { connect: () => Effect.Effect<Client, DatabaseError, never> }
+>() {}
+//---cut---
+const DatabaseLayer = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const client = yield* PostgresClient;
+    const db = yield* client.connect();
+    return {
+      getUsers: () =>
+        Effect.gen(function* () {
+          const { rows } = yield* Effect.tryPromise({
+            try: () => db.query("SELECT * FROM users"),
+            catch: (cause) =>
+              new DatabaseError("Failed to fetch users", { cause }),
+          });
+          return rows as User[];
+        }),
+    };
+  })
+);
+```
+
+And now `DatabaseLayer` is a `Layer<Database, DatabaseError, PostgresClient>`.
+So it:
+
+1. Provides a `Database`.
+2. Can fail with a `DatabaseError`.
+3. Requires a `PostgresClient`.
+
+Lastly we can provide `DatabaseLayer` to our `main` Effect:
+
+```ts twoslash ins={7} showLineNumbers=false
+import express from "express";
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Context, Effect, Layer } from "effect";
+import { Client } from "pg";
+
+const db = new Client({ user: "postgres" });
+const app = express();
+
+interface User {
+  id: string;
+  name: string;
+}
+
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+
+class PostgresClient extends Context.Tag("PostgresClient")<
+  PostgresClient,
+  { connect: () => Effect.Effect<Client, DatabaseError, never> }
+>() {}
+
+const PostgresClientLayer = Layer.succeed(PostgresClient, {
+  connect: () =>
+    Effect.gen(function* () {
+      const db = new Client({ user: "postgres" });
+      yield* Effect.tryPromise({
+        try: () => db.connect(),
+        catch: (cause) =>
+          new DatabaseError("Failed to connect to database", { cause }),
+      });
+      return db;
+    }),
+});
+
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<User[], DatabaseError, never>;
+  }
+>() {}
+
+const DatabaseLayer = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const client = yield* PostgresClient;
+    const db = yield* client.connect();
+    return {
+      getUsers: () =>
+        Effect.gen(function* () {
+          const { rows } = yield* Effect.tryPromise({
+            try: () => db.query("SELECT * FROM users"),
+            catch: (cause) =>
+              new DatabaseError("Failed to fetch users", { cause }),
+          });
+          return rows as User[];
+        }),
+    };
+  })
+);
+
+const users = Effect.gen(function* () {
+  const db = yield* Database;
+  const users = yield* db.getUsers();
+  return yield* HttpServerResponse.json(users);
+});
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/users", users)
+);
+//---cut---
+const main = Effect.gen(function* () {
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000");
+  });
+  yield* Effect.never;
+}).pipe(Effect.provide(DatabaseLayer.pipe(Layer.provide(PostgresClientLayer))));
+```
+
+Because you usually end up providing a lot of layers to your program, it's
+common to create a `MainLayer` like so:
+
+```ts twoslash ins={1-4,12} showLineNumbers=false
+import express from "express";
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Context, Effect, Layer } from "effect";
+import { Client } from "pg";
+
+const db = new Client({ user: "postgres" });
+
+interface User {
+  id: string;
+  name: string;
+}
+
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+
+class PostgresClient extends Context.Tag("PostgresClient")<
+  PostgresClient,
+  { connect: () => Effect.Effect<Client, DatabaseError, never> }
+>() {}
+
+const PostgresClientLayer = Layer.succeed(PostgresClient, {
+  connect: () =>
+    Effect.gen(function* () {
+      const db = new Client({ user: "postgres" });
+      yield* Effect.tryPromise({
+        try: () => db.connect(),
+        catch: (cause) =>
+          new DatabaseError("Failed to connect to database", { cause }),
+      });
+      return db;
+    }),
+});
+
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<User[], DatabaseError, never>;
+  }
+>() {}
+
+const DatabaseLayer = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const client = yield* PostgresClient;
+    const db = yield* client.connect();
+    return {
+      getUsers: () =>
+        Effect.gen(function* () {
+          const { rows } = yield* Effect.tryPromise({
+            try: () => db.query("SELECT * FROM users"),
+            catch: (cause) =>
+              new DatabaseError("Failed to fetch users", { cause }),
+          });
+          return rows as User[];
+        }),
+    };
+  })
+);
+const app = express();
+const users = Effect.gen(function* () {
+  const db = yield* Database;
+  const users = yield* db.getUsers();
+  return yield* HttpServerResponse.json(users);
+});
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/users", users)
+);
+//---cut---
+const MainLayer = Layer.provide(
+  DatabaseLayer,
+  PostgresClientLayer
+);
+
+const main = Effect.gen(function* () {
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000");
+  });
+  yield* Effect.never;
+}).pipe(Effect.provide(MainLayer));
+```
+
+## Database config
+
+The last dependency we should separate out is the database configuration itself.
+When we create our `Client`, we pass in `{ user: "postgres" }`. In practice,
+this would also include a password and a hostname and potentially other things.
+A common way to configure these values is to use environment variables, and
+Effect comes with built-in support for this.
+
+```ts twoslash showLineNumbers=false
+import { Effect, Config } from "effect";
+
+Effect.runPromise(Effect.gen(function* () {
+  const user = yield* Config.string("DB_USER");
+  console.log(`User: ${user}`);
+}));
+```
+
+This type checks correct, but when you run it you'll notice you get an error.
+Save the above code as `config.ts` and run it with:
+
+```bash twoslash showLineNumbers=false
+bun config.ts
+```
+
+```text twoslash wrap showLineNumbers=false
+(FiberFailure) Error: (Missing data at DB_USER: "Expected DB_USER to exist in the process context")
+```
+
+By default, Effect provides a service that gets config values from environment
+variables.
+
+```bash twoslash showLineNumbers=false
+DB_USER=postgres bun config.ts
+```
+
+```text twoslash wrap showLineNumbers=false
+User: postgres
+```
+
+If we want to, we can give config values a default value.
+
+```ts twoslash ins={2-4} showLineNumbers=false
+import { Effect, Config } from "effect";
+//---cut---
+Effect.runPromise(Effect.gen(function* () {
+  const user = yield* Config.string("DB_USER").pipe(
+    Config.withDefault("postgres")
+  );
+  console.log(`User: ${user}`);
+}));
+```
+
+You can read more about the `Config` module in the [Config documentation][1],
+but for now, let's use it to configure our database connection.
+
+```ts twoslash {4-6,10} showLineNumbers=false
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import {
+  HttpMiddleware,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Config, Context, Effect, Layer } from "effect";
+import { Client } from "pg";
+
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+
+class PostgresClient extends Context.Tag("PostgresClient")<
+  PostgresClient,
+  { connect: () => Effect.Effect<Client, DatabaseError, never> }
+>() {}
+//---cut---
+const PostgresClientLayer = Layer.effect(
+  PostgresClient,
+  Effect.gen(function* () {
+    const user = yield* Config.string("DB_USER").pipe(
+      Config.withDefault("postgres")
+    );
+    return {
+      connect: () =>
+        Effect.gen(function* () {
+          const db = new Client({ user });
+          yield* Effect.tryPromise({
+            try: () => db.connect(),
+            catch: (cause) =>
+              new DatabaseError("Failed to connect to database", { cause }),
+          });
+          return db;
+        }),
+    };
+  })
+);
+```
+
+Nothing changes in the ability to run our program, but now we can change the
+`user` parameter with an environment variable if we should choose to.  You could
+extend this to include a password, host, port, and other parameters as you need.
+
+## The end result
+
+Here's all of our new code, all in one block:
+
+```ts twoslash showLineNumbers=false
+import express from "express";
+
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
+import {
+  HttpMiddleware,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "@effect/platform";
+import { Config, Context, Effect, Layer } from "effect";
+import { Client } from "pg";
+
+const app = express();
+
+// --- Types
+
+interface User {
+  id: string;
+  name: string;
+}
+
+class DatabaseError extends Error {
+  readonly _tag = "DatabaseError";
+}
+
+// --- Tags
+
+class Database extends Context.Tag("Database")<
+  Database,
+  {
+    getUsers: () => Effect.Effect<User[], DatabaseError, never>;
+  }
+>() {}
+
+class PostgresClient extends Context.Tag("PostgresClient")<
+  PostgresClient,
+  { connect: () => Effect.Effect<Client, DatabaseError, never> }
+>() {}
+
+// --- Layers
+
+const PostgresClientLayer = Layer.effect(
+  PostgresClient,
+  Effect.gen(function* () {
+    const user = yield* Config.string("DB_USER").pipe(
+      Config.withDefault("postgres")
+    );
+    return {
+      connect: () =>
+        Effect.gen(function* () {
+          const db = new Client({ user });
+          yield* Effect.tryPromise({
+            try: () => db.connect(),
+            catch: (cause) =>
+              new DatabaseError("Failed to connect to database", { cause }),
+          });
+          return db;
+        }),
+    };
+  })
+);
+
+const DatabaseService = Layer.effect(
+  Database,
+  Effect.gen(function* () {
+    const client = yield* PostgresClient;
+    const db = yield* client.connect();
+    return {
+      getUsers: () =>
+        Effect.gen(function* () {
+          const { rows } = yield* Effect.tryPromise({
+            try: () => db.query("SELECT * FROM users"),
+            catch: (cause) =>
+              new DatabaseError("Failed to fetch users", { cause }),
+          });
+          return rows as User[];
+        }),
+    };
+  })
+);
+
+const MainLayer = Layer.provide(
+  DatabaseService,
+  PostgresClientLayer,
+)
+
+// --- Routes
+
+const users = Effect.gen(function* () {
+  const db = yield* Database;
+  const users = yield* db.getUsers();
+  return yield* HttpServerResponse.json(users);
+});
+
+const query = Effect.gen(function* () {
+  const req = yield* HttpServerRequest.HttpServerRequest;
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const q = url.searchParams.get("q");
+
+  if (!q) {
+    return yield* HttpServerResponse.json(
+      { error: "Query parameter 'q' is required" },
+      { status: 400 }
+    );
+  }
+
+  const response = yield* Effect.promise(async () => {
+    const api = `https://en.wikipedia.org/w/rest.php/v1/search/page?q=${q}&limit=1`;
+    return fetch(api).then((resp) => resp.json());
+  });
+
+  return yield* HttpServerResponse.json(response);
+});
+
+const router = HttpRouter.empty.pipe(
+  HttpRouter.get("/search", query),
+  HttpRouter.get("/users", users),
+  HttpMiddleware.logger
+);
+
+// --- Main
+
+const main = Effect.gen(function* () {
+  app.use(yield* NodeHttpServer.makeHandler(router));
+  app.listen(3000, () => {
+    console.log("Server is running on http://localhost:3000");
+  });
+  yield* Effect.never;
+}).pipe(Effect.provide(MainLayer));
+
+NodeRuntime.runMain(main);
+```
+
+We started to get a feel for Effectful code by creating services and building up
+layers, but in practice you wouldn't keep all of these things in a single file.
+We've done that for the sake of keeping the tutorial simple.
+
+There are plenty of ways you _could_ split this code up, and Effect doesn't
+force you down any one path. If you have an existing project you may want to
+keep a similar structure to what you already have. Or if you're finding yourself
+creating clearer boundaries between services, routes, layers, and so on, you
+may want to represent that in your file structure. The choice is yours.
+
+## Conclusion
+
+We've come a long way since we first took a look at a simple Express app we
+were going to migrate to Effect. Let's recap what we know now that we didn't
+know before:
+
+1. We know how to create and run Effects using `Effect.gen` and
+   `Effect.runPromise`.
+2. We know how wrap async/await code as Effects using `Effect.tryPromise`,
+   including bringing their error states into the type system.
+3. We know how to create services and layers using `Context.Tag` and
+   `Layer.effect`, to encode dependencies in the type system and make them easy
+   to swap out.
+4. We know how to use the `Config` module to read environment variables and
+   provide default values.
+5. We know how we could gradually adopt Effect into an existing project, one
+   endpoint at a time, without having to rewrite everything at once.
+
+It's a lot, but it is only the tip of the iceberg. Effect provides solutions
+out of the box for:
+
+- [Retrying][2]
+- [Caching][3]
+- [Interruptions][4]
+- [Cron jobs][5]
+- [Streaming][6]
+- [Logging][7]
+- [Tracing][8]
+- [Schema validation][9]
+- More!
+
+Effect is a complete toolbox for building robust production applications in
+TypeScript. With what you have learned in this tutorial, you should be much
+better prepared to dive into the documentation and learning all of the
+tools available to you!
+
+
+[1]: https://effect.website/docs/configuration/
+[2]: https://effect.website/docs/error-management/retrying/
+[3]: https://effect.website/docs/caching/caching-effects/
+[4]: https://effect.website/docs/concurrency/basic-concurrency/#interruptions
+[5]: https://effect.website/docs/scheduling/cron/
+[6]: https://effect.website/docs/stream/introduction/
+[7]: https://effect.website/docs/observability/logging/
+[8]: https://effect.website/docs/observability/tracing/
+[9]: https://effect.website/docs/schema/introduction/
