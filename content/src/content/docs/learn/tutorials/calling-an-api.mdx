@@ -29,7 +29,9 @@ app.get("/query", async (req, res) => {
     return
   }
 
-  const url = `https://en.wikipedia.org/w/rest.php/v1/search/page?q=${query}&limit=1`
+  const baseUrl = "https://en.wikipedia.org/w/rest.php/v1/search/page`
+  const queryParams = `?q=${query}&limit=1`
+  const url = `${baseUrl}${queryParams}`
   const results = await fetch(url)
   res.json(await results.json())
 })
