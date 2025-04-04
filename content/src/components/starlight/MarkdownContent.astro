@@ -1,7 +1,9 @@
 ---
-import { isPodcastEntry } from "@/lib/podcast"
 import Default from "@astrojs/starlight/components/MarkdownContent.astro"
+import BlogDefault from "starlight-blog/overrides/MarkdownContent.astro"
 import Podcast from "@/components/Podcast.astro"
+import { isAnyBlogPage } from "@/lib/blog"
+import { isPodcastEntry } from "@/lib/podcast"
 
 const { entry } = Astro.locals.starlightRoute
 ---
@@ -11,6 +13,10 @@ const { entry } = Astro.locals.starlightRoute
     <Podcast podcast={entry.data.podcast}>
       <slot />
     </Podcast>
+  ) : isAnyBlogPage(entry.id) ? (
+    <BlogDefault {...Astro.props}>
+      <slot />
+    </BlogDefault>
   ) : (
     <Default {...Astro.props}>
       <slot />

@@ -117,6 +117,7 @@ export default defineConfig({
       title: "Effect Documentation",
       lastUpdated: true,
       components: {
+        ContentPanel: "./src/components/starlight/ContentPanel.astro",
         Head: "./src/components/starlight/Head.astro",
         MarkdownContent: "./src/components/starlight/MarkdownContent.astro",
         SocialIcons: "./src/components/starlight/SocialIcons.astro",
