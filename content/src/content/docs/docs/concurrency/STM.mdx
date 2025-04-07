@@ -1,0 +1,356 @@
+---
+title: 'Software Transactional Memory (STM)'
+description: 'Learn how to manage shared state concurrently with atomic transactions using Effect STM.'
+sidebar:
+  order: 8
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+Managing shared state in concurrent applications is notoriously difficult. Traditional approaches often involve complex locking mechanisms that are prone to deadlocks, race conditions, and are hard to compose.
+
+Effect provides a powerful solution: **Software Transactional Memory (STM)**. STM simplifies concurrent programming by allowing you to treat complex operations on shared memory as atomic **transactions**.
+
+**Key Principles of STM:**
+
+*   **Atomicity:** All operations within an STM transaction complete successfully together, or none of them do. The system never ends up in a partially updated state.
+*   **Consistency:** Transactions ensure that the shared state always remains consistent according to your defined rules (invariants).
+*   **Isolation:** The intermediate states of a transaction are invisible to other concurrent transactions until the transaction successfully commits.
+*   **Composability:** STM operations are represented as effects (`STM<R, E, A>`) which can be easily combined and composed, just like regular `Effect`s.
+
+## The Core Building Blocks: `TRef` and `STM`
+
+STM in Effect revolves around two main types:
+
+### `TRef<A>`: Transactional References
+
+A `TRef<A>` (Transactional Reference) is a mutable reference to a value of type `A`, but it can only be accessed or modified *within* an STM transaction. Think of it as a container for shared state that is managed by the STM system.
+
+You create a `TRef` using `TRef.make`:
+
+```ts twoslash
+import { Effect, TRef } from "effect";
+
+// Creates a TRef initialized with the value 0
+const createCounter = TRef.make(0)
+
+Effect.runPromise(createCounter).then((counterRef) => {
+  console.log('TRef created:', counterRef)
+})
+```
+
+<Aside>
+While `TRef` itself is mutable (its contained value can change), it's highly recommended that the value `A` *inside* the `TRef<A>` be immutable. Mutating the value directly outside of STM transactions breaks the guarantees STM provides.
+</Aside>
+
+### `STM<A, E, R>`: Transactional Effects
+
+An `STM<R, E, A>` represents a description of a transactional computation. It's similar to `Effect<R, E, A>` but specifically designed to work with `TRef`s within a transaction.
+
+*   `A`: The success value type of the transaction.
+*   `E`: The potential error type if the transaction fails.
+*   `R`: The environment requirements for the transaction.
+
+Operations on `TRef`s, like getting or setting their value, return `STM` effects:
+
+```ts twoslash
+import { STM, TRef } from "effect";
+
+// Create a TRef for demonstration
+const createCounter = TRef.make(0);
+// For demonstration, we'll pretend we have a counter
+declare const counter: TRef.TRef<number>;
+
+// Get the current value inside the TRef
+const getCount = TRef.get(counter);
+
+// Set the value inside the TRef to 5
+const setCount = TRef.set(counter, 5);
+
+// Update the value based on the current value
+const incrementCount = TRef.updateAndGet(counter, (n) => n + 1);
+// or just update without returning the new value:
+const incrementCountVoid = TRef.update(counter, (n) => n + 1);
+```
+
+Notice that these operations *describe* what should happen in a transaction, but they don't execute it immediately.
+
+## Committing Transactions: Running STM
+
+To actually execute the operations described by an `STM` effect, you need to **commit** it. The `STM.commit` function transforms an `STM<R, E, A>` into a regular `Effect<R, E, A>`.
+
+```ts twoslash
+import { Effect, STM, TRef } from "effect";
+
+const program = Effect.gen(function* () {
+    // Create a TRef within the Effect context
+    const counter = yield* TRef.make(10);
+
+    // Describe an STM transaction: get the value and add 5
+    const transaction = STM.gen(function* () {
+        const current = yield* TRef.get(counter);
+        const newValue = current + 5;
+        yield* TRef.set(counter, newValue);
+        return newValue;
+    });
+
+    // Commit the transaction to turn it into an Effect
+    const effectfulTransaction = STM.commit(transaction);
+
+    // Run the resulting Effect
+    const result = yield* effectfulTransaction;
+    yield* Effect.log(`Transaction committed. New value: ${result}`); // Output: New value: 15
+
+    // Verify the value outside the transaction (requires another commit)
+    const finalValue = yield* STM.commit(TRef.get(counter));
+    yield* Effect.log(`Final value in TRef: ${finalValue}`); // Output: Final value in TRef: 15
+});
+
+Effect.runPromise(program);
+```
+
+`STM.commit` ensures that all operations within the `transaction` happen atomically. If any part fails, or if there's a conflict with another concurrent transaction, the whole transaction is rolled back, and the STM runtime might retry it.
+
+## Example: Atomic Bank Transfers
+
+Let's model a common concurrency problem: transferring money between two bank accounts. We want to ensure that the debit from one account and the credit to another happen atomically – money should neither be created nor destroyed, even if many transfers happen concurrently.
+
+```ts twoslash
+import { STM, TRef, Data } from "effect";
+
+// Custom error using Data.Tagged
+class InsufficientFundsError extends Data.TaggedError(
+    "InsufficientFundsError",
+)<{
+    readonly accountId: string;
+    readonly requested: number;
+    readonly available: number;
+}> {}
+
+// Represents a bank account with a balance stored in a TRef
+interface Account {
+    readonly id: string;
+    readonly balance: TRef.TRef<number>;
+}
+
+/**
+ * Describes an atomic transfer between two accounts.
+ * Fails with InsufficientFundsError if the 'from' account lacks funds.
+ */
+const transfer = (from: Account, to: Account, amount: number) =>
+    STM.gen(function* () {
+        // Ensure amount is positive
+        if (amount <= 0) {
+            return yield* STM.fail(
+                new Error("Transfer amount must be positive"),
+            );
+        }
+
+        // Get the current balance from the 'from' account
+        const fromBalance = yield* TRef.get(from.balance);
+
+        // Check for sufficient funds
+        if (fromBalance < amount) {
+            // Fail the transaction explicitly
+            return yield* STM.fail(
+                new InsufficientFundsError({
+                    accountId: from.id,
+                    requested: amount,
+                    available: fromBalance,
+                }),
+            );
+        }
+
+        // Sufficient funds: proceed with the transfer
+        // Note: All these TRef operations are part of the *same* atomic transaction
+
+        // Debit the 'from' account
+        yield* TRef.set(from.balance, fromBalance - amount);
+
+        // Credit the 'to' account (using update for variety)
+        yield* TRef.update(to.balance, (balance) => balance + amount);
+
+        // Transaction successful (returns void implicitly)
+    });
+```
+
+This `transfer` function returns an `STM` effect. It *describes* the atomic steps: check balance, potentially fail, debit sender, credit receiver. Nothing actually happens until we `commit` this `STM`.
+
+## Running Concurrent Transfers
+
+Now, let's simulate multiple concurrent transfers using Effect's concurrency features:
+
+```ts twoslash collapse={3-45}
+import { Effect, Data, STM, TRef, Fiber, Logger, LogLevel } from "effect";
+
+interface Account {
+  readonly id: string;
+  readonly balance: TRef.TRef<number>;
+}
+
+class InsufficientFundsError extends Data.TaggedError(
+  "InsufficientFundsError",
+)<{
+  readonly accountId: string;
+  readonly requested: number;
+  readonly available: number;
+}> {}
+
+const transfer = (from: Account, to: Account, amount: number) =>
+  STM.gen(function* () {
+    // Ensure amount is positive
+    if (amount <= 0) {
+      return yield* STM.fail(
+        new Error("Transfer amount must be positive"),
+      );
+    }
+
+    // Get the current balance from the 'from' account
+    const fromBalance = yield* TRef.get(from.balance);
+
+    // Check for sufficient funds
+    if (fromBalance < amount) {
+      // Fail the transaction explicitly
+      return yield* STM.fail(
+        new InsufficientFundsError({
+          accountId: from.id,
+          requested: amount,
+          available: fromBalance,
+        }),
+      );
+    }
+
+    // Debit the 'from' account
+    yield* TRef.set(from.balance, fromBalance - amount);
+
+    // Credit the 'to' account
+    yield* TRef.update(to.balance, (balance) => balance + amount);
+  });
+
+const program = Effect.gen(function* () {
+  // Create two accounts with initial balances
+  const accountA: Account = {
+    id: 'A',
+    balance: yield* TRef.make(1000),
+  }
+  const accountB: Account = {
+    id: 'B',
+    balance: yield* TRef.make(500),
+  }
+
+  yield* Effect.logInfo(`Initial Balances - A: ${yield* STM.commit(TRef.get(accountA.balance))}, B: ${yield* STM.commit(TRef.get(accountB.balance))}`)
+
+  // Describe transfer operations
+  const transferAB1 = transfer(accountA, accountB, 100)
+  const transferBA1 = transfer(accountB, accountA, 50)
+  const transferAB2 = transfer(accountA, accountB, 200)
+  const transferAB_Insufficient = transfer(accountA, accountB, 1000) // Will likely fail
+
+  // Create effects by committing the STM transactions
+  const effectAB1 = STM.commit(transferAB1).pipe(Effect.withLogSpan('Transfer_A->B_100'))
+  const effectBA1 = STM.commit(transferBA1).pipe(Effect.withLogSpan('Transfer_B->A_50'))
+  const effectAB2 = STM.commit(transferAB2).pipe(Effect.withLogSpan('Transfer_A->B_200'))
+  const effectAB_Insufficient = STM.commit(transferAB_Insufficient).pipe(
+    // Catch the specific error
+    Effect.catchTag('InsufficientFundsError', (error) =>
+      Effect.logWarning(`Transfer failed: ${error.message}`, error)
+    ),
+    Effect.withLogSpan('Transfer_A->B_1000')
+  )
+
+  // Run transfers concurrently
+  const fibers = yield* Effect.forkAll([effectAB1, effectBA1, effectAB2, effectAB_Insufficient])
+
+  // Wait for all transfers to complete or fail
+  yield* Fiber.join(fibers)
+
+  // Check final balances (atomically reads both in one transaction)
+  const finalBalances = yield* STM.commit(
+    STM.all([TRef.get(accountA.balance), TRef.get(accountB.balance)])
+  )
+
+  yield* Effect.logInfo(`Final Balances - A: ${finalBalances[0]}, B: ${finalBalances[1]}`)
+  yield* Effect.logInfo(`Total balance: ${finalBalances[0] + finalBalances[1]}`) // Should remain constant (1500)
+}).pipe(Logger.withMinimumLogLevel(LogLevel.Info))
+
+Effect.runPromise(program)
+```
+
+When you run this, you'll see the transfer logs interleaved, but STM guarantees that each successful transfer updates *both* account balances atomically. The total balance across both accounts will remain constant (1500 in this case), demonstrating consistency. The transfer attempting to take 1000 from A will fail gracefully with the `InsufficientFundsError`.
+
+## Conditional Waiting: `STM.check` and `STM.retry`
+
+Sometimes, a transaction should only proceed if a certain condition is met, and if not, it should wait and automatically retry later when the state might have changed. This is where `STM.check` comes in.
+
+`STM.check` takes a boolean condition. If the condition is `true`, the transaction continues. If it's `false`, the transaction **suspends** and automatically **retries** later when any `TRef` read *within that transaction* is modified by another committing transaction.
+
+Example: Waiting for sufficient funds before proceeding.
+
+```ts twoslash collapse={3-6}
+import { Effect, STM, TRef } from "effect";
+
+interface Account {
+  readonly id: string;
+  readonly balance: TRef.TRef<number>;
+}
+
+// Wait until the balance is at least 'amount'
+const waitForBalance = (
+  account: Account, 
+  amount: number
+): STM.STM<void, never, never> =>
+  STM.gen(function* () {
+    const balance = yield* TRef.get(account.balance)
+    // If balance < amount, STM.check(false) causes the transaction to retry later
+    yield* STM.check(() => balance >= amount)
+    // If we reach here, the condition was true
+  })
+
+// A transfer that waits if funds are insufficient, instead of failing
+const transferOrWait = (
+  from: Account,
+  to: Account,
+  amount: number
+): STM.STM<void, Error, never> =>
+  STM.gen(function* (_) {
+    // Ensure amount is positive
+    if (amount <= 0) {
+      return yield* STM.die(new Error('Transfer amount must be positive'))
+    }
+
+    // Wait until 'from' account has enough balance
+    yield* waitForBalance(from, amount)
+
+    // Now we know funds are sufficient (or were when check passed)
+    // STM guarantees atomicity, so we still read/write safely
+    const fromBalance = yield* TRef.get(from.balance)
+    // Double-check (optional but safe): STM may retry if 'from.balance' changed
+    // between the check and here, but the check *will* be re-evaluated.
+    // yield* _(STM.check(fromBalance >= amount)) // Usually redundant if check was just performed
+
+    yield* TRef.set(from.balance, fromBalance - amount)
+    yield* TRef.update(to.balance, (b) => b + amount)
+  })
+
+// You would then STM.commit(transferOrWait(...))
+```
+
+<Aside>
+`STM.retry` is the lower-level primitive that `STM.check` uses. `STM.retry` immediately aborts the current transaction and schedules it for retry when relevant `TRef`s change. `STM.check(condition)` is equivalent to `if (!condition) STM.retry else STM.unit`.
+</Aside>
+
+<Aside>
+`STM.check` / `STM.retry` cause the transaction to suspend *silently*. The fiber running the committed `Effect` will pause until the transaction can succeed. This is powerful but can lead to deadlock if the condition can never be met or if the state needed never changes. Use it carefully. `STM.fail` provides an immediate, explicit failure.
+</Aside>
+
+## Conclusion
+
+Effect's STM provides a robust, composable, and high-level abstraction for managing shared mutable state in concurrent programs. By using `TRef` to hold state and `STM` to describe atomic transactions, you can avoid the complexities and pitfalls of manual locking while benefiting from:
+
+*   **Automatic Atomicity:** Ensures transactions complete fully or not at all.
+*   **Consistency:** Keeps your shared state valid.
+*   **Isolation:** Prevents interference between concurrent transactions.
+*   **Composability:** Allows building complex transactions from simpler ones.
+*   **Integration with Effect:** Leverages Effect's powerful concurrency, error handling, and resource management features.
+
+STM is an invaluable tool when you need to coordinate concurrent access to shared data safely and effectively in your Effect applications.
