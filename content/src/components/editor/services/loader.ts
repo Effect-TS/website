@@ -1,3 +1,4 @@
+import { ReactiveRef } from "@effect-rx/rx-react"
 import * as Array from "effect/Array"
 import * as Data from "effect/Data"
 import * as Duration from "effect/Duration"
@@ -5,7 +6,6 @@ import * as Effect from "effect/Effect"
 import * as Queue from "effect/Queue"
 import * as Ref from "effect/Ref"
 import * as Stream from "effect/Stream"
-import * as SubscriptionRef from "effect/SubscriptionRef"
 
 export class Step extends Data.Class<{
   readonly id: number
@@ -18,21 +18,31 @@ export class Step extends Data.Class<{
 }
 
 export class Loader extends Effect.Service<Loader>()("app/Loader", {
-  scoped: Effect.gen(function*() {
+  scoped: Effect.gen(function* () {
     const counter = yield* Ref.make(0)
-    const steps = yield* SubscriptionRef.make(Array.empty<Step>())
-    const queue = yield* Queue.unbounded<[number, Duration.DurationInput] | null>()
+    const steps = yield* ReactiveRef.make(Array.empty<Step>())
+    const queue = yield* Queue.unbounded<
+      [number, Duration.DurationInput] | null
+    >()
 
     const nextId = Ref.getAndUpdate(counter, (n) => n + 1).pipe(
-      Effect.map((n) => (n % Number.MAX_SAFE_INTEGER))
+      Effect.map((n) => n % Number.MAX_SAFE_INTEGER)
     )
 
     function addStep(id: number, message: string) {
-      return SubscriptionRef.update(steps, Array.append(new Step({ id, message, done: false })))
+      return ReactiveRef.update(
+        steps,
+        Array.append(new Step({ id, message, done: false }))
+      )
     }
 
-    function withIndicator(message: string, minWaitTime: Duration.DurationInput = 0) {
-      return <A, E, R>(self: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+    function withIndicator(
+      message: string,
+      minWaitTime: Duration.DurationInput = 0
+    ) {
+      return <A, E, R>(
+        self: Effect.Effect<A, E, R>
+      ): Effect.Effect<A, E, R> =>
         nextId.pipe(
           Effect.tap((id) => addStep(id, message)),
           Effect.flatMap((id) =>
@@ -53,13 +63,13 @@ export class Loader extends Effect.Service<Loader>()("app/Loader", {
     )
 
     function completeStep(id: number) {
-      return (step: Step) => id === step.id ? step.complete() : step
+      return (step: Step) => (id === step.id ? step.complete() : step)
     }
 
     const fiber = yield* Stream.fromQueue(queue).pipe(
       Stream.takeWhile((element) => element !== null),
       Stream.runForEach(([id, delay]) =>
-        SubscriptionRef.update(steps, Array.map(completeStep(id))).pipe(
+        ReactiveRef.update(steps, Array.map(completeStep(id))).pipe(
           Effect.delay(delay)
         )
       ),
@@ -74,4 +84,4 @@ export class Loader extends Effect.Service<Loader>()("app/Loader", {
       withIndicator
     } as const
   })
-}) { }
+}) {}

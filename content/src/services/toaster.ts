@@ -2,8 +2,11 @@ import * as Array from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Queue from "effect/Queue"
 import * as Ref from "effect/Ref"
-import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
-import {ReactiveRef} from "@effect-rx/rx-react"
+import type {
+  ToastActionElement,
+  ToastProps
+} from "@/components/ui/toast"
+import { ReactiveRef } from "@effect-rx/rx-react"
 
 export interface Toast extends ToastProps {
   readonly id: string
@@ -14,7 +17,7 @@ export interface Toast extends ToastProps {
 
 export class Toaster extends Effect.Service<Toaster>()("app/Toaster", {
   accessors: true,
-  scoped: Effect.gen(function*() {
+  scoped: Effect.gen(function* () {
     const counter = yield* Ref.make(0)
     const toasts = yield* ReactiveRef.make(Array.empty<Toast>())
     const removeQueue = yield* Queue.unbounded<string>()
@@ -35,7 +38,10 @@ export class Toaster extends Effect.Service<Toaster>()("app/Toaster", {
     function addToast(toast: Omit<Toast, "id">) {
       return nextId.pipe(
         Effect.flatMap((id) =>
-          ReactiveRef.update(toasts, Array.prepend(createToast(id, toast)))
+          ReactiveRef.update(
+            toasts,
+            Array.prepend(createToast(id, toast))
+          )
         )
       )
     }
