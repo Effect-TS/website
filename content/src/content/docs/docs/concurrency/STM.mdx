@@ -343,14 +343,60 @@ const transferOrWait = (
 `STM.check` / `STM.retry` cause the transaction to suspend *silently*. The fiber running the committed `Effect` will pause until the transaction can succeed. This is powerful but can lead to deadlock if the condition can never be met or if the state needed never changes. Use it carefully. `STM.fail` provides an immediate, explicit failure.
 </Aside>
 
-## Conclusion
+## Immutability
 
-Effect's STM provides a robust, composable, and high-level abstraction for managing shared mutable state in concurrent programs. By using `TRef` to hold state and `STM` to describe atomic transactions, you can avoid the complexities and pitfalls of manual locking while benefiting from:
+<Aside type="caution">
+Immutability is a fundamental requirement for STM to work properly. The STM system relies on the ability to roll back to previous states when transactions fail or conflict, and this is only possible if those previous states haven't been modified outside of the STM system.
+</Aside>
 
-*   **Automatic Atomicity:** Ensures transactions complete fully or not at all.
-*   **Consistency:** Keeps your shared state valid.
-*   **Isolation:** Prevents interference between concurrent transactions.
-*   **Composability:** Allows building complex transactions from simpler ones.
-*   **Integration with Effect:** Leverages Effect's powerful concurrency, error handling, and resource management features.
+Here's an example that demonstrates what happens when you break immutability:
 
-STM is an invaluable tool when you need to coordinate concurrent access to shared data safely and effectively in your Effect applications.
+```ts twoslash
+import { Effect, STM, TRef, Console, pipe } from "effect";
+
+const mutabilityBad = Effect.gen(function* (_) {
+  const ref = yield* _(TRef.make(new Date()));
+
+  const transaction = pipe(
+    // DONT DO THIS !!!
+    TRef.update(ref, (date) => {
+      date.setMonth(date.getMonth() + 1);
+      return date;
+    }),
+    STM.zipRight(STM.fail(new Error("Boom!")))
+  );
+
+  const before = yield* _(STM.commit(TRef.get(ref)));
+  yield* _(
+    STM.commit(transaction),
+    Effect.catchAll((error) => Console.error(error.message))
+  );
+  const after = yield* _(STM.commit(TRef.get(ref)));
+
+  console.log(before.toUTCString(), after.toUTCString());
+});
+
+Effect.runPromise(mutabilityBad);
+```
+
+In this example, even though the transaction fails with an error, the `Date` object inside the `TRef` has already been modified because `Date` objects are mutable in JavaScript. When STM attempts to roll back the transaction, it can't restore the original state.
+
+This is a contrived example, but it illustrates an important point: if you use mutable data structures within your `TRef`s, you lose many of the guarantees that STM provides. Always prefer immutable data structures when working with STM.
+
+## Additional STM Data Structures
+
+While `TRef` is the basic building block of the STM system, Effect provides several other transactional data structures that are built on top of it. These higher-level abstractions can greatly simplify working with more complex shared state patterns:
+
+- [`TMap`](https://effect-ts.github.io/effect/effect/TMap.ts.html): A transactional map that provides atomic operations for key-value storage
+- [`TSet`](https://effect-ts.github.io/effect/effect/TSet.ts.html): A transactional set for managing unique values with atomic operations
+- [`TQueue`](https://effect-ts.github.io/effect/effect/TQueue.ts.html): A transactional queue for producer-consumer patterns with non-blocking operations
+- [`TPriorityQueue`](https://effect-ts.github.io/effect/effect/TPriorityQueue.ts.html): A transactional priority queue for ordered processing of items
+- [`TPubSub`](https://effect-ts.github.io/effect/effect/TPubSub.ts.html): A transactional publish-subscribe mechanism for broadcasting values to multiple subscribers
+- [`TReentrantLock`](https://effect-ts.github.io/effect/effect/TReentrantLock.ts.html): A transactional reentrant lock that can be acquired multiple times by the same fiber
+- [`TSemaphore`](https://effect-ts.github.io/effect/effect/TSemaphore.ts.html): A transactional semaphore for controlling access to limited resources 
+- [`TRandom`](https://effect-ts.github.io/effect/effect/TRandom.ts.html): A transactional random number generator with various distributions
+- [`TSubscriptionRef`](https://effect-ts.github.io/effect/effect/TSubscriptionRef.ts.html): A transactional reference that allows subscribing to changes
+
+These data structures follow the same transactional semantics as `TRef`, ensuring that all operations on them are atomic, consistent, isolated, and composable when used within STM transactions.
+
+Using these built-in data structures can save you from having to implement complex concurrent algorithms yourself while still maintaining STM's strong guarantees around concurrent state management.
