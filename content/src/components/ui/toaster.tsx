@@ -1,5 +1,4 @@
-import { useRxValue } from "@effect-rx/rx-react"
-import { toastsRx } from "@/rx/toasts"
+import { component } from "@effect-rx/rx-react"
 import {
   Toast,
   ToastClose,
@@ -8,10 +7,11 @@ import {
   ToastTitle,
   ToastViewport
 } from "@/components/ui/toast"
+import { Effect } from "effect"
+import { Toaster as ToasterTag } from "@/services/toaster"
 
-export function Toaster() {
-  const toasts = useRxValue(toastsRx)
-
+export const Toaster = component("Toaster", Effect.fnUntraced(function*() {
+  const toasts = yield* ToasterTag.toasts
   return (
     <ToastProvider>
       {toasts.map(({ id, title, description, action, ...props }) => (
@@ -29,4 +29,4 @@ export function Toaster() {
       <ToastViewport />
     </ToastProvider>
   )
-}
+})).provide(ToasterTag.Default)
