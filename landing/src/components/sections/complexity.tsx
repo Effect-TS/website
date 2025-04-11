@@ -243,8 +243,7 @@ async function getTodo(
   id: number
 ): Effect.Effect<unknown, HttpClientError> =>
   httpClient.get(\`/todos/\${id}\`).pipe(
-    Effect.andThen((response) => response.json),
-    Effect.scoped
+    Effect.andThen((response) => response.json)
   )`,
         highlights: [
           {
@@ -325,7 +324,6 @@ const getTodo = (
 ): Effect.Effect<unknown, HttpClientError> =>
   httpClient.get(\`/todos/\${id}\`).pipe(
     Effect.andThen((response) => response.json),
-    Effect.scoped,
     Effect.retry({
       schedule: Schedule.exponential(1000),
       times: 3
@@ -334,7 +332,7 @@ const getTodo = (
         highlights: [
           {
             color: "#39300D",
-            lines: [7, 8, 9, 10]
+            lines: [6, 7, 8, 9]
           }
         ]
       }
@@ -426,7 +424,6 @@ function getTodo(
 > =>
   httpClient.get(\`/todos/\${id}\`).pipe(
     Effect.andThen((response) => response.json),
-    Effect.scoped,
     Effect.timeout("1 second"),
     Effect.retry({
       schedule: Schedule.exponential(1000),
@@ -436,7 +433,7 @@ function getTodo(
         highlights: [
           {
             color: "#28233B",
-            lines: [5, 10]
+            lines: [5, 9]
           }
         ]
       }
@@ -553,7 +550,6 @@ const getTodo = (
 > =>
   httpClient.get(\`/todos/\${id}\`).pipe(
     Effect.andThen((response) => response.json),
-    Effect.scoped,
     Effect.timeout("1 second"),
     Effect.retry({
       schedule: Schedule.exponential(1000),
@@ -564,7 +560,7 @@ const getTodo = (
         highlights: [
           {
             color: "#10322E",
-            lines: [15]
+            lines: [14]
           }
         ]
       }

@@ -321,7 +321,6 @@ const makeTodos = Effect.gen(function*() {
   const findById = (id: number) =>
     client.get(\`/todos/\${id}\`).pipe(
       Effect.andThen((res) => res.json),
-      Effect.scoped,
       Effect.retry({
         schedule: Schedule.exponential(1000),
         times: 3
@@ -423,7 +422,7 @@ const fetchTodo = (
     )
     const res = yield* client.get(\`/todos/\${id}\`)
     return yield* res.json
-  }).pipe(Effect.scoped)
+  })
 `
         }
       },
