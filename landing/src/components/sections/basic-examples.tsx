@@ -309,7 +309,6 @@ const makeUsers = Effect.gen(function*() {
   const findById = (id: number) =>
     client.get(\`/users/\${id}\`).pipe(
       Effect.andThen((response) => response.json),
-      Effect.scoped,
       Effect.retry({ times: 3 })
     )
 
@@ -574,7 +573,6 @@ function mergeAbortSignal(
   > =>
     client.get(\`/todos/\${id}\`).pipe(
       Effect.andThen((response) => response.json),
-      Effect.scoped,
       Effect.timeout("1 second")
     )
 
