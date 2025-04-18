@@ -2,31 +2,32 @@
 title: HashSet
 description: Learn about HashSet data structures - both immutable and mutable variants.
 sidebar:
-  order: 3
+  order: 9
 ---
 
 import { Aside } from "@astrojs/starlight/components"
 
-A `HashSet` represents an _un-ordered_, _collection_ of _unique_ values with efficient lookup, insertion and removal operations.
-The Effect library provides two variants of this data structure:
+A HashSet represents an **unordered** collection of **unique** values with efficient lookup, insertion and removal operations.
 
-1. [**`HashSet<A>`**](/docs/data-types/hash-set/#hashset-details) - An immutable set implementation
-2. [**`MutableHashSet<A>`**](/docs/data-types/hash-set/#mutablehashset-details) - A mutable set implementation
+The Effect library provides two versions of this structure:
 
-Both implementations store unique values and provide O(1) average-time complexity for core operations, but they differ in how modifications are handled.
+- [HashSet](/docs/data-types/hash-set/#hashset) - Immutable
+- [MutableHashSet](/docs/data-types/hash-set/#mutablehashset) - Mutable
 
+Both versions provide constant-time operations on average. The main difference is how they handle changes: one returns new sets, the other modifies the original.
 
-## What problem does HashSet solve?
+### Why use HashSet?
 
 HashSet solves the problem of maintaining an **unsorted collection where each value appears exactly once**, with fast operations for checking membership and adding/removing values.
 
 Some common use cases include:
+
 - Tracking unique items (e.g., users who have completed an action)
 - Efficiently testing for membership in a collection
 - Performing set operations like union, intersection, and difference
 - Eliminating duplicates from a collection
 
-## When to use `HashSet` Instead of other "collections"
+### When to use HashSet Instead of other collections
 
 Choose HashSet (either variant) over other collections when:
 
@@ -36,40 +37,42 @@ Choose HashSet (either variant) over other collections when:
 - The order of elements doesn't matter to your use case
 
 Choose other collections when:
+
 - You need to maintain insertion order (use `List` or `Array`)
 - You need key-value associations (use `HashMap` or `MutableHashMap`)
 - You need to frequently access elements by index (use `Array`)
 
-## Choosing between _immutable_ and _mutable_ variants
+### Choosing between immutable and mutable variants
 
-The Effect library provides two implementations to accommodate different programming styles and performance needs:
+Effect offers both immutable and mutable versions to support different coding styles and performance needs.
 
-### Immutable `HashSet<A>`
+**HashSet**
 
-The immutable `HashSet` follows functional programming principles where data structures are never modified in place. Instead, operations that would change the set return a new instance with the changes applied, leaving the original set unchanged.
+This version never modifies the original set. Instead, it returns a new set for every change.
 
-**Characteristics:**
+Characteristics:
+
 - Operations return new instances instead of modifying the original
 - Previous states are preserved
 - Thread-safe by design
 - Ideal for functional programming patterns
 - Suitable for sharing across different parts of your application
 
-### `MutableHashSet<A>`
+**MutableHashSet**
 
-The mutable `MutableHashSet` allows direct modification of the underlying collection. Operations like add and remove change the set in place rather than creating new instances.
+This version allows direct updates: adding and removing values changes the set in place.
 
-**Characteristics:**
+Characteristics:
+
 - Operations modify the original set directly
 - More efficient when building sets incrementally
 - Requires careful handling to avoid unexpected side effects
 - Better performance in scenarios with many modifications
 - Ideal for localized use where mutations won't cause issues elsewhere
 
-
 ### When to use each variant
 
-#### Use immutable `HashSet` when:
+Use **HashSet** when:
 
 - You need predictable behavior with no side effects
 - You want to preserve previous states of your data
@@ -77,128 +80,143 @@ The mutable `MutableHashSet` allows direct modification of the underlying collec
 - You prefer functional programming patterns
 - You need fiber safety in concurrent environments
 
-#### Use `MutableHashSet` when:
+Use **MutableHashSet** when:
 
 - Performance is critical, and you need to avoid creating new instances
 - You're building a collection incrementally with many additions/removals
 - You're working in a controlled scope where mutation is safe
 - You need to optimize memory usage in performance-critical code
 
-#### Hybrid approach:
-Another option is to use the **bounded mutation context** provided by the immutable `HashSet`:
+### Hybrid approach
+
+You can apply multiple updates to a `HashSet` in a temporary mutable context using `HashSet.mutate`. This allows you to perform several changes at once without modifying the original set.
+
+**Example** (Batching changes without mutating the original)
 
 ```ts twoslash
 import { HashSet } from "effect"
 
-// Start with an immutable set
+// Create an immutable HashSet
 const original = HashSet.make(1, 2, 3)
 
-// Use the mutation API for a series of changes
+// Apply several updates inside a temporary mutable draft
 const modified = HashSet.mutate(original, (draft) => {
-	// this is bounded mutation context!
   HashSet.add(draft, 4)
   HashSet.add(draft, 5)
   HashSet.remove(draft, 1)
 })
 
-console.log(HashSet.toValues(original)) // [1, 2, 3] - original unchanged
-console.log(HashSet.toValues(modified)) // [2, 3, 4, 5] - new version with changes
+console.log(HashSet.toValues(original))
+// Output: [1, 2, 3] - original remains unchanged
+
+console.log(HashSet.toValues(modified))
+// Output: [2, 3, 4, 5] - changes applied to a new version
 ```
 
 ## Performance characteristics
 
-Both HashSet variants provide similar time performance characteristics for their core operations:
+Both `HashSet` and `MutableHashSet` offer similar average-time performance for core operations:
 
-| Operation      | `HashSet`    | `MutableHashSet` | Description                           |
-|----------------|--------------|------------------|---------------------------------------|
-| Lookup         | O(1) average | O(1) average     | Checking if an element exists         |
-| Insertion      | O(1) average | O(1) average     | Adding a new element                  |
-| Removal        | O(1) average | O(1) average     | Removing an existing element          |
-| Iteration      | O(n)         | O(n)             | Traversing all elements               |
-| Set operations | O(n)         | O(n)             | Union, intersection, difference, etc. |
+| Operation      | HashSet      | MutableHashSet | Description                     |
+| -------------- | ------------ | -------------- | ------------------------------- |
+| Lookup         | O(1) average | O(1) average   | Check if a value exists         |
+| Insertion      | O(1) average | O(1) average   | Add a value                     |
+| Removal        | O(1) average | O(1) average   | Remove a value                  |
+| Iteration      | O(n)         | O(n)           | Iterate over all values         |
+| Set operations | O(n)         | O(n)           | Union, intersection, difference |
 
+The main difference is how updates are handled:
 
-The primary performance difference lies in how modifications are handled:
-
-- **Immutable HashSet** creates new instances for every modification, which can impact performance when making many sequential changes.
-- **MutableHashSet** modifies the existing structure, making it more efficient for multiple sequential modifications.
+- **HashSet** returns a new set for each change. This can be slower if many changes are made in a row.
+- **MutableHashSet** updates the same set in place. This is usually faster when performing many changes.
 
 ## Equality and uniqueness
 
-Both HashSet variants use Effect's [`Equal`](/docs/trait/equal/) trait to determine when elements are the same, ensuring that each element appears exactly once in the set. This applies to:
+Both `HashSet` and `MutableHashSet` use Effect's [`Equal`](/docs/trait/equal/) trait to determine if two elements are the same. This ensures that each value appears only once in the set.
 
-- **Primitive Values:** Equality is determined by value (similar to the `===` operator).
-- **Objects and Custom Types:** For objects and other custom types, equality is determined by whether those types implement the `Equal` interface themselves.
-	If an element type implements `Equal`, the `HashSet` will delegate to that implementation to perform the equality check. This allows you to define custom logic for determining when two instances of your objects should be considered equal based on their properties, rather than just their object identity. The fallback strategy is equality by reference.
+- **Primitive values** (like numbers or strings) are compared by value, similar to the `===` operator.
+- **Objects and custom types** must implement the `Equal` interface to define what it means for two instances to be equal. If no implementation is provided, equality falls back to reference comparison.
 
+**Example** (Using custom equality and hashing)
 
 ```ts twoslash
 import { Equal, Hash, HashSet } from "effect"
 
+// Define a custom class that implements the Equal interface
 class Person implements Equal.Equal {
   constructor(
-    readonly id: number, // Unique identifier
+    readonly id: number,
     readonly name: string,
     readonly age: number
-  ) { }
+  ) {}
 
-  // Define equality based on id, name, and age
+  // Two Person instances are equal if their id, name, and age match
   [Equal.symbol](that: Equal.Equal): boolean {
     if (that instanceof Person) {
-      return Equal.equals(this.id, that.id) && Equal.equals(this.name, that.name) && Equal.equals(this.age, that.age)
+      return (
+        Equal.equals(this.id, that.id) &&
+        Equal.equals(this.name, that.name) &&
+        Equal.equals(this.age, that.age)
+      )
     }
     return false
   }
 
-  // Generate a hash code based on the unique id
+  // Hash code is based on the id (must match the equality logic)
   [Hash.symbol](): number {
     return Hash.hash(this.id)
   }
 }
 
-// Creating a HashSet with objects that implement the Equal interface
+// Add two different instances with the same content
 const set = HashSet.empty().pipe(
   HashSet.add(new Person(1, "Alice", 30)),
   HashSet.add(new Person(1, "Alice", 30))
 )
 
-// HashSet recognizes them as equal, so only one element is stored
+// Only one instance is kept
 console.log(HashSet.size(set))
 // Output: 1
 ```
 
-**Simplifying Equality and Hashing with `Data` and `Schema`:**
+### Simplifying Equality with Data and Schema
 
-Using Effect's [`Data`](/docs/data-types/data/) or [`Schema.Data`](/docs/schema/effect-data-types/#interop-with-data) modules can automatically implement the necessary `Equal` trait for your custom types:
+Effect's [`Data`](/docs/data-types/data/) and [`Schema.Data`](/docs/schema/effect-data-types/#interop-with-data) modules implement `Equal` for you automatically, based on structural equality.
+
+**Example** (Using `Data.struct`)
 
 ```ts twoslash
 import { Data, Equal, HashSet, pipe } from "effect"
-import assert from "node:assert/strict"
 
-// Data.* implements the `Equal` traits automatically
+// Define two records with the same content
 const person1 = Data.struct({ id: 1, name: "Alice", age: 30 })
 const person2 = Data.struct({ id: 1, name: "Alice", age: 30 })
 
-assert.equal(Object.is(person1, person2), false) // They are different references
+// They are different object references
+console.log(Object.is(person1, person2))
+// Output: false
 
-assert.equal(Equal.equals(person1, person2), true) // But they are equal in value
+// But they are equal in value (based on content)
+console.log(Equal.equals(person1, person2))
+// Output: true
 
+// Add both to a HashSet — only one will be stored
 const set = pipe(
-    HashSet.empty(),
-    HashSet.add(person1),
-    HashSet.add(person2) // since `person1` and `person2` are equal, only one will be stored
+  HashSet.empty(),
+  HashSet.add(person1),
+  HashSet.add(person2)
 )
 
-// Only one element is stored because they're considered equal
-console.log(HashSet.size(set)) // Output: 1
+console.log(HashSet.size(set))
+// Output: 1
 ```
 
+**Example** (Using `Schema.Data`)
 
 ```ts twoslash
 import { Equal, MutableHashSet, Schema } from "effect"
-import assert from "node:assert/strict"
 
-// Schema.Data implements the `Equal` traits for us
+// Define a schema that describes the structure of a Person
 const PersonSchema = Schema.Data(
   Schema.Struct({
     id: Schema.Number,
@@ -207,42 +225,37 @@ const PersonSchema = Schema.Data(
   })
 )
 
-const Person = Schema.decode(PersonSchema)
+// Decode values from plain objects
+const Person = Schema.decodeSync(PersonSchema)
 
 const person1 = Person({ id: 1, name: "Alice", age: 30 })
 const person2 = Person({ id: 1, name: "Alice", age: 30 })
 
-assert(Equal.equals(person1, person2)) // Output: true
+// person1 and person2 are different instances but equal in value
+console.log(Equal.equals(person1, person2))
+// Output: true
 
+// Add both to a MutableHashSet — only one will be stored
 const set = MutableHashSet.empty().pipe(
   MutableHashSet.add(person1),
   MutableHashSet.add(person2)
 )
 
-// HashSet, thanks to Schema.Data implementation of the `Equal` trait, recognizes the two Person as equal, so only one element is stored
-console.log(MutableHashSet.size(set)) // Output: 1
+console.log(MutableHashSet.size(set))
+// Output: 1
 ```
 
+## HashSet
 
-___
+A `HashSet<A>` is an **immutable**, **unordered** collection of **unique** values.
+It guarantees that each value appears only once and supports fast operations like lookup, insertion, and removal.
 
-## `HashSet` details
-
-An `HashSet<A>` is an _immutable_ collection of unique values. Once created, a `HashSet` cannot be modified; any operation that would alter the set instead returns a new `HashSet` with the changes. This immutability offers benefits like predictable state management and easier reasoning about your code.
-
-### Advanced features
-
-Immutable HashSet provides operations for:
-
-- **Transforming** sets with `map` and `flatMap`
-- **Filtering** elements with `filter`
-- **Combining** sets with `union`, `intersection` and `difference`
-- **Controlled mutability** with `mutate`, `beginMutation`, and `endMutation`
+Any operation that would modify the set (like adding or removing a value) returns a new `HashSet`, leaving the original unchanged.
 
 ### Operations
 
 | Category     | Operation                                                                              | Description                                 | Time Complexity |
-|--------------|----------------------------------------------------------------------------------------|---------------------------------------------|-----------------|
+| ------------ | -------------------------------------------------------------------------------------- | ------------------------------------------- | --------------- |
 | constructors | [empty](https://effect-ts.github.io/effect/effect/HashSet.ts.html#empty)               | Creates an empty HashSet                    | O(1)            |
 | constructors | [fromIterable](https://effect-ts.github.io/effect/effect/HashSet.ts.html#fromiterable) | Creates a HashSet from an iterable          | O(n)            |
 | constructors | [make](https://effect-ts.github.io/effect/effect/HashSet.ts.html#make)                 | Creates a HashSet from multiple values      | O(n)            |
@@ -266,69 +279,77 @@ Immutable HashSet provides operations for:
 | filtering    | [filter](https://effect-ts.github.io/effect/effect/HashSet.ts.html#filter)             | Keeps elements that satisfy a predicate     | O(n)            |
 | partitioning | [partition](https://effect-ts.github.io/effect/effect/HashSet.ts.html#partition)       | Splits into two sets by a predicate         | O(n)            |
 
-
-### Examples
-
-Creating and using an immutable HashSet:
+**Example** (Basic creation and operations)
 
 ```ts twoslash
 import { HashSet } from "effect"
 
-// Creating a new set
+// Create an initial set with 3 values
 const set1 = HashSet.make(1, 2, 3)
 
-// Adding elements (returns a new set)
+// Add a value (returns a new set)
 const set2 = HashSet.add(set1, 4)
 
-// The original set remains unchanged
-console.log(HashSet.toValues(set1)) // [1, 2, 3]
-console.log(HashSet.toValues(set2)) // [1, 2, 3, 4]
+// The original set is unchanged
+console.log(HashSet.toValues(set1))
+// Output: [1, 2, 3]
 
-// Set operations
+console.log(HashSet.toValues(set2))
+// Output: [1, 2, 3, 4]
+
+// Perform set operations with another set
 const set3 = HashSet.make(3, 4, 5)
+
+// Combine both sets
 const union = HashSet.union(set2, set3)
+
+console.log(HashSet.toValues(union))
+// Output: [1, 2, 3, 4, 5]
+
+// Shared values
 const intersection = HashSet.intersection(set2, set3)
+
+console.log(HashSet.toValues(intersection))
+// Output: [3, 4]
+
+// Values only in set2
 const difference = HashSet.difference(set2, set3)
 
-console.log(HashSet.toValues(union)) // [1, 2, 3, 4, 5]
-console.log(HashSet.toValues(intersection)) // [3, 4]
-console.log(HashSet.toValues(difference)) // [1, 2]
+console.log(HashSet.toValues(difference))
+// Output: [1, 2]
 ```
 
-Using pipe for a more fluent API:
+**Example** (Chaining with `pipe`)
 
 ```ts twoslash
 import { HashSet, pipe } from "effect"
 
 const result = pipe(
+  // Duplicates are ignored
   HashSet.make(1, 2, 2, 3, 4, 5, 5),
+  // Keep even numbers
   HashSet.filter((n) => n % 2 === 0),
+  // Double each value
   HashSet.map((n) => n * 2),
+  // Convert to array
   HashSet.toValues
 )
 
-console.log(result) // [4, 8]
+console.log(result)
+// Output: [4, 8]
 ```
-___
 
-## `MutableHashSet` details
+## MutableHashSet
 
-A `MutableHashSet<A>` is a _mutable_ collection of unique values. Operations like add, remove, and clear directly modify the original set rather than creating a new one. This mutability offers benefits like improved performance in scenarios where you need to build or modify a set incrementally.
+A `MutableHashSet<A>` is a **mutable**, **unordered** collection of **unique** values.
+Unlike `HashSet`, it allows direct modifications, operations like `add`, `remove`, and `clear` update the original set instead of returning a new one.
 
-### Advanced Features
-
-`MutableHashSet` provides operations for:
-
-- **Directly modifying** the set with `add`, `remove`, and `clear`
-- **Checking** for element existence with `has`
-- **Converting** to immutable collections when needed
-- **Building** sets incrementally with optimal performance
-
+This mutability can improve performance when you need to build or update a set repeatedly, especially within a local or isolated scope.
 
 ### Operations
 
 | Category     | Operation                                                                                     | Description                         | Complexity |
-|--------------|-----------------------------------------------------------------------------------------------|-------------------------------------|------------|
+| ------------ | --------------------------------------------------------------------------------------------- | ----------------------------------- | ---------- |
 | constructors | [empty](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#empty)               | Creates an empty MutableHashSet     | O(1)       |
 | constructors | [fromIterable](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#fromiterable) | Creates a set from an iterable      | O(n)       |
 | constructors | [make](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#make)                 | Creates a set from multiple values  | O(n)       |
@@ -338,85 +359,87 @@ A `MutableHashSet<A>` is a _mutable_ collection of unique values. Operations lik
 | getters      | [size](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#size)                 | Gets the number of elements         | O(1)       |
 | mutations    | [clear](https://effect-ts.github.io/effect/effect/MutableHashSet.ts.html#clear)               | Removes all values from the set     | O(1)       |
 
-### Examples
-
-Creating and using a mutable HashSet:
+**Example** (Working with a mutable set)
 
 ```ts twoslash
 import { MutableHashSet } from "effect"
 
-// Creating a new mutable set
+// Create a mutable set with initial values
 const set = MutableHashSet.make(1, 2, 3)
 
-// Adding elements (modifies the original set)
+// Add a new element (updates the set in place)
 MutableHashSet.add(set, 4)
 
-// Set is modified in place
-console.log([...set]) // [1, 2, 3, 4]
+// Check current contents
+console.log([...set])
+// Output: [1, 2, 3, 4]
 
-// Removing elements
+// Remove an element (modifies in place)
 MutableHashSet.remove(set, 1)
-console.log([...set]) // [2, 3, 4]
 
-// Clearing the set
+console.log([...set])
+// Output: [2, 3, 4]
+
+// Clear the set entirely
 MutableHashSet.clear(set)
-console.log(MutableHashSet.size(set)) // 0
+
+console.log(MutableHashSet.size(set))
+// Output: 0
 ```
-
-
 
 ## Interoperability with JavaScript
 
-Both HashSet variants work well with standard JavaScript collection operations since they implement the `Iterable` interface;
-Plus they also provide methods to access its elements in formats readily usable by JavaScript APIs:
-- `.values`, which returns an `IterableIterator<A>`, and
-- `.toValues` which returns an `Array<A>`.
+Both `HashSet` and `MutableHashSet` implement the `Iterable` interface, so you can use them with JavaScript features like:
+
+- the spread operator (`...`)
+- `for...of` loops
+- `Array.from`
+
+You can also extract values as an array using `.toValues`.
+
+**Example** (Using HashSet values in JS-native ways)
 
 ```ts twoslash
 import { HashSet, MutableHashSet } from "effect"
 
-//      ┌─── HashSet.HashSet<number>
-//      ▼
+// Immutable HashSet
 const hashSet = HashSet.make(1, 2, 3)
 
+// Mutable variant
 const mutableSet = MutableHashSet.make(4, 5, 6)
 
-// Using HashSet.values to convert HashSet.HashSet<A> to IterableIterator<A>
+// Convert HashSet to an iterator
+//
+//      ┌─── IterableIterator<number>
+//      ▼
 const iterable = HashSet.values(hashSet)
-//	   ▲
-//	   └── IterableIterator<number>
 
-// Using spread operator
-console.log(...iterable) // Logs:  1 2 3
+// Spread into console.log
+console.log(...iterable)
+// Output: 1 2 3
 
-
-// Using for...of
+// Use in a for...of loop
 for (const value of mutableSet) {
   console.log(value)
 }
+// Output: 4 5 6
 
-// Using Array.from
-console.log(Array.from(mutableSet)) // Logs: [ 4, 5, 6 ]
+// Convert to array with Array.from
+console.log(Array.from(mutableSet))
+// Output: [ 4, 5, 6 ]
 
-// Using HashSet.toValues to convert HashSet.HashSet<A> to Array<A>
+// Convert immutable HashSet to array using toValues
+//
+//      ┌─── Array<number>
+//      ▼
 const array = HashSet.toValues(hashSet)
-//     ▲
-//     └── Array<number>
 
-console.log(array) // Logs: [ 1, 2, 3 ]
+console.log(array)
+// Output: [ 1, 2, 3 ]
 ```
 
 <Aside type="caution" title="Performance considerations">
-Be mindful of performance implications (both time and space complexity) **when frequently converting** between Effect's `HashSet` and mutable JavaScript data structures, **especially for large collections**.
-</Aside >
-
-___
-
-
-<Aside type="note"  title="Summary" >
-  The Effect library provides two HashSet implementations to meet different needs:
-  1. **`HashSet<A>`** - An immutable implementation that follows functional programming principles. Operations return new instances, preserving original data. Ideal for most use cases where predictable behavior and data safety are important.
-  2. **`MutableHashSet<A>`** - A mutable implementation that offers better performance for incremental construction. Operations modify the original set. Best used in controlled scopes where performance is critical.
-
-	Both implementations provide efficient O(1) average-time operations for core functionality like adding, removing, and checking elements, making HashSet an essential tool for managing unique collections of values.
-</Aside >
+  Avoid repeatedly converting between `HashSet` and JavaScript arrays in
+  hot paths or large collections. These operations involve copying data
+  and can impact memory and speed.
+</Aside>
