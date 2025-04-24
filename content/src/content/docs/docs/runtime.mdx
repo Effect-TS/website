@@ -267,8 +267,10 @@ class Notifications extends Effect.Tag("Notifications")<
 >() {}
 
 // Create an effect that depends on the Notifications service
+//
+//      ┌─── Effect.Effect<void, never, Notifications>
+//      ▼
 const action = Notifications.notify("Hello, world!")
-//    ^? const action: Effect<void, never, Notifications>
 ```
 
 In this example, the `action` effect depends on the `Notifications` service. This approach allows you to reference services without manually passing them around. Later, you can create a `Layer` that provides the `Notifications` service and build a `ManagedRuntime` with that layer to ensure the service is available where needed.
