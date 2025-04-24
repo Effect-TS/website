@@ -1,4 +1,4 @@
-import { Rx } from "@effect-rx/rx-react";
+import { Rx } from "@effect-rx/rx-react"
 import * as monaco from "@effect/monaco-editor"
 import { createStreaming, type Formatter } from "@dprint/formatter"
 import * as Array from "effect/Array"
@@ -18,13 +18,17 @@ import { Loader } from "../services/loader";
 import { Terminal } from "../services/terminal"
 import { Dracula, NightOwlishLight } from "../services/terminal/themes"
 import { WebContainer } from "../services/webcontainer"
+import { AutoSave } from "../services/auto-save"
 
-const runtime = Rx.runtime(Layer.mergeAll(
-  Loader.Default,
-  Terminal.Default,
-  Toaster.Default,
-  WebContainer.Default
-))
+const runtime = Rx.runtime(
+  Layer.mergeAll(
+    Loader.Default,
+    Terminal.Default,
+    Toaster.Default,
+    WebContainer.Default,
+    AutoSave.Default
+  )
+)
 
 const terminalThemeRx = themeRx.pipe(Rx.map((theme) =>
   theme === "light" ? NightOwlishLight : Dracula
@@ -34,10 +38,11 @@ export interface RxWorkspaceHandle extends Rx.Rx.InferSuccess<ReturnType<typeof 
 
 export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
   runtime.rx(
-    Effect.gen(function*() {
+    Effect.gen(function* () {
       const container = yield* WebContainer
       const loader = yield* Loader
       const terminal = yield* Terminal
+      const autosave = yield* AutoSave
 
       const handle = yield* container.createWorkspaceHandle(workspace)
 
@@ -122,6 +127,13 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         )
       )
 
+      const reset = Rx.fn(() =>
+        Effect.gen(function* () {
+          yield* autosave.resetLocal("save")
+          window.location.reload()
+        })
+      )
+
       let size = 0
       const terminalSize = Rx.writable(
         () => size,
@@ -134,6 +146,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         terminalSize,
         workspace: handle.workspace,
         run: handle.run,
+        reset,
         workspaceRx: Rx.subscriptionRef(handle.workspace),
         createFile: Rx.fn((params: Parameters<typeof handle.createFile>, get) =>
           Effect.gen(function*() {

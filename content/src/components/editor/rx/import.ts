@@ -4,6 +4,7 @@ import * as Encoding from "effect/Encoding"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as String from "effect/String"
+import { pipe } from "effect/Function"
 import { hashRx } from "@/rx/location"
 import { ShortenClient } from "@/services/shorten/client"
 import {
@@ -13,9 +14,11 @@ import {
   WorkspaceShell
 } from "../domain/workspace"
 import { WorkspaceCompression } from "../services/compression"
+import { AutoSave } from "../services/auto-save"
 
 const runtime = Rx.runtime(
   Layer.mergeAll(
+    AutoSave.Default,
     ShortenClient.Default,
     WorkspaceCompression.Default
   )
@@ -77,29 +80,54 @@ function makeDefaultWorkspace() {
 }
 
 export const importRx = runtime.rx((get) =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const hash = get(hashRx)
-    if (Option.isNone(hash)) {
-      const params = new URLSearchParams(window.location.search)
-      if (params.has("code")) {
-        const code = params.get("code")!
-        const content = yield* Encoding.decodeBase64UrlString(code)
-        const node = makeFile("main.ts", content, false)
-        return defaultWorkspace.replaceNode(main, node)
-      }
-      return makeDefaultWorkspace()
-    }
+    const autosave = yield* AutoSave
 
-    const client = yield* ShortenClient
-    const compressed = yield* client.retrieve({ hash: hash.value })
+    const restoreFromCode = yield* Option.liftPredicate(
+      hash,
+      Option.isNone
+    ).pipe(
+      Option.asVoid, // create Option.some<void> if hash is None
+      Option.flatMap(() => {
+        const params = new URLSearchParams(window.location.search)
+        if (params.has("code")) {
+          return Option.some(params.get("code")!)
+        }
+        return Option.none()
+      }),
+      Effect.transposeMapOption((code) =>
+        Effect.gen(function* () {
+          const content = yield* Encoding.decodeBase64UrlString(code)
+          const node = makeFile("main.ts", content, false)
+          return defaultWorkspace.replaceNode(main, node)
+        })
+      )
+    )
 
-    if (Option.isNone(compressed)) {
-      return makeDefaultWorkspace()
-    }
+    const restoreFromHash = yield* pipe(
+      hash,
+      Effect.transposeMapOption((hash) =>
+        Effect.gen(function* () {
+          const client = yield* ShortenClient
+          const compression = yield* WorkspaceCompression
+          const compressed = yield* client
+            .retrieve({ hash })
+            .pipe(Effect.flatten)
 
-    const compression = yield* WorkspaceCompression
-    return yield* compression
-      .decompress(compressed.value)
-      .pipe(Effect.orElseSucceed(makeDefaultWorkspace))
-  })
+          return yield* compression.decompress(compressed)
+        })
+      )
+    )
+
+    const restoreFromLocal = yield* autosave.restoreFromLocal("save")
+
+    return Option.firstSomeOf([
+      restoreFromCode,
+      restoreFromHash,
+      restoreFromLocal
+    ]).pipe(Option.getOrElse(() => makeDefaultWorkspace())) // no restore method
+  }).pipe(
+    Effect.catchAll((_) => Effect.succeed(makeDefaultWorkspace())) // error in a restore method
+  )
 )

@@ -13,17 +13,21 @@ import { Loader } from "../services/loader"
 import { Monaco } from "../services/monaco"
 import { WebContainer } from "../services/webcontainer"
 import type { RxWorkspaceHandle } from "./workspace"
+import { AutoSave } from "../services/auto-save"
 
 export const editorThemeRx = Rx.map(themeRx, (theme) =>
   theme === "dark" ? "dracula" : "vs"
 )
 
-const runtime = Rx.runtime(Layer.mergeAll(
-  Loader.Default,
-  Monaco.Default,
-  Toaster.Default,
-  WebContainer.Default
-)).pipe(Rx.setIdleTTL("10 seconds"))
+const runtime = Rx.runtime(
+  Layer.mergeAll(
+    Loader.Default,
+    Monaco.Default,
+    Toaster.Default,
+    WebContainer.Default,
+    AutoSave.Default
+  )
+).pipe(Rx.setIdleTTL("10 seconds"))
 
 export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
   const element = Rx.make(Option.none<HTMLElement>())
@@ -33,6 +37,7 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
       const loader = yield* Loader
       const { createEditor } = yield* Monaco
       const container = yield* WebContainer
+      const autosave = yield* AutoSave
 
       const el = yield* get.some(element)
       const editor = yield* createEditor(el)
@@ -66,6 +71,20 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
       )
 
       /**
+       * Saves the content of the editor's current model to the local storage.
+       */
+      const startAutoSave = editor.content.pipe(
+        Stream.debounce("2 seconds"),
+        Stream.runForEach((_) =>
+          Effect.gen(function* () {
+            const workspace = yield* SubscriptionRef.get(handle.workspace)
+            return yield* autosave.saveToLocal(workspace, "save")
+          })
+        ),
+        Effect.forkScoped
+      )
+
+      /**
        * Syncs the content of the editor with the underlying WebContainer file
        * system.
        */
@@ -96,6 +115,8 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
         Effect.retry(Schedule.spaced("200 millis")),
         Effect.forkScoped
       )
+
+      yield* startAutoSave
 
       yield* loader.finish
 
