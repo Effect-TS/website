@@ -1,3 +1,4 @@
+import { Data } from "effect"
 import * as Brand from "effect/Brand"
 import * as Effect from "effect/Effect"
 import { pipe } from "effect/Function"
@@ -9,14 +10,17 @@ import * as Schema from "effect/Schema"
 export type FullPath = Brand.Branded<string, "FullPath">
 export const FullPath = Brand.nominal<FullPath>()
 
-export class WorkspaceShell extends Schema.Class<WorkspaceShell>("WorkspaceShell")({
+export class WorkspaceShell extends Schema.Class<WorkspaceShell>(
+  "WorkspaceShell"
+)({
   command: Schema.optional(Schema.String),
   label: Schema.optional(Schema.String)
-}) {
-  [Hash.symbol](): number {
-    return Hash.random(this)
-  }
-}
+}) {}
+
+export class WorkspaceTerminal extends Data.Class<{
+  command: string | undefined
+  element: HTMLDivElement
+}> {}
 
 export class File extends Schema.TaggedClass<File>()("File", {
   name: Schema.String,
@@ -36,7 +40,11 @@ export class File extends Schema.TaggedClass<File>()("File", {
     })
   }
 }
-export function makeFile(name: string, content: string, userManaged = false): File {
+export function makeFile(
+  name: string,
+  content: string,
+  userManaged = false
+): File {
   return new File({ name, userManaged, initialContent: content })
 }
 
@@ -132,19 +140,19 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
         tree: [
           ...(options.dependencies
             ? [
-              new File({
-                name: "package.json",
-                language: "json",
-                initialContent: JSON.stringify(
-                  {
-                    dependencies: options.dependencies
-                  },
-                  undefined,
-                  2
-                )
-              }),
-              ...defaultFiles
-            ]
+                new File({
+                  name: "package.json",
+                  language: "json",
+                  initialContent: JSON.stringify(
+                    {
+                      dependencies: options.dependencies
+                    },
+                    undefined,
+                    2
+                  )
+                }),
+                ...defaultFiles
+              ]
             : []),
           ...(options.tree ?? [])
         ]
@@ -181,7 +189,9 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   setTree(tree: FileTree) {
     return new Workspace({ ...this, tree })
   }
-  filterMap(f: (item: File | Directory) => Option.Option<File | Directory>) {
+  filterMap(
+    f: (item: File | Directory) => Option.Option<File | Directory>
+  ) {
     return this.setTree(filterMapTree(this.tree, f))
   }
   replaceNode(node: File | Directory, replacement: File | Directory) {
@@ -236,7 +246,7 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
     const walk = (
       tree: ReadonlyArray<File | Directory>
     ): Effect.Effect<ReadonlyArray<Directory | File>, E, R> =>
-      Effect.gen(this, function*() {
+      Effect.gen(this, function* () {
         const out: Array<File | Directory> = []
         for (const node of tree) {
           if (node._tag === "File") {

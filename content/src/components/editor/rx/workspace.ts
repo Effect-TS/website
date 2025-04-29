@@ -17,7 +17,7 @@ import {
   Directory,
   File,
   Workspace,
-  WorkspaceShell
+  WorkspaceTerminal
 } from "../domain/workspace"
 import { Loader } from "../services/loader"
 import { Terminal } from "../services/terminal"
@@ -86,34 +86,16 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
 
       const selectedFile = Rx.make(workspace.initialFile)
 
-      const createTerminal = Rx.family(({ command }: WorkspaceShell) =>
-        runtime.rx((get) =>
-          Effect.gen(function* () {
-            const process = yield* container.createShell
-            const spawned = yield* terminal.spawn({
-              theme: get.once(terminalThemeRx)
-            })
-            const writer = process.input.getWriter()
-            const mount = Effect.sync(() => {
-              process.output.pipeTo(
-                new WritableStream({
-                  write(data) {
-                    spawned.terminal.write(data)
-                  }
-                })
-              )
-              spawned.terminal.onData((data) => {
-                writer.write(data)
+      const createTerminal = Rx.family(
+        ({ command, element }: WorkspaceTerminal) =>
+          runtime.rx(
+            Effect.fnUntraced(function* (get) {
+              const process = yield* container.createShell
+              const spawned = yield* terminal.spawn({
+                theme: get.once(terminalThemeRx)
               })
-            })
-            yield* mount
-            writer.write(`cd "${workspace.name}" && clear\n`)
-            /**
-             * Install dependencies, acquire types, and setup formatters in the
-             * background
-             */
-            const fiber = yield* handle.spawn(workspace.prepare).pipe(
-              Effect.tap((process) => {
+              const writer = process.input.getWriter()
+              const mount = Effect.sync(() => {
                 process.output.pipeTo(
                   new WritableStream({
                     write(data) {
@@ -121,40 +103,60 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
                     }
                   })
                 )
-              }),
-              Effect.flatMap((process) =>
-                Effect.promise(() => process.exit)
-              ),
-              Effect.zipRight(setupWorkspaceTypeAcquisition(workspace)),
-              Effect.zipRight(setupWorkspaceFormatters(workspace)),
-              Effect.forkScoped
-            )
-            if (command !== undefined) {
+                spawned.terminal.onData((data) => {
+                  writer.write(data)
+                })
+              })
+              yield* mount
+              writer.write(`cd "${workspace.name}" && clear\n`)
               /**
-               * Wait for dependencies, type acquisition, etc. to be complete
-               * before running the workspace command
+               * Install dependencies, acquire types, and setup formatters in the
+               * background
                */
-              yield* Fiber.await(fiber).pipe(
-                Effect.zipRight(
-                  Effect.sync(() => writer.write(`${command}\n`))
+              const fiber = yield* handle.spawn(workspace.prepare).pipe(
+                Effect.tap((process) => {
+                  process.output.pipeTo(
+                    new WritableStream({
+                      write(data) {
+                        spawned.terminal.write(data)
+                      }
+                    })
+                  )
+                }),
+                Effect.flatMap((process) =>
+                  Effect.promise(() => process.exit)
                 ),
+                Effect.zipRight(setupWorkspaceTypeAcquisition(workspace)),
+                Effect.zipRight(setupWorkspaceFormatters(workspace)),
                 Effect.forkScoped
               )
-            }
-            get.subscribe(
-              terminalThemeRx,
-              (theme) => {
-                spawned.terminal.options.theme = theme
-              },
-              { immediate: true }
-            )
-            yield* get.stream(terminalSize).pipe(
-              Stream.runForEach(() => spawned.resize),
-              Effect.forkScoped
-            )
-            return spawned.terminal
-          }).pipe(Effect.tapErrorCause(Effect.logError))
-        )
+              if (command !== undefined) {
+                /**
+                 * Wait for dependencies, type acquisition, etc. to be complete
+                 * before running the workspace command
+                 */
+                yield* Fiber.await(fiber).pipe(
+                  Effect.zipRight(
+                    Effect.sync(() => writer.write(`${command}\n`))
+                  ),
+                  Effect.forkScoped
+                )
+              }
+              get.subscribe(
+                terminalThemeRx,
+                (theme) => {
+                  spawned.terminal.options.theme = theme
+                },
+                { immediate: true }
+              )
+              yield* get.stream(terminalSize).pipe(
+                Stream.runForEach(() => spawned.resize),
+                Effect.forkScoped
+              )
+              spawned.terminal.open(element)
+              return spawned.terminal
+            }, Effect.tapErrorCause(Effect.logError))
+          )
       )
 
       let size = 0
