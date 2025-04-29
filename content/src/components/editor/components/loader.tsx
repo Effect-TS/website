@@ -1,11 +1,12 @@
-import { useRxValue, Result } from "@effect-rx/rx-react"
+import { useRxValue } from "@effect-rx/rx-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { CircleCheck, Loader2 } from "lucide-react"
-import { isLoadedRx, stepsRx } from "../rx/loader"
+import { isLoadedRx } from "../rx/loader"
+import { loaderStepsRx } from "../services/loader"
 
 export function PlaygroundLoader() {
-  const isReady = Result.isSuccess(useRxValue(isLoadedRx))
-  const steps = useRxValue(stepsRx, (steps) => {
+  const isReady = useRxValue(isLoadedRx)
+  const steps = useRxValue(loaderStepsRx, (steps) => {
     return steps.every((step) => step.done)
       ? steps
       : steps.slice(0, steps.findIndex((step) => !step.done) + 1)
@@ -48,7 +49,13 @@ export function PlaygroundLoader() {
                             <Loader2 className="w-6 h-6 text-[--sl-color-text] animate-spin" />
                           )}
                         </motion.div>
-                        <span className={step.done ? "text-[--sl-color-text]" : "text-[--sl-color-white]"}>
+                        <span
+                          className={
+                            step.done
+                              ? "text-[--sl-color-text]"
+                              : "text-[--sl-color-white]"
+                          }
+                        >
                           {step.message}
                         </span>
                       </motion.div>
@@ -59,8 +66,7 @@ export function PlaygroundLoader() {
             </div>
           </div>
         </motion.div>
-      )
-      }
-    </AnimatePresence >
+      )}
+    </AnimatePresence>
   )
 }

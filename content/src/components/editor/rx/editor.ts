@@ -14,18 +14,11 @@ import { Monaco } from "../services/monaco"
 import { WebContainer } from "../services/webcontainer"
 import type { RxWorkspaceHandle } from "./workspace"
 
-export const editorThemeRx = Rx.map(themeRx, (theme) =>
-  theme === "dark" ? "dracula" : "vs"
-)
+export const editorThemeRx = Rx.map(themeRx, (theme) => (theme === "dark" ? "dracula" : "vs"))
 
-const runtime = Rx.runtime(
-  Layer.mergeAll(
-    Loader.Default,
-    Monaco.Default,
-    Toaster.Default,
-    WebContainer.Default
-  )
-).pipe(Rx.setIdleTTL("10 seconds"))
+const runtime = Rx.runtime(Layer.mergeAll(Loader.Default, Monaco.Default, Toaster.Default, WebContainer.Default)).pipe(
+  Rx.setIdleTTL("10 seconds")
+)
 
 export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
   const element = Rx.make(Option.none<HTMLElement>())
@@ -42,11 +35,7 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
       /**
        * Syncs the website theme with the editor.
        */
-      get.subscribe(
-        editorThemeRx,
-        (theme) => editor.editor.updateOptions({ theme }),
-        { immediate: true }
-      )
+      get.subscribe(editorThemeRx, (theme) => editor.editor.updateOptions({ theme }), { immediate: true })
 
       /**
        * Setup go-to-definition for the playground
@@ -62,12 +51,7 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
           const path = workspace.fullPathTo(file)
           return Option.match(path, {
             onNone: () => Effect.void,
-            onSome: (path) =>
-              container.writeFile(
-                path,
-                editor.editor.getValue(),
-                "typescript"
-              )
+            onSome: (path) => container.writeFile(path, editor.editor.getValue(), "typescript")
           })
         })
       )
@@ -83,9 +67,7 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
             switch: true
           }),
           Stream.debounce("2 seconds"),
-          Stream.tap((content) =>
-            container.writeFile(fullPath, content, file.language)
-          ),
+          Stream.tap((content) => container.writeFile(fullPath, content, file.language)),
           Stream.ensuring(
             Effect.suspend(() => {
               const content = editor.editor.getValue()
@@ -102,12 +84,8 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
       yield* loader.withIndicator("Configuring editor")(Effect.void)
       yield* get.stream(handle.selectedFile).pipe(
         Stream.bindTo("file"),
-        Stream.bindEffect("workspace", () =>
-          SubscriptionRef.get(handle.workspace)
-        ),
-        Stream.bindEffect("fullPath", ({ file, workspace }) =>
-          workspace.fullPathTo(file)
-        ),
+        Stream.bindEffect("workspace", () => SubscriptionRef.get(handle.workspace)),
+        Stream.bindEffect("fullPath", ({ file, workspace }) => workspace.fullPathTo(file)),
         Stream.flatMap(({ file, fullPath }) => sync(fullPath, file), {
           switch: true
         }),
@@ -140,16 +118,10 @@ function setupGoToDefinition(handle: RxWorkspaceHandle, get: Rx.Context) {
       }
       const workspace = get.once(handle.workspaceRx)
       const fullPath = model.uri.fsPath
-      const workspacePath = fullPath
-        .replace(workspace.name, "")
-        .replace(/^\/+/, "")
+      const workspacePath = fullPath.replace(workspace.name, "").replace(/^\/+/, "")
       return Option.match(workspace.findFile(workspacePath), {
         onNone: () => {
-          editor.trigger(
-            "registerEditorOpener",
-            "editor.action.peekDefinition",
-            {}
-          )
+          editor.trigger("registerEditorOpener", "editor.action.peekDefinition", {})
           return false
         },
         onSome: ([file]) => {

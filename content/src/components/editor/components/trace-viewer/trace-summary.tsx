@@ -1,11 +1,12 @@
 import { useMemo } from "react"
 import { QuestionMarkCircledIcon } from "@radix-ui/react-icons"
 import { Duration, Option } from "effect"
-import { useSelectedSpanValue } from "../../context/devtools"
 import { formatDuration, getTotalSpans } from "./utils"
+import { useRxValue } from "@effect-rx/rx-react"
+import { selectedSpanRx } from "../../rx/devtools"
 
 export function TraceSummary() {
-  const selectedSpan = useSelectedSpanValue()
+  const selectedSpan = useRxValue(selectedSpanRx)
   const summary = useMemo(() => {
     if (selectedSpan !== undefined) {
       let summary = `${getTotalSpans(selectedSpan)} spans`

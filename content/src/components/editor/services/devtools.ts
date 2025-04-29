@@ -1,41 +1,48 @@
 import * as DevToolsDomain from "@effect/experimental/DevTools/Domain"
 import * as Array from "effect/Array"
 import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
 import { pipe } from "effect/Function"
 import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
-import * as SubscriptionRef from "effect/SubscriptionRef"
 import { Span } from "../domain/devtools"
 import { WebContainer } from "./webcontainer"
+import { Rx } from "@effect-rx/rx-react"
 
-export class DevTools extends Effect.Service<DevTools>()("app/DevTools", {
-  dependencies: [WebContainer.Default],
-  scoped: Effect.gen(function*() {
+export const rootSpansRx = Rx.make<ReadonlyArray<Span>>([])
+
+export const DevToolsLayer = Layer.scopedDiscard(
+  Effect.gen(function* () {
     const container = yield* WebContainer
 
-    const rootSpans = yield* SubscriptionRef.make<ReadonlyArray<Span>>([])
-
     function registerSpan(span: DevToolsDomain.ParentSpan) {
-      return SubscriptionRef.update(rootSpans, (rootSpans) =>
+      return Rx.update(rootSpansRx, (rootSpans) =>
         pipe(
           rootSpans,
           Array.findFirstIndex((root) => root.traceId === span.traceId),
           Option.flatMap((index) =>
-            Array.modifyOption(rootSpans, index, (root) => root.addSpan(span))
+            Array.modifyOption(rootSpans, index, (root) =>
+              root.addSpan(span)
+            )
           ),
-          Option.getOrElse(() => Array.prepend(rootSpans, Span.fromSpan(span)))
+          Option.getOrElse(() =>
+            Array.prepend(rootSpans, Span.fromSpan(span))
+          )
         )
       )
     }
 
     function registerSpanEvent(event: DevToolsDomain.SpanEvent) {
-      return SubscriptionRef.updateSome(rootSpans, (rootSpans) =>
+      return Rx.update(rootSpansRx, (rootSpans) =>
         pipe(
           rootSpans,
           Array.findFirstIndex((root) => root.traceId === event.traceId),
           Option.flatMap((index) =>
-            Array.modifyOption(rootSpans, index, (root) => root.addEvent(event))
-          )
+            Array.modifyOption(rootSpans, index, (root) =>
+              root.addEvent(event)
+            )
+          ),
+          Option.getOrElse(() => rootSpans)
         )
       )
     }
@@ -56,10 +63,5 @@ export class DevTools extends Effect.Service<DevTools>()("app/DevTools", {
       }),
       Effect.forkScoped
     )
-
-    return {
-      rootSpans
-    } as const
   })
-}) { }
-
+).pipe(Layer.provide(WebContainer.Default))
