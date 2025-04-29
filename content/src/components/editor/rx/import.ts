@@ -1,6 +1,5 @@
 import { Rx } from "@effect-rx/rx-react"
 import * as Effect from "effect/Effect"
-import * as Encoding from "effect/Encoding"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as String from "effect/String"
@@ -13,12 +12,10 @@ import {
   WorkspaceShell
 } from "../domain/workspace"
 import { WorkspaceCompression } from "../services/compression"
+import * as Schema from "effect/Schema"
 
 const runtime = Rx.runtime(
-  Layer.mergeAll(
-    ShortenClient.Default,
-    WorkspaceCompression.Default
-  )
+  Layer.mergeAll(ShortenClient.Default, WorkspaceCompression.Default)
 )
 
 const main = makeFile(
@@ -76,15 +73,17 @@ function makeDefaultWorkspace() {
   return defaultWorkspace.withName(`playground-${Date.now()}`)
 }
 
+const codeRx = Rx.searchParam("code", {
+  schema: Schema.StringFromBase64Url.pipe(Schema.nonEmptyString())
+})
+
 export const importRx = runtime.rx((get) =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const hash = get(hashRx)
     if (Option.isNone(hash)) {
-      const params = new URLSearchParams(window.location.search)
-      if (params.has("code")) {
-        const code = params.get("code")!
-        const content = yield* Encoding.decodeBase64UrlString(code)
-        const node = makeFile("main.ts", content, false)
+      const code = get(codeRx)
+      if (Option.isSome(code)) {
+        const node = makeFile("main.ts", code.value, false)
         return defaultWorkspace.replaceNode(main, node)
       }
       return makeDefaultWorkspace()
