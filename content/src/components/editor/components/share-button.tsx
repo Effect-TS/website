@@ -1,23 +1,18 @@
-import { useCallback, useEffect, useMemo, useState, Fragment } from "react"
+import { useCallback, useEffect, useState, Fragment } from "react"
 import { CheckIcon, CopyIcon, DownloadIcon, LoaderCircleIcon } from "lucide-react"
 import { useRxSet, useRxValue, Result } from "@effect-rx/rx-react"
 import * as Match from "effect/Match"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from "@/components/ui/popover"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/css/utils"
 import { useWorkspaceHandle } from "../context/workspace"
 import { shareRx } from "../rx/share"
 
 export function ShareButton() {
   const handle = useWorkspaceHandle()
-  const rx = useMemo(() => shareRx(handle), [handle])
-  const share = useRxSet(rx)
+  const share = useRxSet(shareRx(handle))
 
   const onOpen = useCallback(
     (open: boolean) => {
@@ -43,8 +38,7 @@ export function ShareButton() {
 
 function ShareContent() {
   const handle = useWorkspaceHandle()
-  const rx = useMemo(() => shareRx(handle), [handle])
-  const result = useRxValue(rx)
+  const result = useRxValue(shareRx(handle))
 
   const [copied, setCopied] = useState(false)
   useEffect(() => {
@@ -91,9 +85,7 @@ function ShareContent() {
     <Fragment>
       <div className="flex flex-col space-y-2 text-center sm:text-left">
         <h3 className="text-lg text-[--sl-color-white] font-semibold">Share</h3>
-        <p className="text-sm font-medium text-[--sl-color-text]">
-          Use the link to share this playground with others.
-        </p>
+        <p className="text-sm font-medium text-[--sl-color-text]">Use the link to share this playground with others.</p>
       </div>
       <div className="flex items-center space-x-2 pt-4">
         <div className="grid flex-1 gap-2">
@@ -109,9 +101,7 @@ function ShareContent() {
                 FileNotFoundError: () => "The workspace could not be found.",
                 CompressionError: () => "Could not compress the workspace.",
                 ShortenError: (err) =>
-                  err.reason === "TooLarge"
-                    ? "The workspace is too large to share."
-                    : "An unexpected error occurred."
+                  err.reason === "TooLarge" ? "The workspace is too large to share." : "An unexpected error occurred."
               }),
               onDefect: (_) => "An unexpected error occurred.",
               onSuccess: ({ value }) => value.url
@@ -131,20 +121,19 @@ function ShareContent() {
           onClick={handleCopyLink}
         >
           <span className="sr-only">Copy</span>
-          {copied
-            ? <CheckIcon size={16} />
-            : result.waiting
-              ? <LoaderCircleIcon className="animate-spin" size={16} />
-              : <CopyIcon size={16} />
-          }
+          {copied ? (
+            <CheckIcon size={16} />
+          ) : result.waiting ? (
+            <LoaderCircleIcon className="animate-spin" size={16} />
+          ) : (
+            <CopyIcon size={16} />
+          )}
         </Button>
       </div>
 
       <div className="flex items-center space-x-2 pt-4">
         <div className="grid flex-1 gap-2">
-          <p className="text-sm font-medium text-[--sl-color-text]">
-            Or download the files locally
-          </p>
+          <p className="text-sm font-medium text-[--sl-color-text]">Or download the files locally</p>
         </div>
         <Button
           size="sm"
@@ -154,15 +143,15 @@ function ShareContent() {
           onClick={handleDownloadLink}
         >
           <span className="sr-only">Download</span>
-          {downloaded 
-            ? <CheckIcon size={16} />
-            : result.waiting
-              ? <LoaderCircleIcon className="animate-spin" size={16} />
-              : <DownloadIcon size={16} />
-          }
+          {downloaded ? (
+            <CheckIcon size={16} />
+          ) : result.waiting ? (
+            <LoaderCircleIcon className="animate-spin" size={16} />
+          ) : (
+            <DownloadIcon size={16} />
+          )}
         </Button>
       </div>
     </Fragment>
   )
-
 }

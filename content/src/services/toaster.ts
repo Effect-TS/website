@@ -2,8 +2,12 @@ import * as Array from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Queue from "effect/Queue"
 import * as Ref from "effect/Ref"
-import * as SubscriptionRef from "effect/SubscriptionRef"
-import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
+import type {
+  ToastActionElement,
+  ToastProps
+} from "@/components/ui/toast"
+import { Registry, Rx } from "@effect-rx/rx-react"
+import { Runtime } from "effect"
 
 export interface Toast extends ToastProps {
   readonly id: string
@@ -12,11 +16,13 @@ export interface Toast extends ToastProps {
   readonly action?: ToastActionElement
 }
 
+export const toastsRx = Rx.make(Array.empty<Toast>())
+
 export class Toaster extends Effect.Service<Toaster>()("app/Toaster", {
-  scoped: Effect.gen(function*() {
+  scoped: Effect.gen(function* () {
     const counter = yield* Ref.make(0)
-    const toasts = yield* SubscriptionRef.make(Array.empty<Toast>())
     const removeQueue = yield* Queue.unbounded<string>()
+    const runtime = yield* Effect.runtime<Registry.RxRegistry>()
 
     const nextId = Ref.getAndUpdate(counter, (n) => n + 1).pipe(
       Effect.map((n) => (n % Number.MAX_SAFE_INTEGER).toString())
@@ -27,29 +33,30 @@ export class Toaster extends Effect.Service<Toaster>()("app/Toaster", {
         ...toast,
         id,
         open: true,
-        onOpenChange: (open) => !open && Effect.runSync(dismissToast(id))
+        onOpenChange: (open) =>
+          !open && Runtime.runSync(runtime, dismissToast(id))
       }
     }
 
     function addToast(toast: Omit<Toast, "id">) {
       return nextId.pipe(
         Effect.flatMap((id) =>
-          SubscriptionRef.update(toasts, Array.prepend(createToast(id, toast)))
+          Rx.update(toastsRx, Array.prepend(createToast(id, toast)))
         )
       )
     }
 
     function removeToast(id: string) {
-      return SubscriptionRef.update(
-        toasts,
+      return Rx.update(
+        toastsRx,
         Array.filter((toast) => toast.id !== id)
       )
     }
 
     function dismissToast(id: string) {
       Queue.unsafeOffer(removeQueue, id)
-      return SubscriptionRef.update(
-        toasts,
+      return Rx.update(
+        toastsRx,
         Array.map((toast) =>
           toast.id === id ? { ...toast, open: false } : toast
         )
@@ -66,10 +73,7 @@ export class Toaster extends Effect.Service<Toaster>()("app/Toaster", {
     )
 
     return {
-      toast: addToast,
-      toasts
+      toast: addToast
     } as const
   })
-}) { }
-
-
+}) {}

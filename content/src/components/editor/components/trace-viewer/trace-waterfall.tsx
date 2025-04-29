@@ -22,11 +22,12 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { cn } from "@/lib/css/utils"
-import { useSelectedSpanValue } from "../../context/devtools"
 import { Span } from "../../domain/devtools"
 import { TraceDetails } from "./trace-details"
 import { TraceTree } from "./trace-tree"
 import { formatDuration } from "./utils"
+import { useRxValue } from "@effect-rx/rx-react"
+import { selectedSpanRx } from "../../rx/devtools"
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
@@ -63,10 +64,9 @@ const columns: Array<ColumnDef<Span>> = [
 ]
 
 export function TraceWaterfall() {
-  const selectedSpan = useSelectedSpanValue()
-  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>(
-    {}
-  )
+  const selectedSpan = useRxValue(selectedSpanRx)
+  const [rowSelection, setRowSelection] =
+    React.useState<RowSelectionState>({})
   const [expanded, setExpanded] = React.useState<ExpandedState>(true)
   const data = useMemo(
     () => (selectedSpan === undefined ? [] : [selectedSpan]),
@@ -112,7 +112,10 @@ export function TraceWaterfall() {
       <Table style={columnSizeVars} className="border-spacing-0">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id} className="flex border-x border-gray-400 dark:border-gray-700 hover:bg-transparent transition-none">
+            <TableRow
+              key={headerGroup.id}
+              className="flex border-x border-gray-400 dark:border-gray-700 hover:bg-transparent transition-none"
+            >
               {headerGroup.headers.map((header) => {
                 return (
                   <TableHead
@@ -128,9 +131,9 @@ export function TraceWaterfall() {
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                     {header.column.getCanResize() && (
                       <div
                         role="separator"
@@ -179,7 +182,8 @@ function UnmemoizedTableBody({
               data-state={row.getIsSelected() && "selected"}
               className={cn(
                 "flex border-x border-gray-400 dark:border-gray-700 data-[state=selected]:bg-[--sl-color-gray-6] dark:data-[state=selected]:bg-[--sl-color-gray-5] hover:bg-[--sl-color-gray-6] dark:hover:bg-[--sl-color-gray-5]",
-                span.hasError && "bg-destructive/30 hover:bg-destructive/40 data-[state=selected]:bg-destructive/30"
+                span.hasError &&
+                  "bg-destructive/30 hover:bg-destructive/40 data-[state=selected]:bg-destructive/30"
               )}
             >
               {row.getVisibleCells().map((cell) => (
@@ -193,7 +197,10 @@ function UnmemoizedTableBody({
                     cell.column.columnDef.meta?.grow && "grow"
                   )}
                 >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  {flexRender(
+                    cell.column.columnDef.cell,
+                    cell.getContext()
+                  )}
                   {cell.column.getCanResize() && (
                     <div
                       role="separator"
@@ -230,7 +237,12 @@ function NameCell({ getValue, row }: CellContext<Span, unknown>) {
       >
         <TraceTree row={row} />
       </button>
-      <div className={cn("h-8 flex items-center", row.subRows.length > 0 && "ml-1.5")}>
+      <div
+        className={cn(
+          "h-8 flex items-center",
+          row.subRows.length > 0 && "ml-1.5"
+        )}
+      >
         <span className="overflow-hidden text-ellipsis">
           {node.label}
         </span>
@@ -239,7 +251,11 @@ function NameCell({ getValue, row }: CellContext<Span, unknown>) {
   )
 }
 
-function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
+function DurationCell({
+  getValue,
+  row,
+  column
+}: CellContext<Span, unknown>) {
   const currentSpan = getValue<Span>()
   const root = currentSpan.isRoot
     ? currentSpan
@@ -275,13 +291,15 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
     Option.isNone(currentSpan.endTime)
   ) {
     const spanStartTime = currentSpan.startTime.value
-    const relativeStartTime = Duration.nanos(spanStartTime - traceStartTime)
+    const relativeStartTime = Duration.nanos(
+      spanStartTime - traceStartTime
+    )
     return (
       <div
         className={cn(
           "w-full h-6 flex items-center px-2 justify-start",
           currentSpan.isRoot &&
-          "my-1 outline-dashed outline-2 outline-black/40 dark:outline-muted-foreground rounded-sm"
+            "my-1 outline-dashed outline-2 outline-black/40 dark:outline-muted-foreground rounded-sm"
         )}
       >
         {currentSpan.isRoot ? (
@@ -298,7 +316,8 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
             <span className="font-display text-xs">In-Progress</span>
             <span className="mx-2">...</span>
             <span className="text-xs font-medium text-[--sl-color-text]">
-              Started: {formatDuration(relativeStartTime)} after trace start
+              Started: {formatDuration(relativeStartTime)} after trace
+              start
             </span>
           </div>
         )}
@@ -348,7 +367,7 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
   )
 }
 
-const performanceNowNanos = (function() {
+const performanceNowNanos = (function () {
   const bigint1e6 = BigInt(1_000_000)
   if (typeof performance === "undefined") {
     return () => BigInt(Date.now()) * bigint1e6
@@ -358,11 +377,11 @@ const performanceNowNanos = (function() {
     BigInt(Math.round(performance.now() * 1_000_000))
   return () => origin + BigInt(Math.round(performance.now() * 1_000_000))
 })()
-const processOrPerformanceNow = (function() {
+const processOrPerformanceNow = (function () {
   const processHrtime =
     typeof process === "object" &&
-      "hrtime" in process &&
-      typeof process.hrtime.bigint === "function"
+    "hrtime" in process &&
+    typeof process.hrtime.bigint === "function"
       ? process.hrtime
       : undefined
   if (!processHrtime) {

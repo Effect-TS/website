@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useRxValue } from "@effect-rx/rx-react"
+import { useRx, useRxValue } from "@effect-rx/rx-react"
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,18 +16,14 @@ import {
   PopoverTrigger
 } from "@/components/ui/popover"
 import { cn } from "@/lib/css/utils"
-import {
-  useDevTools,
-  useSelectedSpan,
-  useSelectedSpanIndex
-} from "../../context/devtools"
+import { rootSpansRx } from "../../services/devtools"
+import { selectedSpanIndexRx, selectedSpanRx } from "../../rx/devtools"
 
 export function TraceSelector() {
   const [open, setOpen] = useState(false)
-  const devTools = useDevTools()
-  const rootSpans = useRxValue(devTools.rootSpans)
-  const [span, setSelectedSpan] = useSelectedSpan()
-  const selectedSpanIndex = useSelectedSpanIndex()
+  const rootSpans = useRxValue(rootSpansRx)
+  const [span, setSelectedSpan] = useRx(selectedSpanRx)
+  const selectedSpanIndex = useRxValue(selectedSpanIndexRx)
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -44,9 +40,15 @@ export function TraceSelector() {
       </PopoverTrigger>
       <PopoverContent className="w-[350px] p-0">
         <Command className="bg-[--sl-color-bg]">
-          <CommandInput placeholder="Search traces..." className="placeholder:text-[--sl-color-text]" />
+          <CommandInput
+            placeholder="Search traces..."
+            className="placeholder:text-[--sl-color-text]"
+          />
           <CommandEmpty>No traces found.</CommandEmpty>
-          <CommandGroup heading="Traces" className="[&_[cmdk-group-heading]]:text-[--sl-color-text]">
+          <CommandGroup
+            heading="Traces"
+            className="[&_[cmdk-group-heading]]:text-[--sl-color-text]"
+          >
             <CommandList>
               {rootSpans.map((root, index) => (
                 <CommandItem
@@ -61,7 +63,9 @@ export function TraceSelector() {
                   <CheckIcon
                     className={cn(
                       "ml-auto h-4 w-4",
-                      selectedSpanIndex === index ? "opacity-100" : "opacity-0"
+                      selectedSpanIndex === index
+                        ? "opacity-100"
+                        : "opacity-0"
                     )}
                   />
                 </CommandItem>

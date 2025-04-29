@@ -19,27 +19,22 @@ const runtime = Rx.runtime(
   )
 )
 
-export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
-  runtime.fn<void>()(
+export const shareRx = Rx.family((handle: RxWorkspaceHandle) => {
+  const rx = editorRx(handle)
+  return runtime.fn<void>()(
     Effect.fnUntraced(function* (_, get) {
+      const workspace = get(handle.workspaceRx)
+      const editor = yield* get.result(rx.editor)
       const container = yield* WebContainer
       const compression = yield* WorkspaceCompression
       const zip = yield* WorkspaceDownload
       const client = yield* ShortenClient
-      const workspace = get(handle.workspaceRx)
-      const editor = yield* get.result(editorRx(handle).editor)
 
       yield* editor.save
 
-      const compressed = yield* compression.compress(
-        workspace,
-        container.readFileString
-      )
+      const compressed = yield* compression.compress(workspace, container.readFileString)
       const hash = yield* client.shorten({ text: compressed })
-      const url = new URL(
-        window.location.pathname,
-        window.location.origin
-      )
+      const url = new URL(window.location.pathname, window.location.origin)
       url.hash = hash
 
       const zipFile = yield* zip.pack(workspace, container.readFileString)
@@ -50,4 +45,4 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
       }
     }, Effect.tapErrorCause(Effect.logError))
   )
-)
+})

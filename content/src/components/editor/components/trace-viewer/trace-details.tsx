@@ -15,9 +15,10 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table"
-import { useSelectedSpanValue } from "../../context/devtools"
 import { Event, Span } from "../../domain/devtools"
 import { formatDuration } from "./utils"
+import { useRxValue } from "@effect-rx/rx-react"
+import { selectedSpanRx } from "../../rx/devtools"
 
 export function TraceDetails({ span }: { readonly span: Span }) {
   return (
@@ -93,7 +94,11 @@ function TraceAttributes({
   )
 }
 
-function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
+function TraceEvents({
+  events
+}: {
+  readonly events: ReadonlyArray<Event>
+}) {
   return events.length === 0 ? (
     <div className="py-1 pl-3 bg-[--sl-color-bg-nav] space-x-1 font-display">
       <span>Events</span>
@@ -126,7 +131,8 @@ function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
         </div>
         <div className="mt-2 ml-2 text-xs text-[--sl-color-text]">
           <span>
-            Log timestamps are relative to the start time of the full trace.
+            Log timestamps are relative to the start time of the full
+            trace.
           </span>
         </div>
       </AccordionContent>
@@ -135,7 +141,7 @@ function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
 }
 
 function TraceEvent({ node }: { readonly node: Event }) {
-  const selectedSpan = useSelectedSpanValue()
+  const selectedSpan = useRxValue(selectedSpanRx)
   const eventTimestamp = useMemo(() => {
     if (selectedSpan !== undefined) {
       // Since external spans will not have events, it is safe to `.getOrThrow`
