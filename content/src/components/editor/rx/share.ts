@@ -20,14 +20,14 @@ const runtime = Rx.runtime(
 )
 
 export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
-  runtime.fn((_: void, get) =>
-    Effect.gen(function* () {
+  runtime.fn<void>()(
+    Effect.fnUntraced(function* (_, get) {
       const container = yield* WebContainer
       const compression = yield* WorkspaceCompression
       const zip = yield* WorkspaceDownload
       const client = yield* ShortenClient
-      const workspace = get.once(handle.workspaceRx)
-      const editor = yield* get.resultOnce(editorRx(handle).editor)
+      const workspace = get(handle.workspaceRx)
+      const editor = yield* get.result(editorRx(handle).editor)
 
       yield* editor.save
 
@@ -48,6 +48,6 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) =>
         url: url.toString(),
         zipFile: { name: `play-${hash}.zip`, content: zipFile }
       }
-    }).pipe(Effect.tapErrorCause(Effect.logError))
+    }, Effect.tapErrorCause(Effect.logError))
   )
 )

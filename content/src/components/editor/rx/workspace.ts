@@ -1,4 +1,4 @@
-import { Rx } from "@effect-rx/rx-react";
+import { Rx } from "@effect-rx/rx-react"
 import * as monaco from "@effect/monaco-editor"
 import { createStreaming, type Formatter } from "@dprint/formatter"
 import * as Array from "effect/Array"
@@ -13,28 +13,36 @@ import * as Stream from "effect/Stream"
 import * as SubscriptionRef from "effect/SubscriptionRef"
 import { themeRx } from "@/rx/theme"
 import { Toaster } from "@/services/toaster"
-import { Directory, File, Workspace, WorkspaceShell } from "../domain/workspace"
-import { Loader } from "../services/loader";
+import {
+  Directory,
+  File,
+  Workspace,
+  WorkspaceShell
+} from "../domain/workspace"
+import { Loader } from "../services/loader"
 import { Terminal } from "../services/terminal"
 import { Dracula, NightOwlishLight } from "../services/terminal/themes"
 import { WebContainer } from "../services/webcontainer"
 
-const runtime = Rx.runtime(Layer.mergeAll(
-  Loader.Default,
-  Terminal.Default,
-  Toaster.Default,
-  WebContainer.Default
-))
+const runtime = Rx.runtime(
+  Layer.mergeAll(
+    Loader.Default,
+    Terminal.Default,
+    Toaster.Default,
+    WebContainer.Default
+  )
+)
 
-const terminalThemeRx = themeRx.pipe(Rx.map((theme) =>
-  theme === "light" ? NightOwlishLight : Dracula
-))
+const terminalThemeRx = themeRx.pipe(
+  Rx.map((theme) => (theme === "light" ? NightOwlishLight : Dracula))
+)
 
-export interface RxWorkspaceHandle extends Rx.Rx.InferSuccess<ReturnType<typeof workspaceHandleRx>> { }
+export interface RxWorkspaceHandle
+  extends Rx.Rx.InferSuccess<ReturnType<typeof workspaceHandleRx>> {}
 
 export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
   runtime.rx(
-    Effect.gen(function*() {
+    Effect.gen(function* () {
       const container = yield* WebContainer
       const loader = yield* Loader
       const terminal = yield* Terminal
@@ -45,38 +53,55 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
        * Loads the file system of a workspace into the WebContainer file system.
        */
       function loadWorkspace(workspace: Workspace) {
-        return Effect.forEach(workspace.filePaths, ([file, path]) => {
-          const fullPath = workspace.relativePath(path)
-          if (file._tag === "Directory") {
-            return container.makeDirectory(fullPath).pipe(
-              Effect.catchTag("FileAlreadyExistsError", () => Effect.void)
+        return Effect.forEach(
+          workspace.filePaths,
+          ([file, path]) => {
+            const fullPath = workspace.relativePath(path)
+            if (file._tag === "Directory") {
+              return container
+                .makeDirectory(fullPath)
+                .pipe(
+                  Effect.catchTag(
+                    "FileAlreadyExistsError",
+                    () => Effect.void
+                  )
+                )
+            }
+            return container.writeFile(
+              fullPath,
+              file.initialContent,
+              file.language
             )
-          }
-          return container.writeFile(fullPath, file.initialContent, file.language)
-        }, { discard: true })
+          },
+          { discard: true }
+        )
       }
 
       /**
        * Load the file system of the workspace into the WebContainer
        */
-      yield* loadWorkspace(workspace).pipe(loader.withIndicator("Preparing workspace"))
+      yield* loadWorkspace(workspace).pipe(
+        loader.withIndicator("Preparing workspace")
+      )
 
       const selectedFile = Rx.make(workspace.initialFile)
 
       const createTerminal = Rx.family(({ command }: WorkspaceShell) =>
         runtime.rx((get) =>
-          Effect.gen(function*() {
+          Effect.gen(function* () {
             const process = yield* container.createShell
             const spawned = yield* terminal.spawn({
               theme: get.once(terminalThemeRx)
             })
             const writer = process.input.getWriter()
             const mount = Effect.sync(() => {
-              process.output.pipeTo(new WritableStream({
-                write(data) {
-                  spawned.terminal.write(data)
-                }
-              }))
+              process.output.pipeTo(
+                new WritableStream({
+                  write(data) {
+                    spawned.terminal.write(data)
+                  }
+                })
+              )
               spawned.terminal.onData((data) => {
                 writer.write(data)
               })
@@ -84,18 +109,22 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
             yield* mount
             writer.write(`cd "${workspace.name}" && clear\n`)
             /**
-             * Install dependencies, acquire types, and setup formatters in the 
+             * Install dependencies, acquire types, and setup formatters in the
              * background
              */
             const fiber = yield* handle.spawn(workspace.prepare).pipe(
               Effect.tap((process) => {
-                process.output.pipeTo(new WritableStream({
-                  write(data) {
-                    spawned.terminal.write(data)
-                  }
-                }))
+                process.output.pipeTo(
+                  new WritableStream({
+                    write(data) {
+                      spawned.terminal.write(data)
+                    }
+                  })
+                )
               }),
-              Effect.flatMap((process) => Effect.promise(() => process.exit)),
+              Effect.flatMap((process) =>
+                Effect.promise(() => process.exit)
+              ),
               Effect.zipRight(setupWorkspaceTypeAcquisition(workspace)),
               Effect.zipRight(setupWorkspaceFormatters(workspace)),
               Effect.forkScoped
@@ -106,13 +135,19 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
                * before running the workspace command
                */
               yield* Fiber.await(fiber).pipe(
-                Effect.zipRight(Effect.sync(() => writer.write(`${command}\n`))),
+                Effect.zipRight(
+                  Effect.sync(() => writer.write(`${command}\n`))
+                ),
                 Effect.forkScoped
               )
             }
-            get.subscribe(terminalThemeRx, (theme) => {
-              spawned.terminal.options.theme = theme
-            }, { immediate: true })
+            get.subscribe(
+              terminalThemeRx,
+              (theme) => {
+                spawned.terminal.options.theme = theme
+              },
+              { immediate: true }
+            )
             yield* get.stream(terminalSize).pipe(
               Stream.runForEach(() => spawned.resize),
               Effect.forkScoped
@@ -135,32 +170,32 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         workspace: handle.workspace,
         run: handle.run,
         workspaceRx: Rx.subscriptionRef(handle.workspace),
-        createFile: Rx.fn((params: Parameters<typeof handle.createFile>, get) =>
-          Effect.gen(function*() {
+        createFile: Rx.fn<Parameters<typeof handle.createFile>>()(
+          Effect.fnUntraced(function* (params, get) {
             const node = yield* handle.createFile(...params)
             if (node._tag === "File") {
-              yield* get.set(selectedFile, node)
+              get.set(selectedFile, node)
             }
           })
         ),
-        renameFile: Rx.fn((params: Parameters<typeof handle.renameFile>, get) =>
-          Effect.gen(function*() {
+        renameFile: Rx.fn<Parameters<typeof handle.renameFile>>()(
+          Effect.fnUntraced(function* (params, get) {
             const node = yield* handle.renameFile(...params)
             if (node._tag === "Directory") {
               return
             }
             const workspace = yield* SubscriptionRef.get(handle.workspace)
-            if (Option.isNone(workspace.pathTo(get.once(selectedFile)))) {
-              yield* get.set(selectedFile, node)
+            if (Option.isNone(workspace.pathTo(get(selectedFile)))) {
+              get.set(selectedFile, node)
             }
           })
         ),
-        removeFile: Rx.fn((node: File | Directory, get) =>
-          Effect.gen(function*() {
+        removeFile: Rx.fn<File | Directory>()(
+          Effect.fnUntraced(function* (node, get) {
             yield* handle.removeFile(node)
             const workspace = yield* handle.workspace.get
-            if (workspace.pathTo(get.once(selectedFile))._tag === "None") {
-              yield* get.set(selectedFile, workspace.initialFile)
+            if (workspace.pathTo(get(selectedFile))._tag === "None") {
+              get.set(selectedFile, workspace.initialFile)
             }
           })
         )
@@ -170,66 +205,83 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
 )
 
 function setupWorkspaceTypeAcquisition(workspace: Workspace) {
-  return Effect.gen(function*() {
+  return Effect.gen(function* () {
     const container = yield* WebContainer
 
     function addExtraLib(path: string, content: string) {
       return Effect.sync(() => {
-        monaco.languages.typescript.typescriptDefaults.addExtraLib(content, `file://${path}`)
+        monaco.languages.typescript.typescriptDefaults.addExtraLib(
+          content,
+          `file://${path}`
+        )
       })
     }
 
-    function acquireTypesAt(storePath: string, packagePath?: string): Effect.Effect<void> {
-      return Effect.gen(function*() {
+    function acquireTypesAt(
+      storePath: string,
+      packagePath?: string
+    ): Effect.Effect<void> {
+      return Effect.gen(function* () {
         const path = packagePath ?? `${storePath}/node_modules`
 
-        const [files, directories] = yield* container.readDirectory(path).pipe(
-          Effect.map((entries) => Array.partitionMap(entries, (entry) =>
-            entry.isDirectory() ? Either.right(entry.name) : Either.left(entry.name)
-          ))
-        )
-
-        yield* Effect.forEach(files, (file) => {
-          if (file === "package.json" || file.endsWith(".d.ts")) {
-            // Construct the full path to the file on the file system
-            const fullPath = `${path}/${file}`
-            // Read the contents of the file
-            return container.readFileString(fullPath).pipe(
-              Effect.flatMap((content) => {
-                // Remove the store path from the file path before adding to 
-                // Monaco's TypeScript extra libraries
-                const extraLib = fullPath.replace(storePath, "")
-                return addExtraLib(extraLib, content)
-              }),
-              Effect.catchTag("FileNotFoundError", () => Effect.void)
+        const [files, directories] = yield* container
+          .readDirectory(path)
+          .pipe(
+            Effect.map((entries) =>
+              Array.partitionMap(entries, (entry) =>
+                entry.isDirectory()
+                  ? Either.right(entry.name)
+                  : Either.left(entry.name)
+              )
             )
-          }
-          return Effect.void
-        }, { concurrency: files.length, discard: true })
+          )
+
+        yield* Effect.forEach(
+          files,
+          (file) => {
+            if (file === "package.json" || file.endsWith(".d.ts")) {
+              // Construct the full path to the file on the file system
+              const fullPath = `${path}/${file}`
+              // Read the contents of the file
+              return container.readFileString(fullPath).pipe(
+                Effect.flatMap((content) => {
+                  // Remove the store path from the file path before adding to
+                  // Monaco's TypeScript extra libraries
+                  const extraLib = fullPath.replace(storePath, "")
+                  return addExtraLib(extraLib, content)
+                }),
+                Effect.catchTag("FileNotFoundError", () => Effect.void)
+              )
+            }
+            return Effect.void
+          },
+          { concurrency: files.length, discard: true }
+        )
 
         yield* Effect.forEach(
           directories,
-          (directory) => acquireTypesAt(storePath, `${path}/${directory}`),
+          (directory) =>
+            acquireTypesAt(storePath, `${path}/${directory}`),
           { concurrency: directories.length, discard: true }
         )
       }).pipe(Effect.ignore)
     }
 
     /**
-     * This method will traverse the `.pnpm` store and recursively add any 
+     * This method will traverse the `.pnpm` store and recursively add any
      * `.d.ts` files found to Monaco's extra TypeScript libraries.
      *
      * Directories under `/ node_modules /.pnpm` are processed concurrently and
      * have the following structure:
-     *   
+     *
      * ```
      * /node_modules/.pnpm/<content-address>/node_modules/[...<dependency>]
      * ```
      *
-     * where the `content-address` is a combination of package name, version, 
-     * and other installed dependencies with their versions, and 
+     * where the `content-address` is a combination of package name, version,
+     * and other installed dependencies with their versions, and
      * `[...dependency]` represents a set of directories containing the package
-     * dependencies. 
+     * dependencies.
      *
      * Dependencies can either be directories containing the package dependency
      * itself, or a symlink to another package in the pnpm store. Given we are
@@ -238,16 +290,19 @@ function setupWorkspaceTypeAcquisition(workspace: Workspace) {
      */
     const pnpmStorePath = workspace.relativePath("/node_modules/.pnpm")
     const acquireTypes = container.readDirectory(pnpmStorePath).pipe(
-      Effect.map(Array.filterMap((entry) =>
-        entry.isDirectory()
-          // Construct the full path to the package's dependencies
-          ? Option.some(`${pnpmStorePath}/${entry.name}`)
-          : Option.none()
-      )),
-      Effect.flatMap(Effect.forEach(
-        (storePath) => acquireTypesAt(storePath),
-        { concurrency: "unbounded" }
-      ))
+      Effect.map(
+        Array.filterMap((entry) =>
+          entry.isDirectory()
+            ? // Construct the full path to the package's dependencies
+              Option.some(`${pnpmStorePath}/${entry.name}`)
+            : Option.none()
+        )
+      ),
+      Effect.flatMap(
+        Effect.forEach((storePath) => acquireTypesAt(storePath), {
+          concurrency: "unbounded"
+        })
+      )
     )
 
     const packageJson = workspace.findFile("package.json")
@@ -255,10 +310,12 @@ function setupWorkspaceTypeAcquisition(workspace: Workspace) {
       return
     }
 
-    const path = yield* Effect.orDie(workspace.fullPathTo(packageJson.value[0]))
-    const [initial, updates] = yield* container.watchFile(path).pipe(
-      Stream.peel(Sink.head())
+    const path = yield* Effect.orDie(
+      workspace.fullPathTo(packageJson.value[0])
     )
+    const [initial, updates] = yield* container
+      .watchFile(path)
+      .pipe(Stream.peel(Sink.head()))
     if (Option.isNone(initial)) {
       return
     }
@@ -281,7 +338,7 @@ interface FormatterPlugin {
 }
 
 function setupWorkspaceFormatters(workspace: Workspace) {
-  return Effect.gen(function*() {
+  return Effect.gen(function* () {
     const toaster = yield* Toaster
     const container = yield* WebContainer
 
@@ -321,9 +378,13 @@ function setupWorkspaceFormatters(workspace: Workspace) {
     }
 
     function loadPlugins(plugins: Array<string>) {
-      return Effect.forEach(plugins, (plugin) => pluginCache.get(plugin), {
-        concurrency: plugins.length
-      })
+      return Effect.forEach(
+        plugins,
+        (plugin) => pluginCache.get(plugin),
+        {
+          concurrency: plugins.length
+        }
+      )
     }
 
     function installPlugins(plugins: Array<FormatterPlugin>) {
@@ -331,19 +392,22 @@ function setupWorkspaceFormatters(workspace: Workspace) {
         plugins,
         ({ language, formatter }) =>
           Effect.sync(() => {
-            monaco.languages.registerDocumentFormattingEditProvider(language, {
-              provideDocumentFormattingEdits(model) {
-                return [
-                  {
-                    text: formatter.formatText({
-                      fileText: model.getValue(),
-                      filePath: model.uri.toString()
-                    }),
-                    range: model.getFullModelRange()
-                  }
-                ]
+            monaco.languages.registerDocumentFormattingEditProvider(
+              language,
+              {
+                provideDocumentFormattingEdits(model) {
+                  return [
+                    {
+                      text: formatter.formatText({
+                        fileText: model.getValue(),
+                        filePath: model.uri.toString()
+                      }),
+                      range: model.getFullModelRange()
+                    }
+                  ]
+                }
               }
-            })
+            )
           }),
         { concurrency: plugins.length, discard: true }
       )
@@ -378,7 +442,9 @@ function setupWorkspaceFormatters(workspace: Workspace) {
     }
 
     yield* parseJson(config.value[0].initialContent).pipe(
-      Effect.flatMap((json) => loadPlugins(json.plugins as Array<string>)),
+      Effect.flatMap((json) =>
+        loadPlugins(json.plugins as Array<string>)
+      ),
       Effect.tap((plugins) => installPlugins(plugins)),
       Effect.map((plugins) =>
         plugins.forEach(({ language, formatter }) => {
@@ -388,10 +454,12 @@ function setupWorkspaceFormatters(workspace: Workspace) {
       Effect.ignoreLogged
     )
 
-    const path = yield* Effect.orDie(workspace.fullPathTo(config.value[0]))
-    const [initial, updates] = yield* container.watchFile(path).pipe(
-      Stream.peel(Sink.head())
+    const path = yield* Effect.orDie(
+      workspace.fullPathTo(config.value[0])
     )
+    const [initial, updates] = yield* container
+      .watchFile(path)
+      .pipe(Stream.peel(Sink.head()))
     if (Option.isNone(initial)) {
       return
     }
