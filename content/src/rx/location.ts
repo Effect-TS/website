@@ -11,7 +11,7 @@ function getHash() {
 
 export const hashRx = Rx.make<Option.Option<string>>((get) => {
   function onHashChange() {
-    get.setSelf(getHash())
+    get.setSelfSync(getHash())
   }
   window.addEventListener("hashchange", onHashChange)
   get.addFinalizer(() => {
@@ -19,3 +19,4 @@ export const hashRx = Rx.make<Option.Option<string>>((get) => {
   })
   return getHash()
 })
+
