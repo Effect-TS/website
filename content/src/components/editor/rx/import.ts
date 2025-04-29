@@ -1,15 +1,25 @@
 import { Rx } from "@effect-rx/rx-react"
 import * as Effect from "effect/Effect"
+import * as Encoding from "effect/Encoding"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as String from "effect/String"
 import { hashRx } from "@/rx/location"
 import { ShortenClient } from "@/services/shorten/client"
-import { makeDirectory, makeFile, Workspace, WorkspaceShell } from "../domain/workspace"
+import {
+  makeDirectory,
+  makeFile,
+  Workspace,
+  WorkspaceShell
+} from "../domain/workspace"
 import { WorkspaceCompression } from "../services/compression"
-import * as Schema from "effect/Schema"
 
-const runtime = Rx.runtime(Layer.mergeAll(ShortenClient.Default, WorkspaceCompression.Default))
+const runtime = Rx.runtime(
+  Layer.mergeAll(
+    ShortenClient.Default,
+    WorkspaceCompression.Default
+  )
+)
 
 const main = makeFile(
   "main.ts",
@@ -66,17 +76,15 @@ function makeDefaultWorkspace() {
   return defaultWorkspace.withName(`playground-${Date.now()}`)
 }
 
-const codeRx = Rx.searchParam("code", {
-  schema: Schema.StringFromBase64Url
-})
-
 export const importRx = runtime.rx((get) =>
-  Effect.gen(function* () {
+  Effect.gen(function*() {
     const hash = get(hashRx)
     if (Option.isNone(hash)) {
-      const code = get(codeRx)
-      if (Option.isSome(code)) {
-        const node = makeFile("main.ts", code.value, false)
+      const params = new URLSearchParams(window.location.search)
+      if (params.has("code")) {
+        const code = params.get("code")!
+        const content = yield* Encoding.decodeBase64UrlString(code)
+        const node = makeFile("main.ts", content, false)
         return defaultWorkspace.replaceNode(main, node)
       }
       return makeDefaultWorkspace()
@@ -90,6 +98,8 @@ export const importRx = runtime.rx((get) =>
     }
 
     const compression = yield* WorkspaceCompression
-    return yield* compression.decompress(compressed.value).pipe(Effect.orElseSucceed(makeDefaultWorkspace))
+    return yield* compression
+      .decompress(compressed.value)
+      .pipe(Effect.orElseSucceed(makeDefaultWorkspace))
   })
 )

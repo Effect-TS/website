@@ -9,14 +9,12 @@ function getTheme(): "light" | "dark" {
 }
 
 export const themeRx = Rx.make<"light" | "dark">((get) => {
-  const observer = new MutationObserver(function () {
-    get.setSelf(getTheme())
+  const observer = new MutationObserver(function() {
+    get.setSelfSync(getTheme())
   })
   get.addFinalizer(() => {
     observer.disconnect()
   })
-  observer.observe(document.documentElement, {
-    attributeFilter: ["data-theme"]
-  })
+  observer.observe(document.documentElement, { attributeFilter: ["data-theme"] })
   return getTheme()
 })
