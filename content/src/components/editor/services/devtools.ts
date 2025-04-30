@@ -20,14 +20,8 @@ export const DevToolsLayer = Layer.scopedDiscard(
         pipe(
           rootSpans,
           Array.findFirstIndex((root) => root.traceId === span.traceId),
-          Option.flatMap((index) =>
-            Array.modifyOption(rootSpans, index, (root) =>
-              root.addSpan(span)
-            )
-          ),
-          Option.getOrElse(() =>
-            Array.prepend(rootSpans, Span.fromSpan(span))
-          )
+          Option.flatMap((index) => Array.modifyOption(rootSpans, index, (root) => root.addSpan(span))),
+          Option.getOrElse(() => Array.prepend(rootSpans, Span.fromSpan(span)))
         )
       )
     }
@@ -37,11 +31,7 @@ export const DevToolsLayer = Layer.scopedDiscard(
         pipe(
           rootSpans,
           Array.findFirstIndex((root) => root.traceId === event.traceId),
-          Option.flatMap((index) =>
-            Array.modifyOption(rootSpans, index, (root) =>
-              root.addEvent(event)
-            )
-          ),
+          Option.flatMap((index) => Array.modifyOption(rootSpans, index, (root) => root.addEvent(event))),
           Option.getOrElse(() => rootSpans)
         )
       )

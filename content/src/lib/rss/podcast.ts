@@ -1,26 +1,14 @@
-import { render } from 'astro:content'
+import { render } from "astro:content"
 import { experimental_AstroContainer as AstroContainer } from "astro/container"
-import mdxRenderer from '@astrojs/mdx/server.js'
+import mdxRenderer from "@astrojs/mdx/server.js"
 import type { RSSOptions } from "@astrojs/rss"
 import { Marked } from "marked"
 import markedPlaintify from "marked-plaintify"
-import {
-  DOCTYPE_NODE,
-  ELEMENT_NODE,
-  TEXT_NODE,
-  transform,
-  walk,
-  type Node
-} from "ultrahtml"
+import { DOCTYPE_NODE, ELEMENT_NODE, TEXT_NODE, transform, walk, type Node } from "ultrahtml"
 import sanitize from "ultrahtml/transformers/sanitize"
-import {
-  getPodcastEntries,
-  type PodcastEntry
-} from "@/lib/podcast"
+import { getPodcastEntries, type PodcastEntry } from "@/lib/podcast"
 
-export async function getRSSOptions(
-  site: URL | undefined
-): Promise<RSSOptions> {
+export async function getRSSOptions(site: URL | undefined): Promise<RSSOptions> {
   const entries = await getPodcastEntries()
   entries.splice(20)
 
@@ -86,11 +74,7 @@ export async function getRSSOptions(
   }
 }
 
-async function getRSSContent(
-  entry: PodcastEntry,
-  baseURL: URL,
-  container: AstroContainer
-): Promise<string> {
+async function getRSSContent(entry: PodcastEntry, baseURL: URL, container: AstroContainer): Promise<string> {
   const { Content } = await render(entry)
   const html = await container.renderToString(Content)
 
@@ -104,26 +88,15 @@ async function getRSSContent(
           removeHTMLNode(node)
         } else if (node.type === ELEMENT_NODE) {
           // Transform link with relative path to absolute URL.
-          if (
-            node.name === "a" &&
-            node.attributes["href"]?.startsWith("/")
-          ) {
-            node.attributes["href"] =
-              stripTrailingSlash(baseURL.href) + node.attributes["href"]
+          if (node.name === "a" && node.attributes["href"]?.startsWith("/")) {
+            node.attributes["href"] = stripTrailingSlash(baseURL.href) + node.attributes["href"]
           }
           // Transform image with relative path to absolute URL.
-          if (
-            node.name === "img" &&
-            node.attributes["src"]?.startsWith("/")
-          ) {
-            node.attributes["src"] =
-              stripTrailingSlash(baseURL.href) + node.attributes["src"]
+          if (node.name === "img" && node.attributes["src"]?.startsWith("/")) {
+            node.attributes["src"] = stripTrailingSlash(baseURL.href) + node.attributes["src"]
           }
           // Remove aside icons.
-          if (
-            node.name === "svg" &&
-            node.attributes["style"]?.includes("--sl-icon-size")
-          ) {
+          if (node.name === "svg" && node.attributes["style"]?.includes("--sl-icon-size")) {
             removeHTMLNode(node)
           }
           // Remove Expressive Code copy button.
@@ -155,9 +128,7 @@ export async function stripMarkdown(markdown: string) {
   return await markedText.parse(markdown)
 }
 
-function getRSSDescription(
-  entry: PodcastEntry
-): Promise<string> | undefined {
+function getRSSDescription(entry: PodcastEntry): Promise<string> | undefined {
   if (!entry.data.description) {
     return
   }

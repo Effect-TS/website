@@ -9,22 +9,19 @@ const constMaxSize = 128 * 1024
 export class Shorten extends Effect.Service<Shorten>()("app/Shorten", {
   accessors: true,
   dependencies: [VercelOrMemoryKVSLive],
-  effect: Effect.gen(function*() {
+  effect: Effect.gen(function* () {
     const kvs = yield* KVS.KeyValueStore
     const store = KVS.prefix(kvs, "shorten/")
 
     const shorten = (thing: string) =>
-      Effect.gen(function*() {
+      Effect.gen(function* () {
         if (thing.length > constMaxSize) {
           return yield* new ShortenError({
             reason: "TooLarge",
             method: "shorten"
           })
         }
-        const hash = Crypto.createHash("sha256")
-          .update(thing)
-          .digest("hex")
-          .slice(0, 12)
+        const hash = Crypto.createHash("sha256").update(thing).digest("hex").slice(0, 12)
         if (yield* store.has(hash)) {
           return hash
         }
@@ -57,4 +54,4 @@ export class Shorten extends Effect.Service<Shorten>()("app/Shorten", {
       retrieve
     } as const
   })
-}) { }
+}) {}

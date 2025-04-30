@@ -33,10 +33,7 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
      */
     function createEditor(element: HTMLElement) {
       return Effect.gen(function* () {
-        const viewStates = new Map<
-          string,
-          monaco.editor.ICodeEditorViewState | null
-        >()
+        const viewStates = new Map<string, monaco.editor.ICodeEditorViewState | null>()
 
         /**
          * The editor that was created.
@@ -111,8 +108,7 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
 }) {}
 
 function setupCompletionItemProviders(monaco: MonacoApi) {
-  const previousRegistrationProvider =
-    monaco.languages.registerCompletionItemProvider
+  const previousRegistrationProvider = monaco.languages.registerCompletionItemProvider
 
   monaco.languages.registerCompletionItemProvider = function (
     language: monaco.languages.LanguageSelector,
@@ -152,60 +148,45 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
         return
       }
 
-      const info: ts.CompletionInfo | undefined =
-        await worker.getCompletionsAtPosition(
-          resource.toString(),
-          offset,
-          {}
-        )
+      const info: ts.CompletionInfo | undefined = await worker.getCompletionsAtPosition(resource.toString(), offset, {})
 
       if (!info || model.isDisposed()) {
         return
       }
 
-      const suggestions = info.entries
-        .filter(pruneNodeBuiltIns)
-        .map((entry) => {
-          let range = wordRange
-          if (entry.replacementSpan) {
-            const p1 = model.getPositionAt(entry.replacementSpan.start)
-            const p2 = model.getPositionAt(
-              entry.replacementSpan.start + entry.replacementSpan.length
-            )
-            range = new monaco.Range(
-              p1.lineNumber,
-              p1.column,
-              p2.lineNumber,
-              p2.column
-            )
-          }
+      const suggestions = info.entries.filter(pruneNodeBuiltIns).map((entry) => {
+        let range = wordRange
+        if (entry.replacementSpan) {
+          const p1 = model.getPositionAt(entry.replacementSpan.start)
+          const p2 = model.getPositionAt(entry.replacementSpan.start + entry.replacementSpan.length)
+          range = new monaco.Range(p1.lineNumber, p1.column, p2.lineNumber, p2.column)
+        }
 
-          const tags: Array<monaco.languages.CompletionItemTag> = []
-          if (entry.kindModifiers?.indexOf("deprecated") !== -1) {
-            tags.push(monaco.languages.CompletionItemTag.Deprecated)
-          }
+        const tags: Array<monaco.languages.CompletionItemTag> = []
+        if (entry.kindModifiers?.indexOf("deprecated") !== -1) {
+          tags.push(monaco.languages.CompletionItemTag.Deprecated)
+        }
 
-          return {
-            uri: resource,
-            position,
-            offset,
-            range,
-            label: entry.name,
-            insertText: entry.name,
-            sortText: entry.sortText,
-            kind: (this.constructor as any).convertKind(entry.kind),
-            tags,
-            data: entry.data,
-            hasAction: entry.hasAction,
-            source: entry.source
-          }
-        })
+        return {
+          uri: resource,
+          position,
+          offset,
+          range,
+          label: entry.name,
+          insertText: entry.name,
+          sortText: entry.sortText,
+          kind: (this.constructor as any).convertKind(entry.kind),
+          tags,
+          data: entry.data,
+          hasAction: entry.hasAction,
+          source: entry.source
+        }
+      })
 
       return { suggestions }
     }
 
-    interface CustomCompletionItem
-      extends monaco.languages.CompletionItem {
+    interface CustomCompletionItem extends monaco.languages.CompletionItem {
       readonly label: string
       readonly uri: monaco.Uri
       readonly position: monaco.Position
@@ -221,16 +202,15 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
     ) {
       const worker = await (this as any)._worker(item.uri)
 
-      const details: ts.CompletionEntryDetails | undefined =
-        await worker.getCompletionEntryDetails(
-          item.uri.toString(),
-          item.offset,
-          item.label,
-          {},
-          item.source,
-          {},
-          item.data
-        )
+      const details: ts.CompletionEntryDetails | undefined = await worker.getCompletionEntryDetails(
+        item.uri.toString(),
+        item.offset,
+        item.label,
+        {},
+        item.source,
+        {},
+        item.data
+      )
 
       if (!details) {
         return item
@@ -243,14 +223,10 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
         position: item.position,
         label: details.name,
         kind: (this.constructor as any).convertKind(details.kind),
-        detail:
-          autoImports?.detailText ||
-          displayPartsToString(details.displayParts),
+        detail: autoImports?.detailText || displayPartsToString(details.displayParts),
         additionalTextEdits: autoImports?.textEdits,
         documentation: {
-          value: (this.constructor as any).createDocumentationString(
-            details
-          )
+          value: (this.constructor as any).createDocumentationString(details)
         }
       } as CustomCompletionItem
     }
@@ -263,9 +239,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
   }
 }
 
-function displayPartsToString(
-  displayParts: Array<ts.SymbolDisplayPart> | undefined
-): string {
+function displayPartsToString(displayParts: Array<ts.SymbolDisplayPart> | undefined): string {
   if (displayParts) {
     return displayParts.map((displayPart) => displayPart.text).join("")
   }
@@ -291,25 +265,16 @@ function getAutoImports(
   // If the newly entered text does not start with `import ...`, then it will be
   // potentially added to an existing import and can most likely be accepted
   // without modification
-  if (
-    textChanges.every(
-      (textChange: any) => !/import/.test(textChange.newText)
-    )
-  ) {
-    const specifier =
-      codeAction.description.match(/from ["'](.+)["']/)![1]
+  if (textChanges.every((textChange: any) => !/import/.test(textChange.newText))) {
+    const specifier = codeAction.description.match(/from ["'](.+)["']/)![1]
     return {
       detailText: `Auto import from '${specifier}'`,
-      textEdits: textChanges.map((textChange) =>
-        toTextEdit(provider, textChange)
-      )
+      textEdits: textChanges.map((textChange) => toTextEdit(provider, textChange))
     }
   }
 
   if (details.kind === "interface" || details.kind === "type") {
-    const specifier = codeAction.description.match(
-      /from module ["'](.+)["']/
-    )![1]
+    const specifier = codeAction.description.match(/from module ["'](.+)["']/)![1]
     return {
       detailText: `Auto import from '${specifier}'`,
       textEdits: textChanges.map((textChange) =>
@@ -328,9 +293,7 @@ function getAutoImports(
 
   return {
     detailText: codeAction.description,
-    textEdits: textChanges.map((textChange: any) =>
-      toTextEdit(provider, textChange)
-    )
+    textEdits: textChanges.map((textChange: any) => toTextEdit(provider, textChange))
   }
 }
 
@@ -346,10 +309,7 @@ function toTextEdit(
     // https://github.com/microsoft/TypeScript/blob/328e888a9d0a11952f4ff949848d4336bce91b18/src/compiler/moduleSpecifiers.ts#L553.
     // It then generates a relative path which we just hack around here
     text: textChange.newText,
-    range: (provider as any)._textSpanToRange(
-      (provider as any).__model,
-      textChange.span
-    )
+    range: (provider as any)._textSpanToRange((provider as any).__model, textChange.span)
   }
 }
 
@@ -438,13 +398,10 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
       provideInlayHints: async (model, _, cancellationToken) => {
         const text = model.getValue()
         const queryRegex = /^\s*\/\/\.?\s*\^\?/gm
-        const inlineQueryRegex =
-          /^[^\S\r\n]*(?<start>\S).*\/\/\s*(?<end>=>)/gm
+        const inlineQueryRegex = /^[^\S\r\n]*(?<start>\S).*\/\/\s*(?<end>=>)/gm
         const results: Array<monaco.languages.InlayHint> = []
 
-        const worker = await monaco.languages.typescript
-          .getTypeScriptWorker()
-          .then((worker) => worker(model.uri))
+        const worker = await monaco.languages.typescript.getTypeScriptWorker().then((worker) => worker(model.uri))
 
         if (model.isDisposed()) {
           return {
@@ -453,9 +410,7 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
           }
         }
 
-        const matches = text.matchAll(
-          inlineQueryRegex
-        ) as unknown as RegExpGroups<"start" | "end">
+        const matches = text.matchAll(inlineQueryRegex) as unknown as RegExpGroups<"start" | "end">
 
         for (const _match of matches) {
           if (_match.index === undefined) {
@@ -474,13 +429,9 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
           const offset = 0
 
           const startIndex = line.indexOf(start)
-          const startPos = model.getPositionAt(
-            startIndex + offset + _match.index
-          )
+          const startPos = model.getPositionAt(startIndex + offset + _match.index)
           const endIndex = line.lastIndexOf(querySymbol) + 2
-          const endPos = model.getPositionAt(
-            endIndex + offset + _match.index
-          )
+          const endPos = model.getPositionAt(endIndex + offset + _match.index)
 
           const quickInfo = await getLeftMostQuickInfoOfLine(worker, {
             model,
@@ -505,10 +456,7 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
         while ((match = queryRegex.exec(text)) !== null) {
           const end = match.index + match[0].length - 1
           const endPos = model.getPositionAt(end)
-          const inspectionPos = new monaco.Position(
-            endPos.lineNumber - 1,
-            endPos.column
-          )
+          const inspectionPos = new monaco.Position(endPos.lineNumber - 1, endPos.column)
           const inspectionOff = model.getOffsetAt(inspectionPos)
 
           if (cancellationToken.isCancellationRequested) {
@@ -518,11 +466,10 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
             }
           }
 
-          const quickInfo: ts.QuickInfo | undefined =
-            await worker.getQuickInfoAtPosition(
-              "file://" + model.uri.path,
-              inspectionOff
-            )
+          const quickInfo: ts.QuickInfo | undefined = await worker.getQuickInfoAtPosition(
+            "file://" + model.uri.path,
+            inspectionOff
+          )
 
           if (!quickInfo || !quickInfo.displayParts) {
             continue
@@ -561,10 +508,7 @@ function createHint(options: {
 
   return {
     kind: monaco.languages.InlayHintKind.Type,
-    position: new monaco.Position(
-      position.lineNumber,
-      position.column + 1
-    ),
+    position: new monaco.Position(position.lineNumber, position.column + 1),
     label: text,
     paddingLeft: true
   }
@@ -578,11 +522,10 @@ async function getLeftMostQuickInfoOfLine(
 ): Promise<ts.QuickInfo | undefined> {
   const offset = model.getOffsetAt(position)
   for (const i of range(lineLength)) {
-    const quickInfo: ts.QuickInfo | undefined =
-      await worker.getQuickInfoAtPosition(
-        "file://" + model.uri.path,
-        i + offset
-      )
+    const quickInfo: ts.QuickInfo | undefined = await worker.getQuickInfoAtPosition(
+      "file://" + model.uri.path,
+      i + offset
+    )
 
     if (!quickInfo || !quickInfo.displayParts) {
       continue

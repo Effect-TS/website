@@ -12,16 +12,10 @@ export class Zip extends Effect.Service<Zip>()("app/Download/Zip", {
           for (const fileOrDir of tree) {
             if (fileOrDir._tag === "File") {
               yield* Effect.promise(() =>
-                zipWriter.add(
-                  basePath + fileOrDir.name,
-                  new zip.TextReader(fileOrDir.initialContent)
-                )
+                zipWriter.add(basePath + fileOrDir.name, new zip.TextReader(fileOrDir.initialContent))
               )
             } else {
-              yield* writeTree(zipWriter)(
-                fileOrDir.children,
-                basePath + fileOrDir.name + "/"
-              )
+              yield* writeTree(zipWriter)(fileOrDir.children, basePath + fileOrDir.name + "/")
             }
           }
         })
@@ -40,28 +34,20 @@ export class Zip extends Effect.Service<Zip>()("app/Download/Zip", {
   }
 }) {}
 
-export class WorkspaceDownload extends Effect.Service<WorkspaceDownload>()(
-  "app/Download/Workspace",
-  {
-    dependencies: [Zip.Default],
-    effect: Effect.gen(function* () {
-      const zip = yield* Zip
-      const pack = <E, R>(
-        workspace: Workspace,
-        read: (file: string) => Effect.Effect<string, E, R>
-      ) =>
-        pipe(
-          workspace
-            .withPrepare("pnpm install")
-            .withNoSnapshot.updateFiles((file, path) =>
-              read(workspace.relativePath(path)).pipe(
-                Effect.map((content) => file.withContent(content))
-              )
-            ),
-          Effect.flatMap((_) => zip.create(_.tree))
-        )
+export class WorkspaceDownload extends Effect.Service<WorkspaceDownload>()("app/Download/Workspace", {
+  dependencies: [Zip.Default],
+  effect: Effect.gen(function* () {
+    const zip = yield* Zip
+    const pack = <E, R>(workspace: Workspace, read: (file: string) => Effect.Effect<string, E, R>) =>
+      pipe(
+        workspace
+          .withPrepare("pnpm install")
+          .withNoSnapshot.updateFiles((file, path) =>
+            read(workspace.relativePath(path)).pipe(Effect.map((content) => file.withContent(content)))
+          ),
+        Effect.flatMap((_) => zip.create(_.tree))
+      )
 
-      return { pack } as const
-    })
-  }
-) {}
+    return { pack } as const
+  })
+}) {}

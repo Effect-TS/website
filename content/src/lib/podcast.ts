@@ -10,7 +10,7 @@ export type PodcastEntry = CollectionEntry<"docs"> & {
   }
 }
 
-export function isPodcastEntry(entry: CollectionEntry<'docs'>): entry is PodcastEntry {
+export function isPodcastEntry(entry: CollectionEntry<"docs">): entry is PodcastEntry {
   return entry.data.podcast !== undefined
 }
 
@@ -27,25 +27,25 @@ function orderByPublicationDate(a: PodcastEntry, b: PodcastEntry): number {
 
 export async function getPodcastStaticPaths() {
   const entries = await getPodcastEntries()
-  const episodes = entries
-    .sort(orderByEpisodeNumber)
-    .map((entry) => ({
-      id: entry.id,
-      title: entry.data.title,
-      description: entry.data.description,
-      duration: entry.data.podcast.duration,
-      episodeNumber: entry.data.podcast.episodeNumber,
-      publicationDate: entry.data.podcast.publicationDate,
-      youtube: entry.data.podcast.youtube
-    }))
-  return [{
-    params: {
-      prefix: "podcast"
-    },
-    props: {
-      episodes
+  const episodes = entries.sort(orderByEpisodeNumber).map((entry) => ({
+    id: entry.id,
+    title: entry.data.title,
+    description: entry.data.description,
+    duration: entry.data.podcast.duration,
+    episodeNumber: entry.data.podcast.episodeNumber,
+    publicationDate: entry.data.podcast.publicationDate,
+    youtube: entry.data.podcast.youtube
+  }))
+  return [
+    {
+      params: {
+        prefix: "podcast"
+      },
+      props: {
+        episodes
+      }
     }
-  }] satisfies GetStaticPathsResult
+  ] satisfies GetStaticPathsResult
 }
 
 function orderByEpisodeNumber(a: PodcastEntry, b: PodcastEntry): number {
@@ -61,7 +61,7 @@ export function podcastSchema(_context: SchemaContext) {
      */
     episodeNumber: z.number().int().min(1),
     /**
-     * The relative path from the root of the project to the transcript file 
+     * The relative path from the root of the project to the transcript file
      * of the video. The transcript file must be in the SubRip format (`.srt`).
      *
      * @see https://en.wikipedia.org/wiki/SubRip

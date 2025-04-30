@@ -27,9 +27,7 @@ export function TraceSummary() {
   return (
     <p className="ml-px py-3">
       <span className="flex items-center text-sm text-[--sl-color-text]">
-        <span className="mr-2 text-[--sl-color-white] font-bold">
-          Summary
-        </span>
+        <span className="mr-2 text-[--sl-color-white] font-bold">Summary</span>
         <span className="mr-2">
           <QuestionMarkCircledIcon />
         </span>

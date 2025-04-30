@@ -5,18 +5,11 @@ import * as Option from "effect/Option"
 import * as String from "effect/String"
 import { hashRx } from "@/rx/location"
 import { ShortenClient } from "@/services/shorten/client"
-import {
-  makeDirectory,
-  makeFile,
-  Workspace,
-  WorkspaceShell
-} from "../domain/workspace"
+import { makeDirectory, makeFile, Workspace, WorkspaceShell } from "../domain/workspace"
 import { WorkspaceCompression } from "../services/compression"
 import * as Schema from "effect/Schema"
 
-const runtime = Rx.runtime(
-  Layer.mergeAll(ShortenClient.Default, WorkspaceCompression.Default)
-)
+const runtime = Rx.runtime(Layer.mergeAll(ShortenClient.Default, WorkspaceCompression.Default))
 
 const main = makeFile(
   "main.ts",
@@ -97,8 +90,6 @@ export const importRx = runtime.rx((get) =>
     }
 
     const compression = yield* WorkspaceCompression
-    return yield* compression
-      .decompress(compressed.value)
-      .pipe(Effect.orElseSucceed(makeDefaultWorkspace))
+    return yield* compression.decompress(compressed.value).pipe(Effect.orElseSucceed(makeDefaultWorkspace))
   })
 )

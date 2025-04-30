@@ -13,35 +13,17 @@ export function FileTree({
   readonly depth?: number
   readonly path?: string
 }) {
-  const [files, directories] = useMemo(
-    () => Array.partition(tree, (_) => _._tag === "Directory"),
-    [tree]
-  )
+  const [files, directories] = useMemo(() => Array.partition(tree, (_) => _._tag === "Directory"), [tree])
 
   return (
     <div className="text-sm">
       {directories.map((node) => {
         const fullPath = `${path}/${node.name}`
-        return (
-          <DirectoryNode
-            key={fullPath}
-            node={node}
-            depth={depth}
-            path={fullPath}
-          />
-        )
+        return <DirectoryNode key={fullPath} node={node} depth={depth} path={fullPath} />
       })}
       {files.map((node) => {
         const fullPath = `${path}/${node.name}`
-        return (
-          <FileNode
-            key={fullPath}
-            type="file"
-            node={node}
-            depth={depth}
-            path={fullPath}
-          />
-        )
+        return <FileNode key={fullPath} type="file" node={node} depth={depth} path={fullPath} />
       })}
     </div>
   )

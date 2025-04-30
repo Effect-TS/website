@@ -2,17 +2,8 @@ import { useCallback, Fragment, Suspense } from "react"
 import { ChartGanttIcon, SquareTerminalIcon } from "lucide-react"
 import { useRxSet, useRxSuspenseSuccess } from "@effect-rx/rx-react"
 import * as Hash from "effect/Hash"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from "@/components/ui/tabs"
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup
-} from "@/components/ui/resizable"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Toaster } from "@/components/ui/toaster"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { FileEditor } from "./components/file-editor"
@@ -21,10 +12,7 @@ import { PlaygroundLoader } from "./components/loader"
 import { Terminal } from "./components/terminal"
 import { TraceViewer } from "./components/trace-viewer"
 import { WorkspaceProvider } from "./context/workspace"
-import {
-  useWorkspaceHandle,
-  useWorkspaceShells
-} from "./context/workspace"
+import { useWorkspaceHandle, useWorkspaceShells } from "./context/workspace"
 import { importRx } from "./rx/import"
 
 export function CodeEditor() {
@@ -54,7 +42,7 @@ function CodeEditorSuspended() {
   const { terminalSize } = useWorkspaceHandle()
   const setSize = useRxSet(terminalSize)
   const onResize = useCallback(
-    function(..._: any) {
+    function (..._: any) {
       setSize()
     },
     [setSize]
@@ -78,9 +66,7 @@ function CodeEditorSuspended() {
       <ResizablePanel defaultSize={30} onResize={onResize}>
         <ResizablePanelGroup direction="horizontal">
           <Tabs defaultValue="terminal" className="h-full w-full flex flex-col">
-            <TabsList
-              className="inline-flex items-center justify-start gap-2 p-0 bg-[--sl-color-bg] font-semibold border-b border-b-neutral-200 dark:border-b-neutral-700 rounded-none"
-            >
+            <TabsList className="inline-flex items-center justify-start gap-2 p-0 bg-[--sl-color-bg] font-semibold border-b border-b-neutral-200 dark:border-b-neutral-700 rounded-none">
               <TabsTrigger
                 value="terminal"
                 className="h-full grid grid-cols-[16px_1fr] gap-1 py-0 px-2 bg-transparent text-[--sl-color-text] data-[state=active]:text-[--sl-color-white] data-[state=active]:bg-transparent data-[state=active]:shadow-[inset_0_-1px_0_var(--sl-color-white)] data-[state=active]:border-b-white rounded-none cursor-pointer transition-none"
@@ -112,9 +98,7 @@ function CodeEditorSuspended() {
             </TabsContent>
           </Tabs>
         </ResizablePanelGroup>
-
       </ResizablePanel>
-
     </ResizablePanelGroup>
   )
 }
@@ -124,7 +108,7 @@ function WorkspaceShells() {
   const shells = useWorkspaceShells()
   const setSize = useRxSet(terminalSize)
   const onResize = useCallback(
-    function(..._: any) {
+    function (..._: any) {
       setSize()
     },
     [setSize]
@@ -135,9 +119,7 @@ function WorkspaceShells() {
         const hash = Hash.hash(shell).toString()
         return (
           <Fragment key={hash}>
-            {index > 0 && (
-              <ResizableHandle id={hash} direction="vertical" />
-            )}
+            {index > 0 && <ResizableHandle id={hash} direction="vertical" />}
             <ResizablePanel id={hash} onResize={onResize} order={index} className="h-full">
               <Terminal shell={shell} />
             </ResizablePanel>
