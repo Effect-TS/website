@@ -1,5 +1,5 @@
-import { Data } from "effect"
 import * as Brand from "effect/Brand"
+import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import { pipe } from "effect/Function"
 import * as Hash from "effect/Hash"

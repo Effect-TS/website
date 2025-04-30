@@ -1,7 +1,8 @@
 import React from "react"
-import { useRxSuspenseSuccess, useRxValue } from "@effect-rx/rx-react"
+import { useRxMount, useRxSuspenseSuccess, useRxValue } from "@effect-rx/rx-react"
 import { Workspace } from "../domain/workspace"
 import { workspaceHandleRx, type RxWorkspaceHandle } from "../rx/workspace"
+import { autoSaveRx } from "../rx/import"
 
 export const WorkspaceContext = React.createContext<RxWorkspaceHandle>(null as any)
 
@@ -17,5 +18,6 @@ export function WorkspaceProvider({
   readonly workspace: Workspace
 }>) {
   const { value } = useRxSuspenseSuccess(workspaceHandleRx(workspace))
+  useRxMount(autoSaveRx(value))
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
 }

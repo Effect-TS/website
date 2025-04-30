@@ -5,6 +5,7 @@ import { useWorkspaceHandle } from "../context/workspace"
 import { editorRx } from "../rx/editor"
 import { ShareButton } from "./share-button"
 import { constVoid } from "effect/Function"
+import { ResetButton } from "./reset-button"
 
 export function FileEditor() {
   const handle = useWorkspaceHandle()
@@ -25,7 +26,10 @@ export function FileEditor() {
   return (
     <section className="h-full relative">
       <div ref={containerRef} className="h-full"></div>
-      <ShareButton />
+      <div className="absolute top-2 right-6 z-10 flex gap-2">
+        <ResetButton />
+        <ShareButton />
+      </div>
     </section>
   )
 }

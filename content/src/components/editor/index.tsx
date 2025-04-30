@@ -1,7 +1,8 @@
 import { useCallback, Fragment, Suspense } from "react"
 import { ChartGanttIcon, SquareTerminalIcon } from "lucide-react"
-import { useRxSet, useRxSuspenseSuccess } from "@effect-rx/rx-react"
+import { Result, useRxSet, useRxValue } from "@effect-rx/rx-react"
 import * as Hash from "effect/Hash"
+import * as Cause from "effect/Cause"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Toaster } from "@/components/ui/toaster"
@@ -16,29 +17,27 @@ import { useWorkspaceHandle, useWorkspaceShells } from "./context/workspace"
 import { importRx } from "./rx/import"
 
 export function CodeEditor() {
-  return (
-    <TooltipProvider>
-      <PlaygroundLoader />
-      <Suspense>
-        <EditorSuspended />
-      </Suspense>
-      <Toaster />
-    </TooltipProvider>
-  )
+  const workspace = useRxValue(importRx)
+  return Result.match(workspace, {
+    onInitial: () => null,
+    onFailure(_) {
+      throw Cause.squash(_.cause)
+    },
+    onSuccess: (_) => (
+      <TooltipProvider>
+        <PlaygroundLoader />
+        <Suspense>
+          <WorkspaceProvider workspace={_.value}>
+            <CodeEditorPanels />
+          </WorkspaceProvider>
+        </Suspense>
+        <Toaster />
+      </TooltipProvider>
+    )
+  })
 }
 
-function EditorSuspended() {
-  const { value } = useRxSuspenseSuccess(importRx)
-  return (
-    <Suspense>
-      <WorkspaceProvider workspace={value}>
-        <CodeEditorSuspended />
-      </WorkspaceProvider>
-    </Suspense>
-  )
-}
-
-function CodeEditorSuspended() {
+function CodeEditorPanels() {
   const { terminalSize } = useWorkspaceHandle()
   const setSize = useRxSet(terminalSize)
   const onResize = useCallback(

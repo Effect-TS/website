@@ -52,20 +52,19 @@ export class WorkspaceCompression extends Effect.Service<WorkspaceCompression>()
   effect: Effect.gen(function* () {
     const compression = yield* Compression
 
+    const snapshot = <E, R>(workspace: Workspace, read: (file: string) => Effect.Effect<string, E, R>) =>
+      workspace
+        .withPrepare("pnpm install")
+        .withNoSnapshot.updateFiles((file, path) =>
+          read(workspace.relativePath(path)).pipe(Effect.map((content) => file.withContent(content)))
+        )
+
     const compress = <E, R>(workspace: Workspace, read: (file: string) => Effect.Effect<string, E, R>) =>
-      pipe(
-        workspace
-          .withPrepare("pnpm install")
-          .withNoSnapshot.updateFiles((file, path) =>
-            read(workspace.relativePath(path)).pipe(Effect.map((content) => file.withContent(content)))
-          ),
-        Effect.andThen(encodeWorkspace),
-        Effect.andThen(compression.compressBase64)
-      )
+      pipe(snapshot(workspace, read), Effect.andThen(encodeWorkspace), Effect.andThen(compression.compressBase64))
 
     const decompress = (compressed: string) =>
       pipe(compression.decompressBase64(compressed), Effect.andThen(decodeWorkspace))
 
-    return { compress, decompress } as const
+    return { compress, decompress, snapshot } as const
   })
 }) {}

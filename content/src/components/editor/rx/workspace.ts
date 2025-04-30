@@ -10,10 +10,17 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Sink from "effect/Sink"
 import * as Stream from "effect/Stream"
-import * as SubscriptionRef from "effect/SubscriptionRef"
 import { themeRx } from "@/rx/theme"
 import { Toaster } from "@/services/toaster"
-import { Directory, File, Workspace, WorkspaceTerminal } from "../domain/workspace"
+import {
+  Directory,
+  File,
+  makeDirectory,
+  makeFile,
+  Workspace,
+  WorkspaceShell,
+  WorkspaceTerminal
+} from "../domain/workspace"
 import { Loader } from "../services/loader"
 import { Terminal } from "../services/terminal"
 import { Dracula, NightOwlishLight } from "../services/terminal/themes"
@@ -27,7 +34,7 @@ export interface RxWorkspaceHandle extends Rx.Rx.InferSuccess<ReturnType<typeof 
 
 export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
   runtime.rx(
-    Effect.gen(function* () {
+    Effect.fnUntraced(function* (_get) {
       const container = yield* WebContainer
       const loader = yield* Loader
       const terminal = yield* Terminal
@@ -140,7 +147,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         terminalSize,
         workspace: handle.workspace,
         run: handle.run,
-        workspaceRx: Rx.subscriptionRef(handle.workspace),
+        workspaceRx: handle.workspace,
         createFile: Rx.fn<Parameters<typeof handle.createFile>>()(
           Effect.fnUntraced(function* (params, get) {
             const node = yield* handle.createFile(...params)
@@ -155,7 +162,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
             if (node._tag === "Directory") {
               return
             }
-            const workspace = yield* SubscriptionRef.get(handle.workspace)
+            const workspace = get(handle.workspace)
             if (Option.isNone(workspace.pathTo(get(selectedFile)))) {
               get.set(selectedFile, node)
             }
@@ -164,7 +171,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         removeFile: Rx.fn<File | Directory>()(
           Effect.fnUntraced(function* (node, get) {
             yield* handle.removeFile(node)
-            const workspace = yield* handle.workspace.get
+            const workspace = get(handle.workspace)
             if (workspace.pathTo(get(selectedFile))._tag === "None") {
               get.set(selectedFile, workspace.initialFile)
             }
@@ -422,4 +429,55 @@ function setupWorkspaceFormatters(workspace: Workspace) {
       Effect.forkScoped
     )
   })
+}
+
+export const main = makeFile(
+  "main.ts",
+  `import { NodeRuntime } from "@effect/platform-node"
+import { Effect } from "effect"
+import { DevToolsLive } from "./DevTools"
+
+const program = Effect.gen(function*() {
+  yield* Effect.log("Welcome to the Effect Playground!")
+}).pipe(Effect.withSpan("program", {
+  attributes: { source: "Playground" }
+}))
+
+program.pipe(
+  Effect.provide(DevToolsLive),
+  NodeRuntime.runMain
+)
+`
+)
+
+const devTools = makeFile(
+  "DevTools.ts",
+  `import { DevTools } from "@effect/experimental"
+import { NodeSocket } from "@effect/platform-node"
+import { Layer } from "effect"
+
+export const DevToolsLive = DevTools.layerSocket.pipe(
+  Layer.provide(NodeSocket.layerNet({ port: 34437 }))
+)
+`
+)
+
+export const defaultWorkspace = new Workspace({
+  name: "playground",
+  dependencies: {
+    "@effect/experimental": "latest",
+    "@effect/platform": "latest",
+    "@effect/platform-node": "latest",
+    "@types/node": "latest",
+    effect: "latest",
+    "tsc-watch": "latest",
+    typescript: "latest"
+  },
+  shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
+  initialFilePath: "src/main.ts",
+  tree: [makeDirectory("src", [main, devTools])]
+})
+
+export function makeDefaultWorkspace() {
+  return defaultWorkspace.withName(`playground-${Date.now()}`)
 }
