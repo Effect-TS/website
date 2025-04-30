@@ -2,94 +2,84 @@ import { Rx } from "@effect-rx/rx-react"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import * as String from "effect/String"
 import { hashRx } from "@/rx/location"
 import { ShortenClient } from "@/services/shorten/client"
-import { makeDirectory, makeFile, Workspace, WorkspaceShell } from "../domain/workspace"
+import { makeFile, Workspace } from "../domain/workspace"
 import { WorkspaceCompression } from "../services/compression"
 import * as Schema from "effect/Schema"
+import { defaultWorkspace, main, makeDefaultWorkspace, type RxWorkspaceHandle } from "./workspace"
+import { WebContainer } from "../services/webcontainer"
+import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore"
 
-const runtime = Rx.runtime(Layer.mergeAll(ShortenClient.Default, WorkspaceCompression.Default))
-
-const main = makeFile(
-  "main.ts",
-  String.stripMargin(
-    `|import { NodeRuntime } from "@effect/platform-node"
-     |import { Effect } from "effect"
-     |import { DevToolsLive } from "./DevTools"
-     |
-     |const program = Effect.gen(function*() {
-     |  yield* Effect.log("Welcome to the Effect Playground!")
-     |}).pipe(Effect.withSpan("program", {
-     |  attributes: { source: "Playground" }
-     |}))
-     |
-     |program.pipe(
-     |  Effect.provide(DevToolsLive),
-     |  NodeRuntime.runMain
-     |)     
-     |`
-  )
-)
-
-const devTools = makeFile(
-  "DevTools.ts",
-  String.stripMargin(
-    `|import { DevTools } from "@effect/experimental"
-     |import { NodeSocket } from "@effect/platform-node"
-     |import { Layer } from "effect"
-     |
-     |export const DevToolsLive = DevTools.layerSocket.pipe(
-     |  Layer.provide(NodeSocket.layerNet({ port: 34437 }))
-     |)
-     |`
-  )
-)
-
-const defaultWorkspace = new Workspace({
-  name: "playground",
-  dependencies: {
-    "@effect/experimental": "latest",
-    "@effect/platform": "latest",
-    "@effect/platform-node": "latest",
-    "@types/node": "latest",
-    effect: "latest",
-    "tsc-watch": "latest",
-    typescript: "latest"
-  },
-  shells: [new WorkspaceShell({ command: "../run src/main.ts" })],
-  initialFilePath: "src/main.ts",
-  tree: [makeDirectory("src", [main, devTools])]
-})
-
-function makeDefaultWorkspace() {
-  return defaultWorkspace.withName(`playground-${Date.now()}`)
-}
+const runtime = Rx.runtime(Layer.mergeAll(ShortenClient.Default, WorkspaceCompression.Default, WebContainer.Default))
 
 const codeRx = Rx.searchParam("code", {
   schema: Schema.StringFromBase64Url.pipe(Schema.nonEmptyString())
 })
 
-export const importRx = runtime.rx((get) =>
-  Effect.gen(function* () {
-    const hash = get(hashRx)
-    if (Option.isNone(hash)) {
-      const code = get(codeRx)
-      if (Option.isSome(code)) {
-        const node = makeFile("main.ts", code.value, false)
-        return defaultWorkspace.replaceNode(main, node)
-      }
-      return makeDefaultWorkspace()
-    }
-
-    const client = yield* ShortenClient
-    const compressed = yield* client.retrieve({ hash: hash.value })
-
-    if (Option.isNone(compressed)) {
-      return makeDefaultWorkspace()
-    }
-
-    const compression = yield* WorkspaceCompression
-    return yield* compression.decompress(compressed.value).pipe(Effect.orElseSucceed(makeDefaultWorkspace))
-  })
+export const autoSaveRx = Rx.family((handle: RxWorkspaceHandle) =>
+  runtime.rx(
+    Effect.fnUntraced(function* (get) {
+      const workspace = get(handle.workspaceRx)
+      const container = yield* WebContainer
+      const compression = yield* WorkspaceCompression
+      yield* compression.snapshot(workspace, container.readFileString).pipe(
+        Effect.map((snapshot) => {
+          const similar =
+            snapshot.filePaths.size === defaultWorkspace.filePaths.size &&
+            snapshot.findFile("src/main.ts").pipe(
+              Option.filter(([file]) => file.initialContent === main.initialContent),
+              Option.isSome
+            )
+          if (similar) return
+          get.set(autoSaveWorkspaceRx, Option.some(snapshot))
+        }),
+        Effect.andThen(Effect.sleep("2 seconds")),
+        Effect.forever,
+        Effect.forkScoped
+      )
+    }, Effect.tapErrorCause(Effect.logError))
+  )
 )
+
+export const resetRx = Rx.fnSync((handle: RxWorkspaceHandle, get) => {
+  const workspace = makeDefaultWorkspace()
+  get.set(handle.workspaceRx, workspace)
+  get.set(autoSaveWorkspaceRx, Option.none())
+  get.refresh(importRx)
+})
+
+const autoSaveWorkspaceRx = Rx.kvs({
+  runtime: Rx.runtime(BrowserKeyValueStore.layerLocalStorage),
+  key: "workspace-autosave",
+  schema: Schema.Option(Workspace),
+  defaultValue: Option.none
+})
+
+export const importRx = runtime
+  .rx(
+    Effect.fnUntraced(function* (get) {
+      const hash = get(hashRx)
+      if (Option.isNone(hash)) {
+        const code = get(codeRx)
+        if (Option.isSome(code)) {
+          const node = makeFile("main.ts", code.value, false)
+          return defaultWorkspace.replaceNode(main, node)
+        }
+        return Option.getOrElse(get.once(autoSaveWorkspaceRx), makeDefaultWorkspace)
+      }
+
+      const client = yield* ShortenClient
+      const compressed = yield* client.retrieve({ hash: hash.value })
+
+      if (Option.isNone(compressed)) {
+        return get.once(autoSaveWorkspaceRx)
+      }
+
+      const compression = yield* WorkspaceCompression
+      return yield* compression
+        .decompress(compressed.value)
+        .pipe(Effect.orElseSucceed(() => Option.getOrElse(get.once(autoSaveWorkspaceRx), makeDefaultWorkspace)))
+    })
+  )
+  .pipe(Rx.refreshable)

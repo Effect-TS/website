@@ -5,7 +5,6 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schedule from "effect/Schedule"
 import * as Stream from "effect/Stream"
-import * as SubscriptionRef from "effect/SubscriptionRef"
 import { themeRx } from "@/rx/theme"
 import { Toaster } from "@/services/toaster"
 import { File, FullPath } from "../domain/workspace"
@@ -45,16 +44,15 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
       /**
        * Saves the content of the editor's current model to the file system.
        */
-      const save = SubscriptionRef.get(handle.workspace).pipe(
-        Effect.flatMap((workspace) => {
-          const file = get.once(handle.selectedFile)
-          const path = workspace.fullPathTo(file)
-          return Option.match(path, {
-            onNone: () => Effect.void,
-            onSome: (path) => container.writeFile(path, editor.editor.getValue(), "typescript")
-          })
+      const save = Effect.suspend(() => {
+        const workspace = get.once(handle.workspaceRx)
+        const file = get.once(handle.selectedFile)
+        const path = workspace.fullPathTo(file)
+        return Option.match(path, {
+          onNone: () => Effect.void,
+          onSome: (path) => container.writeFile(path, editor.editor.getValue(), "typescript")
         })
-      )
+      })
 
       /**
        * Syncs the content of the editor with the underlying WebContainer file
@@ -84,8 +82,7 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
       yield* loader.withIndicator("Configuring editor")(Effect.void)
       yield* get.stream(handle.selectedFile).pipe(
         Stream.bindTo("file"),
-        Stream.bindEffect("workspace", () => SubscriptionRef.get(handle.workspace)),
-        Stream.bindEffect("fullPath", ({ file, workspace }) => workspace.fullPathTo(file)),
+        Stream.bindEffect("fullPath", ({ file }) => get.once(handle.workspace).fullPathTo(file)),
         Stream.flatMap(({ file, fullPath }) => sync(fullPath, file), {
           switch: true
         }),

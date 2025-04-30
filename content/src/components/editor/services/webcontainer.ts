@@ -8,10 +8,10 @@ import * as GlobalValue from "effect/GlobalValue"
 import * as Option from "effect/Option"
 import * as PubSub from "effect/PubSub"
 import * as Stream from "effect/Stream"
-import * as SubscriptionRef from "effect/SubscriptionRef"
 import { FileAlreadyExistsError, FileNotFoundError, FileValidationError } from "../domain/errors"
 import { makeDirectory, makeFile, File, Directory, Workspace } from "../domain/workspace"
 import { Loader } from "./loader"
+import { Rx } from "@effect-rx/rx-react"
 
 const WEBCONTAINER_BIN_PATH = "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
 
@@ -278,155 +278,150 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
       return readFileString(path).pipe(Stream.concat(changes), Stream.changes, Stream.tapErrorCause(Effect.logError))
     }
 
-    function createWorkspaceHandle(workspace: Workspace) {
-      return Effect.gen(function* () {
-        /**
-         * Spawns the specified `command` into a `jsh` shell and returns the
-         * associated `WebContainerProcess`.
-         *
-         * The command will be run in the root directory of the workspace.
-         */
-        function spawnInWorkspace(command: string) {
-          return spawn(`cd ${workspace.name} && ${command}`)
-        }
+    const createWorkspaceHandle = Effect.fnUntraced(function* (workspace: Workspace) {
+      /**
+       * Spawns the specified `command` into a `jsh` shell and returns the
+       * associated `WebContainerProcess`.
+       *
+       * The command will be run in the root directory of the workspace.
+       */
+      function spawnInWorkspace(command: string) {
+        return spawn(`cd ${workspace.name} && ${command}`)
+      }
 
-        /**
-         * Spawns the specified `command` into a `jsh` shell and waits for the
-         * program to exit.
-         *
-         * The command will be run in the root directory of the workspace.
-         */
-        function runInWorkspace(command: string) {
-          return run(`cd ${workspace.name} && ${command}`)
-        }
+      /**
+       * Spawns the specified `command` into a `jsh` shell and waits for the
+       * program to exit.
+       *
+       * The command will be run in the root directory of the workspace.
+       */
+      function runInWorkspace(command: string) {
+        return run(`cd ${workspace.name} && ${command}`)
+      }
 
-        /**
-         * Mounts the specified workspace's file tree into the WebContainer.
-         */
-        function mountWorkspace(workspace: Workspace) {
-          return Effect.promise(async () => {
-            await container.fs.mkdir(workspace.name, { recursive: true })
-            await container.mount(treeFromWorkspace(workspace), {
-              mountPoint: workspace.name
-            })
+      /**
+       * Mounts the specified workspace's file tree into the WebContainer.
+       */
+      function mountWorkspace(workspace: Workspace) {
+        return Effect.promise(async () => {
+          await container.fs.mkdir(workspace.name, { recursive: true })
+          await container.mount(treeFromWorkspace(workspace), {
+            mountPoint: workspace.name
           })
-        }
+        })
+      }
 
-        /**
-         * Validates the name of a workspace file.
-         *
-         * Returns a `FileValidationError` if the file name is not valid.
-         */
-        function validateFileName(fileName: string, fileType: Workspace.FileType) {
-          return Effect.gen(function* () {
-            if (fileName.length === 0 || fileName.includes("/")) {
-              return yield* new FileValidationError({ reason: "InvalidName" })
-            } else if (fileType === "File" && !fileName.endsWith(".ts")) {
-              return yield* new FileValidationError({
-                reason: "UnsupportedType"
-              })
-            }
+      /**
+       * Validates the name of a workspace file.
+       *
+       * Returns a `FileValidationError` if the file name is not valid.
+       */
+      function validateFileName(fileName: string, fileType: Workspace.FileType) {
+        return Effect.gen(function* () {
+          if (fileName.length === 0 || fileName.includes("/")) {
+            return yield* new FileValidationError({ reason: "InvalidName" })
+          } else if (fileType === "File" && !fileName.endsWith(".ts")) {
+            return yield* new FileValidationError({
+              reason: "UnsupportedType"
+            })
+          }
+        })
+      }
+
+      /**
+       * Creates a new file in the workspace.
+       */
+      const create = Effect.fnUntraced(
+        function* (fileName: string, fileType: Workspace.FileType, options: Workspace.CreateFileOptions = {}) {
+          yield* validateFileName(fileName, fileType)
+          const workspace = yield* Rx.get(workspaceRef)
+          const parent = Option.fromNullable(options.parent)
+          // Determine the path to the new file
+          const newPath = Option.match(parent, {
+            onNone: () => fileName,
+            onSome: (parent) => `${Option.getOrThrow(workspace.pathTo(parent))}/${fileName}`
           })
-        }
-
-        /**
-         * Creates a new file in the workspace.
-         */
-        function create(fileName: string, fileType: Workspace.FileType, options: Workspace.CreateFileOptions = {}) {
-          return Effect.gen(function* () {
-            yield* validateFileName(fileName, fileType)
-            const workspace = yield* SubscriptionRef.get(workspaceRef)
-            const parent = Option.fromNullable(options.parent)
-            // Determine the path to the new file
-            const newPath = Option.match(parent, {
-              onNone: () => fileName,
-              onSome: (parent) => `${Option.getOrThrow(workspace.pathTo(parent))}/${fileName}`
-            })
-            yield* fileType === "File"
-              ? writeFile(workspace.relativePath(newPath), "", "typescript")
-              : mkdir(workspace.relativePath(newPath))
-            const node = fileType === "File" ? makeFile(fileName, "", true) : makeDirectory(fileName, [], true)
-            yield* SubscriptionRef.set(
-              workspaceRef,
-              Option.match(parent, {
-                onNone: () => workspace.append(node),
-                onSome: (parent) =>
-                  workspace.replaceNode(
-                    parent,
-                    makeDirectory(parent.name, [...parent.children, node], parent.userManaged)
-                  )
-              })
-            )
-            return node
-          }).pipe(
-            Effect.tapErrorCause(Effect.logError),
-            Effect.annotateLogs({
-              service: "WorkspaceHandle",
-              method: "createFile"
+          yield* fileType === "File"
+            ? writeFile(workspace.relativePath(newPath), "", "typescript")
+            : mkdir(workspace.relativePath(newPath))
+          const node = fileType === "File" ? makeFile(fileName, "", true) : makeDirectory(fileName, [], true)
+          yield* Rx.set(
+            workspaceRef,
+            Option.match(parent, {
+              onNone: () => workspace.append(node),
+              onSome: (parent) =>
+                workspace.replaceNode(
+                  parent,
+                  makeDirectory(parent.name, [...parent.children, node], parent.userManaged)
+                )
             })
           )
-        }
+          return node
+        },
+        Effect.tapErrorCause(Effect.logError),
+        Effect.annotateLogs({
+          service: "WorkspaceHandle",
+          method: "createFile"
+        })
+      )
 
-        /**
-         * Renames a file in the workspace.
-         */
-        function rename(node: File | Directory, newName: string) {
-          return Effect.gen(function* () {
-            yield* validateFileName(newName, node._tag)
-            const workspace = yield* SubscriptionRef.get(workspaceRef)
-            const newNode =
-              node._tag === "File"
-                ? makeFile(newName, node.initialContent, node.userManaged)
-                : makeDirectory(newName, node.children, node.userManaged)
-            const newWorkspace = workspace.replaceNode(node, newNode)
-            const oldPath = yield* Effect.orDie(workspace.pathTo(node))
-            const newPath = yield* Effect.orDie(newWorkspace.pathTo(newNode))
-            yield* renameFile(workspace.relativePath(oldPath), workspace.relativePath(newPath))
-            yield* SubscriptionRef.set(workspaceRef, newWorkspace)
-            return newNode
-          }).pipe(
-            Effect.tapErrorCause(Effect.logError),
-            Effect.annotateLogs({
-              service: "WorkspaceHandle",
-              method: "renameFile"
-            })
-          )
-        }
+      /**
+       * Renames a file in the workspace.
+       */
+      const rename = Effect.fnUntraced(
+        function* (node: File | Directory, newName: string) {
+          yield* validateFileName(newName, node._tag)
+          const workspace = yield* Rx.get(workspaceRef)
+          const newNode =
+            node._tag === "File"
+              ? makeFile(newName, node.initialContent, node.userManaged)
+              : makeDirectory(newName, node.children, node.userManaged)
+          const newWorkspace = workspace.replaceNode(node, newNode)
+          const oldPath = yield* Effect.orDie(workspace.pathTo(node))
+          const newPath = yield* Effect.orDie(newWorkspace.pathTo(newNode))
+          yield* renameFile(workspace.relativePath(oldPath), workspace.relativePath(newPath))
+          yield* Rx.set(workspaceRef, newWorkspace)
+          return newNode
+        },
+        Effect.tapErrorCause(Effect.logError),
+        Effect.annotateLogs({
+          service: "WorkspaceHandle",
+          method: "renameFile"
+        })
+      )
 
-        /**
-         * Removes a file from the workspace.
-         */
-        function remove(node: File | Directory) {
-          return Effect.gen(function* () {
-            const workspace = yield* SubscriptionRef.get(workspaceRef)
-            const newWorkspace = workspace.removeNode(node)
-            const path = yield* Effect.orDie(workspace.pathTo(node))
-            yield* removeFile(workspace.relativePath(path))
-            yield* SubscriptionRef.set(workspaceRef, newWorkspace)
-          }).pipe(
-            Effect.tapErrorCause(Effect.logError),
-            Effect.annotateLogs({
-              service: "WorkspaceHandle",
-              method: "removeFile"
-            })
-          )
-        }
+      /**
+       * Removes a file from the workspace.
+       */
+      const remove = Effect.fnUntraced(
+        function* (node: File | Directory) {
+          const workspace = yield* Rx.get(workspaceRef)
+          const newWorkspace = workspace.removeNode(node)
+          const path = yield* Effect.orDie(workspace.pathTo(node))
+          yield* removeFile(workspace.relativePath(path))
+          yield* Rx.set(workspaceRef, newWorkspace)
+        },
+        Effect.tapErrorCause(Effect.logError),
+        Effect.annotateLogs({
+          service: "WorkspaceHandle",
+          method: "removeFile"
+        })
+      )
 
-        // Create a subscription ref to track changes to the workspace
-        const workspaceRef = yield* SubscriptionRef.make(workspace)
-        // Mount the workspace file system into the container
-        yield* mountWorkspace(workspace)
+      // Create a Rx to track changes to the workspace
+      const workspaceRef = Rx.make(workspace)
+      // Mount the workspace file system into the container
+      yield* mountWorkspace(workspace)
 
-        return {
-          workspace: workspaceRef,
-          spawn: spawnInWorkspace,
-          run: runInWorkspace,
-          createFile: create,
-          renameFile: rename,
-          removeFile: remove
-        } as const
-      })
-    }
+      return {
+        workspace: workspaceRef,
+        spawn: spawnInWorkspace,
+        run: runInWorkspace,
+        createFile: create,
+        renameFile: rename,
+        removeFile: remove
+      } as const
+    })
 
     // Install the default executables into the container
     yield* installExe("run", runExe)
