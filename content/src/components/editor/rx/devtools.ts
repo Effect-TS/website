@@ -2,8 +2,7 @@ import { Rx } from "@effect-rx/rx-react"
 import { Span } from "../domain/devtools"
 import { DevToolsLayer, rootSpansRx } from "../services/devtools"
 
-export interface RxDevTools
-  extends Rx.Rx.InferSuccess<typeof devToolsRx> {}
+export interface RxDevTools extends Rx.Rx.InferSuccess<typeof devToolsRx> {}
 
 export const devToolsRx = Rx.runtime(DevToolsLayer)
 

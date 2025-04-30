@@ -2,19 +2,8 @@ import { useState } from "react"
 import { useRx, useRxValue } from "@effect-rx/rx-react"
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
 import { Button } from "@/components/ui/button"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/css/utils"
 import { rootSpansRx } from "../../services/devtools"
 import { selectedSpanIndexRx, selectedSpanRx } from "../../rx/devtools"
@@ -40,15 +29,9 @@ export function TraceSelector() {
       </PopoverTrigger>
       <PopoverContent className="w-[350px] p-0">
         <Command className="bg-[--sl-color-bg]">
-          <CommandInput
-            placeholder="Search traces..."
-            className="placeholder:text-[--sl-color-text]"
-          />
+          <CommandInput placeholder="Search traces..." className="placeholder:text-[--sl-color-text]" />
           <CommandEmpty>No traces found.</CommandEmpty>
-          <CommandGroup
-            heading="Traces"
-            className="[&_[cmdk-group-heading]]:text-[--sl-color-text]"
-          >
+          <CommandGroup heading="Traces" className="[&_[cmdk-group-heading]]:text-[--sl-color-text]">
             <CommandList>
               {rootSpans.map((root, index) => (
                 <CommandItem
@@ -61,12 +44,7 @@ export function TraceSelector() {
                 >
                   {root.traceId}
                   <CheckIcon
-                    className={cn(
-                      "ml-auto h-4 w-4",
-                      selectedSpanIndex === index
-                        ? "opacity-100"
-                        : "opacity-0"
-                    )}
+                    className={cn("ml-auto h-4 w-4", selectedSpanIndex === index ? "opacity-100" : "opacity-0")}
                   />
                 </CommandItem>
               ))}

@@ -22,21 +22,11 @@ import {
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from "@/components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/css/utils"
 import { useWorkspaceHandle } from "../../context/workspace"
 import { Directory, File } from "../../domain/workspace"
-import {
-  State,
-  useExplorerDispatch,
-  useExplorerState,
-  useRemove,
-  useRename
-} from "../file-explorer"
+import { State, useExplorerDispatch, useExplorerState, useRemove, useRename } from "../file-explorer"
 import { FileInput } from "./file-input"
 
 export declare namespace FileNode {
@@ -65,23 +55,13 @@ export declare namespace FileNode {
   }
 }
 
-export function FileNode({
-  depth,
-  node,
-  path,
-  className,
-  onClick,
-  ...props
-}: FileNode.Props) {
+export function FileNode({ depth, node, path, className, onClick, ...props }: FileNode.Props) {
   const handle = useWorkspaceHandle()
   const state = useExplorerState()
   const [selectedFile, setSelectedFile] = useRx(handle.selectedFile)
   const [showControls, setShowControls] = useState(false)
   const rename = useRename()
-  const isEditing = useMemo(
-    () => state._tag === "Editing" && Equal.equals(state.node, node),
-    [state, node]
-  )
+  const isEditing = useMemo(() => state._tag === "Editing" && Equal.equals(state.node, node), [state, node])
   const isSelected = Equal.equals(selectedFile, node)
 
   const handleClick = useCallback<FileNode.OnClick>(
@@ -95,12 +75,7 @@ export function FileNode({
   )
 
   return isEditing ? (
-    <FileInput
-      type={node._tag}
-      depth={depth}
-      initialValue={node.name}
-      onSubmit={(name) => rename(node, name)}
-    />
+    <FileInput type={node._tag} depth={depth} initialValue={node.name} onSubmit={(name) => rename(node, name)} />
   ) : (
     <FileNodeRoot
       className={showControls ? "grid-cols-[minmax(0,1fr)_auto]" : "auto-cols-auto"}
@@ -108,11 +83,7 @@ export function FileNode({
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
-      <FileNodeTrigger
-        depth={depth}
-        isSelected={isSelected}
-        onClick={(event) => handleClick(event, node)}
-      >
+      <FileNodeTrigger depth={depth} isSelected={isSelected} onClick={(event) => handleClick(event, node)}>
         <FileNodeIcon {...props} />
         <FileNodeName node={node} />
       </FileNodeTrigger>
@@ -180,11 +151,7 @@ function FileNodeTrigger({
   )
 }
 
-function FileNodeIcon(
-  props:
-    | { readonly type: "file" }
-    | { readonly type: "directory"; readonly isOpen: boolean }
-) {
+function FileNodeIcon(props: { readonly type: "file" } | { readonly type: "directory"; readonly isOpen: boolean }) {
   return props.type === "file" ? (
     <FileIcon size={16} />
   ) : props.isOpen ? (
@@ -199,120 +166,133 @@ function FileNodeName({ node }: { readonly node: File | Directory }) {
   return <span>{fileName}</span>
 }
 
-function FileNodeControls({ className, node }: {
-  readonly className?: string
-  readonly node: File | Directory
-}) {
+function FileNodeControls({ className, node }: { readonly className?: string; readonly node: File | Directory }) {
   const state = useExplorerState()
   const dispatch = useExplorerDispatch()
   const remove = useRemove()
 
   const isIdle = state._tag === "Idle"
 
-  return (node._tag === "Directory" || node.userManaged) && (
-    <div className={cn("h-full flex items-center [&_button]:px-1 [&_button]:rounded-none", className)}>
-      {node.userManaged && (
-        <Tooltip disableHoverableContent={!isIdle}>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              className="h-full p-0 bg-transparent cursor-pointer group-data-[selected=true]:bg-[--sl-color-text-accent] group-data-[selected=true]:text-[--sl-color-text-invert]"
-              onClick={() => dispatch(State.Editing({ node }))}
+  return (
+    (node._tag === "Directory" || node.userManaged) && (
+      <div className={cn("h-full flex items-center [&_button]:px-1 [&_button]:rounded-none", className)}>
+        {node.userManaged && (
+          <Tooltip disableHoverableContent={!isIdle}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-full p-0 bg-transparent cursor-pointer group-data-[selected=true]:bg-[--sl-color-text-accent] group-data-[selected=true]:text-[--sl-color-text-invert]"
+                onClick={() => dispatch(State.Editing({ node }))}
+              >
+                <span className="sr-only">Edit</span>
+                <FilePenIcon size={16} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              className="text-[--sl-color-text] bg-[--sl-color-black] ring-1 ring-inset ring-[--sl-color-text]"
             >
-              <span className="sr-only">Edit</span>
-              <FilePenIcon size={16} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-[--sl-color-text] bg-[--sl-color-black] ring-1 ring-inset ring-[--sl-color-text]">
-            <p>Edit</p>
-          </TooltipContent>
-        </Tooltip>
-      )}
-      {node._tag === "Directory" && (
-        <>
-          <Tooltip disableHoverableContent={!isIdle}>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                className="h-full p-0 bg-transparent cursor-pointer group-data-[selected=true]:bg-[--sl-color-text-accent] group-data-[selected=true]:text-[--sl-color-text-invert]"
-                onClick={() =>
-                  dispatch(
-                    State.Creating({
-                      parent: node,
-                      type: "File"
-                    })
-                  )
-                }
-              >
-                <span className="sr-only">Add File</span>
-                <FilePlusIcon size={16} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-[--sl-color-text] bg-[--sl-color-black] ring-1 ring-inset ring-[--sl-color-text]">
-              <p>New File...</p>
+              <p>Edit</p>
             </TooltipContent>
           </Tooltip>
-          <Tooltip disableHoverableContent={!isIdle}>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                className="h-full p-0 bg-transparent cursor-pointer group-data-[selected=true]:bg-[--sl-color-text-accent] group-data-[selected=true]:text-[--sl-color-text-invert]"
-                onClick={() =>
-                  dispatch(
-                    State.Creating({
-                      parent: node,
-                      type: "Directory"
-                    })
-                  )
-                }
-              >
-                <span className="sr-only">Add Directory</span>
-                <FolderPlusIcon size={16} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-[--sl-color-text] bg-[--sl-color-black] ring-1 ring-inset ring-[--sl-color-text]">
-              <p>New Folder...</p>
-            </TooltipContent>
-          </Tooltip>
-        </>
-      )}
-      {node.userManaged && (
-        <AlertDialog>
-          <Tooltip disableHoverableContent={!isIdle}>
-            <AlertDialogTrigger asChild>
+        )}
+        {node._tag === "Directory" && (
+          <>
+            <Tooltip disableHoverableContent={!isIdle}>
               <TooltipTrigger asChild>
-                <Button variant="ghost" className="h-full p-0 bg-transparent cursor-pointer group-data-[selected=true]:bg-[--sl-color-text-accent] group-data-[selected=true]:text-[--sl-color-text-invert]">
-                  <span className="sr-only">Delete</span>
-                  <TrashIcon size={16} />
+                <Button
+                  variant="ghost"
+                  className="h-full p-0 bg-transparent cursor-pointer group-data-[selected=true]:bg-[--sl-color-text-accent] group-data-[selected=true]:text-[--sl-color-text-invert]"
+                  onClick={() =>
+                    dispatch(
+                      State.Creating({
+                        parent: node,
+                        type: "File"
+                      })
+                    )
+                  }
+                >
+                  <span className="sr-only">Add File</span>
+                  <FilePlusIcon size={16} />
                 </Button>
               </TooltipTrigger>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="bg-[--sl-color-bg-nav]">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-[--sl-color-white]">Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription className="text-[--sl-color-text]">
-                  This action cannot be undone. This will permanently delete
-                  the {node._tag.toLowerCase()}.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="bg-[--sl-color-bg] hover:bg-[--sl-color-gray-6] dark:hover:bg-[--sl-color-gray-5] border border-[--sl-color-text] cursor-pointer">
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className="border-destructive bg-destructive hover:bg-destructive/80 text-destructive-foreground border border-[--sl-color-text] cursor-pointer"
-                  onClick={() => remove(node)}
+              <TooltipContent
+                side="bottom"
+                className="text-[--sl-color-text] bg-[--sl-color-black] ring-1 ring-inset ring-[--sl-color-text]"
+              >
+                <p>New File...</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip disableHoverableContent={!isIdle}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-full p-0 bg-transparent cursor-pointer group-data-[selected=true]:bg-[--sl-color-text-accent] group-data-[selected=true]:text-[--sl-color-text-invert]"
+                  onClick={() =>
+                    dispatch(
+                      State.Creating({
+                        parent: node,
+                        type: "Directory"
+                      })
+                    )
+                  }
                 >
-                  Confirm
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-            <TooltipContent side="bottom" className="text-[--sl-color-text] bg-[--sl-color-black] ring-1 ring-inset ring-[--sl-color-text]">
-              <p>Delete</p>
-            </TooltipContent>
-          </Tooltip>
-        </AlertDialog>
-      )}
-    </div>
+                  <span className="sr-only">Add Directory</span>
+                  <FolderPlusIcon size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="bottom"
+                className="text-[--sl-color-text] bg-[--sl-color-black] ring-1 ring-inset ring-[--sl-color-text]"
+              >
+                <p>New Folder...</p>
+              </TooltipContent>
+            </Tooltip>
+          </>
+        )}
+        {node.userManaged && (
+          <AlertDialog>
+            <Tooltip disableHoverableContent={!isIdle}>
+              <AlertDialogTrigger asChild>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-full p-0 bg-transparent cursor-pointer group-data-[selected=true]:bg-[--sl-color-text-accent] group-data-[selected=true]:text-[--sl-color-text-invert]"
+                  >
+                    <span className="sr-only">Delete</span>
+                    <TrashIcon size={16} />
+                  </Button>
+                </TooltipTrigger>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="bg-[--sl-color-bg-nav]">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-[--sl-color-white]">Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-[--sl-color-text]">
+                    This action cannot be undone. This will permanently delete the {node._tag.toLowerCase()}.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="bg-[--sl-color-bg] hover:bg-[--sl-color-gray-6] dark:hover:bg-[--sl-color-gray-5] border border-[--sl-color-text] cursor-pointer">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="border-destructive bg-destructive hover:bg-destructive/80 text-destructive-foreground border border-[--sl-color-text] cursor-pointer"
+                    onClick={() => remove(node)}
+                  >
+                    Confirm
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+              <TooltipContent
+                side="bottom"
+                className="text-[--sl-color-text] bg-[--sl-color-black] ring-1 ring-inset ring-[--sl-color-text]"
+              >
+                <p>Delete</p>
+              </TooltipContent>
+            </Tooltip>
+          </AlertDialog>
+        )}
+      </div>
+    )
   )
 }

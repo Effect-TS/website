@@ -7,9 +7,7 @@ import { loaderStepsRx } from "../services/loader"
 export function PlaygroundLoader() {
   const isReady = useRxValue(isLoadedRx)
   const steps = useRxValue(loaderStepsRx, (steps) => {
-    return steps.every((step) => step.done)
-      ? steps
-      : steps.slice(0, steps.findIndex((step) => !step.done) + 1)
+    return steps.every((step) => step.done) ? steps : steps.slice(0, steps.findIndex((step) => !step.done) + 1)
   })
   return (
     <AnimatePresence initial={false}>
@@ -49,13 +47,7 @@ export function PlaygroundLoader() {
                             <Loader2 className="w-6 h-6 text-[--sl-color-text] animate-spin" />
                           )}
                         </motion.div>
-                        <span
-                          className={
-                            step.done
-                              ? "text-[--sl-color-text]"
-                              : "text-[--sl-color-white]"
-                          }
-                        >
+                        <span className={step.done ? "text-[--sl-color-text]" : "text-[--sl-color-white]"}>
                           {step.message}
                         </span>
                       </motion.div>

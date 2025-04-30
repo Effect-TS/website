@@ -5,14 +5,11 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { ShortenRpcs } from "./rpc"
 
-export class ShortenClient extends Effect.Service<ShortenClient>()(
-  "app/ShortenClient",
-  {
-    scoped: RpcClient.make(ShortenRpcs),
-    dependencies: [
-      RpcClient.layerProtocolHttp({ url: "/api/rpc/" }).pipe(
-        Layer.provide([FetchHttpClient.layer, RpcSerialization.layerJson])
-      )
-    ]
-  }
-) {}
+export class ShortenClient extends Effect.Service<ShortenClient>()("app/ShortenClient", {
+  scoped: RpcClient.make(ShortenRpcs),
+  dependencies: [
+    RpcClient.layerProtocolHttp({ url: "/api/rpc/" }).pipe(
+      Layer.provide([FetchHttpClient.layer, RpcSerialization.layerJson])
+    )
+  ]
+}) {}

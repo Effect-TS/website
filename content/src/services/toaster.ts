@@ -2,10 +2,7 @@ import * as Array from "effect/Array"
 import * as Effect from "effect/Effect"
 import * as Queue from "effect/Queue"
 import * as Ref from "effect/Ref"
-import type {
-  ToastActionElement,
-  ToastProps
-} from "@/components/ui/toast"
+import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 import { Registry, Rx } from "@effect-rx/rx-react"
 import { Runtime } from "effect"
 
@@ -33,17 +30,12 @@ export class Toaster extends Effect.Service<Toaster>()("app/Toaster", {
         ...toast,
         id,
         open: true,
-        onOpenChange: (open) =>
-          !open && Runtime.runSync(runtime, dismissToast(id))
+        onOpenChange: (open) => !open && Runtime.runSync(runtime, dismissToast(id))
       }
     }
 
     function addToast(toast: Omit<Toast, "id">) {
-      return nextId.pipe(
-        Effect.flatMap((id) =>
-          Rx.update(toastsRx, Array.prepend(createToast(id, toast)))
-        )
-      )
+      return nextId.pipe(Effect.flatMap((id) => Rx.update(toastsRx, Array.prepend(createToast(id, toast)))))
     }
 
     function removeToast(id: string) {
@@ -57,16 +49,12 @@ export class Toaster extends Effect.Service<Toaster>()("app/Toaster", {
       Queue.unsafeOffer(removeQueue, id)
       return Rx.update(
         toastsRx,
-        Array.map((toast) =>
-          toast.id === id ? { ...toast, open: false } : toast
-        )
+        Array.map((toast) => (toast.id === id ? { ...toast, open: false } : toast))
       )
     }
 
     yield* Queue.take(removeQueue).pipe(
-      Effect.flatMap((id) =>
-        removeToast(id).pipe(Effect.delay("5 seconds"), Effect.fork)
-      ),
+      Effect.flatMap((id) => removeToast(id).pipe(Effect.delay("5 seconds"), Effect.fork)),
       Effect.forever,
       Effect.forkScoped,
       Effect.interruptible

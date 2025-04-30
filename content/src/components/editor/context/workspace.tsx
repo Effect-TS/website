@@ -10,13 +10,12 @@ export const useWorkspaceRx = () => useWorkspaceHandle().workspaceRx
 export const useWorkspaceShells = () => useRxValue(useWorkspaceRx(), (workspace) => workspace.shells)
 export const useWorkspaceTree = () => useRxValue(useWorkspaceRx(), (workspace) => workspace.tree)
 
-export function WorkspaceProvider({ children, workspace }: React.PropsWithChildren<{
+export function WorkspaceProvider({
+  children,
+  workspace
+}: React.PropsWithChildren<{
   readonly workspace: Workspace
 }>) {
   const { value } = useRxSuspenseSuccess(workspaceHandleRx(workspace))
-  return (
-    <WorkspaceContext.Provider value={value}>
-      {children}
-    </WorkspaceContext.Provider>
-  )
+  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
 }

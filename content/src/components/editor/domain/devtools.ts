@@ -13,10 +13,7 @@ export class Span {
     let node: ParentSpan | undefined = span
     while (node !== undefined) {
       current = new Span({ span, children: Array.fromNullable(current) })
-      node =
-        node._tag === "ExternalSpan"
-          ? undefined
-          : Option.getOrUndefined(node.parent)
+      node = node._tag === "ExternalSpan" ? undefined : Option.getOrUndefined(node.parent)
     }
     return current!
   }
@@ -53,9 +50,7 @@ export class Span {
    * Returns `true` if this is a root span, `false` otherwise.
    */
   get isRoot(): boolean {
-    return (
-      this.span._tag === "ExternalSpan" || Option.isNone(this.span.parent)
-    )
+    return this.span._tag === "ExternalSpan" || Option.isNone(this.span.parent)
   }
 
   /**
@@ -66,19 +61,14 @@ export class Span {
   }
 
   get hasError(): boolean {
-    return (
-      this.span._tag !== "ExternalSpan" &&
-      this.span.attributes.get("code.stacktrace") !== undefined
-    )
+    return this.span._tag !== "ExternalSpan" && this.span.attributes.get("code.stacktrace") !== undefined
   }
 
   /**
    * The label for the span.
    */
   get label(): string {
-    return this.span._tag === "ExternalSpan"
-      ? "External Span"
-      : this.span.name
+    return this.span._tag === "ExternalSpan" ? "External Span" : this.span.name
   }
 
   /**
@@ -121,11 +111,7 @@ export class Span {
    * Will be `None` if the span is external or if the span has not ended.
    */
   get duration(): Option.Option<Duration.Duration> {
-    return Option.zipWith(
-      this.startTime,
-      this.endTime,
-      (startTime, endTime) => Duration.subtract(endTime, startTime)
-    )
+    return Option.zipWith(this.startTime, this.endTime, (startTime, endTime) => Duration.subtract(endTime, startTime))
   }
 
   /**
@@ -138,8 +124,7 @@ export class Span {
     }
     // If this span is an external span and the incoming span is a regualar span
     // then we need to upgrade this span
-    const isUpgrade =
-      span._tag === "Span" && this.span._tag === "ExternalSpan"
+    const isUpgrade = span._tag === "Span" && this.span._tag === "ExternalSpan"
     if (isUpgrade && Option.isNone(span.parent)) {
       return new Span({ span })
     }
@@ -153,9 +138,7 @@ export class Span {
         }),
       // Otherwise add the incoming span as a child
       onSome: (parent) =>
-        this.spanId === parent.spanId
-          ? this.addChild(span)
-          : this.mapChildren((child) => child.addSpan(span))
+        this.spanId === parent.spanId ? this.addChild(span) : this.mapChildren((child) => child.addSpan(span))
     })
   }
 

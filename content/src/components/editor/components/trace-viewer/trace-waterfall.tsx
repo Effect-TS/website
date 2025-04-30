@@ -13,14 +13,7 @@ import {
   type Table as ReactTable,
   type RowSelectionState
 } from "@tanstack/react-table"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/css/utils"
 import { Span } from "../../domain/devtools"
 import { TraceDetails } from "./trace-details"
@@ -65,13 +58,9 @@ const columns: Array<ColumnDef<Span>> = [
 
 export function TraceWaterfall() {
   const selectedSpan = useRxValue(selectedSpanRx)
-  const [rowSelection, setRowSelection] =
-    React.useState<RowSelectionState>({})
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [expanded, setExpanded] = React.useState<ExpandedState>(true)
-  const data = useMemo(
-    () => (selectedSpan === undefined ? [] : [selectedSpan]),
-    [selectedSpan]
-  )
+  const data = useMemo(() => (selectedSpan === undefined ? [] : [selectedSpan]), [selectedSpan])
 
   const table = useReactTable<Span>({
     data,
@@ -128,12 +117,7 @@ export function TraceWaterfall() {
                       header.column.columnDef.meta?.grow && "grow"
                     )}
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     {header.column.getCanResize() && (
                       <div
                         role="separator"
@@ -166,11 +150,7 @@ const MemoizedTableBody = React.memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof UnmemoizedTableBody
 
-function UnmemoizedTableBody({
-  table
-}: {
-  readonly table: ReactTable<Span>
-}) {
+function UnmemoizedTableBody({ table }: { readonly table: ReactTable<Span> }) {
   return (
     <TableBody className="[&_tr:last-child]:border-1">
       {table.getRowModel().rows?.length ? (
@@ -182,8 +162,7 @@ function UnmemoizedTableBody({
               data-state={row.getIsSelected() && "selected"}
               className={cn(
                 "flex border-x border-gray-400 dark:border-gray-700 data-[state=selected]:bg-[--sl-color-gray-6] dark:data-[state=selected]:bg-[--sl-color-gray-5] hover:bg-[--sl-color-gray-6] dark:hover:bg-[--sl-color-gray-5]",
-                span.hasError &&
-                  "bg-destructive/30 hover:bg-destructive/40 data-[state=selected]:bg-destructive/30"
+                span.hasError && "bg-destructive/30 hover:bg-destructive/40 data-[state=selected]:bg-destructive/30"
               )}
             >
               {row.getVisibleCells().map((cell) => (
@@ -197,10 +176,7 @@ function UnmemoizedTableBody({
                     cell.column.columnDef.meta?.grow && "grow"
                   )}
                 >
-                  {flexRender(
-                    cell.column.columnDef.cell,
-                    cell.getContext()
-                  )}
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   {cell.column.getCanResize() && (
                     <div
                       role="separator"
@@ -214,10 +190,7 @@ function UnmemoizedTableBody({
         })
       ) : (
         <TableRow>
-          <TableCell
-            colSpan={columns.length}
-            className="h-24 w-auto text-center"
-          >
+          <TableCell colSpan={columns.length} className="h-24 w-auto text-center">
             No results.
           </TableCell>
         </TableRow>
@@ -237,29 +210,16 @@ function NameCell({ getValue, row }: CellContext<Span, unknown>) {
       >
         <TraceTree row={row} />
       </button>
-      <div
-        className={cn(
-          "h-8 flex items-center",
-          row.subRows.length > 0 && "ml-1.5"
-        )}
-      >
-        <span className="overflow-hidden text-ellipsis">
-          {node.label}
-        </span>
+      <div className={cn("h-8 flex items-center", row.subRows.length > 0 && "ml-1.5")}>
+        <span className="overflow-hidden text-ellipsis">{node.label}</span>
       </div>
     </div>
   )
 }
 
-function DurationCell({
-  getValue,
-  row,
-  column
-}: CellContext<Span, unknown>) {
+function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
   const currentSpan = getValue<Span>()
-  const root = currentSpan.isRoot
-    ? currentSpan
-    : row.getParentRows()[0]?.original
+  const root = currentSpan.isRoot ? currentSpan : row.getParentRows()[0]?.original
 
   if (root === undefined) {
     return null
@@ -267,11 +227,7 @@ function DurationCell({
 
   // Filter out external spans since they do not contain useful information
   if (currentSpan.span._tag === "ExternalSpan") {
-    return (
-      <div className="font-display text-xs text-[--sl-color-text]">
-        &lt;&lt; External Span &gt;&gt;
-      </div>
-    )
+    return <div className="font-display text-xs text-[--sl-color-text]">&lt;&lt; External Span &gt;&gt;</div>
   }
 
   // After filtering out external spans, there are three states the current span
@@ -286,14 +242,9 @@ function DurationCell({
   const pillColors = getPillColors(currentSpan)
 
   // Case #1: Current span is still in progress
-  if (
-    Option.isSome(currentSpan.startTime) &&
-    Option.isNone(currentSpan.endTime)
-  ) {
+  if (Option.isSome(currentSpan.startTime) && Option.isNone(currentSpan.endTime)) {
     const spanStartTime = currentSpan.startTime.value
-    const relativeStartTime = Duration.nanos(
-      spanStartTime - traceStartTime
-    )
+    const relativeStartTime = Duration.nanos(spanStartTime - traceStartTime)
     return (
       <div
         className={cn(
@@ -303,12 +254,7 @@ function DurationCell({
         )}
       >
         {currentSpan.isRoot ? (
-          <div
-            className={cn(
-              "px-2 bg-white/90 text-black rounded-sm leading-3",
-              pillColors
-            )}
-          >
+          <div className={cn("px-2 bg-white/90 text-black rounded-sm leading-3", pillColors)}>
             <span className="font-display text-xs">In-Progress</span>
           </div>
         ) : (
@@ -316,8 +262,7 @@ function DurationCell({
             <span className="font-display text-xs">In-Progress</span>
             <span className="mx-2">...</span>
             <span className="text-xs font-medium text-[--sl-color-text]">
-              Started: {formatDuration(relativeStartTime)} after trace
-              start
+              Started: {formatDuration(relativeStartTime)} after trace start
             </span>
           </div>
         )}
@@ -353,12 +298,8 @@ function DurationCell({
           className="h-6 my-1 flex bg-transparent border border-[--sl-color-white] rounded-sm cursor-pointer"
           onClick={row.getToggleSelectedHandler()}
         >
-          <div
-            className={cn("mt-0.5 ml-2 rounded-sm leading-3", pillColors)}
-          >
-            <span className="px-1 font-display text-xs">
-              {formatDuration(spanDuration)}
-            </span>
+          <div className={cn("mt-0.5 ml-2 rounded-sm leading-3", pillColors)}>
+            <span className="px-1 font-display text-xs">{formatDuration(spanDuration)}</span>
           </div>
         </button>
         {row.getIsSelected() && <TraceDetails span={currentSpan} />}
@@ -372,16 +313,12 @@ const performanceNowNanos = (function () {
   if (typeof performance === "undefined") {
     return () => BigInt(Date.now()) * bigint1e6
   }
-  const origin =
-    BigInt(Date.now()) * bigint1e6 -
-    BigInt(Math.round(performance.now() * 1_000_000))
+  const origin = BigInt(Date.now()) * bigint1e6 - BigInt(Math.round(performance.now() * 1_000_000))
   return () => origin + BigInt(Math.round(performance.now() * 1_000_000))
 })()
 const processOrPerformanceNow = (function () {
   const processHrtime =
-    typeof process === "object" &&
-    "hrtime" in process &&
-    typeof process.hrtime.bigint === "function"
+    typeof process === "object" && "hrtime" in process && typeof process.hrtime.bigint === "function"
       ? process.hrtime
       : undefined
   if (!processHrtime) {

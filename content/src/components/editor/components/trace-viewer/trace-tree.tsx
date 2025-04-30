@@ -34,17 +34,10 @@ export function TraceTree({ row }: { readonly row: Row<Span> }) {
       {row.subRows.length === 0 ? (
         <LeafNode depth={row.depth} />
       ) : (
-        <BranchNode
-          branches={row.subRows.length}
-          depth={row.depth}
-          height={height}
-          isExpanded={row.getIsExpanded()}
-        />
+        <BranchNode branches={row.subRows.length} depth={row.depth} height={height} isExpanded={row.getIsExpanded()} />
       )}
       {/* Only draw vertical connectors if not at the root of the tree */}
-      {row.depth > 0 && (
-        <VerticalBranchConnectors height={height} row={row} />
-      )}
+      {row.depth > 0 && <VerticalBranchConnectors height={height} row={row} />}
     </svg>
   )
 }
@@ -80,12 +73,7 @@ function BranchNode({
           className="stroke-1 stroke-muted-foreground"
         />
       )}
-      <text
-        x={12 + depth * 16}
-        y="20"
-        textAnchor="middle"
-        className="text-[10px] font-medium fill-[--sl-color-white]"
-      >
+      <text x={12 + depth * 16} y="20" textAnchor="middle" className="text-[10px] font-medium fill-[--sl-color-white]">
         {branches}
       </text>
       <rect
@@ -103,37 +91,16 @@ function BranchNode({
 
 function LeafNode({ depth }: { readonly depth: number }) {
   const cx = 28 + (depth - 1) * 16
-  return (
-    <circle
-      cx={cx}
-      cy="16"
-      r="3"
-      className="stroke-1 stroke-muted-foreground fill-[--sl-color-bg]"
-    />
-  )
+  return <circle cx={cx} cy="16" r="3" className="stroke-1 stroke-muted-foreground fill-[--sl-color-bg]" />
 }
 
 function HorizontalBranchConnector({ depth }: { readonly depth: number }) {
   const x1 = 13 + (depth - 1) * 16
   const x2 = 28 + (depth - 1) * 16
-  return (
-    <line
-      x1={x1}
-      x2={x2}
-      y1="16"
-      y2="16"
-      className="stroke-1 stroke-muted-foreground"
-    />
-  )
+  return <line x1={x1} x2={x2} y1="16" y2="16" className="stroke-1 stroke-muted-foreground" />
 }
 
-function VerticalBranchConnectors({
-  height,
-  row
-}: {
-  readonly height: number
-  readonly row: Row<Span>
-}) {
+function VerticalBranchConnectors({ height, row }: { readonly height: number; readonly row: Row<Span> }) {
   const depthsWithChildren = useMemo(() => getDepthsWithChildren(row), [row])
   return Array.from({ length: row.depth }, (_, index) => {
     // The depth is always one more than the index
@@ -156,22 +123,8 @@ function VerticalBranchConnectors({
       // the tree. If the current row does not contain a leaf node and this
       // depth does have ancestors with children, render a full-length vertical
       // connector, otherwise render a half-length vertical connector.
-      let y =
-        isLeaf && !hasAncestorWithChildren
-          ? 16.5
-          : hasAncestorWithChildren
-            ? height
-            : height / 2
-      return (
-        <line
-          key={depth}
-          x1={x}
-          x2={x}
-          y1={0}
-          y2={y}
-          className="stroke-1 stroke-muted-foreground"
-        />
-      )
+      let y = isLeaf && !hasAncestorWithChildren ? 16.5 : hasAncestorWithChildren ? height : height / 2
+      return <line key={depth} x1={x} x2={x} y1={0} y2={y} className="stroke-1 stroke-muted-foreground" />
     }
     return null
   })
@@ -181,10 +134,7 @@ function VerticalBranchConnectors({
  * Traverses up the tree of rows and determines which ancestor rows have
  * children that will be rendered after the current row.
  */
-function getDepthsWithChildren(
-  row: Row<Span>,
-  depths: Array<number> = []
-): ReadonlyArray<number> {
+function getDepthsWithChildren(row: Row<Span>, depths: Array<number> = []): ReadonlyArray<number> {
   const parentRow = row.getParentRow()
   if (!parentRow) {
     return depths

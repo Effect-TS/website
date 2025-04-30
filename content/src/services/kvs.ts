@@ -8,9 +8,7 @@ import * as Redacted from "effect/Redacted"
 
 const make = (url: string, token: Redacted.Redacted) =>
   Effect.gen(function* () {
-    const { createClient } = yield* Effect.promise(
-      () => import("@vercel/kv")
-    )
+    const { createClient } = yield* Effect.promise(() => import("@vercel/kv"))
     const kv = createClient({ url, token: Redacted.value(token) })
     return KVS.makeStringOnly({
       get: (key) =>

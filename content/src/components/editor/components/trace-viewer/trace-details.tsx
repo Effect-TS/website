@@ -1,20 +1,8 @@
 import { useMemo, Fragment } from "react"
 import * as Duration from "effect/Duration"
 import * as Option from "effect/Option"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger
-} from "@/components/ui/accordion"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Event, Span } from "../../domain/devtools"
 import { formatDuration } from "./utils"
 import { useRxValue } from "@effect-rx/rx-react"
@@ -28,9 +16,7 @@ export function TraceDetails({ span }: { readonly span: Span }) {
         {Option.isSome(span.duration) && (
           <div>
             <span className="mr-1">Duration:</span>
-            <span className="text-[--sl-color-text]">
-              {formatDuration(span.duration.value)}
-            </span>
+            <span className="text-[--sl-color-text]">{formatDuration(span.duration.value)}</span>
           </div>
         )}
       </div>
@@ -42,17 +28,11 @@ export function TraceDetails({ span }: { readonly span: Span }) {
   )
 }
 
-function TraceAttributes({
-  attributes
-}: {
-  readonly attributes: ReadonlyArray<[string, unknown]>
-}) {
+function TraceAttributes({ attributes }: { readonly attributes: ReadonlyArray<[string, unknown]> }) {
   return attributes.length === 0 ? (
     <div className="mb-2 pl-3 space-x-1">
       <span>Attributes</span>
-      <span className="text-xs text-[--sl-color-text]">
-        ( {attributes.length} )
-      </span>
+      <span className="text-xs text-[--sl-color-text]">( {attributes.length} )</span>
     </div>
   ) : (
     <AccordionItem value="attributes" className="mb-2 border-b-0">
@@ -62,9 +42,7 @@ function TraceAttributes({
       >
         <div className="ml-1 space-x-1">
           <span>Attributes</span>
-          <span className="text-xs text-[--sl-color-text]">
-            ( {attributes.length} )
-          </span>
+          <span className="text-xs text-[--sl-color-text]">( {attributes.length} )</span>
         </div>
       </AccordionTrigger>
       <AccordionContent className="p-0">
@@ -82,9 +60,7 @@ function TraceAttributes({
                 className="even:bg-[--sl-color-bg-nav] odd:bg-[--sl-color-gray-6] dark:odd:bg-[--sl-color-gray-5] pointer-events-none"
               >
                 <TableCell className="font-medium">{key}</TableCell>
-                <TableCell className="w-full text-[--sl-color-white]">
-                  {JSON.stringify(value)}
-                </TableCell>
+                <TableCell className="w-full text-[--sl-color-white]">{JSON.stringify(value)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -94,17 +70,11 @@ function TraceAttributes({
   )
 }
 
-function TraceEvents({
-  events
-}: {
-  readonly events: ReadonlyArray<Event>
-}) {
+function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
   return events.length === 0 ? (
     <div className="py-1 pl-3 bg-[--sl-color-bg-nav] space-x-1 font-display">
       <span>Events</span>
-      <span className="text-xs text-[--sl-color-text]">
-        ( {events.length} )
-      </span>
+      <span className="text-xs text-[--sl-color-text]">( {events.length} )</span>
     </div>
   ) : (
     <AccordionItem value="events" className="border-b-0">
@@ -114,9 +84,7 @@ function TraceEvents({
       >
         <div className="ml-1 space-x-1 font-display">
           <span>Events</span>
-          <span className="text-xs text-[--sl-color-text]">
-            ( {events.length} )
-          </span>
+          <span className="text-xs text-[--sl-color-text]">( {events.length} )</span>
         </div>
       </AccordionTrigger>
       <AccordionContent className="py-2">
@@ -130,10 +98,7 @@ function TraceEvents({
           </Accordion>
         </div>
         <div className="mt-2 ml-2 text-xs text-[--sl-color-text]">
-          <span>
-            Log timestamps are relative to the start time of the full
-            trace.
-          </span>
+          <span>Log timestamps are relative to the start time of the full trace.</span>
         </div>
       </AccordionContent>
     </AccordionItem>
@@ -148,10 +113,7 @@ function TraceEvent({ node }: { readonly node: Event }) {
       // the `startTime` of the selected span
       const traceStartTime = Option.getOrThrow(selectedSpan.startTime)
       const eventStartTime = Duration.nanos(node.event.startTime)
-      const relativeTimestamp = Duration.subtract(
-        eventStartTime,
-        traceStartTime
-      )
+      const relativeTimestamp = Duration.subtract(eventStartTime, traceStartTime)
       return formatDuration(relativeTimestamp)
     }
     return ""
@@ -164,9 +126,7 @@ function TraceEvent({ node }: { readonly node: Event }) {
       >
         <div className="max-w-32 ml-1 truncate">
           <span>{eventTimestamp}</span>
-          <span className="ml-2 text-xs font-light group-data-[state=open]:hidden">
-            {node.event.name}
-          </span>
+          <span className="ml-2 text-xs font-light group-data-[state=open]:hidden">{node.event.name}</span>
         </div>
       </AccordionTrigger>
       <AccordionContent className="p-0">
@@ -188,9 +148,7 @@ function TraceEvent({ node }: { readonly node: Event }) {
                 className="even:bg-[--sl-color-bg-nav] odd:bg-[--sl-color-gray-6] dark:odd:bg-[--sl-color-gray-5] pointer-events-none"
               >
                 <TableCell className="font-medium">{key}</TableCell>
-                <TableCell className="w-full">
-                  {JSON.stringify(value)}
-                </TableCell>
+                <TableCell className="w-full">{JSON.stringify(value)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

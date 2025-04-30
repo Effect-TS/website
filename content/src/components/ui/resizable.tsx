@@ -2,15 +2,9 @@ import * as ResizablePrimitive from "react-resizable-panels"
 
 import { cn } from "@/lib/css/utils"
 
-const ResizablePanelGroup = ({
-  className,
-  ...props
-}: React.ComponentProps<typeof ResizablePrimitive.PanelGroup>) => (
+const ResizablePanelGroup = ({ className, ...props }: React.ComponentProps<typeof ResizablePrimitive.PanelGroup>) => (
   <ResizablePrimitive.PanelGroup
-    className={cn(
-      "flex h-full w-full data-[panel-group-direction=vertical]:flex-col",
-      className
-    )}
+    className={cn("flex h-full w-full data-[panel-group-direction=vertical]:flex-col", className)}
     {...props}
   />
 )
@@ -26,11 +20,7 @@ const ResizableHandle = ({
   withHandle?: boolean
 }) => (
   <ResizablePrimitive.PanelResizeHandle
-    className={cn(
-      "bg-neutral-200 dark:bg-neutral-700",
-      props.direction === "horizontal" ? "h-px" : "w-px",
-      className
-    )}
+    className={cn("bg-neutral-200 dark:bg-neutral-700", props.direction === "horizontal" ? "h-px" : "w-px", className)}
     {...props}
   />
 )

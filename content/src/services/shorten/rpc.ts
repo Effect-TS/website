@@ -16,11 +16,11 @@ export class ShortenRpcs extends RpcGroup.make(
     payload: { hash: Schema.String },
     error: ShortenError,
     success: Schema.Option(Schema.String)
-  }),
+  })
 ) {}
 
 export const ShortenLayer = ShortenRpcs.toLayer(
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     const shorten = yield* Shorten
     return {
       shorten: (params) => shorten.shorten(params.text),
@@ -28,4 +28,3 @@ export const ShortenLayer = ShortenRpcs.toLayer(
     }
   })
 ).pipe(Layer.provide(Shorten.Default))
-
