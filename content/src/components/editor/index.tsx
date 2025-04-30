@@ -1,6 +1,6 @@
 import { useCallback, Fragment, Suspense } from "react"
 import { ChartGanttIcon, SquareTerminalIcon } from "lucide-react"
-import { Result, useRxSet, useRxSuspenseSuccess, useRxValue } from "@effect-rx/rx-react"
+import { Result, useRxSet, useRxValue } from "@effect-rx/rx-react"
 import * as Hash from "effect/Hash"
 import * as Cause from "effect/Cause"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"

@@ -10,6 +10,7 @@ import * as Schema from "effect/Schema"
 import { defaultWorkspace, main, makeDefaultWorkspace, type RxWorkspaceHandle } from "./workspace"
 import { WebContainer } from "../services/webcontainer"
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore"
+import { NoSuchElementException } from "effect/Cause"
 
 const runtime = Rx.runtime(Layer.mergeAll(ShortenClient.Default, WorkspaceCompression.Default, WebContainer.Default))
 
@@ -58,28 +59,29 @@ const autoSaveWorkspaceRx = Rx.kvs({
 
 export const importRx = runtime
   .rx(
-    Effect.fnUntraced(function* (get) {
-      const hash = get(hashRx)
-      if (Option.isNone(hash)) {
+    Effect.fnUntraced(
+      function* (get) {
+        const hash = get(hashRx)
+        if (Option.isSome(hash)) {
+          const client = yield* ShortenClient
+          const compressed = yield* client.retrieve({ hash: hash.value }).pipe(Effect.flatten)
+
+          const compression = yield* WorkspaceCompression
+          return yield* compression.decompress(compressed)
+        }
+
         const code = get(codeRx)
         if (Option.isSome(code)) {
           const node = makeFile("main.ts", code.value, false)
           return defaultWorkspace.replaceNode(main, node)
         }
-        return Option.getOrElse(get.once(autoSaveWorkspaceRx), makeDefaultWorkspace)
-      }
 
-      const client = yield* ShortenClient
-      const compressed = yield* client.retrieve({ hash: hash.value })
-
-      if (Option.isNone(compressed)) {
-        return get.once(autoSaveWorkspaceRx)
-      }
-
-      const compression = yield* WorkspaceCompression
-      return yield* compression
-        .decompress(compressed.value)
-        .pipe(Effect.orElseSucceed(() => Option.getOrElse(get.once(autoSaveWorkspaceRx), makeDefaultWorkspace)))
-    })
+        return yield* new NoSuchElementException()
+      },
+      (effect, get) =>
+        Effect.catchAll(effect, () =>
+          Effect.succeed(Option.getOrElse(get.once(autoSaveWorkspaceRx), makeDefaultWorkspace))
+        )
+    )
   )
   .pipe(Rx.refreshable)
