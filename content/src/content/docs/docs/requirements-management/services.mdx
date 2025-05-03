@@ -221,12 +221,8 @@ const program = Effect.gen(function* () {
   console.log(`random number: ${randomNumber}`)
 })
 
-// @ts-expect-error
+// @errors: 2379
 Effect.runSync(program)
-/*
-Argument of type 'Effect<void, never, Random>' is not assignable to parameter of type 'Effect<void, never, never>'.
-  Type 'Random' is not assignable to type 'never'.ts(2345)
-*/
 ```
 
 To resolve this error and successfully execute the program, we need to provide an actual implementation of the `Random` service.

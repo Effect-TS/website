@@ -61,13 +61,10 @@ interface B {
   readonly prop: number
 }
 
+// @errors: 2322
 const ab: A & B = {
-  // @ts-expect-error
   prop: ""
 }
-/*
-Type 'string' is not assignable to type 'never'.ts(2322)
-*/
 ```
 
 In previous versions of Effect, intersections were used for representing an environment with multiple services. The problem with using intersections (i.e. `A & B`) is that there could be multiple services in the environment that have functions and properties named in the same way. To remedy this, we wrapped services in the `Has` type (similar to ZIO 1.0), so you would have `Has<A> & Has<B>` in your environment.

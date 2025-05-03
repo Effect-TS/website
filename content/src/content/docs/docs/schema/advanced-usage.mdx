@@ -272,12 +272,8 @@ declare const getUser: (id: UserId) => object
 
 const myUsername: Username = "gcanti"
 
-// @ts-expect-error
+// @errors: 2345
 getUser(myUsername)
-/*
-Argument of type 'string' is not assignable to parameter of type 'UserId'.
-  Type 'string' is not assignable to type 'Brand<"UserId">'.ts(2345)
-*/
 ```
 
 By defining `UserId` as a branded type, the `getUser` function can accept only values of type `UserId`, and not plain strings or other types that are compatible with strings. This helps to prevent bugs caused by accidentally passing the wrong type of value to the function.
@@ -2084,16 +2080,12 @@ const Category = Schema.Struct({
 ```ts twoslash
 import { Schema } from "effect"
 
-// @ts-expect-error
+// @errors: 7022
 const Category = Schema.Struct({
   name: Schema.String,
-  // @ts-expect-error
+// @errors: 7022 7024
   subcategories: Schema.Array(Schema.suspend(() => Category))
 })
-/*
-'Category' implicitly has type 'any' because it does not have a type annotation and is
-referenced directly or indirectly in its own initializer.ts(7022)
-*/
 ```
 
 ### A Helpful Pattern to Simplify Schema Definition
@@ -2189,15 +2181,10 @@ interface Category extends Schema.Struct.Type<typeof fields> {
 const Category = Schema.Struct({
   ...fields,
   subcategories: Schema.Array(
-    // @ts-expect-error
+// @errors: 2322
     Schema.suspend((): Schema.Schema<Category> => Category)
   )
 })
-/*
-Type 'Struct<{ subcategories: Array$<suspend<Category, Category, never>>; id: typeof NumberFromString; name: typeof String$; }>' is not assignable to type 'Schema<Category, Category, never>'.
-  The types of 'Encoded.id' are incompatible between these types.
-    Type 'string' is not assignable to type 'number'.ts(2322)
-*/
 ```
 
 This error occurs because the explicit annotation `Schema.Schema<Category>` is no longer sufficient and needs to be adjusted by explicitly adding the `Encoded` type:

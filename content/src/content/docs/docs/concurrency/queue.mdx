@@ -405,7 +405,7 @@ const send = (offerOnlyQueue: Queue.Enqueue<number>, value: number) => {
   // This queue is restricted to offer operations only
 
   // Error: cannot use take on an offer-only queue
-  // @ts-expect-error
+// @errors: 2345
   Queue.take(offerOnlyQueue)
 
   // Valid offer operation
@@ -426,7 +426,7 @@ const receive = (takeOnlyQueue: Queue.Dequeue<number>) => {
   // This queue is restricted to take operations only
 
   // Error: cannot use offer on a take-only queue
-  // @ts-expect-error
+// @errors: 2345
   Queue.offer(takeOnlyQueue, 1)
 
   // Valid take operation

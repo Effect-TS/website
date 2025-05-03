@@ -58,13 +58,8 @@ type Type = {
 }
 */
 
-// @ts-expect-error
+// @errors: 2379
 Schema.decodeSync(Person)({ name: undefined })
-/*
-Argument of type '{ name: undefined; }' is not assignable to parameter of type '{ readonly name?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
-  Types of property 'name' are incompatible.
-    Type 'undefined' is not assignable to type 'string'.ts(2379)
-*/
 ```
 
 Here, notice that the type of `name` is "exact" (`string`), which means the type checker will catch any attempt to assign an invalid value (like `undefined`).
