@@ -25,7 +25,7 @@ In plain JavaScript, objects are considered equal only if they refer to the exac
 const alice = { name: "Alice", age: 30 }
 
 // This comparison is false because they are different instances
-// @ts-expect-error
+// @errors: 2839
 console.log(alice === { name: "Alice", age: 30 }) // Output: false
 ```
 
@@ -508,7 +508,7 @@ console.log(isLoading(Success({ data: "test" })))
 const matcher = $match({
   Loading: () => "this is a Loading",
   Success: ({ data }) => `this is a Success: ${data}`,
-  Failure: ({ reason }) => `this is a Failre: ${reason}`
+  Failure: ({ reason }) => `this is a Failure: ${reason}`
 })
 
 console.log(matcher(Success({ data: "test" })))

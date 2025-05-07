@@ -1768,12 +1768,8 @@ class MyData {
   private constructor(readonly name: string) {}
 }
 
-// @ts-expect-error
+// @errors: 2345
 const MyDataSchema = Schema.instanceOf(MyData)
-/*
-Argument of type 'typeof MyData' is not assignable to parameter of type 'abstract new (...args: any) => any'.
-  Cannot assign a 'private' constructor type to a 'public' constructor type.ts(2345)
-*/
 ```
 
 In such cases, you cannot use `Schema.instanceOf`, and you must rely on [Schema.declare](/docs/schema/advanced-usage/#declaring-new-data-types) like this:

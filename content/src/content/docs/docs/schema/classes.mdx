@@ -566,7 +566,7 @@ class Category extends Schema.Class<Category>("Category")({
 <Aside type="note" title="Correct Inference">
   It is necessary to add an explicit type annotation because otherwise
   TypeScript would struggle to infer types correctly. Without this
-  annotation, you might encounter the error message:
+  annotation, you might encounter this error message:
 </Aside>
 
 **Example** (Missing Type Annotation Error)
@@ -574,15 +574,11 @@ class Category extends Schema.Class<Category>("Category")({
 ```ts twoslash
 import { Schema } from "effect"
 
-// @ts-expect-error
+// @errors: 2506 7024
 class Category extends Schema.Class<Category>("Category")({
   name: Schema.String,
-  // @ts-expect-error: TypeScript cannot infer the recursive type
   subcategories: Schema.Array(Schema.suspend(() => Category))
 }) {}
-/*
-'Category' is referenced directly or indirectly in its own base expression.ts(2506)
-*/
 ```
 
 ### Mutually Recursive Schemas
@@ -627,15 +623,10 @@ class Category extends Schema.Class<Category>("Category")({
   id: Schema.NumberFromString,
   name: Schema.String,
   subcategories: Schema.Array(
-    // @ts-expect-error
+// @errors: 2322
     Schema.suspend((): Schema.Schema<Category> => Category)
   )
 }) {}
-/*
-Type 'typeof Category' is not assignable to type 'Schema<Category, Category, never>'.
-  The types of 'Encoded.id' are incompatible between these types.
-    Type 'string' is not assignable to type 'number'.ts(2322)
-*/
 ```
 
 This error occurs because the explicit annotation `S.suspend((): S.Schema<Category> => Category` is no longer sufficient and needs to be adjusted by explicitly adding the `Encoded` type:

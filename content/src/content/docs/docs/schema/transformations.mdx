@@ -233,7 +233,7 @@ const clamp =
         Schema.typeSchema,
         Schema.filter((a) => a <= minimum || a >= maximum)
       ),
-      // @ts-expect-error
+// @errors: 2345
       {
         strict: true,
         // Clamp the number within the specified range
@@ -243,14 +243,7 @@ const clamp =
     )
 ```
 
-In this example, `Number.clamp` returns a `number` that might not be recognized as the specific `A` type. This leads to a type mismatch under strict checking:
-
-```text showLineNumbers=false
-Argument of type '{ strict: true; decode: (a: A) => number; encode: (a: A) => A; }' is not assignable to parameter of type '{ readonly decode: (fromA: A, fromI: I) => A; readonly encode: (toI: A, toA: A) => A; readonly strict?: true; } | { readonly decode: (fromA: A, fromI: I) => unknown; readonly encode: (toI: A, toA: A) => unknown; readonly strict: false; }'.
-  The types returned by 'decode(...)' are incompatible between these types.
-    Type 'number' is not assignable to type 'A'.
-      'number' is assignable to the constraint of type 'A', but 'A' could be instantiated with a different subtype of constraint 'number'.ts(2345)
-```
+In this example, `Number.clamp` returns a `number` that might not be recognized as the specific `A` type, which leads to a type mismatch under strict checking.
 
 There are two ways to resolve this issue:
 
@@ -686,14 +679,14 @@ When composing schemas, you may encounter cases where the output of one schema d
 import { Schema } from "effect"
 
 // Without the `strict: false` option,
-// this composition would raise a TypeScript error
+// this composition raises a TypeScript error
 Schema.compose(
-  // @ts-expect-error: Type mismatch between schemas
+// @errors: 2769
   Schema.Union(Schema.Null, Schema.Literal("0")),
   Schema.NumberFromString
 )
 
-// Using `strict: false` to allow for type flexibility
+// Use `strict: false` to allow type flexibility
 Schema.compose(
   Schema.Union(Schema.Null, Schema.Literal("0")),
   Schema.NumberFromString,
