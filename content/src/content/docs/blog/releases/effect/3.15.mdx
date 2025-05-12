@@ -1,0 +1,157 @@
+---
+pagefind: false
+title: Effect 3.15 (Release)
+excerpt: New Effect release featuring Stream.toAsyncIterable, Effect.catchTag & Effect.filterOr* improvements and more!
+date: 2025-05-12
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.15 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## Stream.toAsyncIterable
+
+You can now convert a `Stream` to an `AsyncIterable` for integration with other libraries or APIs.
+
+```ts
+import { Stream } from "effect"
+
+// Will print:
+// 1
+// 2
+// 3
+const stream = Stream.make(1, 2, 3)
+for await (const result of Stream.toAsyncIterable(stream)) {
+  console.log(result)
+}
+```
+
+## Effect.catchTag supports multiple tags
+
+The `catchTag` method now supports multiple tags.
+This allows you to handle multiple error types in a single catch block.
+
+```ts
+import { Data, Effect } from "effect"
+
+class ErrorA extends Data.TaggedError("ErrorA") {}
+class ErrorB extends Data.TaggedError("ErrorB") {}
+
+declare const effect: Effect.Effect<never, ErrorA | ErrorB>
+
+effect.pipe(
+  Effect.catchTag("ErrorA", "ErrorB", (error: ErrorA | ErrorB) => {
+    // Handle ErrorA and ErrorB with the same logic
+    return Effect.void
+  })
+)
+```
+
+## Effect.filterOr\* improvements
+
+These apis have been improved to support type narrowing in the fallback function.
+
+```ts
+import { Effect, Predicate } from "effect"
+
+declare const effect: Effect.Effect<string | number>
+
+effect.pipe(
+  Effect.filterOrElse(Predicate.isString, (value: number) => {
+    // The `value` type is now narrowed to `number` here
+    return Effect.succeed(`Value is not a string: ${value}`)
+  })
+)
+```
+
+## Record.findFirst
+
+This api allows you to find the first key-value pair in a record that satisfies a given predicate.
+It returns an `Option` containing the first matching key-value pair, or `None` if no such pair is found.
+
+```ts
+import { Record, Option } from "effect"
+
+const record = { a: 1, b: 2, c: 3 }
+const result = Record.findFirst(
+  record,
+  (value, key) => value > 1 && key !== "b"
+)
+assert.deepStrictEqual(result, Option.some(["c", 3]))
+```
+
+## Brand.unbranded
+
+This function allows you to access the unbranded value of a branded type.
+
+```ts
+import { Brand } from "effect"
+
+type BrandedNumber = Brand<number, "Branded">
+declare const brandedValue: BrandedNumber
+
+// Access the unbranded value
+const value: number = Brand.unbranded(brandedValue)
+```
+
+## Either.transposeMapOption
+
+Applies an `Either` on an `Option` and transposes the result.
+
+- If the `Option` is `None`, the resulting `Either` will immediately succeed with a `Right` value of `None`.
+- If the `Option` is `Some`, the transformation function will be applied to the inner value, and its result wrapped in a `Some`.
+
+```ts
+import { Either, Option, pipe } from "effect"
+
+//          ┌─── Either<Option<number>, never>>
+//          ▼
+const noneResult = pipe(
+  Option.none(),
+  Either.transposeMapOption(() => Either.right(42)) // will not be executed
+)
+console.log(noneResult)
+// Output: { _id: 'Either', _tag: 'Right', right: { _id: 'Option', _tag: 'None' } }
+
+//          ┌─── Either<Option<number>, never>>
+//          ▼
+const someRightResult = pipe(
+  Option.some(42),
+  Either.transposeMapOption((value) => Either.right(value * 2))
+)
+console.log(someRightResult)
+// Output: { _id: 'Either', _tag: 'Right', right: { _id: 'Option', _tag: 'Some', value: 84 } }
+```
+
+## Layer.setRandom
+
+You can now create a Layer that sets a custom random generator for your application.
+
+```ts
+import type { Random } from "effect"
+import { Effect, Layer } from "effect"
+
+declare const myCustomRandom: Random.Random
+
+Effect.void.pipe(
+  Effect.provide(
+    // You can now use `Layer.setRandom` to set a custom random generator
+    Layer.setRandom(myCustomRandom)
+  )
+)
+```
+
+## Other changes
+
+- `Pipeable.Class` has been added, for adding a .pipe method to a class
+- `message` property has been added to `ConfigError`'s
+- `Cause.isTimeoutException` is now available
+- `Function.apply` now accepts mulitple arguments
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
