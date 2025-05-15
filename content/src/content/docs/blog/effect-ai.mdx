@@ -58,63 +58,47 @@ Instead of hardcoding calls to a specific LLM provider's API, you describe your 
 Let's look at a simple example to understand this concept better:
 
 ```ts twoslash
-import { Completions } from "@effect/ai"
+import { AiLanguageModel } from "@effect/ai"
 import { Effect } from "effect"
 
 // Define a provider-agnostic AI interaction
-const generateDadJoke = Effect.gen(function*() {
-  // Get the Completions service from the Effect environment
-  const completions = yield* Completions.Completions
-  
-  // Use the service to generate text
-  const response = yield* completions.create("Generate a dad joke")
-  
-  // Return the response
-  return response
+const generateDadJoke = AiLanguageModel.generateText({
+  prompt: "Generate a dad joke"
 })
 ```
 
-Notice that this code doesn't specify which LLM provider to use - it simply describes *what* we want to do (generate a dad joke), not *how* or *where* to do it. 
+Notice that this code doesn't specify which model provider to use - it simply describes *what* we want to do (generate a dad joke), not *how* or *where* to do it. 
 
-This separation of concerns is at the heart of Effect's approach to LLM interactions.
+This separation of concerns is at the heart of Effect's approach to describing interactions with large language models.
 
 ### The `AiModel` Abstraction
 
 To bridge the gap between provider-agnostic business logic and concrete LLM providers, Effect introduces the `AiModel` abstraction. 
 
-An `AiModel` represents a specific LLM from a provider that can be used to satisfy service requirements, such as `Completions` or `Embeddings`.
+An `AiModel` represents a specific LLM from a provider that can be used to satisfy service requirements, such as `AiLanguageModel` or `AiEmbeddingsModel`.
 
-Here is an example of how you can create and use an `AiModel` designed to satisfy the `Completions` service using OpenAI:
+Here is an example of how you can create and use an `AiModel` designed to satisfy the `AiLanguageModel` service using OpenAI:
 
-```ts twoslash collapse={4-16}
-import { OpenAiCompletions } from "@effect/ai-openai"
+```ts twoslash 
+import { AiLanguageModel } from "@effect/ai"
+import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Effect } from "effect"
 
-import { Completions } from "@effect/ai"
-
-// Define a provider-agnostic AI interaction
-const generateDadJoke = Effect.gen(function*() {
-  // Get the Completions service from the Effect environment
-  const completions = yield* Completions.Completions
-  
-  // Use the service to generate text
-  const response = yield* completions.create("Generate a dad joke")
-  
-  // Return the response
-  return response
+const generateDadJoke = AiLanguageModel.generateText({
+  prompt: "Generate a dad joke"
 })
 
 // Create an AiModel for OpenAI's GPT-4o
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
 // Use the model to provide the Completions service to our program
 const main = Effect.gen(function*() {
   // Build the AiModel into a Provider
   const gpt4o = yield* Gpt4o
-  
-  // Provide the implementation to our generateDadJoke program
-  const response = yield* gpt4o.provide(generateDadJoke)
-  
+
+  // Use OpenAi's `gpt-4o` to generate a dad joke
+  const response = yield* gpt4o.use(generateDadJoke)
+
   console.log(response.text)
 })
 ```
@@ -130,25 +114,23 @@ This approach offers several key benefits:
 Now let's walk through a complete example of setting up an LLM interaction with Effect:
 
 ```ts twoslash
-import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
-import { Completions } from "@effect/ai"
+import { AiLanguageModel } from "@effect/ai"
+import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import { NodeHttpClient } from "@effect/platform-node"
 import { Config, Effect, Layer } from "effect"
 
 // 1. Define our provider-agnostic AI interaction
-const generateDadJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  const response = yield* completions.create("Generate a dad joke")
-  return response
+const generateDadJoke = AiLanguageModel.generateText({
+  prompt: "Generate a dad joke"
 })
 
 // 2. Create an AiModel for a specific provider and model
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
 // 3. Create a program that uses the model
 const main = Effect.gen(function*() {
   const gpt4o = yield* Gpt4o
-  const response = yield* gpt4o.provide(generateDadJoke)
+  const response = yield* gpt4o.use(generateDadJoke)
   console.log(response.text)
 })
 
@@ -176,32 +158,33 @@ One of Effect's greatest strengths is its robust error handling, which is partic
 For example, if our `generateDadJoke` program were re-written to possibly fail with a `RateLimitError` or an `InvalidInputError`, we could write logic to handle those errors:
 
 ```ts twoslash collapse={4-14}
-import { AiResponse, AiRole } from "@effect/ai"
+import { AiResponse } from "@effect/ai"
 import { Effect } from "effect"
 
-import { Completions } from "@effect/ai"
+import { AiLanguageModel } from "@effect/ai"
 import { Data } from "effect"
 
 class RateLimitError extends Data.TaggedError("RateLimitError") {}
 class InvalidInputError extends Data.TaggedError("InvalidInputError") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse, 
-  RateLimitError | InvalidInputError, 
-  Completions.Completions
+  AiResponse.AiResponse,
+  RateLimitError | InvalidInputError,
+  AiLanguageModel.AiLanguageModel
 >
 
 const withErrorHandling = generateDadJoke.pipe(
   Effect.catchTags({
-    RateLimitError: (error) => 
+    RateLimitError: (error) =>
       Effect.logError("Rate limited, retrying in a moment").pipe(
         Effect.delay("1 seconds"),
         Effect.andThen(generateDadJoke)
       ),
-    InvalidInputError: (error) => 
-      Effect.succeed(AiResponse.AiResponse.fromText({ 
-        role: AiRole.model,
-        content: "I couldn't generate a joke right now." 
+    InvalidInputError: (error) =>
+      Effect.succeed(AiResponse.AiResponse.make({
+        parts: [new AiResponse.TextPart({
+          text: "I could not generate a dad joke right now!"
+        })]
       }))
   })
 )
@@ -213,18 +196,16 @@ For more complex scenarios where you need reliability across multiple providers,
 
 `AiPlan` lets you create a structured execution plan for your LLM interactions with built-in retry logic, fallback strategies, and error handling:
 
-```ts twoslash collapse={6-12}
+```ts twoslash 
 import { AiPlan } from "@effect/ai"
-import { OpenAiCompletions } from "@effect/ai-openai"
-import { AnthropicCompletions } from "@effect/ai-anthropic"
+import { OpenAiLanguageModel } from "@effect/ai-openai"
+import { AnthropicLanguageModel } from "@effect/ai-anthropic"
 import { Data, Effect, Schedule } from "effect"
 
-import { Completions } from "@effect/ai"
+import { AiLanguageModel } from "@effect/ai"
 
-const generateDadJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  const response = yield* completions.create("Generate a dad joke")
-  return response
+const generateDadJoke = AiLanguageModel.generateText({
+  prompt: "Generate a dad joke"
 })
 
 // Define domain-specific error types
@@ -232,25 +213,24 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
 
 // Build a resilient plan that:
-// - Attempts to use OpenAI's `"gpt-4o"` model up to 3 times 
+// - Attempts to use OpenAI's `"gpt-4o"` model up to 3 times
 // - Waits with an exponential backoff between attempts
 // - Only re-attempts the call to OpenAI if the error is a `NetworkError`
 // - Falls back to using Anthropic otherwise
-const DadJokePlan = AiPlan.fromModel(OpenAiCompletions.model("gpt-4o"), {
+const DadJokePlan = AiPlan.make({
+  model: OpenAiLanguageModel.model("gpt-4o"),
   attempts: 3,
   schedule: Schedule.exponential("100 millis"),
-  while: (error: NetworkError | ProviderOutage) => 
-    error._tag === "NetworkError"
-}).pipe(
-  AiPlan.withFallback({
-    model: AnthropicCompletions.model("claude-3-7-sonnet-latest"),
-  })
-)
+  while: (error: NetworkError | ProviderOutage) => error._tag === "NetworkError"
+}, {
+  model: AnthropicLanguageModel.model("claude-3-7-sonnet-latest")
+})
 
 // Use the plan just like an AiModel
 const main = Effect.gen(function*() {
   const plan = yield* DadJokePlan
-  const response = yield* plan.provide(generateDadJoke)
+  const response = yield* plan.use(generateDadJoke)
+  console.log(response.text)
 })
 ```
 
@@ -264,17 +244,14 @@ This is particularly valuable for production systems where reliability is critic
 
 ### Concurrency Control
 
-Effect's structured concurrency model also makes it easy to manage concurrent LLM interactions:
+Effect's structured concurrency model also makes it easy to manage concurrent model interactions:
 
-```ts twoslash collapse={3-9}
+```ts twoslash
+import { AiLanguageModel } from "@effect/ai"
 import { Effect } from "effect"
 
-import { Completions } from "@effect/ai"
-
-const generateDadJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  const response = yield* completions.create("Generate a dad joke")
-  return response
+const generateDadJoke = AiLanguageModel.generateText({
+  prompt: "Generate a dad joke"
 })
 
 // Generate multiple jokes concurrently
@@ -290,24 +267,19 @@ const concurrentDadJokes = Effect.all([
 Effect's AI integrations support streaming responses via Effect's [`Stream` type](/docs/stream/introduction/): 
 
 ```ts twoslash
-import { Completions } from "@effect/ai"
+import { AiLanguageModel } from "@effect/ai"
 import { Effect, Stream } from "effect"
 
-const streamingJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  
-  // Create a streaming response
-  const stream = completions.stream("Tell me a long dad joke")
-  
-  // Process each chunk as it arrives
-  return yield* stream.pipe(
-    Stream.runForEach(chunk => 
-      Effect.sync(() => {
-        process.stdout.write(chunk.text)
-      })
-    )
+// Use `AiLanguageModel.streamText` to stream model provider responses
+const streamingJoke = AiLanguageModel.streamText({
+  prompt: "Tell me a long dad joke"
+}).pipe(
+  Stream.runForEach((response) =>
+    Effect.sync(() => {
+      process.stdout.write(response.text)
+    })
   )
-})
+)
 ```
 ## Conclusion
 
