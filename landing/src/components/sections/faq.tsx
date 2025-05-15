@@ -4,7 +4,7 @@ import { Divider } from "../layout/divider"
 const questions = [
   {
     q: "Can I incrementally adopt Effect?",
-    a: "Yes! When adopting Effect you can start by refactoring small portions of your app, usually the ones with higher complexity, and keep going as you see fit.",
+    a: "Yes! When adopting Effect you can start by refactoring small portions of your app (usually the ones with higher complexity) and keep going as you see fit.",
     link: "/docs"
   },
   {
@@ -19,7 +19,7 @@ const questions = [
   },
   {
     q: "The library is huge, do I have to know it all?",
-    a: "No! Every module in Effect is made with a specific problem in mind that is deemed to be common enough but you don't need to know everything. In fact you can harness 80% of the productivity gain by just learning a few functions and 2-3 core modules.",
+    a: "No! Every module in Effect is made with a specific problem in mind that is deemed to be common enough — but you don't need to know everything. In fact you can harness 80% of the productivity gain by just learning a few functions and 2-3 core modules.",
     link: "/docs"
   },
   {
