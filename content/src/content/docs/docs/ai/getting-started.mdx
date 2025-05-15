@@ -82,25 +82,25 @@ bun add effect
 
 </Tabs>
 
-## Define an LLM Interaction
+## Define an Interaction with a Language Model
 
-First let's define a simple interaction with an LLM:
+First let's define a simple interaction with a large language model (LLM):
 
-**Example** (Using the `Completions` Service to Generate a Dad Joke)
+**Example** (Using the `AiLanguageModel` Service to Generate a Dad Joke)
 
 ```ts twoslash
-import { Completions } from "@effect/ai"
+import { AiLanguageModel } from "@effect/ai"
 import { Effect } from "effect"
 
-// Using `Completions` will add it to your program's requirements
+// Using `AiLanguageModel` will add it to your program's requirements
 //
-//          ┌─── Effect<AiResponse, AiError, Completions>
+//          ┌─── Effect<AiResponse, AiError, AiLanguageModel>
 //          ▼
 const generateDadJoke = Effect.gen(function*() {
-  // Extract the `Completions` service from the Effect environment
-  const completions = yield* Completions.Completions
-  // Use the `Completions` service to generate some text
-  const response = yield* completions.create("Generate a dad joke")
+  // Use the `AiLanguageModel` to generate some text
+  const response = yield* AiLanguageModel.generateText({
+    prompt: "Generate a dad joke"
+  })
   // Log the generated text to the console
   console.log(response.text)
   // Return the response
@@ -112,30 +112,31 @@ const generateDadJoke = Effect.gen(function*() {
   Notice that the above code does not know or care which LLM provider (OpenAi, Anthropic, etc.) will be used. Instead, we focus on _what_ we want to accomplish (i.e. our business logic), not _how_ to accomplish it.
 </Aside>
 
-## Select an LLM Provider
+## Select a Provider
 
-Next, we need to select which provider we want to use to satisfy the `Completions` requirement of our `generateDadJoke` program:
+Next, we need to select which model provider we want to use:
 
-**Example** (Providing a Concrete Model to Satisfy the `Completions` Requirement)
+**Example** (Using a Model Provider to Satisfy the `AiLanguageModel` Requirement)
 
-```ts twoslash collapse={5-10}
-import { OpenAiCompletions } from "@effect/ai-openai"
-import { Completions } from "@effect/ai"
+```ts twoslash collapse={5-11}
+import { AiLanguageModel } from "@effect/ai"
+import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  const response = yield* completions.create("Generate a dad joke")
+  const response = yield* AiLanguageModel.generateText({
+    prompt: "Generate a dad joke"
+  })
   console.log(response.text)
   return response
 })
 
-// Create an `AiModel` which provides a concrete implementation of 
-// `Completions` and requires an `OpenAiClient`
+// Create an `AiModel` which provides a concrete implementation of
+// `AiLanguageModel` and requires an `OpenAiClient`
 //
-//      ┌─── AiModel<Completions, OpenAiClient>
+//      ┌─── AiModel<AiLanguageModel, OpenAiClient>
 //      ▼
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
 // Building an `AiModel` adds its requirements to the program
 //
@@ -144,8 +145,9 @@ const Gpt4o = OpenAiCompletions.model("gpt-4o")
 const main = Effect.gen(function*() {
   // Build the `AiModel` into a `Provider`
   const gpt4o = yield* Gpt4o
-  // Provide the implementation of `Completions` to `generateDadJoke`
-  const response = yield* gpt4o.provide(generateDadJoke)
+  // Use the implementation of `AiLanguageModel` for the
+  // `generateDadJoke` program
+  const response = yield* gpt4o.use(generateDadJoke)
 })
 ```
 
@@ -153,7 +155,7 @@ Before moving on, it is important that we understand the purpose of the `AiModel
 
 ## Understanding `AiModel`
 
-The `AiModel` data type represents a **provider-specific implementation** of one or more services, such as `Completions` or `Embeddings`. It is the primary way that you can plug a real LLM (like OpenAI’s GPT-4o) into your program.
+The `AiModel` data type represents a **provider-specific implementation** of one or more services, such as `AiLanguageModel` or `AiEmbeddingsModel`. It is the primary way that you can plug a real large language model into your program.
 
 ```ts showLineNumbers=false
 export interface AiModel<Provides, Requires> {}
@@ -173,16 +175,16 @@ To create an `AiModel`, you can use the model-specific factory from one of Effec
 **Example** (Defining an `AiModel` to Interact with OpenAi)
 
 ```ts showLineNumbers=false
-import { OpenAiCompletions } from "@effect/ai-openai"
+import { OpenAiLanguageModel } from "@effect/ai-openai"
 
-//      ┌─── AiModel<Completions, OpenAiClient>
+//      ┌─── AiModel<AiLanguageModel, OpenAiClient>
 //      ▼
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 ```
 
 This creates an `AiModel` that:
 
-- **Provides** an OpenAi-specific implementation of the `Completions` service using `"gpt-4o"`
+- **Provides** an OpenAi-specific implementation of the `AiLanguageModel` service using `"gpt-4o"`
 - **Requires** an `OpenAiClient` to be built
 
 ### Building an `AiModel`
@@ -191,19 +193,19 @@ When you build an `AiModel<Provides, Requires>`, you get back a `Provider<Provid
 
 ```ts showLineNumbers=false
 Effect.gen(function*() {
-  //      ┌─── Provider<Completions>
+  //      ┌─── Provider<AiLanguageModel>
   //      ▼
   const gpt4o = yield* Gpt4o
 })
 ```
 
-A `Provider` has a single `.provide(...)` method: 
+A `Provider` has a single `.use(...)` method
 
 ```ts showLineNumbers=false
-gpt4o.provide(myAiProgram)
+gpt4o.use(myAiProgram)
 ```
 
-The `.provide(...)` method injects the services built by the `AiModel` into an Effect program, thereby removing those services from that program's requirements.
+which allows you to "use" the services provided by the `AiModel` to run a particular program, removing those services from that program's requirements.
 
 ### Benefits of `AiModel`
 
@@ -211,29 +213,30 @@ There are several benefits to this approach:
 
 **Reusability**
 
-You can call `.provide(...)` with the same built model as many times as you like.
+You can `.use(...)` the same built model as many times as you like.
 
-For example, we can re-use the same built model to provide `Completions` to multiple calls to `generateDadJoke`:
+For example, we can re-use the same built model to provide `AiLanguageModel` to multiple calls to `generateDadJoke`:
 
-```ts twoslash {16-18} collapse={5-10}
-import { OpenAiCompletions } from "@effect/ai-openai"
-import { Completions } from "@effect/ai"
+```ts twoslash {17-19} collapse={5-11}
+import { OpenAiLanguageModel } from "@effect/ai-openai"
+import { AiLanguageModel } from "@effect/ai"
 import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  const response = yield* completions.create("Generate a dad joke")
+  const response = yield* AiLanguageModel.generateText({
+    prompt: "Generate a dad joke"
+  })
   console.log(response.text)
   return response
 })
 
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
 const main = Effect.gen(function*() {
   const gpt = yield* Gpt4o
-  const res1 = yield* gpt.provide(generateDadJoke)
-  const res2 = yield* gpt.provide(generateDadJoke)
-  const res3 = yield* gpt.provide(generateDadJoke)
+  const res1 = yield* gpt.use(generateDadJoke)
+  const res2 = yield* gpt.use(generateDadJoke)
+  const res3 = yield* gpt.use(generateDadJoke)
 })
 ```
 
@@ -245,30 +248,31 @@ For example, if we know Anthropic's Claude generates some really great dad jokes
 
 **Example** (Mixing Multiple Providers and Models)
 
-```ts twoslash {23} collapse={6-11}
-import { AnthropicCompletions } from "@effect/ai-anthropic"
-import { OpenAiCompletions } from "@effect/ai-openai"
-import { Completions } from "@effect/ai"
+```ts twoslash {24} collapse={6-12}
+import { AnthropicLanguageModel } from "@effect/ai-anthropic"
+import { OpenAiLanguageModel } from "@effect/ai-openai"
+import { AiLanguageModel } from "@effect/ai"
 import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  const response = yield* completions.create("Generate a dad joke")
+  const response = yield* AiLanguageModel.generateText({
+    prompt: "Generate a dad joke"
+  })
   console.log(response.text)
   return response
 })
 
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
-const Claude37 = AnthropicCompletions.model("claude-3-7-sonnet-latest")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
+const Claude37 = AnthropicLanguageModel.model("claude-3-7-sonnet-latest")
 
 //      ┌─── Effect<void, AiError, AnthropicClient | OpenAiClient>
 //      ▼
 const main = Effect.gen(function*() {
   const gpt = yield* Gpt4o
   const claude = yield* Claude37
-  const res1 = yield* gpt.provide(generateDadJoke)
-  const res2 = yield* gpt.provide(generateDadJoke)
-  const res3 = yield* claude.provide(generateDadJoke)
+  const res1 = yield* gpt.use(generateDadJoke)
+  const res2 = yield* gpt.use(generateDadJoke)
+  const res3 = yield* claude.use(generateDadJoke)
 })
 ```
 
@@ -282,14 +286,14 @@ For example, in the code below the `main` program is only dependent upon the `Da
 
 **Example** (Abstracting LLM Interactions into a Service)
 
-```ts twoslash collapse={14-19}
-import { AnthropicCompletions } from "@effect/ai-anthropic"
-import { OpenAiCompletions } from "@effect/ai-openai"
-import { Completions } from "@effect/ai"
+```ts twoslash collapse={14-20}
+import { AnthropicLanguageModel } from "@effect/ai-anthropic"
+import { OpenAiLanguageModel } from "@effect/ai-openai"
+import { AiLanguageModel } from "@effect/ai"
 import { Effect } from "effect"
 
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
-const Claude37 = AnthropicCompletions.model("claude-3-7-sonnet-latest")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
+const Claude37 = AnthropicLanguageModel.model("claude-3-7-sonnet-latest")
 
 class DadJokes extends Effect.Service<DadJokes>()("app/DadJokes", {
   effect: Effect.gen(function*() {
@@ -297,15 +301,16 @@ class DadJokes extends Effect.Service<DadJokes>()("app/DadJokes", {
     const claude = yield* Claude37
 
     const generateDadJoke = Effect.gen(function*() {
-      const completions = yield* Completions.Completions
-      const response = yield* completions.create("Generate a dad joke")
+      const response = yield* AiLanguageModel.generateText({
+        prompt: "Generate a dad joke"
+      })
       console.log(response.text)
       return response
     })
 
     return {
-      generateDadJoke: gpt.provide(generateDadJoke),
-      generateReallyGroanInducingDadJoke: claude.provide(generateDadJoke)
+      generateDadJoke: gpt.use(generateDadJoke),
+      generateReallyGroanInducingDadJoke: claude.use(generateDadJoke)
     }
   })
 }) {}
@@ -334,25 +339,26 @@ To make our code executable, we must finish satisfying our program's requirement
 
 Let's take another look at our program from earlier:
 
-```ts twoslash "OpenAiClient" collapse={5-12}
-import { OpenAiCompletions } from "@effect/ai-openai"
-import { Completions } from "@effect/ai"
+```ts twoslash "OpenAiClient" collapse={5-11}
+import { OpenAiLanguageModel } from "@effect/ai-openai"
+import { AiLanguageModel } from "@effect/ai"
 import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  const response = yield* completions.create("Generate a dad joke")
+  const response = yield* AiLanguageModel.generateText({
+    prompt: "Generate a dad joke"
+  })
   console.log(response.text)
   return response
 })
 
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
 //     ┌─── Effect<void, AiError, OpenAiClient>
 //     ▼
 const main = Effect.gen(function*() {
   const gpt4o = yield* Gpt4o
-  const response = yield* gpt4o.provide(generateDadJoke)
+  const response = yield* gpt4o.use(generateDadJoke)
 })
 ```
 
@@ -360,25 +366,26 @@ We can see that our `main` program still requires us to provide an `OpenAiClient
 
 Each of our provider integration packages exports a client module that can be used to construct a client for that provider.
 
-**Example** (Creating a Client Layer for an LLM Provider)
+**Example** (Creating a Client Layer for a Model Provider)
 
-```ts twoslash /{ (OpenAiClient),/ {24-26} collapse={5-17}
-import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
-import { Completions } from "@effect/ai"
+```ts twoslash /{ (OpenAiClient),/ {25-27} collapse={5-18}
+import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
+import { AiLanguageModel } from "@effect/ai"
 import { Config, Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  const response = yield* completions.create("Generate a dad joke")
+  const response = yield* AiLanguageModel.generateText({
+    prompt: "Generate a dad joke"
+  })
   console.log(response.text)
   return response
 })
 
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
 const main = Effect.gen(function*() {
   const gpt4o = yield* Gpt4o
-  const response = yield* gpt4o.provide(generateDadJoke)
+  const response = yield* gpt4o.use(generateDadJoke)
 })
 
 // Create a `Layer` which produces an `OpenAiClient` and requires
@@ -397,24 +404,25 @@ The provider clients also have a dependency on an `HttpClient` implementation to
 
 For example, if we know we are going to run this code in NodeJS, we can utilize the `NodeHttpClient` module from `@effect/platform-node` to provide an `HttpClient` implementation:
 
-```ts twoslash /{ (NodeHttpClient) }|, (HttpClient)>|, (never)>/ {34} collapse={6-18} 
-import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
-import { Completions } from "@effect/ai"
+```ts twoslash /{ (NodeHttpClient) }|, (HttpClient)>|, (never)>/ {35} collapse={6-19} 
+import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
+import { AiLanguageModel } from "@effect/ai"
 import { NodeHttpClient } from "@effect/platform-node"
 import { Config, Effect, Layer } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  const response = yield* completions.create("Generate a dad joke")
+  const response = yield* AiLanguageModel.generateText({
+    prompt: "Generate a dad joke"
+  })
   console.log(response.text)
   return response
 })
 
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
 const main = Effect.gen(function*() {
   const gpt4o = yield* Gpt4o
-  const response = yield* gpt4o.provide(generateDadJoke)
+  const response = yield* gpt4o.use(generateDadJoke)
 })
 
 // Create a `Layer` which produces an `OpenAiClient` and requires
@@ -441,23 +449,24 @@ Now that we have a `Layer` which provides us with an `OpenAiClient`, we're ready
 Our final program looks like the following:
 
 ```ts twoslash
-import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
-import { Completions } from "@effect/ai"
+import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
+import { AiLanguageModel } from "@effect/ai"
 import { NodeHttpClient } from "@effect/platform-node"
 import { Config, Effect, Layer } from "effect"
 
 const generateDadJoke = Effect.gen(function*() {
-  const completions = yield* Completions.Completions
-  const response = yield* completions.create("Generate a dad joke")
+  const response = yield* AiLanguageModel.generateText({
+    prompt: "Generate a dad joke"
+  })
   console.log(response.text)
   return response
 })
 
-const Gpt4o = OpenAiCompletions.model("gpt-4o")
+const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
 const main = Effect.gen(function*() {
   const gpt4o = yield* Gpt4o
-  const response = yield* gpt4o.provide(generateDadJoke)
+  const response = yield* gpt4o.use(generateDadJoke)
 })
 
 const OpenAi = OpenAiClient.layerConfig({

@@ -8,8 +8,8 @@ sidebar:
 Imagine that we've refactored our `generateDadJoke` program from our [Getting Started](/docs/ai/getting-started/) guide. Now, instead of handling all errors internally, the code can **fail with domain-specific issues** like network interruptions or provider outages:
 
 ```ts twoslash
-import type { AiResponse, Completions } from "@effect/ai"
-import { OpenAiCompletions } from "@effect/ai-openai"
+import type { AiLanguageModel, AiResponse } from "@effect/ai"
+import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Data, Effect } from "effect"
 
 class NetworkError extends Data.TaggedError("NetworkError") {}
@@ -17,14 +17,15 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse, 
-  NetworkError | ProviderOutage, 
-  Completions.Completions
+  AiResponse.AiResponse,
+  NetworkError | ProviderOutage,
+  AiLanguageModel.AiLanguageModel
 >
 
 const main = Effect.gen(function*() {
-  const gpt4o = yield* OpenAiCompletions.model("gpt-4o")
-  const response = yield* gpt4o.provide(generateDadJoke)
+  const gpt4o = yield* OpenAiLanguageModel.model("gpt-4o")
+  const response = yield* gpt4o.use(generateDadJoke)
+  console.log(response.text)
 })
 ```
 
@@ -53,16 +54,16 @@ interface AiPlan<Errors, Provides, Requires> {}
 An `AiPlan` has three generic type parameters:
 
 - **Errors**: Any errors that can be handled during execution of the plan
-- **Provides**: The services that this plan can provide (e.g. `Completions`, `Embeddings`)
+- **Provides**: The services that this plan can provide (e.g. `AiLanguageModel`, `AiEmbeddingsModel`)
 - **Requires**: The services that this plan requires (e.g. `OpenAiClient`, `AnthropicClient`)
 
-If you've used `AiModel` before (via `OpenAiCompletions.model()` or similar), you'll find `AiPlan` familiar. In fact, an `AiModel` *is* in fact an `AiPlan` with just a single step.
+If you've used `AiModel` before (via `OpenAiLanguageModel.model()` or similar), you'll find `AiPlan` familiar. In fact, an `AiModel` *is* in fact an `AiPlan` with just a single step.
 
 This means you can start by writing your code with plain `AiModel`s, and as your needs become more complex (e.g. adding retries, switching providers), you can upgrade to `AiPlan` without changing how the rest of your code works.
 
 ## Defining a Primary Model
 
-The primary entry point to building up an `AiPlan` is the `AiPlan.fromModel` constructor. 
+The primary entry point to building up an `AiPlan` is the `AiPlan.make` constructor. 
 
 This method defines the **primary model** that you would like to use for an LLM interaction, as well as the rules for retrying it under specific conditions.
 
@@ -73,10 +74,10 @@ Use this when you want to:
 
 **Example** (Creating an `AiPlan` from an `AiModel`)
 
-```ts twoslash collapse={2-14}
+```ts twoslash collapse={6-14}
 import { AiPlan } from "@effect/ai"
-import type { AiResponse, Completions } from "@effect/ai"
-import { OpenAiCompletions } from "@effect/ai-openai"
+import type { AiLanguageModel, AiResponse } from "@effect/ai"
+import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Data, Effect, Schedule } from "effect"
 
 class NetworkError extends Data.TaggedError("NetworkError") {}
@@ -84,12 +85,13 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse, 
-  NetworkError | ProviderOutage, 
-  Completions.Completions
+  AiResponse.AiResponse,
+  NetworkError | ProviderOutage,
+  AiLanguageModel.AiLanguageModel
 >
 
-const DadJokePlan = AiPlan.fromModel(OpenAiCompletions.model("gpt-4o"), {
+const DadJokePlan = AiPlan.make({
+  model: OpenAiLanguageModel.model("gpt-4o"),
   attempts: 3,
   schedule: Schedule.exponential("100 millis", 1.5),
   while: (error: NetworkError | ProviderOutage) => 
@@ -98,7 +100,8 @@ const DadJokePlan = AiPlan.fromModel(OpenAiCompletions.model("gpt-4o"), {
 
 const main = Effect.gen(function*() {
   const plan = yield* DadJokePlan
-  const response = yield* plan.provide(generateDadJoke)
+  const response = yield* plan.use(generateDadJoke)
+  console.log(response.text)
 })
 ```
 
@@ -111,19 +114,19 @@ This plan will:
 
 ## Adding Fallback Models
 
-To make your LLM interactions resilient to provider outages, you can define a **fallback** model to use via `AiPlan.withFallback`. This will allow the plan to automatically fallback to another model if the previous step in the execution plan fails.
+To make your interactions with large language models resilient to provider outages, you can define a **fallback** models to use. This will allow the plan to automatically fallback to another model if the previous step in the execution plan fails.
 
 Use this when:
-- You want to make your LLM interactions resilient to provider outages
+- You want to make your model interactions resilient to provider outages
 - You want to potentially have multiple fallback models 
 
 **Example** (Adding a Fallback to Anthropic from OpenAi)
 
-```ts twoslash collapse={2-15,18-21}
+```ts twoslash {24-28} collapse={7-15} 
 import { AiPlan } from "@effect/ai"
-import type { AiResponse, Completions } from "@effect/ai"
-import { AnthropicCompletions } from "@effect/ai-anthropic"
-import { OpenAiCompletions } from "@effect/ai-openai"
+import type { AiLanguageModel, AiResponse } from "@effect/ai"
+import { AnthropicLanguageModel } from "@effect/ai-anthropic"
+import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Data, Effect, Schedule } from "effect"
 
 class NetworkError extends Data.TaggedError("NetworkError") {}
@@ -131,29 +134,29 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse, 
-  NetworkError | ProviderOutage, 
-  Completions.Completions
+  AiResponse.AiResponse,
+  NetworkError | ProviderOutage,
+  AiLanguageModel.AiLanguageModel
 >
 
-const DadJokePlan = AiPlan.fromModel(OpenAiCompletions.model("gpt-4o"), {
+const DadJokePlan = AiPlan.make({
+  model: OpenAiLanguageModel.model("gpt-4o"),
   attempts: 3,
   schedule: Schedule.exponential("100 millis", 1.5),
   while: (error: NetworkError | ProviderOutage) => 
     error._tag === "NetworkError"
-}).pipe(
-  AiPlan.withFallback({
-    model: AnthropicCompletions.model("claude-3-7-sonnet-latest"),
-    attempts: 2,
-    schedule: Schedule.exponential("100 millis", 1.5),
-    while: (error: NetworkError | ProviderOutage) => 
-      error._tag === "ProviderOutage"
-  })
-)
+}, {
+  model: AnthropicLanguageModel.model("claude-3-7-sonnet-latest"),
+  attempts: 2,
+  schedule: Schedule.exponential("100 millis", 1.5),
+  while: (error: NetworkError | ProviderOutage) => 
+    error._tag === "ProviderOutage"
+})
 
 const main = Effect.gen(function*() {
   const plan = yield* DadJokePlan
-  const response = yield* plan.provide(generateDadJoke)
+  const response = yield* plan.use(generateDadJoke)
+  console.log(response.text)
 })
 ```
 
@@ -169,40 +172,40 @@ The following is the complete program with the desired `AiPlan` fully implemente
 
 ```ts
 import { AiPlan } from "@effect/ai"
-import type { AiResponse, Completions } from "@effect/ai"
-import { AnthropicClient, AnthropicCompletions } from "@effect/ai-anthropic"
-import { OpenAiClient, OpenAiCompletions } from "@effect/ai-openai"
+import type { AiLanguageModel, AiResponse } from "@effect/ai"
+import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic"
+import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import { NodeHttpClient } from "@effect/platform-node"
-import { Data, Effect, Schedule } from "effect"
+import { Config, Data, Effect, Layer, Schedule } from "effect"
 
 class NetworkError extends Data.TaggedError("NetworkError") {}
 
 class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse, 
-  NetworkError | ProviderOutage, 
-  Completions.Completions
+  AiResponse.AiResponse,
+  NetworkError | ProviderOutage,
+  AiLanguageModel.AiLanguageModel
 >
 
-const DadJokePlan = AiPlan.fromModel(OpenAiCompletions.model("gpt-4o"), {
+const DadJokePlan = AiPlan.make({
+  model: OpenAiLanguageModel.model("gpt-4o"),
   attempts: 3,
   schedule: Schedule.exponential("100 millis", 1.5),
   while: (error: NetworkError | ProviderOutage) => 
     error._tag === "NetworkError"
-}).pipe(
-  AiPlan.withFallback({
-    model: AnthropicCompletions.model("claude-3-7-sonnet-latest"),
-    attempts: 2,
-    schedule: Schedule.exponential("100 millis", 1.5),
-    while: (error: NetworkError | ProviderOutage) => 
-      error._tag === "ProviderOutage"
-  })
-)
+}, {
+  model: AnthropicLanguageModel.model("claude-3-7-sonnet-latest"),
+  attempts: 2,
+  schedule: Schedule.exponential("100 millis", 1.5),
+  while: (error: NetworkError | ProviderOutage) => 
+    error._tag === "ProviderOutage"
+})
 
 const main = Effect.gen(function*() {
   const plan = yield* DadJokePlan
-  const response = yield* plan.provide(generateDadJoke)
+  const response = yield* plan.use(generateDadJoke)
+  console.log(response.text)
 })
 
 const Anthropic = AnthropicClient.layerConfig({
@@ -221,7 +224,7 @@ main.pipe(
 
 ## Notes & Patterns
 
-- You can chain multiple `AiPlan.withFallback` calls together for more complex failover logic
-- Just like `AiModel`, `AiPlan` is re-usable and can be abstracted into shared logic if desired
+- You can chain multiple calls together for more complex failover logic
+- `AiPlan` is re-usable and can be abstracted into shared logic if desired
 - Great for teams needing **multi-provider resilience** or **predictable behavior under failure**
 
