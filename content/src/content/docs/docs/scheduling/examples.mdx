@@ -70,14 +70,13 @@ Sometimes, retries should only happen for certain error conditions. For example,
 **Example** (Retrying Only on Specific Error Codes)
 
 ```ts twoslash
-import { Console, Effect } from "effect"
+import { Console, Effect, Data } from "effect"
 
 // Custom error class for handling status codes
-class Err extends Error {
-  constructor(message: string, readonly status: number) {
-    super(message)
-  }
-}
+class Err extends Data.TaggedError("Err")<{
+  readonly message: string
+  readonly status: number
+}> {}
 
 // Function to make the API call
 const getJson = (url: string) =>
@@ -86,7 +85,7 @@ const getJson = (url: string) =>
       fetch(url).then((res) => {
         if (!res.ok) {
           console.log(res.status)
-          throw new Err(res.statusText, res.status)
+          throw new Err({ message: res.statusText, status: res.status })
         }
         return res.json() as unknown
       }),
@@ -131,13 +130,12 @@ Some API errors, such as `429 Too Many Requests`, include a `Retry-After` header
 This approach ensures that the retry delay adapts dynamically to the server's response, preventing unnecessary retries while respecting the provided `Retry-After` value.
 
 ```ts twoslash
-import { Duration, Effect, Schedule } from "effect"
+import { Duration, Effect, Schedule, Data } from "effect"
 
 // Custom error class representing a "Too Many Requests" response
-class TooManyRequestsError {
-  readonly _tag = "TooManyRequestsError"
-  constructor(readonly retryAfter: number) {}
-}
+class TooManyRequestsError extends Data.TaggedError(
+  "TooManyRequestsError"
+)<{ readonly retryAfter: number }> {}
 
 let n = 1
 const request = Effect.gen(function* () {
@@ -146,7 +144,7 @@ const request = Effect.gen(function* () {
     const retryAfter = n * 500
     console.log(`Attempt #${n++}, retry after ${retryAfter} millis...`)
     // Simulate retrieving the retry-after header
-    return yield* Effect.fail(new TooManyRequestsError(retryAfter))
+    return yield* Effect.fail(new TooManyRequestsError({ retryAfter }))
   }
   console.log("Done")
   return "some result"

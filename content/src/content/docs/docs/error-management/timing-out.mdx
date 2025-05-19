@@ -256,7 +256,7 @@ The `Effect.timeoutFail` function allows you to produce a specific error when a 
 **Example** (Custom Timeout Error)
 
 ```ts twoslash
-import { Effect } from "effect"
+import { Effect, Data } from "effect"
 
 const task = Effect.gen(function* () {
   console.log("Start processing...")
@@ -265,9 +265,7 @@ const task = Effect.gen(function* () {
   return "Result"
 })
 
-class MyTimeoutError {
-  readonly _tag = "MyTimeoutError"
-}
+class MyTimeoutError extends Data.TaggedError("MyTimeoutError")<{}> {}
 
 const program = task.pipe(
   Effect.timeoutFail({

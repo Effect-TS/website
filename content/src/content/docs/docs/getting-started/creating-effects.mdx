@@ -101,11 +101,9 @@ Using "tagged" errors (objects with a `_tag` field) can help identify error type
 **Example** (Using Tagged Errors)
 
 ```ts twoslash
-import { Effect } from "effect"
+import { Effect, Data } from "effect"
 
-class HttpError {
-  readonly _tag = "HttpError"
-}
+class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 //      ┌─── Effect<never, HttpError, never>
 //      ▼
