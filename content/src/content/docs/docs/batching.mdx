@@ -14,6 +14,8 @@ In typical application development, when interacting with external APIs, databas
 Here's a basic model that outlines the structure of our data and possible errors:
 
 ```ts twoslash
+import { Data } from "effect"
+
 // ------------------------------
 // Model
 // ------------------------------
@@ -25,9 +27,7 @@ interface User {
   readonly email: string
 }
 
-class GetUserError {
-  readonly _tag = "GetUserError"
-}
+class GetUserError extends Data.TaggedError("GetUserError")<{}> {}
 
 interface Todo {
   readonly _tag: "Todo"
@@ -36,13 +36,9 @@ interface Todo {
   readonly ownerId: number
 }
 
-class GetTodosError {
-  readonly _tag = "GetTodosError"
-}
+class GetTodosError extends Data.TaggedError("GetTodosError")<{}> {}
 
-class SendEmailError {
-  readonly _tag = "SendEmailError"
-}
+class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 ```
 
 <Aside type="tip" title="Use Precise Types and Detailed Errors">
@@ -56,8 +52,8 @@ class SendEmailError {
 
 Let's define functions that interact with an external API, handling common operations such as fetching todos, retrieving user details, and sending emails.
 
-```ts twoslash collapse={7-31}
-import { Effect } from "effect"
+```ts twoslash collapse={7-25}
+import { Effect, Data } from "effect"
 
 // ------------------------------
 // Model
@@ -70,9 +66,7 @@ interface User {
   readonly email: string
 }
 
-class GetUserError {
-  readonly _tag = "GetUserError"
-}
+class GetUserError extends Data.TaggedError("GetUserError")<{}> {}
 
 interface Todo {
   readonly _tag: "Todo"
@@ -81,13 +75,9 @@ interface Todo {
   readonly ownerId: number
 }
 
-class GetTodosError {
-  readonly _tag = "GetTodosError"
-}
+class GetTodosError extends Data.TaggedError("GetTodosError")<{}> {}
 
-class SendEmailError {
-  readonly _tag = "SendEmailError"
-}
+class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 
 // ------------------------------
 // API
@@ -154,8 +144,8 @@ While this approach is straightforward and readable, it may not be the most effi
 
 While these functions are clear and easy to understand, their use may not be the most efficient. For example, notifying todo owners involves repeated API calls which can be optimized.
 
-```ts twoslash collapse={7-31,37-82}
-import { Effect } from "effect"
+```ts twoslash collapse={7-25,31-76}
+import { Effect, Data } from "effect"
 
 // ------------------------------
 // Model
@@ -168,9 +158,7 @@ interface User {
   readonly email: string
 }
 
-class GetUserError {
-  readonly _tag = "GetUserError"
-}
+class GetUserError extends Data.TaggedError("GetUserError")<{}> {}
 
 interface Todo {
   readonly _tag: "Todo"
@@ -179,13 +167,9 @@ interface Todo {
   readonly ownerId: number
 }
 
-class GetTodosError {
-  readonly _tag = "GetTodosError"
-}
+class GetTodosError extends Data.TaggedError("GetTodosError")<{}> {}
 
-class SendEmailError {
-  readonly _tag = "SendEmailError"
-}
+class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 
 // ------------------------------
 // API
@@ -287,8 +271,8 @@ A `Request` is a construct representing a request for a value of type `Value`, w
 
 Let's start by defining a structured model for the types of requests our data sources can handle.
 
-```ts twoslash collapse={7-31}
-import { Request } from "effect"
+```ts twoslash collapse={7-25}
+import { Request, Data } from "effect"
 
 // ------------------------------
 // Model
@@ -301,9 +285,7 @@ interface User {
   readonly email: string
 }
 
-class GetUserError {
-  readonly _tag = "GetUserError"
-}
+class GetUserError extends Data.TaggedError("GetUserError")<{}> {}
 
 interface Todo {
   readonly _tag: "Todo"
@@ -312,13 +294,9 @@ interface Todo {
   readonly ownerId: number
 }
 
-class GetTodosError {
-  readonly _tag = "GetTodosError"
-}
+class GetTodosError extends Data.TaggedError("GetTodosError")<{}> {}
 
-class SendEmailError {
-  readonly _tag = "SendEmailError"
-}
+class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 
 // ------------------------------
 // Requests
@@ -371,8 +349,8 @@ A `RequestResolver` requires an environment `R` and is capable of executing requ
 
 In this section, we'll create individual resolvers for each type of request. The granularity of your resolvers can vary, but typically, they are divided based on the batching capabilities of the corresponding API calls.
 
-```ts twoslash collapse={7-31,37-65}
-import { Effect, Request, RequestResolver } from "effect"
+```ts twoslash collapse={7-25,31-59}
+import { Effect, Request, RequestResolver, Data } from "effect"
 
 // ------------------------------
 // Model
@@ -385,9 +363,7 @@ interface User {
   readonly email: string
 }
 
-class GetUserError {
-  readonly _tag = "GetUserError"
-}
+class GetUserError extends Data.TaggedError("GetUserError")<{}> {}
 
 interface Todo {
   readonly _tag: "Todo"
@@ -396,13 +372,9 @@ interface Todo {
   readonly ownerId: number
 }
 
-class GetTodosError {
-  readonly _tag = "GetTodosError"
-}
+class GetTodosError extends Data.TaggedError("GetTodosError")<{}> {}
 
-class SendEmailError {
-  readonly _tag = "SendEmailError"
-}
+class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 
 // ------------------------------
 // Requests
@@ -533,8 +505,8 @@ In this configuration:
 
 Now that we've set up our resolvers, we're ready to tie all the pieces together to define our This step will enable us to perform data operations effectively within our application.
 
-```ts twoslash collapse={7-31,37-65,71-142}
-import { Effect, Request, RequestResolver } from "effect"
+```ts twoslash collapse={7-25,31-59,65-136}
+import { Effect, Request, RequestResolver, Data } from "effect"
 
 // ------------------------------
 // Model
@@ -547,9 +519,7 @@ interface User {
   readonly email: string
 }
 
-class GetUserError {
-  readonly _tag = "GetUserError"
-}
+class GetUserError extends Data.TaggedError("GetUserError")<{}> {}
 
 interface Todo {
   readonly _tag: "Todo"
@@ -558,13 +528,9 @@ interface Todo {
   readonly ownerId: number
 }
 
-class GetTodosError {
-  readonly _tag = "GetTodosError"
-}
+class GetTodosError extends Data.TaggedError("GetTodosError")<{}> {}
 
-class SendEmailError {
-  readonly _tag = "SendEmailError"
-}
+class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 
 // ------------------------------
 // Requests
@@ -746,8 +712,8 @@ When creating request resolvers, it's crucial to manage the context carefully. P
 
 Consider the following example where we set up an HTTP service that the resolvers can use to execute API calls:
 
-```ts twoslash collapse={7-31,37-65}
-import { Effect, Context, RequestResolver, Request } from "effect"
+```ts twoslash collapse={7-25,31-59}
+import { Effect, Context, RequestResolver, Request, Data } from "effect"
 
 // ------------------------------
 // Model
@@ -760,9 +726,7 @@ interface User {
   readonly email: string
 }
 
-class GetUserError {
-  readonly _tag = "GetUserError"
-}
+class GetUserError extends Data.TaggedError("GetUserError")<{}> {}
 
 interface Todo {
   readonly _tag: "Todo"
@@ -771,13 +735,9 @@ interface Todo {
   readonly ownerId: number
 }
 
-class GetTodosError {
-  readonly _tag = "GetTodosError"
-}
+class GetTodosError extends Data.TaggedError("GetTodosError")<{}> {}
 
-class SendEmailError {
-  readonly _tag = "SendEmailError"
-}
+class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 
 // ------------------------------
 // Requests
@@ -865,8 +825,15 @@ Alternatively you can create `RequestResolver`s as part of layers direcly access
 
 **Example**
 
-```ts twoslash collapse={7-31,37-65,71-91}
-import { Effect, Context, RequestResolver, Request, Layer } from "effect"
+```ts twoslash collapse={14-32,38-66,72-92}
+import {
+  Effect,
+  Context,
+  RequestResolver,
+  Request,
+  Layer,
+  Data
+} from "effect"
 
 // ------------------------------
 // Model
@@ -879,9 +846,7 @@ interface User {
   readonly email: string
 }
 
-class GetUserError {
-  readonly _tag = "GetUserError"
-}
+class GetUserError extends Data.TaggedError("GetUserError")<{}> {}
 
 interface Todo {
   readonly _tag: "Todo"
@@ -890,13 +855,9 @@ interface Todo {
   readonly ownerId: number
 }
 
-class GetTodosError {
-  readonly _tag = "GetTodosError"
-}
+class GetTodosError extends Data.TaggedError("GetTodosError")<{}> {}
 
-class SendEmailError {
-  readonly _tag = "SendEmailError"
-}
+class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 
 // ------------------------------
 // Requests

@@ -184,23 +184,22 @@ This function allows you to inspect errors that match a specific tag, helping yo
 **Example** (Inspecting Tagged Errors)
 
 ```ts twoslash
-import { Effect, Console } from "effect"
+import { Effect, Console, Data } from "effect"
 
-class NetworkError {
-  readonly _tag = "NetworkError"
-  constructor(readonly statusCode: number) {}
-}
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly statusCode: number
+}> {}
 
-class ValidationError {
-  readonly _tag = "ValidationError"
-  constructor(readonly field: string) {}
-}
+class ValidationError extends Data.TaggedError("ValidationError")<{
+  readonly field: string
+}> {}
 
 // Create a task that fails with a NetworkError
 const task: Effect.Effect<number, NetworkError | ValidationError> =
-  Effect.fail(new NetworkError(504))
+  Effect.fail(new NetworkError({ statusCode: 504 }))
 
-// Use tapErrorTag to inspect only NetworkError types and log the status code
+// Use tapErrorTag to inspect only NetworkError types
+// and log the status code
 const tapping = Effect.tapErrorTag(task, "NetworkError", (error) =>
   Console.log(`expected error: ${error.statusCode}`)
 )

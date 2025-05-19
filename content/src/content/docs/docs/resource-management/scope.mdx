@@ -612,11 +612,9 @@ To begin, we define the domain model for the required [services](/docs/requireme
 - `Database`
 
 ```ts twoslash
-import { Effect, Context } from "effect"
+import { Effect, Context, Data } from "effect"
 
-class S3Error {
-  readonly _tag = "S3Error"
-}
+class S3Error extends Data.TaggedError("S3Error")<{}> {}
 
 interface Bucket {
   readonly name: string
@@ -630,9 +628,9 @@ class S3 extends Context.Tag("S3")<
   }
 >() {}
 
-class ElasticSearchError {
-  readonly _tag = "ElasticSearchError"
-}
+class ElasticSearchError extends Data.TaggedError(
+  "ElasticSearchError"
+)<{}> {}
 
 interface Index {
   readonly id: string
@@ -646,9 +644,7 @@ class ElasticSearch extends Context.Tag("ElasticSearch")<
   }
 >() {}
 
-class DatabaseError {
-  readonly _tag = "DatabaseError"
-}
+class DatabaseError extends Data.TaggedError("DatabaseError")<{}> {}
 
 interface Entry {
   readonly id: string
@@ -668,12 +664,10 @@ class Database extends Context.Tag("Database")<
 
 Next, we define the three create actions and the overall transaction (`make`) for the
 
-```ts twoslash collapse={3-52}
-import { Effect, Context, Exit } from "effect"
+```ts twoslash collapse={3-48}
+import { Effect, Context, Exit, Data } from "effect"
 
-class S3Error {
-  readonly _tag = "S3Error"
-}
+class S3Error extends Data.TaggedError("S3Error")<{}> {}
 
 interface Bucket {
   readonly name: string
@@ -687,9 +681,9 @@ class S3 extends Context.Tag("S3")<
   }
 >() {}
 
-class ElasticSearchError {
-  readonly _tag = "ElasticSearchError"
-}
+class ElasticSearchError extends Data.TaggedError(
+  "ElasticSearchError"
+)<{}> {}
 
 interface Index {
   readonly id: string
@@ -703,9 +697,7 @@ class ElasticSearch extends Context.Tag("ElasticSearch")<
   }
 >() {}
 
-class DatabaseError {
-  readonly _tag = "DatabaseError"
-}
+class DatabaseError extends Data.TaggedError("DatabaseError")<{}> {}
 
 interface Entry {
   readonly id: string
@@ -774,12 +766,10 @@ We then create simple service implementations to test the behavior of our Worksp
 To achieve this, we will utilize [layers](/docs/requirements-management/layers/) to construct test
 These layers will be able to handle various scenarios, including errors, which we can control using the `FailureCase` type.
 
-```ts twoslash collapse={3-99}
-import { Effect, Context, Layer, Console, Exit } from "effect"
+```ts twoslash collapse={3-95}
+import { Effect, Context, Exit, Data, Layer, Console } from "effect"
 
-class S3Error {
-  readonly _tag = "S3Error"
-}
+class S3Error extends Data.TaggedError("S3Error")<{}> {}
 
 interface Bucket {
   readonly name: string
@@ -793,9 +783,9 @@ class S3 extends Context.Tag("S3")<
   }
 >() {}
 
-class ElasticSearchError {
-  readonly _tag = "ElasticSearchError"
-}
+class ElasticSearchError extends Data.TaggedError(
+  "ElasticSearchError"
+)<{}> {}
 
 interface Index {
   readonly id: string
@@ -809,9 +799,7 @@ class ElasticSearch extends Context.Tag("ElasticSearch")<
   }
 >() {}
 
-class DatabaseError {
-  readonly _tag = "DatabaseError"
-}
+class DatabaseError extends Data.TaggedError("DatabaseError")<{}> {}
 
 interface Entry {
   readonly id: string
@@ -983,13 +971,7 @@ Let's examine the test results for the scenario where `FailureCase` is set to `u
 [S3] creating bucket
 [ElasticSearch] creating index
 [Database] creating entry for bucket <bucket.name> and index <index.id>
-{
-  _id: "Either",
-  _tag: "Right",
-  right: {
-    id: "<entry.id>"
-  }
-}
+{ _id: 'Either', _tag: 'Right', right: { id: '<entry.id>' } }
 ```
 
 In this case, all operations succeed, and we see a successful result with `right({ id: '<entry.id>' })`.
@@ -1011,13 +993,7 @@ The console output will be:
 [Database] creating entry for bucket <bucket.name> and index <index.id>
 [ElasticSearch] delete index <index.id>
 [S3] delete bucket <bucket.name>
-{
-  _id: "Either",
-  _tag: "Left",
-  left: {
-    _tag: "DatabaseError"
-  }
-}
+{ _id: 'Either', _tag: 'Left', left: { _tag: 'DatabaseError' } }
 ```
 
 You can observe that once the `Database` error occurs, there is a complete rollback that deletes the `ElasticSearch` index first and then the associated `S3` bucket. The result is a failure with `left(new DatabaseError())`.
@@ -1037,13 +1013,7 @@ In this case, the console output will be:
 [S3] creating bucket
 [ElasticSearch] creating index
 [S3] delete bucket <bucket.name>
-{
-  _id: "Either",
-  _tag: "Left",
-  left: {
-    _tag: "ElasticSearchError"
-  }
-}
+{ _id: 'Either', _tag: 'Left', left: { _tag: 'ElasticSearchError' } }
 ```
 
 As expected, once the `ElasticSearch` index creation fails, there is a rollback that deletes the `S3` bucket. The result is a failure with `left(new ElasticSearchError())`.
