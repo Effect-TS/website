@@ -4,7 +4,6 @@ import * as Queue from "effect/Queue"
 import * as Ref from "effect/Ref"
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast"
 import { Registry, Rx } from "@effect-rx/rx-react"
-import { Runtime } from "effect"
 
 export interface Toast extends ToastProps {
   readonly id: string
@@ -19,7 +18,7 @@ export class Toaster extends Effect.Service<Toaster>()("app/Toaster", {
   scoped: Effect.gen(function* () {
     const counter = yield* Ref.make(0)
     const removeQueue = yield* Queue.unbounded<string>()
-    const runtime = yield* Effect.runtime<Registry.RxRegistry>()
+    const registry = yield* Registry.RxRegistry
 
     const nextId = Ref.getAndUpdate(counter, (n) => n + 1).pipe(
       Effect.map((n) => (n % Number.MAX_SAFE_INTEGER).toString())
@@ -30,24 +29,26 @@ export class Toaster extends Effect.Service<Toaster>()("app/Toaster", {
         ...toast,
         id,
         open: true,
-        onOpenChange: (open) => !open && Runtime.runSync(runtime, dismissToast(id))
+        onOpenChange: (open) => !open && dismissToast(id)
       }
     }
 
     function addToast(toast: Omit<Toast, "id">) {
-      return nextId.pipe(Effect.flatMap((id) => Rx.update(toastsRx, Array.prepend(createToast(id, toast)))))
+      return nextId.pipe(Effect.andThen((id) => registry.update(toastsRx, Array.prepend(createToast(id, toast)))))
     }
 
     function removeToast(id: string) {
-      return Rx.update(
-        toastsRx,
-        Array.filter((toast) => toast.id !== id)
+      return Effect.sync(() =>
+        registry.update(
+          toastsRx,
+          Array.filter((toast) => toast.id !== id)
+        )
       )
     }
 
     function dismissToast(id: string) {
       Queue.unsafeOffer(removeQueue, id)
-      return Rx.update(
+      registry.update(
         toastsRx,
         Array.map((toast) => (toast.id === id ? { ...toast, open: false } : toast))
       )

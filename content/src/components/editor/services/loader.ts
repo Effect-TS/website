@@ -21,13 +21,14 @@ export const loaderStepsRx = Rx.make(Array.empty<Step>())
 
 export class Loader extends Effect.Service<Loader>()("app/Loader", {
   scoped: Effect.gen(function* () {
+    const registry = yield* Registry.RxRegistry
     const counter = yield* Ref.make(0)
     const queue = yield* Queue.unbounded<[number, Duration.DurationInput] | null>()
 
     const nextId = Ref.getAndUpdate(counter, (n) => n + 1).pipe(Effect.map((n) => n % Number.MAX_SAFE_INTEGER))
 
     function addStep(id: number, message: string) {
-      return Rx.update(loaderStepsRx, Array.append(new Step({ id, message, done: false })))
+      return registry.update(loaderStepsRx, Array.append(new Step({ id, message, done: false })))
     }
 
     function withIndicator(message: string, minWaitTime: Duration.DurationInput = 0) {
@@ -58,7 +59,7 @@ export class Loader extends Effect.Service<Loader>()("app/Loader", {
     const fiber = yield* Stream.fromQueue(queue).pipe(
       Stream.takeWhile((element) => element !== null),
       Stream.runForEach(([id, delay]) =>
-        Rx.update(loaderStepsRx, Array.map(completeStep(id))).pipe(Effect.delay(delay))
+        Effect.sync(() => registry.update(loaderStepsRx, Array.map(completeStep(id)))).pipe(Effect.delay(delay))
       ),
       Effect.forkScoped,
       Effect.uninterruptible
