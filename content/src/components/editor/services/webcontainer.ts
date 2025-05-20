@@ -11,7 +11,7 @@ import * as Stream from "effect/Stream"
 import { FileAlreadyExistsError, FileNotFoundError, FileValidationError } from "../domain/errors"
 import { makeDirectory, makeFile, File, Directory, Workspace } from "../domain/workspace"
 import { Loader } from "./loader"
-import { Rx } from "@effect-rx/rx-react"
+import { Registry, Rx } from "@effect-rx/rx-react"
 
 const WEBCONTAINER_BIN_PATH = "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
 
@@ -21,6 +21,8 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
   accessors: true,
   dependencies: [Loader.Default],
   scoped: Effect.gen(function* () {
+    const registry = yield* Registry.RxRegistry
+
     // Only one instance of a WebContainer can be running at any given time
     yield* Effect.acquireRelease(semaphore.take(1), () => semaphore.release(1))
 
@@ -334,7 +336,7 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
       const create = Effect.fnUntraced(
         function* (fileName: string, fileType: Workspace.FileType, options: Workspace.CreateFileOptions = {}) {
           yield* validateFileName(fileName, fileType)
-          const workspace = yield* Rx.get(workspaceRef)
+          const workspace = registry.get(workspaceRef)
           const parent = Option.fromNullable(options.parent)
           // Determine the path to the new file
           const newPath = Option.match(parent, {
@@ -345,7 +347,7 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
             ? writeFile(workspace.relativePath(newPath), "", "typescript")
             : mkdir(workspace.relativePath(newPath))
           const node = fileType === "File" ? makeFile(fileName, "", true) : makeDirectory(fileName, [], true)
-          yield* Rx.set(
+          registry.set(
             workspaceRef,
             Option.match(parent, {
               onNone: () => workspace.append(node),
@@ -371,7 +373,7 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
       const rename = Effect.fnUntraced(
         function* (node: File | Directory, newName: string) {
           yield* validateFileName(newName, node._tag)
-          const workspace = yield* Rx.get(workspaceRef)
+          const workspace = registry.get(workspaceRef)
           const newNode =
             node._tag === "File"
               ? makeFile(newName, node.initialContent, node.userManaged)
@@ -380,7 +382,7 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
           const oldPath = yield* Effect.orDie(workspace.pathTo(node))
           const newPath = yield* Effect.orDie(newWorkspace.pathTo(newNode))
           yield* renameFile(workspace.relativePath(oldPath), workspace.relativePath(newPath))
-          yield* Rx.set(workspaceRef, newWorkspace)
+          registry.set(workspaceRef, newWorkspace)
           return newNode
         },
         Effect.tapErrorCause(Effect.logError),
@@ -395,11 +397,11 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
        */
       const remove = Effect.fnUntraced(
         function* (node: File | Directory) {
-          const workspace = yield* Rx.get(workspaceRef)
+          const workspace = registry.get(workspaceRef)
           const newWorkspace = workspace.removeNode(node)
           const path = yield* Effect.orDie(workspace.pathTo(node))
           yield* removeFile(workspace.relativePath(path))
-          yield* Rx.set(workspaceRef, newWorkspace)
+          registry.set(workspaceRef, newWorkspace)
         },
         Effect.tapErrorCause(Effect.logError),
         Effect.annotateLogs({

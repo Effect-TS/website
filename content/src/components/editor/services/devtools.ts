@@ -7,32 +7,37 @@ import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
 import { Span } from "../domain/devtools"
 import { WebContainer } from "./webcontainer"
-import { Rx } from "@effect-rx/rx-react"
+import { Registry, Rx } from "@effect-rx/rx-react"
 
 export const rootSpansRx = Rx.make<ReadonlyArray<Span>>([])
 
 export const DevToolsLayer = Layer.scopedDiscard(
   Effect.gen(function* () {
+    const registry = yield* Registry.RxRegistry
     const container = yield* WebContainer
 
     function registerSpan(span: DevToolsDomain.ParentSpan) {
-      return Rx.update(rootSpansRx, (rootSpans) =>
-        pipe(
-          rootSpans,
-          Array.findFirstIndex((root) => root.traceId === span.traceId),
-          Option.flatMap((index) => Array.modifyOption(rootSpans, index, (root) => root.addSpan(span))),
-          Option.getOrElse(() => Array.prepend(rootSpans, Span.fromSpan(span)))
+      return Effect.sync(() =>
+        registry.update(rootSpansRx, (rootSpans) =>
+          pipe(
+            rootSpans,
+            Array.findFirstIndex((root) => root.traceId === span.traceId),
+            Option.flatMap((index) => Array.modifyOption(rootSpans, index, (root) => root.addSpan(span))),
+            Option.getOrElse(() => Array.prepend(rootSpans, Span.fromSpan(span)))
+          )
         )
       )
     }
 
     function registerSpanEvent(event: DevToolsDomain.SpanEvent) {
-      return Rx.update(rootSpansRx, (rootSpans) =>
-        pipe(
-          rootSpans,
-          Array.findFirstIndex((root) => root.traceId === event.traceId),
-          Option.flatMap((index) => Array.modifyOption(rootSpans, index, (root) => root.addEvent(event))),
-          Option.getOrElse(() => rootSpans)
+      return Effect.sync(() =>
+        registry.update(rootSpansRx, (rootSpans) =>
+          pipe(
+            rootSpans,
+            Array.findFirstIndex((root) => root.traceId === event.traceId),
+            Option.flatMap((index) => Array.modifyOption(rootSpans, index, (root) => root.addEvent(event))),
+            Option.getOrElse(() => rootSpans)
+          )
         )
       )
     }
