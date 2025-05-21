@@ -1,0 +1,109 @@
+---
+pagefind: false
+title: The Case for Effect Cluster
+excerpt: An Erlang-style distributed runtime for JavaScript 
+date: 2025-05-20
+authors:
+  - michael_arnaldi
+tags:
+  - Miscellaneous
+---
+
+import { Aside } from "@astrojs/starlight/components"
+
+Building distributed systems can be a dounting task, the main reason is that some of the failure scenarios can't be dealt with by simply writing code.
+
+Let's make an example, we are tasked to fetch a single todo from <a href="https://jsonplaceholder.typicode.com/" target="_blank">JSON Placeholder API</a>, we would initially end up writing some code that looks like:
+
+```ts twoslash
+const fetchTodo = (id: number) => 
+  fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
+    .then(response => response.json())
+```
+
+Then after we realize that this code may fail for some unknown number of reasons including network unreliability so we may refactor it to use the proper Effect equivalent:
+
+```ts twoslash
+import { HttpClient, HttpClientResponse } from "@effect/platform"
+import { Effect, Schedule, Schema } from "effect"
+
+class Todo extends Schema.Class<Todo>("Todo")({
+  userId: Schema.Number,
+  id: Schema.Number,
+  title: Schema.String,
+  completed: Schema.Boolean
+}) {}
+
+const fetchTodo = Effect.fn("fetchTodo")(function*(id: number) {
+  const client = (yield* HttpClient.HttpClient).pipe(
+    HttpClient.filterStatusOk,
+    HttpClient.retryTransient({ schedule: Schedule.exponential("100 millis") })
+  )
+  const todoResponse = yield* client.get(`https://jsonplaceholder.typicode.com/todos/${id}`)
+  return yield* HttpClientResponse.schemaBodyJson(Todo)(todoResponse)
+})
+```
+
+Now we have an arguably more verbose variant of the same business logic that:
+
+- retries automatically any transient error using exponential backoff
+- does proper type validation at runtime
+- can be observed via opentelemetry with auto-generate spans
+- has both typed errors and typed requirements so it can be easily tested
+
+It's what we would call "Production Grade".
+
+But, is this enough? well... What if the machine that runs this code fails? we covered everything else but we can't really "code error handling" for machine failure, if the machine is gone there's no code executing...
+
+## Durable Business Workflows
+
+To resolve resilience over machine failure we need to work outside the machine, there are multiple ways we can achieve this, hystorically this would be done by using queues like RabbitMQ, Kafka, etc. Instead of directly processing the action, first you write to a queue and then your "workers" take tasks from the queue signaling completion, so that if a process fails the queue message remains "to be processed" and when a new worker comes alive it can resume processing messages.
+
+Now there are multiple solutions to the problem that automate this "queue-first" approach (known as Command Sourcing), for example <a href="https://temporal.io/" target="_blank">Temporal</a>, <a href="https://restate.dev/" target="_blank">Restate</a>, <a href="https://www.inngest.com/" target="_blank">Inngest</a>, etc.
+
+Each of the solutions have pros and cons, and they are all fairly similar, namely one thing that is common across all the solutions I've explored is that the execution of your workflows is external to your code. And generally upon machine failure workflows are restarted from the beginning, which isn't a problem for short-lived workflows but can become an issue for long-running workflows that include many actions.
+
+<Aside type="note" title="At-Least-Once Delivery & Idempotency">
+  Regrdless of what solution you use, in distributed systems, your actions may be processed multiple times, as we've explained when a machine fails the whole process is restarted so it is imperative that you account for this by modelling your actions to be idempotent. For example when you integrate to a third party API like Stripe, you need to be sure to use <a href="https://docs.stripe.com/api/idempotent_requests" target="_blank">Idempotent Requests</a> to avoid duplicating payments 
+</Aside>
+
+The upside of using such solutions is that you write code that looks normal, and you get resiliency out of the box, which is a **very big win**! And that's why many large scale systems are powered by those.
+
+The downside is that you're kind of limited and in many cases you find yourself working around the limitations, like having to use <a href="https://docs.temporal.io/workflow-execution/continue-as-new" target="_blank">Continue-As-New</a> in Temporal.
+
+The reality is that there is hardly any "one-size-fits-all" solution for workflows, what works best for short workflows with just a few actions and what works best for long workflows with potentially infinite actions isn't the same, and usually any complex system will require all kinds of workflows.
+
+My mental model is that if you need either:
+- long running workflows with a lot of actions
+- introspectability of current state and behaviour
+- ability to update code in a controlled manner
+
+Then you're better off with modelling your workflow as a state-machine and directly taking care of events and state transitions (and for this you're out of luck when using traditional workflow engines).
+
+If you don't then you're better off with modelling your workflows as plain code which is automatically retried (and for this you're in luck with traditional workflows engines).
+
+## The Actor Model
+
+If we look back at history there's an alternative that can encompass any kind of workflow which is called the Actor Model, this has been the backbone of distributed systems for a long time, predating any workflow engine.
+
+The model was pioneered by <a href="https://en.wikipedia.org/wiki/Erlang_(programming_language)" target="_blank">Erlang</a> a language & runtime system, originally wrote as proprietary in 1986 later open sourced in 1998, designed for systems with the following traits:
+
+- Distributed
+- Fault-tolerant
+- Soft real-time
+- Highly available, non-stop applications
+- Hot swapping, where code can be changed without stopping a system.
+
+In simple terms all the good comes from modelling your programs as actors that exchange messages between themselves, once you do that you can persist the messages, make sure to deliver them and in the actor you decide how to process them.
+
+This model can represent any kind of workflow, if you want normal looking and retried code that's great just write normal code and invoke it upon receiving a message, if you want a state machine then good make a state machine and process the message yourself, upon re-processing you can recover the state of where you've left and start from there.
+
+Similar solutions can be also found in the JVM space with projects such as <a href="https://akka.io/" target="_blank">Akka</a> and <a href="https://pekko.apache.org/" target="_blank">Apache Pekko</a> that currently powers an absurd number of distributed systems at scale.
+
+More recently we've even witnessed the creation of other languages such as <a href="https://elixir-lang.org/" target="_blank">Elixir</a> that use the Erlan's BEAM VM as their runtime to achieve the same level of QOS (Quality of Service).
+
+## Effect Cluster
+
+If you're still here you're probably wondering, can we get those goods in JS? that's the question we've asked ourselves and that's the reason we ended up building Effect Cluster (currently in Alpha).
+
+If you want to see Effect Cluster in action don't forget to check out <a href="https://www.youtube.com/watch?v=4lEDdMuTDJg" target="_blank">Tim's talk at Effect Days 2025</a>
