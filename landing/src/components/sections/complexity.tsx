@@ -200,7 +200,7 @@ export const Complexity = () => {
 }
 
 const content = {
-  heading: "Make the hard things easy",
+  heading: "Production-grade TypeScript",
   text: `As your application grows, Effect scales with it - keeping your code simple and maintainable.`,
   features: [
     {
