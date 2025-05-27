@@ -1,0 +1,153 @@
+---
+pagefind: false
+title: Effect 3.16 (Release)
+excerpt: New Effect release featuring the new ExecutionPlan module, Effect.Service & LayerMap improvements, and more!
+date: 2025-05-28
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.16 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## ExecutionPlan module
+
+An `ExecutionPlan` can be used with `Effect.withExecutionPlan` or `Stream.withExecutionPlan`, allowing you to provide different resources for each step of execution until the effect succeeds or the plan is exhausted.
+
+This can be useful for AI, when you want to fallback to alternative providers when the primary provider has downtime.
+
+For example:
+
+```ts
+import { type AiLanguageModel } from "@effect/ai"
+import type { Layer } from "effect"
+import { Effect, ExecutionPlan, Schedule } from "effect"
+
+declare const layerBad: Layer.Layer<AiLanguageModel.AiLanguageModel>
+declare const layerGood: Layer.Layer<AiLanguageModel.AiLanguageModel>
+
+const AiPlan = ExecutionPlan.make(
+  {
+    // First try with the bad layer 2 times with a 3 second delay between attempts
+    provide: layerBad,
+    attempts: 2,
+    schedule: Schedule.spaced(3000)
+  },
+  // Then try with the bad layer 3 times with a 1 second delay between attempts
+  {
+    provide: layerBad,
+    attempts: 3,
+    schedule: Schedule.spaced(1000)
+  },
+  // Finally try with the good layer.
+  //
+  // If `attempts` is omitted, the plan will only attempt once, unless a schedule is provided.
+  {
+    provide: layerGood
+  }
+)
+
+declare const effect: Effect.Effect<
+  void,
+  never,
+  AiLanguageModel.AiLanguageModel
+>
+const withPlan: Effect.Effect<void> = Effect.withExecutionPlan(
+  effect,
+  AiPlan
+)
+```
+
+## Effect.Service parameter support
+
+This allows you to pass parameters to the `effect` & `scoped` Effect.Service
+constructors, which will also be reflected in the `.Default` layer.
+
+```ts
+import type { Layer } from "effect"
+import { Effect } from "effect"
+
+class NumberService extends Effect.Service<NumberService>()(
+  "NumberService",
+  {
+    // You can now pass a function to the `effect` and `scoped` constructors
+    effect: Effect.fn(function* (input: number) {
+      return {
+        get: Effect.succeed(`The number is: ${input}`)
+      } as const
+    })
+  }
+) {}
+
+// Pass the arguments to the `Default` layer
+const CoolNumberServiceLayer: Layer.Layer<NumberService> =
+  NumberService.Default(6942)
+```
+
+## Schedule.CurrentIterationMetadata
+
+`Schedule.CurrentIterationMetadata` allows you to access metadata for the current `Schedule` iteration.
+For instance, when inside a `Effect.repeat` or `Effect.retry` region.
+
+```ts
+import { Effect, Schedule } from "effect"
+
+Effect.gen(function* () {
+  // You can now access the following information when inside a Schedule execution.
+  //
+  // {
+  //   elapsed: Duration.zero,
+  //   elapsedSincePrevious: Duration.zero,
+  //   input: undefined,
+  //   now: 0,
+  //   recurrence: 2,
+  //   start: 0
+  // }
+  const currentIterationMetadata =
+    yield* Schedule.CurrentIterationMetadata
+}).pipe(Effect.repeat(Schedule.recurs(2)))
+```
+
+## Config.port & Config.branded
+
+New `Config` apis have been added, to make it easier to work with network ports and branded types.
+
+```ts
+import { Brand, Config } from "effect"
+
+// ensures that the value is a valid port number
+const dbPort: Config.Config<number> = Config.port("DB_PORT")
+```
+
+```ts
+import { Brand, Config } from "effect"
+
+type Port = Brand.Branded<number, "Port">
+const Port = Brand.refined<Port>(
+  (num) =>
+    !Number.isNaN(num) &&
+    Number.isInteger(num) &&
+    num >= 1 &&
+    num <= 65535,
+  (n) => Brand.error(`Expected ${n} to be an TCP port`)
+)
+
+const dbPort: Config.Config<Port> = Config.number("DB_PORT").pipe(
+  // refine the config value using a brand constructor
+  Config.branded(Port)
+)
+```
+
+## Other changes
+
+- `Array / Iterable.countBy` - count the elements that match the given predicate
+- `Array / Chunk.removeOption` - remove an element at a given index, returning an Option depending on success
+- `HashMap.hasBy` - check if a HashMap contains a member using a predicate
+- `BigDecimal` rounding apis have been added
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
