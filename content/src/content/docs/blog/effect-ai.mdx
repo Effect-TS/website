@@ -192,11 +192,11 @@ For more complex scenarios where you need reliability across multiple providers,
 `ExecutionPlan` lets you create a structured execution plan for your Effect programs with built-in retry logic, fallback strategies, and error handling:
 
 ```ts twoslash 
-import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { AnthropicLanguageModel } from "@effect/ai-anthropic"
+import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Console, Data, Effect, ExecutionPlan, Schedule } from "effect"
 
-import { AiLanguageModel } from "@effect/ai"
+import { AiError, AiLanguageModel } from "@effect/ai"
 
 const generateDadJoke = AiLanguageModel.generateText({
   prompt: "Generate a dad joke"
@@ -216,7 +216,8 @@ const DadJokePlan = ExecutionPlan.make({
   provide: OpenAiLanguageModel.model("gpt-4o"),
   attempts: 3,
   schedule: Schedule.exponential("100 millis"),
-  while: (error: NetworkError | ProviderOutage) => error._tag === "NetworkError"
+  while: (error: AiError.AiError | NetworkError | ProviderOutage) => 
+    error._tag === "NetworkError"
 }, {
   provide: AnthropicLanguageModel.model("claude-3-7-sonnet-latest")
 })
