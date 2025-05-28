@@ -197,7 +197,7 @@ To make the program executable, we must provide the implementation of our tool c
 
 **Example** (Providing the Tool Call Handlers to a Program)
 
-```ts twoslash /DadJokeToolHandlers/ collapse={11-61,72-81}
+```ts twoslash /DadJokeToolHandlers/ collapse={11-61}
 import { AiLanguageModel, AiTool, AiToolkit } from "@effect/ai"
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import { 
@@ -206,7 +206,7 @@ import {
   HttpClientResponse 
 } from "@effect/platform"
 import { NodeHttpClient } from "@effect/platform-node"
-import { Array, Config, Effect, Layer, Schema } from "effect"
+import { Array, Config, Console, Effect, Layer, Schema } from "effect"
 
 class DadJoke extends Schema.Class<DadJoke>("DadJoke")({
   id: Schema.String,
@@ -269,16 +269,13 @@ const DadJokeToolHandlers = DadJokeTools.toLayer(
   })
 ).pipe(Layer.provide(ICanHazDadJoke.Default))
 
-const generateDadJoke = AiLanguageModel.generateText({
+const program = AiLanguageModel.generateText({
   prompt: "Generate a dad joke about pirates",
   tools: DadJokeTools
-})
-
-const program = Effect.gen(function*() {
-  const model = yield* OpenAiLanguageModel.model("gpt-4o")
-  const response = yield* model.use(generateDadJoke)
-  console.log(response.text)
-})
+}).pipe(
+  Effect.flatMap((response) => Console.log(response.text)),
+  Effect.provide(OpenAiLanguageModel.model("gpt-4o"))
+)
 
 const OpenAi = OpenAiClient.layerConfig({
   apiKey: Config.redacted("OPENAI_API_KEY")
