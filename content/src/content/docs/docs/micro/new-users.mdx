@@ -226,9 +226,8 @@ This guide shows how to wrap a `Promise`-based API using the `Micro` library fro
      return Micro.promise(() => fetchWeather(city))
    }
 
-   //      ┌─── Micro<string, never, never>
-   //      ▼
    const weatherEffect = getWeather("London")
+   //    ^?
 
    Micro.runPromise(weatherEffect)
      .then((data) => console.log(`The weather in London is: ${data}`))
@@ -267,14 +266,12 @@ This guide shows how to wrap a `Promise`-based API using the `Micro` library fro
      return Micro.promise(() => fetchWeather(city))
    }
 
-   //      ┌─── Micro<string, never, never>
-   //      ▼
    const weatherEffect = getWeather("London")
+   //    ^?
 
    Micro.runPromiseExit(weatherEffect).then(
-     // ┌─── MicroExit<string, never>
-     // ▼
      (exit) => console.log(exit)
+     // ^?
    )
    /*
    Output:
@@ -322,9 +319,8 @@ This guide shows how to wrap a `Promise`-based API using the `Micro` library fro
      })
    }
 
-   //      ┌─── Micro<string, WeatherError, never>
-   //      ▼
    const weatherEffect = getWeather("Paris")
+   //    ^?
 
    Micro.runPromise(weatherEffect)
      .then((data) => console.log(`The weather in London is: ${data}`))
@@ -393,21 +389,18 @@ class ValidationError {
   readonly _tag = "ValidationError"
 }
 
-//      ┌─── Micro<string, HttpError | ValidationError, never>
-//      ▼
 const program = Micro.gen(function* () {
+  //  ^?
   // Simulate http and validation errors
   if (Math.random() > 0.5) yield* Micro.fail(new HttpError())
   if (Math.random() > 0.5) yield* Micro.fail(new ValidationError())
   return "some result"
 })
 
-//      ┌─── Micro<string, never, never>
-//      ▼
 const recovered = Micro.gen(function* () {
-  //      ┌─── Either<string, HttpError | ValidationError>
-  //      ▼
+  //  ^?
   const failureOrSuccess = yield* Micro.either(program)
+  //    ^?
   return Either.match(failureOrSuccess, {
     // Failure case
     onLeft: (error) => `Recovering from ${error._tag}`,

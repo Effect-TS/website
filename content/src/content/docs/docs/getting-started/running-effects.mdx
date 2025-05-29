@@ -232,16 +232,14 @@ for all other run functions. It starts a fiber that can be observed or interrupt
 ```ts twoslash
 import { Effect, Console, Schedule, Fiber } from "effect"
 
-//      ┌─── Effect<number, never, never>
-//      ▼
 const program = Effect.repeat(
   Console.log("running..."),
   Schedule.spaced("200 millis")
 )
+//    ^?
 
-//      ┌─── RuntimeFiber<number, never>
-//      ▼
 const fiber = Effect.runFork(program)
+//    ^?
 
 setTimeout(() => {
   Effect.runFork(Fiber.interrupt(fiber))

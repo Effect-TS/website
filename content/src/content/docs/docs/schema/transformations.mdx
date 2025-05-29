@@ -63,13 +63,11 @@ const BooleanFromString = Schema.transform(
   }
 )
 
-//     ┌─── "on" | "off"
-//     ▼
 type Encoded = typeof BooleanFromString.Encoded
+//   ^?
 
-//     ┌─── boolean
-//     ▼
 type Type = typeof BooleanFromString.Type
+//   ^?
 
 console.log(Schema.decodeUnknownSync(BooleanFromString)("on"))
 // Output: true
@@ -149,13 +147,11 @@ const BooleanFromNumericString = Schema.transform(
   }
 )
 
-//     ┌─── string
-//     ▼
 type Encoded = typeof BooleanFromNumericString.Encoded
+//   ^?
 
-//     ┌─── boolean
-//     ▼
 type Type = typeof BooleanFromNumericString.Type
+//   ^?
 
 console.log(Schema.decodeUnknownSync(BooleanFromNumericString)("100"))
 // Output: true
@@ -189,13 +185,11 @@ const ReadonlySetFromArray = <A, I, R>(
 
 const schema = ReadonlySetFromArray(Schema.String)
 
-//     ┌─── readonly string[]
-//     ▼
 type Encoded = typeof schema.Encoded
+//   ^?
 
-//     ┌─── ReadonlySet<string>
-//     ▼
 type Type = typeof schema.Type
+//   ^?
 
 console.log(Schema.decodeUnknownSync(schema)(["a", "b", "c"]))
 // Output: Set(3) { 'a', 'b', 'c' }
@@ -347,13 +341,11 @@ export const NumberFromString = Schema.transformOrFail(
   }
 )
 
-//     ┌─── string
-//     ▼
 type Encoded = typeof NumberFromString.Encoded
+//   ^?
 
-//     ┌─── number
-//     ▼
 type Type = typeof NumberFromString.Type
+//   ^?
 
 console.log(Schema.decodeUnknownSync(NumberFromString)("123"))
 // Output: 123
@@ -414,17 +406,14 @@ const PeopleIdFromString = Schema.transformOrFail(
   }
 )
 
-//     ┌─── string
-//     ▼
 type Encoded = typeof PeopleIdFromString.Encoded
+//   ^?
 
-//     ┌─── string & Brand<"PeopleId">
-//     ▼
 type Type = typeof PeopleIdFromString.Type
+//   ^?
 
-//     ┌─── never
-//     ▼
 type Context = typeof PeopleIdFromString.Context
+//   ^?
 
 // Run a successful decode operation
 Effect.runPromiseExit(Schema.decodeUnknown(PeopleIdFromString)("1")).then(
@@ -504,17 +493,14 @@ const PeopleIdFromString = Schema.transformOrFail(
   }
 )
 
-//     ┌─── string
-//     ▼
 type Encoded = typeof PeopleIdFromString.Encoded
+//   ^?
 
-//     ┌─── string & Brand<"PeopleId">
-//     ▼
 type Type = typeof PeopleIdFromString.Type
+//   ^?
 
-//     ┌─── Validation
-//     ▼
 type Context = typeof PeopleIdFromString.Context
+//   ^?
 
 // Layer to provide a successful validation service
 const SuccessTest = Layer.succeed(Validation, {
@@ -613,13 +599,11 @@ export const PasswordHashing = Schema.transformOrFail(
   }
 )
 
-//     ┌─── string
-//     ▼
 type Encoded = typeof PasswordHashing.Encoded
+//   ^?
 
-//     ┌─── Redacted<string & Brand<"HashedPassword">>
-//     ▼
 type Type = typeof PasswordHashing.Type
+//   ^?
 
 // Example: Decoding a plain password into a hashed password
 console.log(
@@ -651,21 +635,18 @@ import { Schema } from "effect"
 
 // Schema to split a string by commas into an array of strings
 //
-//     ┌─── Schema<readonly string[], string, never>
-//     ▼
+//   ^?
 const schema1 = Schema.asSchema(Schema.split(","))
 
 // Schema to convert an array of strings to an array of numbers
 //
-//     ┌─── Schema<readonly number[], readonly string[], never>
-//     ▼
+//   ^?
 const schema2 = Schema.asSchema(Schema.Array(Schema.NumberFromString))
 
 // Composed schema that takes a string, splits it by commas,
 // and converts the result into an array of numbers
 //
-//     ┌─── Schema<readonly number[], string, never>
-//     ▼
+//   ^?
 const ComposedSchema = Schema.asSchema(Schema.compose(schema1, schema2))
 ```
 
@@ -902,8 +883,7 @@ In this example, `Schema.parseJson` uses a struct schema to ensure the parsed JS
 ```ts twoslash
 import { Schema } from "effect"
 
-//     ┌─── SchemaClass<{ readonly a: number; }, string, never>
-//     ▼
+//   ^?
 const schema = Schema.parseJson(Schema.Struct({ a: Schema.Number }))
 ```
 

@@ -22,13 +22,11 @@ Here, the error type changes from `string` to `Error`.
 ```ts twoslash
 import { Effect } from "effect"
 
-//      ┌─── Effect<number, string, never>
-//      ▼
 const simulatedTask = Effect.fail("Oh no!").pipe(Effect.as(1))
+//    ^?
 
-//      ┌─── Effect<number, Error, never>
-//      ▼
 const mapped = Effect.mapError(
+//    ^?
   simulatedTask,
   (message) => new Error(message)
 )
@@ -50,13 +48,11 @@ The `Effect.mapBoth` function allows you to apply transformations to both channe
 ```ts twoslash
 import { Effect } from "effect"
 
-//      ┌─── Effect<number, string, never>
-//      ▼
 const simulatedTask = Effect.fail("Oh no!").pipe(Effect.as(1))
+//    ^?
 
-//      ┌─── Effect<boolean, Error, never>
-//      ▼
 const modified = Effect.mapBoth(simulatedTask, {
+//    ^?
   onFailure: (message) => new Error(message),
   onSuccess: (n) => n > 0
 })
@@ -351,17 +347,13 @@ This function becomes especially useful when recovering from effects that may fa
 import { Effect, Either, Console } from "effect"
 
 // Simulate a task that fails
-//
-//      ┌─── Either<number, string, never>
-//      ▼
 const program = Effect.fail("Oh uh!").pipe(Effect.as(2))
+//    ^?
 
-//      ┌─── Either<number, never, never>
-//      ▼
 const recovered = Effect.gen(function* () {
-  //      ┌─── Either<number, string>
-  //      ▼
+  //  ^?
   const failureOrSuccess = yield* Effect.either(program)
+  //    ^?
   if (Either.isLeft(failureOrSuccess)) {
     const error = failureOrSuccess.left
     yield* Console.log(`failure: ${error}`)
@@ -390,13 +382,11 @@ You can use the `Effect.cause` function to expose the cause of an effect, which 
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-//      ┌─── Effect<number, string, never>
-//      ▼
 const program = Effect.fail("Oh uh!").pipe(Effect.as(2))
+//    ^?
 
-//      ┌─── Effect<void, never, never>
-//      ▼
 const recovered = Effect.gen(function* () {
+//    ^?
   const cause = yield* Effect.cause(program)
   yield* Console.log(cause)
 })
@@ -411,13 +401,11 @@ The `Effect.merge` function allows you to combine the error channel with the suc
 ```ts twoslash
 import { Effect } from "effect"
 
-//      ┌─── Effect<number, string, never>
-//      ▼
 const program = Effect.fail("Oh uh!").pipe(Effect.as(2))
+//    ^?
 
-//      ┌─── Effect<number | string, never, never>
-//      ▼
 const recovered = Effect.merge(program)
+//    ^?
 ```
 
 ## Flipping Error and Success Channels
@@ -429,11 +417,9 @@ The `Effect.flip` function allows you to switch the error and success channels o
 ```ts twoslash
 import { Effect } from "effect"
 
-//      ┌─── Effect<number, string, never>
-//      ▼
 const program = Effect.fail("Oh uh!").pipe(Effect.as(2))
+//    ^?
 
-//      ┌─── Effect<string, number, never>
-//      ▼
 const flipped = Effect.flip(program)
+//    ^?
 ```

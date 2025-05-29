@@ -306,12 +306,11 @@ import { pipe, Effect, Option } from "effect"
 // Simulated asynchronous task fetching a number from a database
 const fetchNumberValue = Effect.tryPromise(() => Promise.resolve(42))
 
-//      ┌─── Effect<number, UnknownException | NoSuchElementException, never>
-//      ▼
 const program = pipe(
   fetchNumberValue,
   Effect.andThen((x) => (x > 0 ? Option.some(x) : Option.none()))
 )
+//    ^?
 ```
 
 You might expect the type of `program` to be `Effect<Option<number>, UnknownException, never>`, but it is actually `Effect<number, UnknownException | NoSuchElementException, never>`.
@@ -336,12 +335,11 @@ const parseInteger = (input: string): Either.Either<number, string> =>
 // Simulated asynchronous task fetching a string from database
 const fetchStringValue = Effect.tryPromise(() => Promise.resolve("42"))
 
-//      ┌─── Effect<number, string | UnknownException, never>
-//      ▼
 const program = pipe(
   fetchStringValue,
   Effect.andThen((str) => parseInteger(str))
 )
+//    ^?
 ```
 
 Although one might expect the type of `program` to be `Effect<Either<number, string>, UnknownException, never>`, it is actually `Effect<number, string | UnknownException, never>`.
@@ -417,6 +415,7 @@ For instance, if the input is a tuple:
 //         ┌─── a tuple of effects
 //         ▼
 Effect.all([effect1, effect2, ...])
+//         ^?
 ```
 
 the effects are executed in order, and the result is a new effect containing the results as a tuple. The results in the tuple match the order of the effects passed to `Effect.all`.
