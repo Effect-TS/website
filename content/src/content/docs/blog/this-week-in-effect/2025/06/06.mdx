@@ -1,0 +1,205 @@
+---
+pagefind: false
+title: This Week in Effect - 2025-06-06
+excerpt: Effect's LSP 0.18 release. Effect Workflow introduction. Effect Days Workshop Part 2. 
+date: 2025-06-06
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+  - michael_arnaldi
+tags:
+  - This Week In Effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week In Effect (**TWIE**) - your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is a powerful TypeScript library that helps developers create complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you’ll find links to our documentation as well as our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+Recent major updates:
+
+- Effect Days 2025 talks: [MasterClass' AI Voice Chat](https://youtu.be/foPXd8T6Ido) & [Effect for AWS Lambda](https://youtu.be/Cg8Hv5nN1-A)
+- The [Effect community](https://discord.gg/effect-ts) on Discord reached 43000+ members!
+- Effect featured in the [Thoughtworks Technology Radar](https://www.thoughtworks.com/radar/languages-and-frameworks/effect).
+
+&nbsp;
+## Technology
+
+- [Effect's LSP 0.18](https://github.com/Effect-TS/language-service/releases/tag/v0.18.0) has been released!
+  <Tweet id="1930216553930256611" />
+
+- Major update for all users working with **distributed systems**: Tim Smart has integrated [durable workflows](https://github.com/Effect-TS/effect/pull/4945) into `@effect/cluster`.
+
+- An important notice for all the `@effect/cluster` users: a **breaking change** has been released to add support for [shard grouping](https://github.com/Effect-TS/effect/pull/4969).
+
+Here are all the technical changes from the past week.
+
+### Effect Core
+- [Remove this type propagation from Effect.fn](https://github.com/Effect-TS/effect/pull/4950) (Bug Fix)
+- [Improve Effect.catchTag auto-complete](https://github.com/Effect-TS/effect/pull/4952) (Improvement)
+- [Enable flaky Metrics histogram test](https://github.com/Effect-TS/effect/pull/4970) (Feature)
+
+### Effect AI
+- [Improve @effect/ai llm schema compatibility](https://github.com/Effect-TS/effect/pull/4959) (Improvement)
+- [Fix the type of AiToolkit.Any](https://github.com/Effect-TS/effect/pull/4968) (Bug Fix)
+
+### Effect Cluster
+- [Add @effect/workflow](https://github.com/Effect-TS/effect/pull/4945) (Feature)
+- [Ensure Workflow.interrupt triggers compensation](https://github.com/Effect-TS/effect/pull/4958) (Bug Fix)
+- [Add ClusterCron module](https://github.com/Effect-TS/effect/pull/4966) (Feature)
+- [Add shard groups, to allow entities to target specific runners](https://github.com/Effect-TS/effect/pull/4969) (Feature)
+- [Optimize for requests with a WithExit reply](https://github.com/Effect-TS/effect/pull/4972) (Optimization)
+- [Ignore runners that cannot be parsed](https://github.com/Effect-TS/effect/pull/4973) (Bug Fix)
+- [Add EntityProxy, EntityProxyServer, WorkflowProxy, WorkflowProxyServer](https://github.com/Effect-TS/effect/pull/4977) (Feature)
+- [Do not resume already running workflows](https://github.com/Effect-TS/effect/pull/4983) (Bug Fix)
+- [Expose Sharding.pollStorage api](https://github.com/Effect-TS/effect/pull/4984) (Improvement)
+
+### Effect Experimental
+- [Fix Machine initialize R argument](https://github.com/Effect-TS/effect/pull/4978) (Bug Fix)
+
+### Effect Language Service
+- [Update LSP to 0.18.0](https://github.com/Effect-TS/effect/pull/4980/files) (Feature)
+
+### Effect Platform
+- [Ensure HttpApi security middleware cache is not shared](https://github.com/Effect-TS/effect/pull/4964) (Bug Fix)
+- [Allow wrapping a web Response with HttpServerResponse.raw on some platforms](https://github.com/Effect-TS/effect/pull/4975) (Feature)
+
+### Effect RPC
+- [Add @effect/workflow](https://github.com/Effect-TS/effect/pull/4945) (Feature)
+- [Fix RpcClient error types when using discard](https://github.com/Effect-TS/effect/pull/4967) (Bug Fix)
+
+### Effect Workflow
+- [Add @effect/workflow](https://github.com/Effect-TS/effect/pull/4945) (Feature)
+- [Add Activity.onError](https://github.com/Effect-TS/effect/pull/4953) (Feature)
+- [Add Workflow.withCompensation](https://github.com/Effect-TS/effect/pull/4955) (Feature)
+- [Support typed cause for Workflow withCompensation](https://github.com/Effect-TS/effect/pull/4957) (Feature)
+- [Add EntityProxy, EntityProxyServer, WorkflowProxy, WorkflowProxyServer](https://github.com/Effect-TS/effect/pull/4977) (Feature)
+
+### General Chore
+- [Chore: upgrade TSTyche](https://github.com/Effect-TS/effect/pull/4925)
+
+&nbsp;
+## Effect Days 2025 Updates
+
+This week, we published the talk by Jérémie Dayan and the 2nd Part of Effect Days Workshop by Tim Smart
+
+Jérémie Dayan introduced **@inato-form**, a new form framework powered by Effect and Effect Schema.
+
+<YouTube
+  id="https://www.youtube.com/embed/RieDcO_LJik?si=aisUEqoQgH5ZnSVW"
+  title="Simplifying Forms with Effect | Jérémie Dayan (Effect Days 2025)"
+/>
+
+Tim Smart, in the afternoon session of the Effect Days Workshop, illustrated how to **incrementally adopt Effect** into an existing codebase.
+
+The main subjects of his workshop have been: **wrapping Promise-based libraries with the `use` pattern, integrating Effect into Express and React apps, and adding tracing, observability, and proper resource handling**.
+
+<YouTube
+  id="https://www.youtube.com/embed/LEiNtsMMo8c?si=0fiABArJIX0Ivqb8"
+  title="Incremental Adoption of Effect (Workshop Part 2 – Effect Days 2025)"
+/>
+
+
+&nbsp;
+## Community Highlights
+
+- [AI Engineer](https://www.youtube.com/@aiDotEngineer) released a new video, **Building Reliable Support Agents Using the Effect Typescript Library** by [Michael Fester](https://x.com/michaelfester), where he walks through how his team built production-ready support agents using Effect.
+
+  <YouTube
+  id="https://www.youtube.com/embed/sXXl3YMU7ZI?si=aiUuL2ELkBMUCQEs"
+  title="Building Reliable Support Agents Using the Effect Typescript Library - Michael Fester"
+  />
+
+- [Frosty](https://frostytools.com) built [Highlight Hunter](https://frostytools.com/highlight-hunter/about/), a tool that automatically combs Twitch streamers' VODs for memorable moments, giving them easy stream-summary-montages as well as quick access to get short clips, powered by Effect on the back-end.
+
+- Dillon Mulroy livestreamed three episodes of his new series **Building a DNS Resolver with EffectTS 🚀** on his Twitch channel.
+
+  <TwitchPlayerNonInteractive video="2476794110" />
+
+&nbsp;
+## Effect Content Update
+
+- Maxwell Brown was live on X(Twitter) and Twitch on Tuesday with a new episode of **Building an Effect-native MCP Server**.
+  <Tweet id="1929538856162124016" />
+
+&nbsp;
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [Youtube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/1861446144137531585), and audio platforms like [Spotify](https://open.spotify.com/episode/7Bkn7A8EXnoqWWmI0czAdz) and [Apple Podcast](https://podcasts.apple.com/us/podcast/cause-effect/id1781879869). 
+
+This podcast highlights stories from software engineers and companies using Effect in production. Each episode explores their journey of adopting Effect, including the learning process, challenges faced, and benefits of integrating Effect into their tech stack.
+
+We've published our second episode with Michael Fester from [Markprompt](https://markprompt.com/) about scaling AI-powered customer support with Effect, building reliable and high-performance infrastructure, and enhancing developer productivity in a fast-evolving AI landscape. Let us know your thoughts on our social media or [Discord](https://discord.gg/effect-ts)!
+
+<YouTube
+  id="https://www.youtube.com/embed/8lz9-0y58Jc?si=YsdegK9T-axfe_Vm"
+  title="Scaling AI for Customer Support at Markprompt with Effect | Cause & Effect #2"
+/>
+
+
+&nbsp;
+## Effect job opportunities
+
+More and more companies are adopting Effect in their projects. Here’s a list of companies looking for software engineers with Effect experience:
+
+- **Expand.ai**: [Founding Engineer](https://www.expand.ai/careers/founding-engineer)
+
+- **Platonic Systems**: [Remote Effect Engineers](https://twitter.com/platonicsystems/status/1861470819861311945)
+
+- **Inato**: [Product Engineers / Fullstack Engineers](https://jobs.lever.co/inato/6df2d1e3-ce0a-487b-a930-840759803d44)
+
+- **Medbill.ai**: [Founding Software Engineers (full-stack and backend)](https://www.linkedin.com/posts/codingtom_medbill-ai-activity-7260092522708762624-N7TH)
+
+- **Oneiro Solutions**: Software Engineer - Core Team. [Join Effect Discord](https://discord.com/channels/795981131316985866/796153351372275743) and DM **leighman** for further info.
+
+- **Microsub**: [TS Developer](https://x.com/0xdownshift/status/1880013835878154510)
+
+- **Samsung Food**: [Full Stack Developer](https://whisk.bamboohr.com/careers/110)
+
+- **Margins**: [Product Engineer](https://margins.app/jobs/product-engineer)
+
+- **[Precurion](https://precurion.com/)** looking for a remote‑first Founding Engineer with Effect experience. The job posting is available in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1362610725931061258).
+
+- **Vitalize** is hiring a full-stack engineer with Effect experience: [Senior Full-Stack Engineer](https://jobs.ashbyhq.com/vitalize/d907ba5f-0f2f-4bb4-931a-1680d6daf81a)
+
+- **Embedded Insurance** is hiring for a [Senior Software Engineering](https://embeddedinsurance.bamboohr.com/careers/23) position.
+
+- **Betalyra**, an AI consulting company from Portugal, is looking for a part-time freelance software engineer (Typescript/Effect) with AI experience. The job posting is available in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1362610725931061258).
+
+- **Software Intelligence Works**: [Senior Full-Stack Engineer](https://remotive.com/remote-jobs/software-dev/senior-full-stack-engineer-2011648)
+
+- Stealth team looking for a software engineer with Effect experience. The job posting is available in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1362610725931061258).
+
+- Stephan Le Dorze is looking for a French-speaking freelancer to join him in a small team in a startup - [see his LinkedIn post](https://www.linkedin.com/posts/stephaneledorze_mission-longue-avec-moi-entre-autre-activity-7310947252741570560-Bqsh/) for more details.
+
+- [Harish](https://x.com/code_typist), Founding Engineer at [frikle.io](https://www.freckle.io), is hiring [Platform Engineers](https://x.com/code_typist/status/1930326662677434561) with experience in Effect.
+
+- Stealth team of ~5 ex-FANG/Quant Trading, that has scaled their product to 50K daily active users in the last year, is looking for [Effect Developers](https://x.com/wireless_dev/status/1930314012723687739). DM [wireless](https://x.com/wireless_dev) on X for more info.
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+
+&nbsp;
+## Effect Merch Store
+
+In December 2024, we unveiled the [Effect Merch Store](https://effect.website/merch) with a selection of Effect-branded items designed for the community. All orders are processed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+
+&nbsp;
+## Closing notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
