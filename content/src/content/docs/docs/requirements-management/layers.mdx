@@ -1203,3 +1203,31 @@ Effect.runPromise(program.pipe(Effect.provide(Sync.Default)))
 <Aside type="caution" title="Limitation of Direct Method Access">
   Direct method access does not work with generic methods.
 </Aside>
+
+### Effect.Service vs Context.Tag
+
+Both `Effect.Service` and `Context.Tag` are ways to model services in the Effect ecosystem. They serve similar purposes but target different use-cases.
+
+| Feature                             | Effect.Service                                          | Context.Tag                               |
+| ----------------------------------- | ------------------------------------------------------- | ----------------------------------------- |
+| Tag creation                        | Generated for you (the class name acts as the tag)      | You declare the tag manually              |
+| Default implementation              | **Required** - supplied inline (`effect`, `sync`, etc.) | **Optional** - can be supplied later      |
+| Ready-made layers (`.Default`, ...) | Automatically generated                                 | You build layers yourself                 |
+| Best suited for                     | Application code with a clear runtime implementation    | Library code or dynamically-scoped values |
+| When no sensible default exists     | Not ideal; you would still have to invent one           | Preferred                                 |
+
+**Key points**
+
+- **Less boilerplate:** `Effect.Service` is syntactic sugar over `Context.Tag` plus the accompanying layer and helpers.
+- **Default required:**
+  A class that extends `Effect.Service` must declare **one** of the built-in constructors (`effect`, `sync`, `succeed`, or `scoped`). This baseline implementation becomes part of `MyService.Default`, so any code that imports the service can run without providing extra layers.
+  That is handy for app-level services where a sensible runtime implementation exists (logging, HTTP clients, real databases, and so on).
+  If your service is inherently contextual (for example, a per-request database handle) or you are writing a library that should not assume an implementation, prefer `Context.Tag`: you publish only the tag and let callers supply the layer that makes sense in their environment.
+- **The class _is_ the tag:** When you create a class with `extends Effect.Service`, the class constructor itself acts as the tag. You can provide alternate implementations by supplying a value for that class when wiring layers:
+
+  ```ts
+  const mock = new MyService({
+    /* mocked methods */
+  })
+  program.pipe(Effect.provideService(MyService, mock))
+  ```
