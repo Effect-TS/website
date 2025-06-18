@@ -21,7 +21,7 @@ const tweets = [
     text: `Effect is so, so good. Error handling in TypeScript has always felt so haphazard. Effect makes it feel effortless. And that’s only a tiny part of what makes Effect such a great set of libraries. Keep up the great work!`,
     user: {
       name: "Devin Jameson",
-      bio: "Software engineer at PolyCam",
+      bio: "Software engineer at August Health",
       avatar:
         "https://avatars.githubusercontent.com/u/39350030?v=4"
     }
