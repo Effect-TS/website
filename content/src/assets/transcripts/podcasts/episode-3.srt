@@ -1,0 +1,7308 @@
+1
+00:00:00,000 --> 00:00:01,166
+When I started looking
+
+2
+00:00:01,166 --> 00:00:03,666
+into Effect, I started seeing,
+
+3
+00:00:03,666 --> 00:00:05,500
+Well, this has a lot of promise and
+
+4
+00:00:05,500 --> 00:00:07,166
+potential if you use
+
+5
+00:00:07,166 --> 00:00:08,266
+it in the right way.
+
+6
+00:00:08,566 --> 00:00:10,633
+What I mean by that is you don't have to
+
+7
+00:00:10,633 --> 00:00:12,866
+necessarily go from 0%
+
+8
+00:00:12,866 --> 00:00:14,166
+to 100% overnight.
+
+9
+00:00:14,400 --> 00:00:16,133
+You don't have to completely
+
+10
+00:00:16,133 --> 00:00:18,100
+redesign the entire application
+
+11
+00:00:18,533 --> 00:00:20,966
+to take advantage of some of the benefits
+
+12
+00:00:20,966 --> 00:00:21,966
+that Effect has to offer.
+
+13
+00:00:22,266 --> 00:00:24,666
+That's how I started, was incrementally
+
+14
+00:00:24,666 --> 00:00:26,166
+adopting Effect in
+
+15
+00:00:26,166 --> 00:00:27,333
+parts of the code base.
+
+16
+00:00:27,733 --> 00:00:28,699
+And this was really
+
+17
+00:00:28,699 --> 00:00:30,266
+what enabled it to work.
+
+18
+00:00:33,833 --> 00:00:35,233
+Welcome to Cause & Effect,
+
+19
+00:00:35,766 --> 00:00:37,566
+a podcast about the TypeScript library
+
+20
+00:00:37,566 --> 00:00:39,366
+and ecosystem called Effect,
+
+21
+00:00:40,066 --> 00:00:41,433
+helping engineers to build
+
+22
+00:00:41,433 --> 00:00:42,566
+production-ready software.
+
+23
+00:00:43,266 --> 00:00:44,833
+I'm your host, Johannes Schickling, and
+
+24
+00:00:44,833 --> 00:00:45,600
+I've been building with
+
+25
+00:00:45,600 --> 00:00:46,933
+Effect for over four years.
+
+26
+00:00:47,633 --> 00:00:49,700
+With this podcast, I want to help others
+
+27
+00:00:49,700 --> 00:00:51,033
+understand the powers and
+
+28
+00:00:51,033 --> 00:00:52,299
+benefits of using Effect.
+
+29
+00:00:53,133 --> 00:00:55,000
+In this episode, I'm talking to David
+
+30
+00:00:55,000 --> 00:00:56,433
+Golightly, who's a Staff
+
+31
+00:00:56,433 --> 00:00:57,700
+Engineer at MasterClass.
+
+32
+00:00:58,433 --> 00:01:00,366
+In this conversation, we explore how
+
+33
+00:01:00,366 --> 00:01:01,500
+David has built Cortex,
+
+34
+00:01:02,166 --> 00:01:04,433
+MasterClass's AI voice chat system,
+
+35
+00:01:04,766 --> 00:01:06,400
+leveraging Effect streams heavily
+
+36
+00:01:06,733 --> 00:01:08,233
+to build a cutting-edge AI
+
+37
+00:01:08,233 --> 00:01:10,566
+experience. Let's get into it.
+
+38
+00:01:10,933 --> 00:01:12,766
+Hey David, so great to have you on the
+
+39
+00:01:12,766 --> 00:01:13,900
+podcast. How are you doing?
+
+40
+00:01:14,733 --> 00:01:16,400
+Doing great. Thanks for having me.
+
+41
+00:01:17,099 --> 00:01:19,733
+I'm really excited. The two of us had the
+
+42
+00:01:19,733 --> 00:01:22,066
+pleasure to now meet in person twice in
+
+43
+00:01:22,066 --> 00:01:23,766
+the course of the last half a year.
+
+44
+00:01:24,333 --> 00:01:26,433
+The first time we've met in person was at
+
+45
+00:01:26,433 --> 00:01:28,599
+the Effect TypeScript
+
+46
+00:01:28,599 --> 00:01:30,233
+Meetup in San Francisco.
+
+47
+00:01:30,700 --> 00:01:33,133
+And then a couple of weeks ago, we had
+
+48
+00:01:33,133 --> 00:01:35,833
+the pleasure to meet again in beautiful
+
+49
+00:01:35,833 --> 00:01:38,933
+Italy in Livorno, where you've also given
+
+50
+00:01:38,933 --> 00:01:41,700
+a talk about Cortex and what you're
+
+51
+00:01:41,700 --> 00:01:43,066
+building at MasterClass.
+
+52
+00:01:43,933 --> 00:01:46,599
+And it was such a pleasure to spend a
+
+53
+00:01:46,599 --> 00:01:48,966
+bunch of time together and talk about all
+
+54
+00:01:48,966 --> 00:01:51,599
+things TypeScript related beyond.
+
+55
+00:01:51,799 --> 00:01:53,966
+You also have some beautiful music gear
+
+56
+00:01:53,966 --> 00:01:55,799
+in the background. But today we're going
+
+57
+00:01:55,799 --> 00:01:57,566
+to talk about how you're
+
+58
+00:01:57,566 --> 00:01:58,966
+using Effect at MasterClass.
+
+59
+00:01:58,966 --> 00:02:01,700
+So would you mind introducing yourself
+
+60
+00:02:01,700 --> 00:02:02,933
+and sharing your background?
+
+61
+00:02:04,433 --> 00:02:07,266
+Yeah, sure. My name is David Golightly. I
+
+62
+00:02:07,266 --> 00:02:09,500
+am a Staff Engineer at MasterClass.
+
+63
+00:02:10,000 --> 00:02:12,466
+And I've been in the industry building
+
+64
+00:02:12,466 --> 00:02:14,633
+mostly web applications for
+
+65
+00:02:14,633 --> 00:02:18,466
+about almost 18 years now.
+
+66
+00:02:18,466 --> 00:02:20,566
+I've also dabbled in some mobile
+
+67
+00:02:20,566 --> 00:02:23,633
+applications, some back end, some other
+
+68
+00:02:23,633 --> 00:02:25,800
+embedded applications over the years.
+
+69
+00:02:25,800 --> 00:02:27,566
+But my main focus has been first
+
+70
+00:02:27,566 --> 00:02:29,933
+in the JavaScript world and then more
+
+71
+00:02:29,933 --> 00:02:30,933
+recently in the TypeScript
+
+72
+00:02:30,933 --> 00:02:32,300
+world for the last several years.
+
+73
+00:02:32,966 --> 00:02:34,633
+My actual background, though, I don't
+
+74
+00:02:34,633 --> 00:02:36,466
+have a Computer Science degree. My
+
+75
+00:02:36,466 --> 00:02:38,500
+education is in music.
+
+76
+00:02:38,933 --> 00:02:40,733
+And I grew up
+
+77
+00:02:40,733 --> 00:02:41,800
+surrounded by pianos.
+
+78
+00:02:41,800 --> 00:02:45,233
+My father is a piano technician and also
+
+79
+00:02:45,233 --> 00:02:47,966
+a piano professor who plays
+
+80
+00:02:47,966 --> 00:02:50,766
+classical, you know, everything you could
+
+81
+00:02:50,766 --> 00:02:52,099
+think of classical music.
+
+82
+00:02:52,099 --> 00:02:54,400
+He has played it. You know, he's played
+
+83
+00:02:54,400 --> 00:02:56,300
+with orchestras and he's, you know,
+
+84
+00:02:56,933 --> 00:02:58,833
+played solo concerts and chamber music.
+
+85
+00:02:58,833 --> 00:03:02,266
+And so forth. So just steeped in
+
+86
+00:03:02,266 --> 00:03:04,500
+classical music growing up in pianos and
+
+87
+00:03:04,500 --> 00:03:07,566
+also in repairing pianos, which I found
+
+88
+00:03:07,566 --> 00:03:09,566
+somehow translated
+
+89
+00:03:09,566 --> 00:03:12,699
+into programming sort of.
+
+90
+00:03:12,699 --> 00:03:13,933
+You're doing a lot of really repetitive
+
+91
+00:03:13,933 --> 00:03:16,466
+tasks. You have 88 keys. You have 230
+
+92
+00:03:16,466 --> 00:03:19,766
+some strings on a regular piano.
+
+93
+00:03:19,766 --> 00:03:21,633
+So there's a lot of repetitive tasks and
+
+94
+00:03:21,633 --> 00:03:24,333
+you quickly figure out ways to work more
+
+95
+00:03:24,333 --> 00:03:25,800
+efficiently when
+
+96
+00:03:25,800 --> 00:03:26,833
+you're doing piano repair.
+
+97
+00:03:27,300 --> 00:03:29,699
+So later on, after I got my degree in
+
+98
+00:03:29,699 --> 00:03:32,233
+music, I found that it wasn't well, well,
+
+99
+00:03:32,233 --> 00:03:34,066
+music is a passion of mine and it's
+
+100
+00:03:34,066 --> 00:03:35,466
+something that I still do.
+
+101
+00:03:35,900 --> 00:03:37,099
+It's not something I want to try to make
+
+102
+00:03:37,099 --> 00:03:40,566
+a career in. And so I quickly discovered
+
+103
+00:03:40,566 --> 00:03:41,966
+that, well,
+
+104
+00:03:41,966 --> 00:03:43,099
+programming is just right there.
+
+105
+00:03:43,099 --> 00:03:45,466
+And I actually enjoy doing it somewhat.
+
+106
+00:03:45,466 --> 00:03:47,800
+And so I devoted some energy into
+
+107
+00:03:47,800 --> 00:03:49,733
+learning how to do that professionally.
+
+108
+00:03:50,133 --> 00:03:51,766
+And, you know, all these
+
+109
+00:03:51,766 --> 00:03:52,733
+years later, here I am.
+
+110
+00:03:52,966 --> 00:03:54,833
+That is awesome. And such a funny
+
+111
+00:03:54,833 --> 00:03:57,099
+parallel since we never talked about
+
+112
+00:03:57,099 --> 00:03:58,766
+this, but my mother also
+
+113
+00:03:58,766 --> 00:04:01,000
+happens to be a professor in piano.
+
+114
+00:04:01,266 --> 00:04:05,966
+And so I likewise also grew up surrounded
+
+115
+00:04:05,966 --> 00:04:09,199
+by pianos and played the piano for quite
+
+116
+00:04:09,199 --> 00:04:12,300
+a while, but then also found myself more
+
+117
+00:04:12,300 --> 00:04:14,466
+attractive to technology.
+
+118
+00:04:14,766 --> 00:04:17,966
+But I think this is a fairly common
+
+119
+00:04:17,966 --> 00:04:22,733
+overlap of people who had their start in
+
+120
+00:04:22,733 --> 00:04:25,933
+music or a different kind of art and then
+
+121
+00:04:25,933 --> 00:04:28,266
+gravitated also towards programming.
+
+122
+00:04:28,266 --> 00:04:30,733
+And I think it's just a certain way of
+
+123
+00:04:30,733 --> 00:04:33,633
+like how someone's brain works that
+
+124
+00:04:33,633 --> 00:04:36,433
+really like there's a couple of people
+
+125
+00:04:36,433 --> 00:04:38,633
+come to mind to have professional music
+
+126
+00:04:38,633 --> 00:04:40,333
+background who are just like absolutely
+
+127
+00:04:40,333 --> 00:04:42,933
+brilliant in the engineering field.
+
+128
+00:04:43,266 --> 00:04:46,000
+So that's a very funny parallel. But
+
+129
+00:04:46,000 --> 00:04:48,733
+keeping it a bit more focused on like
+
+130
+00:04:48,733 --> 00:04:50,933
+Effect, what has brought you to Effect?
+
+131
+00:04:50,933 --> 00:04:53,566
+How did you first learn about it? And
+
+132
+00:04:53,566 --> 00:04:55,333
+what did you think about it when you
+
+133
+00:04:55,333 --> 00:04:56,333
+saw it the first time?
+
+134
+00:04:56,833 --> 00:05:00,133
+Yeah, so I was not necessarily going to
+
+135
+00:05:00,133 --> 00:05:02,466
+adopt Effect for the work I was doing,
+
+136
+00:05:02,466 --> 00:05:04,566
+say, maybe over a year ago,
+
+137
+00:05:05,199 --> 00:05:07,300
+which was more React focused.
+
+138
+00:05:08,000 --> 00:05:08,966
+It wasn't something that I was
+
+139
+00:05:08,966 --> 00:05:09,966
+necessarily considering.
+
+140
+00:05:10,800 --> 00:05:12,266
+You know, I think React is a
+
+141
+00:05:12,266 --> 00:05:13,699
+great framework and it totally
+
+142
+00:05:13,699 --> 00:05:16,266
+transformed how we do
+
+143
+00:05:16,266 --> 00:05:17,433
+front end development.
+
+144
+00:05:17,800 --> 00:05:20,000
+But it's not without its problems in
+
+145
+00:05:20,000 --> 00:05:21,600
+terms of state management and so forth.
+
+146
+00:05:21,699 --> 00:05:23,233
+But I was mostly happy with it for the
+
+147
+00:05:23,233 --> 00:05:24,733
+front end and we try to
+
+148
+00:05:24,733 --> 00:05:25,800
+keep things lightweight there.
+
+149
+00:05:26,133 --> 00:05:28,233
+But then I got asked to work on this new
+
+150
+00:05:28,233 --> 00:05:29,833
+project Cortex, which I'll
+
+151
+00:05:29,833 --> 00:05:30,933
+talk about a little bit more.
+
+152
+00:05:31,199 --> 00:05:33,500
+And that was going to be a server side
+
+153
+00:05:33,500 --> 00:05:35,300
+application that was also not a
+
+154
+00:05:35,300 --> 00:05:36,566
+conventional API server.
+
+155
+00:05:36,833 --> 00:05:38,766
+Instead, it was managing a lot of async
+
+156
+00:05:38,766 --> 00:05:42,566
+events, a lot of open WebSockets, more
+
+157
+00:05:42,566 --> 00:05:44,566
+than one of like several open WebSocket
+
+158
+00:05:44,566 --> 00:05:46,433
+WebSocket connections that
+
+159
+00:05:46,433 --> 00:05:48,000
+it needed to then coordinate.
+
+160
+00:05:48,233 --> 00:05:51,500
+So I was looking at a proof of
+
+161
+00:05:51,500 --> 00:05:53,566
+concept that somebody else at our company
+
+162
+00:05:53,566 --> 00:05:55,733
+had built that was really, you
+
+163
+00:05:55,733 --> 00:05:57,199
+know, what we call async hell.
+
+164
+00:05:57,500 --> 00:06:01,600
+That is just lots of callbacks, lots of
+
+165
+00:06:01,600 --> 00:06:03,233
+event listeners passing
+
+166
+00:06:03,233 --> 00:06:04,966
+around references to random things.
+
+167
+00:06:05,133 --> 00:06:07,800
+And we're starting to try to build into
+
+168
+00:06:07,800 --> 00:06:11,199
+it observability and error handling and,
+
+169
+00:06:11,199 --> 00:06:13,399
+you know, more advanced interruption type
+
+170
+00:06:13,399 --> 00:06:15,699
+features that involve coordinating the
+
+171
+00:06:15,699 --> 00:06:17,066
+state of multiple WebSockets.
+
+172
+00:06:17,566 --> 00:06:18,633
+And it just wasn't going to work.
+
+173
+00:06:18,633 --> 00:06:20,399
+It was not going to scale.
+
+174
+00:06:20,566 --> 00:06:22,300
+The implementation was just going to get
+
+175
+00:06:22,300 --> 00:06:23,800
+increasingly tangled.
+
+176
+00:06:24,233 --> 00:06:26,300
+And so that's when I started looking
+
+177
+00:06:26,300 --> 00:06:27,466
+around for, well, what is
+
+178
+00:06:27,466 --> 00:06:28,399
+the state of the art here?
+
+179
+00:06:28,733 --> 00:06:30,833
+I had used RxJS in the past.
+
+180
+00:06:30,833 --> 00:06:32,066
+And I think that, you know, for people
+
+181
+00:06:32,066 --> 00:06:34,500
+who've used RxJS, when they see Effect,
+
+182
+00:06:34,500 --> 00:06:36,233
+that's what their first thought is.
+
+183
+00:06:36,233 --> 00:06:37,199
+Oh, this is RxJS.
+
+184
+00:06:37,199 --> 00:06:37,933
+I've seen this before.
+
+185
+00:06:38,233 --> 00:06:39,933
+You know, this is this is familiar to me.
+
+186
+00:06:39,933 --> 00:06:42,233
+It's just another RxJS kind of knockoff.
+
+187
+00:06:42,500 --> 00:06:44,266
+I didn't really find it to be the case,
+
+188
+00:06:44,266 --> 00:06:46,266
+though, for several reasons.
+
+189
+00:06:46,266 --> 00:06:48,933
+But I think that what really caught my
+
+190
+00:06:48,933 --> 00:06:51,199
+eye with Effect was the
+
+191
+00:06:51,199 --> 00:06:53,066
+really active community.
+
+192
+00:06:53,433 --> 00:06:55,966
+Because when I'm looking to adopt a new
+
+193
+00:06:55,966 --> 00:06:58,399
+framework that is going to form the
+
+194
+00:06:58,399 --> 00:07:00,566
+backbone of how we build an application,
+
+195
+00:07:00,933 --> 00:07:01,699
+I don't want to have to
+
+196
+00:07:01,699 --> 00:07:03,833
+be inventing stuff out of whole cloth
+
+197
+00:07:03,833 --> 00:07:04,966
+I don't want to have to
+
+198
+00:07:04,966 --> 00:07:06,566
+resurrect things from a couple of
+
+199
+00:07:06,566 --> 00:07:07,699
+examples that don't
+
+200
+00:07:07,699 --> 00:07:10,000
+really apply to my application.
+
+201
+00:07:10,133 --> 00:07:12,133
+I don't want to be in
+
+202
+00:07:12,133 --> 00:07:13,500
+the dark and be on my own.
+
+203
+00:07:13,766 --> 00:07:15,600
+And I especially don't want to ask my
+
+204
+00:07:15,600 --> 00:07:18,966
+teammates to accept a framework where
+
+205
+00:07:18,966 --> 00:07:20,133
+they don't have the proper
+
+206
+00:07:20,133 --> 00:07:22,066
+documentation or the guidance.
+
+207
+00:07:22,066 --> 00:07:23,133
+They don't know where to find help.
+
+208
+00:07:23,466 --> 00:07:25,133
+And so really, I found that the community
+
+209
+00:07:25,133 --> 00:07:28,000
+seems to be Effect's biggest asset.
+
+210
+00:07:28,199 --> 00:07:30,933
+And just how helpful everybody is and how
+
+211
+00:07:30,933 --> 00:07:32,466
+enthusiastic everybody is
+
+212
+00:07:32,466 --> 00:07:35,000
+really ease the adoption process.
+
+213
+00:07:35,233 --> 00:07:36,300
+That is awesome to hear.
+
+214
+00:07:36,500 --> 00:07:39,233
+And that definitely also reflects my own
+
+215
+00:07:39,233 --> 00:07:41,000
+perspective and my own reality.
+
+216
+00:07:41,000 --> 00:07:42,699
+This is what drew me
+
+217
+00:07:42,699 --> 00:07:44,199
+to Effect very early on.
+
+218
+00:07:44,199 --> 00:07:46,300
+The community was much smaller at this
+
+219
+00:07:46,300 --> 00:07:49,066
+point and I tried to play a positive role
+
+220
+00:07:49,066 --> 00:07:50,800
+in like growing and
+
+221
+00:07:50,800 --> 00:07:51,766
+forming that community.
+
+222
+00:07:52,199 --> 00:07:54,699
+But it's also something I'm like super
+
+223
+00:07:54,699 --> 00:07:56,433
+excited about and super
+
+224
+00:07:56,433 --> 00:07:58,300
+proud of that we like together.
+
+225
+00:07:58,600 --> 00:08:00,133
+Yeah, broad Effect to
+
+226
+00:08:00,133 --> 00:08:01,500
+the point where it is today.
+
+227
+00:08:02,199 --> 00:08:03,833
+And it attracts more
+
+228
+00:08:03,833 --> 00:08:04,500
+like brilliant minds.
+
+229
+00:08:04,500 --> 00:08:08,333
+And it's also interesting that Effect
+
+230
+00:08:08,333 --> 00:08:10,399
+attracts a lot of experience engineers
+
+231
+00:08:10,399 --> 00:08:13,000
+like yourself, but also new engineers
+
+232
+00:08:13,000 --> 00:08:15,833
+that are drawn to
+
+233
+00:08:15,833 --> 00:08:17,100
+building something great.
+
+234
+00:08:17,433 --> 00:08:19,899
+And that community is such a compelling
+
+235
+00:08:19,899 --> 00:08:21,566
+aspect of that as well.
+
+236
+00:08:21,566 --> 00:08:25,600
+So maybe to linger on the RxJS part for a
+
+237
+00:08:25,600 --> 00:08:28,699
+little bit since yes, quite a few people
+
+238
+00:08:28,699 --> 00:08:32,133
+are kind of comparing Effect with RxJS.
+
+239
+00:08:33,000 --> 00:08:35,733
+For folks who are familiar with RxJS but
+
+240
+00:08:35,733 --> 00:08:38,299
+not yet with Effect, where would you say
+
+241
+00:08:38,299 --> 00:08:41,933
+there are parallels and the commonalities
+
+242
+00:08:41,933 --> 00:08:43,066
+and where would you say
+
+243
+00:08:43,066 --> 00:08:44,566
+things are much more different?
+
+244
+00:08:45,466 --> 00:08:47,399
+Well, in RxJS, the idea is
+
+245
+00:08:47,399 --> 00:08:49,566
+it's very stream oriented.
+
+246
+00:08:50,266 --> 00:08:52,933
+So you essentially are creating
+
+247
+00:08:52,933 --> 00:08:56,200
+everything is an observable.
+
+248
+00:08:56,200 --> 00:08:58,466
+It can emit events.
+
+249
+00:08:58,466 --> 00:09:00,600
+And this is really useful actually.
+
+250
+00:09:00,799 --> 00:09:02,566
+I think a lot of programming situations
+
+251
+00:09:02,566 --> 00:09:04,333
+can be modeled in this way.
+
+252
+00:09:04,333 --> 00:09:06,733
+You have especially the asynchronous
+
+253
+00:09:06,733 --> 00:09:08,799
+stuff like really anything side-effectey 
+
+254
+00:09:08,966 --> 00:09:11,933
+is happening asynchronously.
+
+255
+00:09:11,933 --> 00:09:13,266
+You can't necessarily expect it or
+
+256
+00:09:13,266 --> 00:09:15,433
+predict it, but then you have to react to
+
+257
+00:09:15,433 --> 00:09:18,133
+it and do something in response to it.
+
+258
+00:09:18,899 --> 00:09:20,833
+You have user input,
+
+259
+00:09:21,100 --> 00:09:22,433
+user loads the web page.
+
+260
+00:09:22,433 --> 00:09:23,600
+You didn't know when or why
+
+261
+00:09:23,600 --> 00:09:24,333
+they were going to do that.
+
+262
+00:09:24,333 --> 00:09:27,733
+They click on a link or they decide to
+
+263
+00:09:27,733 --> 00:09:28,899
+watch a video or fill out
+
+264
+00:09:28,899 --> 00:09:31,133
+a form or what have you.
+
+265
+00:09:31,133 --> 00:09:33,433
+This is ultimately the timing and
+
+266
+00:09:33,433 --> 00:09:34,066
+coordination of these things
+
+267
+00:09:34,066 --> 00:09:35,799
+and these inputs are driven by humans.
+
+268
+00:09:36,500 --> 00:09:38,466
+And likewise, when you have systems where
+
+269
+00:09:38,466 --> 00:09:40,933
+you have connections coming from third
+
+270
+00:09:40,933 --> 00:09:43,966
+party services or you have other kinds of
+
+271
+00:09:43,966 --> 00:09:45,933
+asynchronous behaviors where you have to
+
+272
+00:09:45,933 --> 00:09:49,233
+connect users to each other.
+
+273
+00:09:49,700 --> 00:09:51,899
+A lot of the hardest parts of programming
+
+274
+00:09:51,899 --> 00:09:55,466
+happen when we have asynchronous behavior
+
+275
+00:09:55,466 --> 00:09:56,333
+that we have to model.
+
+276
+00:09:56,600 --> 00:09:59,299
+And this is why I think you look at
+
+277
+00:09:59,299 --> 00:10:03,066
+paradigms like HTTP or more specifically
+
+278
+00:10:03,066 --> 00:10:05,566
+like a model view controller that you see
+
+279
+00:10:05,566 --> 00:10:07,466
+in Rails that is still so successful.
+
+280
+00:10:07,766 --> 00:10:09,433
+And one of the things that that has
+
+281
+00:10:09,433 --> 00:10:11,933
+largely done is allow us to architect
+
+282
+00:10:11,933 --> 00:10:13,833
+applications around kind of one shot
+
+283
+00:10:13,833 --> 00:10:17,566
+actions where you get essentially a
+
+284
+00:10:17,566 --> 00:10:20,633
+function call via an HTTP request.
+
+285
+00:10:20,633 --> 00:10:24,133
+And your application now has to implement
+
+286
+00:10:24,133 --> 00:10:27,066
+the function call and respond with it.
+
+287
+00:10:27,066 --> 00:10:29,399
+But it's everything that happens between
+
+288
+00:10:29,399 --> 00:10:32,433
+the request and the response is largely
+
+289
+00:10:32,433 --> 00:10:34,299
+typically serialized.
+
+290
+00:10:34,299 --> 00:10:35,466
+It's sequential. It's
+
+291
+00:10:35,466 --> 00:10:36,200
+not in parallel, right?
+
+292
+00:10:36,899 --> 00:10:38,466
+Which is great. It makes things a lot
+
+293
+00:10:38,466 --> 00:10:40,100
+more easy to reason about.
+
+294
+00:10:40,100 --> 00:10:42,433
+You know, things happen in a sequence A,
+
+295
+00:10:42,433 --> 00:10:44,200
+B, C, D, E and then you're done.
+
+296
+00:10:44,333 --> 00:10:47,100
+But most of what we have to deal with,
+
+297
+00:10:47,100 --> 00:10:50,000
+especially in building web interfaces or
+
+298
+00:10:50,000 --> 00:10:51,000
+building applications like
+
+299
+00:10:51,000 --> 00:10:53,299
+Cortex, is not like that.
+
+300
+00:10:53,299 --> 00:10:54,899
+Because you have a lot of things that can
+
+301
+00:10:54,899 --> 00:10:56,333
+happen and you might be in the middle of
+
+302
+00:10:56,333 --> 00:10:57,700
+one thing and then something else happens
+
+303
+00:10:57,700 --> 00:10:58,433
+that you didn't expect.
+
+304
+00:10:58,433 --> 00:11:01,733
+And now you have to deal with that. And a
+
+305
+00:11:01,733 --> 00:11:03,766
+lot of this also involves kind of keeping
+
+306
+00:11:03,766 --> 00:11:05,433
+state updates going.
+
+307
+00:11:05,433 --> 00:11:07,733
+This is why honestly, this is why React
+
+308
+00:11:07,733 --> 00:11:09,733
+superseded jQuery is because they're
+
+309
+00:11:09,733 --> 00:11:10,399
+really good at this.
+
+310
+00:11:10,566 --> 00:11:12,500
+But getting back to your question about
+
+311
+00:11:12,500 --> 00:11:16,000
+RxJS, RxJS is kind of an even more next
+
+312
+00:11:16,000 --> 00:11:17,600
+level approach at this where you can
+
+313
+00:11:17,600 --> 00:11:19,133
+model everything as an observable.
+
+314
+00:11:19,733 --> 00:11:21,000
+You don't know when it's going to happen,
+
+315
+00:11:21,399 --> 00:11:23,500
+but you know that you might receive one
+
+316
+00:11:23,500 --> 00:11:25,000
+or more different kind of events.
+
+317
+00:11:25,000 --> 00:11:28,633
+And then how do you combine events from
+
+318
+00:11:28,633 --> 00:11:30,100
+one observable with events from another
+
+319
+00:11:30,100 --> 00:11:32,466
+observable when they need to interact to
+
+320
+00:11:32,466 --> 00:11:33,700
+produce some sort of output.
+
+321
+00:11:34,066 --> 00:11:35,933
+And RxJS is really built
+
+322
+00:11:35,933 --> 00:11:38,399
+around this sort of model.
+
+323
+00:11:38,566 --> 00:11:41,799
+The thing is though, RxJS is also trying
+
+324
+00:11:41,799 --> 00:11:45,766
+to be not just RxJS, but it's a reactive
+
+325
+00:11:45,766 --> 00:11:47,399
+framework that is cross-platform.
+
+326
+00:11:48,333 --> 00:11:51,799
+So you have the same APIs more or less
+
+327
+00:11:51,799 --> 00:11:56,233
+that are designed for JavaScript or
+
+328
+00:11:56,233 --> 00:11:58,700
+TypeScript that are then also ported over
+
+329
+00:11:58,700 --> 00:12:01,966
+to Java or ported over to Swift or ported
+
+330
+00:12:01,966 --> 00:12:03,766
+over to Kotlin or ported over to
+
+331
+00:12:03,766 --> 00:12:06,633
+whatever other language or framework.
+
+332
+00:12:06,933 --> 00:12:08,733
+And so I think there was an intentional
+
+333
+00:12:08,733 --> 00:12:11,466
+desire on the part of the designers there
+
+334
+00:12:11,466 --> 00:12:14,733
+to keep things language agnostic in their
+
+335
+00:12:14,733 --> 00:12:17,266
+designs, which in my opinion is kind of a
+
+336
+00:12:17,266 --> 00:12:19,399
+flaw because it means that it's
+
+337
+00:12:20,299 --> 00:12:21,799
+yes, you can transfer that knowledge
+
+338
+00:12:21,799 --> 00:12:23,399
+from one language to
+
+339
+00:12:23,399 --> 00:12:24,500
+another pretty easily.
+
+340
+00:12:24,500 --> 00:12:26,266
+If you know reactive programming, you can
+
+341
+00:12:26,266 --> 00:12:27,266
+do it in any language.
+
+342
+00:12:27,700 --> 00:12:30,233
+But it means that you're passing on a lot
+
+343
+00:12:30,233 --> 00:12:32,833
+of the strengths of each language that
+
+344
+00:12:32,833 --> 00:12:35,600
+you're in in order to make things as same
+
+345
+00:12:35,600 --> 00:12:38,333
+as possible between every
+
+346
+00:12:38,333 --> 00:12:40,200
+language that you're working in.
+
+347
+00:12:40,399 --> 00:12:42,433
+Effect in my mind is taking kind of a
+
+348
+00:12:42,433 --> 00:12:44,299
+very different approach, even though it's
+
+349
+00:12:44,299 --> 00:12:45,600
+based on the ZIO, which
+
+350
+00:12:45,600 --> 00:12:48,133
+is the Scala equivalent.
+
+351
+00:12:48,133 --> 00:12:49,833
+It was the inspiration for Effect.
+
+352
+00:12:50,399 --> 00:12:52,233
+My understanding is that now, Effect's
+
+353
+00:12:52,233 --> 00:12:55,299
+design is pretty detached from needing to
+
+354
+00:12:55,299 --> 00:12:56,700
+keep parity with ZIO.
+
+355
+00:12:57,066 --> 00:13:00,833
+Effect is basically about TypeScript and
+
+356
+00:13:00,833 --> 00:13:02,466
+getting really good at TypeScript, making
+
+357
+00:13:02,466 --> 00:13:05,299
+TypeScript the best it can be.
+
+358
+00:13:05,600 --> 00:13:08,700
+And there is no, as far as I know, I
+
+359
+00:13:08,700 --> 00:13:11,566
+can't speak for the core team, but as far
+
+360
+00:13:11,566 --> 00:13:13,700
+as I know, there's no attempt at saying,
+
+361
+00:13:13,966 --> 00:13:15,233
+"Well, what if we make Effect
+
+362
+00:13:15,233 --> 00:13:17,766
+for Java or Swift or Kotlin?"
+
+363
+00:13:17,966 --> 00:13:21,100
+It's not about that. It's just about what
+
+364
+00:13:21,100 --> 00:13:23,100
+is TypeScript good at and how can we be
+
+365
+00:13:23,100 --> 00:13:24,333
+really good at that.
+
+366
+00:13:24,600 --> 00:13:26,966
+So that's a really big point, I think,
+
+367
+00:13:26,966 --> 00:13:30,200
+because with RxJS in TypeScript, it never
+
+368
+00:13:30,200 --> 00:13:33,466
+felt like they really got how to make a
+
+369
+00:13:33,466 --> 00:13:35,299
+TypeSafe reactive stream
+
+370
+00:13:35,299 --> 00:13:36,700
+application really work.
+
+371
+00:13:37,200 --> 00:13:37,966
+the types
+
+372
+00:13:37,966 --> 00:13:39,700
+kind of sort of worked.
+
+373
+00:13:40,399 --> 00:13:42,733
+As far as I recall, there wasn't really a
+
+374
+00:13:42,733 --> 00:13:44,299
+great story around requirements
+
+375
+00:13:44,299 --> 00:13:47,000
+management or even really error handling
+
+376
+00:13:47,000 --> 00:13:48,433
+the way there is with Effect.
+
+377
+00:13:48,433 --> 00:13:50,899
+And so it lacked a lot of the
+
+378
+00:13:50,899 --> 00:13:53,399
+potential, it failed to take advantage
+
+379
+00:13:53,399 --> 00:13:55,766
+of a lot of the potential that TypeScript
+
+380
+00:13:55,766 --> 00:13:58,000
+has to offer in the way that Effect does.
+
+381
+00:13:58,799 --> 00:13:59,633
+Does that answer your question?
+
+382
+00:14:00,299 --> 00:14:01,566
+No, it does. And it
+
+383
+00:14:01,566 --> 00:14:02,933
+reflects also my perspective.
+
+384
+00:14:03,133 --> 00:14:06,266
+In fact, I've been using ReactiveCocoa
+
+385
+00:14:06,266 --> 00:14:09,733
+back in the days, and I believe that was
+
+386
+00:14:09,733 --> 00:14:12,133
+early on in Swift, and it was quite
+
+387
+00:14:12,133 --> 00:14:14,833
+pleasant to use, but it was very
+
+388
+00:14:14,833 --> 00:14:18,633
+deliberate for the purposes of streams.
+
+389
+00:14:19,333 --> 00:14:20,833
+And there was sort
+
+390
+00:14:20,833 --> 00:14:22,200
+of like a peak moment
+
+391
+00:14:22,200 --> 00:14:23,733
+where it got really into it.
+
+392
+00:14:23,966 --> 00:14:26,733
+But then I felt like a lot of impedance
+
+393
+00:14:26,733 --> 00:14:29,566
+mismatch where everything wanted to be
+
+394
+00:14:29,566 --> 00:14:31,500
+modeled as a stream, but
+
+395
+00:14:31,500 --> 00:14:33,133
+not everything is a stream.
+
+396
+00:14:33,433 --> 00:14:35,799
+Some things are just like a one-off
+
+397
+00:14:35,799 --> 00:14:39,500
+thing, and you just do an HTTP request
+
+398
+00:14:39,500 --> 00:14:40,200
+and you get it back.
+
+399
+00:14:41,200 --> 00:14:43,466
+Ensure that might fail, and eventually
+
+400
+00:14:43,466 --> 00:14:45,700
+you're just interested in one value, but
+
+401
+00:14:45,700 --> 00:14:47,733
+you kind of model your tree
+
+402
+00:14:47,733 --> 00:14:49,733
+tries, etc. as a stream, etc.
+
+403
+00:14:50,299 --> 00:14:52,333
+So this was my first exposure
+
+404
+00:14:52,333 --> 00:14:56,299
+really to this mindset, but it felt like
+
+405
+00:14:56,299 --> 00:14:59,633
+the gravity was too hard on
+
+406
+00:14:59,633 --> 00:15:01,600
+this very specific primitive.
+
+407
+00:15:02,399 --> 00:15:05,000
+And this is where I would rather like
+
+408
+00:15:05,000 --> 00:15:07,433
+create more distance between Effect and
+
+409
+00:15:07,433 --> 00:15:11,333
+RxJS, because Effect is not trying to
+
+410
+00:15:11,333 --> 00:15:13,299
+tell you, "Hey, everything is a stream."
+
+411
+00:15:13,566 --> 00:15:16,799
+No. Effect gives you a stream abstraction
+
+412
+00:15:16,799 --> 00:15:19,433
+that lets you use the stream abstraction
+
+413
+00:15:19,433 --> 00:15:20,766
+when you have a stream.
+
+414
+00:15:20,966 --> 00:15:24,066
+For example, when you use a WebSocket or
+
+415
+00:15:24,066 --> 00:15:26,133
+when you use something else, maybe you
+
+416
+00:15:26,133 --> 00:15:29,100
+want to read a file and use streams
+
+417
+00:15:29,100 --> 00:15:30,233
+through the bytes, etc.
+
+418
+00:15:30,600 --> 00:15:32,266
+This is where streams are a great use
+
+419
+00:15:32,266 --> 00:15:35,233
+case, but if you just want to do a
+
+420
+00:15:35,233 --> 00:15:37,133
+one-off thing that happens to be
+
+421
+00:15:37,133 --> 00:15:39,500
+asynchronous, then you don't need to be
+
+422
+00:15:39,500 --> 00:15:40,633
+forced that this is the
+
+423
+00:15:40,633 --> 00:15:43,066
+stream mindset, but this is where Effect
+
+424
+00:15:43,066 --> 00:15:44,233
+gives you different primitives.
+
+425
+00:15:44,466 --> 00:15:48,000
+And I think this is kind of the huge leap
+
+426
+00:15:48,000 --> 00:15:51,133
+beyond what RxJS gives you, and I think
+
+427
+00:15:51,133 --> 00:15:53,333
+this was always like the big caveat for
+
+428
+00:15:53,333 --> 00:15:57,333
+RxJS that not everyone buys into the
+
+429
+00:15:57,333 --> 00:15:59,899
+"everything is a stream" mindset.
+
+430
+00:16:00,100 --> 00:16:02,799
+And this is where Effect is much more
+
+431
+00:16:02,799 --> 00:16:05,466
+applicable to any sort of circumstance
+
+432
+00:16:05,466 --> 00:16:06,766
+where programming
+
+433
+00:16:06,766 --> 00:16:08,500
+languages is applicable to.
+
+434
+00:16:08,933 --> 00:16:11,399
+Very interesting to hear your perspective
+
+435
+00:16:11,399 --> 00:16:12,566
+on this. You've been
+
+436
+00:16:12,566 --> 00:16:14,766
+mentioning Cortex now a few times.
+
+437
+00:16:15,466 --> 00:16:17,766
+So before we dive into how it's built
+
+438
+00:16:17,766 --> 00:16:19,933
+specifically and how it leverages Effect,
+
+439
+00:16:20,700 --> 00:16:24,233
+can you motivate what Cortex is and what
+
+440
+00:16:24,233 --> 00:16:26,799
+role it plays within MasterClass?
+
+441
+00:16:27,200 --> 00:16:30,933
+Right, yes. So Masterclass has been
+
+442
+00:16:30,933 --> 00:16:34,500
+developing over the last year plus our
+
+443
+00:16:34,500 --> 00:16:38,433
+own in-house voice AI chat that has got
+
+444
+00:16:38,433 --> 00:16:39,733
+kind of a MasterClass twist to it,
+
+445
+00:16:39,733 --> 00:16:41,933
+and that you're not talking with
+
+446
+00:16:41,933 --> 00:16:44,833
+fictional, invented characters or
+
+447
+00:16:44,833 --> 00:16:48,333
+anonymous service bots, but we got
+
+448
+00:16:48,333 --> 00:16:50,799
+authorization from many of our
+
+449
+00:16:50,799 --> 00:16:52,933
+instructors who are working closely with
+
+450
+00:16:52,933 --> 00:16:54,700
+us to essentially clone
+
+451
+00:16:54,700 --> 00:16:57,700
+them into an AI persona.
+
+452
+00:16:57,700 --> 00:17:01,933
+This includes an LLM that is trained on
+
+453
+00:17:01,933 --> 00:17:05,000
+their ideas, their writings, their public
+
+454
+00:17:05,000 --> 00:17:06,566
+speaking, and it also
+
+455
+00:17:06,566 --> 00:17:08,433
+includes a voice clone of them.
+
+456
+00:17:08,900 --> 00:17:11,633
+And in some cases also, we have some
+
+457
+00:17:11,633 --> 00:17:14,200
+chefs like Gordon Ramsay is being
+
+458
+00:17:14,200 --> 00:17:16,066
+released soon, and we have a lot of his
+
+459
+00:17:16,066 --> 00:17:18,266
+recipes that are included, and he can
+
+460
+00:17:18,266 --> 00:17:18,900
+walk you through
+
+461
+00:17:18,900 --> 00:17:20,000
+making one of these recipes.
+
+462
+00:17:20,266 --> 00:17:23,266
+So it's a really interesting, interactive
+
+463
+00:17:23,266 --> 00:17:26,500
+way that I think enables MasterClass
+
+464
+00:17:26,500 --> 00:17:29,633
+instructors to make themselves really
+
+465
+00:17:29,633 --> 00:17:32,599
+available to a much broader audience than
+
+466
+00:17:32,599 --> 00:17:34,000
+they would be able to on
+
+467
+00:17:34,000 --> 00:17:35,833
+their own as individuals.
+
+468
+00:17:36,333 --> 00:17:38,833
+And so this has also presented an
+
+469
+00:17:38,833 --> 00:17:40,900
+enormous technical challenge because I
+
+470
+00:17:40,900 --> 00:17:43,266
+think when you are talking to an
+
+471
+00:17:43,266 --> 00:17:45,733
+anonymous AI, well, you might
+
+472
+00:17:45,733 --> 00:17:46,966
+be a little bit more forgiving.
+
+473
+00:17:47,233 --> 00:17:48,333
+You know that it's a bot that you're
+
+474
+00:17:48,333 --> 00:17:49,466
+speaking to on some level.
+
+475
+00:17:49,833 --> 00:17:54,299
+But with these real people who are very
+
+476
+00:17:54,299 --> 00:17:56,266
+invested in the integrity of their image
+
+477
+00:17:56,266 --> 00:18:00,233
+and their public persona, the bar is much
+
+478
+00:18:00,233 --> 00:18:02,200
+higher, I think, in terms
+
+479
+00:18:02,200 --> 00:18:03,500
+of really representing that.
+
+480
+00:18:03,500 --> 00:18:05,200
+And this is also like if you sign up and
+
+481
+00:18:05,200 --> 00:18:06,700
+you try to interact with Gordon Ramsay,
+
+482
+00:18:06,700 --> 00:18:08,700
+well, if you're a fan, how many times
+
+483
+00:18:08,700 --> 00:18:09,900
+have you seen him on TV?
+
+484
+00:18:10,333 --> 00:18:11,900
+You can watch the MasterClass courses,
+
+485
+00:18:12,400 --> 00:18:12,966
+you know, it's also
+
+486
+00:18:12,966 --> 00:18:14,700
+like more than an hour of content.
+
+487
+00:18:15,066 --> 00:18:16,900
+You know what he sounds like, you
+
+488
+00:18:16,900 --> 00:18:19,799
+know how he speaks, you know what he's
+
+489
+00:18:19,799 --> 00:18:21,633
+passionate about, what he doesn't like.
+
+490
+00:18:21,633 --> 00:18:24,066
+You know, this personality is something
+
+491
+00:18:24,066 --> 00:18:25,566
+that you've probably learned already. And
+
+492
+00:18:25,566 --> 00:18:28,599
+now we have to put that into an AI agent
+
+493
+00:18:28,599 --> 00:18:31,099
+or an AI bot that you can talk to.
+
+494
+00:18:31,099 --> 00:18:34,333
+And so I feel like the very similitude has
+
+495
+00:18:34,333 --> 00:18:36,266
+to really be there. And so that's been
+
+496
+00:18:36,266 --> 00:18:38,733
+really challenging just to kind of get
+
+497
+00:18:38,733 --> 00:18:41,500
+through the uncanny valley stage of that.
+
+498
+00:18:41,500 --> 00:18:43,799
+And so this is the background of what
+
+499
+00:18:43,799 --> 00:18:45,266
+we're building. If you want to try it
+
+500
+00:18:45,266 --> 00:18:46,500
+out, you can go to
+
+501
+00:18:46,500 --> 00:18:51,000
+oncall.masterclass.com, all one word
+
+502
+00:18:51,000 --> 00:18:54,299
+oncall, O-N-C-A-L-L, dot masterclass.com.
+
+503
+00:18:54,966 --> 00:18:57,066
+And you can sign up and try it out.
+
+504
+00:18:57,066 --> 00:18:59,400
+So this is the general product that we're
+
+505
+00:18:59,400 --> 00:19:01,900
+building. And we have a whole LLM team,
+
+506
+00:19:01,900 --> 00:19:03,333
+you know, a machine learning team that is
+
+507
+00:19:03,333 --> 00:19:05,933
+working on getting the voice models and
+
+508
+00:19:05,933 --> 00:19:08,466
+the LLM models really trained up to
+
+509
+00:19:08,466 --> 00:19:10,066
+represent each instructor.
+
+510
+00:19:10,066 --> 00:19:12,433
+And what I got brought on to do was
+
+511
+00:19:12,433 --> 00:19:14,299
+essentially to create an orchestration
+
+512
+00:19:14,299 --> 00:19:17,233
+layer because we have several different
+
+513
+00:19:17,233 --> 00:19:21,200
+components in the pipeline in order to
+
+514
+00:19:21,200 --> 00:19:22,133
+build this experience.
+
+515
+00:19:22,966 --> 00:19:26,266
+First, we have a speech-to-text component
+
+516
+00:19:26,266 --> 00:19:30,500
+where the end user's voice of microphone
+
+517
+00:19:30,500 --> 00:19:33,233
+stream is sent to a speech-to-text
+
+518
+00:19:33,233 --> 00:19:36,700
+service that then listens to the user's
+
+519
+00:19:36,700 --> 00:19:38,733
+speech and derives transcripts
+
+520
+00:19:38,733 --> 00:19:41,133
+from it of what they've said.
+
+521
+00:19:41,433 --> 00:19:43,233
+And then at certain intervals when we
+
+522
+00:19:43,233 --> 00:19:45,400
+believe that the user's done speaking and
+
+523
+00:19:45,400 --> 00:19:47,299
+is ready to hear what the AI has to say,
+
+524
+00:19:47,733 --> 00:19:49,299
+which is not a trivial problem, by the
+
+525
+00:19:49,299 --> 00:19:52,733
+way, we then send that transcript to the
+
+526
+00:19:52,733 --> 00:19:55,933
+LLM to generate a response.
+
+527
+00:19:55,933 --> 00:19:57,733
+And then the LLM generates text response,
+
+528
+00:19:57,966 --> 00:19:59,900
+and then we send that off to a text-to-speech
+
+529
+00:19:59,900 --> 00:20:02,700
+service to generate the audio for
+
+530
+00:20:02,700 --> 00:20:05,133
+that response in the instructor's voice
+
+531
+00:20:05,133 --> 00:20:06,700
+and then send that back to the user.
+
+532
+00:20:06,700 --> 00:20:08,700
+So we have several different
+
+533
+00:20:08,700 --> 00:20:10,766
+asynchronous services, the
+
+534
+00:20:10,766 --> 00:20:12,333
+speech-to-text and the text-to-speech
+
+535
+00:20:12,333 --> 00:20:15,433
+components of which are WebSockets.
+
+536
+00:20:15,566 --> 00:20:19,400
+And then the LLM is a HTTP streaming
+
+537
+00:20:19,400 --> 00:20:22,099
+connection essentially wrapped in an
+
+538
+00:20:22,099 --> 00:20:24,900
+async iterable in the JavaScript world.
+
+539
+00:20:25,700 --> 00:20:28,299
+So this is coordinating
+
+540
+00:20:28,299 --> 00:20:30,233
+between these different elements.
+
+541
+00:20:30,233 --> 00:20:31,333
+But as you can see, there's kind of a
+
+542
+00:20:31,333 --> 00:20:32,733
+step one, step two,
+
+543
+00:20:32,733 --> 00:20:34,700
+step three to this process.
+
+544
+00:20:34,733 --> 00:20:36,133
+What makes it kind of interesting is, as
+
+545
+00:20:36,133 --> 00:20:37,500
+I mentioned, we don't know if
+
+546
+00:20:37,500 --> 00:20:38,900
+the user is done talking yet.
+
+547
+00:20:39,500 --> 00:20:40,500
+The user can kind of start
+
+548
+00:20:40,500 --> 00:20:42,000
+talking again at any time.
+
+549
+00:20:42,566 --> 00:20:44,700
+What we want to do is shut down anything
+
+550
+00:20:44,700 --> 00:20:46,400
+the bot is doing at that point because
+
+551
+00:20:46,400 --> 00:20:48,333
+the user is supreme.
+
+552
+00:20:48,566 --> 00:20:50,099
+The user drives the conversation.
+
+553
+00:20:50,733 --> 00:20:52,700
+We don't want the bot talking over the
+
+554
+00:20:52,700 --> 00:20:54,066
+user when the user is
+
+555
+00:20:54,066 --> 00:20:54,966
+trying to say something.
+
+556
+00:20:55,400 --> 00:20:58,266
+And so it's really crucial that we are
+
+557
+00:20:58,266 --> 00:21:01,299
+very responsive to that and stop whatever
+
+558
+00:21:01,299 --> 00:21:04,233
+is in progress downstream, whether it's
+
+559
+00:21:04,233 --> 00:21:05,466
+at the LLM stage or
+
+560
+00:21:05,466 --> 00:21:06,433
+the text-to-speech stage.
+
+561
+00:21:06,733 --> 00:21:07,566
+And so this is
+
+562
+00:21:07,566 --> 00:21:08,966
+essentially what Cortex is doing.
+
+563
+00:21:08,966 --> 00:21:12,700
+Cortex is a Node.js application that is
+
+564
+00:21:12,700 --> 00:21:15,633
+connected to bi-WebSockets from our two
+
+565
+00:21:15,633 --> 00:21:18,266
+clients that we have, Web and iOS
+
+566
+00:21:18,266 --> 00:21:19,433
+clients, that connect
+
+567
+00:21:19,433 --> 00:21:20,500
+to Cortex over WebSocket.
+
+568
+00:21:20,500 --> 00:21:24,266
+And Cortex, in turn, provides WebSocket
+
+569
+00:21:24,266 --> 00:21:27,333
+interface that abstracts these multiple
+
+570
+00:21:27,333 --> 00:21:31,299
+services and receives the microphone
+
+571
+00:21:31,299 --> 00:21:32,766
+audio stream from the user
+
+572
+00:21:32,766 --> 00:21:35,766
+and emits back bot audio events.
+
+573
+00:21:35,766 --> 00:21:38,466
+So from the client's perspective, the
+
+574
+00:21:38,466 --> 00:21:42,333
+contract is simply send the user's
+
+575
+00:21:42,333 --> 00:21:44,766
+microphone audio to Cortex and receive
+
+576
+00:21:44,766 --> 00:21:48,200
+back the bot audio and then the clients
+
+577
+00:21:48,200 --> 00:21:49,233
+have to actually play
+
+578
+00:21:49,233 --> 00:21:49,900
+it through the speakers.
+
+579
+00:21:50,466 --> 00:21:52,733
+And that's kind of the, you know, the
+
+580
+00:21:52,733 --> 00:21:53,733
+whole the whole contract.
+
+581
+00:21:53,733 --> 00:21:55,466
+There's a couple of other details in
+
+582
+00:21:55,466 --> 00:21:58,333
+terms of, you know, if a tool call
+
+583
+00:21:58,333 --> 00:22:01,466
+happens or, you know, if state change
+
+584
+00:22:01,466 --> 00:22:02,799
+happens or something like that.
+
+585
+00:22:03,599 --> 00:22:06,799
+But that's the main gist of what that
+
+586
+00:22:06,799 --> 00:22:08,133
+WebSocket contract to
+
+587
+00:22:08,133 --> 00:22:10,599
+Cortex looks like under the hood.
+
+588
+00:22:10,599 --> 00:22:13,833
+However, Cortex has to orchestrate the
+
+589
+00:22:13,833 --> 00:22:15,766
+various services that I talked about,
+
+590
+00:22:16,433 --> 00:22:18,933
+execute tool calls and and do a whole
+
+591
+00:22:18,933 --> 00:22:20,766
+bunch of other, you know, state
+
+592
+00:22:20,766 --> 00:22:22,000
+management under the hood.
+
+593
+00:22:22,000 --> 00:22:22,933
+And so that's what we built with
+
+594
+00:22:22,933 --> 00:22:24,299
+Effect. It's 100 percent.
+
+595
+00:22:24,299 --> 00:22:27,099
+I mean, 100 percent. But like it's it's
+
+596
+00:22:27,099 --> 00:22:29,299
+pretty much the every piece of it is
+
+597
+00:22:29,299 --> 00:22:30,633
+built in Effect or
+
+598
+00:22:30,633 --> 00:22:31,833
+using Effect in some way.
+
+599
+00:22:32,133 --> 00:22:34,400
+That's awesome. So you've mentioned that
+
+600
+00:22:34,400 --> 00:22:36,633
+initially when you got into this project,
+
+601
+00:22:37,000 --> 00:22:39,733
+you got a first like proof of concept and
+
+602
+00:22:39,733 --> 00:22:41,933
+where it really like exposed you to all
+
+603
+00:22:41,933 --> 00:22:45,599
+of the complexity that's for solving this
+
+604
+00:22:45,599 --> 00:22:46,833
+actual product to
+
+605
+00:22:46,833 --> 00:22:48,000
+implement this actual product.
+
+606
+00:22:48,000 --> 00:22:51,233
+This complexity need to be tamed. Did you
+
+607
+00:22:51,233 --> 00:22:54,266
+work off that initial proof of concept or
+
+608
+00:22:54,266 --> 00:22:55,466
+did you rather roll
+
+609
+00:22:55,466 --> 00:22:56,933
+something from scratch?
+
+610
+00:22:57,500 --> 00:22:58,833
+And how did you go about that? 
+
+611
+00:22:59,266 --> 00:23:00,900
+That's an interesting question because
+
+612
+00:23:00,900 --> 00:23:04,966
+I'm always trying to figure out how to.
+
+613
+00:23:04,966 --> 00:23:06,933
+Like re-architect a
+
+614
+00:23:06,933 --> 00:23:08,433
+piece of software, you know.
+
+615
+00:23:08,833 --> 00:23:09,733
+It's something you don't want
+
+616
+00:23:09,733 --> 00:23:11,299
+to have to do very often.
+
+617
+00:23:11,500 --> 00:23:13,566
+Also, I don't know, actually, if it's
+
+618
+00:23:13,566 --> 00:23:16,633
+me or just the stage of career I'm
+
+619
+00:23:16,633 --> 00:23:18,433
+at and the kind of problems that I get
+
+620
+00:23:18,433 --> 00:23:19,466
+brought in to help with.
+
+621
+00:23:19,833 --> 00:23:21,900
+But I often find myself looking at a
+
+622
+00:23:21,900 --> 00:23:22,833
+piece of software that is
+
+623
+00:23:22,833 --> 00:23:24,133
+in need of re-architecting.
+
+624
+00:23:24,799 --> 00:23:26,633
+I think it's largely because I was
+
+625
+00:23:26,633 --> 00:23:28,099
+specifically asked to
+
+626
+00:23:28,099 --> 00:23:30,333
+re-architect it in this situation.
+
+627
+00:23:30,333 --> 00:23:33,066
+But the proof of concept was interesting
+
+628
+00:23:33,066 --> 00:23:37,299
+because, you know, it was built by our
+
+629
+00:23:37,299 --> 00:23:39,766
+project lead on call, who
+
+630
+00:23:39,766 --> 00:23:42,566
+is now our VP of architecture, who's
+
+631
+00:23:42,566 --> 00:23:44,599
+just a brilliant person who has no
+
+632
+00:23:44,599 --> 00:23:45,900
+experience really with
+
+633
+00:23:45,900 --> 00:23:47,333
+JavaScript or TypeScript.
+
+634
+00:23:47,966 --> 00:23:50,900
+And asked chat GPT to help. I think it
+
+635
+00:23:50,900 --> 00:23:53,966
+was chat GPT to help with building it and
+
+636
+00:23:53,966 --> 00:23:55,900
+essentially just piece that all together
+
+637
+00:23:55,900 --> 00:23:58,266
+from chat GPT prompts.
+
+638
+00:23:58,733 --> 00:24:00,400
+There were a couple of things that came
+
+639
+00:24:00,400 --> 00:24:02,799
+out of that that were, for example, a
+
+640
+00:24:02,799 --> 00:24:05,333
+library that is like a private library
+
+641
+00:24:05,333 --> 00:24:06,433
+that isn't really maintained.
+
+642
+00:24:06,966 --> 00:24:09,200
+There wasn't really a
+
+643
+00:24:09,200 --> 00:24:10,233
+top level architecture.
+
+644
+00:24:11,066 --> 00:24:12,233
+you had individual pieces that
+
+645
+00:24:12,233 --> 00:24:13,900
+were kind of worked in isolation, but
+
+646
+00:24:13,900 --> 00:24:16,333
+then the glue between them became really
+
+647
+00:24:16,333 --> 00:24:19,233
+convoluted and hard to follow.
+
+648
+00:24:19,466 --> 00:24:21,333
+So so that that kind of became a problem.
+
+649
+00:24:21,333 --> 00:24:23,500
+But it worked. You know, ultimately, this
+
+650
+00:24:23,500 --> 00:24:24,566
+proof of concept kind
+
+651
+00:24:24,566 --> 00:24:27,733
+of worked for a demo.
+
+652
+00:24:27,733 --> 00:24:30,233
+It didn't handle interruptions very well.
+
+653
+00:24:30,333 --> 00:24:31,633
+It didn't have great latency.
+
+654
+00:24:32,466 --> 00:24:35,500
+I think in reality of like most
+
+655
+00:24:35,500 --> 00:24:39,400
+production grade systems are actually let
+
+656
+00:24:39,400 --> 00:24:40,633
+me take that back, probably not
+
+657
+00:24:40,633 --> 00:24:42,900
+production grade, but applications,
+
+658
+00:24:43,233 --> 00:24:44,766
+JavaScript applications that are running
+
+659
+00:24:44,766 --> 00:24:47,500
+in production are probably
+
+660
+00:24:47,799 --> 00:24:51,200
+That sort of state where is working well
+
+661
+00:24:51,200 --> 00:24:54,133
+enough on the happy path, but all of like
+
+662
+00:24:54,133 --> 00:24:57,299
+those higher level requirements that
+
+663
+00:24:57,299 --> 00:25:00,933
+really make a end user experience superb
+
+664
+00:25:00,933 --> 00:25:05,066
+that you can interrupt an AI model when
+
+665
+00:25:05,066 --> 00:25:07,233
+when it's talking to you or that's more
+
+666
+00:25:07,233 --> 00:25:08,133
+resilient to errors, etc.
+
+667
+00:25:09,133 --> 00:25:11,833
+This is where you need to go beyond that
+
+668
+00:25:11,833 --> 00:25:13,466
+convoluted everything
+
+669
+00:25:13,466 --> 00:25:14,700
+kind of pieced together.
+
+670
+00:25:15,500 --> 00:25:17,833
+And I think this is like a perfect point
+
+671
+00:25:17,833 --> 00:25:20,299
+to to start with, like
+
+672
+00:25:20,299 --> 00:25:23,833
+applying Effect to to go beyond that.
+
+673
+00:25:23,833 --> 00:25:27,133
+That's sort of like a messy state.
+
+674
+00:25:27,900 --> 00:25:31,133
+Yeah, this is why I wanted to
+
+675
+00:25:31,133 --> 00:25:32,500
+tame the asynchronous
+
+676
+00:25:32,500 --> 00:25:35,200
+behaviors in in Cortex.
+
+677
+00:25:35,200 --> 00:25:37,000
+And I was looking for a package that
+
+678
+00:25:37,000 --> 00:25:38,133
+would help me do that. And
+
+679
+00:25:38,133 --> 00:25:39,766
+this is when I found Effect.
+
+680
+00:25:40,000 --> 00:25:42,266
+And then at that point like I
+
+681
+00:25:42,266 --> 00:25:45,200
+said, I had seen RxJS. and I had
+
+682
+00:25:45,200 --> 00:25:46,266
+good experiences at
+
+683
+00:25:46,266 --> 00:25:47,433
+first building RxJS
+
+684
+00:25:47,433 --> 00:25:49,566
+But like kind of one of the common
+
+685
+00:25:49,566 --> 00:25:52,099
+complaints is that, well, now, like you
+
+686
+00:25:52,099 --> 00:25:53,633
+said, everything has to be a stream.
+
+687
+00:25:53,900 --> 00:25:54,766
+Now you have to model
+
+688
+00:25:54,766 --> 00:25:55,833
+everything in this way.
+
+689
+00:25:56,133 --> 00:25:58,766
+And it really completely changes how you
+
+690
+00:25:58,766 --> 00:26:01,133
+architect your software and you need a
+
+691
+00:26:01,133 --> 00:26:02,700
+lot of buy in from your team if you're
+
+692
+00:26:02,700 --> 00:26:04,333
+going to start doing this, because now
+
+693
+00:26:04,333 --> 00:26:05,799
+everybody has to learn this.
+
+694
+00:26:05,799 --> 00:26:07,500
+They can't just sit down and, you know,
+
+695
+00:26:07,500 --> 00:26:09,299
+start coding on whatever part, you know,
+
+696
+00:26:09,299 --> 00:26:10,266
+feature they're trying to do.
+
+697
+00:26:10,266 --> 00:26:11,833
+They have to first learn this framework
+
+698
+00:26:11,833 --> 00:26:15,299
+and that can be a big ask for folks.
+
+699
+00:26:15,299 --> 00:26:16,833
+And so that's something that I wanted to
+
+700
+00:26:16,833 --> 00:26:17,799
+be conscientious about.
+
+701
+00:26:18,133 --> 00:26:19,633
+However, when I started
+
+702
+00:26:19,633 --> 00:26:22,266
+looking into Effect, I started seeing,
+
+703
+00:26:22,266 --> 00:26:24,266
+well, you know, this has a lot of promise
+
+704
+00:26:24,266 --> 00:26:25,966
+and potential if you
+
+705
+00:26:25,966 --> 00:26:27,599
+use it in the right way.
+
+706
+00:26:27,599 --> 00:26:29,566
+And what I mean by that is like, you
+
+707
+00:26:29,566 --> 00:26:32,200
+know, you don't have to necessarily go
+
+708
+00:26:32,200 --> 00:26:33,733
+from zero percent to
+
+709
+00:26:33,733 --> 00:26:34,633
+100 percent overnight.
+
+710
+00:26:34,900 --> 00:26:37,299
+You don't have to completely redesign the
+
+711
+00:26:37,299 --> 00:26:39,966
+entire application to take advantage of
+
+712
+00:26:39,966 --> 00:26:41,333
+some of the benefits
+
+713
+00:26:41,333 --> 00:26:42,500
+that Effect has to offer.
+
+714
+00:26:42,599 --> 00:26:44,433
+That's kind of how I started, was
+
+715
+00:26:44,433 --> 00:26:45,599
+incrementally adopting
+
+716
+00:26:45,599 --> 00:26:48,299
+Effect in parts of the code base.
+
+717
+00:26:48,299 --> 00:26:49,633
+And this was really what
+
+718
+00:26:49,633 --> 00:26:51,500
+enabled it to work at all.
+
+719
+00:26:51,500 --> 00:26:54,966
+If I had to say, hold on, I need to take
+
+720
+00:26:54,966 --> 00:26:56,266
+this for a month and just completely
+
+721
+00:26:56,266 --> 00:26:58,433
+build it from scratch and nothing's going
+
+722
+00:26:58,433 --> 00:26:59,966
+to work and I can't deliver any new
+
+723
+00:26:59,966 --> 00:27:02,966
+features until I'm done.
+
+724
+00:27:03,099 --> 00:27:04,400
+That was not going to fly.
+
+725
+00:27:04,400 --> 00:27:05,400
+I was in a position
+
+726
+00:27:05,400 --> 00:27:07,900
+where I did not have to ask for
+
+727
+00:27:07,900 --> 00:27:10,400
+permission to go live in a cave for a
+
+728
+00:27:10,400 --> 00:27:11,299
+month or however long
+
+729
+00:27:11,299 --> 00:27:12,066
+it was going to take.
+
+730
+00:27:12,299 --> 00:27:13,833
+I always like avoid
+
+731
+00:27:13,833 --> 00:27:14,900
+being in that situation.
+
+732
+00:27:15,233 --> 00:27:16,633
+I don't think that's a good place for us
+
+733
+00:27:16,633 --> 00:27:17,900
+to be in as software engineers.
+
+734
+00:27:18,733 --> 00:27:20,966
+We need to be shipping like every day,
+
+735
+00:27:20,966 --> 00:27:22,966
+shipping features, shipping bug fixes,
+
+736
+00:27:22,966 --> 00:27:24,900
+shipping products constantly.
+
+737
+00:27:25,500 --> 00:27:28,766
+And like we never have the luxury to just
+
+738
+00:27:28,766 --> 00:27:30,233
+say, well, hold on, I'm just going to
+
+739
+00:27:30,233 --> 00:27:32,799
+like spend a month not shipping, you
+
+740
+00:27:32,799 --> 00:27:34,433
+know, to do this technical thing that I
+
+741
+00:27:34,433 --> 00:27:35,266
+can't really explain
+
+742
+00:27:35,266 --> 00:27:36,400
+why I have to do this.
+
+743
+00:27:36,400 --> 00:27:38,900
+Right. Nobody, nobody likes that.
+
+744
+00:27:38,900 --> 00:27:41,299
+So fortunately, Effect is not
+
+745
+00:27:41,299 --> 00:27:42,933
+a framework that is like that.
+
+746
+00:27:43,233 --> 00:27:44,400
+That's not what was
+
+747
+00:27:44,400 --> 00:27:46,799
+asked of us to adopt Effect.
+
+748
+00:27:47,299 --> 00:27:50,400
+Instead, it was you can start plugging in
+
+749
+00:27:50,400 --> 00:27:52,333
+Effect judiciously here and there.
+
+750
+00:27:52,700 --> 00:27:54,733
+And I started at the top level of the
+
+751
+00:27:54,733 --> 00:27:56,566
+application around really around the
+
+752
+00:27:56,566 --> 00:27:58,799
+WebSocket connection layer, around the
+
+753
+00:27:58,799 --> 00:28:02,299
+HTTP layer and the application runtime.
+
+754
+00:28:02,299 --> 00:28:05,633
+And that allowed us to kind of have a top
+
+755
+00:28:05,633 --> 00:28:09,133
+level of error handling that immediately
+
+756
+00:28:09,133 --> 00:28:13,833
+provided benefits for recovery and so on.
+
+757
+00:28:13,833 --> 00:28:15,633
+But we didn't stop there.
+
+758
+00:28:15,633 --> 00:28:17,333
+That was just the first step.
+
+759
+00:28:17,966 --> 00:28:20,633
+We started kind of rebuilding different
+
+760
+00:28:20,633 --> 00:28:21,266
+parts of the application.
+
+761
+00:28:21,266 --> 00:28:24,233
+Some of them were like isolated behind a
+
+762
+00:28:24,233 --> 00:28:26,233
+run promise or, you know, like a stream
+
+763
+00:28:26,233 --> 00:28:28,133
+that was, yeah, emitting
+
+764
+00:28:28,133 --> 00:28:30,599
+events into an event emitter.
+
+765
+00:28:30,900 --> 00:28:32,933
+But it allowed us to kind of rebuild
+
+766
+00:28:32,933 --> 00:28:35,000
+isolated parts of the application on
+
+767
+00:28:35,000 --> 00:28:37,833
+their own where like selectively where we
+
+768
+00:28:37,833 --> 00:28:39,566
+thought they had the most value to be
+
+769
+00:28:39,566 --> 00:28:40,566
+converted into Effect.
+
+770
+00:28:40,733 --> 00:28:44,133
+And often driven by product requirements.
+
+771
+00:28:44,133 --> 00:28:45,933
+So when I wanted to implement
+
+772
+00:28:45,933 --> 00:28:49,299
+interruptions, that was the reason to now
+
+773
+00:28:49,299 --> 00:28:52,400
+rebuild the speech-to-text component in
+
+774
+00:28:52,400 --> 00:28:54,900
+Effect, because it was going to be a lot
+
+775
+00:28:54,900 --> 00:28:56,966
+more work to do that.
+
+776
+00:28:56,966 --> 00:28:58,799
+If I was going to have to do it
+
+777
+00:28:58,799 --> 00:29:00,900
+the old way, it was like, really, it
+
+778
+00:29:00,900 --> 00:29:02,833
+wasn't like rebuild the whole thing
+
+779
+00:29:02,833 --> 00:29:05,099
+in Effect, the entire application.
+
+780
+00:29:05,400 --> 00:29:07,333
+Or just keep working the old way. It was
+
+781
+00:29:07,333 --> 00:29:09,266
+really for each isolated piece.
+
+782
+00:29:09,266 --> 00:29:11,000
+It was like, do I want to like add more
+
+783
+00:29:11,000 --> 00:29:13,266
+spaghetti to this application in this
+
+784
+00:29:13,266 --> 00:29:15,900
+component or can I just rebuild this
+
+785
+00:29:15,900 --> 00:29:18,333
+piece in Effect and make it much more
+
+786
+00:29:18,333 --> 00:29:20,966
+expressive and elegant while building the
+
+787
+00:29:20,966 --> 00:29:22,333
+feature that I'm being asked to build.
+
+788
+00:29:22,766 --> 00:29:26,466
+So it was much less of a refactoring
+
+789
+00:29:26,466 --> 00:29:29,066
+process and more of a incrementally
+
+790
+00:29:29,066 --> 00:29:31,133
+adopting it while also building and
+
+791
+00:29:31,133 --> 00:29:32,133
+delivering features.
+
+792
+00:29:32,633 --> 00:29:34,500
+I love that. And I think you've hit on a
+
+793
+00:29:34,500 --> 00:29:36,433
+couple of really nice points here.
+
+794
+00:29:36,766 --> 00:29:40,566
+One is that Effect, even though you get
+
+795
+00:29:40,566 --> 00:29:43,200
+a lot of benefits once you have
+
+796
+00:29:43,200 --> 00:29:45,266
+Effectified more and more of your
+
+797
+00:29:45,266 --> 00:29:46,799
+application, you're going to find that
+
+798
+00:29:46,799 --> 00:29:48,299
+you can delete a lot of code.
+
+799
+00:29:48,299 --> 00:29:49,133
+Everything just fits
+
+800
+00:29:49,133 --> 00:29:50,733
+nicely together in the same way.
+
+801
+00:29:51,099 --> 00:29:54,333
+If you incrementally adopt React, let's
+
+802
+00:29:54,333 --> 00:29:56,233
+say we're just in this transition of like
+
+803
+00:29:56,233 --> 00:29:58,266
+transitioning a larger code base from
+
+804
+00:29:58,266 --> 00:30:00,766
+jQuery, something else to React.
+
+805
+00:30:00,766 --> 00:30:03,700
+You don't need to do that in one like
+
+806
+00:30:03,700 --> 00:30:04,833
+long night, but you
+
+807
+00:30:04,833 --> 00:30:06,133
+can do that step by step.
+
+808
+00:30:06,966 --> 00:30:08,566
+And once you've reached a point where
+
+809
+00:30:08,566 --> 00:30:10,766
+everything is in React, then you can
+
+810
+00:30:10,766 --> 00:30:13,333
+delete a whole bunch of like glue code, a
+
+811
+00:30:13,333 --> 00:30:15,266
+whole bunch of like things that bridge
+
+812
+00:30:15,266 --> 00:30:17,099
+from the old way to the new way.
+
+813
+00:30:17,766 --> 00:30:20,566
+But it is also totally fine that you go
+
+814
+00:30:20,566 --> 00:30:22,766
+through this like transitionary phase.
+
+815
+00:30:22,766 --> 00:30:24,466
+But the other thing that you've mentioned
+
+816
+00:30:24,466 --> 00:30:26,066
+that I think is like a super great
+
+817
+00:30:26,066 --> 00:30:28,466
+insight, which is like, how do you
+
+818
+00:30:28,466 --> 00:30:31,966
+prioritize what to refactor with Effect
+
+819
+00:30:31,966 --> 00:30:33,799
+when or when to rethink
+
+820
+00:30:33,799 --> 00:30:35,233
+something and apply Effect?
+
+821
+00:30:35,799 --> 00:30:38,299
+And this is so elegant that you can like
+
+822
+00:30:38,299 --> 00:30:41,599
+go top down from like, hey, what is the
+
+823
+00:30:41,599 --> 00:30:43,599
+thing that we want to improve for users?
+
+824
+00:30:43,599 --> 00:30:46,700
+What is like the business outcome that we
+
+825
+00:30:46,700 --> 00:30:47,766
+want to affect here?
+
+826
+00:30:48,433 --> 00:30:51,633
+And then like looking at those, Effect
+
+827
+00:30:51,633 --> 00:30:52,500
+typically has
+
+828
+00:30:52,500 --> 00:30:54,000
+something in store for that.
+
+829
+00:30:54,000 --> 00:30:56,066
+If you want to improve performance, if
+
+830
+00:30:56,066 --> 00:30:57,900
+you want to improve reliability,
+
+831
+00:30:58,500 --> 00:31:01,200
+resilience, error handling, whatever it
+
+832
+00:31:01,200 --> 00:31:02,966
+might be, Effect typically
+
+833
+00:31:02,966 --> 00:31:04,799
+has something in store for that.
+
+834
+00:31:05,133 --> 00:31:07,799
+And then you can prioritize what to work
+
+835
+00:31:07,799 --> 00:31:10,933
+on depending on your end user needs.
+
+836
+00:31:10,933 --> 00:31:13,700
+And hearing here about the speech to text
+
+837
+00:31:13,700 --> 00:31:17,900
+aspect and applying Effect for that,
+
+838
+00:31:17,900 --> 00:31:19,066
+that sounds super interesting.
+
+839
+00:31:19,066 --> 00:31:20,966
+So I want to hear a little bit more like
+
+840
+00:31:20,966 --> 00:31:23,933
+zooming into from macro into a bit more
+
+841
+00:31:23,933 --> 00:31:25,633
+micro into this component.
+
+842
+00:31:25,633 --> 00:31:28,466
+Can you give a rough overview of like how
+
+843
+00:31:28,466 --> 00:31:30,566
+that thing was built before?
+
+844
+00:31:31,000 --> 00:31:35,066
+What you diagnosed the biggest things to
+
+845
+00:31:35,066 --> 00:31:38,799
+improve where and which primitives of
+
+846
+00:31:38,799 --> 00:31:40,500
+Effect did you use to
+
+847
+00:31:40,500 --> 00:31:41,933
+ultimately implement it?
+
+848
+00:31:42,233 --> 00:31:44,766
+Well, actually what I prefer to do is
+
+849
+00:31:44,766 --> 00:31:47,000
+zoom in on the text-to-speech component.
+
+850
+00:31:47,566 --> 00:31:48,900
+Oh, I'm sorry.
+
+851
+00:31:49,233 --> 00:31:50,766
+I remember that wrong.
+
+852
+00:31:50,766 --> 00:31:51,966
+But yes, no, it's okay.
+
+853
+00:31:51,966 --> 00:31:53,133
+You remembered it right.
+
+854
+00:31:53,133 --> 00:31:53,566
+It was you.
+
+855
+00:31:53,566 --> 00:31:55,966
+I said speech-to-text earlier, but I feel
+
+856
+00:31:55,966 --> 00:31:57,299
+like the text-to-speech component.
+
+857
+00:31:58,200 --> 00:31:59,566
+This is the component that I also talked
+
+858
+00:31:59,566 --> 00:32:01,266
+about in my Effect Days
+
+859
+00:32:01,266 --> 00:32:03,266
+talk and did a deep dive on.
+
+860
+00:32:03,266 --> 00:32:05,299
+I feel like the text-to-speech component
+
+861
+00:32:05,299 --> 00:32:09,233
+was kind of like a real unlock, really an
+
+862
+00:32:09,233 --> 00:32:12,400
+aha moment of like, wow, this is this is
+
+863
+00:32:12,400 --> 00:32:14,299
+what Effect can do in
+
+864
+00:32:14,299 --> 00:32:15,099
+terms of like saving
+
+865
+00:32:15,500 --> 00:32:18,966
+a lot of complexity from your code base.
+
+866
+00:32:18,966 --> 00:32:20,200
+As I mentioned, this is a
+
+867
+00:32:20,200 --> 00:32:22,966
+component where like it's a WebSocket and
+
+868
+00:32:22,966 --> 00:32:26,233
+we stream LLM thoughts to it.
+
+869
+00:32:26,233 --> 00:32:28,799
+So an LLM response, as you might be
+
+870
+00:32:28,799 --> 00:32:32,099
+familiar, it sends what are called chunks
+
+871
+00:32:32,099 --> 00:32:34,000
+in a chat completion response.
+
+872
+00:32:34,566 --> 00:32:36,333
+And the chunks are usually a token or two
+
+873
+00:32:36,333 --> 00:32:37,233
+tokens and they're not
+
+874
+00:32:37,233 --> 00:32:38,599
+complete words a lot of the time.
+
+875
+00:32:39,133 --> 00:32:42,000
+So then we're like accumulating the
+
+876
+00:32:42,000 --> 00:32:44,466
+chunks into basically what we call
+
+877
+00:32:44,466 --> 00:32:47,466
+coherent thoughts and the coherent
+
+878
+00:32:47,466 --> 00:32:50,766
+thoughts can then be sent to the text-to-
+
+879
+00:32:50,766 --> 00:32:51,599
+speech component to
+
+880
+00:32:51,599 --> 00:32:52,633
+generate the bot audio.
+
+881
+00:32:53,133 --> 00:32:55,433
+However, if there's an interruption, we
+
+882
+00:32:55,433 --> 00:32:57,066
+need to shut down the LLM and we also
+
+883
+00:32:57,066 --> 00:32:58,799
+need to shut down the
+
+884
+00:32:58,933 --> 00:33:01,500
+text-to-speech component so that we don't
+
+885
+00:33:01,500 --> 00:33:03,766
+continue to generate more thoughts based
+
+886
+00:33:03,766 --> 00:33:05,833
+on the previous thing that the user said
+
+887
+00:33:05,833 --> 00:33:07,133
+before they continued talking.
+
+888
+00:33:07,333 --> 00:33:09,599
+And now we want to start over and respond
+
+889
+00:33:09,599 --> 00:33:11,233
+to the most recent thing
+
+890
+00:33:11,233 --> 00:33:12,299
+that that user has said.
+
+891
+00:33:12,433 --> 00:33:16,633
+So the text-to-speech component now it's
+
+892
+00:33:16,633 --> 00:33:17,900
+a WebSocket connection.
+
+893
+00:33:17,900 --> 00:33:19,799
+When you send it a
+
+894
+00:33:19,799 --> 00:33:22,333
+coherent thought, that connection
+
+895
+00:33:22,833 --> 00:33:26,833
+will then respond asynchronously with one
+
+896
+00:33:26,833 --> 00:33:28,766
+or more different
+
+897
+00:33:28,766 --> 00:33:30,133
+events that you might get.
+
+898
+00:33:30,299 --> 00:33:31,200
+And we're basically just
+
+899
+00:33:31,200 --> 00:33:32,466
+streaming those up to the client.
+
+900
+00:33:32,933 --> 00:33:34,000
+But when there's
+
+901
+00:33:34,000 --> 00:33:36,133
+an interruption, we need to actually shut
+
+902
+00:33:36,133 --> 00:33:36,799
+down the WebSocket
+
+903
+00:33:36,799 --> 00:33:37,966
+connection, close the connection.
+
+904
+00:33:38,500 --> 00:33:40,133
+Abruptly, so we don't get any more
+
+905
+00:33:40,133 --> 00:33:43,066
+messages from it and then reopen it.
+
+906
+00:33:43,066 --> 00:33:45,299
+And then in that period of time, and it's
+
+907
+00:33:45,299 --> 00:33:47,200
+not usually very long, it can just be
+
+908
+00:33:47,200 --> 00:33:48,900
+like a hundred milliseconds or two
+
+909
+00:33:48,900 --> 00:33:50,200
+hundred milliseconds where we're waiting
+
+910
+00:33:50,200 --> 00:33:51,966
+for that WebSocket connection to open.
+
+911
+00:33:52,200 --> 00:33:52,933
+We hope that
+
+912
+00:33:52,933 --> 00:33:54,799
+we've created a connection, but we've not
+
+913
+00:33:54,799 --> 00:33:55,766
+yet received the open
+
+914
+00:33:55,766 --> 00:33:56,766
+event from the connection.
+
+915
+00:33:56,900 --> 00:33:59,133
+And it's in that time that we were often
+
+916
+00:33:59,133 --> 00:34:02,333
+getting the LLM was trying to send
+
+917
+00:34:02,333 --> 00:34:04,200
+messages to it, but it was erroring
+
+918
+00:34:04,200 --> 00:34:07,066
+because we were sending WebSocket
+
+919
+00:34:07,066 --> 00:34:08,400
+messages out to a
+
+920
+00:34:08,400 --> 00:34:09,633
+WebSocket that was not yet open.
+
+921
+00:34:10,433 --> 00:34:13,933
+So we had to now queue those messages to
+
+922
+00:34:13,933 --> 00:34:16,066
+wait for the open event from the
+
+923
+00:34:16,066 --> 00:34:18,199
+WebSocket connections and then flush the
+
+924
+00:34:18,199 --> 00:34:19,766
+queue when it was open.
+
+925
+00:34:20,000 --> 00:34:22,800
+So as you can imagine, this created some
+
+926
+00:34:22,800 --> 00:34:26,099
+code complexity in the pre-Effect
+
+927
+00:34:26,099 --> 00:34:29,766
+implementation and it was something that
+
+928
+00:34:29,766 --> 00:34:31,266
+Effect turned out to be actually very
+
+929
+00:34:31,266 --> 00:34:32,933
+good at because these are the kinds of
+
+930
+00:34:32,933 --> 00:34:35,433
+things that Effect has out of the box.
+
+931
+00:34:35,599 --> 00:34:39,066
+In Effect we were able to replace the
+
+932
+00:34:39,066 --> 00:34:41,500
+WebSocket handling code with the
+
+933
+00:34:41,500 --> 00:34:43,933
+WebSocket utility from
+
+934
+00:34:43,933 --> 00:34:46,833
+Effect from effect/platform APIs
+
+935
+00:34:47,199 --> 00:34:51,000
+And that has kind of a magical property
+
+936
+00:34:51,000 --> 00:34:53,599
+to it that you don't really ever have to
+
+937
+00:34:53,599 --> 00:34:55,966
+think about when the WebSocket is closing
+
+938
+00:34:55,966 --> 00:34:57,433
+and opening and you don't
+
+939
+00:34:57,433 --> 00:34:58,800
+have to wait for an open event.
+
+940
+00:34:59,199 --> 00:35:02,099
+What it essentially gives you is what is
+
+941
+00:35:02,099 --> 00:35:03,266
+called in Effect a channel.
+
+942
+00:35:03,900 --> 00:35:05,000
+And this became a primitive
+
+943
+00:35:05,000 --> 00:35:06,633
+that I became curious about.
+
+944
+00:35:06,900 --> 00:35:08,766
+It's something that I wish was a little
+
+945
+00:35:08,766 --> 00:35:10,900
+bit more first class in the effect world.
+
+946
+00:35:11,199 --> 00:35:14,066
+It's certainly used behind the scenes in
+
+947
+00:35:14,066 --> 00:35:17,599
+a lot of things like stream and other
+
+948
+00:35:17,599 --> 00:35:19,199
+APIs in the Effect world.
+
+949
+00:35:19,199 --> 00:35:21,333
+But this is what you get essentially when
+
+950
+00:35:21,333 --> 00:35:23,099
+you create a WebSocket connection using
+
+951
+00:35:23,099 --> 00:35:24,300
+the effect/platform API.
+
+952
+00:35:24,733 --> 00:35:26,500
+But then if you use the Effect stream
+
+953
+00:35:26,500 --> 00:35:28,966
+operator pipe through channel, you now
+
+954
+00:35:28,966 --> 00:35:32,133
+have a duplex stream, which is one where
+
+955
+00:35:32,133 --> 00:35:35,133
+you can start listening to other streams.
+
+956
+00:35:35,133 --> 00:35:37,766
+And then instead of doing like a run for
+
+957
+00:35:37,766 --> 00:35:40,133
+each or run collector, whatever you're
+
+958
+00:35:40,133 --> 00:35:41,766
+doing and you typically do it with a
+
+959
+00:35:41,766 --> 00:35:45,500
+stream, you now are piping the events or
+
+960
+00:35:45,500 --> 00:35:48,599
+the items in that stream out through the
+
+961
+00:35:48,599 --> 00:35:50,733
+channel through the WebSocket connection.
+
+962
+00:35:50,733 --> 00:35:52,766
+And then downstream from that pipe
+
+963
+00:35:52,766 --> 00:35:54,433
+through channel, you are getting incoming
+
+964
+00:35:54,433 --> 00:35:56,066
+events that are coming from that
+
+965
+00:35:56,066 --> 00:35:58,966
+WebSocket connection that you can then
+
+966
+00:35:58,966 --> 00:36:01,099
+emit further on down your application.
+
+967
+00:36:01,566 --> 00:36:04,233
+So this is great. But this is also what
+
+968
+00:36:04,233 --> 00:36:06,566
+it is also doing is this is abstracting
+
+969
+00:36:06,566 --> 00:36:08,233
+the WebSocket lifecycle
+
+970
+00:36:08,233 --> 00:36:09,733
+into the stream lifecycle.
+
+971
+00:36:09,733 --> 00:36:12,233
+So if you emit an error
+
+972
+00:36:12,233 --> 00:36:14,199
+upstream, it will close
+
+973
+00:36:14,199 --> 00:36:15,266
+the WebSocket for you.
+
+974
+00:36:15,633 --> 00:36:18,133
+And then if you have a stream.retry, it
+
+975
+00:36:18,133 --> 00:36:19,699
+will reopen the WebSocket for you
+
+976
+00:36:19,699 --> 00:36:21,133
+in the event of an error.
+
+977
+00:36:21,133 --> 00:36:23,966
+And because the streams are pull based,
+
+978
+00:36:23,966 --> 00:36:26,833
+you don't have to rely on queuing
+
+979
+00:36:26,833 --> 00:36:28,933
+explicitly. You aren't going
+
+980
+00:36:28,933 --> 00:36:30,099
+to miss any of your events.
+
+981
+00:36:30,333 --> 00:36:32,266
+When the stream is reopened, it will
+
+982
+00:36:32,266 --> 00:36:33,333
+start pulling those events
+
+983
+00:36:33,333 --> 00:36:35,966
+and behaving as expected.
+
+984
+00:36:35,966 --> 00:36:38,099
+So this really allowed us to
+
+985
+00:36:38,099 --> 00:36:39,966
+abstract all of the sort of tangled like
+
+986
+00:36:39,966 --> 00:36:42,833
+we had, I think, a promise that was a
+
+987
+00:36:42,833 --> 00:36:44,066
+reference to a promise that was kept
+
+988
+00:36:44,066 --> 00:36:44,699
+around and was
+
+989
+00:36:44,699 --> 00:36:45,933
+awaited in different places.
+
+990
+00:36:45,933 --> 00:36:49,099
+And it was it was a mess before. And now
+
+991
+00:36:49,099 --> 00:36:52,800
+we had a single stream that was just a
+
+992
+00:36:52,800 --> 00:36:55,066
+linear stream that where you had the
+
+993
+00:36:55,066 --> 00:36:57,233
+stuff going out, going in the top of the
+
+994
+00:36:57,233 --> 00:36:59,599
+stuff coming from the stream, coming out the bottom.
+
+995
+00:36:59,599 --> 00:37:02,333
+And it became very easy to reason about
+
+996
+00:37:02,333 --> 00:37:03,699
+what was happening. And you didn't really
+
+997
+00:37:03,699 --> 00:37:05,766
+even have to think about the stream
+
+998
+00:37:05,766 --> 00:37:07,966
+lifecycle at all. It was just you made an
+
+999
+00:37:07,966 --> 00:37:09,000
+error when you want it to
+
+1000
+00:37:09,000 --> 00:37:10,800
+close and then just retry.
+
+1001
+00:37:10,800 --> 00:37:11,599
+The WebSocket
+
+1002
+00:37:11,599 --> 00:37:14,133
+connection is now handled by the stream
+
+1003
+00:37:14,133 --> 00:37:15,699
+lifecycle. So you can use
+
+1004
+00:37:15,699 --> 00:37:18,300
+the stream retry stream.
+
+1005
+00:37:18,633 --> 00:37:21,300
+will be shut down when the
+
+1006
+00:37:21,300 --> 00:37:24,500
+scope of the stream ends and the
+
+1007
+00:37:24,500 --> 00:37:26,199
+WebSocket will automatically closed.
+
+1008
+00:37:26,199 --> 00:37:30,500
+We also have a flush event that we send
+
+1009
+00:37:30,500 --> 00:37:32,400
+out to the text-to-speech
+
+1010
+00:37:32,400 --> 00:37:34,966
+service, which essentially says we're
+
+1011
+00:37:34,966 --> 00:37:38,599
+done sending you a new speech for now.
+
+1012
+00:37:38,599 --> 00:37:41,966
+So send us everything you got. And the
+
+1013
+00:37:41,966 --> 00:37:44,300
+peculiarity of this particular service is
+
+1014
+00:37:44,300 --> 00:37:46,500
+that they will then accept your flush
+
+1015
+00:37:46,500 --> 00:37:47,633
+event and they will
+
+1016
+00:37:47,633 --> 00:37:50,000
+promptly close the stream on you.
+
+1017
+00:37:50,000 --> 00:37:52,066
+That's not really what we wanted, but I
+
+1018
+00:37:52,066 --> 00:37:53,400
+don't know. They designed it this way.
+
+1019
+00:37:53,400 --> 00:37:55,633
+And I don't really have, you know,
+
+1020
+00:37:55,633 --> 00:37:57,133
+leverage to get them to redesign their
+
+1021
+00:37:57,133 --> 00:37:58,266
+entire API. I just have to
+
+1022
+00:37:58,266 --> 00:37:59,300
+work with what we have. Right.
+
+1023
+00:37:59,633 --> 00:38:01,900
+This is a lot of application development.
+
+1024
+00:38:01,900 --> 00:38:04,766
+You don't have the liberty to redesign
+
+1025
+00:38:04,766 --> 00:38:07,000
+every API that you're working with. You
+
+1026
+00:38:07,000 --> 00:38:09,233
+have to abstract it in some way. And so
+
+1027
+00:38:09,233 --> 00:38:10,633
+this is what we're having to do here. But
+
+1028
+00:38:10,633 --> 00:38:11,900
+the Effect stream
+
+1029
+00:38:11,900 --> 00:38:13,733
+primitives make it really easy.
+
+1030
+00:38:14,300 --> 00:38:16,099
+That sounds brilliant so far. And I think
+
+1031
+00:38:16,099 --> 00:38:18,433
+what is so nice about this is
+
+1032
+00:38:18,433 --> 00:38:22,000
+that it is A very clear and very
+
+1033
+00:38:22,000 --> 00:38:25,566
+intuitive from a user perspective what
+
+1034
+00:38:25,566 --> 00:38:27,233
+the system should do.
+
+1035
+00:38:27,233 --> 00:38:30,766
+And as users, we're like all familiar
+
+1036
+00:38:30,766 --> 00:38:33,833
+with when this goes wrong and how
+
+1037
+00:38:33,833 --> 00:38:36,500
+frustrating it is. Like if I'm talking to
+
+1038
+00:38:36,500 --> 00:38:39,500
+the AI, the AI goes off like in a wrong
+
+1039
+00:38:39,500 --> 00:38:40,766
+direction that I don't want.
+
+1040
+00:38:41,133 --> 00:38:42,333
+And I want to interrupt it.
+
+1041
+00:38:42,966 --> 00:38:45,566
+And it doesn't act on this interruption.
+
+1042
+00:38:45,566 --> 00:38:48,000
+You need to listen to it for another 20
+
+1043
+00:38:48,000 --> 00:38:50,933
+seconds until I finally need to repeat
+
+1044
+00:38:50,933 --> 00:38:52,000
+what I've just said.
+
+1045
+00:38:52,333 --> 00:38:54,300
+And all of those things, they need to be
+
+1046
+00:38:54,300 --> 00:38:56,300
+handled. And all of that is a lot of
+
+1047
+00:38:56,300 --> 00:38:59,066
+complexity. And if you leave that
+
+1048
+00:38:59,066 --> 00:39:02,433
+complexity unchecked, like you said, it
+
+1049
+00:39:02,433 --> 00:39:04,599
+was a mess. And I think that nicely
+
+1050
+00:39:04,599 --> 00:39:07,133
+reflects the majority of JavaScript
+
+1051
+00:39:07,133 --> 00:39:09,066
+applications that are out there or
+
+1052
+00:39:09,066 --> 00:39:09,933
+TypeScript applications.
+
+1053
+00:39:10,933 --> 00:39:13,433
+And I think it's really like this
+
+1054
+00:39:13,433 --> 00:39:17,333
+fine line to walk where you capture
+
+1055
+00:39:17,333 --> 00:39:20,099
+all of like the existential complexity
+
+1056
+00:39:20,099 --> 00:39:23,133
+that your use case requires and shaving
+
+1057
+00:39:23,133 --> 00:39:26,333
+off like all the accidental complexity
+
+1058
+00:39:26,333 --> 00:39:28,066
+and isolating this nicely.
+
+1059
+00:39:28,066 --> 00:39:30,566
+And even to a degree where you say like,
+
+1060
+00:39:30,566 --> 00:39:32,266
+okay, those services that you need to
+
+1061
+00:39:32,266 --> 00:39:35,199
+call, they're not in the ideal shape that
+
+1062
+00:39:35,199 --> 00:39:37,633
+you would like it to be. But then you can
+
+1063
+00:39:37,633 --> 00:39:40,500
+just like wrap it and create your own
+
+1064
+00:39:40,500 --> 00:39:43,333
+world that you're happy in and where you
+
+1065
+00:39:43,333 --> 00:39:45,633
+can model your application in a nice way.
+
+1066
+00:39:45,900 --> 00:39:48,199
+And yeah, I'm very happy to hear that
+
+1067
+00:39:48,199 --> 00:39:51,133
+effect streams and the various primitives
+
+1068
+00:39:51,133 --> 00:39:53,300
+that you've been using. You've been using
+
+1069
+00:39:53,300 --> 00:39:56,000
+the WebSocket abstraction that Effect
+
+1070
+00:39:56,000 --> 00:39:56,766
+gives you, and I
+
+1071
+00:39:56,766 --> 00:39:58,466
+suppose also queues, etc.
+
+1072
+00:39:59,099 --> 00:40:01,833
+That all of this has been so nicely
+
+1073
+00:40:01,833 --> 00:40:04,400
+fitting together to model your use case.
+
+1074
+00:40:05,300 --> 00:40:08,199
+So going a little bit beyond streams,
+
+1075
+00:40:08,800 --> 00:40:11,766
+which other aspects of Effect have you
+
+1076
+00:40:11,766 --> 00:40:13,766
+been using or which other kind of
+
+1077
+00:40:13,766 --> 00:40:15,599
+superpowers have you been getting out of
+
+1078
+00:40:15,599 --> 00:40:17,500
+Effect that have played a
+
+1079
+00:40:17,500 --> 00:40:19,266
+meaningful role in the application?
+
+1080
+00:40:19,933 --> 00:40:21,699
+Well, the error handling has been huge.
+
+1081
+00:40:22,300 --> 00:40:25,766
+Honestly, we modeled all of our possible
+
+1082
+00:40:25,766 --> 00:40:29,133
+errors. We have, I think, maybe up to 30
+
+1083
+00:40:29,133 --> 00:40:31,599
+or so errors that the system can emit
+
+1084
+00:40:31,599 --> 00:40:35,066
+that are domain specific tagged errors.
+
+1085
+00:40:35,699 --> 00:40:40,333
+And those are decorated with a specific
+
+1086
+00:40:40,333 --> 00:40:43,966
+error code and an error source, because
+
+1087
+00:40:43,966 --> 00:40:46,766
+one of the things that will often happen
+
+1088
+00:40:46,766 --> 00:40:49,500
+or that was happening originally, I
+
+1089
+00:40:49,500 --> 00:40:51,466
+think, was, oh, we got an error. The
+
+1090
+00:40:51,466 --> 00:40:52,233
+connection went down.
+
+1091
+00:40:52,233 --> 00:40:55,800
+Well, we got an error and something weird
+
+1092
+00:40:55,800 --> 00:40:57,933
+happened, and I don't know why, and now
+
+1093
+00:40:57,933 --> 00:40:59,466
+I'm in a weird state. Oh, we got an
+
+1094
+00:40:59,466 --> 00:41:03,433
+error, and the whole service just crashed
+
+1095
+00:41:03,433 --> 00:41:04,833
+or something like this, right?
+
+1096
+00:41:04,833 --> 00:41:08,199
+And even if you can just wrap everything
+
+1097
+00:41:08,199 --> 00:41:11,900
+in a try catch, best case scenario, you
+
+1098
+00:41:11,900 --> 00:41:13,466
+have some unrecoverable error, your
+
+1099
+00:41:13,466 --> 00:41:16,266
+connection goes down, and you don't know
+
+1100
+00:41:16,266 --> 00:41:17,300
+why. You just know, oops,
+
+1101
+00:41:17,566 --> 00:41:19,800
+bye, and then all of a sudden.
+
+1102
+00:41:19,800 --> 00:41:23,066
+And so it's frustrating for the user, and
+
+1103
+00:41:23,066 --> 00:41:24,933
+it's also frustrating for the rest of the
+
+1104
+00:41:24,933 --> 00:41:26,300
+team when they're trying to diagnose
+
+1105
+00:41:26,300 --> 00:41:28,133
+what's going on, which we spent a lot of
+
+1106
+00:41:28,133 --> 00:41:29,500
+time doing in our
+
+1107
+00:41:29,500 --> 00:41:31,566
+development workflow internally.
+
+1108
+00:41:31,966 --> 00:41:35,300
+And, you know, I'm a big fan of passing
+
+1109
+00:41:35,300 --> 00:41:38,233
+the buck, so I don't like things to be my
+
+1110
+00:41:38,233 --> 00:41:39,566
+fault. And I think
+
+1111
+00:41:39,566 --> 00:41:41,466
+we're all in that domain.
+
+1112
+00:41:41,900 --> 00:41:44,566
+I say this to joke, actually, I'm fine
+
+1113
+00:41:44,566 --> 00:41:46,099
+with taking responsibility if it's my
+
+1114
+00:41:46,099 --> 00:41:48,766
+fault, but I would rather things not go
+
+1115
+00:41:48,766 --> 00:41:49,699
+wrong because of the
+
+1116
+00:41:49,699 --> 00:41:50,699
+decisions that I made.
+
+1117
+00:41:50,966 --> 00:41:53,000
+A lot of times early on, it was like,
+
+1118
+00:41:53,000 --> 00:41:55,400
+oh, Cortex is down. Oh, Cortex emitted an
+
+1119
+00:41:55,400 --> 00:41:56,900
+error that I don't understand.
+
+1120
+00:41:57,333 --> 00:41:58,733
+And, you know, fair enough from a
+
+1121
+00:41:58,733 --> 00:42:00,833
+client's perspective or from a test
+
+1122
+00:42:00,833 --> 00:42:01,833
+engineer's perspective,
+
+1123
+00:42:01,833 --> 00:42:03,233
+that's what it seems like.
+
+1124
+00:42:03,633 --> 00:42:05,766
+But that doesn't really give you enough
+
+1125
+00:42:05,766 --> 00:42:08,566
+information to troubleshoot because most
+
+1126
+00:42:08,566 --> 00:42:11,199
+of the time it's not, you know, Cortex is
+
+1127
+00:42:11,199 --> 00:42:14,333
+just a hub. Cortex is just passing events
+
+1128
+00:42:14,333 --> 00:42:15,466
+from one service to another.
+
+1129
+00:42:15,933 --> 00:42:18,966
+It's not Cortex really as the source of
+
+1130
+00:42:18,966 --> 00:42:22,099
+the errors. Instead, what we see a lot of
+
+1131
+00:42:22,099 --> 00:42:23,500
+the time is, oh, one of our
+
+1132
+00:42:23,500 --> 00:42:24,800
+backend services went down.
+
+1133
+00:42:25,133 --> 00:42:26,833
+Oh, a backend service emitted something
+
+1134
+00:42:26,833 --> 00:42:29,466
+that we didn't expect. Oh, it's being
+
+1135
+00:42:29,466 --> 00:42:31,900
+slow or something like this.
+
+1136
+00:42:32,266 --> 00:42:34,633
+And now we're able to like create
+
+1137
+00:42:34,633 --> 00:42:37,199
+targeted pinpoint errors whenever a
+
+1138
+00:42:37,199 --> 00:42:38,300
+specific thing goes wrong
+
+1139
+00:42:38,300 --> 00:42:39,300
+somewhere in the system.
+
+1140
+00:42:39,933 --> 00:42:41,833
+And then those propagate up to our top
+
+1141
+00:42:41,833 --> 00:42:43,566
+level error handling. And so if we have
+
+1142
+00:42:43,566 --> 00:42:44,900
+something that's unrecoverable that
+
+1143
+00:42:44,900 --> 00:42:47,433
+happens, we can now close
+
+1144
+00:42:47,433 --> 00:42:48,433
+the connection like before.
+
+1145
+00:42:48,433 --> 00:42:51,566
+But now we can send up detailed
+
+1146
+00:42:51,566 --> 00:42:54,766
+information that allows our people to
+
+1147
+00:42:54,766 --> 00:42:55,833
+diagnose what's the
+
+1148
+00:42:55,833 --> 00:42:57,000
+problem. So it's not Cortex.
+
+1149
+00:42:57,933 --> 00:43:00,300
+It's like, oh, our speech-to-text service
+
+1150
+00:43:00,300 --> 00:43:02,566
+crashed or is out of memory or something.
+
+1151
+00:43:03,266 --> 00:43:07,266
+And so now we aren't able to create calls
+
+1152
+00:43:07,266 --> 00:43:08,133
+until we fix that
+
+1153
+00:43:08,133 --> 00:43:08,900
+piece of infrastructure.
+
+1154
+00:43:09,500 --> 00:43:11,466
+So that gives us a lot more information
+
+1155
+00:43:11,466 --> 00:43:14,099
+that kind of actually saves a lot of time
+
+1156
+00:43:14,099 --> 00:43:16,266
+debugging the system. It points you
+
+1157
+00:43:16,266 --> 00:43:18,300
+directly to where the source of the
+
+1158
+00:43:18,300 --> 00:43:21,099
+problem is instead of making
+
+1159
+00:43:21,099 --> 00:43:22,966
+you go on a debugging hunt.
+
+1160
+00:43:23,466 --> 00:43:26,000
+So that has been huge for us. The error
+
+1161
+00:43:26,000 --> 00:43:28,199
+handling has been extremely valuable.
+
+1162
+00:43:28,466 --> 00:43:30,500
+There are a lot of other errors that are
+
+1163
+00:43:30,500 --> 00:43:31,599
+recoverable, but we want
+
+1164
+00:43:31,599 --> 00:43:32,566
+it to log and report them.
+
+1165
+00:43:33,400 --> 00:43:36,800
+So the whole error handling story in
+
+1166
+00:43:36,800 --> 00:43:40,500
+Effect is fantastic, just surfacing when
+
+1167
+00:43:40,500 --> 00:43:42,233
+things can go wrong and
+
+1168
+00:43:42,233 --> 00:43:43,433
+forcing you to deal with it.
+
+1169
+00:43:43,966 --> 00:43:46,800
+It has also meant, interestingly, I feel
+
+1170
+00:43:46,800 --> 00:43:50,066
+like that, you know, like within Cortex,
+
+1171
+00:43:50,199 --> 00:43:51,400
+not every function is an effect.
+
+1172
+00:43:51,400 --> 00:43:54,433
+You know, not every single line of code
+
+1173
+00:43:54,433 --> 00:43:57,900
+is a yield star. There's a fair amount of
+
+1174
+00:43:57,900 --> 00:44:00,233
+just plain old, data manipulation
+
+1175
+00:44:00,233 --> 00:44:03,800
+that is happening throughout the code.
+
+1176
+00:44:03,800 --> 00:44:05,233
+It's data manipulation using
+
+1177
+00:44:05,233 --> 00:44:06,566
+functions that are
+
+1178
+00:44:06,566 --> 00:44:09,800
+synchronous and aren't going to throw.
+
+1179
+00:44:11,066 --> 00:44:12,233
+Right. You could have very high
+
+1180
+00:44:12,233 --> 00:44:14,333
+confidence that, you know, if you're
+
+1181
+00:44:14,333 --> 00:44:15,900
+trying to get an index of a thing from a
+
+1182
+00:44:15,900 --> 00:44:17,066
+string, you know, or
+
+1183
+00:44:17,066 --> 00:44:18,833
+whatever, you're not going to throw.
+
+1184
+00:44:19,099 --> 00:44:20,199
+you can do like a
+
+1185
+00:44:20,199 --> 00:44:22,066
+lot of just kind of conventional
+
+1186
+00:44:22,066 --> 00:44:23,733
+programming in areas that
+
+1187
+00:44:23,733 --> 00:44:25,266
+are kind of safe and sandboxed.
+
+1188
+00:44:25,266 --> 00:44:27,300
+And it doesn't mean that every single
+
+1189
+00:44:27,300 --> 00:44:30,433
+calculation needs to be done in an
+
+1190
+00:44:30,433 --> 00:44:33,566
+effect. It just gives you a safe place to
+
+1191
+00:44:33,566 --> 00:44:36,133
+do that kind of work without having to
+
+1192
+00:44:36,133 --> 00:44:38,266
+worry, you know, oh, if this throws or
+
+1193
+00:44:38,266 --> 00:44:39,733
+oh, if this does something asynchronous
+
+1194
+00:44:39,733 --> 00:44:42,966
+and I, you know, don't handle it, you
+
+1195
+00:44:42,966 --> 00:44:44,133
+know, don't await it or whatever.
+
+1196
+00:44:44,766 --> 00:44:46,766
+You know, usually those those kinds of
+
+1197
+00:44:46,766 --> 00:44:48,699
+cases are they get a lot of attention
+
+1198
+00:44:48,699 --> 00:44:50,733
+because we have to
+
+1199
+00:44:50,733 --> 00:44:51,933
+think about them so much.
+
+1200
+00:44:52,766 --> 00:44:55,633
+But that's not usually the most of the
+
+1201
+00:44:55,633 --> 00:44:57,699
+work that we're doing. Ideally, right?
+
+1202
+00:44:57,699 --> 00:44:59,800
+We're thinking about like, purely
+
+1203
+00:44:59,800 --> 00:45:02,733
+functional transformations of data from
+
+1204
+00:45:02,733 --> 00:45:03,966
+one state into another.
+
+1205
+00:45:03,966 --> 00:45:05,066
+taking the input from
+
+1206
+00:45:05,066 --> 00:45:07,566
+some kind of asynchronous effect and
+
+1207
+00:45:07,566 --> 00:45:08,300
+sending it out to
+
+1208
+00:45:08,300 --> 00:45:09,300
+some asynchronous effect.
+
+1209
+00:45:09,566 --> 00:45:11,766
+But like the actual program, the business
+
+1210
+00:45:11,766 --> 00:45:13,466
+logic is usually something that is like
+
+1211
+00:45:13,466 --> 00:45:16,333
+pretty, you know, step by step, you know,
+
+1212
+00:45:16,333 --> 00:45:18,833
+just just logic. Is usually when
+
+1213
+00:45:18,833 --> 00:45:21,466
+we're not interfacing with an external,
+
+1214
+00:45:21,466 --> 00:45:22,966
+you know, service or
+
+1215
+00:45:22,966 --> 00:45:24,966
+some kind of side effect.
+
+1216
+00:45:24,966 --> 00:45:28,300
+Then we can just write code like normal.
+
+1217
+00:45:28,733 --> 00:45:29,833
+You know, we don't have to model
+
+1218
+00:45:29,833 --> 00:45:32,066
+everything as a stream just to add up
+
+1219
+00:45:32,066 --> 00:45:33,199
+some numbers or something.
+
+1220
+00:45:33,599 --> 00:45:36,433
+Right. And I think that the super plain
+
+1221
+00:45:36,433 --> 00:45:38,933
+way how you put it just write code like
+
+1222
+00:45:38,933 --> 00:45:42,133
+normal. I think this is kind of the in a
+
+1223
+00:45:42,133 --> 00:45:43,300
+nutshell, the difference
+
+1224
+00:45:43,300 --> 00:45:46,199
+between Effect and RxJS
+
+1225
+00:45:46,199 --> 00:45:49,500
+Where in RxJS you need to do everything
+
+1226
+00:45:49,500 --> 00:45:52,066
+as a stream. And in Effect, you can write
+
+1227
+00:45:52,066 --> 00:45:55,800
+code like normal. And another aspect of
+
+1228
+00:45:55,800 --> 00:45:57,233
+writing code like normal
+
+1229
+00:45:57,233 --> 00:46:00,199
+is trading errors as values.
+
+1230
+00:46:00,199 --> 00:46:04,300
+This is we're all super used to just
+
+1231
+00:46:04,300 --> 00:46:05,566
+passing around and
+
+1232
+00:46:05,566 --> 00:46:09,433
+manipulating data. And somehow, we're
+
+1233
+00:46:09,433 --> 00:46:11,233
+kind of brainwashed into
+
+1234
+00:46:11,233 --> 00:46:13,300
+thinking that errors need to be like we
+
+1235
+00:46:13,300 --> 00:46:14,833
+need something we need.
+
+1236
+00:46:14,833 --> 00:46:16,966
+We're almost like paralyzed about like,
+
+1237
+00:46:16,966 --> 00:46:19,300
+how should we deal with errors? But if
+
+1238
+00:46:19,300 --> 00:46:22,000
+we're just trading errors as values as
+
+1239
+00:46:22,000 --> 00:46:24,466
+well, errors as data and passing them
+
+1240
+00:46:24,466 --> 00:46:26,966
+around and Effect just makes that easy by
+
+1241
+00:46:26,966 --> 00:46:28,333
+giving us a separate channel
+
+1242
+00:46:28,333 --> 00:46:30,833
+to deal with that error data.
+
+1243
+00:46:30,833 --> 00:46:33,066
+And then, like you say, like you don't
+
+1244
+00:46:33,066 --> 00:46:35,966
+want to you'd like to pass it along, then
+
+1245
+00:46:35,966 --> 00:46:38,433
+it's just data that you pass along. So I
+
+1246
+00:46:38,433 --> 00:46:41,199
+think that's just like code like it's
+
+1247
+00:46:41,199 --> 00:46:43,900
+normal. I think that is like one of
+
+1248
+00:46:43,900 --> 00:46:44,833
+Effect's superpowers.
+
+1249
+00:46:45,466 --> 00:46:48,699
+And closely related to errors is like
+
+1250
+00:46:48,699 --> 00:46:51,966
+having visibility into when errors happen
+
+1251
+00:46:51,966 --> 00:46:55,133
+when something doesn't go as expected. So
+
+1252
+00:46:55,133 --> 00:46:57,833
+and I think if I remember correctly, the
+
+1253
+00:46:57,833 --> 00:47:00,199
+telemetry part the observability part has
+
+1254
+00:47:00,199 --> 00:47:02,699
+also been a key aspect of
+
+1255
+00:47:02,699 --> 00:47:04,966
+building Cortex and operating it.
+
+1256
+00:47:04,966 --> 00:47:07,699
+So maybe can speak a little bit more to
+
+1257
+00:47:07,699 --> 00:47:10,933
+how you do observability and telemetry
+
+1258
+00:47:10,933 --> 00:47:14,699
+usually within MasterClass, particularly
+
+1259
+00:47:14,699 --> 00:47:17,966
+within JavaScript applications and how
+
+1260
+00:47:17,966 --> 00:47:20,199
+Effect has helped you to
+
+1261
+00:47:20,199 --> 00:47:21,966
+maybe improve that even further.
+
+1262
+00:47:22,333 --> 00:47:25,500
+Right. Yeah. So I sort of have to admit
+
+1263
+00:47:25,500 --> 00:47:27,733
+that we don't have an excellent story for
+
+1264
+00:47:27,733 --> 00:47:30,133
+the most part or before Cortex didn't
+
+1265
+00:47:30,133 --> 00:47:31,400
+have an excellent story about
+
+1266
+00:47:31,400 --> 00:47:33,466
+observability at MasterClass
+
+1267
+00:47:33,466 --> 00:47:34,500
+in the JavaScript world.
+
+1268
+00:47:34,900 --> 00:47:36,733
+We have a number of services.
+
+1269
+00:47:36,733 --> 00:47:39,199
+We have we have a Raygun. We have New
+
+1270
+00:47:39,199 --> 00:47:42,066
+Relic and we have Core Logics. We get our
+
+1271
+00:47:42,066 --> 00:47:44,766
+logs to we send our logs to and we have.
+
+1272
+00:47:44,766 --> 00:47:46,333
+So we have a bunch of observability
+
+1273
+00:47:46,333 --> 00:47:48,566
+services for things like video. We have a
+
+1274
+00:47:48,566 --> 00:47:51,266
+dedicated video monitoring service that
+
+1275
+00:47:51,266 --> 00:47:53,133
+we integrate and
+
+1276
+00:47:53,133 --> 00:47:55,400
+a few high value business.
+
+1277
+00:47:55,400 --> 00:47:57,400
+Applications like that. We want to keep
+
+1278
+00:47:57,400 --> 00:48:00,233
+an eye on, you know, error rates for
+
+1279
+00:48:00,233 --> 00:48:01,833
+people visiting our home page or things
+
+1280
+00:48:01,833 --> 00:48:02,766
+that are really
+
+1281
+00:48:02,766 --> 00:48:05,933
+indicate business traffic, business
+
+1282
+00:48:05,933 --> 00:48:07,099
+being impacted by
+
+1283
+00:48:07,099 --> 00:48:08,233
+some technical problem.
+
+1284
+00:48:08,433 --> 00:48:11,266
+However, usually that that amounts
+
+1285
+00:48:11,266 --> 00:48:12,766
+to like something
+
+1286
+00:48:12,766 --> 00:48:13,566
+that's easily reproducible.
+
+1287
+00:48:13,566 --> 00:48:16,900
+And easily fixable usually and there's a
+
+1288
+00:48:16,900 --> 00:48:19,266
+either some infrastructure that needs to
+
+1289
+00:48:19,266 --> 00:48:21,900
+be restarted or code change that needs to
+
+1290
+00:48:21,900 --> 00:48:23,333
+be rolled back or something like that.
+
+1291
+00:48:23,733 --> 00:48:26,433
+Cortex really represents a new level of
+
+1292
+00:48:26,433 --> 00:48:28,199
+complexity when it comes to understanding
+
+1293
+00:48:28,199 --> 00:48:29,833
+what's going on internally. And I think
+
+1294
+00:48:29,833 --> 00:48:32,900
+that a big reason for that is that it is
+
+1295
+00:48:32,900 --> 00:48:35,966
+not a one shot HTTP server type of
+
+1296
+00:48:35,966 --> 00:48:38,199
+application, but is instead
+
+1297
+00:48:38,199 --> 00:48:41,633
+You know, a stream of streams and is
+
+1298
+00:48:41,633 --> 00:48:43,566
+handling all of these asynchronous events
+
+1299
+00:48:43,566 --> 00:48:45,066
+that are passing through it. It's not
+
+1300
+00:48:45,066 --> 00:48:47,599
+directly doing much of any work. It's
+
+1301
+00:48:47,599 --> 00:48:49,766
+just literally in between all these
+
+1302
+00:48:49,766 --> 00:48:51,133
+services handing events
+
+1303
+00:48:51,133 --> 00:48:52,199
+from one service to another.
+
+1304
+00:48:52,500 --> 00:48:54,066
+So, as I mentioned before, when
+
+1305
+00:48:54,066 --> 00:48:55,599
+things go wrong, they're mostly not going
+
+1306
+00:48:55,599 --> 00:48:57,966
+wrong in Cortex. And likewise with
+
+1307
+00:48:57,966 --> 00:48:59,099
+observability
+
+1308
+00:48:59,466 --> 00:49:01,300
+where the system is spending time
+
+1309
+00:49:01,300 --> 00:49:04,633
+doing work, it's mostly not spending time
+
+1310
+00:49:04,633 --> 00:49:06,266
+inside of Cortex doing that work.
+
+1311
+00:49:07,199 --> 00:49:10,066
+Cortex is instead, waiting for
+
+1312
+00:49:10,066 --> 00:49:12,566
+events from other services. And so what
+
+1313
+00:49:12,566 --> 00:49:14,333
+we're interested in measuring is not
+
+1314
+00:49:14,333 --> 00:49:16,000
+really the conventional, I think,
+
+1315
+00:49:16,300 --> 00:49:17,599
+telemetry story when it comes
+
+1316
+00:49:17,599 --> 00:49:20,133
+to building tracing and spans.
+
+1317
+00:49:20,599 --> 00:49:22,933
+I think this is a story that is also
+
+1318
+00:49:22,933 --> 00:49:26,766
+baked into the default Effect telemetry
+
+1319
+00:49:26,766 --> 00:49:29,466
+story, right? When you have a Effect dot
+
+1320
+00:49:29,466 --> 00:49:32,566
+with span with a name, you know, and you
+
+1321
+00:49:32,566 --> 00:49:33,566
+and you and you wrap
+
+1322
+00:49:33,566 --> 00:49:35,066
+that around an Effect.
+
+1323
+00:49:35,400 --> 00:49:37,466
+Well, that's great. That ensures that
+
+1324
+00:49:37,466 --> 00:49:40,466
+that span or that Effect, the time that
+
+1325
+00:49:40,466 --> 00:49:43,066
+it executes is going to be represented by
+
+1326
+00:49:43,066 --> 00:49:46,733
+a span in your trace. And for most like
+
+1327
+00:49:46,733 --> 00:49:48,933
+one shot type of actions that you might
+
+1328
+00:49:48,933 --> 00:49:50,733
+perform, that works great,
+
+1329
+00:49:51,199 --> 00:49:52,466
+which is most of the time.
+
+1330
+00:49:52,466 --> 00:49:55,733
+If you're doing actual work within an
+
+1331
+00:49:55,733 --> 00:49:57,566
+effect, within a one shot effect, then
+
+1332
+00:49:57,566 --> 00:50:00,133
+that is the conventional way that you do
+
+1333
+00:50:00,133 --> 00:50:02,133
+telemetry. We're not really doing that at
+
+1334
+00:50:02,133 --> 00:50:04,199
+all in our telemetry
+
+1335
+00:50:04,199 --> 00:50:05,400
+implementation in Cortex.
+
+1336
+00:50:05,699 --> 00:50:07,699
+Instead, we're interested in measuring
+
+1337
+00:50:07,699 --> 00:50:10,199
+time between events that are coming from
+
+1338
+00:50:10,199 --> 00:50:12,566
+outside services. Cortex is the only
+
+1339
+00:50:12,566 --> 00:50:13,966
+place where we can really gather this
+
+1340
+00:50:13,966 --> 00:50:15,966
+information because it's the hub.
+
+1341
+00:50:15,966 --> 00:50:19,133
+But Cortex isn't sitting around. We don't
+
+1342
+00:50:19,133 --> 00:50:21,266
+have like an effect that is, you know,
+
+1343
+00:50:21,266 --> 00:50:23,099
+sleeping until it gets a certain
+
+1344
+00:50:23,099 --> 00:50:25,466
+notification from or an event from
+
+1345
+00:50:25,466 --> 00:50:26,400
+another stream.
+
+1346
+00:50:26,400 --> 00:50:27,066
+It wouldn't make any sense
+
+1347
+00:50:27,066 --> 00:50:28,466
+to build the application that way.
+
+1348
+00:50:28,933 --> 00:50:30,133
+And so it doesn't really make a lot of
+
+1349
+00:50:30,133 --> 00:50:32,900
+sense to build our telemetry that way.
+
+1350
+00:50:33,266 --> 00:50:34,733
+I suppose what we're doing with
+
+1351
+00:50:35,099 --> 00:50:36,833
+Open telemetry is a little unconventional
+
+1352
+00:50:36,833 --> 00:50:40,199
+in that a span doesn't represent Cortex
+
+1353
+00:50:40,199 --> 00:50:42,199
+doing that work. Instead, it represents
+
+1354
+00:50:42,199 --> 00:50:44,633
+usually really represents like the LLM is
+
+1355
+00:50:44,633 --> 00:50:46,833
+working or the text-to-speech
+
+1356
+00:50:46,833 --> 00:50:47,566
+service is working.
+
+1357
+00:50:48,133 --> 00:50:49,599
+And we're just waiting for that. But it's
+
+1358
+00:50:49,599 --> 00:50:52,066
+measured from Cortex, not from these
+
+1359
+00:50:52,066 --> 00:50:53,233
+other services. But because
+
+1360
+00:50:53,233 --> 00:50:54,966
+it's really all streams.
+
+1361
+00:50:54,966 --> 00:50:57,900
+What we have to go on isn't an effect
+
+1362
+00:50:57,900 --> 00:51:00,400
+that we're measuring. It is literally the
+
+1363
+00:51:00,400 --> 00:51:03,333
+time between two events in those streams
+
+1364
+00:51:03,333 --> 00:51:05,433
+that we're measuring. And so we really
+
+1365
+00:51:05,433 --> 00:51:07,599
+had to roll a lot of our
+
+1366
+00:51:07,599 --> 00:51:10,000
+own telemetry handling.
+
+1367
+00:51:10,000 --> 00:51:11,500
+But, you know, we were going to have to
+
+1368
+00:51:11,500 --> 00:51:12,300
+do this anyway,
+
+1369
+00:51:12,766 --> 00:51:14,233
+ultimately, because when you have.
+
+1370
+00:51:14,766 --> 00:51:16,266
+Let's say we're not using Effect. We're
+
+1371
+00:51:16,266 --> 00:51:19,633
+using the original approach, the
+
+1372
+00:51:19,633 --> 00:51:21,833
+non-Effect approach that is event
+
+1373
+00:51:21,833 --> 00:51:23,833
+emitters everywhere, you know, WebSocket
+
+1374
+00:51:23,833 --> 00:51:25,433
+event handlers and so forth.
+
+1375
+00:51:25,800 --> 00:51:28,333
+You get a transcription from the speech
+
+1376
+00:51:28,333 --> 00:51:31,933
+to text service and you want to start the
+
+1377
+00:51:31,933 --> 00:51:34,800
+span of time that it takes that you're
+
+1378
+00:51:34,800 --> 00:51:36,066
+measuring that it takes to.
+
+1379
+00:51:36,633 --> 00:51:37,400
+Generate a response
+
+1380
+00:51:37,400 --> 00:51:38,466
+to that transcription.
+
+1381
+00:51:39,566 --> 00:51:42,066
+Well, you can have a central hub where
+
+1382
+00:51:42,066 --> 00:51:42,766
+like maybe you're
+
+1383
+00:51:42,766 --> 00:51:44,233
+collecting all of these events.
+
+1384
+00:51:44,833 --> 00:51:48,300
+But you're starting that span in one
+
+1385
+00:51:48,300 --> 00:51:49,966
+event handler and then you're entering
+
+1386
+00:51:49,966 --> 00:51:51,833
+you're ending it in a different event
+
+1387
+00:51:51,833 --> 00:51:53,300
+handler for a different service.
+
+1388
+00:51:53,466 --> 00:51:55,099
+And so you need a place where you're
+
+1389
+00:51:55,099 --> 00:51:57,599
+holding on to those references might be a
+
+1390
+00:51:57,599 --> 00:51:59,466
+centralized location that is listening to
+
+1391
+00:51:59,466 --> 00:52:00,199
+all of these events.
+
+1392
+00:52:00,500 --> 00:52:02,566
+But then it becomes kind of tangled up
+
+1393
+00:52:02,566 --> 00:52:04,566
+because you're having to.
+
+1394
+00:52:04,566 --> 00:52:06,133
+Keep these references around and
+
+1395
+00:52:06,133 --> 00:52:08,766
+keep them alive, from one
+
+1396
+00:52:08,766 --> 00:52:10,300
+event handler to a
+
+1397
+00:52:10,300 --> 00:52:11,433
+completely different event handler.
+
+1398
+00:52:11,966 --> 00:52:13,566
+And this is an area where.
+
+1399
+00:52:14,000 --> 00:52:15,733
+Yeah, we had to roll some of our own code
+
+1400
+00:52:15,733 --> 00:52:16,800
+in Effect do it this way.
+
+1401
+00:52:17,466 --> 00:52:19,133
+But I feel like Effect kind of made it
+
+1402
+00:52:19,133 --> 00:52:20,066
+easier to do it this
+
+1403
+00:52:20,066 --> 00:52:21,099
+way anyway.
+
+1404
+00:52:21,099 --> 00:52:23,333
+Allowing us to have a kind of a
+
+1405
+00:52:23,333 --> 00:52:27,800
+connection level, long lived reference to
+
+1406
+00:52:27,800 --> 00:52:30,433
+these spans and then just manipulate
+
+1407
+00:52:30,433 --> 00:52:34,133
+spans in what is essentially a stream dot
+
+1408
+00:52:34,133 --> 00:52:37,099
+tap where we are listening to all of the
+
+1409
+00:52:37,099 --> 00:52:38,466
+incoming events and then just
+
+1410
+00:52:38,466 --> 00:52:40,966
+Starting and stopping them based on 
+
+1411
+00:52:40,966 --> 00:52:42,633
+which events are occurring.
+
+1412
+00:52:42,633 --> 00:52:44,933
+It's not been perfect, honestly.
+
+1413
+00:52:45,466 --> 00:52:46,833
+It has been a little error prone
+
+1414
+00:52:46,833 --> 00:52:49,800
+sometimes and we've had to go in and kind
+
+1415
+00:52:49,800 --> 00:52:53,333
+of tweak things when we
+
+1416
+00:52:53,333 --> 00:52:54,900
+have unexpected behaviors.
+
+1417
+00:52:55,566 --> 00:52:57,599
+It's an area that has provided immense
+
+1418
+00:52:57,599 --> 00:52:58,833
+value for us, however.
+
+1419
+00:52:59,199 --> 00:53:01,066
+It's given us a lot of insight into what
+
+1420
+00:53:01,066 --> 00:53:02,066
+people are experiencing
+
+1421
+00:53:02,066 --> 00:53:03,400
+if people are experiencing.
+
+1422
+00:53:04,766 --> 00:53:08,233
+Really slow behaviors, slow responses.
+
+1423
+00:53:08,233 --> 00:53:10,333
+If people are experiencing the bot is
+
+1424
+00:53:10,333 --> 00:53:12,433
+talking over me or this sort of thing.
+
+1425
+00:53:12,633 --> 00:53:14,099
+If we have errors somewhere in the
+
+1426
+00:53:14,099 --> 00:53:16,133
+system, we can see exactly where and when
+
+1427
+00:53:16,133 --> 00:53:18,333
+that happened and in what service and in
+
+1428
+00:53:18,333 --> 00:53:19,066
+what part of that
+
+1429
+00:53:19,066 --> 00:53:20,400
+services work it happened.
+
+1430
+00:53:20,833 --> 00:53:24,733
+And we're able to trace, you know, what
+
+1431
+00:53:24,733 --> 00:53:26,800
+was the sequence of of chunks
+
+1432
+00:53:26,800 --> 00:53:28,266
+that were emitted by the LLM.
+
+1433
+00:53:28,466 --> 00:53:29,333
+You know, how long did it take
+
+1434
+00:53:29,333 --> 00:53:30,199
+for us to get that first
+
+1435
+00:53:30,199 --> 00:53:31,933
+chunk out of it out of the LLM.
+
+1436
+00:53:32,233 --> 00:53:35,199
+You know, comparing the user message in
+
+1437
+00:53:35,199 --> 00:53:37,566
+the bot response and you know, if the
+
+1438
+00:53:37,566 --> 00:53:39,933
+user interrupted the bot, how much of the
+
+1439
+00:53:39,933 --> 00:53:41,400
+bot speech did the user here?
+
+1440
+00:53:42,400 --> 00:53:44,300
+And so a lot of these questions that are
+
+1441
+00:53:44,300 --> 00:53:46,900
+really of interest to the business and
+
+1442
+00:53:46,900 --> 00:53:48,099
+also for us technically.
+
+1443
+00:53:48,500 --> 00:53:51,000
+When it comes to how on call is being
+
+1444
+00:53:51,000 --> 00:53:54,566
+used and how people are experiencing it
+
+1445
+00:53:54,566 --> 00:53:57,966
+are really answered by the telemetry that
+
+1446
+00:53:57,966 --> 00:53:58,966
+we've built using
+
+1447
+00:53:58,966 --> 00:54:00,933
+Opentelemetry and Effect.
+
+1448
+00:54:00,933 --> 00:54:02,266
+But,it's a very
+
+1449
+00:54:02,266 --> 00:54:05,400
+custom system that I I don't know that it
+
+1450
+00:54:05,400 --> 00:54:08,000
+has its optimal form yet.
+
+1451
+00:54:08,000 --> 00:54:10,266
+And I also don't know that is necessarily
+
+1452
+00:54:10,266 --> 00:54:12,233
+going to apply to
+
+1453
+00:54:12,233 --> 00:54:14,266
+everybody in the same way.
+
+1454
+00:54:14,266 --> 00:54:15,733
+I don't know. This is like I said, it's
+
+1455
+00:54:15,733 --> 00:54:18,900
+it's it's a very custom system that is
+
+1456
+00:54:18,900 --> 00:54:21,500
+built for our use case that will not
+
+1457
+00:54:21,500 --> 00:54:24,433
+apply in most conventional applications.
+
+1458
+00:54:24,433 --> 00:54:25,966
+But I think that's OK.
+
+1459
+00:54:25,966 --> 00:54:28,300
+There's always special cases.
+
+1460
+00:54:28,433 --> 00:54:30,333
+This makes sense. And, where
+
+1461
+00:54:30,333 --> 00:54:32,933
+Opentelemetry or the previous
+
+1462
+00:54:32,933 --> 00:54:35,633
+technologies that is based on Open
+
+1463
+00:54:35,633 --> 00:54:40,099
+Sensors and Open Tracing, I believe those
+
+1464
+00:54:40,099 --> 00:54:42,500
+were the two predecessor technologies
+
+1465
+00:54:42,500 --> 00:54:44,199
+that merged into Opentelemetry.
+
+1466
+00:54:44,500 --> 00:54:46,466
+Where they're historically coming from is
+
+1467
+00:54:46,466 --> 00:54:49,233
+like from distributed tracing. And that
+
+1468
+00:54:49,233 --> 00:54:50,466
+is typically in a
+
+1469
+00:54:50,466 --> 00:54:52,233
+microservice kind of architecture.
+
+1470
+00:54:52,233 --> 00:54:54,966
+We have one service request response
+
+1471
+00:54:54,966 --> 00:54:56,566
+style calling into another
+
+1472
+00:54:56,566 --> 00:54:57,933
+one, calling into another one.
+
+1473
+00:54:58,199 --> 00:55:00,733
+So I think where those systems or this
+
+1474
+00:55:00,733 --> 00:55:02,933
+technology shines historically, at least,
+
+1475
+00:55:02,933 --> 00:55:06,733
+is on a request response pattern where
+
+1476
+00:55:06,733 --> 00:55:08,800
+you just get that burned on charge that
+
+1477
+00:55:08,800 --> 00:55:09,933
+that you know from like a
+
+1478
+00:55:09,933 --> 00:55:12,266
+performance profiler in a single threaded
+
+1479
+00:55:12,266 --> 00:55:13,699
+environment or a multi-threaded
+
+1480
+00:55:13,699 --> 00:55:14,633
+environment, now we get it
+
+1481
+00:55:14,633 --> 00:55:16,099
+over like a network boundary.
+
+1482
+00:55:16,699 --> 00:55:19,400
+So this is where those shine. But going
+
+1483
+00:55:19,400 --> 00:55:21,400
+beyond that for different modalities,
+
+1484
+00:55:21,400 --> 00:55:24,900
+like for long running streams or I've
+
+1485
+00:55:24,900 --> 00:55:26,800
+been also experimenting with using
+
+1486
+00:55:26,800 --> 00:55:28,800
+OpenTelemetry in a front-end setting
+
+1487
+00:55:28,800 --> 00:55:31,400
+where like a front-end session, you don't
+
+1488
+00:55:31,400 --> 00:55:33,199
+have that request response, but you have
+
+1489
+00:55:33,199 --> 00:55:34,066
+a front-end session.
+
+1490
+00:55:34,900 --> 00:55:36,633
+For example, think about how you use
+
+1491
+00:55:36,633 --> 00:55:39,000
+social media. You might be doomscrolling
+
+1492
+00:55:39,000 --> 00:55:42,433
+for a very long time. So is your entire
+
+1493
+00:55:42,433 --> 00:55:45,233
+session, is that the trace that you have
+
+1494
+00:55:45,233 --> 00:55:48,566
+with possibly like thousands of spans?
+
+1495
+00:55:49,066 --> 00:55:51,199
+Or where do you make cut basically? How
+
+1496
+00:55:51,199 --> 00:55:53,266
+do you design your trace and your spans?
+
+1497
+00:55:54,000 --> 00:55:55,633
+I think that is still something that
+
+1498
+00:55:55,633 --> 00:55:57,699
+we're figuring out as an industry.
+
+1499
+00:55:57,900 --> 00:56:01,199
+And it's been cool to hear about your
+
+1500
+00:56:01,199 --> 00:56:03,333
+usage of it. And I think this also speaks
+
+1501
+00:56:03,333 --> 00:56:06,633
+to the flexibility of Effect. Yes,
+
+1502
+00:56:06,633 --> 00:56:09,233
+they're like default patterns make it
+
+1503
+00:56:09,233 --> 00:56:11,333
+really easy and kind of trivial to
+
+1504
+00:56:11,333 --> 00:56:12,800
+instrument your app out of the box.
+
+1505
+00:56:13,333 --> 00:56:15,566
+But if you want to instrument it in a way
+
+1506
+00:56:15,566 --> 00:56:18,900
+that's a little bit more specific to how
+
+1507
+00:56:18,900 --> 00:56:21,266
+you would like to give your trace
+
+1508
+00:56:21,266 --> 00:56:23,300
+meaning, that's possible as well.
+
+1509
+00:56:23,500 --> 00:56:26,699
+Maybe taking a step back here for folks
+
+1510
+00:56:26,699 --> 00:56:29,400
+who are curious about Opentelemetry and
+
+1511
+00:56:29,400 --> 00:56:31,766
+like generally see the value in
+
+1512
+00:56:31,766 --> 00:56:33,900
+observability, but maybe haven't taken
+
+1513
+00:56:33,900 --> 00:56:36,900
+that leap yet themselves instrumenting
+
+1514
+00:56:36,900 --> 00:56:38,933
+their app, which sort of guidance would
+
+1515
+00:56:38,933 --> 00:56:41,800
+you offer to people what to focus on,
+
+1516
+00:56:41,800 --> 00:56:44,300
+maybe what to initially leave out of the
+
+1517
+00:56:44,300 --> 00:56:45,633
+picture just to get going?
+
+1518
+00:56:46,266 --> 00:56:47,833
+Oh, that's a really good question. I feel
+
+1519
+00:56:47,833 --> 00:56:49,933
+like the answers are going to be really
+
+1520
+00:56:49,933 --> 00:56:53,433
+specific to your use case. And in the
+
+1521
+00:56:53,433 --> 00:56:55,199
+case of an application like Cortex,
+
+1522
+00:56:55,599 --> 00:56:58,433
+extremely custom. And we have spent a lot
+
+1523
+00:56:58,433 --> 00:57:02,633
+of time refining and iterating on our
+
+1524
+00:57:02,633 --> 00:57:04,800
+telemetry implementation. But most
+
+1525
+00:57:04,800 --> 00:57:05,566
+applications probably
+
+1526
+00:57:05,566 --> 00:57:07,233
+don't need that, honestly.
+
+1527
+00:57:07,566 --> 00:57:09,266
+I think, especially in the
+
+1528
+00:57:09,266 --> 00:57:11,599
+JavaScript world, there's both browser
+
+1529
+00:57:11,599 --> 00:57:15,333
+and Node based auto instrumentations that
+
+1530
+00:57:15,333 --> 00:57:17,199
+are available that do a lot out of the
+
+1531
+00:57:17,199 --> 00:57:21,266
+box. So I feel like a lot of what I would
+
+1532
+00:57:21,266 --> 00:57:23,433
+want to start with are the ends of the
+
+1533
+00:57:23,433 --> 00:57:26,099
+application when your code is calling out
+
+1534
+00:57:26,099 --> 00:57:28,566
+to another service or when you receive
+
+1535
+00:57:28,566 --> 00:57:30,099
+events from the user.
+
+1536
+00:57:30,500 --> 00:57:32,333
+Because that kind of determines the shape
+
+1537
+00:57:32,333 --> 00:57:34,800
+of that user session or that interaction
+
+1538
+00:57:34,800 --> 00:57:35,800
+that you might be
+
+1539
+00:57:35,800 --> 00:57:37,199
+interested in measuring.
+
+1540
+00:57:37,566 --> 00:57:39,566
+And then it will identify kind of
+
+1541
+00:57:39,566 --> 00:57:42,066
+hotspots of like, oh, the user waited a
+
+1542
+00:57:42,066 --> 00:57:44,199
+long time for this response or whatever,
+
+1543
+00:57:44,599 --> 00:57:46,400
+what's up with that? And then you can
+
+1544
+00:57:46,400 --> 00:57:47,400
+start to drill further.
+
+1545
+00:57:48,066 --> 00:57:49,833
+And then the other thing that I think is
+
+1546
+00:57:49,833 --> 00:57:53,099
+really super valuable is distributed
+
+1547
+00:57:53,099 --> 00:57:56,766
+tracing where you are propagating a trace
+
+1548
+00:57:56,766 --> 00:57:58,800
+across service boundaries. And sometimes
+
+1549
+00:57:58,800 --> 00:58:00,599
+this is just, you know, you're
+
+1550
+00:58:00,599 --> 00:58:02,833
+instrumenting in your browser application
+
+1551
+00:58:02,833 --> 00:58:04,266
+or in your iOS application.
+
+1552
+00:58:04,933 --> 00:58:07,699
+you're making calls out to your API service and
+
+1553
+00:58:07,699 --> 00:58:09,066
+you want to see what's going on in the
+
+1554
+00:58:09,066 --> 00:58:11,199
+API service as well during that time
+
+1555
+00:58:11,199 --> 00:58:14,633
+period. You're propagating the trace from
+
+1556
+00:58:14,633 --> 00:58:17,933
+your client to your server so that when
+
+1557
+00:58:17,933 --> 00:58:20,266
+you see them all together,
+
+1558
+00:58:20,266 --> 00:58:21,766
+you can kind of piece together.
+
+1559
+00:58:22,500 --> 00:58:24,000
+Oh, the client called out to the server
+
+1560
+00:58:24,000 --> 00:58:25,300
+and then the server made these database
+
+1561
+00:58:25,300 --> 00:58:27,300
+calls and you can see that all in one
+
+1562
+00:58:27,300 --> 00:58:29,933
+distributed trace. That's really super
+
+1563
+00:58:29,933 --> 00:58:33,966
+valuable. So just focusing on the ends,
+
+1564
+00:58:33,966 --> 00:58:36,099
+either incoming events or outgoing
+
+1565
+00:58:36,099 --> 00:58:39,566
+service calls, and then making sure you
+
+1566
+00:58:39,566 --> 00:58:41,066
+have your distributed trace propagation
+
+1567
+00:58:41,066 --> 00:58:43,766
+set up correctly. Those would be the top
+
+1568
+00:58:43,766 --> 00:58:44,633
+things I would recommend.
+
+1569
+00:58:45,633 --> 00:58:48,066
+Right. I agree. And I think the benefits
+
+1570
+00:58:48,066 --> 00:58:50,633
+of having a good observability story
+
+1571
+00:58:50,633 --> 00:58:52,833
+for your application and for your system
+
+1572
+00:58:52,833 --> 00:58:56,933
+is so manifold. Like it helps you with
+
+1573
+00:58:56,933 --> 00:58:59,400
+correctness to kind of understand like,
+
+1574
+00:58:59,400 --> 00:59:01,199
+oh, like something is not going well.
+
+1575
+00:59:01,233 --> 00:59:03,400
+That you're not just like
+
+1576
+00:59:03,400 --> 00:59:05,466
+completely in the dark and looking for
+
+1577
+00:59:05,466 --> 00:59:07,633
+the needle in the haystack, but that you
+
+1578
+00:59:07,633 --> 00:59:10,433
+actually have a great foundation to
+
+1579
+00:59:10,433 --> 00:59:11,933
+figure out what went wrong.
+
+1580
+00:59:12,333 --> 00:59:14,966
+That is the, I think the foundation where
+
+1581
+00:59:14,966 --> 00:59:17,633
+people start leaning on observability
+
+1582
+00:59:17,633 --> 00:59:21,233
+beyond just console log. But then also
+
+1583
+00:59:21,233 --> 00:59:22,933
+like doesn't just help you with making
+
+1584
+00:59:22,933 --> 00:59:26,066
+things correct or diagnosing when
+
+1585
+00:59:26,066 --> 00:59:27,733
+something was not correct,
+
+1586
+00:59:27,733 --> 00:59:29,199
+but also making it faster.
+
+1587
+00:59:29,199 --> 00:59:31,599
+Like otherwise you might just know like,
+
+1588
+00:59:31,599 --> 00:59:33,699
+okay, that API request has taken two
+
+1589
+00:59:33,699 --> 00:59:36,266
+seconds, but why? And sometimes there's
+
+1590
+00:59:36,266 --> 00:59:38,599
+like really counterintuitive situations.
+
+1591
+00:59:38,900 --> 00:59:40,699
+It's very simple and very
+
+1592
+00:59:40,699 --> 00:59:42,633
+easy to realize, oh,
+
+1593
+00:59:42,633 --> 00:59:43,966
+this is why it's so slow.
+
+1594
+00:59:44,300 --> 00:59:49,133
+And also speaking of AI, this will like
+
+1595
+00:59:49,133 --> 00:59:52,000
+be a perfect foundation to give an AI
+
+1596
+00:59:52,000 --> 00:59:55,199
+even more context what is going wrong and
+
+1597
+00:59:55,199 --> 00:59:57,900
+let the AI iterate further and help you
+
+1598
+00:59:57,900 --> 00:59:59,066
+make your app more
+
+1599
+00:59:59,066 --> 01:00:00,699
+reliable and more performant.
+
+1600
+01:00:00,699 --> 01:00:03,800
+One of the frontiers that we're going to
+
+1601
+01:00:03,800 --> 01:00:05,400
+be exploring, I think now that we've
+
+1602
+01:00:05,400 --> 01:00:08,233
+cracked the seal on observability is
+
+1603
+01:00:08,233 --> 01:00:10,699
+integrating it with our existing data
+
+1604
+01:00:10,699 --> 01:00:14,099
+analytics or our end user analytics that
+
+1605
+01:00:14,099 --> 01:00:15,699
+we are already collecting.
+
+1606
+01:00:15,699 --> 01:00:17,933
+In MasterClass we're a really good, robust data
+
+1607
+01:00:17,933 --> 01:00:21,400
+team that is, you know, while respecting
+
+1608
+01:00:21,400 --> 01:00:24,699
+like anonymity and user privacy is still
+
+1609
+01:00:24,699 --> 01:00:25,933
+really invested in
+
+1610
+01:00:25,933 --> 01:00:27,400
+understanding the user journey.
+
+1611
+01:00:28,400 --> 01:00:30,400
+What are people doing? You know, why are
+
+1612
+01:00:30,400 --> 01:00:31,633
+they there? What is enticing
+
+1613
+01:00:31,633 --> 01:00:33,466
+them? What's driving them away? And these
+
+1614
+01:00:33,466 --> 01:00:35,933
+sorts of questions that are really
+
+1615
+01:00:35,933 --> 01:00:39,133
+foundational to understanding the best
+
+1616
+01:00:39,133 --> 01:00:39,699
+way that we can
+
+1617
+01:00:39,699 --> 01:00:41,333
+deliver value to our users.
+
+1618
+01:00:41,733 --> 01:00:43,966
+Integrating this with a sort of Opentelemetry
+
+1619
+01:00:43,966 --> 01:00:46,400
+will give us even more insights
+
+1620
+01:00:46,400 --> 01:00:49,733
+of like, oh, did a user try to
+
+1621
+01:00:49,733 --> 01:00:52,300
+load a page, but then they bounced
+
+1622
+01:00:52,300 --> 01:00:54,566
+because it took too long to load and
+
+1623
+01:00:54,566 --> 01:00:57,099
+things like this that will give us an
+
+1624
+01:00:57,099 --> 01:01:01,000
+integration level between the sort of end user metrics
+
+1625
+01:01:01,000 --> 01:01:04,199
+that we've been using and also the technical
+
+1626
+01:01:04,199 --> 01:01:05,699
+implementations behind the scenes that
+
+1627
+01:01:05,699 --> 01:01:09,233
+are underpinning that user experience.
+
+1628
+01:01:09,433 --> 01:01:11,300
+I'm really looking forward to being able
+
+1629
+01:01:11,300 --> 01:01:14,733
+to explore that further. And I feel like
+
+1630
+01:01:14,733 --> 01:01:15,300
+it has tremendous
+
+1631
+01:01:15,300 --> 01:01:16,599
+potential to offer value.
+
+1632
+01:01:17,066 --> 01:01:20,099
+That sounds awesome. So speaking of a bit
+
+1633
+01:01:20,099 --> 01:01:22,800
+more forward looking perspectives
+
+1634
+01:01:22,933 --> 01:01:25,333
+I'm curious now that you've been part of
+
+1635
+01:01:25,333 --> 01:01:27,066
+the Effect community, I think at this
+
+1636
+01:01:27,066 --> 01:01:30,566
+point way beyond a year already and super
+
+1637
+01:01:30,566 --> 01:01:33,066
+impressive what you've been able to build
+
+1638
+01:01:33,066 --> 01:01:35,433
+with Effect in that short period of time.
+
+1639
+01:01:35,900 --> 01:01:37,699
+What are the things that you're looking
+
+1640
+01:01:37,699 --> 01:01:39,966
+forward most to when it
+
+1641
+01:01:39,966 --> 01:01:41,766
+comes to the Effect ecosystem?
+
+1642
+01:01:42,133 --> 01:01:43,900
+I'm really looking forward to seeing
+
+1643
+01:01:43,900 --> 01:01:46,966
+Effect 4.0 come out. That looks awesome.
+
+1644
+01:01:47,300 --> 01:01:49,800
+A lot of the improvements they've made to
+
+1645
+01:01:49,800 --> 01:01:53,199
+the bundle size and to the implementation
+
+1646
+01:01:53,199 --> 01:01:56,000
+complexity look really promising.
+
+1647
+01:01:56,199 --> 01:01:59,699
+And, you know, I really admire how
+
+1648
+01:01:59,699 --> 01:02:03,266
+responsive the Effect team has been to
+
+1649
+01:02:03,266 --> 01:02:05,566
+the community, to the needs of the
+
+1650
+01:02:05,566 --> 01:02:07,833
+community and really listening to
+
+1651
+01:02:07,833 --> 01:02:10,099
+feedback, incorporating it, iterating.
+
+1652
+01:02:10,099 --> 01:02:13,733
+That's really, I think, been vital to any
+
+1653
+01:02:13,733 --> 01:02:15,766
+platform like this, getting any traction.
+
+1654
+01:02:16,099 --> 01:02:20,133
+It's a very ambitious platform. It just
+
+1655
+01:02:20,133 --> 01:02:23,833
+has to be said, the design of it to
+
+1656
+01:02:23,833 --> 01:02:26,500
+encapsulate so much information about
+
+1657
+01:02:26,500 --> 01:02:28,400
+what's going on at an atomic level in
+
+1658
+01:02:28,400 --> 01:02:30,233
+your application, but then extending that
+
+1659
+01:02:30,233 --> 01:02:31,800
+out into really
+
+1660
+01:02:31,800 --> 01:02:34,199
+building whole frameworks.
+
+1661
+01:02:34,733 --> 01:02:38,733
+The HTTP API, the Schema, the tracing
+
+1662
+01:02:38,733 --> 01:02:42,099
+integration, the possibility that the
+
+1663
+01:02:42,099 --> 01:02:45,000
+database abstractions, the networking
+
+1664
+01:02:45,000 --> 01:02:47,800
+abstractions like WebSockets, file
+
+1665
+01:02:47,800 --> 01:02:49,133
+system, node runtime,
+
+1666
+01:02:50,133 --> 01:02:51,599
+there's React integrations.
+
+1667
+01:02:52,599 --> 01:02:55,066
+Really, you name it, there's just tons
+
+1668
+01:02:55,066 --> 01:02:56,633
+and tons of, and there's a whole bunch of
+
+1669
+01:02:56,633 --> 01:02:57,966
+stuff coming in down the pipeline,
+
+1670
+01:02:58,599 --> 01:03:01,699
+Cluster and AI integrations.
+
+1671
+01:03:01,699 --> 01:03:05,066
+The paradigm is really extensible and it
+
+1672
+01:03:05,066 --> 01:03:08,566
+has proven itself really robust and able
+
+1673
+01:03:08,566 --> 01:03:10,266
+to handle all these different scenarios.
+
+1674
+01:03:10,500 --> 01:03:13,333
+But now making all of those things all
+
+1675
+01:03:13,333 --> 01:03:15,500
+work, you know, that's
+
+1676
+01:03:15,500 --> 01:03:16,500
+an incredible challenge.
+
+1677
+01:03:16,500 --> 01:03:19,900
+I hope something that they
+
+1678
+01:03:19,900 --> 01:03:22,900
+succeed at. It's just so much.
+
+1679
+01:03:22,900 --> 01:03:25,400
+But I think that with this large and
+
+1680
+01:03:25,400 --> 01:03:27,099
+growing community, I think there will be
+
+1681
+01:03:27,099 --> 01:03:30,433
+people using every aspect of that.
+
+1682
+01:03:30,500 --> 01:03:33,333
+Probably not everybody is going to use
+
+1683
+01:03:33,333 --> 01:03:34,766
+every piece of the Effect
+
+1684
+01:03:34,766 --> 01:03:36,800
+ecosystem. I am not, certainly.
+
+1685
+01:03:37,433 --> 01:03:39,233
+And most people will only use a small
+
+1686
+01:03:39,233 --> 01:03:41,633
+sliver of it. And that's fine. That's all
+
+1687
+01:03:41,633 --> 01:03:42,900
+you really need to do.
+
+1688
+01:03:43,466 --> 01:03:45,199
+But when you have hundreds or thousands
+
+1689
+01:03:45,199 --> 01:03:48,333
+of engineers all building different kinds
+
+1690
+01:03:48,333 --> 01:03:50,133
+of applications with it, now you start to
+
+1691
+01:03:50,133 --> 01:03:52,766
+get a lot more signal on
+
+1692
+01:03:52,766 --> 01:03:54,333
+for this specific use case.
+
+1693
+01:03:54,800 --> 01:03:56,000
+Here's what I'm trying to do.
+
+1694
+01:03:56,000 --> 01:03:57,300
+Here's how I've approached it.
+
+1695
+01:03:57,400 --> 01:03:59,733
+And that information, feeding that
+
+1696
+01:03:59,733 --> 01:04:01,133
+information into the design of the
+
+1697
+01:04:01,133 --> 01:04:03,500
+platform is going to be tremendously
+
+1698
+01:04:03,500 --> 01:04:06,466
+valuable to making it more extensible.
+
+1699
+01:04:07,066 --> 01:04:09,900
+But anyway, I'm really interested in the
+
+1700
+01:04:09,900 --> 01:04:12,633
+Effect 4.0 developments that I think have
+
+1701
+01:04:12,633 --> 01:04:15,066
+come out of this exact kind of feedback
+
+1702
+01:04:15,066 --> 01:04:16,266
+integration and iteration.
+
+1703
+01:04:17,466 --> 01:04:20,599
+And also, I'm really excited about things
+
+1704
+01:04:20,599 --> 01:04:23,133
+like the, I think there was at the Effect
+
+1705
+01:04:23,133 --> 01:04:24,699
+Days, there was some, there was a demo
+
+1706
+01:04:24,699 --> 01:04:25,933
+that I think Mattia did.
+
+1707
+01:04:26,266 --> 01:04:30,633
+Mattia, who did about the error reporting
+
+1708
+01:04:30,633 --> 01:04:32,800
+and that was integrated into the editor
+
+1709
+01:04:32,800 --> 01:04:35,133
+when there's like type errors in Effect.
+
+1710
+01:04:35,133 --> 01:04:38,466
+Sometimes those can be cryptic and it's
+
+1711
+01:04:38,466 --> 01:04:40,633
+nice to see that they're working on
+
+1712
+01:04:40,633 --> 01:04:41,733
+making those a lot more
+
+1713
+01:04:41,733 --> 01:04:44,766
+human readable and friendly.
+
+1714
+01:04:45,233 --> 01:04:47,466
+It's nice to see the dev tools getting so
+
+1715
+01:04:47,466 --> 01:04:50,266
+much love. It's nice to see the
+
+1716
+01:04:50,266 --> 01:04:51,599
+documentation getting so much
+
+1717
+01:04:51,599 --> 01:04:53,099
+improvement, so often very thankless.
+
+1718
+01:04:53,099 --> 01:04:56,266
+Honestly, more than any specific
+
+1719
+01:04:56,266 --> 01:05:00,400
+technical feature of the API, I just love
+
+1720
+01:05:00,400 --> 01:05:01,466
+to see the developer
+
+1721
+01:05:01,466 --> 01:05:03,099
+experience getting some attention.
+
+1722
+01:05:03,633 --> 01:05:05,466
+And it makes things so much easier on
+
+1723
+01:05:05,466 --> 01:05:08,833
+everybody to start building really cool,
+
+1724
+01:05:08,833 --> 01:05:13,000
+ambitious things if you get really good,
+
+1725
+01:05:13,000 --> 01:05:16,800
+clear, understandable errors at build
+
+1726
+01:05:16,800 --> 01:05:18,766
+time or in your editor.
+
+1727
+01:05:18,833 --> 01:05:21,199
+And if you have really good debugging
+
+1728
+01:05:21,199 --> 01:05:23,266
+tools that let you understand what's
+
+1729
+01:05:23,266 --> 01:05:24,800
+happening, if you have really good
+
+1730
+01:05:24,800 --> 01:05:26,966
+documentation that has use cases and
+
+1731
+01:05:26,966 --> 01:05:30,133
+examples of all kinds of different types
+
+1732
+01:05:30,133 --> 01:05:31,066
+of patterns that you might
+
+1733
+01:05:31,066 --> 01:05:32,566
+want to take advantage of.
+
+1734
+01:05:33,400 --> 01:05:36,400
+This is the sort of, I think often unsexy
+
+1735
+01:05:36,400 --> 01:05:38,333
+work of building a framework like this
+
+1736
+01:05:38,333 --> 01:05:41,333
+that is so fundamental to people, like
+
+1737
+01:05:41,333 --> 01:05:42,266
+end users being able
+
+1738
+01:05:42,266 --> 01:05:42,833
+to get value out of it.
+
+1739
+01:05:43,400 --> 01:05:45,433
+And it seems like the Effect team is
+
+1740
+01:05:45,433 --> 01:05:48,733
+taking this seriously. And that to me,
+
+1741
+01:05:48,966 --> 01:05:50,733
+more than almost anything, is what gives
+
+1742
+01:05:50,733 --> 01:05:53,199
+me excitement and hope about
+
+1743
+01:05:53,199 --> 01:05:54,233
+the future of this framework.
+
+1744
+01:05:54,833 --> 01:05:57,966
+100%. I mean, I couldn't agree more.
+
+1745
+01:05:57,966 --> 01:06:01,466
+They're all super ambitious efforts on
+
+1746
+01:06:01,466 --> 01:06:05,266
+their own. And luckily, we have a small
+
+1747
+01:06:05,266 --> 01:06:08,233
+but super talented and absolutely
+
+1748
+01:06:08,233 --> 01:06:11,233
+brilliant core team of folks who are
+
+1749
+01:06:11,233 --> 01:06:12,466
+working on the various pieces.
+
+1750
+01:06:13,466 --> 01:06:15,433
+You've been mentioning the docs. We have
+
+1751
+01:06:15,433 --> 01:06:18,766
+Giulio working more or less full time on
+
+1752
+01:06:18,766 --> 01:06:21,133
+the docs as well as on the Effect Schema,
+
+1753
+01:06:21,599 --> 01:06:23,400
+which we could probably also fill an
+
+1754
+01:06:23,400 --> 01:06:25,099
+entire show on just talking about the
+
+1755
+01:06:25,099 --> 01:06:26,099
+Effect Schema, which I
+
+1756
+01:06:26,099 --> 01:06:27,233
+think you're also using.
+
+1757
+01:06:27,466 --> 01:06:29,133
+Oh, yeah. We're using Effect Schema all
+
+1758
+01:06:29,133 --> 01:06:30,233
+over the place. I didn't
+
+1759
+01:06:30,233 --> 01:06:31,400
+even talk about that. Yeah.
+
+1760
+01:06:31,900 --> 01:06:35,266
+Yeah. But then also the the dev tools.
+
+1761
+01:06:35,266 --> 01:06:37,900
+I'm super excited that
+
+1762
+01:06:37,900 --> 01:06:39,800
+Mattia will be joining.
+
+1763
+01:06:39,800 --> 01:06:42,066
+Well, at the time of this recording, a
+
+1764
+01:06:42,066 --> 01:06:43,966
+couple of days from now, but when the
+
+1765
+01:06:43,966 --> 01:06:46,733
+time comes and the recording airs, I
+
+1766
+01:06:46,733 --> 01:06:48,266
+think Mattia will have already started
+
+1767
+01:06:48,266 --> 01:06:50,933
+working full time on the dev tools and
+
+1768
+01:06:50,933 --> 01:06:52,833
+other pieces and improving
+
+1769
+01:06:52,833 --> 01:06:54,133
+the developer experience.
+
+1770
+01:06:54,800 --> 01:06:56,699
+And then at the core of all of it, Effect
+
+1771
+01:06:56,699 --> 01:06:59,466
+4.0 and what it will enable. That's
+
+1772
+01:06:59,466 --> 01:07:01,000
+really been the distillation
+
+1773
+01:07:01,000 --> 01:07:03,133
+of all the feedback that we've gathered
+
+1774
+01:07:03,133 --> 01:07:04,933
+over the last couple of years.
+
+1775
+01:07:04,933 --> 01:07:07,233
+And I think really tackle some of the
+
+1776
+01:07:07,233 --> 01:07:09,900
+most common points of feedback or
+
+1777
+01:07:09,900 --> 01:07:12,966
+frustration head on. And I think it's
+
+1778
+01:07:12,966 --> 01:07:15,766
+really like a huge improvement over
+
+1779
+01:07:15,766 --> 01:07:19,199
+what's already really great and useful.
+
+1780
+01:07:19,199 --> 01:07:22,433
+So I'm fully on board with with
+
+1781
+01:07:22,433 --> 01:07:25,199
+everything you've you've shared. And
+
+1782
+01:07:25,199 --> 01:07:28,266
+yeah, I think I can't thank you enough
+
+1783
+01:07:28,266 --> 01:07:31,933
+for sharing all that what you've been
+
+1784
+01:07:31,933 --> 01:07:34,766
+building with Cortex at MasterClass.
+
+1785
+01:07:34,766 --> 01:07:36,433
+It's really, really impressive.
+
+1786
+01:07:36,433 --> 01:07:38,833
+What you've been able to build in such a
+
+1787
+01:07:38,833 --> 01:07:40,466
+short period of time speaks to
+
+1788
+01:07:40,466 --> 01:07:43,199
+experience, but also speaks to just like
+
+1789
+01:07:43,199 --> 01:07:45,699
+how capable the building blocks are. And
+
+1790
+01:07:45,699 --> 01:07:48,466
+like when like experience and ambition
+
+1791
+01:07:48,466 --> 01:07:50,433
+comes together with great materials.
+
+1792
+01:07:50,766 --> 01:07:51,933
+I think this is how we're going to get
+
+1793
+01:07:51,933 --> 01:07:54,133
+great experiences and great applications.
+
+1794
+01:07:54,433 --> 01:07:57,199
+So thank you so much for doing that work
+
+1795
+01:07:57,199 --> 01:07:58,400
+and sharing it.
+
+1796
+01:07:58,400 --> 01:08:01,800
+And thank you so much for coming on the show today.
+
+1797
+01:08:01,800 --> 01:08:03,333
+Well, thank you so much for having me.
+
+1798
+01:08:03,333 --> 01:08:05,066
+And I just you know, I have to say that
+
+1799
+01:08:05,066 --> 01:08:08,333
+so far, I think the on call product has
+
+1800
+01:08:08,333 --> 01:08:12,099
+been a huge success and Cortex has been
+
+1801
+01:08:12,099 --> 01:08:15,400
+very, very crucial part of that.
+
+1802
+01:08:16,199 --> 01:08:18,133
+And I feel like it would not have been
+
+1803
+01:08:18,133 --> 01:08:21,133
+possible without the Effect ecosystem and
+
+1804
+01:08:21,133 --> 01:08:23,300
+also the support of the Effect core team
+
+1805
+01:08:23,300 --> 01:08:27,133
+and the community to helping us get
+
+1806
+01:08:27,133 --> 01:08:29,233
+there. I think that has played a fundamental
+
+1807
+01:08:29,233 --> 01:08:32,600
+role. So thank you. I mean, to you,
+
+1808
+01:08:32,899 --> 01:08:34,600
+Johannes, and thank you to the broader
+
+1809
+01:08:34,600 --> 01:08:37,100
+Effect Team and the community for all of
+
+1810
+01:08:37,100 --> 01:08:39,000
+the support and assistance and enthusiasm
+
+1811
+01:08:39,000 --> 01:08:40,699
+and building this incredible framework.
+
+1812
+01:08:40,699 --> 01:08:43,266
+It has really been a game changer.
+
+1813
+01:08:43,899 --> 01:08:44,899
+That is awesome to
+
+1814
+01:08:44,899 --> 01:08:45,933
+hear. Thank you so much.
+
+1815
+01:08:46,800 --> 01:08:47,399
+Thank you.
+
+1816
+01:08:48,533 --> 01:08:49,899
+Thank you for listening to the
+
+1817
+01:08:49,899 --> 01:08:50,833
+Cause & Effect Podcast.
+
+1818
+01:08:51,466 --> 01:08:53,399
+If you've enjoyed this episode, please
+
+1819
+01:08:53,399 --> 01:08:54,866
+subscribe, leave a review
+
+1820
+01:08:54,866 --> 01:08:55,966
+and share it with your friends.
+
+1821
+01:08:56,899 --> 01:08:58,766
+If you haven't done so already, you can
+
+1822
+01:08:58,766 --> 01:09:00,000
+join our Discord community.
+
+1823
+01:09:00,533 --> 01:09:02,100
+And if you have any questions, feedback
+
+1824
+01:09:02,100 --> 01:09:04,800
+or suggestions about this episode or
+
+1825
+01:09:04,800 --> 01:09:05,800
+about Effect in general,
+
+1826
+01:09:06,399 --> 01:09:07,699
+don't hesitate to get in touch.
+
+1827
+01:09:08,500 --> 01:09:09,566
+See you in the next episode.
+
