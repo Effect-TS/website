@@ -43,9 +43,8 @@ const divide = (a: number, b: number) =>
     ? Effect.die(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-//      ┌─── Effect<number, never, never>
-//      ▼
 const program = divide(1, 0)
+//    ^?
 
 Effect.runPromise(program).catch(console.error)
 /*
@@ -79,9 +78,8 @@ const divide = (a: number, b: number) =>
     ? Effect.dieMessage("Cannot divide by zero")
     : Effect.succeed(a / b)
 
-//      ┌─── Effect<number, never, never>
-//      ▼
 const program = divide(1, 0)
+//    ^?
 
 Effect.runPromise(program).catch(console.error)
 /*
@@ -113,9 +111,8 @@ const divide = (a: number, b: number) =>
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-//      ┌─── Effect<number, never, never>
-//      ▼
 const program = Effect.orDie(divide(1, 0))
+//    ^?
 
 Effect.runPromise(program).catch(console.error)
 /*
@@ -147,12 +144,11 @@ const divide = (a: number, b: number) =>
     ? Effect.fail(new Error("Cannot divide by zero"))
     : Effect.succeed(a / b)
 
-//      ┌─── Effect<number, never, never>
-//      ▼
 const program = Effect.orDieWith(
   divide(1, 0),
   (error) => new Error(`defect: ${error.message}`)
 )
+//    ^?
 
 Effect.runPromise(program).catch(console.error)
 /*
