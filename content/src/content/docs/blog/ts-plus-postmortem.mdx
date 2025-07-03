@@ -60,25 +60,23 @@ Perhaps most significantly, we successfully implemented automatic generation of 
 interface Person {
   name: string;
   age: Option<number>;
-  friends: Chunk<Person>;
 }
 
-// Using Effect Schema - the Derive() calls would generate all runtime operations
+// TS+ approach - automatic derivation from type definition
+export const PersonEncoder: Encoder<Person> = Derive();
+
+// Alternative: Using Effect Schema (modern approach)
 const PersonSchema = Schema.Struct({
   name: Schema.String,
   age: Schema.Option(Schema.Number),
-  friends: Schema.Array(Schema.suspend(() => PersonSchema))
 });
 
 export const PersonEncoder = Schema.encodeSync(PersonSchema);
-export const PersonDecoder = Schema.decodeUnknownSync(PersonSchema);
-export const PersonGuard = Schema.is(PersonSchema);
 
 // Usage in practice
 const encoded = PersonEncoder({
   name: "Mike",
-  age: Option.some(30),
-  friends: []
+  age: Option.some(30)
 });
 ```
 
