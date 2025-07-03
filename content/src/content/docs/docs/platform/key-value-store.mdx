@@ -10,7 +10,7 @@ It supports asynchronous operations, ensuring data integrity and consistency, an
 
 ## Basic Usage
 
-The module provides a single `KeyValueStore` [tag](/docs/requirements-management/services/), which acts as the gateway for interacting with the store.
+The module exposes a single [service](/docs/requirements-management/services/), `KeyValueStore`, which acts as the gateway for interacting with the store.
 
 **Example** (Accessing the KeyValueStore Service)
 
@@ -39,9 +39,9 @@ The `KeyValueStore` interface includes the following operations:
 | **modifyUint8Array** | Updates the value of the specified key if it exists.                 |
 | **has**              | Check if a key exists.                                               |
 | **isEmpty**          | Check if the store is empty.                                         |
-| **forSchema**        | Create a [SchemaStore](#schemastore) for the specified schema.       |
+| **forSchema**        | Create a `SchemaStore` for the specified schema.                     |
 
-**Example** (Working with Key-Value Pairs)
+**Example** (Basic Operations with a Key-Value Store)
 
 ```ts twoslash
 import {
@@ -53,23 +53,23 @@ import { Effect } from "effect"
 const program = Effect.gen(function* () {
   const kv = yield* KeyValueStore
 
-  // Initially, the store is empty
+  // Store is initially empty
   console.log(yield* kv.size)
 
   // Set a key-value pair
   yield* kv.set("key", "value")
   console.log(yield* kv.size)
 
-  // Retrieve the value for the specified key
+  // Retrieve the value
   const value = yield* kv.get("key")
   console.log(value)
 
-  // Remove the key-value pair
+  // Remove the key
   yield* kv.remove("key")
   console.log(yield* kv.size)
 })
 
-// Provide an in-memory KeyValueStore implementation
+// Run the program using the in-memory store implementation
 Effect.runPromise(program.pipe(Effect.provide(layerMemory)))
 /*
 Output:
@@ -82,20 +82,20 @@ Output:
 
 ## Built-in Implementations
 
-The module provides several built-in implementations of the `KeyValueStore` interface, available as [layers](/docs/requirements-management/layers/), to suit different needs:
+The module includes two built-in implementations of the `KeyValueStore` interface. Both are provided as [layers](/docs/requirements-management/layers/) that you can inject into your effectful programs.
 
-| Implementation        | Description                                                                                               |
-| --------------------- | --------------------------------------------------------------------------------------------------------- |
-| **In-Memory Store**   | `layerMemory` provides a simple, in-memory key-value store, ideal for lightweight or testing scenarios.   |
-| **File System Store** | `layerFileSystem` offers a file-based store for persistent storage needs.                                 |
-| **Schema Store**      | `layerSchema` enables schema-based validation for stored values, ensuring data integrity and type safety. |
+| Implementation        | Description                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| **In-Memory Store**   | `layerMemory` provides a simple, in-memory key-value store, ideal for lightweight or testing scenarios. |
+| **File System Store** | `layerFileSystem` offers a file-based store for persistent storage needs.                               |
 
-## SchemaStore
+## Working with Non-String Values
 
-The `SchemaStore` interface allows you to validate and parse values according to a defined [schema](/docs/schema/introduction/).
-This ensures that all data stored in the key-value store adheres to the specified structure, enhancing data integrity and type safety.
+By default, `KeyValueStore` works with `string` and `Uint8Array` values. To store other types such as objects, numbers, or booleans, use the `forSchema` method to create a `SchemaStore`.
 
-**Example** (Using Schema Validation in KeyValueStore)
+A `SchemaStore` uses a [schema](/docs/schema/introduction/) to validate and convert values. Internally, it serializes data using `JSON.stringify` and deserializes it with `JSON.parse`.
+
+**Example** (Storing a Typed Object Using a Schema)
 
 ```ts twoslash
 import {
@@ -104,26 +104,26 @@ import {
 } from "@effect/platform/KeyValueStore"
 import { Effect, Schema } from "effect"
 
-// Define a schema for the values
+// Define a JSON-compatible schema
 const Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number
 })
 
 const program = Effect.gen(function* () {
-  // Create a SchemaStore based on the Person schema
+  // Create a typed store based on the schema
   const kv = (yield* KeyValueStore).forSchema(Person)
 
-  // Add a value that adheres to the schema
+  // Store a typed value
   const value = { name: "Alice", age: 30 }
   yield* kv.set("user1", value)
   console.log(yield* kv.size)
 
-  // Retrieve and log the value
+  // Retrieve the value
   console.log(yield* kv.get("user1"))
 })
 
-// Use the in-memory store implementation
+// Use the in-memory store for this example
 Effect.runPromise(program.pipe(Effect.provide(layerMemory)))
 /*
 Output:
