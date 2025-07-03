@@ -1,0 +1,256 @@
+---
+pagefind: false
+title: "TS+ Post-Mortem"
+excerpt: "A retrospective look at our attempt to create a TypeScript fork optimized for Effect developer experience, examining what we learned and why we ultimately moved in a different direction"
+date: 2025-07-03
+authors:
+  - michael_arnaldi
+tags:
+  - Miscellaneous
+  - TypeScript
+---
+
+In our continuous quest to provide the best possible developer experience for Effect users, we embarked on an ambitious experiment: creating TS+, a TypeScript compiler fork designed to unlock new possibilities for functional programming and maximize developer productivity. Today, we're sharing the story of this experiment—what we hoped to achieve, what we discovered, and why we ultimately chose a different path.
+
+## What Was TS+?
+
+TS+ (TypeScript Plus) was our experimental fork of the TypeScript compiler, designed to enhance developer experience through innovative language tooling. Rather than addressing perceived limitations, we focused on exploring what would be possible if we could extend TypeScript's capabilities with features specifically tailored for modern functional programming patterns.
+
+Our vision centered on six key design goals that would revolutionize how developers interact with type-safe code:
+
+1. **Syntax Compatibility**: Maintain full compatibility with TypeScript's grammar to ensure seamless integration with existing tools like ESLint, Prettier, and IDE extensions
+2. **Type-Driven Code Generation**: Enable automatic derivation of runtime code from type definitions—imagine defining a data structure and automatically generating codecs, serializers, and validators
+3. **Enhanced Do Syntax**: Create intuitive syntax for effect-based programming, inspired by monadic do notation, making asynchronous and effect code more readable
+4. **Fluent API Extensions**: Allow extending types with methods using JSDoc annotations while maintaining tree-shakability, enabling truly ergonomic fluent APIs
+5. **Operator Overloading**: Enable custom operators for domain-specific libraries, making mathematical and functional code more expressive
+6. **Functional Pipe Operator**: Implement a native pipe operator for cleaner data transformation pipelines
+
+The project was born from our belief that language tooling could be pushed further to create magical developer experiences—where types don't just prevent errors, but actively generate useful code, and where APIs feel natural and discoverable.
+
+## What Was Achieved
+
+Despite being an experimental fork, TS+ successfully demonstrated several groundbreaking capabilities that pushed the boundaries of what's possible with TypeScript.
+
+We proved that extending types with methods while maintaining optimal bundle sizes was not only possible but practical. Where traditional approaches required explicit pipe functions, TS+ enabled natural method chaining that felt intuitive to developers:
+
+```typescript
+// Traditional approach
+pipe(
+  IO.succeed(0),
+  IO.map(n => n + 1),
+  IO.flatMap(r => IO.succeedWith(() => console.log(`result: ${r}`)))
+)
+
+// TS+ fluent API - compiles to output similar to traditional approach
+const program = IO.succeed(0)
+  .map(n => n + 1)
+  .flatMap(r => 
+    IO.succeedWith(() => {
+      console.log(`result: ${r}`);
+    })
+  );
+
+program.run();
+```
+
+Perhaps most significantly, we successfully implemented automatic generation of runtime code from type definitions. Developers could define a data structure once and automatically derive codecs, serializers, and validators, eliminating the traditional duplication between type definitions and runtime behavior:
+
+```typescript
+// Define once, derive everything
+interface Person {
+  name: string;
+  age: Option<number>;
+}
+
+// TS+ approach - automatic derivation from type definition
+export const PersonEncoder: Encoder<Person> = Derive();
+
+// Alternative: Using Effect Schema (modern approach)
+const PersonSchema = Schema.Struct({
+  name: Schema.String,
+  age: Schema.Option(Schema.Number),
+});
+
+export const PersonEncoder = Schema.encodeSync(PersonSchema);
+
+// Usage in practice
+const encoded = PersonEncoder({
+  name: "Mike",
+  age: Option.some(30)
+});
+```
+
+We also created a revolutionary system for extensible method definitions that allowed developers to add methods to existing types without modifying original classes. The `@tsplus type IO` directive registers the `IO` type with TS+ under the name `IO`. Once that is done, other directives can be used to augment the `IO` type. For example, `@tsplus fluent IO map` registers the `map` function as a fluent method on the `IO` type, allowing APIs to be chained together without attaching them to the same runtime object:
+
+```typescript
+/**
+ * @tsplus type IO
+ */
+export class IO<A> {
+  constructor(readonly io: () => A) {}
+}
+
+/**
+ * @tsplus fluent IO map
+ */
+export function map<A, B>(self: IO<A>, f: (a: A) => B): IO<B> {
+  return new IO(() => f(self.io()));
+}
+
+/**
+ * @tsplus fluent IO flatMap
+ */
+export function flatMap<A, B>(self: IO<A>, f: (a: A) => IO<B>): IO<B> {
+  return new IO(() => f(self.io()).io());
+}
+
+// Usage is intuitive - fluent methods are discoverable via autocomplete:
+const result = IO.succeed(10)
+  .map(x => x * 2)
+  .flatMap(x => IO.succeed(x + 5));
+```
+
+TS+ also demonstrated that TypeScript could support domain-specific operators, enabling mathematical and functional code to be written in more natural ways. Custom operators could be defined for any type, making complex operations feel intuitive:
+
+```typescript
+/**
+ * @tsplus fluent IO zip
+ * @tsplus operator IO +
+ */
+export function zip<A, B>(self: IO<A>, b: IO<B>): IO<[A, B]> {
+  return IO(() => [self.io(), b.io()]);
+}
+
+// Usage: combining IOs with natural operator syntax
+const zipped = IO.succeed(0) + IO.succeed(1);
+// Result: IO<[number, number]>
+```
+
+Effect-based programming became significantly more intuitive through our enhanced do syntax. Instead of generator functions with yield expressions, developers could write clean, imperative-style code that felt natural while maintaining all the benefits of monadic computation:
+
+```typescript
+// Traditional Effect code
+Effect.gen(function* () {
+  const user = yield* getUser(id)
+  const profile = yield* getProfile(user.id)
+  const settings = yield* getSettings(user.id)
+  return { user, profile, settings }
+})
+
+// TS+ do syntax - same logic, cleaner syntax
+const effectExample = Do(($) => {
+  const user = $(getUser(id));
+  const profile = $(getProfile(user.id));
+  const settings = $(getSettings(user.id));
+  return { user, profile, settings };
+});
+```
+
+Our global import system streamlined the developer experience by eliminating repetitive imports while maintaining tree-shaking capabilities. Types and functions could be made globally available through declaration files, and the compiler would automatically add the necessary imports only where they were actually used:
+
+```typescript
+// Traditional approach: explicit imports in every file
+import { Chunk } from "@tsplus/stdlib/collections/Chunk/definition";
+import { Option } from "@tsplus/stdlib/data/Option/definition";
+import { IO } from "./IO";
+
+const processData = (items: Chunk<string>) => {
+  return items.map(item => Option.some(item));
+};
+
+// In prelude.d.ts file - TS+ global imports: define once
+/**
+ * @tsplus global
+ */
+import { Chunk } from "@tsplus/stdlib/collections/Chunk/definition";
+
+/**
+ * @tsplus global
+ */
+import { Option } from "@tsplus/stdlib/data/Option/definition";
+
+// Usage: no imports needed, types available globally
+const processData = (items: Chunk<string>) => {
+  return items.map(item => Option.some(item));
+};
+
+// TS+ automatically adds imports only where types are used
+// Tree-shaking still works - unused globals aren't bundled
+```
+
+Finally, we implemented a native pipe operator that made data transformation pipelines dramatically more readable. Instead of wrapping everything in function calls, developers could use a natural left-to-right flow:
+
+```typescript
+// Traditional pipe function approach
+const result = pipe(
+  Either.right({ xxx: 0 }),
+  Either.map(n => n.xxx),
+  Either.map(n => n + 1),
+  Either.map(n => `hello: ${n}`),
+  Either.map(s => s.length)
+);
+
+// TS+ native pipe operator using /
+const result = Either.right({ xxx: 0 }) 
+  / Either.map((n) => n.xxx) 
+  / Either.map((n) => n + 1) 
+  / Either.map((n) => `hello: ${n}`) 
+  / Either.map((s) => s.length);
+```
+
+## How Far We Went
+
+We didn't approach TS+ as a casual experiment—we went all-in. For roughly a year, we committed significant resources and energy to prove that this approach could work at scale.
+
+We spent countless hours in the depths of the TypeScript compiler codebase, understanding its intricate parsing, type-checking, and compilation phases. This wasn't surface-level modification; we were fundamentally extending the language's capabilities while maintaining backward compatibility. The work required deep understanding of how TypeScript processes syntax trees, performs type checking, and generates JavaScript output.
+
+Perhaps most significantly, we rewrote the entire Effect ecosystem using TS+. This meant porting thousands of lines of carefully crafted functional programming abstractions, rebuilding our core libraries, and ensuring that all the complex type-level computations still worked correctly with our enhanced compiler. Every data structure, every effect operation, every piece of the ecosystem had to be reimplemented to take advantage of TS+'s new capabilities.
+
+The experiment reached a point where we had production users depending on alpha releases. Real projects, real applications, real teams betting their development workflow on our experimental fork. This level of adoption validated that TS+ wasn't just a theoretical exercise—it was solving genuine developer pain points. The scale of our commitment demonstrated our conviction that language tooling could be dramatically improved. We weren't just building a proof-of-concept; we were building a completely different development experience.
+
+## What Went Wrong
+
+Despite our achievements, several critical issues emerged that ultimately led us to reconsider the viability of TS+ as a long-term solution.
+
+The issue was more fundamental than simple tooling compatibility. Most modern tooling achieves speed through parallel compilation of each file, something that doesn't really work with `tsc`'s architecture. Our fork inherited this limitation, making it incompatible with the performance expectations of modern development workflows. While tools like Vite and esbuild could process TypeScript files in parallel, our enhanced compiler required sequential processing for many of its advanced features.
+
+The compilation required using a different version of `tsc`, which meant TS+ didn't work out of the box with essential development tools like Next.js, Vite, and other modern build systems. Each tool expected the standard TypeScript compiler, and our fork created immediate compatibility issues. We built plugins to patch various integrations, but this created a maintenance nightmare. Every update to popular build tools required us to update our patches, creating a constant game of catch-up. We were essentially maintaining parallel versions of the entire TypeScript tooling ecosystem.
+
+The performance penalty was substantial, especially in environments like Hot Module Replacement (HMR). Development workflows that were previously snappy became sluggish, directly impacting developer productivity—the very thing we were trying to improve. The performance price of some features required careful repository design with isolated modules that could be compiled independently. Teams had to structure their codebases around our compiler's limitations, creating domains packages with all codecs and types separated from business logic. This architectural complexity was a significant burden on adopters.
+
+Perhaps most critically, the tradeoff wasn't compelling enough. While we had new shiny features, there wasn't anything there that couldn't be accomplished natively in TypeScript with a comparable amount of syntax. Our enhancements looked cleaner to the untrained eye, but the syntactic improvements were largely cosmetic—there wasn't enough fundamental value to justify using a different language. The harsh reality was that the friction of maintaining a language fork outweighed the benefits of the features we'd built.
+
+## What We Learned
+
+The TS+ experiment taught us invaluable lessons about the boundaries of language tooling and developer experience enhancement. These learnings now guide our approach to improving the Effect ecosystem.
+
+We learned that we should never change the runtime behavior of code. The moment we alter how JavaScript executes, we create an entirely different language with all the associated compatibility and maintenance burdens. TypeScript's value lies in being a compilation target to standard JavaScript, and deviating from that principle creates more problems than it solves.
+
+Instead of wholesale language changes, we can strategically patch the compiler to produce better, Effect-specific diagnostics that improve the IDE experience when editing `.ts` files that use Effect. Crucially, we ensure these same diagnostics are available in CI during type-checking, maintaining consistency between development and production environments. This targeted approach gives us the benefits of enhanced tooling without the costs of ecosystem fragmentation.
+
+We can use Language Server Protocol (LSP) and IDE plugins to dramatically improve the developer experience around Effect's verbosity without changing the language itself. Our dedicated [Effect Language Service Plugin](https://github.com/Effect-TS/language-service) exemplifies this approach, providing intelligent completions, refactoring tools, and enhanced diagnostics that work within the existing TypeScript ecosystem.
+
+Perhaps the most important lesson: we should never cross the boundary of having to integrate with build tooling. The moment we require custom build plugins or non-standard compilation processes, we create friction that compounds over time. The TypeScript ecosystem's strength lies in its tooling compatibility, and we must respect that boundary. This approach has proven far more sustainable—we enhance the development experience through intelligent tooling while maintaining full compatibility with the existing TypeScript ecosystem.
+
+## Are We Really Over It?
+
+Not entirely. While our experience with TS+ taught us valuable lessons about the boundaries of language modification, recent developments have changed some of the fundamental constraints that made our fork impractical.
+
+With the advent of TSGo, the official Go port of the TypeScript compiler, many of the performance constraints that plagued our original fork are no longer in place. The architectural limitations that prevented parallel compilation are being addressed at the compiler level. However, the tooling ecosystem remains a significant burden, and we're pretty sure that changing the semantics of a `.ts` file remains a terrible idea. The compatibility issues we encountered weren't just performance-related—they were fundamental to how the TypeScript ecosystem expects files to behave.
+
+If we were to do anything at the language level again, we would need to work with a different file extension and we would need to gain some major advantages that justify the ecosystem split. The bar for creating a new language variant is incredibly high, and rightfully so given the importance of ecosystem compatibility.
+
+One realm where we think there is potential room for a (maybe temporary) fork could be JSX. Currently, we say that Effect is primarily a backend framework—not really because it can't theoretically be useful in frontend, but rather because of an impedance mismatch from how React-like frameworks behave. These frameworks don't have type inference of errors and dependencies, and they take over the application lifecycle. We have solutions to work in those environments, but they really shine only in specific contexts with substantial business logic in the frontend.
+
+The reality is that there's no technical reason Effect wouldn't shine in frontend development, except that we commonly agree on how JSX should be typed and what kind of primitives back it up. JSX could be more flexible and enable development of an Effect-native UI framework that builds on top of Effect's capabilities and provides amazing developer experience end-to-end. Such a framework could leverage Effect's error handling, dependency injection, and effect management directly in the component model, creating a truly integrated development experience that current React-like frameworks can't match.
+
+## AI Development with Effect
+
+The developer tooling space has gained an unexpected ally that fundamentally changes how we think about syntax complexity and learning curves: advanced AI models that excel at understanding and generating Effect code.
+
+New models like Claude Code 4 Sonnet are exceptionally good at understanding Effect patterns and producing production-grade quality code. What for humans might appear as verbosity becomes precise description of high-level semantics that models can interpret really well. The explicit nature of Effect's type system and functional patterns provides rich context that AI can leverage effectively. Where human developers might see complex type signatures as intimidating, AI models see detailed specifications that help them generate more accurate code.
+
+The learning curve of new syntax or less-known standard syntax is smoothed out by prompting models to use tools like the [Effect MCP server](https://github.com/tim-smart/effect-mcp). This allows developers to work with Effect through natural language descriptions while the AI handles the specific syntax and patterns. Developers can describe what they want to accomplish in plain language, and the AI can translate that into proper Effect code with correct error handling, dependency management, and effect composition.
+
+All this added AI tooling can also play a role in potentially adopting new language tooling. The learning curve for an extension of TypeScript that supports JSX-enhanced capabilities isn't a far-fetched target for an AI to pick up instantly. Where human developers might struggle with new syntax or unfamiliar patterns, AI assistants can bridge that gap seamlessly. This AI capability fundamentally changes the cost-benefit analysis of custom language features. The traditional barrier of developer adoption and learning curves becomes much lower when AI can act as an intelligent interface between human intent and specialized syntax.
+
