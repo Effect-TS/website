@@ -196,7 +196,7 @@ export default defineConfig({
             },
             michael_arnaldi: {
               name: "Michael Arnaldi",
-              title: "Chief Executive Officer",
+              title: "BDFL",
               picture: "/authors/michael_arnaldi.png",
               url: "https://github.com/mikearnaldi"
             },
