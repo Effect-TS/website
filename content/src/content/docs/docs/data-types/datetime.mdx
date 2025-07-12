@@ -127,10 +127,8 @@ The following example assumes the code is executed on a system in Italy (CET tim
 import { DateTime } from "effect"
 
 // Create a Utc instance from a local JavaScript Date
-//
-//     ┌─── Utc
-//     ▼
 const utc = DateTime.unsafeFromDate(new Date("2025-01-01 04:00:00"))
+//    ^?
 
 console.log(utc)
 // Output: DateTime.Utc(2025-01-01T03:00:00.000Z)
@@ -313,9 +311,8 @@ If the input is invalid, it returns `None`. If valid, it returns `Some` containi
 ```ts twoslash
 import { DateTime, Option } from "effect"
 
-//      ┌─── Option<Zoned>
-//      ▼
 const zoned = DateTime.makeZoned(new Date("2025-01-01 04:00:00"), {
+//    ^?
   timeZone: "Europe/Rome"
 })
 
@@ -335,9 +332,8 @@ If the input string is valid, the function returns a `Some` containing the `Zone
 ```ts twoslash
 import { DateTime, Option } from "effect"
 
-//      ┌─── Option<Zoned>
-//      ▼
 const zoned = DateTime.makeZonedFromString(
+//    ^?
   "2025-01-01T03:00:00.000+01:00[Europe/Rome]"
 )
 
@@ -358,9 +354,8 @@ Provides the current UTC time as a `Effect<Utc>`, using the [Clock](/docs/requir
 import { DateTime, Effect } from "effect"
 
 const program = Effect.gen(function* () {
-  //      ┌─── Utc
-  //      ▼
   const currentTime = yield* DateTime.now
+  //    ^?
 })
 ```
 
@@ -379,9 +374,8 @@ Retrieves the current UTC time immediately using `Date.now()`, without the [Cloc
 ```ts twoslash
 import { DateTime } from "effect"
 
-//      ┌─── Utc
-//      ▼
 const currentTime = DateTime.unsafeNow()
+//    ^?
 ```
 
 ## Guards
@@ -431,22 +425,16 @@ function printDateTimeInfo(x: unknown) {
 import { DateTime } from "effect"
 
 // Create a UTC DateTime
-//
-//     ┌─── Utc
-//     ▼
 const utc = DateTime.unsafeMake("2024-01-01")
+//    ^?
 
 // Create a named time zone for New York
-//
-//      ┌─── TimeZone.Named
-//      ▼
 const zoneNY = DateTime.zoneUnsafeMakeNamed("America/New_York")
+//    ^?
 
 // Apply it to the DateTime
-//
-//      ┌─── Zoned
-//      ▼
 const zoned = DateTime.setZone(utc, zoneNY)
+//    ^?
 
 console.log(zoned)
 // Output: DateTime.Zoned(2023-12-31T19:00:00.000-05:00[America/New_York])
