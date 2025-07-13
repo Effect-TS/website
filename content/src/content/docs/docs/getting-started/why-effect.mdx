@@ -12,11 +12,12 @@ Effect is an ecosystem of tools that help you build better applications and libr
 In "typical" TypeScript, without Effect, we write code that assumes that a function is either successful or throws an exception. For example:
 
 ```ts twoslash
-const divide = (a: number, b: number): number => {
+export function divide(a: number, b: number): Effect.Effect<number, Error, never> {
   if (b === 0) {
-    throw new Error("Cannot divide by zero")
+    return Effect.fail(new Error('Cannot divide by zero'));
   }
-  return a / b
+
+  return Effect.succeed(a / b);
 }
 ```
 
