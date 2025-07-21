@@ -1,0 +1,92 @@
+---
+pagefind: false
+title: Effect 3.17 (Release)
+excerpt: New Effect release featuring Layer.mock, Effect.ensureErrorType, and more!
+date: 2025-07-22
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.17 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## Layer.mock
+
+`Layer.mock` creates a mock layer for testing purposes. You can provide a partial
+implementation of the service, and any methods not provided will
+throw an `UnimplementedError` defect when called.
+
+```ts
+import { Context, Effect, Layer } from "effect"
+
+class MyService extends Context.Tag("MyService")<
+  MyService,
+  {
+    one: Effect.Effect<number>
+    two(): Effect.Effect<number>
+  }
+>() {}
+
+// Mocking a service with a partial implementation
+const MyServiceTest = Layer.mock(MyService, {
+  two: () => Effect.succeed(2)
+})
+```
+
+## Random.fixed
+
+Create a version of the `Random` service from an array of literal values.
+The service will cycle through the provided values in order when generating random values.
+This constructor is useful for creating deterministic sequences for testing or when specific values need to be returned.
+
+```ts
+import { Effect, Random } from "effect"
+
+Effect.gen(function* () {
+  console.log(yield* Random.next) // 0.2
+  console.log(yield* Random.next) // 0.5
+  console.log(yield* Random.next) // 0.8
+  console.log(yield* Random.next) // 0.2 (cycles back)
+}).pipe(Effect.withRandom(Random.fixed([0.2, 0.5, 0.8])))
+```
+
+## Effect.ensure\{Success,Error,Requirements\}
+
+These new functions allow you to ensure that the Success, Error, or Requirements of an effect are assignable to a specific type.
+
+This is useful for ensuring that your effects have a certain return type, or that they handle errors correctly.
+
+```ts
+import { Effect } from "effect"
+
+// Ensure that the program does not expose any unhandled errors.
+const program = Effect.succeed(42).pipe(Effect.ensureErrorType<never>())
+```
+
+## Struct.entries
+
+`Struct.entries` is a version of `Object.entries` that enhances the type safety of the entries returned from an object.
+
+```ts
+import { Struct } from "effect"
+
+const c = Symbol("c")
+const value = { a: "foo", b: 1, [c]: true }
+
+// The type of `entries` is now more specific
+const entries: Array<["a" | "b", string | number]> = Struct.entries(value)
+```
+
+## Other changes
+
+- `HashMap.countBy` has been added, allowing you to count occurrences of elements in a collection.
+- `Array.findFirstWithIndex` has been added, enabling you to find the first element that matches a predicate along with its index.
+- Schedule `CurrentIterationMetadata` now includes the schedule output.
+- Effect runtime version mismatches are now warnings instead of errors.
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
