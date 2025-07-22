@@ -187,12 +187,11 @@ main()\
     withEffect: {
       fileName: "index.ts",
       code: `\
-import { Console, Effect } from 'effect'
+import { Console, Data, Effect } from 'effect'
 
-class CustomError {
-  readonly _tag = 'CustomError'
-  constructor(readonly value: number) {}
-}
+class CustomError extends Data.TaggedError("CustomError")<{
+  value: number
+}> {}
 
 const maybeFail: Effect.Effect<
   number,
@@ -200,11 +199,10 @@ const maybeFail: Effect.Effect<
 > = Effect.sync(() => Math.random()).pipe(
   Effect.andThen((value) =>
     value > 0.5
-      ? Effect.fail(new CustomError(value))
+      ? Effect.fail(new CustomError({ value }))
       : Effect.succeed(value),
   ),
 )
-
 
 const main = maybeFail.pipe(
   Effect.andThen((value) =>
