@@ -33,9 +33,8 @@ Create an empty `Chunk` with `Chunk.empty`.
 ```ts twoslash
 import { Chunk } from "effect"
 
-//      ┌─── Chunk<number>
-//      ▼
 const chunk = Chunk.empty<number>()
+//    ^?
 ```
 
 ### make
@@ -47,9 +46,8 @@ To create a `Chunk` with specific values, use `Chunk.make(...values)`. Note that
 ```ts twoslash
 import { Chunk } from "effect"
 
-//      ┌─── NonEmptyChunk<number>
-//      ▼
 const chunk = Chunk.make(1, 2, 3)
+//    ^?
 ```
 
 ### fromIterable
@@ -100,10 +98,8 @@ To combine two `Chunk` instances into one, use `Chunk.appendAll`.
 import { Chunk } from "effect"
 
 // Concatenate two chunks with different types of elements
-//
-//      ┌─── NonEmptyChunk<string | number>
-//      ▼
 const chunk = Chunk.appendAll(Chunk.make(1, 2), Chunk.make("a", "b"))
+//    ^?
 
 console.log(chunk)
 /*
@@ -156,17 +152,14 @@ Convert a `Chunk` to a `ReadonlyArray` using `Chunk.toReadonlyArray`. The result
 ```ts twoslash
 import { Chunk } from "effect"
 
-//      ┌─── readonly [number, ...number[]]
-//      ▼
 const nonEmptyArray = Chunk.toReadonlyArray(Chunk.make(1, 2, 3))
+//    ^?
 
-//      ┌─── readonly never[]
-//      ▼
 const emptyArray = Chunk.toReadonlyArray(Chunk.empty())
+//    ^?
 
 declare const chunk: Chunk.Chunk<number>
 
-//      ┌─── readonly number[]
-//      ▼
 const array = Chunk.toReadonlyArray(chunk)
+//    ^?
 ```

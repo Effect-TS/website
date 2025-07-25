@@ -40,9 +40,8 @@ without any errors or external dependencies.
 ```ts twoslash
 import { Effect } from "effect"
 
-//      ┌─── Effect<number, never, never>
-//      ▼
 const success = Effect.succeed(42)
+//    ^?
 ```
 
 The type of `success` is `Effect<number, never, never>`, which means:
@@ -73,9 +72,8 @@ functions like [Effect.catchAll](/docs/error-management/expected-errors/#catchal
 ```ts twoslash
 import { Effect } from "effect"
 
-//      ┌─── Effect<never, Error, never>
-//      ▼
 const failure = Effect.fail(
+//    ^?
   new Error("Operation failed due to network error")
 )
 ```
@@ -105,9 +103,8 @@ import { Effect, Data } from "effect"
 
 class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
-//      ┌─── Effect<never, HttpError, never>
-//      ▼
 const program = Effect.fail(new HttpError())
+//    ^?
 ```
 
 ## Error Tracking
@@ -213,9 +210,8 @@ const log = (message: string) =>
     console.log(message) // side effect
   })
 
-//      ┌─── Effect<void, never, never>
-//      ▼
 const program = log("Hello, World!")
+//    ^?
 ```
 
 The side effect (logging to the console) encapsulated within `program` won't occur until the effect is explicitly run (see the [Running Effects](/docs/getting-started/running-effects/) section for more details). This allows you to define side effects at one point in your code and control when they are activated, improving manageability and predictability of side effects in larger applications.
@@ -238,9 +234,8 @@ const parse = (input: string) =>
   // This might throw an error if input is not valid JSON
   Effect.try(() => JSON.parse(input))
 
-//      ┌─── Effect<any, UnknownException, never>
-//      ▼
 const program = parse("")
+//    ^?
 ```
 
 In this example:
@@ -265,9 +260,8 @@ const parse = (input: string) =>
     catch: (unknown) => new Error(`something went wrong ${unknown}`)
   })
 
-//      ┌─── Effect<any, Error, never>
-//      ▼
 const program = parse("")
+//    ^?
 ```
 
 You can think of this as a similar pattern to the traditional try-catch block in JavaScript:
@@ -313,9 +307,8 @@ const delay = (message: string) =>
       })
   )
 
-//      ┌─── Effect<string, never, never>
-//      ▼
 const program = delay("Async operation completed successfully!")
+//    ^?
 ```
 
 The `program` value has the type `Effect<string, never, never>` and can be interpreted as an effect that:
@@ -343,9 +336,8 @@ const getTodo = (id: number) =>
     fetch(`https://jsonplaceholder.typicode.com/todos/${id}`)
   )
 
-//      ┌─── Effect<Response, UnknownException, never>
-//      ▼
 const program = getTodo(1)
+//    ^?
 ```
 
 The `program` value has the type `Effect<Response, UnknownException, never>` and can be interpreted as an effect that:
@@ -370,9 +362,8 @@ const getTodo = (id: number) =>
     catch: (unknown) => new Error(`something went wrong ${unknown}`)
   })
 
-//      ┌─── Effect<Response, Error, never>
-//      ▼
 const program = getTodo(1)
+//    ^?
 ```
 
 ## From a Callback
@@ -403,9 +394,8 @@ const readFile = (filename: string) =>
     })
   })
 
-//      ┌─── Effect<Buffer, Error, never>
-//      ▼
 const program = readFile("example.txt")
+//    ^?
 ```
 
 In the above example, we manually annotate the types when calling `Effect.async`:
