@@ -17,6 +17,7 @@ import ecTwoSlash from "expressive-code-twoslash"
 import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground"
 import { pluginTwoslashPagefind } from "./src/plugins/expressive-code/twoslash-pagefind"
 import { effectPlaygroundPlugin } from "./src/plugins/starlight/playground/plugin"
+import { starlightMixedbread } from "./src/plugins/starlight/mixedbread/plugin"
 import { effectPodcastPlugin } from "./src/plugins/starlight/podcast/plugin"
 import { monacoEditorPlugin } from "./src/plugins/vite/monaco-editor"
 // import node from "@astrojs/node"
@@ -150,7 +151,7 @@ export default defineConfig({
           pluginLineNumbers(),
           pluginOpenInPlayground(),
           ecTwoSlash(),
-          pluginTwoslashPagefind()
+          pluginTwoslashPagefind(),
         ],
         themes: ["github-light", "github-dark"]
       },
@@ -211,10 +212,15 @@ export default defineConfig({
         starlightLinksValidator({
           exclude: ["/events/effect-days*"]
         }),
+        starlightMixedbread({
+          apiKey: process.env.MXBAI_API_KEY,
+          vectorStoreId: process.env.MXBAI_VECTOR_STORE_ID,
+          maxResults: 10
+        }),
         effectPlaygroundPlugin({
           pattern: "/play"
         }),
-        effectPodcastPlugin()
+        effectPodcastPlugin(),
       ],
       sidebar: [
         {
