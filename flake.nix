@@ -16,6 +16,7 @@
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
           packages = with pkgs; [
+            bun
             corepack
             nodejs
             nodePackages.json
