@@ -29,9 +29,8 @@ import { Effect, Random, Data } from "effect"
 // Define a custom error type using Data.TaggedError
 class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
-//      ┌─── Effect<string, HttpError, never>
-//      ▼
 const program = Effect.gen(function* () {
+//    ^?
   // Generate a random number between 0 and 1
   const n = yield* Random.next
 
@@ -88,9 +87,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+//    ^?
   // Generate two random numbers between 0 and 1
   const n1 = yield* Random.next
   const n2 = yield* Random.next
@@ -198,9 +196,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+//    ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -212,12 +209,10 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, never, never>
-//      ▼
 const recovered = Effect.gen(function* () {
-  //      ┌─── Either<string, HttpError | ValidationError>
-  //      ▼
+//    ^?
   const failureOrSuccess = yield* Effect.either(program)
+  //    ^?
   if (Either.isLeft(failureOrSuccess)) {
     // Failure case: you can extract the error from the `left` property
     const error = failureOrSuccess.left
@@ -246,9 +241,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+//    ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -260,12 +254,10 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, never, never>
-//      ▼
 const recovered = Effect.gen(function* () {
-  //      ┌─── Either<string, HttpError | ValidationError>
-  //      ▼
+  //  ^?
   const failureOrSuccess = yield* Effect.either(program)
+  //    ^?
   return Either.match(failureOrSuccess, {
     onLeft: (error) => `Recovering from ${error._tag}`,
     onRight: (value) => value // Do nothing in case of success
@@ -350,9 +342,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+  //    ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -364,9 +355,8 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, never, never>
-//      ▼
 const recovered = program.pipe(
+  //  ^?
   Effect.catchAll((error) =>
     Effect.succeed(`Recovering from ${error._tag}`)
   )
@@ -434,9 +424,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+  //  ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -448,9 +437,8 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, ValidationError, never>
-//      ▼
 const recovered = Effect.gen(function* () {
+  //  ^?
   const failureOrSuccess = yield* Effect.either(program)
   if (Either.isLeft(failureOrSuccess)) {
     const error = failureOrSuccess.left
@@ -485,6 +473,7 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
 const program = Effect.gen(function* () {
+  //  ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -496,9 +485,8 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, never, never>
-//      ▼
 const recovered = Effect.gen(function* () {
+  //  ^?
   const failureOrSuccess = yield* Effect.either(program)
   if (Either.isLeft(failureOrSuccess)) {
     const error = failureOrSuccess.left
@@ -541,9 +529,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+  //  ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -555,9 +542,8 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const recovered = program.pipe(
+  //  ^?
   Effect.catchSome((error) => {
     // Only handle HttpError errors
     if (error._tag === "HttpError") {
@@ -597,9 +583,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+  //  ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -611,9 +596,8 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, ValidationError, never>
-//      ▼
 const recovered = program.pipe(
+  //  ^?
   Effect.catchIf(
     // Only handle HttpError errors
     (error) => error._tag === "HttpError",
@@ -642,9 +626,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+  //  ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -656,9 +639,8 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, ValidationError, never>
-//      ▼
 const recovered = program.pipe(
+  //  ^?
   Effect.catchIf(
     // User-defined type guard
     (error): error is HttpError => error._tag === "HttpError",
@@ -688,9 +670,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+  //  ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -702,9 +683,8 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, ValidationError, never>
-//      ▼
 const recovered = program.pipe(
+  //  ^?
   // Only handle HttpError errors
   Effect.catchTag("HttpError", (_HttpError) =>
     Effect.succeed("Recovering from HttpError")
@@ -735,9 +715,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+  //  ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -749,9 +728,8 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, never, never>
-//      ▼
 const recovered = program.pipe(
+  //   ^?
   // Handle both HttpError and ValidationError
   Effect.catchTag("HttpError", (_HttpError) =>
     Effect.succeed("Recovering from HttpError")
@@ -794,9 +772,8 @@ class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{}> {}
 
-//      ┌─── Effect<string, HttpError | ValidationError, never>
-//      ▼
 const program = Effect.gen(function* () {
+  //  ^?
   const n1 = yield* Random.next
   const n2 = yield* Random.next
   if (n1 < 0.5) {
@@ -808,9 +785,8 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-//      ┌─── Effect<string, never, never>
-//      ▼
 const recovered = program.pipe(
+  //  ^?
   Effect.catchTags({
     HttpError: (_HttpError) =>
       Effect.succeed(`Recovering from HttpError`),

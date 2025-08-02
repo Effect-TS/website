@@ -30,15 +30,13 @@ If needed, we can undo the sandboxing operation with `Effect.unsandbox`.
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-//      ┌─── Effect<string, Error, never>
-//      ▼
 const task = Effect.fail(new Error("Oh uh!")).pipe(
   Effect.as("primary result")
 )
+//    ^?
 
-//      ┌─── Effect<string, Cause<Error>, never>
-//      ▼
 const sandboxed = Effect.sandbox(task)
+//    ^?
 
 const program = Effect.catchTags(sandboxed, {
   Die: (cause) =>
