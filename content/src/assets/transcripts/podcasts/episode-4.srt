@@ -1,0 +1,5916 @@
+1
+00:00:00,416 --> 00:00:01,958
+One of the points I've made in my
+
+2
+00:00:01,958 --> 00:00:04,375
+conference talks this year is that to
+
+3
+00:00:04,375 --> 00:00:05,791
+scale TypeScript on
+
+4
+00:00:05,791 --> 00:00:06,791
+the server effectively,
+
+5
+00:00:07,125 --> 00:00:09,000
+it requires discipline and discipline
+
+6
+00:00:09,000 --> 00:00:10,166
+doesn't scale at the
+
+7
+00:00:10,166 --> 00:00:11,541
+organization level, unfortunately.
+
+8
+00:00:12,041 --> 00:00:12,541
+the very
+
+9
+00:00:12,541 --> 00:00:14,416
+primitives and foundations of the
+
+10
+00:00:14,416 --> 00:00:17,416
+language make it easy to have
+
+11
+00:00:17,416 --> 00:00:18,333
+happy path blindness,
+
+12
+00:00:18,333 --> 00:00:20,583
+where it's very easy to neglect all the
+
+13
+00:00:20,583 --> 00:00:22,458
+things that can go wrong in our software
+
+14
+00:00:22,458 --> 00:00:25,041
+and just write the happy path and not
+
+15
+00:00:25,041 --> 00:00:26,875
+consider the error states we can get in,
+
+16
+00:00:26,875 --> 00:00:29,666
+which over time just leads to slop.
+
+17
+00:00:29,666 --> 00:00:31,541
+And on top of that, we don't have a
+
+18
+00:00:31,541 --> 00:00:33,666
+framework. Well, we do now with Effect,
+
+19
+00:00:33,958 --> 00:00:35,541
+but traditionally, Node hasn't had a
+
+20
+00:00:35,541 --> 00:00:37,500
+framework like Spring Boot or Ruby on
+
+21
+00:00:37,500 --> 00:00:38,875
+Rails or Laravel, right?
+
+22
+00:00:39,250 --> 00:00:41,625
+So we are consistently and constantly
+
+23
+00:00:41,625 --> 00:00:43,833
+downloading dependencies and trying to
+
+24
+00:00:43,833 --> 00:00:45,583
+mix and match them where they were never
+
+25
+00:00:45,583 --> 00:00:48,041
+designed together or cohesively.
+
+26
+00:00:48,041 --> 00:00:49,791
+And you end up reinventing the wheel for
+
+27
+00:00:49,791 --> 00:00:50,791
+all of the things that
+
+28
+00:00:50,791 --> 00:00:52,041
+Effect provides out of the box.
+
+29
+00:00:55,291 --> 00:00:56,583
+Welcome to Cause & Effect,
+
+30
+00:00:57,083 --> 00:00:58,791
+a podcast about the TypeScript library
+
+31
+00:00:58,791 --> 00:01:00,583
+and ecosystem called Effect,
+
+32
+00:01:01,125 --> 00:01:02,666
+helping engineers to build
+
+33
+00:01:02,666 --> 00:01:03,791
+production-ready software.
+
+34
+00:01:04,333 --> 00:01:05,666
+I'm your host, Johannes Schickling,
+
+35
+00:01:05,875 --> 00:01:06,791
+and I've been building with
+
+36
+00:01:06,791 --> 00:01:08,041
+Effect for over four years.
+
+37
+00:01:08,500 --> 00:01:09,791
+With this podcast, I want
+
+38
+00:01:09,791 --> 00:01:10,875
+to help others understand
+
+39
+00:01:10,875 --> 00:01:12,875
+the powers and benefits of using Effect.
+
+40
+00:01:13,666 --> 00:01:14,666
+In this episode, I'm
+
+41
+00:01:14,666 --> 00:01:15,750
+talking to Dillon Mulroy,
+
+42
+00:01:16,291 --> 00:01:18,666
+a software engineer at Vercel working on
+
+43
+00:01:18,666 --> 00:01:19,541
+their Domains product.
+
+44
+00:01:20,250 --> 00:01:21,000
+In this conversation,
+
+45
+00:01:21,375 --> 00:01:22,833
+Dillon shares his path to Effect
+
+46
+00:01:23,250 --> 00:01:24,166
+after years of using
+
+47
+00:01:24,166 --> 00:01:25,375
+other programming languages
+
+48
+00:01:25,625 --> 00:01:27,416
+such as Golang and OCaml.
+
+49
+00:01:27,791 --> 00:01:29,166
+We dive deep on how Vercel
+
+50
+00:01:29,166 --> 00:01:30,666
+incrementally adopted Effect
+
+51
+00:01:30,833 --> 00:01:31,791
+and which new
+
+52
+00:01:31,791 --> 00:01:33,125
+superpowers it had unlocked.
+
+53
+00:01:33,708 --> 00:01:34,375
+Let's get into it.
+
+54
+00:01:34,750 --> 00:01:36,458
+Hey Dillon, so great to have you on the
+
+55
+00:01:36,458 --> 00:01:37,250
+show. How are you doing?
+
+56
+00:01:37,708 --> 00:01:39,541
+I'm doing well. It's an
+
+57
+00:01:39,541 --> 00:01:40,791
+honor to finally be here.
+
+58
+00:01:41,333 --> 00:01:43,583
+You're probably a person who really
+
+59
+00:01:43,583 --> 00:01:44,458
+doesn't need an
+
+60
+00:01:44,458 --> 00:01:46,416
+introduction in the Effect community,
+
+61
+00:01:47,208 --> 00:01:48,500
+but for those who are very
+
+62
+00:01:48,500 --> 00:01:49,791
+new to the Effect community,
+
+63
+00:01:50,166 --> 00:01:52,291
+would you mind introducing yourself and
+
+64
+00:01:52,291 --> 00:01:53,041
+sharing what you do?
+
+65
+00:01:53,583 --> 00:01:55,916
+Yes. So my name is Dillon Mulroy.
+
+66
+00:01:56,333 --> 00:01:59,291
+I am a Software Engineer at Vercel,
+
+67
+00:02:00,083 --> 00:02:03,208
+and I am the Technical Lead in our
+
+68
+00:02:03,208 --> 00:02:04,875
+Domains Product areas.
+
+69
+00:02:05,333 --> 00:02:07,500
+So Domains, Registrar, Buying domains,
+
+70
+00:02:07,958 --> 00:02:10,666
+managing DNS, TLS and certificates,
+
+71
+00:02:10,958 --> 00:02:12,458
+aliasing domains to deployments.
+
+72
+00:02:13,125 --> 00:02:15,750
+We've been going all in this year on
+
+73
+00:02:15,750 --> 00:02:18,250
+Effect on all NetU domains work,
+
+74
+00:02:18,750 --> 00:02:20,250
+and we're starting to see the fruits of
+
+75
+00:02:20,250 --> 00:02:22,333
+that labor and are very exciting times.
+
+76
+00:02:22,916 --> 00:02:24,666
+That is awesome. I want to dive a lot
+
+77
+00:02:24,666 --> 00:02:26,708
+deeper on all of those aspects.
+
+78
+00:02:27,375 --> 00:02:28,583
+I want to also hear
+
+79
+00:02:28,583 --> 00:02:30,416
+about what led you to Effect,
+
+80
+00:02:30,416 --> 00:02:33,583
+but maybe we remain for a few minutes on
+
+81
+00:02:33,583 --> 00:02:35,208
+Vercel on a high level.
+
+82
+00:02:35,916 --> 00:02:38,500
+Like how should I think about Effect
+
+83
+00:02:38,500 --> 00:02:41,416
+being adopted at a company like Vercel,
+
+84
+00:02:41,416 --> 00:02:43,666
+which is very cutting edge. It builds
+
+85
+00:02:43,666 --> 00:02:44,875
+developer tools itself,
+
+86
+00:02:45,333 --> 00:02:47,041
+and I think it really needs to moderate
+
+87
+00:02:47,041 --> 00:02:48,916
+where it can take a lot
+
+88
+00:02:48,916 --> 00:02:49,875
+of risk on new technologies
+
+89
+00:02:50,375 --> 00:02:51,666
+and where it needs to be
+
+90
+00:02:51,666 --> 00:02:52,791
+a bit more conservative.
+
+91
+00:02:53,500 --> 00:02:55,208
+So maybe you can share on a high level
+
+92
+00:02:55,208 --> 00:02:57,291
+already how Vercel
+
+93
+00:02:57,291 --> 00:02:58,666
+started to adopt Effect.
+
+94
+00:02:59,333 --> 00:03:01,791
+Yeah. So I actually admit I was not
+
+95
+00:03:01,791 --> 00:03:03,791
+the first person to write
+
+96
+00:03:03,791 --> 00:03:05,166
+lines of Effect at Vercel
+
+97
+00:03:05,500 --> 00:03:07,875
+It was probably either Toby or Schnez,
+
+98
+00:03:08,083 --> 00:03:09,875
+have a couple small Lambdas that run,
+
+99
+00:03:10,708 --> 00:03:11,125
+that they probably
+
+100
+00:03:11,125 --> 00:03:13,333
+wrote a year or so ago now.
+
+101
+00:03:13,583 --> 00:03:16,375
+But I was certainly the first person to
+
+102
+00:03:16,375 --> 00:03:18,291
+build larger services and
+
+103
+00:03:18,291 --> 00:03:20,583
+kind of take it on holistically.
+
+104
+00:03:21,000 --> 00:03:24,125
+I think as is with the story with Effect,
+
+105
+00:03:24,125 --> 00:03:26,958
+there is apprehension when you first see
+
+106
+00:03:26,958 --> 00:03:28,166
+it and read it. I had
+
+107
+00:03:28,166 --> 00:03:29,333
+the same apprehensions.
+
+108
+00:03:29,916 --> 00:03:32,000
+But as I talked about, both
+
+109
+00:03:32,000 --> 00:03:34,666
+Effect Days and React Miami,
+
+110
+00:03:35,000 --> 00:03:37,750
+Effect solves the pain points that makes
+
+111
+00:03:37,750 --> 00:03:41,000
+writing TypeScript at scale difficult.
+
+112
+00:03:41,000 --> 00:03:44,750
+And we, at least my team, is truly
+
+113
+00:03:44,750 --> 00:03:45,875
+starting to see the
+
+114
+00:03:45,875 --> 00:03:47,666
+benefits of that with Effect.
+
+115
+00:03:48,125 --> 00:03:50,750
+I'm sure we'll dive into more specifics
+
+116
+00:03:50,750 --> 00:03:52,958
+on that, but it has truly made us faster.
+
+117
+00:03:53,291 --> 00:03:55,500
+It has made us ship more reliable
+
+118
+00:03:55,500 --> 00:03:56,833
+software across the
+
+119
+00:03:56,833 --> 00:03:57,958
+board with better telemetry.
+
+120
+00:03:58,333 --> 00:04:01,250
+We have distributed tracing that just
+
+121
+00:04:01,250 --> 00:04:03,500
+works without headaches.
+
+122
+00:04:03,500 --> 00:04:05,791
+And I would argue we have some of the
+
+123
+00:04:05,791 --> 00:04:08,500
+best DX across any team at Vercel for
+
+124
+00:04:08,500 --> 00:04:09,791
+shipping internal services.
+
+125
+00:04:10,375 --> 00:04:11,791
+That is awesome. Well,
+
+126
+00:04:11,875 --> 00:04:13,416
+TypeScript wasn't your first love.
+
+127
+00:04:13,458 --> 00:04:16,000
+I'm not sure whether it is a love at all.
+
+128
+00:04:16,250 --> 00:04:18,041
+From what other people might know you
+
+129
+00:04:18,041 --> 00:04:21,916
+from is from the OCaml community, also in
+
+130
+00:04:21,916 --> 00:04:23,125
+the NeoVim community.
+
+131
+00:04:23,666 --> 00:04:25,666
+So I'm curious, maybe we can take a few
+
+132
+00:04:25,666 --> 00:04:28,041
+steps back and take a look at your
+
+133
+00:04:28,041 --> 00:04:29,625
+personal background.
+
+134
+00:04:29,625 --> 00:04:31,666
+You worked previously at Formidable, and
+
+135
+00:04:31,666 --> 00:04:32,625
+I think you worked in
+
+136
+00:04:32,625 --> 00:04:33,666
+consulting before that.
+
+137
+00:04:34,125 --> 00:04:35,625
+Maybe you can just share a bit more about
+
+138
+00:04:35,625 --> 00:04:37,750
+your background and the
+
+139
+00:04:37,750 --> 00:04:39,208
+trajectory that's had you on.
+
+140
+00:04:39,291 --> 00:04:41,333
+Yeah, I've kind of had a
+
+141
+00:04:41,333 --> 00:04:43,958
+pretty unique background.
+
+142
+00:04:43,958 --> 00:04:45,875
+I've had the opportunity and privilege to
+
+143
+00:04:45,875 --> 00:04:48,125
+work in a lot of different
+
+144
+00:04:48,125 --> 00:04:49,416
+companies through consulting.
+
+145
+00:04:49,875 --> 00:04:51,958
+And I've also got to work in a lot of
+
+146
+00:04:51,958 --> 00:04:53,416
+different tech stacks.
+
+147
+00:04:53,416 --> 00:04:56,083
+And maybe most importantly, I've got to
+
+148
+00:04:56,083 --> 00:04:59,333
+work in and experience many different
+
+149
+00:04:59,333 --> 00:05:01,625
+engineering cultures and engineering
+
+150
+00:05:01,625 --> 00:05:03,000
+organizations within companies.
+
+151
+00:05:03,375 --> 00:05:07,125
+I'm in my 11th or 12th, 11th year. I
+
+152
+00:05:07,125 --> 00:05:08,625
+started in 2014 full time.
+
+153
+00:05:09,083 --> 00:05:11,458
+As an engineer, my first job was at State
+
+154
+00:05:11,458 --> 00:05:14,541
+Farm. I was doing full stack dev, Java on
+
+155
+00:05:14,541 --> 00:05:15,708
+the server and
+
+156
+00:05:15,708 --> 00:05:17,583
+JavaScript on the front end.
+
+157
+00:05:17,583 --> 00:05:18,833
+I was like on one of the teams that made
+
+158
+00:05:18,833 --> 00:05:21,208
+their first step into span apps.
+
+159
+00:05:21,791 --> 00:05:24,833
+And I actually got to start writing React
+
+160
+00:05:24,833 --> 00:05:26,375
+at that job very soon
+
+161
+00:05:26,375 --> 00:05:27,541
+after it was announced.
+
+162
+00:05:27,833 --> 00:05:30,291
+from Jordan and Tom. So I've been
+
+163
+00:05:30,291 --> 00:05:32,375
+writing React for over a decade now.
+
+164
+00:05:32,375 --> 00:05:34,083
+I've seen it from the days of mixins and
+
+165
+00:05:34,083 --> 00:05:36,333
+class components up through now to we're
+
+166
+00:05:36,333 --> 00:05:37,583
+at RSEs and server
+
+167
+00:05:37,583 --> 00:05:39,041
+components and server functions.
+
+168
+00:05:39,833 --> 00:05:41,291
+So most of my career, like my bread and
+
+169
+00:05:41,291 --> 00:05:42,333
+butter truly is
+
+170
+00:05:42,333 --> 00:05:43,625
+TypeScript and JavaScript.
+
+171
+00:05:44,416 --> 00:05:50,083
+But I worked in Go for two years. I had a
+
+172
+00:05:50,083 --> 00:05:51,916
+contract doing some Elixir.
+
+173
+00:05:52,375 --> 00:05:54,500
+I notably had a two year gig at a startup
+
+174
+00:05:54,500 --> 00:05:56,458
+doing OCaml full stack both
+
+175
+00:05:56,458 --> 00:05:58,125
+in the front end and back end.
+
+176
+00:05:58,708 --> 00:06:00,208
+And then at Formidable, that Formidable
+
+177
+00:06:00,208 --> 00:06:01,958
+was certainly the job that changed the
+
+178
+00:06:01,958 --> 00:06:03,333
+trajectory of my career.
+
+179
+00:06:03,375 --> 00:06:08,166
+And Formidable back in 2016 to 2021 era
+
+180
+00:06:08,166 --> 00:06:09,666
+had kind of a similar
+
+181
+00:06:09,666 --> 00:06:12,583
+reputation, I think, as Vercel.
+
+182
+00:06:12,583 --> 00:06:14,166
+We had a lot of very notable developers
+
+183
+00:06:14,166 --> 00:06:17,625
+in the open source JavaScript community.
+
+184
+00:06:17,625 --> 00:06:19,708
+So I got to cut my teeth alongside people
+
+185
+00:06:19,708 --> 00:06:21,333
+that were on the React Native Core team
+
+186
+00:06:21,333 --> 00:06:22,208
+that were involved
+
+187
+00:06:22,208 --> 00:06:24,250
+with GraphQL super early.
+
+188
+00:06:25,041 --> 00:06:26,541
+And then again, I think the most valuable
+
+189
+00:06:26,541 --> 00:06:27,708
+thing that came from working at
+
+190
+00:06:27,708 --> 00:06:29,250
+Formidable was the fact
+
+191
+00:06:29,250 --> 00:06:30,041
+that it was a consultancy.
+
+192
+00:06:30,375 --> 00:06:31,791
+And I was getting dropped into all these
+
+193
+00:06:31,791 --> 00:06:33,958
+different engineering organizations and
+
+194
+00:06:33,958 --> 00:06:34,708
+not only having to
+
+195
+00:06:34,708 --> 00:06:36,333
+figure out technical problems,
+
+196
+00:06:36,583 --> 00:06:38,416
+but also like people and process
+
+197
+00:06:38,416 --> 00:06:40,958
+problems, which end up being the harder
+
+198
+00:06:40,958 --> 00:06:42,166
+problems in tech and
+
+199
+00:06:42,166 --> 00:06:43,458
+ironic, maybe not ironically,
+
+200
+00:06:43,458 --> 00:06:44,958
+but I think Effect actually
+
+201
+00:06:44,958 --> 00:06:46,791
+helps address some of that.
+
+202
+00:06:48,541 --> 00:06:49,875
+Actually, that's a very interesting
+
+203
+00:06:49,875 --> 00:06:51,166
+topic. How would you say
+
+204
+00:06:51,166 --> 00:06:52,625
+that Effect helps with that?
+
+205
+00:06:53,166 --> 00:06:54,833
+I think it's very hard to manage
+
+206
+00:06:54,833 --> 00:06:57,833
+TypeScript and specifically TypeScript on
+
+207
+00:06:57,833 --> 00:07:01,291
+the server at scale, probably past.
+
+208
+00:07:01,291 --> 00:07:02,541
+If you're in an engineering organization,
+
+209
+00:07:02,791 --> 00:07:03,541
+I'm just going to throw out
+
+210
+00:07:03,541 --> 00:07:04,916
+an arbitrary number, like 100.
+
+211
+00:07:05,166 --> 00:07:07,416
+If you have over 100 engineers and you're
+
+212
+00:07:07,416 --> 00:07:09,625
+starting to get tens of services, I think
+
+213
+00:07:09,625 --> 00:07:10,916
+that's where Node
+
+214
+00:07:10,916 --> 00:07:13,375
+really starts to break down.
+
+215
+00:07:13,916 --> 00:07:15,458
+One of the points I've made in my
+
+216
+00:07:15,458 --> 00:07:18,333
+conference talks this year is that to
+
+217
+00:07:18,333 --> 00:07:19,750
+scale TypeScript on
+
+218
+00:07:19,750 --> 00:07:20,750
+the server effectively,
+
+219
+00:07:21,291 --> 00:07:24,291
+it requires discipline and discipline
+
+220
+00:07:24,291 --> 00:07:25,458
+doesn't scale at the
+
+221
+00:07:25,458 --> 00:07:26,833
+organization level, unfortunately.
+
+222
+00:07:27,541 --> 00:07:31,250
+And what I mean by that is just the very
+
+223
+00:07:31,250 --> 00:07:33,125
+primitives and foundations of the
+
+224
+00:07:33,125 --> 00:07:38,041
+language make it easy to have whatever to
+
+225
+00:07:38,041 --> 00:07:39,666
+refer to as happy path blindness,
+
+226
+00:07:39,916 --> 00:07:42,166
+where it's very easy to neglect all the
+
+227
+00:07:42,166 --> 00:07:44,041
+things that can go wrong in our software
+
+228
+00:07:44,041 --> 00:07:47,041
+and just write the happy path and not
+
+229
+00:07:47,041 --> 00:07:48,875
+consider the error states we can get in,
+
+230
+00:07:48,875 --> 00:07:52,416
+which over time just leads to slop.
+
+231
+00:07:52,416 --> 00:07:54,791
+And on top of that, we don't have a
+
+232
+00:07:54,791 --> 00:07:56,916
+framework. Well, we do now with Effect,
+
+233
+00:07:57,208 --> 00:07:58,791
+but traditionally, Node hasn't had a
+
+234
+00:07:58,791 --> 00:08:00,750
+framework like Spring Boot or Ruby on
+
+235
+00:08:00,750 --> 00:08:02,125
+Rails or Laravel, right?
+
+236
+00:08:02,500 --> 00:08:04,875
+So we are consistently and constantly
+
+237
+00:08:04,875 --> 00:08:07,625
+downloading dependencies and trying to
+
+238
+00:08:07,625 --> 00:08:09,375
+mix and match them where they were never
+
+239
+00:08:09,375 --> 00:08:11,833
+designed together or cohesively.
+
+240
+00:08:11,833 --> 00:08:13,583
+And you end up reinventing the wheel for
+
+241
+00:08:13,583 --> 00:08:14,958
+all of the things that
+
+242
+00:08:14,958 --> 00:08:16,208
+Effect provides out of the box.
+
+243
+00:08:16,791 --> 00:08:19,000
+So would you say that Effect forces
+
+244
+00:08:19,000 --> 00:08:21,541
+engineering teams to be disciplined or
+
+245
+00:08:21,541 --> 00:08:23,416
+would you say that it
+
+246
+00:08:23,416 --> 00:08:25,208
+makes being disciplined easy?
+
+247
+00:08:25,958 --> 00:08:27,958
+Oh, man, that is great. I would say both.
+
+248
+00:08:28,291 --> 00:08:29,916
+Honestly, I think the
+
+249
+00:08:29,916 --> 00:08:34,708
+rigidity of Effect forces discipline.
+
+250
+00:08:34,708 --> 00:08:37,458
+But at the same time, like it makes all
+
+251
+00:08:37,458 --> 00:08:38,708
+the hard things of
+
+252
+00:08:38,708 --> 00:08:40,541
+writing Node on the server easy,
+
+253
+00:08:40,916 --> 00:08:42,958
+whether that's testing and mocking or a
+
+254
+00:08:42,958 --> 00:08:44,083
+dependency injection,
+
+255
+00:08:44,458 --> 00:08:46,583
+telemetry in one line,
+
+256
+00:08:46,583 --> 00:08:49,166
+having things like semaphores
+
+257
+00:08:49,166 --> 00:08:51,250
+and just nailing concurrency easy.
+
+258
+00:08:51,875 --> 00:08:53,583
+It's just all of like all the hard things
+
+259
+00:08:53,583 --> 00:08:54,916
+you end up reinventing in
+
+260
+00:08:54,916 --> 00:08:56,291
+every project and every service.
+
+261
+00:08:56,416 --> 00:08:58,541
+It's just there and it's like bulletproof
+
+262
+00:08:58,541 --> 00:09:00,250
+and it's composable and it just works.
+
+263
+00:09:00,458 --> 00:09:01,875
+So I think it almost
+
+264
+00:09:01,875 --> 00:09:03,041
+tackles it from both angles.
+
+265
+00:09:03,500 --> 00:09:05,416
+What I think is really interesting about
+
+266
+00:09:05,416 --> 00:09:07,625
+your career so far, there is a few
+
+267
+00:09:07,625 --> 00:09:10,083
+parallels that I can relate
+
+268
+00:09:10,083 --> 00:09:12,208
+to from my own experience,
+
+269
+00:09:12,708 --> 00:09:14,000
+having used many different
+
+270
+00:09:14,000 --> 00:09:15,375
+languages over the years.
+
+271
+00:09:16,000 --> 00:09:17,916
+And I'm still sort of emotionally
+
+272
+00:09:17,916 --> 00:09:19,541
+confused how I feel about
+
+273
+00:09:19,541 --> 00:09:21,541
+JavaScript in that regard,
+
+274
+00:09:21,541 --> 00:09:24,500
+that it's certainly not by far not the
+
+275
+00:09:24,500 --> 00:09:26,250
+most beautiful language I've ever used.
+
+276
+00:09:26,541 --> 00:09:29,666
+For that, I think my heart is still in
+
+277
+00:09:29,666 --> 00:09:32,416
+Haskell land, but Haskell is not
+
+278
+00:09:32,416 --> 00:09:34,833
+practical for all the
+
+279
+00:09:34,833 --> 00:09:36,708
+different things that we want to do.
+
+280
+00:09:36,833 --> 00:09:39,208
+And then I've also like having done quite
+
+281
+00:09:39,208 --> 00:09:40,875
+a lot of Rust development and Swift
+
+282
+00:09:40,875 --> 00:09:43,208
+development, also a fair amount of Go.
+
+283
+00:09:43,500 --> 00:09:45,833
+And all of those languages
+
+284
+00:09:45,833 --> 00:09:48,375
+kind of feel better to me.
+
+285
+00:09:48,375 --> 00:09:51,750
+But at the same time, I'm still doing
+
+286
+00:09:51,750 --> 00:09:54,208
+most of my stuff in TypeScript and
+
+287
+00:09:54,208 --> 00:09:55,833
+there's a reason for that.
+
+288
+00:09:55,833 --> 00:09:58,333
+I think one is just the ubiquity of
+
+289
+00:09:58,333 --> 00:10:00,166
+TypeScript and like where it can run.
+
+290
+00:10:00,625 --> 00:10:02,291
+And then also just like JavaScript
+
+291
+00:10:02,291 --> 00:10:03,666
+runtimes. there is
+
+292
+00:10:03,666 --> 00:10:04,750
+probably very little
+
+293
+00:10:05,416 --> 00:10:07,750
+where so much economical value has gone
+
+294
+00:10:07,750 --> 00:10:10,583
+into making it fast compared to
+
+295
+00:10:10,583 --> 00:10:11,625
+JavaScript runtimes.
+
+296
+00:10:11,625 --> 00:10:13,041
+And it's like very hard to beat.
+
+297
+00:10:13,583 --> 00:10:15,500
+And I think there's just so many factors
+
+298
+00:10:15,500 --> 00:10:17,916
+that are going in that favor.
+
+299
+00:10:17,916 --> 00:10:19,375
+But at the end of the day, it's still
+
+300
+00:10:19,375 --> 00:10:21,250
+sort of like a crappy environment.
+
+301
+00:10:21,791 --> 00:10:23,458
+And so this is why I've always kind of
+
+302
+00:10:23,458 --> 00:10:25,625
+felt, OK, well, I should
+
+303
+00:10:25,625 --> 00:10:26,791
+rather use a better language.
+
+304
+00:10:27,000 --> 00:10:29,875
+And when I then found out about Effect, I
+
+305
+00:10:29,875 --> 00:10:31,791
+think that's now over five and a half
+
+306
+00:10:31,791 --> 00:10:33,375
+years ago, this is where I
+
+307
+00:10:33,375 --> 00:10:34,958
+saw the inklings of hope.
+
+308
+00:10:35,875 --> 00:10:38,666
+Could I get off the things that I'm like
+
+309
+00:10:38,666 --> 00:10:40,500
+jealous about other proper program
+
+310
+00:10:40,500 --> 00:10:43,166
+languages in JavaScript and TypeScript?
+
+311
+00:10:43,666 --> 00:10:44,458
+And TypeScript also
+
+312
+00:10:44,458 --> 00:10:45,958
+wasn't as far along back then.
+
+313
+00:10:46,166 --> 00:10:46,708
+First,
+
+314
+00:10:46,708 --> 00:10:48,166
+I want to hear like how did you first
+
+315
+00:10:48,166 --> 00:10:50,875
+hear about Effect and whether the sort of
+
+316
+00:10:50,875 --> 00:10:53,166
+the same thing spoke to you.
+
+317
+00:10:53,166 --> 00:10:55,958
+I mean, that mirrors my experience like
+
+318
+00:10:55,958 --> 00:10:58,166
+perfectly, as I said, my
+
+319
+00:10:58,166 --> 00:10:59,500
+bread and butter TypeScript.
+
+320
+00:10:59,958 --> 00:11:00,875
+I love and loathe
+
+321
+00:11:00,875 --> 00:11:02,541
+TypeScript all at the same time.
+
+322
+00:11:02,708 --> 00:11:04,291
+Until I found Effect and especially
+
+323
+00:11:04,291 --> 00:11:07,375
+having spent two years working in OCaml
+
+324
+00:11:07,375 --> 00:11:09,541
+full time, I was feeling pretty
+
+325
+00:11:09,541 --> 00:11:10,916
+disenfranchised about
+
+326
+00:11:10,916 --> 00:11:13,250
+writing TypeScript and Node,
+
+327
+00:11:13,250 --> 00:11:15,458
+especially after having really felt like
+
+328
+00:11:15,458 --> 00:11:17,791
+what a type system and errors as values
+
+329
+00:11:17,791 --> 00:11:19,416
+and all the nice things
+
+330
+00:11:19,416 --> 00:11:21,750
+that OCaml provides you.
+
+331
+00:11:21,750 --> 00:11:23,541
+I felt so much more confident shipping
+
+332
+00:11:23,541 --> 00:11:25,500
+quality software with OCaml
+
+333
+00:11:25,500 --> 00:11:27,791
+than I did with TypeScript.
+
+334
+00:11:28,208 --> 00:11:30,208
+And it's really not even just OCaml.
+
+335
+00:11:30,208 --> 00:11:32,458
+The other language that brought the same
+
+336
+00:11:32,458 --> 00:11:34,541
+feeling to me, even though I don't have
+
+337
+00:11:34,541 --> 00:11:35,916
+as much fun writing it, is Go.
+
+338
+00:11:36,666 --> 00:11:39,833
+Like the two software stacks that I've
+
+339
+00:11:39,833 --> 00:11:41,958
+felt I've built the most scalable and the
+
+340
+00:11:41,958 --> 00:11:44,916
+most reliable technology with both on
+
+341
+00:11:44,916 --> 00:11:48,083
+like the technology scaling side and the
+
+342
+00:11:48,083 --> 00:11:49,458
+engineering or scaling side
+
+343
+00:11:49,541 --> 00:11:52,083
+has been OCaml and Go and they both have
+
+344
+00:11:52,083 --> 00:11:54,708
+similar traits for what I consider
+
+345
+00:11:54,708 --> 00:11:58,458
+important properties in production software.
+
+346
+00:11:58,625 --> 00:12:02,583
+Errors as values. They kind of force you
+
+347
+00:12:02,583 --> 00:12:05,041
+to consider the error path at every turn.
+
+348
+00:12:05,416 --> 00:12:06,208
+And that's just
+
+349
+00:12:06,208 --> 00:12:08,500
+distinctly missing from Effect.
+
+350
+00:12:08,791 --> 00:12:11,375
+So like I had I had lost my job.
+
+351
+00:12:11,375 --> 00:12:13,583
+I got laid off for my OCaml job and
+
+352
+00:12:13,583 --> 00:12:15,458
+basically came right to Vercel.
+
+353
+00:12:15,458 --> 00:12:17,666
+And at the time I was like, oh, man, I'm
+
+354
+00:12:17,666 --> 00:12:20,666
+going back to like to stop writing OCaml
+
+355
+00:12:20,666 --> 00:12:22,166
+on the server and I have to
+
+356
+00:12:22,166 --> 00:12:23,416
+start writing TypeScript again.
+
+357
+00:12:24,083 --> 00:12:25,250
+Certainly, I was excited to be working
+
+358
+00:12:25,250 --> 00:12:27,250
+at Vercel, right? There's a million interesting
+
+359
+00:12:27,250 --> 00:12:28,250
+problems here every day.
+
+360
+00:12:28,291 --> 00:12:31,125
+But around that same time, I had started
+
+361
+00:12:31,125 --> 00:12:34,083
+to see Effect and like many people, my
+
+362
+00:12:34,083 --> 00:12:34,750
+knee jerk reaction
+
+363
+00:12:34,750 --> 00:12:35,916
+was like, this is gross.
+
+364
+00:12:36,166 --> 00:12:36,833
+I don't want to touch
+
+365
+00:12:36,833 --> 00:12:39,375
+this. This reminds me of RxJS.
+
+366
+00:12:39,958 --> 00:12:42,583
+I've, you know, as a junior dev
+
+367
+00:12:42,791 --> 00:12:44,125
+I've made very sloppy
+
+368
+00:12:44,125 --> 00:12:45,416
+code bases with Ramda.
+
+369
+00:12:45,708 --> 00:12:47,458
+So I was initially very apprehensive.
+
+370
+00:12:47,500 --> 00:12:51,458
+But like you, I saw the shimmers of hope
+
+371
+00:12:51,458 --> 00:12:54,125
+in it that just like displayed the
+
+372
+00:12:54,125 --> 00:12:55,125
+properties that I found
+
+373
+00:12:55,125 --> 00:12:56,958
+valuable from Go and OCaml.
+
+374
+00:12:57,458 --> 00:13:00,500
+And then on my Twitch stream, I decided,
+
+375
+00:13:00,500 --> 00:13:02,041
+you know, let's give this a real shot.
+
+376
+00:13:02,041 --> 00:13:03,416
+Let's build something with it.
+
+377
+00:13:03,583 --> 00:13:04,375
+That's more than just a
+
+378
+00:13:04,375 --> 00:13:06,041
+toy app or a to do list.
+
+379
+00:13:06,833 --> 00:13:08,166
+And that's when I was
+
+380
+00:13:08,166 --> 00:13:10,375
+like, OK, I see it. I get it.
+
+381
+00:13:10,416 --> 00:13:14,083
+This brings the things that I value in
+
+382
+00:13:14,083 --> 00:13:16,208
+building software to the table and makes
+
+383
+00:13:16,208 --> 00:13:18,291
+it accessible for TypeScript and Node.
+
+384
+00:13:18,291 --> 00:13:19,541
+Yeah. TypeScript and Node,
+
+385
+00:13:19,541 --> 00:13:21,125
+it just the ecosystem draws you in.
+
+386
+00:13:21,125 --> 00:13:22,708
+It has like this gravity.
+
+387
+00:13:22,708 --> 00:13:24,166
+Yeah, I don't know if I would love
+
+388
+00:13:24,166 --> 00:13:25,916
+writing software as much as I do
+
+389
+00:13:25,916 --> 00:13:28,375
+currently without Effect, because
+
+390
+00:13:28,375 --> 00:13:29,125
+it makes writing
+
+391
+00:13:29,125 --> 00:13:30,333
+TypeScript enjoyable again.
+
+392
+00:13:30,916 --> 00:13:33,208
+Totally. There's a couple of interesting
+
+393
+00:13:33,208 --> 00:13:34,041
+points that I want to
+
+394
+00:13:34,041 --> 00:13:35,291
+follow up on, like namely,
+
+395
+00:13:35,500 --> 00:13:38,000
+RxJS, but also the comparison to the other
+
+396
+00:13:38,000 --> 00:13:39,041
+program languages, maybe
+
+397
+00:13:39,041 --> 00:13:40,416
+starting with the latter.
+
+398
+00:13:41,083 --> 00:13:44,000
+It's interesting that Effects on the one
+
+399
+00:13:44,000 --> 00:13:47,291
+hand is like an absolute marvel of like
+
+400
+00:13:47,291 --> 00:13:49,125
+engineering on like it
+
+401
+00:13:49,125 --> 00:13:51,375
+basically unlocked for me,
+
+402
+00:13:51,416 --> 00:13:53,916
+kind of like multiply the value of the type
+
+403
+00:13:53,916 --> 00:13:55,750
+system provides like previously,
+
+404
+00:13:56,333 --> 00:13:58,750
+the type system only was applicable to
+
+405
+00:13:58,750 --> 00:14:00,750
+the happy path and even there like only
+
+406
+00:14:00,750 --> 00:14:01,791
+to a certain degree,
+
+407
+00:14:02,125 --> 00:14:03,333
+like it could still like
+
+408
+00:14:03,333 --> 00:14:06,791
+give you a false sense of safety and then
+
+409
+00:14:06,791 --> 00:14:07,958
+things would blow up.
+
+410
+00:14:08,333 --> 00:14:09,750
+But like the non happy
+
+411
+00:14:09,750 --> 00:14:11,666
+path wasn't a model at all.
+
+412
+00:14:12,250 --> 00:14:14,541
+But if you think about it the other way
+
+413
+00:14:14,541 --> 00:14:17,375
+around, it is like Effect also doesn't
+
+414
+00:14:17,375 --> 00:14:20,083
+really do so much on a technical level,
+
+415
+00:14:20,500 --> 00:14:23,750
+but it's actually rather forces like a
+
+416
+00:14:23,750 --> 00:14:25,666
+different perspective on the
+
+417
+00:14:25,666 --> 00:14:27,041
+language we're already using.
+
+418
+00:14:27,041 --> 00:14:30,291
+And I think very similar to how React has
+
+419
+00:14:30,291 --> 00:14:31,750
+done it, I think it basically
+
+420
+00:14:31,750 --> 00:14:33,125
+offers just like a different
+
+421
+00:14:34,000 --> 00:14:36,708
+constrained perspective on like how you
+
+422
+00:14:36,708 --> 00:14:37,875
+should think about like
+
+423
+00:14:37,875 --> 00:14:39,916
+opinions, how you should write code.
+
+424
+00:14:40,666 --> 00:14:42,750
+And through those constraints, you
+
+425
+00:14:42,750 --> 00:14:46,291
+actually gain a lot of freedom and a lot
+
+426
+00:14:46,291 --> 00:14:48,000
+of like emergent properties.
+
+427
+00:14:49,041 --> 00:14:51,458
+And so when you think about like values,
+
+428
+00:14:52,083 --> 00:14:54,458
+errors as values, it's not like that this
+
+429
+00:14:54,458 --> 00:14:57,416
+is like a unique new capability that was
+
+430
+00:14:57,416 --> 00:14:58,500
+now brought to TypeScript.
+
+431
+00:14:59,125 --> 00:15:00,750
+Honestly, we could have written
+
+432
+00:15:00,750 --> 00:15:02,625
+JavaScript like from the get go.
+
+433
+00:15:03,000 --> 00:15:05,875
+I think it was basically just no there
+
+434
+00:15:05,875 --> 00:15:08,250
+was no cultural critical mass
+
+435
+00:15:08,250 --> 00:15:09,708
+that really made that a thing.
+
+436
+00:15:09,958 --> 00:15:12,000
+It could have been another like popular
+
+437
+00:15:12,000 --> 00:15:14,458
+library, let's say like underscore JS
+
+438
+00:15:14,458 --> 00:15:16,458
+would have enforced that more
+
+439
+00:15:16,458 --> 00:15:18,583
+or let's say another length.
+
+440
+00:15:18,583 --> 00:15:20,500
+Another library would have enforced that
+
+441
+00:15:20,500 --> 00:15:23,000
+and it would have kind of picked up as
+
+442
+00:15:23,000 --> 00:15:24,083
+a cultural movement.
+
+443
+00:15:24,625 --> 00:15:26,833
+But it didn't like people rather like,
+
+444
+00:15:26,833 --> 00:15:28,291
+for example, maybe
+
+445
+00:15:28,291 --> 00:15:30,000
+you still remember T.J.
+
+446
+00:15:30,000 --> 00:15:30,708
+Holloway Chuck, like
+
+447
+00:15:30,708 --> 00:15:32,541
+the creator of Express
+
+448
+00:15:32,541 --> 00:15:34,291
+JS et cetera. And I
+
+449
+00:15:34,291 --> 00:15:35,708
+learned so much from him.
+
+450
+00:15:36,208 --> 00:15:38,541
+And he I think was at some point like fed
+
+451
+00:15:38,541 --> 00:15:40,041
+up with that cultural
+
+452
+00:15:40,041 --> 00:15:42,416
+perspective that he went into and to Go
+
+453
+00:15:42,416 --> 00:15:45,541
+land and embrace that very fully.
+
+454
+00:15:45,791 --> 00:15:47,250
+I think there could have been a different
+
+455
+00:15:47,250 --> 00:15:49,666
+parallel universe where maybe Effect
+
+456
+00:15:49,666 --> 00:15:52,541
+wouldn't be as relevant today if we would
+
+457
+00:15:52,541 --> 00:15:54,250
+have already kind of taken those
+
+458
+00:15:54,250 --> 00:15:56,916
+inspirations from other languages and
+
+459
+00:15:56,916 --> 00:15:58,916
+embedded it more in JavaScript, even
+
+460
+00:15:58,916 --> 00:16:02,291
+without any feature changes in terms of
+
+461
+00:16:02,291 --> 00:16:04,333
+the syntax of JavaScript, et cetera.
+
+462
+00:16:04,583 --> 00:16:07,333
+As Effect currently like proves, there is
+
+463
+00:16:07,333 --> 00:16:08,500
+no different syntax.
+
+464
+00:16:08,875 --> 00:16:11,500
+It's all there. We just need to use it.
+
+465
+00:16:11,500 --> 00:16:13,583
+This is where maybe my react analogy
+
+466
+00:16:13,583 --> 00:16:14,916
+isn't as perfect because
+
+467
+00:16:14,916 --> 00:16:16,458
+it also introduced JSX.
+
+468
+00:16:16,625 --> 00:16:17,750
+But I think it's the same
+
+469
+00:16:17,750 --> 00:16:19,083
+sort of perspective on it.
+
+470
+00:16:19,083 --> 00:16:20,250
+So I'm curious what are
+
+471
+00:16:20,250 --> 00:16:21,083
+your thoughts on that?
+
+472
+00:16:21,625 --> 00:16:24,458
+I mean, I completely agree with you.
+
+473
+00:16:24,458 --> 00:16:26,500
+And like I think going back to like the
+
+474
+00:16:26,500 --> 00:16:28,625
+beginning of this, one thing I think
+
+475
+00:16:28,625 --> 00:16:31,208
+people don't realize and maybe that we
+
+476
+00:16:31,208 --> 00:16:34,125
+don't talk about enough is that we focus
+
+477
+00:16:34,125 --> 00:16:35,708
+a lot of the time talking about like
+
+478
+00:16:35,708 --> 00:16:36,958
+errors as values and how
+
+479
+00:16:36,958 --> 00:16:37,958
+it's tracked in the type system.
+
+480
+00:16:38,250 --> 00:16:43,041
+But like Effect is insanely good at type
+
+481
+00:16:43,041 --> 00:16:45,166
+inference for the happy path to like
+
+482
+00:16:45,166 --> 00:16:47,125
+you're getting the same level of DX as
+
+483
+00:16:47,125 --> 00:16:50,583
+you're getting from things like TRPC or,
+
+484
+00:16:50,916 --> 00:16:53,041
+you know, Drizzle or Prisma, like all
+
+485
+00:16:53,041 --> 00:16:55,625
+these top of the line, very popular
+
+486
+00:16:55,625 --> 00:16:57,833
+libraries today that people talk about
+
+487
+00:16:57,833 --> 00:16:59,083
+how good the type reference
+
+488
+00:16:59,083 --> 00:17:00,833
+is from the front to the back.
+
+489
+00:17:00,833 --> 00:17:02,416
+Like that is present in
+
+490
+00:17:02,416 --> 00:17:04,083
+Effect too, if not more.
+
+491
+00:17:04,333 --> 00:17:04,833
+Table stakes.
+
+492
+00:17:05,041 --> 00:17:07,458
+Yeah. And I don't think people talk
+
+493
+00:17:07,458 --> 00:17:09,041
+about that enough, but it brings that
+
+494
+00:17:09,041 --> 00:17:11,916
+same level of like amazing DX for type
+
+495
+00:17:11,916 --> 00:17:14,916
+inference from just like the happy path
+
+496
+00:17:14,916 --> 00:17:17,083
+and co-generating clients from their
+
+497
+00:17:17,083 --> 00:17:19,541
+front end and back end to the error path
+
+498
+00:17:19,541 --> 00:17:21,333
+and dependency injection.
+
+499
+00:17:21,916 --> 00:17:23,208
+And that kind of ties
+
+500
+00:17:23,208 --> 00:17:24,375
+back to the culture, like.
+
+501
+00:17:24,500 --> 00:17:26,083
+Error handling and both dependency
+
+502
+00:17:26,083 --> 00:17:27,875
+injection and like the JavaScript
+
+503
+00:17:27,875 --> 00:17:30,291
+TypeScript node ecosystem, it just like
+
+504
+00:17:30,291 --> 00:17:33,000
+haven't really been a thing.
+
+505
+00:17:34,000 --> 00:17:36,500
+And people even experienced developers
+
+506
+00:17:36,500 --> 00:17:37,958
+that have been working in this ecosystem
+
+507
+00:17:37,958 --> 00:17:41,750
+forever, like this reaction of like, have this reaction like
+
+508
+00:17:41,750 --> 00:17:43,625
+why don't I just throw the errors?
+
+509
+00:17:43,791 --> 00:17:45,250
+And then it's like once
+
+510
+00:17:45,250 --> 00:17:46,541
+you start writing Effect.
+
+511
+00:17:46,541 --> 00:17:48,125
+And I've seen this every developer that
+
+512
+00:17:48,125 --> 00:17:49,291
+I've introduced to Effect.
+
+513
+00:17:49,541 --> 00:17:51,083
+At first, it's like, this
+
+514
+00:17:51,083 --> 00:17:52,166
+is like a lot of resistance.
+
+515
+00:17:52,500 --> 00:17:54,875
+And then they're like, wow, I did not
+
+516
+00:17:54,875 --> 00:17:59,208
+realize how many things could and were
+
+517
+00:17:59,208 --> 00:18:00,958
+actually going wrong in my software.
+
+518
+00:18:01,750 --> 00:18:02,791
+And it's like
+
+519
+00:18:02,791 --> 00:18:03,708
+pulling back the curtain.
+
+520
+00:18:04,333 --> 00:18:06,333
+It's like, oh once you look
+
+521
+00:18:06,333 --> 00:18:07,958
+behind that curtain of seeing how error
+
+522
+00:18:07,958 --> 00:18:10,625
+prone software really is and that like we
+
+523
+00:18:10,625 --> 00:18:12,166
+have this culture of not handling errors.
+
+524
+00:18:12,833 --> 00:18:14,666
+If you go back to writing just TypeScript
+
+525
+00:18:14,666 --> 00:18:17,416
+with try catch, like you're going to be
+
+526
+00:18:17,416 --> 00:18:19,875
+writing a lot more try catches and a lot
+
+527
+00:18:19,875 --> 00:18:23,166
+more granularity because you can't unsee
+
+528
+00:18:23,166 --> 00:18:25,666
+how error prone everything is.
+
+529
+00:18:26,291 --> 00:18:27,541
+And it's always the question of like,
+
+530
+00:18:28,125 --> 00:18:29,208
+well, does this function throw?
+
+531
+00:18:29,791 --> 00:18:31,166
+I have to go check the implementation.
+
+532
+00:18:31,791 --> 00:18:33,333
+Does it dependency throw?
+
+533
+00:18:33,333 --> 00:18:34,333
+I have to go check their implementations.
+
+534
+00:18:35,375 --> 00:18:36,458
+And it's like
+
+535
+00:18:36,458 --> 00:18:38,416
+once you have that realization, it just
+
+536
+00:18:38,416 --> 00:18:38,958
+makes you want to
+
+537
+00:18:38,958 --> 00:18:40,458
+reach for Effect naturally.
+
+538
+00:18:40,958 --> 00:18:42,416
+And I think that's that
+
+539
+00:18:42,416 --> 00:18:44,000
+aspect is so interesting.
+
+540
+00:18:44,291 --> 00:18:45,750
+Like people are different. Right.
+
+541
+00:18:45,750 --> 00:18:48,916
+So some people are naturally kind of like
+
+542
+00:18:48,916 --> 00:18:51,875
+truth seeking and some others are rather
+
+543
+00:18:51,875 --> 00:18:53,625
+like already barely getting
+
+544
+00:18:53,625 --> 00:18:55,125
+by with what they need to do.
+
+545
+00:18:55,291 --> 00:18:57,250
+And they don't have energy to like learn
+
+546
+00:18:57,250 --> 00:18:59,291
+something new or maybe they if it's
+
+547
+00:18:59,291 --> 00:19:00,375
+really required of them,
+
+548
+00:19:00,375 --> 00:19:01,041
+maybe they they learn something.
+
+549
+00:19:01,041 --> 00:19:01,875
+maybe they they learn something.
+
+550
+00:19:01,875 --> 00:19:03,583
+And I mean, this is well reflected in
+
+551
+00:19:03,583 --> 00:19:04,916
+sort of the crossing the
+
+552
+00:19:04,916 --> 00:19:07,083
+chasm adoption curve, etc.
+
+553
+00:19:07,166 --> 00:19:08,916
+But I, for example,
+
+554
+00:19:08,916 --> 00:19:11,250
+I get very frustrated if I
+
+555
+00:19:11,250 --> 00:19:14,166
+realize, OK, there's something is like
+
+556
+00:19:14,166 --> 00:19:15,208
+something could be better.
+
+557
+00:19:15,250 --> 00:19:17,166
+But then I what I get mostly frustrated
+
+558
+00:19:17,166 --> 00:19:20,416
+with is if I can't quite see yet how it
+
+559
+00:19:20,416 --> 00:19:21,208
+could be done better.
+
+560
+00:19:21,750 --> 00:19:23,125
+And this is where I basically then start
+
+561
+00:19:23,125 --> 00:19:26,000
+just exploring in sometimes I like leave
+
+562
+00:19:26,000 --> 00:19:28,541
+the metaphorical country of JavaScript
+
+563
+00:19:28,541 --> 00:19:31,125
+land to go to other languages, to other
+
+564
+00:19:31,125 --> 00:19:34,666
+literal languages and see,
+
+565
+00:19:34,666 --> 00:19:36,541
+hey, how are things done here?
+
+566
+00:19:36,958 --> 00:19:38,750
+And this is as much of a technical thing
+
+567
+00:19:38,750 --> 00:19:39,791
+as a cultural thing.
+
+568
+00:19:40,333 --> 00:19:43,791
+And this is where like in 2020 I started
+
+569
+00:19:43,791 --> 00:19:45,958
+again, like looking around from like
+
+570
+00:19:45,958 --> 00:19:48,041
+Haskell to like Scala,
+
+571
+00:19:48,041 --> 00:19:49,375
+which I've used in the past.
+
+572
+00:19:49,375 --> 00:19:52,000
+And this is where I stumbled across Zio
+
+573
+00:19:52,000 --> 00:19:54,583
+and John De Goes, the author of
+
+574
+00:19:54,583 --> 00:19:58,291
+Zio, has in a very humble move at last
+
+575
+00:19:58,291 --> 00:20:01,958
+year's Effect Days conference, has sort
+
+576
+00:20:01,958 --> 00:20:05,750
+of, I guess, paraphrasing here,
+
+577
+00:20:05,791 --> 00:20:09,125
+like admitted defeat in that regard that
+
+578
+00:20:09,125 --> 00:20:10,458
+the biggest impact
+
+579
+00:20:10,458 --> 00:20:12,958
+Zio had is like to inspire Effect, which
+
+580
+00:20:12,958 --> 00:20:14,291
+now brings it to to a
+
+581
+00:20:14,291 --> 00:20:15,500
+much wider audience.
+
+582
+00:20:15,791 --> 00:20:17,791
+But I think this is where I can't give
+
+583
+00:20:17,791 --> 00:20:20,500
+people like Mike Analdi, etc., enough
+
+584
+00:20:20,500 --> 00:20:23,041
+credit that they managed to like
+
+585
+00:20:23,041 --> 00:20:26,166
+take that inspiration and be like
+
+586
+00:20:26,166 --> 00:20:28,833
+resilient and determined and crazy enough
+
+587
+00:20:29,041 --> 00:20:31,458
+to like take those ideas and like bang it
+
+588
+00:20:31,458 --> 00:20:32,666
+against a TypeScript type
+
+589
+00:20:32,666 --> 00:20:34,916
+system until it kind of fits.
+
+590
+00:20:35,875 --> 00:20:39,458
+And in a way where it basically like in
+
+591
+00:20:39,458 --> 00:20:41,958
+2020, I would have thought, OK, like
+
+592
+00:20:41,958 --> 00:20:44,000
+we've kind of reached the peak, what you
+
+593
+00:20:44,000 --> 00:20:44,958
+can do with TypeScript.
+
+594
+00:20:45,875 --> 00:20:47,250
+And that's like, OK,
+
+595
+00:20:47,250 --> 00:20:48,500
+that's just how we do it.
+
+596
+00:20:48,750 --> 00:20:50,625
+And we do a bit more like unit testing
+
+597
+00:20:50,625 --> 00:20:52,416
+over here and we do a little bit more
+
+598
+00:20:52,416 --> 00:20:54,125
+like micro front ends
+
+599
+00:20:54,125 --> 00:20:56,291
+and like tRPC, etc.
+
+600
+00:20:57,083 --> 00:20:59,541
+But only once you've seen how much better
+
+601
+00:20:59,541 --> 00:21:02,166
+it can be, then you realize, oh, my gosh,
+
+602
+00:21:02,166 --> 00:21:03,958
+it's like this big, big delta.
+
+603
+00:21:04,333 --> 00:21:05,666
+And and I think this is exactly that
+
+604
+00:21:05,666 --> 00:21:08,166
+describes exactly the experience that
+
+605
+00:21:08,166 --> 00:21:10,625
+like people who start working with you on
+
+606
+00:21:10,625 --> 00:21:13,166
+on Effect things, they realize like where
+
+607
+00:21:13,166 --> 00:21:14,750
+they basically thought like, OK, there's
+
+608
+00:21:14,750 --> 00:21:16,583
+like this little little bit of
+
+609
+00:21:16,583 --> 00:21:17,583
+improvement that I could
+
+610
+00:21:17,583 --> 00:21:20,208
+make to like layer after layer.
+
+611
+00:21:20,666 --> 00:21:22,625
+You realize, oh, my gosh, I can write
+
+612
+00:21:22,625 --> 00:21:23,791
+code so much better.
+
+613
+00:21:24,000 --> 00:21:25,375
+And this for me is like one of the best
+
+614
+00:21:25,375 --> 00:21:27,916
+feelings about programming when it's
+
+615
+00:21:27,916 --> 00:21:29,916
+basically not like you learned once and
+
+616
+00:21:29,916 --> 00:21:32,375
+then you OK, you know how to like need to
+
+617
+00:21:32,375 --> 00:21:34,375
+like have a hammer, a nail
+
+618
+00:21:34,375 --> 00:21:36,208
+and you need to like bang it in.
+
+619
+00:21:36,583 --> 00:21:39,166
+OK, that's it. But for for programming,
+
+620
+00:21:39,416 --> 00:21:42,041
+like this has now for like decades showed
+
+621
+00:21:42,041 --> 00:21:44,208
+me time and time again that there is more
+
+622
+00:21:44,208 --> 00:21:46,041
+elegance to kind of be mined.
+
+623
+00:21:46,833 --> 00:21:49,291
+And Effect has been like like on the same
+
+624
+00:21:49,291 --> 00:21:52,166
+level of like React to me in terms of
+
+625
+00:21:52,166 --> 00:21:53,375
+like how much elegance
+
+626
+00:21:53,375 --> 00:21:55,333
+could be exploited here.
+
+627
+00:21:55,333 --> 00:21:57,458
+So, yeah, maybe you want to share a bit
+
+628
+00:21:57,458 --> 00:22:00,958
+more about the typical experience someone
+
+629
+00:22:00,958 --> 00:22:02,750
+has working with you of
+
+630
+00:22:02,750 --> 00:22:04,666
+being introduced to Effect.
+
+631
+00:22:05,125 --> 00:22:06,375
+Yes. Yeah. I want to one
+
+632
+00:22:06,375 --> 00:22:07,750
+thing I want to go back to and.
+
+633
+00:22:07,958 --> 00:22:11,375
+I think one thing I used to and I still I
+
+634
+00:22:11,375 --> 00:22:12,791
+don't talk about as much anymore, but
+
+635
+00:22:12,791 --> 00:22:13,541
+like I think some of the most one of the
+
+636
+00:22:13,541 --> 00:22:16,791
+most valuable exercises, somebody who has
+
+637
+00:22:16,791 --> 00:22:19,291
+exclusively worked in the TypeScript
+
+638
+00:22:19,291 --> 00:22:22,166
+ecosystem can do is step outside of the
+
+639
+00:22:22,166 --> 00:22:23,625
+language and learn something else.
+
+640
+00:22:24,125 --> 00:22:27,791
+Like without a doubt in my mind, working
+
+641
+00:22:27,791 --> 00:22:31,791
+in OCaml and working in Go and working in
+
+642
+00:22:31,791 --> 00:22:35,625
+Elixir have made me such a better
+
+643
+00:22:35,625 --> 00:22:39,333
+TypeScript developer because I've learned
+
+644
+00:22:39,333 --> 00:22:42,333
+practices and patterns from those
+
+645
+00:22:42,333 --> 00:22:43,916
+ecosystems where they might
+
+646
+00:22:43,916 --> 00:22:45,541
+emphasize on something more.
+
+647
+00:22:45,958 --> 00:22:47,750
+But that can apply equally to TypeScript
+
+648
+00:22:47,750 --> 00:22:49,875
+and just like learning to look at
+
+649
+00:22:49,875 --> 00:22:51,208
+problems differently, whether that's
+
+650
+00:22:51,208 --> 00:22:53,791
+concurrency or error handling or how you
+
+651
+00:22:53,791 --> 00:22:54,625
+manage dependencies.
+
+652
+00:22:55,500 --> 00:22:58,375
+It's a cheat code, actually. It really it
+
+653
+00:22:58,375 --> 00:23:00,291
+really is. So, yeah, for anyone listening
+
+654
+00:23:00,291 --> 00:23:02,166
+that has only ever worked in TypeScript,
+
+655
+00:23:02,958 --> 00:23:03,916
+learn something new, step outside of the
+
+656
+00:23:03,916 --> 00:23:05,000
+ecosystem, I
+
+657
+00:23:05,000 --> 00:23:06,000
+think, and be really valuable.
+
+658
+00:23:06,625 --> 00:23:09,750
+But working with me on Domains, I'm
+
+659
+00:23:09,750 --> 00:23:11,333
+kind of in this kind of privileged
+
+660
+00:23:11,333 --> 00:23:13,041
+position where I got Ethan and Elliot on
+
+661
+00:23:13,041 --> 00:23:15,041
+my team who are also two very notable
+
+662
+00:23:15,041 --> 00:23:16,375
+Effect developers in the community.
+
+663
+00:23:16,666 --> 00:23:19,041
+But we also have Rhys Sullivan on our
+
+664
+00:23:19,041 --> 00:23:21,458
+team who has started writing Effect.
+
+665
+00:23:21,458 --> 00:23:23,833
+And like when I was speaking earlier of
+
+666
+00:23:23,833 --> 00:23:26,458
+people starting to write and, you know,
+
+667
+00:23:26,458 --> 00:23:27,875
+peeling back the curtains or having these
+
+668
+00:23:27,875 --> 00:23:30,333
+aha moments like I was thinking of Rhys.
+
+669
+00:23:30,333 --> 00:23:33,166
+It just becomes so clear like the
+
+670
+00:23:33,166 --> 00:23:36,250
+minute even like so up until maybe like a
+
+671
+00:23:36,250 --> 00:23:38,791
+month ago, Rhys hadn't written a lot of
+
+672
+00:23:38,791 --> 00:23:40,250
+Effect code just because he is working on
+
+673
+00:23:40,250 --> 00:23:42,166
+different kind of more legacy priorities
+
+674
+00:23:42,166 --> 00:23:44,250
+than a lot of our Effect code is.
+
+675
+00:23:45,041 --> 00:23:46,708
+But he's been reviewing the PRs that the
+
+676
+00:23:46,708 --> 00:23:48,333
+whole team has been writing in Effect and
+
+677
+00:23:48,333 --> 00:23:49,791
+like he's become very
+
+678
+00:23:49,791 --> 00:23:51,291
+capable very quickly.
+
+679
+00:23:51,291 --> 00:23:52,916
+I think there is a there's a perception
+
+680
+00:23:52,916 --> 00:23:56,416
+problem of Effect on like how hard it is
+
+681
+00:23:56,416 --> 00:23:57,958
+and how different it actually looks,
+
+682
+00:23:57,958 --> 00:23:59,250
+which we should probably talk about.
+
+683
+00:23:59,916 --> 00:24:01,833
+But yeah, like he's at the point now
+
+684
+00:24:01,833 --> 00:24:04,041
+where like I notice him starting to
+
+685
+00:24:04,041 --> 00:24:06,500
+reach for Effect first to solve problems
+
+686
+00:24:06,500 --> 00:24:08,833
+because he's seeing the value it brings.
+
+687
+00:24:09,583 --> 00:24:11,541
+And it's so funny, every
+
+688
+00:24:11,541 --> 00:24:13,250
+developer that I have
+
+689
+00:24:13,250 --> 00:24:15,458
+convinced to try Effect.
+
+690
+00:24:15,833 --> 00:24:17,458
+Ends up falling in love with the fact
+
+691
+00:24:17,458 --> 00:24:19,625
+even if they have no
+
+692
+00:24:19,625 --> 00:24:21,583
+FP background.
+
+693
+00:24:21,583 --> 00:24:24,500
+And I also don't think it's
+
+694
+00:24:24,500 --> 00:24:26,166
+fair to categorize Effect necessarily
+
+695
+00:24:26,166 --> 00:24:28,041
+fully as like an FP thing.
+
+696
+00:24:28,416 --> 00:24:30,750
+And that's a disservice to what it is.
+
+697
+00:24:31,125 --> 00:24:32,625
+And I think these people I'm thinking
+
+698
+00:24:32,625 --> 00:24:34,041
+about on Twitter or other people I just
+
+699
+00:24:34,041 --> 00:24:34,958
+know tangentially that
+
+700
+00:24:34,958 --> 00:24:36,125
+have tried Effect like.
+
+701
+00:24:36,125 --> 00:24:37,583
+They don't know or they don't care that
+
+702
+00:24:37,583 --> 00:24:39,375
+there's underlying FP
+
+703
+00:24:39,375 --> 00:24:42,875
+foundations. Same for React. Right.
+
+704
+00:24:42,875 --> 00:24:47,166
+React tricked the entire world into using
+
+705
+00:24:47,166 --> 00:24:48,750
+functional programming
+
+706
+00:24:48,750 --> 00:24:49,541
+principles and concepts.
+
+707
+00:24:49,583 --> 00:24:51,291
+I would like to hear more about like
+
+708
+00:24:51,291 --> 00:24:54,583
+those anecdotes I now with the
+
+709
+00:24:54,583 --> 00:24:58,041
+benefit of time have like seen quite a
+
+710
+00:24:58,041 --> 00:25:00,458
+few of like those of conversion cycles.
+
+711
+00:25:00,458 --> 00:25:03,041
+And I think every time it sort of like
+
+712
+00:25:03,041 --> 00:25:06,000
+goes in like a bigger splash radius gets
+
+713
+00:25:06,000 --> 00:25:08,708
+bigger and like some like you are very
+
+714
+00:25:08,708 --> 00:25:10,041
+notable example for that.
+
+715
+00:25:10,041 --> 00:25:11,666
+I think you've been also like you had
+
+716
+00:25:11,666 --> 00:25:13,916
+also your phase of being skeptical.
+
+717
+00:25:13,916 --> 00:25:16,875
+And then over time, you saw more
+
+718
+00:25:16,916 --> 00:25:17,708
+where the value is.
+
+719
+00:25:17,708 --> 00:25:19,958
+But I think also maybe it was a good time
+
+720
+00:25:20,958 --> 00:25:22,541
+to talk a bit more about like your
+
+721
+00:25:22,541 --> 00:25:24,333
+own transition from like
+
+722
+00:25:24,333 --> 00:25:26,666
+initially being skeptical to like what
+
+723
+00:25:26,666 --> 00:25:27,750
+were the things that
+
+724
+00:25:27,750 --> 00:25:28,833
+like made a click for you.
+
+725
+00:25:28,833 --> 00:25:30,875
+And I think maybe it's similar for some
+
+726
+00:25:30,875 --> 00:25:33,000
+people. Maybe it's dissimilar because
+
+727
+00:25:33,000 --> 00:25:35,791
+like you obviously saw the you know
+
+728
+00:25:35,791 --> 00:25:39,875
+already what better programming paradigms
+
+729
+00:25:39,875 --> 00:25:41,041
+and like practices are.
+
+730
+00:25:41,041 --> 00:25:43,125
+So maybe you didn't need to be convinced
+
+731
+00:25:43,125 --> 00:25:45,208
+about those. Those are those probably had
+
+732
+00:25:45,208 --> 00:25:47,375
+like validity for you in the first place.
+
+733
+00:25:48,333 --> 00:25:50,041
+But maybe you wouldn't
+
+734
+00:25:50,083 --> 00:25:51,958
+like what gave you pause.
+
+735
+00:25:52,250 --> 00:25:54,333
+So what gave me pause upfront.
+
+736
+00:25:54,875 --> 00:25:57,791
+Was obviously syntax it's weird to
+
+737
+00:25:57,791 --> 00:25:59,375
+see the first time but I
+
+738
+00:25:59,375 --> 00:26:01,041
+had also gotten to a point.
+
+739
+00:26:01,875 --> 00:26:04,333
+Maybe a maturity as a developer were like
+
+740
+00:26:04,333 --> 00:26:06,500
+OCaml looks weird like if you look at
+
+741
+00:26:06,500 --> 00:26:08,125
+OCaml it doesn't look like anything
+
+742
+00:26:08,125 --> 00:26:09,833
+you've ever written ever because there's
+
+743
+00:26:09,833 --> 00:26:11,791
+no parentheses or brackets or anything.
+
+744
+00:26:12,166 --> 00:26:14,166
+But in my experience writing OCaml like.
+
+745
+00:26:14,375 --> 00:26:16,958
+Someone learning OCaml gets past that in
+
+746
+00:26:16,958 --> 00:26:19,000
+two to three days. So like I've learned
+
+747
+00:26:19,000 --> 00:26:21,541
+to set aside like if I have a knee jerk
+
+748
+00:26:21,541 --> 00:26:24,000
+reaction because of syntax I set that
+
+749
+00:26:24,000 --> 00:26:25,291
+aside regardless of the
+
+750
+00:26:25,291 --> 00:26:26,708
+language or ecosystem now.
+
+751
+00:26:27,125 --> 00:26:29,250
+I've, I don't know through experience
+
+752
+00:26:29,250 --> 00:26:31,333
+have just come to recognize that it
+
+753
+00:26:31,333 --> 00:26:33,250
+does matter for adoption but it doesn't
+
+754
+00:26:33,250 --> 00:26:35,791
+matter as much as we think it does.
+
+755
+00:26:37,083 --> 00:26:38,083
+I think some people refer
+
+756
+00:26:38,083 --> 00:26:39,541
+to it as Tailwind Effect.
+
+757
+00:26:40,083 --> 00:26:42,250
+Yeah exactly.
+
+758
+00:26:42,291 --> 00:26:45,541
+So initially skeptical of the syntax. I was like
+
+759
+00:26:45,750 --> 00:26:46,958
+When I first started trying it
+
+760
+00:26:47,083 --> 00:26:48,791
+I was skeptical because like I was that
+
+761
+00:26:48,791 --> 00:26:50,333
+over eager young dad that made a mess
+
+762
+00:26:50,333 --> 00:26:52,750
+with Ramda. I have worked in and cleaned
+
+763
+00:26:52,750 --> 00:26:53,625
+up through consulting
+
+764
+00:26:53,625 --> 00:26:56,000
+large RxJS code bases.
+
+765
+00:26:56,458 --> 00:26:58,041
+So like, going into Effect I was like
+
+766
+00:26:58,583 --> 00:27:00,708
+this ain't it. This isn't going to work.
+
+767
+00:27:00,708 --> 00:27:03,166
+But because I recognize some of those
+
+768
+00:27:03,166 --> 00:27:05,875
+patterns from Go and Elixir and OCaml.
+
+769
+00:27:05,875 --> 00:27:07,000
+I was like I want to
+
+770
+00:27:07,000 --> 00:27:08,125
+give this a real shot.
+
+771
+00:27:08,125 --> 00:27:11,250
+And like almost immediately day one it's
+
+772
+00:27:11,250 --> 00:27:13,875
+just like the syntax kind of just melt
+
+773
+00:27:13,875 --> 00:27:16,291
+away you realize that it's not that
+
+774
+00:27:16,291 --> 00:27:19,375
+different at all like looking at.
+
+775
+00:27:19,500 --> 00:27:21,625
+all of our Effect at Vercel.
+
+776
+00:27:21,791 --> 00:27:25,083
+It looks so close to regular TypeScript
+
+777
+00:27:25,250 --> 00:27:26,958
+like the only things that.
+
+778
+00:27:26,958 --> 00:27:29,166
+Look kind of distinctly different is
+
+779
+00:27:29,250 --> 00:27:31,291
+like setting up our layers like
+
+780
+00:27:31,291 --> 00:27:32,541
+that is the piece that.
+
+781
+00:27:33,041 --> 00:27:34,541
+Ends up not looking like.
+
+782
+00:27:34,666 --> 00:27:36,625
+What you're used to in the JavaScript or
+
+783
+00:27:36,625 --> 00:27:38,416
+TypeScript ecosystem and even then that's
+
+784
+00:27:38,416 --> 00:27:39,416
+the kind of thing that takes.
+
+785
+00:27:39,916 --> 00:27:42,041
+One or two days you see the pattern over
+
+786
+00:27:42,041 --> 00:27:43,500
+and over again and
+
+787
+00:27:43,500 --> 00:27:44,625
+it's like okay I get it.
+
+788
+00:27:44,708 --> 00:27:45,708
+But like for all of our
+
+789
+00:27:45,708 --> 00:27:47,333
+business logic like it.
+
+790
+00:27:47,333 --> 00:27:49,541
+Really just looks like normal TypeScript
+
+791
+00:27:49,541 --> 00:27:51,750
+and every dev I've showed that doesn't
+
+792
+00:27:51,750 --> 00:27:53,583
+know Effect can read our code and
+
+793
+00:27:53,583 --> 00:27:54,250
+understand what's
+
+794
+00:27:54,250 --> 00:27:55,583
+going on very very quickly.
+
+795
+00:27:55,875 --> 00:27:56,541
+Despite everyone
+
+796
+00:27:56,541 --> 00:27:57,708
+saying that is not the case.
+
+797
+00:27:57,958 --> 00:28:00,166
+So I had that same experience right so
+
+798
+00:28:00,375 --> 00:28:02,500
+the first thing one of the things I built
+
+799
+00:28:02,500 --> 00:28:04,833
+to learn a new language or
+
+800
+00:28:04,833 --> 00:28:06,708
+stack is I like building a.
+
+801
+00:28:06,708 --> 00:28:08,791
+Basically the OAuth flow for
+
+802
+00:28:08,791 --> 00:28:11,125
+Spotify and like pulling playlists.
+
+803
+00:28:11,166 --> 00:28:13,041
+So that looks like I'm doing the whole of
+
+804
+00:28:13,041 --> 00:28:14,791
+flow launching a browser spinning up a
+
+805
+00:28:14,791 --> 00:28:17,333
+temporary HTTP server hitting the call
+
+806
+00:28:17,333 --> 00:28:19,166
+back and I did that.
+
+807
+00:28:19,166 --> 00:28:20,541
+That was the first thing I built with
+
+808
+00:28:20,541 --> 00:28:23,541
+Effect and immediately I was
+
+809
+00:28:23,541 --> 00:28:25,083
+like oh this makes sense like.
+
+810
+00:28:25,750 --> 00:28:27,791
+Just I got introduced to the platform
+
+811
+00:28:27,791 --> 00:28:30,750
+package very early I got introduced to
+
+812
+00:28:30,750 --> 00:28:32,083
+like a bunch of the concurrency
+
+813
+00:28:32,083 --> 00:28:34,250
+primitives like deferreds or mailboxes.
+
+814
+00:28:34,541 --> 00:28:38,125
+The error handling obviously is always there
+
+815
+00:28:38,125 --> 00:28:39,750
+in front of you you're forced to deal
+
+816
+00:28:39,750 --> 00:28:42,125
+with it and it's just like within writing
+
+817
+00:28:42,750 --> 00:28:43,916
+a couple hundred lines
+
+818
+00:28:43,916 --> 00:28:44,750
+of Effect I was like.
+
+819
+00:28:44,750 --> 00:28:46,916
+This feels good this feels like.
+
+820
+00:28:48,125 --> 00:28:50,208
+There's something here and then you just
+
+821
+00:28:50,541 --> 00:28:52,666
+kind of keep going and as you need
+
+822
+00:28:52,666 --> 00:28:54,583
+different parts of the ecosystem you pull
+
+823
+00:28:54,583 --> 00:28:56,000
+it in and you keep having these.
+
+824
+00:28:56,083 --> 00:28:58,083
+Kind of like oh this gets better and
+
+825
+00:28:58,083 --> 00:29:00,333
+better and it all just.
+
+826
+00:29:00,500 --> 00:29:02,833
+Is designed in mind with each other so it
+
+827
+00:29:02,833 --> 00:29:04,833
+composes together from the error handling
+
+828
+00:29:04,833 --> 00:29:07,333
+to the tracing with Otel to.
+
+829
+00:29:07,666 --> 00:29:09,416
+Schemas much like Zod and
+
+830
+00:29:10,583 --> 00:29:12,250
+It ends up making you more productive and
+
+831
+00:29:12,250 --> 00:29:14,916
+able to develop faster and develop way
+
+832
+00:29:14,916 --> 00:29:16,291
+higher quality software faster.
+
+833
+00:29:16,833 --> 00:29:19,541
+So I love the example that you keep going
+
+834
+00:29:19,541 --> 00:29:21,875
+back to when you try out a new technology
+
+835
+00:29:21,875 --> 00:29:23,166
+or a new language and more
+
+836
+00:29:23,166 --> 00:29:24,416
+comprehensive technology.
+
+837
+00:29:24,708 --> 00:29:25,375
+you didn't
+
+838
+00:29:25,375 --> 00:29:27,375
+need to learn what concurrency is you
+
+839
+00:29:27,375 --> 00:29:29,208
+didn't need to learn like what are
+
+840
+00:29:29,208 --> 00:29:31,208
+handling is when http server like you knew
+
+841
+00:29:31,208 --> 00:29:33,250
+a lot about those concepts and so on like
+
+842
+00:29:33,250 --> 00:29:34,708
+you had a strong intuition for those.
+
+843
+00:29:34,916 --> 00:29:37,958
+Yet I guess if you've all done that on
+
+844
+00:29:37,958 --> 00:29:40,458
+one day there you need to like learn
+
+845
+00:29:40,458 --> 00:29:42,666
+about the surface area and quite a bit of
+
+846
+00:29:42,666 --> 00:29:43,625
+the surface area of
+
+847
+00:29:43,625 --> 00:29:45,166
+Effect there in one day.
+
+848
+00:29:45,458 --> 00:29:47,083
+And presumably you didn't have another
+
+849
+00:29:47,083 --> 00:29:49,291
+Dillon there who's already up and running
+
+850
+00:29:49,291 --> 00:29:50,875
+with Effect he says like don't worry
+
+851
+00:29:50,875 --> 00:29:53,125
+don't worry like yes looks like quite a
+
+852
+00:29:53,125 --> 00:29:55,000
+bit but like it's very simple like just
+
+853
+00:29:55,000 --> 00:29:56,000
+over here you do that
+
+854
+00:29:56,000 --> 00:29:57,000
+over there you do that.
+
+855
+00:29:57,541 --> 00:29:59,791
+You did that presumably all by yourself
+
+856
+00:29:59,791 --> 00:30:03,000
+so what help you to kind of like not
+
+857
+00:30:03,000 --> 00:30:06,666
+get lost in the big forest and that you
+
+858
+00:30:06,666 --> 00:30:08,375
+basically could take it one step at a
+
+859
+00:30:08,375 --> 00:30:10,166
+time and what advice would you give to
+
+860
+00:30:10,166 --> 00:30:12,791
+people who might feel a sense of being
+
+861
+00:30:12,791 --> 00:30:14,208
+overwhelmed by Effect
+
+862
+00:30:14,208 --> 00:30:15,291
+being very comprehensive.
+
+863
+00:30:15,791 --> 00:30:18,250
+Yeah so there was definitely overwhelmed
+
+864
+00:30:18,250 --> 00:30:20,500
+with like you type Effect dot and you
+
+865
+00:30:20,500 --> 00:30:23,083
+just see the whole API and your lsp offer
+
+866
+00:30:23,083 --> 00:30:24,000
+docs and there's a lot
+
+867
+00:30:24,000 --> 00:30:25,500
+there but if you just.
+
+868
+00:30:25,500 --> 00:30:27,500
+focus on doing the task at
+
+869
+00:30:27,500 --> 00:30:30,791
+hand, I think, and only taking the pieces
+
+870
+00:30:30,791 --> 00:30:32,625
+that are obvious that you need.
+
+871
+00:30:32,791 --> 00:30:37,083
+It's a relatively straight forward path,
+
+872
+00:30:37,125 --> 00:30:38,958
+especially if you are an experienced
+
+873
+00:30:38,958 --> 00:30:40,833
+developer like I think Effect would be
+
+874
+00:30:40,833 --> 00:30:42,083
+really hard to learn.
+
+875
+00:30:42,083 --> 00:30:43,583
+Just like right off the rip for a junior
+
+876
+00:30:43,583 --> 00:30:45,208
+gym like I don't think that's very
+
+877
+00:30:45,208 --> 00:30:46,625
+different than like if you threw somebody
+
+878
+00:30:46,625 --> 00:30:48,000
+into Go standard library and
+
+879
+00:30:48,000 --> 00:30:49,666
+say go build the same things.
+
+880
+00:30:49,708 --> 00:30:52,083
+But like if you have any amount of
+
+881
+00:30:52,083 --> 00:30:54,541
+experience like building stuff like we
+
+882
+00:30:54,541 --> 00:30:56,041
+talked about like it you'll have.
+
+883
+00:30:56,208 --> 00:30:58,666
+The natural inclination to know what to
+
+884
+00:30:58,666 --> 00:31:01,083
+look for I guess
+
+885
+00:31:01,083 --> 00:31:02,791
+that just comes with experience.
+
+886
+00:31:03,125 --> 00:31:06,541
+But just like onboarding like it's so
+
+887
+00:31:06,541 --> 00:31:08,208
+this is another thing that I don't think
+
+888
+00:31:08,208 --> 00:31:10,041
+we do a great job at talking about or
+
+889
+00:31:10,041 --> 00:31:11,333
+advertising or teaching or
+
+890
+00:31:11,333 --> 00:31:12,333
+documenting is that like.
+
+891
+00:31:12,500 --> 00:31:16,583
+It is so easy to integrate Effect into
+
+892
+00:31:16,583 --> 00:31:18,541
+existing code bases and it's
+
+893
+00:31:18,541 --> 00:31:20,791
+also very easy to integrate.
+
+894
+00:31:21,291 --> 00:31:23,166
+Effect well the other way around right
+
+895
+00:31:23,166 --> 00:31:26,541
+like you can incorporate it into a sync
+
+896
+00:31:26,541 --> 00:31:29,000
+await code very easily and then you can
+
+897
+00:31:29,000 --> 00:31:31,958
+also take Effect code and use it in a
+
+898
+00:31:31,958 --> 00:31:33,583
+sync await very easily it's not
+
+899
+00:31:33,583 --> 00:31:34,708
+like this problem where like.
+
+900
+00:31:34,916 --> 00:31:37,375
+It doesn't force Effect on the rest of your
+
+901
+00:31:37,375 --> 00:31:39,166
+code base like you can isolate it to.
+
+902
+00:31:39,583 --> 00:31:41,750
+One function a couple lines of code in a
+
+903
+00:31:41,750 --> 00:31:44,166
+function and you can kind of control how
+
+904
+00:31:44,166 --> 00:31:45,791
+you want to start
+
+905
+00:31:45,791 --> 00:31:48,375
+leveraging it over time and it never.
+
+906
+00:31:49,166 --> 00:31:51,291
+Really has this forcing function that I
+
+907
+00:31:51,291 --> 00:31:53,416
+think people seem to think it will where
+
+908
+00:31:53,416 --> 00:31:55,375
+it's like this all encompassing like all
+
+909
+00:31:55,375 --> 00:31:56,416
+or nothing framework.
+
+910
+00:31:56,416 --> 00:31:57,125
+we have like
+
+911
+00:31:57,125 --> 00:32:00,500
+a one great example we have a internal
+
+912
+00:32:00,500 --> 00:32:02,875
+RPC client that hits one of our
+
+913
+00:32:02,875 --> 00:32:04,458
+domain services that we use in our back
+
+914
+00:32:04,458 --> 00:32:06,708
+office and it's all built with Effect
+
+915
+00:32:06,708 --> 00:32:09,375
+under the covers it uses Effect RPC but
+
+916
+00:32:09,375 --> 00:32:12,083
+we have a really thin maybe.
+
+917
+00:32:12,083 --> 00:32:16,000
+50 lines of code wrapper around that that
+
+918
+00:32:16,000 --> 00:32:18,166
+puts in a sync await interface in front of
+
+919
+00:32:18,166 --> 00:32:20,458
+it so anyone can use it and it feels like
+
+920
+00:32:20,458 --> 00:32:22,625
+promises or it is promises
+
+921
+00:32:22,625 --> 00:32:23,958
+so it doesn't have this like.
+
+922
+00:32:23,958 --> 00:32:26,708
+Life over your code base you think
+
+923
+00:32:26,708 --> 00:32:28,208
+it would it's very easy to
+
+924
+00:32:28,208 --> 00:32:29,750
+incrementally adopt and
+
+925
+00:32:29,750 --> 00:32:32,208
+likewise, if you build out like a service
+
+926
+00:32:32,208 --> 00:32:34,333
+or even an endpoint or even just a little
+
+927
+00:32:34,333 --> 00:32:36,875
+client or function and you don't like it.
+
+928
+00:32:36,958 --> 00:32:38,875
+You can constrain it there it's not like
+
+929
+00:32:38,875 --> 00:32:40,833
+you're stuck with it, but
+
+930
+00:32:40,833 --> 00:32:42,833
+I have never seen someone start using Effect
+
+931
+00:32:42,833 --> 00:32:44,458
+and not want to keep using it.
+
+932
+00:32:44,708 --> 00:32:47,666
+Yeah, I think that there's a couple of
+
+933
+00:32:47,666 --> 00:32:50,125
+interesting points to remark there maybe
+
+934
+00:32:50,333 --> 00:32:53,500
+one is that given that JavaScript has
+
+935
+00:32:53,500 --> 00:32:55,958
+been around for such a long time we have
+
+936
+00:32:55,958 --> 00:32:58,166
+like seen many waves of like different
+
+937
+00:32:58,166 --> 00:32:59,916
+frameworks different kind of like
+
+938
+00:32:59,916 --> 00:33:02,583
+approaches falling like becoming
+
+939
+00:33:03,166 --> 00:33:06,333
+mainstream and then falling out of favor again
+
+940
+00:33:06,333 --> 00:33:08,291
+and I think every time when that happened.
+
+941
+00:33:08,291 --> 00:33:10,958
+like the JavaScript ecosystem at large
+
+942
+00:33:11,041 --> 00:33:14,125
+has formed like the equivalent of an
+
+943
+00:33:14,125 --> 00:33:16,375
+immune system and forms like antibodies
+
+944
+00:33:16,375 --> 00:33:19,375
+of like OK oh like that looks like that
+
+945
+00:33:19,375 --> 00:33:21,541
+thing and we had a bad experience with us
+
+946
+00:33:21,708 --> 00:33:24,416
+and it's kind of like it's rarely like
+
+947
+00:33:24,416 --> 00:33:27,541
+wears off and it all just like compounds
+
+948
+00:33:27,625 --> 00:33:30,750
+in skepticism and like raises the bar
+
+949
+00:33:30,750 --> 00:33:32,333
+which is great but I think
+
+950
+00:33:32,333 --> 00:33:34,625
+Also for some ideas that maybe look a
+
+951
+00:33:34,625 --> 00:33:36,291
+little bit like this but are different
+
+952
+00:33:36,291 --> 00:33:38,166
+now have a hard time to kind of get
+
+953
+00:33:38,166 --> 00:33:40,791
+through and so I think it's also
+
+954
+00:33:40,791 --> 00:33:42,875
+worthwhile to dispel a couple of myths
+
+955
+00:33:43,000 --> 00:33:45,583
+about Effect to like
+
+956
+00:33:45,583 --> 00:33:48,083
+notably about like RxJS and so on.
+
+957
+00:33:48,083 --> 00:33:50,500
+We'll come to that in a second, but I
+
+958
+00:33:50,500 --> 00:33:52,083
+just want to highlight again like how
+
+959
+00:33:52,083 --> 00:33:54,958
+like I think the perception of like oh
+
+960
+00:33:54,958 --> 00:33:56,291
+Effect is not easy to
+
+961
+00:33:56,291 --> 00:33:57,625
+incrementally adopt.
+
+962
+00:33:57,791 --> 00:34:00,041
+That I think is also a big myth because
+
+963
+00:34:00,041 --> 00:34:02,750
+it's one of the easiest technologies to
+
+964
+00:34:02,750 --> 00:34:05,916
+incrementally adopt like it's easier to I
+
+965
+00:34:05,916 --> 00:34:08,791
+still remember when like promises were
+
+966
+00:34:08,791 --> 00:34:10,916
+introduced to JavaScript and you had to
+
+967
+00:34:10,916 --> 00:34:13,375
+basically go from like just call back
+
+968
+00:34:13,375 --> 00:34:15,791
+hell to promises and you didn't have
+
+969
+00:34:15,791 --> 00:34:18,791
+promises right away but you actually like
+
+970
+00:34:18,791 --> 00:34:20,708
+you had to go through like well
+
+971
+00:34:20,708 --> 00:34:22,500
+generators you had to go like through
+
+972
+00:34:22,500 --> 00:34:25,458
+like generators through bubble etc.
+
+973
+00:34:25,750 --> 00:34:28,083
+And now when you started introducing that
+
+974
+00:34:28,083 --> 00:34:30,208
+that had like also ripple effects for
+
+975
+00:34:30,208 --> 00:34:33,833
+your entire code base also still when you
+
+976
+00:34:33,875 --> 00:34:36,791
+now when promises are even top level
+
+977
+00:34:36,791 --> 00:34:39,041
+support top level await is supported
+
+978
+00:34:39,041 --> 00:34:41,250
+everywhere now you do like one async
+
+979
+00:34:41,250 --> 00:34:43,000
+function anywhere and you have that
+
+980
+00:34:43,000 --> 00:34:44,208
+function coloring problem.
+
+981
+00:34:44,500 --> 00:34:46,500
+So that's one aspect where I think
+
+982
+00:34:46,500 --> 00:34:49,416
+incremental adoption is like very very
+
+983
+00:34:49,416 --> 00:34:52,291
+difficult or another one would be if you
+
+984
+00:34:52,291 --> 00:34:54,833
+want to interface with another language
+
+985
+00:34:54,833 --> 00:34:57,541
+so if you want to use ReScript or if you
+
+986
+00:34:57,541 --> 00:34:59,083
+want to use PureScript
+
+987
+00:34:59,083 --> 00:35:00,291
+or one of those things.
+
+988
+00:35:00,625 --> 00:35:02,583
+Then you have like your whole tool thing
+
+989
+00:35:02,583 --> 00:35:04,708
+you need to like generate some code you
+
+990
+00:35:04,708 --> 00:35:06,875
+need to do like something that's really
+
+991
+00:35:06,875 --> 00:35:10,208
+like actually like FFI and so with
+
+992
+00:35:10,208 --> 00:35:11,125
+Effect it couldn't be
+
+993
+00:35:11,125 --> 00:35:12,625
+simpler right so you have like.
+
+994
+00:35:13,041 --> 00:35:15,083
+You have your effect and you run it as a
+
+995
+00:35:15,083 --> 00:35:17,541
+promise or you have your run it you have
+
+996
+00:35:17,541 --> 00:35:19,916
+your promise and you run it as an effect
+
+997
+00:35:19,916 --> 00:35:21,791
+like simple one liner yeah.
+
+998
+00:35:22,208 --> 00:35:25,666
+Well Malte who's the CTO at Vercel
+
+999
+00:35:25,666 --> 00:35:27,500
+recently had some like.
+
+1000
+00:35:27,500 --> 00:35:29,583
+Apprehensions to us using Effect and like
+
+1001
+00:35:29,583 --> 00:35:30,958
+some of the points he brought up is like
+
+1002
+00:35:30,958 --> 00:35:32,250
+well we need to be sure we're making
+
+1003
+00:35:32,250 --> 00:35:34,958
+using like everyone's using our auth and
+
+1004
+00:35:34,958 --> 00:35:37,250
+rate limiting and permission checks and I
+
+1005
+00:35:37,250 --> 00:35:39,375
+was like Malte like we're using all of
+
+1006
+00:35:39,375 --> 00:35:40,875
+this stuff like we're using it the same
+
+1007
+00:35:40,875 --> 00:35:42,041
+as everybody else it's just.
+
+1008
+00:35:42,041 --> 00:35:43,583
+TypeScript like we're
+
+1009
+00:35:43,583 --> 00:35:46,208
+just wrapping it in like
+
+1010
+00:35:46,250 --> 00:35:48,958
+Try catch effectively and wrapping it in
+
+1011
+00:35:48,958 --> 00:35:51,833
+our own values it really truly is just
+
+1012
+00:35:51,833 --> 00:35:54,375
+TypeScript we don't have some extra
+
+1013
+00:35:54,375 --> 00:35:57,000
+compilation phase we don't have that FFI
+
+1014
+00:35:57,000 --> 00:35:58,458
+layer where you have to write bindings to
+
+1015
+00:35:58,458 --> 00:35:59,708
+JavaScript functions you just.
+
+1016
+00:35:59,708 --> 00:36:01,208
+Call JavaScript functions because it is
+
+1017
+00:36:01,208 --> 00:36:04,708
+JavaScript and like I said
+
+1018
+00:36:04,750 --> 00:36:07,041
+The weirdness of the syntax goes away in
+
+1019
+00:36:07,041 --> 00:36:09,708
+literally a day or two and it becomes so
+
+1020
+00:36:09,708 --> 00:36:11,791
+easy to read it becomes easier to read
+
+1021
+00:36:11,791 --> 00:36:14,791
+than your typical TypeScript code bases.
+
+1022
+00:36:15,041 --> 00:36:15,583
+Just because of the
+
+1023
+00:36:15,583 --> 00:36:17,833
+structure it enforces on you.
+
+1024
+00:36:17,916 --> 00:36:20,333
+Yeah I don't know how to teach that or
+
+1025
+00:36:20,333 --> 00:36:21,750
+get that light bulb moment to people
+
+1026
+00:36:21,750 --> 00:36:25,041
+earlier but it once people get it it's
+
+1027
+00:36:25,041 --> 00:36:27,750
+yeah it's a beautiful thing and I think
+
+1028
+00:36:27,750 --> 00:36:30,250
+it like just becomes easier over time
+
+1029
+00:36:30,250 --> 00:36:32,625
+like we've already formed that nucleus of
+
+1030
+00:36:32,625 --> 00:36:35,500
+critical mass were first a small amount
+
+1031
+00:36:35,500 --> 00:36:37,541
+of people it has clicks and that has led
+
+1032
+00:36:37,625 --> 00:36:39,958
+to a larger group of people who it has
+
+1033
+00:36:39,958 --> 00:36:41,666
+clicked for and now like
+
+1034
+00:36:41,666 --> 00:36:45,041
+larger educators like Matt Pocock
+
+1035
+00:36:45,041 --> 00:36:47,375
+For example have also like there it also
+
+1036
+00:36:47,375 --> 00:36:50,041
+like you saw a clear trajectory like it
+
+1037
+00:36:50,041 --> 00:36:52,458
+was exposed to Effect and like didn't
+
+1038
+00:36:52,458 --> 00:36:53,875
+quite get it yet and I think then you
+
+1039
+00:36:53,875 --> 00:36:56,125
+have to really like hit the right problem
+
+1040
+00:36:56,125 --> 00:36:58,625
+then you realize okay I still remember
+
+1041
+00:36:58,625 --> 00:36:59,916
+like someone said
+
+1042
+00:37:00,000 --> 00:37:02,416
+Effect this problem okay.
+
+1043
+00:37:02,500 --> 00:37:05,458
+Let me give it a try what is this and
+
+1044
+00:37:05,458 --> 00:37:07,666
+like it's sort of like this meme where it
+
+1045
+00:37:07,666 --> 00:37:09,666
+were like you first reaction like.
+
+1046
+00:37:11,375 --> 00:37:14,583
+I was living for Matt Pocock's journey
+
+1047
+00:37:15,000 --> 00:37:17,083
+through Effect because like you know
+
+1048
+00:37:17,333 --> 00:37:20,166
+people I mean I was tagging him I was
+
+1049
+00:37:20,166 --> 00:37:21,333
+encouraging him to check it out for like
+
+1050
+00:37:21,333 --> 00:37:23,333
+the past year and a half and slowly bit
+
+1051
+00:37:23,333 --> 00:37:25,041
+by bit like he and I had some
+
+1052
+00:37:25,041 --> 00:37:26,791
+conversations about never throw he found
+
+1053
+00:37:26,791 --> 00:37:29,833
+value in never throw and he started using
+
+1054
+00:37:29,833 --> 00:37:30,875
+that and it's like
+
+1055
+00:37:30,875 --> 00:37:32,833
+As soon as I knew he found value in
+
+1056
+00:37:32,833 --> 00:37:34,916
+never throw I was like the minute he
+
+1057
+00:37:34,916 --> 00:37:37,583
+tries Effect like for something real it's
+
+1058
+00:37:37,583 --> 00:37:39,750
+game over ant then over the past couple
+
+1059
+00:37:39,750 --> 00:37:41,916
+months on Twitter you saw him diving.
+
+1060
+00:37:41,916 --> 00:37:44,666
+Day by day tweet by tweet into the
+
+1061
+00:37:44,666 --> 00:37:47,250
+different aspects of Effect and sure
+
+1062
+00:37:47,250 --> 00:37:49,041
+enough it had hooked
+
+1063
+00:37:49,041 --> 00:37:51,541
+him and he had the same.
+
+1064
+00:37:52,250 --> 00:37:53,875
+The same roller coaster ride is all of us
+
+1065
+00:37:53,875 --> 00:37:55,333
+is where it's like I just looks like
+
+1066
+00:37:55,333 --> 00:37:58,000
+overkill like a lot and it looks weird I
+
+1067
+00:37:58,000 --> 00:38:01,000
+don't know I'm fine just using a result
+
+1068
+00:38:01,000 --> 00:38:02,916
+type from another library and then you're
+
+1069
+00:38:02,916 --> 00:38:04,666
+like oh no this actually does
+
+1070
+00:38:04,666 --> 00:38:07,291
+bring some model things that.
+
+1071
+00:38:07,291 --> 00:38:10,666
+Actually are very easy to use despite
+
+1072
+00:38:10,666 --> 00:38:12,416
+what your gut reaction might be to them.
+
+1073
+00:38:12,500 --> 00:38:15,666
+So given that you have your number
+
+1074
+00:38:15,666 --> 00:38:17,583
+of dead bodies under the rug from the
+
+1075
+00:38:17,583 --> 00:38:19,708
+past of all it like introducing Ramda
+
+1076
+00:38:19,708 --> 00:38:21,625
+somewhere RxJS and I'm not sure whether
+
+1077
+00:38:21,625 --> 00:38:22,750
+you've like used Redux
+
+1078
+00:38:22,750 --> 00:38:25,000
+Saga at some point.
+
+1079
+00:38:25,000 --> 00:38:28,708
+I loved Redux Saga. So maybe we can talk
+
+1080
+00:38:28,708 --> 00:38:30,583
+briefly about each of those technologies
+
+1081
+00:38:30,583 --> 00:38:33,250
+since I hear them like every time when
+
+1082
+00:38:33,250 --> 00:38:35,625
+like a more notable person brings up
+
+1083
+00:38:35,625 --> 00:38:38,416
+Effect there's guaranteed a group of
+
+1084
+00:38:38,416 --> 00:38:40,208
+people who say like oh this is just RxJS
+
+1085
+00:38:40,208 --> 00:38:42,875
+over again or like some a smaller
+
+1086
+00:38:42,875 --> 00:38:44,750
+group of people remember about Ramda.
+
+1087
+00:38:44,750 --> 00:38:47,375
+And so like someone has like their past
+
+1088
+00:38:47,666 --> 00:38:50,250
+experience like their trauma from the
+
+1089
+00:38:50,250 --> 00:38:53,500
+past and now like matches is on top of
+
+1090
+00:38:53,500 --> 00:38:55,791
+Effect so maybe we can go through the
+
+1091
+00:38:55,791 --> 00:38:58,875
+most notable ones here and like maybe
+
+1092
+00:38:58,875 --> 00:39:01,333
+talk about like the commonalities and
+
+1093
+00:39:01,333 --> 00:39:02,250
+talk about like where
+
+1094
+00:39:02,250 --> 00:39:03,708
+they're very very different.
+
+1095
+00:39:03,833 --> 00:39:05,208
+Yeah totally done.
+
+1096
+00:39:05,541 --> 00:39:08,000
+So let's start with with RxJS
+
+1097
+00:39:08,000 --> 00:39:09,500
+probably the biggest one here.
+
+1098
+00:39:09,500 --> 00:39:10,833
+given you've used it in the
+
+1099
+00:39:10,833 --> 00:39:14,458
+past maybe we can talk about where RxJS
+
+1100
+00:39:14,458 --> 00:39:18,125
+and Effect is similar like spoiler
+
+1101
+00:39:18,125 --> 00:39:21,458
+alert both are both have a thing for
+
+1102
+00:39:21,458 --> 00:39:23,875
+streams are just as exclusively about
+
+1103
+00:39:23,875 --> 00:39:26,666
+streams. Effect has amongst many other
+
+1104
+00:39:26,666 --> 00:39:28,333
+things streams and
+
+1105
+00:39:28,333 --> 00:39:29,250
+where they're different.
+
+1106
+00:39:29,250 --> 00:39:31,125
+So I think I've I've already given
+
+1107
+00:39:31,125 --> 00:39:32,833
+spoiled the tldr but maybe
+
+1108
+00:39:32,833 --> 00:39:34,083
+you can go more into depth.
+
+1109
+00:39:34,083 --> 00:39:38,750
+So like RxJS almost has the same problem
+
+1110
+00:39:38,750 --> 00:39:42,000
+as like a sync await like it's almost has
+
+1111
+00:39:42,000 --> 00:39:43,833
+a function coloring property of its own
+
+1112
+00:39:43,833 --> 00:39:46,458
+where it forces streams and observables
+
+1113
+00:39:46,458 --> 00:39:49,458
+on you and if you want to get all the
+
+1114
+00:39:49,458 --> 00:39:53,125
+benefits from you know Rx you have to
+
+1115
+00:39:53,125 --> 00:39:54,583
+percolate that everywhere.
+
+1116
+00:39:54,875 --> 00:39:56,916
+And there's kind of like a jarring cutoff
+
+1117
+00:39:56,916 --> 00:39:57,666
+point where you get
+
+1118
+00:39:57,666 --> 00:39:59,041
+outside of Rx.
+
+1119
+00:39:59,041 --> 00:39:59,916
+I think the
+
+1120
+00:39:59,916 --> 00:40:02,166
+pipe operator we have is like one of the
+
+1121
+00:40:02,166 --> 00:40:03,625
+things that people immediately see and
+
+1122
+00:40:03,625 --> 00:40:05,208
+just make the assumption that.
+
+1123
+00:40:05,208 --> 00:40:06,916
+Like Effect is just streams and
+
+1124
+00:40:06,916 --> 00:40:08,500
+observables the whole way down just like
+
+1125
+00:40:08,500 --> 00:40:11,166
+RxJS does which couldn't be further from
+
+1126
+00:40:11,166 --> 00:40:13,916
+the truth like type is literally just
+
+1127
+00:40:13,916 --> 00:40:15,666
+function application in our case.
+
+1128
+00:40:16,000 --> 00:40:19,333
+Which is something you know it's funny if
+
+1129
+00:40:19,333 --> 00:40:21,458
+we would have gotten like a pipe operator
+
+1130
+00:40:21,458 --> 00:40:23,166
+in JavaScript like I don't think this
+
+1131
+00:40:23,166 --> 00:40:24,083
+would be a problem at
+
+1132
+00:40:24,083 --> 00:40:25,708
+all but here we are.
+
+1133
+00:40:25,708 --> 00:40:26,416
+Effect
+
+1134
+00:40:26,416 --> 00:40:28,791
+almost causes like the exact opposite
+
+1135
+00:40:28,791 --> 00:40:30,666
+thing almost like we were talking about
+
+1136
+00:40:30,666 --> 00:40:32,333
+earlier like you don't have one you
+
+1137
+00:40:32,333 --> 00:40:33,708
+literally don't have function coloring
+
+1138
+00:40:33,708 --> 00:40:35,833
+because you can treat asynchronous
+
+1139
+00:40:35,833 --> 00:40:37,083
+programming and synchronous
+
+1140
+00:40:37,083 --> 00:40:38,708
+programming as the same thing.
+
+1141
+00:40:38,708 --> 00:40:41,666
+But because it integrates so seamlessly.
+
+1142
+00:40:41,666 --> 00:40:45,458
+With a sync await like that cut off line
+
+1143
+00:40:45,458 --> 00:40:47,916
+or integrated incrementally or getting
+
+1144
+00:40:47,916 --> 00:40:50,250
+the full benefit of Effect is really easy
+
+1145
+00:40:50,250 --> 00:40:51,000
+to do in these
+
+1146
+00:40:51,000 --> 00:40:52,666
+isolated chunks where RxJS
+
+1147
+00:40:53,416 --> 00:40:54,916
+That's not necessarily true certainly you
+
+1148
+00:40:54,916 --> 00:40:56,166
+can do that but
+
+1149
+00:40:56,166 --> 00:40:57,916
+you're just using for observables
+
+1150
+00:40:57,916 --> 00:41:00,291
+and streams where Effect is giving you
+
+1151
+00:41:00,291 --> 00:41:03,000
+all these other benefits whether it's.
+
+1152
+00:41:03,083 --> 00:41:05,750
+Data structures built in or rate limiting
+
+1153
+00:41:05,750 --> 00:41:09,291
+or structure concurrency or dependency
+
+1154
+00:41:09,291 --> 00:41:11,625
+injection like there's a lot more there I
+
+1155
+00:41:11,625 --> 00:41:13,625
+think people just see dot pipe and.
+
+1156
+00:41:13,625 --> 00:41:15,041
+Make an assumption there.
+
+1157
+00:41:15,208 --> 00:41:17,625
+So maybe if we want to lean a little bit
+
+1158
+00:41:17,625 --> 00:41:20,250
+into the argument where people say like
+
+1159
+00:41:20,250 --> 00:41:23,041
+it's just RxJS all over again let's
+
+1160
+00:41:23,041 --> 00:41:25,416
+let's imagine like four years ago they
+
+1161
+00:41:25,416 --> 00:41:27,791
+were very excited about RxJS maybe
+
+1162
+00:41:27,791 --> 00:41:28,958
+they were the person
+
+1163
+00:41:28,958 --> 00:41:30,416
+in a team who is like.
+
+1164
+00:41:30,416 --> 00:41:32,875
+Tried us out over over the weekend it
+
+1165
+00:41:32,875 --> 00:41:34,958
+made some problems that were notoriously
+
+1166
+00:41:34,958 --> 00:41:37,791
+tricky very elegant with streams and
+
+1167
+00:41:37,791 --> 00:41:39,625
+maybe the thing that they've been working
+
+1168
+00:41:39,625 --> 00:41:42,416
+on was like very stream oriented and like
+
+1169
+00:41:42,416 --> 00:41:44,875
+you could actually live that dream
+
+1170
+00:41:44,875 --> 00:41:46,708
+that like hey everything is a stream.
+
+1171
+00:41:46,958 --> 00:41:49,208
+But at some point reality caught up and
+
+1172
+00:41:49,208 --> 00:41:51,166
+not everything is a stream some things
+
+1173
+00:41:51,166 --> 00:41:54,166
+got more more difficult and then they had
+
+1174
+00:41:54,166 --> 00:41:56,291
+to rip it out they had a very hard time.
+
+1175
+00:41:56,666 --> 00:41:59,583
+And when you know say like hey it's like
+
+1176
+00:41:59,583 --> 00:42:02,416
+they have that RxJS trauma and
+
+1177
+00:42:02,416 --> 00:42:04,041
+they think like Effect will
+
+1178
+00:42:04,041 --> 00:42:05,500
+be that like all over again.
+
+1179
+00:42:05,875 --> 00:42:08,625
+I think their skepticism is coming from
+
+1180
+00:42:08,625 --> 00:42:11,083
+the right place but where Effect is very
+
+1181
+00:42:11,083 --> 00:42:12,833
+very different is like
+
+1182
+00:42:13,166 --> 00:42:16,666
+if RxJS was only like a tiny sliver of
+
+1183
+00:42:16,666 --> 00:42:18,458
+Effect and you didn't have all the other
+
+1184
+00:42:18,458 --> 00:42:20,916
+pieces sure that means like if
+
+1185
+00:42:20,916 --> 00:42:22,041
+you have a different problem.
+
+1186
+00:42:22,416 --> 00:42:23,041
+you don't have an
+
+1187
+00:42:23,041 --> 00:42:25,541
+elegant solution for that but Effect has
+
+1188
+00:42:25,541 --> 00:42:28,041
+kind of like thought that through in all
+
+1189
+00:42:28,041 --> 00:42:30,000
+different perspectives in all different
+
+1190
+00:42:30,000 --> 00:42:31,625
+directions. RxJS is like
+
+1191
+00:42:31,625 --> 00:42:33,625
+this narrow tunnel of
+
+1192
+00:42:33,750 --> 00:42:34,916
+problems that it makes.
+
+1193
+00:42:35,208 --> 00:42:38,541
+Super nice to solve with and elegant to
+
+1194
+00:42:38,541 --> 00:42:41,000
+solve with and can certainly be the right
+
+1195
+00:42:41,000 --> 00:42:44,041
+solution but like Effect like I call it a
+
+1196
+00:42:44,041 --> 00:42:45,625
+standard library like missing standard
+
+1197
+00:42:45,625 --> 00:42:47,916
+library for Effect like
+
+1198
+00:42:48,500 --> 00:42:50,041
+I like to compare it to working in Golang
+
+1199
+00:42:50,041 --> 00:42:52,500
+because when you're working in Golang you
+
+1200
+00:42:52,500 --> 00:42:55,916
+very seldomly have to reach for like
+
+1201
+00:42:55,916 --> 00:42:57,416
+third party packages because.
+
+1202
+00:42:57,791 --> 00:43:00,000
+What you need is probably going to be in
+
+1203
+00:43:00,000 --> 00:43:02,416
+the standard library with a really well
+
+1204
+00:43:02,416 --> 00:43:05,000
+designed interface and API and it's just
+
+1205
+00:43:05,000 --> 00:43:07,416
+there to use it's easy to use it matches
+
+1206
+00:43:07,416 --> 00:43:10,583
+the semantics of Go and the best patterns
+
+1207
+00:43:10,583 --> 00:43:12,166
+in Go and it just works.
+
+1208
+00:43:12,541 --> 00:43:14,291
+And like if you try to view that part with
+
+1209
+00:43:14,291 --> 00:43:16,416
+RX you're going to just run into a whole
+
+1210
+00:43:16,416 --> 00:43:18,833
+headache and make these kind of very
+
+1211
+00:43:18,833 --> 00:43:21,208
+spaghetti code very messy abstraction
+
+1212
+00:43:21,208 --> 00:43:22,625
+type things trying to force.
+
+1213
+00:43:22,625 --> 00:43:24,708
+RX to be this general purpose thing
+
+1214
+00:43:24,708 --> 00:43:27,208
+because it's distinctly not and it
+
+1215
+00:43:27,208 --> 00:43:28,000
+shouldn't be but
+
+1216
+00:43:28,000 --> 00:43:31,541
+Effect is, Effect has the.
+
+1217
+00:43:32,000 --> 00:43:33,458
+You know prefix tree it
+
+1218
+00:43:33,458 --> 00:43:35,375
+has the rate limiter.
+
+1219
+00:43:35,375 --> 00:43:38,958
+It has like any HTTP RPC like it's all
+
+1220
+00:43:38,958 --> 00:43:42,250
+there it has database interfaces it has.
+
+1221
+00:43:42,250 --> 00:43:45,041
+file system to work across Bun, Deno, the
+
+1222
+00:43:45,041 --> 00:43:47,708
+browser like it's all there and it's all
+
+1223
+00:43:47,708 --> 00:43:49,458
+designed to feel the same way and work
+
+1224
+00:43:49,458 --> 00:43:51,958
+the same way so like once you paid the
+
+1225
+00:43:51,958 --> 00:43:55,166
+small learning curve price of the two or
+
+1226
+00:43:55,166 --> 00:43:56,666
+three baby four patterns
+
+1227
+00:43:56,666 --> 00:43:57,750
+that you haven't seen before.
+
+1228
+00:43:58,333 --> 00:44:00,708
+It's all the same. So basically
+
+1229
+00:44:00,708 --> 00:44:04,166
+to react generously to the it's RxJS all over
+
+1230
+00:44:04,166 --> 00:44:06,250
+again I would say yes,
+
+1231
+00:44:06,250 --> 00:44:07,625
+but this time it works.
+
+1232
+00:44:07,625 --> 00:44:09,958
+And in that regard that the dream that
+
+1233
+00:44:09,958 --> 00:44:11,791
+people got excited about RxJS
+
+1234
+00:44:11,791 --> 00:44:13,791
+initially this time it actually
+
+1235
+00:44:13,791 --> 00:44:15,875
+works with like let's see in hindsight
+
+1236
+00:44:15,875 --> 00:44:17,208
+like let's say in 10 years.
+
+1237
+00:44:17,208 --> 00:44:19,166
+new technology comes along people say
+
+1238
+00:44:19,166 --> 00:44:21,791
+Effect all over again, but I'm pretty
+
+1239
+00:44:21,791 --> 00:44:25,458
+confident that Effect will fulfill the
+
+1240
+00:44:25,458 --> 00:44:26,875
+promises that we have here.
+
+1241
+00:44:26,875 --> 00:44:29,041
+Maybe briefly to cover Ramda for the
+
+1242
+00:44:29,041 --> 00:44:31,416
+people who used it in the past I think
+
+1243
+00:44:31,416 --> 00:44:34,541
+Ramda is like has a different shape so
+
+1244
+00:44:34,541 --> 00:44:37,083
+instead of like being like super like
+
+1245
+00:44:37,083 --> 00:44:39,958
+being like RxJS as like one very narrow
+
+1246
+00:44:39,958 --> 00:44:42,375
+but like super elegant long thing
+
+1247
+00:44:42,375 --> 00:44:44,291
+Ramda has rather been like.
+
+1248
+00:44:44,291 --> 00:44:48,166
+a much smaller scope much more like you
+
+1249
+00:44:48,166 --> 00:44:51,166
+had to really like buy into the buy into
+
+1250
+00:44:51,166 --> 00:44:53,666
+the philosophy is like much more of like
+
+1251
+00:44:53,666 --> 00:44:56,166
+hey like functional programming like
+
+1252
+00:44:56,166 --> 00:44:58,500
+we'll bring functional programming to
+
+1253
+00:44:58,500 --> 00:45:00,500
+JavaScript to TypeScript and will
+
+1254
+00:45:00,500 --> 00:45:03,125
+like if you buy into that everything will get better.
+
+1255
+00:45:03,125 --> 00:45:04,625
+But I think it's kind of suffered a
+
+1256
+00:45:04,625 --> 00:45:07,500
+little bit from like the how Haskell is
+
+1257
+00:45:07,500 --> 00:45:09,708
+impractical in that regard once you want
+
+1258
+00:45:09,708 --> 00:45:10,458
+to do a real world
+
+1259
+00:45:10,458 --> 00:45:12,791
+thing like the spotify.
+
+1260
+00:45:12,791 --> 00:45:15,708
+auth thing and you're like oh well well
+
+1261
+00:45:15,708 --> 00:45:17,750
+in that consideration you need to do
+
+1262
+00:45:17,750 --> 00:45:20,541
+something impure so what was your
+
+1263
+00:45:20,541 --> 00:45:22,083
+experience back then how would you
+
+1264
+00:45:22,083 --> 00:45:23,083
+compare it to Effect.
+
+1265
+00:45:23,375 --> 00:45:26,708
+Yeah
+It requires the commitment to
+
+1266
+00:45:26,708 --> 00:45:29,833
+functional programming that Effect does not.
+
+1267
+00:45:29,916 --> 00:45:32,333
+Like Ramda I will say is functional
+
+1268
+00:45:32,333 --> 00:45:35,041
+programming in like just its essence
+
+1269
+00:45:35,041 --> 00:45:39,125
+Effect is not Effect like they're like I
+
+1270
+00:45:39,125 --> 00:45:40,916
+said there are certainly definitely
+
+1271
+00:45:40,916 --> 00:45:43,416
+things in Effect and patterns that are
+
+1272
+00:45:43,416 --> 00:45:44,416
+inspired by functional
+
+1273
+00:45:44,416 --> 00:45:46,125
+programming but like honestly.
+
+1274
+00:45:46,125 --> 00:45:48,458
+there are almost just as many
+
+1275
+00:45:48,458 --> 00:45:51,291
+OOP things in Effect as well like i'm
+
+1276
+00:45:51,291 --> 00:45:52,583
+writing more classes than I
+
+1277
+00:45:52,583 --> 00:45:54,041
+ever have with Effect right.
+
+1278
+00:45:54,166 --> 00:45:56,208
+So I think that's an misconception is
+
+1279
+00:45:56,208 --> 00:45:58,083
+just that like a bunch of the underlying
+
+1280
+00:45:58,083 --> 00:46:01,166
+ideas in functional programming make
+
+1281
+00:46:01,166 --> 00:46:03,541
+really good foundations for abstractions.
+
+1282
+00:46:03,666 --> 00:46:06,291
+That can scale and are easy to use and
+
+1283
+00:46:06,291 --> 00:46:09,500
+can expose maybe imperative interfaces
+
+1284
+00:46:09,500 --> 00:46:10,750
+right like this has been
+
+1285
+00:46:10,750 --> 00:46:12,208
+a popular idea for years.
+
+1286
+00:46:12,375 --> 00:46:14,333
+functional core imperative shell right
+
+1287
+00:46:14,333 --> 00:46:16,875
+and like that is like the essence of
+
+1288
+00:46:16,875 --> 00:46:18,958
+Effect like you can do that you can have
+
+1289
+00:46:18,958 --> 00:46:20,041
+your cake and eat it to here.
+
+1290
+00:46:20,208 --> 00:46:22,125
+Where with Ramda it truly is like you
+
+1291
+00:46:22,125 --> 00:46:25,000
+have to buy into understanding like
+
+1292
+00:46:25,000 --> 00:46:27,000
+monads and applicatives and
+
+1293
+00:46:27,000 --> 00:46:28,958
+how all of this stuff works.
+
+1294
+00:46:29,083 --> 00:46:29,958
+And that.
+
+1295
+00:46:30,000 --> 00:46:33,791
+It's very present to you in the code when
+
+1296
+00:46:33,791 --> 00:46:36,958
+you use it and that's very jarring
+
+1297
+00:46:36,958 --> 00:46:39,958
+encountering code like that in a code
+
+1298
+00:46:39,958 --> 00:46:41,583
+base if you've never seen it where.
+
+1299
+00:46:42,291 --> 00:46:44,625
+Like you almost have to.
+
+1300
+00:46:44,625 --> 00:46:47,500
+Learn the mental model to be effective
+
+1301
+00:46:47,583 --> 00:46:50,375
+and like while there is some mental model
+
+1302
+00:46:50,375 --> 00:46:52,000
+shift in Effect it's.
+
+1303
+00:46:52,000 --> 00:46:55,833
+Not a that far of a departure from just a
+
+1304
+00:46:55,833 --> 00:46:57,833
+sync await and regular JavaScript.
+
+1305
+00:46:58,333 --> 00:46:59,958
+And I think the best thing about
+
+1306
+00:46:59,958 --> 00:47:03,000
+acquiring that mental model is like I
+
+1307
+00:47:03,000 --> 00:47:05,666
+call it a time like pain driven when you
+
+1308
+00:47:05,666 --> 00:47:07,291
+have a particular problem.
+
+1309
+00:47:07,291 --> 00:47:09,833
+Then and maybe it's true however you
+
+1310
+00:47:09,833 --> 00:47:11,875
+realize what the solution is to a problem
+
+1311
+00:47:11,875 --> 00:47:13,500
+maybe through a more experienced
+
+1312
+00:47:13,500 --> 00:47:17,125
+colleague or a friend or through an AI
+
+1313
+00:47:17,125 --> 00:47:19,708
+agent or however you realize OK here's a
+
+1314
+00:47:19,708 --> 00:47:22,208
+problem diagnosis and here's secure.
+
+1315
+00:47:22,791 --> 00:47:25,708
+Once you realize OK the cure the solution
+
+1316
+00:47:25,708 --> 00:47:28,750
+is shaped this way then like maybe you
+
+1317
+00:47:28,750 --> 00:47:30,666
+like take the solution term.
+
+1318
+00:47:30,666 --> 00:47:34,000
+Whatever structure concurrency typescript
+
+1319
+00:47:34,375 --> 00:47:37,875
+and just start googling that or ask Chat GPT
+
+1320
+00:47:37,958 --> 00:47:41,208
+and then you already have an a
+
+1321
+00:47:41,208 --> 00:47:42,750
+mental model for what you want.
+
+1322
+00:47:42,750 --> 00:47:44,875
+And if you have that mental model you
+
+1323
+00:47:44,875 --> 00:47:46,833
+have your problem you have your solution
+
+1324
+00:47:46,833 --> 00:47:49,125
+mental model and then you start using it
+
+1325
+00:47:49,125 --> 00:47:50,125
+everything just fits
+
+1326
+00:47:50,125 --> 00:47:51,750
+like a glove.
+
+1327
+00:47:51,916 --> 00:47:55,041
+And I think that is the the best starting
+
+1328
+00:47:55,041 --> 00:47:58,333
+point to adopt Effect like have a real
+
+1329
+00:47:58,333 --> 00:48:00,875
+problem that's really annoying that is
+
+1330
+00:48:00,875 --> 00:48:03,083
+like actually like business level like
+
+1331
+00:48:03,083 --> 00:48:05,416
+meaningful and then that makes it
+
+1332
+00:48:05,416 --> 00:48:06,875
+worthwhile I think that makes it for the
+
+1333
+00:48:06,875 --> 00:48:09,458
+best argument also to your colleagues
+
+1334
+00:48:09,458 --> 00:48:10,958
+that like taking the
+
+1335
+00:48:10,958 --> 00:48:12,125
+risk might be worth it.
+
+1336
+00:48:12,541 --> 00:48:15,750
+So maybe with that segue let's spend a
+
+1337
+00:48:15,750 --> 00:48:17,625
+few more minutes before we come
+
+1338
+00:48:17,625 --> 00:48:20,250
+to a close about like some of the
+
+1339
+00:48:20,250 --> 00:48:22,583
+superpowers that Effect has
+
+1340
+00:48:22,583 --> 00:48:24,000
+unlocked for you at Vercel.
+
+1341
+00:48:24,125 --> 00:48:25,875
+Yeah I think one of the biggest ones
+
+1342
+00:48:25,875 --> 00:48:30,041
+is telemetry like all of our services at
+
+1343
+00:48:30,041 --> 00:48:31,291
+Vercel have like pretty
+
+1344
+00:48:31,291 --> 00:48:33,250
+decent telemetry with data dog.
+
+1345
+00:48:33,666 --> 00:48:35,041
+But our team in our
+
+1346
+00:48:35,041 --> 00:48:36,791
+service is in particular have.
+
+1347
+00:48:37,041 --> 00:48:39,750
+Distributed tracing just working like we
+
+1348
+00:48:39,750 --> 00:48:43,000
+can see traces from our front end RPC or
+
+1349
+00:48:43,000 --> 00:48:46,166
+HTTP clients down through the HTTP layer
+
+1350
+00:48:46,166 --> 00:48:48,250
+into the services into our data access
+
+1351
+00:48:48,250 --> 00:48:49,791
+layers if we kick off.
+
+1352
+00:48:50,250 --> 00:48:52,541
+You know asynchronous jobs on like a job
+
+1353
+00:48:52,541 --> 00:48:54,416
+queue or a workflow or something we can
+
+1354
+00:48:54,416 --> 00:48:55,750
+connect the traces over
+
+1355
+00:48:55,750 --> 00:48:57,666
+there very easily so we just.
+
+1356
+00:48:58,583 --> 00:49:01,083
+Get this easier picture of how our
+
+1357
+00:49:01,083 --> 00:49:03,291
+systems relate how the data flows makes
+
+1358
+00:49:03,291 --> 00:49:04,875
+debugging so much easier so like
+
+1359
+00:49:04,875 --> 00:49:07,375
+observability out of the box is like just
+
+1360
+00:49:07,375 --> 00:49:08,291
+a huge unlock with
+
+1361
+00:49:08,291 --> 00:49:10,583
+Effect. Other thing is
+
+1362
+00:49:10,833 --> 00:49:13,458
+for our domain search in particular we
+
+1363
+00:49:13,458 --> 00:49:17,458
+are doing a lot of optimizations around.
+
+1364
+00:49:17,541 --> 00:49:22,166
+Making it really fast that require kind of more complicated.
+
+1365
+00:49:22,250 --> 00:49:23,125
+Concurrency patterns
+
+1366
+00:49:23,166 --> 00:49:25,375
+and caching patterns and.
+
+1367
+00:49:25,666 --> 00:49:27,750
+The tools we need are just there with
+
+1368
+00:49:27,750 --> 00:49:30,916
+Effect like we would have to be bringing
+
+1369
+00:49:31,250 --> 00:49:34,291
+in at least half a dozen
+
+1370
+00:49:34,291 --> 00:49:36,541
+external libraries to be.
+
+1371
+00:49:36,833 --> 00:49:39,750
+Kind of managing these same solutions and
+
+1372
+00:49:39,750 --> 00:49:42,041
+implementations and with Effect it's just
+
+1373
+00:49:42,041 --> 00:49:43,666
+a couple lines of code and it just
+
+1374
+00:49:43,666 --> 00:49:45,791
+you said fits like a glove and like that
+
+1375
+00:49:45,791 --> 00:49:47,791
+like not only is that great for
+
+1376
+00:49:47,791 --> 00:49:51,500
+productivity and like consistency of code
+
+1377
+00:49:51,500 --> 00:49:53,916
+across a code base but it also like.
+
+1378
+00:49:53,958 --> 00:49:55,375
+You went back to like I don't know when
+
+1379
+00:49:55,375 --> 00:49:57,458
+you said this earlier but wanted fitting
+
+1380
+00:49:57,458 --> 00:49:59,541
+like a glove and like when you land on
+
+1381
+00:49:59,541 --> 00:50:01,375
+like an elegant solution that it just
+
+1382
+00:50:01,375 --> 00:50:03,708
+feels like it fits and it flows well like
+
+1383
+00:50:03,750 --> 00:50:05,250
+that feels good like that's.
+
+1384
+00:50:05,250 --> 00:50:06,875
+Like dopamine it's like you're getting
+
+1385
+00:50:06,875 --> 00:50:09,958
+dopamine kicks from that all day long
+
+1386
+00:50:09,958 --> 00:50:11,333
+writing Effect because it's just like
+
+1387
+00:50:11,333 --> 00:50:14,125
+that just worked and like it wasn't
+
+1388
+00:50:14,125 --> 00:50:15,958
+complicated was a hard and just flows
+
+1389
+00:50:15,958 --> 00:50:19,166
+correctly is like oh that it feels really
+
+1390
+00:50:19,166 --> 00:50:20,625
+really good to write Effect.
+
+1391
+00:50:20,875 --> 00:50:23,750
+Yeah, I think there the more experience I
+
+1392
+00:50:23,750 --> 00:50:26,291
+got over the years the more I kind of
+
+1393
+00:50:26,291 --> 00:50:28,666
+like also had to come to terms like okay.
+
+1394
+00:50:29,083 --> 00:50:31,791
+No things are not as as like easy and
+
+1395
+00:50:31,791 --> 00:50:34,333
+simple as I want them to be there's just
+
+1396
+00:50:34,333 --> 00:50:36,458
+like inherent like a high and like
+
+1397
+00:50:36,583 --> 00:50:38,083
+there's more complexity.
+
+1398
+00:50:38,708 --> 00:50:41,166
+And more entropy and whatever we're
+
+1399
+00:50:41,166 --> 00:50:43,375
+dealing with then we initially thought
+
+1400
+00:50:43,416 --> 00:50:46,166
+and then it comes all about like modeling
+
+1401
+00:50:46,166 --> 00:50:48,375
+it that we say like hey this entropy this
+
+1402
+00:50:48,375 --> 00:50:50,416
+complexity here we can like ignore
+
+1403
+00:50:50,416 --> 00:50:51,916
+probably not important.
+
+1404
+00:50:51,916 --> 00:50:54,541
+But that complexity those aspects those
+
+1405
+00:50:54,583 --> 00:50:57,083
+we really need to account for and then
+
+1406
+00:50:57,083 --> 00:50:59,041
+comes to basically the point of like your
+
+1407
+00:50:59,083 --> 00:51:02,125
+software tries to model like your domain.
+
+1408
+00:51:02,125 --> 00:51:04,458
+And this is where you just need to
+
+1409
+00:51:04,541 --> 00:51:07,083
+account for certain things and things how
+
+1410
+00:51:07,083 --> 00:51:08,666
+things go wrong and how things should
+
+1411
+00:51:08,666 --> 00:51:11,708
+happen at the same time how like
+
+1412
+00:51:11,708 --> 00:51:13,416
+performance looks like another thing to
+
+1413
+00:51:13,416 --> 00:51:15,500
+model for and to basically
+
+1414
+00:51:15,500 --> 00:51:17,333
+come to terms with like the.
+
+1415
+00:51:17,666 --> 00:51:20,416
+Harsh complex reality Effect is stands
+
+1416
+00:51:20,416 --> 00:51:23,083
+out in the way for you to do that but
+
+1417
+00:51:23,083 --> 00:51:25,250
+empowers you to do that and I think this
+
+1418
+00:51:25,250 --> 00:51:27,708
+is what like like lets you stay in the
+
+1419
+00:51:27,708 --> 00:51:28,708
+flow and gives you
+
+1420
+00:51:28,708 --> 00:51:30,291
+joy doing the hard work.
+
+1421
+00:51:30,375 --> 00:51:33,458
+Yeah yeah it makes doing the hard and
+
+1422
+00:51:33,458 --> 00:51:36,750
+right things first class and natural and
+
+1423
+00:51:36,750 --> 00:51:40,000
+easy the other really big unlock is I
+
+1424
+00:51:40,000 --> 00:51:42,791
+think the testing story for us.
+
+1425
+00:51:42,958 --> 00:51:45,291
+Like many large enterprise TypeScript
+
+1426
+00:51:45,375 --> 00:51:47,291
+Node code bases most of our testing
+
+1427
+00:51:47,291 --> 00:51:49,250
+framework isn't just with these kind of
+
+1428
+00:51:49,250 --> 00:51:50,625
+implicit mocks or file
+
+1429
+00:51:50,625 --> 00:51:52,166
+this is a module level mocks.
+
+1430
+00:51:52,833 --> 00:51:55,166
+But by being able to have true and real
+
+1431
+00:51:55,166 --> 00:51:57,125
+dependency injection like we're one of
+
+1432
+00:51:57,125 --> 00:51:58,875
+the few teams that has a legitimate.
+
+1433
+00:51:59,083 --> 00:52:00,708
+end to end local dev experience
+
+1434
+00:52:00,708 --> 00:52:02,916
+because we can write implementations of
+
+1435
+00:52:02,916 --> 00:52:05,125
+our interfaces against local stat or we
+
+1436
+00:52:05,125 --> 00:52:07,791
+can write a in memory client and just
+
+1437
+00:52:07,791 --> 00:52:08,833
+dependency injection for
+
+1438
+00:52:08,833 --> 00:52:10,958
+Redis so it just makes testing.
+
+1439
+00:52:10,958 --> 00:52:14,625
+So much easier I've never had a better
+
+1440
+00:52:14,625 --> 00:52:17,208
+testing or easier testing experience them
+
+1441
+00:52:17,208 --> 00:52:19,958
+with Effect so that's another thing that
+
+1442
+00:52:19,958 --> 00:52:21,166
+has been a huge unlock for us.
+
+1443
+00:52:21,500 --> 00:52:23,291
+So I think this already gives us some
+
+1444
+00:52:23,375 --> 00:52:26,458
+really concrete ideas for what we should
+
+1445
+00:52:26,458 --> 00:52:28,291
+talk about in the future since
+
+1446
+00:52:28,291 --> 00:52:30,333
+firstly you have a hard stop so we need
+
+1447
+00:52:30,333 --> 00:52:32,500
+to let you go at this point but we're
+
+1448
+00:52:32,500 --> 00:52:34,083
+already in the process of
+
+1449
+00:52:34,083 --> 00:52:35,958
+scheduling a follow up episode.
+
+1450
+00:52:36,625 --> 00:52:38,791
+Where we might also have some of your
+
+1451
+00:52:38,791 --> 00:52:40,916
+colleagues join as well maybe this is the
+
+1452
+00:52:40,916 --> 00:52:43,250
+time where we dive deeper into dependency
+
+1453
+00:52:43,250 --> 00:52:45,500
+injection into testing some of those like
+
+1454
+00:52:45,500 --> 00:52:47,791
+superpowers that Effect gives you maybe
+
+1455
+00:52:47,791 --> 00:52:49,916
+some other topics one topic that's really
+
+1456
+00:52:49,916 --> 00:52:51,000
+top of mind for me these
+
+1457
+00:52:51,000 --> 00:52:52,458
+days is like
+
+1458
+00:52:52,458 --> 00:52:55,375
+How we build with AI and how we built for
+
+1459
+00:52:55,375 --> 00:52:58,291
+AI and I think Effect is both the perfect
+
+1460
+00:52:58,291 --> 00:53:01,708
+fit for for both of those so some great
+
+1461
+00:53:01,708 --> 00:53:03,666
+topics to explore but.
+
+1462
+00:53:03,916 --> 00:53:06,375
+I need to let you go at this point, so
+
+1463
+00:53:06,375 --> 00:53:08,666
+thank you so much Dillon for coming on the
+
+1464
+00:53:08,666 --> 00:53:10,291
+show today and having such a nice
+
+1465
+00:53:10,291 --> 00:53:12,291
+conversation. Yeah Thank you for having me
+
+1466
+00:53:12,291 --> 00:53:13,625
+and i'm looking
+
+1467
+00:53:13,625 --> 00:53:15,000
+forward to the continuation.
+
+1468
+00:53:15,458 --> 00:53:16,791
+Thank you for listening to the
+
+1469
+00:53:16,791 --> 00:53:17,750
+Cause & Effect Podcast.
+
+1470
+00:53:18,375 --> 00:53:20,291
+If you've enjoyed this episode, please
+
+1471
+00:53:20,291 --> 00:53:21,791
+subscribe, leave a review
+
+1472
+00:53:21,791 --> 00:53:22,875
+and share it with your friends.
+
+1473
+00:53:23,791 --> 00:53:25,666
+If you haven't done so already, you can
+
+1474
+00:53:25,666 --> 00:53:26,916
+join our Discord community.
+
+1475
+00:53:27,458 --> 00:53:29,000
+And if you have any questions, feedback
+
+1476
+00:53:29,000 --> 00:53:31,708
+or suggestions about this episode or
+
+1477
+00:53:31,708 --> 00:53:32,708
+about Effect in general,
+
+1478
+00:53:33,291 --> 00:53:34,625
+don't hesitate to get in touch.
+
+1479
+00:53:35,416 --> 00:53:36,458
+See you in the next episode.
