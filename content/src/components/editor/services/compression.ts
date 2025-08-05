@@ -27,7 +27,7 @@ export class Compression extends Effect.Service<Compression>()("app/Compression"
     const decompress = (buffer: Uint8Array) =>
       Effect.tryPromise({
         try: async () => {
-          const blob = new Blob([buffer], { type: "application/gzip" })
+          const blob = new Blob([buffer as Uint8Array<ArrayBuffer>], { type: "application/gzip" })
           const stream = blob.stream().pipeThrough(new DecompressionStream("deflate-raw"))
           return await new Response(stream).text()
         },
