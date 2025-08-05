@@ -17,24 +17,19 @@ import { useWorkspaceHandle, useWorkspaceShells } from "./context/workspace"
 import { importRx } from "./rx/import"
 
 export function CodeEditor() {
-  const workspace = useRxValue(importRx)
-  return Result.match(workspace, {
-    onInitial: () => null,
-    onFailure(_) {
-      throw Cause.squash(_.cause)
-    },
-    onSuccess: (_) => (
+  return Result.builder(useRxValue(importRx))
+    .onSuccess((workspace) => (
       <TooltipProvider>
         <PlaygroundLoader />
         <Suspense>
-          <WorkspaceProvider workspace={_.value}>
+          <WorkspaceProvider workspace={workspace}>
             <CodeEditorPanels />
           </WorkspaceProvider>
         </Suspense>
         <Toaster />
       </TooltipProvider>
-    )
-  })
+    ))
+    .orNull()
 }
 
 function CodeEditorPanels() {

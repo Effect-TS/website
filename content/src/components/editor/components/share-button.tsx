@@ -1,14 +1,13 @@
-import { useCallback, useEffect, useState, Fragment } from "react"
+import { useCallback, Fragment } from "react"
 import { CheckIcon, CopyIcon, DownloadIcon, LoaderCircleIcon } from "lucide-react"
-import { useRxSet, useRxValue, Result } from "@effect-rx/rx-react"
-import * as Match from "effect/Match"
+import { useRxSet, useRxValue, Result, useRx } from "@effect-rx/rx-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/css/utils"
 import { useWorkspaceHandle } from "../context/workspace"
-import { shareRx } from "../rx/share"
+import { copyLinkRx, downloadRx, shareRx } from "../rx/share"
 
 export function ShareButton() {
   const handle = useWorkspaceHandle()
@@ -39,47 +38,8 @@ export function ShareButton() {
 function ShareContent() {
   const handle = useWorkspaceHandle()
   const result = useRxValue(shareRx(handle))
-
-  const [copied, setCopied] = useState(false)
-  useEffect(() => {
-    if (!copied) return
-    const timeout = setTimeout(() => {
-      setCopied(false)
-    }, 2000)
-    return () => {
-      clearTimeout(timeout)
-    }
-  }, [copied, setCopied])
-  const handleCopyLink = useCallback(() => {
-    if (Result.isSuccess(result)) {
-      navigator.clipboard.writeText(result.value.url)
-      setCopied(true)
-    }
-  }, [setCopied, result])
-
-  const [downloaded, setDownloaded] = useState(false)
-  useEffect(() => {
-    if (!downloaded) return
-    const timeout = setTimeout(() => {
-      setDownloaded(false)
-    }, 2000)
-    return () => {
-      clearTimeout(timeout)
-    }
-  }, [downloaded, setDownloaded])
-  const handleDownloadLink = useCallback(() => {
-    if (Result.isSuccess(result)) {
-      var blobUrl = URL.createObjectURL(result.value.zipFile.content)
-
-      var link = document.createElement("a")
-      link.href = blobUrl
-      link.download = result.value.zipFile.name
-      link.innerText = "Click here to download the file"
-      document.body.appendChild(link)
-      link.click()
-      setDownloaded(true)
-    }
-  }, [setDownloaded, result])
+  const [copied, setCopied] = useRx(copyLinkRx)
+  const [downloaded, download] = useRx(downloadRx)
 
   return (
     <Fragment>
@@ -95,17 +55,17 @@ function ShareContent() {
           <Input
             id="link"
             placeholder="Loading..."
-            value={Result.matchWithWaiting(result, {
-              onWaiting: (_) => "",
-              onError: Match.valueTags({
-                FileNotFoundError: () => "The workspace could not be found.",
-                CompressionError: () => "Could not compress the workspace.",
-                ShortenError: (err) =>
-                  err.reason === "TooLarge" ? "The workspace is too large to share." : "An unexpected error occurred."
-              }),
-              onDefect: (_) => "An unexpected error occurred.",
-              onSuccess: ({ value }) => value.url
-            })}
+            value={Result.builder(result)
+              .onWaiting(() => "")
+              .onSuccess(({ url }) => url)
+              .onErrorTag("FileNotFoundError", () => "The workspace could not be found.")
+              .onErrorTag("CompressionError", () => "Could not compress the workspace.")
+              .onErrorIf(
+                (e) => e._tag === "ShortenError" && e.reason === "TooLarge",
+                () => "The workspace is too large to share."
+              )
+              .onFailure(() => "An unexpected error occurred.")
+              .render()}
             readOnly
             className={cn(
               "h-9 bg-[--sl-color-bg] rounded-sm",
@@ -118,10 +78,10 @@ function ShareContent() {
           variant="secondary"
           className="px-3 bg-[--sl-color-bg] hover:bg-[--sl-color-gray-6] dark:hover:bg-[--sl-color-gray-5] ring-1 ring-ring cursor-pointer transition-colors"
           disabled={result.waiting || Result.isFailure(result)}
-          onClick={handleCopyLink}
+          onClick={() => setCopied(handle)}
         >
           <span className="sr-only">Copy</span>
-          {copied ? (
+          {Result.isSuccess(copied) ? (
             <CheckIcon size={16} />
           ) : result.waiting ? (
             <LoaderCircleIcon className="animate-spin" size={16} />
@@ -140,10 +100,10 @@ function ShareContent() {
           variant="secondary"
           className="px-3 bg-[--sl-color-bg] hover:bg-[--sl-color-gray-6] dark:hover:bg-[--sl-color-gray-5] ring-1 ring-ring cursor-pointer transition-colors"
           disabled={result.waiting || Result.isFailure(result)}
-          onClick={handleDownloadLink}
+          onClick={() => download(handle)}
         >
           <span className="sr-only">Download</span>
-          {downloaded ? (
+          {Result.isSuccess(downloaded) ? (
             <CheckIcon size={16} />
           ) : result.waiting ? (
             <LoaderCircleIcon className="animate-spin" size={16} />
