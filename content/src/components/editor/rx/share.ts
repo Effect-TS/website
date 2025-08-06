@@ -1,4 +1,4 @@
-import { Rx } from "@effect-rx/rx-react"
+import { Result, Rx } from "@effect-rx/rx-react"
 import * as Clipboard from "@effect/platform-browser/Clipboard"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -46,3 +46,32 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) => {
     }, Effect.tapErrorCause(Effect.logError))
   )
 })
+
+export const copyLinkRx = Rx.fn<RxWorkspaceHandle>()(
+  Effect.fnUntraced(function* (handle, get) {
+    const { url } = yield* get.result(shareRx(handle))
+    navigator.clipboard.writeText(url)
+    yield* Effect.sleep(2000).pipe(
+      Effect.tap(() => get.setSelf(Result.initial())),
+      Effect.forkScoped
+    )
+  })
+)
+
+export const downloadRx = Rx.fn<RxWorkspaceHandle>()(
+  Effect.fnUntraced(function* (handle, get) {
+    const { zipFile } = yield* get.result(shareRx(handle))
+    const blobUrl = URL.createObjectURL(zipFile.content)
+    const link = document.createElement("a")
+    get.addFinalizer(() => link.remove())
+    link.href = blobUrl
+    link.download = zipFile.name
+    link.innerText = "Click here to download the file"
+    document.body.appendChild(link)
+    link.click()
+    yield* Effect.sleep(2000).pipe(
+      Effect.tap(() => get.setSelf(Result.initial())),
+      Effect.forkScoped
+    )
+  })
+)

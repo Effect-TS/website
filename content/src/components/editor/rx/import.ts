@@ -57,31 +57,29 @@ const autoSaveWorkspaceRx = Rx.kvs({
   defaultValue: Option.none
 })
 
-export const importRx = runtime
-  .rx(
-    Effect.fnUntraced(
-      function* (get) {
-        const hash = get(hashRx)
-        if (Option.isSome(hash)) {
-          const client = yield* ShortenClient
-          const compressed = yield* client.retrieve({ hash: hash.value }).pipe(Effect.flatten)
+export const importRx = runtime.rx(
+  Effect.fnUntraced(
+    function* (get) {
+      const hash = get(hashRx)
+      if (Option.isSome(hash)) {
+        const client = yield* ShortenClient
+        const compressed = yield* client.retrieve({ hash: hash.value }).pipe(Effect.flatten)
 
-          const compression = yield* WorkspaceCompression
-          return yield* compression.decompress(compressed)
-        }
+        const compression = yield* WorkspaceCompression
+        return yield* compression.decompress(compressed)
+      }
 
-        const code = get(codeRx)
-        if (Option.isSome(code)) {
-          const node = makeFile("main.ts", code.value, false)
-          return defaultWorkspace.replaceNode(main, node)
-        }
+      const code = get(codeRx)
+      if (Option.isSome(code)) {
+        const node = makeFile("main.ts", code.value, false)
+        return defaultWorkspace.replaceNode(main, node)
+      }
 
-        return yield* new NoSuchElementException()
-      },
-      (effect, get) =>
-        Effect.catchAll(effect, () =>
-          Effect.succeed(Option.getOrElse(get.once(autoSaveWorkspaceRx), makeDefaultWorkspace))
-        )
-    )
+      return yield* new NoSuchElementException()
+    },
+    (effect, get) =>
+      Effect.catchAll(effect, () =>
+        Effect.succeed(Option.getOrElse(get.once(autoSaveWorkspaceRx), makeDefaultWorkspace))
+      )
   )
-  .pipe(Rx.refreshable)
+)

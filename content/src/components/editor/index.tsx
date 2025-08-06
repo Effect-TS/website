@@ -2,7 +2,6 @@ import { useCallback, Fragment, Suspense } from "react"
 import { ChartGanttIcon, SquareTerminalIcon } from "lucide-react"
 import { Result, useRxSet, useRxValue } from "@effect-rx/rx-react"
 import * as Hash from "effect/Hash"
-import * as Cause from "effect/Cause"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Toaster } from "@/components/ui/toaster"
@@ -17,24 +16,19 @@ import { useWorkspaceHandle, useWorkspaceShells } from "./context/workspace"
 import { importRx } from "./rx/import"
 
 export function CodeEditor() {
-  const workspace = useRxValue(importRx)
-  return Result.match(workspace, {
-    onInitial: () => null,
-    onFailure(_) {
-      throw Cause.squash(_.cause)
-    },
-    onSuccess: (_) => (
+  return Result.builder(useRxValue(importRx))
+    .onSuccess((workspace) => (
       <TooltipProvider>
         <PlaygroundLoader />
         <Suspense>
-          <WorkspaceProvider workspace={_.value}>
+          <WorkspaceProvider workspace={workspace}>
             <CodeEditorPanels />
           </WorkspaceProvider>
         </Suspense>
         <Toaster />
       </TooltipProvider>
-    )
-  })
+    ))
+    .render()
 }
 
 function CodeEditorPanels() {

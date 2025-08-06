@@ -1,5 +1,5 @@
 import React from "react"
-import { useRxMount, useRxSuspenseSuccess, useRxValue } from "@effect-rx/rx-react"
+import { useRxMount, useRxSuspense, useRxValue } from "@effect-rx/rx-react"
 import { Workspace } from "../domain/workspace"
 import { workspaceHandleRx, type RxWorkspaceHandle } from "../rx/workspace"
 import { autoSaveRx } from "../rx/import"
@@ -17,7 +17,7 @@ export function WorkspaceProvider({
 }: React.PropsWithChildren<{
   readonly workspace: Workspace
 }>) {
-  const { value } = useRxSuspenseSuccess(workspaceHandleRx(workspace))
-  useRxMount(autoSaveRx(value))
-  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
+  const handle = useRxSuspense(workspaceHandleRx(workspace)).value
+  useRxMount(autoSaveRx(handle))
+  return <WorkspaceContext.Provider value={handle}>{children}</WorkspaceContext.Provider>
 }
