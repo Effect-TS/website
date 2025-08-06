@@ -56,7 +56,7 @@ function ShareContent() {
             id="link"
             placeholder="Loading..."
             value={Result.builder(result)
-              .onWaiting(() => "")
+              .onInitialOrWaiting(() => "")
               .onSuccess(({ url }) => url)
               .onErrorTag("FileNotFoundError", () => "The workspace could not be found.")
               .onErrorTag("CompressionError", () => "Could not compress the workspace.")

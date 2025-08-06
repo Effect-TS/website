@@ -17,7 +17,6 @@ import { importRx } from "./rx/import"
 
 export function CodeEditor() {
   return Result.builder(useRxValue(importRx))
-    .onInitial(() => null)
     .onSuccess((workspace) => (
       <TooltipProvider>
         <PlaygroundLoader />
