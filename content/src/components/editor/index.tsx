@@ -1,6 +1,6 @@
 import { useCallback, Fragment, Suspense } from "react"
 import { ChartGanttIcon, SquareTerminalIcon } from "lucide-react"
-import { Result, useRxSet, useRxValue } from "@effect-rx/rx-react"
+import { Result, useAtomSet, useAtomValue } from "@effect-atom/atom-react"
 import * as Hash from "effect/Hash"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
@@ -13,10 +13,10 @@ import { Terminal } from "./components/terminal"
 import { TraceViewer } from "./components/trace-viewer"
 import { WorkspaceProvider } from "./context/workspace"
 import { useWorkspaceHandle, useWorkspaceShells } from "./context/workspace"
-import { importRx } from "./rx/import"
+import { importAtom } from "./atoms/import"
 
 export function CodeEditor() {
-  return Result.builder(useRxValue(importRx))
+  return Result.builder(useAtomValue(importAtom))
     .onSuccess((workspace) => (
       <TooltipProvider>
         <PlaygroundLoader />
@@ -33,7 +33,7 @@ export function CodeEditor() {
 
 function CodeEditorPanels() {
   const { terminalSize } = useWorkspaceHandle()
-  const setSize = useRxSet(terminalSize)
+  const setSize = useAtomSet(terminalSize)
   const onResize = useCallback(
     function (..._: any) {
       setSize()
@@ -99,7 +99,7 @@ function CodeEditorPanels() {
 function WorkspaceShells() {
   const { terminalSize } = useWorkspaceHandle()
   const shells = useWorkspaceShells()
-  const setSize = useRxSet(terminalSize)
+  const setSize = useAtomSet(terminalSize)
   const onResize = useCallback(
     function (..._: any) {
       setSize()

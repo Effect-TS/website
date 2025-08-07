@@ -1,11 +1,11 @@
 import { TraceSelector } from "./trace-viewer/trace-selector"
 import { TraceWaterfall } from "./trace-viewer/trace-waterfall"
 import { TraceSummary } from "./trace-viewer/trace-summary"
-import { useRxMount } from "@effect-rx/rx-react"
-import { devToolsRx } from "../rx/devtools"
+import { useAtomMount } from "@effect-atom/atom-react"
+import { devToolsAtom } from "../atoms/devtools"
 
 export function TraceViewer() {
-  useRxMount(devToolsRx)
+  useAtomMount(devToolsAtom)
 
   return (
     <div className="h-full flex flex-col w-full p-2 bg-[--sl-color-bg-nav]">

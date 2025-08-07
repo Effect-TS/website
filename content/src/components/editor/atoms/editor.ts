@@ -1,28 +1,28 @@
-import { Rx } from "@effect-rx/rx-react"
+import { Atom } from "@effect-atom/atom-react"
 import * as monaco from "@effect/monaco-editor"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Schedule from "effect/Schedule"
 import * as Stream from "effect/Stream"
-import { themeRx } from "@/rx/theme"
+import { themeAtom } from "@/atoms/theme"
 import { Toaster } from "@/services/toaster"
 import { File, FullPath } from "../domain/workspace"
 import { Loader } from "../services/loader"
 import { Monaco } from "../services/monaco"
 import { WebContainer } from "../services/webcontainer"
-import type { RxWorkspaceHandle } from "./workspace"
+import type { AtomWorkspaceHandle } from "./workspace"
 
-export const editorThemeRx = Rx.map(themeRx, (theme) => (theme === "dark" ? "dracula" : "vs"))
+export const editorThemeAtom = Atom.map(themeAtom, (theme) => (theme === "dark" ? "dracula" : "vs"))
 
-const runtime = Rx.runtime(Layer.mergeAll(Loader.Default, Monaco.Default, Toaster.Default, WebContainer.Default)).pipe(
-  Rx.setIdleTTL("10 seconds")
+const runtime = Atom.runtime(Layer.mergeAll(Loader.Default, Monaco.Default, Toaster.Default, WebContainer.Default)).pipe(
+  Atom.setIdleTTL("10 seconds")
 )
 
-export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
-  const element = Rx.make(Option.none<HTMLElement>())
+export const editorAtom = Atom.family((handle: AtomWorkspaceHandle) => {
+  const element = Atom.make(Option.none<HTMLElement>())
 
-  const editor = runtime.rx(
+  const editor = runtime.atom(
     Effect.fnUntraced(function* (get) {
       const loader = yield* Loader
       const { createEditor } = yield* Monaco
@@ -34,7 +34,7 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
       /**
        * Syncs the website theme with the editor.
        */
-      get.subscribe(editorThemeRx, (theme) => editor.editor.updateOptions({ theme }), { immediate: true })
+      get.subscribe(editorThemeAtom, (theme) => editor.editor.updateOptions({ theme }), { immediate: true })
 
       /**
        * Setup go-to-definition for the playground
@@ -45,7 +45,7 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
        * Saves the content of the editor's current model to the file system.
        */
       const save = Effect.suspend(() => {
-        const workspace = get.once(handle.workspaceRx)
+        const workspace = get.once(handle.workspaceAtom)
         const file = get.once(handle.selectedFile)
         const path = workspace.fullPathTo(file)
         return Option.match(path, {
@@ -106,14 +106,14 @@ export const editorRx = Rx.family((handle: RxWorkspaceHandle) => {
   } as const
 })
 
-function setupGoToDefinition(handle: RxWorkspaceHandle, get: Rx.Context) {
+function setupGoToDefinition(handle: AtomWorkspaceHandle, get: Atom.Context) {
   monaco.editor.registerEditorOpener({
     openCodeEditor(editor, uri) {
       const model = monaco.editor.getModel(uri)
       if (model === null) {
         return false
       }
-      const workspace = get.once(handle.workspaceRx)
+      const workspace = get.once(handle.workspaceAtom)
       const fullPath = model.uri.fsPath
       const workspacePath = fullPath.replace(workspace.name, "").replace(/^\/+/, "")
       return Option.match(workspace.findFile(workspacePath), {

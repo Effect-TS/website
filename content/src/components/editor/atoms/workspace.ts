@@ -1,4 +1,4 @@
-import { Rx } from "@effect-rx/rx-react"
+import { Atom } from "@effect-atom/atom-react"
 import * as monaco from "@effect/monaco-editor"
 import { createStreaming, type Formatter } from "@dprint/formatter"
 import * as Array from "effect/Array"
@@ -10,7 +10,7 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Sink from "effect/Sink"
 import * as Stream from "effect/Stream"
-import { themeRx } from "@/rx/theme"
+import { themeAtom } from "@/atoms/theme"
 import { Toaster } from "@/services/toaster"
 import {
   Directory,
@@ -26,14 +26,14 @@ import { Terminal } from "../services/terminal"
 import { Dracula, NightOwlishLight } from "../services/terminal/themes"
 import { WebContainer } from "../services/webcontainer"
 
-const runtime = Rx.runtime(Layer.mergeAll(Loader.Default, Terminal.Default, Toaster.Default, WebContainer.Default))
+const runtime = Atom.runtime(Layer.mergeAll(Loader.Default, Terminal.Default, Toaster.Default, WebContainer.Default))
 
-const terminalThemeRx = themeRx.pipe(Rx.map((theme) => (theme === "light" ? NightOwlishLight : Dracula)))
+const terminalThemeAtom = themeAtom.pipe(Atom.map((theme) => (theme === "light" ? NightOwlishLight : Dracula)))
 
-export interface RxWorkspaceHandle extends Rx.Rx.InferSuccess<ReturnType<typeof workspaceHandleRx>> {}
+export interface AtomWorkspaceHandle extends Atom.Success<ReturnType<typeof workspaceHandleAtom>> {}
 
-export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
-  runtime.rx(
+export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
+  runtime.atom(
     Effect.fnUntraced(function* (_get) {
       const container = yield* WebContainer
       const loader = yield* Loader
@@ -65,14 +65,14 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
        */
       yield* loadWorkspace(workspace).pipe(loader.withIndicator("Preparing workspace"))
 
-      const selectedFile = Rx.make(workspace.initialFile)
+      const selectedFile = Atom.make(workspace.initialFile)
 
-      const createTerminal = Rx.family(({ command, element }: WorkspaceTerminal) =>
-        runtime.rx(
+      const createTerminal = Atom.family(({ command, element }: WorkspaceTerminal) =>
+        runtime.atom(
           Effect.fnUntraced(function* (get) {
             const process = yield* container.createShell
             const spawned = yield* terminal.spawn({
-              theme: get.once(terminalThemeRx)
+              theme: get.once(terminalThemeAtom)
             })
             const writer = process.input.getWriter()
             const mount = Effect.sync(() => {
@@ -119,7 +119,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
               )
             }
             get.subscribe(
-              terminalThemeRx,
+              terminalThemeAtom,
               (theme) => {
                 spawned.terminal.options.theme = theme
               },
@@ -136,10 +136,10 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
       )
 
       let size = 0
-      const terminalSize = Rx.writable(
+      const terminalSize = Atom.writable(
         () => size,
         (ctx, _: void) => ctx.setSelf(size++)
-      ).pipe(Rx.debounce("250 millis"))
+      ).pipe(Atom.debounce("250 millis"))
 
       return {
         selectedFile,
@@ -147,8 +147,8 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
         terminalSize,
         workspace: handle.workspace,
         run: handle.run,
-        workspaceRx: handle.workspace,
-        createFile: Rx.fn<Parameters<typeof handle.createFile>>()(
+        workspaceAtom: handle.workspace,
+        createFile: Atom.fn<Parameters<typeof handle.createFile>>()(
           Effect.fnUntraced(function* (params, get) {
             const node = yield* handle.createFile(...params)
             if (node._tag === "File") {
@@ -156,7 +156,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
             }
           })
         ),
-        renameFile: Rx.fn<Parameters<typeof handle.renameFile>>()(
+        renameFile: Atom.fn<Parameters<typeof handle.renameFile>>()(
           Effect.fnUntraced(function* (params, get) {
             const node = yield* handle.renameFile(...params)
             if (node._tag === "Directory") {
@@ -168,7 +168,7 @@ export const workspaceHandleRx = Rx.family((workspace: Workspace) =>
             }
           })
         ),
-        removeFile: Rx.fn<File | Directory>()(
+        removeFile: Atom.fn<File | Directory>()(
           Effect.fnUntraced(function* (node, get) {
             yield* handle.removeFile(node)
             const workspace = get(handle.workspace)

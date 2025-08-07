@@ -1,4 +1,4 @@
-import { Registry, Rx } from "@effect-rx/rx-react"
+import { Registry, Atom } from "@effect-atom/atom-react"
 import * as Array from "effect/Array"
 import * as Data from "effect/Data"
 import * as Duration from "effect/Duration"
@@ -17,22 +17,22 @@ export class Step extends Data.Class<{
   }
 }
 
-export const loaderStepsRx = Rx.make(Array.empty<Step>())
+export const loaderStepsAtom = Atom.make(Array.empty<Step>())
 
 export class Loader extends Effect.Service<Loader>()("app/Loader", {
   scoped: Effect.gen(function* () {
-    const registry = yield* Registry.RxRegistry
+    const registry = yield* Registry.AtomRegistry
     const counter = yield* Ref.make(0)
     const queue = yield* Queue.unbounded<[number, Duration.DurationInput] | null>()
 
     const nextId = Ref.getAndUpdate(counter, (n) => n + 1).pipe(Effect.map((n) => n % Number.MAX_SAFE_INTEGER))
 
     function addStep(id: number, message: string) {
-      return registry.update(loaderStepsRx, Array.append(new Step({ id, message, done: false })))
+      return registry.update(loaderStepsAtom, Array.append(new Step({ id, message, done: false })))
     }
 
     function withIndicator(message: string, minWaitTime: Duration.DurationInput = 0) {
-      return <A, E, R>(self: Effect.Effect<A, E, R>): Effect.Effect<A, E, R | Registry.RxRegistry> =>
+      return <A, E, R>(self: Effect.Effect<A, E, R>): Effect.Effect<A, E, R | Registry.AtomRegistry> =>
         nextId.pipe(
           Effect.tap((id) => addStep(id, message)),
           Effect.flatMap((id) =>
@@ -59,7 +59,7 @@ export class Loader extends Effect.Service<Loader>()("app/Loader", {
     const fiber = yield* Stream.fromQueue(queue).pipe(
       Stream.takeWhile((element) => element !== null),
       Stream.runForEach(([id, delay]) =>
-        Effect.sync(() => registry.update(loaderStepsRx, Array.map(completeStep(id)))).pipe(Effect.delay(delay))
+        Effect.sync(() => registry.update(loaderStepsAtom, Array.map(completeStep(id)))).pipe(Effect.delay(delay))
       ),
       Effect.forkScoped,
       Effect.uninterruptible

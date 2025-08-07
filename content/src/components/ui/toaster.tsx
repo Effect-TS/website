@@ -1,9 +1,9 @@
-import { useRxValue } from "@effect-rx/rx-react"
+import { useAtomValue } from "@effect-atom/atom-react"
 import { Toast, ToastClose, ToastDescription, ToastProvider, ToastTitle, ToastViewport } from "@/components/ui/toast"
-import { toastsRx } from "@/services/toaster"
+import { toastsAtom } from "@/services/toaster"
 
 export function Toaster() {
-  const toasts = useRxValue(toastsRx)
+  const toasts = useAtomValue(toastsAtom)
 
   return (
     <ToastProvider>

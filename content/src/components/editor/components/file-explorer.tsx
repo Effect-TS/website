@@ -1,5 +1,5 @@
 import { useCallback } from "react"
-import { Rx, useRxSet, useRxValue } from "@effect-rx/rx-react"
+import { Atom, useAtomSet, useAtomValue } from "@effect-atom/atom-react"
 import * as Data from "effect/Data"
 import { useWorkspaceHandle, useWorkspaceTree } from "../context/workspace"
 import { Directory, File, Workspace } from "../domain/workspace"
@@ -19,13 +19,13 @@ export declare namespace FileExplorer {
 }
 
 export const State = Data.taggedEnum<FileExplorer.State>()
-export const stateRx = Rx.make<FileExplorer.State>(State.Idle())
+export const stateAtom = Atom.make<FileExplorer.State>(State.Idle())
 
-export const useExplorerState = () => useRxValue(stateRx)
-export const useExplorerDispatch = () => useRxSet(stateRx)
+export const useExplorerState = () => useAtomValue(stateAtom)
+export const useExplorerDispatch = () => useAtomSet(stateAtom)
 export const useCreate = () => {
   const handle = useWorkspaceHandle()
-  const create = useRxSet(handle.createFile)
+  const create = useAtomSet(handle.createFile)
   const dispatch = useExplorerDispatch()
   return useCallback(
     (parent: Directory, name: string, type: Workspace.FileType) => {
@@ -37,7 +37,7 @@ export const useCreate = () => {
 }
 export const useRename = () => {
   const handle = useWorkspaceHandle()
-  const rename = useRxSet(handle.renameFile)
+  const rename = useAtomSet(handle.renameFile)
   const dispatch = useExplorerDispatch()
   return useCallback(
     (node: File | Directory, name: string) => {
@@ -49,7 +49,7 @@ export const useRename = () => {
 }
 export const useRemove = () => {
   const handle = useWorkspaceHandle()
-  const remove = useRxSet(handle.removeFile)
+  const remove = useAtomSet(handle.removeFile)
   const dispatch = useExplorerDispatch()
   return useCallback(
     (node: File | Directory) => {

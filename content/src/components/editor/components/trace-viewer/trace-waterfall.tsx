@@ -19,8 +19,8 @@ import { Span } from "../../domain/devtools"
 import { TraceDetails } from "./trace-details"
 import { TraceTree } from "./trace-tree"
 import { formatDuration } from "./utils"
-import { useRxValue } from "@effect-rx/rx-react"
-import { selectedSpanRx } from "../../rx/devtools"
+import { useAtomValue } from "@effect-atom/atom-react"
+import { selectedSpanAtom } from "../../atoms/devtools"
 
 declare module "@tanstack/react-table" {
   interface ColumnMeta<TData extends RowData, TValue> {
@@ -57,7 +57,7 @@ const columns: Array<ColumnDef<Span>> = [
 ]
 
 export function TraceWaterfall() {
-  const selectedSpan = useRxValue(selectedSpanRx)
+  const selectedSpan = useAtomValue(selectedSpanAtom)
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [expanded, setExpanded] = React.useState<ExpandedState>(true)
   const data = useMemo(() => (selectedSpan === undefined ? [] : [selectedSpan]), [selectedSpan])

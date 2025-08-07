@@ -1,15 +1,15 @@
 import React from "react"
-import { useRxMount, useRxSuspense, useRxValue } from "@effect-rx/rx-react"
+import { useAtomMount, useAtomSuspense, useAtomValue } from "@effect-atom/atom-react"
 import { Workspace } from "../domain/workspace"
-import { workspaceHandleRx, type RxWorkspaceHandle } from "../rx/workspace"
-import { autoSaveRx } from "../rx/import"
+import { workspaceHandleAtom, type AtomWorkspaceHandle } from "../atoms/workspace"
+import { autoSaveAtom } from "../atoms/import"
 
-export const WorkspaceContext = React.createContext<RxWorkspaceHandle>(null as any)
+export const WorkspaceContext = React.createContext<AtomWorkspaceHandle>(null as any)
 
 export const useWorkspaceHandle = () => React.useContext(WorkspaceContext)
-export const useWorkspaceRx = () => useWorkspaceHandle().workspaceRx
-export const useWorkspaceShells = () => useRxValue(useWorkspaceRx(), (workspace) => workspace.shells)
-export const useWorkspaceTree = () => useRxValue(useWorkspaceRx(), (workspace) => workspace.tree)
+export const useWorkspaceAtom = () => useWorkspaceHandle().workspaceAtom
+export const useWorkspaceShells = () => useAtomValue(useWorkspaceAtom(), (workspace) => workspace.shells)
+export const useWorkspaceTree = () => useAtomValue(useWorkspaceAtom(), (workspace) => workspace.tree)
 
 export function WorkspaceProvider({
   children,
@@ -17,7 +17,7 @@ export function WorkspaceProvider({
 }: React.PropsWithChildren<{
   readonly workspace: Workspace
 }>) {
-  const handle = useRxSuspense(workspaceHandleRx(workspace)).value
-  useRxMount(autoSaveRx(handle))
+  const handle = useAtomSuspense(workspaceHandleAtom(workspace)).value
+  useAtomMount(autoSaveAtom(handle))
   return <WorkspaceContext.Provider value={handle}>{children}</WorkspaceContext.Provider>
 }

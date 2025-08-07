@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from "react"
-import { useRxMount, useRxSet } from "@effect-rx/rx-react"
+import { useAtomMount, useAtomSet } from "@effect-atom/atom-react"
 import * as Option from "effect/Option"
 import { useWorkspaceHandle } from "../context/workspace"
-import { editorRx } from "../rx/editor"
+import { editorAtom } from "../atoms/editor"
 import { ShareButton } from "./share-button"
 import { constVoid } from "effect/Function"
 import { ResetButton } from "./reset-button"
@@ -10,11 +10,11 @@ import { ResetButton } from "./reset-button"
 export function FileEditor() {
   const handle = useWorkspaceHandle()
 
-  const rx = editorRx(handle)
-  useMemo(constVoid, [rx]) // keep the reference to the rx object
-  useRxMount(rx.editor)
+  const atom = editorAtom(handle)
+  useMemo(constVoid, [atom]) // keep the reference to the atom object
+  useAtomMount(atom.editor)
 
-  const setElement = useRxSet(rx.element)
+  const setElement = useAtomSet(atom.element)
 
   const containerRef = useCallback(
     (node: HTMLDivElement) => {

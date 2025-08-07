@@ -7,18 +7,18 @@ import * as Option from "effect/Option"
 import * as Stream from "effect/Stream"
 import { Span } from "../domain/devtools"
 import { WebContainer } from "./webcontainer"
-import { Registry, Rx } from "@effect-rx/rx-react"
+import { Registry, Atom } from "@effect-atom/atom-react"
 
-export const rootSpansRx = Rx.make<ReadonlyArray<Span>>([])
+export const rootSpansAtom = Atom.make<ReadonlyArray<Span>>([])
 
 export const DevToolsLayer = Layer.scopedDiscard(
   Effect.gen(function* () {
-    const registry = yield* Registry.RxRegistry
+    const registry = yield* Registry.AtomRegistry
     const container = yield* WebContainer
 
     function registerSpan(span: DevToolsDomain.ParentSpan) {
       return Effect.sync(() =>
-        registry.update(rootSpansRx, (rootSpans) =>
+        registry.update(rootSpansAtom, (rootSpans) =>
           pipe(
             rootSpans,
             Array.findFirstIndex((root) => root.traceId === span.traceId),
@@ -31,7 +31,7 @@ export const DevToolsLayer = Layer.scopedDiscard(
 
     function registerSpanEvent(event: DevToolsDomain.SpanEvent) {
       return Effect.sync(() =>
-        registry.update(rootSpansRx, (rootSpans) =>
+        registry.update(rootSpansAtom, (rootSpans) =>
           pipe(
             rootSpans,
             Array.findFirstIndex((root) => root.traceId === event.traceId),
