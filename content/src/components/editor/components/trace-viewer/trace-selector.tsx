@@ -1,18 +1,18 @@
 import { useState } from "react"
-import { useRx, useRxValue } from "@effect-rx/rx-react"
+import { useAtom, useAtomValue } from "@effect-atom/atom-react"
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons"
 import { Button } from "@/components/ui/button"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/css/utils"
-import { rootSpansRx } from "../../services/devtools"
-import { selectedSpanIndexRx, selectedSpanRx } from "../../rx/devtools"
+import { rootSpansAtom } from "../../services/devtools"
+import { selectedSpanIndexAtom, selectedSpanAtom } from "../../atoms/devtools"
 
 export function TraceSelector() {
   const [open, setOpen] = useState(false)
-  const rootSpans = useRxValue(rootSpansRx)
-  const [span, setSelectedSpan] = useRx(selectedSpanRx)
-  const selectedSpanIndex = useRxValue(selectedSpanIndexRx)
+  const rootSpans = useAtomValue(rootSpansAtom)
+  const [span, setSelectedSpan] = useAtom(selectedSpanAtom)
+  const selectedSpanIndex = useAtomValue(selectedSpanIndexAtom)
   return (
     <Popover>
       <PopoverTrigger asChild>

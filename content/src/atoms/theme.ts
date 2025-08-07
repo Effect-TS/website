@@ -1,4 +1,4 @@
-import { Rx } from "@effect-rx/rx-react"
+import { Atom } from "@effect-atom/atom-react"
 
 function getTheme(): "light" | "dark" {
   const selected = localStorage?.getItem("starlight-theme") || "system"
@@ -8,7 +8,7 @@ function getTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 }
 
-export const themeRx = Rx.make<"light" | "dark">((get) => {
+export const themeAtom = Atom.make<"light" | "dark">((get) => {
   const observer = new MutationObserver(function () {
     get.setSelf(getTheme())
   })

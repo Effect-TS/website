@@ -1,27 +1,27 @@
-import { Rx } from "@effect-rx/rx-react"
+import { Atom } from "@effect-atom/atom-react"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import { hashRx } from "@/rx/location"
+import { hashAtom } from "@/atoms/location"
 import { ShortenClient } from "@/services/shorten/client"
 import { makeFile, Workspace } from "../domain/workspace"
 import { WorkspaceCompression } from "../services/compression"
 import * as Schema from "effect/Schema"
-import { defaultWorkspace, main, makeDefaultWorkspace, type RxWorkspaceHandle } from "./workspace"
+import { defaultWorkspace, main, makeDefaultWorkspace, type AtomWorkspaceHandle } from "./workspace"
 import { WebContainer } from "../services/webcontainer"
 import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore"
 import { NoSuchElementException } from "effect/Cause"
 
-const runtime = Rx.runtime(Layer.mergeAll(ShortenClient.Default, WorkspaceCompression.Default, WebContainer.Default))
+const runtime = Atom.runtime(Layer.mergeAll(ShortenClient.Default, WorkspaceCompression.Default, WebContainer.Default))
 
-const codeRx = Rx.searchParam("code", {
+const codeAtom = Atom.searchParam("code", {
   schema: Schema.StringFromBase64Url.pipe(Schema.nonEmptyString())
 })
 
-export const autoSaveRx = Rx.family((handle: RxWorkspaceHandle) =>
-  runtime.rx(
+export const autoSaveAtom = Atom.family((handle: AtomWorkspaceHandle) =>
+  runtime.atom(
     Effect.fnUntraced(function* (get) {
-      const workspace = get(handle.workspaceRx)
+      const workspace = get(handle.workspaceAtom)
       const container = yield* WebContainer
       const compression = yield* WorkspaceCompression
       yield* compression.snapshot(workspace, container.readFileString).pipe(
@@ -33,7 +33,7 @@ export const autoSaveRx = Rx.family((handle: RxWorkspaceHandle) =>
               Option.isSome
             )
           if (similar) return
-          get.set(autoSaveWorkspaceRx, Option.some(snapshot))
+          get.set(autoSaveWorkspaceAtom, Option.some(snapshot))
         }),
         Effect.andThen(Effect.sleep("2 seconds")),
         Effect.forever,
@@ -43,24 +43,24 @@ export const autoSaveRx = Rx.family((handle: RxWorkspaceHandle) =>
   )
 )
 
-export const resetRx = Rx.fnSync((handle: RxWorkspaceHandle, get) => {
+export const resetAtom = Atom.fnSync((handle: AtomWorkspaceHandle, get) => {
   const workspace = makeDefaultWorkspace()
-  get.set(handle.workspaceRx, workspace)
-  get.set(autoSaveWorkspaceRx, Option.none())
-  get.refresh(importRx)
+  get.set(handle.workspaceAtom, workspace)
+  get.set(autoSaveWorkspaceAtom, Option.none())
+  get.refresh(importAtom)
 })
 
-const autoSaveWorkspaceRx = Rx.kvs({
-  runtime: Rx.runtime(BrowserKeyValueStore.layerLocalStorage),
+const autoSaveWorkspaceAtom = Atom.kvs({
+  runtime: Atom.runtime(BrowserKeyValueStore.layerLocalStorage),
   key: "workspace-autosave",
   schema: Schema.Option(Workspace),
   defaultValue: Option.none
 })
 
-export const importRx = runtime.rx(
+export const importAtom = runtime.atom(
   Effect.fnUntraced(
     function* (get) {
-      const hash = get(hashRx)
+      const hash = get(hashAtom)
       if (Option.isSome(hash)) {
         const client = yield* ShortenClient
         const compressed = yield* client.retrieve({ hash: hash.value }).pipe(Effect.flatten)
@@ -69,7 +69,7 @@ export const importRx = runtime.rx(
         return yield* compression.decompress(compressed)
       }
 
-      const code = get(codeRx)
+      const code = get(codeAtom)
       if (Option.isSome(code)) {
         const node = makeFile("main.ts", code.value, false)
         return defaultWorkspace.replaceNode(main, node)
@@ -79,7 +79,7 @@ export const importRx = runtime.rx(
     },
     (effect, get) =>
       Effect.catchAll(effect, () =>
-        Effect.succeed(Option.getOrElse(get.once(autoSaveWorkspaceRx), makeDefaultWorkspace))
+        Effect.succeed(Option.getOrElse(get.once(autoSaveWorkspaceAtom), makeDefaultWorkspace))
       )
   )
 )

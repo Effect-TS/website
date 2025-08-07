@@ -1,17 +1,17 @@
 import { useCallback, Fragment } from "react"
 import { CheckIcon, CopyIcon, DownloadIcon, LoaderCircleIcon } from "lucide-react"
-import { useRxSet, useRxValue, Result, useRx } from "@effect-rx/rx-react"
+import { useAtomSet, useAtomValue, Result, useAtom } from "@effect-atom/atom-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/css/utils"
 import { useWorkspaceHandle } from "../context/workspace"
-import { copyLinkRx, downloadRx, shareRx } from "../rx/share"
+import { copyLinkAtom, downloadAtom, shareAtom } from "../atoms/share"
 
 export function ShareButton() {
   const handle = useWorkspaceHandle()
-  const share = useRxSet(shareRx(handle))
+  const share = useAtomSet(shareAtom(handle))
 
   const onOpen = useCallback(
     (open: boolean) => {
@@ -37,9 +37,9 @@ export function ShareButton() {
 
 function ShareContent() {
   const handle = useWorkspaceHandle()
-  const result = useRxValue(shareRx(handle))
-  const [copied, setCopied] = useRx(copyLinkRx)
-  const [downloaded, download] = useRx(downloadRx)
+  const result = useAtomValue(shareAtom(handle))
+  const [copied, setCopied] = useAtom(copyLinkAtom)
+  const [downloaded, download] = useAtom(downloadAtom)
 
   return (
     <Fragment>

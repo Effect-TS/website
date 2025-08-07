@@ -1,5 +1,5 @@
 import { useRef, useContext, useEffect } from "react"
-import { RegistryContext } from "@effect-rx/rx-react"
+import { RegistryContext } from "@effect-atom/atom-react"
 import { useWorkspaceHandle } from "../context/workspace"
 import { WorkspaceTerminal, type WorkspaceShell } from "../domain/workspace"
 

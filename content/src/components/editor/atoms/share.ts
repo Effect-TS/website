@@ -1,4 +1,4 @@
-import { Result, Rx } from "@effect-rx/rx-react"
+import { Result, Atom } from "@effect-atom/atom-react"
 import * as Clipboard from "@effect/platform-browser/Clipboard"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
@@ -6,10 +6,10 @@ import { ShortenClient } from "@/services/shorten/client"
 import { WorkspaceCompression } from "../services/compression"
 import { WorkspaceDownload } from "../services/download"
 import { WebContainer } from "../services/webcontainer"
-import { editorRx } from "./editor"
-import type { RxWorkspaceHandle } from "./workspace"
+import { editorAtom } from "./editor"
+import type { AtomWorkspaceHandle } from "./workspace"
 
-const runtime = Rx.runtime(
+const runtime = Atom.runtime(
   Layer.mergeAll(
     Clipboard.layer,
     ShortenClient.Default,
@@ -19,12 +19,12 @@ const runtime = Rx.runtime(
   )
 )
 
-export const shareRx = Rx.family((handle: RxWorkspaceHandle) => {
-  const rx = editorRx(handle)
+export const shareAtom = Atom.family((handle: AtomWorkspaceHandle) => {
+  const atom = editorAtom(handle)
   return runtime.fn<void>()(
     Effect.fnUntraced(function* (_, get) {
-      const workspace = get(handle.workspaceRx)
-      const editor = yield* get.result(rx.editor)
+      const workspace = get(handle.workspaceAtom)
+      const editor = yield* get.result(atom.editor)
       const container = yield* WebContainer
       const compression = yield* WorkspaceCompression
       const zip = yield* WorkspaceDownload
@@ -47,9 +47,9 @@ export const shareRx = Rx.family((handle: RxWorkspaceHandle) => {
   )
 })
 
-export const copyLinkRx = Rx.fn<RxWorkspaceHandle>()(
+export const copyLinkAtom = Atom.fn<AtomWorkspaceHandle>()(
   Effect.fnUntraced(function* (handle, get) {
-    const { url } = yield* get.result(shareRx(handle))
+    const { url } = yield* get.result(shareAtom(handle))
     navigator.clipboard.writeText(url)
     yield* Effect.sleep(2000).pipe(
       Effect.tap(() => get.setSelf(Result.initial())),
@@ -58,9 +58,9 @@ export const copyLinkRx = Rx.fn<RxWorkspaceHandle>()(
   })
 )
 
-export const downloadRx = Rx.fn<RxWorkspaceHandle>()(
+export const downloadAtom = Atom.fn<AtomWorkspaceHandle>()(
   Effect.fnUntraced(function* (handle, get) {
-    const { zipFile } = yield* get.result(shareRx(handle))
+    const { zipFile } = yield* get.result(shareAtom(handle))
     const blobUrl = URL.createObjectURL(zipFile.content)
     const link = document.createElement("a")
     get.addFinalizer(() => link.remove())

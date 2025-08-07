@@ -1,12 +1,12 @@
-import { useRxValue } from "@effect-rx/rx-react"
+import { useAtomValue } from "@effect-atom/atom-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { CircleCheck, Loader2 } from "lucide-react"
-import { isLoadedRx } from "../rx/loader"
-import { loaderStepsRx } from "../services/loader"
+import { isLoadedAtom } from "../atoms/loader"
+import { loaderStepsAtom } from "../services/loader"
 
 export function PlaygroundLoader() {
-  const isReady = useRxValue(isLoadedRx)
-  const steps = useRxValue(loaderStepsRx, (steps) => {
+  const isReady = useAtomValue(isLoadedAtom)
+  const steps = useAtomValue(loaderStepsAtom, (steps) => {
     return steps.every((step) => step.done) ? steps : steps.slice(0, steps.findIndex((step) => !step.done) + 1)
   })
   return (

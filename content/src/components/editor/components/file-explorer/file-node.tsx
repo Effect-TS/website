@@ -9,7 +9,7 @@ import {
   FolderPlusIcon,
   TrashIcon
 } from "lucide-react"
-import { useRx } from "@effect-rx/rx-react"
+import { useAtom } from "@effect-atom/atom-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,7 +58,7 @@ export declare namespace FileNode {
 export function FileNode({ depth, node, path, className, onClick, ...props }: FileNode.Props) {
   const handle = useWorkspaceHandle()
   const state = useExplorerState()
-  const [selectedFile, setSelectedFile] = useRx(handle.selectedFile)
+  const [selectedFile, setSelectedFile] = useAtom(handle.selectedFile)
   const [showControls, setShowControls] = useState(false)
   const rename = useRename()
   const isEditing = useMemo(() => state._tag === "Editing" && Equal.equals(state.node, node), [state, node])

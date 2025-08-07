@@ -11,7 +11,7 @@ import * as Stream from "effect/Stream"
 import { FileAlreadyExistsError, FileNotFoundError, FileValidationError } from "../domain/errors"
 import { makeDirectory, makeFile, File, Directory, Workspace } from "../domain/workspace"
 import { Loader } from "./loader"
-import { Registry, Rx } from "@effect-rx/rx-react"
+import { Registry, Atom } from "@effect-atom/atom-react"
 
 const WEBCONTAINER_BIN_PATH = "node_modules/.bin:/usr/local/bin:/usr/bin:/bin"
 
@@ -21,7 +21,7 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
   accessors: true,
   dependencies: [Loader.Default],
   scoped: Effect.gen(function* () {
-    const registry = yield* Registry.RxRegistry
+    const registry = yield* Registry.AtomRegistry
 
     // Only one instance of a WebContainer can be running at any given time
     yield* Effect.acquireRelease(semaphore.take(1), () => semaphore.release(1))
@@ -410,8 +410,8 @@ export class WebContainer extends Effect.Service<WebContainer>()("app/WebContain
         })
       )
 
-      // Create a Rx to track changes to the workspace
-      const workspaceRef = Rx.make(workspace)
+      // Create a Atom to track changes to the workspace
+      const workspaceRef = Atom.make(workspace)
       // Mount the workspace file system into the container
       yield* mountWorkspace(workspace)
 

@@ -5,8 +5,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Event, Span } from "../../domain/devtools"
 import { formatDuration } from "./utils"
-import { useRxValue } from "@effect-rx/rx-react"
-import { selectedSpanRx } from "../../rx/devtools"
+import { useAtomValue } from "@effect-atom/atom-react"
+import { selectedSpanAtom } from "../../atoms/devtools"
 
 export function TraceDetails({ span }: { readonly span: Span }) {
   return (
@@ -106,7 +106,7 @@ function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
 }
 
 function TraceEvent({ node }: { readonly node: Event }) {
-  const selectedSpan = useRxValue(selectedSpanRx)
+  const selectedSpan = useAtomValue(selectedSpanAtom)
   const eventTimestamp = useMemo(() => {
     if (selectedSpan !== undefined) {
       // Since external spans will not have events, it is safe to `.getOrThrow`
