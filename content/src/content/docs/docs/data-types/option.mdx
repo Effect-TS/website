@@ -76,9 +76,8 @@ import { Option } from "effect"
 
 const isPositive = (n: number) => n > 0
 
-//      ┌─── (b: number) => Option<number>
-//      ▼
 const parsePositive = Option.liftPredicate(isPositive)
+//    ^?
 ```
 
 ## Modeling Optional Properties
@@ -557,18 +556,16 @@ import { Option } from "effect"
 const maybeName: Option.Option<string> = Option.some("John")
 const maybeAge: Option.Option<number> = Option.some(25)
 
-//      ┌─── Option<[string, number]>
-//      ▼
 const tuple = Option.all([maybeName, maybeAge])
+//    ^?
 console.log(tuple)
 /*
 Output:
 { _id: 'Option', _tag: 'Some', value: [ 'John', 25 ] }
 */
 
-//      ┌─── Option<{ name: string; age: number; }>
-//      ▼
 const struct = Option.all({ name: maybeName, age: maybeAge })
+//    ^?
 console.log(struct)
 /*
 Output:

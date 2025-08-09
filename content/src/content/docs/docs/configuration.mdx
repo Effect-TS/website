@@ -159,9 +159,8 @@ When you log a `Redacted` value using `console.log`, the actual content remains 
 import { Effect, Config, Redacted } from "effect"
 
 const program = Effect.gen(function* () {
-  //      ┌─── Redacted<string>
-  //      ▼
   const redacted = yield* Config.redacted("API_KEY")
+  //    ^?
 
   // Log the redacted value, which won't reveal the actual secret
   console.log(`Console output: ${redacted}`)
@@ -199,10 +198,8 @@ import { Effect, Config, Redacted } from "effect"
 
 const program = Effect.gen(function* () {
   // Wrap the validated number configuration with redaction
-  //
-  //      ┌─── Redacted<number>
-  //      ▼
   const redacted = yield* Config.redacted(Config.number("SECRET"))
+  //    ^?
 
   console.log(`Console output: ${redacted}`)
   console.log(`Actual value: ${Redacted.value(redacted)}`)

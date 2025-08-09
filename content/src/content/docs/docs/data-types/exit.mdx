@@ -28,10 +28,8 @@ You use this function when you want to indicate that a computation completed suc
 import { Exit } from "effect"
 
 // Create an Exit representing a successful outcome with the value 42
-//
-//      ┌─── Exit<number, never>
-//      ▼
 const successExit = Exit.succeed(42)
+//    ^?
 
 console.log(successExit)
 // Output: { _id: 'Exit', _tag: 'Success', value: 42 }
@@ -48,10 +46,8 @@ The failure is described using a [Cause](/docs/data-types/cause/) object, which 
 import { Exit, Cause } from "effect"
 
 // Create an Exit representing a failure with an error message
-//
-//      ┌─── Exit<never, string>
-//      ▼
 const failureExit = Exit.failCause(Cause.fail("Something went wrong"))
+//    ^?
 
 console.log(failureExit)
 /*
@@ -74,9 +70,8 @@ This function lets you provide two separate callbacks to handle both success and
 ```ts twoslash
 import { Effect, Exit, Cause } from "effect"
 
-//      ┌─── Exit<number, never>
-//      ▼
 const simulatedSuccess = Effect.runSyncExit(Effect.succeed(1))
+//    ^?
 
 console.log(
   Exit.match(simulatedSuccess, {
@@ -87,9 +82,8 @@ console.log(
 )
 // Output: "Exited with success value: 1"
 
-//      ┌─── Exit<never, string>
-//      ▼
 const simulatedFailure = Effect.runSyncExit(
+//    ^?
   Effect.failCause(Cause.fail("error"))
 )
 
