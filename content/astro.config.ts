@@ -15,7 +15,7 @@ import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-s
 import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers"
 import ecTwoSlash from "expressive-code-twoslash"
 import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground"
-import { pluginTwoslashPagefind } from "./src/plugins/expressive-code/twoslash-pagefind"
+// import { pluginTwoslashPagefind } from "./src/plugins/expressive-code/twoslash-pagefind"
 import { effectPlaygroundPlugin } from "./src/plugins/starlight/playground/plugin"
 import { starlightMixedbread } from "./src/plugins/starlight/mixedbread/plugin"
 import { effectPodcastPlugin } from "./src/plugins/starlight/podcast/plugin"
@@ -117,6 +117,7 @@ export default defineConfig({
     starlight({
       title: "Effect Documentation",
       lastUpdated: true,
+      pagefind: false,
       components: {
         ContentPanel: "./src/components/starlight/ContentPanel.astro",
         Head: "./src/components/starlight/Head.astro",
@@ -151,7 +152,7 @@ export default defineConfig({
           pluginLineNumbers(),
           pluginOpenInPlayground(),
           ecTwoSlash(),
-          pluginTwoslashPagefind(),
+          // pluginTwoslashPagefind(),
         ],
         themes: ["github-light", "github-dark"]
       },
@@ -213,9 +214,9 @@ export default defineConfig({
           exclude: ["/events/effect-days*"]
         }),
         starlightMixedbread({
-          apiKey: process.env.MXBAI_API_KEY,
-          vectorStoreId: process.env.MXBAI_VECTOR_STORE_ID,
-          maxResults: 10
+          apiKey: process.env.MXBAI_API_KEY ?? "",
+          vectorStoreId: process.env.MXBAI_VECTOR_STORE_ID ?? "",
+          maxResults: 8
         }),
         effectPlaygroundPlugin({
           pattern: "/play"
