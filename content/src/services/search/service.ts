@@ -1,0 +1,106 @@
+import Mixedbread from "@mixedbread/sdk"
+import * as Config from "effect/Config"
+import * as ConfigProvider from "effect/ConfigProvider"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
+import * as Redacted from "effect/Redacted"
+import * as Schema from "effect/Schema"
+import { SearchError, VectorStoreSearchResponse } from "./domain"
+import type { SearchResult } from "./domain"
+import type { DeepMutable } from "effect/Types"
+
+export class Search extends Effect.Service<Search>()("app/Search", {
+  effect: Effect.gen(function* () {
+    const apiKey = yield* Config.redacted("MXBAI_API_KEY")
+    const vectorStoreId = yield* Config.string("MXBAI_VECTOR_STORE_ID")
+    const mxbai = new Mixedbread({ apiKey: Redacted.value(apiKey) })
+
+    const decodeSearchResponse = Schema.decodeUnknown(VectorStoreSearchResponse)
+
+    function extractSnippet(text: string, maxLength: number = 150): string {
+      // Remove markdown and clean up the text
+      let cleaned = text
+        .replace(/^#{1,6}\s+/gm, '')
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/[*_]/g, '')
+        .replace(/^---[\s\S]*?---/m, '')
+        .replace(/\n+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (cleaned.length <= maxLength) {
+        return cleaned;
+      }
+      return cleaned.substring(0, maxLength).trim() + '...';
+    }
+
+    function generateAnchorId(text: string) {
+      return text
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    function groupSearchResults(response: VectorStoreSearchResponse): ReadonlyArray<SearchResult> {
+      const grouped = new Map<string, DeepMutable<SearchResult>>()
+
+      response.data.forEach((chunk) => {
+        const title = chunk.generatedMetadata.title
+        const description = chunk.generatedMetadata.description
+        const urlPath = chunk.metadata.urlPath
+        const chunkHeadings = chunk.generatedMetadata.chunkHeadings
+        const headingContext = chunk.generatedMetadata.headingContext
+
+        if (!grouped.has(urlPath)) {
+          grouped.set(urlPath, { id: chunk.fileId, description, title, urlPath, chunks: [] })
+        }
+
+        const page = grouped.get(urlPath)!
+
+        let chunkTitle = title
+        if (chunkHeadings.length > 0) {
+          chunkTitle = chunkHeadings[0]!.text ?? ""
+        } else if (headingContext.length > 0) {
+          chunkTitle = headingContext[headingContext.length - 1]!.text ?? ""
+        }
+
+        const snippet = extractSnippet(chunk.text)
+
+        page.chunks.push({
+          id: `${chunk.fileId}-${chunk.chunkIndex}`,
+          title: chunkTitle,
+          snippet,
+          score: chunk.score,
+          anchorId: generateAnchorId(chunkTitle)
+        })
+      })
+
+      return Array.from(grouped.values())
+    }
+
+    const search = Effect.fn("Search.search")(function* (query: string) {
+      const searchParams: Mixedbread.VectorStores.VectorStoreSearchParams = {
+        query,
+        top_k: 10,
+        search_options: { return_metadata: true },
+        vector_store_identifiers: [vectorStoreId],
+      }
+
+      const response = yield* Effect.tryPromise({
+        try: (signal) => mxbai.vectorStores.search(searchParams, { signal }),
+        catch: (cause) => new SearchError({ cause }),
+      }).pipe(Effect.flatMap(decodeSearchResponse))
+
+      return groupSearchResults(response)
+    },
+      Effect.catchTag("ParseError", (cause) => new SearchError({ cause })),
+      Effect.tapErrorCause(Effect.logError)
+    )
+
+    return {
+      search,
+    } as const
+  }),
+  dependencies: [Layer.setConfigProvider(ConfigProvider.fromJson(import.meta.env))],
+}) { }

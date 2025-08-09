@@ -18,7 +18,7 @@
           packages = with pkgs; [
             bun
             corepack
-            nodejs
+            nodejs-slim_24
             nodePackages.json
           ];
         };

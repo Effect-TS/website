@@ -44,6 +44,519 @@ const mixedbreadTranslations = {
   </button>
 </sl-mixedbread-search>
 
+<script>
+  import type { SearchResult } from "@/services/search/domain"
+
+  class StarlightMixedbreadSearch extends HTMLElement {
+    private modal: HTMLElement | null = null
+    private searchInput: HTMLInputElement | null = null
+    private results: HTMLElement | null = null
+    private clearButton: HTMLButtonElement | null = null
+    private selectedIndex = -1
+    private hoveredIndex = -1
+    private currentResults: SearchResult[] = []
+    private searchTimeout: number | null = null
+    private abortController: AbortController | null = null
+    private isKeyboardNavigating = false
+
+    constructor() {
+      super()
+      this.init()
+    }
+
+    private init() {
+      this.createModal()
+      this.bindEvents()
+    }
+
+    private createModal() {
+      this.modal = document.createElement("div")
+      this.modal.className = "mixedbread-modal"
+      this.modal.setAttribute("role", "dialog")
+      this.modal.setAttribute("aria-modal", "true")
+      this.modal.setAttribute("aria-label", "Search")
+
+      this.modal.innerHTML = `
+        <div class="mixedbread-modal-container" role="document">
+          <div class="mixedbread-searchbox">
+            <input 
+              type="search" 
+              placeholder="Search documentation..." 
+              aria-label="Search documentation"
+              aria-describedby="search-instructions"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              maxlength="64"
+            />
+            <button class="mixedbread-clear" aria-label="Clear search" type="button" tabindex="-1">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+              <span class="sr-only">Clear</span>
+            </button>
+          </div>
+          <div class="mixedbread-results" role="listbox" aria-label="Search results" aria-live="polite"></div>
+          <div class="mixedbread-footer">
+            <span id="search-instructions" class="sr-only">
+              Type to search. Use arrow keys to navigate results. Press Enter to select. Press Escape to close.
+            </span>
+            <div class="mixedbread-shortcuts" aria-label="Keyboard shortcuts">
+              <span class="mixedbread-key" aria-label="Up arrow">↑</span>
+              <span class="mixedbread-key" aria-label="Down arrow">↓</span>
+              <span>to navigate</span>
+              <span class="mixedbread-key" aria-label="Enter key">↵</span>
+              <span>to select</span>
+              <span class="mixedbread-key" aria-label="Escape key">esc</span>
+              <span>to close</span>
+            </div>
+          </div>
+        </div>
+      `
+
+      document.body.appendChild(this.modal)
+      this.searchInput = this.modal.querySelector("input")
+      this.results = this.modal.querySelector(".mixedbread-results")
+      this.clearButton = this.modal.querySelector(".mixedbread-clear") as HTMLButtonElement
+    }
+
+    private bindEvents() {
+      const button = this.querySelector("button")
+      button?.addEventListener("click", () => this.openModal())
+
+      document.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+          e.preventDefault()
+          this.openModal()
+        }
+      })
+
+      if (navigator.platform.includes("Mac")) {
+        document.body.classList.add("mac")
+      }
+
+      if (this.modal) {
+        // Click outside to close
+        this.modal.addEventListener("click", (e) => {
+          if (e.target instanceof HTMLAnchorElement) {
+            const modal = e.target.closest(".mixedbread-modal")
+            if (modal === this.modal) {
+              this.closeModal()
+            }
+          }
+        })
+
+        this.modal.addEventListener("keydown", (e) => {
+          switch (e.key) {
+            case "Escape":
+              e.preventDefault()
+              this.closeModal()
+              break
+            case "ArrowDown":
+            case "ArrowUp":
+              e.preventDefault()
+              if (!this.isKeyboardNavigating) {
+                this.isKeyboardNavigating = true
+                if (this.selectedIndex === -1 && this.hoveredIndex >= 0) {
+                  this.selectedIndex = this.hoveredIndex
+                }
+              }
+              this.navigateResults(e.key === "ArrowDown" ? 1 : -1)
+              break
+            case "Enter":
+              e.preventDefault()
+              this.selectResult()
+              break
+          }
+        })
+
+        // Reset keyboard navigation on mouse movement
+        this.modal.addEventListener("mousemove", () => {
+          if (this.isKeyboardNavigating) {
+            this.isKeyboardNavigating = false
+            this.results?.classList.remove("keyboard-nav")
+          }
+        })
+      }
+
+      if (this.searchInput) {
+        // Handle search input
+        this.searchInput.addEventListener("input", (e) => {
+          const query = (e.target as HTMLInputElement).value
+          this.resetNavigationState()
+          this.handleSearch(query)
+          this.updateClearButton(query)
+        })
+
+        // Handle Tab key
+        this.searchInput.addEventListener("keydown", (e) => {
+          if (e.key === "Tab" && e.shiftKey) {
+            e.preventDefault()
+            this.closeModal()
+          }
+        })
+      }
+
+      if (this.clearButton) {
+        // Clear button click
+        this.clearButton.addEventListener("click", () => {
+          this.clearSearch()
+          this.searchInput?.focus()
+        })
+
+        // Clear button keyboard navigation
+        this.clearButton.addEventListener("keydown", (e) => {
+          if (e.key === "Tab") {
+            e.preventDefault()
+            if (e.shiftKey) {
+              this.searchInput?.focus()
+            } else if (this.currentResults.length > 0) {
+              this.selectedIndex = 0
+              this.renderResults()
+              const firstResult = this.results?.querySelector('[data-index="0"]') as HTMLElement
+              firstResult?.focus()
+            } else {
+              this.closeModal()
+            }
+          }
+        })
+      }
+    }
+
+    private openModal() {
+      if (!this.modal) return
+
+      document.body.classList.add("mixedbread-modal-open")
+      this.modal.classList.add("is-open")
+
+      // Focus input after modal animation
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          this.searchInput?.focus()
+          this.showEmptyState()
+        })
+      })
+    }
+
+    private closeModal() {
+      if (!this.modal) return
+
+      document.body.classList.remove("mixedbread-modal-open")
+      this.modal.classList.remove("is-open")
+      this.clearSearch()
+      this.abortController?.abort()
+    }
+
+    private clearSearch() {
+      if (this.searchInput) {
+        this.searchInput.value = ""
+      }
+      this.resetAllState()
+      this.updateClearButton("")
+      this.showEmptyState()
+    }
+
+    private resetNavigationState() {
+      this.isKeyboardNavigating = false
+      this.hoveredIndex = -1
+      this.selectedIndex = -1
+      this.results?.classList.remove("keyboard-nav")
+    }
+
+    private resetAllState() {
+      this.currentResults = []
+      this.resetNavigationState()
+    }
+
+    private async handleSearch(query: string) {
+      this.abortController?.abort()
+
+      if (this.searchTimeout) {
+        clearTimeout(this.searchTimeout)
+      }
+
+      if (!query.trim()) {
+        this.currentResults = []
+        this.renderResults()
+        return
+      }
+
+      this.searchTimeout = window.setTimeout(async () => {
+        this.showLoading()
+
+        try {
+          this.abortController = new AbortController()
+
+          const response = await fetch(`/api/search/?query=${encodeURIComponent(query)}`, {
+            signal: this.abortController.signal
+          })
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+          }
+
+          const results = await response.json()
+
+          if (results.error) {
+            throw new Error(results.error)
+          }
+
+          this.currentResults = results
+          this.selectedIndex = -1
+          this.renderResults()
+        } catch (error: any) {
+          if (error.name !== "AbortError") {
+            console.error("Search error:", error)
+            this.showError()
+          }
+        }
+      }, 200)
+    }
+
+    private showLoading() {
+      if (this.results) {
+        this.results.innerHTML = `
+          <div class="mixedbread-loading" role="status">
+            <div>Searching...</div>
+            <span class="sr-only">Loading search results</span>
+          </div>
+        `
+      }
+    }
+
+    private showError() {
+      if (this.results) {
+        this.results.innerHTML = `
+          <div class="mixedbread-error" role="alert">
+            Search failed. Please try again.
+          </div>
+        `
+      }
+    }
+
+    private showEmptyState() {
+      if (this.results) {
+        this.results.innerHTML = `
+          <div class="mixedbread-empty">
+            <div class="mixedbread-empty-icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <div class="mixedbread-empty-text">
+              Start typing to search documentation
+            </div>
+            <div class="mixedbread-empty-hint">
+              Search powered by Mixedbread
+            </div>
+          </div>
+        `
+      }
+    }
+
+    private renderNestedResults(result: SearchResult): string {
+      if (result.chunks.length === 0) {
+        return ""
+      }
+      const title = this.escapeHtml(result.chunks[0]!.title)
+      const snippet = this.escapeHtml(result.chunks[0]!.snippet)
+      const anchorId = this.escapeHtml(result.chunks[0]!.anchorId)
+      const href = `${result.urlPath}/#${anchorId}`
+      return `
+        <div class="mixedbread__result-nested">
+          <p class="mixedbread__result-title">
+            <a class="mixedbread__result-link" href="${href}">
+              ${title}
+            </a>
+          </p>
+          <p class="mixedbread__result-description">
+              ${snippet}
+          </p>
+        </div>
+      `
+    }
+
+    private renderSearchResult(result: SearchResult): string {
+      const title = this.escapeHtml(result.title)
+      const description = this.escapeHtml(result.description)
+      const href = result.urlPath.endsWith("/") ? result.urlPath : `${result.urlPath}/`
+      const nestedResults = this.renderNestedResults(result)
+      return `
+        <li class="mixedbread__result">
+          <div class="mixedbread__result-inner">
+            <div class="mixedbread__result-page">
+              <p class="mixedbread__result-title">
+                <a class="mixedbread__result-link" href=${href}>
+                  ${title}
+                </a>
+              </p>
+              <p class="mixedbread__result-description">
+                ${description}
+              </p>
+            </div>
+            ${nestedResults}
+          </div>
+        </li>
+      `
+    }
+
+    private renderResults() {
+      if (!this.results) return
+
+      if (this.currentResults.length === 0 && this.searchInput?.value) {
+        this.results.innerHTML = `
+          <div class="mixedbread-no-results" role="status">
+            No results found for "${this.escapeHtml(this.searchInput.value)}"
+          </div>
+        `
+        return
+      }
+
+      if (this.currentResults.length === 0) {
+        this.showEmptyState()
+        return
+      }
+
+      const resultsText =
+        this.currentResults.length === 1 ? "1 result found" : `${this.currentResults.length} results found`
+
+      this.results.innerHTML = `
+        <div class="sr-only" role="status">${resultsText}</div>
+        ${this.currentResults
+          .map((result) => {
+            const results = this.renderSearchResult(result)
+            return `
+              <ol class="mixedbread__results">
+                ${results}
+              </ol>
+            `
+          })
+          .join("")}
+      `
+
+      // <a
+      //   href="${result.urlPath}/"
+      //   class="mixedbread-hit ${isSelected ? "selected" : ""}"
+      //   data-index="${index}"
+      //   role="option"
+      //   aria-selected="${isSelected}"
+      //   aria-label="${this.escapeHtml(result.title)} - ${this.escapeHtml(result.description)}"
+      // >
+      //   ${results}
+      // </a>
+      // <div class="flex items-start justify-between mb-2">
+      //   <h3 class="font-medium text-sm leading-tight pr-4">
+      //     ${title}
+      //   </h3>
+      //   <div class="flex items-center space-x-2 flex-shrink-0 text-xs font-mono font-bold text-[--sl-color-accent] dark:text-gray-400">
+      //     <span>
+      //       Relevance: ${relevance}%
+      //     </span>
+      //   </div>
+      // </div>
+      //
+      // <p class="text-xs leading-relaxed line-clamp-2">
+      //   ${description}
+      // </p>
+
+      // Maintain keyboard navigation class if active
+      if (this.isKeyboardNavigating) {
+        this.results.classList.add("keyboard-nav")
+      }
+
+      // Add event listeners to results
+      this.results.querySelectorAll(".mixedbread-hit").forEach((hit) => {
+        hit.addEventListener("click", () => this.closeModal())
+
+        hit.addEventListener("mouseenter", (e) => {
+          if (!this.isKeyboardNavigating) {
+            const target = e.currentTarget as HTMLElement
+            this.hoveredIndex = parseInt(target.getAttribute("data-index") || "-1")
+            this.selectedIndex = -1
+          }
+        })
+
+        hit.addEventListener("mouseleave", () => {
+          if (!this.isKeyboardNavigating) {
+            this.hoveredIndex = -1
+          }
+        })
+      })
+    }
+
+    private navigateResults(direction: number) {
+      if (this.currentResults.length === 0) return
+
+      const previousIndex = this.selectedIndex
+
+      // Calculate new index without wrapping
+      if (direction > 0) {
+        // Moving down
+        if (this.selectedIndex === -1) {
+          this.selectedIndex = 0
+        } else if (this.selectedIndex < this.currentResults.length - 1) {
+          this.selectedIndex = this.selectedIndex + 1
+        }
+      } else {
+        // Moving up
+        if (this.selectedIndex === -1) {
+          this.selectedIndex = 0
+        } else if (this.selectedIndex > 0) {
+          this.selectedIndex = this.selectedIndex - 1
+        }
+      }
+
+      if (previousIndex !== this.selectedIndex) {
+        this.hoveredIndex = -1
+        this.renderResults()
+
+        if (this.selectedIndex >= 0) {
+          const selectedElement = this.results?.querySelector(`[data-index="${this.selectedIndex}"]`) as HTMLElement
+          selectedElement?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+
+          // Announce selection to screen readers
+          const announcement = document.createElement("div")
+          announcement.className = "sr-only"
+          announcement.setAttribute("role", "status")
+          announcement.setAttribute("aria-live", "polite")
+          announcement.textContent = `${this.selectedIndex + 1} of ${this.currentResults.length}. ${selectedElement?.getAttribute("aria-label")}`
+          this.results?.appendChild(announcement)
+          setTimeout(() => announcement.remove(), 1000)
+        }
+      }
+    }
+
+    private selectResult() {
+      if (this.selectedIndex >= 0 && this.currentResults[this.selectedIndex]) {
+        const result = this.currentResults[this.selectedIndex]!
+        window.location.href = result.urlPath
+        this.closeModal()
+      }
+    }
+
+    private updateClearButton(query: string) {
+      if (this.clearButton) {
+        if (query) {
+          this.clearButton.classList.add("show")
+          this.clearButton.removeAttribute("tabindex")
+        } else {
+          this.clearButton.classList.remove("show")
+          this.clearButton.setAttribute("tabindex", "-1")
+        }
+      }
+    }
+
+    private escapeHtml(text: string): string {
+      const div = document.createElement("div")
+      div.textContent = text
+      return div.innerHTML
+    }
+  }
+
+  customElements.define("sl-mixedbread-search", StarlightMixedbreadSearch)
+</script>
+
 <style is:global>
   .mixedbread-search-button {
     display: flex;
@@ -259,23 +772,19 @@ const mixedbreadTranslations = {
   }
 
   .mixedbread-results {
+    background: var(--sl-color-gray-6);
     flex: 1;
     overflow-y: auto;
     padding: 16px;
     overscroll-behavior: contain;
   }
 
-  /* Screen reader only text */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border-width: 0;
+  .mixedbread-results > * + * {
+    margin-top: 16px;
+  }
+
+  .mixedbread-results > .mixedbread__results:first-of-type {
+    margin-top: 0;
   }
 
   .mixedbread-results::-webkit-scrollbar {
@@ -295,34 +804,119 @@ const mixedbreadTranslations = {
     background: var(--sl-color-gray-4);
   }
 
-  .mixedbread-hit {
-    padding: 12px 16px;
-    border-radius: 0.375rem;
-    margin-bottom: 8px;
-    cursor: pointer;
-    background: transparent;
-    color: var(--sl-color-white);
-    text-decoration: none;
-    display: block;
-    transition: all 0.1s ease;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+  .mixedbread__results {
+    padding: 0;
   }
 
-  .mixedbread-hit:last-child {
-    margin-bottom: 0px;
+  .mixedbread__result {
+    display: flex;
+    align-items: flex-start;
+    border: 0;
+    padding: 0;
+    list-style-type: none;
   }
 
-  .mixedbread-hit:hover:not(.keyboard-nav .mixedbread-hit),
-  .mixedbread-hit.selected {
-    background: var(--sl-color-gray-6);
-    border-color: var(--sl-color-gray-5);
+  .mixedbread__result-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex: 1;
+    gap: 1px;
   }
 
-  .mixedbread-hit-title {
-    font-weight: 600;
-    margin-bottom: 4px;
-    font-size: 14px;
+  .mixedbread__result-inner > :first-child {
+    border-radius: 4px 4px 0 0;
+  }
+
+  .mixedbread__result-inner > :last-child {
+    border-radius: 0 0 4px 4px;
+  }
+
+  .mixedbread__result-page {
+    position: relative;
     line-height: 1.4;
+    background-color: var(--sl-color-black);
+  }
+
+  .mixedbread__result-page:hover {
+    outline: 1px solid var(--sl-color-accent-high);
+  }
+
+  .mixedbread__result-inner > .mixedbread__result-page {
+    padding-left: 48px;
+    padding-right: 16px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .mixedbread__result-inner > .mixedbread__result-page::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 12px;
+    width: 24px;
+    background: var(--sl-color-gray-3);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='currentColor' viewBox='0 0 24 24'%3E%3Cpath d='M9 10h1a1 1 0 1 0 0-2H9a1 1 0 0 0 0 2Zm0 2a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2H9Zm11-3V8l-6-6a1 1 0 0 0-1 0H7a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V9Zm-6-4 3 3h-2a1 1 0 0 1-1-1V5Zm4 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5v3a3 3 0 0 0 3 3h3v9Zm-3-3H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2Z'/%3E%3C/svg%3E")
+      center no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='currentColor' viewBox='0 0 24 24'%3E%3Cpath d='M9 10h1a1 1 0 1 0 0-2H9a1 1 0 0 0 0 2Zm0 2a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2H9Zm11-3V8l-6-6a1 1 0 0 0-1 0H7a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V9Zm-6-4 3 3h-2a1 1 0 0 1-1-1V5Zm4 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5v3a3 3 0 0 0 3 3h3v9Zm-3-3H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2Z'/%3E%3C/svg%3E")
+      center no-repeat;
+  }
+
+  .mixedbread__result-link {
+    color: var(--sl-color-white);
+    font-weight: 600;
+    text-decoration: none;
+    cursor: revert;
+  }
+
+  .mixedbread__result-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  .mixedbread__result-description {
+    display: inline-block;
+    font-weight: 400;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .mixedbread__result-nested {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding-left: 48px;
+    padding-right: 16px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    background-color: var(--sl-color-black);
+  }
+
+  .mixedbread__result-nested:hover {
+    outline: 1px solid var(--sl-color-accent-high);
+  }
+
+  .mixedbread__result-nested::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 8px;
+    width: 32px;
+    background: var(--sl-color-gray-4);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='currentColor' stroke-linecap='round' viewBox='0 0 16 1000' preserveAspectRatio='xMinYMin slice'%3E%3Cpath d='M8 0v1000m6-988H8'/%3E%3C/svg%3E")
+      0% 0% / 100% no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='currentColor' stroke-linecap='round' viewBox='0 0 16 1000' preserveAspectRatio='xMinYMin slice'%3E%3Cpath d='M8 0v1000m6-988H8'/%3E%3C/svg%3E")
+      0% 0% / 100% no-repeat;
+  }
+
+  .mixedbread__result-nested:last-of-type::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 16 16'%3E%3Cpath d='M8 0v12m6 0H8'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 16 16'%3E%3Cpath d='M8 0v12m6 0H8'/%3E%3C/svg%3E");
+  }
+
+  .mixedbread__result-nested > .mixedbread__result-title {
+    font-size: 14px;
   }
 
   .mixedbread-hit-content {
@@ -337,7 +931,6 @@ const mixedbreadTranslations = {
 
   .mixedbread-footer {
     padding: 14px 16px;
-    background: var(--sl-color-gray-7);
     border-top: 1px solid var(--sl-color-gray-5);
     display: flex;
     align-items: center;
@@ -435,457 +1028,17 @@ const mixedbreadTranslations = {
       font-size: 16px; /* Prevents zoom on iOS */
     }
   }
+
+  /* Screen reader only text */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
 </style>
-
-<script>
-  interface SearchResult {
-    id: string
-    title: string
-    content: string
-    url: string
-    score: number
-  }
-
-  class StarlightMixedbreadSearch extends HTMLElement {
-    private modal: HTMLElement | null = null
-    private searchInput: HTMLInputElement | null = null
-    private results: HTMLElement | null = null
-    private clearButton: HTMLButtonElement | null = null
-    private selectedIndex = -1
-    private hoveredIndex = -1
-    private currentResults: SearchResult[] = []
-    private searchTimeout: number | null = null
-    private abortController: AbortController | null = null
-    private isKeyboardNavigating = false
-
-    constructor() {
-      super()
-      this.init()
-    }
-
-    private init() {
-      this.createModal()
-      this.bindEvents()
-    }
-
-    private createModal() {
-      this.modal = document.createElement("div")
-      this.modal.className = "mixedbread-modal"
-      this.modal.setAttribute("role", "dialog")
-      this.modal.setAttribute("aria-modal", "true")
-      this.modal.setAttribute("aria-label", "Search")
-
-      this.modal.innerHTML = `
-        <div class="mixedbread-modal-container" role="document">
-          <div class="mixedbread-searchbox">
-            <input 
-              type="search" 
-              placeholder="Search documentation..." 
-              aria-label="Search documentation"
-              aria-describedby="search-instructions"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              spellcheck="false"
-              maxlength="64"
-            />
-            <button class="mixedbread-clear" aria-label="Clear search" type="button" tabindex="-1">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-              </svg>
-              <span class="sr-only">Clear</span>
-            </button>
-          </div>
-          <div class="mixedbread-results" role="listbox" aria-label="Search results" aria-live="polite"></div>
-          <div class="mixedbread-footer">
-            <span id="search-instructions" class="sr-only">
-              Type to search. Use arrow keys to navigate results. Press Enter to select. Press Escape to close.
-            </span>
-            <div class="mixedbread-shortcuts" aria-label="Keyboard shortcuts">
-              <span class="mixedbread-key" aria-label="Up arrow">↑</span>
-              <span class="mixedbread-key" aria-label="Down arrow">↓</span>
-              <span>to navigate</span>
-              <span class="mixedbread-key" aria-label="Enter key">↵</span>
-              <span>to select</span>
-              <span class="mixedbread-key" aria-label="Escape key">esc</span>
-              <span>to close</span>
-            </div>
-          </div>
-        </div>
-      `
-
-      document.body.appendChild(this.modal)
-      this.searchInput = this.modal.querySelector("input")
-      this.results = this.modal.querySelector(".mixedbread-results")
-      this.clearButton = this.modal.querySelector(".mixedbread-clear") as HTMLButtonElement
-    }
-
-    private bindEvents() {
-      const button = this.querySelector("button")
-      button?.addEventListener("click", () => this.openModal())
-
-      document.addEventListener("keydown", (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-          e.preventDefault()
-          this.openModal()
-        }
-      })
-
-      if (navigator.platform.includes("Mac")) {
-        document.body.classList.add("mac")
-      }
-
-      if (this.modal) {
-        // Click outside to close
-        this.modal.addEventListener("click", (e) => {
-          if (e.target === this.modal) {
-            this.closeModal()
-          }
-        })
-
-        this.modal.addEventListener("keydown", (e) => {
-          switch (e.key) {
-            case "Escape":
-              e.preventDefault()
-              this.closeModal()
-              break
-            case "ArrowDown":
-            case "ArrowUp":
-              e.preventDefault()
-              if (!this.isKeyboardNavigating) {
-                this.isKeyboardNavigating = true
-                if (this.selectedIndex === -1 && this.hoveredIndex >= 0) {
-                  this.selectedIndex = this.hoveredIndex
-                }
-              }
-              this.navigateResults(e.key === "ArrowDown" ? 1 : -1)
-              break
-            case "Enter":
-              e.preventDefault()
-              this.selectResult()
-              break
-          }
-        })
-
-        // Reset keyboard navigation on mouse movement
-        this.modal.addEventListener("mousemove", () => {
-          if (this.isKeyboardNavigating) {
-            this.isKeyboardNavigating = false
-            this.results?.classList.remove("keyboard-nav")
-          }
-        })
-      }
-
-      if (this.searchInput) {
-        // Handle search input
-        this.searchInput.addEventListener("input", (e) => {
-          const query = (e.target as HTMLInputElement).value
-          this.resetNavigationState()
-          this.handleSearch(query)
-          this.updateClearButton(query)
-        })
-
-        // Handle Tab key
-        this.searchInput.addEventListener("keydown", (e) => {
-          if (e.key === "Tab" && e.shiftKey) {
-            e.preventDefault()
-            this.closeModal()
-          }
-        })
-      }
-
-      if (this.clearButton) {
-        // Clear button click
-        this.clearButton.addEventListener("click", () => {
-          this.clearSearch()
-          this.searchInput?.focus()
-        })
-
-        // Clear button keyboard navigation
-        this.clearButton.addEventListener("keydown", (e) => {
-          if (e.key === "Tab") {
-            e.preventDefault()
-            if (e.shiftKey) {
-              this.searchInput?.focus()
-            } else if (this.currentResults.length > 0) {
-              this.selectedIndex = 0
-              this.renderResults()
-              const firstResult = this.results?.querySelector('[data-index="0"]') as HTMLElement
-              firstResult?.focus()
-            } else {
-              this.closeModal()
-            }
-          }
-        })
-      }
-    }
-
-    private openModal() {
-      if (!this.modal) return
-
-      document.body.classList.add("mixedbread-modal-open")
-      this.modal.classList.add("is-open")
-
-      // Focus input after modal animation
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          this.searchInput?.focus()
-          this.showEmptyState()
-        })
-      })
-    }
-
-    private closeModal() {
-      if (!this.modal) return
-
-      document.body.classList.remove("mixedbread-modal-open")
-      this.modal.classList.remove("is-open")
-      this.clearSearch()
-      this.abortController?.abort()
-    }
-
-    private clearSearch() {
-      if (this.searchInput) {
-        this.searchInput.value = ""
-      }
-      this.resetAllState()
-      this.updateClearButton("")
-      this.showEmptyState()
-    }
-
-    private resetNavigationState() {
-      this.isKeyboardNavigating = false
-      this.hoveredIndex = -1
-      this.selectedIndex = -1
-      this.results?.classList.remove("keyboard-nav")
-    }
-
-    private resetAllState() {
-      this.currentResults = []
-      this.resetNavigationState()
-    }
-
-    private async handleSearch(query: string) {
-      this.abortController?.abort()
-
-      if (this.searchTimeout) {
-        clearTimeout(this.searchTimeout)
-      }
-
-      if (!query.trim()) {
-        this.currentResults = []
-        this.renderResults()
-        return
-      }
-
-      this.searchTimeout = window.setTimeout(async () => {
-        this.showLoading()
-
-        try {
-          this.abortController = new AbortController()
-
-          const response = await fetch(`/api/search/?query=${encodeURIComponent(query)}`, {
-            signal: this.abortController.signal
-          })
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-          }
-
-          const results = await response.json()
-
-          if (results.error) {
-            throw new Error(results.error)
-          }
-
-          this.currentResults = results
-          this.selectedIndex = -1
-          this.renderResults()
-        } catch (error: any) {
-          if (error.name !== "AbortError") {
-            console.error("Search error:", error)
-            this.showError()
-          }
-        }
-      }, 200)
-    }
-
-    private showLoading() {
-      if (this.results) {
-        this.results.innerHTML = `
-          <div class="mixedbread-loading" role="status">
-            <div>Searching...</div>
-            <span class="sr-only">Loading search results</span>
-          </div>
-        `
-      }
-    }
-
-    private showError() {
-      if (this.results) {
-        this.results.innerHTML = `
-          <div class="mixedbread-error" role="alert">
-            Search failed. Please try again.
-          </div>
-        `
-      }
-    }
-
-    private showEmptyState() {
-      if (this.results) {
-        this.results.innerHTML = `
-          <div class="mixedbread-empty">
-            <div class="mixedbread-empty-icon" aria-hidden="true">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <div class="mixedbread-empty-text">
-              Start typing to search documentation
-            </div>
-            <div class="mixedbread-empty-hint">
-              Search powered by Mixedbread
-            </div>
-          </div>
-        `
-      }
-    }
-
-    private renderResults() {
-      if (!this.results) return
-
-      if (this.currentResults.length === 0 && this.searchInput?.value) {
-        this.results.innerHTML = `
-          <div class="mixedbread-no-results" role="status">
-            No results found for "${this.escapeHtml(this.searchInput.value)}"
-          </div>
-        `
-        return
-      }
-
-      if (this.currentResults.length === 0) {
-        this.showEmptyState()
-        return
-      }
-
-      const resultsText =
-        this.currentResults.length === 1 ? "1 result found" : `${this.currentResults.length} results found`
-
-      this.results.innerHTML = `
-        <div class="sr-only" role="status">${resultsText}</div>
-        ${this.currentResults
-          .map((result, index) => {
-            const isSelected = index === this.selectedIndex
-            return `
-              <a 
-                href="${result.url}/" 
-                class="mixedbread-hit ${isSelected ? "selected" : ""}" 
-                data-index="${index}"
-                role="option"
-                aria-selected="${isSelected}"
-                aria-label="${this.escapeHtml(result.title)}. ${this.escapeHtml(result.content)}"
-              >
-                <div class="mixedbread-hit-title">${this.escapeHtml(result.title)}</div>
-                <div class="mixedbread-hit-content">${this.escapeHtml(result.content)}</div>
-              </a>
-            `
-          })
-          .join("")}
-      `
-
-      // Maintain keyboard navigation class if active
-      if (this.isKeyboardNavigating) {
-        this.results.classList.add("keyboard-nav")
-      }
-
-      // Add event listeners to results
-      this.results.querySelectorAll(".mixedbread-hit").forEach((hit) => {
-        hit.addEventListener("click", () => this.closeModal())
-
-        hit.addEventListener("mouseenter", (e) => {
-          if (!this.isKeyboardNavigating) {
-            const target = e.currentTarget as HTMLElement
-            this.hoveredIndex = parseInt(target.getAttribute("data-index") || "-1")
-            this.selectedIndex = -1
-          }
-        })
-
-        hit.addEventListener("mouseleave", () => {
-          if (!this.isKeyboardNavigating) {
-            this.hoveredIndex = -1
-          }
-        })
-      })
-    }
-
-    private navigateResults(direction: number) {
-      if (this.currentResults.length === 0) return
-
-      const previousIndex = this.selectedIndex
-
-      // Calculate new index without wrapping
-      if (direction > 0) {
-        // Moving down
-        if (this.selectedIndex === -1) {
-          this.selectedIndex = 0
-        } else if (this.selectedIndex < this.currentResults.length - 1) {
-          this.selectedIndex = this.selectedIndex + 1
-        }
-      } else {
-        // Moving up
-        if (this.selectedIndex === -1) {
-          this.selectedIndex = 0
-        } else if (this.selectedIndex > 0) {
-          this.selectedIndex = this.selectedIndex - 1
-        }
-      }
-
-      if (previousIndex !== this.selectedIndex) {
-        this.hoveredIndex = -1
-        this.renderResults()
-
-        if (this.selectedIndex >= 0) {
-          const selectedElement = this.results?.querySelector(`[data-index="${this.selectedIndex}"]`) as HTMLElement
-          selectedElement?.scrollIntoView({ block: "nearest", behavior: "smooth" })
-
-          // Announce selection to screen readers
-          const announcement = document.createElement("div")
-          announcement.className = "sr-only"
-          announcement.setAttribute("role", "status")
-          announcement.setAttribute("aria-live", "polite")
-          announcement.textContent = `${this.selectedIndex + 1} of ${this.currentResults.length}. ${selectedElement?.getAttribute("aria-label")}`
-          this.results?.appendChild(announcement)
-          setTimeout(() => announcement.remove(), 1000)
-        }
-      }
-    }
-
-    private selectResult() {
-      if (this.selectedIndex >= 0 && this.currentResults[this.selectedIndex]) {
-        const result = this.currentResults[this.selectedIndex]
-        window.location.href = result.url
-        this.closeModal()
-      }
-    }
-
-    private updateClearButton(query: string) {
-      if (this.clearButton) {
-        if (query) {
-          this.clearButton.classList.add("show")
-          this.clearButton.removeAttribute("tabindex")
-        } else {
-          this.clearButton.classList.remove("show")
-          this.clearButton.setAttribute("tabindex", "-1")
-        }
-      }
-    }
-
-    private escapeHtml(text: string): string {
-      const div = document.createElement("div")
-      div.textContent = text
-      return div.innerHTML
-    }
-  }
-
-  customElements.define("sl-mixedbread-search", StarlightMixedbreadSearch)
-</script>
