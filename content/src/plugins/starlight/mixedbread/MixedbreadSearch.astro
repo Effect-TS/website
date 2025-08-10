@@ -1,33 +1,21 @@
 ---
 import "./variables.css"
 
-const pick = (keyStart: string) =>
-  Object.fromEntries(
-    Object.entries(Astro.locals.t.all())
-      .filter(([key]) => key.startsWith(keyStart))
-      .map(([key, value]) => [key.replace(keyStart, ""), value])
-  )
+const searchLabel = Astro.locals.t("search.label")
 
 const mixedbreadTranslations = {
-  placeholder: Astro.locals.t("search.label"),
+  placeholder: searchLabel,
   translations: {
     button: {
-      buttonText: Astro.locals.t("search.label"),
-      buttonAriaLabel: Astro.locals.t("search.label")
-    },
-    modal: {
-      searchBox: pick("mixedbread.searchBox."),
-      startScreen: pick("mixedbread.startScreen."),
-      errorScreen: pick("mixedbread.errorScreen."),
-      footer: pick("mixedbread.footer."),
-      noResultsScreen: pick("mixedbread.noResultsScreen.")
+      buttonText: searchLabel,
+      buttonAriaLabel: searchLabel
     }
   }
 }
 ---
 
 <sl-mixedbread-search data-translations={JSON.stringify(mixedbreadTranslations)}>
-  <button type="button" class="mixedbread-search mixedbread-search-button" aria-label={Astro.locals.t("search.label")}>
+  <button type="button" class="mixedbread-search mixedbread-search-button" aria-label={searchLabel}>
     <span class="mixedbread-button-container">
       <svg width="20" height="20" class="mixedbread-search-icon" viewBox="0 0 20 20">
         <path
@@ -38,7 +26,7 @@ const mixedbreadTranslations = {
           stroke-linecap="round"
           stroke-linejoin="round"></path>
       </svg>
-      <span class="mixedbread-button-placeholder">{Astro.locals.t("search.label")}</span>
+      <span class="mixedbread-button-placeholder">{searchLabel}</span>
     </span>
     <span class="mixedbread-button-keys"></span>
   </button>
@@ -46,6 +34,7 @@ const mixedbreadTranslations = {
 
 <script>
   import type { SearchResult } from "@/services/search/domain"
+  import MixedbreadLogoSvg from "./MixedbreadLogo.svg?raw"
 
   class StarlightMixedbreadSearch extends HTMLElement {
     private modal: HTMLElement | null = null
@@ -53,11 +42,12 @@ const mixedbreadTranslations = {
     private results: HTMLElement | null = null
     private clearButton: HTMLButtonElement | null = null
     private selectedIndex = -1
-    private hoveredIndex = -1
     private currentResults: SearchResult[] = []
     private searchTimeout: number | null = null
     private abortController: AbortController | null = null
     private isKeyboardNavigating = false
+    private readonly searchDelay = 200
+    private readonly requestTimeout = 10000
 
     constructor() {
       super()
@@ -67,6 +57,26 @@ const mixedbreadTranslations = {
     private init() {
       this.createModal()
       this.bindEvents()
+    }
+
+    private static createAnnouncement(message: string, container: Element | null): void {
+      const announcement = document.createElement("div")
+      announcement.className = "sr-only"
+      announcement.setAttribute("role", "status")
+      announcement.setAttribute("aria-live", "polite")
+      announcement.textContent = message
+      container?.appendChild(announcement)
+      setTimeout(() => announcement.remove(), 1000)
+    }
+
+    private static detectPlatform(): boolean {
+      return navigator.userAgentData?.platform?.includes("Mac") ?? navigator.platform.includes("Mac")
+    }
+
+    private static escapeHtml(text: string): string {
+      const div = document.createElement("div")
+      div.textContent = text
+      return div.innerHTML
     }
 
     private createModal() {
@@ -84,6 +94,8 @@ const mixedbreadTranslations = {
               placeholder="Search documentation..." 
               aria-label="Search documentation"
               aria-describedby="search-instructions"
+              aria-expanded="false"
+              aria-controls="search-results"
               autocomplete="off"
               autocorrect="off"
               autocapitalize="off"
@@ -97,18 +109,26 @@ const mixedbreadTranslations = {
               <span class="sr-only">Clear</span>
             </button>
           </div>
-          <div class="mixedbread-results" role="listbox" aria-label="Search results" aria-live="polite"></div>
+          <div id="search-results" class="mixedbread-results" role="region" aria-label="Search results" aria-live="polite"></div>
           <div class="mixedbread-footer">
             <span id="search-instructions" class="sr-only">
               Type to search. Use arrow keys to navigate results. Press Enter to select. Press Escape to close.
             </span>
-            <div class="mixedbread-shortcuts" aria-label="Keyboard shortcuts">
-              <span class="mixedbread-key" aria-label="Up arrow">↑</span>
-              <span class="mixedbread-key" aria-label="Down arrow">↓</span>
+            <div class="mixedbread-powered-by">
+              <div class="mixedbread-powered-by__logo">
+                ${MixedbreadLogoSvg}
+              </div>
+              <span>
+                Search powered by Mixedbread
+              </span>
+            </div>
+            <div class="mixedbread-shortcuts" aria-hidden="true">
+              <span class="mixedbread-key">↑</span>
+              <span class="mixedbread-key">↓</span>
               <span>to navigate</span>
-              <span class="mixedbread-key" aria-label="Enter key">↵</span>
+              <span class="mixedbread-key">↵</span>
               <span>to select</span>
-              <span class="mixedbread-key" aria-label="Escape key">esc</span>
+              <span class="mixedbread-key">esc</span>
               <span>to close</span>
             </div>
           </div>
@@ -132,7 +152,7 @@ const mixedbreadTranslations = {
         }
       })
 
-      if (navigator.platform.includes("Mac")) {
+      if (StarlightMixedbreadSearch.detectPlatform()) {
         document.body.classList.add("mac")
       }
 
@@ -158,9 +178,6 @@ const mixedbreadTranslations = {
               e.preventDefault()
               if (!this.isKeyboardNavigating) {
                 this.isKeyboardNavigating = true
-                if (this.selectedIndex === -1 && this.hoveredIndex >= 0) {
-                  this.selectedIndex = this.hoveredIndex
-                }
               }
               this.navigateResults(e.key === "ArrowDown" ? 1 : -1)
               break
@@ -191,9 +208,23 @@ const mixedbreadTranslations = {
 
         // Handle Tab key
         this.searchInput.addEventListener("keydown", (e) => {
-          if (e.key === "Tab" && e.shiftKey) {
-            e.preventDefault()
-            this.closeModal()
+          if (e.key === "Tab") {
+            if (e.shiftKey) {
+              e.preventDefault()
+              this.closeModal()
+            } else {
+              // Tab forward - go to clear button if visible, otherwise to first result
+              const clearButtonVisible = this.clearButton?.classList.contains("show")
+              if (!clearButtonVisible) {
+                const focusableLinks = this.getAllFocusableLinks()
+                if (focusableLinks.length > 0) {
+                  e.preventDefault()
+                  this.selectedIndex = 0
+                  focusableLinks[0]?.focus()
+                }
+              }
+              // If clear button is visible, let default tab behavior work
+            }
           }
         })
       }
@@ -211,13 +242,14 @@ const mixedbreadTranslations = {
             e.preventDefault()
             if (e.shiftKey) {
               this.searchInput?.focus()
-            } else if (this.currentResults.length > 0) {
-              this.selectedIndex = 0
-              this.renderResults()
-              const firstResult = this.results?.querySelector('[data-index="0"]') as HTMLElement
-              firstResult?.focus()
             } else {
-              this.closeModal()
+              const focusableLinks = this.getAllFocusableLinks()
+              if (focusableLinks.length > 0) {
+                this.selectedIndex = 0
+                focusableLinks[0]?.focus()
+              } else {
+                this.closeModal()
+              }
             }
           }
         })
@@ -259,9 +291,14 @@ const mixedbreadTranslations = {
 
     private resetNavigationState() {
       this.isKeyboardNavigating = false
-      this.hoveredIndex = -1
       this.selectedIndex = -1
       this.results?.classList.remove("keyboard-nav")
+
+      // Remove focus indicators from all links
+      const focusableLinks = this.getAllFocusableLinks()
+      focusableLinks.forEach((link) => {
+        link.classList.remove("keyboard-focused")
+      })
     }
 
     private resetAllState() {
@@ -278,6 +315,7 @@ const mixedbreadTranslations = {
 
       if (!query.trim()) {
         this.currentResults = []
+        this.searchInput?.setAttribute("aria-expanded", "false")
         this.renderResults()
         return
       }
@@ -288,9 +326,13 @@ const mixedbreadTranslations = {
         try {
           this.abortController = new AbortController()
 
+          const timeoutId = setTimeout(() => this.abortController?.abort(), this.requestTimeout)
+
           const response = await fetch(`/api/search/?query=${encodeURIComponent(query)}`, {
             signal: this.abortController.signal
           })
+
+          clearTimeout(timeoutId)
 
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`)
@@ -304,14 +346,25 @@ const mixedbreadTranslations = {
 
           this.currentResults = results
           this.selectedIndex = -1
+          this.searchInput?.setAttribute("aria-expanded", results.length > 0 ? "true" : "false")
           this.renderResults()
-        } catch (error: any) {
-          if (error.name !== "AbortError") {
+        } catch (error: unknown) {
+          if (error instanceof Error && error.name !== "AbortError") {
             console.error("Search error:", error)
-            this.showError()
+            let errorMessage = "Search failed. Please try again."
+
+            if (error.message.includes("fetch")) {
+              errorMessage = "Unable to connect to search service. Please check your connection."
+            } else if (error.message.includes("timeout")) {
+              errorMessage = "Search request timed out. Please try again."
+            } else if (error.message.includes("500")) {
+              errorMessage = "Search service is temporarily unavailable."
+            }
+
+            this.showError(errorMessage)
           }
         }
-      }, 200)
+      }, this.searchDelay)
     }
 
     private showLoading() {
@@ -325,13 +378,17 @@ const mixedbreadTranslations = {
       }
     }
 
-    private showError() {
+    private showError(message = "Search failed. Please try again.") {
       if (this.results) {
         this.results.innerHTML = `
           <div class="mixedbread-error" role="alert">
-            Search failed. Please try again.
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+            <div>${StarlightMixedbreadSearch.escapeHtml(message)}</div>
           </div>
         `
+        this.searchInput?.setAttribute("aria-expanded", "false")
       }
     }
 
@@ -347,9 +404,6 @@ const mixedbreadTranslations = {
             <div class="mixedbread-empty-text">
               Start typing to search documentation
             </div>
-            <div class="mixedbread-empty-hint">
-              Search powered by Mixedbread
-            </div>
           </div>
         `
       }
@@ -359,9 +413,13 @@ const mixedbreadTranslations = {
       if (result.chunks.length === 0) {
         return ""
       }
-      const title = this.escapeHtml(result.chunks[0]!.title)
-      const snippet = this.escapeHtml(result.chunks[0]!.snippet)
-      const anchorId = this.escapeHtml(result.chunks[0]!.anchorId)
+      const firstChunk = result.chunks[0]
+      if (!firstChunk) {
+        return ""
+      }
+      const title = StarlightMixedbreadSearch.escapeHtml(firstChunk.title)
+      const snippet = StarlightMixedbreadSearch.escapeHtml(firstChunk.snippet)
+      const anchorId = StarlightMixedbreadSearch.escapeHtml(firstChunk.anchorId)
       const href = `${result.urlPath}/#${anchorId}`
       return `
         <div class="mixedbread__result-nested">
@@ -378,8 +436,8 @@ const mixedbreadTranslations = {
     }
 
     private renderSearchResult(result: SearchResult): string {
-      const title = this.escapeHtml(result.title)
-      const description = this.escapeHtml(result.description)
+      const title = StarlightMixedbreadSearch.escapeHtml(result.title)
+      const description = StarlightMixedbreadSearch.escapeHtml(result.description)
       const href = result.urlPath.endsWith("/") ? result.urlPath : `${result.urlPath}/`
       const nestedResults = this.renderNestedResults(result)
       return `
@@ -407,7 +465,7 @@ const mixedbreadTranslations = {
       if (this.currentResults.length === 0 && this.searchInput?.value) {
         this.results.innerHTML = `
           <div class="mixedbread-no-results" role="status">
-            No results found for "${this.escapeHtml(this.searchInput.value)}"
+            No results found for "${StarlightMixedbreadSearch.escapeHtml(this.searchInput.value)}"
           </div>
         `
         return
@@ -435,58 +493,28 @@ const mixedbreadTranslations = {
           .join("")}
       `
 
-      // <a
-      //   href="${result.urlPath}/"
-      //   class="mixedbread-hit ${isSelected ? "selected" : ""}"
-      //   data-index="${index}"
-      //   role="option"
-      //   aria-selected="${isSelected}"
-      //   aria-label="${this.escapeHtml(result.title)} - ${this.escapeHtml(result.description)}"
-      // >
-      //   ${results}
-      // </a>
-      // <div class="flex items-start justify-between mb-2">
-      //   <h3 class="font-medium text-sm leading-tight pr-4">
-      //     ${title}
-      //   </h3>
-      //   <div class="flex items-center space-x-2 flex-shrink-0 text-xs font-mono font-bold text-[--sl-color-accent] dark:text-gray-400">
-      //     <span>
-      //       Relevance: ${relevance}%
-      //     </span>
-      //   </div>
-      // </div>
-      //
-      // <p class="text-xs leading-relaxed line-clamp-2">
-      //   ${description}
-      // </p>
-
       // Maintain keyboard navigation class if active
       if (this.isKeyboardNavigating) {
         this.results.classList.add("keyboard-nav")
       }
 
-      // Add event listeners to results
-      this.results.querySelectorAll(".mixedbread-hit").forEach((hit) => {
-        hit.addEventListener("click", () => this.closeModal())
-
-        hit.addEventListener("mouseenter", (e) => {
-          if (!this.isKeyboardNavigating) {
-            const target = e.currentTarget as HTMLElement
-            this.hoveredIndex = parseInt(target.getAttribute("data-index") || "-1")
-            this.selectedIndex = -1
-          }
-        })
-
-        hit.addEventListener("mouseleave", () => {
-          if (!this.isKeyboardNavigating) {
-            this.hoveredIndex = -1
-          }
+      // Add click event listeners to all result links to close modal
+      const focusableLinks = this.getAllFocusableLinks()
+      focusableLinks.forEach((link) => {
+        link.addEventListener("click", () => {
+          this.closeModal()
         })
       })
     }
 
+    private getAllFocusableLinks(): HTMLElement[] {
+      if (!this.results) return []
+      return Array.from(this.results.querySelectorAll(".mixedbread__result-link")) as HTMLElement[]
+    }
+
     private navigateResults(direction: number) {
-      if (this.currentResults.length === 0) return
+      const focusableLinks = this.getAllFocusableLinks()
+      if (focusableLinks.length === 0) return
 
       const previousIndex = this.selectedIndex
 
@@ -495,7 +523,7 @@ const mixedbreadTranslations = {
         // Moving down
         if (this.selectedIndex === -1) {
           this.selectedIndex = 0
-        } else if (this.selectedIndex < this.currentResults.length - 1) {
+        } else if (this.selectedIndex < focusableLinks.length - 1) {
           this.selectedIndex = this.selectedIndex + 1
         }
       } else {
@@ -508,29 +536,36 @@ const mixedbreadTranslations = {
       }
 
       if (previousIndex !== this.selectedIndex) {
-        this.hoveredIndex = -1
-        this.renderResults()
+        // Remove focus from all links
+        focusableLinks.forEach((link) => {
+          link.classList.remove("keyboard-focused")
+          link.blur()
+        })
 
+        // Focus and highlight the selected link
         if (this.selectedIndex >= 0) {
-          const selectedElement = this.results?.querySelector(`[data-index="${this.selectedIndex}"]`) as HTMLElement
-          selectedElement?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+          const selectedLink = focusableLinks[this.selectedIndex]
+          if (selectedLink) {
+            selectedLink.classList.add("keyboard-focused")
+            selectedLink.focus()
+            selectedLink.scrollIntoView({ block: "nearest", behavior: "smooth" })
 
-          // Announce selection to screen readers
-          const announcement = document.createElement("div")
-          announcement.className = "sr-only"
-          announcement.setAttribute("role", "status")
-          announcement.setAttribute("aria-live", "polite")
-          announcement.textContent = `${this.selectedIndex + 1} of ${this.currentResults.length}. ${selectedElement?.getAttribute("aria-label")}`
-          this.results?.appendChild(announcement)
-          setTimeout(() => announcement.remove(), 1000)
+            // Announce selection to screen readers
+            const linkText = selectedLink.textContent || selectedLink.getAttribute("aria-label") || ""
+            const message = `${this.selectedIndex + 1} of ${focusableLinks.length}: ${linkText}`
+            StarlightMixedbreadSearch.createAnnouncement(message, this.results)
+          }
         }
       }
     }
 
     private selectResult() {
-      if (this.selectedIndex >= 0 && this.currentResults[this.selectedIndex]) {
-        const result = this.currentResults[this.selectedIndex]!
-        window.location.href = result.urlPath
+      const focusableLinks = this.getAllFocusableLinks()
+      const selectedLink = focusableLinks[this.selectedIndex]
+
+      if (selectedLink && this.selectedIndex >= 0) {
+        // Trigger click on the focused link
+        selectedLink.click()
         this.closeModal()
       }
     }
@@ -546,18 +581,21 @@ const mixedbreadTranslations = {
         }
       }
     }
-
-    private escapeHtml(text: string): string {
-      const div = document.createElement("div")
-      div.textContent = text
-      return div.innerHTML
-    }
   }
 
   customElements.define("sl-mixedbread-search", StarlightMixedbreadSearch)
 </script>
 
 <style is:global>
+  :root {
+    --mixedbread-border-color: var(--sl-color-gray-5);
+    --mixedbread-bg-primary: var(--sl-color-black);
+    --mixedbread-text-primary: var(--sl-color-white);
+    --mixedbread-text-muted: var(--sl-color-gray-3);
+    --mixedbread-border-radius: 0.375rem;
+    --mixedbread-transition: all 0.15s ease;
+  }
+
   .mixedbread-search-button {
     display: flex;
     align-items: center;
@@ -591,21 +629,21 @@ const mixedbreadTranslations = {
     }
 
     .mixedbread-search-button {
-      border: 1px solid var(--sl-color-gray-5);
-      border-radius: 0.375rem;
+      border: 1px solid var(--mixedbread-border-color);
+      border-radius: var(--mixedbread-border-radius);
       padding-inline-start: 0.75rem;
       padding-inline-end: 1rem;
-      background-color: var(--sl-color-black);
+      background-color: var(--mixedbread-bg-primary);
       color: var(--sl-color-gray-2);
       font-size: var(--sl-text-sm);
       width: 100%;
       max-width: 22rem;
-      transition: all 0.15s ease;
+      transition: var(--mixedbread-transition);
     }
 
     .mixedbread-search-button:hover {
       border-color: var(--sl-color-gray-2);
-      color: var(--sl-color-white);
+      color: var(--mixedbread-text-primary);
       box-shadow: 0 0 0 1px var(--sl-color-gray-2);
     }
 
@@ -662,9 +700,9 @@ const mixedbreadTranslations = {
   }
 
   .mixedbread-modal-container {
-    background: var(--sl-color-black);
-    border: 1px solid var(--sl-color-gray-5);
-    border-radius: 0.5rem;
+    background: var(--mixedbread-bg-primary);
+    border: 1px solid var(--mixedbread-border-color);
+    border-radius: var(--mixedbread-border-radius);
     box-shadow:
       0 20px 25px -5px rgba(0, 0, 0, 0.1),
       0 10px 10px -5px rgba(0, 0, 0, 0.04),
@@ -685,7 +723,7 @@ const mixedbreadTranslations = {
 
   .mixedbread-searchbox {
     padding: 0;
-    border-bottom: 1px solid var(--sl-color-gray-5);
+    border-bottom: 1px solid var(--mixedbread-border-color);
     position: relative;
   }
 
@@ -867,12 +905,31 @@ const mixedbreadTranslations = {
     font-weight: 600;
     text-decoration: none;
     cursor: revert;
+    border-radius: 4px;
+    outline: none;
+  }
+
+  .mixedbread__result-link:focus,
+  .mixedbread__result-link.keyboard-focused {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
   }
 
   .mixedbread__result-link::after {
     content: "";
     position: absolute;
     inset: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .mixedbread__result-link:focus::after,
+  .mixedbread__result-link.keyboard-focused::after {
+    background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent);
+    border-color: color-mix(in srgb, var(--sl-color-accent) 100%, black 40%);
   }
 
   .mixedbread__result-description {
@@ -919,24 +976,26 @@ const mixedbreadTranslations = {
     font-size: 14px;
   }
 
-  .mixedbread-hit-content {
-    color: var(--sl-color-gray-2);
-    font-size: 13px;
-    line-height: 1.5;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-
   .mixedbread-footer {
     padding: 14px 16px;
-    border-top: 1px solid var(--sl-color-gray-5);
+    border-top: 1px solid var(--mixedbread-border-color);
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     font-size: 12px;
-    color: var(--sl-color-gray-3);
+    color: var(--mixedbread-text-muted);
+  }
+
+  .mixedbread-powered-by {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .mixedbread-powered-by__logo {
+    height: 20px;
+    width: 20px;
   }
 
   .mixedbread-shortcuts {
@@ -983,12 +1042,6 @@ const mixedbreadTranslations = {
     line-height: 1.6;
   }
 
-  .mixedbread-empty-hint {
-    margin-top: 8px;
-    font-size: 13px;
-    color: var(--sl-color-gray-4);
-  }
-
   .mixedbread-loading::before {
     content: "";
     display: inline-block;
@@ -1009,6 +1062,16 @@ const mixedbreadTranslations = {
 
   .mixedbread-error {
     color: #ef4444;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mixedbread-error svg {
+    width: 24px;
+    height: 24px;
+    opacity: 0.7;
   }
 
   @media (max-width: 640px) {
@@ -1026,6 +1089,20 @@ const mixedbreadTranslations = {
 
     .mixedbread-searchbox input {
       font-size: 16px; /* Prevents zoom on iOS */
+    }
+
+    .mixedbread-footer {
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .mixedbread-powered-by {
+      order: 2;
+    }
+
+    .mixedbread-shortcuts {
+      order: 1;
     }
   }
 
