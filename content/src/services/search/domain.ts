@@ -15,7 +15,11 @@ export type Metadata = typeof Metadata.Type
 
 export const GeneratedMetadata = Schema.Struct({
   title: Schema.String,
-  description: Schema.String,
+  description: Schema.optionalWith(Schema.String, {
+    exact: true,
+    nullable: true,
+    default: () => ""
+  }),
   language: Schema.String,
   sidebar: Schema.String,
   order: Schema.String,

@@ -140,6 +140,12 @@ const mixedbreadTranslations = {
               </svg>
               <span class="sr-only">Clear</span>
             </button>
+            <button class="mixedbread-close" aria-label="Close search" type="button">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+              <span class="sr-only">Close</span>
+            </button>
           </div>
           <div id="search-results" class="mixedbread-results" role="region" aria-label="Search results" aria-live="polite"></div>
           <div class="mixedbread-footer">
@@ -290,6 +296,14 @@ const mixedbreadTranslations = {
               }
             }
           }
+        })
+      }
+
+      // Close button event handlers
+      const closeButton = this.modal?.querySelector(".mixedbread-close") as HTMLButtonElement
+      if (closeButton) {
+        closeButton.addEventListener("click", () => {
+          this.closeModal()
         })
       }
     }
@@ -868,6 +882,43 @@ const mixedbreadTranslations = {
     height: 16px;
   }
 
+  .mixedbread-close {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-gray-2);
+    cursor: pointer;
+    border-radius: 6px;
+    transition:
+      opacity 0.15s ease,
+      color 0.15s ease,
+      background-color 0.15s ease;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+  }
+
+  .mixedbread-close:hover {
+    color: var(--sl-color-white);
+    background: var(--sl-color-gray-5);
+  }
+
+  .mixedbread-close:focus {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+
+  .mixedbread-close svg {
+    width: 20px;
+    height: 20px;
+  }
+
   .mixedbread-results {
     background: var(--sl-color-gray-6);
     flex: 1;
@@ -1162,6 +1213,10 @@ const mixedbreadTranslations = {
 
     .mixedbread-shortcuts {
       order: 1;
+    }
+
+    .mixedbread-close {
+      display: flex;
     }
   }
 
