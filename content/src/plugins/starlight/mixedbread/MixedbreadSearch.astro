@@ -28,12 +28,15 @@ const mixedbreadTranslations = {
       </svg>
       <span class="mixedbread-button-placeholder">{searchLabel}</span>
     </span>
-    <span class="mixedbread-button-keys"></span>
+    <kbd class="mixedbread-button-kbd">
+      <kbd>⌘</kbd>
+      <kbd>K</kbd>
+    </kbd>
   </button>
 </sl-mixedbread-search>
 
 <script>
-  import type { SearchResult } from "@/services/search/domain"
+  import type { SearchResult, SearchResultChunk } from "@/services/search/domain"
   import MixedbreadLogoSvg from "./MixedbreadLogo.svg?raw"
 
   class StarlightMixedbreadSearch extends HTMLElement {
@@ -57,6 +60,26 @@ const mixedbreadTranslations = {
     private init() {
       this.createModal()
       this.bindEvents()
+      // Update keyboard shortcuts after DOM is ready
+      setTimeout(() => {
+        if (StarlightMixedbreadSearch.detectPlatform()) {
+          document.body.classList.add("mac")
+          this.updateKeyboardShortcuts(true)
+        } else {
+          this.updateKeyboardShortcuts(false)
+        }
+      }, 0)
+    }
+
+    private updateKeyboardShortcuts(isMac: boolean) {
+      const kbdContainer = this.querySelector(".mixedbread-button-kbd")
+      if (kbdContainer) {
+        if (isMac) {
+          kbdContainer.innerHTML = "<kbd>⌘</kbd><kbd>K</kbd>"
+        } else {
+          kbdContainer.innerHTML = "<kbd>Ctrl</kbd><kbd>K</kbd>"
+        }
+      }
     }
 
     private static createAnnouncement(message: string, container: Element | null): void {
@@ -70,7 +93,16 @@ const mixedbreadTranslations = {
     }
 
     private static detectPlatform(): boolean {
-      return navigator.userAgentData?.platform?.includes("Mac") ?? navigator.platform.includes("Mac")
+      // Check multiple ways to detect Mac
+      // @ts-expect-error
+      const platform = navigator.platform || navigator.userAgentData?.platform || ""
+      const userAgent = navigator.userAgent || ""
+
+      return (
+        platform.toLowerCase().includes("mac") ||
+        userAgent.toLowerCase().includes("mac") ||
+        userAgent.toLowerCase().includes("darwin")
+      )
     }
 
     private static escapeHtml(text: string): string {
@@ -150,15 +182,21 @@ const mixedbreadTranslations = {
           e.preventDefault()
           this.openModal()
         }
+        // Global escape handler when modal is open
+        if (e.key === "Escape" && this.modal?.classList.contains("is-open")) {
+          e.preventDefault()
+          this.closeModal()
+        }
       })
-
-      if (StarlightMixedbreadSearch.detectPlatform()) {
-        document.body.classList.add("mac")
-      }
 
       if (this.modal) {
         // Click outside to close
         this.modal.addEventListener("click", (e) => {
+          // Close modal if clicking on the backdrop (modal itself, not the container)
+          if (e.target === this.modal) {
+            this.closeModal()
+          }
+          // Also close when clicking result links
           if (e.target instanceof HTMLAnchorElement) {
             const modal = e.target.closest(".mixedbread-modal")
             if (modal === this.modal) {
@@ -262,13 +300,16 @@ const mixedbreadTranslations = {
       document.body.classList.add("mixedbread-modal-open")
       this.modal.classList.add("is-open")
 
-      // Focus input after modal animation
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          this.searchInput?.focus()
-          this.showEmptyState()
-        })
-      })
+      // Focus input after modal animation with more robust timing
+      setTimeout(() => {
+        const input = this.modal?.querySelector("input") as HTMLInputElement
+        if (input) {
+          input.focus()
+          // Ensure cursor is at end of any existing text
+          input.setSelectionRange(input.value.length, input.value.length)
+        }
+        this.showEmptyState()
+      }, 150) // Wait for CSS transition to complete
     }
 
     private closeModal() {
@@ -409,18 +450,11 @@ const mixedbreadTranslations = {
       }
     }
 
-    private renderNestedResults(result: SearchResult): string {
-      if (result.chunks.length === 0) {
-        return ""
-      }
-      const firstChunk = result.chunks[0]
-      if (!firstChunk) {
-        return ""
-      }
-      const title = StarlightMixedbreadSearch.escapeHtml(firstChunk.title)
-      const snippet = StarlightMixedbreadSearch.escapeHtml(firstChunk.snippet)
-      const anchorId = StarlightMixedbreadSearch.escapeHtml(firstChunk.anchorId)
-      const href = `${result.urlPath}/#${anchorId}`
+    private renderChunk(urlPath: string, chunk: SearchResultChunk): string {
+      const title = StarlightMixedbreadSearch.escapeHtml(chunk.title)
+      const snippet = StarlightMixedbreadSearch.escapeHtml(chunk.snippet)
+      const anchorId = StarlightMixedbreadSearch.escapeHtml(chunk.anchorId)
+      const href = `${urlPath}/#${anchorId}`
       return `
         <div class="mixedbread__result-nested">
           <p class="mixedbread__result-title">
@@ -433,6 +467,13 @@ const mixedbreadTranslations = {
           </p>
         </div>
       `
+    }
+
+    private renderNestedResults(result: SearchResult): string {
+      if (result.chunks.length === 0) {
+        return ""
+      }
+      return result.chunks.map((chunk) => this.renderChunk(result.urlPath, chunk)).join("\n")
     }
 
     private renderSearchResult(result: SearchResult): string {
@@ -561,12 +602,30 @@ const mixedbreadTranslations = {
 
     private selectResult() {
       const focusableLinks = this.getAllFocusableLinks()
-      const selectedLink = focusableLinks[this.selectedIndex]
 
+      // Check if there's a currently focused link (from Tab navigation)
+      const focusedElement = document.activeElement as HTMLAnchorElement
+      if (focusedElement && focusedElement.classList.contains("mixedbread__result-link")) {
+        const href = focusedElement.getAttribute("href")
+        if (href) {
+          window.location.href = href
+          this.closeModal()
+          return
+        }
+      }
+
+      // Fallback to keyboard navigation selection
+      const selectedLink = focusableLinks[this.selectedIndex]
       if (selectedLink && this.selectedIndex >= 0) {
-        // Trigger click on the focused link
-        selectedLink.click()
-        this.closeModal()
+        const href = selectedLink.getAttribute("href")
+        if (href) {
+          window.location.href = href
+          this.closeModal()
+        } else {
+          // Fallback to click if no href
+          selectedLink.click()
+          this.closeModal()
+        }
       }
     }
 
@@ -619,7 +678,7 @@ const mixedbreadTranslations = {
   }
 
   .mixedbread-button-placeholder,
-  .mixedbread-button-keys {
+  .mixedbread-button-kbd {
     display: none;
   }
 
@@ -632,7 +691,7 @@ const mixedbreadTranslations = {
       border: 1px solid var(--mixedbread-border-color);
       border-radius: var(--mixedbread-border-radius);
       padding-inline-start: 0.75rem;
-      padding-inline-end: 1rem;
+      padding-inline-end: 0.5rem;
       background-color: var(--mixedbread-bg-primary);
       color: var(--sl-color-gray-2);
       font-size: var(--sl-text-sm);
@@ -648,25 +707,25 @@ const mixedbreadTranslations = {
     }
 
     .mixedbread-button-placeholder,
-    .mixedbread-button-keys {
+    .mixedbread-button-kbd {
       display: flex;
       align-items: center;
     }
 
-    .mixedbread-button-keys {
+    .mixedbread-button-kbd {
+      display: flex;
+      gap: 0.25em;
       margin-inline-start: auto;
-      gap: 0.25rem;
       opacity: 0.7;
-    }
-
-    .mixedbread-button-keys::before {
-      content: "⌘K";
-      font-size: 0.75rem;
+      font-size: var(--sl-text-2xs);
       font-weight: 500;
-    }
-
-    body:not(.mac) .mixedbread-button-keys::before {
-      content: "Ctrl K";
+      background: var(--sl-color-gray-6);
+      border: 1px solid var(--sl-color-gray-5);
+      border-radius: 0.25rem;
+      padding-inline: 0.375rem;
+      color: var(--sl-color-gray-1);
+      text-align: center;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
   }
 
