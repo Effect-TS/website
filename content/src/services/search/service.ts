@@ -20,12 +20,32 @@ export class Search extends Effect.Service<Search>()("app/Search", {
     function extractSnippet(text: string, maxLength: number = 150): string {
       // Remove markdown and clean up the text
       let cleaned = text
-        .replace(/^#{1,6}\s+/gm, '')
+        // Remove import statements
+        .replace(/^import\s+.*$/gm, '')
+        // Remove MDX React components (self-closing and with children)
+        .replace(/<[A-Z][^>]*\/>/g, '')
+        .replace(/<[A-Z][^>]*>[\s\S]*?<\/[A-Z][^>]*>/g, '')
+        // Remove any remaining JSX/HTML tags
+        .replace(/<[^>]*>/g, '')
+        // Remove markdown tables
+        .replace(/^\|.*\|$/gm, '')
+        .replace(/^\|?[-:\s|]+\|?$/gm, '')
+        // Remove markdown headers entirely (including the text)
+        .replace(/^#{1,6}\s+.*$/gm, '')
+        // Remove code blocks
         .replace(/```[\s\S]*?```/g, '')
+        // Remove inline code
         .replace(/`([^`]+)`/g, '$1')
+        // Remove markdown links
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        // Remove markdown emphasis
         .replace(/[*_]/g, '')
-        .replace(/^---[\s\S]*?---/m, '')
+        // Remove frontmatter (YAML blocks between --- delimiters)
+        .replace(/^---\n[\s\S]*?\n---\n?/m, '')
+        .replace(/---\n[\s\S]*?\n---/g, '')
+        // Remove any remaining YAML key-value pairs
+        .replace(/^\w+:\s*.*$/gm, '')
+        // Clean up whitespace
         .replace(/\n+/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
