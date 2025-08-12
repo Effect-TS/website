@@ -46,14 +46,12 @@ const mixedbreadTranslations = {
     private clearButton: HTMLButtonElement | null = null
     private selectedIndex = -1
     private currentResults: SearchResult[] = []
-    private searchTimeouts: Map<string, number> = new Map()
     private activeRequests: Map<string, { controller: AbortController; timestamp: number }> = new Map()
     private lastSearchTerm: string = ""
     private typingTimer: number | null = null
     private isKeyboardNavigating = false
     private readonly baseSearchDelay = 300
     private readonly maxRequestTimeout = 30000
-    private readonly typingIdleThreshold = 500
 
     constructor() {
       super()
@@ -248,22 +246,21 @@ const mixedbreadTranslations = {
         // Handle search input
         this.searchInput.addEventListener("input", (e) => {
           const query = (e.target as HTMLInputElement).value.trim()
-          
+
           // Clear existing typing timer
           if (this.typingTimer) {
             clearTimeout(this.typingTimer)
           }
-          
+
           // Detect if this is continuation of same search
-          const isContinuation = query.startsWith(this.lastSearchTerm) || 
-                                this.lastSearchTerm.startsWith(query)
-          
+          const isContinuation = query.startsWith(this.lastSearchTerm) || this.lastSearchTerm.startsWith(query)
+
           // Use adaptive delay
           const delay = isContinuation ? this.baseSearchDelay : this.baseSearchDelay / 2
-          
+
           this.resetNavigationState()
           this.updateClearButton(query)
-          
+
           // Set new typing timer with adaptive delay
           this.typingTimer = window.setTimeout(() => {
             this.handleSearchWithDeduplication(query)
@@ -352,7 +349,7 @@ const mixedbreadTranslations = {
       document.body.classList.remove("mixedbread-modal-open")
       this.modal.classList.remove("is-open")
       this.clearSearch()
-      
+
       // Only abort requests if user explicitly closes modal (not on navigation)
       // Allow completed searches to finish for better caching
       setTimeout(() => {
@@ -425,7 +422,7 @@ const mixedbreadTranslations = {
           controller: abortController,
           timestamp: Date.now()
         }
-        
+
         this.activeRequests.set(query, requestInfo)
         this.showLoading()
 
@@ -465,14 +462,13 @@ const mixedbreadTranslations = {
 
         // Clean up successful request
         this.activeRequests.delete(query)
-
       } catch (error: unknown) {
         // Clean up failed request
         this.activeRequests.delete(query)
-        
+
         if (error instanceof Error && error.name !== "AbortError") {
           console.error("Search error:", error)
-          
+
           // Only show error if this was the most recent search
           if (query === this.lastSearchTerm) {
             let errorMessage = "Search failed. Please try again."
@@ -501,7 +497,7 @@ const mixedbreadTranslations = {
     }
 
     private clearActiveRequests() {
-      for (const [query, requestInfo] of this.activeRequests.entries()) {
+      for (const requestInfo of this.activeRequests.values()) {
         requestInfo.controller.abort()
       }
       this.activeRequests.clear()
