@@ -14,11 +14,15 @@ runs:
   steps:
     - name: Install pnpm
       uses: pnpm/action-setup@v3
+      working-directory: ${{ inputs.working-directory }}
+
     - name: Install node
       uses: actions/setup-node@v4
+      working-directory: ${{ inputs.working-directory }}
       with:
         cache: pnpm
         node-version: ${{ inputs.node-version }}
+
     - name: Install dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
