@@ -8,13 +8,15 @@ inputs:
   working-directory:
     description: The directory within which dependencies should be installed with PNPM
     required: true
+    default: .
 
 runs:
   using: composite
   steps:
     - name: Install pnpm
       uses: pnpm/action-setup@v3
-      working-directory: ${{ inputs.working-directory }}
+      with: 
+        package_json_file: ${{ inputs.working-directory }}/package.json
 
     - name: Install node
       uses: actions/setup-node@v4
