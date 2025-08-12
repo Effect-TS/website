@@ -7,7 +7,7 @@ import * as HttpServer from "@effect/platform/HttpServer"
 
 export const prerender = false
 
-const handler = RpcServer.toWebHandler(ShortenRpcs, {
+const { dispose, handler } = RpcServer.toWebHandler(ShortenRpcs, {
   layer: Layer.mergeAll(
     ShortenLayer,
     RpcSerialization.layerJson,
@@ -15,4 +15,17 @@ const handler = RpcServer.toWebHandler(ShortenRpcs, {
   )
 })
 
-export const POST: APIRoute = ({ request }) => handler.handler(request)
+export const POST: APIRoute = ({ request }) => handler(request)
+
+function cleanup() {
+  dispose().then(
+    () => {
+      process.exit(0)
+    },
+    () => {
+      process.exit(1)
+    },
+  )
+}
+
+process.on("SIGINT", cleanup)
