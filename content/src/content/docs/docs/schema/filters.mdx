@@ -218,6 +218,81 @@ The error is formatted in a structured way using `ArrayFormatter`, allowing for 
   [ArrayFormatter](/docs/schema/error-formatters/#arrayformatter).
 </Aside>
 
+## Specifying Nested Error Paths
+
+When defining custom validation logic with `Schema.filter`, you can precisely pinpoint where an error occurred within nested structures by specifying a nested path.
+
+**Example** (Conditional Discount)
+
+```ts twoslash
+import { Either, ParseResult, Schema } from "effect"
+
+const Product = Schema.Struct({
+  id: Schema.NonEmptyString,
+  name: Schema.NonEmptyString,
+  pricing: Schema.Struct({
+    base: Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)),
+    discountPercentage: Schema.optional(
+      Schema.Number.pipe(
+        Schema.greaterThanOrEqualTo(0),
+        Schema.lessThanOrEqualTo(100)
+      )
+    )
+  })
+}).pipe(
+  Schema.filter((input) => {
+    const issues: Array<Schema.FilterIssue> = []
+
+    const MIN_PRICE_FOR_DISCOUNT = 50
+
+    if (
+      input.pricing.discountPercentage !== undefined && input.pricing.discountPercentage > 0 &&
+      input.pricing.base < MIN_PRICE_FOR_DISCOUNT
+    ) {
+      issues.push({
+        path: ["pricing", "discountPercentage"], // Report the error to the `pricing.discountPercentage` path
+        message: `Discount can only be applied if base price is at least ${MIN_PRICE_FOR_DISCOUNT}.`
+      })
+    }
+    return issues
+  })
+)
+
+
+console.log(
+  JSON.stringify(
+    Schema.decodeUnknownEither(Product)({
+      id: "P001",
+      name: "Widget",
+      pricing: {
+        base: 25,
+        discountPercentage: 20
+      }
+    }).pipe(
+      Either.mapLeft((error) => ParseResult.ArrayFormatter.formatErrorSync(error))
+    ),
+    null,
+    2
+  )
+)
+/**
+{
+  "_id": "Either",
+  "_tag": "Left",
+  "left": [
+    {
+      "_tag": "Type",
+      "path": [
+        "pricing",
+        "discountPercentage"
+      ],
+      "message": "Discount can only be applied if base price is at least 50."
+    }
+  ]
+}
+ */
+```
+
 ## Multiple Error Reporting
 
 The `Schema.filter` API supports reporting multiple validation issues at once, which is especially useful in scenarios like form validation where several checks might fail simultaneously.
