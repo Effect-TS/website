@@ -46,11 +46,14 @@ const mixedbreadTranslations = {
     private clearButton: HTMLButtonElement | null = null
     private selectedIndex = -1
     private currentResults: SearchResult[] = []
-    private searchTimeout: number | null = null
-    private abortController: AbortController | null = null
+    private searchTimeouts: Map<string, number> = new Map()
+    private activeRequests: Map<string, { controller: AbortController; timestamp: number }> = new Map()
+    private lastSearchTerm: string = ""
+    private typingTimer: number | null = null
     private isKeyboardNavigating = false
-    private readonly searchDelay = 200
-    private readonly requestTimeout = 10000
+    private readonly baseSearchDelay = 300
+    private readonly maxRequestTimeout = 30000
+    private readonly typingIdleThreshold = 500
 
     constructor() {
       super()
@@ -244,10 +247,27 @@ const mixedbreadTranslations = {
       if (this.searchInput) {
         // Handle search input
         this.searchInput.addEventListener("input", (e) => {
-          const query = (e.target as HTMLInputElement).value
+          const query = (e.target as HTMLInputElement).value.trim()
+          
+          // Clear existing typing timer
+          if (this.typingTimer) {
+            clearTimeout(this.typingTimer)
+          }
+          
+          // Detect if this is continuation of same search
+          const isContinuation = query.startsWith(this.lastSearchTerm) || 
+                                this.lastSearchTerm.startsWith(query)
+          
+          // Use adaptive delay
+          const delay = isContinuation ? this.baseSearchDelay : this.baseSearchDelay / 2
+          
           this.resetNavigationState()
-          this.handleSearch(query)
           this.updateClearButton(query)
+          
+          // Set new typing timer with adaptive delay
+          this.typingTimer = window.setTimeout(() => {
+            this.handleSearchWithDeduplication(query)
+          }, delay)
         })
 
         // Handle Tab key
@@ -332,12 +352,23 @@ const mixedbreadTranslations = {
       document.body.classList.remove("mixedbread-modal-open")
       this.modal.classList.remove("is-open")
       this.clearSearch()
-      this.abortController?.abort()
+      
+      // Only abort requests if user explicitly closes modal (not on navigation)
+      // Allow completed searches to finish for better caching
+      setTimeout(() => {
+        if (!this.modal?.classList.contains("is-open")) {
+          this.clearActiveRequests()
+        }
+      }, 100)
     }
 
     private clearSearch() {
       if (this.searchInput) {
         this.searchInput.value = ""
+      }
+      if (this.typingTimer) {
+        clearTimeout(this.typingTimer)
+        this.typingTimer = null
       }
       this.resetAllState()
       this.updateClearButton("")
@@ -361,51 +392,89 @@ const mixedbreadTranslations = {
       this.resetNavigationState()
     }
 
-    private async handleSearch(query: string) {
-      this.abortController?.abort()
-
-      if (this.searchTimeout) {
-        clearTimeout(this.searchTimeout)
-      }
-
-      if (!query.trim()) {
+    private async handleSearchWithDeduplication(query: string) {
+      // Early return for empty queries
+      if (!query) {
+        this.clearActiveRequests()
         this.currentResults = []
         this.searchInput?.setAttribute("aria-expanded", "false")
         this.renderResults()
         return
       }
 
-      this.searchTimeout = window.setTimeout(async () => {
+      // Check if identical request is already in progress
+      const existingRequest = this.activeRequests.get(query)
+      if (existingRequest && Date.now() - existingRequest.timestamp < 1000) {
+        return // Skip duplicate request within 1 second
+      }
+
+      // Only abort requests for different search terms
+      if (this.lastSearchTerm && query !== this.lastSearchTerm) {
+        this.abortRequestsExcept(query)
+      }
+
+      this.lastSearchTerm = query
+      await this.executeSearch(query)
+    }
+
+    private async executeSearch(query: string) {
+      try {
+        // Create new abort controller for this specific query
+        const abortController = new AbortController()
+        const requestInfo = {
+          controller: abortController,
+          timestamp: Date.now()
+        }
+        
+        this.activeRequests.set(query, requestInfo)
         this.showLoading()
 
-        try {
-          this.abortController = new AbortController()
-
-          const timeoutId = setTimeout(() => this.abortController?.abort(), this.requestTimeout)
-
-          const response = await fetch(`/api/search/?query=${encodeURIComponent(query)}`, {
-            signal: this.abortController.signal
-          })
-
-          clearTimeout(timeoutId)
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
+        // Set up timeout that doesn't race with the request
+        const timeoutId = setTimeout(() => {
+          if (this.activeRequests.has(query)) {
+            abortController.abort()
+            this.activeRequests.delete(query)
+            this.showError("Search request timed out. Please try again.")
           }
+        }, this.maxRequestTimeout)
 
-          const results = await response.json()
+        const response = await fetch(`/api/search/?query=${encodeURIComponent(query)}`, {
+          signal: abortController.signal
+        })
 
-          if (results.error) {
-            throw new Error(results.error)
-          }
+        // Clear timeout on successful response
+        clearTimeout(timeoutId)
 
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const results = await response.json()
+
+        if (results.error) {
+          throw new Error(results.error)
+        }
+
+        // Only update results if this request is still active and relevant
+        if (this.activeRequests.has(query) && query === this.lastSearchTerm) {
           this.currentResults = results
           this.selectedIndex = -1
           this.searchInput?.setAttribute("aria-expanded", results.length > 0 ? "true" : "false")
           this.renderResults()
-        } catch (error: unknown) {
-          if (error instanceof Error && error.name !== "AbortError") {
-            console.error("Search error:", error)
+        }
+
+        // Clean up successful request
+        this.activeRequests.delete(query)
+
+      } catch (error: unknown) {
+        // Clean up failed request
+        this.activeRequests.delete(query)
+        
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.error("Search error:", error)
+          
+          // Only show error if this was the most recent search
+          if (query === this.lastSearchTerm) {
             let errorMessage = "Search failed. Please try again."
 
             if (error.message.includes("fetch")) {
@@ -419,7 +488,24 @@ const mixedbreadTranslations = {
             this.showError(errorMessage)
           }
         }
-      }, this.searchDelay)
+      }
+    }
+
+    private abortRequestsExcept(keepQuery: string) {
+      for (const [query, requestInfo] of this.activeRequests.entries()) {
+        if (query !== keepQuery) {
+          requestInfo.controller.abort()
+          this.activeRequests.delete(query)
+        }
+      }
+    }
+
+    private clearActiveRequests() {
+      for (const [query, requestInfo] of this.activeRequests.entries()) {
+        requestInfo.controller.abort()
+      }
+      this.activeRequests.clear()
+      this.lastSearchTerm = ""
     }
 
     private showLoading() {
