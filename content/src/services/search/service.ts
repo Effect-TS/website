@@ -1,18 +1,22 @@
 import Mixedbread from "@mixedbread/sdk"
+import * as Path from "@effect/platform/Path"
+import * as NodePath from "@effect/platform-node/NodePath"
 import * as Config from "effect/Config"
 import * as ConfigProvider from "effect/ConfigProvider"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
+import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
 import { SearchError, VectorStoreSearchResponse } from "./domain"
-import type { SearchResult } from "./domain"
+import type { Metadata, SearchResult } from "./domain"
 import type { DeepMutable } from "effect/Types"
 
 export class Search extends Effect.Service<Search>()("app/Search", {
   effect: Effect.gen(function* () {
     const apiKey = yield* Config.redacted("MXBAI_API_KEY")
     const vectorStoreId = yield* Config.string("MXBAI_VECTOR_STORE_ID")
+    const path = yield* Path.Path
     const mxbai = new Mixedbread({ apiKey: Redacted.value(apiKey) })
 
     const decodeSearchResponse = Schema.decodeUnknown(VectorStoreSearchResponse)
@@ -62,21 +66,44 @@ export class Search extends Effect.Service<Search>()("app/Search", {
         .replace(/^-+|-+$/g, '');
     }
 
+    const CONTENT_PATH = "src/content/docs"
+    function generateHref(metadata: typeof Metadata.Type): string | undefined {
+      const index = metadata.filePath.indexOf(CONTENT_PATH)
+      if (index === -1) {
+        return undefined
+      }
+      const subpath = metadata.filePath.substring(index + CONTENT_PATH.length)
+      const parsed = path.parse(subpath)
+      return path.join(parsed.dir, parsed.name, "/")
+    }
+
     function groupSearchResults(response: VectorStoreSearchResponse): ReadonlyArray<SearchResult> {
       const grouped = new Map<string, DeepMutable<SearchResult>>()
 
       response.data.forEach((chunk) => {
         const title = chunk.generatedMetadata.title
         const description = chunk.generatedMetadata.description
-        const urlPath = chunk.metadata.urlPath
         const chunkHeadings = chunk.generatedMetadata.chunkHeadings
         const headingContext = chunk.generatedMetadata.headingContext
 
-        if (!grouped.has(urlPath)) {
-          grouped.set(urlPath, { id: chunk.fileId, description, title, urlPath, chunks: [] })
+        const href = generateHref(chunk.metadata)
+
+        // Skip chunks where we cannot generate a valid href
+        if (Predicate.isUndefined(href)) {
+          return
         }
 
-        const page = grouped.get(urlPath)!
+        if (!grouped.has(href)) {
+          grouped.set(href, {
+            id: chunk.fileId,
+            description,
+            title,
+            href,
+            chunks: []
+          })
+        }
+
+        const page = grouped.get(href)!
 
         let chunkTitle = title
         if (chunkHeadings.length > 0) {
@@ -122,5 +149,8 @@ export class Search extends Effect.Service<Search>()("app/Search", {
       search,
     } as const
   }),
-  dependencies: [Layer.setConfigProvider(ConfigProvider.fromJson(import.meta.env))],
+  dependencies: [
+    Layer.setConfigProvider(ConfigProvider.fromJson(import.meta.env)),
+    NodePath.layer
+  ],
 }) { }

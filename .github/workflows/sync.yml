@@ -31,17 +31,3 @@ jobs:
           MXBAI_API_KEY: ${{ secrets.MXBAI_API_KEY }}
           MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
         run: pnpm mxbai vs sync "${MXBAI_VECTOR_STORE_ID}" "src/content/docs/docs/**/*.mdx" --yes --strategy fast 
-        # run: |
-        #   find "src/content/docs/docs" -type f -name "*.mdx" | while read -r file; do
-        #     # Extract the URL path for the file
-        #     urlPath="${file#src/content/docs}"
-        #     urlPath="${urlPath%.mdx}"
-        #
-        #     # Sync the file to the vector store with the relevant metadata
-        #     pnpm mxbai vs sync "${MXBAI_VECTOR_STORE_ID}" "${file}" \
-        #       --yes \
-        #       --strategy fast \
-        #       --metadata "{ \"urlPath\": \"${urlPath}\" }" \
-        #       --dry-run 
-        #   done 
-        #
