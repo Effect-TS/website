@@ -545,15 +545,14 @@ const mixedbreadTranslations = {
       }
     }
 
-    private renderChunk(urlPath: string, chunk: SearchResultChunk): string {
+    private renderChunk(href: string, chunk: SearchResultChunk): string {
       const title = StarlightMixedbreadSearch.escapeHtml(chunk.title)
       const snippet = StarlightMixedbreadSearch.escapeHtml(chunk.snippet)
       const anchorId = StarlightMixedbreadSearch.escapeHtml(chunk.anchorId)
-      const href = `${urlPath}/#${anchorId}`
       return `
         <div class="mixedbread__result-nested">
           <p class="mixedbread__result-title">
-            <a class="mixedbread__result-link" href="${href}">
+            <a class="mixedbread__result-link" href="${href}/#${anchorId}">
               ${title}
             </a>
           </p>
@@ -568,13 +567,13 @@ const mixedbreadTranslations = {
       if (result.chunks.length === 0) {
         return ""
       }
-      return result.chunks.map((chunk) => this.renderChunk(result.urlPath, chunk)).join("\n")
+      return result.chunks.map((chunk) => this.renderChunk(result.href, chunk)).join("\n")
     }
 
     private renderSearchResult(result: SearchResult): string {
       const title = StarlightMixedbreadSearch.escapeHtml(result.title)
       const description = StarlightMixedbreadSearch.escapeHtml(result.description)
-      const href = result.urlPath.endsWith("/") ? result.urlPath : `${result.urlPath}/`
+      const href = result.href.endsWith("/") ? result.href : `${result.href}/`
       const nestedResults = this.renderNestedResults(result)
       return `
         <li class="mixedbread__result">

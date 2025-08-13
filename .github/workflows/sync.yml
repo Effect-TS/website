@@ -21,12 +21,13 @@ jobs:
 
       - name: Install dependencies
         uses: ./.github/actions/setup
+        with:
+          working-directory: ./content
 
       - name: Sync vector store
+        shell: bash
+        working-directory: ./content
         env:
           MXBAI_API_KEY: ${{ secrets.MXBAI_API_KEY }}
           MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
-        run: |
-          find "content/src/content/docs" -type f -name "*.mdx" | xargs -I{} \
-            pnpm mxbai vs sync "${MXBAI_VECTOR_STORE_ID}" "{}" --yes --strategy fast --dry-run
-
+        run: pnpm mxbai vs sync "${MXBAI_VECTOR_STORE_ID}" "src/content/docs/docs/**/*.mdx" --yes --strategy fast 

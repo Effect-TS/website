@@ -8,7 +8,27 @@ export const HeadingInfo = Schema.Struct({
 export type HeadingInfo = typeof HeadingInfo.Type
 
 export const Metadata = Schema.Struct({
-  urlPath: Schema.String
+  synced: Schema.Boolean,
+  fileHash: Schema.String.pipe(
+    Schema.propertySignature,
+    Schema.fromKey("file_hash")
+  ),
+  filePath: Schema.String.pipe(
+    Schema.propertySignature,
+    Schema.fromKey("file_path")
+  ),
+  gitBranch: Schema.String.pipe(
+    Schema.propertySignature,
+    Schema.fromKey("git_branch")
+  ),
+  gitCommit: Schema.String.pipe(
+    Schema.propertySignature,
+    Schema.fromKey("git_commit")
+  ),
+  uploadedAt: Schema.DateTimeUtc.pipe(
+    Schema.propertySignature,
+    Schema.fromKey("uploaded_at")
+  )
 })
 
 export type Metadata = typeof Metadata.Type
@@ -100,7 +120,7 @@ export const SearchResult = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
   description: Schema.String,
-  urlPath: Schema.String,
+  href: Schema.String,
   chunks: Schema.Array(SearchResultChunk)
 })
 
