@@ -15,6 +15,7 @@ const config: Config = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "subtle-ping": "subtle-ping 3s cubic-bezier(0, 0, 0.2, 1) infinite",
       },
       borderRadius: {
         lg: `var(--radius)`,
@@ -68,6 +69,9 @@ const config: Config = {
         "accordion-up": {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
+        },
+        "subtle-ping": {
+          "75%, 100%": { opacity: "0", transform: "scale(1.5)" },
         },
       },
       minWidth: {
