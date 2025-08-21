@@ -130,7 +130,7 @@ export class Search extends Effect.Service<Search>()("app/Search", {
       const searchParams: Mixedbread.VectorStores.VectorStoreSearchParams = {
         query,
         top_k: 10,
-        search_options: { return_metadata: true },
+        search_options: { rerank: true, return_metadata: true },
         vector_store_identifiers: [vectorStoreId],
       }
 
