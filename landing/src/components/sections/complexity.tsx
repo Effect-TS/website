@@ -1,16 +1,21 @@
 "use client"
 
-import { useState } from "react"
-import { Icon } from "../icons"
-import { motion } from "framer-motion"
-import { Code } from "../layout/code"
+import { motion, useInView } from "framer-motion"
+import { ElementRef, useRef, useState } from "react"
 import { Logo } from "../atoms/logo"
+import { Icon } from "../icons"
+import { Code } from "../layout/code"
 
 export const Complexity = () => {
-  const [currentIndex, setCurrentIndex] = useState<number>(0)
+  const [currentIndex, setCurrentIndex] = useState(0)
+  
+  const sectionRef = useRef<ElementRef<"section">>(null)
+  const isInView = useInView(sectionRef, {
+    amount: 0.6
+  })
 
   return (
-    <section className="relative">
+    <section ref={sectionRef} className="relative">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pt-24">
         <h2 className="font-display mb-6 text-2xl sm:text-3xl lg:text-4xl text-white text-center">
           {content.heading}
@@ -123,17 +128,17 @@ export const Complexity = () => {
                   )}
                   <button
                     onClick={() => setCurrentIndex(index)}
-                    className="text-white flex gap-4 items-center text-left relative"
+                    className="text-white flex gap-4 items-center text-left relative group"
+                    data-highlight={isInView && (currentIndex + 1) === index}
+                    data-active={currentIndex >= index}
                   >
-                    {currentIndex >= index && (
                       <>
                         <div
-                          className="absolute -left-2 w-9 h-9 rounded-xl"
+                          className="absolute -left-2 size-9 rounded-xl animate-none group-data-[highlight=true]:animate-subtle-ping group-data-[highlight=true]:visible invisible group-data-[active=true]:visible"
                           style={{ backgroundColor: color }}
-                        />
+                          />
                         <div className="absolute -left-2 w-9 h-9 rounded-xl border border-white/10" />
                       </>
-                    )}
                     <div className="relative bg-gradient-to-br from-zinc-100 to-zinc-500 h-5 w-5 rounded-md p-px">
                       <div
                         className={`rounded-[5px] h-full w-full flex items-center justify-center ${
