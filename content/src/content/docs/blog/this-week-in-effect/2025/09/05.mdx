@@ -1,8 +1,8 @@
 ---
 pagefind: false
-title: This Week in Effect - 2025-08-29
-excerpt: Effect Hamburg Meetup on Sept 5th. Dedicated support channels for companies using Effect. Twitch-Spotify Integration, Rebuilding ContentLayer & Building a GitHub Action coding sessions. 
-date: 2025-08-29
+title: This Week in Effect - 2025-09-05
+excerpt: The difficulty of complexity by Ethan Niser. Demystifying Effect Scopes by Harry Solovay. Coding sessions, Rebuilding ContentLayer, Effect API provider integration for Google & ChEffect development. 
+date: 2025-09-05
 authors:
   - davide_scognamiglio
   - mirela_prifti
@@ -32,7 +32,7 @@ To get started, below you’ll find links to our documentation as well as our gu
 - [Effect 3.17](https://effect.website/blog/releases/effect/317) Release.
 - Durable workflows in TypeScript with [`@effect/workflow`](https://github.com/Effect-TS/effect/blob/main/packages/workflow/README.md) - currently in alpha.
 - Effect AI integration packages, [`@effect/ai`](https://github.com/Effect-TS/effect/tree/main/packages/ai) - currently in alpha.
-- The [Effect community](https://discord.gg/effect-ts) on Discord reached 5170+ members!
+- The [Effect community](https://discord.gg/effect-ts) on Discord reached 5230+ members!
 - Effect crossed [11K Stars on GitHub](https://github.com/Effect-TS/effect) 🌟.
 
 &nbsp;
@@ -41,16 +41,30 @@ To get started, below you’ll find links to our documentation as well as our gu
 Here are all the technical changes from the past week.
 
 ### Effect Core
-- [Refactor JSONSchema generator](https://github.com/Effect-TS/effect/commit/3b2609409ac1e8c6939d699584f00b1b99c47e2e) (Refactor)
-- [Add type level test for PR #5360](https://github.com/Effect-TS/effect/pull/5435) (feature)
-- [Ensure Effect.promise captures span on defect](https://github.com/Effect-TS/effect/pull/5437) (bug Fix)
+- [Align Either type parameter naming with Effect](https://github.com/Effect-TS/effect/pull/5445) (Refactor)
+- [Fix Predicate.isIterable to allow strings](https://github.com/Effect-TS/effect/pull/5451) (Bug Fix)
+- [Simplify Effect.raceAll implementation, ensure children fibers are awaited](https://github.com/Effect-TS/effect/pull/5449) (Bug Fix)
+- [Add preload options to LayerMap](https://github.com/Effect-TS/effect/pull/5456) (Feature)
+- [Ensure tracerLogger does not drop message items](https://github.com/Effect-TS/effect/pull/5462) (Bug Fix)
+- [Automatically set otel parent when present as external span](https://github.com/Effect-TS/effect/pull/5433) (Feature, next-minor)
 
 ### Effect AI
-- [Ensure system content blocks are properly formatted for Amazon Bedrock AiLanguageModel](https://github.com/Effect-TS/effect/pull/5424) (Bug Fix)
 - [Fix InferenceConfiguration schema in the Amazon Bedrock AI provider package](https://github.com/Effect-TS/effect/pull/5438) (Bug Fix)
+- [Ensure verbose transcription schema is tried before standard transcription schema](https://github.com/Effect-TS/effect/pull/5450) (Bug Fix)
+- [Wait for client to initialize before sending notifications](https://github.com/Effect-TS/effect/pull/5453) (Bug Fix)
+
+### Effect Opentelemetry
+- [Propagate spanId and traceId to otel logs](https://github.com/Effect-TS/effect/pull/5444) (Feature)
+- [Automatically set otel parent when present as external span](https://github.com/Effect-TS/effect/pull/5433) (Feature, next-minor)
 
 ### Effect Platform
-- [Refactor JSONSchema generator](https://github.com/Effect-TS/effect/commit/3b2609409ac1e8c6939d699584f00b1b99c47e2e) (Refactor) 
+- [Ensure HttpApiClient adds encoding contentType to headers](https://github.com/Effect-TS/effect/pull/5466) (bug Fix)
+
+### Effect RPC
+- [Wait for client to initialize before sending notifications](https://github.com/Effect-TS/effect/pull/5453) (Bug Fix)
+
+### Effect SQL
+- [Invalidate prepared-statement cache after loadExtension (Node)](https://github.com/Effect-TS/effect/pull/5459) (Bug Fix)
 
 &nbsp;
 
@@ -58,60 +72,36 @@ Here are all the technical changes from the past week.
 
 &nbsp;
 
-- Using Effect at your company and need custom support? Get in touch with the Effect team on [Discord](https://discord.gg/effect-ts) or Twitter, we're here for you!
-  <Tweet id="1960667002735091859" />
+- **Demystifying Effect Scopes** by Harry Solovay.
+  <Tweet id="1962882545311187165" />
 
 &nbsp;
 
-- We're very excited for the [first Effect Hamburg Meetup](https://luma.com/44razg6s) coming up on Friday, Sept 5th. 
-  <Tweet id="1960296165230219431" />
-
-&nbsp;
-
-- Theo mentioned Effect in one of his videos about the [recent state of his stack](https://youtu.be/3c4UyGRBnmM?t=2635) (around 43:55), acknowledging the benefits of "effectifying" their codebase, especially for error management and tracing!
-
-&nbsp;
-
-- **Goodbye async/await** by Lucas Barake.
-
-<YouTube
-  id="https://www.youtube.com/embed/eMyns10LzJs?si=8wgcIRTRlVzBACBU"
-  title="Goodbye async/await"
-/>
-
-&nbsp;
-
-- [`@effect-native/bun-test`](https://github.com/effect-native), a package that simplifies running tests for Effect-based code with `bun:test`, was realeased this week by Tom Aylott.
-
-&nbsp;
-
-- [Macrowave](https://www.producthunt.com/products/macrowave), a **P2P radio broadcasting app** with Effect powering the entire backend, by [Neco](https://github.com/Necmttn)! 
+- In [*The Difficulty of Complexity*](https://ethanniser.dev/blog/the-difficulty-of-complexity), Ethan Niser compares Effect to the early days of React. Effect introduces a paradigm shift, much like React did, initially unfamiliar, but quickly gaining adoption as teams realize how much it simplifies error handling, concurrency, and observability at scale.
+  <Tweet id="1961660251436192183" />
 
 &nbsp;
 ## Effect Content Update
 
-Maxwell Brown and Tim Smart were live on X and Twitch as they continue their work on *ChEffect*.
-  <Tweet id="1960817828979990916" />
-
-**Developing a Twitch-Spotify Integration (PART 1)**, **Rebuilding Contentlayer w/ Effect (Part 17)** & **Building a GitHub Action with Effect** are now on our YouTube Channel.
+**Rebuilding Contentlayer w/ Effect (Part 18)**, **Building an Effect API Provider Integration for Google (PART 4)** & **ChEffect | A Local-First App built with Effect & LiveStore (PART 3)** are now on our YouTube Channel.
 
 <YouTube
-  id="https://www.youtube.com/embed/GE8jNX8VDcE?si=1kUkbpmJ31MSbHZh"
-  title="Developing a Twitch-Spotify Integration (PART 1)"
+  id="https://www.youtube.com/embed/JHJsWEg_16U?si=iVdzlnM5V1f7F_k0"
+  title="Rebuilding Contentlayer w/ Effect (Part 18)"
 />
 
 &nbsp;
 
 <YouTube
-  id="https://www.youtube.com/embed/ZH5QkDLPAro?si=ltIeUuX-TkP6oGew"
-  title="Rebuilding Contentlayer w/ Effect (Part 17)"
+  id="https://www.youtube.com/embed/borgHsyb1PI?si=ZvyWv0CbSqMYI2qp"
+  title="Building an Effect API Provider Integration for Google (PART 4)"
 />
 
 &nbsp;
 
 <YouTube
-  id="https://www.youtube.com/embed/PYM6VodrZkA?si=BnUwT5jPAJdAk9j9"
-  title="Building a GitHub Action with Effect"
+  id="https://www.youtube.com/embed/J13YDYguMPA?si=rO8BNqKXfwwxQ9EL"
+  title="ChEffect | A Local-First App built with Effect & LiveStore (PART 3)"
 />
 
 &nbsp;
@@ -180,6 +170,10 @@ More and more companies are adopting Effect in their projects. Here’s a list o
 - **Globe Commerce**: [Founding Product Engineer](https://www.linkedin.com/jobs/view/4264203054)
 
 - **Introw**: [Staff Software Engineer](https://join.com/companies/introw/14395111-staff-software-engineer)
+
+- **Gale**: [SWE Intern - Remote (CAN/US)](https://forms.galevisa.com/r/m6gr7e)
+
+- **Heartbeat**: [Senior Software Engineer](https://jobs.heartbeat.chat/35182) 
 
 - **spring.new**, Anthropic's flagship costumer, is hiring engineers experienced in Effect. See the job posting in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1405134163287343196).
 
