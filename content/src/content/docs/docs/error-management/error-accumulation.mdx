@@ -107,9 +107,8 @@ The `Effect.validateAll` function is similar to the `Effect.forEach` function. I
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-//      ┌─── Effect<number[], string[], never>
-//      ▼
 const program = Effect.validateAll([1, 2, 3, 4, 5], (n) => {
+//    ^?
   if (n < 4) {
     return Console.log(`item ${n}`).pipe(Effect.as(n))
   } else {
@@ -150,9 +149,8 @@ The `Effect.validateFirst` function is similar to `Effect.validateAll` but it re
 ```ts twoslash
 import { Effect, Console } from "effect"
 
-//      ┌─── Effect<number, string[], never>
-//      ▼
 const program = Effect.validateFirst([1, 2, 3, 4, 5], (n) => {
+//    ^?
   if (n < 4) {
     return Effect.fail(`${n} is not less that 4`)
   } else {
@@ -179,9 +177,8 @@ The `Effect.partition` function processes an iterable and applies an effectful f
 ```ts twoslash
 import { Effect } from "effect"
 
-//      ┌─── Effect<[string[], number[]], never, never>
-//      ▼
 const program = Effect.partition([0, 1, 2, 3, 4], (n) => {
+//    ^?
   if (n % 2 === 0) {
     return Effect.succeed(n)
   } else {

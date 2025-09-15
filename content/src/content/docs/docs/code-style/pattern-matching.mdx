@@ -21,9 +21,8 @@ import { Match } from "effect"
 // Simulated dynamic input that can be a string or a number
 const input: string | number = "some input"
 
-//      ┌─── string
-//      ▼
 const result = Match.value(input).pipe(
+//    ^?
   // Match if the value is a number
   Match.when(Match.number, (n) => `number: ${n}`),
   // Match if the value is a string
@@ -66,10 +65,8 @@ The `Match.type` constructor defines a `Matcher` that operates on a specific typ
 import { Match } from "effect"
 
 // Create a matcher for values that are either strings or numbers
-//
-//      ┌─── (u: string | number) => string
-//      ▼
 const match = Match.type<string | number>().pipe(
+//    ^?
   // Match when the value is a number
   Match.when(Match.number, (n) => `number: ${n}`),
   // Match when the value is a string

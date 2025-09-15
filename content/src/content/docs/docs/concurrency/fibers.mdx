@@ -71,9 +71,8 @@ const fib = (n: number): Effect.Effect<number> =>
     ? Effect.succeed(n)
     : Effect.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Effect<RuntimeFiber<number, never>, never, never>
-//      ▼
 const fib10Fiber = Effect.fork(fib(10))
+//    ^?
 ```
 
 ## Joining Fibers
@@ -90,9 +89,8 @@ const fib = (n: number): Effect.Effect<number> =>
     ? Effect.succeed(n)
     : Effect.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Effect<RuntimeFiber<number, never>, never, never>
-//      ▼
 const fib10Fiber = Effect.fork(fib(10))
+//    ^?
 
 const program = Effect.gen(function* () {
   // Retrieve the fiber
@@ -119,9 +117,8 @@ const fib = (n: number): Effect.Effect<number> =>
     ? Effect.succeed(n)
     : Effect.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Effect<RuntimeFiber<number, never>, never, never>
-//      ▼
 const fib10Fiber = Effect.fork(fib(10))
+//    ^?
 
 const program = Effect.gen(function* () {
   // Retrieve the fiber
@@ -483,9 +480,8 @@ const child = Effect.repeat(
   Schedule.fixed("1 second")
 )
 
-//      ┌─── Effect<void, never, Scope>
-//      ▼
 const parent = Effect.gen(function* () {
+//    ^?
   console.log("parent: started!")
   // Child fiber attached to local scope
   yield* Effect.forkScoped(child)

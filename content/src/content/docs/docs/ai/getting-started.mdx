@@ -166,7 +166,7 @@ This allows Effect to track which services should be added to the requirements o
 
 ### Creating an `AiModel`
 
-To create an `AiModel`, you can use the model-specific factory from one of Effect's provider integration packages. 
+To create an `AiModel`, you can use the model-specific factory from one of Effect's provider integration packages.
 
 **Example** (Defining an `AiModel` to Interact with OpenAi)
 
@@ -185,7 +185,7 @@ This creates an `AiModel` that:
 
 ### Providing an `AiModel`
 
-Once you've created an `AiModel`, you can directly `Effect.provide` it to your Effect programs just like any other service: 
+Once you've created an `AiModel`, you can directly `Effect.provide` it to your Effect programs just like any other service:
 
 ```ts
 import { OpenAiLanguageModel } from "@effect/ai-openai"
@@ -238,7 +238,7 @@ const main = Effect.gen(function*() {
 
 **Flexibility**
 
-If we know that one model or provider performs better at a given task than another, we can freely mix and match models and providers together. 
+If we know that one model or provider performs better at a given task than another, we can freely mix and match models and providers together.
 
 For example, if we know Anthropic's Claude generates some really great dad jokes, we can mix it into our existing program with just a few lines of code:
 
@@ -292,7 +292,7 @@ const Claude37 = AnthropicLanguageModel.model("claude-3-7-sonnet-latest")
 class DadJokes extends Effect.Service<DadJokes>()("app/DadJokes", {
   effect: Effect.gen(function*() {
     // Yielding the model will return a layer with no requirements
-    // 
+    //
     //     ┌─── Layer<AiLanguageModel>
     //     ▼
     const gpt = yield* Gpt4o
@@ -313,7 +313,7 @@ class DadJokes extends Effect.Service<DadJokes>()("app/DadJokes", {
   })
 }) {}
 
-// Programs which utilize the `DadJokes` service have no knowledge of 
+// Programs which utilize the `DadJokes` service have no knowledge of
 // any AI requirements
 //
 //     ┌─── Effect<void, AiError, DadJokes>
@@ -333,7 +333,7 @@ DadJokes.Default
 
 ## Create a Provider Client
 
-To make our code executable, we must finish satisfying our program's requirements. 
+To make our code executable, we must finish satisfying our program's requirements.
 
 Let's take another look at our program from earlier:
 
@@ -359,7 +359,7 @@ const main = generateDadJoke.pipe(
 )
 ```
 
-We can see that our `main` program still requires us to provide an `OpenAiClient`. 
+We can see that our `main` program still requires us to provide an `OpenAiClient`.
 
 Each of our provider integration packages exports a client module that can be used to construct a client for that provider.
 
@@ -400,7 +400,7 @@ The provider clients also have a dependency on an `HttpClient` implementation to
 
 For example, if we know we are going to run this code in NodeJS, we can utilize the `NodeHttpClient` module from `@effect/platform-node` to provide an `HttpClient` implementation:
 
-```ts twoslash /{ (NodeHttpClient) }|, (HttpClient)>|, (never)>/ {35} collapse={6-18} 
+```ts twoslash /{ (NodeHttpClient) }|, (HttpClient)>|, (never)>/ {35} collapse={6-18}
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import { AiLanguageModel } from "@effect/ai"
 import { NodeHttpClient } from "@effect/platform-node"
@@ -429,7 +429,7 @@ const OpenAi = OpenAiClient.layerConfig({
   apiKey: Config.redacted("OPENAI_API_KEY")
 })
 
-// Provide a platform-specific implementation of `HttpClient` to our 
+// Provide a platform-specific implementation of `HttpClient` to our
 // OpenAi layer
 //
 //        ┌─── Layer<OpenAiClient, ConfigError, never>
@@ -439,7 +439,7 @@ const OpenAiWithHttp = Layer.provide(OpenAi, NodeHttpClient.layerUndici)
 
 ## Running the Program
 
-Now that we have a `Layer` which provides us with an `OpenAiClient`, we're ready to make our `main` program runnable. 
+Now that we have a `Layer` which provides us with an `OpenAiClient`, we're ready to make our `main` program runnable.
 
 Our final program looks like the following:
 

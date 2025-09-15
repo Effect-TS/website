@@ -188,10 +188,8 @@ const task2 = Effect.succeed("hello").pipe(
 )
 
 // Combine the two effects together
-//
-//      ┌─── Effect<[number, string], never, never>
-//      ▼
 const program = Effect.zip(task1, task2)
+//    ^?
 
 Effect.runPromise(program).then(console.log)
 /*
@@ -256,14 +254,13 @@ const task2 = Effect.succeed("hello").pipe(
   Effect.tap(Effect.log("task2 done"))
 )
 
-//      ┌─── Effect<number, never, never>
-//      ▼
 const task3 = Effect.zipWith(
   task1,
   task2,
   // Combines results into a single value
   (number, string) => number + string.length
 )
+//    ^?
 
 Effect.runPromise(task3).then(console.log)
 /*
@@ -496,6 +493,7 @@ For instance, if the input is a tuple:
 //         ┌─── a tuple of effects
 //         ▼
 Effect.all([effect1, effect2, ...])
+//         ^?
 ```
 
 the effects are executed sequentially, and the result is a new effect containing the results as a tuple. The results in the tuple match the order of the effects passed to `Effect.all`.
@@ -512,9 +510,8 @@ const tupleOfEffects = [
   Effect.succeed("Hello").pipe(Effect.tap(Console.log))
 ] as const
 
-//      ┌─── Effect<[number, string], never, never>
-//      ▼
 const resultsAsTuple = Effect.all(tupleOfEffects)
+//    ^?
 
 Effect.runPromise(resultsAsTuple).then(console.log)
 /*
@@ -534,9 +531,8 @@ const iterableOfEffects: Iterable<Effect.Effect<number>> = [1, 2, 3].map(
   (n) => Effect.succeed(n).pipe(Effect.tap(Console.log))
 )
 
-//      ┌─── Effect<number[], never, never>
-//      ▼
 const resultsAsArray = Effect.all(iterableOfEffects)
+//    ^?
 
 Effect.runPromise(resultsAsArray).then(console.log)
 /*
@@ -558,9 +554,8 @@ const structOfEffects = {
   b: Effect.succeed("Hello").pipe(Effect.tap(Console.log))
 }
 
-//      ┌─── Effect<{ a: number; b: string; }, never, never>
-//      ▼
 const resultsAsStruct = Effect.all(structOfEffects)
+//    ^?
 
 Effect.runPromise(resultsAsStruct).then(console.log)
 /*
@@ -581,9 +576,8 @@ const recordOfEffects: Record<string, Effect.Effect<number>> = {
   key2: Effect.succeed(2).pipe(Effect.tap(Console.log))
 }
 
-//      ┌─── Effect<{ [x: string]: number; }, never, never>
-//      ▼
 const resultsAsRecord = Effect.all(recordOfEffects)
+//    ^?
 
 Effect.runPromise(resultsAsRecord).then(console.log)
 /*

@@ -36,9 +36,8 @@ However, the `Data.struct` constructor allows you to compare values based on the
 ```ts twoslash
 import { Data, Equal } from "effect"
 
-//      ┌─── { readonly name: string; readonly age: number; }
-//      ▼
 const alice = Data.struct({ name: "Alice", age: 30 })
+//    ^?
 
 // Check if Alice is equal to a new object
 // with the same structure and values
@@ -104,9 +103,8 @@ To represent your data using tuples, you can use the `Data.tuple` constructor. T
 ```ts twoslash
 import { Data, Equal } from "effect"
 
-//      ┌─── readonly [string, number]
-//      ▼
 const alice = Data.tuple("Alice", 30)
+//    ^?
 
 // Check if Alice is equal to a new tuple
 // with the same structure and values
@@ -133,9 +131,8 @@ You can use `Data.array` to create an array-like data structure that supports st
 ```ts twoslash
 import { Data, Equal } from "effect"
 
-//      ┌─── readonly number[]
-//      ▼
 const numbers = Data.array([1, 2, 3, 4, 5])
+//    ^?
 
 // Check if the array is equal to a new array
 // with the same values
@@ -179,10 +176,8 @@ interface Person {
 }
 
 // Create a constructor for `Person`
-//
-//      ┌─── (args: { readonly name: string; }) => Person
-//      ▼
 const make = Data.case<Person>()
+//    ^?
 
 const alice = make({ name: "Alice" })
 
