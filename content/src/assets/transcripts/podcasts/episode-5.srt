@@ -1,0 +1,6351 @@
+1
+00:00:00,160 --> 00:00:03,040
+we've been a small team so far
+
+2
+00:00:03,040 --> 00:00:04,560
+but we've been working
+
+3
+00:00:04,560 --> 00:00:07,440
+with Effect from scratch.
+
+4
+00:00:07,440 --> 00:00:08,960
+when I decided
+
+5
+00:00:08,960 --> 00:00:10,640
+the stack for Spiko
+
+6
+00:00:10,640 --> 00:00:12,720
+I chosed Effect because it was the natural
+
+7
+00:00:12,720 --> 00:00:15,200
+successor to fp-ts.
+
+8
+00:00:15,200 --> 00:00:17,360
+And for hiring people
+
+9
+00:00:17,360 --> 00:00:18,000
+most of the
+
+10
+00:00:18,000 --> 00:00:20,000
+employees didn't know Effect
+
+11
+00:00:20,000 --> 00:00:22,240
+before they came at Spiko.
+
+12
+00:00:22,240 --> 00:00:24,240
+and I trained them
+
+13
+00:00:24,240 --> 00:00:25,520
+and they also trained
+
+14
+00:00:25,520 --> 00:00:27,360
+with the documentation
+
+15
+00:00:27,360 --> 00:00:30,240
+and so far it's been okay.
+
+16
+00:00:30,240 --> 00:00:30,880
+I think the
+
+17
+00:00:30,880 --> 00:00:34,400
+documentation has really improved
+
+18
+00:00:34,400 --> 00:00:35,680
+there is still a learning curve
+
+19
+00:00:35,680 --> 00:00:38,480
+that is a bit higher than other libraries,
+
+20
+00:00:38,480 --> 00:00:41,280
+but I think it's okay.
+
+21
+00:00:43,280 --> 00:00:46,000
+Welcome to "Cause & Effect," a podcast
+
+22
+00:00:46,000 --> 00:00:47,760
+about the TypeScript library and
+
+23
+00:00:47,760 --> 00:00:49,760
+ecosystem called Effect,
+
+24
+00:00:49,760 --> 00:00:51,200
+helping engineers to build
+
+25
+00:00:51,200 --> 00:00:53,120
+production-ready software. I'm
+
+26
+00:00:53,120 --> 00:00:54,480
+your host Johannes Schickling,
+
+27
+00:00:54,480 --> 00:00:56,000
+and I've been building with Effect for
+
+28
+00:00:56,000 --> 00:00:57,840
+over four years. With this
+
+29
+00:00:57,840 --> 00:00:59,680
+podcast, I want to help others
+
+30
+00:00:59,680 --> 00:01:01,600
+understand the powers and benefits of
+
+31
+00:01:01,600 --> 00:01:04,400
+using Effect. In this episode, I'm
+
+32
+00:01:04,400 --> 00:01:06,320
+talking to Samuel Briole,
+
+33
+00:01:06,320 --> 00:01:09,200
+CTO at Spiko, which is a Paris-based
+
+34
+00:01:09,200 --> 00:01:10,800
+fintech startup trusted
+
+35
+00:01:10,800 --> 00:01:12,480
+with over 400 million euros
+
+36
+00:01:12,480 --> 00:01:15,280
+under management. In this conversation,
+
+37
+00:01:15,280 --> 00:01:16,880
+we dive deep into Spiko's
+
+38
+00:01:16,880 --> 00:01:18,320
+event-driven architecture,
+
+39
+00:01:18,320 --> 00:01:20,880
+built entirely with Effect and how they
+
+40
+00:01:20,880 --> 00:01:22,640
+leverage RabbitMQ as an
+
+41
+00:01:22,640 --> 00:01:24,080
+event broker to scale their
+
+42
+00:01:24,080 --> 00:01:27,200
+backend systems. Let's get into it.
+
+43
+00:01:27,200 --> 00:01:28,560
+Hey, Samuel, it's so great
+
+44
+00:01:28,560 --> 00:01:29,680
+to have you on the podcast.
+
+45
+00:01:29,680 --> 00:01:31,120
+How are you doing?
+
+46
+00:01:31,120 --> 00:01:32,640
+Hi, I'm good.
+
+47
+00:01:32,640 --> 00:01:34,080
+How are you?
+
+48
+00:01:34,080 --> 00:01:35,440
+I'm doing fantastic.
+
+49
+00:01:35,440 --> 00:01:37,120
+I'm quite impressed with
+
+50
+00:01:37,120 --> 00:01:38,160
+what you all are building
+
+51
+00:01:38,160 --> 00:01:39,760
+and I want to learn a lot more.
+
+52
+00:01:39,760 --> 00:01:40,560
+But before getting
+
+53
+00:01:40,560 --> 00:01:41,840
+into what you're building,
+
+54
+00:01:41,840 --> 00:01:43,360
+would you mind introducing yourself
+
+55
+00:01:43,360 --> 00:01:45,200
+and sharing what you do?
+
+56
+00:01:45,200 --> 00:01:45,840
+Sure.
+
+57
+00:01:45,840 --> 00:01:47,200
+So I'm Samuel.
+
+58
+00:01:47,200 --> 00:01:50,640
+I'm CTO at Spiko and we are a French
+
+59
+00:01:50,640 --> 00:01:52,720
+startup based in Paris.
+
+60
+00:01:52,720 --> 00:01:55,040
+So we are a FinTech,
+
+61
+00:01:55,040 --> 00:01:57,440
+especially in the finance sector.
+
+62
+00:01:57,440 --> 00:02:01,040
+And we are building a new infrastructure
+
+63
+00:02:01,040 --> 00:02:03,680
+for issuing regulated products,
+
+64
+00:02:03,680 --> 00:02:04,800
+regulated financial
+
+65
+00:02:04,800 --> 00:02:08,160
+products on public blockchains.
+
+66
+00:02:08,160 --> 00:02:10,640
+And we especially focus
+
+67
+00:02:10,640 --> 00:02:13,120
+on risk-free products.
+
+68
+00:02:13,120 --> 00:02:17,200
+we allow people to buy a bond of,
+
+69
+00:02:17,200 --> 00:02:19,760
+I don't know, from, of the French State
+
+70
+00:02:19,760 --> 00:02:22,720
+or of the US States.
+
+71
+00:02:22,720 --> 00:02:27,840
+So they can have a risk-free rate.
+
+72
+00:02:27,840 --> 00:02:28,880
+They can earn a
+
+73
+00:02:28,880 --> 00:02:31,120
+risk-free rate on their cash.
+
+74
+00:02:31,120 --> 00:02:35,120
+So basically if you're based in the US,
+
+75
+00:02:35,120 --> 00:02:37,520
+it's a very common thing to
+
+76
+00:02:37,520 --> 00:02:39,680
+have like a risk-free rate
+
+77
+00:02:39,680 --> 00:02:42,640
+yielding on your cash, but in Europe,
+
+78
+00:02:42,640 --> 00:02:44,720
+it's not very common to have that.
+
+79
+00:02:44,720 --> 00:02:46,080
+our mission is to
+
+80
+00:02:46,960 --> 00:02:49,680
+democratize this kind of product.
+
+81
+00:02:49,680 --> 00:02:52,080
+we launched Spiko one year ago
+
+82
+00:02:52,080 --> 00:02:53,120
+and the company was
+
+83
+00:02:53,120 --> 00:02:54,480
+created one year before,
+
+84
+00:02:54,480 --> 00:02:57,120
+so it was been working for two years.
+
+85
+00:02:57,120 --> 00:03:00,080
+And we launched our products one year ago
+
+86
+00:03:00,080 --> 00:03:01,760
+and today we have
+
+87
+00:03:01,760 --> 00:03:05,600
+around 400 millions of euros
+
+88
+00:03:05,600 --> 00:03:07,600
+under management, which
+
+89
+00:03:07,600 --> 00:03:11,280
+is quite a nice milestone.
+
+90
+00:03:11,280 --> 00:03:16,160
+And also last month we raised a Series A.
+
+91
+00:03:16,160 --> 00:03:19,760
+So we raised with Index Ventures,
+
+92
+00:03:19,760 --> 00:03:21,600
+which is famous for
+
+93
+00:03:21,600 --> 00:03:22,880
+supporting the Revolut
+
+94
+00:03:22,880 --> 00:03:24,400
+and the Robinhood in
+
+95
+00:03:24,400 --> 00:03:26,240
+the same financial sector.
+
+96
+00:03:26,240 --> 00:03:26,960
+That is awesome.
+
+97
+00:03:26,960 --> 00:03:28,800
+Well, first of all, congratulations
+
+98
+00:03:28,800 --> 00:03:30,400
+on those amazing milestones,
+
+99
+00:03:30,400 --> 00:03:33,440
+like 400 million under management
+
+100
+00:03:33,440 --> 00:03:35,600
+or whatever is the best way to put it.
+
+101
+00:03:35,600 --> 00:03:36,720
+That is impressive.
+
+102
+00:03:36,720 --> 00:03:38,880
+And then also congrats on the series A
+
+103
+00:03:38,880 --> 00:03:40,400
+with Index Ventures.
+
+104
+00:03:40,400 --> 00:03:42,320
+I'm curious to learn a little bit more
+
+105
+00:03:42,320 --> 00:03:44,720
+about like both your personal background,
+
+106
+00:03:44,720 --> 00:03:47,600
+how you arrived there, but also about
+
+107
+00:03:47,600 --> 00:03:48,320
+how you should think
+
+108
+00:03:48,320 --> 00:03:50,240
+about Spiko as a company,
+
+109
+00:03:50,240 --> 00:03:53,040
+how many engineers are working at Spiko.
+
+110
+00:03:53,040 --> 00:03:54,160
+So maybe you can give a
+
+111
+00:03:54,160 --> 00:03:56,000
+little bit more detail here.
+
+112
+00:03:56,000 --> 00:03:56,640
+Sure.
+
+113
+00:03:56,640 --> 00:03:58,160
+I did an engineering school
+
+114
+00:03:58,160 --> 00:03:59,760
+where I learned physics
+
+115
+00:03:59,760 --> 00:04:02,240
+and I almost started a PhD
+
+116
+00:04:02,240 --> 00:04:03,760
+in quantum physics.
+
+117
+00:04:03,760 --> 00:04:06,560
+But at some point I
+
+118
+00:04:06,560 --> 00:04:07,920
+decided that I didn't want
+
+119
+00:04:08,480 --> 00:04:10,640
+to do research and I switched to
+
+120
+00:04:10,640 --> 00:04:12,080
+software engineering.
+
+121
+00:04:12,080 --> 00:04:13,840
+So during my studies,
+
+122
+00:04:13,840 --> 00:04:16,640
+I was building like an
+
+123
+00:04:16,640 --> 00:04:19,520
+app for discovering electronic music.
+
+124
+00:04:19,520 --> 00:04:22,000
+So I learned to code a bit by myself.
+
+125
+00:04:22,000 --> 00:04:23,840
+And I was like, okay, it's so cool.
+
+126
+00:04:23,840 --> 00:04:27,520
+I want to do this as my job.
+
+127
+00:04:27,520 --> 00:04:29,120
+I started my career
+
+128
+00:04:29,120 --> 00:04:31,440
+in a small service company.
+
+129
+00:04:31,440 --> 00:04:33,360
+And quickly I wanted to
+
+130
+00:04:33,360 --> 00:04:36,800
+build my product from scratch.
+
+131
+00:04:36,800 --> 00:04:39,920
+So I worked for a company called Inato
+
+132
+00:04:39,920 --> 00:04:43,520
+so I was maybe the second engineer.
+
+133
+00:04:43,520 --> 00:04:47,840
+And then I tried to launch my own startup
+
+134
+00:04:47,840 --> 00:04:50,800
+and I failed two times.
+
+135
+00:04:50,800 --> 00:04:53,840
+And then I met the founders of Spiko.
+
+136
+00:04:53,840 --> 00:04:57,040
+And I found the mission really exciting.
+
+137
+00:04:57,040 --> 00:05:00,080
+And also the technological,
+
+138
+00:05:00,080 --> 00:05:02,160
+challenge at Spiko
+
+139
+00:05:02,160 --> 00:05:03,600
+using the blockchains
+
+140
+00:05:03,600 --> 00:05:05,360
+and also innovating both
+
+141
+00:05:05,360 --> 00:05:06,560
+on the tech side and
+
+142
+00:05:06,560 --> 00:05:08,560
+on the financial side
+
+143
+00:05:08,560 --> 00:05:09,600
+was very exciting.
+
+144
+00:05:09,600 --> 00:05:12,400
+So that's how I arrived at Spiko.
+
+145
+00:05:12,400 --> 00:05:13,280
+That is awesome.
+
+146
+00:05:13,280 --> 00:05:15,600
+And there's quite a bit of overlap there
+
+147
+00:05:15,600 --> 00:05:17,200
+with other people in
+
+148
+00:05:17,200 --> 00:05:18,800
+the Effect community.
+
+149
+00:05:18,800 --> 00:05:21,280
+You mentioned the folks at Inato.
+
+150
+00:05:21,280 --> 00:05:22,480
+I had the pleasure of
+
+151
+00:05:22,480 --> 00:05:24,000
+meeting some of them
+
+152
+00:05:24,000 --> 00:05:25,120
+throughout the last
+
+153
+00:05:25,120 --> 00:05:27,200
+two Effect Conferences.
+
+154
+00:05:27,200 --> 00:05:28,640
+And it seems like there's
+
+155
+00:05:28,640 --> 00:05:30,560
+quite the active Effect scene
+
+156
+00:05:30,560 --> 00:05:32,320
+in Paris, which I'm sure we'll talk
+
+157
+00:05:32,320 --> 00:05:34,240
+a little bit later about as well.
+
+158
+00:05:34,240 --> 00:05:36,640
+But yeah, that journey so far sounds
+
+159
+00:05:36,640 --> 00:05:37,520
+really, really cool.
+
+160
+00:05:37,520 --> 00:05:38,640
+I see a bunch of
+
+161
+00:05:38,640 --> 00:05:40,480
+parallels and similarities.
+
+162
+00:05:40,480 --> 00:05:42,000
+I'm currently still
+
+163
+00:05:42,000 --> 00:05:44,160
+working on a music app
+
+164
+00:05:44,160 --> 00:05:45,040
+for me personally
+
+165
+00:05:45,040 --> 00:05:46,960
+focused on electronic music.
+
+166
+00:05:46,960 --> 00:05:48,480
+So I wish it certainly
+
+167
+00:05:48,480 --> 00:05:50,480
+seemed to share that passion here
+
+168
+00:05:50,480 --> 00:05:53,600
+but now you're a CTO at Spiko.
+
+169
+00:05:53,600 --> 00:05:55,280
+So what does that entail
+
+170
+00:05:55,280 --> 00:05:56,800
+and how many other
+
+171
+00:05:56,800 --> 00:05:58,480
+engineers are you working with?
+
+172
+00:05:58,480 --> 00:06:00,160
+the engineering team at Spiko
+
+173
+00:06:00,160 --> 00:06:01,920
+is currently five people
+
+174
+00:06:01,920 --> 00:06:04,640
+and there is one joining soon.
+
+175
+00:06:04,640 --> 00:06:08,000
+And our goal is to reach around, I think
+
+176
+00:06:08,000 --> 00:06:09,840
+10 people next year.
+
+177
+00:06:09,840 --> 00:06:12,800
+So we'll split into probably two teams.
+
+178
+00:06:12,800 --> 00:06:15,760
+we've been a small team so far
+
+179
+00:06:15,760 --> 00:06:17,200
+but we've been working
+
+180
+00:06:17,200 --> 00:06:19,760
+with Effect from scratch.
+
+181
+00:06:19,760 --> 00:06:23,200
+So everyone in the team is using Effect
+
+182
+00:06:23,200 --> 00:06:24,800
+and everyone is doing
+
+183
+00:06:24,800 --> 00:06:26,640
+TypeScript and Effect in the team.
+
+184
+00:06:26,640 --> 00:06:27,360
+That's awesome.
+
+185
+00:06:27,360 --> 00:06:29,200
+So you mentioned to me before
+
+186
+00:06:29,200 --> 00:06:32,480
+that you joined as the first employee
+
+187
+00:06:32,480 --> 00:06:33,920
+besides the founders.
+
+188
+00:06:33,920 --> 00:06:36,080
+So you were there from the very beginning
+
+189
+00:06:36,080 --> 00:06:37,520
+and the other engineers
+
+190
+00:06:37,520 --> 00:06:39,120
+who joined afterwards,
+
+191
+00:06:39,120 --> 00:06:41,760
+did they have any prior Effect experience
+
+192
+00:06:41,760 --> 00:06:43,680
+or any other relevant
+
+193
+00:06:43,680 --> 00:06:45,680
+experience besides TypeScript?
+
+194
+00:06:45,680 --> 00:06:47,520
+Or I'm just curious
+
+195
+00:06:47,520 --> 00:06:48,720
+like how I should think
+
+196
+00:06:48,720 --> 00:06:50,000
+about the sequencing
+
+197
+00:06:50,000 --> 00:06:51,360
+now Spiko has been around
+
+198
+00:06:51,360 --> 00:06:52,640
+for two years.
+
+199
+00:06:52,640 --> 00:06:53,680
+You've probably written
+
+200
+00:06:53,680 --> 00:06:55,440
+some of the first lines of code
+
+201
+00:06:55,440 --> 00:06:56,640
+and then the other
+
+202
+00:06:56,640 --> 00:06:58,480
+engineers you brought on,
+
+203
+00:06:58,480 --> 00:06:59,840
+was it a prerequisite for
+
+204
+00:06:59,840 --> 00:07:01,200
+them to already know Effect?
+
+205
+00:07:01,200 --> 00:07:02,560
+Did you train them?
+
+206
+00:07:02,560 --> 00:07:04,560
+No, it's not a prerequisite.
+
+207
+00:07:04,560 --> 00:07:07,280
+I discovered the functional
+
+208
+00:07:07,280 --> 00:07:08,480
+programming at Inato
+
+209
+00:07:08,480 --> 00:07:09,680
+when I was working at
+
+210
+00:07:09,680 --> 00:07:11,600
+Inato and we used fp-ts.
+
+211
+00:07:11,600 --> 00:07:15,760
+And then when I decided to choose
+
+212
+00:07:15,760 --> 00:07:17,920
+like the stack for Spiko
+
+213
+00:07:17,920 --> 00:07:19,920
+I chosed Effect because it was natural
+
+214
+00:07:19,920 --> 00:07:22,320
+successor to fp-ts.
+
+215
+00:07:22,320 --> 00:07:24,640
+And for hiring people
+
+216
+00:07:24,640 --> 00:07:25,200
+most of the
+
+217
+00:07:25,200 --> 00:07:27,200
+employees didn't know Effect
+
+218
+00:07:27,200 --> 00:07:30,800
+before they came at Spiko.
+
+219
+00:07:30,800 --> 00:07:33,440
+I think none of them knew
+
+220
+00:07:33,440 --> 00:07:36,640
+Effect and I trained them
+
+221
+00:07:36,640 --> 00:07:37,920
+and they also trained
+
+222
+00:07:37,920 --> 00:07:39,760
+with the documentation
+
+223
+00:07:39,760 --> 00:07:42,640
+and so far it's been okay.
+
+224
+00:07:42,640 --> 00:07:43,280
+I think the
+
+225
+00:07:43,280 --> 00:07:46,800
+documentation has really improved
+
+226
+00:07:46,800 --> 00:07:48,080
+there is still a learning curve
+
+227
+00:07:48,080 --> 00:07:50,880
+that is a bit higher than other libraries,
+
+228
+00:07:50,880 --> 00:07:52,160
+but I think it's okay.
+
+229
+00:07:52,160 --> 00:07:54,400
+Also at Spiko, we have, I mean,
+
+230
+00:07:54,400 --> 00:07:55,760
+we are all Full Stack
+
+231
+00:07:55,760 --> 00:07:58,080
+and Dev Ops and we,
+
+232
+00:07:58,080 --> 00:07:59,280
+we do all kinds of things
+
+233
+00:07:59,280 --> 00:08:02,000
+and we also develop smart contracts.
+
+234
+00:08:02,000 --> 00:08:04,080
+And so far we don't have
+
+235
+00:08:04,080 --> 00:08:06,480
+specialized roles in tech.
+
+236
+00:08:06,480 --> 00:08:08,080
+So when we hire people,
+
+237
+00:08:08,080 --> 00:08:10,720
+we try to hire people
+
+238
+00:08:10,720 --> 00:08:11,920
+who can quickly jump
+
+239
+00:08:11,920 --> 00:08:13,440
+on new technologies and
+
+240
+00:08:13,440 --> 00:08:14,560
+learn this technology.
+
+241
+00:08:14,560 --> 00:08:18,640
+So, so far everyone has
+
+242
+00:08:18,640 --> 00:08:20,480
+been learning Effect.
+
+243
+00:08:20,480 --> 00:08:21,280
+That is awesome.
+
+244
+00:08:21,280 --> 00:08:22,560
+Congratulations on that.
+
+245
+00:08:22,560 --> 00:08:25,360
+I share that similar path to you
+
+246
+00:08:25,360 --> 00:08:27,760
+that I found my way to Effect through
+
+247
+00:08:27,760 --> 00:08:28,960
+functional programming,
+
+248
+00:08:28,960 --> 00:08:30,880
+but I do think that this
+
+249
+00:08:30,880 --> 00:08:33,040
+won't be what brings most people
+
+250
+00:08:33,040 --> 00:08:34,400
+to effect these days and
+
+251
+00:08:34,400 --> 00:08:36,400
+certainly in the future.
+
+252
+00:08:36,400 --> 00:08:39,280
+So I'm curious, like what is your
+
+253
+00:08:39,280 --> 00:08:40,880
+teaching methodology
+
+254
+00:08:40,880 --> 00:08:42,080
+when you bring on
+
+255
+00:08:42,080 --> 00:08:43,840
+someone new to the team?
+
+256
+00:08:43,840 --> 00:08:45,440
+Are you precisely
+
+257
+00:08:45,440 --> 00:08:46,640
+already looking for someone
+
+258
+00:08:46,640 --> 00:08:48,880
+with functional programming backgrounds
+
+259
+00:08:48,880 --> 00:08:50,560
+or are you rather like
+
+260
+00:08:50,560 --> 00:08:52,640
+not mentioning FP at all?
+
+261
+00:08:52,640 --> 00:08:53,280
+Like how you're
+
+262
+00:08:53,280 --> 00:08:56,320
+explaining Effect to new engineers?
+
+263
+00:08:56,320 --> 00:08:57,600
+It's a good question.
+
+264
+00:08:57,600 --> 00:08:58,560
+I don't mention
+
+265
+00:08:58,560 --> 00:08:59,840
+functional programming.
+
+266
+00:08:59,840 --> 00:09:02,240
+I just say it's inspired by functional
+
+267
+00:09:02,240 --> 00:09:04,000
+programming concepts,
+
+268
+00:09:04,000 --> 00:09:06,000
+but I don't think it's
+
+269
+00:09:06,000 --> 00:09:07,680
+a good way to put it to,
+
+270
+00:09:07,680 --> 00:09:08,960
+to say it's functional
+
+271
+00:09:08,960 --> 00:09:10,080
+programming because it's not.
+
+272
+00:09:10,080 --> 00:09:10,720
+I prefer
+
+273
+00:09:10,720 --> 00:09:13,040
+to describe Effect as
+
+274
+00:09:13,040 --> 00:09:14,480
+a framework
+
+275
+00:09:14,480 --> 00:09:17,040
+that has type level error
+
+276
+00:09:17,040 --> 00:09:20,240
+and included dependency management.
+
+277
+00:09:20,240 --> 00:09:22,160
+So basically in TypeScript by default,
+
+278
+00:09:22,160 --> 00:09:25,760
+you have, you would have the success type
+
+279
+00:09:25,760 --> 00:09:28,160
+of a function that is correctly typed,
+
+280
+00:09:28,160 --> 00:09:29,520
+but here you have, you have
+
+281
+00:09:29,520 --> 00:09:32,160
+also errors and dependencies.
+
+282
+00:09:32,160 --> 00:09:36,000
+So I think it's a simple way to put it,
+
+283
+00:09:36,000 --> 00:09:38,160
+like you will have also success,
+
+284
+00:09:38,160 --> 00:09:40,000
+the error and the dependencies.
+
+285
+00:09:40,000 --> 00:09:43,280
+So maybe we can switch gears slightly
+
+286
+00:09:43,280 --> 00:09:44,320
+and talk a little bit
+
+287
+00:09:44,320 --> 00:09:46,960
+more about the architecture
+
+288
+00:09:46,960 --> 00:09:49,840
+of the product that you're building.
+
+289
+00:09:49,840 --> 00:09:53,360
+So maybe we can start by you describing
+
+290
+00:09:53,360 --> 00:09:54,480
+which sort of like
+
+291
+00:09:54,480 --> 00:09:56,720
+consumer facing parts there are.
+
+292
+00:09:56,720 --> 00:09:58,080
+Is there maybe a mobile app?
+
+293
+00:09:58,080 --> 00:09:59,280
+Is there a web app?
+
+294
+00:09:59,280 --> 00:10:01,680
+Are there some other primitives?
+
+295
+00:10:01,680 --> 00:10:03,040
+And then switching gears
+
+296
+00:10:03,040 --> 00:10:04,320
+and describing more of like
+
+297
+00:10:04,320 --> 00:10:06,160
+the backend architecture.
+
+298
+00:10:06,160 --> 00:10:11,200
+So, so far we have three apps,
+
+299
+00:10:11,200 --> 00:10:12,880
+three front-end apps written in
+
+300
+00:10:12,880 --> 00:10:14,720
+TypeScript and React.
+
+301
+00:10:14,720 --> 00:10:15,840
+we are building a platform
+
+302
+00:10:15,840 --> 00:10:17,760
+that connects financial
+
+303
+00:10:17,760 --> 00:10:20,560
+product issuers, distributors,
+
+304
+00:10:20,560 --> 00:10:22,160
+and also we have like
+
+305
+00:10:22,160 --> 00:10:25,520
+the admin interface.
+
+306
+00:10:25,520 --> 00:10:27,040
+So we have three types
+
+307
+00:10:27,040 --> 00:10:30,720
+of users in our system,
+
+308
+00:10:30,720 --> 00:10:35,040
+investors, distributors, and admins.
+
+309
+00:10:35,040 --> 00:10:37,680
+So basically we built three apps
+
+310
+00:10:37,680 --> 00:10:42,000
+and they are all connected to three APIs.
+
+311
+00:10:42,000 --> 00:10:44,720
+And all these APIs are
+
+312
+00:10:44,720 --> 00:10:47,600
+connected to backend services.
+
+313
+00:10:47,600 --> 00:10:50,160
+And so the way we
+
+314
+00:10:50,160 --> 00:10:53,600
+designed our backend is we built,
+
+315
+00:10:53,600 --> 00:10:55,840
+I would say not microservices,
+
+316
+00:10:55,840 --> 00:10:57,920
+but I would say macroservices.
+
+317
+00:10:57,920 --> 00:10:59,600
+It's not a monolith, but
+
+318
+00:10:59,600 --> 00:11:01,680
+we have like a few services.
+
+319
+00:11:01,680 --> 00:11:03,840
+One service to manage, I don't know,
+
+320
+00:11:03,840 --> 00:11:07,680
+fund operations, one to manage orders,
+
+321
+00:11:07,680 --> 00:11:12,080
+one manages the blockchain stuff.
+
+322
+00:11:12,080 --> 00:11:15,760
+So that's how we designed our backend.
+
+323
+00:11:15,760 --> 00:11:16,320
+Got it.
+
+324
+00:11:16,320 --> 00:11:19,360
+And so given those different APIs,
+
+325
+00:11:19,360 --> 00:11:20,880
+I assume you're using
+
+326
+00:11:20,880 --> 00:11:22,560
+the various building blocks
+
+327
+00:11:22,560 --> 00:11:24,480
+that Effect provides for that.
+
+328
+00:11:24,480 --> 00:11:27,040
+For example, the Effect HTTP
+
+329
+00:11:27,040 --> 00:11:29,360
+packages from the Platform.
+
+330
+00:11:29,360 --> 00:11:30,640
+Absolutely.
+
+331
+00:11:30,640 --> 00:11:33,520
+So at the beginning, when we started,
+
+332
+00:11:33,520 --> 00:11:35,840
+there was no platform package in Effect.
+
+333
+00:11:35,840 --> 00:11:37,600
+I think it was two years ago.
+
+334
+00:11:38,480 --> 00:11:39,680
+And Platform
+
+335
+00:11:39,680 --> 00:11:41,920
+almost did not exist, I think.
+
+336
+00:11:41,920 --> 00:11:45,200
+So the first thing I did was wrapping
+
+337
+00:11:45,200 --> 00:11:48,080
+Express into Effect,
+
+338
+00:11:48,080 --> 00:11:51,600
+which came up as a very bad idea
+
+339
+00:11:51,600 --> 00:11:53,040
+because it was a mess
+
+340
+00:11:53,040 --> 00:11:54,960
+to manage dependencies, and
+
+341
+00:11:54,960 --> 00:11:55,920
+I had like some
+
+342
+00:11:55,920 --> 00:11:57,600
+non-Effect code in my code base,
+
+343
+00:11:57,600 --> 00:12:00,000
+which wasn't really nice.
+
+344
+00:12:00,000 --> 00:12:01,840
+So basically my entry
+
+345
+00:12:01,840 --> 00:12:03,840
+point wasn't an Effect.
+
+346
+00:12:03,840 --> 00:12:05,360
+It was an Express server.
+
+347
+00:12:05,360 --> 00:12:10,400
+And Effect was in each endpoint handler,
+
+348
+00:12:10,400 --> 00:12:14,400
+I had to Effect.runPromise my code.
+
+349
+00:12:14,400 --> 00:12:16,160
+But later the Effect
+
+350
+00:12:16,160 --> 00:12:18,960
+platform package came in Effect
+
+351
+00:12:18,960 --> 00:12:20,720
+and we switched to it.
+
+352
+00:12:20,720 --> 00:12:23,040
+And at the time there
+
+353
+00:12:23,040 --> 00:12:26,480
+was no HTTP API module.
+
+354
+00:12:26,480 --> 00:12:30,000
+So we used effect-http
+
+355
+00:12:30,000 --> 00:12:31,040
+which was a lib
+
+356
+00:12:31,040 --> 00:12:32,260
+written by Milan Suk.
+
+357
+00:12:32,260 --> 00:12:34,160
+And we used it for a while actually.
+
+358
+00:12:34,160 --> 00:12:36,320
+And I even met Milan at
+
+359
+00:12:36,320 --> 00:12:37,840
+the first Effect Conference
+
+360
+00:12:37,840 --> 00:12:40,720
+and it was awesome to meet
+
+361
+00:12:42,160 --> 00:12:44,880
+everyone at this conference.
+
+362
+00:12:44,880 --> 00:12:46,960
+But yeah, we used it for a while
+
+363
+00:12:46,960 --> 00:12:51,200
+and then HTTP API module arrived
+
+364
+00:12:52,320 --> 00:12:53,440
+and we switched to it.
+
+365
+00:12:53,440 --> 00:12:55,840
+We migrated everything to it then.
+
+366
+00:12:55,840 --> 00:12:57,040
+Yeah, I mean, I
+
+367
+00:12:57,040 --> 00:12:59,200
+remember those transitions well
+
+368
+00:12:59,200 --> 00:13:01,280
+similar to you where,
+
+369
+00:13:01,280 --> 00:13:04,640
+like I also used fp-ts in the past
+
+370
+00:13:04,640 --> 00:13:07,120
+where you got those like much more fine
+
+371
+00:13:07,120 --> 00:13:08,640
+granular primitives,
+
+372
+00:13:08,640 --> 00:13:11,600
+but not as high level of a thing
+
+373
+00:13:11,600 --> 00:13:14,080
+such as like an HTTP module.
+
+374
+00:13:14,080 --> 00:13:15,760
+And I still remember,
+
+375
+00:13:15,760 --> 00:13:17,440
+getting something really nice,
+
+376
+00:13:17,440 --> 00:13:18,240
+like getting those
+
+377
+00:13:18,240 --> 00:13:20,400
+primitives from Effect,
+
+378
+00:13:20,400 --> 00:13:22,320
+but having to give up on
+
+379
+00:13:22,320 --> 00:13:23,680
+higher level primitives
+
+380
+00:13:23,680 --> 00:13:27,600
+where you like imagining Express or Koa
+
+381
+00:13:27,600 --> 00:13:29,440
+or like all of those different things,
+
+382
+00:13:29,440 --> 00:13:31,920
+you arguably had better primitives,
+
+383
+00:13:31,920 --> 00:13:34,160
+like you had middlewares, et cetera.
+
+384
+00:13:34,160 --> 00:13:36,320
+And now you kind of needed to,
+
+385
+00:13:36,320 --> 00:13:37,360
+you got one thing,
+
+386
+00:13:37,360 --> 00:13:39,600
+but you had to give up of another thing.
+
+387
+00:13:39,600 --> 00:13:40,960
+And now you're kind of wondering,
+
+388
+00:13:40,960 --> 00:13:42,320
+what should I do about this?
+
+389
+00:13:42,320 --> 00:13:44,800
+And you did a similar thing as I did,
+
+390
+00:13:44,800 --> 00:13:46,960
+which is like trying to rebuild
+
+391
+00:13:46,960 --> 00:13:48,640
+those higher level primitives.
+
+392
+00:13:48,640 --> 00:13:50,000
+But now it's so nice
+
+393
+00:13:50,000 --> 00:13:51,520
+that it was just always
+
+394
+00:13:51,520 --> 00:13:52,640
+just a matter of time
+
+395
+00:13:52,640 --> 00:13:55,360
+until the Effect ecosystem
+
+396
+00:13:55,360 --> 00:13:57,280
+and the Effect Core
+
+397
+00:13:57,280 --> 00:13:59,280
+which give us some of those primitives.
+
+398
+00:13:59,280 --> 00:14:01,840
+And now finally the time has come over
+
+399
+00:14:01,840 --> 00:14:03,600
+the last year or so.
+
+400
+00:14:04,560 --> 00:14:06,160
+if you're going through that transition,
+
+401
+00:14:06,160 --> 00:14:07,280
+it's just so nice how
+
+402
+00:14:07,280 --> 00:14:09,040
+much code you can delete
+
+403
+00:14:09,040 --> 00:14:10,080
+and how everything
+
+404
+00:14:10,080 --> 00:14:12,000
+just fits like a glove.
+
+405
+00:14:12,000 --> 00:14:14,720
+So I wanna learn more about the backend,
+
+406
+00:14:14,720 --> 00:14:16,800
+but maybe briefly to wrap
+
+407
+00:14:16,800 --> 00:14:18,960
+up on the front end first,
+
+408
+00:14:18,960 --> 00:14:20,800
+how much or how little are
+
+409
+00:14:20,800 --> 00:14:23,200
+using Effect on the front end?
+
+410
+00:14:23,200 --> 00:14:24,320
+Are you stopping by
+
+411
+00:14:24,320 --> 00:14:27,840
+basically consuming the HTTP APIs
+
+412
+00:14:27,840 --> 00:14:29,280
+or are using Effect
+
+413
+00:14:29,280 --> 00:14:31,120
+in a more involved way
+
+414
+00:14:31,120 --> 00:14:32,320
+on the front end?
+
+415
+00:14:32,320 --> 00:14:34,960
+No, we use it only for data fetching.
+
+416
+00:14:34,960 --> 00:14:37,200
+So, but it's very convenient
+
+417
+00:14:37,200 --> 00:14:39,680
+because with the HTTP API module,
+
+418
+00:14:39,680 --> 00:14:41,840
+you can write APIs in
+
+419
+00:14:41,840 --> 00:14:43,760
+the declarative way.
+
+420
+00:14:43,760 --> 00:14:46,640
+So you have auto-generated
+
+421
+00:14:46,640 --> 00:14:48,640
+clients, which is type safe.
+
+422
+00:14:48,640 --> 00:14:52,000
+So basically we have a lib
+
+423
+00:14:52,000 --> 00:14:56,560
+that exports the HTTP API
+
+424
+00:14:56,560 --> 00:14:59,840
+specification and we have the clients,
+
+425
+00:14:59,840 --> 00:15:02,720
+we just import the client from the app.
+
+426
+00:15:02,720 --> 00:15:06,560
+But maybe in the future we could use it
+
+427
+00:15:07,200 --> 00:15:09,120
+even in a more involved
+
+428
+00:15:09,120 --> 00:15:10,880
+way, but it's not the case yet.
+
+429
+00:15:10,880 --> 00:15:12,240
+Got it, that makes sense.
+
+430
+00:15:12,240 --> 00:15:13,440
+So yeah, let's talk a little
+
+431
+00:15:13,440 --> 00:15:14,720
+bit more about the backend.
+
+432
+00:15:14,720 --> 00:15:15,840
+So you mentioned already
+
+433
+00:15:15,840 --> 00:15:17,840
+those like three pillars
+
+434
+00:15:17,840 --> 00:15:19,440
+of your application, like
+
+435
+00:15:19,440 --> 00:15:20,880
+if I remember correctly,
+
+436
+00:15:20,880 --> 00:15:22,880
+like the investor facing ones,
+
+437
+00:15:22,880 --> 00:15:24,000
+then the distributor
+
+438
+00:15:24,000 --> 00:15:26,240
+facing ones, and then the admin,
+
+439
+00:15:26,240 --> 00:15:28,320
+which I suppose is like your company.
+
+440
+00:15:28,320 --> 00:15:28,880
+so at the
+
+441
+00:15:28,880 --> 00:15:30,320
+minimum for each of those,
+
+442
+00:15:30,320 --> 00:15:32,480
+there seems to be an HTTP API,
+
+443
+00:15:32,480 --> 00:15:33,520
+but then you also
+
+444
+00:15:33,520 --> 00:15:35,200
+need to interface somehow
+
+445
+00:15:35,200 --> 00:15:37,200
+with like external services.
+
+446
+00:15:37,200 --> 00:15:40,160
+So is that all done from those HTTP APIs
+
+447
+00:15:40,160 --> 00:15:41,360
+or are there some
+
+448
+00:15:41,360 --> 00:15:43,200
+other parts in the system,
+
+449
+00:15:43,200 --> 00:15:46,880
+maybe like some message buzz or yeah,
+
+450
+00:15:46,880 --> 00:15:48,720
+maybe you can explain a little bit more
+
+451
+00:15:48,720 --> 00:15:49,840
+of like how the backend
+
+452
+00:15:49,840 --> 00:15:51,320
+works and how Effect helps there.
+
+453
+00:15:51,320 --> 00:15:53,920
+So as I told you, we have multiple
+
+454
+00:15:53,920 --> 00:15:55,520
+services now backend
+
+455
+00:15:55,520 --> 00:15:57,920
+and they sometimes need to communicate
+
+456
+00:15:58,800 --> 00:16:00,960
+between one and another.
+
+457
+00:16:00,960 --> 00:16:03,360
+So the first thing we did
+
+458
+00:16:03,360 --> 00:16:06,080
+was to build an internal API.
+
+459
+00:16:06,080 --> 00:16:07,920
+So for each service, we
+
+460
+00:16:07,920 --> 00:16:10,080
+built an internal HTTP API
+
+461
+00:16:10,080 --> 00:16:10,960
+because it was the same
+
+462
+00:16:10,960 --> 00:16:14,080
+technology as external APIs.
+
+463
+00:16:14,080 --> 00:16:15,440
+So it was easy for one
+
+464
+00:16:15,440 --> 00:16:17,440
+service to call another service.
+
+465
+00:16:17,440 --> 00:16:18,880
+We had the same,
+
+466
+00:16:18,880 --> 00:16:20,320
+auto-generative client,
+
+467
+00:16:20,320 --> 00:16:22,000
+everything was type safe.
+
+468
+00:16:22,000 --> 00:16:24,000
+So it felt very nice.
+
+469
+00:16:24,000 --> 00:16:28,080
+And at some point we had to,
+
+470
+00:16:28,080 --> 00:16:29,280
+run some, I would
+
+471
+00:16:29,280 --> 00:16:30,880
+say some background jobs,
+
+472
+00:16:30,880 --> 00:16:33,200
+for instance, an investor
+
+473
+00:16:33,200 --> 00:16:35,120
+wants to create an order
+
+474
+00:16:35,120 --> 00:16:37,120
+and we need to send him an email.
+
+475
+00:16:37,120 --> 00:16:38,240
+But before sending the
+
+476
+00:16:38,240 --> 00:16:40,400
+email, we need to generate PDF
+
+477
+00:16:40,400 --> 00:16:43,600
+and like a lot of stuff has to happen
+
+478
+00:16:43,600 --> 00:16:47,600
+and it will take maybe several seconds,
+
+479
+00:16:47,600 --> 00:16:49,280
+maybe 10 seconds. I don't know
+
+480
+00:16:49,280 --> 00:16:51,440
+But we want to do it as a background job.
+
+481
+00:16:51,440 --> 00:16:53,120
+So we can answer with
+
+482
+00:16:53,120 --> 00:16:55,360
+the HTTP response quickly.
+
+483
+00:16:55,360 --> 00:16:58,560
+So the first thing we did
+
+484
+00:16:58,560 --> 00:17:02,240
+was using our internal API
+
+485
+00:17:02,240 --> 00:17:04,960
+but we used something to
+
+486
+00:17:04,960 --> 00:17:08,720
+avoid blocking the HTTP response.
+
+487
+00:17:08,720 --> 00:17:10,480
+so we used Effect.forkDaemon
+
+488
+00:17:11,360 --> 00:17:14,000
+so we would fork the
+
+489
+00:17:14,000 --> 00:17:16,720
+execution of an internal API call
+
+490
+00:17:16,720 --> 00:17:20,880
+into the, I would say the global scope.
+
+491
+00:17:20,880 --> 00:17:24,120
+So it would not be blocking for answering
+
+492
+00:17:24,120 --> 00:17:27,680
+or for responding with the HTTP status
+
+493
+00:17:27,680 --> 00:17:29,120
+but the server would
+
+494
+00:17:29,120 --> 00:17:30,560
+still make the request
+
+495
+00:17:30,560 --> 00:17:33,440
+to another internal service.
+
+496
+00:17:33,440 --> 00:17:35,840
+And we did that for a while
+
+497
+00:17:35,840 --> 00:17:37,760
+especially for the emails,
+
+498
+00:17:37,760 --> 00:17:39,920
+every kind of background jobs.
+
+499
+00:17:39,920 --> 00:17:41,280
+And at some point
+
+500
+00:17:41,280 --> 00:17:43,520
+we had a lot of internal API calls
+
+501
+00:17:43,520 --> 00:17:46,160
+and we still have some, but at some point
+
+502
+00:17:46,160 --> 00:17:49,840
+I wanted to bring a new,
+
+503
+00:17:49,840 --> 00:17:50,960
+a better kind of
+
+504
+00:17:50,960 --> 00:17:53,360
+architecture to do these kind of things.
+
+505
+00:17:53,360 --> 00:17:55,520
+And what people tipically
+
+506
+00:17:55,520 --> 00:18:00,080
+do is bring a message broker
+
+507
+00:18:00,080 --> 00:18:02,960
+that is connecting to all microservices
+
+508
+00:18:02,960 --> 00:18:04,560
+so service can just
+
+509
+00:18:04,560 --> 00:18:06,400
+drop events or commands
+
+510
+00:18:06,400 --> 00:18:07,680
+in the message broker
+
+511
+00:18:07,680 --> 00:18:09,680
+and service can also listen
+
+512
+00:18:09,680 --> 00:18:13,040
+to events or commands and handle them.
+
+513
+00:18:13,040 --> 00:18:13,760
+Got it.
+
+514
+00:18:13,760 --> 00:18:15,120
+So let me just see
+
+515
+00:18:15,760 --> 00:18:17,760
+whether I understood correctly.
+
+516
+00:18:17,760 --> 00:18:19,040
+So you basically have
+
+517
+00:18:19,040 --> 00:18:20,880
+those HTTP endpoints.
+
+518
+00:18:20,880 --> 00:18:22,640
+You're running them, are
+
+519
+00:18:22,640 --> 00:18:23,680
+you running them on something
+
+520
+00:18:23,680 --> 00:18:27,600
+like AWS Lambda or on stateful servers?
+
+521
+00:18:27,600 --> 00:18:31,200
+Yes, everything runs in Kubernetes.
+
+522
+00:18:31,200 --> 00:18:32,240
+Okay, so you're
+
+523
+00:18:32,240 --> 00:18:33,920
+running that in Kubernetes
+
+524
+00:18:33,920 --> 00:18:35,040
+so you have the benefit
+
+525
+00:18:35,040 --> 00:18:36,200
+of long running servers.
+
+526
+00:18:36,200 --> 00:18:37,280
+So it's one of the
+
+527
+00:18:37,280 --> 00:18:39,040
+questions I would have had otherwise
+
+528
+00:18:39,040 --> 00:18:42,000
+is when you say fork deamon, now you
+
+529
+00:18:42,000 --> 00:18:43,600
+basically need to think
+
+530
+00:18:43,600 --> 00:18:45,440
+about like the request lifecycle
+
+531
+00:18:45,440 --> 00:18:46,640
+but otherwise also the
+
+532
+00:18:46,640 --> 00:18:48,080
+lifecycle of a server.
+
+533
+00:18:48,080 --> 00:18:50,160
+So if you have the lifecycle of a server
+
+534
+00:18:50,160 --> 00:18:52,480
+that makes that certainly easier.
+
+535
+00:18:52,480 --> 00:18:54,320
+But the more complexity
+
+536
+00:18:54,320 --> 00:18:56,160
+that you had sort of like
+
+537
+00:18:56,160 --> 00:18:59,120
+as your app develops and evolves,
+
+538
+00:18:59,120 --> 00:19:00,240
+typically it gets more
+
+539
+00:19:00,240 --> 00:19:02,480
+complex than simpler over time.
+
+540
+00:19:02,480 --> 00:19:04,960
+And so you always had that trade off of
+
+541
+00:19:04,960 --> 00:19:06,080
+like you want to
+
+542
+00:19:06,080 --> 00:19:08,560
+if the client does something, it should
+
+543
+00:19:08,560 --> 00:19:10,880
+get a request response
+
+544
+00:19:10,880 --> 00:19:12,720
+as quickly as possible.
+
+545
+00:19:12,720 --> 00:19:14,640
+And now you have that
+
+546
+00:19:14,640 --> 00:19:17,040
+tension where on the one hand
+
+547
+00:19:17,040 --> 00:19:19,520
+you want to keep the response snappy and
+
+548
+00:19:19,520 --> 00:19:20,640
+as quick as possible.
+
+549
+00:19:20,640 --> 00:19:22,480
+And on the other side, you
+
+550
+00:19:22,480 --> 00:19:23,840
+had more and more complexity,
+
+551
+00:19:23,840 --> 00:19:25,120
+more and more stuff and
+
+552
+00:19:25,120 --> 00:19:27,360
+features that should be handled.
+
+553
+00:19:27,360 --> 00:19:29,120
+So far, you've always kind of let that
+
+554
+00:19:29,120 --> 00:19:30,560
+run in the background
+
+555
+00:19:30,560 --> 00:19:33,440
+by basically through the
+
+556
+00:19:33,440 --> 00:19:35,440
+request response lifecycle
+
+557
+00:19:35,440 --> 00:19:37,600
+would already create a
+
+558
+00:19:37,600 --> 00:19:41,120
+Effect fiber for like a fork.
+
+559
+00:19:41,120 --> 00:19:43,520
+The details here don't matter too much.
+
+560
+00:19:43,520 --> 00:19:45,360
+But basically now the
+
+561
+00:19:45,360 --> 00:19:48,240
+question is like the little job
+
+562
+00:19:48,240 --> 00:19:51,280
+that now somehow runs through the event,
+
+563
+00:19:51,280 --> 00:19:54,480
+like JavaScript event loop that maybe
+
+564
+00:19:54,480 --> 00:19:56,080
+gets out of control.
+
+565
+00:19:56,080 --> 00:19:57,200
+Maybe like what if you need
+
+566
+00:19:57,200 --> 00:19:58,960
+to do error handling there,
+
+567
+00:19:58,960 --> 00:20:00,800
+maybe how many of those
+
+568
+00:20:00,800 --> 00:20:02,800
+are running at the same time.
+
+569
+00:20:02,800 --> 00:20:05,760
+So this is the situation you were facing.
+
+570
+00:20:05,760 --> 00:20:07,840
+And now you thought about, okay, what is
+
+571
+00:20:07,840 --> 00:20:09,360
+like the architectural,
+
+572
+00:20:09,360 --> 00:20:12,000
+architectually proper way to deal with that.
+
+573
+00:20:12,000 --> 00:20:14,160
+And that is where you arrived at.
+
+574
+00:20:14,160 --> 00:20:15,200
+Let's look into event
+
+575
+00:20:15,200 --> 00:20:16,560
+buses. Is that correct?
+
+576
+00:20:16,560 --> 00:20:17,280
+Yeah, absolutely.
+
+577
+00:20:17,280 --> 00:20:20,000
+So we wanted to have a bit more control
+
+578
+00:20:20,000 --> 00:20:22,000
+with this kind of background jobs.
+
+579
+00:20:22,000 --> 00:20:22,960
+Also for
+
+580
+00:20:23,920 --> 00:20:27,440
+the structure of the code base,
+
+581
+00:20:27,440 --> 00:20:29,680
+we wanted to avoid like
+
+582
+00:20:29,680 --> 00:20:31,520
+dependencies between services,
+
+583
+00:20:31,520 --> 00:20:33,280
+like some service, they
+
+584
+00:20:33,280 --> 00:20:34,880
+just want to drop an event
+
+585
+00:20:34,880 --> 00:20:36,320
+and they don't have to know
+
+586
+00:20:36,320 --> 00:20:40,240
+about the API of other services.
+
+587
+00:20:40,240 --> 00:20:41,520
+So it made more sense
+
+588
+00:20:41,520 --> 00:20:43,360
+to just drop an event
+
+589
+00:20:43,360 --> 00:20:46,080
+and not calling the service directly is
+
+590
+00:20:46,080 --> 00:20:48,240
+also like a best practice
+
+591
+00:20:48,240 --> 00:20:50,240
+I think in terms of software design.
+
+592
+00:20:50,800 --> 00:20:52,800
+When your system gets complex,
+
+593
+00:20:52,800 --> 00:20:56,000
+you want to have like better architecture
+
+594
+00:20:56,000 --> 00:20:58,080
+and dependencies enforcement.
+
+595
+00:20:58,080 --> 00:20:58,720
+That makes sense.
+
+596
+00:20:58,720 --> 00:21:00,560
+And so I just want to get a better
+
+597
+00:21:00,560 --> 00:21:02,160
+understanding of like the nature
+
+598
+00:21:02,160 --> 00:21:03,520
+of the things that should
+
+599
+00:21:03,520 --> 00:21:05,520
+kind of happen in the background.
+
+600
+00:21:05,520 --> 00:21:06,960
+Are those purely things
+
+601
+00:21:06,960 --> 00:21:08,400
+that need to be kicked off
+
+602
+00:21:08,400 --> 00:21:11,520
+but are no longer relevant for the user
+
+603
+00:21:11,520 --> 00:21:13,680
+experience in the front end?
+
+604
+00:21:13,680 --> 00:21:15,680
+So like if you click a
+
+605
+00:21:15,680 --> 00:21:16,880
+button in the front end,
+
+606
+00:21:16,880 --> 00:21:19,280
+you're like getting the request response
+
+607
+00:21:19,280 --> 00:21:22,000
+cycle back and a thing happens
+
+608
+00:21:22,000 --> 00:21:24,320
+and then you don't really care too much
+
+609
+00:21:24,320 --> 00:21:26,160
+what is happening in the background.
+
+610
+00:21:26,160 --> 00:21:27,360
+Or is there stuff that
+
+611
+00:21:27,360 --> 00:21:28,320
+happens in the background
+
+612
+00:21:28,320 --> 00:21:30,240
+that the front end might now be like
+
+613
+00:21:30,240 --> 00:21:32,560
+pulling for in some way?
+
+614
+00:21:32,560 --> 00:21:34,720
+Most of the time we don't call responses.
+
+615
+00:21:34,720 --> 00:21:36,960
+It's just like background like I don't
+
+616
+00:21:36,960 --> 00:21:41,120
+know, send an email or we call.
+
+617
+00:21:41,120 --> 00:21:43,520
+So we're also connected with blockchains
+
+618
+00:21:43,520 --> 00:21:46,320
+and blockchains are complex systems.
+
+619
+00:21:46,320 --> 00:21:49,600
+But basically, the registry of our funds
+
+620
+00:21:49,600 --> 00:21:50,960
+are written on the blockchains
+
+621
+00:21:50,960 --> 00:21:52,560
+and the blockchains evolves.
+
+622
+00:21:52,560 --> 00:21:54,480
+But yeah, a lot of events are
+
+623
+00:21:54,480 --> 00:21:55,840
+happening on the blockchains
+
+624
+00:21:55,840 --> 00:21:57,760
+and we basically pull the
+
+625
+00:21:57,760 --> 00:21:59,200
+blockchain continuously.
+
+626
+00:21:59,200 --> 00:22:01,520
+We index all these events
+
+627
+00:22:01,520 --> 00:22:03,280
+and sometimes when a
+
+628
+00:22:03,280 --> 00:22:04,960
+specific event happens,
+
+629
+00:22:04,960 --> 00:22:06,800
+we want to trigger some code.
+
+630
+00:22:06,800 --> 00:22:08,880
+So for these kinds of scenarios, it's
+
+631
+00:22:08,880 --> 00:22:11,760
+really nice to have an
+
+632
+00:22:11,760 --> 00:22:13,200
+event-driven architecture.
+
+633
+00:22:13,200 --> 00:22:14,880
+Got it. Yeah, so you're
+
+634
+00:22:14,880 --> 00:22:16,800
+mentioning an event bus.
+
+635
+00:22:16,800 --> 00:22:20,480
+So let's dive in. What did you do there?
+
+636
+00:22:20,480 --> 00:22:22,800
+Suppose there are many different options.
+
+637
+00:22:22,800 --> 00:22:25,440
+You're not the first one to embrace an
+
+638
+00:22:25,440 --> 00:22:27,280
+event-driven architecture.
+
+639
+00:22:27,280 --> 00:22:29,040
+So how did you go about that?
+
+640
+00:22:29,040 --> 00:22:31,680
+Did you build something like that before?
+
+641
+00:22:31,680 --> 00:22:32,720
+Did you have any sort
+
+642
+00:22:32,720 --> 00:22:34,560
+of relevant experience?
+
+643
+00:22:34,560 --> 00:22:36,320
+Walk me through sort of like the
+
+644
+00:22:36,320 --> 00:22:39,280
+You getting up to speed on that topic
+
+645
+00:22:39,280 --> 00:22:41,680
+and then evaluating different options to
+
+646
+00:22:41,680 --> 00:22:44,240
+what you've ultimately implemented.
+
+647
+00:22:44,240 --> 00:22:46,080
+So we had like a
+
+648
+00:22:46,080 --> 00:22:47,920
+discussion with all my team
+
+649
+00:22:47,920 --> 00:22:49,200
+discussion with all my team and
+there are many options,
+
+650
+00:22:49,200 --> 00:22:52,080
+but for us, we prefer to
+
+651
+00:22:52,080 --> 00:22:55,120
+use an open source project.
+
+652
+00:22:55,120 --> 00:22:59,200
+So we didn't want to be tied to a
+
+653
+00:22:59,200 --> 00:23:01,760
+specific cloud provider,
+
+654
+00:23:01,760 --> 00:23:04,880
+like I don't know, SQS from Amazon, from
+
+655
+00:23:04,880 --> 00:23:07,680
+AWS or Google PubSub.
+
+656
+00:23:07,680 --> 00:23:09,680
+And basically, at the end,
+
+657
+00:23:09,680 --> 00:23:11,520
+we had three main choices.
+
+658
+00:23:11,520 --> 00:23:14,960
+So the first was Kafka, because Kafka is
+
+659
+00:23:14,960 --> 00:23:17,920
+widely used, big enterprise.
+
+660
+00:23:17,920 --> 00:23:20,560
+And it's probably the most used
+
+661
+00:23:20,560 --> 00:23:22,400
+in the financial sector.
+
+662
+00:23:22,400 --> 00:23:25,200
+So it would have been a good fit for us.
+
+663
+00:23:25,200 --> 00:23:26,640
+The second choice was
+
+664
+00:23:26,640 --> 00:23:30,320
+RabbitMQ, because it's battle-tested,
+
+665
+00:23:30,320 --> 00:23:34,560
+it's well-used, plenty of plugins, etc.
+
+666
+00:23:34,560 --> 00:23:36,400
+And the third was like
+
+667
+00:23:36,400 --> 00:23:39,120
+the new to the game is NATS.
+
+668
+00:23:39,120 --> 00:23:41,760
+It's more recent, but it's very
+
+669
+00:23:41,760 --> 00:23:43,360
+lightweight and
+
+670
+00:23:43,360 --> 00:23:44,640
+It seemed very nice.
+
+671
+00:23:44,640 --> 00:23:47,040
+So we decided to eliminate
+
+672
+00:23:47,040 --> 00:23:48,800
+Kafka because it was
+
+673
+00:23:48,800 --> 00:23:50,480
+heavy to run locally,
+
+674
+00:23:50,480 --> 00:23:51,329
+not easy to run on Kubernetes.
+
+675
+00:23:51,329 --> 00:23:56,720
+I think they are a great
+option to run on Kubernetes,
+
+676
+00:23:56,720 --> 00:24:00,080
+but it was not the lightweight option.
+
+677
+00:24:00,080 --> 00:24:02,320
+Overall, we chose RabbitMQ
+
+678
+00:24:02,320 --> 00:24:04,880
+because it was more battle-tested,
+
+679
+00:24:04,880 --> 00:24:06,960
+because it had a UI
+
+680
+00:24:06,960 --> 00:24:09,280
+interface to play with.
+
+681
+00:24:09,920 --> 00:24:12,560
+So we were more confident with something
+
+682
+00:24:12,560 --> 00:24:14,400
+that is a bit battle-tested.
+
+683
+00:24:14,400 --> 00:24:16,640
+And we didn't need to have
+
+684
+00:24:16,640 --> 00:24:20,400
+something that is super fast
+
+685
+00:24:20,400 --> 00:24:21,920
+or that can handle
+
+686
+00:24:21,920 --> 00:24:23,840
+millions of message per seconds.
+
+687
+00:24:23,840 --> 00:24:28,320
+Also, it's not a very critical choice for
+
+688
+00:24:28,320 --> 00:24:29,200
+us because
+
+689
+00:24:29,200 --> 00:24:30,960
+All the data that goes into
+
+690
+00:24:30,960 --> 00:24:32,720
+RabbitMQ is not persistent.
+
+691
+00:24:32,720 --> 00:24:35,360
+It's temporary because once the message
+
+692
+00:24:35,360 --> 00:24:37,680
+is consumed, it disappears.
+
+693
+00:24:37,680 --> 00:24:40,400
+So at some point, if we want to switch to
+
+694
+00:24:40,400 --> 00:24:42,000
+another message broker,
+
+695
+00:24:42,000 --> 00:24:45,840
+we could. It wouldn't be so hard for us to switch.
+
+696
+00:24:45,840 --> 00:24:48,400
+So we were like, "Okay, RabbitMQ seems
+
+697
+00:24:48,400 --> 00:24:50,960
+nice. Let's go and let's try it."
+
+698
+00:24:50,960 --> 00:24:53,200
+But the adventure was a bit
+
+699
+00:24:53,200 --> 00:24:56,240
+rough after we made that choice
+
+700
+00:24:56,240 --> 00:24:59,040
+because we discovered a lot of things
+
+701
+00:24:59,040 --> 00:25:00,640
+that were not so nice
+
+702
+00:25:00,640 --> 00:25:04,240
+about RabbitMQ and AMQP.
+
+703
+00:25:04,240 --> 00:25:07,760
+And maybe if I knew them before, maybe I
+
+704
+00:25:07,760 --> 00:25:10,320
+would not have chosen something like that.
+
+705
+00:25:10,320 --> 00:25:12,240
+Let's definitely go into that.
+
+706
+00:25:13,280 --> 00:25:15,520
+For those folks who have never used
+
+707
+00:25:15,520 --> 00:25:18,800
+Rabbit, you also mentioned AMQP.
+
+708
+00:25:18,800 --> 00:25:20,480
+Would you mind giving a
+
+709
+00:25:20,480 --> 00:25:22,560
+quick explainer of what those are
+
+710
+00:25:22,560 --> 00:25:25,040
+and how they relate to each other?
+
+711
+00:25:25,040 --> 00:25:26,080
+Sure.
+
+712
+00:25:26,080 --> 00:25:27,680
+I'm not an expert, but
+
+713
+00:25:27,680 --> 00:25:29,120
+here is my understanding.
+
+714
+00:25:29,120 --> 00:25:32,480
+AMQP is a protocol, like HTTP.
+
+715
+00:25:32,480 --> 00:25:35,840
+It's a protocol that is turned out for
+
+716
+00:25:35,840 --> 00:25:38,560
+sending and consuming messages.
+
+717
+00:25:38,560 --> 00:25:42,240
+And there are several brokers that
+
+718
+00:25:42,240 --> 00:25:44,400
+implement this protocol.
+
+719
+00:25:44,400 --> 00:25:45,760
+RabbitMQ is one of
+
+720
+00:25:45,760 --> 00:25:46,400
+them, but
+
+721
+00:25:46,400 --> 00:25:50,320
+You have other types of message brokers
+
+722
+00:25:50,320 --> 00:25:52,640
+that implement AMQP.
+
+723
+00:25:52,640 --> 00:25:54,960
+For instance, I think ActiveMQ.
+
+724
+00:25:56,080 --> 00:25:59,040
+Everything that has an MQ in the name is
+
+725
+00:25:59,760 --> 00:26:04,400
+probably an AMQP client and server.
+
+726
+00:26:04,400 --> 00:26:05,920
+Actually, it's quite nice
+
+727
+00:26:05,920 --> 00:26:08,720
+because AMQP is widely used.
+
+728
+00:26:08,720 --> 00:26:11,280
+RabbitMQ is one of the most popular
+
+729
+00:26:11,280 --> 00:26:14,640
+implementation of an AMQP server.
+
+730
+00:26:14,640 --> 00:26:17,280
+I think I've used RabbitMQ in the past,
+
+731
+00:26:17,280 --> 00:26:19,280
+but it's been a little while.
+
+732
+00:26:19,280 --> 00:26:21,280
+And I'm dealing with other kinds of
+
+733
+00:26:21,280 --> 00:26:23,120
+event-driven systems these days
+
+734
+00:26:23,120 --> 00:26:25,920
+where I'm exploring event sourcing more
+
+735
+00:26:25,920 --> 00:26:27,440
+in a front-end context.
+
+736
+00:26:27,440 --> 00:26:30,080
+Some similarities, but also very
+
+737
+00:26:30,080 --> 00:26:32,800
+different when it comes to the use case
+
+738
+00:26:32,800 --> 00:26:34,240
+that you're describing.
+
+739
+00:26:34,240 --> 00:26:35,760
+So very curious to
+
+740
+00:26:35,760 --> 00:26:37,120
+learn more about yours.
+
+741
+00:26:37,920 --> 00:26:39,760
+You mentioned that you were running into
+
+742
+00:26:39,760 --> 00:26:42,080
+some issues with RabbitMQ.
+
+743
+00:26:42,080 --> 00:26:44,720
+So maybe you can describe a little bit
+
+744
+00:26:44,720 --> 00:26:45,840
+more chronologically
+
+745
+00:26:45,840 --> 00:26:47,120
+how you went about it,
+
+746
+00:26:47,120 --> 00:26:50,160
+what you were aiming for, which sort of
+
+747
+00:26:50,160 --> 00:26:51,680
+assumptions or hopes
+
+748
+00:26:51,680 --> 00:26:53,840
+that maybe turned out different than you
+
+749
+00:26:53,840 --> 00:26:56,320
+thought, and what did you arrive at?
+
+750
+00:26:56,320 --> 00:26:57,520
+It's an interesting question.
+
+751
+00:26:57,520 --> 00:26:59,520
+So when we started to implement,
+
+752
+00:26:59,520 --> 00:27:01,200
+the connection between RabbitMQ
+
+753
+00:27:02,080 --> 00:27:05,280
+and our back-end services, what we did
+
+754
+00:27:05,280 --> 00:27:07,760
+was we basically wrapped
+
+755
+00:27:07,760 --> 00:27:10,400
+the AMQP library into Effect.
+
+756
+00:27:10,400 --> 00:27:12,160
+So we used the official
+
+757
+00:27:12,160 --> 00:27:15,920
+library called AMQPlib.
+
+758
+00:27:15,920 --> 00:27:18,640
+the official implementation for Node.js.
+
+759
+00:27:18,640 --> 00:27:21,040
+basically when you connect to RabbitMQ
+
+760
+00:27:21,040 --> 00:27:23,440
+from Node.js, you create two objects.
+
+761
+00:27:23,440 --> 00:27:24,640
+One is the connection, so
+
+762
+00:27:24,640 --> 00:27:26,240
+you initiate the connection,
+
+763
+00:27:26,240 --> 00:27:28,720
+and then you initiate a channel which
+
+764
+00:27:28,720 --> 00:27:31,120
+represents a connection channel
+
+765
+00:27:31,120 --> 00:27:33,840
+between the client and the server.
+
+766
+00:27:33,840 --> 00:27:36,800
+So you initiate these two objects, and
+
+767
+00:27:36,800 --> 00:27:38,560
+what we did is we put
+
+768
+00:27:38,560 --> 00:27:40,800
+them into, I think, a layer,
+
+769
+00:27:40,800 --> 00:27:43,920
+an effect layer that was scoped so when
+
+770
+00:27:43,920 --> 00:27:46,320
+the dependency lifetime was ended,
+
+771
+00:27:46,320 --> 00:27:47,440
+we could close the
+
+772
+00:27:47,440 --> 00:27:49,360
+connection, close the channel.
+
+773
+00:27:49,360 --> 00:27:51,440
+So that's pretty basic.
+
+774
+00:27:51,440 --> 00:27:54,080
+Then we could just call our channel to
+
+775
+00:27:54,080 --> 00:27:55,920
+send message and subscribe to it.
+
+776
+00:27:56,560 --> 00:28:00,320
+What was a bit challenging is that at some
+
+777
+00:28:00,320 --> 00:28:03,280
+point, we discovered that our services
+
+778
+00:28:03,280 --> 00:28:05,840
+were not consuming messages anymore
+
+779
+00:28:05,840 --> 00:28:08,000
+or they were not sending
+
+780
+00:28:08,000 --> 00:28:11,200
+messages anymore to the server.
+
+781
+00:28:11,200 --> 00:28:12,160
+Why?
+
+782
+00:28:12,160 --> 00:28:14,320
+Because the connection and the channel
+
+783
+00:28:14,320 --> 00:28:16,000
+between client and server
+
+784
+00:28:16,000 --> 00:28:17,760
+was closed at some point
+
+785
+00:28:17,760 --> 00:28:19,680
+for any reason.
+
+786
+00:28:19,680 --> 00:28:22,880
+Maybe the connection between the service
+
+787
+00:28:22,880 --> 00:28:25,920
+and the server had a problem.
+
+788
+00:28:25,920 --> 00:28:28,160
+So we are running a
+
+789
+00:28:28,160 --> 00:28:30,080
+RabbitMQ in the Kubernetes cluster.
+
+790
+00:28:30,080 --> 00:28:31,680
+It's quite safe because we use
+
+791
+00:28:31,680 --> 00:28:33,760
+RabbitMQ as a cluster in
+
+792
+00:28:33,760 --> 00:28:35,600
+our Kubernetes cluster.
+
+793
+00:28:35,600 --> 00:28:38,480
+So we always have the persistence of
+
+794
+00:28:38,480 --> 00:28:42,000
+messages and replications of events.
+
+795
+00:28:42,000 --> 00:28:44,400
+But sometimes one node of
+
+796
+00:28:44,400 --> 00:28:46,960
+the RabbitMQ cluster goes down,
+
+797
+00:28:46,960 --> 00:28:48,720
+and then the connection between the
+
+798
+00:28:48,720 --> 00:28:52,480
+service and the RabbitMQ node goes down.
+
+799
+00:28:52,480 --> 00:28:55,360
+The problem with the AMQPlib is that
+
+800
+00:28:55,360 --> 00:28:58,000
+when the connection object is failing,
+
+801
+00:28:58,000 --> 00:28:59,760
+there is no autoreconnection.
+
+802
+00:28:59,760 --> 00:29:02,080
+So basically, the connection just drops.
+
+803
+00:29:02,080 --> 00:29:05,520
+It was a challenge for us to implement an
+
+804
+00:29:05,520 --> 00:29:07,680
+automatic reconnection of the service.
+
+805
+00:29:07,680 --> 00:29:10,160
+So we iterated a bit on this problem.
+
+806
+00:29:10,160 --> 00:29:11,680
+The first thing we did is that
+
+807
+00:29:11,680 --> 00:29:13,440
+In our Kubernetes
+
+808
+00:29:14,080 --> 00:29:15,760
+health check endpoint,
+
+809
+00:29:15,760 --> 00:29:17,600
+we would add a check to see if the
+
+810
+00:29:17,600 --> 00:29:18,560
+connection was alive.
+
+811
+00:29:18,560 --> 00:29:20,160
+If the connection was not alive,
+
+812
+00:29:20,160 --> 00:29:22,720
+so Kubernetes could just kill the bot,
+
+813
+00:29:22,720 --> 00:29:23,760
+we would start a new one
+
+814
+00:29:23,760 --> 00:29:25,280
+with a fresh connection.
+
+815
+00:29:25,280 --> 00:29:29,200
+But still, it was not a good solution
+
+816
+00:29:29,200 --> 00:29:31,680
+because we were using some events.
+
+817
+00:29:31,680 --> 00:29:33,520
+We had a lot of issues with that.
+
+818
+00:29:33,520 --> 00:29:37,360
+What we did is we tried to implement a
+
+819
+00:29:37,360 --> 00:29:39,040
+way to reconnect automatically.
+
+820
+00:29:40,000 --> 00:29:43,360
+That's how I ended up writing a library
+
+821
+00:29:43,360 --> 00:29:44,960
+called effect-messaging
+
+822
+00:29:44,960 --> 00:29:47,120
+to wrap the AMQP
+
+823
+00:29:47,120 --> 00:29:48,720
+connection, the AMQP channel,
+
+824
+00:29:48,720 --> 00:29:51,680
+and add autoreconnection to this.
+
+825
+00:29:51,680 --> 00:29:54,400
+In Effect, when you create a connection
+
+826
+00:29:54,400 --> 00:29:57,840
+object and you provide it in a layer,
+
+827
+00:29:57,840 --> 00:29:59,600
+then you can't mutate the object.
+
+828
+00:29:59,600 --> 00:30:01,760
+that is in the layer.
+
+829
+00:30:01,760 --> 00:30:03,920
+But in the AMQPlib
+
+830
+00:30:03,920 --> 00:30:05,280
+there is no function,
+
+831
+00:30:05,280 --> 00:30:06,560
+there is no method of
+
+832
+00:30:06,560 --> 00:30:08,880
+connection to refresh.
+
+833
+00:30:08,880 --> 00:30:11,040
+So you have to replace
+
+834
+00:30:11,040 --> 00:30:12,640
+the object completely.
+
+835
+00:30:12,640 --> 00:30:14,720
+This was an interesting problem.
+
+836
+00:30:15,840 --> 00:30:17,680
+When I started implementing
+
+837
+00:30:17,680 --> 00:30:20,080
+the effect-messaging library,
+
+838
+00:30:20,080 --> 00:30:23,600
+I digged a little bit into Effect
+
+839
+00:30:23,600 --> 00:30:26,800
+and into what data structure I could
+
+840
+00:30:26,800 --> 00:30:29,200
+choose to represent this.
+
+841
+00:30:29,200 --> 00:30:31,520
+I ended up using something
+
+842
+00:30:31,520 --> 00:30:34,960
+I think I would never use
+
+843
+00:30:35,600 --> 00:30:36,640
+in standard application.
+
+844
+00:30:37,440 --> 00:30:40,160
+I ended up using the Ref module to
+
+845
+00:30:40,160 --> 00:30:42,640
+represent a mutable state.
+
+846
+00:30:42,640 --> 00:30:46,160
+So what I did is instead of 
+providing a connection object
+
+847
+00:30:46,160 --> 00:30:47,360
+from the AMQPlib
+
+848
+00:30:47,360 --> 00:30:50,400
+I provided a Ref of the connection.
+
+849
+00:30:50,400 --> 00:30:54,240
+Then I could listen to events and to
+
+850
+00:30:54,240 --> 00:30:57,040
+close events from the connection
+
+851
+00:30:57,040 --> 00:30:58,400
+and then refresh the
+
+852
+00:30:58,400 --> 00:31:00,400
+connection and mutate the Ref.
+
+853
+00:31:01,360 --> 00:31:03,040
+People using the layer
+
+854
+00:31:03,040 --> 00:31:05,920
+would have the new connection.
+
+855
+00:31:05,920 --> 00:31:07,680
+I love that you walked us
+
+856
+00:31:07,680 --> 00:31:10,160
+through from the high level
+
+857
+00:31:10,160 --> 00:31:11,520
+to the lowest level
+
+858
+00:31:11,520 --> 00:31:13,920
+what you need to understand
+
+859
+00:31:13,920 --> 00:31:17,280
+and leverage some lesser known pieces of
+
+860
+00:31:17,280 --> 00:31:18,560
+Effect to implement this.
+
+861
+00:31:18,560 --> 00:31:20,480
+Even though it's very specific,
+
+862
+00:31:20,480 --> 00:31:23,120
+what I think is universal about that
+
+863
+00:31:23,120 --> 00:31:25,040
+experience that you went through
+
+864
+00:31:25,040 --> 00:31:27,120
+is that Effect allows
+
+865
+00:31:27,120 --> 00:31:30,320
+you to model the realities
+
+866
+00:31:30,320 --> 00:31:32,560
+of your application at this
+
+867
+00:31:32,560 --> 00:31:34,960
+point of your infrastructure.
+
+868
+00:31:34,960 --> 00:31:37,520
+Since this is what for me most of software
+
+869
+00:31:37,520 --> 00:31:39,120
+development is about.
+
+870
+00:31:39,120 --> 00:31:40,080
+You're trying to
+
+871
+00:31:40,640 --> 00:31:42,480
+figure out what is the goal,
+
+872
+00:31:42,480 --> 00:31:43,600
+what are the building
+
+873
+00:31:43,600 --> 00:31:45,120
+blocks, what are the materials,
+
+874
+00:31:45,120 --> 00:31:48,000
+what are the pieces that we can use here.
+
+875
+00:31:48,000 --> 00:31:50,400
+Then you need to develop what is
+
+876
+00:31:50,400 --> 00:31:51,360
+sometimes referred to
+
+877
+00:31:51,360 --> 00:31:54,640
+as mechanical empathy for the building
+
+878
+00:31:54,640 --> 00:31:55,840
+blocks that you have.
+
+879
+00:31:55,840 --> 00:31:59,280
+And here mechanical empathy is understanding,
+
+880
+00:31:59,280 --> 00:32:01,520
+"Okay, there's a connection.
+
+881
+00:32:01,520 --> 00:32:03,200
+In an ideal world, this
+
+882
+00:32:03,200 --> 00:32:05,280
+connection would suffice
+
+883
+00:32:05,280 --> 00:32:07,680
+and would never be super stable
+
+884
+00:32:07,680 --> 00:32:09,680
+and there's just one
+
+885
+00:32:09,680 --> 00:32:12,000
+computer is never going down.
+
+886
+00:32:12,000 --> 00:32:13,440
+Super duper easy."
+
+887
+00:32:13,440 --> 00:32:16,480
+But the tricky part here is we're dealing
+
+888
+00:32:16,480 --> 00:32:18,240
+with distributed systems
+
+889
+00:32:18,240 --> 00:32:19,920
+and with distributed systems
+
+890
+00:32:19,920 --> 00:32:21,840
+there arise a ton of problems
+
+891
+00:32:21,840 --> 00:32:23,200
+and now you need to
+
+892
+00:32:23,200 --> 00:32:24,960
+model for those cases.
+
+893
+00:32:25,680 --> 00:32:28,240
+The specifics is one thing here,
+
+894
+00:32:28,240 --> 00:32:30,400
+but I think what is
+
+895
+00:32:30,400 --> 00:32:33,040
+applicable to almost any situation
+
+896
+00:32:33,040 --> 00:32:36,720
+is you need to model your reality of your
+
+897
+00:32:36,720 --> 00:32:39,120
+application, of your system.
+
+898
+00:32:39,680 --> 00:32:40,880
+This is, I think, now
+
+899
+00:32:40,880 --> 00:32:42,560
+that you've figured out
+
+900
+00:32:42,560 --> 00:32:43,920
+what are the primitives of
+
+901
+00:32:43,920 --> 00:32:45,440
+Effect that you need to use,
+
+902
+00:32:45,440 --> 00:32:46,880
+you could use them and
+
+903
+00:32:46,880 --> 00:32:49,760
+model your domain perfectly.
+
+904
+00:32:49,760 --> 00:32:51,253
+In a way where it's
+
+905
+00:32:52,080 --> 00:32:53,520
+kind of a one-to-one fit
+
+906
+00:32:53,520 --> 00:32:56,720
+to reality and implementation.
+
+907
+00:32:57,440 --> 00:32:58,640
+Maybe the first time you
+
+908
+00:32:58,640 --> 00:33:00,080
+look at this you might think,
+
+909
+00:33:00,080 --> 00:33:01,840
+"Why are all of those things needed?"
+
+910
+00:33:01,840 --> 00:33:03,040
+But now that you understand
+
+911
+00:33:03,040 --> 00:33:05,040
+it, understand
+
+912
+00:33:05,040 --> 00:33:07,520
+each piece here has a reason.
+
+913
+00:33:07,520 --> 00:33:08,480
+This is what I also
+
+914
+00:33:08,480 --> 00:33:11,200
+appreciate about so many pieces
+
+915
+00:33:11,200 --> 00:33:12,160
+in the Effect
+
+916
+00:33:12,160 --> 00:33:14,320
+platform packages, et cetera,
+
+917
+00:33:14,320 --> 00:33:15,760
+where maybe you look at it
+
+918
+00:33:15,760 --> 00:33:17,360
+the first time you think,
+
+919
+00:33:17,360 --> 00:33:19,280
+"Why are those three things needed?"
+
+920
+00:33:19,280 --> 00:33:20,640
+Isn't one sufficient?
+
+921
+00:33:20,640 --> 00:33:21,760
+But then you realize,
+
+922
+00:33:21,760 --> 00:33:23,760
+"Oh, actually, those are here
+
+923
+00:33:23,760 --> 00:33:25,920
+for those various scenarios."
+
+924
+00:33:25,920 --> 00:33:28,720
+And they're split up into three that is
+
+925
+00:33:28,720 --> 00:33:30,080
+not a leaky abstraction.
+
+926
+00:33:30,080 --> 00:33:31,200
+So many things in the
+
+927
+00:33:31,200 --> 00:33:32,640
+JavaScript ecosystems
+
+928
+00:33:32,640 --> 00:33:36,400
+are designed in a leaky, abstracted way.
+
+929
+00:33:36,400 --> 00:33:37,360
+And this is what I
+
+930
+00:33:37,360 --> 00:33:38,480
+appreciate about Effect.
+
+931
+00:33:38,480 --> 00:33:41,840
+It kind of absorbs the reality of the
+
+932
+00:33:41,840 --> 00:33:43,120
+materials you're working with.
+
+933
+00:33:43,120 --> 00:33:44,000
+And I think this is
+
+934
+00:33:44,000 --> 00:33:45,280
+exactly what you've done
+
+935
+00:33:45,280 --> 00:33:47,440
+in the effect-messaging layer.
+
+936
+00:33:47,440 --> 00:33:49,760
+And also just on a personal note,
+
+937
+00:33:49,760 --> 00:33:50,560
+this definitely
+
+938
+00:33:50,560 --> 00:33:53,280
+resonates in regards to the work
+
+939
+00:33:53,280 --> 00:33:54,160
+I've been doing over
+
+940
+00:33:54,160 --> 00:33:55,280
+the last couple of years
+
+941
+00:33:55,280 --> 00:33:56,480
+where I'm diving very
+
+942
+00:33:56,480 --> 00:33:58,080
+deep into distributed systems
+
+943
+00:33:58,080 --> 00:34:00,640
+where reconnection, et
+
+944
+00:34:00,640 --> 00:34:02,560
+cetera, is the bread and butter.
+
+945
+00:34:02,560 --> 00:34:05,280
+So kudos to you to next to
+
+946
+00:34:05,280 --> 00:34:07,680
+building a FinTech product,
+
+947
+00:34:07,680 --> 00:34:10,320
+also dealing with distributed systems
+
+948
+00:34:10,320 --> 00:34:12,080
+and building a library in that regard.
+
+949
+00:34:12,080 --> 00:34:14,080
+So congrats, that is awesome.
+
+950
+00:34:15,200 --> 00:34:17,040
+Actually, it was super interesting.
+
+951
+00:34:17,600 --> 00:34:21,360
+And I think it's also part of our job to
+
+952
+00:34:22,560 --> 00:34:24,720
+have a resilient system.
+
+953
+00:34:24,720 --> 00:34:27,760
+And it's very important for our product.
+
+954
+00:34:27,760 --> 00:34:29,520
+But it was a really funny experience
+
+955
+00:34:29,520 --> 00:34:33,840
+to also do this kind of lower
+
+956
+00:34:33,840 --> 00:34:37,920
+I mean, it's lower than stuff that we
+
+957
+00:34:38,560 --> 00:34:41,600
+rarely do in a FinTech startup
+
+958
+00:34:41,600 --> 00:34:44,800
+because we often use existing libraries.
+
+959
+00:34:44,800 --> 00:34:47,520
+It's really fun, actually.
+
+960
+00:34:47,520 --> 00:34:49,440
+And now for someone else, there is an
+
+961
+00:34:49,440 --> 00:34:51,360
+existing library for that
+
+962
+00:34:51,360 --> 00:34:54,000
+where someone can look at this
+
+963
+00:34:54,000 --> 00:34:56,240
+and already absorb your
+
+964
+00:34:56,240 --> 00:34:58,160
+mental model of the world.
+
+965
+00:34:58,160 --> 00:34:59,920
+You had to do the modeling
+
+966
+00:34:59,920 --> 00:35:02,000
+carefully yourself before
+
+967
+00:35:02,000 --> 00:35:03,360
+where you needed to figure out,
+
+968
+00:35:04,480 --> 00:35:05,600
+"Is this kind of
+
+969
+00:35:05,600 --> 00:35:07,440
+abstraction modeling correct?
+
+970
+00:35:07,440 --> 00:35:09,040
+Should there be more pieces?
+
+971
+00:35:09,040 --> 00:35:11,440
+Should there cannot be condensed more?"
+
+972
+00:35:11,440 --> 00:35:14,400
+And now someone can look and say,
+
+973
+00:35:14,400 --> 00:35:16,640
+"Okay, event-driven sounds great,
+
+974
+00:35:16,640 --> 00:35:19,840
+RabbitMQ sounds great. Let me try that."
+
+975
+00:35:19,840 --> 00:35:22,240
+And if you've designed it well, they are
+
+976
+00:35:22,240 --> 00:35:24,000
+falling in a pit of success.
+
+977
+00:35:24,000 --> 00:35:25,600
+So that is amazing.
+
+978
+00:35:25,600 --> 00:35:27,040
+And now that you've created this
+
+979
+00:35:27,040 --> 00:35:29,680
+environment for your fellow engineers,
+
+980
+00:35:29,680 --> 00:35:31,600
+what is it like now to
+
+981
+00:35:31,600 --> 00:35:32,880
+work with that system?
+
+982
+00:35:32,880 --> 00:35:34,400
+You mean the developer
+
+983
+00:35:34,400 --> 00:35:37,760
+experience with that library?
+
+984
+00:35:37,760 --> 00:35:39,120
+Exactly. You've created the
+
+985
+00:35:39,120 --> 00:35:40,720
+world that you wanted to see.
+
+986
+00:35:40,720 --> 00:35:42,160
+You wanted to have
+
+987
+00:35:42,160 --> 00:35:44,720
+RabbitMQ as a message broker.
+
+988
+00:35:44,720 --> 00:35:47,360
+You wanted from your API servers,
+
+989
+00:35:47,360 --> 00:35:49,840
+wanted to publish events
+
+990
+00:35:49,840 --> 00:35:51,600
+onto the message broker.
+
+991
+00:35:51,600 --> 00:35:53,120
+So how is that working?
+
+992
+00:35:53,120 --> 00:35:54,320
+And then we should also
+
+993
+00:35:54,320 --> 00:35:55,840
+talk about the consumer side
+
+994
+00:35:55,840 --> 00:35:58,880
+of how those events are being processed
+
+995
+00:35:58,880 --> 00:36:00,480
+and any sort of interesting
+
+996
+00:36:00,480 --> 00:36:02,720
+things emerging from that.
+
+997
+00:36:02,720 --> 00:36:03,200
+Sure.
+
+998
+00:36:03,200 --> 00:36:05,680
+I think the library of effect-messaging
+
+999
+00:36:05,680 --> 00:36:06,480
+at the moment,
+
+1000
+00:36:06,480 --> 00:36:07,840
+it mainly solves the
+
+1001
+00:36:07,840 --> 00:36:09,040
+problem of reconnection
+
+1002
+00:36:09,040 --> 00:36:11,600
+and having a strong connection layer.
+
+1003
+00:36:11,600 --> 00:36:12,720
+And I also created
+
+1004
+00:36:13,280 --> 00:36:15,600
+higher-level interfaces,
+
+1005
+00:36:15,600 --> 00:36:17,360
+like publisher interface
+
+1006
+00:36:17,360 --> 00:36:19,360
+and subscriber interface.
+
+1007
+00:36:19,360 --> 00:36:22,720
+That can allow people to
+
+1008
+00:36:23,280 --> 00:36:26,000
+subsctibe to events and publish.
+
+1009
+00:36:26,000 --> 00:36:27,680
+So at the moment, I kept
+
+1010
+00:36:27,680 --> 00:36:29,120
+this interface
+
+1011
+00:36:29,120 --> 00:36:30,560
+very generic.
+
+1012
+00:36:30,560 --> 00:36:32,720
+So we could add more
+
+1013
+00:36:32,720 --> 00:36:34,480
+message brokers to the library
+
+1014
+00:36:34,480 --> 00:36:36,720
+in the future if we wanted to.
+
+1015
+00:36:36,720 --> 00:36:39,440
+But at Spiko, we use RabbitMQ,
+
+1016
+00:36:39,440 --> 00:36:40,800
+so we used AMQP
+
+1017
+00:36:40,800 --> 00:36:43,280
+publisher, AMQP subscribers.
+
+1018
+00:36:43,280 --> 00:36:44,400
+I mean, we don't have any
+
+1019
+00:36:44,400 --> 00:36:46,160
+more problem with connections
+
+1020
+00:36:46,160 --> 00:36:48,240
+and failing connections.
+
+1021
+00:36:48,240 --> 00:36:50,640
+but those are abstractions on top of this
+
+1022
+00:36:51,520 --> 00:36:52,960
+publisher subscriber
+
+1023
+00:36:52,960 --> 00:36:55,440
+where we have a strong
+
+1024
+00:36:55,440 --> 00:36:57,520
+typing of events and payloads,
+
+1025
+00:36:57,520 --> 00:36:59,360
+like event types payloads.
+
+1026
+00:37:00,560 --> 00:37:01,440
+this is not in the
+
+1027
+00:37:01,440 --> 00:37:02,640
+effect-messaging library.
+
+1028
+00:37:02,640 --> 00:37:03,680
+It's something we built
+
+1029
+00:37:03,680 --> 00:37:06,160
+on top in our codebase.
+
+1030
+00:37:06,160 --> 00:37:06,640
+basically
+
+1031
+00:37:06,640 --> 00:37:08,640
+when we want to create a new event,
+
+1032
+00:37:08,640 --> 00:37:11,120
+we declare a new interface
+
+1033
+00:37:11,120 --> 00:37:13,280
+with an event type and payload.
+
+1034
+00:37:13,280 --> 00:37:14,320
+And that's it.
+
+1035
+00:37:14,320 --> 00:37:16,000
+But maybe in the future
+
+1036
+00:37:16,000 --> 00:37:18,720
+If we find the good abstraction for it,
+
+1037
+00:37:18,720 --> 00:37:21,520
+maybe we could add these kind of features
+
+1038
+00:37:22,320 --> 00:37:23,760
+to effect-messaging
+
+1039
+00:37:23,760 --> 00:37:24,560
+the vision I
+
+1040
+00:37:24,560 --> 00:37:26,080
+have maybe for this library
+
+1041
+00:37:26,080 --> 00:37:27,760
+would be to do something that
+
+1042
+00:37:27,760 --> 00:37:30,320
+is similar to HTTP API module,
+
+1043
+00:37:30,320 --> 00:37:32,080
+but to describe events.
+
+1044
+00:37:32,080 --> 00:37:34,400
+So I think it's a bit of an ideal world,
+
+1045
+00:37:34,400 --> 00:37:36,720
+and it's not done yet,
+
+1046
+00:37:36,720 --> 00:37:38,320
+but we could imagine
+
+1047
+00:37:38,320 --> 00:37:39,920
+something where you declare
+
+1048
+00:37:39,920 --> 00:37:41,920
+your messaging API
+
+1049
+00:37:41,920 --> 00:37:43,520
+with events and payloads
+
+1050
+00:37:43,520 --> 00:37:44,800
+in a declarative way,
+
+1051
+00:37:44,800 --> 00:37:47,360
+and it would create both a subscriber
+
+1052
+00:37:47,360 --> 00:37:50,080
+and the publisher for these events.
+
+1053
+00:37:50,080 --> 00:37:51,600
+Also, another part
+
+1054
+00:37:51,600 --> 00:37:53,280
+that is very interesting
+
+1055
+00:37:53,280 --> 00:37:56,400
+is that with HTTP API module,
+
+1056
+00:37:56,400 --> 00:37:59,280
+you can generate open API specs.
+
+1057
+00:37:59,280 --> 00:38:01,360
+And I've done a bit of research,
+
+1058
+00:38:01,360 --> 00:38:02,800
+and there is an equivalence
+
+1059
+00:38:02,800 --> 00:38:05,680
+in the Async messaging world.
+
+1060
+00:38:05,680 --> 00:38:07,200
+There is an equivalent of
+
+1061
+00:38:07,200 --> 00:38:10,240
+open API called AsyncAPI,
+
+1062
+00:38:10,240 --> 00:38:11,760
+I don't think it's very popular yet,
+
+1063
+00:38:11,760 --> 00:38:14,320
+but it's a way to
+
+1064
+00:38:14,320 --> 00:38:17,680
+expose Async messaging APIs.
+
+1065
+00:38:17,680 --> 00:38:19,360
+So it could be interesting in the future.
+
+1066
+00:38:19,360 --> 00:38:23,600
+Maybe we want to drop events from a
+
+1067
+00:38:23,600 --> 00:38:24,880
+Node.js application,
+
+1068
+00:38:24,880 --> 00:38:26,320
+and there is a new team
+
+1069
+00:38:26,320 --> 00:38:27,680
+using the NOSO language
+
+1070
+00:38:27,680 --> 00:38:30,640
+that wants to generate codegen,
+
+1071
+00:38:30,640 --> 00:38:32,471
+a subscriber for these events.
+
+1072
+00:38:32,471 --> 00:38:36,560
+It could use a generic interface.
+It could use a
+
+1073
+00:38:36,560 --> 00:38:38,320
+specification to generate a client
+
+1074
+00:38:38,320 --> 00:38:39,760
+for these events.
+
+1075
+00:38:39,760 --> 00:38:41,600
+Maybe in the future we'll have that.
+
+1076
+00:38:41,600 --> 00:38:43,440
+No, this makes perfect sense,
+
+1077
+00:38:43,440 --> 00:38:47,200
+and I do hope that Effect Platform
+
+1078
+00:38:47,200 --> 00:38:49,760
+and more primitives inside
+
+1079
+00:38:49,760 --> 00:38:52,400
+of the core Effect ecosystem
+
+1080
+00:38:52,400 --> 00:38:54,400
+are moving in that direction,
+
+1081
+00:38:54,400 --> 00:38:56,080
+similar to what we've seen already
+
+1082
+00:38:56,080 --> 00:38:58,160
+with the Effect Platform package,
+
+1083
+00:38:58,160 --> 00:39:00,320
+with the HTTP package, etc.
+
+1084
+00:39:00,320 --> 00:39:02,880
+So I think there are many scenarios
+
+1085
+00:39:02,880 --> 00:39:05,360
+where events are super
+
+1086
+00:39:05,360 --> 00:39:06,880
+valuable primitive
+
+1087
+00:39:06,880 --> 00:39:09,200
+here in combination with RabbitMQ,
+
+1088
+00:39:09,200 --> 00:39:09,840
+but I think they're
+
+1089
+00:39:09,840 --> 00:39:11,840
+more universal than that.
+
+1090
+00:39:11,840 --> 00:39:13,040
+And I think there's
+
+1091
+00:39:13,040 --> 00:39:16,320
+many, many related domains
+
+1092
+00:39:16,320 --> 00:39:18,400
+and problems that
+
+1093
+00:39:18,400 --> 00:39:20,000
+should be explored as well.
+
+1094
+00:39:20,000 --> 00:39:22,480
+I'm not sure how relevant schema
+
+1095
+00:39:22,480 --> 00:39:23,840
+evolution, for example,
+
+1096
+00:39:23,840 --> 00:39:25,040
+here would be.
+
+1097
+00:39:25,040 --> 00:39:25,760
+There are a lot of
+
+1098
+00:39:25,760 --> 00:39:27,520
+problems and a lot of challenges
+
+1099
+00:39:27,520 --> 00:39:30,320
+that are explored at scale
+
+1100
+00:39:30,320 --> 00:39:32,800
+in the Kafka ecosystem, etc.,
+
+1101
+00:39:32,800 --> 00:39:34,080
+and bring that more into
+
+1102
+00:39:34,080 --> 00:39:36,160
+default with core Effect
+
+1103
+00:39:36,160 --> 00:39:38,000
+I think would be super valuable.
+
+1104
+00:39:38,000 --> 00:39:39,840
+So kudos to you for
+
+1105
+00:39:39,840 --> 00:39:43,040
+already pioneering in that space.
+
+1106
+00:39:43,040 --> 00:39:44,960
+I'm actually curious for the
+
+1107
+00:39:44,960 --> 00:39:46,880
+events that you can publish
+
+1108
+00:39:46,880 --> 00:39:49,520
+and consume through effect-messaging.
+
+1109
+00:39:49,520 --> 00:39:52,080
+Are you already embracing
+
+1110
+00:39:52,080 --> 00:39:53,440
+effect schemas for that?
+
+1111
+00:39:53,440 --> 00:39:55,600
+I think the way we
+
+1112
+00:39:55,600 --> 00:39:57,040
+describe events is with schema,
+
+1113
+00:39:57,040 --> 00:39:58,320
+because we always use
+
+1114
+00:39:58,320 --> 00:40:00,640
+schema for decoding everything
+
+1115
+00:40:00,640 --> 00:40:02,560
+that comes from the outside world,
+
+1116
+00:40:02,560 --> 00:40:05,760
+because we can't trust the outside world,
+
+1117
+00:40:05,760 --> 00:40:08,400
+so we always decode everything,
+
+1118
+00:40:08,400 --> 00:40:10,640
+everything that comes from the database.
+
+1119
+00:40:10,640 --> 00:40:13,600
+We have a persistence response SQL, so we
+
+1120
+00:40:13,600 --> 00:40:15,040
+use also Effect SQL,
+
+1121
+00:40:15,040 --> 00:40:17,920
+but we decode with schemas,
+
+1122
+00:40:17,920 --> 00:40:22,320
+and for messaging, we describe all the
+
+1123
+00:40:22,320 --> 00:40:24,560
+events with schemas,
+
+1124
+00:40:24,560 --> 00:40:26,960
+and make sure that we encode it and
+
+1125
+00:40:26,960 --> 00:40:29,440
+decode it with schemas.
+
+1126
+00:40:29,440 --> 00:40:30,080
+Got it.
+
+1127
+00:40:30,080 --> 00:40:32,640
+Is the problem of schema evolution
+
+1128
+00:40:32,640 --> 00:40:34,480
+already becoming an issue?
+
+1129
+00:40:34,480 --> 00:40:37,280
+So you mentioned that you're not really
+
+1130
+00:40:37,280 --> 00:40:39,040
+persisting the events
+
+1131
+00:40:39,040 --> 00:40:40,400
+over a longer period of time,
+
+1132
+00:40:40,400 --> 00:40:41,200
+but they're rather
+
+1133
+00:40:41,200 --> 00:40:42,960
+like going onto the broker
+
+1134
+00:40:42,960 --> 00:40:45,360
+until they're taken off, and that's it.
+
+1135
+00:40:45,360 --> 00:40:48,080
+So the only schema evolution scenario
+
+1136
+00:40:48,080 --> 00:40:49,600
+that I could think of
+
+1137
+00:40:49,600 --> 00:40:50,800
+is that you have version
+
+1138
+00:40:50,800 --> 00:40:53,040
+one of the service rolled out,
+
+1139
+00:40:53,040 --> 00:40:55,440
+and then you're rolling out version two.
+
+1140
+00:40:55,440 --> 00:40:57,200
+Somehow there's a period
+
+1141
+00:40:57,200 --> 00:40:59,200
+of time where you still have
+
+1142
+00:40:59,200 --> 00:41:01,200
+a backlog of many messages, which are
+
+1143
+00:41:01,200 --> 00:41:02,640
+still of version one,
+
+1144
+00:41:02,640 --> 00:41:03,760
+and now you've rolled
+
+1145
+00:41:03,760 --> 00:41:05,440
+out version two of the app,
+
+1146
+00:41:05,440 --> 00:41:07,200
+and now that expects
+
+1147
+00:41:07,200 --> 00:41:09,200
+an event of version two,
+
+1148
+00:41:09,200 --> 00:41:11,120
+but gets one of version one.
+
+1149
+00:41:11,120 --> 00:41:13,360
+Have you faced that problem already,
+
+1150
+00:41:13,360 --> 00:41:16,240
+and have you modeled around it?
+
+1151
+00:41:16,240 --> 00:41:18,720
+Yeah, we already faced that problem,
+
+1152
+00:41:18,720 --> 00:41:21,120
+and we're still a young company,
+
+1153
+00:41:21,120 --> 00:41:23,840
+and we don't have millions of users,
+
+1154
+00:41:23,840 --> 00:41:27,040
+so sometimes we take the risk to publish,
+
+1155
+00:41:27,040 --> 00:41:28,640
+to do a breaking change,
+
+1156
+00:41:28,640 --> 00:41:29,200
+because
+
+1157
+00:41:29,200 --> 00:41:32,400
+we don't have a big use of message that
+
+1158
+00:41:32,400 --> 00:41:33,920
+are being consumed,
+
+1159
+00:41:33,920 --> 00:41:36,480
+and if we deploy a breaking change,
+
+1160
+00:41:36,480 --> 00:41:38,080
+we have a very low
+
+1161
+00:41:38,080 --> 00:41:41,920
+probability that we get an error
+
+1162
+00:41:41,920 --> 00:41:43,760
+by breaking the schema.
+
+1163
+00:41:43,760 --> 00:41:45,840
+If we really want to be careful,
+
+1164
+00:41:45,840 --> 00:41:47,600
+what we do is we try to
+
+1165
+00:41:47,600 --> 00:41:48,800
+avoid breaking changes,
+
+1166
+00:41:49,440 --> 00:41:51,840
+and then we have, I think, two options.
+
+1167
+00:41:51,840 --> 00:41:54,400
+Either we modify the existing
+
+1168
+00:41:54,400 --> 00:41:56,800
+schema in a non-breaking way,
+
+1169
+00:41:56,800 --> 00:41:57,840
+like for instance we
+
+1170
+00:41:57,840 --> 00:41:59,920
+add a new optional field,
+
+1171
+00:41:59,920 --> 00:42:05,040
+or we could just create a V2 or another
+
+1172
+00:42:05,040 --> 00:42:06,395
+version of the event.
+
+1173
+00:42:06,395 --> 00:42:07,280
+That makes perfect sense.
+
+1174
+00:42:07,280 --> 00:42:09,280
+I'm just personally very interested in
+
+1175
+00:42:09,280 --> 00:42:10,960
+that problem domain,
+
+1176
+00:42:10,960 --> 00:42:14,080
+and so for example to say we just don't
+
+1177
+00:42:14,080 --> 00:42:15,600
+do breaking changes,
+
+1178
+00:42:15,600 --> 00:42:18,640
+I think that's a super valid way to go,
+
+1179
+00:42:18,640 --> 00:42:21,200
+but I would like to get more
+
+1180
+00:42:21,200 --> 00:42:23,360
+safety rails and guard rails
+
+1181
+00:42:23,360 --> 00:42:26,960
+to make sure that that is actually done.
+
+1182
+00:42:26,960 --> 00:42:30,480
+Maybe you're deep into some refactoring,
+
+1183
+00:42:30,480 --> 00:42:33,440
+and you just have a type error over here,
+
+1184
+00:42:33,440 --> 00:42:35,200
+and you jump to the schema
+
+1185
+00:42:35,200 --> 00:42:36,960
+definition, you add something,
+
+1186
+00:42:36,960 --> 00:42:39,520
+and you don't even think about it,
+
+1187
+00:42:39,520 --> 00:42:40,800
+and TypeScript is
+
+1188
+00:42:40,800 --> 00:42:42,880
+happy, the tests are passing,
+
+1189
+00:42:42,880 --> 00:42:44,480
+and you do that
+
+1190
+00:42:44,480 --> 00:42:46,720
+deployment on a Friday afternoon,
+
+1191
+00:42:46,720 --> 00:42:48,720
+and poof, the weekend is ruined.
+
+1192
+00:42:49,360 --> 00:42:50,640
+How do we get a little
+
+1193
+00:42:50,640 --> 00:42:53,440
+bit more systematized help
+
+1194
+00:42:53,440 --> 00:42:55,920
+that we say, "Hey, this is a schema,
+
+1195
+00:42:55,920 --> 00:42:57,760
+and the schema doesn't
+
+1196
+00:42:57,760 --> 00:42:59,120
+just exist in a vacuum,
+
+1197
+00:42:59,120 --> 00:43:03,520
+but it exists in a chronological context,
+
+1198
+00:43:03,520 --> 00:43:06,160
+and needs to be protected
+
+1199
+00:43:06,160 --> 00:43:07,600
+with some special rules."
+
+1200
+00:43:07,600 --> 00:43:08,480
+This is something that
+
+1201
+00:43:08,480 --> 00:43:09,520
+I'm very curious about,
+
+1202
+00:43:09,520 --> 00:43:10,400
+and I think it's
+
+1203
+00:43:10,400 --> 00:43:12,800
+generally applicable to many,
+
+1204
+00:43:12,800 --> 00:43:15,200
+many parts where you need a schema.
+
+1205
+00:43:15,200 --> 00:43:17,120
+Obviously, to databases as well,
+
+1206
+00:43:17,120 --> 00:43:18,400
+databases have their own
+
+1207
+00:43:18,400 --> 00:43:20,000
+way of dealing with that,
+
+1208
+00:43:20,000 --> 00:43:22,960
+but let's say you will have a little bit
+
+1209
+00:43:22,960 --> 00:43:25,040
+of client-side storage
+
+1210
+00:43:25,040 --> 00:43:27,040
+that you have a schema for
+
+1211
+00:43:27,040 --> 00:43:29,360
+and you always test your app, or
+
+1212
+00:43:30,000 --> 00:43:31,760
+rarely test your app
+
+1213
+00:43:31,760 --> 00:43:33,920
+going from version 1 to version 2.
+
+1214
+00:43:33,920 --> 00:43:36,320
+You test it from scratch in version 1
+
+1215
+00:43:36,320 --> 00:43:38,160
+and from scratch in version 2,
+
+1216
+00:43:38,160 --> 00:43:41,920
+but you rarely test those transitions.
+
+1217
+00:43:41,920 --> 00:43:42,640
+This is just something
+
+1218
+00:43:42,640 --> 00:43:44,400
+that I hope we get to explore
+
+1219
+00:43:44,400 --> 00:43:46,080
+with effect schema as well.
+
+1220
+00:43:47,040 --> 00:43:48,720
+That sounds super cool.
+
+1221
+00:43:48,720 --> 00:43:51,920
+How ready is effect-messaging right now
+
+1222
+00:43:51,920 --> 00:43:54,720
+if someone outside of Spiko says,
+
+1223
+00:43:54,720 --> 00:43:56,720
+"Heck, I want to use that."
+
+1224
+00:43:56,720 --> 00:43:58,720
+How ready for production is it?
+
+1225
+00:43:58,720 --> 00:44:00,480
+Can people already use it?
+
+1226
+00:44:00,480 --> 00:44:02,160
+I just want to rebound
+
+1227
+00:44:02,160 --> 00:44:03,760
+on what you were saying,
+
+1228
+00:44:03,760 --> 00:44:04,640
+because I think it's
+
+1229
+00:44:04,640 --> 00:44:05,680
+also an interesting problem,
+
+1230
+00:44:05,680 --> 00:44:07,920
+and then I answered your question about
+
+1231
+00:44:07,920 --> 00:44:10,160
+the readiness of effect-messaging.
+
+1232
+00:44:11,360 --> 00:44:13,280
+But avoiding breaking change
+
+1233
+00:44:13,280 --> 00:44:15,120
+is something really important.
+
+1234
+00:44:16,320 --> 00:44:19,920
+We discovered something called Optic
+
+1235
+00:44:19,920 --> 00:44:21,520
+that can compare two
+
+1236
+00:44:21,520 --> 00:44:23,840
+versions of an open API file
+
+1237
+00:44:23,840 --> 00:44:26,160
+and that can prevent
+
+1238
+00:44:26,160 --> 00:44:29,760
+breaking changes on open API specs.
+
+1239
+00:44:29,760 --> 00:44:30,720
+I think I was really
+
+1240
+00:44:30,720 --> 00:44:31,840
+happy to discover this
+
+1241
+00:44:31,840 --> 00:44:34,320
+because in Effect you can
+
+1242
+00:44:34,320 --> 00:44:36,640
+generate open API specs.
+
+1243
+00:44:36,640 --> 00:44:38,880
+It's taken to the library.
+
+1244
+00:44:39,680 --> 00:44:42,480
+Already we can profit off
+
+1245
+00:44:42,480 --> 00:44:44,960
+the whole open API ecosystem,
+
+1246
+00:44:44,960 --> 00:44:46,240
+including this tool.
+
+1247
+00:44:46,240 --> 00:44:49,200
+It's a way to leverage the
+
+1248
+00:44:49,200 --> 00:44:50,720
+existing tools in open API
+
+1249
+00:44:50,720 --> 00:44:52,960
+to avoid breaking change.
+
+1250
+00:44:52,960 --> 00:44:54,800
+I hope we can do this for
+
+1251
+00:44:54,800 --> 00:44:56,480
+messaging in future as well.
+
+1252
+00:44:57,280 --> 00:44:58,480
+To answer your questions
+
+1253
+00:44:58,480 --> 00:45:00,640
+about effect-messaging,
+
+1254
+00:45:02,240 --> 00:45:05,840
+I think we are probably the only company
+
+1255
+00:45:05,840 --> 00:45:08,240
+using effect-messaging in production,
+
+1256
+00:45:08,240 --> 00:45:09,760
+at least I don't know
+
+1257
+00:45:09,760 --> 00:45:12,320
+any other companies who do.
+
+1258
+00:45:12,320 --> 00:45:15,680
+But it's working fine for us.
+
+1259
+00:45:16,480 --> 00:45:18,560
+It's production ready in the sense that
+
+1260
+00:45:18,560 --> 00:45:20,480
+we are using it in production.
+
+1261
+00:45:20,480 --> 00:45:23,360
+But of course, I think if
+
+1262
+00:45:23,360 --> 00:45:25,760
+more people want to use it,
+
+1263
+00:45:25,760 --> 00:45:28,160
+maybe we discover some
+
+1264
+00:45:28,160 --> 00:45:29,440
+issues and it's open source.
+
+1265
+00:45:29,440 --> 00:45:32,160
+so anyone can post
+
+1266
+00:45:32,160 --> 00:45:33,760
+issues and contribute.
+
+1267
+00:45:33,760 --> 00:45:34,800
+That is awesome.
+
+1268
+00:45:34,800 --> 00:45:37,360
+It seems like you have a public roadmap
+
+1269
+00:45:37,360 --> 00:45:39,120
+there laid out as well,
+
+1270
+00:45:39,120 --> 00:45:41,200
+which I assume are ideas you
+
+1271
+00:45:41,200 --> 00:45:43,120
+had along the way of thoughts
+
+1272
+00:45:43,120 --> 00:45:46,000
+that it would be cool if at some point,
+
+1273
+00:45:46,000 --> 00:45:47,520
+probably not promises that you're going
+
+1274
+00:45:47,520 --> 00:45:50,240
+to ship those in the near future.
+
+1275
+00:45:50,240 --> 00:45:52,080
+But that sounds very enticing.
+
+1276
+00:45:52,080 --> 00:45:54,480
+It seems like you even considered
+
+1277
+00:45:54,480 --> 00:45:56,240
+supporting other message brokers,
+
+1278
+00:45:56,240 --> 00:45:57,200
+the one that we talked
+
+1279
+00:45:57,200 --> 00:45:58,960
+about initially, Kafka,
+
+1280
+00:45:58,960 --> 00:46:02,080
+NATS, Google PubSub, et cetera.
+
+1281
+00:46:02,080 --> 00:46:03,840
+That is super interesting.
+
+1282
+00:46:03,840 --> 00:46:05,520
+I think the vision is interesting.
+
+1283
+00:46:05,520 --> 00:46:08,480
+Maybe I won't have time to implement.
+
+1284
+00:46:08,480 --> 00:46:09,600
+Actually, I don't think I
+
+1285
+00:46:09,600 --> 00:46:12,000
+will have time to implement this.
+
+1286
+00:46:12,000 --> 00:46:15,120
+But it's open for everyone.
+
+1287
+00:46:15,120 --> 00:46:17,040
+And if someone is interested
+
+1288
+00:46:17,040 --> 00:46:21,360
+in writing a PubSub subscriber, PubSub publisher
+
+1289
+00:46:21,360 --> 00:46:24,000
+I think I laid out a
+
+1290
+00:46:24,000 --> 00:46:25,280
+very generic interface.
+
+1291
+00:46:25,280 --> 00:46:30,240
+So it might be a good way to start.
+
+1292
+00:46:30,240 --> 00:46:32,240
+But I see you already have one
+
+1293
+00:46:32,240 --> 00:46:33,680
+contribution pending
+
+1294
+00:46:33,680 --> 00:46:38,000
+from trusty GitHub Copilot
+
+1295
+00:46:41,040 --> 00:46:44,320
+I launched the Copilot.
+
+1296
+00:46:44,320 --> 00:46:46,320
+So I'm experimenting a
+
+1297
+00:46:46,320 --> 00:46:51,840
+bit this week with agents
+
+1298
+00:46:51,840 --> 00:46:54,880
+Yeah, so maybe let's use that as a segue
+
+1299
+00:46:54,880 --> 00:46:57,520
+to talk about that topic specifically.
+
+1300
+00:46:57,520 --> 00:47:00,800
+I mean, AI agents, coding agents, et
+
+1301
+00:47:00,800 --> 00:47:02,640
+cetera, all the rage these days.
+
+1302
+00:47:02,640 --> 00:47:05,360
+I'm spending a lot of time myself
+
+1303
+00:47:05,360 --> 00:47:07,200
+exploring them, seeing
+
+1304
+00:47:07,200 --> 00:47:08,640
+where they're good at,
+
+1305
+00:47:08,640 --> 00:47:11,280
+where they're not yet good at, how can I
+
+1306
+00:47:11,280 --> 00:47:13,920
+use them for my own benefits,
+
+1307
+00:47:13,920 --> 00:47:17,280
+like for productivity reasons or just
+
+1308
+00:47:17,280 --> 00:47:19,360
+quality of life improvements.
+
+1309
+00:47:19,360 --> 00:47:20,720
+So I'm curious where you
+
+1310
+00:47:20,720 --> 00:47:22,240
+found them most helpful,
+
+1311
+00:47:22,240 --> 00:47:23,520
+and particularly also
+
+1312
+00:47:23,520 --> 00:47:25,280
+in the context of Effect,
+
+1313
+00:47:25,280 --> 00:47:27,920
+maybe areas where you found them to be
+
+1314
+00:47:27,920 --> 00:47:30,000
+not great with Effect yet.
+
+1315
+00:47:30,000 --> 00:47:30,960
+Good question
+
+1316
+00:47:30,960 --> 00:47:32,400
+I can speak a bit about my
+
+1317
+00:47:32,400 --> 00:47:33,680
+time with the agents.
+
+1318
+00:47:33,680 --> 00:47:36,000
+So it's quite recent.
+
+1319
+00:47:36,000 --> 00:47:40,560
+I was not a fan of Closo and not a fan of
+
+1320
+00:47:40,560 --> 00:47:43,440
+AI until a few weeks ago,
+
+1321
+00:47:43,440 --> 00:47:45,040
+a few months ago, I think,
+
+1322
+00:47:45,040 --> 00:47:47,840
+because I didn't find it very productive.
+
+1323
+00:47:49,440 --> 00:47:51,040
+Everything that was written
+
+1324
+00:47:51,040 --> 00:47:54,320
+by the AI, I had to change it.
+
+1325
+00:47:55,040 --> 00:47:58,720
+It was more a loss of time, I think, than
+
+1326
+00:47:58,720 --> 00:48:01,200
+productivity benefits.
+
+1327
+00:48:01,200 --> 00:48:03,360
+But after investing a bit of
+
+1328
+00:48:03,360 --> 00:48:05,520
+time into these agents,
+
+1329
+00:48:05,520 --> 00:48:09,040
+and I think good instructions.
+
+1330
+00:48:09,040 --> 00:48:13,520
+So I've tested a few agents, a few things
+
+1331
+00:48:13,520 --> 00:48:18,400
+like VS Code with Copilot, Closo,
+
+1332
+00:48:18,400 --> 00:48:22,560
+and also like CLIs now, there was a
+
+1333
+00:48:22,560 --> 00:48:23,280
+really interesting
+
+1334
+00:48:23,280 --> 00:48:25,120
+project called opencode.
+
+1335
+00:48:25,120 --> 00:48:28,080
+I don't know if you heard of it, but I
+
+1336
+00:48:28,080 --> 00:48:29,600
+find it very interesting.
+
+1337
+00:48:29,600 --> 00:48:31,680
+Actually, I start to see
+
+1338
+00:48:31,680 --> 00:48:33,920
+some benefits using agents.
+
+1339
+00:48:33,920 --> 00:48:36,640
+I mean, I don't delegate
+
+1340
+00:48:36,640 --> 00:48:38,160
+everything to an agent,
+
+1341
+00:48:38,160 --> 00:48:40,000
+but now it really helps
+
+1342
+00:48:40,000 --> 00:48:42,000
+me to write code faster.
+
+1343
+00:48:42,000 --> 00:48:44,160
+I read everything and I make sure that
+
+1344
+00:48:44,160 --> 00:48:48,240
+it's written as I want it to be.
+
+1345
+00:48:48,240 --> 00:48:49,200
+It comes with some
+
+1346
+00:48:49,200 --> 00:48:52,000
+things way better than before,
+
+1347
+00:48:52,720 --> 00:48:55,360
+because now with agents,
+
+1348
+00:48:55,360 --> 00:48:57,520
+before doing an edit to a file,
+
+1349
+00:48:57,520 --> 00:48:59,440
+it really researches a lot,
+
+1350
+00:48:59,440 --> 00:49:00,880
+like it goes on the internet,
+
+1351
+00:49:00,880 --> 00:49:02,800
+it fetches documentation.
+
+1352
+00:49:02,800 --> 00:49:04,720
+So I set it up for the
+
+1353
+00:49:04,720 --> 00:49:07,520
+Effect MCP for Effect docs.
+
+1354
+00:49:07,520 --> 00:49:08,880
+I'm not sure it's very
+
+1355
+00:49:08,880 --> 00:49:10,400
+often used by my agent,
+
+1356
+00:49:10,400 --> 00:49:12,880
+but if the agent wants
+
+1357
+00:49:12,880 --> 00:49:15,120
+to know more about Effect,
+
+1358
+00:49:15,120 --> 00:49:16,320
+it has access to the
+
+1359
+00:49:16,320 --> 00:49:17,680
+documentation, theoretically.
+
+1360
+00:49:18,240 --> 00:49:22,400
+And now the fact that the agent is able
+
+1361
+00:49:22,400 --> 00:49:24,960
+to grab a lot of context
+
+1362
+00:49:24,960 --> 00:49:27,760
+from the code base from the internet,
+
+1363
+00:49:27,760 --> 00:49:28,880
+it makes it really,
+
+1364
+00:49:28,880 --> 00:49:30,640
+really better than before.
+
+1365
+00:49:30,640 --> 00:49:33,200
+It's quite impressive now, I think.
+
+1366
+00:49:33,200 --> 00:49:35,760
+Yeah, and I mean, it's worth keeping in
+
+1367
+00:49:35,760 --> 00:49:37,280
+mind that this is
+
+1368
+00:49:37,280 --> 00:49:39,040
+developing super quickly
+
+1369
+00:49:39,040 --> 00:49:40,240
+and we're now recording
+
+1370
+00:49:40,240 --> 00:49:43,520
+this at late August 2025.
+
+1371
+00:49:43,520 --> 00:49:45,040
+If someone is watching this
+
+1372
+00:49:45,040 --> 00:49:46,560
+like a couple of months later,
+
+1373
+00:49:46,560 --> 00:49:48,960
+God knows what sort of AI
+
+1374
+00:49:48,960 --> 00:49:51,440
+models are available by then.
+
+1375
+00:49:51,440 --> 00:49:53,600
+And I'm pretty certain this is the worst
+
+1376
+00:49:53,600 --> 00:49:56,240
+it's ever been as it is right now.
+
+1377
+00:49:56,240 --> 00:49:58,240
+So things are developing and
+
+1378
+00:49:58,240 --> 00:50:00,080
+improving very, very quickly.
+
+1379
+00:50:00,080 --> 00:50:03,360
+And this is a very important topic to me
+
+1380
+00:50:03,360 --> 00:50:06,240
+because I think it fundamentally changes
+
+1381
+00:50:06,240 --> 00:50:08,080
+what programming means.
+
+1382
+00:50:08,080 --> 00:50:11,600
+I hope that it will leverage us and
+
+1383
+00:50:11,600 --> 00:50:14,640
+elevate us as system designers
+
+1384
+00:50:14,640 --> 00:50:17,920
+to spend more time about trying to
+
+1385
+00:50:17,920 --> 00:50:19,040
+understand the reality
+
+1386
+00:50:19,040 --> 00:50:21,040
+and modeling the reality,
+
+1387
+00:50:21,040 --> 00:50:25,120
+like expressing which parts of the
+
+1388
+00:50:25,120 --> 00:50:27,920
+reality do we need to model
+
+1389
+00:50:27,920 --> 00:50:30,320
+and which ones can we leave out.
+
+1390
+00:50:30,320 --> 00:50:34,080
+Is it important to modelling that the
+
+1391
+00:50:34,080 --> 00:50:36,240
+server that you're running this on
+
+1392
+00:50:36,240 --> 00:50:39,200
+is like whatever, in a silver
+
+1393
+00:50:39,200 --> 00:50:40,960
+casing or in a black casing?
+
+1394
+00:50:40,960 --> 00:50:42,080
+No, that part of the
+
+1395
+00:50:42,080 --> 00:50:43,920
+domain is not important.
+
+1396
+00:50:43,920 --> 00:50:46,160
+But does it sit in that
+
+1397
+00:50:46,160 --> 00:50:47,600
+one cluster or another?
+
+1398
+00:50:47,600 --> 00:50:48,400
+You get the point.
+
+1399
+00:50:48,400 --> 00:50:49,440
+And I think this is
+
+1400
+00:50:49,440 --> 00:50:51,840
+more like modeling things,
+
+1401
+00:50:51,840 --> 00:50:54,240
+expressing intent, that is
+
+1402
+00:50:54,240 --> 00:50:56,400
+where I see things going.
+
+1403
+00:50:56,400 --> 00:51:00,800
+And the act of implementation is probably
+
+1404
+00:51:00,800 --> 00:51:03,760
+being taken away from us over time.
+
+1405
+00:51:03,760 --> 00:51:05,440
+That's at least my
+
+1406
+00:51:05,440 --> 00:51:08,000
+understanding of the future right now.
+
+1407
+00:51:08,000 --> 00:51:10,320
+But I'm seeing it as glass half full
+
+1408
+00:51:10,320 --> 00:51:13,360
+because what I see as the same as today
+
+1409
+00:51:13,360 --> 00:51:15,760
+is that we're still looking for better
+
+1410
+00:51:15,760 --> 00:51:18,720
+materials to build applications with.
+
+1411
+00:51:18,720 --> 00:51:21,440
+And I'm convinced that AI is going to
+
+1412
+00:51:21,440 --> 00:51:23,680
+have a very good time
+
+1413
+00:51:23,680 --> 00:51:25,760
+building with Effect in the future
+
+1414
+00:51:25,760 --> 00:51:28,640
+just because it is the best material to
+
+1415
+00:51:28,640 --> 00:51:30,640
+build applications with.
+
+1416
+00:51:30,640 --> 00:51:32,800
+But I think we still have a long way to
+
+1417
+00:51:32,800 --> 00:51:34,720
+go to really help AIs
+
+1418
+00:51:34,720 --> 00:51:38,160
+to be very good at working with Effect.
+
+1419
+00:51:38,160 --> 00:51:39,920
+So you mentioned the Effect
+
+1420
+00:51:39,920 --> 00:51:41,760
+MCP, that already helps a lot
+
+1421
+00:51:41,760 --> 00:51:43,440
+and it will get a lot better
+
+1422
+00:51:43,440 --> 00:51:44,960
+because we've recently
+
+1423
+00:51:44,960 --> 00:51:48,880
+switched over the Effect docs search
+
+1424
+00:51:48,880 --> 00:51:51,440
+to use a service and a
+
+1425
+00:51:51,440 --> 00:51:52,720
+tool called Mixspread,
+
+1426
+00:51:52,720 --> 00:51:55,360
+which does smart AI
+
+1427
+00:51:55,360 --> 00:51:57,440
+indexing and retrieval.
+
+1428
+00:51:57,440 --> 00:52:00,000
+So if you now look for interruption,
+
+1429
+00:52:00,000 --> 00:52:01,040
+you actually now should
+
+1430
+00:52:01,040 --> 00:52:03,040
+get a much more useful result
+
+1431
+00:52:03,040 --> 00:52:04,960
+and we're going to wire up the same thing
+
+1432
+00:52:04,960 --> 00:52:07,440
+for the Effect MCP as well.
+
+1433
+00:52:07,440 --> 00:52:10,320
+So that will mean that if an AI needs to
+
+1434
+00:52:10,320 --> 00:52:11,440
+look up interruption,
+
+1435
+00:52:11,440 --> 00:52:13,120
+it gets better context. So
+
+1436
+00:52:13,120 --> 00:52:14,320
+that's going to help a lot.
+
+1437
+00:52:14,320 --> 00:52:15,200
+But the other thing
+
+1438
+00:52:15,200 --> 00:52:18,080
+that AI really relies on,
+
+1439
+00:52:18,080 --> 00:52:20,640
+delivering good results is that it's
+
+1440
+00:52:20,640 --> 00:52:23,360
+trained on various little snippets
+
+1441
+00:52:23,360 --> 00:52:26,320
+and examples similar to us humans.
+
+1442
+00:52:26,320 --> 00:52:28,480
+Some of us are going to go to the source
+
+1443
+00:52:28,480 --> 00:52:30,080
+and read the source code
+
+1444
+00:52:30,080 --> 00:52:32,880
+and apply a lot of mental horsepower to
+
+1445
+00:52:32,880 --> 00:52:34,240
+figuring out how
+
+1446
+00:52:34,240 --> 00:52:35,920
+something should be used.
+
+1447
+00:52:35,920 --> 00:52:38,080
+But I think the majority much rather
+
+1448
+00:52:38,080 --> 00:52:40,400
+prefers to look for an example,
+
+1449
+00:52:40,400 --> 00:52:41,760
+like how can I use Effect
+
+1450
+00:52:41,760 --> 00:52:43,920
+Schema? How can I use Effect HTTP?
+
+1451
+00:52:43,920 --> 00:52:46,480
+Or how can I use effect-messaging instead
+
+1452
+00:52:46,480 --> 00:52:47,760
+of reading the source,
+
+1453
+00:52:47,760 --> 00:52:48,960
+reading an example,
+
+1454
+00:52:48,960 --> 00:52:50,800
+trusting that is correct
+
+1455
+00:52:50,800 --> 00:52:53,120
+and then kind of like transfer applying
+
+1456
+00:52:53,120 --> 00:52:54,640
+that on your own domain.
+
+1457
+00:52:54,640 --> 00:52:56,320
+And this is where we still have a long
+
+1458
+00:52:56,320 --> 00:52:59,360
+way to go to like cover all the API
+
+1459
+00:52:59,360 --> 00:53:00,800
+use cases of Effect and
+
+1460
+00:53:00,800 --> 00:53:02,320
+helping the coding agent,
+
+1461
+00:53:02,320 --> 00:53:03,760
+giving it more training
+
+1462
+00:53:03,760 --> 00:53:05,680
+material. And once we have that,
+
+1463
+00:53:05,680 --> 00:53:08,320
+I expect a huge uptick in
+
+1464
+00:53:08,320 --> 00:53:10,240
+how good the results are
+
+1465
+00:53:10,240 --> 00:53:11,040
+that we're getting from
+
+1466
+00:53:11,040 --> 00:53:12,720
+coding agents for Effect.
+
+1467
+00:53:12,720 --> 00:53:13,920
+So that's something I'm
+
+1468
+00:53:13,920 --> 00:53:15,920
+keeping a close eye on
+
+1469
+00:53:15,920 --> 00:53:19,040
+and expect to see a lot of improvements
+
+1470
+00:53:19,040 --> 00:53:20,800
+there in the future.
+
+1471
+00:53:20,800 --> 00:53:22,800
+So as a last topic,
+
+1472
+00:53:22,800 --> 00:53:24,640
+we can look back on many
+
+1473
+00:53:24,640 --> 00:53:26,880
+years of Effect getting better,
+
+1474
+00:53:26,880 --> 00:53:29,440
+but it's barely getting started. What are
+
+1475
+00:53:29,440 --> 00:53:30,640
+you looking forward most
+
+1476
+00:53:30,640 --> 00:53:32,960
+to in the future of Effect?
+
+1477
+00:53:32,960 --> 00:53:35,840
+Okay. It's a good question. So first, I'm
+
+1478
+00:53:35,840 --> 00:53:37,040
+excited to know that the
+
+1479
+00:53:37,040 --> 00:53:38,880
+team is working on the V4.
+
+1480
+00:53:39,680 --> 00:53:42,000
+I'm not sure what impact it will have
+
+1481
+00:53:42,000 --> 00:53:44,000
+for us, but I'm excited.
+
+1482
+00:53:44,000 --> 00:53:46,480
+I understand that it will have like
+
+1483
+00:53:46,480 --> 00:53:48,480
+performance benefits.
+
+1484
+00:53:48,480 --> 00:53:50,800
+I'm also excited to
+
+1485
+00:53:50,800 --> 00:53:53,600
+try out the Effect AI.
+
+1486
+00:53:53,600 --> 00:53:56,640
+So we were talking about about AI for
+
+1487
+00:53:56,640 --> 00:53:59,200
+productivity with agents.
+
+1488
+00:53:59,200 --> 00:54:03,520
+But I think we could also use AI for
+
+1489
+00:54:03,520 --> 00:54:06,480
+application stuff like for automating
+
+1490
+00:54:06,480 --> 00:54:07,520
+stuff in our business.
+
+1491
+00:54:07,520 --> 00:54:09,920
+For instance, I give you a very simple
+
+1492
+00:54:09,920 --> 00:54:14,400
+example, but when an investor wants to
+
+1493
+00:54:14,400 --> 00:54:14,960
+withdraw
+
+1494
+00:54:14,960 --> 00:54:17,200
+money from the platform,
+
+1495
+00:54:17,200 --> 00:54:20,240
+he fills his bank number and
+
+1496
+00:54:20,240 --> 00:54:24,800
+he has to send us a PDF or something from
+
+1497
+00:54:24,800 --> 00:54:26,240
+a document from the bank to
+
+1498
+00:54:26,240 --> 00:54:28,640
+justify that the correct number.
+
+1499
+00:54:28,640 --> 00:54:30,560
+And at the moment, we have to
+
+1500
+00:54:30,560 --> 00:54:33,760
+verify each document manually.
+
+1501
+00:54:33,760 --> 00:54:35,840
+And this is something we
+
+1502
+00:54:35,840 --> 00:54:37,840
+could automate with AI.
+
+1503
+00:54:37,840 --> 00:54:40,480
+So in the future, we could, for instance,
+
+1504
+00:54:40,480 --> 00:54:43,760
+have a service that calls an LLM sending
+
+1505
+00:54:43,760 --> 00:54:46,720
+the bank account to check with the PDF.
+
+1506
+00:54:46,720 --> 00:54:49,280
+And we could ask for a structured
+
+1507
+00:54:49,280 --> 00:54:51,360
+response, like yes or
+
+1508
+00:54:51,360 --> 00:54:53,840
+no, how confident are you?
+
+1509
+00:54:53,840 --> 00:54:56,400
+And based on this response, we could take
+
+1510
+00:54:56,400 --> 00:54:59,280
+a decision and programmatically validate
+
+1511
+00:54:59,280 --> 00:55:00,880
+all of the bank accounts.
+
+1512
+00:55:00,880 --> 00:55:02,320
+I mean, I'd highly
+
+1513
+00:55:02,320 --> 00:55:04,160
+recommend you giving it a try.
+
+1514
+00:55:04,160 --> 00:55:07,120
+I've used the Effect AI package for very
+
+1515
+00:55:07,120 --> 00:55:09,200
+similar things myself.
+
+1516
+00:55:09,200 --> 00:55:12,640
+I've built a little invoicing system for
+
+1517
+00:55:12,640 --> 00:55:15,920
+myself that I use when I work with other
+
+1518
+00:55:15,920 --> 00:55:18,480
+people or send out invoices myself.
+
+1519
+00:55:18,480 --> 00:55:20,560
+I've used the Effect AI package,
+
+1520
+00:55:20,560 --> 00:55:22,720
+particularly for that use case.
+
+1521
+00:55:22,720 --> 00:55:25,200
+And it just worked first try.
+
+1522
+00:55:25,200 --> 00:55:26,640
+So it is incredible
+
+1523
+00:55:26,640 --> 00:55:28,560
+what is possible with that.
+
+1524
+00:55:28,560 --> 00:55:31,280
+It's nowhere comparable to the amount of
+
+1525
+00:55:31,280 --> 00:55:32,400
+effort it takes to build
+
+1526
+00:55:32,400 --> 00:55:34,800
+effect-messaging from scratch.
+
+1527
+00:55:34,800 --> 00:55:36,880
+But this will be a thing.
+
+1528
+00:55:36,880 --> 00:55:39,840
+You'll be done after 15 minutes and it's
+
+1529
+00:55:39,840 --> 00:55:42,800
+going to significantly improve the
+
+1530
+00:55:42,800 --> 00:55:44,400
+capabilities of your products.
+
+1531
+00:55:44,400 --> 00:55:45,760
+So don't sleep on that.
+
+1532
+00:55:45,760 --> 00:55:46,560
+Yeah, definitely.
+
+1533
+00:55:46,560 --> 00:55:48,400
+And actually, I think it's
+
+1534
+00:55:48,400 --> 00:55:50,640
+a big shift of mindset also.
+
+1535
+00:55:50,640 --> 00:55:54,960
+And I think I didn't realize it until a few
+
+1536
+00:55:54,960 --> 00:55:56,480
+weeks ago, actually.
+
+1537
+00:55:56,480 --> 00:55:57,920
+the way I was interacting with
+
+1538
+00:55:57,920 --> 00:56:00,640
+LLM so far was just sending texts,
+
+1539
+00:56:00,640 --> 00:56:02,000
+receiving texts, but
+
+1540
+00:56:02,000 --> 00:56:03,200
+not structured texts.
+
+1541
+00:56:03,200 --> 00:56:06,160
+Not texts I could decide to put in my
+
+1542
+00:56:06,160 --> 00:56:10,320
+code and do an if-else on the results.
+
+1543
+00:56:10,320 --> 00:56:12,880
+But here it's completely different.
+
+1544
+00:56:12,880 --> 00:56:15,680
+It's a very shift of mindset.
+
+1545
+00:56:15,680 --> 00:56:16,960
+And I think it's a
+
+1546
+00:56:16,960 --> 00:56:19,760
+revolution for programming.
+
+1547
+00:56:19,760 --> 00:56:20,560
+Most certainly.
+
+1548
+00:56:20,560 --> 00:56:22,480
+Well, I'm looking forward to the next
+
+1549
+00:56:22,480 --> 00:56:24,480
+time we have a chat to hear more about
+
+1550
+00:56:24,480 --> 00:56:27,040
+how you're leveraging the AI packages of
+
+1551
+00:56:27,040 --> 00:56:29,680
+Effect to ship new features.
+
+1552
+00:56:29,680 --> 00:56:32,560
+But Samuel, I want to thank you for
+
+1553
+00:56:32,560 --> 00:56:34,080
+taking the time and
+
+1554
+00:56:34,080 --> 00:56:36,720
+sharing your entire journey here.
+
+1555
+00:56:37,360 --> 00:56:38,400
+What you're building at
+
+1556
+00:56:38,400 --> 00:56:40,560
+Spiko sounds super, super cool.
+
+1557
+00:56:40,560 --> 00:56:43,200
+So it seems like you all are hiring.
+
+1558
+00:56:43,200 --> 00:56:46,240
+So if you're based in Paris or want to
+
+1559
+00:56:46,240 --> 00:56:48,800
+move to Paris, I think Spiko is probably
+
+1560
+00:56:48,800 --> 00:56:49,920
+an interesting company
+
+1561
+00:56:49,920 --> 00:56:52,160
+to consider applying at.
+
+1562
+00:56:52,160 --> 00:56:56,240
+And yeah, also huge congrats on all the
+
+1563
+00:56:56,240 --> 00:56:58,400
+milestones you've reached recently on
+
+1564
+00:56:58,400 --> 00:56:59,920
+shipping effect-messaging.
+
+1565
+00:56:59,920 --> 00:57:03,600
+I hope that a lot more folks are using
+
+1566
+00:57:03,600 --> 00:57:05,280
+messaging patterns like that.
+
+1567
+00:57:05,280 --> 00:57:08,240
+I think it's a wonderful fit with Effect.
+
+1568
+00:57:08,240 --> 00:57:11,120
+And thank you for coming on the show.
+
+1569
+00:57:11,120 --> 00:57:12,480
+Thank you so much as well.
+
+1570
+00:57:12,480 --> 00:57:14,720
+It's a real pleasure for me to
+
+1571
+00:57:15,440 --> 00:57:18,640
+participate in the podcast and also to be
+
+1572
+00:57:18,640 --> 00:57:20,720
+part of the community.
+
+1573
+00:57:20,720 --> 00:57:22,880
+So I want to thank you as well.
+
+1574
+00:57:22,880 --> 00:57:25,000
+Perfect. Salut.
+
+1575
+00:57:25,000 --> 00:57:26,400
+Salut.
+
+1576
+00:57:26,400 --> 00:57:27,680
+Thank you for listening to the
+
+1577
+00:57:27,680 --> 00:57:29,360
+Cause & Effect Podcast.
+
+1578
+00:57:29,360 --> 00:57:31,360
+If you've enjoyed this episode, please
+
+1579
+00:57:31,360 --> 00:57:32,800
+subscribe, leave a review
+
+1580
+00:57:32,800 --> 00:57:34,720
+and share it with your friends.
+
+1581
+00:57:34,720 --> 00:57:36,640
+If you haven't done so already, you can
+
+1582
+00:57:36,640 --> 00:57:38,160
+join our Discord community.
+
+1583
+00:57:38,160 --> 00:57:40,160
+And if you have any questions, feedback
+
+1584
+00:57:40,160 --> 00:57:42,640
+or suggestions about this episode or
+
+1585
+00:57:42,640 --> 00:57:44,160
+about Effect in general,
+
+1586
+00:57:44,160 --> 00:57:46,240
+don't hesitate to get in touch.
+
+1587
+00:57:46,240 --> 00:58:01,280
+See you in the next episode.
