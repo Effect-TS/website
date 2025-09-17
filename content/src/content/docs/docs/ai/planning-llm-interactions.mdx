@@ -8,7 +8,7 @@ sidebar:
 Imagine that we've refactored our `generateDadJoke` program from our [Getting Started](/docs/ai/getting-started/) guide. Now, instead of handling all errors internally, the code can **fail with domain-specific issues** like network interruptions or provider outages:
 
 ```ts twoslash
-import type { AiLanguageModel, AiResponse } from "@effect/ai"
+import type { LanguageModel } from "@effect/ai"
 import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Data, Effect } from "effect"
 
@@ -17,9 +17,9 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse,
+  LanguageModel.GenerateTextResponse<{}>,
   NetworkError | ProviderOutage,
-  AiLanguageModel.AiLanguageModel
+  LanguageModel.LanguageModel
 >
 
 const main = Effect.gen(function*() {
@@ -51,7 +51,7 @@ To create an `ExecutionPlan`, we can use the `ExecutionPlan.make` constructor.
 **Example** (Creating an `ExecutionPlan` for LLM Interactions)
 
 ```ts twoslash collapse={5-13}
-import type { AiLanguageModel, AiResponse } from "@effect/ai"
+import type { LanguageModel } from "@effect/ai"
 import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Data, Effect, ExecutionPlan, Schedule } from "effect"
 
@@ -60,9 +60,9 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse,
+  LanguageModel.GenerateTextResponse<{}>,
   NetworkError | ProviderOutage,
-  AiLanguageModel.AiLanguageModel
+  LanguageModel.LanguageModel
 >
 
 const DadJokePlan = ExecutionPlan.make({
@@ -82,7 +82,7 @@ const main = Effect.gen(function*() {
 ```
 
 This plan contains a single step which will:
-- Provide OpenAi's `"gpt-4o"` model as an `AiLanguageModel` for the program 
+- Provide OpenAi's `"gpt-4o"` model as a `LanguageModel` for the program 
 - Attempt to call OpenAi up to 3 times
 - Wait with an exponential backoff between attempts (starting at `100ms`)
 - Only re-attempt the call to OpenAi if the error is a `NetworkError`
@@ -98,7 +98,7 @@ Use this when:
 **Example** (Adding a Fallback to Anthropic from OpenAi)
 
 ```ts twoslash {23-27} collapse={6-14} 
-import type { AiLanguageModel, AiResponse } from "@effect/ai"
+import type { LanguageModel } from "@effect/ai"
 import { AnthropicLanguageModel } from "@effect/ai-anthropic"
 import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Data, Effect, ExecutionPlan, Schedule } from "effect"
@@ -108,9 +108,9 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse,
+  LanguageModel.GenerateTextResponse<{}>,
   NetworkError | ProviderOutage,
-  AiLanguageModel.AiLanguageModel
+  LanguageModel.LanguageModel
 >
 
 const DadJokePlan = ExecutionPlan.make({
@@ -120,7 +120,7 @@ const DadJokePlan = ExecutionPlan.make({
   while: (error: NetworkError | ProviderOutage) => 
     error._tag === "NetworkError"
 }, {
-  provide: AnthropicLanguageModel.model("claude-3-7-sonnet-latest"),
+  provide: AnthropicLanguageModel.model("claude-4-sonnet-20250514"),
   attempts: 2,
   schedule: Schedule.exponential("100 millis", 1.5),
   while: (error: NetworkError | ProviderOutage) => 
@@ -140,7 +140,7 @@ This plan contains two steps.
 **Step 1**
 
 The first step will:
-- Provide OpenAi's `"gpt-4o"` model as an `AiLanguageModel` for the program 
+- Provide OpenAi's `"gpt-4o"` model as a `LanguageModel` for the program 
 - Attempt to call OpenAi up to 3 times
 - Wait with an exponential backoff between attempts (starting at `100ms`)
 - Only attempt the call to OpenAi if the error is a `NetworkError`
@@ -151,17 +151,17 @@ try to run the program using the second step.
 **Step 2**
 
 The second step will:
-- Provide Anthropic's `"claude-3-7-sonnet"` model as an `AiLanguageModel` for the program 
+- Provide Anthropic's `"claude-4-sonnet-20250514"` model as a `LanguageModel` for the program 
 - Attempt to call Anthropic up to 2 times
 - Wait with an exponential backoff between attempts (starting at `100ms`)
 - Only attempt the fallback if the error is a `ProviderOutage` 
 
 ## End-to-End Usage
 
-The following is the complete program with the desired `AiPlan` fully implemented:
+The following is the complete program with the desired execution plan fully implemented:
 
 ```ts twoslash
-import type { AiLanguageModel, AiResponse } from "@effect/ai"
+import type { LanguageModel } from "@effect/ai"
 import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic"
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import { NodeHttpClient } from "@effect/platform-node"
@@ -172,9 +172,9 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse,
+  LanguageModel.GenerateTextResponse<{}>,
   NetworkError | ProviderOutage,
-  AiLanguageModel.AiLanguageModel
+  LanguageModel.LanguageModel
 >
 
 const DadJokePlan = ExecutionPlan.make({
@@ -184,7 +184,7 @@ const DadJokePlan = ExecutionPlan.make({
   while: (error: NetworkError | ProviderOutage) => 
     error._tag === "NetworkError"
 }, {
-  provide: AnthropicLanguageModel.model("claude-3-7-sonnet-latest"),
+  provide: AnthropicLanguageModel.model("claude-4-sonnet-20250514"),
   attempts: 2,
   schedule: Schedule.exponential("100 millis", 1.5),
   while: (error: NetworkError | ProviderOutage) => 

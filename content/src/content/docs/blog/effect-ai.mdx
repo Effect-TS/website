@@ -41,9 +41,13 @@ Effect's AI ecosystem consists of several focused packages, each with a specific
 
 - **`@effect/ai`**: The core package that defines provider-agnostic services and abstractions for interacting with LLMs
   
-- **`@effect/ai-openai`**: Concrete implementations of AI services backed by the OpenAI API
+- **`@effect/ai-openai`**: Concrete implementations of AI services backed by the OpenAI's Responses API
 
-- **`@effect/ai-anthropic`**: Concrete implementations of AI services backed by the Anthropic API
+- **`@effect/ai-anthropic`**: Concrete implementations of AI services backed by the Anthropic's Messages API
+
+- **`@effect/ai-amazon-bedrock`**: Concrete implementations of AI services backed by Amazon Bedrock's Converse API
+
+- **`@effect/ai-google`**: Concrete implementations of AI services backed by Google's Gemini API
 
 This architecture allows you to describe your LLM interactions with provider-agnostic services, and the provide a concrete implementation once you are ready to run your program. 
 
@@ -58,11 +62,11 @@ Instead of hardcoding calls to a specific LLM provider's API, you describe your 
 Let's look at a simple example to understand this concept better:
 
 ```ts twoslash
-import { AiLanguageModel } from "@effect/ai"
+import { LanguageModel } from "@effect/ai"
 import { Effect } from "effect"
 
 // Define a provider-agnostic AI interaction
-const generateDadJoke = AiLanguageModel.generateText({
+const generateDadJoke = LanguageModel.generateText({
   prompt: "Generate a dad joke"
 })
 ```
@@ -71,20 +75,20 @@ Notice that this code doesn't specify which model provider to use - it simply de
 
 This separation of concerns is at the heart of Effect's approach to describing interactions with large language models.
 
-### The `AiModel` Abstraction
+### The `Model` Abstraction
 
-To bridge the gap between provider-agnostic business logic and concrete LLM providers, Effect introduces the `AiModel` abstraction. 
+To bridge the gap between provider-agnostic business logic and concrete LLM providers, Effect introduces the `Model` abstraction. 
 
-An `AiModel` represents a specific LLM from a provider that can be used to satisfy service requirements, such as `AiLanguageModel` or `AiEmbeddingsModel`.
+An `Model` represents a specific LLM from a provider that can be used to satisfy service requirements, such as `LanguageModel` or `EmbeddingsModel`.
 
-Here is an example of how you can create and use an `AiModel` designed to satisfy the `AiLanguageModel` service using OpenAI:
+Here is an example of how you can create and use an `Model` designed to satisfy the `LanguageModel` service using OpenAI:
 
 ```ts twoslash 
-import { AiLanguageModel } from "@effect/ai"
+import { LanguageModel } from "@effect/ai"
 import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Console, Effect } from "effect"
 
-const generateDadJoke = AiLanguageModel.generateText({
+const generateDadJoke = LanguageModel.generateText({
   prompt: "Generate a dad joke"
 })
 
@@ -110,13 +114,13 @@ This approach offers several key benefits:
 Now let's walk through a complete example of setting up an LLM interaction with Effect:
 
 ```ts twoslash
-import { AiLanguageModel } from "@effect/ai"
+import { LanguageModel } from "@effect/ai"
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import { NodeHttpClient } from "@effect/platform-node"
 import { Config, Console, Effect, Layer } from "effect"
 
 // 1. Define our provider-agnostic AI interaction
-const generateDadJoke = AiLanguageModel.generateText({
+const generateDadJoke = LanguageModel.generateText({
   prompt: "Generate a dad joke"
 })
 
@@ -153,19 +157,19 @@ One of Effect's greatest strengths is its robust error handling, which is partic
 For example, if our `generateDadJoke` program were re-written to possibly fail with a `RateLimitError` or an `InvalidInputError`, we could write logic to handle those errors:
 
 ```ts twoslash collapse={4-14}
-import { AiResponse } from "@effect/ai"
+import { Response } from "@effect/ai"
 import { Effect } from "effect"
 
-import { AiLanguageModel } from "@effect/ai"
+import { LanguageModel } from "@effect/ai"
 import { Data } from "effect"
 
 class RateLimitError extends Data.TaggedError("RateLimitError") {}
 class InvalidInputError extends Data.TaggedError("InvalidInputError") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse,
+  LanguageModel.GenerateTextResponse<{}>,
   RateLimitError | InvalidInputError,
-  AiLanguageModel.AiLanguageModel
+  LanguageModel.LanguageModel
 >
 
 const withErrorHandling = generateDadJoke.pipe(
@@ -176,11 +180,11 @@ const withErrorHandling = generateDadJoke.pipe(
         Effect.andThen(generateDadJoke)
       ),
     InvalidInputError: (error) =>
-      Effect.succeed(AiResponse.AiResponse.make({
-        parts: [new AiResponse.TextPart({
+      Effect.succeed(new LanguageModel.GenerateTextResponse([
+        Response.makePart("text", {
           text: "I could not generate a dad joke right now!"
-        })]
-      }))
+        })
+      ]))
   })
 )
 ```
@@ -192,13 +196,12 @@ For more complex scenarios where you need reliability across multiple providers,
 `ExecutionPlan` lets you create a structured execution plan for your Effect programs with built-in retry logic, fallback strategies, and error handling:
 
 ```ts twoslash 
+import { AiError, LanguageModel } from "@effect/ai"
 import { AnthropicLanguageModel } from "@effect/ai-anthropic"
 import { OpenAiLanguageModel } from "@effect/ai-openai"
 import { Console, Data, Effect, ExecutionPlan, Schedule } from "effect"
 
-import { AiError, AiLanguageModel } from "@effect/ai"
-
-const generateDadJoke = AiLanguageModel.generateText({
+const generateDadJoke = LanguageModel.generateText({
   prompt: "Generate a dad joke"
 })
 
@@ -207,7 +210,7 @@ class NetworkError extends Data.TaggedError("NetworkError") {}
 class ProviderOutage extends Data.TaggedError("ProviderOutage") {}
 
 // Build a resilient plan that:
-// - Provides an AiLanguageModel which uses OpenAi's Chat Completions API
+// - Provides an LanguageModel which uses OpenAi's Chat Completions API
 // - Attempts to call OpenAI up to 3 times
 // - Waits with an exponential backoff between attempts
 // - Only attempts the call to OpenAI if the error is a `NetworkError`
@@ -241,10 +244,10 @@ This is particularly valuable for production systems where reliability is critic
 Effect's structured concurrency model also makes it easy to manage concurrent model interactions:
 
 ```ts twoslash
-import { AiLanguageModel } from "@effect/ai"
+import { LanguageModel } from "@effect/ai"
 import { Effect } from "effect"
 
-const generateDadJoke = AiLanguageModel.generateText({
+const generateDadJoke = LanguageModel.generateText({
   prompt: "Generate a dad joke"
 })
 
@@ -261,16 +264,19 @@ const concurrentDadJokes = Effect.all([
 Effect's AI integrations support streaming responses via Effect's [`Stream` type](/docs/stream/introduction/): 
 
 ```ts twoslash
-import { AiLanguageModel } from "@effect/ai"
+import { LanguageModel } from "@effect/ai"
 import { Effect, Stream } from "effect"
 
-// Use `AiLanguageModel.streamText` to stream model provider responses
-const streamingJoke = AiLanguageModel.streamText({
+// Use `LanguageModel.streamText` to stream parts of a response from a large
+// language model provider 
+const streamingJoke = LanguageModel.streamText({
   prompt: "Tell me a long dad joke"
 }).pipe(
-  Stream.runForEach((response) =>
+  Stream.runForEach((part) =>
     Effect.sync(() => {
-      process.stdout.write(response.text)
+      if (part.type === "text-delta") {
+        process.stdout.write(part.delta)
+      }
     })
   )
 )
