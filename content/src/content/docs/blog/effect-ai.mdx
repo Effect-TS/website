@@ -157,7 +157,7 @@ One of Effect's greatest strengths is its robust error handling, which is partic
 For example, if our `generateDadJoke` program were re-written to possibly fail with a `RateLimitError` or an `InvalidInputError`, we could write logic to handle those errors:
 
 ```ts twoslash collapse={4-14}
-import { AiResponse } from "@effect/ai"
+import { Response } from "@effect/ai"
 import { Effect } from "effect"
 
 import { LanguageModel } from "@effect/ai"
@@ -167,9 +167,9 @@ class RateLimitError extends Data.TaggedError("RateLimitError") {}
 class InvalidInputError extends Data.TaggedError("InvalidInputError") {}
 
 declare const generateDadJoke: Effect.Effect<
-  AiResponse.AiResponse,
+  LanguageModel.GenerateTextResponse<{}>,
   RateLimitError | InvalidInputError,
-  LanguageModel.AiLanguageModel
+  LanguageModel.LanguageModel
 >
 
 const withErrorHandling = generateDadJoke.pipe(
@@ -180,11 +180,11 @@ const withErrorHandling = generateDadJoke.pipe(
         Effect.andThen(generateDadJoke)
       ),
     InvalidInputError: (error) =>
-      Effect.succeed(AiResponse.AiResponse.make({
-        parts: [new AiResponse.TextPart({
+      Effect.succeed(new LanguageModel.GenerateTextResponse([
+        Response.makePart("text", {
           text: "I could not generate a dad joke right now!"
-        })]
-      }))
+        })
+      ]))
   })
 )
 ```
