@@ -1,0 +1,71 @@
+---
+pagefind: false
+title: How Mixedbread Transformed Search on the Effect Documentation Site
+excerpt: A post highlighting how Mixedbread transformed the search experience on the Effect documentation website.
+date: 2025-09-26
+authors:
+  - maxwell_brown
+tags:
+  - Miscellaneous
+---
+
+When we built the Effect documentation site, our search layer was powered by **Pagefind**, which is the default search provider built into the [Starlight Documentation Plugin for Astro](https://starlight.astro.build/guides/site-search/). Pagefind offers efficient, client-side full-text indexing and low bandwidth usage for static sites. It served us well as a straightforward, zero-infrastructure solution allowing us to index our content at build time and ship small chunked search indices to the browser while users searched for the content they were interested in. 
+
+But over time, we hit the limitations of pure keyword search: 
+- Inability to handle semantically rich search queries from our users (i.e. "Tell me how to use a Scope in Effect")
+- Problems surfacing relevant content when query phrasing diverges from the source content
+- Limited ability to incorporate document metadata into ranking and filtering
+
+Luckily, we were fortunate enough to be introduced to the folks at [Mixedbread](https://mixedbread.com/), an applied research lab dedicated to building next-generation retrieval and memory systems for AI. They offered to let us use their platform to solve the problems we were having with search on our docs website.
+
+I have to say, the improvement in search after integrating Mixedbread into our docs search was **immediately** noticeable. Search results instantly felt more relevant, contextually accurate, and tailored to the query that the user entered.
+
+We've been running a Mixedbread-powered search experience on our docs site for about a month now, and with the significant improvement we have observed in search result quality and relevance, we have no intention of going back.
+
+---
+
+### Why Mixedbread? 
+
+What made Mixedbread stand out to us was how simple it was to get started building out a vector store for our docs content. In just a few minutes I was able to setup a vector store via Mixedbread's dashboard. Then, using the [Mixedbread CLI](https://www.mixedbread.com/cli/) I was able to sync and ingest all our docs content into the store in a single command. That allowed us to focus on building out the frontend we wanted to expose for our search experience.
+
+Given how simple it was to setup and hydrate a Mixedbread vector store, we plan to also add automated workflows to our documentation site which creates a vector store on-demand for preview deployments to allow us to test searching for changed content.
+
+---
+
+### What Changed?
+
+Switching from Pagefind’s keyword-centric index to a vector-embedded search backend unlocked several improvements:
+
+**Semantic Understanding**
+
+Our previous search experience could not handle semantically rich queries from our end users - e.g. "What is the purpose of the Layer data type". Mixedbread's vector store and retrieval APIs allow us to go beyond the literal tokens entered by the end user and surface results that are relevant to the user's intent. 
+
+**Metadata-Aware**
+
+Because Mixedbread supports ingesting metadata along with content, we can tag documents with attributes like version, stability, last update timestamp, module name, or topic categories. These metadata fields help boost or demote results, improving precision.
+
+In addition, Mixedbread is able to automatically generate certain types of metadata for you based on the type of document being ingested. We took advantage of this generated metadata to generate anchor tags for docs search results to allow the end user to link directly to the page and subsection they need.
+
+**Low Latency**
+
+Despite performing search across our entire Mixedbread vector store, re-ranking search results, and returning them to our client with every query, the response time of our docs search has remained exceptionally fast.
+
+---
+
+### What are the Benefits?
+
+As a consumer of our docs, what you’ll notice from the search experience is simple: 
+- More relevant results
+- Fewer “nothing useful found” dead ends
+- Easier discovery of deep, advanced topics
+
+You'll get better search without having to change how you ask questions.
+
+For us as maintainers, it means we can surface more relevant content to our users regardless of how large the body of Effect knowledge grows!
+
+---
+
+### Try It Yourself!
+
+Mixedbread is now publicly available. If you have a docs site, a knowledge base, or any content corpus you want to make more intelligently searchable, head over to **[mixedbread.com](https://mixedbread.com)** and give it a spin. Our search got smarter - yours can be too.
+
