@@ -122,6 +122,7 @@ export default defineConfig({
         ContentPanel: "./src/components/starlight/ContentPanel.astro",
         Head: "./src/components/starlight/Head.astro",
         MarkdownContent: "./src/components/starlight/MarkdownContent.astro",
+        PageTitle: "./src/components/starlight/PageTitle.astro",
         SocialIcons: "./src/components/starlight/SocialIcons.astro",
         ThemeSelect: "./src/components/starlight/ThemeSelect.astro"
       },
