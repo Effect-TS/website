@@ -1,0 +1,81 @@
+---
+pagefind: false
+title: Effect 3.18 (Release)
+excerpt: New Effect release featuring the Graph module, Context.ReadonlyTag, and more!
+date: 2025-09-30
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.18 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## Graph module
+
+An experimental Graph module has been added, with comprehensive graph data structure support.
+
+The Graph module provides:
+
+- Directed and undirected graph support
+- Immutable and mutable graph variants  
+- Type-safe node and edge operations
+- Graph algorithms: DFS, BFS, shortest paths, cycle detection, etc.
+
+```typescript
+import { Graph } from "effect"
+
+// Create a graph with mutations
+const graph = Graph.directed<string, number>((mutable) => {
+  const nodeA = Graph.addNode(mutable, "Node A")
+  const nodeB = Graph.addNode(mutable, "Node B")
+  Graph.addEdge(mutable, nodeA, nodeB, 5)
+})
+
+console.log(`Nodes: ${Graph.nodeCount(graph)}, Edges: ${Graph.edgeCount(graph)}`)
+```
+
+## Context.ReadonlyTag
+
+The `ReadonlyTag` type is the covariant side of a `Context.Tag`, that can be used to constrain tags that match a certain service shape.
+
+```ts
+import type { Context } from "effect"
+import { Effect } from "effect"
+
+export class MyRequirement extends Effect.Service<MyRequirement>()(
+  "MyRequirement",
+  { succeed: () => 42 }
+) {}
+
+export class MyUseCase extends Effect.Service<MyUseCase>()("MyUseCase", {
+  dependencies: [MyRequirement.Default],
+  effect: Effect.gen(function* () {
+    const requirement = yield* MyRequirement
+    return Effect.fn("MyUseCase.execute")(function* () {
+      return requirement()
+    })
+  })
+}) {}
+
+export function effectHandler<I, Args extends Array<any>, A, E, R>(
+  service: Context.ReadonlyTag<I, (...args: Args) => Effect.Effect<A, E, R>>
+) {
+  return Effect.fn("effectHandler")(function* (...args: Args) {
+    const execute = yield* service
+    yield* execute(...args)
+  })
+}
+
+export const program = effectHandler(MyUseCase)
+```
+
+## Other changes
+
+- `resize` method has been added to `Effect.Semaphore`, allowing dynamic adjustment of a semaphore's permits.
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
