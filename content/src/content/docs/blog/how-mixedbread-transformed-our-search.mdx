@@ -2,7 +2,7 @@
 pagefind: false
 title: How Mixedbread Transformed Our Search
 excerpt: A post highlighting how Mixedbread transformed the search experience on the Effect documentation website.
-date: 2025-09-26
+date: 2025-10-01
 authors:
   - maxwell_brown
 tags:
@@ -52,6 +52,14 @@ Despite performing search across our entire Mixedbread vector store, re-ranking 
 
 ---
 
+### How We Did It
+
+As I mentioned before, our docs site is built using the [Starlight Documentation Plugin for Astro](https://starlight.astro.build/guides/site-search/). To provide a seamless experience, we built a small, custom [Starlight Plugin](https://starlight.astro.build/reference/plugins/) which replaces the default Pagefind search. This plugin [overrides the `Search` component](https://starlight.astro.build/guides/overriding-components/) that comes out of the box with Starlight with a custom `MixedbreadSearch` Astro component. The `MixedbreadSearch` Astro component sends the user's search query to an [Astro API route](https://docs.astro.build/en/guides/endpoints/#server-endpoints-api-routes) which executes the search against our Mixedbread vector store. Results are returned to the client and rendered by the `MixedbreadSearch` Astro component.
+
+If you're curious and want to learn more about our custom Starlight plugin for Mixedbread, you can [view all the code on GitHub](https://github.com/Effect-TS/website/tree/main/content/src/plugins/starlight/mixedbread).
+
+---
+
 ### What are the Benefits?
 
 As a consumer of our docs, what you’ll notice from the search experience is simple: 
@@ -61,7 +69,7 @@ As a consumer of our docs, what you’ll notice from the search experience is si
 
 You'll get better search without having to change how you ask questions.
 
-For us as maintainers, it means we can surface more relevant content to our users regardless of how large the body of Effect knowledge grows!
+For us as maintainers, it has allowed us to surface more relevant content to our users regardless of how large the body of Effect knowledge grows! This also let to the related benefit of reducing the number of support requests we have needed to address about the quality of the search experience on our docs site.
 
 ---
 
