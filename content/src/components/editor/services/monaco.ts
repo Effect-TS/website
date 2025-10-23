@@ -62,7 +62,8 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
          */
         const vimAdapter = yield* Effect.acquireRelease(
           Effect.sync(() => {
-            const adapter = initVimMode(editor)
+            const statusNode = document.getElementById("vim-status")
+            const adapter = initVimMode(editor, statusNode as HTMLElement)
             return adapter
           }),
           (adapter) =>

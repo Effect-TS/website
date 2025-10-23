@@ -49,7 +49,14 @@ function CodeEditorPanels() {
           </ResizablePanel>
           <ResizableHandle direction="vertical" />
           <ResizablePanel>
-            <FileEditor />
+            <div className="h-full flex flex-col">
+              <div className="flex-1">
+                <FileEditor />
+              </div>
+              <div className="px-2 bg-[--sl-color-bg-nav] border-t border-[--sl-color-hairline] font-mono text-xs text-[--sl-color-text] ">
+                <span id="vim-status"></span>
+              </div>
+            </div>
           </ResizablePanel>
         </ResizablePanelGroup>
       </ResizablePanel>
