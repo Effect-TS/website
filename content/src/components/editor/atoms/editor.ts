@@ -15,9 +15,10 @@ import type { AtomWorkspaceHandle } from "./workspace"
 
 export const editorThemeAtom = Atom.map(themeAtom, (theme) => (theme === "dark" ? "dracula" : "vs"))
 
-const runtime = Atom.runtime(
-  Layer.mergeAll(Loader.Default, Monaco.Default, Toaster.Default, WebContainer.Default)
-).pipe(Atom.setIdleTTL("10 seconds"))
+const runtime = Atom.runtime(Layer.mergeAll(Loader.Default, Monaco.Default, Toaster.Default, WebContainer.Default)).pipe(
+  Atom.setIdleTTL("10 seconds")
+)
+
 export const editorAtom = Atom.family((handle: AtomWorkspaceHandle) => {
   const element = Atom.make(Option.none<HTMLElement>())
 
