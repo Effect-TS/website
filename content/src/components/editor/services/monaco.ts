@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect"
 import * as Stream from "effect/Stream"
 import type ts from "typescript"
 import { ChromeDevTools, Dracula } from "./monaco/themes"
+import { initVimMode } from "monaco-vim"
 
 type MonacoApi = typeof import("@effect/monaco-editor")
 
@@ -57,6 +58,20 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
         )
 
         /**
+         * Initialize vim mode
+         */
+        const vimAdapter = yield* Effect.acquireRelease(
+          Effect.sync(() => {
+            const adapter = initVimMode(editor)
+            return adapter
+          }),
+          (adapter) =>
+            Effect.sync(() => {
+              adapter?.dispose?.()
+            })
+        )
+
+        /**
          * Loads the specified model into the editor.
          */
         function loadModel(model: monaco.editor.ITextModel) {
@@ -96,7 +111,8 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
         return {
           editor,
           loadModel,
-          content
+          content,
+          vimAdapter
         } as const
       })
     }
