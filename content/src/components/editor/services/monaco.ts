@@ -62,22 +62,19 @@ export class Monaco extends Effect.Service<Monaco>()("app/Monaco", {
          */
         const vimAdapter = yield* Effect.acquireRelease(
           Effect.sync(() => {
-            // Initialize vim mode immediately without status node first
             const adapter = initVimMode(editor)
             console.log("Vim adapter initialized:", adapter)
-            
-            // Try to connect status node after delay
+
             setTimeout(() => {
               const statusNode = document.getElementById("vim-status")
               console.log("Status node found:", statusNode)
               if (statusNode) {
-                // Re-initialize with status node
                 adapter?.dispose?.()
                 const newAdapter = initVimMode(editor, statusNode as HTMLElement)
                 console.log("Vim adapter re-initialized with status:", newAdapter)
               }
             }, 200)
-            
+
             return adapter
           }),
           (adapter) =>
