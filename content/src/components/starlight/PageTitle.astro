@@ -1,0 +1,162 @@
+---
+import DefaultPageTitle from "@astrojs/starlight/components/PageTitle.astro"
+import { getMarkdownById } from "../../lib/markdown-map"
+import copyScriptUrl from "./copy-page.client.ts?url"
+
+const route = Astro.locals.starlightRoute
+const entry = route.entry
+
+const rawMarkdown = getMarkdownById(entry.id)
+
+const title = typeof entry.data?.title === "string" ? entry.data.title.trim() : undefined
+const normalizedTitle = title?.toLowerCase()
+
+const ensureTitleHeading = (markdown: string | undefined) => {
+  if (!markdown) return undefined
+  if (!title || !normalizedTitle) return markdown
+
+  const trimmed = markdown.trimStart()
+  if (trimmed.length > 0) {
+    const firstLine = trimmed.split(/\r?\n/, 1)[0]
+    if (firstLine) {
+      const normalizedFirstLine = firstLine.replace(/^#+\s*/, "").trim().toLowerCase()
+      if (firstLine.startsWith("#") && normalizedFirstLine === normalizedTitle) {
+        return markdown
+      }
+    }
+  }
+
+  const body = trimmed.length > 0 ? `\n\n${trimmed}` : ""
+  return `# ${title}${body}`
+}
+
+const markdownForCopy = ensureTitleHeading(rawMarkdown)
+
+const slug = entry.slug || entry.id || "page"
+const controlId = `copy-page-${slug.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "") || "doc"}`
+const templateId = `${controlId}-markdown`
+const hasCopyAction = Boolean(markdownForCopy)
+const copyScriptSrc = hasCopyAction ? copyScriptUrl : undefined
+---
+
+<div class="page-title">
+  <DefaultPageTitle />
+  {hasCopyAction && (
+    <div class="page-title__actions">
+      <button
+        id={controlId}
+        type="button"
+        class="copy-page-button"
+        data-copy-state="idle"
+        data-copy-source={templateId}
+      >
+        <span class="copy-page-button__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" fill="none" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </span>
+        <span class="copy-page-button__label" data-copy-label>Copy markdown</span>
+      </button>
+      <span class="copy-page-button__status" aria-live="polite" data-copy-status></span>
+      <template id={templateId} data-copy-content set:text={markdownForCopy}></template>
+    </div>
+  )}
+</div>
+
+{hasCopyAction && copyScriptSrc && (
+  <script type="module" src={copyScriptSrc} />
+)}
+
+<style>
+  .page-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .page-title h1 {
+    margin: 0;
+  }
+
+  .page-title__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+  }
+
+  .copy-page-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--sl-color-text);
+    background: var(--sl-color-bg);
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    cursor: pointer;
+    transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+  }
+
+  .copy-page-button:hover,
+  .copy-page-button:focus-visible {
+    background: var(--sl-color-bg-nav);
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-accent);
+    outline: none;
+  }
+
+  .copy-page-button:focus-visible {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--sl-color-accent) 35%, transparent);
+  }
+
+  .copy-page-button[data-copy-state="copied"] {
+    border-color: color-mix(in srgb, var(--sl-color-accent) 65%, transparent);
+    color: var(--sl-color-accent);
+  }
+
+  .copy-page-button[data-copy-state="error"] {
+    border-color: color-mix(in srgb, var(--sl-color-red) 70%, transparent);
+    color: var(--sl-color-red);
+  }
+
+  .copy-page-button__icon {
+    display: grid;
+    place-items: center;
+  }
+
+  .copy-page-button__icon svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .copy-page-button__status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (max-width: 40rem) {
+    .page-title {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .copy-page-button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>
