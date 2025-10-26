@@ -1,11 +1,14 @@
+import { ensureTitleHeading } from "@/lib/markdown-heading"
+
 const STATUS_RESET_DELAY = 3000
 const successLabel = "Copied!"
 const failureLabel = "Copy failed"
-const unavailableMessage = "Markdown unavailable."
 const copiedMessage = "Markdown copied to clipboard."
 const failedMessage = "Unable to copy markdown."
 
 type CopyState = "idle" | "copied" | "error"
+
+const markdownCache = new Map<string, string>()
 
 const writeToClipboard = async (text: string) => {
   if (navigator.clipboard?.writeText) {
@@ -24,15 +27,24 @@ const writeToClipboard = async (text: string) => {
   document.body.removeChild(area)
 }
 
-const readMarkdown = (templateId: string): string | null => {
-  const node = document.getElementById(templateId)
-  if (!node) return null
-
-  if (node instanceof HTMLTemplateElement) {
-    return node.content.textContent ?? ""
+const fetchMarkdown = async (url: string) => {
+  if (markdownCache.has(url)) {
+    return markdownCache.get(url) as string
   }
 
-  return node.textContent ?? ""
+  const response = await fetch(url, {
+    headers: {
+      Accept: "text/markdown,text/plain;q=0.9,*/*;q=0.8"
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch markdown: ${response.status}`)
+  }
+
+  const text = await response.text()
+  markdownCache.set(url, text)
+  return text
 }
 
 const setState = (
@@ -62,25 +74,28 @@ const setState = (
 const attachHandler = (button: HTMLButtonElement) => {
   if (button.dataset.copyReady === "true") return
 
-  const templateId = button.dataset.copySource
-  if (!templateId) return
+  const markdownUrl = button.dataset.markdownUrl
+  if (!markdownUrl) return
 
   const label = button.querySelector<HTMLElement>("[data-copy-label]")
   const status = button.parentElement?.querySelector<HTMLElement>("[data-copy-status]") ?? null
+  const docTitle = button.dataset.docTitle?.trim()
   button.dataset.copyDefaultLabel = label?.textContent ?? "Copy page"
 
   button.addEventListener("click", async () => {
-    const markdown = readMarkdown(templateId)
-    if (markdown == null) {
-      setState(button, label, status, "error", unavailableMessage)
-      return
-    }
-
     try {
-      await writeToClipboard(markdown)
+      const markdown = await fetchMarkdown(markdownUrl)
+      const prepared = ensureTitleHeading(markdown, docTitle)
+      await writeToClipboard(prepared)
       setState(button, label, status, "copied", copiedMessage)
     } catch (error) {
-      setState(button, label, status, "error", failedMessage)
+      setState(
+        button,
+        label,
+        status,
+        "error",
+        error instanceof Error ? error.message : failedMessage
+      )
       return
     }
 
@@ -94,7 +109,7 @@ const attachHandler = (button: HTMLButtonElement) => {
 
 const initialize = () => {
   document
-    .querySelectorAll<HTMLButtonElement>("button[data-copy-source]")
+    .querySelectorAll<HTMLButtonElement>("button[data-markdown-url]")
     .forEach((button) => attachHandler(button))
 }
 

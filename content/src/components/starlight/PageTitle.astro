@@ -1,41 +1,17 @@
 ---
 import DefaultPageTitle from "@astrojs/starlight/components/PageTitle.astro"
-import { getMarkdownById } from "../../lib/markdown-map"
 import copyScriptUrl from "./copy-page.client.ts?url"
 
 const route = Astro.locals.starlightRoute
 const entry = route.entry
 
-const rawMarkdown = getMarkdownById(entry.id)
-
 const title = typeof entry.data?.title === "string" ? entry.data.title.trim() : undefined
-const normalizedTitle = title?.toLowerCase()
-
-const ensureTitleHeading = (markdown: string | undefined) => {
-  if (!markdown) return undefined
-  if (!title || !normalizedTitle) return markdown
-
-  const trimmed = markdown.trimStart()
-  if (trimmed.length > 0) {
-    const firstLine = trimmed.split(/\r?\n/, 1)[0]
-    if (firstLine) {
-      const normalizedFirstLine = firstLine.replace(/^#+\s*/, "").trim().toLowerCase()
-      if (firstLine.startsWith("#") && normalizedFirstLine === normalizedTitle) {
-        return markdown
-      }
-    }
-  }
-
-  const body = trimmed.length > 0 ? `\n\n${trimmed}` : ""
-  return `# ${title}${body}`
-}
-
-const markdownForCopy = ensureTitleHeading(rawMarkdown)
 
 const slug = entry.slug || entry.id || "page"
 const controlId = `copy-page-${slug.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "") || "doc"}`
-const templateId = `${controlId}-markdown`
-const hasCopyAction = Boolean(markdownForCopy)
+const docSlug = entry.slug?.startsWith("docs") ? entry.slug : undefined
+const markdownUrl = docSlug ? `/${docSlug}.md` : undefined
+const hasCopyAction = Boolean(markdownUrl)
 const copyScriptSrc = hasCopyAction ? copyScriptUrl : undefined
 ---
 
@@ -48,7 +24,8 @@ const copyScriptSrc = hasCopyAction ? copyScriptUrl : undefined
         type="button"
         class="copy-page-button"
         data-copy-state="idle"
-        data-copy-source={templateId}
+        data-markdown-url={markdownUrl}
+        data-doc-title={title ?? undefined}
       >
         <span class="copy-page-button__icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" role="presentation" focusable="false">
@@ -59,7 +36,6 @@ const copyScriptSrc = hasCopyAction ? copyScriptUrl : undefined
         <span class="copy-page-button__label" data-copy-label>Copy markdown</span>
       </button>
       <span class="copy-page-button__status" aria-live="polite" data-copy-status></span>
-      <template id={templateId} data-copy-content set:text={markdownForCopy}></template>
     </div>
   )}
 </div>
