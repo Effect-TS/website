@@ -1,0 +1,87 @@
+---
+pagefind: false
+title: Effect 3.19 (Release)
+excerpt: New Effect release featuring @effect/cluster improvements, HashRing module, Effect.fn improvements, and more!
+date: 2025-11-04
+authors:
+  - tim_smart
+tags:
+  - Releases
+  - Effect
+---
+
+Effect 3.19 has been released! This release includes a number of new features
+and improvements. Here's a summary of what's new:
+
+## @effect/cluster improvements
+
+The `@effect/cluster` package has been significantly improved. The cluster system no longer requires a Shard Manager, and instead relies on the `RunnerStorage` service to track runner state.
+
+To migrate, remove any Shard Manager deployments and use the updated layers in `@effect/platform-node` or `@effect/platform-bun`.
+
+### Breaking Changes
+
+- `ShardManager` module has been removed
+- `EntityNotManagedByRunner` error has been removed
+- Shard locks now use database advisory locks, which requires stable sessions for database connections. This means load balancers or proxies that rotate connections may cause issues.
+- `@effect/platform-node/NodeClusterSocketRunner` is now `@effect/cluster/NodeClusterSocket`
+- `@effect/platform-node/NodeClusterHttpRunner` is now `@effect/cluster/NodeClusterHttp`
+- `@effect/platform-bun/BunClusterSocketRunner` is now `@effect/cluster/BunClusterSocket`
+- `@effect/platform-bun/BunClusterHttpRunner` is now `@effect/cluster/BunClusterHttp`
+
+### New Features
+
+- `RunnerHealth.layerK8s` has been added, which uses the Kubernetes API to track runner health and liveness. To use it, you will need a service account with permissions to read pod information.
+
+## HashRing module
+
+An experimental `HashRing` module has been added to the Effect core library.
+
+This module can be used to consistently distribute keys across a set of nodes.
+
+```typescript
+import { Data, HashRing, PrimaryKey } from "effect"
+
+// The "nodes" in the hash ring need to implement PrimaryKey
+class Host extends Data.Class<{
+  ip: string
+}> {
+  [PrimaryKey.symbol]() {
+    return this.ip
+  }
+}
+
+// Make an empty hash ring
+const ring = HashRing.make<Host>()
+
+// Add some nodes to the ring
+HashRing.add(ring, new Host({ ip: "192.168.1.1" }))
+HashRing.add(ring, new Host({ ip: "192.168.1.2" }))
+HashRing.add(ring, new Host({ ip: "192.168.1.3" }))
+
+// Get the node responsible for a given key
+const host = HashRing.get(ring, "my-key")!
+```
+
+## Effect.fn.Return
+
+A new `Effect.fn.Return` type utility has been added to allow typing returns on `Effect.fn`.
+
+```typescript
+import { Effect } from "effect"
+
+const myfn = Effect.fn("myfn")(function* (
+  n: number
+): Effect.fn.Return<string> {
+  return `Number is ${n}`
+})
+```
+
+## Other changes
+
+- `Graph` module updates have been backported from Effect v4
+- `@effect/sql-pg` now uses the "pg" npm library as its backend
+
+There were several other smaller changes made. Take a look through the CHANGELOG to see them all: [CHANGELOG](https://github.com/Effect-TS/effect/blob/main/packages/effect/CHANGELOG.md).
+
+Don't forget to join our [Discord Community](https://discord.gg/effect-ts) to follow the last updates and discuss every tiny detail!
