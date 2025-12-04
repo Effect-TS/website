@@ -1101,12 +1101,34 @@ The `Effect.Service` API supports multiple ways to define a service:
 
 | Method    | Description                                        |
 | --------- | -------------------------------------------------- |
-| `effect`  | Defines a service with an effectful constructor.   |
-| `sync`    | Defines a service using a synchronous constructor. |
 | `succeed` | Provides a static implementation of the service.   |
+| `sync`    | Defines a service using a synchronous constructor. |
+| `effect`  | Defines a service with an effectful constructor.   |
 | `scoped`  | Creates a service with lifecycle management.       |
 
 **Example** (Defining a Service with a Static Implementation)
+
+This is the simplest way to define a service. It is useful when you want to provide a constant value for the service.
+
+```ts twoslash
+import { Effect } from "effect"
+
+class MagicNumber extends Effect.Service<MagicNumber>()("MagicNumber", {
+  succeed: { value: 42 }
+}) {}
+
+//      ┌─── Effect<void, never, MagicNumber>
+//      ▼
+const program = Effect.gen(function* () {
+  const magicNumber = yield* MagicNumber
+  console.log(`The magic number is ${magicNumber.value}`)
+})
+
+Effect.runPromise(program.pipe(Effect.provide(MagicNumber.Default)))
+// The magic number is 42
+```
+
+**Example** (Defining a Service with a Synchronous Constructor)
 
 ```ts twoslash
 import { Effect, Random } from "effect"
