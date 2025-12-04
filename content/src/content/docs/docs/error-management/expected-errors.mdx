@@ -968,3 +968,34 @@ got: 100
 timestamp=... level=ERROR fiber=#0 cause="Error: Boom! (<= after 1 second)
 */
 ```
+
+### Explicit Return Types with Effect.fn.Return
+
+While `Effect.fn` infers types automatically, you can use the `Effect.fn.Return` type utility to explicitly annotate the return type of the generator function.
+
+**Example** (Annotating Return Types)
+
+```ts twoslash
+import { Effect } from "effect"
+
+const myfunc = Effect.fn("myspan")(function* <N extends number>(
+  n: N
+): Effect.fn.Return<string, Error> {
+  yield* Effect.annotateCurrentSpan("n", n)
+  console.log(`got: ${n}`)
+  
+  if (n < 0) {
+    return yield* Effect.fail(new Error("Negative numbers not allowed"))
+  }
+  
+  return `Number is ${n}`
+})
+
+// Type is: <N extends number>(n: N) => Effect.Effect<string, Error>
+```
+
+The `Effect.fn.Return` type takes the same type parameters as `Effect.Effect`:
+
+- **Success Type** (required): The type of the successful value
+- **Error Type** (optional): The type of expected errors
+- **Requirements Type** (optional): The type of required services
