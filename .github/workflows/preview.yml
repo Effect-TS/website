@@ -18,7 +18,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      - name: Cache Astro Output
+        uses: actions/cache@v4
+        with:
+          path: content/node_modules/.astro
+          key: astro-cache-${{ hashFiles('src/content/**') }}
 
       - name: Install dependences
         uses: ./.github/actions/setup
@@ -29,9 +35,3 @@ jobs:
         shell: bash
         working-directory: ./content
         run: pnpm build
-
-      - name: Cache Astro Output
-        uses: actions/cache@v4
-        with:
-          path: node_modules/.astro
-          key: astro-cache-${{ hashFiles('src/content/**') }}
