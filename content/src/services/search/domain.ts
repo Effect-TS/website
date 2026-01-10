@@ -41,7 +41,10 @@ export const GeneratedMetadata = Schema.Struct({
     default: () => ""
   }),
   language: Schema.String,
-  sidebar: Schema.String,
+  sidebar: Schema.Struct({
+    label: Schema.optional(Schema.String),
+    order: Schema.Int
+  }),
   order: Schema.String,
   fileType: Schema.Literal("text/markdown").pipe(
     Schema.propertySignature,
