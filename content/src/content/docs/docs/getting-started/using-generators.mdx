@@ -352,9 +352,9 @@ function greetUser(id: string) {
 
 The default behavior of `Effect.gen` is to stop execution at the first error. How do you handle errors in this system - the equivalent of using try/catch with functions that throw exceptions?
 
-One way to handle errors within `Effect.gen` is to transform them into [Either](/docs/data-types/either/). Using `yield*` with an `Either` value does not stop computation and once you have an `Either`, you can test whether it's left (a failure) or right (a success). For example:
+One way to handle errors within `Effect.gen` is encapsulate their outcomes into [Either](/docs/data-types/either/). `yield*` will only stop computation on failed effects, so if you encapsulate an effect into an either then you can get the value of the either and write control flow based on whether it's left (encapsulating a failure) or right (a success).
 
-Here's an example of encapsulating an Effect's outcome into an Either using [Effect.either](https://effect-ts.github.io/effect/effect/Effect.ts.html#either).
+Here's an example of encapsulating an effect's outcome into an either using [Effect.either](https://effect-ts.github.io/effect/effect/Effect.ts.html#either).
 
 ```ts twoslash
 import { Effect, Either } from "effect"
@@ -374,9 +374,9 @@ export const program = Effect.gen(function*() {
 })
 ```
 
-You can do the same kind of encapsulation with the [Exit](/docs/data-types/exit/) type using [Effect.exit](https://effect-ts.github.io/effect/effect/Effect.ts.html#exit): the main difference being that Exit objects also handle [defects, like Effect.die](/docs/error-management/unexpected-errors/), and also they wrap failures in [Causes](https://effect.website/docs/data-types/cause/).
+You can also encapsulte effects into the [Exit](/docs/data-types/exit/) type using [Effect.exit](https://effect-ts.github.io/effect/effect/Effect.ts.html#exit): the main difference being that Exit objects also handle [defects, like Effect.die](/docs/error-management/unexpected-errors/), and they wrap failures in [Causes](https://effect.website/docs/data-types/cause/).
 
-It's easier to get the original error out of an Either than an Exit because it's not wrapped in a Cause, and in many cases you'll want to handle expected errors but let unexpected errors stop computation. But in other cases when you want to handle all errors, transforming Effects into Exit instances will let you do that.
+In most cases, encapsulating effects as either is easier, because you don't have to deal with extracting the original error out of a Cause. However, if you want to handle defects in addition expected errors, using the exit type is the best approach.
 
 ## Passing `this`
 
