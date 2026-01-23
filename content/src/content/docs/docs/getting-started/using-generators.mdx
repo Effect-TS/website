@@ -252,6 +252,8 @@ How does this affect your code? If you have several operations in sequence, once
 
 In simpler terms, if something fails at any point, the program will stop right there and deliver the error to you.
 
+If you don't want to stop on an error, you can use the `Effect.either` method to encapsulate the error in the [Either](/docs/data-types/either/) data type: see the [examples of managing expected errors](/docs/error-management/expected-errors/#either).
+
 **Example** (Halting Execution at the First Error)
 
 ```ts twoslash
@@ -347,36 +349,6 @@ function greetUser(id: string) {
   To learn more about error handling in Effect, refer to the [Error
   Management](/docs/error-management/two-error-types/) section.
 </Aside>
-
-## How to Handle Errors
-
-The default behavior of `Effect.gen` is to stop execution at the first error. How do you handle errors in this system - the equivalent of using try/catch with functions that throw exceptions?
-
-One way to handle errors within `Effect.gen` is encapsulate their outcomes into [Either](/docs/data-types/either/). `yield*` will only stop computation on failed effects, so if you encapsulate an effect into an either then you can get the value of the either and write control flow based on whether it's left (encapsulating a failure) or right (a success).
-
-Here's an example of encapsulating an effect's outcome into an either using [Effect.either](https://effect-ts.github.io/effect/effect/Effect.ts.html#either).
-
-```ts twoslash
-import { Effect, Either } from "effect"
-
-const getRandomFailure = (): Effect.Effect<boolean, Error> =>
-  Math.random() > 0.5
-    ? Effect.fail(new Error("I failed randomly!"))
-    : Effect.succeed(true)
-
-export const program = Effect.gen(function*() {
-  const result = yield* getRandomFailure().pipe(Effect.either)
-  if (Either.isLeft(result)) {
-    return `Sorry, we got a random failure: ${result.left}`
-  } else {
-    return `Good, we got a real value: ${result.right}.`
-  }
-})
-```
-
-You can also encapsulte effects into the [Exit](/docs/data-types/exit/) type using [Effect.exit](https://effect-ts.github.io/effect/effect/Effect.ts.html#exit): the main difference being that Exit objects also handle [defects, like Effect.die](/docs/error-management/unexpected-errors/), and they wrap failures in [Causes](https://effect.website/docs/data-types/cause/).
-
-In most cases, encapsulating effects as either is easier, because you don't have to deal with extracting the original error out of a Cause. However, if you want to handle defects in addition expected errors, using the exit type is the best approach.
 
 ## Passing `this`
 
