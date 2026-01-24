@@ -84,6 +84,9 @@ Key steps to follow when using `Effect.gen`:
 - Use `yield*` to handle effects
 - Return the final result
 
+If any of the effects that you handle inside of the generator with `yield*`
+fail, then the generator will stop and exit with that failure.
+
 <Aside type="caution" title="Required TypeScript Configuration">
   The generator API is only available when using the `downlevelIteration`
   flag or with a `target` of `"es2015"` or higher in your `tsconfig.json`
@@ -248,6 +251,8 @@ This API will stop execution at the **first error** it encounters and return tha
 How does this affect your code? If you have several operations in sequence, once any one of them fails, the remaining operations will not run, and the error will be returned.
 
 In simpler terms, if something fails at any point, the program will stop right there and deliver the error to you.
+
+If you don't want to stop on an error, you can use the `Effect.either` method to encapsulate the error in the [Either](/docs/data-types/either/) data type: see the [examples of managing expected errors](/docs/error-management/expected-errors/#either).
 
 **Example** (Halting Execution at the First Error)
 
