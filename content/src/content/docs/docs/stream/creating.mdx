@@ -279,6 +279,30 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 
 In this code, we define an async iterable and then create a stream named `stream` from it. Additionally, we provide an error handler function to manage any potential errors that may occur during the conversion.
 
+### fromReadableStream
+
+If you have a [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream) from a web API, you can pull it into a `Stream` using `fromReadableStream`. On many platforms, ReadableStream instances are iterable, so you can also use `fromAsyncIterable` for this purpose.
+
+```ts
+import { Effect, Stream } from "effect"
+
+const countStream = new ReadableStream({
+  start(controller) {
+    controller.enqueue(1)
+    controller.enqueue(2)
+    controller.close()
+  }
+})
+
+const stream = Stream.fromReadableStream(
+  () => countStream,
+  (e) => new Error(String(e)) // Error Handling
+)
+
+Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+// { _id: 'Chunk', values: [ 1, 2 ] }
+```
+
 ## From Repetition
 
 ### Repeating a Single Value
