@@ -286,7 +286,7 @@ If you have a [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/
 ```ts
 import { Effect, Stream } from "effect"
 
-const countStream = new ReadableStream({
+const getCountStream = () => new ReadableStream({
   start(controller) {
     controller.enqueue(1)
     controller.enqueue(2)
@@ -295,7 +295,7 @@ const countStream = new ReadableStream({
 })
 
 const stream = Stream.fromReadableStream(
-  () => countStream,
+  getCountStream,
   (e) => new Error(String(e)) // Error Handling
 )
 
