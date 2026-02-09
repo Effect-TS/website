@@ -94,6 +94,48 @@ Output:
 
 In this case, the JSON Schema reflects the integer refinement but does not include the transformation that clamps the value.
 
+## Targeting a Specific JSON Schema Version
+
+By default, `JSONSchema.make` generates a JSON Schema compatible with **Draft 07**. You can change the target schema version by passing an options object with a `target` property. The supported targets are:
+
+- `"jsonSchema7"` (default) - JSON Schema Draft 07
+- `"jsonSchema2019-09"` - JSON Schema Draft 2019-09
+- `"jsonSchema2020-12"` - JSON Schema Draft 2020-12
+- `"openApi3.1"` - OpenAPI 3.1
+
+Changing the target can affect the generated output. For example, tuple schemas use `items` and `additionalItems` in Draft 07, whereas Draft 2020-12 uses `prefixItems` and `items`.
+
+**Example** (Using JSON Schema 2020-12 for a Tuple)
+
+```ts twoslash
+import { JSONSchema, Schema } from "effect"
+
+const schema = Schema.Tuple(Schema.String, Schema.Number)
+
+const jsonSchema = JSONSchema.make(schema, {
+  target: "jsonSchema2020-12"
+})
+
+console.log(JSON.stringify(jsonSchema, null, 2))
+/*
+Output:
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "minItems": 2,
+  "prefixItems": [
+    {
+      "type": "string"
+    },
+    {
+      "type": "number"
+    }
+  ],
+  "items": false
+}
+*/
+```
+
 ## Specific Outputs for Schema Types
 
 ### Literals
