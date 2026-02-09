@@ -1,0 +1,155 @@
+---
+pagefind: false
+title: Effect v4 Beta
+excerpt: Effect v4 is officially in beta. Here's what you need to know.
+date: 2026-02-09
+authors:
+  - maxwell_brown
+tags:
+  - Releases
+  - Effect
+---
+
+We are thrilled to announce that **Effect v4 is officially in beta**. This release represents the culmination of years of experimentation, community feedback, and iteration across every previous version of Effect. It is, by far, the most ambitious set of changes that we have ever made to Effect and its ecosystem.
+
+If you want to dive in right away, you can install the beta today:
+
+```bash
+npm install effect@4.0.0-beta.0
+```
+
+In this post, we'll cover what's changed, what to expect during the beta, and how to get started.
+
+&nbsp;
+
+## Where Does v4 Live?
+
+The v4 codebase lives in the [Effect-TS/effect-smol](https://github.com/Effect-TS/effect-smol) repository. While v4 is not yet considered stable, all development and publishing will continue out of that repository. Issues, pull requests, and discussions related to v4 should be directed there.
+
+&nbsp;
+
+## How Effect v4 Is Different
+
+### Lock-Step Versioning
+
+In v3, each package was versioned independently -- `effect@3.x`, `@effect/platform@0.x`, `@effect/sql@0.x`, and so on. This made it difficult to know which versions were compatible with each other, and dependency resolution was a frequent source of friction.
+
+Starting with v4, all Effect ecosystem packages share a **single version number** and are released together.
+
+With this fixed versioning schema, every package in the Effect ecosystem moves forward together. The obvious tradeoff is that some packages may receive a new version even when they contain no changes, but in practice this dramatically simplifies dependency management. When you see `effect@4.0.0-beta.0`, you know that `@effect/sql-pg@4.0.0-beta.0` is the matching version -- no guessing required.
+
+### Package Consolidation
+
+Many previously separate packages have been consolidated into the core `effect` package. Functionality that was spread across `@effect/platform`, `@effect/rpc`, `@effect/cluster`, and others now lives directly inside `effect`.
+
+The packages that remain separate are platform-specific, provider-specific, or technology-specific implementations. These include:
+
+- `@effect/platform-*` (platform packages) 
+- `@effect/sql-*` (SQL driver packages)
+- `@effect/ai-*` (AI provider packages)
+- `@effect/opentelemetry` (OpenTelemetry integration)
+- `@effect/atom-*` (framework-specific atom bindings)
+- `@effect/vitest` (testing utilities for Vitest)
+
+The core abstractions live in `effect`. The separate packages provide the concrete implementations that connect those abstractions to specific runtimes, databases, APIs, and frameworks.
+
+### The Unstable Module System
+
+Effect v4 introduces a formal concept of **unstable modules**, accessible via `effect/unstable/*` import paths.
+
+In v3, delivering new functionality meant creating new packages, which users then had to discover, install, and keep in sync. In v4, we wanted to ship new capabilities inside the core `effect` package -- but without committing to semver stability for APIs that are still evolving. The unstable module system solves this.
+
+Here's the contract:
+
+- Modules under `effect/unstable/*` may receive **breaking changes in minor releases**.
+- Modules outside `unstable/` follow **strict semver** -- breaking changes only in major releases.
+- As unstable modules mature and their APIs stabilise, they **graduate** out of `unstable/` into the top-level `effect/*` namespace.
+
+The current unstable modules include:
+
+- `effect/unstable/ai` -- AI / LLM integration SDK
+- `effect/unstable/cli` -- CLI application framework
+- `effect/unstable/cluster` -- distributed clustering
+- `effect/unstable/devtools` -- developer tools
+- `effect/unstable/eventlog` -- event logging
+- `effect/unstable/http` -- HTTP client and server
+- `effect/unstable/httpapi` -- declarative HTTP API framework
+- `effect/unstable/jsonschema` -- JSON Schema support
+- `effect/unstable/observability` -- observability integrations
+- `effect/unstable/persistence` -- data persistence
+- `effect/unstable/process` -- process management
+- `effect/unstable/reactivity` -- reactive state primitives
+- `effect/unstable/rpc` -- remote procedure calls
+- `effect/unstable/schema` -- Schema (rewritten -- see below)
+- `effect/unstable/socket` -- WebSocket support
+- `effect/unstable/sql` -- SQL database integration
+- `effect/unstable/workflow` -- durable workflows
+- `effect/unstable/workers` -- worker thread support
+
+### Optimizations
+
+Effect v4 has been optimized across the board -- from the size of your production bundles to the speed of the fiber runtime.
+
+**Bundle Size** One of the most common concerns about Effect has been bundle size, especially for frontend applications. In v4, we took this seriously. The core `effect` package is designed for aggressive tree-shaking, and the results speak for themselves: a minimal Effect program bundles to roughly **6.3 KB** (minified + gzipped). Streams come in at ~8.5 KB, scheduling at ~9.8 KB. Even when using `Schema`, a basic bundle is only around **15 KB**, which is already smaller than a basic Effect v3 bundle by a wide margin. 
+
+**Performance** The core fiber runtime has been re-written from scratch with a focus on reducing memory overhead, improving execution speed, and simplifying internals. These changes translate directly into faster fiber execution and lower memory pressure for every single Effect application. In addition, a substantial number of core modules have been rebuilt with performance as a primary design goal. The cumulative effect is noticeable -- v4 is faster and lighter than v3 in virtually every dimension.
+
+&nbsp;
+
+## What to Expect During the Beta
+
+This is a beta release. That label is intentional, and we want to be upfront about what it means.
+
+**Breaking changes are expected** between beta versions. APIs may shift, modules may be renamed or restructured, and behavior may change as we incorporate feedback and finalize the design. If you adopt the beta in a project, you should be comfortable updating your code when new beta versions land. We will do our best to document breaking changes in each release, but the pace of change will be higher than what you're used to from stable Effect releases.
+
+We do **not** recommend using the beta in production unless you are prepared to absorb that churn. For production workloads, Effect v3 remains the stable choice.
+
+There is **no specific timeline** for when v4 will reach a stable release. We may introduce a release candidate (RC) phase before the final version, but we are not committing to dates. We would rather take the time to get the APIs right -- informed by real-world usage and community feedback -- than rush to a stable tag.
+
+When v4 does stabilise, our goal is for it to be a **long-term stable (LTS) release**. We want major versions to be infrequent going forward. The care we are putting into the beta process is a direct investment in that long-term stability -- the fewer rough edges that make it into the stable release, the longer v4 can serve as a reliable foundation.
+
+&nbsp;
+
+## Migrating from Effect v3
+
+If you're coming from Effect v3, much of the v4 API should feel **familiar**. The core programming model -- `Effect`, `Layer`, `Schema`, `Stream`, and the rest -- is the same. The changes are in how packages are organized, how modules are versioned, and in the details of specific APIs.
+
+We have put together a [v3 to v4 Migration Guide](https://github.com/Effect-TS/effect-smol/blob/main/MIGRATION.md) to help with the transition. This guide is not yet comprehensive and will continue to evolve as we get feedback from the community. For Schema-specific changes, there is also a dedicated [Schema v4 Migration Guide](https://github.com/Effect-TS/effect-smol/blob/main/packages/effect/SCHEMA.md) that covers the rewrite in detail.
+
+Now that v4 is in beta, we will also be working on **migration tooling** -- codemods for renamings, AI-assisted migration skills, and more. We prioritised getting the release into your hands over delaying for migration tooling, so these tools will follow.
+
+&nbsp;
+
+## Effect v3 Maintenance
+
+If you're running Effect v3 in production, you don't need to rush. Effect v3 will continue to receive active maintenance even after v4 reaches stability -- likely for a period of at least six months. We will publish an exact maintenance schedule for Effect versions as v4 nears its stable release, so you will have clear visibility into support timelines before you need to make any decisions.
+
+That said, with the release of the v4 beta, we are introducing a **feature freeze for Effect v3**. Going forward, v3 will receive bug fixes and security patches, but no new features. Our maintainer team is small, and splitting focus between two active feature tracks is not sustainable. Concentrating new development on v4 is how we make sure both releases get the attention they deserve.
+
+To be clear: we are not abandoning v3. If a critical bug or security issue surfaces, it will be addressed. The feature freeze simply means that all new work -- new modules, new APIs, new capabilities -- lands in v4.
+
+&nbsp;
+
+## How to Get Involved
+
+The best thing you can do right now is try the beta. Install it, port a project or a module, and see how it feels:
+
+```bash
+npm install effect@4.0.0-beta.0
+```
+
+When you hit something -- a bug, a confusing API, a missing feature, or just something that doesn't feel right -- let us know. File an issue on the [effect-smol repository](https://github.com/Effect-TS/effect-smol/issues). The more detail you can provide, the better: reproduction steps, code snippets, and descriptions of what you expected vs. what happened all help us move faster.
+
+If you're not ready to migrate a project but still want to contribute, testing the beta against your existing codebase and reporting what breaks is incredibly valuable. Even a report that says "I tried to upgrade and here's what didn't work" gives us signal we need.
+
+You can also join the [Effect Discord](https://discord.gg/effect-ts) to ask questions, share your experience, and follow along as v4 develops.
+
+&nbsp;
+
+## Acknowledgments
+
+Effect v4 would not be possible without the core team, who have poured an extraordinary amount of work into this release over a long period of time. The scope of what's been rewritten, rethought, and refined is enormous, and none of it happened by accident.
+
+Equally important is the Effect community. The feedback you've shared -- in GitHub issues, Discord threads, conference hallways, and production codebases -- has directly shaped the decisions behind v4. Many of the changes in this release exist because someone in the community pointed out a rough edge, suggested a better approach, or simply shared how they were using Effect in the real world. That kind of input is what makes a framework worth building.
+
+Thank you all very much, and Happy Effecting!
