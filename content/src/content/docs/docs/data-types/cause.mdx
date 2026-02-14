@@ -272,7 +272,8 @@ const program = Effect.gen(function* () {
       Effect.fail("error 1"),
       Effect.die("defect"),
       Effect.fail("error 2")
-    ])
+    ],
+    { concurrency: "unbounded" })
   )
   console.log(Cause.failures(cause))
   console.log(Cause.defects(cause))
@@ -281,7 +282,7 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 Output:
-{ _id: 'Chunk', values: [ 'error 1' ] }
-{ _id: 'Chunk', values: [] }
+{ _id: 'Chunk', values: [ 'error 1', 'error 2' ] }
+{ _id: 'Chunk', values: [ 'defect' ] }
 */
 ```
