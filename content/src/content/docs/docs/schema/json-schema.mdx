@@ -6,6 +6,8 @@ sidebar:
   order: 16
 ---
 
+import { Aside } from "@astrojs/starlight/components"
+
 The `JSONSchema.make` function allows you to generate a JSON Schema from a schema.
 
 **Example** (Creating a JSON Schema for a Struct)
@@ -670,17 +672,24 @@ By using identifier annotations, schemas can be reused and referenced more easil
 Standard JSON Schema annotations such as `title`, `description`, `default`, and `examples` are supported.
 These annotations allow you to enrich your schemas with metadata that can enhance readability and provide additional information about the data structure.
 
+<Aside type="note" title="Default values must be valid">
+  Default values are filtered by removing values that do not conform to
+  the schema.
+</Aside>
+
 **Example** (Using Annotations for Metadata)
 
 ```ts twoslash
 import { JSONSchema, Schema } from "effect"
 
-const schema = Schema.String.annotations({
-  description: "my custom description",
-  title: "my custom title",
-  default: "",
-  examples: ["a", "b"]
-})
+const schema = Schema.Trim.pipe(
+  Schema.annotations({
+    description: "my custom description",
+    title: "my custom title",
+    default: "",
+    examples: ["a", "  b", "c"]
+  })
+)
 
 const jsonSchema = JSONSchema.make(schema)
 
@@ -688,15 +697,12 @@ console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "string",
-  "description": "my custom description",
-  "title": "my custom title",
-  "examples": [
-    "a",
-    "b"
-  ],
-  "default": ""
+  '$schema': 'http://json-schema.org/draft-07/schema#',
+  type: 'string',
+  description: 'my custom description',
+  title: 'my custom title',
+  default: '',
+  examples: [ 'a', 'c' ]
 }
 */
 ```
