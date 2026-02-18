@@ -1,0 +1,150 @@
+---
+pagefind: false
+title: Effect v4 Beta
+excerpt: Effect v4 is officially in beta. Here's what you need to know.
+date: 2026-02-18
+authors:
+  - maxwell_brown
+tags:
+  - Releases
+  - Effect
+---
+
+After years of experimentation, community feedback, and iteration, Effect v4 is officially in beta. This is, by far, the most ambitious set of changes we have ever made to Effect and its ecosystem, and we're excited to get it into your hands.
+
+You can install the beta today:
+
+`npm install effect@4.0.0-beta.0`
+
+Effect v4 is the culmination of years of feedback from the Effect community — from production users who hit real pain points, newcomers who found the ecosystem hard to navigate, and from folks who were interested in Effect but never took the plunge. This release is for all of you.
+
+## Faster runtime. Leaner bundles.
+
+Let's start with what you'll feel immediately.
+
+The core fiber runtime has been rewritten from scratch to have lower memory overhead, faster execution, and simpler internals. Every Effect application will benefit from these optimizations immediately.
+
+Beyond the runtime, a substantial number of core modules have been rebuilt with performance as a primary design goal. The cumulative result: v4 is faster and lighter than v3 in every dimension.
+
+### Bundle size
+
+One of the most common concerns about Effect — especially for frontend applications — has been bundle size.
+
+Effect has always been tree-shakable, and in v4, many core modules have been rewritten from the ground up to be smaller and more efficient. A minimal program using Effect, Stream, and Schema drops from roughly 70 kB in v3 to about 20 kB in v4 — and individual use cases scale accordingly.
+
+<video autoplay controls loop muted playsinline width="100%">
+  <source src="/videos/bundle-size-viz.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
+
+Whether you're pulling in just the core, adding streams, or using schema, the size of your Effect v4 applications will be significantly smaller than with Effect v3.
+
+## One version. One ecosystem.
+
+In v3, each package was versioned independently:
+
+- `effect@3.x`
+- `@effect/platform@0.x`
+- `@effect/sql@0.x`
+- and so on
+
+If you've ever debugged a version mismatch between Effect packages, you know the pain. In v4, that's over. All Effect ecosystem packages share a single version number and are released together. When you see `effect@4.0.0-beta.0`, you know that `@effect/sql-pg@4.0.0-beta.0` is the matching version. No guessing, no cross-referencing changelogs.
+
+Some packages will receive a new version even when they contain no changes, but we believe this is a worthwhile tradeoff for simpler dependency management.
+
+### A consolidated core
+
+Many previously separate packages have been consolidated into the core `effect` package.
+
+Functionality that was spread across `@effect/platform`, `@effect/rpc`, `@effect/cluster`, and others now lives directly inside `effect`.
+
+The packages that remain separate are platform-specific, provider-specific, or technology-specific implementations:
+
+- `@effect/platform-*` — platform packages
+- `@effect/sql-*` — SQL driver packages
+- `@effect/ai-*` — AI provider packages
+- `@effect/opentelemetry` — OpenTelemetry integration
+- `@effect/atom-*` — framework-specific atom bindings
+- `@effect/vitest` — testing utilities for Vitest
+
+<video autoplay controls loop muted playsinline width="100%">
+  <source src="/videos/core-package.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
+
+The principle is simple: core abstractions live in `effect`. Separate packages provide the concrete implementations that connect those abstractions to specific runtimes, databases, APIs, and frameworks.
+
+## Unstable modules
+
+Effect v4 introduces **unstable modules** — accessible via `effect/unstable/*` import paths.
+
+In v3, delivering new functionality meant creating new packages, which you then had to discover, install, and keep in sync.
+
+In v4, new capabilities ship inside the core `effect` package — but without committing to semver stability for APIs that are still evolving.
+
+The contract is simple:
+
+- Modules under `effect/unstable/*` may receive breaking changes in minor releases
+- Modules outside `unstable/` follow strict semver — no breaking changes until the next major version
+- As unstable modules mature, they graduate into the top-level `effect/*` namespace
+
+v4 ships with [17 unstable modules](https://github.com/Effect-TS/effect-smol/tree/main/packages/effect/src/unstable) covering AI, HTTP, Schema, SQL, RPC, CLI, workflows, clustering, and more.
+
+## The beta phase
+
+The v4 codebase lives in the [Effect-TS/effect-smol](https://github.com/Effect-TS/effect-smol) repository. Issues, pull requests, and discussions related to v4 should be directed there.
+
+**This is a beta.** We'll iterate quickly, and beta releases may include breaking changes. APIs will evolve as we incorporate real-world feedback and refine the design, and just like before, we will document changes in each release in the package changelog.
+
+If you're running Effect in production, v3 remains our recommended choice for now.
+
+Once v4 does stabilize, it will be a **long-term stable (LTS) release**. We want major versions to be infrequent going forward, and we'll take the time we need to get there.
+
+### Effect v3 going forward
+
+**Effect v3 will continue to receive active maintenance after v4 reaches stability.** We'll publish a maintenance schedule as v4 approaches its stable release.
+
+One thing to note, however, is that we are introducing a **feature freeze for v3**: bug fixes and security patches will continue, but new features will be developed exclusively for v4.
+
+## Migrating from Effect v3
+
+If you're coming from Effect v3, the core programming model — `Effect`, `Layer`, `Schema`, `Stream`, and the rest — is the same. The changes are in how packages are organized, how modules are versioned, and in the details of specific APIs.
+
+Two migration guides are available:
+
+- [**v3 to v4 Migration Guide**](https://github.com/Effect-TS/effect-smol/blob/main/MIGRATION.md) — covers the overall transition
+- [**Schema v4 Migration Guide**](https://github.com/Effect-TS/effect-smol/blob/main/packages/effect/SCHEMA.md) — covers the Schema rewrite in detail
+
+We're also building migration tooling: codemods for renamings, AI-assisted migration skills, and more. We prioritized getting the release into your hands over delaying the beta to build out migration tooling. These tools will follow.
+
+## Try it now
+
+Port a project, a module, or even just a file, and tell us how it goes. When you hit a bug, a confusing API, a missing feature, or something that just doesn't feel right, [file an issue on effect-smol](https://github.com/Effect-TS/effect-smol/issues). Reproduction steps, code snippets, and descriptions of what you expected vs. what happened all help us move faster.
+
+Not ready to migrate? Testing the beta against your existing codebase and reporting what breaks is just as valuable. Even "I tried to upgrade and here's what didn't work" gives us the signal we need.
+
+Join the [Effect Discord](https://discord.gg/effect-ts) to ask questions and share your experience directly with the Effect team, and follow along as Effect v4 develops.
+
+## Thank you!
+
+The feedback you've shared — in GitHub issues, Discord threads, conference hallways, and production codebases — has directly shaped the decisions behind v4. Many of these changes exist because someone in the community pointed out a rough edge, suggested a better approach, or shared how they were using Effect in the real world.
+
+And none of it would have shipped without the core team, who have poured an extraordinary amount of work into this release. The scope of what's been rewritten, rethought, and refined is enormous.
+
+Thank you all, and Happy Effecting!
+
+<script>{`
+const video = document.querySelector('video')
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      video.play()
+    } else {
+      video.pause()
+    }
+  })
+}) 
+
+observer.observe(video)
+`}</script>
