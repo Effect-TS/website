@@ -1,8 +1,8 @@
 ---
 pagefind: false
-title: This Week in Effect - 2026-02-13
-excerpt: Effect-viz, an Effect runtime visualizer. Lalph AI Agent Orchestrator 3 and Office Hours 15 coding sessions.
-date: 2026-02-13
+title: This Week in Effect - 2026-02-20
+excerpt: Effect v4 Beta is officially live. Community projects, a free Effect Atom course, and Office Hours 16 & 17.
+date: 2026-02-20
 authors:
   - davide_scognamiglio
   - mirela_prifti
@@ -29,6 +29,8 @@ To get started, below you’ll find links to our documentation as well as our gu
 
 **Recent major updates:**
 
+
+- **[Effect v4 Beta](https://effect.website/blog/releases/effect/40-beta/) Release!**
 - [Effect AI SDK](https://github.com/Effect-TS/effect/releases/tag/%40effect%2Fai%400.27.0) Release.
 - Durable workflows in TypeScript with [`@effect/workflow`](https://github.com/Effect-TS/effect/blob/main/packages/workflow/README.md) - currently in alpha.
 - 6100+ community members on [Discord](https://discord.gg/effect-ts).
@@ -38,80 +40,83 @@ To get started, below you’ll find links to our documentation as well as our gu
 
 ## Technology
 
+[**Effect v4 Beta**](https://effect.website/blog/releases/effect/40-beta/) is officially live! Here are the key highlights:
+
+- **Rewritten runtime** with lower memory overhead, faster execution, and simpler internals. Bundle sizes have dropped dramatically — a minimal program combining Effect, Stream, and Schema went from ~70 kB in v3 to ~20 kB in v4.
+- **Unified versioning** across all ecosystem packages, eliminating version mismatch confusion.
+- **Consolidated architecture** — many previously separate packages (`@effect/platform`, `@effect/rpc`, `@effect/cluster`) have been merged into the core `effect` package.
+- **Unstable modules** via `effect/unstable/*` import paths, enabling faster iteration on emerging APIs before they graduate to stable status.
+- **v3 compatibility** — the core programming model remains unchanged, and Effect v3 will continue receiving maintenance alongside v4.
+
+<Tweet id="2024137927286980731" />
+
+&nbsp;
+
+<Tweet id="2024398375203041697" />
+
+&nbsp;
+
 Here are all the technical changes from the past week.
 
 ### Effect Core
-- [Fix Stream.decodeText to correctly handle multi-byte UTF-8 characters split across chunk boundaries](https://github.com/Effect-TS/effect/pull/6040) (Bug Fix)
-
-### Effect AI
-- [Fix(ai-openrouter): deduplicate reasoning parts when streaming](https://github.com/Effect-TS/effect/pull/6060) (Bug Fix)
-
-### Effect Cluster
-- [Fix(cluster): HttpLayerRouter variants for route registration in HttpRunner](https://github.com/Effect-TS/effect/pull/6056) (Bug Fix)
-
-### Effect Platform
-- [Backport HttpBody/HttpServerResponse contentType improvements](https://github.com/Effect-TS/effect/pull/6050) (Bug Fix)
+- [Prevent Stream.changes from writing empty chunks](https://github.com/Effect-TS/effect/pull/6062) (Bug Fix)
 
 ### Effect RPC
-- [Fix(rpc): encode defects with Schema.Defect in sendRequestDefect and](https://github.com/Effect-TS/effect/pull/6055) (Bug Fix)
-
-### Effect SQL
-- [Sqlite-bun query prep fail in Effect, not defect](https://github.com/Effect-TS/effect/pull/6044) (Bug Fix)
+- [Feat(rpc): add defect schema option to Rpc.make](https://github.com/Effect-TS/effect/pull/6065) (Feature)
 
 
 &nbsp;
 
 ## Community Highlights
 
-- [`effect-viz`](https://github.com/topheman/effect-viz) - An Effect runtime visualizer for understanding the execution of Effect code in the browser. Project by [topheman](https://github.com/topheman).
+[Ryan Vogel](https://x.com/ryanvogel) challenged the Effect community to leave 500 likes on his tweet. Well... let's just say the community exceeded expectations:
 
-  <Tweet id="2021857808283525545" />
-
-
-&nbsp;
-
-- [`effortless-aws`](https://github.com/kondaurovDev/effortless-aws/tree/main) - a TypeScript framework for AWS serverless that derives infrastructure directly from your code. Project by [kondaurovDev](https://github.com/kondaurovDev).
+<Tweet id="2023143450435338653" />
 
 &nbsp;
 
-- [`effect-tg`](https://github.com/grom-dev/effect-tg) - a library for creating Telegram Bots with Effect. Project by [grom-dev](https://github.com/grom-dev).
+<Tweet id="2023790116989550836" />
 
 &nbsp;
 
-- [`EffectCanvas`](https://github.com/Inalegwu/EffectCanvas) - An effectful Canvas renderer for React. Project by [Inalegwu](https://github.com/Inalegwu).
+- [`effective-progress`](https://github.com/stromseng/effective-progress) - An Effect TS native terminal progress bar with support for nested progress bars, spinners, and clean log rendering. Project by [stromseng](https://github.com/stromseng).
 
 &nbsp;
 
-- [`bsky-cli`](https://github.com/mepuka/bsky-cli) - An agent-first Bluesky data filtering and monitoring CLI built with Effect. Project by [mepuka](https://github.com/mepuka).
+- [`jazz`](https://github.com/lvndry/jazz) - A powerful CLI that lets you create autonomous AI agents with real-world capabilities, built with Effect. Project by [lvndry](https://github.com/lvndry).
 
 &nbsp;
 
-- [`EffectPatterns`](https://github.com/PaulJPhilp/EffectPatterns) has been updated with 81 new patterns, 75 of which are Effect Schema patterns. Project by [PaulJPhilp](https://github.com/PaulJPhilp).
+- [`jelly-clipper`](https://github.com/arnolicious/jelly-clipper) - A companion webapp to Jellyfin which enables the creation and sharing of clips from Jellyfin content. Project by [arnolicious](https://github.com/arnolicious).
+
+&nbsp;
+
+- [`confect`](https://github.com/rjdellecese/confect) - v1 is live! Confect is a framework that deeply integrates Effect with Convex, for defining database schemas using Effect schemas, writing validators, and accessing Convex capabilities through Effect services. Project by [rjdellecese](https://github.com/rjdellecese).
+
+&nbsp;
+
+- [Effect Atom](https://www.effective.software/courses/effect-atom) - A free course on mastering server-state management in React using Effect Atom, covering data fetching, async state handling, caching, mutations, and URL state management. Course by [Hemanta Kumar Sundaray](https://www.effective.software/).
 
 
 &nbsp;
 
 # Effect Content Update
 
-- Implementing Effect from scratch: Laziness, Composition, and Practical TypeScript (Office Hours 15)
+- Typed Effects in TypeScript: Laziness, Error Handling, Generator Composition (Office Hours 16)
 
  <YouTube
-  id="https://www.youtube.com/embed/OJQvsGwEIuA?si=ZpYa9PGkVk2PAdBV"
-  title="Implementing Effect from scratch: Laziness, Composition, and Practical TypeScript (Office Hours 15)"
+  id="https://www.youtube.com/embed/2RxCvwCN_LM?si=dJxZ6X2PBwEqLcAh"
+  title="Typed Effects in TypeScript: Laziness, Error Handling, Generator Composition (Office Hours 16)"
 />
 
 &nbsp;
 
-- Lalph AI Orchestrator: Setting Up Secure and Autonomous AI Workflows
+- [Effect Office Hours 17](https://www.youtube.com/watch?v=P04R7lUR4Cc&t=4s), a special episode focused on the feature of the newly released **Effect v4 Beta**, went live on Wednesday on YouTube and X(Twitter)!
 
-<YouTube
-  id="https://www.youtube.com/embed/waFD0ld7QkY?si=8sMZz_ntJQpXOeth"
-  title="Lalph AI Orchestrator: Setting Up Secure and Autonomous AI Workflows"
+ <YouTube
+  id="https://www.youtube.com/embed/P04R7lUR4Cc?si=ITEs_UkOJT62UNkW"
+  title="Introducing Effect v4 beta 🚀 (Office Hours 17)"
 />
-
-&nbsp;
-
-- [Effect Office Hours 16](https://x.com/i/broadcasts/1MYxNlwkpdVGw?s=20) went live on Wednesday on X(Twitter)! The edited version will be on our YouTube channel soon.
 
 
 &nbsp;
@@ -134,6 +139,8 @@ Adam Rankin, CTO at [Warp](https://www.joinwarp.com/), joined Johannes Schicklin
 More and more companies are adopting Effect in their projects. Here’s a list of companies looking for software engineers with Effect experience:
 
 - **14.ai**: [Founding engineer](https://14.ai/careers)
+
+- **acemate.ai**: [Senior Backend Engineer / Developer](https://join.com/companies/acemate/15714084-senior-backend-engineer-developer)
 
 - **Betalyra**, an AI consulting company from Portugal, is looking for a part-time freelance software engineer (TypeScript/Effect) with AI experience – see the job posting in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1362610725931061258).
 
