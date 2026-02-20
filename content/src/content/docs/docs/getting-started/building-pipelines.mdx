@@ -294,9 +294,8 @@ const result2 = pipe(
 Effect.runPromise(result2).then(console.log) // Output: 190
 ```
 
-### Option and Either with andThen
-
-Both [Option](/docs/data-types/option/#interop-with-effect) and [Either](/docs/data-types/either/#interop-with-effect) are commonly used for handling optional or missing values or simple error cases. These types integrate well with `Effect.andThen`. When used with `Effect.andThen`, the operations are categorized as scenarios 5 and 6 (as discussed earlier) because both `Option` and `Either` are treated as effects in this context.
+### Option with andThen
+[Option](/docs/data-types/option/#interop-with-effect) is commonly used for handling optional or missing values. It integrates well with `Effect.andThen`. When used with `Effect.andThen`, the operations are categorized as scenarios 5 and 6 (as discussed earlier) because both `Option` is treated as effect in this context.
 
 **Example** (with Option)
 
@@ -322,35 +321,13 @@ This is because `Option<A>` is treated as an effect of type `Effect<A, NoSuchEle
 A value of type `Option<A>` is interpreted as an effect of type `Effect<A, NoSuchElementException>`.
 </Aside>
 
-**Example** (with Either)
+[Either](/docs/data-types/either/#interop-with-effect) also interoperates with `Effect.andThen`, but in Effect applications it is usually better to:
 
-```ts twoslash
-import { pipe, Effect, Either } from "effect"
+- use `Option` for absence/presence
+- use `Effect` failures for domain errors
+- use `Exit` when you need the full result of running an effect (including rich failure causes)
 
-// Function to parse an integer from a string that can fail
-const parseInteger = (input: string): Either.Either<number, string> =>
-  isNaN(parseInt(input))
-    ? Either.left("Invalid integer")
-    : Either.right(parseInt(input))
-
-// Simulated asynchronous task fetching a string from database
-const fetchStringValue = Effect.tryPromise(() => Promise.resolve("42"))
-
-//      ┌─── Effect<number, string | UnknownException, never>
-//      ▼
-const program = pipe(
-  fetchStringValue,
-  Effect.andThen((str) => parseInteger(str))
-)
-```
-
-Although one might expect the type of `program` to be `Effect<Either<number, string>, UnknownException, never>`, it is actually `Effect<number, string | UnknownException, never>`.
-
-This is because `Either<A, E>` is treated as an effect of type `Effect<A, E>`, meaning the errors are combined into a union type.
-
-<Aside type="tip" title="Either As Effect">
-A value of type `Either<A, E>` is interpreted as an effect of type `Effect<A, E>`.
-</Aside>
+`Either` is still useful as a small discriminated union, especially at boundaries (for example adapters to external APIs), but it is not the default recommendation for core Effect pipeline modeling.
 
 ## tap
 
