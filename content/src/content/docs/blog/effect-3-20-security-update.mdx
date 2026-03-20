@@ -1,0 +1,106 @@
+---
+pagefind: false
+title: Effect 3.20 Security Update
+excerpt: If you use Effect with Clerk or other AsyncLocalStorage-based libraries, upgrade to Effect 3.20 immediately.
+date: 2026-03-20
+authors:
+  - michael_arnaldi
+tags:
+  - Releases
+  - Effect
+  - Security
+---
+
+Today we published a security advisory for Effect versions prior to `3.20.0`: [GHSA-38f7-945m-qr2g](https://github.com/Effect-TS/effect/security/advisories/GHSA-38f7-945m-qr2g).
+
+If your application uses Effect together with libraries that depend on Node.js `AsyncLocalStorage`, you should upgrade to `effect@3.20.0` immediately.
+
+## A short history
+
+This issue was reported to us by [jamesone](https://github.com/jamesone), who encountered the behavior in a real application while using Effect RPC together with Clerk.
+
+Their report was instrumental in helping us understand the interaction between `AsyncLocalStorage` and the fiber scheduler, reproduce the issue reliably, and ship the fix in `3.20.0`.
+
+We are very grateful for the careful report, the debugging work behind it, and the time they spent helping us get to the bottom of the problem.
+
+## Who is affected?
+
+Applications are affected when they combine:
+
+- `effect < 3.20.0`
+- concurrent request handling
+- libraries that rely on `AsyncLocalStorage`
+
+This includes integrations such as Clerk, Next.js request APIs like `cookies()` and `headers()`, and other tooling that stores per-request data in `AsyncLocalStorage`.
+
+## What is the issue?
+
+Under concurrent load, older Effect versions could resume fiber work under the wrong `AsyncLocalStorage` context.
+
+That means request-local state could be lost or, in the worst case, read from another in-flight request. In practice, this can lead to issues like:
+
+- `auth()` returning the wrong user session
+- request headers or cookies resolving from the wrong request
+- telemetry and tracing context crossing request boundaries
+
+In systems that use `AsyncLocalStorage` for authentication or authorization, this becomes a security issue.
+
+It is also important to clarify that this is not directly exploitable in a deterministic way. The vulnerability does not give user X a reliable method to impersonate or target user Y on demand.
+
+Instead, it manifests through timing and concurrency: under load, request context can be mixed in a way that appears random from the application's point of view. That makes it dangerous precisely because it is intermittent, difficult to predict, and difficult to detect with confidence.
+
+## Why this can reproduce
+
+This issue appears when two separate mechanisms are combined:
+
+- Node.js `AsyncLocalStorage`, which tracks context through async boundaries such as `Promise.then(...)` and `setTimeout(...)`
+- the Effect fiber scheduler, which cooperatively yields and later resumes fiber execution
+
+By themselves, both features are valid. The problem is that they do not automatically understand each other.
+
+Older Effect versions could place work from multiple fibers into the same scheduler drain when yielding cooperatively. When that happened, several fiber resumptions could run inside a single `Promise.then(...)` or `setTimeout(...)` callback.
+
+That matters because `AsyncLocalStorage` associates its context with that async callback chain. If fibers from different requests are resumed from the same scheduler callback, the callback only has one `AsyncLocalStorage` context, not one per fiber.
+
+As a result, request-local APIs built on `AsyncLocalStorage` can observe the wrong request state. This is why the issue tends to show up under concurrent traffic and why it can be difficult to notice in simpler local testing.
+
+This is also why we do not think of it as a classical single-component bug. It is a vulnerability caused by the interaction between two independent features: Node's async context propagation and Effect's cooperative fiber scheduling.
+
+## Why this matters for Clerk and similar libraries
+
+Libraries such as Clerk expose APIs that look request-local, but internally rely on `AsyncLocalStorage` to determine which request is currently active.
+
+If an Effect fiber resumes with the wrong `AsyncLocalStorage` context, those APIs can observe the wrong request state. That is why code may appear correct in development, but fail under real concurrent production traffic.
+
+## The fix
+
+The issue is fixed in `effect@3.20.0`.
+
+To patch this, we changed the scheduler so that yielding work is no longer mixed across different fibers when it resumes via async callbacks like `Promise.then(...)` or `setTimeout(...)`.
+
+Instead of draining resumptions for multiple fibers inside the same scheduler callback, the scheduler now resumes them on a per-fiber basis. That preserves the correct async context boundary and prevents `AsyncLocalStorage`-backed libraries from seeing another fiber's request state.
+
+The fix was implemented in [PR #6124](https://github.com/Effect-TS/effect/pull/6124).
+
+If you use Clerk, Next.js App Router helpers, or any other `AsyncLocalStorage`-backed library together with Effect, upgrade now:
+
+```bash
+pnpm add effect@^3.20.0
+```
+
+## Temporary workaround if you cannot upgrade immediately
+
+As a short-term mitigation, read `AsyncLocalStorage`-backed values before entering the Effect runtime, then pass those values into your Effect program explicitly through headers, request context, or services.
+
+This reduces exposure, but it is only a workaround. The recommended fix is to upgrade to `3.20.0`.
+
+## Please update now
+
+If your production system uses Effect with Clerk or similar libraries, treat this as a priority update.
+
+- Affected versions: `<= 3.19.15`
+- Patched version: `>= 3.20.0`
+- Advisory: [GHSA-38f7-945m-qr2g](https://github.com/Effect-TS/effect/security/advisories/GHSA-38f7-945m-qr2g)
+- Fix: [PR #6124](https://github.com/Effect-TS/effect/pull/6124)
+
+Update to `effect@3.20.0` as soon as possible.
