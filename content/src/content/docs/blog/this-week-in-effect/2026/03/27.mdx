@@ -1,0 +1,306 @@
+---
+pagefind: false
+title: This Week in Effect - 2026-03-27
+excerpt: Effect 3.20 security update & 3.21.0 are out. 🇩🇪 Effect Berlin meetup on March 26! Plus Effect LSP for TSGo, Sentry adds official support for Effect v3, and more v4 Beta updates.
+date: 2026-03-27
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+  - michael_arnaldi
+tags:
+  - This Week In Effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week In Effect (**TWIE**) - your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is a powerful TypeScript library that helps developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you’ll find links to our documentation as well as our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+
+**Recent major updates:**
+
+
+- [Effect v4 Beta](https://effect.website/blog/releases/effect/40-beta/) Release! 🚀
+- [Effect AI SDK](https://github.com/Effect-TS/effect/releases/tag/%40effect%2Fai%400.27.0) Release.
+- Durable workflows in TypeScript with [`@effect/workflow`](https://github.com/Effect-TS/effect/blob/main/packages/workflow/README.md) - currently in alpha.
+- 6220+ community members on [Discord](https://discord.gg/effect-ts).
+
+&nbsp;
+
+## Technology
+
+### Effect v4 Beta Updates
+
+Here are the main changes that landed in `effect-smol`.
+
+- **HttpApi overhaul**: Added a code generation module (`HttpApi.gen`), reworked `HttpApiClient` so `urlBuilder` uses schemas and client-shaped APIs, renamed the `withResponse` option to `responseMode`, added `disableCodecs` option to `HttpClientEndpoint` constructors, fixed security middleware cache reuse, and updated docs to reflect automatic codec coercion for `HttpApiEndpoint`. Also allowed middleware to accept error arrays and fixed the `HttpApi.Any` constraint for `HttpApiClient.urlBuilder`.
+- **Schema improvements**: Collapsed same-type literal branches into a single enum array in JSON Schema output, fixed `compactEnums` to support multi-value enum branches, renamed `MakeOptions.disableValidation` to `disableChecks` (now also applies constructor defaults when set), and fixed `Struct` utility return types (e.g. `pick`) to preserve the simplified shape instead of exposing raw `Pick<T, K>` types.
+- **AI & streaming**: Fixed missing finish parts in `LanguageModel` streaming, fixed tool output persistence in streamed chat history, fixed the OpenRouter client HTTP referer header name, and added `Stream.timeoutOrElse`.
+- **PostgreSQL & runtime**: Added a dedicated PG connection for `LISTEN`, switched to `pg_notify` instead of raw `NOTIFY` in `PgClient`, cleaned up `sql-pg` constructors and layers, fixed `Unify.unify` for Effect unions, flushed devtools queued messages on teardown, and tracked `ManagedRuntime` fibers in a scope.
+- **Bug fixes & internals**: Fixed `Schedule.fixed` immediate catch-up for long-running iterations, re-exported core `ServiceMap` references in `effect/References`, fixed `Queue.takeN` example, fixed metro bundler issues, allowed `ServiceMap.Key` to be covariant, and improved `Prompt.select`/`multiSelect` highlight text color.
+
+You can follow the full changelog directly in the [effect-smol repository](https://github.com/Effect-TS/effect-smol).
+
+&nbsp;
+
+Here are all the technical changes from the past week.
+
+### Effect Core
+- [Fix: resolve batched request resolver defects hanging consumer fibers](https://github.com/Effect-TS/effect/pull/6139) (Bug Fix)
+
+### Effect AI
+- [Fix(ai-openrouter): correct HTTP-Referrer header to HTTP-Referer](https://github.com/Effect-TS/effect/pull/6145) (Bug Fix)
+
+### Effect SQL
+- [EFF-749 Backport sql-pg dedicated listen connection](https://github.com/Effect-TS/effect/pull/6140) (Bug Fix)
+
+&nbsp;
+
+## Community Events
+
+The 3rd edition of the [**Effect Berlin Meetup**](https://luma.com/z39v9xqn) was a success! A big thank you to [acemate](https://acemate.ai/en) for hosting, and to everyone who joined and made it a great evening 🇩🇪!
+
+To stay informed about future events, visit our [Effect Community Events calendar](https://luma.com/effect-community) and subscribe for updates.
+
+&nbsp;
+
+## Community Highlights
+
+- The [Effect Schema course](https://www.effective.software/courses/effect-schema) by Hemanta Kumar Sundaray got 2 new chapters: optional/nullable fields and Standard Schema Integration. Free and hands-on!
+
+&nbsp;
+
+- [effect-jetbrains-plugin](https://github.com/kriegcloud/effect-jetbrains-plugin) – A JetBrains IDE plugin (WebStorm & IntelliJ IDEA Ultimate) that integrates the `@effect/tsgo` language server, bringing LSP features like diagnostics, code actions, completions, hover info, inlay hints, and symbol navigation. Also includes a Runtime Dev Tools window with Clients, Metrics, and Tracer tabs.
+
+&nbsp;
+
+- [effect-analyzer](https://jagreehal.github.io/effect-analyzer/) – A static analysis tool for Effect TypeScript programs by Jag Reehal. Without running your code, it extracts structural elements and auto-generates flowcharts, railway diagrams, service maps, error flows, concurrency views, and more in Mermaid format. Also calculates complexity metrics and supports semantic diffing between two versions of an Effect program.
+
+&nbsp;
+
+- [audius-mcp-atris](https://github.com/glassBead-tc/audius-mcp-atris) – An MCP server built with Effect-TS that connects Claude AI to the Audius music platform. Uses two meta-tools ("search" and "execute") to compress the entire Audius API into ~1,000 tokens of context, running LLM-generated code in a sandboxed QuickJS WASM environment for security.
+
+&nbsp;
+
+- Dealing with time-based logic in TypeScript? Samuel Huber shares how `TestClock` from Effect makes time-based testing a breeze — perfect for cronjobs, scheduling, and time assumptions — all running the same code as production thanks to dependency injection.
+
+  <Tweet id="2036377100886655343" />
+
+&nbsp;
+
+- The best "skill" for Claude when working with Effect? Just clone the Effect repo, as Michael suggests.
+
+  <Tweet id="2035717444447183087" />
+
+&nbsp;
+
+- Building composable systems pays off: Dhravya Shah shares how [Supermemory](https://supermemory.ai/) was built with swappable layers from day one using Effect, making a fully local version trivial to spin up.
+
+  <Tweet id="2035524585391849581" />
+
+&nbsp;
+
+# Effect Content Update
+
+- Effect Office Hours 22 🔥
+
+ <YouTube
+  id="https://www.youtube.com/embed/tOsOpvQjglM"
+  title="Effect Office Hours 22 🔥"
+/>
+
+&nbsp;
+
+- Effect.all
+
+ <YouTube
+  id="https://www.youtube.com/embed/6CRKNN30XOo"
+  title="Effect.all"
+/>
+
+&nbsp;
+
+- ChEffect 15 - A Local-First Meal Planning App written with Effect & LiveStore
+
+ <YouTube
+  id="https://www.youtube.com/embed/SVyLhhf9ghg"
+  title="ChEffect 15 - A Local-First Meal Planning App written with Effect & LiveStore"
+/>
+
+&nbsp;
+
+- Effect v4 CLI
+
+ <YouTube
+  id="https://www.youtube.com/embed/WXkBvPhrmZY"
+  title="Effect v4 CLI"
+/>
+
+&nbsp;
+
+- How to use AI Agents with Effect the right way
+
+ <YouTube
+  id="https://www.youtube.com/embed/XaNHyZbFUBY"
+  title="How to use AI Agents with Effect the right way"
+/>
+
+&nbsp;
+
+- LLM usage tips from the Effect Team, Ralph, Lalph
+
+ <YouTube
+  id="https://www.youtube.com/embed/T8wa7rtIVk8"
+  title="LLM usage tips from the Effect Team, Ralph, Lalph"
+/>
+
+&nbsp;
+
+- Effect.Retry
+
+ <YouTube
+  id="https://www.youtube.com/embed/rP7AsCDMqtY"
+  title="Effect.Retry"
+/>
+
+&nbsp;
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2000913813756100778), and audio platforms like [Spotify](https://open.spotify.com/episode/3zMxvB8KVzcBwFarOuxZCb) and [Apple Podcast](https://podcasts.apple.com/it/podcast/reliable-payroll-systems-in-typescript-with-effect-7/id1781879869?i=1000741526055&l=en-GB).
+
+Adam Rankin, CTO at [Warp](https://www.joinwarp.com/), joined Johannes Schickling to talk about using Effect to bring structure and composability to a growing TypeScript codebase, enabling a small, fast-moving team to stay productive while shipping reliable payment & payroll systems.
+
+<YouTube
+  id="https://www.youtube.com/embed/zxCR6rG4snY?si=E4KoHi_G7RkyusNL"
+  title="Reliable Payroll Systems in TypeScript with Effect | Adam Rankin | Cause & Effect 7"
+/>
+
+&nbsp;
+
+## Effect Job Opportunities
+
+More and more companies are adopting Effect in their projects. Here’s a list of companies looking for software engineers with Effect experience:
+
+- **14.ai**: [Founding engineer](https://14.ai/careers)
+
+- **acemate.ai**: [Senior Backend Engineer / Developer](https://join.com/companies/acemate/15714084-senior-backend-engineer-developer)
+
+- **Betalyra**, an AI consulting company from Portugal, is looking for a part-time freelance software engineer (TypeScript/Effect) with AI experience – see the job posting in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1362610725931061258).
+
+- **coteach.ai** is looking for a Software Engineer – see the job posting in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1394724166309253290) and DM *Peter Edmonds* for further info.
+
+- **Embedded Insurance** is hiring for a [Senior Software Engineering](https://embeddedinsurance.bamboohr.com/careers/23) position.
+
+- **Expand.ai**: [Founding Engineer](https://www.expand.ai/careers/founding-engineer)
+
+- **Freckle.io** is hiring [Full-stack Engineers](https://discord.com/channels/795981131316985866/796153351372275743/1478996807106166785) with experience in Effect.
+
+- **Gale**: [SWE Intern - Remote (CAN/US)](https://forms.galevisa.com/r/m6gr7e)
+
+- **Glide**: [Senior Frontend Product Engineer](https://www.glideapps.com/jobs/frontend-product-engineer)
+
+- **Globe Commerce**: [Founding Product Engineer](https://www.linkedin.com/jobs/view/4264203054)
+
+- **Goblins** is looking for a Product Founding Engineer. See the job posting in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1439740311277404231).
+
+- **Heartbeat**: [Senior Software Engineer](https://jobs.heartbeat.chat/35182) 
+
+- **Inato**: [Product Engineers / Fullstack Engineers](https://jobs.lever.co/inato/6df2d1e3-ce0a-487b-a930-840759803d44)
+
+- **Interfere**: [Founding Product Engineer](https://interfere.com/careers/founding-product-engineer-43d5f5aa-1887-4c7d-a8b2-2017169911fd/apply) and [Founding AI Engineer](https://interfere.com/careers/founding-ai-engineer-003772a3-6bcf-4f57-8c3c-5d840117b5e9/apply) 
+
+- **Introw**: [Staff Software Engineer](https://join.com/companies/introw/14395111-staff-software-engineer)
+
+- **Lingo.dev**: [Senior Product Engineer - React, Node.js, UX](https://app.dover.com/apply/Lingo.dev/411b24e0-1438-4d24-8f19-d2cb91ca2483/?rs=76643084)
+
+- **Magentus**: [GenAI Solutions Engineer](https://www.magentus.com/career/genai-solutions-engineer/?r=a)
+
+- **ManageSpace** is looking for a Senior Developer to mentor other developers and migrate to Effect – see the job posting in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1389557459949060098).
+
+- **Margins**: [Product Engineer](https://margins.app/jobs/product-engineer)
+
+- **Medbill.ai**: [Founding Software Engineers (full-stack and backend)](https://www.linkedin.com/posts/codingtom_medbill-ai-activity-7260092522708762624-N7TH)
+
+- **Microsub**: [TS Developer](https://x.com/0xdownshift/status/1880013835878154510)
+
+- **Oneiro Solutions**: Software Engineer - Core Team. [Join Effect Discord](https://discord.com/channels/795981131316985866/796153351372275743) and DM *leighman* for further info.
+
+- **PhosPhor** is [hiring engineers](https://phosphor.co/) experienced in Effect. You may also reach out to the Phosphor team on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1418407399139578067).
+
+- **Platonic Systems**: [Remote Effect Engineers](https://twitter.com/platonicsystems/status/1861470819861311945)
+
+- **[Precurion](https://precurion.com/)** looking for a remote‑first Founding Engineer with Effect experience – See the job posting in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1362610725931061258).
+
+- **Ressio**: [Senior full stack Engineer](https://crocus-hardhat-6f7.notion.site/Senior-full-stack-engineer-back-end-leaning-28ce06d15219800eb2bcca558d9f0446)
+
+- **Samsung Food**: [Full Stack Developer](https://whisk.bamboohr.com/careers/110)
+
+- **Sellhub** is looking for a Backend Engineer. See the job posting in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1423684096428736652).
+
+- **Software Intelligence Works**: [Senior Full-Stack Engineer](https://remotive.com/remote-jobs/software-dev/senior-full-stack-engineer-2011648)
+
+- **spring.new**, Anthropic's flagship customer, is hiring engineers experienced in Effect. See the job posting in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1405134163287343196).
+
+- **Supermemory**: [Founding Backend / Infrastructure Engineer](https://x.com/i/jobs/1928194391946186862)
+
+- **Superwall**: [Full-stack Mobile Developer](https://x.com/jakemor/status/1972770955500876070)
+
+- **Temper**: [Founding Engineer](https://news.ycombinator.com/item?id=47224903)
+
+- **Tenzir**: [Software Engineer (Product)](https://tenzir.com/company/careers/software-engineer-product)
+
+- **Tranched**: [Full-stack Engineer Web3](https://tranched.fi/careers/fullstack-developer-web3)
+
+- **Trellis AI**: [Product Engineer](https://www.ycombinator.com/companies/trellis-ai) based in SF.
+
+- **Vitalize Care** is hiring a full-stack engineer with Effect experience: [Full-Stack Engineer](https://jobs.ashbyhq.com/vitalize/d907ba5f-0f2f-4bb4-931a-1680d6daf81a)
+
+- **VST**: [Senior Full Stack Software Engineer](https://www.linkedin.com/jobs/view/3854111540/)
+
+- **Wander** is hiring [Software Developers](https://ship.wander.com) with experience in Effect.
+
+- **Warp** is hiring a [Product Engineer](https://www.joinwarp.com/careers/roles?ashby_jid=655962db-5fbe-40cc-a072-9522295b3cbc)
+
+- A **consumer music startup** hiring for an Effect Backend Consultant + a full-time role based in NYC. The job posting is available in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1457499793042575371)
+
+- **French-speaking** startup team led by Stephan Le Dorze is looking for a freelancer to join them - [see his LinkedIn post](https://www.linkedin.com/posts/stephaneledorze_recherche-senior-typescript-developer-activity-7384894173604265984-btNb) for more details.
+
+- Job opening for [Japanese-speaking developers](https://note.com/luma/n/n679d4dcdb363)
+
+- **Small SaaS team** is looking for a part-time Effect Developer to implement Effect in their stack. The job posting is available in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1397684638834491412), DM *jonpage* for further info.
+
+- [**Solid**](https://trysolid.com/) is hiring its early engineering team (Bay Area). The job posting is available in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1455623052636459209)
+
+- **Stealth team** looking for a software engineer with Effect experience – see the job posting in the `#job-board` channel on [our Discord](https://discord.com/channels/795981131316985866/796153351372275743/1362610725931061258).
+
+- **Stealth team** that has already scaled their product to 50K daily active users in the last year, is looking for [Effect Developers](https://x.com/wireless_dev/status/1930314012723687739). DM [wireless](https://x.com/wireless_dev) on X for more info.
+
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+
+&nbsp;
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+
+&nbsp;
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
