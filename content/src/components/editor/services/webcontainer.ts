@@ -489,16 +489,18 @@ const Path = require("node:path")
 
 const outDir = "dist"
 const program = process.argv[2]
-const programJs = program.replace(/\.ts$/, ".js")
+const programJs = program.replace(/\\.ts$/, ".js")
 const compiledProgram = Path.join(outDir, Path.basename(programJs))
 
 function run() {
   ChildProcess.spawn("tsc-watch", [
     "--module", "nodenext",
     "--outDir", outDir,
+    "--skipLibCheck",
     "--sourceMap", "true",
     "--target", "esnext",
     "--lib", "ES2022,DOM,DOM.Iterable",
+    "--ignoreConfig",
     program,
     "--onSuccess", \`node --enable-source-maps \${compiledProgram}\`
   ], {
