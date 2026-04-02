@@ -216,7 +216,7 @@ export default defineConfig({
         }),
         starlightMixedbread({
           apiKey: process.env.MXBAI_API_KEY ?? "",
-          vectorStoreId: process.env.MXBAI_VECTOR_STORE_ID ?? "",
+          storeId: process.env.MXBAI_VECTOR_STORE_ID ?? "",
           maxResults: 8,
         }),
         effectPlaygroundPlugin({

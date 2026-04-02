@@ -9,8 +9,8 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 export interface MixedbreadClientOptions {
   /** Your Mixedbread API key */
   apiKey: string;
-  /** Your Vector Store ID */
-  vectorStoreId: string;
+  /** Your Store ID */
+  storeId: string;
   /** The maximum number of results to return per search */
   maxResults?: number;
   /** Base URL for the Mixedbread API */
@@ -25,8 +25,8 @@ const MixedbreadConfigSchema = z
     // Required config without which Mixedbread won"t work.
     /** Your Mixedbread API key. */
     apiKey: z.string(),
-    /** Your Vector Store ID. */
-    vectorStoreId: z.string(),
+    /** Your Store ID. */
+    storeId: z.string(),
     // Optional config
     /**
      * The maximum number of results to return per search.
@@ -73,7 +73,7 @@ const MixedbreadConfigSchema = z
          *
          * export default {
          *   apiKey: process.env.MXBAI_API_KEY,
-         *   vectorStoreId: process.env.VECTOR_STORE_ID,
+         *   storeId: process.env.VECTOR_STORE_ID,
          *   maxResults: 15,
          * } satisfies MixedbreadClientOptions;
          */

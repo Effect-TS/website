@@ -8,18 +8,18 @@ import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
 import * as Predicate from "effect/Predicate"
 import * as Schema from "effect/Schema"
-import { SearchError, VectorStoreSearchResponse } from "./domain"
+import { SearchError, StoreSearchResponse } from "./domain"
 import type { Metadata, SearchResult } from "./domain"
 import type { DeepMutable } from "effect/Types"
 
 export class Search extends Effect.Service<Search>()("app/Search", {
   effect: Effect.gen(function* () {
     const apiKey = yield* Config.redacted("MXBAI_API_KEY")
-    const vectorStoreId = yield* Config.string("MXBAI_VECTOR_STORE_ID")
+    const storeId = yield* Config.string("MXBAI_VECTOR_STORE_ID")
     const path = yield* Path.Path
     const mxbai = new Mixedbread({ apiKey: Redacted.value(apiKey) })
 
-    const decodeSearchResponse = Schema.decodeUnknown(VectorStoreSearchResponse)
+    const decodeSearchResponse = Schema.decodeUnknown(StoreSearchResponse)
 
     function extractSnippet(text: string, maxLength: number = 150): string {
       // Remove markdown and clean up the text
@@ -77,7 +77,7 @@ export class Search extends Effect.Service<Search>()("app/Search", {
       return path.join(parsed.dir, parsed.name, "/")
     }
 
-    function groupSearchResults(response: VectorStoreSearchResponse): ReadonlyArray<SearchResult> {
+    function groupSearchResults(response: StoreSearchResponse): ReadonlyArray<SearchResult> {
       const grouped = new Map<string, DeepMutable<SearchResult>>()
 
       response.data.forEach((chunk) => {
@@ -127,15 +127,15 @@ export class Search extends Effect.Service<Search>()("app/Search", {
     }
 
     const search = Effect.fn("Search.search")(function* (query: string) {
-      const searchParams: Mixedbread.VectorStores.VectorStoreSearchParams = {
+      const searchParams: Mixedbread.Stores.StoreSearchParams = {
         query,
         top_k: 10,
         search_options: { rerank: true, return_metadata: true },
-        vector_store_identifiers: [vectorStoreId],
+        store_identifiers: [storeId],
       }
 
       const response = yield* Effect.tryPromise({
-        try: (signal) => mxbai.vectorStores.search(searchParams, { signal }),
+        try: (signal) => mxbai.stores.search(searchParams, { signal }),
         catch: (cause) => new SearchError({ cause }),
       }).pipe(Effect.flatMap(decodeSearchResponse))
 

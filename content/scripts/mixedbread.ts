@@ -11,7 +11,7 @@ const cwd = process.cwd()
 const path = Path.join(cwd, "src/content/docs/docs/**/*.mdx")
 const filePaths = await Glob(path)
 
-const vectorStoreId = process.env.MXBAI_VECTOR_STORE_ID!
+const storeId = process.env.MXBAI_VECTOR_STORE_ID!
 for (const filePath of filePaths) {
   const file = await toFile(
     Fs.createReadStream(filePath),
@@ -19,7 +19,7 @@ for (const filePath of filePaths) {
     { type: "text/markdown" }
   )
   const url = filePath.replace(Path.join(cwd, "src/content/docs"), "")
-  await mxbai.vectorStores.files.upload(vectorStoreId, file, {
+  await mxbai.stores.files.upload(storeId, file, {
     metadata: {
       urlPath: url.split(".")[0],
     }
