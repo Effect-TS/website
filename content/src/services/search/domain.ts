@@ -81,9 +81,9 @@ export const ScoredTextInputChunk = Schema.Struct({
     Schema.propertySignature,
     Schema.fromKey("file_id")
   ),
-  vectorStoreId: Schema.String.pipe(
+  storeId: Schema.String.pipe(
     Schema.propertySignature,
-    Schema.fromKey("vector_store_id")
+    Schema.fromKey("store_id")
   ),
   chunkIndex: Schema.Int.pipe(
     Schema.propertySignature,
@@ -101,12 +101,12 @@ export const ScoredTextInputChunk = Schema.Struct({
 
 export type ScoredTextInputChunk = typeof ScoredTextInputChunk.Type
 
-export const VectorStoreSearchResponse = Schema.Struct({
+export const StoreSearchResponse = Schema.Struct({
   object: Schema.Literal("list"),
   data: Schema.Array(ScoredTextInputChunk)
 })
 
-export type VectorStoreSearchResponse = typeof VectorStoreSearchResponse.Type
+export type StoreSearchResponse = typeof StoreSearchResponse.Type
 
 export const SearchResultChunk = Schema.Struct({
   id: Schema.String,
