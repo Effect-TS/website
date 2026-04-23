@@ -57,7 +57,6 @@ export const Navigation: React.FC<{
           <div className="hidden md:flex items-center gap-8">
             <NavigationMenu />
             {themeSwitcher && <ThemeSwitcher />}
-            {pathname === "/" ? null : <ThemeSwitcher />}
             <div className="flex items-center gap-4">
               {socials.map(({ name, icon, href }, index) => (
                 <Link key={index} href={href} className="generic-hover">
