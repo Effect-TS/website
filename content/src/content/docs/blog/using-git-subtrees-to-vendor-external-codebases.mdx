@@ -1,0 +1,115 @@
+---
+pagefind: false
+title: Using Git Subtrees to Vendor External Codebases
+excerpt: A post explains how to use git subtrees to give coding agents access to external codebases.
+date: 2026-03-27
+authors:
+  - maxwell_brown
+tags:
+  - Miscellaneous
+---
+
+One of the most common questions we get on the Effect team in the era of AI-assisted coding is how to get coding agents to write good, idiomatic Effect code. 
+
+Our answer is always the same: give your agent access to the Effect codebase.
+
+If you follow us on social media, you've probably heard us recommend cloning the Effect repository directly into your project. This isn't a trick or a workaround - it's genuinely the most effective way to improve how an agent writes code with Effect. More importantly, this approach isn't specific to Effect - it works for any external software your application depends on.
+
+The reason for this is simple: coding agents are designed to be good at reading and exploring _code_ (crazy, I know). They're substantially _less_ effective when working from documentation written for humans. When source code is available, an agent can explore it the way it was designed to: by following usage patterns, tracing abstractions, and learning from existing patterns.
+
+The most practical method for making external software explorable by your coding agent is to simply vendor the project's Git repository directly into your application's codebase. 
+
+This post explains why this approach works, why `git subtree`s are a good fit for it, and how to set it up without making your project harder to manage.
+
+## Why Having the Source Code Available Matters
+
+A common approach when utilizing coding agents is to rely on web search / web fetch to allow the agent to retrieve information about external dependencies when required. In practice, however, the agent will only have access to isolated code snippets without the surrounding structure, often requiring it to repeatedly fetch code it has already seen or until it has enough information to proceed. This is token inefficient and leads to highly fragmented context.
+
+Documentation has a different limitation - it usually explains what an API or library _does_ but not how it is actually _used_ across a codebase. Coding agents rely on patterns and examples, not descriptions.
+
+Having source code available locally allows us to remedy both issues at once. When the agent is unsure about how to use a particular API or library, it can explore the actual implementation of that codebase just like any other part of your project. 
+
+This is also why relying on code in `node_modules` usually isn't enough. The code is often compiled or flattened, which removes the structure that makes it useful to read. Even if a particular library does publish their uncompiled source, most coding agents are deoptimized from exploring `node_modules` or other gitignore directories in the first place. 
+
+## Why Git Subtrees Instead of Git Submodules?
+
+It might seem intuitive to simply use `git submodule` to vendor external software into a project. Submodules are (unfortunately) a familiar feature of `git` for most developers, keep the repositories cleanly separated, and allow pinning external codebases to a specific commit.
+
+And to be honest, submodules are _fine_ - they accomplish the end goal which is allowing the agent direct access to external source code. But in our opinion there are features of `git submodule` that make them quite annoying for this specific purpose. 
+
+- They require explicit initialization when cloning a project, which (if you are like me) can be really easy to forget to do 
+- They also introduce a layer of indirection (your repo now "points" to another repo instead of just containing the source code)
+- They require additional metadata to be tracked in git (i.e. the `.gitmodules` file)
+
+Instead, `git subtree` allows you to directly nest one repository inside another as a subdirectory. Once a subtree is created, it behaves like any other directory in your project. That means both the engineers and coding agents working on a project can ignore the fact that a subtree is even in use.
+
+## Adding a Git Subtree
+
+You can add an external dependency to your project under a dedicated directory (such as `repos/effect`) with a single command:
+
+```bash
+git subtree add \
+  --prefix=repos/effect \
+  https://github.com/Effect-TS/effect.git \
+  main \
+  --squash
+```
+
+The `--prefix` flag controls where the repository will live inside your project. We recommend keeping all vendored projects under a single directory (i.e. `repos/`). This makes it much easier to, for example, add a one-liner to your `AGENTS.md` to explore `repos/effect` when writing Effect code.
+
+It's also worth calling out the `--squash` flag - without it, you will clone the **entire history** of the external repository into your own project's git history. For larger project this can mean thousands of commits. Including `--squash` in the command ensures that everything is collapsed into a single commit.
+
+## Updating a Git Subtree 
+
+When you want to pull in changes from an external project, you can simply run:
+
+```bash
+git subtree pull \
+  --prefix=repos/effect \
+  https://github.com/Effect-TS/effect.git \
+  main \
+  --squash
+```
+
+Each update shows up as a single commit, which keeps things predictable and easy to review. 
+
+## Configuring Your Editor
+
+Ok, now you've got a few external repositories sitting in your `repos/` directory and you're ready to let your agents `--dangerously-skip-permissions`. 
+
+The problem is that you (the human-in-the-loop) probably still want to be able use your code editor from time to time. On those rare occassions where you are hands-on in a code editor instead of a prompt box, you probably do **not** want your editor suggesting search results and/or auto-imports from these external repositories.
+
+In VSCode, you can exclude your `repos/` directory from search, file watching, and auto-import suggestions with a few small tweaks to your project's `.vscode/settings.json`:
+
+```json
+{
+  "typescript.preferences.autoImportFileExcludePatterns": [
+    "repos/**"
+  ],
+  "javascript.preferences.autoImportFileExcludePatterns": [
+    "repos/**"
+  ],
+
+  "files.exclude": {
+    "repos/**": true
+  },
+
+  "files.watcherExclude": {
+    "repos/**": true
+  },
+
+  "search.exclude": {
+    "repos/**": true
+  }
+}
+```
+
+Other editors can be configured similarly, but your mileage may vary.
+
+---
+
+## The Trade-Off
+
+Vendoring repositories does increase the size of your project, and you take on a bit of responsibility for keeping them up to date. It's not free.
+
+But the payoff in terms of improved output quality from your coding agents when using external dependencies is, in our opinion, well worth it. Especially in an era where humans are doing less and less of the actual hands-on coding ourselves.
