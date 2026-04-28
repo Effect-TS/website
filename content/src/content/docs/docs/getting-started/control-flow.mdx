@@ -304,12 +304,14 @@ while (options.while(state)) {
 return result
 ```
 
+Note that `step` controls how the state evolves, while `body` determines what gets collected. The two are independent — the `body` can return a value derived from the state in any way.
+
 **Example** (Looping with Collected Results)
 
 ```ts twoslash
 import { Effect } from "effect"
 
-// A loop that runs 5 times, collecting each iteration's result
+// A loop that runs 5 times, negating each state value in the body
 const result = Effect.loop(
   // Initial state
   1,
@@ -319,15 +321,17 @@ const result = Effect.loop(
     // State update function
     step: (state) => state + 1,
     // Effect to be performed on each iteration
-    body: (state) => Effect.succeed(state)
+    body: (state) => Effect.succeed(state * -1)
   }
 )
 
 Effect.runPromise(result).then(console.log)
-// Output: [1, 2, 3, 4, 5]
+// Output: [-1, -2, -3, -4, -5]
 ```
 
-In this example, the loop starts with the state `1` and continues until the state exceeds `5`. Each state is incremented by `1` and is collected into an array, which becomes the final result.
+Here the state advances from `1` to `5` via `step`, but `body` collects the negated value on each iteration, showing that the collected results are independent of how the state is updated.
+
+When using a mutable value such as an array as the initial state, be mindful of how `step` handles it. If `step` mutates the value in place and returns the same reference, every entry in the result array will point to that same object. To avoid this, return a new value from `step` instead.
 
 #### Discarding Intermediate Results
 
