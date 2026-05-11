@@ -108,6 +108,54 @@ Other editors can be configured similarly, but your mileage may vary.
 
 ---
 
+## Configuring the Agent
+
+Now that you've got one or more subtrees vendored into your project, you will need to make the agent aware that they are there, and how to use them. This is usually done through the `AGENTS.md` file (or whichever file your coding agent uses).
+
+The important thing is to be explicit about both the location and the intended usage. You do not want the agent treating vendored repositories as part of your application codebase. You want it to read them as reference material.
+For example:
+
+```md
+## Vendored Repositories
+
+This project vendors external repositories under @repos/
+
+  - Use vendored repositories as read-only reference material when working with related libraries
+  - Prefer examples and patterns from the vendored source code over generated guesses or web search results
+  - Do not edit files under @repos/ unless explicitly asked
+  - Do not import from @repos/ - application code should continue importing from normal package dependencies
+```
+
+You can also make this more specific for the libraries you vendor, for example:
+
+```md
+When writing Effect code, inspect @repos/effect/ for examples of idiomatic usage, tests, module structure, and API design. Treat it as the source of truth for Effect patterns.
+```
+
+If you've created a subtree for Effect v4, you can also explicitly tell the agent to always read @repos/effect/LLMS.md before writing any Effect code.
+
+### Creating Pattern Files
+
+Another useful pattern is to ask the agent to create a small reference file for a particular data type or module from the vendored codebase. This gives the agent a project-local artifact it can come back to later instead of rediscovering the same patterns repeatedly.
+
+For example, you might ask:
+
+```md
+Review the implementation, tests, and documentation for `Schema` in `@repos/effect`.
+
+Create a file at `agent-patterns/effect-schema.md` that illustrates the most important patterns an agent should follow when writing Schema code in this project.
+
+Include:
+- Common constructors and combinators
+- Encoding and decoding examples
+- Transformation patterns
+- Error handling patterns
+- Examples copied or adapted from the Effect codebase
+- Notes about what to avoid
+```
+
+The resulting file does not need to be exhaustive. It should be a practical reference that captures the idioms the agent is most likely to need when working in your application code.
+
 ## The Trade-Off
 
 Vendoring repositories does increase the size of your project, and you take on a bit of responsibility for keeping them up to date. It's not free.
