@@ -1,3 +1,21 @@
+diff --git a/src/utils.ts b/src/utils.ts
+--- a/src/utils.ts
++++ b/src/utils.ts
+@@ -120,10 +120,10 @@
+     { indices: tweet.display_text_range, type: "text" },
+   ];
+
+-  addEntities(result, "hashtag", tweet.entities.hashtags);
+-  addEntities(result, "mention", tweet.entities.user_mentions);
+-  addEntities(result, "url", tweet.entities.urls);
+-  addEntities(result, "symbol", tweet.entities.symbols);
++  addEntities(result, "hashtag", tweet.entities.hashtags ?? []);
++  addEntities(result, "mention", tweet.entities.user_mentions ?? []);
++  addEntities(result, "url", tweet.entities.urls ?? []);
++  addEntities(result, "symbol", tweet.entities.symbols ?? []);
+   if (tweet.entities.media) {
+     addEntities(result, "media", tweet.entities.media);
+   }
 diff --git a/src/twitter-theme/TweetBody.astro b/src/twitter-theme/TweetBody.astro
 index 04225a838ebf91081acf59efd30c335732e5ca83..4e8edfcea4e82dd0ee1b89b890499dfaffef823f 100644
 --- a/src/twitter-theme/TweetBody.astro
