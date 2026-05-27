@@ -1,7 +1,7 @@
 ---
 pagefind: false
-title: "Effect v4 Beta: Launch to May Recap"
-excerpt: "A comprehensive recap of everything that's landed in the beta since launch up to May 2026: from the rewritten runtime to Schema overhauls, IndexedDB, durable workflows, and more."
+title: "Effect v4 Beta: February–May Recap"
+excerpt: "A recap of everything that has landed in the Effect v4 beta so far — from the rewritten runtime and smaller bundles to Schema improvements, IndexedDB, durable workflows, AI integrations, and more."
 date: 2026-05-29
 authors:
   - davide_scognamiglio
@@ -13,29 +13,31 @@ tags:
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 
-# Effect v4 Beta: So Far
- 
-Effect v4 entered beta on **February 18, 2026**, the most ambitious release in Effect's history. Since then, the team has been shipping at a relentless pace inside the [`effect-smol` repository](https://github.com/Effect-TS/effect-smol). If you've been following the weekly TWIE summaries, you've seen each piece land individually. This post pulls it all together.
- 
-&nbsp;
- 
-## The Foundation: What v4 Is
- 
-Before diving into what's changed during the beta, a quick recap of what v4 set out to be.
- 
-**A rewritten runtime.** The core fiber runtime was rebuilt from scratch with lower memory overhead, faster execution, and simpler internals. Every Effect application benefits from this immediately, with no migration work required.
- 
-**Dramatically smaller bundles.** A minimal program combining Effect, Stream, and Schema dropped from ~70 kB in v3 to ~20 kB in v4. Individual use cases scale accordingly.
- 
-**Unified versioning.** In v3, every package had its own version number — the source of countless confusing mismatches. In v4, all ecosystem packages share a single version and are released together. When you see `effect@4.0.0-beta.x`, every other `@effect/*` package at the same version is the right one.
- 
-**A consolidated core.** Many previously separate packages — `@effect/platform`, `@effect/rpc`, `@effect/cluster`, and others — have been folded directly into the `effect` package. What remains as a separate package is only what needs to be: platform-specific adapters, SQL drivers, AI providers, framework bindings.
- 
-**Unstable modules.** New capabilities now ship inside `effect` itself under `effect/unstable/*` paths. These can receive breaking changes in minor releases. As they mature, they graduate into the stable `effect/*` namespace. v4 launched with 17 unstable modules covering AI, HTTP, Schema, SQL, RPC, CLI, Workflows, Clustering, and more.
+Effect v4 Beta launched February 18, 2026. Since then, the team has been shipping at a relentless pace inside the [`effect-smol` repository](https://github.com/Effect-TS/effect-smol). 
+
+If you've been following the weekly This Week In Effect summaries, you've seen each piece land individually. This post pulls it all together: what v4 set out to change, what has landed since launch, and where the beta has been moving over the past few months.
+
+---
+
+[Effect v4 Beta](https://effect.website/blog/releases/effect/40-beta/) is the most ambitious release we’ve made so far, with three major goals:
+
+- a rewritten runtime
+- smaller bundles
+- unified package system
+
+The core fiber runtime was rewritten from scratch with lower memory overhead, faster execution, and simpler internals. Many core modules were also rebuilt with bundle size in mind; for example, a minimal program using Effect, Stream, and Schema dropped from roughly 70 kB in v3 to about 20 kB in v4.
+
+Effect v4 Beta also introduced unified versioning across the ecosystem. Instead of coordinating separate versions across Effect, `@effect/platform`, `@effect/sql`, `@effect/rpc`, and other packages, the v4 ecosystem now ships together under one version number. Many previously separate packages have also been consolidated into the core effect package, while platform-specific or provider-specific integrations remain separate.
+
+Another important piece of the Effect v4 Beta is unstable modules. New functionality can now ship under effect/unstable/*, making it easier to experiment with new APIs inside the main package without committing to long-term stability too early.
  
 &nbsp;
- 
-## Schema
+
+## What has landed since launch
+
+&nbsp;
+
+### Schema
  
 Schema has been one of the most heavily worked areas of the beta. The changes span ergonomics, architecture, correctness, and DX.
  
@@ -57,7 +59,7 @@ Schema has been one of the most heavily worked areas of the beta. The changes sp
  
 &nbsp;
  
-## IndexedDB
+### IndexedDB
  
 The `IndexedDb` module was merged in early April, bringing first-class browser persistence to Effect applications.
  
@@ -78,7 +80,7 @@ The module has been expanded significantly since landing:
 
 &nbsp;
  
-## HTTP & HttpApi
+### HTTP & HttpApi
  
 **HttpApi improvements.** Added a code generation module (`HttpApi.gen`). Reworked `HttpApiClient` so `urlBuilder` uses schemas and client-shaped APIs. Renamed the `withResponse` option to `responseMode`. Added `disableCodecs` option to `HttpApiEndpoint` constructors. Fixed security middleware cache reuse. Allowed middleware to accept error arrays and fixed the `HttpApi.Any` constraint. Made `HttpApi` schema errors defects unless explicitly transformed. Added support for common string literals in `HttpApiSchema.status`. Included middleware errors in `AtomHttpApi` queries and mutations. Fixed empty body decoding in `HttpApiBuilder`. Fixed `HttpApiBuilder` void responses incorrectly producing a non-empty body.
  
@@ -90,7 +92,7 @@ The module has been expanded significantly since landing:
  
 &nbsp;
  
-## RPC
+### RPC
  
 **New capabilities.** Added support for deferred responses in RPC. Added `RpcGroup.omit`. Added a `require` option to `AtomRpc.query` to make atoms serializable. Added `Rpc.custom` for defining custom RPC handlers with full control over the request/response lifecycle. Added `RpcWorker` Protocol service key (bug fix). Added `rpc` `ConnectionHooks`.
  
@@ -98,7 +100,7 @@ The module has been expanded significantly since landing:
  
 &nbsp;
  
-## AI
+### AI
  
 **OpenAI.** Added support for custom model/request properties in `openai-compat`. Forwarded reasoning config. Fixed the OpenAI MCP tool integration. Restored OpenAI reasoning types. Updated the OpenAI schema strategy. Added OpenAI reasoning support. Widened `OpenAIFile.expires_at` and `status_details` to accept `null`. Made strict mode configurable for tool definitions.
  
@@ -108,7 +110,7 @@ The module has been expanded significantly since landing:
  
 &nbsp;
  
-## Workflow & Durable Execution
+### Workflow & Durable Execution
  
 Key fixes and improvements during the beta:
  
@@ -120,7 +122,7 @@ The `DurableQueue` module was also ported from v3 to v4, bringing persistent que
  
 &nbsp;
  
-## SQL
+### SQL
  
 **New packages.** Added `@effect/sql-pglite` for PGlite-backed SQL, expanding the SQL adapters available for lightweight and in-browser use cases.
  
@@ -132,7 +134,7 @@ The `DurableQueue` module was also ported from v3 to v4, bringing persistent que
  
 &nbsp;
  
-## Platform & Runtime
+### Platform & Runtime
  
 **New APIs.** Added `Effect.abortSignal` for exposing the current fiber's abort signal. Added `Socket.make` for low-level socket construction. Added the `Effectable` module for defining custom effect-like types. Added `Effect.acquireDisposable` for integrating with the TC39 Explicit Resource Management proposal (`using` keyword). Ported `Effect.firstSuccessOf` from v3. Added a `Crypto` service to `@effect/platform`, exposing a cross-platform cryptography API. Added `Layer.suspend` constructor.
  
@@ -142,7 +144,7 @@ The `DurableQueue` module was also ported from v3 to v4, bringing persistent que
  
 &nbsp;
  
-## Stream & Scheduling
+### Stream & Scheduling
  
 **New APIs.** Added `Stream.broadcastN` for broadcasting to N downstream consumers. Added `Schedule.tap` for side-effecting on schedule steps. Added `Stream.timeoutOrElse`. Added `Stream` service accessors.
  
@@ -150,7 +152,7 @@ The `DurableQueue` module was also ported from v3 to v4, bringing persistent que
  
 &nbsp;
  
-## CLI
+### CLI
  
 **New APIs.** Added `Command.withHidden` to hide subcommands from help output. Added a hidden flag primitive. Used a predicate for `Argument.variadic` validation. Made parent flag inheritance explicit via `Command.withSharedFlags`.
  
@@ -158,7 +160,7 @@ The `DurableQueue` module was also ported from v3 to v4, bringing persistent que
  
 &nbsp;
  
-## Context (formerly `ServiceMap`)
+### Context (formerly `ServiceMap`)
  
 One of the most impactful changes during the beta: **`ServiceMap` was renamed back to `Context`**, realigning with v3 naming conventions. References were re-exported from `effect/References`. `ServiceMap.Key` was made covariant.
  
@@ -166,13 +168,13 @@ One of the most impactful changes during the beta: **`ServiceMap` was renamed ba
  
 &nbsp;
  
-## Sharding & Cluster
+### Sharding & Cluster
  
 Added `availableShardGroups` to `ShardingConfig` to prevent advisory lock conflicts. Added Kubernetes support for nullable `lastTransitionTime` values. Cleaned up `ShardId`.
  
 &nbsp;
  
-## Developer Experience & Documentation
+### Developer Experience & Documentation
  
 **JSDoc and documentation.** Standardized JSDoc example imports across the entire codebase. Normalized category tags. Added a `standard-jsdoc` ESLint rule that validates JSDoc links and is now enabled across the library. Vetted `@since` tags between v3 and v4. Improved example titles and generated indexes. Fixed `Struct` symbol links to preserve "Go to Definition" (F12) navigation in VSCode. Clarified filter annotation messages in Schema docs. Added a docs section on customizing schema error responses in `HttpApi`. Cleaned up `AGENTS.md`.
  
@@ -181,15 +183,21 @@ Added `availableShardGroups` to `ShardingConfig` to prevent advisory lock confli
 **Migration tooling.** Previous API names are being added to migration maps for smoother upgrading. Two migration guides are available: the [v3 to v4 Migration Guide](https://github.com/Effect-TS/effect-smol/blob/main/MIGRATION.md) and the [Schema v4 Migration Guide](https://github.com/Effect-TS/effect-smol/blob/main/packages/effect/SCHEMA.md).
  
 &nbsp;
+
+---
+
+## The Effect v4 Beta has been moving fast
+
+Effect v4 is still in beta, so breaking changes may occur.
+
+The launch set the foundation: a rewritten runtime, smaller bundles, unified versioning, a consolidated core package, and a path for experimental APIs.
+
+Since then, the work has been about carrying that foundation across the ecosystem: porting modules, refining APIs, smoothing migrations, improving docs, and tightening the developer experience.
+
+Thank you to everyone testing Effect v4 beta, reporting issues, trying migrations, and following along with the [weekly updates](https://effect.website/blog/tags/this-week-in-effect/).
  
-## A Beta That's Moving
- 
-If you want to follow along in real time, the full changelog lives in the [`effect-smol` repository](https://github.com/Effect-TS/effect-smol/commits/main/). And as always, the **This Week in Effect** blog is where these changes are summarized each week with context.
- 
-v4 isn't stable yet — but it's getting there. When it does, it will be a **long-term stable (LTS) release**, and the team has been clear they want major versions to be infrequent going forward.
- 
-In the meantime: install the beta, build something, and share as much insights as you can. That feedback is what shapes the final v4.
- 
+In the meantime: install the beta, build something real, and share what works, what breaks, and what feels off. That feedback is what will shape the final Effect v4.
+
 <Tabs syncKey="package-manager">
 
 <TabItem label="npm" icon="seti:npm">
