@@ -1,0 +1,252 @@
+---
+pagefind: false
+title: "Effect v4 Beta: February–May Recap"
+excerpt: "A recap of everything that has landed in the Effect v4 beta so far, from the rewritten runtime and smaller bundles to Schema improvements, IndexedDB, durable workflows, AI integrations, and more."
+date: 2026-05-29
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - Releases
+  - Effect v4 Beta Recaps
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components"
+
+Effect v4 Beta launched February 18, 2026. Since then, the team has been shipping at a relentless pace inside the [`effect-smol` repository](https://github.com/Effect-TS/effect-smol). 
+
+If you've been following the weekly This Week In Effect summaries, you've seen each piece land individually. This post pulls it all together: what v4 set out to change, what has landed since launch, and where the beta has been moving over the past few months.
+
+&nbsp;
+
+---
+
+&nbsp;
+
+[Effect v4 Beta](https://effect.website/blog/releases/effect/40-beta/) is the most ambitious release we’ve made so far, with three major goals:
+
+- a rewritten runtime
+- smaller bundles
+- unified package system
+
+The core fiber runtime was rewritten from scratch with lower memory overhead, faster execution, and simpler internals. Many core modules were also rebuilt with bundle size in mind; for example, a minimal program using Effect, Stream, and Schema dropped from roughly 70 kB in v3 to about 20 kB in v4.
+
+<video autoplay controls loop muted playsinline width="100%">
+  <source src="/video/bundle-size-viz.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
+
+Effect v4 Beta also introduced unified versioning across the ecosystem. Instead of coordinating separate versions across Effect, `@effect/platform`, `@effect/sql`, `@effect/rpc`, and other packages, the v4 ecosystem now ships together under one version number. Many previously separate packages have also been consolidated into the core effect package, while platform-specific or provider-specific integrations remain separate.
+
+Another important piece of the Effect v4 Beta is unstable modules. New functionality can now ship under effect/unstable/*, making it easier to experiment with new APIs inside the main package without committing to long-term stability too early.
+ 
+&nbsp;
+
+## What has landed since launch
+
+&nbsp;
+
+### Schema
+ 
+Schema has been one of the most heavily worked areas of the beta. The changes span ergonomics, architecture, correctness, and DX.
+ 
+**API consolidation and renaming.** `makeUnsafe` was renamed back to `make` for consistency. `ExtendableClass` was merged into `Class`. `Schema.Codec.ToAsserts` was removed; `Schema.asserts` now works with a direct `asserts(schema, input)` call. `SchemaParser.makeUnsafe` became `SchemaParser.make`.
+ 
+**New constructors and utilities.** Added `Schema.makeOption` / `SchemaParser.makeOption` for constructing schema values wrapped in `Option`. Added `Schema.asClass` to turn any schema into a class with static method support. Added `Schema.annotateEncoded` for annotating the encoded side of a schema. Added `Schema.resolveAnnotationsKey`. Added `Schema.DurationFromString` for parsing duration strings. Added `Config.literals` as a convenience constructor for `Schema.Literals`. Added several missing `*FromString` schemas: `StringFromBase64`, `StringFromBase64Url`, `StringFromHex`, `StringFromUriComponent`.
+ 
+**Context-aware defaults.** Schema decoding defaults can now require services, enabling context-aware default values. Defaults can also fail with `SchemaError`. The mapping for schema defaults was switched to eager for more predictable behavior.
+ 
+**Class improvements.** Class constructors now accept `void` when all fields are optional. A compile-time `MissingSelfGeneric` error has been added for Class APIs. `ErrorClass`/`TaggedErrorClass` toString now matches native Error output.
+ 
+**Schema property processing.** Schema properties and elements can now be processed concurrently.
+ 
+**JSON Schema output.** Same-type literal branches are collapsed into a single enum array. `compactEnums` now supports multi-value enum branches. Added a JSON Schema custom annotation passthrough option for advanced use cases.
+ 
+**Type ergonomics.** `Struct` utility return types (e.g., `pick`) now preserve the simplified shape instead of exposing raw `Pick<T, K>`. `~rebuild.out` was renamed to `Rebuild`. `withDecodingDefaultTypeKey` / `withDecodingDefaultType` were added. `FilterOutput` was expanded to support multiple failures and full `Issues` at paths. Reintroduced `.value` on `Schema.Array` and `Schema.NonEmptyArray` for consistency with other collection wrappers (`Chunk`, `HashSet`, etc.).
+ 
+**Bug fixes.** Fixed `catch*` combinators erasing unhandled error types. Fixed arbitrary constraints for exclusive `BigInt`, `Date`, and integer number bounds.
+ 
+**`Model.Generated` renamed to `Model.GeneratedByDb`** for clarity on which fields are generated by the database versus the application.
+ 
+&nbsp;
+ 
+### IndexedDB
+ 
+The `IndexedDb` module was merged in early April, bringing first-class browser persistence to Effect applications.
+ 
+The module has been expanded significantly since landing:
+ 
+- Streaming and offset support for IDB queries
+- Compound index improvements and encoded types for IDB queries
+- A `.reverse()` method on IDB selects
+- A `rebuild` API for IDB databases
+- An improved transaction API with customizable durability
+- `.reactive` on IndexedDB `.first` queries for reactivity
+- Defaults for reactivity keys
+- `Model.Class` usable directly as IndexedDB schemas
+- Cached base IDB query builders for better performance
+- `Cause.NoSuchElementError` used for IDB `.first` queries (aligning with the broader Effect error model)
+- Fixed IDB entries transaction
+- Fixed bulk writes in indexed DB transactions
+
+&nbsp;
+ 
+### HTTP & HttpApi
+ 
+**HttpApi improvements.** Added a code generation module (`HttpApi.gen`). Reworked `HttpApiClient` so `urlBuilder` uses schemas and client-shaped APIs. Renamed the `withResponse` option to `responseMode`. Added `disableCodecs` option to `HttpApiEndpoint` constructors. Fixed security middleware cache reuse. Allowed middleware to accept error arrays and fixed the `HttpApi.Any` constraint. Made `HttpApi` schema errors defects unless explicitly transformed. Added support for common string literals in `HttpApiSchema.status`. Included middleware errors in `AtomHttpApi` queries and mutations. Fixed empty body decoding in `HttpApiBuilder`. Fixed `HttpApiBuilder` void responses incorrectly producing a non-empty body.
+ 
+**HttpApi security.** Added `HttpApiSecurity.http` for passing custom HTTP authentication schemes, and added custom HTTP security scheme generation in the OpenAPI output. This enables authentication scenarios beyond the standard bearer/basic patterns.
+ 
+**HttpApiTest.** A new `HttpApiTest` module was added for testing `HttpApi` handlers without a running server, with support for overriding group base URLs.
+ 
+**HTTP client and server.** Added a static file server. Added `expireCookie` APIs for HTTP cookies. Added `Headers.removeMany` combinator. Improved `HttpClient.withRateLimiter` with automatic delay from `retry-after` headers. Added support for `form-urlencoded` in the OpenAPI generator's HTTP client format.
+ 
+**Bug fixes.** Fixed `http` `schemaBodyJson` `parseOptions` annotation. Returned a `404` for MCP HTTP requests with no session header. Removed the HTTP server log span counter. Fixed `RpcServer` HTTP finalizer request IDs.
+ 
+&nbsp;
+ 
+### RPC
+ 
+**New capabilities.** Added support for deferred responses in RPC. Added `RpcGroup.omit`. Added a `require` option to `AtomRpc.query` to make atoms serializable. Added `Rpc.custom` for defining custom RPC handlers with full control over the request/response lifecycle. Added `RpcWorker` Protocol service key (bug fix). Added `rpc` `ConnectionHooks`.
+ 
+**Bug fixes.** Fixed the entity proxy RPC handler context. Fixed `RpcServer` HTTP finalizer request IDs. Fixed `RpcWorker` Protocol service key.
+ 
+&nbsp;
+ 
+### AI
+ 
+**OpenAI.** Added support for custom model/request properties in `openai-compat`. Forwarded reasoning config. Fixed the OpenAI MCP tool integration. Restored OpenAI reasoning types. Updated the OpenAI schema strategy. Added OpenAI reasoning support. Widened `OpenAIFile.expires_at` and `status_details` to accept `null`. Made strict mode configurable for tool definitions. Handled missing `output` arrays in OpenAI responses. Improved WebSocket error status reporting.
+ 
+**Streaming.** Fixed missing finish parts in `LanguageModel` streaming. Fixed tool output persistence in streamed chat history.
+ 
+**Other providers.** Fixed OpenRouter client HTTP referer header name. Fixed in-memory/in_memory prompt cache enum values for Amazon Bedrock.
+ 
+&nbsp;
+ 
+### Workflow & Durable Execution
+ 
+Key fixes and improvements during the beta:
+ 
+- Fixed workflow failures being squashed by suspension interrupts
+- Isolated workflow suspension in `DurableDeferred.into`
+- Fixed `Latch.release`
+- Fixed parent pointer forwarding when spawning a child with `discard: true`
+- The `DurableQueue` module was also ported from v3 to v4, bringing persistent queue semantics to the beta.
+ 
+&nbsp;
+ 
+### SQL
+ 
+**New packages.** Added `@effect/sql-pglite` for PGlite-backed SQL, expanding the SQL adapters available for lightweight and in-browser use cases.
+ 
+**New APIs.** Added `Sql.unique` for queries that must return exactly one row. Added `KeyValueStore.layerSql`. Added `makeMsgPack` for configurable `msgpackr` options. Added support for `.mts` and `.mjs` SQL migration files.
+ 
+**PostgreSQL.** Added a dedicated PG connection for `LISTEN`. Switched to `pg_notify` instead of raw `NOTIFY` in `PgClient`. Cleaned up `sql-pg` constructors and layers. Guarded transaction acquire failures in `PgClient.fromPool`.
+ 
+**Other fixes.** Returned resolvers directly from `SqlModel.makeResolvers`. Disabled SQL traces for `EventLog` and `RunnerStorage`. Fixed SQL `findAll/findNonEmpty` request input typing.
+ 
+&nbsp;
+ 
+### Platform & Runtime
+ 
+**New APIs.** Added `Effect.abortSignal` for exposing the current fiber's abort signal. Added `Socket.make` for low-level socket construction. Added the `Effectable` module for defining custom effect-like types. Added `Effect.acquireDisposable` for integrating with the TC39 Explicit Resource Management proposal (`using` keyword). Ported `Effect.firstSuccessOf` from v3. Added a `Crypto` service to `@effect/platform`, exposing a cross-platform cryptography API. Added `Layer.suspend` constructor.
+ 
+**Type inference fixes.** Used `NoInfer` in `Layer` constructors to prevent type erasure. Fixed cache constructor inference by moving the `lookup` option. Fixed type inference for `Effect.retry` when the `times` option is provided. Fixed `Stream.toQueue` types. Made `Unify.unify` work with the `Layer` module.
+ 
+**Bug fixes.** Fixed `Effect.forkScoped` Scope requirements. Fixed SIGINT listener not being removed until fiber exit. Fixed `TestClock` layer Scope requirement. Fixed `TestClock` nanoseconds flooring before `BigInt` conversion. Fixed `formatJson` circular reference handling. Fixed fiber lifetime metric start hook lifecycle. Fixed `Schedule.fixed` immediate catch-up for long-running iterations. Fixed `RequestResolver` per-request instance leak (`pendingBatches`). Fixed logger string formatter quoting. Fixed `AtomRef` notify listener resubscribe, ensuring listeners correctly reattach after notification cycles. Clarified that `Data.$is(tag)` only checks the `_tag` field. Emitted minimal docs in generated barrels to reduce bundle overhead.
+ 
+&nbsp;
+ 
+### Stream & Scheduling
+ 
+**New APIs.** Added `Stream.broadcastN` for broadcasting to N downstream consumers. Added `Schedule.tap` for side-effecting on schedule steps. Added `Stream.timeoutOrElse`. Added `Stream` service accessors.
+ 
+**Bug fixes.** Fixed `Channel.decodeText` to correctly handle UTF-8 chunk boundaries. Fixed `Stream.groupedWithin` partial batch flushing. Fixed `Effect.repeat` to use the effect return value when using options. Optimized binary array generation from streams to reduce unnecessary copying.
+ 
+&nbsp;
+ 
+### CLI
+ 
+**New APIs.** Added `Command.withHidden` to hide subcommands from help output. Added a hidden flag primitive. Used a predicate for `Argument.variadic` validation. Made parent flag inheritance explicit via `Command.withSharedFlags`. Added default value support to integer and file `Prompt` types, making CLI prompts more ergonomic when a sensible default exists.
+ 
+**Bug fixes.** Fixed unstable CLI boolean flags. Underlined active labels in CLI multi-select prompts. Fixed an issue with exported CLI completion types. Fixed `--log-level=value` from swallowing the next argument. Fixed global flag handling in mixed CLI contexts. Used `Ansi.blackBright` for `Weak` spans so `--help` is readable on dark terminals. Replaced all hyphens in shell completion command names.
+ 
+&nbsp;
+ 
+### Context (formerly `ServiceMap`)
+ 
+One of the most impactful changes during the beta: **`ServiceMap` was renamed back to `Context`**, realigning with v3 naming conventions. References were re-exported from `effect/References`. `ServiceMap.Key` was made covariant.
+ 
+**`EventLog`** identity now string-encodes to base64.
+ 
+&nbsp;
+ 
+### Sharding & Cluster
+ 
+Added `availableShardGroups` to `ShardingConfig` to prevent advisory lock conflicts. Added Kubernetes support for nullable `lastTransitionTime` values. Cleaned up `ShardId`.
+ 
+&nbsp;
+ 
+### Developer Experience & Documentation
+ 
+**JSDoc and documentation.** Standardized JSDoc example imports across the entire codebase. Normalized category tags. Added a `standard-jsdoc` ESLint rule that validates JSDoc links and is now enabled across the library. Vetted `@since` tags between v3 and v4. Improved example titles and generated indexes. Fixed `Struct` symbol links to preserve "Go to Definition" (F12) navigation in VSCode. Clarified filter annotation messages in Schema docs. Added a docs section on customizing schema error responses in `HttpApi`. Cleaned up `AGENTS.md`. Continued the JSDoc quality push with improvements across `Effect` core APIs, corrected misleading API docs, and added a new `Schedule` cookbook.
+ 
+**Removals.** Removed `Effect.Yieldable`, continuing the v4 API surface cleanup. Removed `Schema.Codec.ToAsserts`. Removed a duplicated `stringifyCircular` utility. Removed rulesync and cleanup patterns. Renamed `dtslint` directories to `typetest`.
+ 
+**Migration tooling.** Previous API names are being added to migration maps for smoother upgrading. Two migration guides are available: the [v3 to v4 Migration Guide](https://github.com/Effect-TS/effect-smol/blob/main/MIGRATION.md) and the [Schema v4 Migration Guide](https://github.com/Effect-TS/effect-smol/blob/main/packages/effect/SCHEMA.md).
+ 
+&nbsp;
+
+---
+
+&nbsp;
+
+## The Effect v4 Beta has been moving fast
+
+Effect v4 is still in beta, so breaking changes may occur.
+
+The launch set the foundation: a rewritten runtime, smaller bundles, unified versioning, a consolidated core package, and a path for experimental APIs.
+
+Since then, the work has been about carrying that foundation across the ecosystem: porting modules, refining APIs, smoothing migrations, improving docs, and tightening the developer experience.
+
+Thank you to everyone testing Effect v4 beta, reporting issues, trying migrations, and following along with the [weekly updates](https://effect.website/blog/tags/this-week-in-effect/).
+ 
+In the meantime: install the beta, build something real, and share what works, what breaks, and what feels off. That feedback is what will shape the final Effect v4.
+
+<Tabs syncKey="package-manager">
+
+<TabItem label="npm" icon="seti:npm">
+
+```bash showLineNumbers=false
+npm install effect@beta
+```
+
+</TabItem>
+
+<TabItem label="pnpm" icon="pnpm">
+
+```bash showLineNumbers=false
+pnpm add effect@beta
+```
+
+</TabItem>
+
+<TabItem label="Yarn" icon="yarn">
+
+```bash showLineNumbers=false
+yarn add effect@beta
+```
+
+</TabItem>
+
+<TabItem label="Bun" icon="bun">
+
+```bash showLineNumbers=false
+bun add effect@beta
+```
+
+</TabItem>
+
+</Tabs>
+ 
+Happy Effecting. 🚀
