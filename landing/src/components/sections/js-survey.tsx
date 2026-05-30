@@ -19,7 +19,7 @@ to make building applications easier.
       {
         name: "4. Immutable Data Structures",
         value: 8243,
-        docsLink: "/docs/data-types/cause/"
+        docsLink: "/docs/data-types/data/"
       },
       {
         name: "5. Observable",
