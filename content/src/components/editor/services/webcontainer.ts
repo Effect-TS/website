@@ -485,23 +485,30 @@ function treeFromWorkspace(workspace: Workspace): FileSystemTree {
 
 const runExe = `#!/usr/bin/env node
 const ChildProcess = require("node:child_process")
+const Fs = require("node:fs")
 const Path = require("node:path")
 
 const outDir = "dist"
 const program = process.argv[2]
-const programJs = program.replace(/\\.ts$/, ".js")
-const compiledProgram = Path.join(outDir, Path.basename(programJs))
+const compiledProgram = Path.join(outDir, Path.basename(program).replace(/\\.ts$/, ".js"))
+const configPath = ".tsc-run.json"
+
+Fs.writeFileSync(configPath, JSON.stringify({
+  compilerOptions: {
+    module: "nodenext",
+    outDir,
+    rootDir: Path.dirname(program),
+    skipLibCheck: true,
+    sourceMap: true,
+    target: "esnext",
+    lib: ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  files: [program]
+}))
 
 function run() {
   ChildProcess.spawn("tsc-watch", [
-    "--module", "nodenext",
-    "--outDir", outDir,
-    "--skipLibCheck",
-    "--sourceMap", "true",
-    "--target", "esnext",
-    "--lib", "ES2022,DOM,DOM.Iterable",
-    "--ignoreConfig",
-    program,
+    "-p", configPath,
     "--onSuccess", \`node --enable-source-maps \${compiledProgram}\`
   ], {
     stdio: "inherit"
