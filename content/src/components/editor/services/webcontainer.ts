@@ -493,14 +493,18 @@ const program = process.argv[2]
 const compiledProgram = Path.join(outDir, Path.basename(program).replace(/\\.ts$/, ".js"))
 const configPath = ".tsc-run.json"
 
+const hasUserConfig = Fs.existsSync("tsconfig.json")
 Fs.writeFileSync(configPath, JSON.stringify({
+  ...(hasUserConfig ? { extends: "./tsconfig.json" } : {}),
   compilerOptions: {
-    module: "nodenext",
+    ...(hasUserConfig ? {} : {
+      module: "nodenext",
+      target: "esnext"
+    }),
     outDir,
     rootDir: Path.dirname(program),
     skipLibCheck: true,
     sourceMap: true,
-    target: "esnext",
     lib: ["ES2022", "DOM", "DOM.Iterable"]
   },
   files: [program]
