@@ -1,7 +1,7 @@
 ---
 pagefind: false
 title: This Week in Effect - 2026-06-19
-excerpt: "Effectifying OpenCode with Kit Langton on Cause & Effect 8. Rivet announces an Effect SDK for Rivet Actors! Effect Paris 🇫🇷 meetup on June 25, hosted by evryg."
+excerpt: "Effectifying OpenCode with Kit Langton on Cause & Effect 8. Rivet announces an Effect SDK for Rivet Actors! Effect Paris 🇫🇷 meetup on June 25. HttpApi streaming support lands in v4 Beta."
 date: 2026-06-19
 authors:
   - davide_scognamiglio
@@ -40,27 +40,33 @@ To get started, below you’ll find links to our documentation and our guide for
 
 ### Effect v4 Beta updates
 
-The v4 beta had a well-rounded week, with important bug fixes across Schema, tree-shaking improvements, AI provider updates, and a significant Entity reliability fix — here are the most notable changes that landed in `effect-smol`.
+The v4 beta had an exceptionally active week, with streaming support landing in HttpApi, several important Schema and Config fixes, and a batch of v3 ports — here are the most notable changes that landed in `effect-smol`.
  
-- **Tree-shaking**: Made module-level side effects in `effect` tree-shakable, reducing bundle sizes for applications that only import a subset of the library.
+- **HttpApi streaming**: Added streaming response support to `HttpApi`, a long-requested feature that enables server-sent events and chunked transfer responses directly from `HttpApiEndpoint` definitions.
 
-- **Schema fixes**: Fixed schema encoding checks and index signatures, fixed `Schema.encodeKeys` property key handling, fixed `ObjectKeyword` JSON Schema output, and fixed fractional duration rounding to be symmetric when normalizing to nanoseconds.
+- **Schema fixes**: Normalized error behavior for `Schema` and `SchemaParser` boundary APIs, fixed `Schema.isAnyOf` custom tag narrowing, enhanced `isMissingDataOnly` to handle `AnyOf` cases more accurately, and imported unconstrained JSON Schema as `Json`. Also derived template literal arbitraries from encoded parts for more accurate property-based test generation.
 
-- **Arbitrary generation**: Refactored the arbitrary generation engine and made `BigDecimal` range generation scale-aware, using generic ordered constraints for more accurate schema-derived test data.
+- **Config fixes**: Fixed `Config.withDefault` filter fallback behavior and fixed config path composition and directory-backed lookup behavior.
 
-- **HTTP & HttpApi**: Encoded HTTP API path params correctly for non-string types, and fixed `Random.withSeed` string seed encoding.
+- **HttpApi fixes**: Fixed `HttpApiEndpoint` error inference and fixed `HttpApiSchema` published types.
 
-- **Entity reliability**: Fixed `EntityManager` defect restarts so in-flight requests are replayed rather than dropped when the old entity scope is interrupted — a significant correctness fix for long-running entity workflows.
+- **Effect core ports from v3**: Ported `Effect.transposeOption` and `Random.choice` from v3, continuing the API surface alignment between versions.
 
-- **AI providers**: Fixed Claude 4 generation to support native structured output in `ai-anthropic`, fixed null `function.name` handling on streamed tool-call fragments in `ai-openai-compat`, and declared the missing `swagger2openapi` runtime dependency in the OpenAPI generator.
+- **RPC**: Made `RpcGroup.toHandlers` definition-first for more ergonomic handler registration.
 
-- **RateLimiter**: Added TTL and nil-guard to the Redis token-bucket implementation to prevent stale state accumulation.
+- **Stream**: Fixed `Stream.runForEachWhile` chunk continuation, and swallowed `reader.cancel` rejection in `Stream.fromReadableStream` finalizer to prevent spurious errors on stream cleanup.
 
-- **Graph**: Fixed undirected graph traversal logic.
+- **Workflow**: Fixed workflow defect serialization, ensuring error details survive the persistence boundary correctly.
 
-- **CLI**: Added metavar/log-level meta support to show values for log level arguments.
+- **SQL**: Deduplicated `SqlResolver.findById` requests to avoid redundant queries within the same batch.
 
-- **Documentation**: Clarified `Effect.fn` and `fnUntraced` usage, clarified `Model.GeneratedByDb` variants, fixed the MCP example in `effect` docs, corrected JSDoc on `Workflow.poll` and `WorkflowEngine.poll`, and continued the module JSDoc refactor.
+- **AI & OpenRouter**: Added audio input parts support to OpenRouter, and preserved reasoning deltas for chat completions compatibility.
+
+- **CLI**: Added `Prompt.custom` external event merging support.
+
+- **Graph**: Fixed algorithm edge cases and added explicit directed neighbor functions.
+
+- **Documentation**: Added JSDoc function signature extraction, normalized JSDoc example titles across the codebase, added `DateTime` AI docs, and updated generated AI documentation.
 
 Full changelog in the [effect-smol repository](https://github.com/Effect-TS/effect-smol).
 
