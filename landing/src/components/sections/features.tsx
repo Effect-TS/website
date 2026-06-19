@@ -7,7 +7,7 @@ export const Features = () => {
   return (
     <section className="relative">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-16 pb-24 pt-32 grid grid-cols-1 md:grid-cols-3 gap-16">
-        <div>
+        <div className="flex h-full flex-col justify-between">
           <div className="flex items-center gap-3">
             <GlowingIcon name="blocks" />
             <h3 className="font-display text-xl text-white">Powerful building blocks</h3>
@@ -18,11 +18,11 @@ export const Features = () => {
             tackle the most complex problems.
           </p>
           <Checklist items={['Immutable data structures', 'Asynchronous queues & pub-sub', 'Configuration & dependency management']} />
-          <Button href="/docs" secondary className="mt-10">
+          <Button href="/docs" secondary className="mt-10 self-start">
             Read documentation
           </Button>
         </div>
-        <div>
+        <div className="flex h-full flex-col justify-between">
           <div className="flex items-center gap-3">
             <GlowingIcon name="plugs" />
             <h3 className="font-display text-xl text-white">No more one-off dependencies</h3>
@@ -32,11 +32,11 @@ export const Features = () => {
             application, your package.json will have never been this small.
           </p>
           <Checklist items={['Data validation & serialization', 'Frameworks for CLI & HTTP applications', 'Powerful abstractions for every platform']} />
-          <Button href="/docs" secondary className="mt-10">
+          <Button href="/docs" secondary className="mt-10 self-start">
             Read documentation
           </Button>
         </div>
-        <div>
+        <div className="flex h-full flex-col justify-between">
           <div className="flex items-center gap-3">
             <GlowingIcon name="shield" />
             <h3 className="font-display text-xl text-white">Never try & catch again</h3>
@@ -46,7 +46,7 @@ export const Features = () => {
             Successfully handle failure with the built-in error-handling primitives.
           </p>
           <Checklist items={['Type-safe errors as values', 'Powerful retry & recovery APIs', 'Tools for logging & tracing']} />
-          <Button href="/docs" secondary className="mt-10">
+          <Button href="/docs" secondary className="mt-10 self-start">
             Read documentation
           </Button>
         </div>
