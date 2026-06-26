@@ -1,0 +1,158 @@
+---
+pagefind: false
+title: "Effect v4 Beta: June Recap"
+excerpt: "A recap of everything that landed in the Effect v4 beta during June — adaptive rate limiting, Schema performance improvements, OpenTelemetry enhancements, SQL additions, and more."
+date: 2026-06-30
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - Releases
+  - Effect v4 Beta Recaps
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components"
+
+June was another active month for the Effect v4 beta. The work continued across the full breadth of the ecosystem — new capabilities in rate limiting, Schema, SQL, and CLI, alongside a focused sweep of fixes in OpenTelemetry, HTTP, RPC, and core.
+
+Here is everything that landed in [`effect-smol`](https://github.com/Effect-TS/effect-smol) during June.
+
+&nbsp;
+
+---
+
+&nbsp;
+
+## What landed in June
+
+&nbsp;
+
+### Rate Limiting
+
+Added `RateLimiter.adaptive`, a new rate limiter strategy that dynamically adjusts limits based on upstream response signals. It complements the existing fixed and token-bucket strategies, making it easier to handle APIs that communicate backpressure through their responses rather than requiring a statically configured limit.
+
+&nbsp;
+
+### Schema
+
+June brought a broad round of Schema performance work, correctness fixes, and small API additions.
+
+**Performance.** Improved Schema type-level performance, reducing compile-time overhead for large schema definitions.
+
+**Correctness fixes.** Fixed handling of encoded-side checks for container ASTs. Fixed `Schema.Void` to align with TypeScript behavior. Fixed `Config.schema` so missing array values are treated as missing data rather than an empty array.
+
+**API additions.** Removed the `keepDeclarations` option from `Schema.toCodecStringTree`. Exposed `source` schema on schema wrappers for introspection. Emitted `Schema.ConstraintDecoder` in generated SSE clients. Switched to `URL.canParse` for URL schema decoding. Added `Latch.isOpen` to query latch state.
+
+&nbsp;
+
+### Effect Core
+
+Added custom errors to `Effect.fromOption`, allowing callers to supply a typed error value instead of always receiving `NoSuchElementException`. This makes `fromOption` more composable in pipelines where the error channel is already typed.
+
+Fixed frozen intrinsics when adjusting `Error.stackTraceLimit`.
+
+&nbsp;
+
+### OpenTelemetry
+
+Several improvements to trace quality and signal-to-noise ratio:
+
+- Rendered causes in OTLP tracer exception events, providing richer diagnostic data in trace spans
+- Preserved external span sampling, ensuring spans originating outside Effect respect their original sampling decisions
+- Stripped response metadata from HTTP server span failures to reduce noise in traces
+
+&nbsp;
+
+### SQL
+
+**New APIs.** Added `SQL.valuesUnprepared` for raw value interpolation in queries. Added additional connection options to `MssqlClientConfig`.
+
+**Bug fixes.** Fixed `sqlite-do` Durable Object transactions. Fixed `sqlite-bun` to fail with a typed `SqlError` when statement preparation throws, rather than an untyped exception. Scoped unknown request tag failures to the request instead of the connection.
+
+&nbsp;
+
+### RPC & HTTP
+
+Failed `RpcClient` HTTP requests with a defect when the response closes early. Fixed the bundle resolver for package export subpaths. Matched `NodeHttpServer.layerConfig` services.
+
+&nbsp;
+
+### AI
+
+Fixed `ai-anthropic` to emit `null` instead of `undefined` for the caller `toolId` field in non-streaming responses, aligning with expected JSON serialization behavior.
+
+&nbsp;
+
+### Cron
+
+Fixed `Cron.next` skipping days when overflowing month boundaries — a correctness bug that could cause scheduled tasks to miss their next execution when a cron expression landed on the last days of a month.
+
+&nbsp;
+
+### CLI
+
+Exposed the CLI environment to schemas, enabling context-aware schema validation inside CLI commands. This allows schemas to access environment services when validating CLI input, consistent with how context-aware defaults work elsewhere in the library.
+
+&nbsp;
+
+### Performance
+
+Stopped using `performance.timeOrigin` and switched to lazy origin calculation. This avoids issues in environments where the Performance API is restricted or unavailable, improving compatibility across runtimes.
+
+&nbsp;
+
+### Documentation
+
+Refactored the `Schedule` cookbook. Clarified `Redacted` schema migration docs. Added an unused internal export lint rule.
+
+&nbsp;
+
+---
+
+&nbsp;
+
+## Following the beta
+
+The Effect v4 beta is still moving. If you want to catch up on everything that landed before June, the [February–May recap](https://effect.website/blog/effect-v4beta-launch-to-may-recap/) covers all the major changes since launch organized by topic.
+
+For week-by-week updates, follow the [This Week in Effect](https://effect.website/blog/tags/this-week-in-effect/) series.
+
+To try the beta:
+
+<Tabs syncKey="package-manager">
+
+<TabItem label="npm" icon="seti:npm">
+
+```bash showLineNumbers=false
+npm install effect@beta
+```
+
+</TabItem>
+
+<TabItem label="pnpm" icon="pnpm">
+
+```bash showLineNumbers=false
+pnpm add effect@beta
+```
+
+</TabItem>
+
+<TabItem label="Yarn" icon="yarn">
+
+```bash showLineNumbers=false
+yarn add effect@beta
+```
+
+</TabItem>
+
+<TabItem label="Bun" icon="bun">
+
+```bash showLineNumbers=false
+bun add effect@beta
+```
+
+</TabItem>
+
+</Tabs>
+
+Happy Effecting. 🚀
