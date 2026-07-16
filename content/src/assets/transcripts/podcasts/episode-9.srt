@@ -1,0 +1,8098 @@
+1
+00:00:00,000 --> 00:00:03,800
+The role that schema plays in Foldkit
+
+2
+00:00:03,800 --> 00:00:05,520
+can't be understated.
+
+3
+00:00:05,520 --> 00:00:07,680
+The entire model, all
+
+4
+00:00:07,680 --> 00:00:09,520
+of your state in Foldkit
+
+5
+00:00:09,520 --> 00:00:11,960
+is represented as a schema.
+
+6
+00:00:11,960 --> 00:00:13,480
+And that unlocks all
+
+7
+00:00:13,480 --> 00:00:15,680
+sorts of really useful things.
+
+8
+00:00:15,680 --> 00:00:17,600
+One example would be
+
+9
+00:00:17,600 --> 00:00:19,000
+the Foldkit DevTools.
+
+10
+00:00:19,000 --> 00:00:21,280
+Like being able to see while your
+
+11
+00:00:21,280 --> 00:00:23,160
+application is running
+
+12
+00:00:23,160 --> 00:00:24,960
+exactly what the entire
+
+13
+00:00:24,960 --> 00:00:26,320
+state of the application is,
+
+14
+00:00:26,320 --> 00:00:27,880
+is extremely useful.
+
+15
+00:00:27,880 --> 00:00:30,640
+I'd say it's even more useful right now
+
+16
+00:00:30,640 --> 00:00:33,480
+when AI is writing most of the code.
+
+17
+00:00:33,480 --> 00:00:35,560
+Your agent can see
+
+18
+00:00:35,560 --> 00:00:37,400
+exactly what the current state
+
+19
+00:00:37,400 --> 00:00:38,440
+of the model is.
+
+20
+00:00:38,440 --> 00:00:39,800
+And as a human
+
+21
+00:00:39,800 --> 00:00:40,920
+reviewer, you can also see it
+
+22
+00:00:40,920 --> 00:00:42,000
+in a given moment what the
+
+23
+00:00:42,000 --> 00:00:43,120
+current state of your model is,
+
+24
+00:00:43,120 --> 00:00:44,520
+even if you didn't write the code.
+
+25
+00:00:44,520 --> 00:00:46,360
+Schema is really the
+
+26
+00:00:46,360 --> 00:00:48,280
+backbone of any Foldkit program.
+
+27
+00:00:48,280 --> 00:00:49,560
+And I don't think
+
+28
+00:00:49,560 --> 00:00:51,280
+Foldkit could exist without it.
+
+29
+00:00:54,400 --> 00:00:55,480
+Hey, Devin, it's so nice
+
+30
+00:00:55,480 --> 00:00:56,200
+to have you on the show.
+
+31
+00:00:56,200 --> 00:00:56,920
+How are you doing?
+
+32
+00:00:57,720 --> 00:00:58,240
+Yeah, thanks.
+
+33
+00:00:58,240 --> 00:00:59,000
+Thanks for having me.
+
+34
+00:00:59,520 --> 00:01:00,520
+It's good to be here.
+
+35
+00:01:00,520 --> 00:01:01,020
+How are you?
+
+36
+00:01:01,400 --> 00:01:02,320
+I'm doing great.
+
+37
+00:01:02,320 --> 00:01:03,760
+The two of us seem to have
+
+38
+00:01:03,760 --> 00:01:05,640
+quite a few things in common.
+
+39
+00:01:05,640 --> 00:01:08,360
+Both of us started as web designers early
+
+40
+00:01:08,360 --> 00:01:10,360
+on, and now we have a similarly
+
+41
+00:01:10,360 --> 00:01:14,000
+great taste in hats for those of us who
+
+42
+00:01:14,000 --> 00:01:16,080
+are just like listening and not
+
+43
+00:01:16,080 --> 00:01:18,080
+watching, we're both wearing the OG
+
+44
+00:01:18,080 --> 00:01:20,640
+Effect.orDie hat, which I think you can
+
+45
+00:01:20,640 --> 00:01:23,640
+get in the merch shop of Effect can
+
+46
+00:01:23,640 --> 00:01:25,160
+highly recommend it.
+
+47
+00:01:25,160 --> 00:01:27,440
+But aside from that, would you mind
+
+48
+00:01:27,440 --> 00:01:30,560
+giving a quick introduction who you are
+
+49
+00:01:30,560 --> 00:01:32,600
+You're the author of Foldkit, which
+
+50
+00:01:32,600 --> 00:01:33,400
+we're going to hear a
+
+51
+00:01:33,400 --> 00:01:35,120
+lot about in a moment.
+
+52
+00:01:35,120 --> 00:01:36,880
+But yeah, maybe you want to
+
+53
+00:01:36,880 --> 00:01:38,160
+briefly introduce yourself.
+
+54
+00:01:38,960 --> 00:01:39,400
+Sure.
+
+55
+00:01:39,400 --> 00:01:39,800
+Yeah.
+
+56
+00:01:39,800 --> 00:01:41,720
+I'm Devin Jameson.
+
+57
+00:01:41,720 --> 00:01:44,760
+I'm the author and maintainer of a
+
+58
+00:01:44,760 --> 00:01:46,840
+frontend framework called Foldkit.
+
+59
+00:01:47,520 --> 00:01:49,560
+I am a software engineer.
+
+60
+00:01:50,160 --> 00:01:54,240
+I started my career in tech as a designer
+
+61
+00:01:54,240 --> 00:01:58,480
+and have worked mostly on frontends
+
+62
+00:01:58,480 --> 00:02:01,240
+React projects over the last seven
+
+63
+00:02:01,240 --> 00:02:06,040
+years and excited to talk about all
+
+64
+00:02:06,040 --> 00:02:07,120
+those things today.
+
+65
+00:02:07,120 --> 00:02:07,920
+That's awesome.
+
+66
+00:02:07,920 --> 00:02:09,880
+So beforehand, you already mentioned to
+
+67
+00:02:09,880 --> 00:02:12,960
+me that Foldkit is not just a side
+
+68
+00:02:12,960 --> 00:02:16,200
+project now plays a really like important
+
+69
+00:02:16,200 --> 00:02:19,480
+role in your creative work life.
+
+70
+00:02:19,480 --> 00:02:21,160
+That being said, you still
+
+71
+00:02:21,160 --> 00:02:23,680
+have a full time role as well.
+
+72
+00:02:23,680 --> 00:02:25,800
+Are those like overlapping in some way?
+
+73
+00:02:25,800 --> 00:02:28,440
+Are you building Foldkit also for work or
+
+74
+00:02:28,440 --> 00:02:29,760
+are those mostly separate?
+
+75
+00:02:30,360 --> 00:02:32,840
+They're mostly separate and I still have
+
+76
+00:02:32,840 --> 00:02:34,920
+a full time job at August Health
+
+77
+00:02:34,920 --> 00:02:38,160
+that I really enjoy and Foldkit has just
+
+78
+00:02:38,160 --> 00:02:40,760
+become a kind of a second full time
+
+79
+00:02:40,760 --> 00:02:44,560
+job that I'm really passionate about.
+
+80
+00:02:44,560 --> 00:02:47,480
+And there are a few ways in which Foldkit
+
+81
+00:02:47,480 --> 00:02:49,080
+has snuck into my full time work,
+
+82
+00:02:49,080 --> 00:02:51,440
+but for the most part, they're separate.
+
+83
+00:02:51,440 --> 00:02:52,480
+That being said, we do use
+
+84
+00:02:52,480 --> 00:02:54,040
+effect and really enjoy it.
+
+85
+00:02:54,040 --> 00:02:54,680
+Oh, okay.
+
+86
+00:02:54,680 --> 00:02:56,640
+Got it.
+This is what I wanted to ask next.
+
+87
+00:02:56,640 --> 00:02:59,160
+And I'm sure we'll, we'll cover that
+
+88
+00:02:59,160 --> 00:03:00,800
+quite a bit more in depth.
+
+89
+00:03:00,800 --> 00:03:04,240
+But so Foldkit, I just saw this pop up
+
+90
+00:03:04,240 --> 00:03:07,160
+like a few weeks ago on X.
+
+91
+00:03:07,160 --> 00:03:11,440
+And like effect is like so rich and so
+
+92
+00:03:11,440 --> 00:03:13,640
+deep, but usually if there's
+
+93
+00:03:13,640 --> 00:03:17,000
+like a community effect library, like
+
+94
+00:03:17,000 --> 00:03:18,560
+it's already good if it has like an
+
+95
+00:03:18,560 --> 00:03:20,600
+approachable readme, but the Foldkit
+
+96
+00:03:20,600 --> 00:03:22,760
+website really stood out to me.
+
+97
+00:03:22,760 --> 00:03:24,720
+So that already grabbed my attention.
+
+98
+00:03:24,720 --> 00:03:27,160
+Then I saw like how extensive and how
+
+99
+00:03:27,160 --> 00:03:30,280
+ambitious the Foldkit project was.
+
+100
+00:03:30,280 --> 00:03:31,160
+with those first
+
+101
+00:03:31,160 --> 00:03:33,680
+impressions, then I also got a bit more
+
+102
+00:03:33,680 --> 00:03:35,560
+of a sense of like what Foldkit is even
+
+103
+00:03:35,560 --> 00:03:37,560
+going for and then I realized, okay,
+
+104
+00:03:37,560 --> 00:03:39,520
+it's actually like a fully extensive
+
+105
+00:03:39,520 --> 00:03:42,360
+frontend framework that is not based
+
+106
+00:03:42,360 --> 00:03:44,760
+on React, but competes with React.
+
+107
+00:03:44,760 --> 00:03:47,720
+So that seems super ambitious.
+
+108
+00:03:47,720 --> 00:03:50,280
+And before I want to learn a lot more
+
+109
+00:03:50,280 --> 00:03:52,200
+about the bells and whistles that
+
+110
+00:03:52,200 --> 00:03:54,480
+Foldkit provides, I want to address the
+
+111
+00:03:54,480 --> 00:03:55,960
+elephant in the room.
+
+112
+00:03:55,960 --> 00:03:58,840
+Why build a new front-end framework that
+
+113
+00:03:58,840 --> 00:04:01,880
+is not building on top of React, but is
+
+114
+00:04:01,880 --> 00:04:03,640
+building completely from scratch?
+
+115
+00:04:03,640 --> 00:04:05,920
+So I'm very curious to hear about your
+
+116
+00:04:05,920 --> 00:04:07,920
+motivation, sort of the technical
+
+117
+00:04:07,920 --> 00:04:11,480
+insights behind it, whether you like,
+
+118
+00:04:11,480 --> 00:04:13,600
+we're using React a lot in the past and
+
+119
+00:04:13,600 --> 00:04:15,560
+have certain like gripes with it.
+
+120
+00:04:15,560 --> 00:04:17,240
+So walk me through that.
+
+121
+00:04:17,240 --> 00:04:17,680
+Yeah.
+
+122
+00:04:17,680 --> 00:04:22,480
+I've used React for most of my career and
+
+123
+00:04:22,480 --> 00:04:27,560
+I think React is a great tool for what it
+
+124
+00:04:27,560 --> 00:04:31,720
+does and I see React as, well, React is a,
+
+125
+00:04:31,720 --> 00:04:36,400
+it's a UI view rendering library.
+
+126
+00:04:36,400 --> 00:04:40,680
+And what I've seen over the course of the
+
+127
+00:04:40,680 --> 00:04:44,200
+last seven or so years is that every
+
+128
+00:04:44,200 --> 00:04:47,520
+project is architected differently.
+
+129
+00:04:48,280 --> 00:04:51,960
+You end up pulling in a whole host of
+
+130
+00:04:51,960 --> 00:04:54,040
+tools to solve whatever problems you need
+
+131
+00:04:54,040 --> 00:04:55,400
+to solve for that project.
+
+132
+00:04:55,400 --> 00:04:59,840
+Like I've used React with GraphQL and SWR
+
+133
+00:04:59,840 --> 00:05:03,360
+and Tanstack Query and RxJS and
+
+134
+00:05:03,360 --> 00:05:06,120
+fp-ts and different UI libraries.
+
+135
+00:05:06,120 --> 00:05:09,320
+And it's very flexible,
+
+136
+00:05:09,320 --> 00:05:10,280
+which can be a benefit.
+
+137
+00:05:10,280 --> 00:05:12,400
+I think it also has some drawbacks,
+
+138
+00:05:12,400 --> 00:05:14,080
+especially in the AI world, but we can
+
+139
+00:05:14,080 --> 00:05:15,480
+talk about that later.
+
+140
+00:05:15,480 --> 00:05:16,880
+And so, over the years I
+
+141
+00:05:16,880 --> 00:05:19,200
+aligned on React patterns that I thought
+
+142
+00:05:19,200 --> 00:05:21,920
+worked and in particular the ones that I
+
+143
+00:05:21,920 --> 00:05:27,240
+thought worked at "scale" and the
+
+144
+00:05:27,240 --> 00:05:30,720
+patterns that worked for larger teams.
+
+145
+00:05:31,600 --> 00:05:35,520
+And I think making a React project
+
+146
+00:05:35,520 --> 00:05:39,360
+maintainable came down to protecting
+
+147
+00:05:39,360 --> 00:05:41,680
+that architecture that you'd aligned on.
+
+148
+00:05:41,680 --> 00:05:42,800
+And that was, that's
+
+149
+00:05:42,800 --> 00:05:45,920
+always a big challenge, right?
+
+150
+00:05:45,920 --> 00:05:47,280
+Like you didn't really have an
+
+151
+00:05:47,280 --> 00:05:48,560
+architecture that you
+
+152
+00:05:49,160 --> 00:05:50,600
+could just hold on to.
+
+153
+00:05:50,600 --> 00:05:53,440
+You had to protect it at all costs as new
+
+154
+00:05:53,440 --> 00:05:55,000
+people joined the team and you built
+
+155
+00:05:55,000 --> 00:05:56,240
+more functionality.
+
+156
+00:05:56,240 --> 00:05:59,920
+And as a kind of side quest, I ended up
+
+157
+00:05:59,920 --> 00:06:02,120
+working on an Elm project a handful of
+
+158
+00:06:02,120 --> 00:06:04,920
+years ago and totally changed how I
+
+159
+00:06:04,920 --> 00:06:07,400
+thought about front-end development,
+
+160
+00:06:07,400 --> 00:06:10,240
+loved it, and then sadly wasn't able to
+
+161
+00:06:10,240 --> 00:06:11,040
+work on any more Elm
+
+162
+00:06:11,040 --> 00:06:11,960
+projects just because
+
+163
+00:06:11,960 --> 00:06:13,640
+of like where the market was
+
+164
+00:06:13,640 --> 00:06:15,000
+and where it still is today.
+
+165
+00:06:15,000 --> 00:06:16,480
+But I took those Elm
+
+166
+00:06:16,480 --> 00:06:18,120
+learnings to my React work.
+
+167
+00:06:18,120 --> 00:06:20,600
+And about a year ago when I started
+
+168
+00:06:20,600 --> 00:06:23,920
+Foldkit, I had some
+
+169
+00:06:23,920 --> 00:06:26,400
+recognition that maybe
+
+170
+00:06:26,400 --> 00:06:29,800
+an Elm architecture front-end framework
+
+171
+00:06:29,800 --> 00:06:32,320
+would be possible in TypeScript with
+
+172
+00:06:32,320 --> 00:06:34,240
+effects and I didn't feel like there was
+
+173
+00:06:34,240 --> 00:06:36,680
+any way to really do it right without
+
+174
+00:06:36,680 --> 00:06:41,320
+effect. And now we are a year ahead.
+
+175
+00:06:41,320 --> 00:06:42,920
+And it's a real framework
+
+176
+00:06:42,920 --> 00:06:44,680
+that people are starting to use.
+
+177
+00:06:44,680 --> 00:06:46,560
+OK, awesome. So I want to understand a
+
+178
+00:06:46,560 --> 00:06:48,400
+little bit more what you mean by
+
+179
+00:06:48,400 --> 00:06:51,200
+architecture in regards to React since I
+
+180
+00:06:51,200 --> 00:06:53,800
+think there's like multiple dimensions to
+
+181
+00:06:53,800 --> 00:06:55,280
+building React,
+
+182
+00:06:55,280 --> 00:06:57,280
+multiple things to consider.
+
+183
+00:06:57,280 --> 00:06:59,680
+I suppose you're not talking about like
+
+184
+00:06:59,680 --> 00:07:02,080
+how to do styling, whether you use like
+
+185
+00:07:02,080 --> 00:07:04,120
+style components back in the days or
+
+186
+00:07:04,120 --> 00:07:05,960
+probably Tailwind today.
+
+187
+00:07:05,960 --> 00:07:07,160
+Like that's not what you're talking
+
+188
+00:07:07,160 --> 00:07:08,280
+about, but it's
+
+189
+00:07:08,280 --> 00:07:10,080
+probably much more of like how
+
+190
+00:07:10,080 --> 00:07:12,680
+does change propagate
+
+191
+00:07:12,680 --> 00:07:14,600
+throughout your application?
+
+192
+00:07:14,600 --> 00:07:16,600
+Like we're not just building a static
+
+193
+00:07:16,600 --> 00:07:19,520
+HTML page anymore, but like we have forms
+
+194
+00:07:19,520 --> 00:07:20,960
+and we have buttons and hover
+
+195
+00:07:20,960 --> 00:07:23,720
+states and context menus, etc.
+
+196
+00:07:23,720 --> 00:07:27,920
+So React has like addressed all of those
+
+197
+00:07:27,920 --> 00:07:30,040
+when it came out in like a much more
+
+198
+00:07:30,040 --> 00:07:31,320
+principled way
+
+199
+00:07:31,320 --> 00:07:33,560
+compared to the jQuery era.
+
+200
+00:07:33,560 --> 00:07:35,800
+In some regards, it has much stronger
+
+201
+00:07:35,800 --> 00:07:37,840
+opinions, but in regards to some other
+
+202
+00:07:37,840 --> 00:07:40,400
+areas, it has much weaker opinions.
+
+203
+00:07:40,400 --> 00:07:42,560
+I think that part is like
+
+204
+00:07:42,560 --> 00:07:45,560
+most notably how data flows.
+
+205
+00:07:45,560 --> 00:07:47,760
+And I feel this is also where the field
+
+206
+00:07:47,760 --> 00:07:48,240
+of different
+
+207
+00:07:48,240 --> 00:07:50,720
+technologies have forked more
+
+208
+00:07:50,720 --> 00:07:52,240
+most like radically.
+
+209
+00:07:52,240 --> 00:07:53,240
+This is where you have
+
+210
+00:07:53,800 --> 00:07:57,080
+systems like Svelte or Solid.
+
+211
+00:07:57,080 --> 00:08:00,080
+And it sounds like this is also where you
+
+212
+00:08:00,080 --> 00:08:03,400
+felt the strongest pain when working with
+
+213
+00:08:03,400 --> 00:08:05,640
+React that you needed to basically
+
+214
+00:08:05,640 --> 00:08:09,040
+protect one uniform way of like the
+
+215
+00:08:09,040 --> 00:08:11,560
+architecting the data system behind it,
+
+216
+00:08:11,560 --> 00:08:14,280
+that it kind of fits your way.
+
+217
+00:08:14,280 --> 00:08:16,680
+And this is where like on that side quest
+
+218
+00:08:16,680 --> 00:08:18,920
+with Elm, you had the most pleasant
+
+219
+00:08:18,920 --> 00:08:22,640
+experience and now where you're working
+
+220
+00:08:22,640 --> 00:08:26,040
+with Effect, you felt, okay, can we
+
+221
+00:08:26,040 --> 00:08:29,240
+somehow bring those two pleasant ideas,
+
+222
+00:08:29,240 --> 00:08:30,880
+one pleasant idea and one pleasant
+
+223
+00:08:30,880 --> 00:08:33,480
+technology, can we bring them together?
+
+224
+00:08:33,480 --> 00:08:35,160
+Is there roughly like
+
+225
+00:08:35,160 --> 00:08:36,360
+frame that in the right way?
+
+226
+00:08:37,200 --> 00:08:38,160
+Yeah, yeah, absolutely.
+
+227
+00:08:38,160 --> 00:08:41,800
+And for those not familiar with Elm, Elm
+
+228
+00:08:41,800 --> 00:08:44,920
+uses something called model view update
+
+229
+00:08:44,920 --> 00:08:46,840
+for the architecture, which means you
+
+230
+00:08:46,840 --> 00:08:51,280
+have a single model, which is your
+
+231
+00:08:51,280 --> 00:08:52,200
+application state.
+
+232
+00:08:52,200 --> 00:08:53,600
+That is the only place where
+
+233
+00:08:53,600 --> 00:08:54,960
+application state can live.
+
+234
+00:08:55,640 --> 00:08:58,200
+Your view is a pure function of the model
+
+235
+00:08:59,440 --> 00:09:02,800
+and update is where transitions happen,
+
+236
+00:09:02,800 --> 00:09:04,640
+where you go from previous day of the
+
+237
+00:09:04,640 --> 00:09:06,520
+model to the next day of the model.
+
+238
+00:09:06,520 --> 00:09:09,160
+So it's a highly constrained
+
+239
+00:09:09,160 --> 00:09:12,240
+architecture, but through those
+
+240
+00:09:12,240 --> 00:09:14,520
+constraints, you gain a
+
+241
+00:09:14,520 --> 00:09:17,640
+kind of freedom, like in the same way
+
+242
+00:09:17,640 --> 00:09:18,960
+that if you're working
+
+243
+00:09:18,960 --> 00:09:19,800
+on a creative project,
+
+244
+00:09:19,800 --> 00:09:21,880
+if you give yourself constraints, you can
+
+245
+00:09:21,880 --> 00:09:23,360
+oftentimes find yourself being more
+
+246
+00:09:23,360 --> 00:09:26,240
+productive. That's what a lot of people
+
+247
+00:09:26,240 --> 00:09:27,480
+find in the Elm architecture.
+
+248
+00:09:28,120 --> 00:09:30,440
+Got it. So if we rewind the clock a
+
+249
+00:09:30,440 --> 00:09:31,200
+little bit, I mean,
+
+250
+00:09:31,200 --> 00:09:32,960
+Elm has been around for a
+
+251
+00:09:32,960 --> 00:09:35,240
+very long time. I think some people still
+
+252
+00:09:35,240 --> 00:09:35,920
+use it
+
+253
+00:09:35,920 --> 00:09:40,320
+But I think at the back when I remember it
+
+254
+00:09:40,320 --> 00:09:42,920
+kind of coming to be, was round about the
+
+255
+00:09:42,920 --> 00:09:44,440
+same time when React also
+
+256
+00:09:44,440 --> 00:09:46,840
+really started becoming popular.
+
+257
+00:09:46,840 --> 00:09:49,280
+And one technology took React by storm
+
+258
+00:09:49,280 --> 00:09:51,280
+early on, which was Redux.
+
+259
+00:09:51,280 --> 00:09:53,120
+And so I think Redux and
+
+260
+00:09:53,120 --> 00:09:55,240
+Elm had a lot of similarities.
+
+261
+00:09:55,240 --> 00:09:58,160
+I think I don't recall the exact details
+
+262
+00:09:58,160 --> 00:09:59,400
+back then anymore, I
+
+263
+00:09:59,400 --> 00:10:01,000
+think, than Abramov back
+
+264
+00:10:01,000 --> 00:10:04,680
+then. I'm sure he was aware of Elm and
+
+265
+00:10:04,680 --> 00:10:05,680
+maybe wanted to bring
+
+266
+00:10:05,680 --> 00:10:07,080
+some of the best ideas of
+
+267
+00:10:07,080 --> 00:10:11,120
+Elm to React. But I think this is also
+
+268
+00:10:11,120 --> 00:10:12,560
+like for people who
+
+269
+00:10:12,560 --> 00:10:14,120
+have maybe never had the
+
+270
+00:10:14,120 --> 00:10:15,840
+pleasure to build something with Elm, but
+
+271
+00:10:15,840 --> 00:10:18,520
+maybe they had the pleasure of building
+
+272
+00:10:18,520 --> 00:10:20,320
+something with Redux back then.
+
+273
+00:10:20,320 --> 00:10:22,480
+I think that's like the closest analogy.
+
+274
+00:10:22,480 --> 00:10:27,200
+Yes. Yeah. And I'm 95 percent sure that
+
+275
+00:10:27,200 --> 00:10:29,400
+Redux was inspired by Elm.
+
+276
+00:10:29,400 --> 00:10:31,160
+Like that's why Redux
+
+277
+00:10:31,160 --> 00:10:33,240
+exists is because of Elm.
+
+278
+00:10:33,240 --> 00:10:35,760
+I've only worked with Redux very,
+
+279
+00:10:35,760 --> 00:10:36,800
+very briefly, like a
+
+280
+00:10:36,800 --> 00:10:38,320
+handful of years ago.
+
+281
+00:10:38,320 --> 00:10:42,480
+And yeah, I think it's a nice tool for
+
+282
+00:10:42,480 --> 00:10:43,760
+state management in
+
+283
+00:10:43,760 --> 00:10:46,040
+React, it makes state
+
+284
+00:10:46,040 --> 00:10:48,000
+management more principled, which I would
+
+285
+00:10:48,000 --> 00:10:49,160
+argue is the most
+
+286
+00:10:49,160 --> 00:10:50,760
+challenging thing in building
+
+287
+00:10:50,760 --> 00:10:52,560
+complex React applications.
+
+288
+00:10:52,560 --> 00:10:55,560
+That being said, it doesn't solve the
+
+289
+00:10:55,560 --> 00:10:57,880
+controlled explicit side
+
+290
+00:10:57,880 --> 00:11:00,440
+effects problem that Elm
+
+291
+00:11:00,440 --> 00:11:03,160
+solves. So I'll leave it there and we can
+
+292
+00:11:03,160 --> 00:11:03,920
+figure out whichever
+
+293
+00:11:03,920 --> 00:11:05,200
+direction we want to go.
+
+294
+00:11:05,200 --> 00:11:06,840
+OK, no, no, this helps a lot.
+
+295
+00:11:06,840 --> 00:11:07,720
+And I think this is the
+
+296
+00:11:07,720 --> 00:11:10,040
+most important part for me.
+
+297
+00:11:10,040 --> 00:11:13,120
+And I imagine like most listeners to not
+
+298
+00:11:13,120 --> 00:11:14,360
+just like dive right into
+
+299
+00:11:14,360 --> 00:11:15,760
+the technology, but first
+
+300
+00:11:15,760 --> 00:11:17,040
+asking like why does
+
+301
+00:11:17,040 --> 00:11:18,840
+the technology exist?
+
+302
+00:11:18,840 --> 00:11:23,000
+Since like departing from React is a big
+
+303
+00:11:23,000 --> 00:11:24,960
+leap since I think
+
+304
+00:11:24,960 --> 00:11:26,920
+even though you mentioned
+
+305
+00:11:26,920 --> 00:11:30,080
+that most React apps are kind of built in
+
+306
+00:11:30,080 --> 00:11:31,920
+a different way when it comes to the data
+
+307
+00:11:31,920 --> 00:11:35,120
+architecture, etc., yet it brings a huge
+
+308
+00:11:35,120 --> 00:11:36,480
+level of familiarity.
+
+309
+00:11:36,480 --> 00:11:38,960
+And if you worked at one company before
+
+310
+00:11:38,960 --> 00:11:40,160
+that uses React and now
+
+311
+00:11:40,160 --> 00:11:41,240
+you come in a new one that
+
+312
+00:11:41,240 --> 00:11:43,640
+uses React, there's still a lot of
+
+313
+00:11:43,640 --> 00:11:44,640
+knowledge that is
+
+314
+00:11:44,640 --> 00:11:47,320
+transferable, which you need to think
+
+315
+00:11:47,320 --> 00:11:49,120
+through twice when you switch to a
+
+316
+00:11:49,120 --> 00:11:50,200
+different technology.
+
+317
+00:11:50,200 --> 00:11:52,720
+But there is precedent for that with
+
+318
+00:11:52,720 --> 00:11:54,560
+Solid and Svelte, etc.
+
+319
+00:11:54,560 --> 00:11:56,560
+And I think it's really understanding
+
+320
+00:11:56,560 --> 00:11:57,760
+what is the pain point
+
+321
+00:11:57,760 --> 00:12:00,880
+that is so severe or where
+
+322
+00:12:00,880 --> 00:12:04,360
+is the opinion diverging so much that it
+
+323
+00:12:04,360 --> 00:12:05,560
+really like that fork in
+
+324
+00:12:05,560 --> 00:12:06,800
+the road is worthwhile.
+
+325
+00:12:06,800 --> 00:12:08,440
+And I think this confirms my
+
+326
+00:12:08,440 --> 00:12:11,080
+understanding that it's all about like
+
+327
+00:12:11,080 --> 00:12:12,440
+how data management,
+
+328
+00:12:12,440 --> 00:12:14,880
+state management, change management
+
+329
+00:12:14,880 --> 00:12:16,200
+within a front-end
+
+330
+00:12:16,200 --> 00:12:18,480
+application and an ambitious front-end
+
+331
+00:12:18,480 --> 00:12:22,320
+application works and also in a way that
+
+332
+00:12:22,320 --> 00:12:24,760
+it is convenient,
+
+333
+00:12:24,760 --> 00:12:27,240
+intuitive, and clear for humans
+
+334
+00:12:27,240 --> 00:12:31,000
+and also agents to work that it like you
+
+335
+00:12:31,000 --> 00:12:32,160
+don't just build like a
+
+336
+00:12:32,160 --> 00:12:33,720
+little form, but you build
+
+337
+00:12:33,720 --> 00:12:34,880
+a massive system out of
+
+338
+00:12:34,880 --> 00:12:37,840
+it that is composable, etc.
+
+339
+00:12:37,840 --> 00:12:40,680
+And I think back then when I looked at
+
+340
+00:12:41,720 --> 00:12:45,640
+Elm compared to React,
+
+341
+00:12:45,640 --> 00:12:47,200
+I think what just spoke
+
+342
+00:12:47,200 --> 00:12:50,720
+to me is that you
+
+343
+00:12:50,720 --> 00:12:52,520
+kind of flip the gravity.
+
+344
+00:12:52,520 --> 00:12:55,280
+Everything in Elm was centered around
+
+345
+00:12:55,280 --> 00:12:56,320
+this idea of like how
+
+346
+00:12:56,320 --> 00:12:59,680
+data flows, whereas in React
+
+347
+00:12:59,680 --> 00:13:02,920
+everything was kind of centered around
+
+348
+00:13:02,920 --> 00:13:04,080
+components and more of
+
+349
+00:13:04,080 --> 00:13:06,320
+like how the view works.
+
+350
+00:13:06,320 --> 00:13:08,400
+And I think here you're taking like the
+
+351
+00:13:08,400 --> 00:13:10,080
+same bet again where you say
+
+352
+00:13:10,080 --> 00:13:11,720
+like what if we re-envision
+
+353
+00:13:11,720 --> 00:13:15,600
+this around how data flows or like the
+
+354
+00:13:15,600 --> 00:13:17,480
+view part is almost
+
+355
+00:13:17,480 --> 00:13:19,040
+like a commoditized problem
+
+356
+00:13:19,040 --> 00:13:20,320
+at this point.
+
+357
+00:13:20,320 --> 00:13:23,040
+So yeah, I'm very curious like with that
+
+358
+00:13:23,040 --> 00:13:25,920
+anchoring how you've probably like
+
+359
+00:13:25,920 --> 00:13:27,840
+studied the existing
+
+360
+00:13:29,160 --> 00:13:31,400
+technologies, you've probably studied
+
+361
+00:13:31,400 --> 00:13:33,480
+Solid, you've probably studied Svelte.
+
+362
+00:13:34,280 --> 00:13:37,320
+If we disregard React, what have you
+
+363
+00:13:37,320 --> 00:13:38,040
+looked at those
+
+364
+00:13:38,040 --> 00:13:39,640
+technologies and what did you like
+
+365
+00:13:39,640 --> 00:13:41,800
+and where did you feel like now actually
+
+366
+00:13:41,800 --> 00:13:44,400
+I want to take even a larger departure?
+
+367
+00:13:44,400 --> 00:13:45,880
+Good question.
+
+368
+00:13:45,880 --> 00:13:46,760
+There's a lot I want to say.
+
+369
+00:13:46,760 --> 00:13:50,040
+So I don't have a deep
+
+370
+00:13:50,680 --> 00:13:52,760
+understanding of Solid or Svelte.
+
+371
+00:13:52,760 --> 00:13:54,640
+I think in order to develop a deep
+
+372
+00:13:54,640 --> 00:13:55,360
+understanding of a
+
+373
+00:13:55,360 --> 00:13:57,080
+technology, you really need to build
+
+374
+00:13:57,080 --> 00:14:03,280
+something quote unquote serious and I
+
+375
+00:14:03,280 --> 00:14:04,680
+haven't had the opportunity
+
+376
+00:14:04,680 --> 00:14:06,360
+to do that professionally.
+
+377
+00:14:06,360 --> 00:14:09,520
+That being said, I do know that Solid
+
+378
+00:14:09,520 --> 00:14:10,400
+uses fine-grained
+
+379
+00:14:10,400 --> 00:14:12,880
+reactivity and so it's really
+
+380
+00:14:12,880 --> 00:14:16,120
+fast and you're updating just the dom
+
+381
+00:14:16,120 --> 00:14:17,400
+nodes that need to be
+
+382
+00:14:17,400 --> 00:14:19,720
+updated and I think Solid
+
+383
+00:14:20,240 --> 00:14:23,800
+has benefits for that reason.
+
+384
+00:14:24,680 --> 00:14:28,000
+Svelt eI know less about.
+
+385
+00:14:29,760 --> 00:14:32,240
+The thing that I can say pretty
+
+386
+00:14:32,240 --> 00:14:33,640
+confidently about both solid
+
+387
+00:14:33,640 --> 00:14:36,320
+and spelt is that like React,
+
+388
+00:14:36,320 --> 00:14:40,200
+neither of them solves architecture.
+
+389
+00:14:41,120 --> 00:14:43,360
+They are bring your own architecture,
+
+390
+00:14:43,360 --> 00:14:44,080
+decide your own
+
+391
+00:14:44,080 --> 00:14:46,040
+architecture or have your agent decide
+
+392
+00:14:46,040 --> 00:14:48,080
+your own architecture tools.
+
+393
+00:14:48,720 --> 00:14:50,880
+When you say architecture, you mean
+
+394
+00:14:50,880 --> 00:14:53,640
+purely in the realm of the front-end app.
+
+395
+00:14:53,640 --> 00:14:55,800
+We're not talking about API,
+
+396
+00:14:55,800 --> 00:14:57,680
+microservices, queues.
+
+397
+00:14:57,680 --> 00:14:59,920
+We're just talking about the client-side
+
+398
+00:14:59,920 --> 00:15:02,440
+experience, whether this is like a
+
+399
+00:15:02,440 --> 00:15:04,480
+calculator that doesn't
+
+400
+00:15:04,480 --> 00:15:06,920
+have any server state or whether you're
+
+401
+00:15:06,920 --> 00:15:08,080
+building a Facebook
+
+402
+00:15:08,080 --> 00:15:10,280
+client that talks over an API.
+
+403
+00:15:10,280 --> 00:15:12,280
+We're just talking about the front-end.
+
+404
+00:15:12,280 --> 00:15:14,400
+Yeah, thanks for clarifying.
+
+405
+00:15:15,120 --> 00:15:17,400
+They don't solve front-end architecture.
+
+406
+00:15:18,160 --> 00:15:19,760
+Specifically what I mean by front-end
+
+407
+00:15:20,560 --> 00:15:23,120
+architecture is how
+
+408
+00:15:23,120 --> 00:15:25,640
+exactly do you manage state?
+
+409
+00:15:25,640 --> 00:15:29,360
+How exactly do you manage side effects?
+
+410
+00:15:29,360 --> 00:15:33,400
+How do you manage browser resources that
+
+411
+00:15:33,400 --> 00:15:35,760
+you might need to pull in?
+
+412
+00:15:35,760 --> 00:15:39,600
+How do you manage ongoing streams of data
+
+413
+00:15:40,200 --> 00:15:41,080
+that are updating
+
+414
+00:15:41,080 --> 00:15:42,600
+state in your application?
+
+415
+00:15:43,160 --> 00:15:45,360
+that's the hard stuff about
+
+416
+00:15:45,360 --> 00:15:46,960
+front-end development.
+
+417
+00:15:46,960 --> 00:15:50,960
+Once you have developed a sufficiently
+
+418
+00:15:50,960 --> 00:15:56,520
+complex system that is maybe local first.
+
+419
+00:15:56,520 --> 00:15:59,240
+I work on local first stuff at August
+
+420
+00:15:59,240 --> 00:16:01,040
+Health and it gets
+
+421
+00:16:01,040 --> 00:16:03,840
+complicated once you start dealing
+
+422
+00:16:03,840 --> 00:16:05,880
+with a local database or a remote
+
+423
+00:16:05,880 --> 00:16:08,480
+database and complex forms.
+
+424
+00:16:10,480 --> 00:16:13,240
+Going back to your question, I think for
+
+425
+00:16:13,240 --> 00:16:16,040
+a handful of reasons, a highly
+
+426
+00:16:16,040 --> 00:16:18,080
+opinionated framework
+
+427
+00:16:18,080 --> 00:16:21,960
+that prescribes the architecture is
+
+428
+00:16:21,960 --> 00:16:24,280
+extremely useful right
+
+429
+00:16:24,280 --> 00:16:27,720
+now for both humans and AI.
+
+430
+00:16:27,720 --> 00:16:28,600
+I can keep talking about
+
+431
+00:16:28,600 --> 00:16:30,920
+this, but I'll throw it back.
+
+432
+00:16:30,920 --> 00:16:32,560
+I think you're spot on.
+
+433
+00:16:32,560 --> 00:16:34,560
+You mentioned that
+
+434
+00:16:34,560 --> 00:16:36,480
+Foldkit is opinionated.
+
+435
+00:16:36,480 --> 00:16:39,840
+I had exactly the same observation.
+
+436
+00:16:39,840 --> 00:16:41,000
+This is why it spoke to me.
+
+437
+00:16:41,000 --> 00:16:42,760
+It's not just opinionated about the data
+
+438
+00:16:42,760 --> 00:16:45,640
+architecture, but now also takes the bet
+
+439
+00:16:45,640 --> 00:16:46,880
+on being opinionated
+
+440
+00:16:46,880 --> 00:16:49,280
+about a particular underlying technology,
+
+441
+00:16:49,280 --> 00:16:50,040
+which is effect,
+
+442
+00:16:50,040 --> 00:16:51,280
+which brings us all here.
+
+443
+00:16:52,160 --> 00:16:55,680
+I think this is what makes it maybe a
+
+444
+00:16:55,680 --> 00:16:58,280
+more risky bet for someone else to adopt,
+
+445
+00:16:58,280 --> 00:16:59,800
+but for the people who are already in
+
+446
+00:16:59,800 --> 00:17:02,000
+the fold, no pun intended,
+
+447
+00:17:02,000 --> 00:17:04,520
+with the effect ecosystem,
+
+448
+00:17:04,520 --> 00:17:07,680
+I think that for them is even more
+
+449
+00:17:07,680 --> 00:17:08,720
+attractive this way.
+
+450
+00:17:08,720 --> 00:17:12,480
+If supposedly that the architecture is
+
+451
+00:17:12,480 --> 00:17:14,600
+exactly the way how they think about it,
+
+452
+00:17:14,600 --> 00:17:16,320
+and I think it's a very, very good
+
+453
+00:17:16,320 --> 00:17:19,120
+default, now you're also opinionated,
+
+454
+00:17:19,120 --> 00:17:21,000
+therefore embrace what the
+
+455
+00:17:21,000 --> 00:17:23,160
+effect ecosystem gives us.
+
+456
+00:17:23,160 --> 00:17:26,880
+And I think that unlocks a lot that other
+
+457
+00:17:26,880 --> 00:17:30,000
+technologies, whether React or Svelte,
+
+458
+00:17:30,000 --> 00:17:33,120
+they're much more agnostic to many
+
+459
+00:17:33,120 --> 00:17:35,360
+things, which is also a good thing.
+
+460
+00:17:35,360 --> 00:17:38,080
+This way they maintain their optionality
+
+461
+00:17:38,080 --> 00:17:39,400
+and people can use it
+
+462
+00:17:39,400 --> 00:17:40,560
+with many different things,
+
+463
+00:17:40,560 --> 00:17:42,720
+and there's integrations, but it will
+
+464
+00:17:42,720 --> 00:17:45,800
+never be as good and as natively
+
+465
+00:17:45,800 --> 00:17:47,400
+integrated as a technology
+
+466
+00:17:47,400 --> 00:17:49,560
+that really fully embraces
+
+467
+00:17:49,560 --> 00:17:50,920
+the underlying technologies.
+
+468
+00:17:50,920 --> 00:17:53,280
+And I think there is another side of a
+
+469
+00:17:53,280 --> 00:17:55,840
+coin when we talk about data.
+
+470
+00:17:55,840 --> 00:17:59,040
+Sure, it's like the architectural part is
+
+471
+00:17:59,040 --> 00:18:00,520
+how does data flow, what
+
+472
+00:18:00,520 --> 00:18:01,640
+is the source of truth,
+
+473
+00:18:01,640 --> 00:18:04,720
+what is derived, what happens when.
+
+474
+00:18:04,720 --> 00:18:08,720
+Events are obviously super important when
+
+475
+00:18:08,720 --> 00:18:10,800
+you build an interactive application,
+
+476
+00:18:10,800 --> 00:18:13,560
+but that data always has a shape and that
+
+477
+00:18:13,560 --> 00:18:15,360
+data has constraints.
+
+478
+00:18:15,360 --> 00:18:18,000
+And I think therefore, Foldkit is the
+
+479
+00:18:18,000 --> 00:18:18,840
+first front-end
+
+480
+00:18:18,840 --> 00:18:21,840
+framework that acknowledges that
+
+481
+00:18:21,840 --> 00:18:25,720
+and doesn't just give you a loose type
+
+482
+00:18:25,720 --> 00:18:27,600
+where in the next moment you can say,
+
+483
+00:18:27,600 --> 00:18:31,320
+as any, and there's no really hard
+
+484
+00:18:31,320 --> 00:18:33,480
+validity to that data, but
+
+485
+00:18:33,480 --> 00:18:35,320
+now you're embracing effect,
+
+486
+00:18:35,320 --> 00:18:36,680
+and therefore you're also embracing
+
+487
+00:18:36,680 --> 00:18:38,760
+effect schema, which I
+
+488
+00:18:38,760 --> 00:18:42,800
+think is a huge unlock here
+
+489
+00:18:42,800 --> 00:18:45,600
+where it can absorb a lot of complexity.
+
+490
+00:18:46,640 --> 00:18:48,400
+In all parts of the system, we're
+
+491
+00:18:48,400 --> 00:18:49,240
+probably going to talk
+
+492
+00:18:49,240 --> 00:18:51,880
+about forms and other things,
+
+493
+00:18:51,880 --> 00:18:54,280
+but we have in a modern front-end app,
+
+494
+00:18:54,280 --> 00:18:55,640
+you have so much data just
+
+495
+00:18:56,160 --> 00:18:57,560
+moving around all the time,
+
+496
+00:18:57,560 --> 00:19:00,120
+and all that data, you need to know what
+
+497
+00:19:00,120 --> 00:19:01,360
+you're working with.
+
+498
+00:19:01,360 --> 00:19:04,880
+And I feel this is another huge unlock
+
+499
+00:19:04,880 --> 00:19:06,640
+that you're embracing here
+
+500
+00:19:06,640 --> 00:19:07,440
+that I think makes the
+
+501
+00:19:07,440 --> 00:19:09,920
+entire batch really worth it.
+
+502
+00:19:09,920 --> 00:19:11,000
+I would agree. Of course, I'm
+
+503
+00:19:11,000 --> 00:19:12,840
+biased, but I would agree.
+
+504
+00:19:12,840 --> 00:19:19,480
+And I think the role that schema plays in
+
+505
+00:19:20,160 --> 00:19:22,560
+Foldkit can't be understated.
+
+506
+00:19:22,560 --> 00:19:26,240
+I mean, the entire model, all of your
+
+507
+00:19:26,240 --> 00:19:28,000
+state in Foldkit is
+
+508
+00:19:28,000 --> 00:19:30,160
+represented as a schema.
+
+509
+00:19:30,160 --> 00:19:33,600
+And so that's really the foundation of
+
+510
+00:19:33,600 --> 00:19:36,000
+any Foldkit program, and
+
+511
+00:19:36,000 --> 00:19:37,960
+that unlocks all sorts of
+
+512
+00:19:37,960 --> 00:19:41,600
+really useful things. One example would
+
+513
+00:19:41,600 --> 00:19:42,600
+be the Foldkit
+
+514
+00:19:42,600 --> 00:19:45,920
+DevTools. Being able to see
+
+515
+00:19:45,920 --> 00:19:49,320
+while your application is running exactly
+
+516
+00:19:49,320 --> 00:19:50,800
+what the entire state
+
+517
+00:19:50,800 --> 00:19:52,440
+of the application is, is
+
+518
+00:19:52,440 --> 00:19:55,000
+extremely useful. It would have been
+
+519
+00:19:55,000 --> 00:19:57,440
+really useful five, ten
+
+520
+00:19:57,440 --> 00:19:59,360
+years ago. I'd say it's even
+
+521
+00:19:59,360 --> 00:20:02,440
+more useful right now when AI is writing
+
+522
+00:20:02,440 --> 00:20:07,640
+most of the code, and your
+
+523
+00:20:07,640 --> 00:20:10,720
+agent can see exactly what the
+
+524
+00:20:10,720 --> 00:20:13,880
+current state of the model is. And as a
+
+525
+00:20:13,880 --> 00:20:14,880
+human reviewer, you can
+
+526
+00:20:14,880 --> 00:20:16,200
+also see at any given moment
+
+527
+00:20:16,200 --> 00:20:17,600
+what the current state of your model is,
+
+528
+00:20:17,600 --> 00:20:19,320
+even if you didn't write the code.
+
+529
+00:20:19,320 --> 00:20:22,840
+So yeah, schema is really the backbone of
+
+530
+00:20:22,840 --> 00:20:24,680
+any Foldkit program. And I
+
+531
+00:20:24,680 --> 00:20:25,720
+don't think Foldkit could
+
+532
+00:20:25,720 --> 00:20:28,240
+exist without it. In that regard, I mean,
+
+533
+00:20:28,240 --> 00:20:29,000
+you're not using that
+
+534
+00:20:29,000 --> 00:20:30,960
+language on your website, but now
+
+535
+00:20:30,960 --> 00:20:34,120
+I'm thinking about Foldkit as not just an
+
+536
+00:20:35,440 --> 00:20:37,000
+effect first front-end
+
+537
+00:20:37,000 --> 00:20:39,240
+framework, but also a data and
+
+538
+00:20:39,240 --> 00:20:42,360
+schema first front-end framework, which I
+
+539
+00:20:42,360 --> 00:20:44,000
+think a lot of form
+
+540
+00:20:44,000 --> 00:20:45,760
+libraries, et cetera, maybe have
+
+541
+00:20:45,760 --> 00:20:48,040
+sought compatibility or in our standard
+
+542
+00:20:48,040 --> 00:20:49,800
+schema compatibility, but
+
+543
+00:20:49,800 --> 00:20:51,640
+you're taking this way further.
+
+544
+00:20:51,640 --> 00:20:54,640
+Once you start embracing a schema, and
+
+545
+00:20:54,640 --> 00:20:56,120
+with my background, having
+
+546
+00:20:56,120 --> 00:20:57,720
+created Prisma back then,
+
+547
+00:20:57,720 --> 00:20:59,920
+working on Livestore, et cetera, schemas
+
+548
+00:20:59,920 --> 00:21:02,360
+are always at the core of
+
+549
+00:21:02,880 --> 00:21:05,080
+you can't have data without
+
+550
+00:21:05,080 --> 00:21:08,200
+schemas. Sure, you can say you're going
+
+551
+00:21:08,200 --> 00:21:09,560
+with MongoDB and say
+
+552
+00:21:09,560 --> 00:21:11,040
+everything is schema-less,
+
+553
+00:21:11,040 --> 00:21:13,840
+but your data has a shape and form no
+
+554
+00:21:13,840 --> 00:21:15,560
+matter what. It is very
+
+555
+00:21:15,560 --> 00:21:17,680
+messy and can take 10 different
+
+556
+00:21:17,680 --> 00:21:21,040
+forms, but ideally you still model that
+
+557
+00:21:21,040 --> 00:21:22,880
+with a union of a schema.
+
+558
+00:21:22,880 --> 00:21:25,480
+So I think this is something
+
+559
+00:21:25,480 --> 00:21:28,080
+aside from the architecture. You could
+
+560
+00:21:28,080 --> 00:21:32,360
+even make a different composition of your
+
+561
+00:21:32,360 --> 00:21:34,160
+bets and trade-offs.
+
+562
+00:21:34,160 --> 00:21:37,480
+You could, for example, say we're going
+
+563
+00:21:37,480 --> 00:21:38,560
+with React, but we're
+
+564
+00:21:38,560 --> 00:21:40,840
+baking schemas right into it,
+
+565
+00:21:40,840 --> 00:21:43,160
+and we leave the data architecture a
+
+566
+00:21:43,160 --> 00:21:46,440
+little bit more agnostic. But I think
+
+567
+00:21:46,440 --> 00:21:48,000
+here you're just taking
+
+568
+00:21:48,000 --> 00:21:51,000
+two super strong points together. There's
+
+569
+00:21:51,000 --> 00:21:52,880
+schema with a schema fold
+
+570
+00:21:52,880 --> 00:21:56,120
+data and the Elm architecture,
+
+571
+00:21:56,120 --> 00:21:58,960
+and that is the foundation. So to my
+
+572
+00:21:58,960 --> 00:22:00,280
+understanding, if we just
+
+573
+00:22:00,280 --> 00:22:02,920
+look into what Foldkit provides,
+
+574
+00:22:02,920 --> 00:22:06,720
+it is very extensive already. So if we
+
+575
+00:22:06,720 --> 00:22:08,520
+can just maybe do a little
+
+576
+00:22:08,520 --> 00:22:10,680
+bit of a comparison. If you
+
+577
+00:22:10,680 --> 00:22:14,360
+look at Foldkit, compare it to something
+
+578
+00:22:14,360 --> 00:22:17,960
+like React or something like Solid or
+
+579
+00:22:17,960 --> 00:22:19,440
+Svelte, where would you
+
+580
+00:22:19,440 --> 00:22:21,760
+say there's already parity and where
+
+581
+00:22:21,760 --> 00:22:24,240
+would you say there's the biggest gap
+
+582
+00:22:24,240 --> 00:22:25,400
+still? I suppose there's
+
+583
+00:22:25,400 --> 00:22:28,880
+no equivalent to React Native yet, but
+
+584
+00:22:28,880 --> 00:22:29,760
+when we're just talking
+
+585
+00:22:29,760 --> 00:22:31,840
+about the web as a front-end,
+
+586
+00:22:32,680 --> 00:22:33,800
+how should I think about
+
+587
+00:22:33,800 --> 00:22:36,280
+parity versus open gaps?
+
+588
+00:22:36,960 --> 00:22:40,160
+Yeah, I think the biggest gap between
+
+589
+00:22:40,160 --> 00:22:41,760
+Foldkit and React is
+
+590
+00:22:41,760 --> 00:22:45,240
+ecosystem, and that's a big gap.
+
+591
+00:22:46,080 --> 00:22:50,960
+There's a huge ecosystem of React tools
+
+592
+00:22:50,960 --> 00:22:52,560
+that you can just pull
+
+593
+00:22:52,560 --> 00:22:54,400
+into your project and use.
+
+594
+00:22:55,040 --> 00:23:00,200
+And I think at this point, on most of the
+
+595
+00:23:00,200 --> 00:23:03,520
+other fronts that matter for
+
+596
+00:23:03,520 --> 00:23:05,680
+developing web applications,
+
+597
+00:23:05,680 --> 00:23:10,240
+Foldkit is at or very close to parity.
+
+598
+00:23:10,960 --> 00:23:13,360
+And I think Foldkit also
+
+599
+00:23:13,360 --> 00:23:15,960
+has benefits that React
+
+600
+00:23:15,960 --> 00:23:21,160
+structurally cannot have because of what
+
+601
+00:23:21,160 --> 00:23:23,800
+React is. You mentioned earlier that
+
+602
+00:23:23,800 --> 00:23:29,600
+React is the unit of composition in a
+
+603
+00:23:29,600 --> 00:23:32,000
+React application is the
+
+604
+00:23:32,000 --> 00:23:35,160
+component. And a component is
+
+605
+00:23:35,800 --> 00:23:38,560
+managing state, it's managing side
+
+606
+00:23:38,560 --> 00:23:40,240
+effects, it's managing
+
+607
+00:23:40,240 --> 00:23:41,920
+caching, like memoization,
+
+608
+00:23:41,920 --> 00:23:46,640
+it's managing the view. And that's how
+
+609
+00:23:46,640 --> 00:23:47,840
+you write React
+
+610
+00:23:47,840 --> 00:23:50,240
+applications. You make a component,
+
+611
+00:23:50,240 --> 00:23:51,520
+then you make another component, you make
+
+612
+00:23:51,520 --> 00:23:53,800
+another component, you nest them. And
+
+613
+00:23:53,800 --> 00:23:56,320
+what tends to happen is your state and
+
+614
+00:23:56,320 --> 00:23:58,560
+your effects and your
+
+615
+00:23:58,560 --> 00:24:00,160
+caching and all this stuff
+
+616
+00:24:00,720 --> 00:24:04,200
+just accumulates across dozens of
+
+617
+00:24:04,200 --> 00:24:07,080
+components. And this is often if you're
+
+618
+00:24:07,080 --> 00:24:08,480
+doing a really good job,
+
+619
+00:24:08,480 --> 00:24:10,200
+if you're a really good React developer,
+
+620
+00:24:10,200 --> 00:24:12,200
+this is just how it works.
+
+621
+00:24:12,200 --> 00:24:16,320
+Foldkit is, you said it flips it on
+
+622
+00:24:16,320 --> 00:24:19,840
+its head and it says, no, there's no
+
+623
+00:24:19,840 --> 00:24:21,400
+concept of a component
+
+624
+00:24:21,400 --> 00:24:23,800
+that does something locally. Instead,
+
+625
+00:24:23,800 --> 00:24:25,440
+we're going to have a
+
+626
+00:24:25,440 --> 00:24:29,760
+global model. We're going to have
+
+627
+00:24:29,760 --> 00:24:32,480
+explicit messages, which are the
+
+628
+00:24:32,480 --> 00:24:34,280
+precursor to updating the model. We're
+
+629
+00:24:34,280 --> 00:24:36,200
+going to have explicit
+
+630
+00:24:36,200 --> 00:24:40,880
+effects, which are actual effects and are
+
+631
+00:24:40,880 --> 00:24:42,600
+called commands in
+
+632
+00:24:42,600 --> 00:24:44,080
+Foldkit, which we can get into.
+
+633
+00:24:44,760 --> 00:24:46,320
+And the view is going to be a pure
+
+634
+00:24:46,320 --> 00:24:50,320
+function of the model. And so React,
+
+635
+00:24:50,320 --> 00:24:54,400
+we're trading the local flexibility of
+
+636
+00:24:54,400 --> 00:24:58,200
+React for this globally coherent system.
+
+637
+00:24:59,000 --> 00:25:06,840
+And I think that is a
+
+638
+00:25:06,840 --> 00:25:09,680
+lot more beneficial than it
+
+639
+00:25:09,680 --> 00:25:13,040
+sounds on its face. That unlocks all of
+
+640
+00:25:13,040 --> 00:25:14,040
+the cool things that you
+
+641
+00:25:14,040 --> 00:25:16,360
+get with Foldkit and that
+
+642
+00:25:16,360 --> 00:25:19,040
+AI agents can also leverage Foldkit.
+
+643
+00:25:19,800 --> 00:25:22,320
+Yeah. So I mean, designing good
+
+644
+00:25:22,320 --> 00:25:24,800
+abstractions, I feel like this is one of
+
+645
+00:25:24,800 --> 00:25:27,200
+the most ultimate forms
+
+646
+00:25:27,200 --> 00:25:30,360
+of being an accomplished engineer that
+
+647
+00:25:30,360 --> 00:25:31,880
+you have opinions on
+
+648
+00:25:31,880 --> 00:25:34,640
+that and you can actually
+
+649
+00:25:35,160 --> 00:25:38,520
+build, go further than the abstractions
+
+650
+00:25:38,520 --> 00:25:39,640
+that there were before. I
+
+651
+00:25:39,640 --> 00:25:40,720
+think this is what really
+
+652
+00:25:40,720 --> 00:25:44,760
+blew my mind about effects and like ZIO
+
+653
+00:25:44,760 --> 00:25:46,160
+before then, like always
+
+654
+00:25:46,160 --> 00:25:48,280
+had a lot of admiration
+
+655
+00:25:48,280 --> 00:25:50,800
+for functional programming. And I feel
+
+656
+00:25:50,800 --> 00:25:52,680
+effect has really brought it
+
+657
+00:25:52,680 --> 00:25:55,760
+to a point where it's not just
+
+658
+00:25:55,760 --> 00:25:58,520
+like academically brilliant, but also
+
+659
+00:25:58,520 --> 00:26:00,840
+practical. And I feel like
+
+660
+00:26:00,840 --> 00:26:02,240
+one of the highest goals there
+
+661
+00:26:02,240 --> 00:26:05,160
+is always composition. I mean, when we're
+
+662
+00:26:05,160 --> 00:26:07,320
+building applications, our
+
+663
+00:26:07,320 --> 00:26:09,160
+ambition level doesn't decrease
+
+664
+00:26:09,160 --> 00:26:11,800
+quite the opposite. There's devices can
+
+665
+00:26:11,800 --> 00:26:13,840
+do more things than ever.
+
+666
+00:26:13,840 --> 00:26:15,960
+We now need to make them
+
+667
+00:26:15,960 --> 00:26:18,440
+responsive. We're trying to make them
+
+668
+00:26:18,440 --> 00:26:20,280
+work offline. There's so
+
+669
+00:26:20,280 --> 00:26:22,520
+many things that so much
+
+670
+00:26:22,520 --> 00:26:25,080
+entropy, which we need to somehow model
+
+671
+00:26:25,080 --> 00:26:26,280
+in our application. So
+
+672
+00:26:26,280 --> 00:26:27,680
+it's a matter of like,
+
+673
+00:26:27,680 --> 00:26:29,680
+how can your application even stomach
+
+674
+00:26:29,680 --> 00:26:31,400
+that? How can even whether
+
+675
+00:26:31,400 --> 00:26:32,840
+it's coding agent, whether it's
+
+676
+00:26:32,840 --> 00:26:35,600
+you, there's just like, like lines of
+
+677
+00:26:35,600 --> 00:26:36,800
+code, like adding up and
+
+678
+00:26:36,800 --> 00:26:39,120
+adding up. And like, you now kind
+
+679
+00:26:39,120 --> 00:26:41,160
+of need to having the amount of
+
+680
+00:26:41,160 --> 00:26:43,680
+complexity is one thing, how densely can
+
+681
+00:26:43,680 --> 00:26:45,800
+you like express that in a
+
+682
+00:26:45,800 --> 00:26:48,200
+way where you differentiate between
+
+683
+00:26:48,200 --> 00:26:49,680
+accidental complexity and
+
+684
+00:26:49,680 --> 00:26:51,360
+existential complexity. I think
+
+685
+00:26:51,360 --> 00:26:53,880
+ideally a system has close to no
+
+686
+00:26:53,880 --> 00:26:56,440
+accidental complexity, but it's all
+
+687
+00:26:56,440 --> 00:26:57,920
+existential complexity.
+
+688
+00:26:58,560 --> 00:27:01,080
+But then it's a matter of like, how do
+
+689
+00:27:01,080 --> 00:27:02,800
+you organize that? And
+
+690
+00:27:02,800 --> 00:27:04,440
+when you organize that,
+
+691
+00:27:04,440 --> 00:27:06,760
+and you can compose it well together,
+
+692
+00:27:06,760 --> 00:27:07,560
+then like the over
+
+693
+00:27:07,560 --> 00:27:10,400
+complexity of your system miraculously
+
+694
+00:27:10,400 --> 00:27:13,320
+like shrinks. And I think this is the I
+
+695
+00:27:13,320 --> 00:27:15,480
+think the underlying
+
+696
+00:27:15,480 --> 00:27:18,280
+abstractions that unlock that almost
+
+697
+00:27:18,280 --> 00:27:21,040
+like as an emergent property, that if you
+
+698
+00:27:21,040 --> 00:27:23,160
+model your application in
+
+699
+00:27:23,160 --> 00:27:25,320
+like this way, the overall complexity
+
+700
+00:27:25,320 --> 00:27:27,960
+of your system is lower than with another
+
+701
+00:27:27,960 --> 00:27:28,800
+technology. I think
+
+702
+00:27:28,800 --> 00:27:30,000
+that's like the money shot
+
+703
+00:27:30,000 --> 00:27:33,280
+here. And I think this is maybe maybe you
+
+704
+00:27:33,280 --> 00:27:35,200
+have thoughts on how
+
+705
+00:27:35,200 --> 00:27:38,280
+the compositional emergent
+
+706
+00:27:38,280 --> 00:27:41,040
+behavior of like building an application
+
+707
+00:27:41,040 --> 00:27:43,200
+with Foldkit compares
+
+708
+00:27:43,200 --> 00:27:44,760
+to something with react. So
+
+709
+00:27:44,760 --> 00:27:48,360
+you've talked about components versus
+
+710
+00:27:48,360 --> 00:27:50,440
+views and models and
+
+711
+00:27:50,440 --> 00:27:52,960
+commands, etc. So I'm curious, like
+
+712
+00:27:52,960 --> 00:27:55,680
+walk me through like the insights that
+
+713
+00:27:55,680 --> 00:27:57,560
+you had, like I suppose a lot
+
+714
+00:27:57,560 --> 00:27:59,000
+of that was also like already
+
+715
+00:27:59,000 --> 00:28:01,720
+based on like the insights that form for
+
+716
+00:28:01,720 --> 00:28:04,080
+Elm. But like walk me
+
+717
+00:28:04,080 --> 00:28:06,040
+through those insights, then also
+
+718
+00:28:06,040 --> 00:28:08,760
+like, like illustrate a bit how I should
+
+719
+00:28:08,760 --> 00:28:11,040
+think about that
+
+720
+00:28:11,040 --> 00:28:13,800
+compositional behavior. Like I remember
+
+721
+00:28:13,800 --> 00:28:16,080
+when I used react, like I had those aha
+
+722
+00:28:16,080 --> 00:28:17,400
+moments where like a lot of the
+
+723
+00:28:17,400 --> 00:28:20,000
+complexity that I had in
+
+724
+00:28:20,000 --> 00:28:22,440
+previous applications kind of disappeared
+
+725
+00:28:22,440 --> 00:28:24,120
+when I used react, the same thing
+
+726
+00:28:24,120 --> 00:28:25,520
+happened with effect.
+
+727
+00:28:25,520 --> 00:28:27,960
+And so I suppose you wouldn't be building
+
+728
+00:28:27,960 --> 00:28:29,880
+this if you wouldn't believe
+
+729
+00:28:29,880 --> 00:28:31,720
+that it even has a superior
+
+730
+00:28:31,720 --> 00:28:34,120
+compositional behavior. So I'm curious to
+
+731
+00:28:34,120 --> 00:28:35,440
+learn more about that.
+
+732
+00:28:35,440 --> 00:28:36,400
+Yeah. Yeah, I really like what
+
+733
+00:28:36,400 --> 00:28:38,680
+you said about accidental versus
+
+734
+00:28:38,680 --> 00:28:41,120
+existential complexity. And
+
+735
+00:28:41,120 --> 00:28:43,480
+I would I would tend to agree
+
+736
+00:28:43,480 --> 00:28:49,480
+that well, I'd put it this way. I think
+
+737
+00:28:49,480 --> 00:28:52,640
+if a program is really
+
+738
+00:28:52,640 --> 00:28:55,960
+complex, it should look complex.
+
+739
+00:28:56,520 --> 00:28:59,480
+And then as you look more at it and you
+
+740
+00:28:59,480 --> 00:29:00,720
+dig in and you understand
+
+741
+00:29:00,720 --> 00:29:02,880
+it, that complexity should
+
+742
+00:29:02,880 --> 00:29:07,080
+unfold and become clear as you develop
+
+743
+00:29:07,080 --> 00:29:09,520
+your mental model of what
+
+744
+00:29:09,520 --> 00:29:10,594
+you're looking at. I would
+
+745
+00:29:10,594 --> 00:29:12,680
+amend that in one way in that regard that
+
+746
+00:29:12,680 --> 00:29:15,160
+I'm almost thinking about this like as a
+
+747
+00:29:16,080 --> 00:29:18,880
+as a fractal, where like you basically
+
+748
+00:29:18,880 --> 00:29:20,400
+have like a shape and ideally
+
+749
+00:29:20,400 --> 00:29:22,000
+that high level shape doesn't
+
+750
+00:29:22,000 --> 00:29:23,800
+even look that complex. But you're
+
+751
+00:29:23,800 --> 00:29:24,800
+wondering, huh, how does
+
+752
+00:29:24,800 --> 00:29:26,600
+this work? And then you zoom in
+
+753
+00:29:26,600 --> 00:29:29,040
+the other complexity that you have like
+
+754
+00:29:29,040 --> 00:29:30,200
+zoomed away from like
+
+755
+00:29:30,200 --> 00:29:32,280
+disappears. And now you can look
+
+756
+00:29:32,280 --> 00:29:33,920
+a little bit more at the inner
+
+757
+00:29:33,920 --> 00:29:37,520
+encapsulated complexity. So I think the
+
+758
+00:29:38,440 --> 00:29:39,200
+yes, basically about
+
+759
+00:29:39,200 --> 00:29:41,880
+what is localized as much that can be
+
+760
+00:29:41,880 --> 00:29:43,400
+localized that belongs
+
+761
+00:29:43,400 --> 00:29:45,800
+together. I think that's the thing
+
+762
+00:29:45,800 --> 00:29:50,880
+to aim for. Yeah. And I think when I look
+
+763
+00:29:50,880 --> 00:29:51,880
+at like in particular
+
+764
+00:29:51,880 --> 00:29:53,560
+effect code, even if it's really
+
+765
+00:29:53,560 --> 00:29:56,640
+complex, if I if I zoom in and I look at
+
+766
+00:29:56,640 --> 00:29:57,720
+what's happening locally, I
+
+767
+00:29:57,720 --> 00:30:00,000
+feel like I can trust what's
+
+768
+00:30:00,000 --> 00:30:02,360
+happening. And then I can zoom back out
+
+769
+00:30:02,360 --> 00:30:03,520
+and given what I trust
+
+770
+00:30:03,520 --> 00:30:05,320
+about what's happening locally,
+
+771
+00:30:05,320 --> 00:30:07,160
+I can develop develop this global
+
+772
+00:30:07,160 --> 00:30:08,360
+understanding of what's what's
+
+773
+00:30:08,360 --> 00:30:10,400
+happening. And I think that it
+
+774
+00:30:10,400 --> 00:30:13,080
+that's very, it's very honest to what is
+
+775
+00:30:13,080 --> 00:30:15,400
+being modeled. And I think
+
+776
+00:30:15,400 --> 00:30:17,400
+Foldkit is doing the same
+
+777
+00:30:17,400 --> 00:30:20,160
+thing in large part because it's, it is
+
+778
+00:30:20,160 --> 00:30:21,440
+kind of effect like it has
+
+779
+00:30:21,440 --> 00:30:23,000
+its own architecture, but
+
+780
+00:30:23,000 --> 00:30:25,280
+complex Foldkit code, like
+
+781
+00:30:25,280 --> 00:30:26,560
+doesn't look super
+
+782
+00:30:26,560 --> 00:30:28,400
+straightforward and like
+
+783
+00:30:28,400 --> 00:30:30,080
+easy when you like first look at it, but
+
+784
+00:30:30,080 --> 00:30:31,400
+then you look at it more and you're like,
+
+785
+00:30:31,920 --> 00:30:34,200
+okay, I get it. This is honest. This is
+
+786
+00:30:34,200 --> 00:30:37,960
+clear. And do you want to respond before?
+
+787
+00:30:37,960 --> 00:30:40,000
+Yeah, one observation on that as well. I
+
+788
+00:30:40,000 --> 00:30:42,360
+think there's so many parallels between
+
+789
+00:30:43,440 --> 00:30:45,320
+Foldkit as a project that builds on top
+
+790
+00:30:45,320 --> 00:30:47,040
+of effect, but also
+
+791
+00:30:47,040 --> 00:30:49,480
+effect itself. I think the
+
+792
+00:30:49,480 --> 00:30:52,120
+the trade you're making with effect is
+
+793
+00:30:52,120 --> 00:30:54,280
+like you're learning a little
+
+794
+00:30:54,280 --> 00:30:56,200
+bit more of like a complex tool
+
+795
+00:30:56,200 --> 00:30:58,480
+kit. Like thing like wrapping your head
+
+796
+00:30:58,480 --> 00:31:00,120
+around like what an effect
+
+797
+00:31:00,120 --> 00:31:02,520
+is takes maybe a tiny bit
+
+798
+00:31:02,520 --> 00:31:04,320
+longer than wrapping your head around
+
+799
+00:31:04,320 --> 00:31:05,840
+like what a function is.
+
+800
+00:31:06,440 --> 00:31:08,200
+But once you have a very complex
+
+801
+00:31:08,200 --> 00:31:09,160
+function,
+
+802
+00:31:09,160 --> 00:31:10,960
+you've understood the concept of a
+
+803
+00:31:10,960 --> 00:31:12,200
+function, but looking
+
+804
+00:31:12,200 --> 00:31:15,080
+at that very complex implementation of a
+
+805
+00:31:15,080 --> 00:31:16,280
+particular function gets a
+
+806
+00:31:16,280 --> 00:31:18,400
+lot harder. Whereas like if you
+
+807
+00:31:18,400 --> 00:31:21,200
+have it expressed in effects, and you've
+
+808
+00:31:21,200 --> 00:31:22,720
+already like have your
+
+809
+00:31:22,720 --> 00:31:24,160
+check mark of like understanding
+
+810
+00:31:24,160 --> 00:31:26,200
+what an effect is. Now you look at that.
+
+811
+00:31:26,200 --> 00:31:26,800
+And that's actually
+
+812
+00:31:26,800 --> 00:31:28,640
+simpler. And I think it's a similar
+
+813
+00:31:28,640 --> 00:31:31,280
+trade here with Foldkit. Like you need to
+
+814
+00:31:31,280 --> 00:31:32,600
+build an intuition and
+
+815
+00:31:32,600 --> 00:31:35,000
+internalize what does it mean?
+
+816
+00:31:35,000 --> 00:31:37,400
+Like for some, what does a model mean?
+
+817
+00:31:37,400 --> 00:31:38,760
+What does a view mean? What does a
+
+818
+00:31:38,760 --> 00:31:40,360
+command mean? But once you
+
+819
+00:31:40,360 --> 00:31:43,200
+have that, now that lowers sort of the
+
+820
+00:31:43,200 --> 00:31:47,040
+complexity, like entry price for
+
+821
+00:31:47,040 --> 00:31:48,920
+something and you've already
+
+822
+00:31:48,920 --> 00:31:51,440
+you have that richer vocabulary that your
+
+823
+00:31:51,440 --> 00:31:52,400
+application that you want
+
+824
+00:31:52,400 --> 00:31:54,480
+to model that shrinks to that
+
+825
+00:31:54,480 --> 00:31:56,160
+existential complexity.
+
+826
+00:31:56,160 --> 00:31:59,960
+absolutely. And so in terms of you
+
+827
+00:31:59,960 --> 00:32:01,720
+mentioned composition,
+
+828
+00:32:01,720 --> 00:32:03,640
+maybe I'll talk about that for a second.
+
+829
+00:32:03,640 --> 00:32:05,120
+And then I think this could
+
+830
+00:32:05,120 --> 00:32:06,040
+be a good point to actually
+
+831
+00:32:06,040 --> 00:32:07,800
+look at some code. I think it could be
+
+832
+00:32:07,800 --> 00:32:09,240
+helpful. Yeah, I think if
+
+833
+00:32:09,240 --> 00:32:10,640
+you think it would be most
+
+834
+00:32:10,640 --> 00:32:12,840
+beneficial to like illustrate that
+
+835
+00:32:12,840 --> 00:32:14,040
+through code, let's
+
+836
+00:32:14,040 --> 00:32:16,040
+certainly do it. Yeah. Okay, cool.
+
+837
+00:32:17,200 --> 00:32:20,280
+Before we dive into that, like broadly
+
+838
+00:32:20,280 --> 00:32:21,440
+how I think about
+
+839
+00:32:21,440 --> 00:32:23,920
+composition and Foldkit is
+
+840
+00:32:25,200 --> 00:32:29,520
+I strive to make every piece of Foldkit,
+
+841
+00:32:29,520 --> 00:32:30,800
+whether it's model,
+
+842
+00:32:30,800 --> 00:32:33,000
+message, update, view,
+
+843
+00:32:33,000 --> 00:32:35,040
+command, subscriptions, et cetera. And
+
+844
+00:32:35,040 --> 00:32:36,520
+almost all of that comes directly from
+
+845
+00:32:36,520 --> 00:32:37,360
+the Elm architecture.
+
+846
+00:32:37,360 --> 00:32:39,360
+I don't invent this. There are a few
+
+847
+00:32:39,360 --> 00:32:40,800
+pieces that are new,
+
+848
+00:32:40,800 --> 00:32:44,000
+but the seams between them
+
+849
+00:32:44,600 --> 00:32:47,600
+need to be super, super like airtight.
+
+850
+00:32:48,280 --> 00:32:50,640
+And they each do exactly
+
+851
+00:32:50,640 --> 00:32:52,240
+what they say they do and
+
+852
+00:32:52,920 --> 00:32:56,720
+nothing else like ever. So you can trust
+
+853
+00:32:56,720 --> 00:32:57,840
+that this is doing one
+
+854
+00:32:57,840 --> 00:33:00,680
+thing, you fit it with this thing,
+
+855
+00:33:00,680 --> 00:33:03,720
+and then together you get some more
+
+856
+00:33:03,720 --> 00:33:05,080
+complex, interesting
+
+857
+00:33:05,080 --> 00:33:07,680
+behavior. So that's how I think
+
+858
+00:33:07,680 --> 00:33:09,880
+about it. And yeah, let's look at some
+
+859
+00:33:09,880 --> 00:33:13,120
+code. Awesome. So you're
+
+860
+00:33:13,120 --> 00:33:13,840
+going to share your screen
+
+861
+00:33:13,840 --> 00:33:17,360
+in a second, which domain like when you
+
+862
+00:33:17,360 --> 00:33:19,040
+built Foldkit and you
+
+863
+00:33:19,040 --> 00:33:20,240
+don't just build the system,
+
+864
+00:33:20,240 --> 00:33:23,600
+but you've also done a fabulous job of
+
+865
+00:33:23,600 --> 00:33:25,440
+creating a website for it, creating
+
+866
+00:33:25,440 --> 00:33:27,000
+documentation for it.
+
+867
+00:33:27,000 --> 00:33:29,960
+And now the job of the documentation is
+
+868
+00:33:29,960 --> 00:33:31,600
+for other people to form an
+
+869
+00:33:31,600 --> 00:33:33,000
+intuition. And so you had to
+
+870
+00:33:33,000 --> 00:33:38,160
+also pick examples that are most
+
+871
+00:33:38,160 --> 00:33:39,920
+well-suited to illustrate
+
+872
+00:33:39,920 --> 00:33:42,920
+the powers of Foldkit without
+
+873
+00:33:42,920 --> 00:33:48,440
+overwhelming a user to absorb the domain
+
+874
+00:33:48,440 --> 00:33:50,880
+first. So I'm also very
+
+875
+00:33:50,880 --> 00:33:54,280
+curious to hear more about that.
+
+876
+00:33:54,280 --> 00:33:56,560
+So yeah, in terms of examples, I
+
+877
+00:33:57,760 --> 00:33:59,560
+started, of course, with
+
+878
+00:33:59,560 --> 00:34:02,200
+the counter example and then
+
+879
+00:34:02,200 --> 00:34:05,320
+just tried to make something a little bit
+
+880
+00:34:05,320 --> 00:34:06,160
+more complicated, a
+
+881
+00:34:06,160 --> 00:34:07,720
+little bit more complicated and
+
+882
+00:34:08,880 --> 00:34:12,120
+run into issues that I couldn't support
+
+883
+00:34:12,120 --> 00:34:13,640
+with the current framework.
+
+884
+00:34:13,640 --> 00:34:14,880
+And so that's really just how
+
+885
+00:34:15,960 --> 00:34:18,480
+have evolved. And so I think if you go
+
+886
+00:34:18,480 --> 00:34:21,200
+through every example, they'll
+
+887
+00:34:21,200 --> 00:34:22,520
+progressively get a little
+
+888
+00:34:22,520 --> 00:34:24,640
+bit more interesting and complex. And
+
+889
+00:34:24,640 --> 00:34:25,240
+that's a great way to
+
+890
+00:34:25,240 --> 00:34:26,560
+learn about the framework.
+
+891
+00:34:26,560 --> 00:34:28,840
+So you're sharing your screen. You're
+
+892
+00:34:28,840 --> 00:34:30,640
+having the left side. For
+
+893
+00:34:30,640 --> 00:34:33,040
+those who are just listening in,
+
+894
+00:34:33,040 --> 00:34:35,160
+maybe now is a good time to pop out your
+
+895
+00:34:35,160 --> 00:34:36,600
+phone and look on the
+
+896
+00:34:36,600 --> 00:34:38,080
+screen, not while you're driving,
+
+897
+00:34:38,080 --> 00:34:40,880
+please. Or if you want to look at this
+
+898
+00:34:40,880 --> 00:34:43,800
+later, you can also find all the code
+
+899
+00:34:43,800 --> 00:34:45,240
+snippets, et cetera,
+
+900
+00:34:45,240 --> 00:34:49,520
+probably in the Foldkit repo. And we try
+
+901
+00:34:49,520 --> 00:34:53,000
+our best to give you an intuition for
+
+902
+00:34:53,000 --> 00:34:54,360
+what that looks like
+
+903
+00:34:54,360 --> 00:34:56,400
+just on audio. But it's probably best to
+
+904
+00:34:56,400 --> 00:34:59,080
+just look at the screen sharing here.
+
+905
+00:34:59,080 --> 00:35:03,640
+But what immediately stands out to me, I
+
+906
+00:35:03,640 --> 00:35:05,600
+suppose we're going to see in a moment
+
+907
+00:35:05,600 --> 00:35:07,720
+the source code for an actual
+
+908
+00:35:07,720 --> 00:35:08,920
+application. The application
+
+909
+00:35:08,920 --> 00:35:11,000
+we're seeing here is not just a counter,
+
+910
+00:35:11,000 --> 00:35:13,120
+but it's an app called Pixelforge, it
+
+911
+00:35:13,120 --> 00:35:14,120
+seems. And it seems like a
+
+912
+00:35:14,120 --> 00:35:17,880
+little like a mini-Photoshop
+
+913
+00:35:17,880 --> 00:35:20,880
+paint kind of thing. But this is already
+
+914
+00:35:21,640 --> 00:35:24,080
+not a trivial kind of
+
+915
+00:35:24,080 --> 00:35:26,520
+application that I think will
+
+916
+00:35:26,520 --> 00:35:29,640
+probably demonstrate the capabilities
+
+917
+00:35:29,640 --> 00:35:31,080
+quite well. So that's to be
+
+918
+00:35:31,080 --> 00:35:32,760
+said about the application.
+
+919
+00:35:32,760 --> 00:35:34,520
+And about the code, this is the very
+
+920
+00:35:34,520 --> 00:35:37,480
+first time I'm looking at
+
+921
+00:35:37,480 --> 00:35:39,640
+Foldkit source code besides the
+
+922
+00:35:39,640 --> 00:35:44,320
+docs. And what stands out to me here is I
+
+923
+00:35:44,320 --> 00:35:45,760
+have now a pretty good
+
+924
+00:35:45,760 --> 00:35:49,160
+intuition for what React code
+
+925
+00:35:49,160 --> 00:35:51,040
+feels like. I think most of us have. And
+
+926
+00:35:51,040 --> 00:35:53,200
+I have a good intuition for what
+
+927
+00:35:53,200 --> 00:35:55,600
+idiomatic effect code is.
+
+928
+00:35:55,600 --> 00:35:57,920
+And this is the first time I'm seeing
+
+929
+00:35:57,920 --> 00:35:59,840
+those things side to side
+
+930
+00:35:59,840 --> 00:36:02,040
+and where it feels like. I have
+
+931
+00:36:02,040 --> 00:36:05,640
+getting a first taste of what idiomatic
+
+932
+00:36:05,640 --> 00:36:07,520
+Foldkit code looks like.
+
+933
+00:36:07,520 --> 00:36:09,600
+And my first impression,
+
+934
+00:36:09,600 --> 00:36:11,640
+first impressions I think here are always
+
+935
+00:36:11,640 --> 00:36:14,400
+interesting things. It's really nice.
+
+936
+00:36:14,400 --> 00:36:15,320
+I think we're going to see there's a few
+
+937
+00:36:15,320 --> 00:36:16,880
+controversial parts
+
+938
+00:36:16,880 --> 00:36:18,960
+about Foldkit for some.
+
+939
+00:36:18,960 --> 00:36:21,200
+For example, I think Foldkit doesn't have
+
+940
+00:36:21,200 --> 00:36:22,280
+JSX, which we're
+
+941
+00:36:22,280 --> 00:36:24,000
+going to see in a moment.
+
+942
+00:36:24,000 --> 00:36:27,880
+But my first impressions are really nice.
+
+943
+00:36:27,880 --> 00:36:31,680
+Cool. Thanks. Yeah, I'll just give a
+
+944
+00:36:31,680 --> 00:36:33,440
+quick demo here of Pixel
+
+945
+00:36:33,440 --> 00:36:35,720
+Forge. So it's a Pixel Art app.
+
+946
+00:36:35,720 --> 00:36:38,400
+It's very simple. You can draw stuff. You
+
+947
+00:36:38,400 --> 00:36:42,240
+can change the color. You can do fills.
+
+948
+00:36:43,480 --> 00:36:45,760
+You can, let's see, you can do this
+
+949
+00:36:45,760 --> 00:36:47,120
+mirror thing, which is kind
+
+950
+00:36:47,120 --> 00:36:48,880
+of fun. So if I go to brush
+
+951
+00:36:49,480 --> 00:36:52,160
+and then do that, now I'm mirroring. I
+
+952
+00:36:52,160 --> 00:36:52,920
+can mirror both
+
+953
+00:36:52,920 --> 00:36:55,960
+directions. So yeah, it's just fun.
+
+954
+00:36:57,320 --> 00:37:02,040
+Fun little Pixel Art app. So we'll make
+
+955
+00:37:02,040 --> 00:37:03,360
+something kind of cool here.
+
+956
+00:37:03,360 --> 00:37:06,760
+I'm already noticing about the Pixel Art
+
+957
+00:37:06,760 --> 00:37:09,480
+app here, besides all the
+
+958
+00:37:09,480 --> 00:37:10,840
+tools you've demonstrated,
+
+959
+00:37:11,880 --> 00:37:16,360
+on the right side, I'm seeing a stack of
+
+960
+00:37:16,360 --> 00:37:17,440
+what looks like the
+
+961
+00:37:17,440 --> 00:37:19,600
+history of what has happened.
+
+962
+00:37:20,160 --> 00:37:22,360
+And I have a feeling, this is what I
+
+963
+00:37:22,360 --> 00:37:24,480
+remember about Elm and
+
+964
+00:37:24,480 --> 00:37:26,320
+what I remember about Redux,
+
+965
+00:37:26,320 --> 00:37:29,400
+something, something time travel. So I
+
+966
+00:37:29,400 --> 00:37:32,640
+think there's a first-class benefit
+
+967
+00:37:32,640 --> 00:37:34,800
+of working with
+
+968
+00:37:34,800 --> 00:37:36,680
+Foldkit, at least in this app.
+
+969
+00:37:37,520 --> 00:37:42,120
+Yeah. So undo, redo, going back to
+
+970
+00:37:42,120 --> 00:37:42,920
+previous states in the
+
+971
+00:37:42,920 --> 00:37:44,600
+model and going forward,
+
+972
+00:37:44,600 --> 00:37:47,480
+falls out very naturally from the
+
+973
+00:37:47,480 --> 00:37:49,280
+architecture. So of course, this is
+
+974
+00:37:49,280 --> 00:37:50,120
+something you can do in
+
+975
+00:37:50,120 --> 00:37:54,040
+any framework or without a framework, but
+
+976
+00:37:54,040 --> 00:37:57,280
+in Foldkit programs, this tends to just
+
+977
+00:37:57,280 --> 00:38:02,160
+be a lot easier to manage. Yeah. So yeah,
+
+978
+00:38:02,160 --> 00:38:05,440
+we can go back. We can go forward. So
+
+979
+00:38:05,440 --> 00:38:07,640
+and the idea here was, oh, we can also
+
+980
+00:38:07,640 --> 00:38:09,480
+just save our Pixel Art. So
+
+981
+00:38:09,480 --> 00:38:10,600
+the idea here was to create
+
+982
+00:38:10,600 --> 00:38:13,840
+something that was non-trivial, but still
+
+983
+00:38:13,840 --> 00:38:15,480
+approachable. And then
+
+984
+00:38:15,480 --> 00:38:16,720
+also just touch on this
+
+985
+00:38:16,720 --> 00:38:18,880
+while we're here. This is the Foldkit
+
+986
+00:38:18,880 --> 00:38:21,040
+DevTools. So we can see at
+
+987
+00:38:21,040 --> 00:38:25,480
+any moment what the state of
+
+988
+00:38:25,480 --> 00:38:27,920
+the application is. So like this is our
+
+989
+00:38:28,680 --> 00:38:29,680
+grid. These are all
+
+990
+00:38:29,680 --> 00:38:31,920
+our Pixels right here.
+
+991
+00:38:31,920 --> 00:38:34,280
+We can see. The DevTools are basically
+
+992
+00:38:34,280 --> 00:38:36,360
+just like a thing that lives
+
+993
+00:38:36,360 --> 00:38:38,240
+inside of the web app itself.
+
+994
+00:38:39,240 --> 00:38:43,360
+Got it. Yep. And then for any given
+
+995
+00:38:43,360 --> 00:38:44,920
+message, we can see we
+
+996
+00:38:44,920 --> 00:38:48,600
+entered cell x19 y16 here.
+
+997
+00:38:49,240 --> 00:38:53,040
+Got it. Yep. So the DevTools basically
+
+998
+00:38:53,040 --> 00:38:55,000
+gives us a view into the
+
+999
+00:38:55,000 --> 00:38:56,680
+current model, which I suppose is
+
+1000
+00:38:56,680 --> 00:38:58,920
+the current state of the live
+
+1001
+00:38:58,920 --> 00:39:02,000
+application, but also the messages. So
+
+1002
+00:39:02,000 --> 00:39:03,640
+anything like the events,
+
+1003
+00:39:03,640 --> 00:39:05,920
+anything that has happened within the
+
+1004
+00:39:05,920 --> 00:39:08,720
+application, I guess we'll
+
+1005
+00:39:08,720 --> 00:39:11,040
+also hear more about like what is
+
+1006
+00:39:11,040 --> 00:39:12,640
+the message, what is the command, but
+
+1007
+00:39:12,640 --> 00:39:14,720
+there are also commands and
+
+1008
+00:39:14,720 --> 00:39:17,040
+there seem to be, it's a little
+
+1009
+00:39:17,040 --> 00:39:18,880
+bit small, but it's just like mounts as
+
+1010
+00:39:21,120 --> 00:39:22,300
+it's supposed to be. Yup.
+
+1011
+00:39:22,300 --> 00:39:23,880
+Maybe we'll shelf that for
+
+1012
+00:39:23,880 --> 00:39:25,760
+a moment. It like walks through a bit of
+
+1013
+00:39:25,760 --> 00:39:27,400
+how the application is
+
+1014
+00:39:27,400 --> 00:39:29,960
+built from a code perspective.
+
+1015
+00:39:29,960 --> 00:39:33,200
+But I like the example app as something
+
+1016
+00:39:33,200 --> 00:39:34,240
+that is like a nice
+
+1017
+00:39:34,240 --> 00:39:36,400
+balance of not just a counter.
+
+1018
+00:39:37,080 --> 00:39:40,720
+So it's reminiscent of like a real
+
+1019
+00:39:40,720 --> 00:39:43,280
+non-trivial application that
+
+1020
+00:39:43,280 --> 00:39:46,480
+has probably all aspects of
+
+1021
+00:39:46,480 --> 00:39:47,720
+what is important. It has like little
+
+1022
+00:39:47,720 --> 00:39:49,120
+forms, has like little
+
+1023
+00:39:49,720 --> 00:39:51,800
+real-time reactivity, etc.
+
+1024
+00:39:51,800 --> 00:39:54,840
+Yeah. Let's dive in through the code and
+
+1025
+00:39:54,840 --> 00:39:55,600
+like what we see here in
+
+1026
+00:39:55,600 --> 00:39:57,360
+the code is as for every
+
+1027
+00:39:57,360 --> 00:39:59,520
+effect app, there's always like your
+
+1028
+00:39:59,520 --> 00:40:01,320
+main, like the thing that
+
+1029
+00:40:01,320 --> 00:40:02,720
+the entry point you run.
+
+1030
+00:40:02,720 --> 00:40:06,360
+And we have the same thing here. Yep. So
+
+1031
+00:40:06,360 --> 00:40:07,120
+this is the entry
+
+1032
+00:40:07,120 --> 00:40:09,160
+point for a Foldkit program
+
+1033
+00:40:09,160 --> 00:40:12,960
+conventionally. It's called entry.ts.
+
+1034
+00:40:12,960 --> 00:40:15,800
+This is where you make your
+
+1035
+00:40:15,800 --> 00:40:18,200
+program and then you hand it
+
+1036
+00:40:18,200 --> 00:40:21,360
+to the Foldkit runtime to run it. So
+
+1037
+00:40:21,360 --> 00:40:24,480
+making your program means pulling all of
+
+1038
+00:40:24,480 --> 00:40:26,120
+these pieces together.
+
+1039
+00:40:26,120 --> 00:40:29,560
+So our model, which is our schema
+
+1040
+00:40:29,560 --> 00:40:31,960
+representation of the entire application
+
+1041
+00:40:31,960 --> 00:40:34,160
+state. I'll skip flags
+
+1042
+00:40:34,160 --> 00:40:36,480
+for a moment. In it, this is your initial
+
+1043
+00:40:36,480 --> 00:40:37,840
+model. So you need to tell
+
+1044
+00:40:37,840 --> 00:40:39,440
+the program where do we start.
+
+1045
+00:40:40,320 --> 00:40:42,400
+Update is your transition function. How
+
+1046
+00:40:42,400 --> 00:40:44,440
+do you get from one model to the next
+
+1047
+00:40:44,440 --> 00:40:46,080
+model given a message?
+
+1048
+00:40:47,400 --> 00:40:50,640
+View, pretty self-explanatory. It is a
+
+1049
+00:40:50,640 --> 00:40:52,160
+pure function of the model.
+
+1050
+00:40:52,760 --> 00:40:53,840
+Subscriptions, I'll also
+
+1051
+00:40:53,840 --> 00:40:56,160
+skip this for the moment while we're
+
+1052
+00:40:56,160 --> 00:40:58,360
+getting into the basics. Container where
+
+1053
+00:40:58,360 --> 00:40:58,840
+you're going to mount
+
+1054
+00:40:58,840 --> 00:41:01,000
+it and then some devstool stuff. So
+
+1055
+00:41:01,000 --> 00:41:04,440
+that's it. And then making a
+
+1056
+00:41:04,440 --> 00:41:05,800
+Foldkit application is just
+
+1057
+00:41:05,800 --> 00:41:10,280
+deciding what all of these pieces are and
+
+1058
+00:41:11,520 --> 00:41:13,920
+describing them. Got
+
+1059
+00:41:13,920 --> 00:41:15,200
+it. Yeah. So what do you
+
+1060
+00:41:15,200 --> 00:41:17,320
+feel like is the, we have a lot of
+
+1061
+00:41:17,320 --> 00:41:19,080
+different entry points now
+
+1062
+00:41:19,080 --> 00:41:21,880
+to choose from. I suppose the
+
+1063
+00:41:21,880 --> 00:41:25,200
+model is probably just a collection of
+
+1064
+00:41:25,200 --> 00:41:27,400
+different schemas. So maybe
+
+1065
+00:41:27,920 --> 00:41:29,080
+that's a good starting point.
+
+1066
+00:41:30,760 --> 00:41:33,080
+And I kind of like you driving this
+
+1067
+00:41:33,080 --> 00:41:35,120
+because it's like, you're
+
+1068
+00:41:35,120 --> 00:41:36,040
+seeing this for the first
+
+1069
+00:41:36,040 --> 00:41:39,960
+time and getting a sense for what's
+
+1070
+00:41:39,960 --> 00:41:41,240
+happening. I think that's a
+
+1071
+00:41:41,240 --> 00:41:42,960
+nice way to go through it.
+
+1072
+00:41:42,960 --> 00:41:44,320
+Imagine we're working on this project
+
+1073
+00:41:44,320 --> 00:41:45,520
+together. I'm opening
+
+1074
+00:41:45,520 --> 00:41:47,520
+the repo the first time.
+
+1075
+00:41:47,520 --> 00:41:49,720
+And so I'm now trying to form an
+
+1076
+00:41:49,720 --> 00:41:52,040
+intuition. Having used the app has
+
+1077
+00:41:52,040 --> 00:41:53,120
+already helped form an
+
+1078
+00:41:53,120 --> 00:41:56,440
+intuition. So now I'm wondering, okay, so
+
+1079
+00:41:56,440 --> 00:41:58,160
+we have this grid thingy.
+
+1080
+00:41:58,160 --> 00:42:00,720
+Okay, I see the grid in the model
+
+1081
+00:42:00,720 --> 00:42:02,520
+and all of this feels immediately
+
+1082
+00:42:02,520 --> 00:42:04,560
+familiar because it's
+
+1083
+00:42:04,560 --> 00:42:07,240
+just effect schemas. So yeah,
+
+1084
+00:42:08,200 --> 00:42:10,400
+we don't need to spend too much time on
+
+1085
+00:42:10,400 --> 00:42:11,920
+that. This is like a very
+
+1086
+00:42:11,920 --> 00:42:15,480
+concise way of how you've modeled
+
+1087
+00:42:15,480 --> 00:42:19,040
+the application, which is always like an
+
+1088
+00:42:19,040 --> 00:42:20,720
+orthogonal concern in the
+
+1089
+00:42:20,720 --> 00:42:22,000
+first place that speaks to the
+
+1090
+00:42:22,000 --> 00:42:25,080
+experience of an engineer. How good are
+
+1091
+00:42:25,080 --> 00:42:30,160
+they to model the application
+
+1092
+00:42:30,160 --> 00:42:32,840
+state? And I think one thing
+
+1093
+00:42:32,840 --> 00:42:36,280
+where you and I certainly share the same
+
+1094
+00:42:36,280 --> 00:42:39,000
+vision. I'm a huge fan of the Elm
+
+1095
+00:42:39,000 --> 00:42:40,000
+architecture where you
+
+1096
+00:42:40,000 --> 00:42:44,080
+separate the state that you materialize
+
+1097
+00:42:44,080 --> 00:42:45,960
+from events. So here you're
+
+1098
+00:42:45,960 --> 00:42:48,960
+modeling the state as a model.
+
+1099
+00:42:48,960 --> 00:42:51,520
+And all of that is like you probably
+
+1100
+00:42:51,520 --> 00:42:53,800
+don't mutate that model
+
+1101
+00:42:53,800 --> 00:42:56,640
+state directly, but you probably
+
+1102
+00:42:56,640 --> 00:42:59,160
+derive it from something that's
+
+1103
+00:42:59,160 --> 00:43:00,560
+happening. So maybe we
+
+1104
+00:43:00,560 --> 00:43:01,960
+look at that counterpart.
+
+1105
+00:43:02,680 --> 00:43:07,160
+Yeah, so let's look at message. I think
+
+1106
+00:43:07,160 --> 00:43:09,360
+that's the next thing.
+
+1107
+00:43:09,360 --> 00:43:11,840
+But maybe just one thing to acknowledge
+
+1108
+00:43:11,840 --> 00:43:13,320
+here. What we've seen is
+
+1109
+00:43:13,320 --> 00:43:16,200
+that we have a schema to
+
+1110
+00:43:16,200 --> 00:43:22,640
+model or to encode the shape of our data.
+
+1111
+00:43:22,640 --> 00:43:24,200
+This is already kind of like
+
+1112
+00:43:24,200 --> 00:43:26,160
+a world's first in at least
+
+1113
+00:43:26,680 --> 00:43:30,920
+the TypeScript front-end world where as a
+
+1114
+00:43:30,920 --> 00:43:32,760
+starting point, we're not
+
+1115
+00:43:32,760 --> 00:43:34,560
+looking at how does the view work,
+
+1116
+00:43:34,560 --> 00:43:38,080
+etc. How does the data work? And I think
+
+1117
+00:43:38,080 --> 00:43:39,680
+this is already like a I
+
+1118
+00:43:39,680 --> 00:43:40,680
+feel right at home here.
+
+1119
+00:43:40,680 --> 00:43:42,920
+And I think most effect developers will
+
+1120
+00:43:42,920 --> 00:43:44,520
+feel right at home. This is
+
+1121
+00:43:44,520 --> 00:43:46,600
+very similar to how you build
+
+1122
+00:43:46,600 --> 00:43:51,640
+a effect app. I typically start by just
+
+1123
+00:43:51,640 --> 00:43:52,840
+thinking about what sort
+
+1124
+00:43:52,840 --> 00:43:55,520
+of data do I have in this effect
+
+1125
+00:43:55,520 --> 00:43:58,000
+program. And it's like just the same
+
+1126
+00:43:58,000 --> 00:43:59,240
+here, just with like one
+
+1127
+00:43:59,240 --> 00:44:01,120
+layer of an opinion on top
+
+1128
+00:44:01,120 --> 00:44:04,960
+where you separate events from state. And
+
+1129
+00:44:04,960 --> 00:44:06,400
+I think this makes a ton of sense.
+
+1130
+00:44:07,480 --> 00:44:12,240
+Cool. All right, on to messages. So
+
+1131
+00:44:12,840 --> 00:44:15,360
+messages represent
+
+1132
+00:44:16,000 --> 00:44:18,520
+facts about what happened
+
+1133
+00:44:19,160 --> 00:44:23,160
+in your application. And they are what
+
+1134
+00:44:23,160 --> 00:44:25,840
+feed into the update
+
+1135
+00:44:25,840 --> 00:44:27,920
+function, which is where
+
+1136
+00:44:27,920 --> 00:44:35,000
+the next model is derived. So to look at
+
+1137
+00:44:35,600 --> 00:44:38,880
+how state updates or
+
+1138
+00:44:38,880 --> 00:44:40,360
+how the model updates in a
+
+1139
+00:44:40,360 --> 00:44:43,320
+Foldkit application, the first place to
+
+1140
+00:44:43,320 --> 00:44:45,120
+look is the message union
+
+1141
+00:44:45,120 --> 00:44:47,160
+because this tells you every
+
+1142
+00:44:48,720 --> 00:44:50,520
+thing that happened that
+
+1143
+00:44:50,520 --> 00:44:53,320
+could result in a state change.
+
+1144
+00:44:54,560 --> 00:44:56,560
+Got it. So this is basically when we
+
+1145
+00:44:56,560 --> 00:44:58,400
+clicked around in the app,
+
+1146
+00:44:58,400 --> 00:45:00,360
+we selected a different color
+
+1147
+00:45:00,360 --> 00:45:03,720
+or we drew some pixels. This is like when
+
+1148
+00:45:04,320 --> 00:45:06,920
+the app says, "Yes, that has happened."
+
+1149
+00:45:06,920 --> 00:45:08,800
+It becomes a message.
+
+1150
+00:45:09,360 --> 00:45:12,320
+Yeah, exactly. So if we do pressed cell
+
+1151
+00:45:12,320 --> 00:45:12,840
+here, so we'll
+
+1152
+00:45:12,840 --> 00:45:15,080
+actually click pressed cell.
+
+1153
+00:45:16,520 --> 00:45:20,840
+We'll see here, pressed cell message, X5,
+
+1154
+00:45:20,840 --> 00:45:22,520
+Y3. And then if we
+
+1155
+00:45:22,520 --> 00:45:24,360
+actually go look at pressed cell
+
+1156
+00:45:24,360 --> 00:45:27,600
+here, we'll see it as a message pressed
+
+1157
+00:45:27,600 --> 00:45:29,480
+cell with a payload of the
+
+1158
+00:45:29,480 --> 00:45:31,200
+X, which is a schema number,
+
+1159
+00:45:31,200 --> 00:45:32,480
+and Y, which is a schema number.
+
+1160
+00:45:33,120 --> 00:45:35,360
+It is a little bit more than just a
+
+1161
+00:45:35,360 --> 00:45:38,520
+schema. It is a schema
+
+1162
+00:45:38,520 --> 00:45:40,760
+and it is or like a struct.
+
+1163
+00:45:40,760 --> 00:45:44,360
+And then it has a name. I suppose, is
+
+1164
+00:45:44,360 --> 00:45:48,440
+that mostly just for the dev tools or to
+
+1165
+00:45:48,440 --> 00:45:51,160
+persist some state? Why do I need to
+
+1166
+00:45:51,160 --> 00:45:54,320
+provide that pressed cell name?
+
+1167
+00:45:56,440 --> 00:45:59,840
+This is the tag. So this is how the
+
+1168
+00:45:59,840 --> 00:46:01,360
+update function figures
+
+1169
+00:46:01,360 --> 00:46:03,600
+out what message this is.
+
+1170
+00:46:04,480 --> 00:46:06,760
+So it's basically like a tag struct.
+
+1171
+00:46:07,920 --> 00:46:10,000
+Yep, exactly. Yeah, M is just a tag
+
+1172
+00:46:10,000 --> 00:46:12,720
+struct under the hood that is callable so
+
+1173
+00:46:12,720 --> 00:46:13,640
+you don't have to do
+
+1174
+00:46:13,640 --> 00:46:14,960
+.make and there's a clear
+
+1175
+00:46:14,960 --> 00:46:16,480
+convention for making messages.
+
+1176
+00:46:16,480 --> 00:46:17,280
+Okay, got it.
+
+1177
+00:46:17,920 --> 00:46:19,760
+Okay, cool. So yeah, we have now those
+
+1178
+00:46:19,760 --> 00:46:20,800
+two different parts.
+
+1179
+00:46:22,200 --> 00:46:23,280
+You've mentioned the update
+
+1180
+00:46:23,280 --> 00:46:26,920
+function where probably from different
+
+1181
+00:46:26,920 --> 00:46:29,960
+messages, you get to keep
+
+1182
+00:46:29,960 --> 00:46:32,440
+the model state up to date.
+
+1183
+00:46:32,440 --> 00:46:34,000
+I suppose those are just like pure
+
+1184
+00:46:34,000 --> 00:46:36,880
+functions that where you
+
+1185
+00:46:36,880 --> 00:46:38,960
+can splice in your data.
+
+1186
+00:46:38,960 --> 00:46:40,960
+Okay, there seems to be some interesting
+
+1187
+00:46:40,960 --> 00:46:42,520
+stuff here going on
+
+1188
+00:46:42,520 --> 00:46:45,520
+with an interesting API.
+
+1189
+00:46:45,520 --> 00:46:47,680
+So what am I looking at here?
+
+1190
+00:46:47,680 --> 00:46:50,480
+Yep, so this is the update function. And
+
+1191
+00:46:50,480 --> 00:46:52,720
+what's happening here is we
+
+1192
+00:46:52,720 --> 00:46:55,680
+are matching on the message.
+
+1193
+00:46:56,280 --> 00:46:57,160
+Got it. So we're using
+
+1194
+00:46:57,160 --> 00:46:59,360
+the effect match module.
+
+1195
+00:46:59,360 --> 00:47:03,000
+Correct. So update function takes the
+
+1196
+00:47:03,000 --> 00:47:04,720
+current model, takes the
+
+1197
+00:47:04,720 --> 00:47:08,560
+message. We use match from effects
+
+1198
+00:47:08,560 --> 00:47:12,920
+dot value on the message. This is just so
+
+1199
+00:47:12,920 --> 00:47:13,960
+I can infer the return
+
+1200
+00:47:13,960 --> 00:47:16,880
+type. And then we handle
+
+1201
+00:47:16,880 --> 00:47:19,520
+every message. So here.
+
+1202
+00:47:19,520 --> 00:47:25,600
+Very straightforward.
+We take in the old model. That's the old
+
+1203
+00:47:25,600 --> 00:47:27,040
+model state, whatever it
+
+1204
+00:47:27,040 --> 00:47:28,560
+might be the initial one.
+
+1205
+00:47:28,560 --> 00:47:30,880
+It might be we've already done something
+
+1206
+00:47:30,880 --> 00:47:31,720
+and then we take the new
+
+1207
+00:47:31,720 --> 00:47:33,200
+message. The message could be
+
+1208
+00:47:33,200 --> 00:47:35,480
+anything. So now we basically just need
+
+1209
+00:47:35,480 --> 00:47:37,560
+to match over that message.
+
+1210
+00:47:37,560 --> 00:47:40,240
+And like in the case of where
+
+1211
+00:47:40,240 --> 00:47:42,880
+like whatever you click the messages
+
+1212
+00:47:42,880 --> 00:47:43,840
+delete everything,
+
+1213
+00:47:43,840 --> 00:47:45,000
+then we delete everything.
+
+1214
+00:47:45,000 --> 00:47:45,600
+Makes sense.
+
+1215
+00:47:45,600 --> 00:47:50,200
+Yep, exactly. And you also mentioned pure
+
+1216
+00:47:50,200 --> 00:47:52,640
+function. Yes, update is a pure function.
+
+1217
+00:47:53,320 --> 00:47:57,680
+And that means that every time it runs
+
+1218
+00:47:57,680 --> 00:47:58,520
+given the same input,
+
+1219
+00:47:58,520 --> 00:48:00,200
+it'll give you the same output.
+
+1220
+00:48:01,040 --> 00:48:03,440
+And so just to go through this, like very
+
+1221
+00:48:03,440 --> 00:48:07,360
+quickly, if the tool that is currently
+
+1222
+00:48:07,360 --> 00:48:09,360
+selected in the model
+
+1223
+00:48:09,360 --> 00:48:13,720
+is fill when the message comes in, we do
+
+1224
+00:48:13,720 --> 00:48:15,160
+some work to figure out what the next
+
+1225
+00:48:15,160 --> 00:48:16,560
+model is. We apply a
+
+1226
+00:48:16,560 --> 00:48:19,040
+fill, we push history. So these are just
+
+1227
+00:48:19,040 --> 00:48:20,560
+other functions. And then
+
+1228
+00:48:20,560 --> 00:48:22,360
+we return the next model.
+
+1229
+00:48:22,360 --> 00:48:23,880
+And then there's this other
+
+1230
+00:48:24,440 --> 00:48:26,960
+thing. So this is next model.
+
+1231
+00:48:26,960 --> 00:48:29,920
+Yeah, besides just like a pure function
+
+1232
+00:48:29,920 --> 00:48:30,960
+that returns the next
+
+1233
+00:48:30,960 --> 00:48:32,760
+model, but we're returning
+
+1234
+00:48:32,760 --> 00:48:37,200
+a tool of the next state that we want.
+
+1235
+00:48:37,200 --> 00:48:39,080
+And there's like the
+
+1236
+00:48:39,080 --> 00:48:41,080
+second thing in the tool pool,
+
+1237
+00:48:42,080 --> 00:48:44,120
+which I'm curious what that is. And there
+
+1238
+00:48:44,120 --> 00:48:45,840
+seems to be a function,
+
+1239
+00:48:45,840 --> 00:48:47,360
+maybe it's a helper function
+
+1240
+00:48:47,360 --> 00:48:52,080
+called evo, maybe evolution or evolve.
+
+1241
+00:48:52,080 --> 00:48:53,680
+That's my intuition. But
+
+1242
+00:48:53,680 --> 00:48:55,000
+like, yeah, what are we looking
+
+1243
+00:48:55,000 --> 00:48:55,800
+at here?
+
+1244
+00:48:55,800 --> 00:49:00,120
+So evo is very similar to struct.evolve.
+
+1245
+00:49:01,160 --> 00:49:02,160
+In fact, it actually uses
+
+1246
+00:49:02,160 --> 00:49:04,200
+struct.evolve under the hood,
+
+1247
+00:49:04,200 --> 00:49:07,800
+but it provides some stricter typing. So
+
+1248
+00:49:07,800 --> 00:49:10,360
+you can't have keys
+
+1249
+00:49:10,360 --> 00:49:12,520
+that don't exist in the
+
+1250
+00:49:13,240 --> 00:49:16,280
+struct that is being passed in. So it's a
+
+1251
+00:49:16,280 --> 00:49:19,400
+safe mutation, basically.
+
+1252
+00:49:20,440 --> 00:49:24,480
+Yep. Got it. And then there's this, yeah,
+
+1253
+00:49:24,480 --> 00:49:26,400
+there's this other piece that we
+
+1254
+00:49:26,400 --> 00:49:28,280
+returned. So we return
+
+1255
+00:49:28,280 --> 00:49:32,520
+the next model, but we also return an
+
+1256
+00:49:32,520 --> 00:49:33,760
+array and there's one
+
+1257
+00:49:33,760 --> 00:49:35,080
+element in that array and it's
+
+1258
+00:49:35,080 --> 00:49:39,440
+save canvas next model. So this is where
+
+1259
+00:49:39,440 --> 00:49:42,160
+commands come in, because
+
+1260
+00:49:42,160 --> 00:49:43,920
+side effects need to happen
+
+1261
+00:49:43,920 --> 00:49:45,800
+in applications.
+
+1262
+00:49:45,800 --> 00:49:49,120
+So yeah, how does, and maybe just before
+
+1263
+00:49:49,120 --> 00:49:51,120
+looking at that, this is
+
+1264
+00:49:52,080 --> 00:49:55,720
+like one of the tricky ways how
+
+1265
+00:49:55,720 --> 00:49:59,520
+you like model that in a frontend
+
+1266
+00:49:59,520 --> 00:50:03,280
+framework. This is where reacts, like you
+
+1267
+00:50:03,280 --> 00:50:04,760
+gotta like choose a way
+
+1268
+00:50:04,760 --> 00:50:07,720
+of dying somehow, like a reacts way is
+
+1269
+00:50:07,720 --> 00:50:10,760
+the notorious react.useEffect
+
+1270
+00:50:10,760 --> 00:50:11,480
+You need to
+
+1271
+00:50:11,480 --> 00:50:13,280
+perform that somewhere and like with
+
+1272
+00:50:13,280 --> 00:50:17,000
+react, you get also, as opposed like a
+
+1273
+00:50:17,000 --> 00:50:19,080
+huge percentage of just
+
+1274
+00:50:19,080 --> 00:50:24,120
+the inherent complexity of a big react
+
+1275
+00:50:24,120 --> 00:50:25,360
+app, or possibly even like
+
+1276
+00:50:25,360 --> 00:50:26,920
+the accidental complexity of
+
+1277
+00:50:26,920 --> 00:50:31,040
+a big react app is to figure out like how
+
+1278
+00:50:31,040 --> 00:50:34,400
+do I do the stuff in the useEffect
+
+1279
+00:50:34,400 --> 00:50:35,440
+In which order does
+
+1280
+00:50:35,440 --> 00:50:37,560
+it happen? Like do I consider all the
+
+1281
+00:50:37,560 --> 00:50:39,520
+cases? What about the
+
+1282
+00:50:39,520 --> 00:50:42,600
+dependency array here? And so you're
+
+1283
+00:50:42,600 --> 00:50:45,400
+providing a different way of like to
+
+1284
+00:50:45,400 --> 00:50:47,240
+think about this. So again, there's
+
+1285
+00:50:47,240 --> 00:50:48,440
+probably a fair amount of
+
+1286
+00:50:48,440 --> 00:50:50,880
+nuance to this. We can probably only go
+
+1287
+00:50:50,880 --> 00:50:53,400
+so deep. But I'm very
+
+1288
+00:50:53,400 --> 00:50:56,200
+curious to like hear about the
+
+1289
+00:50:56,200 --> 00:50:59,880
+inside behind this and how that unlocks
+
+1290
+00:50:59,880 --> 00:51:02,600
+like better saner composability.
+
+1291
+00:51:03,240 --> 00:51:06,360
+Yeah, great question. So first of all,
+
+1292
+00:51:06,360 --> 00:51:08,600
+this comes directly from Elm.
+
+1293
+00:51:08,600 --> 00:51:11,320
+This is the Elm architecture
+
+1294
+00:51:11,320 --> 00:51:13,880
+through and through commands are an Elm
+
+1295
+00:51:13,880 --> 00:51:16,920
+concept that Foldkit has
+
+1296
+00:51:16,920 --> 00:51:21,600
+inherited. And the reason
+
+1297
+00:51:21,600 --> 00:51:25,960
+this exists is the update function needs
+
+1298
+00:51:25,960 --> 00:51:28,400
+to be pure. And it's
+
+1299
+00:51:28,400 --> 00:51:30,080
+really useful. It's core to the
+
+1300
+00:51:30,080 --> 00:51:32,680
+architecture that the update function is
+
+1301
+00:51:32,680 --> 00:51:34,280
+not doing anything. It is
+
+1302
+00:51:34,280 --> 00:51:36,760
+just describing things. It's
+
+1303
+00:51:36,760 --> 00:51:39,640
+returning the next model. And it's
+
+1304
+00:51:39,640 --> 00:51:43,760
+returning a description of the side
+
+1305
+00:51:43,760 --> 00:51:46,840
+effect that the runtime
+
+1306
+00:51:46,840 --> 00:51:50,520
+will then manage. And this is like where
+
+1307
+00:51:50,520 --> 00:51:54,960
+the effect, not broadly,
+
+1308
+00:51:54,960 --> 00:51:57,320
+but like the effect type
+
+1309
+00:51:57,320 --> 00:51:59,520
+comes in or the effect value. Can you
+
+1310
+00:51:59,520 --> 00:52:01,040
+just before we're looking at
+
+1311
+00:52:01,040 --> 00:52:03,080
+that, can you briefly explain
+
+1312
+00:52:03,080 --> 00:52:05,920
+and sort of the intuition of the app?
+
+1313
+00:52:05,920 --> 00:52:08,840
+Like what is the non pure thing that is
+
+1314
+00:52:08,840 --> 00:52:10,240
+happening here? Like
+
+1315
+00:52:10,240 --> 00:52:13,000
+does it is basically because it draws
+
+1316
+00:52:13,000 --> 00:52:15,040
+something or it could like play a sound
+
+1317
+00:52:15,040 --> 00:52:16,600
+or something. So that's
+
+1318
+00:52:16,600 --> 00:52:18,800
+not what makes it a not a pure function
+
+1319
+00:52:18,800 --> 00:52:20,600
+in this case. Yeah, good
+
+1320
+00:52:20,600 --> 00:52:22,200
+question. So in this case,
+
+1321
+00:52:22,200 --> 00:52:25,200
+we want to save the canvas to local
+
+1322
+00:52:25,200 --> 00:52:26,920
+storage. So like when I
+
+1323
+00:52:26,920 --> 00:52:31,680
+refresh, we don't want our canvas to
+
+1324
+00:52:31,680 --> 00:52:35,240
+go away. That's impure because it's a
+
+1325
+00:52:35,240 --> 00:52:37,560
+side effects. Got it. Well,
+
+1326
+00:52:37,560 --> 00:52:39,320
+for anyone who thinks like,
+
+1327
+00:52:39,320 --> 00:52:41,600
+wait, isn't like local storage saving,
+
+1328
+00:52:41,600 --> 00:52:43,760
+isn't that like a synchronous function?
+
+1329
+00:52:43,760 --> 00:52:44,840
+Yes, it's a synchronous
+
+1330
+00:52:44,840 --> 00:52:47,040
+function, but that doesn't make it pure.
+
+1331
+00:52:47,040 --> 00:52:48,080
+Here's like many bad
+
+1332
+00:52:48,080 --> 00:52:49,240
+things that can happen.
+
+1333
+00:52:49,880 --> 00:52:53,160
+Yep. So if we actually go look at this,
+
+1334
+00:52:55,480 --> 00:53:00,080
+save canvas is really simple.
+
+1335
+00:53:02,640 --> 00:53:04,600
+It's a function that you've just like
+
+1336
+00:53:04,600 --> 00:53:10,015
+derived from a DSL called command dot
+
+1337
+00:53:10,015 --> 00:53:13,040
+define. So a command
+
+1338
+00:53:13,040 --> 00:53:17,280
+is it looks like this is basically just a
+
+1339
+00:53:17,280 --> 00:53:20,200
+little helper around an effect.
+
+1340
+00:53:21,320 --> 00:53:28,560
+Yes, it is an effect with a name and
+
+1341
+00:53:28,560 --> 00:53:31,960
+potentially some arguments that are
+
+1342
+00:53:31,960 --> 00:53:33,760
+required for the effect
+
+1343
+00:53:33,760 --> 00:53:37,640
+to run. Okay, got it. So a function that
+
+1344
+00:53:37,640 --> 00:53:40,040
+returns a okay, that makes sense. And
+
+1345
+00:53:40,040 --> 00:53:41,120
+like, I think this is
+
+1346
+00:53:41,120 --> 00:53:44,360
+also an interesting like observation
+
+1347
+00:53:44,360 --> 00:53:46,720
+here. I remember when I
+
+1348
+00:53:46,720 --> 00:53:49,640
+first learned about effects and
+
+1349
+00:53:49,640 --> 00:53:53,920
+like over six years ago. And I was
+
+1350
+00:53:53,920 --> 00:53:55,520
+obviously had much more experience with
+
+1351
+00:53:55,520 --> 00:53:56,720
+react back then compared
+
+1352
+00:53:56,720 --> 00:54:00,400
+to effects. And I like why effect spoke
+
+1353
+00:54:00,400 --> 00:54:01,840
+to me is because I can use it
+
+1354
+00:54:01,840 --> 00:54:02,920
+everywhere can use it on the
+
+1355
+00:54:02,920 --> 00:54:05,280
+back end, I can use it in the frontend.
+
+1356
+00:54:05,280 --> 00:54:09,560
+But in the frontend, I was
+
+1357
+00:54:09,560 --> 00:54:11,240
+pretty clear that it had to
+
+1358
+00:54:11,240 --> 00:54:14,600
+coexist with react somehow. So I wanted
+
+1359
+00:54:14,600 --> 00:54:17,000
+to I need to figure out like, how do I
+
+1360
+00:54:17,000 --> 00:54:18,320
+make those two things
+
+1361
+00:54:18,320 --> 00:54:21,640
+like happily coexist? Who calls whom?
+
+1362
+00:54:22,280 --> 00:54:24,920
+What is the entry point? And like slowly
+
+1363
+00:54:24,920 --> 00:54:26,160
+but surely, I tried to
+
+1364
+00:54:26,160 --> 00:54:28,440
+figure out like some patterns. Over time,
+
+1365
+00:54:28,440 --> 00:54:29,400
+the community also
+
+1366
+00:54:29,400 --> 00:54:31,640
+figured out some patterns. But I
+
+1367
+00:54:31,640 --> 00:54:36,120
+up to today, there's still like not the
+
+1368
+00:54:36,120 --> 00:54:38,960
+one way to do it best. Like
+
+1369
+00:54:38,960 --> 00:54:41,760
+do you have like, who's the
+
+1370
+00:54:41,760 --> 00:54:43,760
+boss is react the boss and just like
+
+1371
+00:54:43,760 --> 00:54:47,360
+calls out to effect ones in a while is
+
+1372
+00:54:47,360 --> 00:54:48,720
+effect the entry point
+
+1373
+00:54:48,720 --> 00:54:50,640
+and like effect is kind of responsible
+
+1374
+00:54:50,640 --> 00:54:52,920
+for like managing react. And
+
+1375
+00:54:52,920 --> 00:54:54,600
+like where do you like I want
+
+1376
+00:54:54,600 --> 00:54:56,840
+to have my effect somewhere but like,
+
+1377
+00:54:56,840 --> 00:54:58,720
+where's the entry point to have one big
+
+1378
+00:54:58,720 --> 00:55:00,880
+one, etc. And so you
+
+1379
+00:55:00,880 --> 00:55:03,000
+know, there's a very elegant
+
+1380
+00:55:03,000 --> 00:55:05,160
+answer here, like commands
+
+1381
+00:55:05,160 --> 00:55:06,600
+are the entry points for like,
+
+1382
+00:55:06,600 --> 00:55:08,800
+this is the thing that like manages the
+
+1383
+00:55:08,800 --> 00:55:09,880
+effects and calls the
+
+1384
+00:55:09,880 --> 00:55:13,600
+effects. And in a very like, I mean,
+
+1385
+00:55:13,600 --> 00:55:17,400
+this is probably was for you a very
+
+1386
+00:55:17,400 --> 00:55:18,360
+delightful moment, I
+
+1387
+00:55:18,360 --> 00:55:20,520
+suppose, when you like realized that
+
+1388
+00:55:21,160 --> 00:55:25,520
+effect the elm concept of a command fits
+
+1389
+00:55:25,520 --> 00:55:28,360
+so smoothly together with effect.
+
+1390
+00:55:28,360 --> 00:55:31,320
+Yep. Yeah, yeah, exactly. That
+
+1391
+00:55:31,320 --> 00:55:33,640
+was kind of the the original
+
+1392
+00:55:33,640 --> 00:55:34,800
+insight. Was that like,
+
+1393
+00:55:34,800 --> 00:55:38,520
+this looks a lot like a command in Elm
+
+1394
+00:55:38,520 --> 00:55:39,760
+and it all it does it
+
+1395
+00:55:39,760 --> 00:55:42,440
+does way more. But it like,
+
+1396
+00:55:43,120 --> 00:55:47,280
+it fit into that box that was
+
+1397
+00:55:47,280 --> 00:55:49,480
+noted to do this right. Yeah.
+
+1398
+00:55:49,480 --> 00:55:51,480
+Yeah, yeah, I'm having a little bit of an
+
+1399
+00:55:51,480 --> 00:55:53,000
+aha moment right here.
+
+1400
+00:55:53,000 --> 00:55:54,480
+Like, I'm glad that we started
+
+1401
+00:55:54,480 --> 00:55:56,280
+with like the more boring parts like
+
+1402
+00:55:56,280 --> 00:55:59,080
+understanding the like the model
+
+1403
+00:55:59,080 --> 00:56:01,040
+understanding the messages.
+
+1404
+00:56:01,040 --> 00:56:03,320
+But now understanding okay, for the
+
+1405
+00:56:03,320 --> 00:56:05,760
+updates, this is where like the the
+
+1406
+00:56:05,760 --> 00:56:07,240
+boring data transformation
+
+1407
+00:56:07,240 --> 00:56:10,600
+happens. But like the in some cases, you
+
+1408
+00:56:10,600 --> 00:56:12,920
+also want the tricky,
+
+1409
+00:56:12,920 --> 00:56:15,280
+effectful things happen. And this
+
+1410
+00:56:15,280 --> 00:56:18,240
+is exactly happening here. Yep, yep,
+
+1411
+00:56:18,240 --> 00:56:22,280
+exactly. So in this case, it's this is
+
+1412
+00:56:22,280 --> 00:56:23,440
+this is a good place to
+
+1413
+00:56:23,440 --> 00:56:25,880
+start because it's really simple. If
+
+1414
+00:56:25,880 --> 00:56:26,720
+people are familiar with
+
+1415
+00:56:26,720 --> 00:56:28,080
+effect, this will this will make
+
+1416
+00:56:28,080 --> 00:56:30,705
+a lot of sense. We have this browser key
+
+1417
+00:56:30,705 --> 00:56:32,480
+value store dependency. I
+
+1418
+00:56:32,480 --> 00:56:33,360
+mean, this is the other great
+
+1419
+00:56:33,360 --> 00:56:35,120
+thing about I think working this way is
+
+1420
+00:56:35,120 --> 00:56:36,840
+like, this just looks this is just
+
+1421
+00:56:36,840 --> 00:56:38,040
+effect, right? There's
+
+1422
+00:56:38,040 --> 00:56:39,880
+nothing like Foldkit special
+
+1423
+00:56:39,880 --> 00:56:42,440
+happening here. This is just effect. And
+
+1424
+00:56:42,440 --> 00:56:43,920
+so by the way, a nice
+
+1425
+00:56:43,920 --> 00:56:45,880
+mascot, you gotta have a fold-kitty.
+
+1426
+00:56:46,560 --> 00:56:51,320
+Oh, that's a good idea. Yeah. And then
+
+1427
+00:56:51,320 --> 00:56:52,280
+yeah, and then we do
+
+1428
+00:56:52,280 --> 00:56:54,760
+we do our store dot set. And then at the
+
+1429
+00:56:54,760 --> 00:56:56,920
+end here, we just return a
+
+1430
+00:56:56,920 --> 00:56:59,400
+message back into the update
+
+1431
+00:56:59,400 --> 00:57:03,520
+function. So in this case, the completed
+
+1432
+00:57:03,520 --> 00:57:05,040
+save canvas, when it
+
+1433
+00:57:05,040 --> 00:57:06,880
+reaches the update function,
+
+1434
+00:57:06,880 --> 00:57:08,880
+I don't think it does anything because we
+
+1435
+00:57:08,880 --> 00:57:09,880
+don't really care that
+
+1436
+00:57:09,880 --> 00:57:12,640
+local storage just saved. But
+
+1437
+00:57:12,640 --> 00:57:16,480
+if this were an HTTP request, we would
+
+1438
+00:57:16,480 --> 00:57:18,560
+get some data here. And
+
+1439
+00:57:18,560 --> 00:57:19,960
+then this is how our data would
+
+1440
+00:57:19,960 --> 00:57:22,040
+flow back into update, we would update
+
+1441
+00:57:22,040 --> 00:57:23,080
+our state. Got it.
+
+1442
+00:57:23,960 --> 00:57:25,920
+Awesome. But what I just like
+
+1443
+00:57:25,920 --> 00:57:29,640
+reflecting on what we've seen so far, I
+
+1444
+00:57:29,640 --> 00:57:32,960
+obviously I'm like predisposed to the
+
+1445
+00:57:32,960 --> 00:57:35,440
+ideas of like separating
+
+1446
+00:57:35,440 --> 00:57:38,120
+events from stage like in the Elm
+
+1447
+00:57:38,120 --> 00:57:40,560
+architecture, etc. I think it's like it's
+
+1448
+00:57:40,560 --> 00:57:41,520
+really like embraced
+
+1449
+00:57:41,520 --> 00:57:43,680
+by many different technologies. Also, if
+
+1450
+00:57:43,680 --> 00:57:45,800
+you like maybe if you use XState
+
+1451
+00:57:45,800 --> 00:57:47,160
+in the past, like a lot
+
+1452
+00:57:47,160 --> 00:57:49,360
+of those like, it's all the same ideas.
+
+1453
+00:57:49,880 --> 00:57:51,920
+But like just absorbing those
+
+1454
+00:57:51,920 --> 00:57:53,760
+concepts now and like seeing
+
+1455
+00:57:53,760 --> 00:57:56,600
+how they're exposed in Foldkit. There's
+
+1456
+00:57:56,600 --> 00:57:59,240
+like, unlike effect,
+
+1457
+00:57:59,240 --> 00:58:01,160
+maybe where I had to like the
+
+1458
+00:58:01,160 --> 00:58:03,440
+first time I was introduced to a
+
+1459
+00:58:03,440 --> 00:58:04,960
+layer it took me quite a
+
+1460
+00:58:04,960 --> 00:58:06,640
+while until I had an intuition
+
+1461
+00:58:06,640 --> 00:58:09,560
+for what a layer is or like how streams
+
+1462
+00:58:09,560 --> 00:58:10,520
+work like in all the
+
+1463
+00:58:10,520 --> 00:58:12,800
+different cases. But what I'm seeing
+
+1464
+00:58:12,800 --> 00:58:14,560
+here, like, I feel already pretty
+
+1465
+00:58:14,560 --> 00:58:16,160
+confident like having an
+
+1466
+00:58:16,160 --> 00:58:18,360
+intuition for how this works
+
+1467
+00:58:18,360 --> 00:58:20,080
+in the various scenarios like
+
+1468
+00:58:20,080 --> 00:58:22,280
+given that I can inherit now my
+
+1469
+00:58:22,280 --> 00:58:23,240
+understanding from an
+
+1470
+00:58:23,240 --> 00:58:25,560
+effect that gives me an understanding of
+
+1471
+00:58:25,560 --> 00:58:28,040
+like how abortion works, or like how
+
+1472
+00:58:28,040 --> 00:58:29,000
+different things can
+
+1473
+00:58:29,000 --> 00:58:31,640
+be composed together. So yeah, this feels
+
+1474
+00:58:31,640 --> 00:58:34,240
+very smooth so far. Cool.
+
+1475
+00:58:34,240 --> 00:58:38,080
+Glad to hear that. So in
+
+1476
+00:58:38,080 --> 00:58:41,080
+terms of other things that I think are
+
+1477
+00:58:41,080 --> 00:58:42,200
+interesting to look at for
+
+1478
+00:58:42,200 --> 00:58:44,560
+this example, I want to touch
+
+1479
+00:58:44,560 --> 00:58:48,320
+briefly on testing, if that's cool. So I
+
+1480
+00:58:48,320 --> 00:58:49,360
+mean, we haven't closed
+
+1481
+00:58:49,360 --> 00:58:51,760
+the loop yet on one thing,
+
+1482
+00:58:51,760 --> 00:58:53,600
+which is probably like the most
+
+1483
+00:58:53,600 --> 00:58:54,537
+straightforward part. Oh, the view, the
+
+1484
+00:58:54,537 --> 00:58:57,560
+view, I totally forgot.
+Yeah, exactly. We have something like
+
+1485
+00:58:57,560 --> 00:59:00,240
+data and like, and side
+
+1486
+00:59:00,240 --> 00:59:02,040
+effects, but we got to have some
+
+1487
+00:59:02,040 --> 00:59:05,080
+pixels. So how does that look like? And
+
+1488
+00:59:05,080 --> 00:59:05,800
+this is where we're
+
+1489
+00:59:05,800 --> 00:59:07,720
+introducing like trigger warning,
+
+1490
+00:59:07,720 --> 00:59:13,560
+we're not looking at JSX here. Yeah, it's
+
+1491
+00:59:13,560 --> 00:59:18,480
+not JSX. Okay, so this
+
+1492
+00:59:18,480 --> 00:59:20,120
+is the top level view,
+
+1493
+00:59:20,120 --> 00:59:22,200
+in Foldkit, if you take some model
+
+1494
+00:59:22,200 --> 00:59:23,240
+returns a document, so
+
+1495
+00:59:23,240 --> 00:59:24,880
+this includes the title,
+
+1496
+00:59:24,880 --> 00:59:28,080
+and then also the actual body content,
+
+1497
+00:59:28,920 --> 00:59:30,000
+which you can see here.
+
+1498
+00:59:31,960 --> 00:59:33,920
+Okay, so I feel like this is just
+
+1499
+00:59:33,920 --> 00:59:38,280
+because we're so used to JSX-y things by
+
+1500
+00:59:38,280 --> 00:59:40,680
+now. I want to absorb that a
+
+1501
+00:59:40,680 --> 00:59:42,760
+little bit and then also ask
+
+1502
+00:59:42,760 --> 00:59:46,120
+to better understand your opinions here
+
+1503
+00:59:46,120 --> 00:59:49,160
+and maybe this was a clear
+
+1504
+00:59:49,160 --> 00:59:50,720
+choice for you, maybe this was
+
+1505
+00:59:50,720 --> 00:59:54,520
+also a non-trivial choice for you. But
+
+1506
+00:59:54,520 --> 00:59:55,960
+what we're looking at here,
+
+1507
+00:59:55,960 --> 00:59:58,360
+first of all, it's a view.ts,
+
+1508
+00:59:58,360 --> 01:00:02,280
+not a tsx file. And like what is similar
+
+1509
+01:00:02,280 --> 01:00:03,480
+to a React component is
+
+1510
+01:00:03,480 --> 01:00:05,240
+like basically a function
+
+1511
+01:00:05,240 --> 01:00:08,720
+that takes some stuff and returns, in
+
+1512
+01:00:08,720 --> 01:00:10,400
+this case, a document. So that's
+
+1513
+01:00:10,400 --> 01:00:11,760
+interesting. Is that document
+
+1514
+01:00:11,760 --> 01:00:14,960
+here? Is that the DOM document or is that
+
+1515
+01:00:14,960 --> 01:00:18,240
+like a document coming from Foldkit?
+
+1516
+01:00:19,000 --> 01:00:21,000
+Yeah, that comes from Foldkit and it
+
+1517
+01:00:21,000 --> 01:00:23,560
+represents the title and the body.
+
+1518
+01:00:23,560 --> 01:00:25,840
+So you're basically with Foldkit, you
+
+1519
+01:00:26,400 --> 01:00:28,120
+have a bit of a mapping
+
+1520
+01:00:28,120 --> 01:00:33,360
+to what ultimately becomes DOM. But it's
+
+1521
+01:00:33,360 --> 01:00:34,400
+basically just like you're
+
+1522
+01:00:34,400 --> 01:00:36,080
+returning just a normal object,
+
+1523
+01:00:36,080 --> 01:00:38,360
+the title, I suppose you could return
+
+1524
+01:00:38,360 --> 01:00:39,120
+other things here as
+
+1525
+01:00:39,120 --> 01:00:41,200
+well. And the body, you're now
+
+1526
+01:00:41,200 --> 01:00:43,800
+composing out of those little helper
+
+1527
+01:00:43,800 --> 01:00:48,480
+function, h. h seems to stand
+
+1528
+01:00:48,480 --> 01:00:50,320
+for like a helper that you've
+
+1529
+01:00:50,320 --> 01:00:53,360
+constructed out of a help HTML function
+
+1530
+01:00:53,360 --> 01:00:55,960
+that is parametric over our
+
+1531
+01:00:55,960 --> 01:00:57,960
+messages. So at least on a
+
+1532
+01:00:57,960 --> 01:01:00,640
+type level, which probably helps us to
+
+1533
+01:01:00,640 --> 01:01:02,920
+avoid certain bad
+
+1534
+01:01:02,920 --> 01:01:06,240
+invocations. So I suppose like coming
+
+1535
+01:01:06,240 --> 01:01:08,520
+from React, maybe that takes a little bit
+
+1536
+01:01:08,520 --> 01:01:10,560
+of. Well, as humans, we
+
+1537
+01:01:10,560 --> 01:01:12,120
+don't write code any way
+
+1538
+01:01:12,120 --> 01:01:14,480
+anymore. So and the agent like
+
+1539
+01:01:14,480 --> 01:01:15,680
+immediately adapts to
+
+1540
+01:01:15,680 --> 01:01:18,680
+anything. But just to read it,
+
+1541
+01:01:18,680 --> 01:01:21,560
+this is a little bit of a departure. But
+
+1542
+01:01:21,560 --> 01:01:24,440
+in a way, it's also like,
+
+1543
+01:01:24,440 --> 01:01:26,520
+it's just normal TypeScript.
+
+1544
+01:01:26,520 --> 01:01:27,240
+I think I have an
+
+1545
+01:01:27,240 --> 01:01:28,160
+understanding of like
+
+1546
+01:01:28,160 --> 01:01:29,320
+how it works.
+
+1547
+01:01:29,320 --> 01:01:32,280
+now I'm more curious about what made you
+
+1548
+01:01:32,280 --> 01:01:34,400
+choose this direction, as
+
+1549
+01:01:34,400 --> 01:01:36,720
+opposed to like following what
+
+1550
+01:01:36,720 --> 01:01:39,040
+most people are doing and using JSX.
+
+1551
+01:01:39,840 --> 01:01:42,520
+Yeah, great, great questions. So the
+
+1552
+01:01:42,520 --> 01:01:46,040
+first reason is that
+
+1553
+01:01:46,040 --> 01:01:48,160
+to some extent, Foldkit is part of the
+
+1554
+01:01:48,160 --> 01:01:51,000
+Elm lineage. And you
+
+1555
+01:01:51,000 --> 01:01:53,120
+don't have something like JSX
+
+1556
+01:01:53,120 --> 01:01:55,440
+in Elm, this is how views are
+
+1557
+01:01:55,440 --> 01:01:59,800
+constructed. And I really
+
+1558
+01:01:59,800 --> 01:02:03,480
+grew to like that. And so like,
+
+1559
+01:02:04,120 --> 01:02:05,880
+that's where I started, right? Just like
+
+1560
+01:02:05,880 --> 01:02:06,600
+as a personal
+
+1561
+01:02:06,600 --> 01:02:08,160
+preference beginning, I was like,
+
+1562
+01:02:08,160 --> 01:02:10,200
+I really like the way that this looks. I
+
+1563
+01:02:10,200 --> 01:02:11,560
+like the way that it
+
+1564
+01:02:11,560 --> 01:02:13,240
+composes. I like that everything is
+
+1565
+01:02:14,280 --> 01:02:18,960
+like a function or a list that just feels
+
+1566
+01:02:18,960 --> 01:02:21,040
+natural to me. And
+
+1567
+01:02:21,040 --> 01:02:23,120
+then on top of that,
+
+1568
+01:02:23,680 --> 01:02:29,240
+I think at the type level, supporting JSX
+
+1569
+01:02:29,840 --> 01:02:31,240
+could be really tricky. I
+
+1570
+01:02:31,240 --> 01:02:33,680
+haven't looked super deeply
+
+1571
+01:02:33,680 --> 01:02:38,120
+into it, but this kind of typing where
+
+1572
+01:02:38,640 --> 01:02:42,200
+all of these attributes only
+
+1573
+01:02:42,200 --> 01:02:44,920
+work with your message type
+
+1574
+01:02:44,920 --> 01:02:48,920
+that you provide is probably a pretty
+
+1575
+01:02:48,920 --> 01:02:50,800
+tricky thing to do with
+
+1576
+01:02:50,800 --> 01:02:53,200
+JSX. And I'm not sure it's even
+
+1577
+01:02:53,200 --> 01:02:55,560
+possible. So yeah, no, it doesn't make
+
+1578
+01:02:55,560 --> 01:02:56,480
+sense. And I've been
+
+1579
+01:02:56,480 --> 01:02:59,960
+like often felt held back by
+
+1580
+01:02:59,960 --> 01:03:01,440
+where TypeScript was very
+
+1581
+01:03:01,440 --> 01:03:03,880
+capable and JSX was not.
+
+1582
+01:03:03,880 --> 01:03:05,680
+For example, how you have
+
+1583
+01:03:05,680 --> 01:03:08,000
+with effect, like layers and the
+
+1584
+01:03:08,000 --> 01:03:10,160
+context, how you can basically say like,
+
+1585
+01:03:10,160 --> 01:03:12,260
+this effect requires a key
+
+1586
+01:03:12,260 --> 01:03:15,800
+value store. You forget, you lose all of
+
+1587
+01:03:15,800 --> 01:03:17,400
+that information when you
+
+1588
+01:03:17,400 --> 01:03:20,320
+compose React components,
+
+1589
+01:03:20,320 --> 01:03:23,080
+also like arrow boundaries, et cetera. So
+
+1590
+01:03:23,080 --> 01:03:25,000
+yeah, this makes a lot of sense. So
+
+1591
+01:03:25,000 --> 01:03:28,000
+the sort of like stylistic choice aside,
+
+1592
+01:03:28,000 --> 01:03:30,680
+I'm now curious with how
+
+1593
+01:03:30,680 --> 01:03:32,080
+I should think about like
+
+1594
+01:03:32,080 --> 01:03:35,080
+data flow here. So the header, I suppose,
+
+1595
+01:03:35,080 --> 01:03:36,560
+is like very boring,
+
+1596
+01:03:36,560 --> 01:03:38,000
+doesn't have like any
+
+1597
+01:03:38,000 --> 01:03:40,480
+interesting data things happening to it.
+
+1598
+01:03:40,480 --> 01:03:41,760
+But let's look at something
+
+1599
+01:03:41,760 --> 01:03:43,520
+that's like more reactive. So
+
+1600
+01:03:43,520 --> 01:03:46,320
+how do I get my data? And how should I
+
+1601
+01:03:46,320 --> 01:03:47,640
+think about this? Like, is
+
+1602
+01:03:47,640 --> 01:03:50,320
+there with React and hooks,
+
+1603
+01:03:50,320 --> 01:03:53,680
+the same function component basically
+
+1604
+01:03:53,680 --> 01:03:55,840
+gets recalled all the time
+
+1605
+01:03:55,840 --> 01:03:57,400
+with like the rules of hooks,
+
+1606
+01:03:57,400 --> 01:03:59,320
+which takes quite a bit of like
+
+1607
+01:03:59,320 --> 01:04:00,880
+getting used to and at some point it's
+
+1608
+01:04:00,880 --> 01:04:02,720
+like, you're used to it
+
+1609
+01:04:02,720 --> 01:04:04,560
+and like you embrace it. Is there
+
+1610
+01:04:04,560 --> 01:04:07,200
+something similar happening here? Or how
+
+1611
+01:04:07,200 --> 01:04:08,640
+should I think about
+
+1612
+01:04:08,640 --> 01:04:12,400
+reactivity reactively updating my view
+
+1613
+01:04:12,400 --> 01:04:14,040
+here? Like where does data
+
+1614
+01:04:14,040 --> 01:04:16,912
+come from? When does what get
+
+1615
+01:04:16,912 --> 01:04:22,000
+it? Yeah, good, good question. So this is
+
+1616
+01:04:22,000 --> 01:04:25,520
+made really much simpler
+
+1617
+01:04:25,520 --> 01:04:29,160
+because compared to React, because the
+
+1618
+01:04:29,160 --> 01:04:31,800
+view is just a pure function of the
+
+1619
+01:04:31,800 --> 01:04:33,240
+model. So there's no
+
+1620
+01:04:33,240 --> 01:04:36,080
+there's no life cycle of a particular
+
+1621
+01:04:36,080 --> 01:04:38,520
+view. There's some machinery for
+
+1622
+01:04:39,320 --> 01:04:41,000
+batching messages and
+
+1623
+01:04:41,000 --> 01:04:43,000
+handling renders in a performant way.
+
+1624
+01:04:43,000 --> 01:04:44,920
+But basically on on
+
+1625
+01:04:44,920 --> 01:04:47,560
+animation frame, view is called
+
+1626
+01:04:47,560 --> 01:04:51,560
+with the model. And then the rendering
+
+1627
+01:04:51,560 --> 01:04:53,960
+happens. Okay, and then that's that's
+
+1628
+01:04:53,960 --> 01:04:54,920
+interesting already.
+
+1629
+01:04:54,920 --> 01:04:58,018
+Yeah, so you're you're basically re
+
+1630
+01:04:58,018 --> 01:05:01,200
+rendering the entire app every frame.
+
+1631
+01:05:01,200 --> 01:05:04,240
+With the exception of lazy
+
+1632
+01:05:05,080 --> 01:05:07,120
+or memoized components. Yes.
+
+1633
+01:05:08,520 --> 01:05:12,200
+Interesting. Yeah, okay. So I'm very
+
+1634
+01:05:12,200 --> 01:05:13,600
+curious to learn more about
+
+1635
+01:05:13,600 --> 01:05:15,160
+this. Like on the one hand,
+
+1636
+01:05:15,160 --> 01:05:17,800
+like that's how games work. And that's
+
+1637
+01:05:17,800 --> 01:05:21,200
+fine. Like we have capable devices. And
+
+1638
+01:05:21,200 --> 01:05:23,280
+in a way, it's almost like a good forcing
+
+1639
+01:05:23,280 --> 01:05:24,720
+function to keep
+
+1640
+01:05:24,720 --> 01:05:27,360
+bottlenecks away. Because like if it
+
+1641
+01:05:27,360 --> 01:05:28,920
+happens on every on every
+
+1642
+01:05:28,920 --> 01:05:30,320
+render, you'll notice much more
+
+1643
+01:05:30,320 --> 01:05:30,920
+quickly.
+
+1644
+01:05:31,800 --> 01:05:34,080
+yeah, it's an interesting trade off,
+
+1645
+01:05:34,080 --> 01:05:36,520
+where I hope it affords you
+
+1646
+01:05:36,520 --> 01:05:39,040
+a lot of simplicity. And I think we're
+
+1647
+01:05:39,040 --> 01:05:41,980
+all like so afraid of like, like,
+
+1648
+01:05:41,980 --> 01:05:43,440
+historically that Otis gets
+
+1649
+01:05:43,440 --> 01:05:45,280
+called more often, but it's actually
+
+1650
+01:05:45,280 --> 01:05:47,480
+fine. This react has different
+
+1651
+01:05:47,480 --> 01:05:48,960
+bottlenecks that are much more
+
+1652
+01:05:48,960 --> 01:05:51,880
+noticeable in real react apps compared to
+
+1653
+01:05:51,880 --> 01:05:53,360
+like rendering it all
+
+1654
+01:05:53,360 --> 01:05:54,720
+the time. There's like one
+
+1655
+01:05:54,720 --> 01:05:57,400
+anecdote or like one situation that
+
+1656
+01:05:57,400 --> 01:05:58,360
+really comes to mind.
+
+1657
+01:05:58,360 --> 01:06:00,240
+There's like a very gifted engineer
+
+1658
+01:06:00,240 --> 01:06:03,920
+Cheng Lu. He worked back then at Facebook
+
+1659
+01:06:03,920 --> 01:06:05,040
+on the react team.
+
+1660
+01:06:05,040 --> 01:06:07,120
+He showed me this demo once,
+
+1661
+01:06:07,120 --> 01:06:10,200
+where it was basically a image gallery
+
+1662
+01:06:10,200 --> 01:06:11,920
+and also Hacker News clone
+
+1663
+01:06:11,920 --> 01:06:14,480
+that has like infinite scrolling
+
+1664
+01:06:14,480 --> 01:06:15,400
+he probably built
+
+1665
+01:06:15,400 --> 01:06:16,840
+the largest data set he
+
+1666
+01:06:16,840 --> 01:06:18,120
+could find and like really
+
+1667
+01:06:18,120 --> 01:06:21,240
+tried to build a very, very ambitious
+
+1668
+01:06:21,240 --> 01:06:23,480
+application with us the image, like both
+
+1669
+01:06:23,480 --> 01:06:24,520
+the image gallery as
+
+1670
+01:06:24,520 --> 01:06:28,040
+well as the the Hacker News version,
+
+1671
+01:06:28,040 --> 01:06:29,520
+like he demonstrated
+
+1672
+01:06:29,520 --> 01:06:31,160
+scrolling the Hacker News version,
+
+1673
+01:06:31,160 --> 01:06:33,280
+for example, always had like nested
+
+1674
+01:06:33,280 --> 01:06:36,120
+comments that were all differently sized
+
+1675
+01:06:36,120 --> 01:06:37,920
+the image gallery had
+
+1676
+01:06:37,920 --> 01:06:41,000
+very smooth like animation from the grid
+
+1677
+01:06:41,000 --> 01:06:42,640
+into details, etc. Like
+
+1678
+01:06:42,640 --> 01:06:44,480
+those things were abortable.
+
+1679
+01:06:44,480 --> 01:06:47,000
+And this felt like buttery smooth. So
+
+1680
+01:06:47,000 --> 01:06:48,480
+first, I basically thought, okay,
+
+1681
+01:06:48,480 --> 01:06:49,520
+he's showing me like a
+
+1682
+01:06:49,520 --> 01:06:52,920
+native Mac app, until I realized this was
+
+1683
+01:06:52,920 --> 01:06:53,800
+like a web app. And I've
+
+1684
+01:06:53,800 --> 01:06:55,960
+never seen such a fast and smooth
+
+1685
+01:06:55,960 --> 01:06:58,040
+web app before. Like he really like
+
+1686
+01:06:58,040 --> 01:07:02,280
+showed to me how capable the the web
+
+1687
+01:07:02,280 --> 01:07:04,000
+platform could be. And I've
+
+1688
+01:07:04,000 --> 01:07:05,360
+asked him like, Hey, how did you build
+
+1689
+01:07:05,360 --> 01:07:08,080
+this? And he did the exact same thing. He
+
+1690
+01:07:08,080 --> 01:07:08,960
+basically said like,
+
+1691
+01:07:08,960 --> 01:07:10,600
+I'm basically just re rendering the
+
+1692
+01:07:10,600 --> 01:07:12,360
+entire the entire app on each
+
+1693
+01:07:12,360 --> 01:07:14,960
+animation on each frame. And
+
+1694
+01:07:14,960 --> 01:07:17,400
+the thing that made it fast is by not
+
+1695
+01:07:17,400 --> 01:07:19,640
+having to do all like the crazy machinery
+
+1696
+01:07:19,640 --> 01:07:20,920
+that react gives you.
+
+1697
+01:07:20,920 --> 01:07:23,680
+So there's probably like situations where
+
+1698
+01:07:23,680 --> 01:07:24,800
+one is a better trade off
+
+1699
+01:07:24,800 --> 01:07:28,440
+than the other. But this if he
+
+1700
+01:07:28,440 --> 01:07:30,800
+would have said that to me without giving
+
+1701
+01:07:30,800 --> 01:07:32,200
+me this demo first, I
+
+1702
+01:07:32,200 --> 01:07:33,720
+would have thought he's crazy.
+
+1703
+01:07:34,320 --> 01:07:36,400
+But like having seen the demo, that's
+
+1704
+01:07:36,400 --> 01:07:37,880
+like was the ultimate proof
+
+1705
+01:07:37,880 --> 01:07:39,960
+that this is a very attractive
+
+1706
+01:07:39,960 --> 01:07:42,560
+trade off. So I'm very, very interested
+
+1707
+01:07:42,560 --> 01:07:44,400
+in like seeing how that plays out.
+
+1708
+01:07:45,040 --> 01:07:48,920
+Yeah, yeah, I think it sounds like at
+
+1709
+01:07:48,920 --> 01:07:50,520
+first blush, it sounds like well, if
+
+1710
+01:07:50,520 --> 01:07:52,880
+you're if you're re if
+
+1711
+01:07:52,880 --> 01:07:55,880
+you're re computing the whole view on
+
+1712
+01:07:55,880 --> 01:07:59,800
+every animation frame, then
+
+1713
+01:07:59,800 --> 01:08:01,840
+that sounds really bad for
+
+1714
+01:08:01,840 --> 01:08:05,440
+performance. But I don't think that
+
+1715
+01:08:05,440 --> 01:08:07,280
+that's the case. Like that's the same
+
+1716
+01:08:07,280 --> 01:08:08,680
+thing that Elm does.
+
+1717
+01:08:08,680 --> 01:08:10,520
+They just have a really, really good
+
+1718
+01:08:10,520 --> 01:08:13,320
+V-DOM diffing and patching
+
+1719
+01:08:13,320 --> 01:08:16,560
+solution. And so right now,
+
+1720
+01:08:16,560 --> 01:08:18,320
+actually did just did like a big
+
+1721
+01:08:18,320 --> 01:08:22,040
+performance push. So Foldkit was very
+
+1722
+01:08:22,040 --> 01:08:23,640
+slow, because I just
+
+1723
+01:08:23,640 --> 01:08:26,000
+wasn't thinking about performance.
+
+1724
+01:08:26,000 --> 01:08:27,040
+Because like, why think
+
+1725
+01:08:27,040 --> 01:08:28,240
+about performance when like,
+
+1726
+01:08:28,240 --> 01:08:30,560
+I'm the only person using this and I have
+
+1727
+01:08:30,560 --> 01:08:31,800
+been for the last nine
+
+1728
+01:08:31,800 --> 01:08:33,560
+months and like, my mom knows
+
+1729
+01:08:33,560 --> 01:08:35,520
+about it, you know. But then it got to a
+
+1730
+01:08:35,520 --> 01:08:36,360
+point where it was like, Oh,
+
+1731
+01:08:36,360 --> 01:08:37,960
+wow, like people are people
+
+1732
+01:08:37,960 --> 01:08:39,400
+are using this, they want to use it more.
+
+1733
+01:08:39,400 --> 01:08:40,360
+So let's let's think about
+
+1734
+01:08:40,360 --> 01:08:42,000
+performance. And the main thing
+
+1735
+01:08:42,000 --> 01:08:43,920
+was just getting effect out of the hot
+
+1736
+01:08:43,920 --> 01:08:45,800
+path, just because like on
+
+1737
+01:08:45,800 --> 01:08:47,360
+every render, if you're doing a
+
+1738
+01:08:47,360 --> 01:08:48,920
+bunch of Effect.gen, and you're like
+
+1739
+01:08:48,920 --> 01:08:51,800
+pulling in like, like dispatch, it's
+
+1740
+01:08:51,800 --> 01:08:53,040
+just, it doesn't really
+
+1741
+01:08:53,040 --> 01:08:55,440
+make sense. So just like making all that
+
+1742
+01:08:55,440 --> 01:08:56,920
+as like vanilla and optimized
+
+1743
+01:08:56,920 --> 01:08:58,240
+as possible went a long way.
+
+1744
+01:08:58,240 --> 01:09:03,000
+So right now, if you do the to do MVC
+
+1745
+01:09:03,000 --> 01:09:06,040
+benchmark with like 100 todos
+
+1746
+01:09:06,680 --> 01:09:09,480
+an optimized Foldkit
+
+1747
+01:09:09,480 --> 01:09:13,760
+application is about as fast as a
+
+1748
+01:09:13,760 --> 01:09:18,960
+unoptimized react 19 application. So in
+
+1749
+01:09:18,960 --> 01:09:21,080
+my mind, optimized means
+
+1750
+01:09:21,080 --> 01:09:25,080
+using create lazy to memoize parts parts
+
+1751
+01:09:25,080 --> 01:09:27,320
+of the tree. And in my
+
+1752
+01:09:27,320 --> 01:09:31,760
+mind, that's, that's good enough
+
+1753
+01:09:31,760 --> 01:09:33,266
+for the one production use. I mean, this
+
+1754
+01:09:33,266 --> 01:09:34,839
+is, I think also analogous
+
+1755
+01:09:34,840 --> 01:09:37,680
+to effect here is effect
+
+1756
+01:09:37,680 --> 01:09:40,320
+for like a certain kind of shape program
+
+1757
+01:09:40,320 --> 01:09:41,840
+is effect the fastest way
+
+1758
+01:09:41,840 --> 01:09:43,360
+to run that in JavaScript?
+
+1759
+01:09:43,920 --> 01:09:46,640
+Probably no. But other things matter way
+
+1760
+01:09:46,640 --> 01:09:49,160
+more like, how can you
+
+1761
+01:09:49,160 --> 01:09:51,320
+like really unlock the,
+
+1762
+01:09:51,320 --> 01:09:54,240
+the like IO bottlenecks that you have in
+
+1763
+01:09:54,240 --> 01:09:55,920
+your application? Like, how
+
+1764
+01:09:55,920 --> 01:09:57,640
+can you build a like that?
+
+1765
+01:09:57,640 --> 01:10:00,080
+You did you not like penny wine, pound,
+
+1766
+01:10:00,080 --> 01:10:02,480
+pound foolish here, but
+
+1767
+01:10:02,480 --> 01:10:04,120
+that you actually optimize what
+
+1768
+01:10:04,120 --> 01:10:07,200
+I'm saying. And I think what matters in a
+
+1769
+01:10:07,200 --> 01:10:08,200
+frontend app, sure, you
+
+1770
+01:10:08,200 --> 01:10:09,960
+don't want to have it lag.
+
+1771
+01:10:09,960 --> 01:10:12,160
+But like you want that it gives you the
+
+1772
+01:10:12,160 --> 01:10:15,520
+affordances of a complex and ambitious
+
+1773
+01:10:15,520 --> 01:10:16,360
+frontend app. And I
+
+1774
+01:10:16,360 --> 01:10:18,600
+think this is where thing that actually
+
+1775
+01:10:18,600 --> 01:10:19,800
+matters is like the
+
+1776
+01:10:19,800 --> 01:10:22,080
+complexity, how does the complexity
+
+1777
+01:10:22,080 --> 01:10:25,560
+scale and measure. And I think that's
+
+1778
+01:10:25,560 --> 01:10:26,080
+almost like an
+
+1779
+01:10:26,080 --> 01:10:28,440
+interesting, it's probably hard to
+
+1780
+01:10:28,440 --> 01:10:30,000
+to quantify, like since
+
+1781
+01:10:30,800 --> 01:10:31,720
+like lines of code is
+
+1782
+01:10:31,720 --> 01:10:33,000
+always weird. So I think this
+
+1783
+01:10:33,000 --> 01:10:36,240
+will always be sort of like a mishmash of
+
+1784
+01:10:36,240 --> 01:10:38,480
+like a qualitative metric and a
+
+1785
+01:10:38,480 --> 01:10:40,040
+quantitative metric.
+
+1786
+01:10:40,040 --> 01:10:42,720
+But I think this is why we're here with
+
+1787
+01:10:42,720 --> 01:10:44,160
+effect, we believe there's a
+
+1788
+01:10:44,160 --> 01:10:46,680
+better way. And I definitely
+
+1789
+01:10:46,680 --> 01:10:48,680
+also take that trade off. Yep.
+
+1790
+01:10:48,680 --> 01:10:49,280
+that being said, I
+
+1791
+01:10:49,280 --> 01:10:51,440
+would also like, why not make
+
+1792
+01:10:51,440 --> 01:10:53,640
+Foldkit faster eventually? Oh, yeah, for
+
+1793
+01:10:53,640 --> 01:10:54,960
+sure. Yeah, that's just
+
+1794
+01:10:56,120 --> 01:10:57,360
+yeah, that's not the bottleneck
+
+1795
+01:10:57,360 --> 01:11:01,400
+to anyone using it right now. Exactly.
+
+1796
+01:11:01,400 --> 01:11:03,600
+And I think this was maybe
+
+1797
+01:11:03,600 --> 01:11:04,800
+that was the starting point for
+
+1798
+01:11:04,800 --> 01:11:06,880
+like other more like modern takes on what
+
+1799
+01:11:06,880 --> 01:11:08,760
+a frontend framework is.
+
+1800
+01:11:08,760 --> 01:11:09,920
+And I think it's also like very
+
+1801
+01:11:09,920 --> 01:11:13,000
+interesting. And if you build maybe a new
+
+1802
+01:11:13,000 --> 01:11:14,880
+chat app that has like millions of
+
+1803
+01:11:14,880 --> 01:11:15,840
+messages, maybe that
+
+1804
+01:11:15,840 --> 01:11:21,320
+matters more. But I think for like a good
+
+1805
+01:11:21,320 --> 01:11:24,000
+catch all default for like many apps
+
+1806
+01:11:24,000 --> 01:11:25,120
+where someone is like
+
+1807
+01:11:25,120 --> 01:11:27,560
+effect pill to begin with, I think this
+
+1808
+01:11:27,560 --> 01:11:31,080
+is a very interesting starting point. So
+
+1809
+01:11:31,080 --> 01:11:32,280
+I think I got a good
+
+1810
+01:11:32,280 --> 01:11:34,600
+understanding now of like the basics of
+
+1811
+01:11:34,600 --> 01:11:36,240
+Foldit, maybe we can,
+
+1812
+01:11:36,240 --> 01:11:38,320
+unless there's like a thing in the
+
+1813
+01:11:38,320 --> 01:11:41,120
+app that you that you wanted to show
+
+1814
+01:11:41,120 --> 01:11:44,240
+last. I'm sure there's like ways how to
+
+1815
+01:11:44,240 --> 01:11:45,560
+integrate with other
+
+1816
+01:11:45,560 --> 01:11:48,120
+great bells and whistles off of effect,
+
+1817
+01:11:48,120 --> 01:11:49,240
+whether it's like streams
+
+1818
+01:11:49,240 --> 01:11:50,720
+and layers, etc. But maybe we
+
+1819
+01:11:50,720 --> 01:11:53,320
+can zoom out a little bit and hear more
+
+1820
+01:11:53,320 --> 01:11:56,240
+about like your path ahead of like
+
+1821
+01:11:56,240 --> 01:11:57,960
+where are you hoping to take
+
+1822
+01:11:57,960 --> 01:11:58,840
+Foldkit over the next few
+
+1823
+01:11:58,840 --> 01:12:00,680
+years? You've mentioned that your
+
+1824
+01:12:00,680 --> 01:12:03,400
+mom knows about it. That's great. Like
+
+1825
+01:12:03,400 --> 01:12:04,680
+through this podcast
+
+1826
+01:12:05,600 --> 01:12:07,000
+a lot more folks find out
+
+1827
+01:12:07,000 --> 01:12:09,120
+about it. Get to use it. What are you
+
+1828
+01:12:09,120 --> 01:12:10,720
+currently looking for? Are you looking
+
+1829
+01:12:10,720 --> 01:12:11,800
+for people like using
+
+1830
+01:12:11,800 --> 01:12:13,960
+it giving you feedback? Are you looking
+
+1831
+01:12:13,960 --> 01:12:16,440
+for people who actually maybe want to
+
+1832
+01:12:16,440 --> 01:12:18,920
+join you building Foldkit
+
+1833
+01:12:18,920 --> 01:12:20,920
+like become contributors and
+
+1834
+01:12:20,920 --> 01:12:23,200
+maintainers? Are you looking for people
+
+1835
+01:12:23,200 --> 01:12:25,080
+who build ecosystem packages?
+
+1836
+01:12:25,080 --> 01:12:27,240
+Let's talk a bit about the future.
+
+1837
+01:12:27,240 --> 01:12:31,320
+Good question. So over the past month or
+
+1838
+01:12:31,320 --> 01:12:36,160
+so, I've been really surprised by how
+
+1839
+01:12:36,800 --> 01:12:40,120
+much interest there has been in Foldkit
+
+1840
+01:12:40,120 --> 01:12:41,800
+And a lot of this
+
+1841
+01:12:41,800 --> 01:12:43,880
+originated with, well,
+
+1842
+01:12:43,880 --> 01:12:44,760
+I'm
+
+1843
+01:12:44,760 --> 01:12:47,040
+Teej, do you know on X?
+
+1844
+01:12:48,440 --> 01:12:48,960
+they posted
+
+1845
+01:12:48,960 --> 01:12:53,160
+about it. And that was the first,
+
+1846
+01:12:53,160 --> 01:12:55,240
+like, it kind of caused a little bit of a
+
+1847
+01:12:55,240 --> 01:12:57,040
+wave of interest. And then
+
+1848
+01:12:57,040 --> 01:12:59,200
+the, I went on effect office
+
+1849
+01:12:59,200 --> 01:13:01,320
+hours a couple of weeks ago. That was
+
+1850
+01:13:01,320 --> 01:13:03,040
+another little wave. And
+
+1851
+01:13:03,040 --> 01:13:05,680
+I'm here. And honestly, like I
+
+1852
+01:13:05,680 --> 01:13:07,960
+wasn't sure if anyone was going to care
+
+1853
+01:13:07,960 --> 01:13:09,320
+about this project or be
+
+1854
+01:13:09,320 --> 01:13:11,160
+interested. I just wanted it to
+
+1855
+01:13:11,680 --> 01:13:14,400
+exist because I like really like effect
+
+1856
+01:13:14,400 --> 01:13:16,040
+and I like that I feel like
+
+1857
+01:13:16,040 --> 01:13:18,360
+there's a gap here. And so
+
+1858
+01:13:19,040 --> 01:13:21,680
+I'm, I just feel like at this moment,
+
+1859
+01:13:21,680 --> 01:13:23,320
+very like grateful
+
+1860
+01:13:23,320 --> 01:13:25,280
+that there's any interest.
+
+1861
+01:13:25,280 --> 01:13:28,480
+In terms of like where this might go or
+
+1862
+01:13:28,480 --> 01:13:30,440
+like what the future looks like,
+
+1863
+01:13:30,440 --> 01:13:33,440
+I'm really just focused on getting to a
+
+1864
+01:13:33,440 --> 01:13:34,680
+place where I feel
+
+1865
+01:13:34,680 --> 01:13:36,240
+really confident saying like,
+
+1866
+01:13:36,240 --> 01:13:39,960
+this is version one of Foldkit. And I
+
+1867
+01:13:39,960 --> 01:13:42,960
+think it's pretty close. Like, I mean,
+
+1868
+01:13:42,960 --> 01:13:43,560
+there's a lot of stuff
+
+1869
+01:13:43,560 --> 01:13:45,360
+we haven't talked about. There's like,
+
+1870
+01:13:45,360 --> 01:13:47,120
+there's Foldkit UI,
+
+1871
+01:13:47,120 --> 01:13:49,200
+there's story and scene testing in
+
+1872
+01:13:49,200 --> 01:13:51,040
+Foldkit, which is I think, probably one
+
+1873
+01:13:51,040 --> 01:13:52,360
+of the coolest things about the
+
+1874
+01:13:52,360 --> 01:13:53,440
+framework, honestly.
+
+1875
+01:13:53,440 --> 01:13:56,240
+There's like how it works with AI, like
+
+1876
+01:13:56,240 --> 01:13:58,600
+over MCP, how just agents
+
+1877
+01:13:58,600 --> 01:14:00,600
+work with Foldkit in general.
+
+1878
+01:14:00,600 --> 01:14:02,760
+And so like all those pieces are in
+
+1879
+01:14:02,760 --> 01:14:05,360
+place, but I'm focused
+
+1880
+01:14:05,360 --> 01:14:07,760
+on filling in various gaps
+
+1881
+01:14:08,360 --> 01:14:10,800
+before I feel like, okay, this gets the
+
+1882
+01:14:10,800 --> 01:14:14,200
+V1 stamp. And then beyond that, it's
+
+1883
+01:14:14,200 --> 01:14:15,800
+really just about like
+
+1884
+01:14:15,800 --> 01:14:20,480
+continuing that iterative cycle. I don't
+
+1885
+01:14:20,480 --> 01:14:21,600
+feel like I know,
+
+1886
+01:14:22,320 --> 01:14:23,280
+like, oh, a year from now,
+
+1887
+01:14:23,280 --> 01:14:25,960
+this is where I hope the framework is. I
+
+1888
+01:14:25,960 --> 01:14:27,400
+don't have any like major
+
+1889
+01:14:27,400 --> 01:14:30,120
+expectations, but I think also
+
+1890
+01:14:30,120 --> 01:14:32,880
+like the effect community is awesome.
+
+1891
+01:14:32,880 --> 01:14:35,320
+Like people are like
+
+1892
+01:14:36,200 --> 01:14:38,840
+insanely smart and like,
+
+1893
+01:14:38,840 --> 01:14:40,560
+want to be helpful and are like always
+
+1894
+01:14:40,560 --> 01:14:41,600
+building things. And like,
+
+1895
+01:14:41,600 --> 01:14:43,200
+I feel like I'm kind of just
+
+1896
+01:14:43,200 --> 01:14:44,480
+like a part of that and trying to
+
+1897
+01:14:44,480 --> 01:14:46,080
+contribute and also like
+
+1898
+01:14:46,080 --> 01:14:49,920
+riding that wave to some extent.
+
+1899
+01:14:49,920 --> 01:14:51,720
+Yeah, I mean, honestly, like that's my
+
+1900
+01:14:53,160 --> 01:14:54,960
+take right now. And yeah.
+
+1901
+01:14:54,960 --> 01:14:56,520
+That was wonderful.
+
+1902
+01:14:56,520 --> 01:14:57,440
+I think there's like
+
+1903
+01:14:57,440 --> 01:14:59,800
+enough material to do a bunch of
+
+1904
+01:14:59,800 --> 01:15:02,360
+follow up episodes. Just scrolling
+
+1905
+01:15:02,360 --> 01:15:05,680
+through the docs sidebar gives you a
+
+1906
+01:15:05,680 --> 01:15:07,200
+taste. Like we've spent
+
+1907
+01:15:07,200 --> 01:15:09,360
+most time now on the basics getting an
+
+1908
+01:15:09,360 --> 01:15:12,840
+intuition for Foldkit. But there's like
+
+1909
+01:15:12,840 --> 01:15:14,400
+so many cool things.
+
+1910
+01:15:14,400 --> 01:15:16,320
+Like sure, we've looked at the DOM
+
+1911
+01:15:16,320 --> 01:15:19,400
+renderer, but you seem to have support
+
+1912
+01:15:19,400 --> 01:15:21,040
+for custom elements,
+
+1913
+01:15:21,040 --> 01:15:23,860
+which I feel like is a heavily under
+
+1914
+01:15:23,860 --> 01:15:26,920
+explored area of the web. Like even if
+
+1915
+01:15:26,920 --> 01:15:28,320
+you would have just said
+
+1916
+01:15:28,320 --> 01:15:30,800
+my take on Foldkit is like not the data
+
+1917
+01:15:30,800 --> 01:15:31,600
+architecture, not
+
+1918
+01:15:31,600 --> 01:15:33,840
+effect, but like I'm going
+
+1919
+01:15:33,840 --> 01:15:35,640
+to take a new step of like custom
+
+1920
+01:15:35,640 --> 01:15:38,720
+elements or like web components as they
+
+1921
+01:15:38,720 --> 01:15:40,440
+were called in the past.
+
+1922
+01:15:40,440 --> 01:15:43,440
+I feel like that alone is also like very
+
+1923
+01:15:43,440 --> 01:15:45,080
+much worthwhile exploring
+
+1924
+01:15:45,080 --> 01:15:46,840
+seems like Foldkit works
+
+1925
+01:15:46,840 --> 01:15:49,600
+with that you have a canvas render, which
+
+1926
+01:15:49,600 --> 01:15:51,840
+is like super cool. I have
+
+1927
+01:15:51,840 --> 01:15:55,320
+this was one of the many areas
+
+1928
+01:15:55,320 --> 01:15:58,200
+you have to completely opt out of React.
+
+1929
+01:15:58,200 --> 01:15:59,600
+And there's like the canvas
+
+1930
+01:15:59,600 --> 01:16:01,480
+can do so many interesting
+
+1931
+01:16:01,480 --> 01:16:04,120
+things. There's an amazing project called
+
+1932
+01:16:04,680 --> 01:16:06,640
+React Glide Data Grid, I
+
+1933
+01:16:06,640 --> 01:16:09,160
+think, which I'm using heavily.
+
+1934
+01:16:09,160 --> 01:16:11,200
+It's like basically a React data
+
+1935
+01:16:11,200 --> 01:16:13,880
+component, like a data grid table
+
+1936
+01:16:13,880 --> 01:16:15,360
+component with like infinite
+
+1937
+01:16:15,360 --> 01:16:19,640
+rendering, etc. It's like crazy fast
+
+1938
+01:16:19,640 --> 01:16:21,120
+built by an amazing
+
+1939
+01:16:21,120 --> 01:16:23,760
+engineer, Jason at Glide.
+
+1940
+01:16:24,280 --> 01:16:27,080
+And there's like one in my opinion, like
+
+1941
+01:16:27,080 --> 01:16:29,840
+the best like data table
+
+1942
+01:16:29,840 --> 01:16:31,520
+component in React. And like the
+
+1943
+01:16:31,520 --> 01:16:33,720
+reason why it's so fast is because it's
+
+1944
+01:16:33,720 --> 01:16:35,960
+like embraces the canvas.
+
+1945
+01:16:35,960 --> 01:16:38,680
+And like you seem to with
+
+1946
+01:16:38,680 --> 01:16:40,520
+Foldkit like just like allow those
+
+1947
+01:16:40,520 --> 01:16:42,880
+things to like interweave with each
+
+1948
+01:16:42,880 --> 01:16:44,440
+other. That's like an
+
+1949
+01:16:44,440 --> 01:16:48,560
+emergent property of like flipping from
+
+1950
+01:16:48,560 --> 01:16:51,360
+view first to data first. And like the
+
+1951
+01:16:51,360 --> 01:16:52,440
+canvas doesn't matter
+
+1952
+01:16:54,320 --> 01:16:57,280
+whether the model gets materialized into
+
+1953
+01:16:57,280 --> 01:17:00,640
+like rendered as like little like
+
+1954
+01:17:00,640 --> 01:17:02,280
+rectangles or lines,
+
+1955
+01:17:03,000 --> 01:17:06,880
+or whether some like DOM is re-rendered.
+
+1956
+01:17:06,880 --> 01:17:09,280
+So that is super cool. And
+
+1957
+01:17:09,280 --> 01:17:10,720
+then like another thing that
+
+1958
+01:17:10,720 --> 01:17:12,320
+stood out to me is like, you have
+
+1959
+01:17:12,320 --> 01:17:13,640
+basically the frontend
+
+1960
+01:17:13,640 --> 01:17:15,720
+complement to a lot of like
+
+1961
+01:17:15,720 --> 01:17:18,240
+concepts that make effect great, like you
+
+1962
+01:17:18,240 --> 01:17:19,680
+have, you can take
+
+1963
+01:17:19,680 --> 01:17:21,240
+basically the error from your
+
+1964
+01:17:21,240 --> 01:17:24,120
+application and render it etc. So all of
+
+1965
+01:17:24,120 --> 01:17:25,120
+that, even though I
+
+1966
+01:17:25,120 --> 01:17:27,040
+haven't put on that glove yet,
+
+1967
+01:17:27,040 --> 01:17:29,800
+it seems like it might fit like a glove.
+
+1968
+01:17:29,800 --> 01:17:30,920
+So I'm very much looking
+
+1969
+01:17:30,920 --> 01:17:32,880
+forward to getting my hands on
+
+1970
+01:17:32,880 --> 01:17:35,480
+that. And what you've said about the
+
+1971
+01:17:35,480 --> 01:17:36,560
+effect community
+
+1972
+01:17:36,560 --> 01:17:38,160
+means a lot to me as well,
+
+1973
+01:17:38,160 --> 01:17:42,320
+because I have in 2020, when I was one of
+
+1974
+01:17:42,320 --> 01:17:44,120
+the first people like to
+
+1975
+01:17:44,120 --> 01:17:45,560
+get involved with effect,
+
+1976
+01:17:45,560 --> 01:17:48,280
+like one of the biggest downside at that
+
+1977
+01:17:48,280 --> 01:17:49,400
+point was like there was
+
+1978
+01:17:49,400 --> 01:17:51,600
+like absolutely no community,
+
+1979
+01:17:51,600 --> 01:17:54,440
+there was like no ecosystem, etc. And
+
+1980
+01:17:54,440 --> 01:17:55,120
+like it
+
+1981
+01:17:55,120 --> 01:17:57,240
+had the right ideas. But like
+
+1982
+01:17:57,240 --> 01:18:00,560
+everything that the React ecosystem had
+
+1983
+01:18:00,560 --> 01:18:02,120
+going for it and all of those other
+
+1984
+01:18:02,120 --> 01:18:02,960
+ecosystems, there was
+
+1985
+01:18:02,960 --> 01:18:05,600
+just like a void in effect. And that was
+
+1986
+01:18:05,600 --> 01:18:07,360
+kind of very daring. And
+
+1987
+01:18:07,360 --> 01:18:09,520
+now we have one of the best
+
+1988
+01:18:09,520 --> 01:18:12,160
+communities there is like a really rich
+
+1989
+01:18:12,160 --> 01:18:14,960
+ecosystem Foldkit as an
+
+1990
+01:18:14,960 --> 01:18:17,280
+amazing, like very sizable
+
+1991
+01:18:17,280 --> 01:18:20,240
+contribution to that ecosystem is just
+
+1992
+01:18:20,240 --> 01:18:21,920
+like what makes me and so
+
+1993
+01:18:21,920 --> 01:18:23,360
+many other people very excited
+
+1994
+01:18:23,360 --> 01:18:25,720
+about effect. So thank you so much for
+
+1995
+01:18:25,720 --> 01:18:27,840
+like all of like the love
+
+1996
+01:18:27,840 --> 01:18:30,880
+and energy and like countless
+
+1997
+01:18:30,880 --> 01:18:34,360
+efforts you're putting into Foldkit as
+
+1998
+01:18:34,360 --> 01:18:35,880
+someone who's building
+
+1999
+01:18:35,880 --> 01:18:38,760
+similar, similarly sized projects
+
+2000
+01:18:38,760 --> 01:18:41,760
+in the past. And so I think one of the
+
+2001
+01:18:41,760 --> 01:18:42,920
+most important things is
+
+2002
+01:18:42,920 --> 01:18:45,560
+like having enough energy
+
+2003
+01:18:45,560 --> 01:18:49,560
+to keep going. So I wish you that for the
+
+2004
+01:18:49,560 --> 01:18:52,440
+future. And I'm really,
+
+2005
+01:18:52,440 --> 01:18:54,480
+really excited to get my own hands
+
+2006
+01:18:54,480 --> 01:18:57,400
+on Foldkit and giving it a try and
+
+2007
+01:18:57,400 --> 01:18:59,200
+looking forward to having you back soon.
+
+2008
+01:18:59,200 --> 01:19:02,360
+Thanks. Yeah, but really warms my heart.
+
+2009
+01:19:02,360 --> 01:19:03,240
+Really appreciate it.
+
+2010
+01:19:04,480 --> 01:19:05,800
+Awesome. Hey, Devin, thank
+
+2011
+01:19:05,800 --> 01:19:06,960
+you so much. This was great.
+
+2012
+01:19:07,560 --> 01:19:08,440
+Yeah, thanks.
+
+2013
+01:19:09,360 --> 01:19:10,560
+Thank you for listening to the
+
+2014
+01:19:10,560 --> 01:19:12,320
+Cause & Effect Podcast.
+
+2015
+01:19:12,320 --> 01:19:14,160
+If you've enjoyed this episode, please
+
+2016
+01:19:14,160 --> 01:19:15,720
+subscribe, leave a review
+
+2017
+01:19:15,720 --> 01:19:16,880
+and share it with your friends.
+
+2018
+01:19:17,720 --> 01:19:19,440
+If you haven't done so already, you can
+
+2019
+01:19:19,440 --> 01:19:21,160
+join our Discord community.
+
+2020
+01:19:21,160 --> 01:19:23,080
+And if you have any questions, feedback
+
+2021
+01:19:23,080 --> 01:19:25,480
+or suggestions about this episode or
+
+2022
+01:19:25,480 --> 01:19:26,960
+about Effect in general,
+
+2023
+01:19:26,960 --> 01:19:28,560
+don't hesitate to get in touch.
+
+2024
+01:19:29,240 --> 01:19:30,520
+See you in the next episode.
