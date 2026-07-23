@@ -19,12 +19,12 @@ to make building applications easier.
       {
         name: "4. Immutable Data Structures",
         value: 8243,
-        docsLink: "/docs/data-types/cause/"
+        docsLink: "/docs/data-types/chunk/"
       },
       {
         name: "5. Observable",
         value: 6515,
-        docsLink: "/docs/observability/tracing/"
+        docsLink: "/docs/stream/introduction/"
       },
       {
         name: "6. Pipe Operator",
