@@ -1,10 +1,10 @@
 export type PackageManager = "bun" | "npm" | "pnpm" | "yarn" | "deno"
 
-export const DEFAULT_PACKAGE_MANAGER: PackageManager = "bun"
+export const DEFAULT_PACKAGE_MANAGER: PackageManager = "npm"
 
 export const PACKAGE_MANAGERS: ReadonlyArray<PackageManager> = [
   DEFAULT_PACKAGE_MANAGER,
-  "npm",
+  "bun",
   "pnpm",
   "yarn",
   "deno",
