@@ -50,4 +50,6 @@ const scopedRule = {
 config.routes.splice(unscopedRuleIndex, 1, scopedRule)
 
 writeFileSync(configPath, JSON.stringify(config, null, 2))
-console.log(`Patched ${configPath}: replaced unscoped trailing-slash rule at index ${unscopedRuleIndex}`)
+console.log(
+  `Patched ${configPath}: replaced unscoped trailing-slash rule at index ${unscopedRuleIndex}`,
+)

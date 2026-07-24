@@ -141,8 +141,7 @@ export const PARTNERS: Partner[] = [
     ],
     training: {
       title: "Effect Training",
-      description:
-        "Structured training from Effect fundamentals to production-ready expertise.",
+      description: "Structured training from Effect fundamentals to production-ready expertise.",
       topics: [
         {
           title: "Concurrent systems",
@@ -171,8 +170,7 @@ export const PARTNERS: Partner[] = [
       {
         eyebrow: "Expertise",
         title: "Deepest Effect expertise",
-        description:
-          "Over a decade of building effect systems, from ZIO to Effect.",
+        description: "Over a decade of building effect systems, from ZIO to Effect.",
         link: {
           label: "Why Effect is more important than ZIO — John A. De Goes",
           href: "https://www.youtube.com/watch?v=Ei6VTwhI8QQ",
@@ -193,32 +191,27 @@ export const PARTNERS: Partner[] = [
     ],
     faqs: [
       {
-        question:
-          "Do I need prior Effect experience to work with Ziverge?",
+        question: "Do I need prior Effect experience to work with Ziverge?",
         answer:
           "No. We work with teams at every stage — from evaluating Effect for the first time to teams already running it in production who want to deepen adoption or optimize existing code. We'll scope the engagement to where you actually are.",
       },
       {
-        question:
-          "What does a typical consulting engagement look like?",
+        question: "What does a typical consulting engagement look like?",
         answer:
           "Most engagements start with a scoping conversation, followed by a short discovery phase to understand your codebase and goals. From there we move to either an implementation sprint, an embedded team extension, or a structured training program — depending on what creates the most leverage for you.",
       },
       {
-        question:
-          "What will the certification cover, and who endorses it?",
+        question: "What will the certification cover, and who endorses it?",
         answer:
           "The certification covers core Effect concepts: fibers, typed errors, dependency injection, scheduling, resource safety, and agent-native workflows. It is endorsed by Effectful — the company behind Effect — making it the only certification with that backing.",
       },
       {
-        question:
-          "How is the training delivered, and how long does it take?",
+        question: "How is the training delivered, and how long does it take?",
         answer:
           "Training is online-first with recurring cohorts. It is designed to be agent-native — meaning the tools and workflows taught reflect how engineers actually work with AI assistance today. Duration depends on the track.",
       },
       {
-        question:
-          "Can Ziverge embed engineers into our existing team?",
+        question: "Can Ziverge embed engineers into our existing team?",
         answer:
           "Yes — team extension is one of our core offerings. Ziverge engineers join your ceremonies, your repos, and your review process the way your senior hires would. They bring Effect fluency and agentic coding workflows, and operate under lead-level ownership standards from day one.",
       },

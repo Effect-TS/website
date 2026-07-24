@@ -55,7 +55,9 @@ export function PlaygroundLoader() {
                     )}
                     <span
                       className={`font-mono text-[13px] ${
-                        step.done ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-900 dark:text-white"
+                        step.done
+                          ? "text-zinc-500 dark:text-zinc-400"
+                          : "text-zinc-900 dark:text-white"
                       }`}
                     >
                       {step.message}

@@ -13,10 +13,11 @@ const ctaSpan = [
   lgRemainder === 0 ? "lg:col-span-3" : lgRemainder === 1 ? "lg:col-span-2" : "lg:col-span-1",
 ].join(" ")
 
-const companyLogoUrls = import.meta.glob<string>(
-  "/src/assets/company-logos/**/*",
-  { query: "?url", import: "default", eager: true },
-)
+const companyLogoUrls = import.meta.glob<string>("/src/assets/company-logos/**/*", {
+  query: "?url",
+  import: "default",
+  eager: true,
+})
 function getLogoUrl(filename: string): string | undefined {
   return Object.entries(companyLogoUrls).find(([p]) => p.endsWith(`/${filename}`))?.[1]
 }
@@ -40,10 +41,16 @@ function linkDisplay(url: string): string {
   {/* Hero */}
   <section class="hero-section relative overflow-hidden pb-10 md:pb-12">
     <GridBackground />
-    <div aria-hidden="true" class="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[400px]"></div>
+    <div
+      aria-hidden="true"
+      class="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[400px]"
+    >
+    </div>
 
     <div class="relative z-10 mx-auto w-full max-w-295 px-4">
-      <p class="pt-16 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase md:pt-20">
+      <p
+        class="pt-16 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase md:pt-20"
+      >
         // Effect Jobs
       </p>
       <h1 class="text-3xl font-bold leading-tighter text-white md:text-4xl">
@@ -71,70 +78,79 @@ function linkDisplay(url: string): string {
     <div class="mx-auto w-full max-w-295 px-4">
       <div class="pt-4">
         <ul class="grid grid-cols-1 gap-px bg-zinc-800 sm:grid-cols-2 lg:grid-cols-3">
-          {jobs.map((job) => (
-            <li class="bg-zinc-950">
-              <a
-                href={job.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="group flex h-full flex-col p-6 transition-colors hover:bg-zinc-900/80 focus-visible:bg-zinc-900/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
-              >
-                <div class="flex items-center justify-between gap-4">
-                  <div class="flex min-w-0 items-center gap-4">
-                    <span aria-hidden="true" class="flex h-12 w-12 shrink-0 items-center justify-center">
-                      {job.logo ? (
-                        <img src={getLogoUrl(job.logo) ?? job.logo} alt="" class="max-h-12 max-w-full object-contain" />
-                      ) : (
-                        <span class="h-9 w-9 rounded-sm border border-dashed border-zinc-700" />
-                      )}
-                    </span>
-                    <p class="truncate text-base font-semibold text-white">
-                      <span class="sr-only">Company: </span>
-                      {job.company}
-                    </p>
+          {
+            jobs.map((job) => (
+              <li class="bg-zinc-950">
+                <a
+                  href={job.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="group flex h-full flex-col p-6 transition-colors hover:bg-zinc-900/80 focus-visible:bg-zinc-900/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
+                >
+                  <div class="flex items-center justify-between gap-4">
+                    <div class="flex min-w-0 items-center gap-4">
+                      <span
+                        aria-hidden="true"
+                        class="flex h-12 w-12 shrink-0 items-center justify-center"
+                      >
+                        {job.logo ? (
+                          <img
+                            src={getLogoUrl(job.logo) ?? job.logo}
+                            alt=""
+                            class="max-h-12 max-w-full object-contain"
+                          />
+                        ) : (
+                          <span class="h-9 w-9 rounded-sm border border-dashed border-zinc-700" />
+                        )}
+                      </span>
+                      <p class="truncate text-base font-semibold text-white">
+                        <span class="sr-only">Company: </span>
+                        {job.company}
+                      </p>
+                    </div>
+                    <ArrowUpRightIcon
+                      aria-hidden="true"
+                      class="shrink-0 size-5 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                    />
                   </div>
-                  <ArrowUpRightIcon
-                    aria-hidden="true"
-                    class="shrink-0 size-5 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                  />
-                </div>
 
-                <h3 class="mt-5 text-lg leading-tight font-semibold text-white">
-                  <span class="sr-only">Role: </span>
-                  {job.role}
-                </h3>
+                  <h3 class="mt-5 text-lg leading-tight font-semibold text-white">
+                    <span class="sr-only">Role: </span>
+                    {job.role}
+                  </h3>
 
-                {job.description && (
-                  <p class="mt-3 line-clamp-3 text-sm leading-relaxed text-zinc-400">
-                    {job.description}
-                  </p>
-                )}
-
-                <dl class="mt-auto flex flex-col gap-1.5 pt-6 font-mono text-sm text-zinc-400">
-                  {job.payRange && (
-                    <div class="flex gap-2">
-                      <dt class="sr-only">Pay range</dt>
-                      <dd class="tabular-nums">{job.payRange}</dd>
-                    </div>
+                  {job.description && (
+                    <p class="mt-3 line-clamp-3 text-sm leading-relaxed text-zinc-400">
+                      {job.description}
+                    </p>
                   )}
-                  {job.type && (
-                    <div class="flex gap-2">
-                      <dt class="sr-only">Type</dt>
-                      <dd>{job.type}</dd>
-                    </div>
-                  )}
-                  {job.location && (
-                    <div class="mt-2 flex gap-2 border-t border-zinc-800 pt-2">
-                      <dt class="sr-only">Location</dt>
-                      <dd>{job.location}</dd>
-                    </div>
-                  )}
-                </dl>
 
-                <span class="sr-only">Apply at {linkDisplay(job.url)} (opens in new tab)</span>
-              </a>
-            </li>
-          ))}
+                  <dl class="mt-auto flex flex-col gap-1.5 pt-6 font-mono text-sm text-zinc-400">
+                    {job.payRange && (
+                      <div class="flex gap-2">
+                        <dt class="sr-only">Pay range</dt>
+                        <dd class="tabular-nums">{job.payRange}</dd>
+                      </div>
+                    )}
+                    {job.type && (
+                      <div class="flex gap-2">
+                        <dt class="sr-only">Type</dt>
+                        <dd>{job.type}</dd>
+                      </div>
+                    )}
+                    {job.location && (
+                      <div class="mt-2 flex gap-2 border-t border-zinc-800 pt-2">
+                        <dt class="sr-only">Location</dt>
+                        <dd>{job.location}</dd>
+                      </div>
+                    )}
+                  </dl>
+
+                  <span class="sr-only">Apply at {linkDisplay(job.url)} (opens in new tab)</span>
+                </a>
+              </li>
+            ))
+          }
 
           {/* CTA card */}
           <li class={`bg-zinc-950 ${ctaSpan}`}>
@@ -152,7 +168,9 @@ function linkDisplay(url: string): string {
                   >
                     <PlusIcon class="size-5" />
                   </span>
-                  <p class="truncate font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                  <p
+                    class="truncate font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase"
+                  >
                     // Post a job
                   </p>
                 </div>
@@ -197,50 +215,56 @@ function linkDisplay(url: string): string {
   </section>
 
   {/* Teams running Effect in production */}
-  {logos.length > 0 && (
-    <section class="relative border-t border-zinc-800">
-      <div class="mx-auto w-full max-w-295 px-4">
-        <div class="pt-16 pb-8 md:pt-20 md:pb-10">
-          <p class="mb-8 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
-            // Teams running Effect in production
-          </p>
-          <ul class="grid grid-cols-2 gap-px bg-zinc-800 sm:grid-cols-3 md:grid-cols-6">
-            {logos.map((company) => (
-              <li class="flex aspect-[5/2] items-center justify-center bg-zinc-950">
-                {company.url ? (
-                  <a
-                    href={company.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={company.name}
-                    class="flex h-full w-full items-center justify-center px-4 transition-opacity hover:opacity-90"
-                  >
+  {
+    logos.length > 0 && (
+      <section class="relative border-t border-zinc-800">
+        <div class="mx-auto w-full max-w-295 px-4">
+          <div class="pt-16 pb-8 md:pt-20 md:pb-10">
+            <p class="mb-8 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+              // Teams running Effect in production
+            </p>
+            <ul class="grid grid-cols-2 gap-px bg-zinc-800 sm:grid-cols-3 md:grid-cols-6">
+              {logos.map((company) => (
+                <li class="flex aspect-[5/2] items-center justify-center bg-zinc-950">
+                  {company.url ? (
+                    <a
+                      href={company.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={company.name}
+                      class="flex h-full w-full items-center justify-center px-4 transition-opacity hover:opacity-90"
+                    >
+                      <img
+                        src={getLogoUrl(company.logo) ?? company.logo}
+                        alt={company.name}
+                        style={`height: ${company.h ?? "20px"}; filter: ${company.invert ? "brightness(0) invert(1)" : "none"}`}
+                        class="w-auto opacity-90"
+                      />
+                    </a>
+                  ) : (
                     <img
                       src={getLogoUrl(company.logo) ?? company.logo}
                       alt={company.name}
                       style={`height: ${company.h ?? "20px"}; filter: ${company.invert ? "brightness(0) invert(1)" : "none"}`}
                       class="w-auto opacity-90"
                     />
-                  </a>
-                ) : (
-                  <img
-                    src={getLogoUrl(company.logo) ?? company.logo}
-                    alt={company.name}
-                    style={`height: ${company.h ?? "20px"}; filter: ${company.invert ? "brightness(0) invert(1)" : "none"}`}
-                    class="w-auto opacity-90"
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
-      </div>
-    </section>
-  )}
+      </section>
+    )
+  }
 </PageLayout>
 
 <style>
   .hero-glow {
-    background: radial-gradient(ellipse 50% 80% at 50% -20%, rgba(255, 255, 255, 0.10) 0%, transparent 50%);
+    background: radial-gradient(
+      ellipse 50% 80% at 50% -20%,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 50%
+    );
   }
 </style>

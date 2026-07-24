@@ -6,9 +6,7 @@ import { SearchLayer } from "../../services/search/api"
 export const prerender = false
 
 const { handler, dispose } = HttpRouter.toWebHandler(
-  SearchLayer.pipe(
-    Layer.provide(HttpServer.layerServices),
-  ),
+  SearchLayer.pipe(Layer.provide(HttpServer.layerServices)),
 )
 
 export const GET: APIRoute = ({ request }) => handler(request)

@@ -534,7 +534,7 @@ function createHint(options: {
     .replace(/\\n/g, " ")
     .replace(/\/n/g, " ")
     .replace(/  /g, " ")
-    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+    .replace(/\p{Cc}/gu, "")
 
   return {
     kind: monaco.languages.InlayHintKind.Type,

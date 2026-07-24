@@ -56,12 +56,21 @@ export function FileInput({
   }, [dispatch])
 
   return (
-    <div style={styles} className="grid h-7 w-full grid-cols-[14px_16px_auto] items-center gap-1.5 pr-1">
+    <div
+      style={styles}
+      className="grid h-7 w-full grid-cols-[14px_16px_auto] items-center gap-1.5 pr-1"
+    >
       <span className="inline-block h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       {type === "File" ? (
-        <FileIcon className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
+        <FileIcon
+          className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400"
+          aria-hidden="true"
+        />
       ) : (
-        <FolderIcon className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
+        <FolderIcon
+          className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400"
+          aria-hidden="true"
+        />
       )}
       <div>
         <form onSubmit={handleSubmit}>

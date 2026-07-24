@@ -18,7 +18,9 @@ const { transparent = false, primaryLinks, socialLinks, activeSlug } = Astro.pro
 const actionButtonClass = cn(
   "flex h-10 w-10 appearance-none items-center justify-center",
   "rounded-lg border border-transparent bg-transparent transition-colors hover:bg-zinc-100 md:hidden dark:hover:bg-zinc-800",
-  transparent ? "text-white/85 hover:text-white" : "text-zinc-500/90 hover:text-zinc-900 dark:text-zinc-300/90 dark:hover:text-white",
+  transparent
+    ? "text-white/85 hover:text-white"
+    : "text-zinc-500/90 hover:text-zinc-900 dark:text-zinc-300/90 dark:hover:text-white",
 )
 ---
 
@@ -30,8 +32,14 @@ const actionButtonClass = cn(
     aria-expanded="false"
     class={actionButtonClass}
   >
-    <svg data-role="icon-open" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M3 4H21V6H3V4ZM3 11H15V13H3V11ZM3 18H21V20H3V18Z" />
+    <svg
+      data-role="icon-open"
+      class="h-6 w-6"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M3 4H21V6H3V4ZM3 11H15V13H3V11ZM3 18H21V20H3V18Z"></path>
     </svg>
     <X data-role="icon-close" class="hidden h-6 w-6" />
   </button>
@@ -41,14 +49,15 @@ const actionButtonClass = cn(
       type="button"
       data-role="backdrop"
       class="fixed inset-0 bg-zinc-800/10 dark:bg-zinc-950/70"
-      aria-label="Close mobile menu"
-    ></button>
+      aria-label="Close mobile menu"></button>
     <div
       data-role="panel"
       class="fixed top-0 right-0 flex h-full w-full max-w-[64%] flex-col bg-white shadow-xl dark:bg-zinc-900"
       style="transform: translateX(100%)"
     >
-      <div class="flex flex-shrink-0 items-center justify-between border-b border-zinc-200 py-3.5 pr-4 pl-8 dark:border-zinc-800">
+      <div
+        class="flex flex-shrink-0 items-center justify-between border-b border-zinc-200 py-3.5 pr-4 pl-8 dark:border-zinc-800"
+      >
         <span class="text-sm font-medium text-zinc-900 dark:text-white">Menu</span>
         <button
           type="button"
@@ -117,7 +126,10 @@ const actionButtonClass = cn(
         >
           <Search class="h-4.5 w-4.5" aria-hidden="true" />
           <span class="text-sm">Search</span>
-          <kbd data-role="search-kbd" class="ml-auto inline-flex items-center gap-0.5 text-xs text-zinc-400/80 dark:text-zinc-500"></kbd>
+          <kbd
+            data-role="search-kbd"
+            class="ml-auto inline-flex items-center gap-0.5 text-xs text-zinc-400/80 dark:text-zinc-500"
+          ></kbd>
         </button>
       </nav>
     </div>
@@ -142,9 +154,11 @@ const actionButtonClass = cn(
   const ANIMATION_DURATION_MS = 300
 
   const isApplePlatform = (): boolean => {
-    const userAgentData = Reflect.get(navigator, "userAgentData") as {
-      platform?: string
-    } | undefined
+    const userAgentData = Reflect.get(navigator, "userAgentData") as
+      | {
+          platform?: string
+        }
+      | undefined
 
     const platform = (userAgentData?.platform ?? navigator.platform).toLowerCase()
     const userAgent = navigator.userAgent.toLowerCase()
@@ -190,9 +204,7 @@ const actionButtonClass = cn(
     #pendingSearchTransition: boolean = false
 
     connectedCallback() {
-      this.#prefersReducedMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches
+      this.#prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
       const menuButton = this.querySelector("[data-role='menu-button']")
       const iconOpen = this.querySelector("[data-role='icon-open']")

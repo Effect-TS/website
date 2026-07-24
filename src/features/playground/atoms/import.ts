@@ -5,11 +5,17 @@ import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as Atom from "effect/unstable/reactivity/Atom"
 import { ShortenClient } from "@/services/shorten/client"
-import { defaultWorkspace, main, makeDefaultWorkspace, makeFile, Workspace } from "../domain/workspace"
+import type { AtomWorkspaceHandle } from "./workspace"
+import {
+  defaultWorkspace,
+  main,
+  makeDefaultWorkspace,
+  makeFile,
+  Workspace,
+} from "../domain/workspace"
 import { WorkspaceCompression } from "../services/compression"
 import { WebContainer } from "../services/webcontainer"
 import { hashAtom } from "./location"
-import type { AtomWorkspaceHandle } from "./workspace"
 
 const runtime = Atom.runtime(Layer.mergeAll(ShortenClient.layer, WorkspaceCompression.layer))
 

@@ -1,8 +1,8 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
-import { Shorten } from "./service"
 import { ShortenRpcs } from "./rpc"
+import { Shorten } from "./service"
 
 export const ShortenLayer = ShortenRpcs.toLayer(
   Effect.gen(function* () {

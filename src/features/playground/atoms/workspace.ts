@@ -151,12 +151,8 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
 
       const resetContent = Atom.fn<void>()(
         Effect.fnUntraced(function* (_, get) {
-          const files = Array.filterMap(
-            [...defaultWorkspace.filePaths],
-            ([file, path]) =>
-              file._tag === "File"
-                ? Result.succeed(Tuple.make(file, path))
-                : Result.failVoid,
+          const files = Array.filterMap([...defaultWorkspace.filePaths], ([file, path]) =>
+            file._tag === "File" ? Result.succeed(Tuple.make(file, path)) : Result.failVoid,
           )
           yield* Effect.forEach(
             files,

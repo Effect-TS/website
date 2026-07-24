@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises"
 import type { CSSProperties } from "react"
 import { Resvg } from "@resvg/resvg-js"
+import { readFile } from "node:fs/promises"
 import satori, { type SatoriOptions } from "satori"
 import { OPENGRAPH_IMAGE_HEIGHT, OPENGRAPH_IMAGE_WIDTH } from "@/lib/open-graph"
 
@@ -70,18 +70,12 @@ const renderPng = (svg: string): Uint8Array => {
   return new Uint8Array(resvg.render().asPng())
 }
 
-export async function renderDocsOg(
-  props: OgTemplateProps,
-  assets: OgAssets,
-): Promise<Uint8Array> {
-  const svg = await satori(
-    createDocsTemplate(prepareContentProps(props), assets.docsBgDataUri),
-    {
-      width: OPENGRAPH_IMAGE_WIDTH,
-      height: OPENGRAPH_IMAGE_HEIGHT,
-      fonts: assets.fonts as SatoriOptions["fonts"],
-    },
-  )
+export async function renderDocsOg(props: OgTemplateProps, assets: OgAssets): Promise<Uint8Array> {
+  const svg = await satori(createDocsTemplate(prepareContentProps(props), assets.docsBgDataUri), {
+    width: OPENGRAPH_IMAGE_WIDTH,
+    height: OPENGRAPH_IMAGE_HEIGHT,
+    fonts: assets.fonts as SatoriOptions["fonts"],
+  })
   return renderPng(svg)
 }
 

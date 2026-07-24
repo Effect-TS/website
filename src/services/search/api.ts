@@ -1,7 +1,7 @@
-import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Schema from "effect/Schema"
+import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi"
 import { SearchError, SearchResult } from "./domain"
 import { Search } from "./service"
 
@@ -18,12 +18,10 @@ class SearchApi extends HttpApi.make("searchApi").add(SearchApiGroup) {}
 const SearchHandlers = HttpApiBuilder.group(
   SearchApi,
   "search",
-  Effect.fn(function*(handlers) {
+  Effect.fn(function* (handlers) {
     const search = yield* Search
     return handlers.handle("search", ({ query }) => search.search(query.query))
   }),
 ).pipe(Layer.provide(Search.layer))
 
-export const SearchLayer = HttpApiBuilder.layer(SearchApi).pipe(
-  Layer.provide(SearchHandlers),
-)
+export const SearchLayer = HttpApiBuilder.layer(SearchApi).pipe(Layer.provide(SearchHandlers))

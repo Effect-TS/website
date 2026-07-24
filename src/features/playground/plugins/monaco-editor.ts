@@ -142,10 +142,10 @@ function resolveModule(file: string) {
 function resolveMonacoPath(file: string) {
   try {
     return resolveModule(path.join("@effect/monaco-editor/esm", file))
-  } catch (e) {}
+  } catch {}
   try {
     return resolveModule(path.join(process.cwd(), "node_modules/@effect/monaco-editor/esm", file))
-  } catch (e) {}
+  } catch {}
   return resolveModule(file)
 }
 

@@ -1,15 +1,11 @@
-import { Search, X } from "lucide-react"
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useAtom, useAtomValue } from "@effect/atom-react"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
+import { Search, X } from "lucide-react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { SearchResult, SearchResultChunk } from "@/services/search/domain"
 import { NAVIGATION_EVENTS } from "@/lib/navigation"
-import {
-  searchQueryAtom,
-  debouncedQueryAtom,
-  searchResultsAtom,
-} from "./search-atoms"
 import MixedbreadLogo from "./MixedbreadLogo.svg?react"
+import { searchQueryAtom, debouncedQueryAtom, searchResultsAtom } from "./search-atoms"
 
 type SearchDialogState = { readonly tag: "closed" } | { readonly tag: "open" }
 
@@ -100,9 +96,7 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
   const getResultLinks = useCallback((): HTMLAnchorElement[] => {
     if (!resultsRef.current) return []
     return Array.from(
-      resultsRef.current.querySelectorAll<HTMLAnchorElement>(
-        "[data-search-result-link]",
-      ),
+      resultsRef.current.querySelectorAll<HTMLAnchorElement>("[data-search-result-link]"),
     )
   }, [])
 
@@ -113,10 +107,7 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
 
       if (event.key === "ArrowDown") {
         event.preventDefault()
-        selectedIndexRef.current = Math.min(
-          selectedIndexRef.current + 1,
-          links.length - 1,
-        )
+        selectedIndexRef.current = Math.min(selectedIndexRef.current + 1, links.length - 1)
         links[selectedIndexRef.current]?.focus()
         return
       }
@@ -135,10 +126,7 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
 
       if (event.key === "Enter") {
         const active = document.activeElement
-        if (
-          active instanceof HTMLAnchorElement &&
-          active.dataset.searchResultLink === "true"
-        ) {
+        if (active instanceof HTMLAnchorElement && active.dataset.searchResultLink === "true") {
           event.preventDefault()
           closeDialog()
         }
@@ -241,7 +229,10 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
         onKeyDown={handleDialogKeyDown}
       >
         <div className="group flex items-center gap-2 border-b border-zinc-800 px-4 py-3.5">
-          <label htmlFor="search-dialog-input" className="shrink-0 cursor-pointer text-zinc-500 transition-colors group-focus-within:text-zinc-300">
+          <label
+            htmlFor="search-dialog-input"
+            className="shrink-0 cursor-pointer text-zinc-500 transition-colors group-focus-within:text-zinc-300"
+          >
             <Search className="h-4 w-4" aria-hidden="true" />
           </label>
           <input
@@ -249,7 +240,7 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
             id="search-dialog-input"
             value={query}
             onChange={handleInputChange}
-            className="w-full rounded-md border-none bg-transparent py-1 px-2 text-sm text-white outline-none transition-colors placeholder:text-zinc-500 focus:bg-zinc-800/50"
+            className="w-full rounded-md border-none bg-transparent px-2 py-1 text-sm text-white transition-colors outline-none placeholder:text-zinc-500 focus:bg-zinc-800/50"
             style={{ outline: "none" }}
             placeholder="Search documentation..."
             aria-label="Search documentation"
@@ -350,7 +341,7 @@ function SearchResultItem({ result }: { readonly result: SearchResult }) {
         <a
           href={result.href}
           data-search-result-link="true"
-          className="block px-4 py-3 text-sm transition-colors hover:bg-zinc-800/50 focus:bg-zinc-800/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-zinc-600"
+          className="block px-4 py-3 text-sm transition-colors hover:bg-zinc-800/50 focus:bg-zinc-800/50 focus:ring-2 focus:ring-zinc-600 focus:outline-none focus:ring-inset"
         >
           <div className="font-medium text-white">{result.title}</div>
           {result.description ? (
@@ -361,11 +352,7 @@ function SearchResultItem({ result }: { readonly result: SearchResult }) {
         {result.chunks.length > 0 ? (
           <ul className="divide-y divide-zinc-800 border-t border-zinc-800">
             {result.chunks.map((chunk) => (
-              <SearchResultChunkItem
-                key={chunk.id}
-                href={result.href}
-                chunk={chunk}
-              />
+              <SearchResultChunkItem key={chunk.id} href={result.href} chunk={chunk} />
             ))}
           </ul>
         ) : null}
@@ -388,15 +375,11 @@ function SearchResultChunkItem({
       <a
         href={chunkHref}
         data-search-result-link="true"
-        className="block px-4 py-2.5 pl-10 text-sm transition-colors hover:bg-zinc-800/50 focus:bg-zinc-800/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-zinc-600"
+        className="block px-4 py-2.5 pl-10 text-sm transition-colors hover:bg-zinc-800/50 focus:bg-zinc-800/50 focus:ring-2 focus:ring-zinc-600 focus:outline-none focus:ring-inset"
       >
-        <div className="truncate text-xs font-medium text-zinc-300">
-          {chunk.title}
-        </div>
+        <div className="truncate text-xs font-medium text-zinc-300">{chunk.title}</div>
         {chunk.snippet ? (
-          <div className="mt-0.5 truncate text-xs text-zinc-500">
-            {chunk.snippet}
-          </div>
+          <div className="mt-0.5 truncate text-xs text-zinc-500">{chunk.snippet}</div>
         ) : null}
       </a>
     </li>

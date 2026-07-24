@@ -1,6 +1,3 @@
-import { readdirSync } from "node:fs"
-import { fileURLToPath } from "node:url"
-
 import mdx from "@astrojs/mdx"
 import react from "@astrojs/react"
 import vercel from "@astrojs/vercel"
@@ -9,10 +6,12 @@ import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
 import { defineConfig, envField, fontProviders, svgoOptimizer } from "astro/config"
+import { readdirSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 import svgr from "vite-plugin-svgr"
-import { twieRedirectList } from "./src/generated/twie-redirects"
-import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
+import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
+import { twieRedirectList } from "./src/generated/twie-redirects"
 import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground.ts"
 
 const GoogleFontProvider = fontProviders.google()
@@ -48,8 +47,8 @@ export default defineConfig({
       svgr(),
       monacoEditorPlugin({
         languages: ["typescript", "javascript", "json", "css", "html"],
-        features: "all"
-      })
+        features: "all",
+      }),
     ],
     resolve: {
       alias: {
@@ -61,7 +60,7 @@ export default defineConfig({
     },
     server: {
       watch: {
-        ignored: ["**/.astro/**", "**/.direnv/**", "**/repos/**", "**/.vercel/**"],
+        ignored: ["**/.astro/**", "**/.direnv/**", "**/.vercel/**"],
       },
     },
   },
@@ -80,11 +79,7 @@ export default defineConfig({
 
   integrations: [
     expressiveCode({
-      plugins: [
-        pluginCollapsibleSections(),
-        pluginLineNumbers(),
-        pluginOpenInPlayground(),
-      ],
+      plugins: [pluginCollapsibleSections(), pluginLineNumbers(), pluginOpenInPlayground()],
       themes: ["github-light", "github-dark"],
     }),
     react(),

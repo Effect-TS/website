@@ -3,11 +3,23 @@ import PageLayout from "@/layouts/PageLayout.astro"
 import GridBackground from "@/components/GridBackground.astro"
 
 type Visual =
-  | { kind: "stat"; value: string; label: string; sublabel?: string; striken?: boolean; chips?: string[] }
+  | {
+      kind: "stat"
+      value: string
+      label: string
+      sublabel?: string
+      striken?: boolean
+      chips?: string[]
+    }
   | { kind: "compare"; left: string; right: string; relation: string }
   | { kind: "logos"; items: { src: string; alt: string; h?: number }[] }
   | { kind: "code"; lines: string[] }
-  | { kind: "chart"; title: string; bars: { label: string; value: string; pct: number; emphasis?: boolean }[]; note?: string }
+  | {
+      kind: "chart"
+      title: string
+      bars: { label: string; value: string; pct: number; emphasis?: boolean }[]
+      note?: string
+    }
   | {
       kind: "fns"
       sections: {
@@ -45,7 +57,13 @@ const MYTHS: Myth[] = [
     id: "500x-slower",
     short: "It makes code 500x slower",
     title: "Effect will make your code 500x slower",
-    visual: { kind: "stat", value: "500×", label: "Myth", sublabel: "Only applies to micro-benchmarks of 1 + 1", striken: true },
+    visual: {
+      kind: "stat",
+      value: "500×",
+      label: "Myth",
+      sublabel: "Only applies to micro-benchmarks of 1 + 1",
+      striken: true,
+    },
     body: [
       "This comparison only applies when measuring trivial operations like 1 + 1 against Effect-wrapped equivalents. The performance difference stems from JIT compiler optimization differences, not Effect itself.",
       "In realistic scenarios, Effect serves as an app-level coordination library rather than a low-level operation wrapper. Actual performance bottlenecks typically come from concurrency mismanagement rather than Effect overhead.",
@@ -55,7 +73,12 @@ const MYTHS: Myth[] = [
     id: "performance-overhead",
     short: "Huge performance overhead",
     title: "Effect has a huge performance overhead",
-    visual: { kind: "stat", value: "120 FPS", label: "In production", sublabel: "Frontends running Effect intensively" },
+    visual: {
+      kind: "stat",
+      value: "120 FPS",
+      label: "In production",
+      sublabel: "Frontends running Effect intensively",
+    },
     body: [
       "Performance depends on context. Many JavaScript bottlenecks originate from poor concurrency handling — areas where Effect's structured concurrency and observability features provide advantages.",
       "Frontend applications run at 120fps using Effect intensively. Memory usage remains comparable to equivalent non-Effect code performing identical tasks. Adopt Effect and monitor actual performance rather than optimizing speculatively.",
@@ -74,16 +97,25 @@ const MYTHS: Myth[] = [
             {
               label: "Create",
               items: [
-                { name: "Effect.succeed", href: "/docs/v3/getting-started/creating-effects/#succeed" },
+                {
+                  name: "Effect.succeed",
+                  href: "/docs/v3/getting-started/creating-effects/#succeed",
+                },
                 { name: "Effect.fail", href: "/docs/v3/getting-started/creating-effects/#fail" },
                 { name: "Effect.sync", href: "/docs/v3/getting-started/creating-effects/#sync" },
-                { name: "Effect.tryPromise", href: "/docs/v3/getting-started/creating-effects/#trypromise" },
+                {
+                  name: "Effect.tryPromise",
+                  href: "/docs/v3/getting-started/creating-effects/#trypromise",
+                },
               ],
             },
             {
               label: "Compose",
               items: [
-                { name: "Effect.andThen", href: "/docs/v3/getting-started/building-pipelines/#andthen" },
+                {
+                  name: "Effect.andThen",
+                  href: "/docs/v3/getting-started/building-pipelines/#andthen",
+                },
                 { name: "Effect.map", href: "/docs/v3/getting-started/building-pipelines/#map" },
                 { name: "Effect.tap", href: "/docs/v3/getting-started/building-pipelines/#tap" },
               ],
@@ -92,28 +124,49 @@ const MYTHS: Myth[] = [
               label: "Run",
               items: [
                 { name: "Effect.gen", href: "/docs/v3/getting-started/using-generators/" },
-                { name: "Effect.runPromise", href: "/docs/v3/getting-started/running-effects/#runpromise" },
+                {
+                  name: "Effect.runPromise",
+                  href: "/docs/v3/getting-started/running-effects/#runpromise",
+                },
               ],
             },
             {
               label: "Handle errors",
               items: [
-                { name: "Effect.catchTag", href: "/docs/v3/error-management/expected-errors/#catchtag" },
-                { name: "Effect.catchAll", href: "/docs/v3/error-management/expected-errors/#catchall" },
+                {
+                  name: "Effect.catchTag",
+                  href: "/docs/v3/error-management/expected-errors/#catchtag",
+                },
+                {
+                  name: "Effect.catchAll",
+                  href: "/docs/v3/error-management/expected-errors/#catchall",
+                },
               ],
             },
             {
               label: "Manage resources",
               items: [
-                { name: "Effect.acquireRelease", href: "/docs/v3/resource-management/scope/#acquirerelease" },
-                { name: "Effect.acquireUseRelease", href: "/docs/v3/resource-management/introduction/#acquireuserelease" },
+                {
+                  name: "Effect.acquireRelease",
+                  href: "/docs/v3/resource-management/scope/#acquirerelease",
+                },
+                {
+                  name: "Effect.acquireUseRelease",
+                  href: "/docs/v3/resource-management/introduction/#acquireuserelease",
+                },
               ],
             },
             {
               label: "Provide dependencies",
               items: [
-                { name: "Effect.provide", href: "/docs/v3/requirements-management/layers/#providing-a-layer-to-an-effect" },
-                { name: "Effect.provideService", href: "/docs/v3/requirements-management/services/#providing-a-service-implementation" },
+                {
+                  name: "Effect.provide",
+                  href: "/docs/v3/requirements-management/layers/#providing-a-layer-to-an-effect",
+                },
+                {
+                  name: "Effect.provideService",
+                  href: "/docs/v3/requirements-management/services/#providing-a-service-implementation",
+                },
               ],
             },
           ],
@@ -122,7 +175,10 @@ const MYTHS: Myth[] = [
           title: "Starter modules",
           items: [
             { name: "Effect", href: "https://effect-ts.github.io/effect/effect/Effect.ts.html" },
-            { name: "Context", href: "/docs/v3/requirements-management/services/#creating-a-service" },
+            {
+              name: "Context",
+              href: "/docs/v3/requirements-management/services/#creating-a-service",
+            },
             { name: "Layer", href: "/docs/v3/requirements-management/layers/" },
             { name: "Option", href: "/docs/v3/data-types/option/" },
             { name: "Either", href: "/docs/v3/data-types/either/" },
@@ -140,7 +196,12 @@ const MYTHS: Myth[] = [
     id: "bundle-size",
     short: "Bundle size is huge",
     title: "The bundle size is HUGE",
-    visual: { kind: "stat", value: "~25 KB", label: "Min gzipped", sublabel: "Runtime + most functions a typical app needs" },
+    visual: {
+      kind: "stat",
+      value: "~25 KB",
+      label: "Min gzipped",
+      sublabel: "Runtime + most functions a typical app needs",
+    },
     body: [
       "The minimum gzipped bundle cost is approximately 25KB, containing the Effect runtime plus most of the functions needed in a typical application. Effect tree-shakes effectively, so only the code you use gets included.",
       "Adopting Effect often reduces overall bundle size by replacing scattered library code with more concise application code.",
@@ -161,7 +222,12 @@ const MYTHS: Myth[] = [
     id: "should-be-a-language",
     short: "Should be a language",
     title: "Effect should be a language, or use a different language",
-    visual: { kind: "stat", value: "~78%", label: "Adoption rate", sublabel: "TypeScript is no longer optional" },
+    visual: {
+      kind: "stat",
+      value: "~78%",
+      label: "Adoption rate",
+      sublabel: "TypeScript is no longer optional",
+    },
     body: [
       "Neither alternative resolves production-grade TypeScript development challenges. TypeScript's unique strength includes full-stack compatibility, deep JavaScript ecosystem integration, and industrial adoption by major companies.",
       "Effect's existence within TypeScript — enabled by features like generators supporting custom types — makes TypeScript distinctive. Even functional languages like Scala provide less optimal effect system interoperability.",
@@ -172,22 +238,27 @@ const MYTHS: Myth[] = [
 const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
 ---
 
-<PageLayout
-  title="Effect Myths"
-  description="Addressing common misconceptions about Effect."
->
+<PageLayout title="Effect Myths" description="Addressing common misconceptions about Effect.">
   {/* Hero */}
   <section class="hero-section relative overflow-hidden pb-20 md:pb-28">
     <GridBackground />
-    <div aria-hidden="true" class="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[400px]"></div>
+    <div
+      aria-hidden="true"
+      class="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[400px]"
+    >
+    </div>
 
     <div class="relative z-10 mx-auto w-full max-w-295 px-4">
-      <p class="pt-16 pb-1 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase md:pt-20">
+      <p
+        class="pt-16 pb-1 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase md:pt-20"
+      >
         // Effect Myths
       </p>
 
       <div class="mt-2 max-w-4xl pb-4">
-        <h1 class="text-4xl leading-tight font-bold tracking-tight text-white md:text-5xl lg:text-6xl">
+        <h1
+          class="text-4xl leading-tight font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
+        >
           Myths about Effect
         </h1>
         <p class="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-400 md:text-xl">
@@ -198,278 +269,340 @@ const ROTATIONS = [-2, 3, -1, 2, -3, 1, -2]
       {/* Anchor chip index */}
       <div class="mt-10 flex flex-col gap-y-4">
         <ul class="flex flex-col gap-4">
-          {MYTHS.slice(0, 3).map((myth, i) => {
-            const rotation = ROTATIONS[i % ROTATIONS.length] ?? 0
-            return (
-              <li
-                class="myth-chip"
-                style={`animation-delay: ${i * 0.08}s; --chip-rotate-to: ${rotation}deg; --chip-rotate-from: ${rotation - 8}deg`}
-              >
-                <a
-                  href={`#${myth.id}`}
-                  class="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-700 px-4 py-2 font-mono text-sm tracking-wider text-zinc-300 uppercase transition-colors hover:border-white hover:text-white"
+          {
+            MYTHS.slice(0, 3).map((myth, i) => {
+              const rotation = ROTATIONS[i % ROTATIONS.length] ?? 0
+              return (
+                <li
+                  class="myth-chip"
+                  style={`animation-delay: ${i * 0.08}s; --chip-rotate-to: ${rotation}deg; --chip-rotate-from: ${rotation - 8}deg`}
                 >
-                  <span class="text-zinc-400">{String(i + 1).padStart(2, "0")}</span>
-                  <span>{myth.short}</span>
-                </a>
-              </li>
-            )
-          })}
+                  <a
+                    href={`#${myth.id}`}
+                    class="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-700 px-4 py-2 font-mono text-sm tracking-wider text-zinc-300 uppercase transition-colors hover:border-white hover:text-white"
+                  >
+                    <span class="text-zinc-400">{String(i + 1).padStart(2, "0")}</span>
+                    <span>{myth.short}</span>
+                  </a>
+                </li>
+              )
+            })
+          }
         </ul>
         <ul class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {MYTHS.slice(3).map((myth, i) => {
-            const globalIdx = i + 3
-            const rotation = ROTATIONS[globalIdx % ROTATIONS.length] ?? 0
-            return (
-              <li
-                class="myth-chip"
-                style={`animation-delay: ${globalIdx * 0.08}s; --chip-rotate-to: ${rotation}deg; --chip-rotate-from: ${rotation - 8}deg`}
-              >
-                <a
-                  href={`#${myth.id}`}
-                  class="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-700 px-4 py-2 font-mono text-sm tracking-wider text-zinc-300 uppercase transition-colors hover:border-white hover:text-white"
+          {
+            MYTHS.slice(3).map((myth, i) => {
+              const globalIdx = i + 3
+              const rotation = ROTATIONS[globalIdx % ROTATIONS.length] ?? 0
+              return (
+                <li
+                  class="myth-chip"
+                  style={`animation-delay: ${globalIdx * 0.08}s; --chip-rotate-to: ${rotation}deg; --chip-rotate-from: ${rotation - 8}deg`}
                 >
-                  <span class="text-zinc-400">{String(globalIdx + 1).padStart(2, "0")}</span>
-                  <span>{myth.short}</span>
-                </a>
-              </li>
-            )
-          })}
+                  <a
+                    href={`#${myth.id}`}
+                    class="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-700 px-4 py-2 font-mono text-sm tracking-wider text-zinc-300 uppercase transition-colors hover:border-white hover:text-white"
+                  >
+                    <span class="text-zinc-400">{String(globalIdx + 1).padStart(2, "0")}</span>
+                    <span>{myth.short}</span>
+                  </a>
+                </li>
+              )
+            })
+          }
         </ul>
       </div>
     </div>
   </section>
 
   {/* Myth sections */}
-  {MYTHS.map((myth, idx) => {
-    const visual = myth.visual
-    const reversedOverride = { 4: true, 5: false, 6: true } as { [k: number]: boolean }
-    const isReversed = idx in reversedOverride ? reversedOverride[idx] : idx % 2 === 1
+  {
+    MYTHS.map((myth, idx) => {
+      const visual = myth.visual
+      const reversedOverride = { 4: true, 5: false, 6: true } as { [k: number]: boolean }
+      const isReversed = idx in reversedOverride ? reversedOverride[idx] : idx % 2 === 1
 
-    const statV = visual.kind === "stat" ? visual : undefined
-    const compareV = visual.kind === "compare" ? visual : undefined
-    const chartV = visual.kind === "chart" ? visual : undefined
-    const logosV = visual.kind === "logos" ? visual : undefined
-    const codeV = visual.kind === "code" ? visual : undefined
-    const fnsV = visual.kind === "fns" ? visual : undefined
+      const statV = visual.kind === "stat" ? visual : undefined
+      const compareV = visual.kind === "compare" ? visual : undefined
+      const chartV = visual.kind === "chart" ? visual : undefined
+      const logosV = visual.kind === "logos" ? visual : undefined
+      const codeV = visual.kind === "code" ? visual : undefined
+      const fnsV = visual.kind === "fns" ? visual : undefined
 
-    const fnsSection = fnsV?.sections.find(s => s.groups)
-    const modulesSection = fnsV?.sections.find(s => s.items)
+      const fnsSection = fnsV?.sections.find((s) => s.groups)
+      const modulesSection = fnsV?.sections.find((s) => s.items)
 
-    const fnChipClass = "pointer-events-auto inline-flex cursor-pointer items-center rounded-md border border-zinc-700 px-2 py-0.5 font-mono text-sm text-zinc-300 transition-colors hover:border-white hover:text-white"
-    const listChipClass = "inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900/40 px-2 py-0.5 font-mono text-[0.75rem] text-zinc-200 transition-colors hover:border-white hover:bg-zinc-900 hover:text-white"
+      const fnChipClass =
+        "pointer-events-auto inline-flex cursor-pointer items-center rounded-md border border-zinc-700 px-2 py-0.5 font-mono text-sm text-zinc-300 transition-colors hover:border-white hover:text-white"
+      const listChipClass =
+        "inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900/40 px-2 py-0.5 font-mono text-[0.75rem] text-zinc-200 transition-colors hover:border-white hover:bg-zinc-900 hover:text-white"
 
-    return (
-      <section id={myth.id} class="relative border-t border-zinc-800">
-        <div class="mx-auto w-full max-w-295 px-4">
+      return (
+        <section id={myth.id} class="relative border-t border-zinc-800">
+          <div class="mx-auto w-full max-w-295 px-4">
+            {fnsV ? (
+              /* fns special layout: 2-row, full width */
+              <div class="py-20 md:py-24">
+                <div
+                  class="grid grid-cols-1 gap-10 md:grid-cols-12 md:gap-x-0"
+                  style="align-items: last baseline"
+                >
+                  <div class="md:col-span-6 md:pr-16">
+                    <p class="mb-4 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+                      // Myth {String(idx + 1).padStart(2, "00")}
+                    </p>
+                    <h2 class="border-l-2 border-zinc-700 pl-5 text-xl leading-snug font-medium tracking-tight text-zinc-400 italic md:text-2xl">
+                      "{myth.title}"
+                    </h2>
+                  </div>
+                  <div class="md:col-span-6">
+                    {myth.body.map((p, pi) => (
+                      <p class={`text-base leading-relaxed text-zinc-300${pi > 0 ? " mt-4" : ""}`}>
+                        {p}
+                      </p>
+                    ))}
+                  </div>
+                </div>
 
-          {fnsV ? (
-            /* fns special layout: 2-row, full width */
-            <div class="py-20 md:py-24">
-              <div class="grid grid-cols-1 gap-10 md:grid-cols-12 md:gap-x-0" style="align-items: last baseline">
-                <div class="md:col-span-6 md:pr-16">
+                <div class="mt-12 rounded-md border border-zinc-800 bg-zinc-900/40 p-6 md:mt-16">
+                  <div class="flex flex-col gap-8">
+                    {fnsSection && (
+                      <div class="flex flex-col gap-4">
+                        <p class="font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase">
+                          {fnsSection.title}
+                        </p>
+                        <div class="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                          {fnsSection.groups!.map((group) => (
+                            <div class="flex flex-col gap-2">
+                              <p class="font-mono text-[0.65rem] tracking-wider text-zinc-400 uppercase">
+                                {group.label}
+                              </p>
+                              <ul class="flex flex-wrap gap-1.5">
+                                {group.items.map((item) => (
+                                  <li>
+                                    <a
+                                      href={item.href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      class={fnChipClass}
+                                    >
+                                      {item.name}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {modulesSection && (
+                      <div class="flex flex-col gap-4 border-t border-zinc-800 pt-8">
+                        <p class="font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase">
+                          {modulesSection.title}
+                        </p>
+                        <ul class="flex flex-wrap gap-1.5">
+                          {modulesSection.items!.map((item) => (
+                            <li>
+                              <a
+                                href={item.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class={fnChipClass}
+                              >
+                                {item.name}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Standard alternating layout: 7/5 columns */
+              <div class="grid grid-cols-1 items-center gap-10 py-20 md:grid-cols-12 md:gap-x-0 md:py-24">
+                {/* Text col */}
+                <div
+                  class={`md:col-span-7 ${isReversed ? "md:col-start-6 md:pl-16" : "md:col-start-1 md:pr-16"}`}
+                >
                   <p class="mb-4 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
                     // Myth {String(idx + 1).padStart(2, "00")}
                   </p>
                   <h2 class="border-l-2 border-zinc-700 pl-5 text-xl leading-snug font-medium tracking-tight text-zinc-400 italic md:text-2xl">
                     "{myth.title}"
                   </h2>
-                </div>
-                <div class="md:col-span-6">
-                  {myth.body.map((p, pi) => (
-                    <p class={`text-base leading-relaxed text-zinc-300${pi > 0 ? " mt-4" : ""}`}>{p}</p>
+                  {myth.body.map((p, pi) => {
+                    if (pi === 0) {
+                      const match = p.match(/^([^.]+\.)\s*(.*)$/)
+                      const lead = match ? match[1] : p
+                      const rest = match ? match[2] : ""
+                      return (
+                        <div class="mt-10">
+                          <p class="text-lg leading-snug font-semibold text-white">{lead}</p>
+                          {rest && (
+                            <p class="mt-3 text-base leading-relaxed text-zinc-300">{rest}</p>
+                          )}
+                        </div>
+                      )
+                    }
+                    return <p class="mt-4 text-base leading-relaxed text-zinc-300">{p}</p>
+                  })}
+                  {myth.lists?.map((list) => (
+                    <div class="mt-8">
+                      <p class="mb-4 font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase">
+                        {list.title}
+                      </p>
+                      {list.groups ? (
+                        <div class="space-y-3">
+                          {list.groups.map((group) => (
+                            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+                              <p class="w-28 shrink-0 font-mono text-[0.7rem] tracking-wider text-zinc-400 uppercase">
+                                {group.label}
+                              </p>
+                              <ul class="flex flex-1 flex-wrap gap-2">
+                                {group.items.map((item) => (
+                                  <li>
+                                    <a
+                                      href={item.href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      class={listChipClass}
+                                    >
+                                      {item.name}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <ul class="flex flex-wrap gap-2">
+                          {list.items?.map((item) => (
+                            <li>
+                              <a
+                                href={item.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class={listChipClass}
+                              >
+                                {item.name}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   ))}
                 </div>
-              </div>
 
-              <div class="mt-12 rounded-md border border-zinc-800 bg-zinc-900/40 p-6 md:mt-16">
-                <div class="flex flex-col gap-8">
-                  {fnsSection && (
-                    <div class="flex flex-col gap-4">
-                      <p class="font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase">
-                        {fnsSection.title}
+                {/* Visual col */}
+                <div
+                  class={`md:col-span-5 ${isReversed ? "md:col-start-1 md:row-start-1" : "md:col-start-8"}`}
+                >
+                  {statV && (
+                    <div class="relative flex aspect-square flex-col justify-between rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
+                      <p class="font-mono text-xs tracking-wider text-zinc-400 uppercase">
+                        {statV.label}
                       </p>
-                      <div class="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-                        {fnsSection.groups!.map((group) => (
-                          <div class="flex flex-col gap-2">
-                            <p class="font-mono text-[0.65rem] tracking-wider text-zinc-400 uppercase">
-                              {group.label}
-                            </p>
-                            <ul class="flex flex-wrap gap-1.5">
-                              {group.items.map((item) => (
-                                <li>
-                                  <a href={item.href} target="_blank" rel="noopener noreferrer" class={fnChipClass}>
-                                    {item.name}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
+                      <p
+                        class={`font-mono font-bold tracking-tight ${statV.striken ? "text-zinc-400 line-through decoration-zinc-300 decoration-4" : "text-white"}`}
+                        style="font-size: clamp(4rem, 10vw, 7rem); line-height: 1"
+                      >
+                        {statV.value}
+                      </p>
+                      {statV.chips ? (
+                        <ul class="flex flex-wrap gap-1.5">
+                          {statV.chips.map((chip) => (
+                            <li class="inline-flex items-center rounded-md border border-zinc-700 px-2 py-0.5 font-mono text-[0.7rem] text-zinc-300">
+                              {chip}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : statV.sublabel ? (
+                        <p class="text-sm text-zinc-300">{statV.sublabel}</p>
+                      ) : null}
+                    </div>
+                  )}
+                  {compareV && (
+                    <div class="relative flex aspect-square items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
+                      <div class="flex flex-col items-center gap-3 font-mono text-xl md:text-3xl">
+                        <span class="text-white">{compareV.left}</span>
+                        <span class="text-4xl font-bold text-zinc-400 md:text-6xl">
+                          {compareV.relation}
+                        </span>
+                        <span class="text-white">{compareV.right}</span>
+                      </div>
+                    </div>
+                  )}
+                  {chartV && (
+                    <div class="relative flex aspect-square flex-col justify-center gap-6 rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
+                      <p class="font-mono text-xs tracking-wider text-zinc-400 uppercase">
+                        {chartV.title}
+                      </p>
+                      <div class="flex flex-col gap-5">
+                        {chartV.bars.map((bar) => (
+                          <div class="space-y-1.5">
+                            <div class="flex items-baseline justify-between">
+                              <p class="font-mono text-[0.7rem] tracking-wider text-zinc-300 uppercase">
+                                {bar.label}
+                              </p>
+                              <p
+                                class={`font-mono text-sm tabular-nums ${bar.emphasis ? "font-bold text-white" : "text-zinc-300"}`}
+                              >
+                                {bar.value}
+                              </p>
+                            </div>
+                            <div class="h-2 w-full overflow-hidden rounded-sm bg-zinc-800">
+                              <div
+                                class={`h-full ${bar.emphasis ? "bg-white" : "bg-zinc-600"}`}
+                                style={`width: ${bar.pct}%`}
+                              />
+                            </div>
                           </div>
+                        ))}
+                      </div>
+                      {chartV.note && <p class="text-sm text-zinc-300">{chartV.note}</p>}
+                    </div>
+                  )}
+                  {logosV && (
+                    <div class="relative flex aspect-square flex-col justify-center rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
+                      <div class="grid grid-cols-3 items-center gap-x-8 gap-y-6">
+                        {logosV.items.map((logo) => (
+                          <img
+                            src={logo.src}
+                            alt={logo.alt}
+                            class="w-auto opacity-80"
+                            style={`height: ${(logo.h ?? 5) * 7}px`}
+                          />
                         ))}
                       </div>
                     </div>
                   )}
-                  {modulesSection && (
-                    <div class="flex flex-col gap-4 border-t border-zinc-800 pt-8">
-                      <p class="font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase">
-                        {modulesSection.title}
-                      </p>
-                      <ul class="flex flex-wrap gap-1.5">
-                        {modulesSection.items!.map((item) => (
-                          <li>
-                            <a href={item.href} target="_blank" rel="noopener noreferrer" class={fnChipClass}>
-                              {item.name}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                  {codeV && (
+                    <pre class="overflow-x-auto rounded-md border border-zinc-800 bg-zinc-900/40 px-5 py-4 font-mono text-sm text-zinc-300">
+                      {codeV.lines.join("\n")}
+                    </pre>
                   )}
                 </div>
               </div>
-            </div>
-          ) : (
-            /* Standard alternating layout: 7/5 columns */
-            <div class="grid grid-cols-1 items-center gap-10 py-20 md:grid-cols-12 md:gap-x-0 md:py-24">
-              {/* Text col */}
-              <div class={`md:col-span-7 ${isReversed ? "md:col-start-6 md:pl-16" : "md:col-start-1 md:pr-16"}`}>
-                <p class="mb-4 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
-                  // Myth {String(idx + 1).padStart(2, "00")}
-                </p>
-                <h2 class="border-l-2 border-zinc-700 pl-5 text-xl leading-snug font-medium tracking-tight text-zinc-400 italic md:text-2xl">
-                  "{myth.title}"
-                </h2>
-                {myth.body.map((p, pi) => {
-                  if (pi === 0) {
-                    const match = p.match(/^([^.]+\.)\s*(.*)$/)
-                    const lead = match ? match[1] : p
-                    const rest = match ? match[2] : ""
-                    return (
-                      <div class="mt-10">
-                        <p class="text-lg leading-snug font-semibold text-white">{lead}</p>
-                        {rest && <p class="mt-3 text-base leading-relaxed text-zinc-300">{rest}</p>}
-                      </div>
-                    )
-                  }
-                  return <p class="mt-4 text-base leading-relaxed text-zinc-300">{p}</p>
-                })}
-                {myth.lists?.map((list) => (
-                  <div class="mt-8">
-                    <p class="mb-4 font-mono text-xs font-medium tracking-wider text-zinc-300 uppercase">
-                      {list.title}
-                    </p>
-                    {list.groups ? (
-                      <div class="space-y-3">
-                        {list.groups.map((group) => (
-                          <div class="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-                            <p class="w-28 shrink-0 font-mono text-[0.7rem] tracking-wider text-zinc-400 uppercase">
-                              {group.label}
-                            </p>
-                            <ul class="flex flex-1 flex-wrap gap-2">
-                              {group.items.map((item) => (
-                                <li>
-                                  <a href={item.href} target="_blank" rel="noopener noreferrer" class={listChipClass}>
-                                    {item.name}
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <ul class="flex flex-wrap gap-2">
-                        {list.items?.map((item) => (
-                          <li>
-                            <a href={item.href} target="_blank" rel="noopener noreferrer" class={listChipClass}>
-                              {item.name}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Visual col */}
-              <div class={`md:col-span-5 ${isReversed ? "md:col-start-1 md:row-start-1" : "md:col-start-8"}`}>
-                {statV && (
-                  <div class="relative flex aspect-square flex-col justify-between rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
-                    <p class="font-mono text-xs tracking-wider text-zinc-400 uppercase">{statV.label}</p>
-                    <p
-                      class={`font-mono font-bold tracking-tight ${statV.striken ? "text-zinc-400 line-through decoration-zinc-300 decoration-4" : "text-white"}`}
-                      style="font-size: clamp(4rem, 10vw, 7rem); line-height: 1"
-                    >
-                      {statV.value}
-                    </p>
-                    {statV.chips ? (
-                      <ul class="flex flex-wrap gap-1.5">
-                        {statV.chips.map((chip) => (
-                          <li class="inline-flex items-center rounded-md border border-zinc-700 px-2 py-0.5 font-mono text-[0.7rem] text-zinc-300">
-                            {chip}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : statV.sublabel ? (
-                      <p class="text-sm text-zinc-300">{statV.sublabel}</p>
-                    ) : null}
-                  </div>
-                )}
-                {compareV && (
-                  <div class="relative flex aspect-square items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
-                    <div class="flex flex-col items-center gap-3 font-mono text-xl md:text-3xl">
-                      <span class="text-white">{compareV.left}</span>
-                      <span class="text-4xl font-bold text-zinc-400 md:text-6xl">{compareV.relation}</span>
-                      <span class="text-white">{compareV.right}</span>
-                    </div>
-                  </div>
-                )}
-                {chartV && (
-                  <div class="relative flex aspect-square flex-col justify-center gap-6 rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
-                    <p class="font-mono text-xs tracking-wider text-zinc-400 uppercase">{chartV.title}</p>
-                    <div class="flex flex-col gap-5">
-                      {chartV.bars.map((bar) => (
-                        <div class="space-y-1.5">
-                          <div class="flex items-baseline justify-between">
-                            <p class="font-mono text-[0.7rem] tracking-wider text-zinc-300 uppercase">{bar.label}</p>
-                            <p class={`font-mono text-sm tabular-nums ${bar.emphasis ? "font-bold text-white" : "text-zinc-300"}`}>{bar.value}</p>
-                          </div>
-                          <div class="h-2 w-full overflow-hidden rounded-sm bg-zinc-800">
-                            <div class={`h-full ${bar.emphasis ? "bg-white" : "bg-zinc-600"}`} style={`width: ${bar.pct}%`} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {chartV.note && <p class="text-sm text-zinc-300">{chartV.note}</p>}
-                  </div>
-                )}
-                {logosV && (
-                  <div class="relative flex aspect-square flex-col justify-center rounded-md border border-zinc-800 bg-zinc-900/40 p-8">
-                    <div class="grid grid-cols-3 items-center gap-x-8 gap-y-6">
-                      {logosV.items.map((logo) => (
-                        <img src={logo.src} alt={logo.alt} class="w-auto opacity-80" style={`height: ${(logo.h ?? 5) * 7}px`} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {codeV && (
-                  <pre class="overflow-x-auto rounded-md border border-zinc-800 bg-zinc-900/40 px-5 py-4 font-mono text-sm text-zinc-300">
-                    {codeV.lines.join("\n")}
-                  </pre>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-    )
-  })}
+            )}
+          </div>
+        </section>
+      )
+    })
+  }
 </PageLayout>
 
 <style>
   .hero-glow {
-    background: radial-gradient(ellipse 50% 80% at 50% -20%, rgba(255, 255, 255, 0.10) 0%, transparent 50%);
+    background: radial-gradient(
+      ellipse 50% 80% at 50% -20%,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 50%
+    );
   }
 </style>
 

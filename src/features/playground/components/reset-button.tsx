@@ -51,8 +51,8 @@ export function ResetButton() {
               id="reset-dialog-description"
               className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400"
             >
-              This will discard your current code and restore the default
-              example. This action can't be undone.
+              This will discard your current code and restore the default example. This action can't
+              be undone.
             </p>
             <div className="mt-6 flex items-center justify-end gap-3">
               <button

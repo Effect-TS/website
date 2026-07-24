@@ -30,7 +30,6 @@ const PM_ICONS: Record<
 <effect-hero-command
   class="relative block rounded-md bg-[#101012] p-1 ring-1 ring-inset ring-zinc-700"
 >
-
   <div
     data-role="copy"
     role="button"
@@ -70,7 +69,7 @@ const PM_ICONS: Record<
           stroke-width="2"
           aria-hidden="true"
         >
-          <path d="m6 9 6 6 6-6"/>
+          <path d="m6 9 6 6 6-6"></path>
         </svg>
       </button>
 
@@ -111,10 +110,17 @@ const PM_ICONS: Record<
       </ul>
     </div>
 
-    <span data-role="command-text" class="flex-1 truncate">{getInstallCommand(DEFAULT_PACKAGE_MANAGER)}</span>
+    <span data-role="command-text" class="flex-1 truncate"
+      >{getInstallCommand(DEFAULT_PACKAGE_MANAGER)}</span
+    >
 
     <Copy data-role="copy-icon-idle" class="shrink-0 text-zinc-400" size={16} aria-hidden="true" />
-    <Check data-role="copy-icon-copied" class="hidden shrink-0 text-zinc-200" size={16} aria-hidden="true" />
+    <Check
+      data-role="copy-icon-copied"
+      class="hidden shrink-0 text-zinc-200"
+      size={16}
+      aria-hidden="true"
+    />
   </div>
 
   <p role="status" aria-live="polite" data-role="status" class="sr-only"></p>
@@ -305,11 +311,7 @@ const PM_ICONS: Record<
       this.#copyIdleIcon.classList.toggle("hidden", copied)
       this.#copySuccessIcon.classList.toggle("hidden", !copied)
       this.#statusElement.textContent =
-        state === "copied"
-          ? "Copied"
-          : state === "error"
-            ? "Could not copy"
-            : ""
+        state === "copied" ? "Copied" : state === "error" ? "Could not copy" : ""
     }
 
     #setTemporaryCopyFeedback = (state: "copied" | "error") => {

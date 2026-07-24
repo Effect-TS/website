@@ -14,8 +14,9 @@ function applyThemeClass(theme: Theme) {
   clearTimeout(transitionTimeout)
   transitionTimeout = window.setTimeout(() => root.classList.remove("theme-transition"), 300)
 
-  const isDark = theme === "dark"
-    || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
+  const isDark =
+    theme === "dark" ||
+    (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
   root.classList.toggle("dark", isDark)
 }
 

@@ -20,7 +20,8 @@ import {
   type YouTubeVideo,
 } from "./domain"
 
-const IFRAME_ALLOW = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+const IFRAME_ALLOW =
+  "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
 const IFRAME_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 export interface EmbedManagerOptions {

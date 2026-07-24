@@ -4,7 +4,13 @@ const DRAG_THRESHOLD_PX = 6
 
 export const useDragScroll = <T extends HTMLElement>() => {
   const ref = React.useRef<T | null>(null)
-  const drag = React.useRef({ pointerId: -1, startX: 0, startScrollLeft: 0, moved: false, captured: false })
+  const drag = React.useRef({
+    pointerId: -1,
+    startX: 0,
+    startScrollLeft: 0,
+    moved: false,
+    captured: false,
+  })
 
   const onPointerDown = React.useCallback((event: React.PointerEvent<T>) => {
     const element = ref.current

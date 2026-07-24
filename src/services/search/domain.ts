@@ -79,6 +79,10 @@ export const SearchResult = Schema.Struct({
 
 export type SearchResult = typeof SearchResult.Type
 
-export class SearchError extends Schema.TaggedErrorClass<SearchError>()("SearchError", {
-  cause: Schema.Defect(),
-}, { httpApiStatus: 500 }) {}
+export class SearchError extends Schema.TaggedErrorClass<SearchError>()(
+  "SearchError",
+  {
+    cause: Schema.Defect(),
+  },
+  { httpApiStatus: 500 },
+) {}
