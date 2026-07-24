@@ -2,7 +2,7 @@
 import type { CollectionEntry } from "astro:content"
 import { getCollection, getEntry, render } from "astro:content"
 
-import { ChevronDown } from "@lucide/astro"
+import { ChevronDown, Menu } from "@lucide/astro"
 
 import Footer from "@/components/Footer.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
@@ -22,6 +22,7 @@ const { Content, headings } = await render(entry)
 
 const currentId = entry.id
 const currentVersion = currentId.split("/")[0]
+const currentLabel = entryLabel(entry)
 
 const sidebarEntry = await getEntry("docsSidebar", currentVersion)
 const groupConfig: Record<string, number> = sidebarEntry?.data ?? {}
@@ -103,6 +104,80 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
     <Navigation activeSlug="docs" wide />
 
     <div class="relative w-full pt-16">
+      <div
+        class="sticky top-16 z-40 border-b border-zinc-200 bg-zinc-50/95 backdrop-blur-sm lg:hidden dark:border-zinc-800 dark:bg-zinc-950/95"
+      >
+        <details>
+          <summary
+            class="flex w-full cursor-pointer select-none list-none items-center gap-2 px-6 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          >
+            <Menu class="h-5 w-5" aria-hidden="true" />
+            <span>Docs menu</span>
+            <span class="truncate text-zinc-500 dark:text-zinc-400">/ {currentLabel}</span>
+            <ChevronDown
+              class="ml-auto h-4 w-4 transition-transform details-chevron"
+              aria-hidden="true"
+            />
+          </summary>
+          <nav
+            aria-label="Documentation navigation"
+            class="max-h-[60vh] overflow-y-auto border-t border-zinc-200 px-6 py-4 dark:border-zinc-800"
+          >
+            <ul class="flex flex-col gap-0.5">
+              {
+                sidebarItems.map((item) =>
+                  item.kind === "entry" ? (
+                    <li>
+                      <a
+                        href={entryHref(item.entry)}
+                        aria-current={item.entry.id === currentId ? "page" : undefined}
+                        class:list={[
+                          "flex items-center justify-between rounded px-2 py-2.5 -mx-2 font-mono text-sm font-medium tracking-wider uppercase transition-colors",
+                          item.entry.id === currentId
+                            ? "bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-white"
+                            : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white",
+                        ]}
+                      >
+                        {entryLabel(item.entry)}
+                      </a>
+                    </li>
+                  ) : (
+                    <li class="mb-1 last:mb-0">
+                      <details open={item.group.isOpen || undefined}>
+                        <summary class="flex cursor-pointer select-none list-none items-center justify-between rounded py-2.5 font-mono text-sm font-medium tracking-wider text-zinc-700 uppercase transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white">
+                          <span>{item.group.label}</span>
+                          <ChevronDown
+                            class="h-4 w-4 transition-transform details-chevron"
+                            aria-hidden="true"
+                          />
+                        </summary>
+                        <ul class="flex flex-col gap-0.5 pb-4">
+                          {item.group.entries.map((e) => (
+                            <li>
+                              <a
+                                href={entryHref(e)}
+                                aria-current={e.id === currentId ? "page" : undefined}
+                                class:list={[
+                                  "block rounded-md py-1.5 pl-3 text-sm transition-colors",
+                                  e.id === currentId
+                                    ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-800 dark:text-white"
+                                    : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-white",
+                                ]}
+                              >
+                                {entryLabel(e)}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    </li>
+                  ),
+                )
+              }
+            </ul>
+          </nav>
+        </details>
+      </div>
       <div class="mx-auto grid w-full max-w-352 grid-cols-1 lg:grid-cols-[240px_1fr_240px]">
         <aside class="hidden border-r border-zinc-200 lg:block dark:border-zinc-800">
           <nav
