@@ -1,4 +1,3 @@
-import type ts from "typescript"
 import * as monaco from "@effect/monaco-editor"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
@@ -9,6 +8,56 @@ import { ChromeDevTools, Dracula } from "./monaco/themes"
 
 type MonacoApi = typeof import("@effect/monaco-editor")
 
+// Monaco embeds TypeScript 5.6, whose worker protocol is independent of the
+// TypeScript version used to compile this application.
+interface MonacoWorkerTextSpan {
+  readonly start: number
+  readonly length: number
+}
+
+interface MonacoWorkerTextChange {
+  readonly span: MonacoWorkerTextSpan
+  readonly newText: string
+}
+
+interface MonacoWorkerSymbolDisplayPart {
+  readonly text: string
+  readonly kind: string
+}
+
+interface MonacoWorkerCompletionEntry {
+  readonly name: string
+  readonly kind: string
+  readonly kindModifiers?: string
+  readonly sortText: string
+  readonly replacementSpan?: MonacoWorkerTextSpan
+  readonly hasAction?: true
+  readonly source?: string
+  readonly data?: unknown
+}
+
+interface MonacoWorkerCompletionInfo {
+  readonly entries: ReadonlyArray<MonacoWorkerCompletionEntry>
+}
+
+interface MonacoWorkerCodeAction {
+  readonly description: string
+  readonly changes: ReadonlyArray<{
+    readonly textChanges: ReadonlyArray<MonacoWorkerTextChange>
+  }>
+}
+
+interface MonacoWorkerCompletionEntryDetails {
+  readonly name: string
+  readonly kind: string
+  readonly displayParts: ReadonlyArray<MonacoWorkerSymbolDisplayPart>
+  readonly codeActions?: ReadonlyArray<MonacoWorkerCodeAction>
+}
+
+interface MonacoWorkerQuickInfo {
+  readonly displayParts?: ReadonlyArray<MonacoWorkerSymbolDisplayPart>
+}
+
 export class Monaco extends Context.Service<Monaco>()("app/Monaco", {
   make: Effect.gen(function* () {
     yield* Effect.logDebug("Setting up Monaco editor")
@@ -18,10 +67,10 @@ export class Monaco extends Context.Service<Monaco>()("app/Monaco", {
     monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
       allowNonTsExtensions: true,
       exactOptionalPropertyTypes: true,
-      module: 199 as any, // ts.ModuleKind.NodeNext
-      moduleResolution: 99 as any, // ts.ModuleResolutionKind.ESNext
+      module: 199 as any, // ModuleKind.NodeNext
+      moduleResolution: 99 as any, // ModuleResolutionKind.NodeNext
       strict: true,
-      target: 99, // ts.ScriptTarget.ESNext
+      target: 99, // ScriptTarget.ESNext
     })
 
     monaco.editor.defineTheme("chrome-devtools", ChromeDevTools)
@@ -147,7 +196,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
       _context: monaco.languages.CompletionContext,
       _token: monaco.CancellationToken,
     ) {
-      // Hack required for converting a `ts.TextChange` to a `ts.TextEdit` - see
+      // Hack required for converting a worker text change to a Monaco text edit - see
       // toTextEdit function defined below
       ;(this as any).__model = model
 
@@ -167,7 +216,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
         return
       }
 
-      const info: ts.CompletionInfo | undefined = await worker.getCompletionsAtPosition(
+      const info: MonacoWorkerCompletionInfo | undefined = await worker.getCompletionsAtPosition(
         resource.toString(),
         offset,
         {},
@@ -215,7 +264,7 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
       readonly position: monaco.Position
       readonly offset: number
       readonly source: string | undefined
-      readonly data?: ts.CompletionEntryData | undefined
+      readonly data?: unknown
     }
 
     async function resolveCompletionItem(
@@ -225,15 +274,16 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
     ) {
       const worker = await (this as any)._worker(item.uri)
 
-      const details: ts.CompletionEntryDetails | undefined = await worker.getCompletionEntryDetails(
-        item.uri.toString(),
-        item.offset,
-        item.label,
-        {},
-        item.source,
-        {},
-        item.data,
-      )
+      const details: MonacoWorkerCompletionEntryDetails | undefined =
+        await worker.getCompletionEntryDetails(
+          item.uri.toString(),
+          item.offset,
+          item.label,
+          {},
+          item.source,
+          {},
+          item.data,
+        )
 
       if (!details) {
         return item
@@ -262,7 +312,9 @@ function setupCompletionItemProviders(monaco: MonacoApi) {
   }
 }
 
-function displayPartsToString(displayParts: Array<ts.SymbolDisplayPart> | undefined): string {
+function displayPartsToString(
+  displayParts: ReadonlyArray<MonacoWorkerSymbolDisplayPart> | undefined,
+): string {
   if (displayParts) {
     return displayParts.map((displayPart) => displayPart.text).join("")
   }
@@ -276,7 +328,7 @@ interface AutoImport {
 
 function getAutoImports(
   provider: monaco.languages.CompletionItemProvider,
-  details: ts.CompletionEntryDetails,
+  details: MonacoWorkerCompletionEntryDetails,
 ): AutoImport | undefined {
   const codeAction = details.codeActions?.[0]
   if (!codeAction) {
@@ -322,7 +374,7 @@ function getAutoImports(
 
 function toTextEdit(
   provider: monaco.languages.CompletionItemProvider,
-  textChange: ts.TextChange,
+  textChange: MonacoWorkerTextChange,
 ): monaco.languages.TextEdit {
   return {
     // If there is no existing import in the file then a new import has to be
@@ -394,7 +446,7 @@ const builtInNodeModules = [
   "zlib",
 ]
 
-function pruneNodeBuiltIns(entry: ts.CompletionEntry): boolean {
+function pruneNodeBuiltIns(entry: MonacoWorkerCompletionEntry): boolean {
   return !builtInNodeModules.includes(entry.name)
 }
 
@@ -496,7 +548,7 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
             }
           }
 
-          const quickInfo: ts.QuickInfo | undefined = await worker.getQuickInfoAtPosition(
+          const quickInfo: MonacoWorkerQuickInfo | undefined = await worker.getQuickInfoAtPosition(
             "file://" + model.uri.path,
             inspectionOff,
           )
@@ -523,7 +575,7 @@ function setupTwoslashIntegration(monaco: MonacoApi) {
 }
 
 function createHint(options: {
-  displayParts: ts.SymbolDisplayPart[]
+  displayParts: ReadonlyArray<MonacoWorkerSymbolDisplayPart>
   position: monaco.Position
   monaco: MonacoApi
 }): monaco.languages.InlayHint {
@@ -549,10 +601,10 @@ const range = (num: number) => [...Array(num).keys()]
 async function getLeftMostQuickInfoOfLine(
   worker: monaco.languages.typescript.TypeScriptWorker,
   { model, position, lineLength }: LineInfo,
-): Promise<ts.QuickInfo | undefined> {
+): Promise<MonacoWorkerQuickInfo | undefined> {
   const offset = model.getOffsetAt(position)
   for (const i of range(lineLength)) {
-    const quickInfo: ts.QuickInfo | undefined = await worker.getQuickInfoAtPosition(
+    const quickInfo: MonacoWorkerQuickInfo | undefined = await worker.getQuickInfoAtPosition(
       "file://" + model.uri.path,
       i + offset,
     )
