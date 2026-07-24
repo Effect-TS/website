@@ -33,15 +33,15 @@ export const retryRecursExample = defineExample({
     text: "Effect.retry(wakeUp, snoozeSchedule)",
   }),
   build: ({ addStep }) => {
-    let index = 0
+    const state = { index: 0 }
 
     const wakeUpAttempt = Effect.gen(function* () {
       const notifications = yield* Notifications
 
       yield* Effect.sleep("500 millis")
 
-      const message = SNOOZE_MESSAGES[Math.min(index, SNOOZE_MESSAGES.length - 1)]!
-      index += 1
+      const message = SNOOZE_MESSAGES[Math.min(state.index, SNOOZE_MESSAGES.length - 1)]!
+      state.index += 1
 
       return yield* Effect.fail(new ErrorResult(message)).pipe(
         Effect.tapError((error) => notifications.notify(error.message)),
@@ -56,6 +56,9 @@ export const retryRecursExample = defineExample({
 
     const snoozeSchedule = Schedule.spaced("2 seconds").pipe(Schedule.upTo({ times: 4 }))
 
-    return Effect.retry(wakeUp, snoozeSchedule)
+    return Effect.suspend(() => {
+      state.index = 0
+      return Effect.retry(wakeUp, snoozeSchedule)
+    })
   },
 })

@@ -25,19 +25,19 @@ export const retryExponentialExample = defineExample({
     text: 'Effect.retry(park, Schedule.exponential("700 millis"))',
   }),
   build: ({ addStep }) => {
-    let index = 0
+    const state = { index: 0 }
 
     const attemptParallelPark = Effect.gen(function* () {
       const notifications = yield* Notifications
 
       yield* Effect.sleep("500 millis")
 
-      if (index >= PARKING_ATTEMPTS.length) {
+      if (state.index >= PARKING_ATTEMPTS.length) {
         return new PrimitiveResult("🚗 Parked!")
       }
 
-      const result = PARKING_ATTEMPTS[index]!
-      index += 1
+      const result = PARKING_ATTEMPTS[state.index]!
+      state.index += 1
 
       return yield* Effect.fail(new ErrorResult(result)).pipe(
         Effect.tapError((error) => notifications.notify(error.message)),
@@ -50,6 +50,9 @@ export const retryExponentialExample = defineExample({
       addToTimeline: true,
     })
 
-    return Effect.retry(parkStep, Schedule.exponential("700 millis"))
+    return Effect.suspend(() => {
+      state.index = 0
+      return Effect.retry(parkStep, Schedule.exponential("700 millis"))
+    })
   },
 })
