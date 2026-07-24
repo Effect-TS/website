@@ -45,21 +45,21 @@ export const repeatSpacedExample = defineExample({
     text: 'Effect.repeat(phone, Schedule.spaced("2 seconds"))',
   }),
   build: ({ addStep }) => {
-    let index = 0
+    const state = { index: 0 }
 
     const checkPhone = Effect.gen(function* () {
       const notifications = yield* Notifications
 
       yield* Effect.sleep("500 millis")
 
-      if (index >= NOTIFICATION_MESSAGES.length) {
+      if (state.index >= NOTIFICATION_MESSAGES.length) {
         return yield* Effect.fail(new ErrorResult("phone died")).pipe(
           Effect.tapError((error) => notifications.notify(error.message)),
         )
       }
 
-      const notification = NOTIFICATION_MESSAGES[index]!
-      index += 1
+      const notification = NOTIFICATION_MESSAGES[state.index]!
+      state.index += 1
 
       return new PrimitiveResult(notification)
     })
@@ -70,8 +70,11 @@ export const repeatSpacedExample = defineExample({
       addToTimeline: true,
     })
 
-    return Effect.repeat(checkPhoneStep, Schedule.spaced("2 seconds")).pipe(
-      Effect.map((count) => new PrimitiveResult(count)),
-    )
+    return Effect.suspend(() => {
+      state.index = 0
+      return Effect.repeat(checkPhoneStep, Schedule.spaced("2 seconds")).pipe(
+        Effect.map((count) => new PrimitiveResult(count)),
+      )
+    })
   },
 })
