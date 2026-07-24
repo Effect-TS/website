@@ -48,7 +48,7 @@ export default function BlogControls({
   const filteredPosts = useMemo(() => {
     const filteredByCategory =
       activeTagId === "all"
-        ? posts.filter((post) => !post.tags.some((tag) => tag.id === "this-week-in-effect"))
+        ? posts
         : posts.filter((post) => post.tags.some((tag) => tag.id === activeTagId))
     return [...filteredByCategory].sort((postA, postB) => {
       const comparison = postA.dateMs - postB.dateMs
