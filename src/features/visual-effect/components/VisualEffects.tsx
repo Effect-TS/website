@@ -69,7 +69,7 @@ export default function VisualEffects() {
       </div>
 
       <div className="w-full">
-        <SubTabs examples={EXAMPLES_CATALOG[category].examples} onTabChange={reset} />
+        <SubTabs key={category} examples={EXAMPLES_CATALOG[category].examples} onTabChange={reset} />
       </div>
     </div>
   )
