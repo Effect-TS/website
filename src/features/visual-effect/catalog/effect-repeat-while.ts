@@ -26,13 +26,13 @@ export const repeatWhileExample = defineExample({
     text: "Effect.repeat(hotdog, schedule)",
   }),
   build: ({ addStep }) => {
-    let amountConsumed = 0
+    const state = { amountConsumed: 0 }
 
     const eatHotDog = Effect.gen(function* () {
       const delay = yield* Random.nextBetween(500, 900) // Variable eating speed
       yield* Effect.sleep(delay)
-      amountConsumed += 1
-      const hotdogs = "🌭".repeat(amountConsumed)
+      state.amountConsumed += 1
+      const hotdogs = "🌭".repeat(state.amountConsumed)
       return new PrimitiveResult(hotdogs)
     })
 
@@ -46,8 +46,11 @@ export const repeatWhileExample = defineExample({
       Schedule.upTo({ duration: Duration.seconds(10) }),
     )
 
-    return Effect.repeat(checkPhoneStep, schedule).pipe(
-      Effect.map(() => new PrimitiveResult(`🤢 ${amountConsumed.toString()} Hotdogs!`)),
-    )
+    return Effect.suspend(() => {
+      state.amountConsumed = 0
+      return Effect.repeat(checkPhoneStep, schedule).pipe(
+        Effect.map(() => new PrimitiveResult(`🤢 ${state.amountConsumed.toString()} Hotdogs!`)),
+      )
+    })
   },
 })

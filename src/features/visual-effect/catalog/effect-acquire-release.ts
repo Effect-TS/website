@@ -41,7 +41,7 @@ export const acquireReleaseExample = defineExample({
   },
   resultHighlight: HighlightSelector.Text({ text: "Effect.scoped(program)" }),
   build: ({ addStep, finalizers }) => {
-    let run = 0
+    const state = { run: 0 }
 
     const database = Effect.gen(function* () {
       const delay = yield* Random.nextIntBetween(600, 900)
@@ -89,8 +89,8 @@ export const acquireReleaseExample = defineExample({
       const delay = yield* Random.nextIntBetween(800, 1200)
       yield* Effect.sleep(delay)
 
-      const currentRun = run
-      run = (run + 1) % 4
+      const currentRun = state.run
+      state.run = (state.run + 1) % 4
 
       switch (currentRun) {
         case 0:
