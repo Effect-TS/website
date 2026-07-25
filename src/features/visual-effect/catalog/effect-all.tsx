@@ -22,10 +22,10 @@ function ConcurrencyModeControl({ control }: ControlRenderProps<ConcurrencyMode>
   const { indicatorRect, rootRef } = useTabsIndicator(value)
 
   return (
-    <div ref={rootRef} className="flex items-center justify-start gap-3">
+    <div ref={rootRef} className="flex flex-wrap items-center justify-start gap-3">
       <span className="font-mono tracking-wider text-neutral-500 select-none">CONCURRENCY</span>
-      <Tabs value={value} onValueChange={(value) => setValue(value)}>
-        <TabsList className="relative isolate gap-3 overflow-hidden border border-zinc-700 bg-zinc-900 p-1 group-data-[orientation=horizontal]/tabs:h-11">
+      <Tabs value={value} onValueChange={(value) => setValue(value)} className="min-w-0">
+        <TabsList className="relative isolate w-fit flex-wrap gap-3 overflow-hidden border border-zinc-700 bg-zinc-900 p-1 group-data-[orientation=horizontal]/tabs:h-auto group-data-[orientation=horizontal]/tabs:min-h-11">
           <TabsIndicator rect={indicatorRect} variant="fill" className="rounded-md bg-zinc-950" />
 
           {CONCURRENCY_OPTIONS.map((option) => (

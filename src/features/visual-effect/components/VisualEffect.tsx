@@ -48,7 +48,7 @@ function VisualEffectSurface() {
 
   return (
     <motion.div
-      className="flex w-fit min-w-full flex-col border shadow-2xl"
+      className="flex w-full min-w-0 flex-col border shadow-2xl"
       initial={false}
       animate={{
         borderColor,

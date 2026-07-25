@@ -56,7 +56,7 @@ export function VisualEffectControls({ isDied }: { readonly isDied: boolean }) {
       }}
     >
       <motion.button
-        className="-m-2 flex flex-1 cursor-pointer items-start gap-3 rounded-lg bg-zinc-950 p-2 whitespace-nowrap"
+        className="-m-2 flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-lg bg-zinc-950 p-2"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onMouseDown={() => setIsPressed(true)}
@@ -75,15 +75,15 @@ export function VisualEffectControls({ isDied }: { readonly isDied: boolean }) {
           state={exampleState}
         />
 
-        <span className="flex flex-1 justify-between gap-4 text-neutral-400">
-          <span className="flex flex-col gap-1">
-            <span className="flex items-baseline gap-2 font-mono text-base leading-tighter font-semibold">
+        <span className="flex min-w-0 flex-1 flex-col gap-1 text-neutral-400">
+          <span className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <span className="flex items-baseline gap-2 font-mono text-base leading-tighter font-semibold whitespace-nowrap">
               <span className="text-white">{title}</span>
               {subtitle && <span className="font-medium">{subtitle}</span>}
             </span>
-            <span className="text-sm leading-4">{example.description}</span>
+            <span className="shrink-0 font-mono text-xs whitespace-nowrap">{cta}</span>
           </span>
-          <span className="-mt-1 font-mono text-xs">{cta}</span>
+          <span className="text-left text-sm leading-4">{example.description}</span>
         </span>
       </motion.button>
     </motion.div>
