@@ -83,11 +83,11 @@ function SubTabs({
   readonly onTabChange: () => void
 }) {
   const [activeKey, setActiveKey] = useState<string>(examples[0]?.key ?? "")
+  const drag = useDragScroll<HTMLDivElement>()
 
   if (examples.length === 0) return null
 
   const activeExample = examples.find((e) => e.key === activeKey) ?? examples[0]!
-  const drag = useDragScroll<HTMLDivElement>()
 
   return (
     <div className="flex flex-col">
