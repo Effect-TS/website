@@ -30,7 +30,7 @@ export const eventuallyExample = defineExample({
     text: "Effect.eventually(swipeCard)",
   }),
   build: ({ addStep }) => {
-    let retries = 0
+    const state = { retries: 0 }
 
     const swipeCard = Effect.gen(function* () {
       const delay = yield* Random.nextIntBetween(400, 600)
@@ -38,10 +38,10 @@ export const eventuallyExample = defineExample({
 
       // Determine failure based on current retry count
       const failureThreshold = yield* Random.nextIntBetween(2, 5)
-      const shouldFail = retries < failureThreshold
+      const shouldFail = state.retries < failureThreshold
 
       if (shouldFail) {
-        retries += 1
+        state.retries += 1
         const index = yield* Random.nextIntBetween(0, FAILURE_MESSAGES.length, {
           halfOpen: true,
         })
@@ -59,6 +59,9 @@ export const eventuallyExample = defineExample({
       highlight: HighlightSelector.Text({ text: "swipeCard()" }),
     })
 
-    return swipeCardStep.pipe(Effect.retry(Schedule.fixed("1.5 seconds")))
+    return Effect.suspend(() => {
+      state.retries = 0
+      return swipeCardStep.pipe(Effect.retry(Schedule.fixed("1.5 seconds")))
+    })
   },
 })

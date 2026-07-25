@@ -23,11 +23,11 @@ export const timeoutExample = defineExample({
     text: 'Effect.timeout(pizza, "1 second")',
   }),
   build: ({ addStep }) => {
-    let attempt = 0
+    const state = { attempt: 0 }
 
     const pizza = Effect.gen(function* () {
-      const currentAttempt = attempt
-      attempt = (attempt + 1) % 2
+      const currentAttempt = state.attempt
+      state.attempt = (state.attempt + 1) % 2
       const isFirstAttempt = currentAttempt === 0
 
       const delay = yield* isFirstAttempt

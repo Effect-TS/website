@@ -23,13 +23,13 @@ export const catchExample = defineExample({
     text: "Effect.catchAll(shoot, (error) => question)",
   }),
   build: ({ addStep }) => {
-    let attempt = 0
+    const state = { attempt: 0 }
 
     const shoot = Effect.gen(function* () {
       const notifications = yield* Notifications
 
-      const currentAttempt = attempt
-      attempt = (attempt + 1) % 3
+      const currentAttempt = state.attempt
+      state.attempt = (state.attempt + 1) % 3
 
       const delay = yield* Random.nextIntBetween(300, 600)
       yield* Effect.sleep(delay)
@@ -51,7 +51,7 @@ export const catchExample = defineExample({
       yield* Effect.sleep(delay)
 
       // Cycle: 1 = succeed, 2 = succeed, 3 = fail
-      if (attempt === 2) {
+      if (state.attempt === 2) {
         return yield* Effect.fail(new ErrorResult("Brain Fart!")).pipe(
           Effect.tapError((error) => notifications.notify(error.message)),
         )
