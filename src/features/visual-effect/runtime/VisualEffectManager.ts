@@ -204,13 +204,8 @@ export class VisualEffectManager extends Context.Service<
         start: Effect.fnUntraced(function* (example) {
           const startedAt = yield* DateTime.now
           const startedAtMillis = DateTime.toEpochMillis(startedAt)
-          const snapshotRegistry = AtomRegistry.make({
-            initialValues: example.controls.map(
-              (control) => [control.atom, registry.get(control.atom)] as const,
-            ),
-          })
           const snapshot = ControlSnapshot.of({
-            get: (atom) => snapshotRegistry.get(atom),
+            get: (atom) => registry.get(atom),
           })
           const notify = notifyForExample(example)
 
