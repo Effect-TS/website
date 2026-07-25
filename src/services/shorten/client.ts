@@ -16,8 +16,9 @@ export class ShortenClient extends Context.Service<
   static readonly layer = Layer.effect(ShortenClient, RpcClient.make(ShortenRpcs)).pipe(
     Layer.provide(
       RpcClient.layerProtocolHttp({
-        url: "/api/rpc",
-        transformClient: HttpClient.mapRequest(HttpClientRequest.setUrl("/api/rpc")),
+        // The RPC transport posts to an empty path, which `url` would join as `/api/rpc/`.
+        url: "",
+        transformClient: HttpClient.mapRequest(HttpClientRequest.appendUrl("/api/rpc")),
       }).pipe(Layer.provide(FetchHttpClient.layer), Layer.provide(RpcSerialization.layerJson)),
     ),
   )
