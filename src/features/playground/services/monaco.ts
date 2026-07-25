@@ -156,7 +156,7 @@ export class Monaco extends Context.Service<Monaco>()("app/Monaco", {
           const disposable = editor.onDidChangeModelContent(() => {
             Queue.offerUnsafe(queue, editor.getValue())
           })
-          return Effect.sync(() => disposable.dispose())
+          return Effect.addFinalizer(() => Effect.sync(() => disposable.dispose()))
         })
 
         return {

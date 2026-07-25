@@ -310,7 +310,7 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
         const watcher = container.fs.watch(path, (_event) => {
           Queue.offerUnsafe(queue, void 0)
         })
-        return Effect.sync(() => watcher.close())
+        return Effect.addFinalizer(() => Effect.sync(() => watcher.close()))
       }).pipe(Stream.mapEffect(() => readFileString(path)))
       return Stream.fromEffect(readFileString(path)).pipe(
         Stream.concat(changes),
