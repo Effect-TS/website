@@ -92,7 +92,8 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
                 }),
               )
               spawned.terminal.onData((data) => {
-                writer.write(data)
+                // xterm emits DEL for Backspace, but WebContainer's jsh expects BS.
+                writer.write(data === "\x7f" ? "\x08" : data)
               })
             })
             yield* mount
