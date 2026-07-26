@@ -1,12 +1,12 @@
-import { useAtomValue } from "@effect/atom-react";
-import * as Duration from "effect/Duration";
-import * as Option from "effect/Option";
-import { ChevronRightIcon } from "lucide-react";
-import { useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
-import { selectedSpanAtom } from "../../atoms/devtools";
-import { Event, Span } from "../../domain/devtools";
-import { formatDuration } from "./utils";
+import { useAtomValue } from "@effect/atom-react"
+import * as Duration from "effect/Duration"
+import * as Option from "effect/Option"
+import { ChevronRightIcon } from "lucide-react"
+import { useMemo, useState } from "react"
+import { cn } from "@/lib/utils"
+import { selectedSpanAtom } from "../../atoms/devtools"
+import { Event, Span } from "../../domain/devtools"
+import { formatDuration } from "./utils"
 
 export function TraceDetails({ span }: { readonly span: Span }) {
   return (
@@ -25,15 +25,15 @@ export function TraceDetails({ span }: { readonly span: Span }) {
       <TraceAttributes attributes={Array.from(span.attributes)} />
       <TraceEvents events={span.events} />
     </div>
-  );
+  )
 }
 
 function TraceAttributes({
   attributes,
 }: {
-  readonly attributes: ReadonlyArray<[string, unknown]>;
+  readonly attributes: ReadonlyArray<[string, unknown]>
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
 
   if (attributes.length === 0) {
     return (
@@ -41,7 +41,7 @@ function TraceAttributes({
         <span>Attributes</span>
         <span className="text-xs text-zinc-500">( {attributes.length} )</span>
       </div>
-    );
+    )
   }
 
   return (
@@ -51,9 +51,7 @@ function TraceAttributes({
         onClick={() => setOpen((prev) => !prev)}
         className="flex cursor-pointer items-center gap-1 bg-transparent py-0 pl-2 text-sm"
       >
-        <ChevronRightIcon
-          className={cn("h-3 w-3 transition-transform", open && "rotate-90")}
-        />
+        <ChevronRightIcon className={cn("h-3 w-3 transition-transform", open && "rotate-90")} />
         <span>Attributes</span>
         <span className="text-xs text-zinc-500">( {attributes.length} )</span>
       </button>
@@ -72,11 +70,11 @@ function TraceAttributes({
         </table>
       )}
     </div>
-  );
+  )
 }
 
 function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
 
   if (events.length === 0) {
     return (
@@ -84,7 +82,7 @@ function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
         <span>Events</span>
         <span className="text-xs text-zinc-500">( {events.length} )</span>
       </div>
-    );
+    )
   }
 
   return (
@@ -94,9 +92,7 @@ function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
         onClick={() => setOpen((prev) => !prev)}
         className="flex w-full cursor-pointer items-center gap-1 bg-zinc-100 py-1 pl-2 text-sm dark:bg-zinc-800"
       >
-        <ChevronRightIcon
-          className={cn("h-3 w-3 transition-transform", open && "rotate-90")}
-        />
+        <ChevronRightIcon className={cn("h-3 w-3 transition-transform", open && "rotate-90")} />
         <span>Events</span>
         <span className="text-xs text-zinc-500">( {events.length} )</span>
       </button>
@@ -111,24 +107,21 @@ function TraceEvents({ events }: { readonly events: ReadonlyArray<Event> }) {
         </div>
       )}
     </div>
-  );
+  )
 }
 
 function TraceEvent({ node }: { readonly node: Event }) {
-  const selectedSpan = useAtomValue(selectedSpanAtom);
-  const [open, setOpen] = useState(false);
+  const selectedSpan = useAtomValue(selectedSpanAtom)
+  const [open, setOpen] = useState(false)
   const eventTimestamp = useMemo(() => {
     if (selectedSpan !== undefined) {
-      const traceStartTime = Option.getOrThrow(selectedSpan.startTime);
-      const eventStartTime = Duration.nanos(node.event.startTime);
-      const relativeTimestamp = Duration.subtract(
-        eventStartTime,
-        Duration.nanos(traceStartTime),
-      );
-      return formatDuration(relativeTimestamp);
+      const traceStartTime = Option.getOrThrow(selectedSpan.startTime)
+      const eventStartTime = Duration.nanos(node.event.startTime)
+      const relativeTimestamp = Duration.subtract(eventStartTime, Duration.nanos(traceStartTime))
+      return formatDuration(relativeTimestamp)
     }
-    return "";
-  }, [node.event.startTime, selectedSpan]);
+    return ""
+  }, [node.event.startTime, selectedSpan])
 
   return (
     <div className="mb-1">
@@ -137,13 +130,9 @@ function TraceEvent({ node }: { readonly node: Event }) {
         onClick={() => setOpen((prev) => !prev)}
         className="flex cursor-pointer items-center gap-1 bg-zinc-50 p-0 text-sm dark:bg-zinc-900"
       >
-        <ChevronRightIcon
-          className={cn("h-3 w-3 transition-transform", open && "rotate-90")}
-        />
+        <ChevronRightIcon className={cn("h-3 w-3 transition-transform", open && "rotate-90")} />
         <span>{eventTimestamp}</span>
-        {!open && (
-          <span className="ml-2 text-xs font-light">{node.event.name}</span>
-        )}
+        {!open && <span className="ml-2 text-xs font-light">{node.event.name}</span>}
       </button>
       {open && (
         <table className="mt-1 w-full text-sm">
@@ -162,5 +151,5 @@ function TraceEvent({ node }: { readonly node: Event }) {
         </table>
       )}
     </div>
-  );
+  )
 }
