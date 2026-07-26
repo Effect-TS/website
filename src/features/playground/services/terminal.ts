@@ -24,9 +24,14 @@ export class Terminal extends Context.Service<
 >()("app/Terminal") {
   static readonly layer = Layer.succeed(this, {
     spawn: Effect.fnUntraced(function* (options) {
+      let resizeObserver: ResizeObserver | undefined
       const terminal = yield* Effect.acquireRelease(
         Effect.sync(() => new XTerm(options)),
-        (terminal) => Effect.sync(() => terminal.dispose()),
+        (terminal) =>
+          Effect.sync(() => {
+            resizeObserver?.disconnect()
+            terminal.dispose()
+          }),
       )
 
       const fitAddon = new FitAddon()
@@ -36,6 +41,8 @@ export class Terminal extends Context.Service<
       terminal.open = function (this: XTerm, parent: HTMLElement) {
         prevOpen.call(this, parent)
         fitAddon.fit()
+        resizeObserver = new ResizeObserver(() => fitAddon.fit())
+        resizeObserver.observe(parent)
       }
 
       return {

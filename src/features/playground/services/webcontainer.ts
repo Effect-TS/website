@@ -44,7 +44,7 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
      *
      * When the associated scope is closed, the process will be killed.
      */
-    function createShell(cwd: string) {
+    function createShell(cwd: string, terminal: { readonly cols: number; readonly rows: number }) {
       return Effect.acquireRelease(
         Effect.promise(() =>
           container.spawn("jsh", [], {
@@ -53,6 +53,7 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
               PATH: WEBCONTAINER_BIN_PATH,
               NODE_NO_WARNINGS: "1",
             },
+            terminal,
           }),
         ),
         (process) => Effect.sync(() => process.kill()),
@@ -581,19 +582,56 @@ Fs.writeFileSync(configPath, JSON.stringify({
   files: [program]
 }))
 
-function run() {
-  ChildProcess.spawn("tsc-watch", [
-    "-p", configPath,
-    "--onSuccess", \`node --enable-source-maps \${compiledProgram}\`
-  ], {
-    stdio: "inherit"
-  }).on("exit", function() {
-    console.clear()
-    run()
-  })
+// Keep the compiler and program under this process so Ctrl+C releases jsh's PTY.
+const TypeScript = require(Path.resolve("node_modules/typescript"))
+const formatHost = {
+  getCanonicalFileName: (path) => path,
+  getCurrentDirectory: TypeScript.sys.getCurrentDirectory,
+  getNewLine: () => TypeScript.sys.newLine
+}
+const reportDiagnostic = (diagnostic) => {
+  console.error(TypeScript.formatDiagnostic(diagnostic, formatHost))
+}
+const reportWatchStatus = (diagnostic) => {
+  if (diagnostic.code === 6031 || diagnostic.code === 6032) console.clear()
+  console.info(TypeScript.formatDiagnostic(diagnostic, formatHost))
+}
+const host = TypeScript.createWatchCompilerHost(
+  configPath,
+  {},
+  TypeScript.sys,
+  TypeScript.createSemanticDiagnosticsBuilderProgram,
+  reportDiagnostic,
+  reportWatchStatus
+)
+const afterProgramCreate = host.afterProgramCreate
+let running
+
+host.afterProgramCreate = (builder) => {
+  afterProgramCreate?.(builder)
+  running?.kill("SIGKILL")
+  running = undefined
+  const diagnostics = TypeScript.getPreEmitDiagnostics(builder.getProgram())
+  if (diagnostics.length === 0) {
+    running = ChildProcess.spawn(process.execPath, [
+      "--enable-source-maps",
+      compiledProgram
+    ], {
+      stdio: "inherit"
+    })
+  }
 }
 
-run()
+const watcher = TypeScript.createWatchProgram(host)
+
+function stop(exitCode) {
+  running?.kill("SIGKILL")
+  watcher.close()
+  process.exit(exitCode)
+}
+
+process.once("SIGINT", () => stop(130))
+process.once("SIGTERM", () => stop(143))
 `
 
 const devToolsProxyExe = `#!/usr/bin/env node

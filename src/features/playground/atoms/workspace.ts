@@ -78,9 +78,13 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
         const terminalAtom = runtime.atom(
           Effect.fnUntraced(function* (get) {
             const el = yield* get.some(element)
-            const process = yield* container.createShell(workspace.name)
             const spawned = yield* terminal.spawn({
               theme: get.once(terminalThemeAtom),
+            })
+            spawned.terminal.open(el)
+            const process = yield* container.createShell(workspace.name, {
+              cols: spawned.terminal.cols,
+              rows: spawned.terminal.rows,
             })
             const writer = process.input.getWriter()
             const mount = Effect.sync(() => {
@@ -91,6 +95,13 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
                   },
                 }),
               )
+              spawned.terminal.onResize((dimensions) => {
+                process.resize(dimensions)
+              })
+              process.resize({
+                cols: spawned.terminal.cols,
+                rows: spawned.terminal.rows,
+              })
               spawned.terminal.onData((data) => {
                 writer.write(data)
               })
@@ -137,7 +148,6 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
               Stream.runForEach(() => spawned.resize),
               Effect.forkScoped,
             )
-            spawned.terminal.open(el)
             return spawned.terminal
           }, Effect.tapCause(Effect.logError)),
         )
