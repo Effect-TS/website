@@ -1,9 +1,5 @@
 import * as monaco from "@effect/monaco-editor/esm/vs/editor/editor.api"
-import {
-  WebContainer as WC,
-  type FileSystemTree,
-  type WebContainerProcess,
-} from "@webcontainer/api"
+import { WebContainer as WC, type FileSystemTree } from "@webcontainer/api"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import { identity } from "effect/Function"
@@ -48,35 +44,19 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
      *
      * When the associated scope is closed, the process will be killed.
      */
-    function createShell(cwd: string) {
-      const processes = new Set<WebContainerProcess>()
-      const spawn = async () => {
-        const process = await container.spawn("jsh", [], {
-          cwd,
-          env: {
-            PATH: WEBCONTAINER_BIN_PATH,
-            NODE_NO_WARNINGS: "1",
-          },
-        })
-        processes.add(process)
-        return process
-      }
+    function createShell(cwd: string, terminal: { readonly cols: number; readonly rows: number }) {
       return Effect.acquireRelease(
-        Effect.promise(async () => {
-          let active = await spawn()
-          return {
-            initial: active,
-            restart: async () => {
-              active.kill()
-              active = await spawn()
-              return active
+        Effect.promise(() =>
+          container.spawn("jsh", [], {
+            cwd,
+            env: {
+              PATH: WEBCONTAINER_BIN_PATH,
+              NODE_NO_WARNINGS: "1",
             },
-          } as const
-        }),
-        () =>
-          Effect.sync(() => {
-            processes.forEach((process) => process.kill())
+            terminal,
           }),
+        ),
+        (process) => Effect.sync(() => process.kill()),
       )
     }
 
@@ -602,19 +582,55 @@ Fs.writeFileSync(configPath, JSON.stringify({
   files: [program]
 }))
 
-function run() {
-  ChildProcess.spawn("tsc-watch", [
-    "-p", configPath,
-    "--onSuccess", \`node --enable-source-maps \${compiledProgram}\`
-  ], {
-    stdio: "inherit"
-  }).on("exit", function() {
-    console.clear()
-    run()
-  })
+// Keep the compiler and program under this process so Ctrl+C releases jsh's PTY.
+const TypeScript = require(Path.resolve("node_modules/typescript"))
+const formatHost = {
+  getCanonicalFileName: (path) => path,
+  getCurrentDirectory: TypeScript.sys.getCurrentDirectory,
+  getNewLine: () => TypeScript.sys.newLine
+}
+const reportDiagnostic = (diagnostic) => {
+  console.error(TypeScript.formatDiagnostic(diagnostic, formatHost))
+}
+const reportWatchStatus = (diagnostic) => {
+  console.info(TypeScript.formatDiagnostic(diagnostic, formatHost))
+}
+const host = TypeScript.createWatchCompilerHost(
+  configPath,
+  {},
+  TypeScript.sys,
+  TypeScript.createSemanticDiagnosticsBuilderProgram,
+  reportDiagnostic,
+  reportWatchStatus
+)
+const afterProgramCreate = host.afterProgramCreate
+let running
+
+host.afterProgramCreate = (builder) => {
+  afterProgramCreate?.(builder)
+  running?.kill("SIGKILL")
+  running = undefined
+  const diagnostics = TypeScript.getPreEmitDiagnostics(builder.getProgram())
+  if (diagnostics.length === 0) {
+    running = ChildProcess.spawn(process.execPath, [
+      "--enable-source-maps",
+      compiledProgram
+    ], {
+      stdio: "inherit"
+    })
+  }
 }
 
-run()
+const watcher = TypeScript.createWatchProgram(host)
+
+function stop(exitCode) {
+  running?.kill("SIGKILL")
+  watcher.close()
+  process.exit(exitCode)
+}
+
+process.once("SIGINT", () => stop(130))
+process.once("SIGTERM", () => stop(143))
 `
 
 const devToolsProxyExe = `#!/usr/bin/env node
