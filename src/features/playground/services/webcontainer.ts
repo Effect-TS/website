@@ -1,5 +1,9 @@
 import * as monaco from "@effect/monaco-editor/esm/vs/editor/editor.api"
-import { WebContainer as WC, type FileSystemTree } from "@webcontainer/api"
+import {
+  WebContainer as WC,
+  type FileSystemTree,
+  type WebContainerProcess,
+} from "@webcontainer/api"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import { identity } from "effect/Function"
@@ -44,19 +48,35 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
      *
      * When the associated scope is closed, the process will be killed.
      */
-    function createShell(cwd: string, terminal: { readonly cols: number; readonly rows: number }) {
+    function createShell(cwd: string) {
+      const processes = new Set<WebContainerProcess>()
+      const spawn = async () => {
+        const process = await container.spawn("jsh", [], {
+          cwd,
+          env: {
+            PATH: WEBCONTAINER_BIN_PATH,
+            NODE_NO_WARNINGS: "1",
+          },
+        })
+        processes.add(process)
+        return process
+      }
       return Effect.acquireRelease(
-        Effect.promise(() =>
-          container.spawn("jsh", [], {
-            cwd,
-            env: {
-              PATH: WEBCONTAINER_BIN_PATH,
-              NODE_NO_WARNINGS: "1",
+        Effect.promise(async () => {
+          let active = await spawn()
+          return {
+            initial: active,
+            restart: async () => {
+              active.kill()
+              active = await spawn()
+              return active
             },
-            terminal,
+          } as const
+        }),
+        () =>
+          Effect.sync(() => {
+            processes.forEach((process) => process.kill())
           }),
-        ),
-        (process) => Effect.sync(() => process.kill()),
       )
     }
 

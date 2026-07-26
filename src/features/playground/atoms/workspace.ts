@@ -81,26 +81,48 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
             const spawned = yield* terminal.spawn({
               theme: get.once(terminalThemeAtom),
             })
-            spawned.terminal.open(el)
-            // jsh's line editor can stall when its PTY dimensions differ from xterm.
-            const process = yield* container.createShell(workspace.name, {
-              cols: spawned.terminal.cols,
-              rows: spawned.terminal.rows,
-            })
-            const writer = process.input.getWriter()
+            const shell = yield* container.createShell(workspace.name)
+            let process = shell.initial
+            let writer = process.input.getWriter()
+            let restarting: Promise<void> | undefined
+            const pipeOutput = (process: typeof shell.initial) => {
+              void process.output
+                .pipeTo(
+                  new WritableStream({
+                    write(data) {
+                      spawned.terminal.write(data)
+                    },
+                  }),
+                )
+                .catch(() => {})
+            }
             const mount = Effect.sync(() => {
-              process.output.pipeTo(
-                new WritableStream({
-                  write(data) {
-                    spawned.terminal.write(data)
-                  },
-                }),
-              )
-              spawned.terminal.onResize((terminal) => {
-                process.resize(terminal)
-              })
+              pipeOutput(process)
               spawned.terminal.onData((data) => {
-                writer.write(data)
+                if (data === "\x03") {
+                  // tsc-watch can leave jsh's input stuck after Ctrl+C, so replace the shell process.
+                  spawned.terminal.write("^C\r\n")
+                  if (restarting === undefined) {
+                    const restart = shell
+                      .restart()
+                      .then((next) => {
+                        process = next
+                        writer = process.input.getWriter()
+                        pipeOutput(process)
+                      })
+                      .catch((error) => {
+                        console.error("Unable to restart playground terminal", error)
+                      })
+                    restarting = restart
+                    void restart.then(() => {
+                      if (restarting === restart) restarting = undefined
+                    })
+                  }
+                } else if (restarting === undefined) {
+                  void writer.write(data)
+                } else {
+                  void restarting.then(() => writer.write(data))
+                }
               })
             })
             yield* mount
@@ -145,6 +167,7 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
               Stream.runForEach(() => spawned.resize),
               Effect.forkScoped,
             )
+            spawned.terminal.open(el)
             return spawned.terminal
           }, Effect.tapCause(Effect.logError)),
         )
