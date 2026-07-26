@@ -593,6 +593,7 @@ const reportDiagnostic = (diagnostic) => {
   console.error(TypeScript.formatDiagnostic(diagnostic, formatHost))
 }
 const reportWatchStatus = (diagnostic) => {
+  if (diagnostic.code === 6031 || diagnostic.code === 6032) console.clear()
   console.info(TypeScript.formatDiagnostic(diagnostic, formatHost))
 }
 const host = TypeScript.createWatchCompilerHost(
