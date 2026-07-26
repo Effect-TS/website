@@ -574,6 +574,7 @@ Fs.writeFileSync(configPath, JSON.stringify({
       target: "esnext"
     }),
     outDir,
+    preserveWatchOutput: false,
     rootDir: Path.dirname(program),
     skipLibCheck: true,
     sourceMap: true,
@@ -584,18 +585,8 @@ Fs.writeFileSync(configPath, JSON.stringify({
 
 // Keep the compiler and program under this process so Ctrl+C releases jsh's PTY.
 const TypeScript = require(Path.resolve("node_modules/typescript"))
-const formatHost = {
-  getCanonicalFileName: (path) => path,
-  getCurrentDirectory: TypeScript.sys.getCurrentDirectory,
-  getNewLine: () => TypeScript.sys.newLine
-}
-const reportDiagnostic = (diagnostic) => {
-  console.error(TypeScript.formatDiagnostic(diagnostic, formatHost))
-}
-const reportWatchStatus = (diagnostic) => {
-  if (diagnostic.code === 6031 || diagnostic.code === 6032) console.clear()
-  console.info(TypeScript.formatDiagnostic(diagnostic, formatHost))
-}
+const reportDiagnostic = TypeScript.createDiagnosticReporter(TypeScript.sys, true)
+const reportWatchStatus = TypeScript.createWatchStatusReporter(TypeScript.sys, true)
 const host = TypeScript.createWatchCompilerHost(
   configPath,
   {},
