@@ -362,6 +362,14 @@ class FormatterPluginLoadError extends Data.TaggedError("FormatterPluginLoadErro
   }
 }
 
+class FormatterPluginUrlError extends Data.TaggedError("FormatterPluginUrlError")<{
+  readonly plugin: string
+}> {
+  override get message(): string {
+    return `Invalid formatter plugin URL '${this.plugin}'. Use a fully qualified dprint plugin URL such as 'https://plugins.dprint.dev/json-0.23.0.wasm'.`
+  }
+}
+
 function setupWorkspaceFormatters(workspace: Workspace) {
   return Effect.gen(function* () {
     const toaster = yield* Toaster
@@ -405,19 +413,21 @@ function setupWorkspaceFormatters(workspace: Workspace) {
         : null
     }
 
-    function loadPlugin(plugin: string) {
-      return Effect.fromNullishOr(parsePluginUrl(plugin)).pipe(
-        Effect.flatMap(({ url }) =>
-          Effect.tryPromise({
-            try: () => createStreaming(fetch(url)),
-            catch: (cause) => new FormatterPluginLoadError({ plugin, cause }),
-          }).pipe(
-            Effect.map((formatter) => ({
-              language: formatter.getPluginInfo().configKey,
-              formatter,
-            })),
-          ),
-        ),
+    function loadPlugin(
+      plugin: string,
+    ): Effect.Effect<FormatterPlugin, FormatterPluginUrlError | FormatterPluginLoadError> {
+      const parsed = parsePluginUrl(plugin)
+      if (parsed === null) {
+        return Effect.fail(new FormatterPluginUrlError({ plugin }))
+      }
+      return Effect.tryPromise({
+        try: () => createStreaming(fetch(parsed.url)),
+        catch: (cause) => new FormatterPluginLoadError({ plugin, cause }),
+      }).pipe(
+        Effect.map((formatter) => ({
+          language: formatter.getPluginInfo().configKey,
+          formatter,
+        })),
       )
     }
 
@@ -480,8 +490,17 @@ function setupWorkspaceFormatters(workspace: Workspace) {
             ),
           ),
         ),
-        Effect.ignore,
       )
+    }
+
+    function showConfigError(error: unknown) {
+      return toaster.toast({
+        title: "Unable to update formatter configuration",
+        description:
+          error instanceof Error
+            ? error.message
+            : "The formatter configuration could not be updated. Check dprint.json and try again.",
+      })
     }
 
     const config = workspace.findFile("dprint.json")
@@ -495,7 +514,7 @@ function setupWorkspaceFormatters(workspace: Workspace) {
       return
     }
 
-    yield* reconcileConfig(initial.value)
+    yield* reconcileConfig(initial.value).pipe(Effect.catch(showConfigError))
 
     yield* updates.pipe(
       Stream.runForEach((config) =>
@@ -506,6 +525,7 @@ function setupWorkspaceFormatters(workspace: Workspace) {
               description: "Updated formatter configuration!",
             }),
           ),
+          Effect.catch(showConfigError),
         ),
       ),
       Effect.forkScoped,
