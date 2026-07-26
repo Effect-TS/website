@@ -94,7 +94,10 @@ export function TraceWaterfall() {
 
   return (
     <div className="h-full w-full overflow-auto">
-      <table style={columnSizeVars as any} className="w-full border-collapse border-spacing-0">
+      <table
+        style={columnSizeVars as any}
+        className="w-full border-collapse border-spacing-0 border-b border-zinc-300 dark:border-zinc-700"
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr
@@ -268,7 +271,7 @@ function DurationCell({ getValue, row, column }: CellContext<Span, unknown>) {
           className="my-1 flex h-6 cursor-pointer rounded-sm border border-zinc-900 bg-transparent dark:border-white"
           onClick={row.getToggleSelectedHandler()}
         >
-          <div className={cn("mt-0.5 ml-2 rounded-sm leading-3", pillColors)}>
+          <div className={cn("my-0.5 ml-2 rounded-sm leading-3", pillColors)}>
             <span className="px-1 text-xs">{formatDuration(spanDuration)}</span>
           </div>
         </button>

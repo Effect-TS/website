@@ -59,10 +59,7 @@ function TraceAttributes({
         <table className="mt-1 w-full text-sm">
           <tbody>
             {attributes.map(([key, value]) => (
-              <tr
-                key={key}
-                className="dark:odd:bg-zinc-850 odd:bg-zinc-200 even:bg-zinc-100 dark:even:bg-zinc-800"
-              >
+              <tr key={key} className="bg-zinc-100 dark:bg-zinc-700">
                 <td className="px-2 py-1 font-medium">{key}</td>
                 <td className="w-full px-2 py-1 text-zinc-700 dark:text-zinc-300">
                   {JSON.stringify(value)}
@@ -140,15 +137,12 @@ function TraceEvent({ node }: { readonly node: Event }) {
       {open && (
         <table className="mt-1 w-full text-sm">
           <tbody>
-            <tr className="dark:odd:bg-zinc-850 odd:bg-zinc-200 even:bg-zinc-100 dark:even:bg-zinc-800">
+            <tr className="bg-zinc-100 dark:bg-zinc-700">
               <td className="px-2 py-1 font-medium">message</td>
               <td className="px-2 py-1">{JSON.stringify(node.event.name)}</td>
             </tr>
             {Object.entries(node.event.attributes ?? {}).map(([key, value]) => (
-              <tr
-                key={key}
-                className="dark:odd:bg-zinc-850 odd:bg-zinc-200 even:bg-zinc-100 dark:even:bg-zinc-800"
-              >
+              <tr key={key} className="bg-zinc-100 dark:bg-zinc-700">
                 <td className="px-2 py-1 font-medium">{key}</td>
                 <td className="w-full px-2 py-1">{JSON.stringify(value)}</td>
               </tr>
