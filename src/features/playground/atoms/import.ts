@@ -51,10 +51,13 @@ export const autoSaveAtom = Atom.family((handle: AtomWorkspaceHandle) =>
 )
 
 export const resetAtom = Atom.fnSync((handle: AtomWorkspaceHandle, get) => {
-  window.location.hash = ""
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${window.location.pathname}${window.location.search}`,
+  )
   get.set(autoSaveWorkspaceAtom, Option.none())
   get.set(handle.resetContent, undefined)
-  get.refresh(importAtom)
 })
 
 const autoSaveWorkspaceAtom = Atom.kvs({
