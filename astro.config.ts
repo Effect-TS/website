@@ -59,6 +59,13 @@ export default defineConfig({
       },
     },
     server: {
+      proxy: {
+        "/api/dprint/plugins": {
+          target: "https://plugins.dprint.dev",
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/dprint\/plugins/, ""),
+        },
+      },
       watch: {
         ignored: ["**/.astro/**", "**/.direnv/**", "**/.vercel/**"],
       },

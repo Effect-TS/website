@@ -2,6 +2,7 @@ import { createStreaming, type Formatter } from "@dprint/formatter"
 import * as monaco from "@effect/monaco-editor"
 import * as Array from "effect/Array"
 import * as Cache from "effect/Cache"
+import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import * as Fiber from "effect/Fiber"
 import * as Layer from "effect/Layer"
@@ -348,6 +349,19 @@ interface FormatterPlugin {
   readonly formatter: Formatter
 }
 
+interface InstalledFormatter extends FormatterPlugin {
+  readonly dispose: () => void
+}
+
+class FormatterPluginLoadError extends Data.TaggedError("FormatterPluginLoadError")<{
+  readonly plugin: string
+  readonly cause: unknown
+}> {
+  override get message(): string {
+    return `Failed to load formatter plugin '${this.plugin}'. Verify that the URL points to an available dprint WASM plugin.`
+  }
+}
+
 function setupWorkspaceFormatters(workspace: Workspace) {
   return Effect.gen(function* () {
     const toaster = yield* Toaster
@@ -365,7 +379,13 @@ function setupWorkspaceFormatters(workspace: Workspace) {
       },
     })
 
-    const formatters = new Map<string, Formatter>()
+    const installedFormatters = new Map<string, InstalledFormatter>()
+
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => {
+        installedFormatters.forEach(({ dispose }) => dispose())
+      }),
+    )
 
     const pluginCache = yield* Cache.make({
       capacity: 10,
@@ -373,32 +393,54 @@ function setupWorkspaceFormatters(workspace: Workspace) {
       lookup: (plugin: string) => loadPlugin(plugin),
     })
 
-    const LANGUAGE_REGEX = /^\/vendor\/dprint\/plugins\/([a-zA-Z0-9_-]+)-.*\.wasm$/
+    const PLUGIN_URL_REGEX =
+      /^(?:https:\/\/plugins\.dprint\.dev|\/vendor\/dprint\/plugins)\/([a-zA-Z0-9][a-zA-Z0-9._-]*\.wasm)$/
 
-    function extractLanguage(input: string) {
-      const match = input.match(LANGUAGE_REGEX)
-      return match ? match[1] : null
+    function parsePluginUrl(plugin: string) {
+      const match = plugin.match(PLUGIN_URL_REGEX)
+      return match
+        ? {
+            url: `/api/dprint/plugins/${match[1]}`,
+          }
+        : null
     }
 
-    function loadPlugin(plugin: string): Effect.Effect<FormatterPlugin> {
-      return Effect.all({
-        language: Effect.fromNullishOr(extractLanguage(plugin)),
-        formatter: Effect.promise(() => createStreaming(fetch(plugin))),
-      }).pipe(Effect.orDie)
+    function loadPlugin(plugin: string) {
+      return Effect.fromNullishOr(parsePluginUrl(plugin)).pipe(
+        Effect.flatMap(({ url }) =>
+          Effect.tryPromise({
+            try: () => createStreaming(fetch(url)),
+            catch: (cause) => new FormatterPluginLoadError({ plugin, cause }),
+          }).pipe(
+            Effect.map((formatter) => ({
+              language: formatter.getPluginInfo().configKey,
+              formatter,
+            })),
+          ),
+        ),
+      )
     }
 
     function loadPlugins(plugins: Array<string>) {
       return Effect.forEach(plugins, (plugin) => Cache.get(pluginCache, plugin), {
-        concurrency: plugins.length,
+        concurrency: Math.max(1, plugins.length),
       })
     }
 
-    function installPlugins(plugins: Array<FormatterPlugin>) {
-      return Effect.forEach(
-        plugins,
-        ({ language, formatter }) =>
-          Effect.sync(() => {
-            monaco.languages.registerDocumentFormattingEditProvider(language, {
+    function reconcilePlugins(plugins: Array<FormatterPlugin>) {
+      return Effect.sync(() => {
+        const desiredFormatters = new Map(plugins.map((plugin) => [plugin.language, plugin]))
+
+        installedFormatters.forEach((installed, language) => {
+          if (desiredFormatters.get(language)?.formatter !== installed.formatter) {
+            installed.dispose()
+            installedFormatters.delete(language)
+          }
+        })
+
+        desiredFormatters.forEach(({ language, formatter }) => {
+          if (!installedFormatters.has(language)) {
+            const registration = monaco.languages.registerDocumentFormattingEditProvider(language, {
               provideDocumentFormattingEdits(model) {
                 return [
                   {
@@ -411,29 +453,32 @@ function setupWorkspaceFormatters(workspace: Workspace) {
                 ]
               },
             })
-          }),
-        { concurrency: plugins.length, discard: true },
-      )
-    }
-
-    function setLanguageConfig(language: string, config: any) {
-      const formatter = formatters.get(language)
-      if (formatter) {
-        formatter.setConfig({}, config)
-      }
+            installedFormatters.set(language, {
+              language,
+              formatter,
+              dispose: () => registration.dispose(),
+            })
+          }
+        })
+      })
     }
 
     const parseJson = (s: string) => Effect.try(() => JSON.parse(s))
 
-    function configurePlugin(config: string) {
+    function reconcileConfig(config: string) {
       return parseJson(config).pipe(
         Effect.flatMap((json) =>
-          Effect.sync(() => {
-            const { plugins: _plugins, ...rest } = json
-            return Object.entries(rest).forEach(([language, config]) => {
-              setLanguageConfig(language, config)
-            })
-          }),
+          loadPlugins(json.plugins as Array<string>).pipe(
+            Effect.tap(reconcilePlugins),
+            Effect.tap(() =>
+              Effect.sync(() => {
+                const { plugins: _plugins, ...pluginConfigs } = json
+                installedFormatters.forEach(({ formatter }, language) => {
+                  formatter.setConfig({}, pluginConfigs[language] ?? {})
+                })
+              }),
+            ),
+          ),
         ),
         Effect.ignore,
       )
@@ -444,35 +489,25 @@ function setupWorkspaceFormatters(workspace: Workspace) {
       return
     }
 
-    yield* parseJson(config.value[0].initialContent).pipe(
-      Effect.flatMap((json) => loadPlugins(json.plugins as Array<string>)),
-      Effect.tap((plugins) => installPlugins(plugins)),
-      Effect.map((plugins) =>
-        plugins.forEach(({ language, formatter }) => {
-          formatters.set(language, formatter)
-        }),
-      ),
-      Effect.ignore,
-    )
-
     const path: string = Option.getOrThrow(workspace.fullPathTo(config.value[0]))
     const [initial, updates] = yield* container.watchFile(path).pipe(Stream.peel(Sink.head()))
     if (Option.isNone(initial)) {
       return
     }
 
-    // Perform initial plugin configuration
-    yield* configurePlugin(initial.value)
+    yield* reconcileConfig(initial.value)
 
-    // Handle updates to plugin configuration
     yield* updates.pipe(
-      Stream.tap(() =>
-        toaster.toast({
-          title: "Effect Playground",
-          description: "Updated formatter settings!",
-        }),
+      Stream.runForEach((config) =>
+        reconcileConfig(config).pipe(
+          Effect.tap(() =>
+            toaster.toast({
+              title: "Effect Playground",
+              description: "Updated formatter configuration!",
+            }),
+          ),
+        ),
       ),
-      Stream.runForEach(configurePlugin),
       Effect.forkScoped,
     )
   })

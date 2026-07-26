@@ -282,8 +282,8 @@ export const defaultFiles = [
           "arrowFunction.useParentheses": "force",
         },
         plugins: [
-          "/vendor/dprint/plugins/json-0.22.0.wasm",
-          "/vendor/dprint/plugins/typescript-0.96.1.wasm",
+          "https://plugins.dprint.dev/json-0.22.0.wasm",
+          "https://plugins.dprint.dev/typescript-0.96.1.wasm",
         ],
       },
       undefined,
