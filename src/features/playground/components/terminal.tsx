@@ -1,5 +1,4 @@
 import { useAtomSet, useAtomMount } from "@effect/atom-react"
-import { constVoid } from "effect/Function"
 import * as Option from "effect/Option"
 import { useCallback, useMemo } from "react"
 import { useWorkspaceHandle } from "../context/workspace"
@@ -20,10 +19,10 @@ export function Terminal({ shell }: { readonly shell: WorkspaceShell }) {
 
 function Shell({ shell }: { readonly shell: WorkspaceShell }) {
   const handle = useWorkspaceHandle()
-  const { element, terminal } = handle.createTerminal(
-    new WorkspaceTerminal({ command: shell.command }),
+  const { element, terminal } = useMemo(
+    () => handle.createTerminal(new WorkspaceTerminal({ command: shell.command })),
+    [handle, shell.command],
   )
-  useMemo(constVoid, [terminal])
   useAtomMount(terminal)
 
   const setElement = useAtomSet(element)

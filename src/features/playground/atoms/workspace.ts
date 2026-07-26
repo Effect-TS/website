@@ -162,14 +162,23 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
 
       const resetContent = Atom.fn<void>()(
         Effect.fnUntraced(function* (_, get) {
-          const files = Array.filterMap([...defaultWorkspace.filePaths], ([file, path]) =>
+          const currentWorkspace = get(handle.workspace)
+          const resetWorkspace = new Workspace({
+            name: currentWorkspace.name,
+            tree: defaultWorkspace.tree,
+            initialFilePath: defaultWorkspace.initialFilePath,
+            prepare: defaultWorkspace.prepare,
+            shells: currentWorkspace.shells,
+            snapshots: defaultWorkspace.snapshots,
+          })
+          const files = Array.filterMap([...resetWorkspace.filePaths], ([file, path]) =>
             file._tag === "File" ? Result.succeed(Tuple.make(file, path)) : Result.failVoid,
           )
           yield* Effect.forEach(
             files,
             ([file, path]) =>
               Effect.gen(function* () {
-                const fullPath = defaultWorkspace.relativePath(path)
+                const fullPath = resetWorkspace.relativePath(path)
                 const parts = fullPath.split("/")
                 if (parts.length > 1) {
                   const parentDir = parts.slice(0, -1).join("/")
@@ -183,8 +192,8 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
               }).pipe(Effect.ignore),
             { concurrency: "unbounded", discard: true },
           )
-          get.set(handle.workspace, defaultWorkspace)
-          get.set(selectedFile, defaultWorkspace.initialFile)
+          get.set(handle.workspace, resetWorkspace)
+          get.set(selectedFile, resetWorkspace.initialFile)
         }),
       )
 
