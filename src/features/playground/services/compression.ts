@@ -92,7 +92,12 @@ export class WorkspaceCompression extends Context.Service<WorkspaceCompression>(
         )
 
       const decompress = (compressed: string) =>
-        pipe(compression.decompressBase64(compressed), Effect.andThen(decodeWorkspace))
+        pipe(
+          compression.decompressBase64(compressed),
+          Effect.andThen(decodeWorkspace),
+          // Older shared playgrounds may persist npm, but type acquisition expects pnpm's store.
+          Effect.map((workspace) => workspace.withPrepare("pnpm install")),
+        )
 
       return { compress, decompress, snapshot } as const
     }),
