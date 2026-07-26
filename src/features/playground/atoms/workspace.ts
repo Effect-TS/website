@@ -78,9 +78,14 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
         const terminalAtom = runtime.atom(
           Effect.fnUntraced(function* (get) {
             const el = yield* get.some(element)
-            const process = yield* container.createShell(workspace.name)
             const spawned = yield* terminal.spawn({
               theme: get.once(terminalThemeAtom),
+            })
+            spawned.terminal.open(el)
+            // jsh's line editor can stall when its PTY dimensions differ from xterm.
+            const process = yield* container.createShell(workspace.name, {
+              cols: spawned.terminal.cols,
+              rows: spawned.terminal.rows,
             })
             const writer = process.input.getWriter()
             const mount = Effect.sync(() => {
@@ -91,9 +96,11 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
                   },
                 }),
               )
+              spawned.terminal.onResize((terminal) => {
+                process.resize(terminal)
+              })
               spawned.terminal.onData((data) => {
-                // xterm emits DEL for Backspace, but WebContainer's jsh expects BS.
-                writer.write(data === "\x7f" ? "\x08" : data)
+                writer.write(data)
               })
             })
             yield* mount
@@ -138,7 +145,6 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
               Stream.runForEach(() => spawned.resize),
               Effect.forkScoped,
             )
-            spawned.terminal.open(el)
             return spawned.terminal
           }, Effect.tapCause(Effect.logError)),
         )

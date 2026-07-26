@@ -44,7 +44,7 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
      *
      * When the associated scope is closed, the process will be killed.
      */
-    function createShell(cwd: string) {
+    function createShell(cwd: string, terminal: { readonly cols: number; readonly rows: number }) {
       return Effect.acquireRelease(
         Effect.promise(() =>
           container.spawn("jsh", [], {
@@ -53,6 +53,7 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
               PATH: WEBCONTAINER_BIN_PATH,
               NODE_NO_WARNINGS: "1",
             },
+            terminal,
           }),
         ),
         (process) => Effect.sync(() => process.kill()),
