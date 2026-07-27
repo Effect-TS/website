@@ -17,12 +17,22 @@ export const getHighlighter = (): Promise<HighlighterCore> => {
     import("@shikijs/engine-javascript"),
     import("@shikijs/langs/typescript"),
     import("@shikijs/langs/javascript"),
-  ]).then(([{ createHighlighterCore }, { createJavaScriptRegexEngine }, typescript, javascript]) =>
-    createHighlighterCore({
-      themes: [effectShikiTheme],
-      langs: [typescript, javascript],
-      engine: createJavaScriptRegexEngine(),
-    }),
+    import("@shikijs/langs/bash"),
+    import("@shikijs/langs/json"),
+  ]).then(
+    ([
+      { createHighlighterCore },
+      { createJavaScriptRegexEngine },
+      typescript,
+      javascript,
+      bash,
+      json,
+    ]) =>
+      createHighlighterCore({
+        themes: [effectShikiTheme],
+        langs: [typescript, javascript, bash, json],
+        engine: createJavaScriptRegexEngine(),
+      }),
   )
 
   return highlighterPromise

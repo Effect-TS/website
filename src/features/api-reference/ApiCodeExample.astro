@@ -1,0 +1,62 @@
+---
+import { Code } from "astro:components"
+import type { ApiCodeExample } from "./ApiReference"
+import { getHighlighter } from "@/features/visual-effect/runtime/shiki-singleton"
+import { effectShikiTheme } from "@/features/visual-effect/runtime/shiki-theme"
+
+interface Props {
+  example: ApiCodeExample
+}
+
+const { example } = Astro.props
+// const highlighter = await getHighlighter()
+// const highlighted = highlighter.codeToHtml(example.source, {
+//  lang: example.language,
+//  theme: effectShikiTheme,
+// })
+---
+
+<article>
+  <div class="mb-4 flex items-baseline justify-between gap-4">
+    <h3 class="font-mono text-sm font-semibold tracking-[0.16em] text-zinc-500 uppercase">
+      Example
+    </h3>
+    {example.title && <p class="text-right text-sm text-zinc-500">{example.title}</p>}
+  </div>
+
+  <Code lang="js" code={example.source}/>
+  <!-- <div -->
+  <!--   class="api-example-code overflow-x-auto rounded-xl border border-zinc-800 bg-[#101012] shadow-[0_16px_50px_rgba(0,0,0,0.18)]" -->
+  <!--   set:html={highlighted} -->
+  <!-- /> -->
+
+  <footer class="mt-4 flex items-center gap-5 font-mono text-xs text-zinc-500">
+    {example.since && <span>Added in v{example.since}</span>}
+    {
+      example.sourceUrl && (
+        <a class="transition-colors hover:text-zinc-200" href={example.sourceUrl}>
+          Source
+        </a>
+      )
+    }
+  </footer>
+</article>
+
+<style>
+  .api-example-code :global(.shiki) {
+    min-width: max-content;
+    margin: 0;
+    padding: 1.75rem 2rem;
+    background: transparent !important;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.875rem;
+    line-height: 1.8;
+  }
+
+  @media (min-width: 640px) {
+    .api-example-code :global(.shiki) {
+      padding: 2rem 2.25rem;
+      font-size: 0.9375rem;
+    }
+  }
+</style>
