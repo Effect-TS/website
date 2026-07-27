@@ -114,6 +114,10 @@ export default defineConfig({
   redirects: {
     ...twieRedirectList,
     ...docsLegacyRedirectList,
+    "/adoption-partners": {
+      status: 307,
+      destination: "/adoption-partners/ziverge",
+    },
     "/docs": {
       status: 307,
       destination: "/docs/v3/getting-started/introduction",
