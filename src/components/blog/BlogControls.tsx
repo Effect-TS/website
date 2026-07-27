@@ -18,9 +18,11 @@ function readCategoryFromUrl(tags: SerializedTag[]): string {
 export default function BlogControls({
   posts,
   tags,
+  twieTagId,
 }: {
   posts: SerializedPost[]
   tags: SerializedTag[]
+  twieTagId?: string
 }) {
   const [activeTagId, setActiveTagId] = useState<string>(() => readCategoryFromUrl(tags))
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest")
@@ -31,7 +33,7 @@ export default function BlogControls({
   const categoryDropdownRef = useRef<HTMLDivElement>(null)
 
   const activeTagName = useMemo(
-    () => tags.find((tag) => tag.id === activeTagId)?.name ?? "All",
+    () => tags.find((tag) => tag.id === activeTagId)?.name ?? "Category",
     [tags, activeTagId],
   )
 
@@ -46,15 +48,19 @@ export default function BlogControls({
   )
 
   const filteredPosts = useMemo(() => {
-    const filteredByCategory =
-      activeTagId === "all"
-        ? posts
-        : posts.filter((post) => post.tags.some((tag) => tag.id === activeTagId))
+    let filteredByCategory = posts
+    if (activeTagId === twieTagId) {
+      filteredByCategory = posts.filter((post) => post.tags.some((tag) => tag.id === twieTagId))
+    } else if (activeTagId === "all") {
+      filteredByCategory = posts.filter((post) => !post.tags.some((tag) => tag.id === twieTagId))
+    } else {
+      filteredByCategory = posts.filter((post) => post.tags.some((tag) => tag.id === activeTagId))
+    }
     return [...filteredByCategory].sort((postA, postB) => {
       const comparison = postA.dateMs - postB.dateMs
       return sortOrder === "newest" ? -comparison : comparison
     })
-  }, [posts, activeTagId, sortOrder])
+  }, [posts, activeTagId, sortOrder, twieTagId])
 
   const totalPages = Math.max(1, Math.ceil(filteredPosts.length / POSTS_PER_PAGE))
   const safePage = Math.min(currentPage, totalPages)
@@ -151,8 +157,8 @@ export default function BlogControls({
         ref={gridRef}
         className="mt-16 flex flex-wrap items-baseline justify-between gap-4 border-b border-zinc-700/80 pb-4 md:mt-20"
       >
-        <h2 className="text-2xl font-semibold tracking-tight text-white">
-          {activeTagId === "all" ? "All posts" : activeTagName}
+        <h2 className="text-2xl font-bold tracking-tight text-white">
+          {activeTagId === "all" ? "Other posts" : activeTagName}
         </h2>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3 sm:gap-x-6">
           <div ref={categoryDropdownRef} className="relative">
@@ -161,9 +167,11 @@ export default function BlogControls({
               onClick={() => setCategoryOpen((isOpen) => !isOpen)}
               aria-haspopup="listbox"
               aria-expanded={categoryOpen}
-              className="group inline-flex items-baseline gap-1.5 font-mono text-xs tracking-wider uppercase transition-colors"
+              className="group inline-flex items-baseline gap-1.5 font-mono text-sm transition-colors"
             >
-              <span className="text-zinc-200 group-hover:text-white">{activeTagName}</span>
+              <span className="text-zinc-200 group-hover:text-white">
+                {activeTagId === "all" ? "Category" : activeTagName}
+              </span>
               <ChevronDown
                 aria-hidden="true"
                 className={`h-3.5 w-3.5 self-center text-zinc-500 transition-transform group-hover:text-zinc-300 ${
@@ -188,11 +196,11 @@ export default function BlogControls({
                           handleTagChange(category.id)
                           setCategoryOpen(false)
                         }}
-                        className={`group/item relative flex w-full items-baseline justify-between gap-3 px-4 py-2 text-left font-mono text-xs tracking-wider uppercase transition-colors ${
+                        className={`group/item relative flex w-full items-baseline justify-between gap-3 px-4 py-2 text-left font-mono text-sm transition-colors ${
                           isActive ? "text-white" : "text-zinc-300 hover:text-white"
                         }`}
                       >
-                        <span>{category.name}</span>
+                        <span>{category.id === "all" ? "No filter" : category.name}</span>
                         <span
                           className={`tabular-nums ${isActive ? "text-white" : "text-zinc-500"}`}
                         >
@@ -216,7 +224,7 @@ export default function BlogControls({
               setSortOrder((previous) => (previous === "newest" ? "oldest" : "newest"))
             }
             aria-label={`Sort: ${sortOrder === "newest" ? "Newest" : "Oldest"} first. Click to toggle.`}
-            className="group inline-flex items-baseline gap-1.5 font-mono text-xs tracking-wider uppercase transition-colors"
+            className="group inline-flex items-baseline gap-1.5 font-mono text-sm transition-colors"
           >
             <span className="text-zinc-200 group-hover:text-white">
               {sortOrder === "newest" ? "Newest" : "Oldest"}
@@ -229,7 +237,7 @@ export default function BlogControls({
           <a
             href="/rss.xml"
             aria-label="RSS feed"
-            className="group inline-flex items-baseline gap-1.5 font-mono text-xs tracking-wider text-zinc-200 uppercase transition-colors hover:text-white"
+            className="group inline-flex items-baseline gap-1.5 font-mono text-sm text-zinc-200 transition-colors hover:text-white"
           >
             <span>RSS</span>
             <Rss

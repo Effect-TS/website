@@ -19,13 +19,13 @@ export type SerializedPost = {
 }
 
 export function PostCard({ post }: { post: SerializedPost }) {
-  const visibleTags = [...post.tags].sort((a, b) => a.id.localeCompare(b.id)).slice(0, 2)
+  const visibleTags = [...post.tags].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 2)
   const overflow = post.tags.length - 2
 
   return (
     <a
       href={post.href}
-      className="group -mx-4 block border-t border-zinc-700/80 px-4 py-6 transition-colors first:border-t-0 hover:bg-zinc-900/60"
+      className="group -mx-4 block border-t border-zinc-700/80 px-4 py-6 transition-colors first:border-t-0 hover:bg-[#141315]"
     >
       <div className="grid grid-cols-12 items-baseline gap-4">
         <div className="col-span-12 min-w-0 md:col-span-8">

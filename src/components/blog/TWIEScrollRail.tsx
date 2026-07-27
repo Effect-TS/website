@@ -18,7 +18,7 @@ function TWIECard({ post }: { post: SerializedPost }) {
           )}
           <time className="font-mono text-xs text-zinc-400 tabular-nums">{post.date}</time>
         </div>
-        <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-zinc-300">{post.excerpt}</p>
+        <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-zinc-400">{post.excerpt}</p>
       </div>
     </a>
   )
@@ -56,13 +56,13 @@ export function TWIEScrollRail({
   if (posts.length === 0) return null
 
   return (
-    <section aria-label="This Week in Effect posts" className="pt-16 pb-8 md:pt-20 md:pb-10">
+    <section aria-label="This Week in Effect posts" className="pt-16 pb-2 md:pt-20">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-white">This Week in Effect</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-white">This Week in Effect</h2>
         <div className="flex items-center gap-5">
           <a
             href={viewAllHref}
-            className="font-mono text-xs tracking-wider text-zinc-200 uppercase transition-colors hover:text-white"
+            className="font-mono text-sm text-zinc-200 transition-colors hover:text-white"
           >
             View all
           </a>
