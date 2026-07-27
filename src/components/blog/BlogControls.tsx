@@ -174,7 +174,7 @@ export default function BlogControls({
               </span>
               <ChevronDown
                 aria-hidden="true"
-                className={`h-3.5 w-3.5 self-center text-zinc-500 transition-transform group-hover:text-zinc-300 ${
+                className={`h-3.5 w-3.5 self-center text-zinc-400 transition-transform group-hover:text-zinc-300 ${
                   categoryOpen ? "rotate-180" : ""
                 }`}
               />
@@ -202,7 +202,7 @@ export default function BlogControls({
                       >
                         <span>{category.id === "all" ? "No filter" : category.name}</span>
                         <span
-                          className={`tabular-nums ${isActive ? "text-white" : "text-zinc-500"}`}
+                          className={`tabular-nums ${isActive ? "text-white" : "text-zinc-400"}`}
                         >
                           {String(category.count).padStart(3, "0")}
                         </span>
@@ -231,7 +231,7 @@ export default function BlogControls({
             </span>
             <ArrowUpDown
               aria-hidden="true"
-              className="h-3.5 w-3.5 self-center text-zinc-500 group-hover:text-zinc-300"
+              className="h-3.5 w-3.5 self-center text-zinc-400 group-hover:text-zinc-300"
             />
           </button>
           <a
@@ -242,7 +242,7 @@ export default function BlogControls({
             <span>RSS</span>
             <Rss
               aria-hidden="true"
-              className="h-3.5 w-3.5 self-center text-zinc-500 group-hover:text-zinc-300"
+              className="h-3.5 w-3.5 self-center text-zinc-400 group-hover:text-zinc-300"
             />
           </a>
         </div>
@@ -277,7 +277,7 @@ export default function BlogControls({
                   item === "ellipsis" ? (
                     <span
                       key={`ellipsis-${index}`}
-                      className="px-1.5 font-mono text-xs text-zinc-500"
+                      className="px-1.5 font-mono text-xs text-zinc-400"
                     >
                       ⋯
                     </span>

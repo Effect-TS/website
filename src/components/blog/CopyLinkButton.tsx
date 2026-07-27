@@ -20,12 +20,12 @@ export default function CopyLinkButton() {
       type="button"
       onClick={handleCopy}
       aria-label={copied ? "Link copied" : "Copy link"}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-zinc-700 text-zinc-300 transition-colors hover:border-white hover:text-white"
+      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 text-zinc-300 transition-colors hover:border-white hover:text-white"
     >
       {copied ? (
-        <Check aria-hidden="true" className="h-5 w-5" />
+        <Check aria-hidden="true" className="size-4" />
       ) : (
-        <Link aria-hidden="true" className="h-5 w-5" />
+        <Link aria-hidden="true" className="size-4" />
       )}
     </button>
   )

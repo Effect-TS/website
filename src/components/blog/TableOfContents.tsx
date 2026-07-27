@@ -42,7 +42,7 @@ export default function TableOfContents({
   return (
     <nav className={cn("sticky top-[5.5rem]", className)}>
       <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5">
-        <p className="mb-3 font-mono text-xs font-medium tracking-wider text-zinc-500 uppercase">
+        <p className="mb-3 font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
           On this page
         </p>
         <div className="mb-3 h-px bg-zinc-800" />
