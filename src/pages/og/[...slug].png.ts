@@ -56,6 +56,22 @@ async function findDoc(documentPath: string) {
   )
 }
 
+async function findBlogPost(documentPath: string) {
+  const entryId = documentPath.slice("blog/".length)
+  const entries = await getCollection("blog")
+  return pipe(
+    entries.find((entry) => entry.id === entryId),
+    Option.fromNullishOr,
+    Option.map(
+      (entry) =>
+        ({
+          title: entry.data.title,
+          subtitle: entry.data.excerpt,
+        }) satisfies OgTemplateProps,
+    ),
+  )
+}
+
 const tryReadFile = async (filePath: string): Promise<Option.Option<Uint8Array>> => {
   try {
     return Option.some(await readFile(filePath))
@@ -90,15 +106,23 @@ export const GET: APIRoute = async (context) => {
     return pngResponse(staticImage.value)
   }
 
-  if (!maybeSlug.value.startsWith("docs/")) {
-    return notFound()
+  if (maybeSlug.value.startsWith("docs/")) {
+    const ogProps = await findDoc(maybeSlug.value)
+    if (Option.isNone(ogProps)) {
+      return notFound()
+    }
+    const ogAssets = await loadAssets()
+    return pngResponse(await renderDocsOg(ogProps.value, ogAssets))
   }
 
-  const ogProps = await findDoc(maybeSlug.value)
-  if (Option.isNone(ogProps)) {
-    return notFound()
+  if (maybeSlug.value.startsWith("blog/")) {
+    const ogProps = await findBlogPost(maybeSlug.value)
+    if (Option.isNone(ogProps)) {
+      return notFound()
+    }
+    const ogAssets = await loadAssets()
+    return pngResponse(await renderDocsOg(ogProps.value, ogAssets))
   }
 
-  const ogAssets = await loadAssets()
-  return pngResponse(await renderDocsOg(ogProps.value, ogAssets))
+  return notFound()
 }
