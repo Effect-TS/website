@@ -5,6 +5,7 @@ import { ChevronDown, ExternalLink, Search } from "@lucide/astro"
 
 import Footer from "@/components/Footer.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
+import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 
@@ -89,6 +90,39 @@ const sections = [
   { label: undefined, groups: stableGroups },
   { label: "Unstable", groups: unstableGroups },
 ].filter(({ groups }) => groups.length > 0)
+const mobileVersions = [...availableVersions].toSorted().map((candidate) => ({
+  href: `/docs/api/${candidate}/${pkg.slug}`,
+  label: candidate,
+  selected: candidate === version,
+}))
+const mobilePackages = Array.from(
+  Map.groupBy(
+    collection.filter((entry) => entry.data.version === version),
+    (entry) => entry.data.packageSlug,
+  ),
+)
+  .map(([, entries]) => entries[0])
+  .flatMap((entry) =>
+    entry === undefined
+      ? []
+      : [
+          {
+            href: `/docs/api/${version}/${entry.data.packageSlug}`,
+            label: entry.data.packageName.replace("@effect/", ""),
+            selected: entry.data.packageSlug === pkg.slug,
+          },
+        ],
+  )
+  .toSorted((left, right) => left.label.localeCompare(right.label))
+const mobileModules = [
+  { disabled: true, href: "", label: "Modules", selected: true },
+  ...modules
+    .toSorted((left, right) => left.data.modulePath.localeCompare(right.data.modulePath))
+    .map((entry) => ({
+      href: `/docs/api/${version}/${pkg.slug}/${entry.data.modulePath}`,
+      label: entry.data.modulePath,
+    })),
+]
 
 function groupName(group: string): string {
   const name = group.replace("unstable/", "")
@@ -108,6 +142,12 @@ function moduleName(modulePath: string, group: string): string {
   <Navigation activeSlug="docs" wide />
 
   <div class="relative w-full pt-16">
+    <ApiMobileNavigation
+      version={version}
+      versions={mobileVersions}
+      packages={mobilePackages}
+      modules={mobileModules}
+    />
     <div class="w-full max-w-352 mx-auto grid grid-cols-1 lg:grid-cols-[240px_1fr]">
       <aside class="hidden lg:block border-r border-zinc-200 dark:border-zinc-800">
         <nav

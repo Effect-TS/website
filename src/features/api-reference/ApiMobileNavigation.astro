@@ -1,0 +1,80 @@
+---
+import { ChevronDown } from "@lucide/astro"
+
+export interface ApiMobileNavigationItem {
+  readonly disabled?: boolean
+  readonly href: string
+  readonly label: string
+  readonly selected?: boolean
+}
+
+interface Props {
+  readonly version: string
+  readonly versions: ReadonlyArray<ApiMobileNavigationItem>
+  readonly packages?: ReadonlyArray<ApiMobileNavigationItem>
+  readonly modules?: ReadonlyArray<ApiMobileNavigationItem>
+}
+
+const { version, versions, packages = [], modules = [] } = Astro.props
+
+const selects = [
+  { label: "Version", items: versions, width: "w-20 shrink-0" },
+  { label: "Package", items: packages, width: "min-w-0 flex-1" },
+  { label: "Module", items: modules, width: "min-w-0 flex-1" },
+].filter(({ items }) => items.length > 0)
+---
+
+<nav
+  aria-label="API reference mobile navigation"
+  class="sticky top-16 z-30 border-y border-zinc-200 bg-white/95 backdrop-blur lg:hidden dark:border-zinc-800 dark:bg-zinc-950/95"
+>
+  <div class="mx-auto flex h-12 max-w-352 items-center gap-2 px-4">
+    <a
+      href={`/docs/api/${version}`}
+      class="shrink-0 font-mono text-xs font-semibold tracking-wider text-zinc-900 uppercase dark:text-white"
+    >
+      API
+    </a>
+    <span class="shrink-0 text-zinc-400" aria-hidden="true">/</span>
+
+    {
+      selects.map(({ label, items, width }) => (
+        <label class:list={["relative block", width]}>
+          <span class="sr-only">{label}</span>
+          <select
+            aria-label={label}
+            data-api-navigation-select
+            class="h-8 w-full appearance-none truncate rounded-md border border-zinc-200 bg-zinc-50 py-1 pr-7 pl-2 font-mono text-xs text-zinc-700 outline-none transition-colors hover:border-zinc-400 focus:border-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600"
+          >
+            {items.map((item) => (
+              <option value={item.href} selected={item.selected} disabled={item.disabled}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            class="pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2 text-zinc-500"
+            aria-hidden="true"
+          />
+        </label>
+      ))
+    }
+  </div>
+</nav>
+
+<script>
+  function initializeApiNavigation() {
+    for (const select of document.querySelectorAll<HTMLSelectElement>(
+      "[data-api-navigation-select]",
+    )) {
+      if (select.dataset.initialized === "true") continue
+      select.dataset.initialized = "true"
+      select.addEventListener("change", () => {
+        window.location.assign(select.value)
+      })
+    }
+  }
+
+  initializeApiNavigation()
+  document.addEventListener("astro:page-load", initializeApiNavigation)
+</script>

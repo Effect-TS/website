@@ -6,6 +6,7 @@ import { ChevronDown, ExternalLink, Link as LinkIcon } from "@lucide/astro"
 import Footer from "@/components/Footer.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
 import ApiDeclaration from "@/features/api-reference/ApiDeclaration.astro"
+import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import * as ApiReference from "@/features/api-reference/ApiReference"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
@@ -74,6 +75,33 @@ const sections = [
   { label: undefined, groups: stableGroups },
   { label: "Unstable", groups: unstableGroups },
 ].filter(({ groups }) => groups.length > 0)
+const mobileVersions = versionLinks.flatMap(({ href, version }) =>
+  href === undefined ? [] : [{ href, label: version, selected: version === entry.data.version }],
+)
+const mobilePackages = Array.from(
+  Map.groupBy(
+    allEntries.filter((candidate) => candidate.data.version === entry.data.version),
+    (candidate) => candidate.data.packageSlug,
+  ),
+)
+  .map(([, entries]) => entries[0])
+  .flatMap((candidate) =>
+    candidate === undefined
+      ? []
+      : [
+          {
+            href: `/docs/api/${entry.data.version}/${candidate.data.packageSlug}`,
+            label: candidate.data.packageName.replace("@effect/", ""),
+            selected: candidate.data.packageSlug === entry.data.packageSlug,
+          },
+        ],
+  )
+  .toSorted((left, right) => left.label.localeCompare(right.label))
+const mobileModules = packageEntries.map((candidate) => ({
+  href: moduleHref(candidate.data.modulePath),
+  label: candidate.data.modulePath,
+  selected: candidate.id === entry.id,
+}))
 
 function groupName(group: string): string {
   const name = group.replace("unstable/", "")
@@ -91,6 +119,12 @@ function sidebarModuleName(modulePath: string, group: string): string {
   <Navigation activeSlug="docs" wide />
 
   <div class="relative w-full pt-16">
+    <ApiMobileNavigation
+      version={entry.data.version}
+      versions={mobileVersions}
+      packages={mobilePackages}
+      modules={mobileModules}
+    />
     <div
       class="mx-auto grid w-full max-w-352 grid-cols-1 lg:grid-cols-[240px_1fr] xl:grid-cols-[240px_1fr_240px]"
     >
