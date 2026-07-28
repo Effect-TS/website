@@ -48,7 +48,9 @@ export function PostCard({ post }: { post: SerializedPost }) {
             ))}
             {overflow > 0 && <OverflowChip count={overflow} />}
           </div>
-          <time className="shrink-0 font-mono text-xs text-zinc-600 tabular-nums dark:text-zinc-400">{post.date}</time>
+          <time className="shrink-0 font-mono text-xs text-zinc-600 tabular-nums dark:text-zinc-400">
+            {post.date}
+          </time>
         </div>
       </div>
     </a>

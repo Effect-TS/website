@@ -197,7 +197,9 @@ export default function BlogControls({
                           setCategoryOpen(false)
                         }}
                         className={`group/item relative flex w-full items-baseline justify-between gap-3 px-4 py-2 text-left font-mono text-sm transition-colors ${
-                          isActive ? "text-zinc-900 dark:text-white" : "text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
+                          isActive
+                            ? "text-zinc-900 dark:text-white"
+                            : "text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
                         }`}
                       >
                         <span>{category.id === "all" ? "Remove filter" : category.name}</span>
@@ -288,7 +290,9 @@ export default function BlogControls({
                       onClick={() => goToPage(item)}
                       aria-current={item === safePage ? "page" : undefined}
                       className={`group/page relative flex h-8 min-w-8 items-center justify-center px-2 font-mono text-xs tabular-nums transition-colors ${
-                        item === safePage ? "text-zinc-900 dark:text-white" : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                        item === safePage
+                          ? "text-zinc-900 dark:text-white"
+                          : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       }`}
                     >
                       <span className={item === safePage ? "font-semibold" : ""}>
@@ -323,7 +327,9 @@ export default function BlogControls({
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100/60 dark:bg-zinc-900/60">
             <FileSearch aria-hidden="true" className="h-6 w-6 text-zinc-600 dark:text-zinc-400" />
           </div>
-          <p className="mt-6 text-base font-medium text-zinc-700 dark:text-zinc-300">No posts found</p>
+          <p className="mt-6 text-base font-medium text-zinc-700 dark:text-zinc-300">
+            No posts found
+          </p>
           <p className="mt-2 max-w-sm text-center text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
             No posts match the current filters.
           </p>
