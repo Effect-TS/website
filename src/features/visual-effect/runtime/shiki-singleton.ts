@@ -5,6 +5,11 @@ import { effectShikiTheme } from "./shiki-theme"
 
 let highlighterPromise: Promise<HighlighterCore> | undefined = undefined
 
+export const docsShikiThemes = {
+  light: "github-light",
+  dark: "github-dark",
+} as const
+
 const tokensBySnippetKey = new Map<string, Promise<ReadonlyArray<ReadonlyArray<ThemedToken>>>>()
 
 export const getHighlighter = (): Promise<HighlighterCore> => {
@@ -19,6 +24,7 @@ export const getHighlighter = (): Promise<HighlighterCore> => {
     import("@shikijs/langs/javascript"),
     import("@shikijs/langs/bash"),
     import("@shikijs/langs/json"),
+    import("shiki/themes"),
   ]).then(
     ([
       { createHighlighterCore },
@@ -27,9 +33,14 @@ export const getHighlighter = (): Promise<HighlighterCore> => {
       javascript,
       bash,
       json,
+      { bundledThemes },
     ]) =>
       createHighlighterCore({
-        themes: [effectShikiTheme],
+        themes: [
+          effectShikiTheme,
+          bundledThemes[docsShikiThemes.light],
+          bundledThemes[docsShikiThemes.dark],
+        ],
         langs: [typescript, javascript, bash, json],
         engine: createJavaScriptRegexEngine(),
       }),

@@ -12,7 +12,15 @@ import {
 } from "node:fs"
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
-import { Application } from "typedoc"
+import {
+  Application,
+  Comment,
+  CommentTag,
+  MinimalSourceFile,
+  ReflectionKind,
+  normalizePath,
+} from "typedoc"
+import TypeScript from "typescript"
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const websiteDirectory = resolve(scriptDirectory, "../..")
@@ -57,30 +65,43 @@ const revision = readRevision(repositoryDirectory)
 const packageManifests = []
 
 for (const packageInfo of packages) {
-  const modules = discoverModules(packageInfo.directory, packageInfo.manifest.exports)
-  if (modules.length === 0) {
+  const discoveredModules = discoverModules(packageInfo.directory, packageInfo.manifest.exports)
+  if (discoveredModules.length === 0) {
     continue
   }
-  if (modules.some(({ outputPath }) => outputPath === "manifest")) {
+  if (discoveredModules.some(({ outputPath }) => outputPath === "manifest")) {
     throw new Error(
       `${packageInfo.manifest.name} exports a module which would overwrite its generated manifest`,
     )
   }
 
-  console.log(`Generating ${packageInfo.manifest.name} (${modules.length} modules)`)
-  const generatedModules = await generatePackage(
-    packageInfo,
-    modules,
-    repositoryDirectory,
-    outputDirectory,
+  const barrels = discoveredModules.filter(isBarrelModule)
+  const modules = discoveredModules.filter((module) => !isBarrelModule(module))
+
+  console.log(
+    `Generating ${packageInfo.manifest.name} (${modules.length} modules, ${barrels.length} barrels excluded)`,
   )
+  const generatedModules =
+    modules.length === 0
+      ? []
+      : await generatePackage(packageInfo, modules, barrels, repositoryDirectory, outputDirectory)
   const packageOutputDirectory = packageOutputPath(outputDirectory, packageInfo.manifest.name)
   const packageManifest = {
-    schemaVersion: 1,
+    schemaVersion: 3,
     channel: options.version,
     name: packageInfo.manifest.name,
     version: packageInfo.manifest.version,
     revision,
+    description:
+      typeof packageInfo.manifest.description === "string"
+        ? packageInfo.manifest.description
+        : packageInfo.manifest.name,
+    npmUrl: `https://www.npmjs.com/package/${packageInfo.manifest.name}`,
+    sourceUrl: `https://github.com/Effect-TS/effect/tree/${revision}/${toPosixPath(relative(repositoryDirectory, packageInfo.directory))}`,
+    barrels: barrels.map((barrel) => ({
+      export: barrel.exportPath,
+      source: toPosixPath(relative(packageInfo.directory, barrel.source)),
+    })),
     modules: generatedModules,
   }
 
@@ -103,7 +124,7 @@ writeJson(join(outputDirectory, "manifest.json"), {
 
 console.log(`Generated ${packageManifests.length} packages in ${outputDirectory}`)
 
-async function generatePackage(packageInfo, modules, repository, output) {
+async function generatePackage(packageInfo, modules, barrels, repository, output) {
   const tsconfig = join(packageInfo.directory, "tsconfig.json")
   accessSync(tsconfig, constants.R_OK)
 
@@ -153,6 +174,7 @@ async function generatePackage(packageInfo, modules, repository, output) {
         ? packageInfo.manifest.name
         : `${packageInfo.manifest.name}/${module.exportPath.replace(/^\.\//, "")}`
     const project = app.converter.convert([entryPoint])
+    attachLeadingModuleComment(app, project, module.source)
     app.validate(project)
 
     const jsonPath = join(packageDirectory, `${module.outputPath}.json`)
@@ -164,10 +186,78 @@ async function generatePackage(packageInfo, modules, repository, output) {
       source: toPosixPath(relative(packageInfo.directory, module.source)),
       json: toPosixPath(relative(packageDirectory, jsonPath)),
       sha256: hashFile(jsonPath),
+      barrel: nearestBarrel(module.exportPath, barrels)?.exportPath,
     })
   }
 
   return generated
+}
+
+function attachLeadingModuleComment(app, project, sourcePath) {
+  // Effect uses untagged leading JSDoc for module docs, while TypeDoc requires an explicit file tag.
+  const moduleReflection = project.children?.find(
+    (reflection) => reflection.kind === ReflectionKind.Module,
+  )
+  if (moduleReflection === undefined || moduleReflection.comment !== undefined) {
+    return
+  }
+
+  const source = readFileSync(sourcePath, "utf8")
+  const match = /^\s*\/\*\*([\s\S]*?)\*\//.exec(source)
+  if (match === null) {
+    return
+  }
+
+  const parsed = splitJsDocComment(match[1] ?? "")
+  if (parsed.summary.length === 0) {
+    return
+  }
+
+  const parseMarkdown = (text) =>
+    app.converter.parseRawComment(
+      new MinimalSourceFile(text, normalizePath(sourcePath)),
+      project.files,
+    ).content
+  const comment = new Comment(
+    parseMarkdown(parsed.summary),
+    parsed.tags
+      .filter(({ tag }) => tag !== "@module" && tag !== "@packageDocumentation")
+      .map(({ tag, content }) => new CommentTag(tag, parseMarkdown(content))),
+  )
+  comment.sourcePath = normalizePath(sourcePath)
+  moduleReflection.comment = comment
+  app.converter.resolveLinks(comment, moduleReflection)
+}
+
+function splitJsDocComment(comment) {
+  const lines = comment.split("\n").map((line) => line.replace(/^\s*\* ?/, "").replace(/\s+$/, ""))
+  const summary = []
+  const tags = []
+  let currentTag
+  let fenced = false
+
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) {
+      fenced = !fenced
+    }
+    const tagMatch = fenced ? null : /^\s*(@[a-zA-Z][\w-]*)(?:\s+(.*))?$/.exec(line)
+    if (tagMatch !== null) {
+      currentTag = { tag: tagMatch[1], lines: [tagMatch[2] ?? ""] }
+      tags.push(currentTag)
+    } else if (currentTag === undefined) {
+      summary.push(line)
+    } else {
+      currentTag.lines.push(line)
+    }
+  }
+
+  return {
+    summary: summary.join("\n").trim(),
+    tags: tags.map(({ tag, lines: content }) => ({
+      tag,
+      content: content.join("\n").trim(),
+    })),
+  }
 }
 
 function discoverPackages(directory) {
@@ -264,11 +354,41 @@ function addModule(modules, blockedExports, exportPath, source) {
   }
 
   const existing = modules.get(outputPath)
-  if (existing !== undefined && existing.source !== source) {
-    throw new Error(`${exportPath} and ${existing.exportPath} both map to ${outputPath}.json`)
+  if (existing !== undefined) {
+    if (existing.source !== source) {
+      throw new Error(`${exportPath} and ${existing.exportPath} both map to ${outputPath}.json`)
+    }
+    return
   }
 
   modules.set(outputPath, { exportPath, outputPath, source })
+}
+
+function isBarrelModule(module) {
+  const source = readFileSync(module.source, "utf8")
+  if (source.includes("@barrel:")) {
+    return true
+  }
+  const sourceFile = TypeScript.createSourceFile(
+    module.source,
+    source,
+    TypeScript.ScriptTarget.Latest,
+    false,
+    TypeScript.ScriptKind.TS,
+  )
+  return (
+    sourceFile.statements.length > 0 &&
+    sourceFile.statements.every(
+      (statement) =>
+        TypeScript.isExportDeclaration(statement) && statement.moduleSpecifier !== undefined,
+    )
+  )
+}
+
+function nearestBarrel(exportPath, barrels) {
+  return barrels
+    .filter((barrel) => barrel.exportPath === "." || exportPath.startsWith(`${barrel.exportPath}/`))
+    .sort((left, right) => right.exportPath.length - left.exportPath.length)[0]
 }
 
 function normalizeExportEntries(exportsField) {

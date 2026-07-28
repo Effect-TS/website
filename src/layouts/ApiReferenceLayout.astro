@@ -1,0 +1,32 @@
+---
+import Navigation from "@/components/navigation/Navigation.astro"
+import BaseLayout from "@/layouts/BaseLayout.astro"
+import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+
+interface Props {
+  readonly title?: string | undefined
+  readonly description?: string | undefined
+}
+
+const { title = "API Reference", description } = Astro.props
+---
+
+<BaseLayout {...{ title }} {...description ? { description } : undefined}>
+  <Navigation activeSlug="docs" wide />
+
+  <div class="relative w-full pt-16">
+    <div class="mx-auto grid w-full max-w-352 grid-cols-1 lg:grid-cols-[240px_1fr_240px]">
+      <aside class="hidden border-r border-zinc-200 lg:block dark:border-zinc-800">
+        <slot name="sidebar" />
+      </aside>
+
+      <main id={PAGE_TITLE_ID} class="min-w-0 px-6 py-12 lg:px-12 lg:py-16">
+        <slot />
+      </main>
+
+      <aside class="hidden border-l border-zinc-200 lg:block dark:border-zinc-800">
+        <slot name="right-sidebar" />
+      </aside>
+    </div>
+  </div>
+</BaseLayout>

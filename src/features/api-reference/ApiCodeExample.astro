@@ -1,19 +1,17 @@
 ---
-import { Code } from "astro:components"
 import type { ApiCodeExample } from "./ApiReference"
-import { getHighlighter } from "@/features/visual-effect/runtime/shiki-singleton"
-import { effectShikiTheme } from "@/features/visual-effect/runtime/shiki-theme"
+import { docsShikiThemes, getHighlighter } from "@/features/visual-effect/runtime/shiki-singleton"
 
 interface Props {
   example: ApiCodeExample
 }
 
 const { example } = Astro.props
-// const highlighter = await getHighlighter()
-// const highlighted = highlighter.codeToHtml(example.source, {
-//  lang: example.language,
-//  theme: effectShikiTheme,
-// })
+const highlighter = await getHighlighter()
+const highlighted = highlighter.codeToHtml(example.source, {
+  lang: example.language,
+  themes: docsShikiThemes,
+})
 ---
 
 <article>
@@ -24,17 +22,16 @@ const { example } = Astro.props
     {example.title && <p class="text-right text-sm text-zinc-500">{example.title}</p>}
   </div>
 
-  <Code lang="js" code={example.source}/>
-  <!-- <div -->
-  <!--   class="api-example-code overflow-x-auto rounded-xl border border-zinc-800 bg-[#101012] shadow-[0_16px_50px_rgba(0,0,0,0.18)]" -->
-  <!--   set:html={highlighted} -->
-  <!-- /> -->
+  <div
+    class="api-example-code overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100/60 dark:border-zinc-800 dark:bg-zinc-900/60"
+    set:html={highlighted}
+  />
 
   <footer class="mt-4 flex items-center gap-5 font-mono text-xs text-zinc-500">
     {example.since && <span>Added in v{example.since}</span>}
     {
       example.sourceUrl && (
-        <a class="transition-colors hover:text-zinc-200" href={example.sourceUrl}>
+        <a class="transition-colors hover:text-zinc-200" href={example.sourceUrl} target="_blank">
           Source
         </a>
       )
@@ -46,17 +43,17 @@ const { example } = Astro.props
   .api-example-code :global(.shiki) {
     min-width: max-content;
     margin: 0;
-    padding: 1.75rem 2rem;
+    padding: 1.25rem 1.4rem;
     background: transparent !important;
-    font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-size: 0.875rem;
-    line-height: 1.8;
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+      monospace;
+    font-size: 0.85rem;
+    line-height: 1.65;
   }
 
-  @media (min-width: 640px) {
-    .api-example-code :global(.shiki) {
-      padding: 2rem 2.25rem;
-      font-size: 0.9375rem;
-    }
+  :global(.dark) .api-example-code :global(.shiki),
+  :global(.dark) .api-example-code :global(.shiki span) {
+    color: var(--shiki-dark) !important;
   }
 </style>

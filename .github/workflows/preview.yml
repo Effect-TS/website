@@ -25,6 +25,19 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
 
+      - name: Checkout Effect
+        if: github.ref_name == 'feat/api-reference'
+        uses: actions/checkout@v6
+        with:
+          repository: Effect-TS/effect
+          ref: 52838418db2e04db6aaed2fa01b280f2aad4032a
+          path: .effect-source
+          fetch-depth: 1
+
+      - name: Generate API reference
+        if: github.ref_name == 'feat/api-reference'
+        run: pnpm api-reference:generate --version v4 --repo .effect-source
+
       - name: Synchronize Mixedbread preview store
         id: mixedbread
         run: pnpm mixedbread:preview sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"

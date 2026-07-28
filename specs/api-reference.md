@@ -79,7 +79,7 @@ After synchronization, a website build sees:
       NodeHttpClient.json
 ```
 
-The root manifest records the dataset schema, TypeDoc versions, channel, revision, and package manifests. Each package manifest records its package version and sorted modules. Each module entry records its public export, source path, JSON path, and SHA-256 digest.
+The root manifest records the dataset schema, TypeDoc versions, channel, revision, and package manifests. Each package manifest records its package version, description, npm and repository URLs, sorted modules, and public barrel exports. Barrel files are not converted by TypeDoc; each generated leaf module records its nearest barrel for navigation. Each module entry also records its public export, source path, JSON path, and SHA-256 digest.
 
 Generation must be deterministic. Manifests and module documents must not include generation timestamps.
 
@@ -162,6 +162,7 @@ The generated `.data/api-reference` directory is ignored. The content loader ret
 - [x] Discover public packages and modules deterministically from package export maps.
 - [x] Generate one complete TypeDoc JSON document per package module.
 - [x] Preserve nested module paths such as `unstable/http/HttpClient`.
+- [x] Exclude barrel reflections while preserving barrel relationships in package manifests.
 - [x] Add channel metadata and TypeDoc format metadata to dataset manifests.
 - [x] Add SHA-256 digests to package module manifests.
 - [x] Verify deterministic output for a repeated local generation.
@@ -197,4 +198,4 @@ The generated `.data/api-reference` directory is ignored. The content loader ret
 - [ ] Run synchronization before every website build.
 - [ ] Configure deployment concurrency to prevent stale deployments.
 - [ ] Generate and test the latest v3 dataset.
-- [ ] Generate and test the latest v4 dataset.
+- [x] Generate and test the latest v4 dataset.

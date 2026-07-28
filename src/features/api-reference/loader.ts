@@ -55,7 +55,13 @@ export function apiReferenceLoader(options: { base: URL }): Loader {
           packageSlugs.set(packageSlug, packageManifest.name)
 
           const packageDirectory = dirname(packageManifestPath)
+          const barrelExports = new Set(packageManifest.barrels.map((barrel) => barrel.export))
           for (const module of packageManifest.modules) {
+            if (module.barrel !== undefined && !barrelExports.has(module.barrel)) {
+              throw new Error(
+                `API module ${module.export} references unknown barrel ${module.barrel}: ${packageManifestPath}`,
+              )
+            }
             const modulePath = exportPathToModulePath(module.export)
             const reflectionPath = safeResolve(packageDirectory, module.json)
             const id = `${version}/${packageSlug}/${modulePath}`
@@ -68,7 +74,13 @@ export function apiReferenceLoader(options: { base: URL }): Loader {
                 packageName: packageManifest.name,
                 packageSlug,
                 packageVersion: packageManifest.version,
+                packageDescription: packageManifest.description,
+                packageModuleCount: packageManifest.modules.length,
+                packageNpmUrl: packageManifest.npmUrl,
+                packageSourceUrl: packageManifest.sourceUrl,
                 modulePath,
+                barrelPath:
+                  module.barrel === undefined ? undefined : exportPathToModulePath(module.barrel),
                 exportPath: module.export,
                 sourcePath: module.source,
                 reflectionPath: relative(baseDirectory, reflectionPath),

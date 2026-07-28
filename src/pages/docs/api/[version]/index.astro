@@ -1,0 +1,380 @@
+---
+import type { GetStaticPaths } from "astro"
+import { getCollection, type CollectionEntry } from "astro:content"
+import { ChevronDown, Search } from "@lucide/astro"
+
+import Footer from "@/components/Footer.astro"
+import Navigation from "@/components/navigation/Navigation.astro"
+import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+import BaseLayout from "@/layouts/BaseLayout.astro"
+
+export const getStaticPaths = (async () => {
+  const entries = await getCollection("apiReference")
+
+  const entriesByVersion = entries.reduce((groups, entry) => {
+    const group = groups.get(entry.data.version)
+    if (group === undefined) {
+      groups.set(entry.data.version, [entry])
+    } else {
+      group.push(entry)
+    }
+    return groups
+  }, new Map<string, Array<CollectionEntry<"apiReference">>>())
+
+  return Array.from(entriesByVersion).map(([version, entries]) => ({
+    params: { version },
+    props: { entries, version },
+  }))
+}) satisfies GetStaticPaths
+
+const { entries, version } = Astro.props
+
+const groupNames: Record<string, Record<string, string>> = {
+  v3: {
+    effect: "Core",
+    "@effect/platform": "Platform",
+    "@effect/platform-browser": "Platform",
+    "@effect/platform-bun": "Platform",
+    "@effect/platform-node": "Platform",
+    "@effect/platform-node-shared": "Platform",
+    "@effect/cluster": "Clustering",
+    "@effect/workflow": "Workflows",
+    "@effect/sql": "SQL",
+    "@effect/sql-clickhouse": "SQL",
+    "@effect/sql-d1": "SQL",
+    "@effect/sql-drizzle": "SQL",
+    "@effect/sql-kysely": "SQL",
+    "@effect/sql-libsql": "SQL",
+    "@effect/sql-mssql": "SQL",
+    "@effect/sql-mysql2": "SQL",
+    "@effect/sql-pg": "SQL",
+    "@effect/sql-sqlite-bun": "SQL",
+    "@effect/sql-sqlite-do": "SQL",
+    "@effect/sql-sqlite-node": "SQL",
+    "@effect/sql-sqlite-react-native": "SQL",
+    "@effect/sql-sqlite-wasm": "SQL",
+    "@effect/ai": "AI",
+    "@effect/ai-amazon-bedrock": "AI",
+    "@effect/ai-anthropic": "AI",
+    "@effect/ai-google": "AI",
+    "@effect/ai-openai": "AI",
+    "@effect/ai-openrouter": "AI",
+    "@effect/opentelemetry": "Telemetry",
+    "@effect/cli": "CLI",
+    "@effect/printer": "Printing",
+    "@effect/printer-ansi": "Printing",
+    "@effect/vitest": "Testing",
+    "@effect/experimental": "Other",
+    "@effect/typeclass": "Other",
+  },
+  v4: {
+    effect: "Core",
+    "@effect/platform-browser": "Platform",
+    "@effect/platform-bun": "Platform",
+    "@effect/platform-node-shared": "Platform",
+    "@effect/platform-node": "Platform",
+    "@effect/opentelemetry": "Telemetry",
+    "@effect/sql-clickhouse": "SQL",
+    "@effect/sql-d1": "SQL",
+    "@effect/sql-libsql": "SQL",
+    "@effect/sql-mssql": "SQL",
+    "@effect/sql-mysql2": "SQL",
+    "@effect/sql-pg": "SQL",
+    "@effect/sql-pglite": "SQL",
+    "@effect/sql-sqlite-bun": "SQL",
+    "@effect/sql-sqlite-do": "SQL",
+    "@effect/sql-sqlite-node": "SQL",
+    "@effect/sql-sqlite-react-native": "SQL",
+    "@effect/sql-sqlite-wasm": "SQL",
+    "@effect/ai-anthropic": "AI",
+    "@effect/ai-openai-compat": "AI",
+    "@effect/ai-openai": "AI",
+    "@effect/ai-openrouter": "AI",
+    "@effect/atom-react": "Reactivity",
+    "@effect/atom-solid": "Reactivity",
+    "@effect/atom-vue": "Reactivity",
+    "@effect/docgen": "Tooling",
+    "@effect/openapi-generator": "Tooling",
+    "@effect/vitest": "Testing",
+  },
+}
+
+const groupOrdering = [
+  "Core",
+  "Platform",
+  "SQL",
+  "AI",
+  "Clustering",
+  "Workflows",
+  "Reactivity",
+  "Telemetry",
+  "CLI",
+  "Printing",
+  "Testing",
+  "Tooling",
+  "Other",
+]
+
+function inferGroup(packageName: string): string {
+  if (packageName.includes("/sql-") || packageName === "@effect/sql") {
+    return "SQL"
+  }
+  if (packageName.includes("/ai-") || packageName === "@effect/ai") {
+    return "AI"
+  }
+  if (packageName.includes("platform")) {
+    return "Platform"
+  }
+  return "Other"
+}
+
+const packageEntries = Map.groupBy(entries, (entry) => entry.data.packageName)
+const packages = Array.from(packageEntries).map(([name, modules]) => {
+  const first = modules[0]
+
+  if (first === undefined) {
+    throw new Error(`Package "${name}" has no modules`)
+  }
+
+  const displayName = name.replace("@effect/", "")
+  const entries = modules.toSorted((left, right) =>
+    left.data.modulePath.localeCompare(right.data.modulePath),
+  )
+  const group = groupNames[version]?.[name] ?? inferGroup(name)
+
+  return {
+    ...first.data,
+    displayName,
+    entries,
+    group,
+  }
+})
+const groupedPackages = Map.groupBy(packages, (info) => info.group)
+const sidebarGroups = Array.from(groupedPackages)
+  .map(([name, packages]) => ({ name, packages }))
+  .toSorted((left, right) => {
+    const leftIndex = groupOrdering.indexOf(left.name)
+    const rightIndex = groupOrdering.indexOf(right.name)
+    const leftOrder = leftIndex < 0 ? groupOrdering.length : leftIndex
+    const rightOrder = rightIndex < 0 ? groupOrdering.length : rightIndex
+    const nameOrder = left.name.localeCompare(right.name)
+    return leftOrder - rightOrder || nameOrder
+  })
+---
+
+<BaseLayout title="API Reference">
+  <Navigation activeSlug="docs" wide />
+
+  <div class="relative w-full pt-16">
+    <div class="w-full max-w-352 mx-auto grid grid-cols-1 lg:grid-cols-[240px_1fr]">
+      <aside class="hidden border-r border-zinc-200 lg:block dark:border-zinc-800">
+        <nav
+          aria-label="API reference navigation"
+          class="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 py-8"
+        >
+          <a
+            href={`/docs/api/${version}`}
+            aria-current="page"
+            class="mb-6 block font-mono text-sm font-medium tracking-wider text-zinc-900 uppercase hover:underline dark:text-white"
+          >
+            API Reference
+          </a>
+
+          <div
+            role="group"
+            aria-label="API reference version"
+            class="mb-4 grid grid-cols-2 gap-1 rounded-md border border-zinc-200 p-1 dark:border-zinc-800"
+          >
+            {
+              ["v3", "v4"].map((candidate) => (
+                <a
+                  href={`/docs/api/${candidate}`}
+                  aria-current={candidate === version ? "page" : undefined}
+                  class:list={[
+                    "rounded px-2 py-1 text-center font-mono text-xs transition-colors",
+                    candidate === version
+                      ? "bg-zinc-200 font-semibold text-zinc-900 dark:bg-zinc-800 dark:text-white"
+                      : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-white",
+                  ]}
+                >
+                  {candidate}
+                </a>
+              ))
+            }
+          </div>
+
+          <ul class="flex flex-col gap-0.5">
+            {
+              sidebarGroups.map((group) => (
+                <li class="mb-1 last:mb-0">
+                  <details open>
+                    <summary class="flex cursor-pointer select-none list-none items-center justify-between rounded py-2.5 font-mono text-sm font-medium tracking-wider text-zinc-700 uppercase transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white">
+                      <span>{group.name}</span>
+                      <ChevronDown
+                        class="h-4 w-4 transition-transform details-chevron"
+                        aria-hidden="true"
+                      />
+                    </summary>
+                    <ul class="flex flex-col gap-0.5">
+                      {group.packages.map((info) => (
+                        <li>
+                          <a
+                            href={`/docs/api/${version}/${info.displayName}`}
+                            data-package-link={info.packageSlug}
+                            class="block truncate rounded-md py-1.5 pl-3 font-mono text-sm transition-colors text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-white"
+                          >
+                            {info.displayName}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+      </aside>
+
+      <main id={PAGE_TITLE_ID} class="min-w-0 px-6 py-12 lg:px-12 lg:py-16">
+        <article
+          class="max-w-4xl prose prose-zinc dark:prose-invert prose-sm md:prose-base
+                   prose-headings:font-semibold prose-headings:tracking-tight
+                   prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline
+                   prose-code:bg-zinc-200 prose-code:text-zinc-700 dark:prose-code:bg-zinc-800 dark:prose-code:text-zinc-200 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
+                   prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-700"
+        >
+          <h1 class="mb-4! md:mb-6!">API Reference</h1>
+
+          <p>
+            Effect is a powerful TypeScript library designed to help developers easily create
+            complex, synchronous, and asynchronous programs. It consists of several packages that
+            work together to help build robust TypeScript applications.
+          </p>
+
+          <h2 class="mt-0! mb-4! md:mb-6!">Monorepo Structure</h2>
+
+          <p>
+            The Effect ecosystem is organized as a monorepo of packages, each extending the core
+            functionality. Below is an overview of the packages included, organized by focus.
+          </p>
+
+          <!-- Search -->
+          <label for="search" class="relative block not-prose mt-4 mb-6 md:mt-8 md:mb-10">
+            <span class="sr-only">Search packages</span>
+            <Search
+              class="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-zinc-500"
+              aria-hidden="true"
+            />
+            <input
+              id="search"
+              type="search"
+              aria-label="Search packages"
+              placeholder="Search packages…"
+              autocomplete="off"
+              data-package-search
+              class="w-full rounded-lg border border-zinc-300 bg-transparent py-2 pr-4 pl-11 font-mono text-sm outline-none transition-colors text-zinc-900 placeholder:text-zinc-500 dark:text-white dark:placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:focus:border-zinc-500"
+            />
+          </label>
+
+          <div class="space-y-4 md:space-y-8">
+            {
+              sidebarGroups.map((group) => (
+                <section data-package-group class="not-prose">
+                  <h2 class="mb-4 font-mono text-sm font-medium tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
+                    {group.name}
+                  </h2>
+                  <div class="grid gap-4 md:grid-cols-2">
+                    {group.packages.map((info) => (
+                      <div
+                        data-package-card
+                        data-package-name={info.packageName}
+                        class="group relative rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 transition-colors hover:border-zinc-400 hover:bg-zinc-100/70 focus-within:border-zinc-500 focus-within:ring-2 focus-within:ring-zinc-400/30 dark:border-zinc-800 dark:bg-zinc-900/30 dark:hover:border-zinc-600 dark:hover:bg-zinc-900/70 dark:focus-within:border-zinc-500"
+                      >
+                        <div class="flex items-baseline justify-between gap-4">
+                          <h3 class="truncate font-mono text-sm font-semibold transition-colors group-hover:text-zinc-950 dark:group-hover:text-white">
+                            <a
+                              href={`/docs/api/${version}/${info.packageSlug}`}
+                              class="focus:outline-none after:absolute after:inset-0 after:content-['']"
+                            >
+                              {info.packageName}
+                            </a>
+                          </h3>
+                          <span class="shink-0 font-mono text-xs text-zinc-500">
+                            {info.packageModuleCount} modules
+                          </span>
+                        </div>
+                        <p class="mt-2 line-clamp-2 leading-relaxed text-sm text-zinc-600 dark:text-zinc-400">
+                          {info.packageDescription}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))
+            }
+          </div>
+
+          <p data-empty-state class="hidden py-16 text-center font-mono text-sm text-zinc-500">
+            No matching packages.
+          </p>
+        </article>
+      </main>
+    </div>
+
+    <Footer />
+  </div>
+</BaseLayout>
+
+<style>
+  details[open] > summary .details-chevron {
+    transform: rotate(180deg);
+  }
+</style>
+
+<script>
+  const input = document.querySelector<HTMLInputElement>("[data-package-search]")
+  const groups = document.querySelectorAll<HTMLElement>("[data-package-group]")
+  const emptyState = document.querySelector<HTMLElement>("[data-empty-state]")
+
+  function normalize(value: string) {
+    return value
+      .toLowerCase()
+      .replace(/^@effect\//, "")
+      .replace(/[^a-z0-9]/g, "")
+  }
+
+  function fuzzyMatch(value: string, query: string) {
+    const candidate = normalize(value)
+    const normalizedQuery = normalize(query)
+    if (candidate.includes(normalizedQuery)) return true
+
+    let queryIndex = 0
+    for (const character of candidate) {
+      if (character === normalizedQuery[queryIndex]) queryIndex += 1
+    }
+    return queryIndex === normalizedQuery.length
+  }
+
+  if (input !== null && emptyState !== null) {
+    input.addEventListener("input", () => {
+      const query = input.value.trim()
+      let visiblePackages = 0
+
+      for (const group of groups) {
+        let visibleInGroup = 0
+        for (const card of group.querySelectorAll<HTMLElement>("[data-package-card]")) {
+          const matches = fuzzyMatch(card.dataset.packageName ?? "", query)
+          card.hidden = !matches
+          if (matches) {
+            visibleInGroup += 1
+          }
+        }
+        group.hidden = visibleInGroup === 0
+        visiblePackages += visibleInGroup
+      }
+
+      emptyState.classList.toggle("hidden", visiblePackages > 0)
+    })
+  }
+</script>
