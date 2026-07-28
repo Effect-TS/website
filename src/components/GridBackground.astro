@@ -6,15 +6,37 @@ interface Props {
 const { class: className } = Astro.props
 ---
 
-<div aria-hidden="true" class:list={["grid-bg pointer-events-none absolute inset-0", className]}>
+<div aria-hidden="true" class:list={["pointer-events-none absolute inset-0", className]}>
+  <div class="grid-bg grid-bg--light absolute inset-0"></div>
+  <div class="grid-bg grid-bg--dark absolute inset-0"></div>
 </div>
 
 <style>
   .grid-bg {
-    background-image:
-      linear-gradient(to right, rgb(24 24 27 / 0.8) 1px, transparent 1px),
-      linear-gradient(to bottom, rgb(24 24 27 / 0.8) 1px, transparent 1px);
     background-size: calc(73.75rem / 6) 194px;
     background-position: calc(50% + 73.75rem / 12) 0;
+    transition: opacity 0.25s ease-out;
+  }
+
+  .grid-bg--light {
+    background-image:
+      linear-gradient(to right, rgba(228, 228, 231, 0.7) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(228, 228, 231, 0.7) 1px, transparent 1px);
+    opacity: 1;
+  }
+
+  .grid-bg--dark {
+    background-image:
+      linear-gradient(to right, rgba(39, 39, 42, 0.7) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(39, 39, 42, 0.7) 1px, transparent 1px);
+    opacity: 0;
+  }
+
+  :global(.dark) .grid-bg--light {
+    opacity: 0;
+  }
+
+  :global(.dark) .grid-bg--dark {
+    opacity: 1;
   }
 </style>

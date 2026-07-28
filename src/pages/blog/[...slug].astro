@@ -48,16 +48,17 @@ function authorAvatar(id: string): ImageMetadata | undefined {
 }
 
 const proseClass =
-  "prose text-zinc-400 dark:prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-h2:mt-14 prose-h2:mb-3 prose-h2:text-2xl prose-h3:mt-8 prose-h3:mb-4 prose-h3:text-xl prose-p:text-lg prose-p:leading-relaxed prose-li:text-lg prose-pre:rounded-xl"
+  "prose prose-zinc dark:prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-h2:mt-14 prose-h2:mb-3 prose-h2:text-2xl prose-h3:mt-8 prose-h3:mb-4 prose-h3:text-xl prose-p:text-lg prose-p:leading-relaxed prose-li:text-lg prose-pre:rounded-xl"
 
 const shareShellClass =
-  "inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 text-zinc-300 transition-colors hover:border-white hover:text-white"
+  "inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-zinc-700 transition-colors hover:border-zinc-900 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-white dark:hover:text-white"
 ---
 
 <PageLayout
   title={`${post.data.title} | Effect Blog`}
   description={post.data.excerpt}
   activeSlug="blog"
+  themeable
 >
   <section class="relative">
     <div
@@ -68,13 +69,20 @@ const shareShellClass =
         <GridBackground />
       </div>
 
-      <div
-        class="absolute inset-0"
-        style="background: linear-gradient(to bottom, #09090b 0%, transparent 20%, transparent 60%, #09090b 100%);"
-      ></div>
+      <div aria-hidden="true" class="absolute inset-0">
+        <div
+          class="absolute inset-0 opacity-100 transition-opacity duration-[250ms] ease-out dark:opacity-0"
+          style="background: linear-gradient(to bottom, #ffffff 0%, transparent 20%, transparent 60%, #ffffff 100%);"
+        ></div>
+        <div
+          class="absolute inset-0 opacity-0 transition-opacity duration-[250ms] ease-out dark:opacity-100"
+          style="background: linear-gradient(to bottom, #09090b 0%, transparent 20%, transparent 60%, #09090b 100%);"
+        ></div>
+      </div>
 
       <div
-        class="absolute inset-x-0 top-0 h-[400px]"
+        aria-hidden="true"
+        class="absolute inset-x-0 top-0 h-[400px] opacity-0 dark:opacity-100"
         style="background: radial-gradient(ellipse 50% 80% at 70% -20%, rgb(255 255 255 / 0.12) 0%, transparent 50%);"
       ></div>
     </div>
@@ -84,14 +92,14 @@ const shareShellClass =
         aria-label="Breadcrumb"
         class="flex flex-wrap items-center gap-x-3 gap-y-2 pt-16 pb-1 font-mono text-sm tracking-wider uppercase md:pt-24"
       >
-        <a href="/blog" class="text-zinc-400 transition-colors hover:text-white">Blog</a>
-        <span class="text-zinc-400" aria-hidden="true">//</span>
+        <a href="/blog" class="text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white">Blog</a>
+        <span class="text-zinc-400 dark:text-zinc-500" aria-hidden="true">//</span>
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
           {
             sortedTags.map((tag) => (
               <a
                 href={`/blog?category=${tag.id}`}
-                class="text-zinc-200 transition-colors hover:text-white"
+                class="text-zinc-800 transition-colors hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white"
               >
                 {tag.data.name}
               </a>
@@ -103,11 +111,11 @@ const shareShellClass =
       <div class="grid grid-cols-1 md:grid-cols-12 md:gap-x-6">
         <div class="pt-3 pb-4 md:col-span-8 md:row-start-1">
           <h1
-            class="leading-tighter text-3xl font-bold tracking-tight text-white md:text-4xl"
+            class="leading-tighter text-3xl font-bold tracking-tight text-zinc-900 md:text-4xl dark:text-white"
           >
             {post.data.title}
           </h1>
-          <p class="mt-4 text-base leading-relaxed text-zinc-400 md:text-lg">{post.data.excerpt}</p>
+          <p class="mt-4 text-base leading-relaxed text-zinc-600 md:text-lg dark:text-zinc-400">{post.data.excerpt}</p>
 
           <div class="mt-8 flex flex-wrap items-center gap-4 md:hidden">
             {
@@ -128,10 +136,10 @@ const shareShellClass =
                       />
                     )}
                     <span class="flex min-w-0 flex-col">
-                      <span class="truncate text-base font-medium text-zinc-200 group-hover/byline:underline">
+                      <span class="truncate text-base font-medium text-zinc-800 group-hover/byline:underline dark:text-zinc-200">
                         {author.data.name}
                       </span>
-                      <span class="mt-0.5 truncate text-xs text-zinc-400">{author.data.title}</span>
+                      <span class="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">{author.data.title}</span>
                     </span>
                   </a>
                 )
@@ -162,10 +170,10 @@ const shareShellClass =
                       />
                     )}
                     <span class="flex min-w-0 flex-col">
-                      <span class="truncate text-base font-medium text-zinc-200 group-hover/byline:underline">
+                      <span class="truncate text-base font-medium text-zinc-800 group-hover/byline:underline dark:text-zinc-200">
                         {author.data.name}
                       </span>
-                      <span class="mt-0.5 truncate text-sm text-zinc-400">{author.data.title}</span>
+                      <span class="mt-0.5 truncate text-sm text-zinc-500 dark:text-zinc-400">{author.data.title}</span>
                     </span>
                   </a>
                 )
@@ -178,7 +186,7 @@ const shareShellClass =
 
             <div class="mt-6">
               <div class="flex items-center gap-3">
-                <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+                <span class="font-mono text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   Share
                 </span>
                 <div class="flex items-center gap-2">
@@ -203,12 +211,12 @@ const shareShellClass =
                   <CopyLinkButton client:load />
                 </div>
               </div>
-              <div class="mt-5 border-t border-zinc-800 pt-5"></div>
+              <div class="mt-5 border-t border-zinc-200 pt-5 dark:border-zinc-800"></div>
               <p class="flex flex-col gap-0.5">
-                <span class="font-mono text-[10px] tracking-[0.12em] text-zinc-400 uppercase">
+                <span class="font-mono text-[10px] tracking-[0.12em] text-zinc-500 uppercase dark:text-zinc-400">
                   Last updated
                 </span>
-                <time class="font-mono text-xs text-zinc-300 tabular-nums">
+                <time class="font-mono text-xs text-zinc-700 tabular-nums dark:text-zinc-300">
                   {formatDate(post.data.date)}
                 </time>
               </p>
@@ -216,7 +224,7 @@ const shareShellClass =
           </div>
         </aside>
 
-        <hr class="col-span-1 h-px w-full border-zinc-800 md:col-span-12 md:row-start-2 md:my-2" />
+        <hr class="col-span-1 h-px w-full border-zinc-200 md:col-span-12 md:row-start-2 md:my-2 dark:border-zinc-800" />
 
         <article class="min-w-0 pb-20 md:col-span-8 md:row-start-3">
           <div class="mt-10 mb-10 block md:hidden">
@@ -227,38 +235,38 @@ const shareShellClass =
             <Content />
           </div>
 
-          <div class="mt-12 flex flex-col gap-6 border-t border-zinc-800 pt-8 md:hidden">
+          <div class="mt-12 flex flex-col gap-6 border-t border-zinc-200 pt-8 md:hidden dark:border-zinc-800">
             <div class="flex items-center gap-3">
-                <span class="font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
-                  Share
-                </span>
-                <div class="flex items-center gap-2">
-                  <a
-                    href={xUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Share on X"
-                    class={shareShellClass}
-                  >
-                    <TwitterLogo class="size-4" />
-                  </a>
-                  <a
-                    href={linkedInUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Share on LinkedIn"
-                    class={shareShellClass}
-                  >
-                    <LinkedInLogo class="size-4" />
-                  </a>
-                  <CopyLinkButton client:load />
-                </div>
+              <span class="font-mono text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                Share
+              </span>
+              <div class="flex items-center gap-2">
+                <a
+                  href={xUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Share on X"
+                  class={shareShellClass}
+                >
+                  <TwitterLogo class="size-4" />
+                </a>
+                <a
+                  href={linkedInUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Share on LinkedIn"
+                  class={shareShellClass}
+                >
+                  <LinkedInLogo class="size-4" />
+                </a>
+                <CopyLinkButton client:load />
               </div>
-              <p class="flex flex-col gap-0.5">
-                <span class="font-mono text-[10px] tracking-wider text-zinc-400 uppercase">
+            </div>
+            <p class="flex flex-col gap-0.5">
+              <span class="font-mono text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                 Last updated
               </span>
-              <time class="font-mono text-xs text-zinc-300 tabular-nums">
+              <time class="font-mono text-xs text-zinc-700 tabular-nums dark:text-zinc-300">
                 {formatDate(post.data.date)}
               </time>
             </p>
@@ -266,17 +274,17 @@ const shareShellClass =
 
           {
             (prevPost || nextPost) && (
-              <div class="mt-16 grid grid-cols-1 gap-4 border-t border-zinc-800 pt-10 sm:grid-cols-2">
+              <div class="mt-16 grid grid-cols-1 gap-4 border-t border-zinc-200 pt-10 sm:grid-cols-2 dark:border-zinc-800">
                 {prevPost ? (
                   <a
                     href={`/blog/${prevPost.id}`}
-                    class="group flex flex-col rounded-md border border-zinc-800 p-4 transition-colors duration-200 hover:border-zinc-600"
+                    class="group flex flex-col rounded-md border border-zinc-200 p-4 transition-colors duration-200 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
                   >
-                    <span class="flex items-center gap-1.5 font-mono text-xs tracking-wider text-zinc-400 uppercase">
+                    <span class="flex items-center gap-1.5 font-mono text-xs tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       <ChevronLeftIcon class="size-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" />
                       Previous
                     </span>
-                    <span class="mt-1.5 line-clamp-1 text-sm font-medium text-zinc-200 transition-colors group-hover:text-white">
+                    <span class="mt-1.5 line-clamp-1 text-sm font-medium text-zinc-800 transition-colors group-hover:text-zinc-900 dark:text-zinc-200 dark:group-hover:text-white">
                       {prevPost.data.title}
                     </span>
                   </a>
@@ -286,13 +294,13 @@ const shareShellClass =
                 {nextPost ? (
                   <a
                     href={`/blog/${nextPost.id}`}
-                    class="group flex flex-col items-end rounded-md border border-zinc-800 p-4 text-right transition-colors duration-200 hover:border-zinc-600"
+                    class="group flex flex-col items-end rounded-md border border-zinc-200 p-4 text-right transition-colors duration-200 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
                   >
-                    <span class="flex items-center gap-1.5 font-mono text-xs tracking-wider text-zinc-400 uppercase">
+                    <span class="flex items-center gap-1.5 font-mono text-xs tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                       Next
                       <ChevronRightIcon class="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
                     </span>
-                    <span class="mt-1.5 line-clamp-1 text-sm font-medium text-zinc-200 transition-colors group-hover:text-white">
+                    <span class="mt-1.5 line-clamp-1 text-sm font-medium text-zinc-800 transition-colors group-hover:text-zinc-900 dark:text-zinc-200 dark:group-hover:text-white">
                       {nextPost.data.title}
                     </span>
                   </a>
@@ -305,18 +313,18 @@ const shareShellClass =
         </article>
       </div>
 
-      <div class="mt-16 h-px w-full bg-zinc-800"></div>
+      <div class="mt-16 h-px w-full bg-zinc-200 dark:bg-zinc-800"></div>
       <div
         class="grid grid-cols-1 items-center gap-6 py-12 md:grid-cols-12 md:gap-x-6 md:gap-y-8 md:py-20"
       >
         <div class="md:col-span-8">
-          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
             // Effect Community
           </p>
-          <h2 class="text-xl font-semibold tracking-tight text-white md:text-2xl">
+          <h2 class="text-xl font-semibold tracking-tight text-zinc-900 md:text-2xl dark:text-white">
             Join the conversation on Discord
           </h2>
-          <p class="mt-4 max-w-xl text-base leading-relaxed text-zinc-400">
+          <p class="mt-4 max-w-xl text-base leading-relaxed text-zinc-600 dark:text-zinc-400">
             Meet engineers running Effect in production.
           </p>
         </div>
@@ -324,16 +332,16 @@ const shareShellClass =
           <div
             class="relative mx-auto flex max-w-xs flex-col items-center gap-3 px-6 py-6 md:max-w-none"
           >
-            <span class="absolute top-0 left-0 h-3 w-3 border-t border-l border-zinc-700"></span>
-            <span class="absolute top-0 right-0 h-3 w-3 border-t border-r border-zinc-700"></span>
-            <span class="absolute bottom-0 left-0 h-3 w-3 border-b border-l border-zinc-700"></span>
-            <span class="absolute right-0 bottom-0 h-3 w-3 border-r border-b border-zinc-700"
+            <span class="absolute top-0 left-0 h-3 w-3 border-t border-l border-zinc-300 dark:border-zinc-700"></span>
+            <span class="absolute top-0 right-0 h-3 w-3 border-t border-r border-zinc-300 dark:border-zinc-700"></span>
+            <span class="absolute bottom-0 left-0 h-3 w-3 border-b border-l border-zinc-300 dark:border-zinc-700"></span>
+            <span class="absolute right-0 bottom-0 h-3 w-3 border-r border-b border-zinc-300 dark:border-zinc-700"
             ></span>
             <a
               href="https://discord.gg/effect-ts"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-5 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
             >
               Join the Discord
               <ArrowRightIcon class="size-4" />
@@ -342,7 +350,7 @@ const shareShellClass =
               href="https://discord.gg/effect-ts"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-1 font-mono text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+              class="inline-flex items-center gap-1 font-mono text-xs text-zinc-500 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
             >
               discord.gg/effect-ts
               <ArrowUpRightIcon class="size-3.5" />
@@ -356,6 +364,6 @@ const shareShellClass =
 
 <style>
   .blog-post-grid-offset {
-    transform: translateY(180px);
+    transform: translateY(-14px);
   }
 </style>

@@ -41,11 +41,11 @@ export default function TableOfContents({
 
   return (
     <nav className={cn("sticky top-[5.5rem]", className)}>
-      <div className="rounded-md border border-zinc-800 bg-zinc-900/40 p-5">
-        <p className="mb-3 font-mono text-xs font-medium tracking-wider text-zinc-400 uppercase">
+      <div className="rounded-md border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
+        <p className="mb-3 font-mono text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
           On this page
         </p>
-        <div className="mb-3 h-px bg-zinc-800" />
+        <div className="mb-3 h-px bg-zinc-200 dark:bg-zinc-800" />
         <ul className="space-y-2">
           {items.map((item) => {
             const isActive = activeId === item.slug
@@ -57,8 +57,8 @@ export default function TableOfContents({
                     "block text-sm leading-snug transition-colors duration-150",
                     item.depth === 3 && "pl-4",
                     isActive
-                      ? "text-white underline underline-offset-4"
-                      : "text-zinc-400 hover:text-white hover:underline hover:underline-offset-4",
+                      ? "text-zinc-900 underline underline-offset-4 dark:text-white"
+                      : "text-zinc-600 hover:text-zinc-900 hover:underline hover:underline-offset-4 dark:text-zinc-400 dark:hover:text-white",
                   )}
                 >
                   {item.text}

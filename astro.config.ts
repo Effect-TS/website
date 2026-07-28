@@ -88,6 +88,8 @@ export default defineConfig({
     expressiveCode({
       plugins: [pluginCollapsibleSections(), pluginLineNumbers(), pluginOpenInPlayground()],
       themes: ["github-light", "github-dark"],
+      useDarkModeMediaQuery: false,
+      themeCssSelector: (theme) => `[data-theme='${theme.type}']`,
     }),
     react(),
     mdx(),
