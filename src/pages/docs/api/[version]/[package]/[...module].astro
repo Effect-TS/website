@@ -393,6 +393,10 @@ function sidebarModuleName(modulePath: string, group: string): string {
     requestAnimationFrame(() => {
       const sidebarBounds = moduleSidebar.getBoundingClientRect()
       const linkBounds = currentModuleLink.getBoundingClientRect()
+      const isVisible =
+        linkBounds.top >= sidebarBounds.top && linkBounds.bottom <= sidebarBounds.bottom
+      if (isVisible) return
+
       moduleSidebar.scrollTop +=
         linkBounds.top - sidebarBounds.top - (moduleSidebar.clientHeight - linkBounds.height) / 2
     })
