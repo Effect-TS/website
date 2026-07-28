@@ -30,6 +30,7 @@ const ignoredDirectoryNames = new Set([".git", "build", "coverage", "dist", "doc
 const excludedModuleExports = new Map([
   ["@effect/ai-anthropic", new Set(["./Generated"])],
   ["@effect/ai-openai", new Set(["./Generated"])],
+  ["@effect/ai-openrouter", new Set(["./Generated"])],
   [
     "effect",
     new Set([
