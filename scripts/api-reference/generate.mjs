@@ -26,6 +26,22 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const websiteDirectory = resolve(scriptDirectory, "../..")
 const outputMarker = ".effect-api-reference"
 const ignoredDirectoryNames = new Set([".git", "build", "coverage", "dist", "docs", "node_modules"])
+// These modules exceeded one second in the PR 1408 Astro preview build.
+const excludedModuleExports = new Map([
+  ["@effect/ai-anthropic", new Set(["./Generated"])],
+  ["@effect/ai-openai", new Set(["./Generated"])],
+  [
+    "effect",
+    new Set([
+      "./Channel",
+      "./Effect",
+      "./Match",
+      "./Schema",
+      "./Stream",
+      "./unstable/httpapi/HttpApiEndpoint",
+    ]),
+  ],
+])
 const argumentKeys = new Map([
   ["--repo", "repository"],
   ["--out", "output"],
@@ -66,20 +82,26 @@ const packageManifests = []
 
 for (const packageInfo of packages) {
   const discoveredModules = discoverModules(packageInfo.directory, packageInfo.manifest.exports)
-  if (discoveredModules.length === 0) {
+  const excludedExports = excludedModuleExports.get(packageInfo.manifest.name) ?? new Set()
+  const slowModules = discoveredModules.filter(({ exportPath }) => excludedExports.has(exportPath))
+  const internalModules = discoveredModules.filter(isInternalModule)
+  const includedModules = discoveredModules
+    .filter(({ exportPath }) => !excludedExports.has(exportPath))
+    .filter((module) => !isInternalModule(module))
+  if (includedModules.length === 0) {
     continue
   }
-  if (discoveredModules.some(({ outputPath }) => outputPath === "manifest")) {
+  if (includedModules.some(({ outputPath }) => outputPath === "manifest")) {
     throw new Error(
       `${packageInfo.manifest.name} exports a module which would overwrite its generated manifest`,
     )
   }
 
-  const barrels = discoveredModules.filter(isBarrelModule)
-  const modules = discoveredModules.filter((module) => !isBarrelModule(module))
+  const barrels = includedModules.filter(isBarrelModule)
+  const modules = includedModules.filter((module) => !isBarrelModule(module))
 
   console.log(
-    `Generating ${packageInfo.manifest.name} (${modules.length} modules, ${barrels.length} barrels excluded)`,
+    `Generating ${packageInfo.manifest.name} (${modules.length} modules, ${barrels.length} barrels excluded, ${internalModules.length} internal modules excluded, ${slowModules.length} slow modules excluded)`,
   )
   const generatedModules =
     modules.length === 0
@@ -383,6 +405,10 @@ function isBarrelModule(module) {
         TypeScript.isExportDeclaration(statement) && statement.moduleSpecifier !== undefined,
     )
   )
+}
+
+function isInternalModule(module) {
+  return module.exportPath.replace(/^\.\//, "").split("/").includes("internal")
 }
 
 function nearestBarrel(exportPath, barrels) {

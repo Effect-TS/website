@@ -163,6 +163,7 @@ The generated `.data/api-reference` directory is ignored. The content loader ret
 - [x] Generate one complete TypeDoc JSON document per package module.
 - [x] Preserve nested module paths such as `unstable/http/HttpClient`.
 - [x] Exclude barrel reflections while preserving barrel relationships in package manifests.
+- [x] Exclude internal modules and modules that exceed the static build-time budget.
 - [x] Add channel metadata and TypeDoc format metadata to dataset manifests.
 - [x] Add SHA-256 digests to package module manifests.
 - [x] Verify deterministic output for a repeated local generation.
