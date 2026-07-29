@@ -1,5 +1,5 @@
 ---
-import { Link as LinkIcon } from "@lucide/astro"
+import { ExternalLink, Link as LinkIcon } from "@lucide/astro"
 
 import type { ApiDeclaration } from "./ApiReference"
 import ApiCodeExample from "./ApiCodeExample.astro"
@@ -20,11 +20,8 @@ const signatureHtml =
       })
 ---
 
-<section
-  id={declaration.anchor}
-  class="scroll-mt-24 border-t border-zinc-200 py-6 first:border-t-0 dark:border-zinc-800"
->
-  <div class="mb-4">
+<section id={declaration.anchor} class="scroll-mt-12 py-8">
+  <div class="mb-2">
     <h3 class="m-0! flex items-center gap-3 font-mono text-xl! font-semibold tracking-tight">
       <a
         href={`#${declaration.anchor}`}
@@ -36,11 +33,13 @@ const signatureHtml =
         />
         {declaration.name}
       </a>
-      <span
-        class="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] leading-none font-medium tracking-wider text-zinc-500 uppercase dark:border-zinc-700"
-      >
-        {declaration.kind}
-      </span>
+      {
+        declaration.typeKind && (
+          <span class="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] leading-none font-medium tracking-wider text-zinc-500 uppercase dark:border-zinc-700">
+            {declaration.typeKind}
+          </span>
+        )
+      }
     </h3>
   </div>
 
@@ -48,16 +47,36 @@ const signatureHtml =
 
   {
     signatureHtml && (
-      <div
-        class="api-signature not-prose mt-6 overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100/60 dark:border-zinc-800 dark:bg-zinc-900/60"
-        set:html={signatureHtml}
-      />
+      <div class="not-prose mt-3">
+        <h4 class="mb-1.5 text-base font-semibold text-zinc-600 dark:text-white">Signature</h4>
+        <div
+          class="api-signature overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100/60 dark:border-zinc-800 dark:bg-zinc-900/60"
+          set:html={signatureHtml}
+        />
+      </div>
+    )
+  }
+
+  {
+    declaration.examples.length === 0 && (declaration.sourceUrl || declaration.since) && (
+      <footer class="not-prose mt-3 flex items-center gap-5 font-mono text-xs text-zinc-500">
+        {declaration.since && <span>Added in v{declaration.since}</span>}
+        {declaration.sourceUrl && (
+          <a
+            href={declaration.sourceUrl}
+            target="_blank"
+            class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:text-zinc-900 focus-visible:text-zinc-900 dark:hover:text-zinc-200 dark:focus-visible:text-zinc-200"
+          >
+            Source <ExternalLink class="size-3" aria-hidden="true" />
+          </a>
+        )}
+      </footer>
     )
   }
 
   {
     declaration.examples.length > 0 && (
-      <div class="not-prose mt-7 space-y-8">
+      <div class="not-prose mt-4 space-y-6">
         {declaration.examples.map((example) => (
           <ApiCodeExample example={example} />
         ))}
@@ -68,21 +87,39 @@ const signatureHtml =
 
 <style>
   .api-comment :global(p) {
-    margin-block: 0.9rem;
+    margin-block: 0.5rem;
     color: var(--color-zinc-700);
-    line-height: 1.75;
+    font-size: 0.9375rem;
+    line-height: 1.55;
   }
 
   .api-comment :global(h4) {
-    margin-block: 1.4rem 0.5rem;
+    margin-block: 0.85rem 0.35rem;
+    color: var(--color-zinc-600);
     font-size: 1rem;
     font-weight: 650;
   }
 
   .api-comment :global(ul) {
-    margin-block: 0.75rem;
+    margin-block: 0.35rem;
     padding-left: 1.4rem;
     list-style: disc;
+  }
+
+  .api-comment :global(a) {
+    color: var(--color-violet-600);
+    text-decoration: none;
+    transition: color 150ms;
+  }
+
+  .api-comment :global(a:hover) {
+    color: var(--color-violet-700);
+  }
+
+  .api-comment :global(a:focus-visible) {
+    border-radius: 0.2rem;
+    outline: 2px solid var(--color-violet-500);
+    outline-offset: 2px;
   }
 
   .api-comment :global(code) {
@@ -94,6 +131,18 @@ const signatureHtml =
 
   :global(.dark) .api-comment :global(p) {
     color: var(--color-zinc-300);
+  }
+
+  :global(.dark .api-comment h4) {
+    color: var(--color-white);
+  }
+
+  :global(.dark .api-comment a) {
+    color: var(--color-violet-400);
+  }
+
+  :global(.dark .api-comment a:hover) {
+    color: var(--color-violet-300);
   }
 
   :global(.dark) .api-comment :global(code) {

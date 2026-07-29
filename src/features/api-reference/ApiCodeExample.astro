@@ -1,4 +1,6 @@
 ---
+import { ExternalLink } from "@lucide/astro"
+
 import type { ApiCodeExample } from "./ApiReference"
 import { docsShikiThemes, getHighlighter } from "@/features/visual-effect/runtime/shiki-singleton"
 
@@ -15,11 +17,9 @@ const highlighted = highlighter.codeToHtml(example.source, {
 ---
 
 <article>
-  <div class="mb-4 flex items-baseline justify-between gap-4">
-    <h3 class="font-mono text-sm font-semibold tracking-[0.16em] text-zinc-500 uppercase">
-      Example
-    </h3>
-    {example.title && <p class="text-right text-sm text-zinc-500">{example.title}</p>}
+  <div class="mb-2 flex items-baseline gap-1.5">
+    <h3 class="text-base font-semibold text-zinc-600 dark:text-white">Example</h3>
+    {example.title && <p class="text-sm text-zinc-500">({example.title})</p>}
   </div>
 
   <div
@@ -27,16 +27,16 @@ const highlighted = highlighter.codeToHtml(example.source, {
     set:html={highlighted}
   />
 
-  <footer class="mt-4 flex items-center gap-5 font-mono text-xs text-zinc-500">
+  <footer class="mt-3 flex items-center gap-5 font-mono text-xs text-zinc-500">
     {example.since && <span>Added in v{example.since}</span>}
     {
       example.sourceUrl && (
         <a
-          class="transition-colors hover:text-zinc-900 dark:hover:text-zinc-200"
           href={example.sourceUrl}
           target="_blank"
+          class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:text-zinc-900 focus-visible:text-zinc-900 dark:hover:text-zinc-200 dark:focus-visible:text-zinc-200"
         >
-          Source
+          Source <ExternalLink class="size-3" aria-hidden="true" />
         </a>
       )
     }

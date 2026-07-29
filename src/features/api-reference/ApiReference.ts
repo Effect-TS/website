@@ -22,11 +22,11 @@ export interface ApiDeclaration {
   commentHtml: string | undefined
   examples: ReadonlyArray<ApiCodeExample>
   id: number
-  kind: string
   name: string
   signature: string | undefined
   since: string | undefined
   sourceUrl: string | undefined
+  typeKind: string | undefined
 }
 
 export interface ApiDeclarationGroup {
@@ -75,13 +75,17 @@ function moduleView(reflection: TypeDocProjectReflection): ApiModule {
       (anchorCounts.get(declaration.anchor)?.length ?? 0) > 1
         ? `${declaration.anchor}-${reflectionKindName(kind)}`
         : declaration.anchor,
-    kind: titleCase(reflectionKindName(kind)),
+    typeKind: typeKindName(kind),
   }))
   const groups = Map.groupBy(declarations, (declaration) => declaration.category)
   const sortedGroups = [...groups]
     .map(([name, groupedDeclarations]) => ({
-      declarations: groupedDeclarations.toSorted((left, right) =>
-        left.name.localeCompare(right.name),
+      declarations: groupedDeclarations.toSorted(
+        (left, right) =>
+          left.name.localeCompare(right.name) ||
+          Number(left.typeKind !== undefined) - Number(right.typeKind !== undefined) ||
+          (left.typeKind ?? "").localeCompare(right.typeKind ?? "") ||
+          left.id - right.id,
       ),
       name: titleCase(name),
       slug: `category-${declarationAnchor(name.toLowerCase())}`,
@@ -134,6 +138,17 @@ function reflectionKindName(kind: number): string {
       return "type"
     default:
       return `kind-${kind}`
+  }
+}
+
+function typeKindName(kind: number): string | undefined {
+  switch (kind) {
+    case ReflectionKind.Interface:
+      return "interface"
+    case ReflectionKind.TypeAlias:
+      return "type"
+    default:
+      return undefined
   }
 }
 
