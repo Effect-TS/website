@@ -11,17 +11,20 @@ interface Props {
   readonly title?: string | undefined
   readonly description?: string | undefined
   readonly activeSlug?: NavigationActiveSlug | undefined
+  readonly themeable?: boolean | undefined
 }
 
-const { title, description, activeSlug } = Astro.props
+const { title, description, activeSlug, themeable = false } = Astro.props
 ---
 
 <BaseLayout
   {...title ? { title } : undefined}
   {...description ? { description } : undefined}
-  forceDark
+  {...!themeable ? { forceDark: true } : undefined}
 >
-  <div class="relative min-h-screen bg-zinc-950 text-white antialiased">
+  <div
+    class="relative min-h-screen bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-white"
+  >
     <DitheredOverlay />
     <GridRails />
 
