@@ -1,6 +1,7 @@
 import * as Brand from "effect/Brand"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
+import * as Equal from "effect/Equal"
 import { pipe } from "effect/Function"
 import * as Hash from "effect/Hash"
 import * as Iterable from "effect/Iterable"
@@ -256,8 +257,48 @@ export class Workspace extends Schema.Class<Workspace>("Workspace")({
   removeShell(shell: WorkspaceShell) {
     return this._clone({ shells: this.shells.filter((s) => s !== shell) })
   }
+  /**
+   * Whether this workspace is unchanged from `baseline`, ignoring fields
+   * that legitimately differ for reasons other than a user edit:
+   * - `prepare`/`snapshots`: a live snapshot is always taken via
+   *   `withPrepare("pnpm install").withNoSnapshot` (see
+   *   `WorkspaceCompression.snapshot`), so both sides are normalized the
+   *   same way before comparing.
+   * - `package.json`: `pnpm install -E` rewrites it in place, resolving
+   *   `"latest"` to whatever version actually got installed, so a live
+   *   snapshot's `package.json` would never match a raw baseline's (e.g.
+   *   `defaultWorkspace`'s, which still says `"latest"`) even with zero
+   *   user edits.
+   */
+  isUnchangedFrom(baseline: Workspace): boolean {
+    const normalize = (workspace: Workspace) =>
+      workspace
+        .withPrepare("pnpm install")
+        .withNoSnapshot.filterMap((item) =>
+          item.name === "package.json" ? Option.none() : Option.some(item),
+        )
+    return Equal.equals(normalize(this), normalize(baseline))
+  }
   [Hash.symbol]() {
     return Hash.string(this.name)
+  }
+  /**
+   * Compares only the schema-declared fields. Without this override, `Equal`
+   * falls back to reflecting over the prototype and reads every getter as if
+   * it were a field — including `withNoSnapshot`, which constructs a new
+   * `Workspace` on access, recursing into comparing *that* instance's own
+   * `withNoSnapshot` and so on forever (stack overflow on any comparison).
+   */
+  [Equal.symbol](that: unknown): boolean {
+    return (
+      that instanceof Workspace &&
+      this.name === that.name &&
+      this.initialFilePath === that.initialFilePath &&
+      this.prepare === that.prepare &&
+      Equal.equals(this.tree, that.tree) &&
+      Equal.equals(this.shells, that.shells) &&
+      Equal.equals(this.snapshots, that.snapshots)
+    )
   }
 }
 

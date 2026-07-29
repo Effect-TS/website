@@ -25,26 +25,6 @@ const codeAtom = Atom.searchParam("code", {
   schema: Schema.StringFromBase64Url.pipe(Schema.check(Schema.isNonEmpty())),
 })
 
-/**
- * Whether `snapshot` still looks like an untouched `baseline` (same file
- * count, and `src/main.ts` unedited). Used to avoid persisting an import
- * (default workspace, or whatever the workspace was imported as) to the
- * autosave before the user has actually changed anything.
- */
-function isUnchangedFrom(snapshot: Workspace, baseline: Workspace): boolean {
-  if (snapshot.filePaths.size !== baseline.filePaths.size) {
-    return false
-  }
-
-  const baselineMain = baseline.findFile("src/main.ts")
-  const snapshotMain = snapshot.findFile("src/main.ts")
-  if (Option.isNone(baselineMain) || Option.isNone(snapshotMain)) {
-    return false
-  }
-
-  return snapshotMain.value[0].initialContent === baselineMain.value[0].initialContent
-}
-
 export const autoSaveAtom = Atom.family((handle: AtomWorkspaceHandle) =>
   autoSaveRuntime.atom(
     Effect.fnUntraced(function* (get) {
@@ -54,8 +34,8 @@ export const autoSaveAtom = Atom.family((handle: AtomWorkspaceHandle) =>
       yield* compression.snapshot(workspace, container.readFileString).pipe(
         Effect.map((snapshot) => {
           const unchanged =
-            isUnchangedFrom(snapshot, defaultWorkspace) ||
-            isUnchangedFrom(snapshot, handle.initialWorkspace)
+            snapshot.isUnchangedFrom(defaultWorkspace) ||
+            snapshot.isUnchangedFrom(handle.initialWorkspace)
 
           if (unchanged) {
             return
