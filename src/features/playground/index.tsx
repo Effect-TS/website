@@ -1,10 +1,11 @@
+import type * as Cause from "effect/Cause"
 import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import { useCallback, Fragment, Suspense } from "react"
 import { useDefaultLayout } from "react-resizable-panels"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../../components/ui/resizable"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
-import { importAtom } from "./atoms/import"
+import { importAtom, WORKSPACE_AUTOSAVE_KEY } from "./atoms/import"
 import { FileEditor } from "./components/file-editor"
 import { FileExplorer } from "./components/file-explorer"
 import { PlaygroundLoader } from "./components/loader"
@@ -25,7 +26,35 @@ export function CodeEditor() {
         </Suspense>
       </>
     ))
+    .onFailure((cause) => <ImportError cause={cause} />)
     .render()
+}
+
+/**
+ * Safety net for an unexpected defect while resolving the initial workspace
+ * (share hash, `?code` parameter, autosave, or default) — normal operation
+ * always falls through to the default workspace instead of failing, so this
+ * should only render on a genuine bug.
+ */
+function ImportError({ cause }: { cause: Cause.Cause<never> }) {
+  console.error("Playground: failed to load workspace", cause)
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-8 text-center">
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        Something went wrong loading the playground.
+      </p>
+      <button
+        type="button"
+        className="cursor-pointer rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+        onClick={() => {
+          localStorage.removeItem(WORKSPACE_AUTOSAVE_KEY)
+          window.location.href = window.location.pathname
+        }}
+      >
+        Reset playground
+      </button>
+    </div>
+  )
 }
 
 function CodeEditorPanels() {
