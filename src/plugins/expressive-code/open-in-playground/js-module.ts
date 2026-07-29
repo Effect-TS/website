@@ -11,7 +11,7 @@ function clickHandler(event: Event) {
   const dataset = copyButton.dataset as { code: string }
   const code = dataset.code.replace(/\u007f/g, "\n")
   const base64 = Encoding.encodeBase64Url(code)
-  window.open(`${window.location.origin}/play/?code=${base64}`, "_blank")
+  window.open(`${window.location.origin}/play?code=${base64}`, "_blank")
 }
 
 /**
