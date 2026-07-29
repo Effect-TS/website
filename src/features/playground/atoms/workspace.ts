@@ -204,6 +204,14 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
         workspace: handle.workspace,
         run: handle.run,
         workspaceAtom: handle.workspace,
+        /**
+         * The workspace as it was originally imported (from a share hash, a
+         * `?code` parameter, the autosave, or the default), before any user
+         * edits. Used to avoid persisting an untouched import to the
+         * autosave, which would otherwise make it indistinguishable from a
+         * workspace the user actually worked on.
+         */
+        initialWorkspace: workspace,
         readFile: (path: string) => container.readFile(path),
         writeFile: (path: string, content: string, language: string) =>
           container.writeFile(path, content, language),

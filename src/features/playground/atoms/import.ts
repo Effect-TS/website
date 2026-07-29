@@ -25,6 +25,26 @@ const codeAtom = Atom.searchParam("code", {
   schema: Schema.StringFromBase64Url.pipe(Schema.check(Schema.isNonEmpty())),
 })
 
+/**
+ * Whether `snapshot` still looks like an untouched `baseline` (same file
+ * count, and `src/main.ts` unedited). Used to avoid persisting an import
+ * (default workspace, or whatever the workspace was imported as) to the
+ * autosave before the user has actually changed anything.
+ */
+function isUnchangedFrom(snapshot: Workspace, baseline: Workspace): boolean {
+  if (snapshot.filePaths.size !== baseline.filePaths.size) {
+    return false
+  }
+
+  const baselineMain = baseline.findFile("src/main.ts")
+  const snapshotMain = snapshot.findFile("src/main.ts")
+  if (Option.isNone(baselineMain) || Option.isNone(snapshotMain)) {
+    return false
+  }
+
+  return snapshotMain.value[0].initialContent === baselineMain.value[0].initialContent
+}
+
 export const autoSaveAtom = Atom.family((handle: AtomWorkspaceHandle) =>
   autoSaveRuntime.atom(
     Effect.fnUntraced(function* (get) {
@@ -33,13 +53,14 @@ export const autoSaveAtom = Atom.family((handle: AtomWorkspaceHandle) =>
       const compression = yield* WorkspaceCompression
       yield* compression.snapshot(workspace, container.readFileString).pipe(
         Effect.map((snapshot) => {
-          const similar =
-            snapshot.filePaths.size === defaultWorkspace.filePaths.size &&
-            snapshot.findFile("src/main.ts").pipe(
-              Option.filter(([file]) => file.initialContent === main.initialContent),
-              Option.isSome,
-            )
-          if (similar) return
+          const unchanged =
+            isUnchangedFrom(snapshot, defaultWorkspace) ||
+            isUnchangedFrom(snapshot, handle.initialWorkspace)
+
+          if (unchanged) {
+            return
+          }
+
           get.set(autoSaveWorkspaceAtom, Option.some(snapshot))
         }),
         Effect.andThen(Effect.sleep("2 seconds")),
@@ -60,39 +81,75 @@ export const resetAtom = Atom.fnSync((handle: AtomWorkspaceHandle, get) => {
   get.set(handle.resetContent, undefined)
 })
 
+export const WORKSPACE_AUTOSAVE_KEY = "workspace-autosave"
+
 const autoSaveWorkspaceAtom = Atom.kvs({
   runtime: Atom.runtime(BrowserKeyValueStore.layerLocalStorage),
-  key: "workspace-autosave",
+  key: WORKSPACE_AUTOSAVE_KEY,
   schema: Schema.Option(Workspace),
   defaultValue: Option.none,
 })
 
-export const importAtom = runtime.atom(
-  Effect.fnUntraced(
-    function* (get) {
-      const hash = get(hashAtom)
-      if (Option.isSome(hash)) {
-        const client = yield* ShortenClient
-        const compressed = yield* client
-          .retrieve({ hash: hash.value })
-          .pipe(Effect.flatMap(Effect.fromOption))
+/**
+ * Reads a workspace from the URL's `#hash` (a shared playground). Failing to
+ * retrieve or decompress the shared workspace is logged and treated as "not
+ * present", so import falls through to the next source (`?code`, then the
+ * autosave) instead of masking the `?code` parameter.
+ */
+const fromHash = Effect.fnUntraced(
+  function* (get: Atom.FnContext) {
+    const hash = get(hashAtom)
+    if (Option.isNone(hash)) {
+      return Option.none<Workspace>()
+    }
 
-        const compression = yield* WorkspaceCompression
-
-        return yield* compression.decompress(compressed)
-      }
-
-      const code = get(codeAtom)
-      if (Option.isSome(code)) {
-        const node = makeFile("main.ts", code.value, false)
-        return defaultWorkspace.replaceNode(main, node)
-      }
-
-      return yield* Effect.fail("No playground source")
-    },
-    (effect, get) =>
-      Effect.catch(effect, () =>
-        Effect.succeed(Option.getOrElse(get.once(autoSaveWorkspaceAtom), makeDefaultWorkspace)),
-      ),
+    const client = yield* ShortenClient
+    const compressed = yield* client
+      .retrieve({ hash: hash.value })
+      .pipe(Effect.flatMap(Effect.fromOption))
+    const compression = yield* WorkspaceCompression
+    return Option.some(yield* compression.decompress(compressed))
+  },
+  Effect.catch((error) =>
+    Effect.logWarning(
+      "Playground: could not load the shared workspace from the URL hash; trying the next source",
+      error,
+    ).pipe(Effect.as(Option.none<Workspace>())),
   ),
+)
+
+/** Reads a workspace from the `?code` search parameter (a single-file link). */
+function fromCode(get: Atom.FnContext): Option.Option<Workspace> {
+  const code = get(codeAtom)
+  if (Option.isNone(code)) {
+    return Option.none()
+  }
+
+  const node = makeFile("main.ts", code.value, false)
+  return Option.some(defaultWorkspace.replaceNode(main, node))
+}
+
+export const importAtom = runtime.atom(
+  Effect.fnUntraced(function* (get) {
+    const hash = yield* fromHash(get)
+    if (Option.isSome(hash)) {
+      yield* Effect.logInfo("Playground: loaded workspace from the URL hash")
+      return hash.value
+    }
+
+    const code = fromCode(get)
+    if (Option.isSome(code)) {
+      yield* Effect.logInfo("Playground: loaded workspace from the ?code parameter")
+      return code.value
+    }
+
+    const autoSaved = get.once(autoSaveWorkspaceAtom)
+    if (Option.isSome(autoSaved)) {
+      yield* Effect.logInfo("Playground: loaded workspace from the localStorage autosave")
+      return autoSaved.value
+    }
+
+    yield* Effect.logInfo("Playground: no saved workspace found, loading the default workspace")
+    return makeDefaultWorkspace()
+  }),
 )
