@@ -202,7 +202,7 @@ export default function BlogControls({
                             : "text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
                         }`}
                       >
-                        <span>{category.id === "all" ? "Remove filter" : category.name}</span>
+                        <span>{category.id === "all" ? "Reset category" : category.name}</span>
                         <span
                           className={`tabular-nums ${isActive ? "text-zinc-900 dark:text-white" : "text-zinc-400 dark:text-zinc-500"}`}
                         >
