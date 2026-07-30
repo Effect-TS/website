@@ -154,23 +154,33 @@ export class Search extends Context.Service<Search>()("app/Search", {
     }
 
     const search = Effect.fn("Search.search")(function* (query: string) {
-      const searchParams: Mixedbread.Stores.StoreSearchParams = {
-        query,
-        top_k: 20,
-        search_options: { rerank: true, return_metadata: true },
-        store_identifiers: [Redacted.value(storeId)],
-      }
-
-      const rawResponse = yield* Effect.tryPromise({
-        try: (signal) => mxbai.stores.search(searchParams, { signal }),
-        catch: (cause) => new SearchError({ cause }),
-      })
-
-      const decoded = yield* decodeSearchResponse(rawResponse).pipe(
-        Effect.catchTag("SchemaError", (cause) => new SearchError({ cause })),
+      const responses = yield* Effect.forEach(
+        ["docs", "api-reference"] as const,
+        (contentSource) =>
+          Effect.tryPromise({
+            try: (signal) =>
+              mxbai.stores.search(
+                {
+                  query,
+                  top_k: 10,
+                  filters: { key: "content_source", operator: "eq", value: contentSource },
+                  search_options: { rerank: true, return_metadata: true },
+                  store_identifiers: [Redacted.value(storeId)],
+                },
+                { signal },
+              ),
+            catch: (cause) => new SearchError({ cause }),
+          }).pipe(
+            Effect.flatMap(decodeSearchResponse),
+            Effect.catchTag("SchemaError", (cause) => new SearchError({ cause })),
+          ),
+        { concurrency: "unbounded" },
       )
 
-      return groupSearchResults(decoded)
+      return groupSearchResults({
+        object: "list",
+        data: responses.flatMap((response) => response.data).toSorted((a, b) => b.score - a.score),
+      })
     })
 
     return {
