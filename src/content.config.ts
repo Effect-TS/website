@@ -41,7 +41,6 @@ const blogTags = defineCollection({
   loader: file("./src/content/blog/tags.json"),
   schema: z.object({
     name: z.string().min(1),
-    color: z.string().min(1),
   }),
 })
 
