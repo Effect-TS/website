@@ -72,8 +72,6 @@ type StoreFileMetadata = typeof StoreFileMetadata.Type
 const MAX_MIXEDBREAD_TEXT_LENGTH = 65_536
 const MAX_API_CHUNKS_PER_FILE = 250
 const UPLOAD_CONCURRENCY = 100
-const POLL_CONCURRENCY = 25
-const FILE_OPERATION_TIMEOUT_MS = 10 * 60 * 1000
 
 interface SyncOptions {
   readonly pullRequest: number
@@ -419,7 +417,7 @@ class Mixedbread extends Context.Service<
         { concurrency: UPLOAD_CONCURRENCY },
       )
 
-      const uploadedFiles = yield* Effect.forEach(
+      yield* Effect.forEach(
         changedFiles,
         Effect.fnUntraced(function* ({ externalId, fileHash, metadata, upload }) {
           const now = yield* DateTime.now
@@ -447,38 +445,15 @@ class Mixedbread extends Context.Service<
               }),
             catch: (cause) => new FailedToIndexError({ externalId, cause }),
           })
-          yield* Effect.log(`Uploaded: ${externalId}`)
-          return { externalId, storeFile }
-        }),
-        { concurrency: UPLOAD_CONCURRENCY },
-      )
-
-      yield* Effect.forEach(
-        uploadedFiles,
-        Effect.fnUntraced(function* ({ externalId, storeFile }) {
-          const result =
-            storeFile.status === "completed"
-              ? storeFile
-              : yield* Effect.tryPromise({
-                  try: () =>
-                    client.stores.files.poll({
-                      storeIdentifier: store.id,
-                      fileIdentifier: storeFile.id,
-                      pollIntervalMs: 2_000,
-                      pollTimeoutMs: FILE_OPERATION_TIMEOUT_MS,
-                    }),
-                  catch: (cause) => new FailedToIndexError({ externalId, cause }),
-                })
-          if (result.status !== "completed") {
+          if (storeFile.status === "failed" || storeFile.status === "cancelled") {
             return yield* new FailedToIndexError({
               externalId,
               cause: storeFile.last_error ?? storeFile.status,
             })
           }
-
           yield* Effect.log(`Uploaded: ${externalId}`)
         }),
-        { concurrency: POLL_CONCURRENCY },
+        { concurrency: UPLOAD_CONCURRENCY },
       )
 
       yield* Effect.tryPromise({

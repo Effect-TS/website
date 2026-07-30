@@ -69,7 +69,7 @@ export const ScoredTextInputChunk = Schema.Struct({
   file_id: Schema.String,
   store_id: Schema.String,
   chunk_index: Schema.Int,
-  mime_type: Schema.Literals(["text/markdown", "text/plain"]),
+  mime_type: Schema.String,
   generated_metadata: GeneratedMetadata,
 })
 
