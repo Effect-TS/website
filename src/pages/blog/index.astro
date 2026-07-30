@@ -43,13 +43,6 @@ if (import.meta.env.DEV && featuredCandidates.length > 1) {
 
 const featuredPost = featuredCandidates[0]
 
-const featuredTags = featuredPost
-  ? featuredPost.tags
-      .map((t: CollectionEntry<"blogTags">) => t.data.name)
-      .filter((name: string) => name !== "Release" && name !== "Effect")
-      .sort((a: string, b: string) => a.localeCompare(b))
-  : []
-
 function formatDate(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
@@ -65,7 +58,6 @@ const serializedTags: SerializedTag[] = tagCollection
   .map((tag) => ({
     id: tag.id,
     name: tag.data.name,
-    color: tag.data.color,
     count: tagCount(tag.id),
   }))
   .sort((a, b) => (a.id === "all" ? -1 : b.id === "all" ? 1 : b.count - a.count))
@@ -155,12 +147,9 @@ const serializedPosts: SerializedPost[] = allPosts.map((post) => ({
               <div class="relative grid grid-cols-1 gap-4 p-6 md:grid-cols-12 md:items-center md:gap-10 md:p-8">
                 <div class="min-w-0 md:col-span-7">
                   <div class="mb-3 flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center rounded-md border border-zinc-400 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-900 dark:text-white">
-                      Release
-                    </span>
-                    {featuredTags.map((tag: string) => (
+                    {featuredPost.tags.map((tag) => (
                       <span class="inline-flex items-center rounded-md border border-zinc-400 px-2 py-0.5 font-mono text-xs text-zinc-800 dark:text-zinc-200">
-                        {tag}
+                        {tag.data.name}
                       </span>
                     ))}
                   </div>
@@ -254,6 +243,6 @@ const serializedPosts: SerializedPost[] = allPosts.map((post) => ({
 
 <style>
   .blog-grid-offset {
-    transform: translateY(-14px);
+    transform: translateY(-1rem);
   }
 </style>
