@@ -9,7 +9,12 @@ import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
 import type { GuideMetadata, SearchResult } from "./domain"
-import { SearchError, StoreSearchResponse } from "./domain"
+import {
+  ApiReferenceGeneratedMetadata,
+  GuideGeneratedMetadata,
+  SearchError,
+  StoreSearchResponse,
+} from "./domain"
 
 export class Search extends Context.Service<Search>()("app/Search", {
   make: Effect.gen(function* () {
@@ -70,7 +75,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
         if (chunk.metadata.content_source === "api-reference") {
           const metadata = chunk.metadata
           const generated = chunk.generated_metadata
-          if (!("declaration_name" in generated)) return
+          if (!Schema.is(ApiReferenceGeneratedMetadata)(generated)) return
           const href = generated.module_href
           if (!grouped.has(href)) {
             grouped.set(href, {
@@ -100,7 +105,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
         }
 
         const generated = chunk.generated_metadata
-        if (!("title" in generated)) return
+        if (!Schema.is(GuideGeneratedMetadata)(generated)) return
         const title = generated.title
         const description = generated.description ?? ""
         const chunkHeadings = generated.chunk_headings

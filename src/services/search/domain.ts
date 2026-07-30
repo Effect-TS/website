@@ -52,8 +52,9 @@ export const ApiReferenceGeneratedMetadata = Schema.Struct({
 })
 
 export const GeneratedMetadata = Schema.Union([
-  GuideGeneratedMetadata,
   ApiReferenceGeneratedMetadata,
+  GuideGeneratedMetadata,
+  Schema.Record(Schema.String, Schema.Unknown),
 ])
 
 export type GeneratedMetadata = typeof GeneratedMetadata.Type
