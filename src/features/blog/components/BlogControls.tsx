@@ -1,81 +1,50 @@
+import { useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, FileSearch, Rss } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { PostCard, type SerializedPost, type SerializedTag } from "./PostCard"
+import { useCallback, useEffect, useRef } from "react"
+import { blogCategoryFromParam, SuggestedCategoryIds } from "../domain"
+import {
+  activeCategoryLabelAtom,
+  activeCategoryParamAtom,
+  categoriesAtom,
+  categoryMenuOpenAtom,
+  currentPageAtom,
+  pageWindowAtom,
+  paginatedPostsAtom,
+  scrollToBlogGrid,
+  selectCategoryAtom,
+  sortOrderAtom,
+  totalPagesAtom,
+} from "./BlogAtoms"
+import { PostCard } from "./PostCard"
 
-const POSTS_PER_PAGE = 12
+export default function BlogControls() {
+  const categories = useAtomValue(categoriesAtom)
+  const selectCategory = useAtomSet(selectCategoryAtom)
+  const activeCategoryParam = useAtomValue(activeCategoryParamAtom)
+  const activeCategoryLabel = useAtomValue(activeCategoryLabelAtom)
+  const [sortOrder, setSortOrder] = useAtom(sortOrderAtom)
+  const [currentPage, setCurrentPage] = useAtom(currentPageAtom)
+  const [categoryOpen, setCategoryOpen] = useAtom(categoryMenuOpenAtom)
+  const totalPages = useAtomValue(totalPagesAtom)
+  const paginatedPosts = useAtomValue(paginatedPostsAtom)
+  const pageItems = useAtomValue(pageWindowAtom)
 
-const NAVBAR_HEIGHT = 64
-
-type SortOrder = "newest" | "oldest"
-
-function readCategoryFromUrl(tags: SerializedTag[]): string {
-  if (typeof window === "undefined") return "all"
-  const param = new URLSearchParams(window.location.search).get("category")
-  if (param && tags.some((tag) => tag.id === param)) return param
-  return "all"
-}
-
-export default function BlogControls({
-  posts,
-  tags,
-  twieTagId,
-}: {
-  posts: SerializedPost[]
-  tags: SerializedTag[]
-  twieTagId?: string
-}) {
-  const [activeTagId, setActiveTagId] = useState<string>(() => readCategoryFromUrl(tags))
-  const [sortOrder, setSortOrder] = useState<SortOrder>("newest")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [categoryOpen, setCategoryOpen] = useState(false)
-
-  const gridRef = useRef<HTMLDivElement>(null)
   const categoryDropdownRef = useRef<HTMLDivElement>(null)
-
-  const activeTagName = useMemo(
-    () => tags.find((tag) => tag.id === activeTagId)?.name ?? "Category",
-    [tags, activeTagId],
-  )
-
-  const sortedTags = useMemo(
-    () =>
-      [...tags].sort((tagA, tagB) => {
-        if (tagA.id === "all") return -1
-        if (tagB.id === "all") return 1
-        return tagB.count - tagA.count
-      }),
-    [tags],
-  )
-
-  const filteredPosts = useMemo(() => {
-    let filteredByCategory = posts
-    if (activeTagId === twieTagId) {
-      filteredByCategory = posts.filter((post) => post.tags.some((tag) => tag.id === twieTagId))
-    } else if (activeTagId === "all") {
-      filteredByCategory = posts.filter((post) => !post.tags.some((tag) => tag.id === twieTagId))
-    } else {
-      filteredByCategory = posts.filter((post) => post.tags.some((tag) => tag.id === activeTagId))
-    }
-    return [...filteredByCategory].sort((postA, postB) => {
-      const comparison = postA.dateMs - postB.dateMs
-      return sortOrder === "newest" ? -comparison : comparison
-    })
-  }, [posts, activeTagId, sortOrder, twieTagId])
-
-  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / POSTS_PER_PAGE))
-  const safePage = Math.min(currentPage, totalPages)
-  const paginatedPosts = useMemo(
-    () => filteredPosts.slice((safePage - 1) * POSTS_PER_PAGE, safePage * POSTS_PER_PAGE),
-    [filteredPosts, safePage],
-  )
+  const validTagIds = categories.map((category) => category.id)
 
   useEffect(() => {
-    if (!categoryOpen) return
+    if (!categoryOpen) {
+      return
+    }
     const handleClickOutside = (event: MouseEvent) => {
-      if (!categoryDropdownRef.current?.contains(event.target as Node)) setCategoryOpen(false)
+      if (!categoryDropdownRef.current?.contains(event.target as Node)) {
+        setCategoryOpen(false)
+      }
     }
     const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setCategoryOpen(false)
+      if (event.key === "Escape") {
+        setCategoryOpen(false)
+      }
     }
     window.addEventListener("mousedown", handleClickOutside)
     window.addEventListener("keydown", handleEscapeKey)
@@ -83,82 +52,33 @@ export default function BlogControls({
       window.removeEventListener("mousedown", handleClickOutside)
       window.removeEventListener("keydown", handleEscapeKey)
     }
-  }, [categoryOpen])
-
-  const syncUrl = useCallback((tagId: string) => {
-    if (typeof window === "undefined") return
-    const url = new URL(window.location.href)
-    if (tagId === "all") url.searchParams.delete("category")
-    else url.searchParams.set("category", tagId)
-    window.history.pushState({ category: tagId }, "", url)
-  }, [])
-
-  const maybeScrollToGrid = useCallback(() => {
-    const element = gridRef.current
-    if (!element) return
-    const { top } = element.getBoundingClientRect()
-    if (top < NAVBAR_HEIGHT) {
-      window.scrollTo({ top: top + window.scrollY - NAVBAR_HEIGHT, behavior: "smooth" })
-    }
-  }, [])
+  }, [categoryOpen, setCategoryOpen])
 
   const handleTagChange = useCallback(
     (tagId: string) => {
-      setActiveTagId(tagId)
-      setCurrentPage(1)
-      syncUrl(tagId)
-      maybeScrollToGrid()
+      selectCategory(blogCategoryFromParam(tagId, validTagIds))
+      scrollToBlogGrid()
     },
-    [syncUrl, maybeScrollToGrid],
+    [selectCategory, validTagIds],
   )
 
   const clearFilters = useCallback(() => {
-    setActiveTagId("all")
-    setCurrentPage(1)
-    syncUrl("all")
-  }, [syncUrl])
+    selectCategory(blogCategoryFromParam(null, validTagIds))
+  }, [selectCategory, validTagIds])
 
   const goToPage = useCallback(
     (page: number) => {
       setCurrentPage(page)
-      maybeScrollToGrid()
+      scrollToBlogGrid()
     },
-    [maybeScrollToGrid],
+    [setCurrentPage],
   )
-
-  useEffect(() => {
-    const handlePopState = () => {
-      setActiveTagId(readCategoryFromUrl(tags))
-      setCurrentPage(1)
-    }
-    window.addEventListener("popstate", handlePopState)
-    return () => window.removeEventListener("popstate", handlePopState)
-  }, [tags])
-
-  const pageItems = useMemo<Array<number | "ellipsis">>(() => {
-    const items: Array<number | "ellipsis"> = []
-    if (totalPages <= 7) {
-      for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) items.push(pageNumber)
-    } else {
-      items.push(1)
-      if (safePage > 3) items.push("ellipsis")
-      const start = Math.max(2, safePage - 1)
-      const end = Math.min(totalPages - 1, safePage + 1)
-      for (let pageNumber = start; pageNumber <= end; pageNumber++) items.push(pageNumber)
-      if (safePage < totalPages - 2) items.push("ellipsis")
-      items.push(totalPages)
-    }
-    return items
-  }, [totalPages, safePage])
 
   return (
     <div className="min-w-0 pb-24">
-      <div
-        ref={gridRef}
-        className="mt-16 flex flex-wrap items-baseline justify-between gap-4 border-b border-zinc-300/80 pb-4 md:mt-20 dark:border-zinc-700/80"
-      >
+      <div className="mt-16 flex flex-wrap items-baseline justify-between gap-4 border-b border-zinc-300/80 pb-4 md:mt-20 dark:border-zinc-700/80">
         <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
-          {activeTagId === "all" ? "Other posts" : activeTagName}
+          {activeCategoryParam === "all" ? "Other posts" : activeCategoryLabel}
         </h2>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3 sm:gap-x-6">
           <div ref={categoryDropdownRef} className="relative">
@@ -170,7 +90,7 @@ export default function BlogControls({
               className="group inline-flex items-baseline gap-1.5 font-mono text-sm transition-colors"
             >
               <span className="text-zinc-800 group-hover:text-zinc-900 dark:text-zinc-200 dark:group-hover:text-white">
-                {activeTagId === "all" ? "Category" : activeTagName}
+                {activeCategoryParam === "all" ? "Category" : activeCategoryLabel}
               </span>
               <ChevronDown
                 aria-hidden="true"
@@ -184,8 +104,8 @@ export default function BlogControls({
                 role="listbox"
                 className="absolute right-0 z-20 mt-2 w-64 rounded-md border border-zinc-300 bg-white py-2 shadow-lg shadow-black/40 dark:border-zinc-700 dark:bg-zinc-950"
               >
-                {sortedTags.map((category) => {
-                  const isActive = activeTagId === category.id
+                {categories.map((category) => {
+                  const isActive = activeCategoryParam === category.id
                   return (
                     <li key={category.id}>
                       <button
@@ -267,8 +187,8 @@ export default function BlogControls({
               >
                 <button
                   type="button"
-                  disabled={safePage <= 1}
-                  onClick={() => goToPage(safePage - 1)}
+                  disabled={currentPage <= 1}
+                  onClick={() => goToPage(currentPage - 1)}
                   aria-label="Previous page"
                   className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-30 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:text-white"
                 >
@@ -288,19 +208,19 @@ export default function BlogControls({
                       key={item}
                       type="button"
                       onClick={() => goToPage(item)}
-                      aria-current={item === safePage ? "page" : undefined}
+                      aria-current={item === currentPage ? "page" : undefined}
                       className={`group/page relative flex h-8 min-w-8 items-center justify-center px-2 font-mono text-xs tabular-nums transition-colors ${
-                        item === safePage
+                        item === currentPage
                           ? "text-zinc-900 dark:text-white"
                           : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       }`}
                     >
-                      <span className={item === safePage ? "font-semibold" : ""}>
+                      <span className={item === currentPage ? "font-semibold" : ""}>
                         {String(item).padStart(2, "0")}
                       </span>
                       <span
                         className={`pointer-events-none absolute right-2 -bottom-0.5 left-2 h-px origin-left bg-zinc-900 transition-transform duration-300 ease-out dark:bg-white ${
-                          item === safePage
+                          item === currentPage
                             ? "scale-x-100"
                             : "scale-x-0 group-hover/page:scale-x-[0.2]"
                         }`}
@@ -311,8 +231,8 @@ export default function BlogControls({
 
                 <button
                   type="button"
-                  disabled={safePage >= totalPages}
-                  onClick={() => goToPage(safePage + 1)}
+                  disabled={currentPage >= totalPages}
+                  onClick={() => goToPage(currentPage + 1)}
                   aria-label="Next page"
                   className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-300 text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-30 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:text-white"
                 >
@@ -335,9 +255,11 @@ export default function BlogControls({
           </p>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-            {["release", "effect", "typescript"].map((suggestedId) => {
-              const suggested = tags.find((tag) => tag.id === suggestedId)
-              if (!suggested) return null
+            {SuggestedCategoryIds.map((suggestedId) => {
+              const suggested = categories.find((category) => category.id === suggestedId)
+              if (!suggested) {
+                return null
+              }
               return (
                 <button
                   key={suggested.id}

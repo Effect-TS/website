@@ -5,7 +5,9 @@ export default function CopyLinkButton() {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
-    if (typeof window === "undefined") return
+    if (typeof window === "undefined") {
+      return
+    }
     try {
       await navigator.clipboard.writeText(window.location.href)
       setCopied(true)

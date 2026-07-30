@@ -1,6 +1,7 @@
 import { file, glob } from "astro/loaders"
 import { z } from "astro/zod"
-import { defineCollection, reference } from "astro:content"
+import { defineCollection } from "astro:content"
+import { BlogAuthorEntry, BlogPostEntry, BlogTagEntry } from "./features/blog/collection"
 import { PodcastEpisodeEntry } from "./features/podcast/collection"
 
 const blog = defineCollection({
@@ -15,33 +16,17 @@ const blog = defineCollection({
       "*.mdx",
     ],
   }),
-  schema: ({ image }) =>
-    z.object({
-      title: z.string().min(1),
-      excerpt: z.string().min(1),
-      date: z.date(),
-      readingTime: z.string().min(1).optional(),
-      tags: z.array(reference("blogTags")),
-      authors: z.array(reference("blogAuthors")).min(1),
-      featured: z.boolean().optional().default(false),
-      featuredImage: image().optional(),
-    }),
+  schema: BlogPostEntry,
 })
 
 const blogAuthors = defineCollection({
   loader: file("./src/content/blog/authors.json"),
-  schema: z.object({
-    name: z.string().min(1),
-    title: z.string().min(1),
-    url: z.string().url(),
-  }),
+  schema: BlogAuthorEntry,
 })
 
 const blogTags = defineCollection({
   loader: file("./src/content/blog/tags.json"),
-  schema: z.object({
-    name: z.string().min(1),
-  }),
+  schema: BlogTagEntry,
 })
 
 const podcasts = defineCollection({

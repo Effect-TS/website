@@ -1,29 +1,14 @@
 import { ArrowRight } from "lucide-react"
+import { blogPostHref, type BlogPostSummary } from "../domain"
 import { OverflowChip, TagChip } from "./TagChip"
 
-export type SerializedTag = {
-  id: string
-  name: string
-  count: number
-}
-
-export type SerializedPost = {
-  id: string
-  title: string
-  excerpt: string
-  date: string
-  dateMs: number
-  href: string
-  tags: Array<{ id: string; name: string }>
-}
-
-export function PostCard({ post }: { post: SerializedPost }) {
+export function PostCard({ post }: { post: BlogPostSummary }) {
   const visibleTags = [...post.tags].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 2)
   const overflow = post.tags.length - 2
 
   return (
     <a
-      href={post.href}
+      href={blogPostHref(post.id)}
       className="group -mx-4 block border-t border-zinc-300/80 px-4 py-6 transition-colors first:border-t-0 hover:bg-zinc-100/60 dark:border-zinc-700/80 dark:hover:bg-[#141315]"
     >
       <div className="grid grid-cols-12 items-baseline gap-4">

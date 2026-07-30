@@ -14,12 +14,15 @@ export default function TableOfContents({
   const [activeId, setActiveId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (typeof window === "undefined") return
-    const elements = headings
-      .filter((h) => h.depth === 2 || h.depth === 3)
-      .map((h) => document.getElementById(h.slug))
+    if (typeof window === "undefined") {
+      return
+    }
+    const elements = items
+      .map((item) => document.getElementById(item.slug))
       .filter((el): el is HTMLElement => el !== null)
-    if (elements.length === 0) return
+    if (elements.length === 0) {
+      return
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -37,7 +40,9 @@ export default function TableOfContents({
     return () => observer.disconnect()
   }, [headings])
 
-  if (items.length === 0) return null
+  if (items.length === 0) {
+    return null
+  }
 
   return (
     <nav className={cn("sticky top-[5.5rem]", className)}>
