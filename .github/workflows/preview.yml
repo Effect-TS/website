@@ -1,21 +1,38 @@
 name: GitHub Actions Vercel Preview Deployment
 
 on:
-  push:
-    branches-ignore:
-      - main
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
   deploy:
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Install dependencies
         uses: ./.github/actions/setup
 
+      - name: Synchronize Mixedbread preview store
+        id: mixedbread
+        run: pnpm mixedbread:preview sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"
+        env:
+          MXBAI_PREVIEW_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
+
       - name: Pull Vercel Environment Information
-        run: pnpm exec vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
+        run: pnpm exec vercel pull --yes --environment=preview --git-branch="${{ github.head_ref }}" --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -30,7 +47,25 @@ jobs:
         run: node scripts/patch-vercel-trailing-slash.mjs
 
       - name: Deploy Project Artifacts to Vercel
-        run: pnpm exec vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
+        run: pnpm exec vercel deploy --prebuilt --env="MXBAI_VECTOR_STORE_ID=${{ steps.mixedbread.outputs.store_id }}" --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  cleanup:
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+
+      - name: Delete Mixedbread preview store
+        run: pnpm mixedbread:preview delete --pr "${{ github.event.pull_request.number }}"
+        env:
+          MXBAI_PREVIEW_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
