@@ -1,6 +1,9 @@
 import * as Effect from "effect/Effect"
+import * as Schema from "effect/Schema"
 import * as Atom from "effect/unstable/reactivity/Atom"
-import { SearchError, type SearchResult } from "@/services/search/domain"
+import { SearchError, SearchResult } from "@/services/search/domain"
+
+const decodeSearchResults = Schema.decodeUnknownEffect(Schema.Array(SearchResult))
 
 export const searchQueryAtom = Atom.make("")
 
@@ -27,10 +30,12 @@ export const searchResultsAtom = Atom.make((get) => {
     }
 
     const data = yield* Effect.tryPromise({
-      try: () => response.json() as Promise<ReadonlyArray<SearchResult>>,
+      try: () => response.json(),
       catch: (cause) => new SearchError({ cause }),
     })
 
-    return data
+    return yield* decodeSearchResults(data).pipe(
+      Effect.mapError((cause) => new SearchError({ cause })),
+    )
   })
 })

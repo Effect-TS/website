@@ -1,6 +1,6 @@
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as NodeServices from "@effect/platform-node/NodeServices"
-import MixedbreadClient from "@mixedbread/sdk"
+import MixedbreadClient, { toFile, type Uploadable } from "@mixedbread/sdk"
 import * as Config from "effect/Config"
 import * as Context from "effect/Context"
 import * as Crypto from "effect/Crypto"
@@ -22,6 +22,8 @@ import * as Command from "effect/unstable/cli/Command"
 import * as Flag from "effect/unstable/cli/Flag"
 import { Help } from "effect/unstable/cli/GlobalFlag"
 import * as NodeFs from "node:fs"
+import { ApiReference } from "../../src/features/api-reference/ApiReference.ts"
+import { loadApiReferenceDataset } from "../../src/features/api-reference/dataset.ts"
 
 type MixedbreadError = FailedToDeleteError | FailedToIndexError | InvalidStoreError | UnknownError
 
@@ -67,7 +69,7 @@ const StoreFileMetadata = Schema.Struct({
 })
 type StoreFileMetadata = typeof StoreFileMetadata.Type
 
-const FILE_OPERATION_CONCURRENCY = 100
+const MAX_MIXEDBREAD_TEXT_LENGTH = 65_536
 
 interface SyncOptions {
   readonly pullRequest: number
@@ -76,6 +78,13 @@ interface SyncOptions {
 
 interface DeleteOptions {
   readonly pullRequest: number
+}
+
+interface LocalFile {
+  readonly externalId: string
+  readonly fileHash: string
+  readonly metadata: Readonly<Record<string, string>>
+  readonly upload: () => Promise<Uploadable> | Uploadable
 }
 
 class Mixedbread extends Context.Service<
@@ -103,6 +112,9 @@ class Mixedbread extends Context.Service<
     const contentDir = yield* Config.string("CONTENT_DIRECTORY").pipe(
       Config.withDefault("src/content/docs"),
     )
+    const apiReferenceDir = yield* Config.string("API_REFERENCE_DIRECTORY").pipe(
+      Config.withDefault(".data/api-reference"),
+    )
     const version = yield* Config.number("PREVIEW_STORE_VERSION").pipe(Config.withDefault(1))
 
     const crypto = yield* Crypto.Crypto
@@ -122,16 +134,112 @@ class Mixedbread extends Context.Service<
       revision: options.revision,
     })
 
-    const toStoreFile = Effect.fn("MixedbreadClient.toStoreFile")(function* (filePath: string) {
+    const hash = Effect.fn("Mixedbread.hash")(function* (bytes: Uint8Array) {
+      const digest = yield* crypto
+        .digest("SHA-256", bytes)
+        .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
+      return Encoding.encodeHex(digest)
+    })
+
+    const toGuideFile = Effect.fn("Mixedbread.toGuideFile")(function* (filePath: string) {
       const bytes = yield* fs.readFile(filePath)
-      const digest = yield* crypto.digest("SHA-256", bytes)
-      const fileHash = Encoding.encodeHex(digest)
       const externalId = filePath.split(path.sep).join("/")
       return {
         externalId,
-        filePath,
-        fileHash,
+        fileHash: yield* hash(bytes),
+        metadata: {
+          content_source: "docs",
+          file_path: externalId,
+        },
+        upload: () => NodeFs.createReadStream(filePath),
+      } satisfies LocalFile
+    })
+
+    const apiReferenceFiles = Effect.fn("Mixedbread.apiReferenceFiles")(function* () {
+      const entries = yield* Effect.tryPromise({
+        try: () => loadApiReferenceDataset(apiReferenceDir),
+        catch: (cause) => new UnknownError({ cause }),
+      })
+      if (entries.length === 0) {
+        return yield* new UnknownError({
+          cause: new Error(`No API reference dataset found in ${apiReferenceDir}`),
+        })
       }
+
+      return yield* Effect.forEach(
+        entries,
+        Effect.fnUntraced(function* (entry) {
+          const reflection = yield* Effect.tryPromise({
+            try: () => ApiReference.loadReflection(entry.data, { baseDirectory: apiReferenceDir }),
+            catch: (cause) => new UnknownError({ cause }),
+          })
+          const apiModule = ApiReference.moduleView(reflection)
+          const moduleName = entry.data.modulePath.split("/").at(-1) ?? entry.data.modulePath
+          const moduleHref = `/docs/api/${entry.data.version}/${entry.data.packageSlug}/${entry.data.modulePath}`
+          const declarations = apiModule.groups.flatMap((group) => group.declarations)
+          if (
+            new Set(declarations.map((declaration) => declaration.anchor)).size !==
+            declarations.length
+          ) {
+            return yield* new UnknownError({
+              cause: new Error(`Duplicate API declaration anchors in ${entry.id}`),
+            })
+          }
+          const chunks = declarations.map((declaration, chunkIndex) => ({
+            type: "text",
+            text: declarationMarkdown({
+              declaration,
+              modulePath: entry.data.modulePath,
+              packageName: entry.data.packageName,
+              declarationHref: `${moduleHref}#${declaration.anchor}`,
+            }),
+            mime_type: "text/plain",
+            chunk_index: chunkIndex,
+            generated_metadata: {
+              type: "text",
+              declaration_anchor: declaration.anchor,
+              declaration_kind: declaration.kind,
+              declaration_name: declaration.name,
+              signature: (declaration.signature ?? "").slice(0, 8_000),
+            },
+          }))
+          const oversizedChunk = chunks.find(
+            (chunk) => chunk.text.length > MAX_MIXEDBREAD_TEXT_LENGTH,
+          )
+          if (oversizedChunk !== undefined) {
+            return yield* new UnknownError({
+              cause: new Error(
+                `API search chunk exceeds ${MAX_MIXEDBREAD_TEXT_LENGTH} characters in ${entry.id}`,
+              ),
+            })
+          }
+          const bytes = new TextEncoder().encode(JSON.stringify(chunks))
+          const externalId = [
+            "api-reference",
+            entry.data.version,
+            entry.data.packageSlug,
+            `${entry.data.modulePath}.mxjson`,
+          ].join("/")
+          return {
+            externalId,
+            fileHash: yield* hash(bytes),
+            metadata: {
+              api_version: entry.data.version,
+              content_source: "api-reference",
+              module_href: moduleHref,
+              module_name: moduleName,
+              module_path: entry.data.modulePath,
+              package_name: entry.data.packageName,
+              package_slug: entry.data.packageSlug,
+            },
+            upload: () =>
+              toFile(bytes, `${moduleName}.mxjson`, {
+                type: "application/vnd-mxbai.chunks-json",
+              }),
+          } satisfies LocalFile
+        }),
+        { concurrency: 10 },
+      )
     })
 
     const decodeStoreMetadata = Schema.decodeUnknownEffect(StoreMetadata)
@@ -217,10 +325,21 @@ class Mixedbread extends Context.Service<
 
       yield* validateStore(store, options.pullRequest)
 
-      const localFiles = yield* fs.glob(`${contentDir}/**/*.mdx`).pipe(
-        Effect.flatMap(Effect.forEach(toStoreFile, { concurrency: "unbounded" })),
+      const guideFiles = yield* fs.glob(`${contentDir}/**/*.mdx`).pipe(
+        Effect.flatMap(Effect.forEach(toGuideFile, { concurrency: "unbounded" })),
         Effect.mapError((cause) => new UnknownError({ cause })),
       )
+      const localFiles = [...guideFiles, ...(yield* apiReferenceFiles())]
+      const duplicateIds = Map.groupBy(localFiles, (file) => file.externalId)
+        .entries()
+        .filter(([, files]) => files.length > 1)
+        .map(([externalId]) => externalId)
+        .toArray()
+      if (duplicateIds.length > 0) {
+        return yield* new UnknownError({
+          cause: new Error(`Duplicate Mixedbread external IDs: ${duplicateIds.join(", ")}`),
+        })
+      }
 
       const storeFiles = yield* Stream.runCollect(listFiles(store.id))
       const storeFilesById = new Map(
@@ -261,22 +380,21 @@ class Mixedbread extends Context.Service<
 
       yield* Effect.forEach(
         changedFiles,
-        Effect.fnUntraced(function* ({ externalId, fileHash, filePath }) {
+        Effect.fnUntraced(function* ({ externalId, fileHash, metadata, upload }) {
           const now = yield* DateTime.now
 
-          const storeFile = yield* Effect.tryPromise({
-            try: () =>
-              client.stores.files.upload({
+          const result = yield* Effect.tryPromise({
+            try: async () =>
+              client.stores.files.uploadAndPoll({
                 storeIdentifier: store.id,
-                file: NodeFs.createReadStream(filePath),
+                file: await upload(),
                 body: {
                   external_id: externalId,
                   overwrite: true,
                   config: { parsing_strategy: "fast" },
                   metadata: {
-                    content_source: "docs",
+                    ...metadata,
                     file_hash: fileHash,
-                    file_path: externalId,
                     git_branch: branch,
                     git_commit: options.revision,
                     version,
@@ -298,7 +416,7 @@ class Mixedbread extends Context.Service<
 
           yield* Effect.log(`Uploaded: ${externalId}`)
         }),
-        { concurrency: FILE_OPERATION_CONCURRENCY },
+        { concurrency: 10 },
       )
 
       const staleFiles = storeFiles.filter(
@@ -395,3 +513,41 @@ const MainLayer = Mixedbread.layer.pipe(
 )
 
 program.pipe(Effect.provide(MainLayer), NodeRuntime.runMain)
+
+function declarationMarkdown(options: {
+  readonly declaration: ReturnType<
+    typeof ApiReference.moduleView
+  >["groups"][number]["declarations"][number]
+  readonly declarationHref: string
+  readonly modulePath: string
+  readonly packageName: string
+}): string {
+  const { declaration } = options
+  const sections = [`# ${declaration.name}`]
+  if (declaration.commentMarkdown !== undefined) {
+    sections.push("", declaration.commentMarkdown)
+  }
+  sections.push(
+    "",
+    `Package: \`${options.packageName}\``,
+    `Module: \`${options.modulePath}\``,
+    `Kind: ${declaration.kind}`,
+    `Category: ${declaration.category}`,
+    `API reference: ${options.declarationHref}`,
+  )
+  if (declaration.since !== undefined) sections.push(`Since: ${declaration.since}`)
+  if (declaration.signature !== undefined) {
+    sections.push("", "## Signature", "", "```typescript", declaration.signature, "```")
+  }
+  for (const example of declaration.examples) {
+    sections.push(
+      "",
+      `## ${example.title ?? "Example"}`,
+      "",
+      `\`\`\`${example.language}`,
+      example.source,
+      "```",
+    )
+  }
+  return `${sections.join("\n")}\n`
+}

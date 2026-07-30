@@ -7,31 +7,54 @@ export const HeadingInfo = Schema.Struct({
 
 export type HeadingInfo = typeof HeadingInfo.Type
 
-export const Metadata = Schema.Struct({
+const CommonMetadata = {
   synced: Schema.Boolean,
   file_hash: Schema.String,
-  file_path: Schema.String,
   git_branch: Schema.String,
   git_commit: Schema.String,
   uploaded_at: Schema.DateTimeUtcFromString,
+} as const
+
+export const GuideMetadata = Schema.Struct({
+  ...CommonMetadata,
+  content_source: Schema.optional(Schema.Literal("docs")),
+  file_path: Schema.String,
 })
+
+export const ApiReferenceMetadata = Schema.Struct({
+  ...CommonMetadata,
+  api_version: Schema.String,
+  content_source: Schema.Literal("api-reference"),
+  module_href: Schema.String,
+  module_name: Schema.String,
+  module_path: Schema.String,
+  package_name: Schema.String,
+  package_slug: Schema.String,
+})
+
+export const Metadata = Schema.Union([GuideMetadata, ApiReferenceMetadata])
 
 export type Metadata = typeof Metadata.Type
 
-export const GeneratedMetadata = Schema.Struct({
+export const GuideGeneratedMetadata = Schema.Struct({
   title: Schema.String,
   description: Schema.optional(Schema.String),
-  language: Schema.String,
-  sidebar: Schema.Struct({
-    label: Schema.optional(Schema.String),
-    order: Schema.Int,
-  }),
-  file_type: Schema.Literal("text/markdown"),
-  file_size: Schema.Int,
-  word_count: Schema.Int,
   chunk_headings: Schema.Array(HeadingInfo),
   heading_context: Schema.Array(HeadingInfo),
 })
+
+export const ApiReferenceGeneratedMetadata = Schema.Struct({
+  type: Schema.Literal("text"),
+  declaration_anchor: Schema.String,
+  declaration_kind: Schema.String,
+  declaration_name: Schema.String,
+  signature: Schema.String,
+})
+
+export const GeneratedMetadata = Schema.Union([
+  GuideGeneratedMetadata,
+  ApiReferenceGeneratedMetadata,
+])
 
 export type GeneratedMetadata = typeof GeneratedMetadata.Type
 
@@ -46,7 +69,7 @@ export const ScoredTextInputChunk = Schema.Struct({
   file_id: Schema.String,
   store_id: Schema.String,
   chunk_index: Schema.Int,
-  mime_type: Schema.Literal("text/markdown"),
+  mime_type: Schema.Literals(["text/markdown", "text/plain"]),
   generated_metadata: GeneratedMetadata,
 })
 
@@ -61,7 +84,8 @@ export type StoreSearchResponse = typeof StoreSearchResponse.Type
 
 export const SearchResultChunk = Schema.Struct({
   id: Schema.String,
-  anchorId: Schema.String,
+  detail: Schema.optional(Schema.String),
+  href: Schema.String,
   title: Schema.String,
   snippet: Schema.String,
   score: Schema.Number,
@@ -69,13 +93,27 @@ export const SearchResultChunk = Schema.Struct({
 
 export type SearchResultChunk = typeof SearchResultChunk.Type
 
-export const SearchResult = Schema.Struct({
+export const GuideSearchResult = Schema.Struct({
+  kind: Schema.Literal("guide"),
   id: Schema.String,
   title: Schema.String,
   description: Schema.String,
   href: Schema.String,
   chunks: Schema.Array(SearchResultChunk),
 })
+
+export const ApiReferenceSearchResult = Schema.Struct({
+  kind: Schema.Literal("api-reference"),
+  id: Schema.String,
+  title: Schema.String,
+  description: Schema.String,
+  href: Schema.String,
+  packageName: Schema.String,
+  version: Schema.String,
+  chunks: Schema.Array(SearchResultChunk),
+})
+
+export const SearchResult = Schema.Union([GuideSearchResult, ApiReferenceSearchResult])
 
 export type SearchResult = typeof SearchResult.Type
 

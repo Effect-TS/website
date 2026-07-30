@@ -26,7 +26,6 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Checkout Effect
-        if: github.ref_name == 'feat/api-reference'
         uses: actions/checkout@v6
         with:
           repository: Effect-TS/effect
@@ -35,7 +34,6 @@ jobs:
           fetch-depth: 1
 
       - name: Generate API reference
-        if: github.ref_name == 'feat/api-reference'
         run: pnpm api-reference:generate --version v4 --repo .effect-source
 
       - name: Synchronize Mixedbread preview store

@@ -129,6 +129,7 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
         if (active instanceof HTMLAnchorElement && active.dataset.searchResultLink === "true") {
           event.preventDefault()
           closeDialog()
+          window.location.assign(active.href)
         }
       }
     },
@@ -181,7 +182,7 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
       return (
         <ul className="space-y-4">
           {results.map((result) => (
-            <SearchResultItem key={result.id} result={result} />
+            <SearchResultItem key={result.id} result={result} onNavigate={closeDialog} />
           ))}
         </ul>
       )
@@ -334,16 +335,40 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
 
 export default SearchDialogIsland
 
-function SearchResultItem({ result }: { readonly result: SearchResult }) {
+function SearchResultItem({
+  onNavigate,
+  result,
+}: {
+  readonly onNavigate: () => void
+  readonly result: SearchResult
+}) {
   return (
     <li>
       <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
         <a
           href={result.href}
+          onClick={onNavigate}
           data-search-result-link="true"
           className="block px-4 py-3 text-sm transition-colors hover:bg-zinc-800/50 focus:bg-zinc-800/50 focus:ring-2 focus:ring-zinc-600 focus:outline-none focus:ring-inset"
         >
-          <div className="font-medium text-white">{result.title}</div>
+          {result.kind === "api-reference" ? (
+            <div className="mb-1.5 flex items-center gap-2 font-mono text-[10px] font-medium tracking-wide text-violet-300 uppercase">
+              <span className="rounded border border-violet-400/30 bg-violet-400/10 px-1.5 py-0.5">
+                API Reference
+              </span>
+              <span className="text-zinc-500">{result.version}</span>
+              <span className="truncate text-zinc-500">{result.packageName}</span>
+            </div>
+          ) : null}
+          <div
+            className={
+              result.kind === "api-reference"
+                ? "font-mono font-medium text-white"
+                : "font-medium text-white"
+            }
+          >
+            {result.title}
+          </div>
           {result.description ? (
             <div className="mt-0.5 text-xs text-zinc-400">{result.description}</div>
           ) : null}
@@ -352,7 +377,12 @@ function SearchResultItem({ result }: { readonly result: SearchResult }) {
         {result.chunks.length > 0 ? (
           <ul className="divide-y divide-zinc-800 border-t border-zinc-800">
             {result.chunks.map((chunk) => (
-              <SearchResultChunkItem key={chunk.id} href={result.href} chunk={chunk} />
+              <SearchResultChunkItem
+                key={chunk.id}
+                apiReference={result.kind === "api-reference"}
+                chunk={chunk}
+                onNavigate={onNavigate}
+              />
             ))}
           </ul>
         ) : null}
@@ -362,22 +392,32 @@ function SearchResultItem({ result }: { readonly result: SearchResult }) {
 }
 
 function SearchResultChunkItem({
-  href,
+  apiReference,
   chunk,
+  onNavigate,
 }: {
-  readonly href: string
+  readonly apiReference: boolean
   readonly chunk: SearchResultChunk
+  readonly onNavigate: () => void
 }) {
-  const chunkHref = `${href}#${chunk.anchorId}`
-
   return (
     <li>
       <a
-        href={chunkHref}
+        href={chunk.href}
+        onClick={onNavigate}
         data-search-result-link="true"
         className="block px-4 py-2.5 pl-10 text-sm transition-colors hover:bg-zinc-800/50 focus:bg-zinc-800/50 focus:ring-2 focus:ring-zinc-600 focus:outline-none focus:ring-inset"
       >
-        <div className="truncate text-xs font-medium text-zinc-300">{chunk.title}</div>
+        <div
+          className={`truncate text-xs font-medium text-zinc-300 ${apiReference ? "font-mono" : ""}`}
+        >
+          {chunk.title}
+        </div>
+        {chunk.detail ? (
+          <div className="mt-0.5 truncate font-mono text-[11px] text-violet-300/70">
+            {chunk.detail}
+          </div>
+        ) : null}
         {chunk.snippet ? (
           <div className="mt-0.5 truncate text-xs text-zinc-500">{chunk.snippet}</div>
         ) : null}

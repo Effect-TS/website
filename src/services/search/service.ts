@@ -1,5 +1,4 @@
 import type { DeepMutable } from "effect/Types"
-import { NodePath } from "@effect/platform-node"
 import Mixedbread from "@mixedbread/sdk"
 import { getSecret } from "astro:env/server"
 import * as Config from "effect/Config"
@@ -7,10 +6,9 @@ import * as ConfigProvider from "effect/ConfigProvider"
 import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import * as Path from "effect/Path"
 import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
-import type { Metadata, SearchResult } from "./domain"
+import type { GuideMetadata, SearchResult } from "./domain"
 import { SearchError, StoreSearchResponse } from "./domain"
 
 export class Search extends Context.Service<Search>()("app/Search", {
@@ -18,7 +16,6 @@ export class Search extends Context.Service<Search>()("app/Search", {
     const apiKey = yield* Config.redacted("MXBAI_API_KEY")
     const storeId = yield* Config.redacted("MXBAI_VECTOR_STORE_ID")
 
-    const path = yield* Path.Path
     const mxbai = new Mixedbread({ apiKey: Redacted.value(apiKey) })
 
     const decodeSearchResponse = Schema.decodeUnknownEffect(StoreSearchResponse)
@@ -55,27 +52,61 @@ export class Search extends Context.Service<Search>()("app/Search", {
         .replace(/^-+|-+$/g, "")
     }
 
-    const CONTENT_PATH = "src/content/docs"
-    function generateHref(metadata: typeof Metadata.Type): string | undefined {
+    const CONTENT_PATH = "src/content/docs/"
+    function guideHref(metadata: typeof GuideMetadata.Type): string | undefined {
       const index = metadata.file_path.indexOf(CONTENT_PATH)
-      if (index === -1) {
-        return undefined
-      }
-      const subpath = metadata.file_path.substring(index + CONTENT_PATH.length)
-      const parsed = path.parse(subpath)
-      return path.join(parsed.dir, parsed.name, "/")
+      if (index === -1) return undefined
+      const subpath = metadata.file_path
+        .substring(index + CONTENT_PATH.length)
+        .replace(/\.(md|mdx)$/, "")
+        .replace(/(^|\/)index$/, "")
+      return `/docs/${subpath}`.replace(/\/+$/, "/")
     }
 
     function groupSearchResults(response: StoreSearchResponse): ReadonlyArray<SearchResult> {
       const grouped = new Map<string, DeepMutable<SearchResult>>()
 
       response.data.forEach((chunk) => {
-        const title = chunk.generated_metadata.title
-        const description = chunk.generated_metadata.description ?? ""
-        const chunkHeadings = chunk.generated_metadata.chunk_headings
-        const headingContext = chunk.generated_metadata.heading_context
+        if (chunk.metadata.content_source === "api-reference") {
+          const metadata = chunk.metadata
+          const generated = chunk.generated_metadata
+          if (!("declaration_name" in generated)) return
+          const href = metadata.module_href
+          if (!grouped.has(href)) {
+            grouped.set(href, {
+              kind: "api-reference",
+              id: `${metadata.api_version}/${metadata.package_slug}/${metadata.module_path}`,
+              description: `${metadata.package_name} / ${metadata.module_path}`,
+              title: metadata.module_name,
+              href,
+              packageName: metadata.package_name,
+              version: metadata.api_version,
+              chunks: [],
+            })
+          }
+          const page = grouped.get(href)
+          if (page === undefined || page.kind !== "api-reference") return
+          const declarationHref = `${href}#${generated.declaration_anchor}`
+          if (page.chunks.some((match) => match.href === declarationHref)) return
+          page.chunks.push({
+            id: `${chunk.file_id}-${chunk.chunk_index}`,
+            detail: generated.signature || generated.declaration_kind,
+            href: declarationHref,
+            title: generated.declaration_name,
+            snippet: extractSnippet(chunk.text),
+            score: chunk.score,
+          })
+          return
+        }
 
-        const href = generateHref(chunk.metadata)
+        const generated = chunk.generated_metadata
+        if (!("title" in generated)) return
+        const title = generated.title
+        const description = generated.description ?? ""
+        const chunkHeadings = generated.chunk_headings
+        const headingContext = generated.heading_context
+
+        const href = guideHref(chunk.metadata)
 
         if (href === undefined) {
           return
@@ -83,6 +114,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
 
         if (!grouped.has(href)) {
           grouped.set(href, {
+            kind: "guide",
             id: chunk.file_id,
             description,
             title,
@@ -101,13 +133,15 @@ export class Search extends Context.Service<Search>()("app/Search", {
         }
 
         const snippet = extractSnippet(chunk.text)
+        const hasHeading = chunkHeadings.length > 0 || headingContext.length > 0
+        const chunkHref = hasHeading ? `${href}#${generateAnchorId(chunkTitle)}` : href
 
         page.chunks.push({
           id: `${chunk.file_id}-${chunk.chunk_index}`,
+          href: chunkHref,
           title: chunkTitle,
           snippet,
           score: chunk.score,
-          anchorId: generateAnchorId(chunkTitle),
         })
       })
 
@@ -117,7 +151,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
     const search = Effect.fn("Search.search")(function* (query: string) {
       const searchParams: Mixedbread.Stores.StoreSearchParams = {
         query,
-        top_k: 10,
+        top_k: 20,
         search_options: { rerank: true, return_metadata: true },
         store_identifiers: [Redacted.value(storeId)],
       }
@@ -140,7 +174,6 @@ export class Search extends Context.Service<Search>()("app/Search", {
   }),
 }) {
   static layer = Layer.effect(this, this.make).pipe(
-    Layer.provide(NodePath.layer),
     Layer.provide(
       ConfigProvider.layer(
         ConfigProvider.fromUnknown({

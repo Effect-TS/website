@@ -2,8 +2,8 @@ import { createHash } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { isAbsolute, relative, resolve } from "node:path"
 import { ReflectionKind, type JSONOutput } from "typedoc"
-import type { ApiReferenceEntry, TypeDocProjectReflection } from "./schema"
-import { TypeDocProjectReflection as TypeDocProjectReflectionSchema } from "./schema"
+import type { ApiReferenceEntry, TypeDocProjectReflection } from "./schema.ts"
+import { TypeDocProjectReflection as TypeDocProjectReflectionSchema } from "./schema.ts"
 
 const defaultBaseDirectory = resolve(".data/api-reference")
 export interface ApiCodeExample {
@@ -20,8 +20,10 @@ export interface ApiDeclaration {
   anchor: string
   category: string
   commentHtml: string | undefined
+  commentMarkdown: string | undefined
   examples: ReadonlyArray<ApiCodeExample>
   id: number
+  kind: string
   name: string
   signature: string | undefined
   since: string | undefined
@@ -37,6 +39,7 @@ export interface ApiDeclarationGroup {
 
 export interface ApiModule {
   commentHtml: string | undefined
+  commentMarkdown: string | undefined
   declarationCount: number
   groups: ReadonlyArray<ApiDeclarationGroup>
   since: string | undefined
@@ -59,6 +62,7 @@ function moduleView(reflection: TypeDocProjectReflection): ApiModule {
       anchor: declarationAnchor(child.name),
       category: blockTagText(comment?.blockTags, "@category") ?? "Other",
       commentHtml: commentHtml(comment),
+      commentMarkdown: commentMarkdown(comment),
       examples: examplesByOwner.get(child.id) ?? [],
       id: child.id,
       kind: child.kind,
@@ -75,6 +79,7 @@ function moduleView(reflection: TypeDocProjectReflection): ApiModule {
       (anchorCounts.get(declaration.anchor)?.length ?? 0) > 1
         ? `${declaration.anchor}-${reflectionKindName(kind)}`
         : declaration.anchor,
+    kind: reflectionKindName(kind),
     typeKind: typeKindName(kind),
   }))
   const groups = Map.groupBy(declarations, (declaration) => declaration.category)
@@ -97,6 +102,7 @@ function moduleView(reflection: TypeDocProjectReflection): ApiModule {
 
   return {
     commentHtml: commentHtml(moduleReflection?.comment),
+    commentMarkdown: commentMarkdown(moduleReflection?.comment),
     declarationCount: declarations.length,
     groups: sortedGroups,
     since: versions.toSorted(compareVersions)[0],
@@ -163,25 +169,16 @@ function compareVersions(left: string, right: string): number {
 }
 
 function commentHtml(value: JSONOutput.Comment | undefined): string | undefined {
-  if (value === undefined) {
-    return undefined
-  }
-  const markdown = value.summary
-    .flatMap((part) => {
-      if (part.kind === "code" && parseFencedCode(part.text) !== undefined) return []
-      return [part.text]
-    })
-    .join("")
-    .trim()
-  const withoutExample = markdown.replace(/\n\n\*\*Example\*\*[\s\S]*$/, "").trim()
-  const blocks = withoutExample.split(/\n{2,}/).flatMap((block) => {
+  const markdown = commentMarkdown(value)
+  if (markdown === undefined) return undefined
+  const blocks = markdown.split(/\n{2,}/).flatMap((block) => {
     const trimmed = block.trim()
     if (trimmed.length === 0) return []
     const heading = /^\*\*(.+)\*\*$/.exec(trimmed)
     if (heading !== null) return [`<h4>${inlineMarkup(heading[1] ?? "")}</h4>`]
     return [`<p>${inlineMarkup(trimmed.replace(/\n/g, " "))}</p>`]
   })
-  const see = blockTagText(value.blockTags, "@see")
+  const see = value === undefined ? undefined : blockTagText(value.blockTags, "@see")
   if (see !== undefined) {
     const items = see
       .split(/\n\s*-\s*/)
@@ -195,6 +192,19 @@ function commentHtml(value: JSONOutput.Comment | undefined): string | undefined 
     }
   }
   return blocks.length > 0 ? blocks.join("") : undefined
+}
+
+function commentMarkdown(value: JSONOutput.Comment | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const markdown = value.summary
+    .flatMap((part) => {
+      if (part.kind === "code" && parseFencedCode(part.text) !== undefined) return []
+      return [part.text]
+    })
+    .join("")
+    .trim()
+  const withoutExample = markdown.replace(/\n\n\*\*Example\*\*[\s\S]*$/, "").trim()
+  return withoutExample.length > 0 ? withoutExample : undefined
 }
 
 function inlineMarkup(value: string): string {
