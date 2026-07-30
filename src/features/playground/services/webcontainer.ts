@@ -222,6 +222,14 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
       )
     }
 
+    /**
+     * Updates an existing file without recreating it if it was removed outside
+     * the editor.
+     */
+    function updateFile(path: string, content: string, language: string) {
+      return readFileString(path).pipe(Effect.andThen(writeFile(path, content, language)))
+    }
+
     function loadModel(path: string, content: string, language: string) {
       return getModel(path).pipe(
         Effect.tap((model) =>
@@ -262,10 +270,21 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
     function renameFile(oldPath: string, newPath: string) {
       return Effect.gen(function* () {
         yield* Effect.promise(() => container.fs.rename(oldPath, newPath))
-        const oldModel = yield* getModel(oldPath)
-        const newModel = yield* createModel(newPath, oldModel.getValue(), oldModel.getLanguageId())
-        oldModel.dispose()
-        return newModel
+        const models = monaco.editor
+          .getModels()
+          .filter(
+            (model) => model.uri.fsPath === oldPath || model.uri.fsPath.startsWith(`${oldPath}/`),
+          )
+        yield* Effect.forEach(
+          models,
+          (model) => {
+            const modelPath = model.uri.fsPath.replace(oldPath, newPath)
+            return createModel(modelPath, model.getValue(), model.getLanguageId()).pipe(
+              Effect.tap(() => Effect.sync(() => model.dispose())),
+            )
+          },
+          { discard: true },
+        )
       }).pipe(
         Effect.tapCause(Effect.logError),
         Effect.annotateLogs({
@@ -282,8 +301,12 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
     function removeFile(path: string) {
       return Effect.gen(function* () {
         yield* Effect.promise(() => container.fs.rm(path, { force: true, recursive: true }))
-        const model = yield* getModel(path)
-        model.dispose()
+        yield* Effect.sync(() => {
+          monaco.editor
+            .getModels()
+            .filter((model) => model.uri.fsPath === path || model.uri.fsPath.startsWith(`${path}/`))
+            .forEach((model) => model.dispose())
+        })
       }).pipe(
         Effect.tapCause(Effect.logError),
         Effect.annotateLogs({
@@ -320,7 +343,22 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
       )
     }
 
+    function watchWorkspace(path: string, shouldIgnore: (path: string) => boolean) {
+      return Stream.callback<void>((queue) => {
+        const watcher = container.fs.watch(path, { recursive: true }, (_event, filename) => {
+          const changedPath =
+            typeof filename === "string" ? filename : new TextDecoder().decode(filename)
+          if (!shouldIgnore(changedPath)) {
+            Queue.offerUnsafe(queue, void 0)
+          }
+        })
+        return Effect.addFinalizer(() => Effect.sync(() => watcher.close()))
+      })
+    }
+
     const createWorkspaceHandle = Effect.fnUntraced(function* (workspace: Workspace) {
+      const mutationLock = yield* Semaphore.make(1)
+      const localWrites = new Map<string, string>()
       /**
        * Spawns the specified `command` into a `jsh` shell and returns the
        * associated `WebContainerProcess`.
@@ -477,13 +515,162 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
       // the scope closes
       yield* Effect.acquireRelease(mountWorkspace(workspace), () => unmountWorkspace(workspace))
 
+      const reconcileWorkspace = mutationLock.withPermit(
+        Effect.gen(function* () {
+          const current = registry.get(workspaceRef)
+          let scanned = yield* scanWorkspace(container, current)
+          const restoredProtectedNodes = yield* restoreProtectedNodes(
+            container,
+            current,
+            scanned.tree,
+          )
+          if (restoredProtectedNodes) {
+            scanned = yield* scanWorkspace(container, current)
+          }
+          const next = current.setTree(scanned.tree)
+          const nextFiles = new Set<string>()
+          const currentFiles = new Map<string, File>()
+          for (const [node, path] of current.filePaths) {
+            if (node._tag === "File") {
+              currentFiles.set(path, node)
+            }
+          }
+
+          for (const [node, path] of next.filePaths) {
+            if (node._tag !== "File") {
+              continue
+            }
+            const fullPath = next.relativePath(path)
+            nextFiles.add(fullPath)
+            const content = scanned.contents.get(path)
+            if (content === undefined) {
+              continue
+            }
+            if (currentFiles.get(path) !== node) {
+              const localContent = localWrites.get(fullPath)
+              if (localContent === content) {
+                localWrites.delete(fullPath)
+                const model = yield* getModel(fullPath).pipe(Effect.option)
+                if (Option.isNone(model) || model.value.getValue() === content) {
+                  yield* loadModel(fullPath, content, node.language ?? languageFromPath(path))
+                }
+              } else {
+                localWrites.delete(fullPath)
+                yield* loadModel(fullPath, content, node.language ?? languageFromPath(path))
+              }
+            }
+          }
+
+          for (const [node, path] of current.filePaths) {
+            if (node._tag === "File") {
+              const fullPath = current.relativePath(path)
+              if (!nextFiles.has(fullPath)) {
+                localWrites.delete(fullPath)
+                yield* getModel(fullPath).pipe(
+                  Effect.tap((model) => Effect.sync(() => model.dispose())),
+                  Effect.catchTag("FileNotFoundError", () => Effect.void),
+                )
+              }
+            }
+          }
+
+          registry.set(workspaceRef, next)
+        }),
+      )
+
+      yield* watchWorkspace(workspace.name, (changedPath) => {
+        if (!isIgnoredWorkspacePath(changedPath)) {
+          return false
+        }
+        const current = registry.get(workspaceRef)
+        for (const [node, path] of current.filePaths) {
+          if (
+            node.userManaged !== true &&
+            (path === changedPath ||
+              path.startsWith(`${changedPath}/`) ||
+              changedPath.startsWith(`${path}/`))
+          ) {
+            return false
+          }
+        }
+        return true
+      }).pipe(
+        Stream.debounce("100 millis"),
+        Stream.runForEach(() =>
+          reconcileWorkspace.pipe(
+            Effect.retry({ times: 2 }),
+            Effect.catchCause((cause) => Effect.logError(cause)),
+          ),
+        ),
+        Effect.forkScoped,
+      )
+
+      const resetWorkspace = (nextWorkspace: Workspace) =>
+        mutationLock.withPermit(
+          Effect.gen(function* () {
+            const current = registry.get(workspaceRef)
+            localWrites.clear()
+            const entries = yield* readDirectory(workspace.name)
+            yield* Effect.forEach(
+              entries,
+              (entry) =>
+                entry.name === "node_modules"
+                  ? Effect.void
+                  : Effect.promise(() =>
+                      container.fs.rm(`${workspace.name}/${entry.name}`, {
+                        recursive: true,
+                        force: true,
+                      }),
+                    ),
+              { concurrency: "unbounded", discard: true },
+            )
+            yield* Effect.promise(() =>
+              container.mount(treeFromWorkspace(nextWorkspace), { mountPoint: workspace.name }),
+            )
+            const nextFiles = new Set<string>()
+            for (const [node, path] of nextWorkspace.filePaths) {
+              if (node._tag === "File") {
+                const fullPath = nextWorkspace.relativePath(path)
+                nextFiles.add(fullPath)
+                yield* loadModel(
+                  fullPath,
+                  node.initialContent,
+                  node.language ?? languageFromPath(path),
+                )
+              }
+            }
+            for (const [node, path] of current.filePaths) {
+              if (node._tag === "File") {
+                const fullPath = current.relativePath(path)
+                if (!nextFiles.has(fullPath)) {
+                  yield* getModel(fullPath).pipe(
+                    Effect.tap((model) => Effect.sync(() => model.dispose())),
+                    Effect.catchTag("FileNotFoundError", () => Effect.void),
+                  )
+                }
+              }
+            }
+            registry.set(workspaceRef, nextWorkspace)
+          }),
+        )
+
       return {
         workspace: workspaceRef,
         spawn: spawnInWorkspace,
         run: runInWorkspace,
-        createFile: create,
-        renameFile: rename,
-        removeFile: remove,
+        writeFile: (path: string, content: string, language: string) =>
+          mutationLock.withPermit(
+            updateFile(path, content, language).pipe(
+              Effect.tap(() => Effect.sync(() => localWrites.set(path, content))),
+            ),
+          ),
+        createFile: (...args: Parameters<typeof create>) =>
+          mutationLock.withPermit(create(...args)),
+        renameFile: (...args: Parameters<typeof rename>) =>
+          mutationLock.withPermit(rename(...args)),
+        removeFile: (...args: Parameters<typeof remove>) =>
+          mutationLock.withPermit(remove(...args)),
+        resetWorkspace,
       } as const
     })
 
@@ -534,6 +721,146 @@ export class WebContainer extends Context.Service<WebContainer>()("app/WebContai
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(Loader.layer))
+}
+
+const ignoredWorkspacePaths = new Set([".tsc-run.json", "dist", "node_modules"])
+function isIgnoredWorkspacePath(path: string) {
+  const [root] = path.replace(/^\.\//, "").split("/")
+  return root !== undefined && ignoredWorkspacePaths.has(root)
+}
+
+function languageFromPath(path: string) {
+  if (path.endsWith(".json")) return "json"
+  if (path.endsWith(".tsx")) return "typescriptreact"
+  if (path.endsWith(".jsx")) return "javascriptreact"
+  if (/\.(?:c|m)?js$/.test(path)) return "javascript"
+  if (/\.(?:c|m)?ts$/.test(path)) return "typescript"
+  return "plaintext"
+}
+
+function scanWorkspace(container: WC, workspace: Workspace) {
+  return Effect.tryPromise({
+    try: async () => {
+      const contents = new Map<string, string>()
+      const existingPaths = new Map<string, File | Directory>()
+      for (const [node, path] of workspace.filePaths) {
+        existingPaths.set(path, node)
+      }
+
+      async function walk(
+        directoryPath: string,
+        prefix: string,
+        existingChildren: Workspace["tree"],
+      ): Promise<Workspace["tree"]> {
+        const entries = await container.fs.readdir(directoryPath, { withFileTypes: true })
+        const existingOrder = new Map(existingChildren.map((node, index) => [node.name, index]))
+        entries.sort((left, right) => {
+          const leftIndex = existingOrder.get(left.name)
+          const rightIndex = existingOrder.get(right.name)
+          if (leftIndex !== undefined && rightIndex !== undefined) return leftIndex - rightIndex
+          if (leftIndex !== undefined) return -1
+          if (rightIndex !== undefined) return 1
+          return left.name.localeCompare(right.name)
+        })
+
+        const tree: Array<File | Directory> = []
+        for (const entry of entries) {
+          const path = `${prefix}${entry.name}`
+          const existing = existingPaths.get(path)
+          if (
+            isIgnoredWorkspacePath(path) &&
+            (existing === undefined || existing.userManaged === true)
+          ) {
+            continue
+          }
+          if (entry.isDirectory()) {
+            const existingDirectory = existing?._tag === "Directory" ? existing : undefined
+            const children = await walk(
+              `${directoryPath}/${entry.name}`,
+              `${path}/`,
+              existingDirectory?.children ?? [],
+            )
+            const unchanged =
+              existingDirectory !== undefined &&
+              existingDirectory.children.length === children.length &&
+              existingDirectory.children.every((child, index) => child === children[index])
+            tree.push(
+              unchanged
+                ? existingDirectory
+                : makeDirectory(entry.name, children, existingDirectory?.userManaged ?? true),
+            )
+          } else if (entry.isFile()) {
+            const bytes = await container.fs.readFile(`${directoryPath}/${entry.name}`)
+            let content: string
+            try {
+              content = new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+            } catch {
+              continue
+            }
+            contents.set(path, content)
+            tree.push(
+              existing?._tag === "File" && existing.initialContent === content
+                ? existing
+                : new File({
+                    name: entry.name,
+                    initialContent: content,
+                    language:
+                      existing?._tag === "File"
+                        ? (existing.language ?? languageFromPath(path))
+                        : languageFromPath(path),
+                    userManaged: existing?._tag === "File" ? (existing.userManaged ?? true) : true,
+                  }),
+            )
+          }
+        }
+        return tree
+      }
+
+      return {
+        contents,
+        tree: await walk(workspace.name, "", workspace.tree),
+      }
+    },
+    catch: () => new FileNotFoundError({ path: workspace.name }),
+  })
+}
+
+function restoreProtectedNodes(
+  container: WC,
+  workspace: Workspace,
+  scannedTree: Workspace["tree"],
+) {
+  return Effect.tryPromise({
+    try: async () => {
+      const scannedPaths = new Map<string, File | Directory>()
+      const scannedWorkspace = workspace.setTree(scannedTree)
+      for (const [node, path] of scannedWorkspace.filePaths) {
+        scannedPaths.set(path, node)
+      }
+
+      let restored = false
+      for (const [node, path] of workspace.filePaths) {
+        if (node.userManaged === true || scannedPaths.get(path)?._tag === node._tag) {
+          continue
+        }
+
+        const fullPath = workspace.relativePath(path)
+        await container.fs.rm(fullPath, { recursive: true, force: true })
+        if (node._tag === "Directory") {
+          await container.fs.mkdir(fullPath, { recursive: true })
+        } else {
+          const separator = fullPath.lastIndexOf("/")
+          if (separator >= 0) {
+            await container.fs.mkdir(fullPath.slice(0, separator), { recursive: true })
+          }
+          await container.fs.writeFile(fullPath, node.initialContent)
+        }
+        restored = true
+      }
+      return restored
+    },
+    catch: () => new FileNotFoundError({ path: workspace.name }),
+  })
 }
 
 function treeFromWorkspace(workspace: Workspace): FileSystemTree {
