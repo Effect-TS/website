@@ -154,37 +154,32 @@ export class Search extends Context.Service<Search>()("app/Search", {
     }
 
     const search = Effect.fn("Search.search")(function* (query: string) {
-      const rawResponse = yield* Effect.tryPromise({
-        try: (signal) =>
-          mxbai.stores.search(
-            {
-              query,
-              top_k: 50,
-              search_options: { rerank: true, return_metadata: true },
-              store_identifiers: [Redacted.value(storeId)],
-            },
-            { signal },
+      const responses = yield* Effect.forEach(
+        ["docs", "api-reference"] as const,
+        (contentSource) =>
+          Effect.tryPromise({
+            try: (signal) =>
+              mxbai.stores.search(
+                {
+                  query,
+                  top_k: 10,
+                  filters: { key: "content_source", operator: "eq", value: contentSource },
+                  search_options: { rerank: true, return_metadata: true },
+                  store_identifiers: [Redacted.value(storeId)],
+                },
+                { signal },
+              ),
+            catch: (cause) => new SearchError({ cause }),
+          }).pipe(
+            Effect.flatMap(decodeSearchResponse),
+            Effect.catchTag("SchemaError", (cause) => new SearchError({ cause })),
           ),
-        catch: (cause) => new SearchError({ cause }),
-      })
-
-      const response = yield* decodeSearchResponse(rawResponse).pipe(
-        Effect.catchTag("SchemaError", (cause) => new SearchError({ cause })),
+        { concurrency: "unbounded" },
       )
-      const selectedCounts: Record<"docs" | "api-reference", number> = {
-        docs: 0,
-        "api-reference": 0,
-      }
-      const data = response.data.filter((chunk) => {
-        const contentSource = chunk.metadata.content_source ?? "docs"
-        if (selectedCounts[contentSource] >= 10) return false
-        selectedCounts[contentSource] += 1
-        return true
-      })
 
       return groupSearchResults({
         object: "list",
-        data,
+        data: responses.flatMap((response) => response.data).toSorted((a, b) => b.score - a.score),
       })
     })
 

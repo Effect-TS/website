@@ -9,18 +9,44 @@ import { searchQueryAtom, debouncedQueryAtom, searchResultsAtom } from "./search
 
 type SearchDialogState = { readonly tag: "closed" } | { readonly tag: "open" }
 
+let previousScrollStyles:
+  | {
+      readonly bodyOverflow: string
+      readonly bodyOverscrollBehavior: string
+      readonly htmlOverflow: string
+      readonly htmlOverscrollBehavior: string
+    }
+  | undefined
+
 const syncSearchScrollLock = (open: boolean) => {
   const html = document.documentElement
   const body = document.body
 
   if (open) {
+    previousScrollStyles ??= {
+      bodyOverflow: body.style.overflow,
+      bodyOverscrollBehavior: body.style.overscrollBehavior,
+      htmlOverflow: html.style.overflow,
+      htmlOverscrollBehavior: html.style.overscrollBehavior,
+    }
     html.setAttribute("data-search-open", "true")
     body.setAttribute("data-search-open", "true")
+    html.style.overflow = "hidden"
+    html.style.overscrollBehavior = "none"
+    body.style.overflow = "hidden"
+    body.style.overscrollBehavior = "none"
     return
   }
 
   html.removeAttribute("data-search-open")
   body.removeAttribute("data-search-open")
+  if (previousScrollStyles !== undefined) {
+    html.style.overflow = previousScrollStyles.htmlOverflow
+    html.style.overscrollBehavior = previousScrollStyles.htmlOverscrollBehavior
+    body.style.overflow = previousScrollStyles.bodyOverflow
+    body.style.overscrollBehavior = previousScrollStyles.bodyOverscrollBehavior
+    previousScrollStyles = undefined
+  }
 }
 
 const SearchDialogIsland = memo(function SearchDialogIsland() {
@@ -87,6 +113,8 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
     setQuery("")
     inputRef.current?.focus()
     window.dispatchEvent(new Event(NAVIGATION_EVENTS.SEARCH_OPENED))
+
+    return () => syncSearchScrollLock(false)
   }, [isOpen, setQuery])
 
   useEffect(() => {
@@ -207,7 +235,7 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="search-dialog-label"
-      className="fixed inset-0 z-250"
+      className="fixed inset-0 z-250 overscroll-none"
     >
       <span id="search-dialog-label" className="sr-only">
         Search documentation
@@ -274,7 +302,7 @@ const SearchDialogIsland = memo(function SearchDialogIsland() {
           aria-label="Search results"
           aria-live="polite"
           aria-atomic="false"
-          className="max-h-96 overflow-y-auto p-3"
+          className="max-h-96 overflow-y-auto overscroll-contain p-3"
         >
           {resultsContent}
         </div>
