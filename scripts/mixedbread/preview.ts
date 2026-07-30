@@ -70,6 +70,9 @@ const StoreFileMetadata = Schema.Struct({
 type StoreFileMetadata = typeof StoreFileMetadata.Type
 
 const MAX_MIXEDBREAD_TEXT_LENGTH = 65_536
+const UPLOAD_CONCURRENCY = 100
+const POLL_CONCURRENCY = 25
+const FILE_OPERATION_TIMEOUT_MS = 10 * 60 * 1000
 
 interface SyncOptions {
   readonly pullRequest: number
@@ -167,73 +170,81 @@ class Mixedbread extends Context.Service<
       }
 
       return yield* Effect.forEach(
-        entries,
-        Effect.fnUntraced(function* (entry) {
-          const reflection = yield* Effect.tryPromise({
-            try: () => ApiReference.loadReflection(entry.data, { baseDirectory: apiReferenceDir }),
-            catch: (cause) => new UnknownError({ cause }),
-          })
-          const apiModule = ApiReference.moduleView(reflection)
-          const moduleName = entry.data.modulePath.split("/").at(-1) ?? entry.data.modulePath
-          const moduleHref = `/docs/api/${entry.data.version}/${entry.data.packageSlug}/${entry.data.modulePath}`
-          const declarations = apiModule.groups.flatMap((group) => group.declarations)
-          if (
-            new Set(declarations.map((declaration) => declaration.anchor)).size !==
-            declarations.length
-          ) {
-            return yield* new UnknownError({
-              cause: new Error(`Duplicate API declaration anchors in ${entry.id}`),
-            })
+        Map.groupBy(entries, (entry) => `${entry.data.version}/${entry.data.packageSlug}`),
+        Effect.fnUntraced(function* ([, packageEntries]) {
+          const packageEntry = packageEntries[0]
+          if (packageEntry === undefined) {
+            return yield* new UnknownError({ cause: new Error("Empty API package group") })
           }
-          const chunks = declarations.map((declaration, chunkIndex) => ({
-            type: "text",
-            text: declarationMarkdown({
-              declaration,
-              modulePath: entry.data.modulePath,
-              packageName: entry.data.packageName,
-              declarationHref: `${moduleHref}#${declaration.anchor}`,
+          const nestedChunks = yield* Effect.forEach(
+            packageEntries,
+            Effect.fnUntraced(function* (entry) {
+              const reflection = yield* Effect.tryPromise({
+                try: () =>
+                  ApiReference.loadReflection(entry.data, { baseDirectory: apiReferenceDir }),
+                catch: (cause) => new UnknownError({ cause }),
+              })
+              const declarations = ApiReference.moduleView(reflection).groups.flatMap(
+                (group) => group.declarations,
+              )
+              if (
+                new Set(declarations.map((declaration) => declaration.anchor)).size !==
+                declarations.length
+              ) {
+                return yield* new UnknownError({
+                  cause: new Error(`Duplicate API declaration anchors in ${entry.id}`),
+                })
+              }
+              const moduleName = entry.data.modulePath.split("/").at(-1) ?? entry.data.modulePath
+              const moduleHref = `/docs/api/${entry.data.version}/${entry.data.packageSlug}/${entry.data.modulePath}`
+              const chunks = declarations.map((declaration) => ({
+                type: "text",
+                text: declarationMarkdown({
+                  declaration,
+                  modulePath: entry.data.modulePath,
+                  packageName: entry.data.packageName,
+                  declarationHref: `${moduleHref}#${declaration.anchor}`,
+                }),
+                mime_type: "text/plain",
+                generated_metadata: {
+                  type: "text",
+                  declaration_anchor: declaration.anchor,
+                  declaration_kind: declaration.kind,
+                  declaration_name: declaration.name,
+                  module_href: moduleHref,
+                  module_name: moduleName,
+                  module_path: entry.data.modulePath,
+                  signature: (declaration.signature ?? "").slice(0, 8_000),
+                },
+              }))
+              if (chunks.some((chunk) => chunk.text.length > MAX_MIXEDBREAD_TEXT_LENGTH)) {
+                return yield* new UnknownError({
+                  cause: new Error(
+                    `API search chunk exceeds ${MAX_MIXEDBREAD_TEXT_LENGTH} characters in ${entry.id}`,
+                  ),
+                })
+              }
+              return chunks
             }),
-            mime_type: "text/plain",
-            chunk_index: chunkIndex,
-            generated_metadata: {
-              type: "text",
-              declaration_anchor: declaration.anchor,
-              declaration_kind: declaration.kind,
-              declaration_name: declaration.name,
-              signature: (declaration.signature ?? "").slice(0, 8_000),
-            },
-          }))
-          const oversizedChunk = chunks.find(
-            (chunk) => chunk.text.length > MAX_MIXEDBREAD_TEXT_LENGTH,
+            { concurrency: 10 },
           )
-          if (oversizedChunk !== undefined) {
-            return yield* new UnknownError({
-              cause: new Error(
-                `API search chunk exceeds ${MAX_MIXEDBREAD_TEXT_LENGTH} characters in ${entry.id}`,
-              ),
-            })
-          }
-          const bytes = new TextEncoder().encode(JSON.stringify(chunks))
+          const bytes = new TextEncoder().encode(JSON.stringify(nestedChunks.flat()))
           const externalId = [
             "api-reference",
-            entry.data.version,
-            entry.data.packageSlug,
-            `${entry.data.modulePath}.mxjson`,
+            packageEntry.data.version,
+            `${packageEntry.data.packageSlug}.mxjson`,
           ].join("/")
           return {
             externalId,
             fileHash: yield* hash(bytes),
             metadata: {
-              api_version: entry.data.version,
+              api_version: packageEntry.data.version,
               content_source: "api-reference",
-              module_href: moduleHref,
-              module_name: moduleName,
-              module_path: entry.data.modulePath,
-              package_name: entry.data.packageName,
-              package_slug: entry.data.packageSlug,
+              package_name: packageEntry.data.packageName,
+              package_slug: packageEntry.data.packageSlug,
             },
             upload: () =>
-              toFile(bytes, `${moduleName}.mxjson`, {
+              toFile(bytes, `${packageEntry.data.packageSlug}.mxjson`, {
                 type: "application/vnd-mxbai.chunks-json",
               }),
           } satisfies LocalFile
@@ -378,14 +389,14 @@ class Mixedbread extends Context.Service<
         `Synchronizing ${changed} changed and ${unchanged} unchanged files to ${store.name}`,
       )
 
-      yield* Effect.forEach(
+      const uploadedFiles = yield* Effect.forEach(
         changedFiles,
         Effect.fnUntraced(function* ({ externalId, fileHash, metadata, upload }) {
           const now = yield* DateTime.now
 
-          const result = yield* Effect.tryPromise({
+          const storeFile = yield* Effect.tryPromise({
             try: async () =>
-              client.stores.files.uploadAndPoll({
+              client.stores.files.upload({
                 storeIdentifier: store.id,
                 file: await upload(),
                 body: {
@@ -406,8 +417,29 @@ class Mixedbread extends Context.Service<
               }),
             catch: (cause) => new FailedToIndexError({ externalId, cause }),
           })
+          yield* Effect.log(`Uploaded: ${externalId}`)
+          return { externalId, storeFile }
+        }),
+        { concurrency: UPLOAD_CONCURRENCY },
+      )
 
-          if (storeFile.status === "failed" || storeFile.status === "cancelled") {
+      yield* Effect.forEach(
+        uploadedFiles,
+        Effect.fnUntraced(function* ({ externalId, storeFile }) {
+          const result =
+            storeFile.status === "completed"
+              ? storeFile
+              : yield* Effect.tryPromise({
+                  try: () =>
+                    client.stores.files.poll({
+                      storeIdentifier: store.id,
+                      fileIdentifier: storeFile.id,
+                      pollIntervalMs: 2_000,
+                      pollTimeoutMs: FILE_OPERATION_TIMEOUT_MS,
+                    }),
+                  catch: (cause) => new FailedToIndexError({ externalId, cause }),
+                })
+          if (result.status !== "completed") {
             return yield* new FailedToIndexError({
               externalId,
               cause: storeFile.last_error ?? storeFile.status,
@@ -416,7 +448,7 @@ class Mixedbread extends Context.Service<
 
           yield* Effect.log(`Uploaded: ${externalId}`)
         }),
-        { concurrency: 10 },
+        { concurrency: POLL_CONCURRENCY },
       )
 
       const staleFiles = storeFiles.filter(
@@ -435,7 +467,7 @@ class Mixedbread extends Context.Service<
           })
           yield* Effect.log(`Deleted stale file: ${file.external_id}`)
         }),
-        { concurrency: FILE_OPERATION_CONCURRENCY },
+        { concurrency: UPLOAD_CONCURRENCY },
       )
 
       yield* Effect.tryPromise({

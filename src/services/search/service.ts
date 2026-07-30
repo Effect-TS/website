@@ -71,13 +71,13 @@ export class Search extends Context.Service<Search>()("app/Search", {
           const metadata = chunk.metadata
           const generated = chunk.generated_metadata
           if (!("declaration_name" in generated)) return
-          const href = metadata.module_href
+          const href = generated.module_href
           if (!grouped.has(href)) {
             grouped.set(href, {
               kind: "api-reference",
-              id: `${metadata.api_version}/${metadata.package_slug}/${metadata.module_path}`,
-              description: `${metadata.package_name} / ${metadata.module_path}`,
-              title: metadata.module_name,
+              id: `${metadata.api_version}/${metadata.package_slug}/${generated.module_path}`,
+              description: `${metadata.package_name} / ${generated.module_path}`,
+              title: generated.module_name,
               href,
               packageName: metadata.package_name,
               version: metadata.api_version,

@@ -25,9 +25,6 @@ export const ApiReferenceMetadata = Schema.Struct({
   ...CommonMetadata,
   api_version: Schema.String,
   content_source: Schema.Literal("api-reference"),
-  module_href: Schema.String,
-  module_name: Schema.String,
-  module_path: Schema.String,
   package_name: Schema.String,
   package_slug: Schema.String,
 })
@@ -48,6 +45,9 @@ export const ApiReferenceGeneratedMetadata = Schema.Struct({
   declaration_anchor: Schema.String,
   declaration_kind: Schema.String,
   declaration_name: Schema.String,
+  module_href: Schema.String,
+  module_name: Schema.String,
+  module_path: Schema.String,
   signature: Schema.String,
 })
 
