@@ -70,6 +70,7 @@ const StoreFileMetadata = Schema.Struct({
 type StoreFileMetadata = typeof StoreFileMetadata.Type
 
 const MAX_MIXEDBREAD_TEXT_LENGTH = 65_536
+const MAX_API_CHUNKS_PER_FILE = 250
 const UPLOAD_CONCURRENCY = 100
 const POLL_CONCURRENCY = 25
 const FILE_OPERATION_TIMEOUT_MS = 10 * 60 * 1000
@@ -169,7 +170,7 @@ class Mixedbread extends Context.Service<
         })
       }
 
-      return yield* Effect.forEach(
+      const packageFiles = yield* Effect.forEach(
         Map.groupBy(entries, (entry) => `${entry.data.version}/${entry.data.packageSlug}`),
         Effect.fnUntraced(function* ([, packageEntries]) {
           const packageEntry = packageEntries[0]
@@ -228,29 +229,40 @@ class Mixedbread extends Context.Service<
             }),
             { concurrency: 10 },
           )
-          const bytes = new TextEncoder().encode(JSON.stringify(nestedChunks.flat()))
-          const externalId = [
-            "api-reference",
-            packageEntry.data.version,
-            `${packageEntry.data.packageSlug}.mxjson`,
-          ].join("/")
-          return {
-            externalId,
-            fileHash: yield* hash(bytes),
-            metadata: {
-              api_version: packageEntry.data.version,
-              content_source: "api-reference",
-              package_name: packageEntry.data.packageName,
-              package_slug: packageEntry.data.packageSlug,
-            },
-            upload: () =>
-              toFile(bytes, `${packageEntry.data.packageSlug}.mxjson`, {
-                type: "application/vnd-mxbai.chunks-json",
-              }),
-          } satisfies LocalFile
+          const chunks = nestedChunks.flat()
+          const shards = Array.from(
+            { length: Math.ceil(chunks.length / MAX_API_CHUNKS_PER_FILE) },
+            (_, index) =>
+              chunks.slice(index * MAX_API_CHUNKS_PER_FILE, (index + 1) * MAX_API_CHUNKS_PER_FILE),
+          )
+          return yield* Effect.forEach(shards, (shard, index) => {
+            const suffix = String(index + 1).padStart(3, "0")
+            const filename = `${packageEntry.data.packageSlug}-${suffix}.mxjson`
+            const bytes = new TextEncoder().encode(JSON.stringify(shard))
+            return hash(bytes).pipe(
+              Effect.map(
+                (fileHash) =>
+                  ({
+                    externalId: ["api-reference", packageEntry.data.version, filename].join("/"),
+                    fileHash,
+                    metadata: {
+                      api_version: packageEntry.data.version,
+                      content_source: "api-reference",
+                      package_name: packageEntry.data.packageName,
+                      package_slug: packageEntry.data.packageSlug,
+                    },
+                    upload: () =>
+                      toFile(bytes, filename, {
+                        type: "application/vnd-mxbai.chunks-json",
+                      }),
+                  }) satisfies LocalFile,
+              ),
+            )
+          })
         }),
         { concurrency: 10 },
       )
+      return packageFiles.flat()
     })
 
     const decodeStoreMetadata = Schema.decodeUnknownEffect(StoreMetadata)
@@ -385,8 +397,26 @@ class Mixedbread extends Context.Service<
 
       const changed = changedFiles.length
       const unchanged = localFiles.length - changed
+      const staleFiles = storeFiles.filter(
+        (file) => Predicate.isNotNullish(file.external_id) && !desiredIds.has(file.external_id),
+      )
       yield* Effect.log(
         `Synchronizing ${changed} changed and ${unchanged} unchanged files to ${store.name}`,
+      )
+
+      yield* Effect.forEach(
+        staleFiles,
+        Effect.fnUntraced(function* (file) {
+          yield* Effect.tryPromise({
+            try: () =>
+              client.stores.files.delete(file.id, {
+                store_identifier: store.id,
+              }),
+            catch: (cause) => new FailedToDeleteError({ file, cause }),
+          })
+          yield* Effect.log(`Deleted stale file: ${file.external_id}`)
+        }),
+        { concurrency: UPLOAD_CONCURRENCY },
       )
 
       const uploadedFiles = yield* Effect.forEach(
@@ -449,25 +479,6 @@ class Mixedbread extends Context.Service<
           yield* Effect.log(`Uploaded: ${externalId}`)
         }),
         { concurrency: POLL_CONCURRENCY },
-      )
-
-      const staleFiles = storeFiles.filter(
-        (file) => Predicate.isNotNullish(file.external_id) && !desiredIds.has(file.external_id),
-      )
-
-      yield* Effect.forEach(
-        staleFiles,
-        Effect.fnUntraced(function* (file) {
-          yield* Effect.tryPromise({
-            try: () =>
-              client.stores.files.delete(file.id, {
-                store_identifier: store.id,
-              }),
-            catch: (cause) => new FailedToDeleteError({ file, cause }),
-          })
-          yield* Effect.log(`Deleted stale file: ${file.external_id}`)
-        }),
-        { concurrency: UPLOAD_CONCURRENCY },
       )
 
       yield* Effect.tryPromise({
