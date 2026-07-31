@@ -14,6 +14,7 @@ type SatoriFont = NonNullable<SatoriOptions["fonts"]>[number]
 export interface OgAssets {
   readonly fonts: ReadonlyArray<SatoriFont>
   readonly docsBgDataUri: string
+  readonly blogBgDataUri: string
 }
 
 // ---------------------------------------------------------------------------
@@ -28,11 +29,12 @@ export async function loadAssets(): Promise<OgAssets> {
   if (_assets !== null) {
     return _assets
   }
-  const [interRegular, interBold, jetbrainsMono, docsBase] = await Promise.all([
+  const [interRegular, interBold, jetbrainsMono, docsBase, blogBase] = await Promise.all([
     readFile("src/assets/fonts/Inter-Regular.ttf"),
     readFile("src/assets/fonts/Inter-Bold.ttf"),
     readFile("src/assets/fonts/JetBrainsMono-Regular.ttf"),
     readFile("src/pages/og/_assets/docs/base.png"),
+    readFile("src/pages/og/_assets/blog/base.png"),
   ])
   const fonts: Array<SatoriFont> = [
     {
@@ -57,6 +59,7 @@ export async function loadAssets(): Promise<OgAssets> {
   _assets = {
     fonts,
     docsBgDataUri: pngToDataUri(docsBase),
+    blogBgDataUri: pngToDataUri(blogBase),
   }
   return _assets
 }
@@ -72,6 +75,15 @@ const renderPng = (svg: string): Uint8Array => {
 
 export async function renderDocsOg(props: OgTemplateProps, assets: OgAssets): Promise<Uint8Array> {
   const svg = await satori(createDocsTemplate(prepareContentProps(props), assets.docsBgDataUri), {
+    width: OPENGRAPH_IMAGE_WIDTH,
+    height: OPENGRAPH_IMAGE_HEIGHT,
+    fonts: assets.fonts as SatoriOptions["fonts"],
+  })
+  return renderPng(svg)
+}
+
+export async function renderBlogOg(props: OgTemplateProps, assets: OgAssets): Promise<Uint8Array> {
+  const svg = await satori(createBlogTemplate(prepareContentProps(props), assets.blogBgDataUri), {
     width: OPENGRAPH_IMAGE_WIDTH,
     height: OPENGRAPH_IMAGE_HEIGHT,
     fonts: assets.fonts as SatoriOptions["fonts"],
@@ -155,6 +167,28 @@ const getTitleFontSize = (title: string): string => {
 
 const getTitleMaxWidth = (title: string): string => {
   return title.length <= 52 ? "920px" : "860px"
+}
+
+const getBlogTitleFontSize = (title: string): string => {
+  const length = title.length
+
+  if (length <= 32) {
+    return "56px"
+  }
+
+  if (length <= 52) {
+    return "50px"
+  }
+
+  if (length <= 72) {
+    return "44px"
+  }
+
+  return "40px"
+}
+
+const getBlogTitleMaxWidth = (title: string): string => {
+  return title.length <= 52 ? "1040px" : "980px"
 }
 
 const createNode = (type: string, props: OgNodeProps): OgNode => {
@@ -244,5 +278,86 @@ const createDocsTemplate = (props: OgTemplateProps, docsBgDataUri: string): OgNo
     title: props.title,
     subtitle: props.subtitle,
     bgDataUri: docsBgDataUri,
+  })
+}
+
+const createBlogOgTemplate = ({
+  title,
+  subtitle,
+  bgDataUri,
+}: OgTemplateProps & { readonly bgDataUri: string }): OgNode => {
+  const titleFontSize = getBlogTitleFontSize(title)
+  const titleMaxWidth = getBlogTitleMaxWidth(title)
+  const titleLineHeight = title.length > 64 ? 1.14 : 1.08
+
+  const textChildren: Array<OgNode> = []
+
+  textChildren.push(
+    createNode("div", {
+      style: {
+        fontSize: titleFontSize,
+        fontWeight: 700,
+        color: "#ffffff",
+        lineHeight: titleLineHeight,
+        maxWidth: titleMaxWidth,
+        letterSpacing: "-0.02em",
+        display: "flex",
+      },
+      children: title,
+    }),
+  )
+
+  if (subtitle !== undefined) {
+    textChildren.push(
+      createNode("div", {
+        style: {
+          fontSize: "28px",
+          color: "#a1a1aa",
+          fontWeight: 400,
+          marginTop: "20px",
+          lineHeight: 1.5,
+          maxWidth: "1040px",
+          display: "flex",
+          fontFamily: "Inter",
+        },
+        children: subtitle,
+      }),
+    )
+  }
+
+  return createNode("div", {
+    style: {
+      width: "1200px",
+      height: "630px",
+      display: "flex",
+      position: "relative",
+      fontFamily: "Inter",
+    },
+    children: [
+      createNode("img", {
+        src: bgDataUri,
+        width: OPENGRAPH_IMAGE_WIDTH,
+        height: OPENGRAPH_IMAGE_HEIGHT,
+      }),
+      createNode("div", {
+        style: {
+          position: "absolute",
+          left: "80px",
+          right: "80px",
+          top: "226px",
+          display: "flex",
+          flexDirection: "column",
+        },
+        children: textChildren,
+      }),
+    ],
+  })
+}
+
+const createBlogTemplate = (props: OgTemplateProps, blogBgDataUri: string): OgNode => {
+  return createBlogOgTemplate({
+    title: props.title,
+    subtitle: props.subtitle,
+    bgDataUri: blogBgDataUri,
   })
 }

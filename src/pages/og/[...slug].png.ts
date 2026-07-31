@@ -6,7 +6,7 @@ import * as Function from "effect/Function"
 import * as Option from "effect/Option"
 import { readFile } from "node:fs/promises"
 import type { OgTemplateProps } from "@/services/OpenGraph"
-import { loadAssets, renderDocsOg } from "@/services/OpenGraph"
+import { loadAssets, renderBlogOg, renderDocsOg } from "@/services/OpenGraph"
 
 // On-demand server endpoint: slugs derive from arbitrary page pathnames
 // (see BaseLayout.getOgImagePath), so the route cannot be enumerated at build
@@ -121,7 +121,7 @@ export const GET: APIRoute = async (context) => {
       return notFound()
     }
     const ogAssets = await loadAssets()
-    return pngResponse(await renderDocsOg(ogProps.value, ogAssets))
+    return pngResponse(await renderBlogOg(ogProps.value, ogAssets))
   }
 
   return notFound()
