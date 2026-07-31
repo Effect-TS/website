@@ -67,6 +67,8 @@ const StoreFileMetadata = Schema.Struct({
 })
 type StoreFileMetadata = typeof StoreFileMetadata.Type
 
+const FILE_OPERATION_CONCURRENCY = 100
+
 interface SyncOptions {
   readonly pullRequest: number
   readonly revision: string
@@ -234,13 +236,18 @@ class Mixedbread extends Context.Service<
           function* ({ externalId, fileHash }) {
             const storeFile = storeFilesById.get(externalId)
 
-            if (storeFile === undefined || storeFile.status !== "completed") {
+            if (storeFile === undefined) {
               return true
             }
 
             const metadata = yield* decodeStoreFileMetadata(storeFile.metadata)
 
-            return metadata.file_hash !== fileHash || metadata.version !== version
+            return (
+              metadata.file_hash !== fileHash ||
+              metadata.version !== version ||
+              storeFile.status === "failed" ||
+              storeFile.status === "cancelled"
+            )
           },
           Effect.catchTag("SchemaError", () => Effect.succeed(true)),
         ),
@@ -257,9 +264,9 @@ class Mixedbread extends Context.Service<
         Effect.fnUntraced(function* ({ externalId, fileHash, filePath }) {
           const now = yield* DateTime.now
 
-          const result = yield* Effect.tryPromise({
+          const storeFile = yield* Effect.tryPromise({
             try: () =>
-              client.stores.files.uploadAndPoll({
+              client.stores.files.upload({
                 storeIdentifier: store.id,
                 file: NodeFs.createReadStream(filePath),
                 body: {
@@ -278,22 +285,20 @@ class Mixedbread extends Context.Service<
                     uploaded_at: DateTime.formatIso(now),
                   },
                 },
-                pollIntervalMs: 1_000,
-                pollTimeoutMs: 10 * 60 * 1000,
               }),
             catch: (cause) => new FailedToIndexError({ externalId, cause }),
           })
 
-          if (result.status !== "completed") {
+          if (storeFile.status === "failed" || storeFile.status === "cancelled") {
             return yield* new FailedToIndexError({
               externalId,
-              cause: result.last_error ?? result.status,
+              cause: storeFile.last_error ?? storeFile.status,
             })
           }
 
-          yield* Effect.log(`Indexed: ${externalId}`)
+          yield* Effect.log(`Uploaded: ${externalId}`)
         }),
-        { concurrency: 30 },
+        { concurrency: FILE_OPERATION_CONCURRENCY },
       )
 
       const staleFiles = storeFiles.filter(
@@ -312,6 +317,7 @@ class Mixedbread extends Context.Service<
           })
           yield* Effect.log(`Deleted stale file: ${file.external_id}`)
         }),
+        { concurrency: FILE_OPERATION_CONCURRENCY },
       )
 
       yield* Effect.tryPromise({
@@ -327,7 +333,7 @@ class Mixedbread extends Context.Service<
         yield* Effect.orDie(fs.writeFileString(outputPath.value, `store_id=${store.id}\n`))
       }
 
-      yield* Effect.log(`Preview store ready: ${store.id}`)
+      yield* Effect.log(`Preview store synchronized: ${store.id}`)
     })
 
     const deleteStore = Effect.fn("Mixedbread.deleteStore")(function* (options: DeleteOptions) {
