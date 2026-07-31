@@ -10,7 +10,6 @@ import * as Option from "effect/Option"
 import * as Result from "effect/Result"
 import * as Sink from "effect/Sink"
 import * as Stream from "effect/Stream"
-import * as Tuple from "effect/Tuple"
 import * as Atom from "effect/unstable/reactivity/Atom"
 import {
   Directory,
@@ -72,6 +71,27 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
       yield* loadWorkspace(workspace).pipe(loader.withIndicator("Preparing workspace"))
 
       const selectedFile = Atom.make(workspace.initialFile)
+      let observedWorkspace = workspace
+      _get.subscribe(handle.workspace, (nextWorkspace) => {
+        const selected = _get.once(selectedFile)
+        if (Option.isNone(nextWorkspace.pathTo(selected))) {
+          const previousPath = observedWorkspace.pathTo(selected)
+          const replacement = Option.flatMap(previousPath, (path) =>
+            Option.map(nextWorkspace.findFile(path), ([file]) => file),
+          )
+          if (Option.isSome(replacement)) {
+            _get.set(selectedFile, replacement.value)
+          } else {
+            for (const node of nextWorkspace.filePaths.keys()) {
+              if (node._tag === "File") {
+                _get.set(selectedFile, node)
+                break
+              }
+            }
+          }
+        }
+        observedWorkspace = nextWorkspace
+      })
 
       const createTerminal = Atom.family(({ command }: WorkspaceTerminal) => {
         const element = Atom.make(Option.none<HTMLElement>())
@@ -171,28 +191,7 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
             shells: currentWorkspace.shells,
             snapshots: defaultWorkspace.snapshots,
           })
-          const files = Array.filterMap([...resetWorkspace.filePaths], ([file, path]) =>
-            file._tag === "File" ? Result.succeed(Tuple.make(file, path)) : Result.failVoid,
-          )
-          yield* Effect.forEach(
-            files,
-            ([file, path]) =>
-              Effect.gen(function* () {
-                const fullPath = resetWorkspace.relativePath(path)
-                const parts = fullPath.split("/")
-                if (parts.length > 1) {
-                  const parentDir = parts.slice(0, -1).join("/")
-                  yield* container.makeDirectory(parentDir).pipe(Effect.ignore)
-                }
-                yield* container.writeFile(
-                  fullPath,
-                  file.initialContent,
-                  file.language ?? "typescript",
-                )
-              }).pipe(Effect.ignore),
-            { concurrency: "unbounded", discard: true },
-          )
-          get.set(handle.workspace, resetWorkspace)
+          yield* handle.resetWorkspace(resetWorkspace)
           get.set(selectedFile, resetWorkspace.initialFile)
         }),
       )
@@ -213,8 +212,7 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
          */
         initialWorkspace: workspace,
         readFile: (path: string) => container.readFile(path),
-        writeFile: (path: string, content: string, language: string) =>
-          container.writeFile(path, content, language),
+        writeFile: handle.writeFile,
         createFile: Atom.fn<Parameters<typeof handle.createFile>>()(
           Effect.fnUntraced(function* (params, get) {
             const node = yield* handle.createFile(...params)

@@ -61,7 +61,9 @@ export const editorAtom = Atom.family((handle: AtomWorkspaceHandle) => {
               if (content.trim().length === 0) {
                 return Effect.void
               }
-              return handle.writeFile(fullPath, content, file.language ?? "typescript")
+              return handle
+                .writeFile(fullPath, content, file.language ?? "typescript")
+                .pipe(Effect.catchTag("FileNotFoundError", () => Effect.void))
             }),
           ),
         )
