@@ -1,0 +1,225 @@
+---
+pagefind: false
+title: This Week in Effect - 129
+excerpt: "Ziverge becomes the first official Effect Adoption Partner. Talks from Effect Miami 2 on Effective State Machines, NestJS migration, and agentic runtimes."
+date: 2026-07-31
+authors:
+  - davide_scognamiglio
+  - mirela_prifti
+tags:
+  - this-week-in-effect
+---
+
+import { YouTube } from "@astro-community/astro-embed-youtube"
+import Tweet from "astro-tweet"
+import TwitchPlayerNonInteractive from "@/components/TwitchPlayerNonInteractive.astro"
+
+Hi Effecters!
+
+Welcome back to This Week In Effect, your weekly update of the latest developments in the Effect community and ecosystem.
+
+Effect is the TypeScript library for the AI era, helping developers build complex, synchronous, and asynchronous programs. One key feature that sets Effect apart is how it leverages structured concurrency to provide features such as async cancellation and safe resource management, making it easier to build robust, scalable, and efficient programs.
+
+To get started, below you'll find links to our documentation and our guide for installing Effect. Enjoy!
+
+- [Effect Documentation](/docs/getting-started/introduction/)
+- [Installing Effect](/docs/getting-started/installation/)
+
+**Recent major updates:**
+
+- [Effect v4 Beta](https://effect.website/blog/releases/effect/40-beta/) Release! 🚀
+- [Effect AI SDK](https://github.com/Effect-TS/effect/releases/tag/%40effect%2Fai%400.27.0) Release.
+- Durable workflows in TypeScript with [`@effect/workflow`](https://github.com/Effect-TS/effect/tree/main/packages/effect/src/unstable/workflow) - currently in alpha.
+- 6520+ community members on [Discord](https://discord.gg/effect-ts).
+
+## Technology
+
+### Effect v4 Beta updates
+
+A landmark week for the v4 beta, with native Deno support landing in full, a broad security hardening sweep, deep fiber runtime fixes, and the v4 API docs going live on Cloudflare Pages.
+
+- **Native Deno support**: Added a full Deno platform integration in `@effect/platform-deno`, including HTTP platform, HTTP server, socket support, socket server, cluster HTTP and socket support, multipart support, and a Deno services aggregate module. Effect now has first-class support for Deno alongside Node.js, Bun, and the browser.
+
+- **Fiber runtime hardening**: Fixed pending interrupt delivery across `interruptibleMask`, prevented concurrent traversal daemon leaks, fixed `FiberHandle.clear` race, cleaned up `Fiber.joinAll` observers on interruption, preserved stack annotations for terminal root failures, stored interruptor stack frames separately, avoided `runSyncExit` dispatcher allocation, and made `awaitAllChildren` child selection linear.
+
+- **Security hardening**: Stripped credentials on cross-origin HTTP redirects, hardened cookie attribute validation, secured MSSQL transport defaults, hardened file-backed key-value store keys, hardened JSON-RPC message classification, and escaped control characters in CLI error messages.
+
+- **v4 API docs**: Deployed the v4 API documentation to Cloudflare Pages, making the full Effect v4 API reference publicly accessible for the first time.
+
+- **Migration tooling**: Added API diff tooling for v3-to-v4 migration, making it easier to identify breaking changes when upgrading.
+
+- **Schema & encoding**: Deduplicated JSON Schema fallback definitions, optimized `Schema.Class` decoding, refactored `SchemaRepresentation`, fixed dynamic record property assignment, simplified `Optic` composition, and emitted MCP tool output schemas.
+
+- **Atoms & reactivity**: Added custom equality detection for atoms to prevent unnecessary re-renders, and fixed atom dependencies during batch rebuilds.
+
+- **OpenTelemetry**: Preferred explicit OTLP resource configuration over implicit detection.
+
+- **HTTP & SSE**: Bounded pending SSE decoder state, fixed generated SSE event decoding, fixed `FileSystem.watch` recursive control, and prevented SQL runner lock refreshes from hanging.
+
+- **AI**: Fixed OpenAI compat parallel tool calls, fixed encoding of system messages as input text, and added `platform` literal to `HttpPlatform`.
+
+- **CLI**: Fixed end-of-options operands for subcommands, fixed positional argument overflow, and escaped control characters in error output.
+
+- **Bun**: Constructed empty Bun multipart streams per-request to prevent cross-request state contamination.
+
+- **Documentation**: Fixed error names in JSDoc comments, documented `ChildProcess` environment behavior, and migrated docgen.
+
+You can follow the full changelog in the [effect repository](https://github.com/Effect-TS/effect/commits/main).
+
+To catch up on more updates, check out [**Effect v4 Beta updates**](https://effect.website/blog/tags/effect-v4-beta-recaps/).
+
+---
+
+Other technical changes from the past week.
+
+### Effect Core
+
+- [Fix zero-capacity Mailbox rendezvous](https://github.com/Effect-TS/effect/pull/6673) (Bug Fix)
+- [Fix Stream.asyncPush bounded termination](https://github.com/Effect-TS/effect/pull/6669) (Bug Fix)
+- [Use linear matcher for string template literals](https://github.com/Effect-TS/effect/pull/6761) (Improvement)
+- [Fix Config redaction errors on v3](https://github.com/Effect-TS/effect/pull/6762) (Bug Fix)
+- [Fix(effect): TMap.remove/removeAll clears entire bucket on hash collision](https://github.com/Effect-TS/effect/pull/6233) (Bug Fix)
+
+### Effect CLI
+
+- [Harden ConfigFile file name handling](https://github.com/Effect-TS/effect/pull/6755) (Improvement)
+
+### Effect Experimental
+
+- [Bound pending SSE decoder state on v3](https://github.com/Effect-TS/effect/pull/6778) (Bug Fix)
+
+### Effect Platform
+
+- [Add extendEnv option to Command.env](https://github.com/Effect-TS/effect/pull/6652) (Feature)
+- [Fix HTML escaping in API docs](https://github.com/Effect-TS/effect/pull/6756) (Bug Fix)
+- [Harden v3 cookie attribute validation](https://github.com/Effect-TS/effect/pull/6765) (Improvement)
+- [Harden file-backed key-value store keys on v3](https://github.com/Effect-TS/effect/pull/6774) (Bug Fix)
+- [Fix KeyValueStore file backend docs](https://github.com/Effect-TS/effect/pull/6776) (Bug Fix)
+
+### Effect Printer
+
+- [Add Doc.sanitize](https://github.com/Effect-TS/effect/pull/6775) (Feature)
+
+### Effect RPC
+
+- [Fix RPC JSON-RPC batch serialization](https://github.com/Effect-TS/effect/pull/6757) (Bug Fix)
+- [Harden JSON-RPC message classification against inherited properties](https://github.com/Effect-TS/effect/pull/6760) (Improvement)
+
+### Effect SQL
+
+- [Correct SQL combinator README examples](https://github.com/Effect-TS/effect/pull/6758) (Bug Fix)
+- [Secure MSSQL transport defaults on v3](https://github.com/Effect-TS/effect/pull/6767) (Enhancement)
+
+### General Chores
+
+- [Deploy v3 API docs to Cloudflare Pages](https://github.com/Effect-TS/effect/pull/6740)
+- [Fix Wrangler installation for v3 docs deployment](https://github.com/Effect-TS/effect/pull/6748)
+
+## Effect Adoption Partner
+
+We're thrilled to announce [Ziverge](https://www.ziverge.com/) as the first Effect adoption partner, and they've also launched an Effect Training Workshop.
+
+<Tweet id="2082073993096417680" />
+
+## Community Highlights
+
+- Why Effect v4 is built for AI-assisted coding -- by Ben Davis
+
+  <Tweet id="2082789983027376237" />
+
+- More Effect-lovers at the orange company 🧡
+
+  <Tweet id="2081291150262989228" />
+
+- 👀
+
+  <Tweet id="2082006488797856093" />
+
+- Let the chef cook! 🧑‍🍳
+
+  <Tweet id="2081863888753111495" />
+
+- Try [effect-atom](https://github.com/tim-smart/effect-atom)
+
+  <Tweet id="2082548288402657377" />
+
+- All roads lead to Effect, eventually!
+
+  <Tweet id="2081313193008218269" />
+
+- 🤍
+
+  <Tweet id="2082660003836518543" />
+
+- [cbranch](https://github.com/cbnsndwch/cbranch) - a cross-platform, browser-based Git GUI. By cbnsndwch.
+
+- [conform-to-effect](https://github.com/carloitaben/conform-to-effect) - Conform helpers for integrating with Effect, bringing Effect Schema validation to Conform-based forms. By carloitaben.
+
+- [effect-torch](https://github.com/mikearnaldi/effect-torch/tree/main) - an experimental, learning-oriented tensor library for TypeScript built on Effect, with a Rust backend powered by candle. By Mike Arnaldi.
+
+- [effect-libs-browser](https://github.com/LordCoughmann/effect-libs-browser) - Effect-native browser automation libraries for Cloudflare Workers and edge runtimes, with Playwright, Stagehand, and Chrome DevTools Protocol integrations. By LordCoughmann.
+
+- [effect-units](https://github.com/rjdellecese/effect-units) - typed quantities and unit conversions for Effect, letting the type system verify that unit operations are dimensionally correct. By rjdellecese.
+
+- [effect-machine](https://github.com/typeonce-dev/effect-machine) - schema-first state machines and statecharts for Effect, serving as the external home for a proposed Machine API during its incubation phase. By typeonce-dev.
+
+## Cause & Effect Podcast
+
+Don't forget to listen to our **Cause & Effect** podcast hosted by Johannes Schickling and available on [YouTube](https://www.youtube.com/@effect-ts), [X(Twitter)](https://x.com/EffectTS_/status/2079159381988626585), and audio platforms like [Spotify](https://open.spotify.com/episode/0xIquYRLjeHIwu1ZhvbmR9) and [Apple Podcast](https://podcasts.apple.com/us/podcast/foldkit-an-effect-first-frontend-framework-9/id1781879869?i=1000777536363).
+
+Devin Jameson joined Johannes Schickling on the Cause & Effect podcast to talk about [Foldkit](https://foldkit.dev/), an Effect-first frontend framework he's been building, inspired by Elm architecture. Devin and Johannes discussed why Foldkit takes a schema-first approach to frontend state, how it differs from React, how commands model side effects, and why this architecture may be especially useful in the age of AI-assisted coding.
+
+<YouTube
+  id="https://www.youtube.com/embed/MyKLh5CMpeY?si=KcXZLQAFCRGC2rI8"
+  title="Foldkit: An Effect-First Frontend Framework || Devin Jameson || Cause & Effect 9"
+/>
+
+## Effect Team Content Update
+
+- Effect Office Hours 39 🔥
+
+<YouTube
+  id="https://www.youtube.com/embed/G4OrgIeLtog?si=E5Os0MHABJeTuOlz"
+  title="Effect Office Hours 39 🔥"
+/>
+
+- Typed Agentic Runtimes & Workflows | Ariel Azoulay | Effect Miami 2
+
+<YouTube
+  id="https://www.youtube.com/embed/07edR9TwrJA?si=-JaPyQCzcYSLlWxH"
+  title="Typed Agentic Runtimes & Workflows | Ariel Azoulay | Effect Miami 2"
+/>
+
+- How to switch to Effect for NestJS devs | Serge Leon | Effect Miami 2
+
+<YouTube
+  id="https://www.youtube.com/embed/MlKoIo0oQwk?si=pHOFef1mbkHtZ173"
+  title="How to switch to Effect for NestJS devs | Serge Leon | Effect Miami 2"
+/>
+
+- Effective State Machines with XState | David Khourshid | Effect Miami 2
+
+<YouTube
+  id="https://www.youtube.com/embed/m-dSS55VO3Y?si=ynrqPQe2e1QDd3-w"
+  title="Effective State Machines with XState | David Khourshid | Effect Miami 2"
+/>
+
+## Effect Job Opportunities
+
+Looking for a role where you can work with Effect? We now have a dedicated Effect jobs page with open roles from companies using Effect. We’ll keep it updated as new opportunities come in.
+
+[Explore Effect job opportunities →](https://www.effect.website/effect-jobs)
+
+_Disclaimer: Please note that these job postings are shared for informational purposes, and we encourage applicants to verify details directly with the hiring companies._
+
+## Effect Merch Store
+
+The [Effect Merch Store](https://effect.website/merch) offers a selection of Effect-branded items designed for the community. All orders are processed and fully managed through [Printful](https://www.printful.com/).
+
+<Tweet id="1868605126862385238" />
+
+## Closing Notes
+
+That's all for this week. Thank you for being a vital part of our community. Your feedback is highly valued as we fine-tune this format. Feel free to share your thoughts, and we'll do our best to tailor it to the needs of our community.
+
+_Effect Community Team_
