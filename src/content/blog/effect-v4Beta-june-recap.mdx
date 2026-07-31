@@ -23,11 +23,7 @@ Here's everything that landed in [`effect`](https://github.com/Effect-TS/effect)
 
 ---
 
-&nbsp;
-
 ## What landed in June
-
-&nbsp;
 
 ### Rate Limiting
 
@@ -45,15 +41,11 @@ June brought a broad round of Schema performance work, correctness fixes, and sm
 
 **API additions.** Removed the `keepDeclarations` option from `Schema.toCodecStringTree`. Exposed `source` schema on schema wrappers for introspection. Emitted `Schema.ConstraintDecoder` in generated SSE clients. Switched to `URL.canParse` for URL schema decoding. Added `Latch.isOpen` to query latch state.
 
-&nbsp;
-
 ### Effect Core
 
 Added custom errors to `Effect.fromOption`, allowing callers to supply a typed error value instead of always receiving `NoSuchElementException`. This makes `fromOption` more composable in pipelines where the error channel is already typed.
 
 Fixed frozen intrinsics when adjusting `Error.stackTraceLimit`.
-
-&nbsp;
 
 ### OpenTelemetry
 
@@ -63,55 +55,37 @@ Several improvements to trace quality and signal-to-noise ratio:
 - Preserved external span sampling, ensuring spans originating outside Effect respect their original sampling decisions
 - Stripped response metadata from HTTP server span failures to reduce noise in traces
 
-&nbsp;
-
 ### SQL
 
 **New APIs.** Added `SQL.valuesUnprepared` for raw value interpolation in queries. Added additional connection options to `MssqlClientConfig`.
 
 **Bug fixes.** Fixed `sqlite-do` Durable Object transactions. Fixed `sqlite-bun` to fail with a typed `SqlError` when statement preparation throws, rather than an untyped exception. Scoped unknown request tag failures to the request instead of the connection.
 
-&nbsp;
-
 ### RPC & HTTP
 
 Failed `RpcClient` HTTP requests with a defect when the response closes early. Fixed the bundle resolver for package export subpaths. Matched `NodeHttpServer.layerConfig` services.
-
-&nbsp;
 
 ### AI
 
 Fixed `ai-anthropic` to emit `null` instead of `undefined` for the caller `toolId` field in non-streaming responses, aligning with expected JSON serialization behavior.
 
-&nbsp;
-
 ### Cron
 
 Fixed `Cron.next` skipping days when overflowing month boundaries — a correctness bug that could cause scheduled tasks to miss their next execution when a cron expression landed on the last days of a month.
-
-&nbsp;
 
 ### CLI
 
 Exposed the CLI environment to schemas, enabling context-aware schema validation inside CLI commands. This allows schemas to access environment services when validating CLI input, consistent with how context-aware defaults work elsewhere in the library.
 
-&nbsp;
-
 ### Performance
 
 Stopped using `performance.timeOrigin` and switched to lazy origin calculation. This avoids issues in environments where the Performance API is restricted or unavailable, improving compatibility across runtimes.
-
-&nbsp;
 
 ### Documentation
 
 Refactored the `Schedule` cookbook. Clarified `Redacted` schema migration docs. Added an unused internal export lint rule.
 
-&nbsp;
-
 ---
-
-&nbsp;
 
 ## Keep up with the Effect v4 beta
 
