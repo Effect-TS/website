@@ -191,6 +191,8 @@ interface OgTypographyRule {
   readonly letterSpacing?: string
   readonly opacity?: number
   readonly enforced: boolean
+  /** How text beyond maxLines is handled. Omitted where it can't happen (single fixed string) or isn't enforced by this file. */
+  readonly overflow?: "ellipsis"
   readonly notes?: string
 }
 
@@ -224,6 +226,12 @@ const BLOG_OG_TYPOGRAPHY = {
     maxWidth: 800,
     maxLines: 2,
     enforced: true,
+    overflow: "ellipsis",
+    notes:
+      "Enforced with satori's native `lineClamp: maxLines` (display: block) " +
+      "— satori supports the CSS line-clamp/textOverflow family directly, so " +
+      "the cut happens in layout against the real rendered glyphs, not via a " +
+      "char-count guess on the string beforehand.",
   },
   blogLabel: {
     fontFamily: "JetBrains Mono",
@@ -412,9 +420,8 @@ const createBlogOgTemplate = ({
           marginTop: "20px",
           lineHeight: descriptionSpec.lineHeight,
           maxWidth: `${descriptionSpec.maxWidth}px`,
-          maxHeight: `${descriptionSpec.fontSize * descriptionSpec.lineHeight * descriptionSpec.maxLines}px`,
-          overflow: "hidden",
-          display: "flex",
+          lineClamp: descriptionSpec.maxLines,
+          display: "block",
           fontFamily: descriptionSpec.fontFamily,
         },
         children: subtitle,

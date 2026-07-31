@@ -4,7 +4,6 @@ import { OverflowChip, TagChip } from "./TagChip"
 export type SerializedTag = {
   id: string
   name: string
-  color: string
   count: number
 }
 
