@@ -68,6 +68,43 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return `/docs/${subpath}`.replace(/\/+$/, "/")
     }
 
+    function guideTitleFromPath(filePath: string): string {
+      const parts = filePath.split("/")
+      const stem = (parts.at(-1) ?? "documentation").replace(/\.(md|mdx)$/, "")
+      const name = stem === "index" ? (parts.at(-2) ?? stem) : stem
+      return name
+        .split(/[-_]/)
+        .filter((part) => part.length > 0)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ")
+    }
+
+    function guideFrontmatter(text: string): {
+      readonly description?: string
+      readonly title?: string
+    } {
+      const frontmatter = /^---\s*\n([\s\S]*?)\n---/.exec(text)?.[1]
+      if (frontmatter === undefined) return {}
+
+      const value = (key: string) => {
+        const raw = new RegExp(`^${key}:\\s*(.+)$`, "m").exec(frontmatter)?.[1]?.trim()
+        if (raw === undefined) return undefined
+        const quote = raw.charAt(0)
+        return (quote === '"' || quote === "'") && raw.endsWith(quote) ? raw.slice(1, -1) : raw
+      }
+
+      const title = value("title")
+      const description = value("description")
+      return {
+        ...(title === undefined ? {} : { title }),
+        ...(description === undefined ? {} : { description }),
+      }
+    }
+
+    function markdownHeading(text: string): string | undefined {
+      return /^#{1,6}\s+(.+?)\s*#*$/m.exec(text)?.[1]?.trim()
+    }
+
     function groupSearchResults(response: StoreSearchResponse): ReadonlyArray<SearchResult> {
       const grouped = new Map<string, DeepMutable<SearchResult>>()
 
@@ -104,18 +141,18 @@ export class Search extends Context.Service<Search>()("app/Search", {
           return
         }
 
-        const generated = chunk.generated_metadata
-        if (!Schema.is(GuideGeneratedMetadata)(generated)) return
-        const title = generated.title
-        const description = generated.description ?? ""
-        const chunkHeadings = generated.chunk_headings
-        const headingContext = generated.heading_context
-
         const href = guideHref(chunk.metadata)
-
         if (href === undefined) {
           return
         }
+
+        const generated = Schema.is(GuideGeneratedMetadata)(chunk.generated_metadata)
+          ? chunk.generated_metadata
+          : undefined
+        const frontmatter = guideFrontmatter(chunk.text)
+        const discoveredTitle = generated?.title ?? frontmatter.title
+        const title = discoveredTitle ?? guideTitleFromPath(chunk.metadata.file_path)
+        const description = generated?.description ?? frontmatter.description ?? ""
 
         if (!grouped.has(href)) {
           grouped.set(href, {
@@ -128,18 +165,30 @@ export class Search extends Context.Service<Search>()("app/Search", {
           })
         }
 
-        const page = grouped.get(href)!
+        const page = grouped.get(href)
+        if (page === undefined || page.kind !== "guide") return
+        if (discoveredTitle !== undefined) page.title = discoveredTitle
+        if (description.length > 0) page.description = description
 
         let chunkTitle = title
-        if (chunkHeadings.length > 0) {
-          chunkTitle = chunkHeadings[0]?.text ?? ""
-        } else if (headingContext.length > 0) {
-          chunkTitle = headingContext[headingContext.length - 1]?.text ?? ""
+        let hasHeading = false
+        if (generated !== undefined && generated.chunk_headings.length > 0) {
+          chunkTitle = generated.chunk_headings[0]?.text ?? title
+          hasHeading = true
+        } else if (generated !== undefined && generated.heading_context.length > 0) {
+          chunkTitle = generated.heading_context.at(-1)?.text ?? title
+          hasHeading = true
+        } else {
+          const heading = markdownHeading(chunk.text)
+          if (heading !== undefined) {
+            chunkTitle = heading
+            hasHeading = true
+          }
         }
 
         const snippet = extractSnippet(chunk.text)
-        const hasHeading = chunkHeadings.length > 0 || headingContext.length > 0
         const chunkHref = hasHeading ? `${href}#${generateAnchorId(chunkTitle)}` : href
+        if (page.chunks.some((match) => match.href === chunkHref)) return
 
         page.chunks.push({
           id: `${chunk.file_id}-${chunk.chunk_index}`,
@@ -154,33 +203,25 @@ export class Search extends Context.Service<Search>()("app/Search", {
     }
 
     const search = Effect.fn("Search.search")(function* (query: string) {
-      const responses = yield* Effect.forEach(
-        ["docs", "api-reference"] as const,
-        (contentSource) =>
-          Effect.tryPromise({
-            try: (signal) =>
-              mxbai.stores.search(
-                {
-                  query,
-                  top_k: 10,
-                  filters: { key: "content_source", operator: "eq", value: contentSource },
-                  search_options: { rerank: true, return_metadata: true },
-                  store_identifiers: [Redacted.value(storeId)],
-                },
-                { signal },
-              ),
-            catch: (cause) => new SearchError({ cause }),
-          }).pipe(
-            Effect.flatMap(decodeSearchResponse),
-            Effect.catchTag("SchemaError", (cause) => new SearchError({ cause })),
+      const rawResponse = yield* Effect.tryPromise({
+        try: (signal) =>
+          mxbai.stores.search(
+            {
+              query,
+              top_k: 20,
+              search_options: { rerank: true, return_metadata: true },
+              store_identifiers: [Redacted.value(storeId)],
+            },
+            { signal },
           ),
-        { concurrency: "unbounded" },
+        catch: (cause) => new SearchError({ cause }),
+      })
+
+      const response = yield* decodeSearchResponse(rawResponse).pipe(
+        Effect.catchTag("SchemaError", (cause) => new SearchError({ cause })),
       )
 
-      return groupSearchResults({
-        object: "list",
-        data: responses.flatMap((response) => response.data).toSorted((a, b) => b.score - a.score),
-      })
+      return groupSearchResults(response)
     })
 
     return {
