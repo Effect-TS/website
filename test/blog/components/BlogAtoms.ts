@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@effect/vitest"
-import { BlogCategory, BlogTagId } from "../domain"
 import {
   applyCategoryToUrl,
   blogPageSlice,
   blogPaginationWindow,
   blogTotalPages,
-} from "./BlogAtoms"
+} from "@/features/blog/components/BlogAtoms"
+import { BlogCategory, BlogTagId } from "@/features/blog/domain"
 
 describe("applyCategoryToUrl", () => {
   it("deletes category for AllPosts and preserves other params and the hash", () => {

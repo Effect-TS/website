@@ -3,6 +3,7 @@ import * as Data from "effect/Data"
 import * as DateTime from "effect/DateTime"
 import * as Result from "effect/Result"
 import * as Schema from "effect/Schema"
+import type BlogTagsJson from "@/content/blog/tags.json"
 
 export const BlogPostId = Schema.Trimmed.check(Schema.isNonEmpty()).pipe(Schema.brand("BlogPostId"))
 export type BlogPostId = typeof BlogPostId.Type
@@ -16,14 +17,21 @@ export const BlogAuthorId = Schema.Trimmed.check(Schema.isNonEmpty()).pipe(
 export type BlogAuthorId = typeof BlogAuthorId.Type
 
 /**
+ * Every real row in `tags.json`, as a literal union — `import type` erases at
+ * build time, so this costs nothing at runtime. Used below to make a typo'd
+ * category id a compile error instead of a silent, disappearing filter.
+ */
+type KnownTagId = keyof typeof BlogTagsJson
+
+/**
  * Single source of truth for the "This Week in Effect" tag id: every filter,
  * count, and URL codec below matches on this constant instead of the string
  * literal.
  */
-export const TwieTagId: BlogTagId = BlogTagId.make("this-week-in-effect")
+export const TwieTagId: BlogTagId = BlogTagId.make("this-week-in-effect" satisfies KnownTagId)
 
 /** The URL query-param value for the synthetic "all" filter row in `tags.json`. */
-export const AllCategoryParam = "all"
+export const AllCategoryParam = "all" satisfies KnownTagId
 
 /**
  * A blog post filter. `"all"` isn't a tag — it's a filter mode that happens
@@ -37,11 +45,9 @@ export type BlogCategory = Data.TaggedEnum<{
 }>
 export const BlogCategory = Data.taggedEnum<BlogCategory>()
 
-export const SuggestedCategoryIds: ReadonlyArray<BlogTagId> = [
-  BlogTagId.make("releases"),
-  BlogTagId.make("effect"),
-  BlogTagId.make("typescript"),
-]
+export const SuggestedCategoryIds: ReadonlyArray<BlogTagId> = (
+  ["releases", "effect", "typescript"] satisfies ReadonlyArray<KnownTagId>
+).map((id) => BlogTagId.make(id))
 
 export function blogCategoryFromParam(
   param: string | null,
@@ -250,6 +256,17 @@ export function blogPostHref(id: string): string {
 
 export function blogPostAbsoluteUrl(id: string, site: URL | undefined): string {
   return new URL(blogPostHref(id), site).href
+}
+
+/**
+ * `AllCategoryParam`, `TwieTagId`, and `SuggestedCategoryIds` are hand-authored
+ * strings that must each match a row in the real tags collection, or the
+ * category they name silently disappears from the site instead of failing
+ * loudly. Returns the ones that don't — empty when everything matches.
+ */
+export function missingCategoryIds(tagIds: ReadonlyArray<string>): ReadonlyArray<string> {
+  const known = new Set(tagIds)
+  return [AllCategoryParam, TwieTagId, ...SuggestedCategoryIds].filter((id) => !known.has(id))
 }
 
 export function blogShareLinks(post: BlogPost, site: URL | undefined) {

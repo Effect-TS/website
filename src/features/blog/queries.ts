@@ -43,8 +43,8 @@ interface BlogPostPage {
 
 /**
  * The blog use cases, backed by `BlogRepository`. Depends only on the
- * repository interface, so it's exercised in tests via
- * `BlogRepository.layerTest(...)` without ever touching `astro:content`.
+ * repository interface, so tests provide it with an inline fixture layer
+ * (`Layer.succeed(BlogRepository, {...})`) without ever touching `astro:content`.
  */
 export class BlogQueries extends Context.Service<
   BlogQueries,

@@ -17,6 +17,7 @@ import {
   blogPostHref,
   blogPostNeighbors,
   type BlogPostSource,
+  blogShareLinks,
   BlogTag,
   BlogTagId,
   type BlogTagSource,
@@ -32,7 +33,7 @@ import {
   toBlogFeedPost,
   toBlogPostSummary,
   TwieTagId,
-} from "./domain"
+} from "@/features/blog/domain"
 
 const releasesTag = new BlogTag({ id: BlogTagId.make("releases"), name: "Releases" })
 const effectTag = new BlogTag({ id: BlogTagId.make("effect"), name: "Effect" })
@@ -82,6 +83,21 @@ describe("blogPostAbsoluteUrl", () => {
     const site = new URL("https://effect.website")
     expect(blogPostAbsoluteUrl("releases/effect/4.0-beta", site)).toBe(
       "https://effect.website/blog/releases/effect/4.0-beta",
+    )
+  })
+})
+
+describe("blogShareLinks", () => {
+  it("builds x/linkedin share urls around the post's absolute url", () => {
+    const post = makePost({ id: "releases/effect/4.0-beta", date: "2024-02-01T00:00:00Z" })
+    const links = blogShareLinks(post, new URL("https://effect.website"))
+
+    expect(links.postUrl).toBe("https://effect.website/blog/releases/effect/4.0-beta")
+    expect(links.xUrl).toBe(
+      "https://twitter.com/intent/tweet?text=Title%20for%20releases%2Feffect%2F4.0-beta&url=https%3A%2F%2Feffect.website%2Fblog%2Freleases%2Feffect%2F4.0-beta",
+    )
+    expect(links.linkedInUrl).toBe(
+      "https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Feffect.website%2Fblog%2Freleases%2Feffect%2F4.0-beta",
     )
   })
 })

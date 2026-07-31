@@ -7,7 +7,7 @@ export default defineConfig({
     alias: { "@/": fileURLToPath(new URL("./src/", import.meta.url)) },
   },
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["test/**/*.ts"],
     environment: "node",
     globals: false,
     // Pins a non-UTC offset so formatBlogDate's explicit `timeZone: "UTC"`

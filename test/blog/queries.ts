@@ -3,9 +3,9 @@ import { describe, expect, it } from "@effect/vitest"
 import * as Effect from "effect/Effect"
 import * as Exit from "effect/Exit"
 import * as Layer from "effect/Layer"
-import type { BlogAuthorSource, BlogPostSource, BlogTagSource } from "./domain"
-import { BlogQueries } from "./queries"
-import { BlogContentError, BlogRepository } from "./repository"
+import type { BlogAuthorSource, BlogPostSource, BlogTagSource } from "@/features/blog/domain"
+import { BlogQueries } from "@/features/blog/queries"
+import { BlogContentError, BlogRepository } from "@/features/blog/repository"
 
 // This file imports `queries.ts`, which must never transitively import
 // `astro:content`. If it did, vitest would fail to resolve the module and
@@ -16,6 +16,7 @@ const tagSources: ReadonlyArray<BlogTagSource> = [
   { id: "all", data: { name: "All" } },
   { id: "releases", data: { name: "Releases" } },
   { id: "effect", data: { name: "Effect" } },
+  { id: "typescript", data: { name: "TypeScript" } },
   { id: "this-week-in-effect", data: { name: "This Week In Effect" } },
 ]
 
@@ -52,7 +53,15 @@ function testQueries(fixtures: {
   readonly tags?: ReadonlyArray<BlogTagSource> | undefined
   readonly authors?: ReadonlyArray<BlogAuthorSource> | undefined
 }) {
-  return BlogQueries.layer.pipe(Layer.provide(BlogRepository.layerTest(fixtures)))
+  return BlogQueries.layer.pipe(
+    Layer.provide(
+      Layer.succeed(BlogRepository, {
+        posts: Effect.succeed(fixtures.posts ?? []),
+        tags: Effect.succeed(fixtures.tags ?? []),
+        authors: Effect.succeed(fixtures.authors ?? []),
+      }),
+    ),
+  )
 }
 
 describe("BlogQueries.listing", () => {
@@ -223,7 +232,15 @@ describe("error propagation", () => {
   it.effect("fails every query with the repository's error", () =>
     Effect.gen(function* () {
       const error = new BlogContentError({ collection: "blog", cause: "boom" })
-      const layer = BlogQueries.layer.pipe(Layer.provide(BlogRepository.layerFailing(error)))
+      const layer = BlogQueries.layer.pipe(
+        Layer.provide(
+          Layer.succeed(BlogRepository, {
+            posts: Effect.fail(error),
+            tags: Effect.fail(error),
+            authors: Effect.fail(error),
+          }),
+        ),
+      )
 
       const indexExit = yield* Effect.exit(
         BlogQueries.use((queries) => queries.listing).pipe(Effect.provide(layer)),
