@@ -1,7 +1,7 @@
 ---
 pagefind: false
 title: "Effect v4 Beta: July Updates"
-excerpt: "A recap of everything that landed in the Effect v4 beta in July 2026. Native Deno support, a Graph module, Schedule overhaul, HttpApi hardening, a landmark repository migration, and more."
+excerpt: "Native Deno support, a Graph module, Schedule overhaul, HttpApi hardening, a landmark repository migration, and more."
 date: 2026-07-31
 authors:
   - davide_scognamiglio
@@ -13,41 +13,33 @@ tags:
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 
-July was a landmark month for the Effect v4 beta.
+Welcome to another month of Effect v4 beta, which gained native Deno support, a Schedule overhaul, a new Graph module, and a series of correctness fixes. `effect-smol` was merged into `Effect-TS/effect`, and `main` is now officially Effect v4.
 
-The month opened with correctness fixes, expanded rapidly into native Deno support, a Schedule overhaul, and a new Graph module, and closed with a milestone that marks the end of an era: the `effect-smol` repository has been archived and its full Git history merged into the canonical `Effect-TS/effect` repository. The `main` branch is now officially Effect v4.
-
-&nbsp;
 
 ## What landed in July
 
-&nbsp;
 
 ### Repository milestone
 
-The biggest structural change of the month — and arguably of the entire beta — happened in the final week: **Effect v4 has moved to the canonical `Effect-TS/effect` repository**. The `main` branch is now v4, while v3 lives on the `v3` branch. The `effect-smol` repo is archived and read-only, with all history preserved for reference.
+The biggest structural change of the month, and arguably of the entire beta, happened in the final week: **Effect v4 has moved to the canonical `Effect-TS/effect` repository**. The `main` branch is now v4, while v3 lives on the `v3` branch. The `effect-smol` repo is archived and read-only, with all history preserved for reference.
 
 For anyone following the beta via the `effect-smol` repository, the new home for development is [`Effect-TS/effect`](https://github.com/Effect-TS/effect).
 
-&nbsp;
 
 ### Native Deno Support
 
 Added a full Deno platform integration in `@effect/platform-deno`, including an HTTP platform, HTTP server, socket support, socket server, cluster HTTP and socket support, multipart support, and a Deno services aggregate module. Effect now has first-class support for Deno alongside Node.js, Bun, and the browser.
 
-&nbsp;
 
 ### Graph Module
 
 A new `Graph` module landed with a broad initial feature set: graph set operators (`union`, `intersection`, `difference`), opaque `Graph` interfaces for better encapsulation, `toGraphViz` DOT output, `floydWarshall` shortest paths, `isAcyclic` and `isGraph` predicates, a `Walker` iterator, and fixes for edge transforms, mutation finalization, and parallel undirected edge handling. Graph set operation gotchas are also documented.
 
-&nbsp;
 
 ### Cron
 
 A thorough hardening pass landed for the `Cron` module: validated `Cron.make` field restrictions, fixed `Cron.prev` month day rollover and weekday wrapping, fixed alias normalization, added day and weekday intersection semantics in the inspection representation, and corrected JSDoc examples and documentation accuracy.
 
-&nbsp;
 
 ### Schedule
 
@@ -55,165 +47,217 @@ The `Schedule` API received its most significant overhaul of the beta. Limiting 
 
 Cron semantics also improved: `Schedule.cron` now more closely adheres to vixie semantics, including support for step fields like `5/15` expanding from the starting value through the field maximum. A bug where `Schedule.cron` misbehaved when the test clock was adjusted to infinity was also fixed.
 
-&nbsp;
 
 ### Schema
 
 Schema work continued steadily across the month.
 
-**New types.** Added `Schema.Decoder` and `Schema.Encoder` types for passing simpler schema shapes to APIs that only decode or only encode. Added `Schema.DateFromMillis` for millisecond-epoch date decoding. Added discriminants to `Schema.toTaggedUnion` for more precise tagged union encoding.
+**New types** - added `Schema.Decoder` and `Schema.Encoder` types for passing simpler schema shapes to APIs that only decode or only encode. Added `Schema.DateFromMillis` for millisecond-epoch date decoding. Added discriminants to `Schema.toTaggedUnion` for more precise tagged union encoding.
 
-**Correctness fixes.** Fixed excess property handling in schema-backed class constructors. Fixed `StructuralProto` equality. Preserved content schema identifiers when emitting JSON Schema for `Schema.fromJsonString`. Fixed JSON Schema tuple `allOf` intersections. Fixed tuple post-rest element indexing. Fixed union candidate dispatch ordering. Prevented prototype pollution in bracket-path decoding. Preserved nested class construction when applying constructor defaults.
+**Correctness fixes** - fixed excess property handling in schema-backed class constructors. Fixed `StructuralProto` equality. Preserved content schema identifiers when emitting JSON Schema for `Schema.fromJsonString`. Fixed JSON Schema tuple `allOf` intersections. Fixed tuple post-rest element indexing. Fixed union candidate dispatch ordering. Prevented prototype pollution in bracket-path decoding. Preserved nested class construction when applying constructor defaults.
 
-**DX.** Simplified the displayed `Type`, `Encoded`, and `Iso` types of required readonly `Schema.Struct` fields for cleaner hover types in editors. Improved the `passthrough strict: false` mode example in docs.
+**DX** - simplified the displayed `Type`, `Encoded`, and `Iso` types of required readonly `Schema.Struct` fields for cleaner hover types in editors. Improved the `passthrough strict: false` mode example in docs.
 
-&nbsp;
 
 ### HttpApi Hardening
 
-The HttpApi layer received a significant hardening pass in the final week of July. Highlights include: reused response schemas, normalized payload media types, hardened HTML rendering in API docs, fixed client error and authorization decoding, improved type-level performance, kept `HttpApi` composition immutable, applied `transformClient` when building individual endpoint clients, rejected duplicate and unknown handler registrations with descriptive errors, rejected duplicate OpenAPI operations and incompatible security scheme names, compiled SSE client decoders once instead of per-request, preserved `__proto__` identifiers, and added `HttpApiError` for status 422.
+The HttpApi layer received a significant hardening pass in the final week of July. 
+
+Highlights include: 
+- reused response schemas
+- normalized payload media types
+- hardened HTML rendering in API docs
+- fixed client error and authorization decoding
+- improved type-level performance
+- kept `HttpApi` composition immutable
+- applied `transformClient` when building individual endpoint clients
+- rejected duplicate and unknown handler registrations with descriptive errors
+- rejected duplicate OpenAPI operations and incompatible security scheme names
+- compiled SSE client decoders once instead of per-request, preserved `__proto__` identifiers, and 
+- added `HttpApiError` for status 422.
 
 Earlier in the month: ensured handler errors don't cause `HttpApi` security middleware to fall back to unauthenticated behavior, and fixed `HttpApi` to return `400` for malformed JSON request bodies.
 
-Additional HTTP fixes: fixed `HttpRouter` middleware context inference, routed multipart errors to HTTP responses, fixed published pre-response handler types, handled aborted HEAD responses during `NodeHttpServer` disposal, and fixed the OpenAPI generator's handling of recursive schema forward references.
+Additional HTTP fixes: 
+- fixed `HttpRouter` middleware context inference
+- routed multipart errors to HTTP responses
+- fixed published pre-response handler types
+- handled aborted HEAD responses during `NodeHttpServer` disposal, and 
+- fixed the OpenAPI generator's handling of recursive schema forward references.
 
-&nbsp;
 
 ### Security hardening
 
-A broad security hardening sweep landed in the final week: stripped credentials on cross-origin HTTP redirects, hardened cookie attribute validation, secured MSSQL transport defaults, hardened file-backed key-value store keys, hardened JSON-RPC message classification, and escaped control characters in CLI error messages.
+A broad security hardening sweep landed in the final week: 
+- stripped credentials on cross-origin HTTP redirects
+- hardened cookie attribute validation
+- secured MSSQL transport defaults
+- hardened file-backed key-value store keys
+- hardened JSON-RPC message classification, and 
+- escaped control characters in CLI error messages.
 
-&nbsp;
 
 ### v4 API Documentation
 
-The v4 API documentation was deployed to Cloudflare Pages, making the full Effect v4 API reference publicly accessible for the first time. AI documentation also expanded with `Schema` and `Predicate` introductions, and the Schedule AI docs section was rearranged for better discoverability.
+The v4 API documentation was deployed to Cloudflare Pages, making the full Effect v4 API reference publicly accessible for the first time. 
 
-&nbsp;
+AI documentation also expanded with `Schema` and `Predicate` introductions, and the Schedule AI docs section was rearranged for better discoverability.
+
 
 ### Migration Tooling
 
 Added API diff tooling for v3-to-v4 migration, making it easier to identify breaking changes when upgrading from Effect v3.
 
-&nbsp;
 
 ### Fiber Runtime
 
-A thorough round of fiber runtime hardening landed: fixed pending interrupt delivery across `interruptibleMask`, prevented concurrent traversal daemon leaks, fixed `FiberHandle.clear` race, cleaned up `Fiber.joinAll` observers on interruption, preserved stack annotations for terminal root failures, stored interruptor stack frames separately, avoided `runSyncExit` dispatcher allocation, and made `awaitAllChildren` child selection linear. Also fixed handling of large millisecond values passed to `sleep`. Fixed fiber self-interruption from inside a running observer. Fixed cache lookup to only interrupt when all awaiters are gone.
+A thorough round of fiber runtime hardening landed: 
+- fixed pending interrupt delivery across `interruptibleMask`
+- prevented concurrent traversal daemon leaks
+- fixed `FiberHandle.clear` race
+- cleaned up `Fiber.joinAll` observers on interruption
+- preserved stack annotations for terminal root failures
+- stored interruptor stack frames separately
+- avoided `runSyncExit` dispatcher allocation 
+- made `awaitAllChildren` child selection linear
+- fixed handling of large millisecond values passed to `sleep` 
+- fixed fiber self-interruption from inside a running observer
+- fixed cache lookup to only interrupt when all awaiters are gone.
 
-&nbsp;
 
 ### Durable Execution & Workflow
 
-Fixed durable race result replay. Ensured `PersistedQueue` decoding failures count as processing attempts. Fixed Redis-backed `PersistedQueue` script handling. Fixed SQL-backed persisted queues to refresh locks for actively acquired elements. Fixed a missing `requiresHandler` flag on a durable activity type. Fixed the activity retry policy.
+- Fixed durable race result replay. 
+- Ensured `PersistedQueue` decoding failures count as processing attempts. 
+- Fixed Redis-backed `PersistedQueue` script handling. 
+- Fixed SQL-backed persisted queues to refresh locks for actively acquired elements. 
+- Fixed a missing `requiresHandler` flag on a durable activity type. 
+- Fixed the activity retry policy.
 
-&nbsp;
 
 ### SQL
 
-Added `SQL.valuesUnprepared` for raw value interpolation. Fixed `sqlite-do` Durable Object transactions. Fixed `sqlite-bun` to fail with a typed `SqlError` when statement preparation throws. Scoped unknown request tag failures to the request instead of the connection. Fixed SQL-backed persisted queues. Added `disablePreparedStatements` option to `@effect/sql-mysql2`. Avoided creating a table when it's not needed.
+- Added `SQL.valuesUnprepared` for raw value interpolation. 
+- Fixed `sqlite-do` Durable Object transactions. 
+- Fixed `sqlite-bun` to fail with a typed `SqlError` when statement preparation throws. 
+- Scoped unknown request tag failures to the request instead of the connection. 
+- Fixed SQL-backed persisted queues. 
+- Added `disablePreparedStatements` option to `@effect/sql-mysql2`. 
+- Avoided creating a table when it's not needed.
 
-&nbsp;
 
 ### Native SQLite in Node
 
 Replaced `better-sqlite3` with Node's built-in `node:sqlite` module in `sql-sqlite-node`, removing a native dependency and improving portability across Node environments.
 
-&nbsp;
 
 ### RPC & HTTP
 
-Failed `RpcClient` HTTP requests with a defect when the response closes early. Fixed the bundle resolver for package export subpaths. Matched `NodeHttpServer.layerConfig` services. Changed RPC IDs to `string | number` for broader compatibility with existing systems. Fixed `HttpApi` runtime shape. Allowed additional `HttpApiClient` options.
+- Failed `RpcClient` HTTP requests with a defect when the response closes early. 
+- Fixed the bundle resolver for package export subpaths. 
+- Matched `NodeHttpServer.layerConfig` services. 
+- Changed RPC IDs to `string | number` for broader compatibility with existing systems. 
+- Fixed `HttpApi` runtime shape. 
+- Allowed additional `HttpApiClient` options.
+- Also fixed `Schedule.andThenResult` to correctly emit self outputs as `Failure` and other outputs as `Success`.
 
-Also fixed `Schedule.andThenResult` to correctly emit self outputs as `Failure` and other outputs as `Success`.
-
-&nbsp;
 
 ### Atoms & Reactivity
 
-Added custom equality detection for atoms to prevent unnecessary re-renders. Fixed atom dependencies during batch rebuilds. Used `Set`s to track atom relationships for improved correctness and performance of the reactivity graph.
+- Added custom equality detection for atoms to prevent unnecessary re-renders. 
+- Fixed atom dependencies during batch rebuilds. 
+- Used `Set`s to track atom relationships for improved correctness and performance of the reactivity graph.
 
-&nbsp;
 
 ### OpenTelemetry
 
-Preferred explicit OTLP resource configuration over implicit detection. Rendered nested error causes in tracer exception events for deeper observability into chained failures.
+- Preferred explicit OTLP resource configuration over implicit detection. 
+- Rendered nested error causes in tracer exception events for deeper observability into chained failures.
 
-&nbsp;
 
 ### AI
 
-Fixed OpenAI compat parallel tool calls. Fixed encoding of system messages as input text. Added `platform` literal to `HttpPlatform`. Fixed provider-defined tools (tool cloning and Anthropic client tools). Removed the legacy LSP in favor of `effect/tsgo`. Fixed OpenRouter dynamic tools sending an empty parameters schema. Preserved OpenAI Responses cache write token usage.
+- Fixed OpenAI compat parallel tool calls. 
+- Fixed encoding of system messages as input text. 
+- Added `platform` literal to `HttpPlatform`. 
+- Fixed provider-defined tools (tool cloning and Anthropic client tools). 
+- Removed the legacy LSP in favor of `effect/tsgo`. 
+- Fixed OpenRouter dynamic tools sending an empty parameters schema. 
+- Preserved OpenAI Responses cache write token usage.
 
-&nbsp;
 
 ### LayerRef
 
 Added a new `LayerRef` module for holding a reference to a `Layer` that can be swapped at runtime — useful for testing and dynamic configuration scenarios.
 
-&nbsp;
 
 ### FileSystem
 
-Added `glob` support to the `FileSystem` module for pattern-based file discovery. Fixed `FileSystem.watch` recursive control.
+- Added `glob` support to the `FileSystem` module for pattern-based file discovery. 
+- Fixed `FileSystem.watch` recursive control.
 
-&nbsp;
 
 ### CLI
 
-Reintroduced CLI wizard mode. Added CLI config for built-in flags. Fixed missing flag value handling. Fixed `Command.withSubcommands` losing context type inference. Fixed end-of-options operands for subcommands. Fixed positional argument overflow. Escaped control characters in error output. Removed the doubled "Expected" prefix from `InvalidValue` messages. Preserved chained vitest helpers like `it.describe.each` through the `it` proxy. Added general cleanups.
+- Reintroduced CLI wizard mode. 
+- Added CLI config for built-in flags. 
+- Fixed missing flag value handling. Fixed `Command.withSubcommands` losing context type inference. 
+- Fixed end-of-options operands for subcommands. 
+- Fixed positional argument overflow. 
+- Escaped control characters in error output. 
+- Removed the doubled "Expected" prefix from `InvalidValue` messages. 
+- Preserved chained vitest helpers like `it.describe.each` through the `it` proxy. 
+- Added general cleanups.
 
-&nbsp;
 
 ### New Core APIs
 
 Added `Effect.reduce` for folding over a collection of effects into a single accumulated result.
 
-&nbsp;
 
 ### MutableList
 
 Fixed `MutableList.filter` empty-state handling to prevent incorrect state after filtering all elements.
 
-&nbsp;
 
 ### Config & URL
 
-Treated empty config strings as missing data, aligning with the principle of least surprise for environment variable–backed config. Moved `UrlParams.makeUrl` to `Url.make` for a cleaner API surface, and accepted `UrlParams.Input` in additional `UrlParams` APIs for more ergonomic URL construction.
+- Treated empty config strings as missing data, aligning with the principle of least surprise for environment variable–backed config. 
+- Moved `UrlParams.makeUrl` to `Url.make` for a cleaner API surface, and accepted `UrlParams.Input` in additional `UrlParams` APIs for more ergonomic URL construction.
 
-&nbsp;
 
 ### String Utilities
 
-Fixed string case conversion for numeric word segments — e.g. `"v4Beta"` now correctly converts to `"v-4-beta"` instead of losing the digit boundary.
+Fixed string case conversion for numeric word segments, e.g. `"v4Beta"` now correctly converts to `"v-4-beta"` instead of losing the digit boundary.
 
-&nbsp;
 
 ### Entity & Cluster
 
-Cached clients by entity reference for better performance. Isolated cluster entity handler context from the fiber that first wakes it, fixing a subtle context leak.
+- Cached clients by entity reference for better performance. 
+- Isolated cluster entity handler context from the fiber that first wakes it, fixing a subtle context leak.
 
-&nbsp;
 
 ### Performance
 
-Optimized Bun stream reading. Forked memo maps on nested layer builds to prevent cross-build contamination. Stopped using `performance.timeOrigin` and switched to lazy origin calculation to avoid issues in environments where the Performance API is restricted. Avoided `runSyncExit` dispatcher allocation in the fiber runtime.
+- Optimized Bun stream reading. 
+- Forked memo maps on nested layer builds to prevent cross-build contamination. 
+- Stopped using `performance.timeOrigin` and switched to lazy origin calculation to avoid issues in environments where the Performance API is restricted. 
+- Avoided `runSyncExit` dispatcher allocation in the fiber runtime.
 
-&nbsp;
 
 ### Bun
 
 Constructed empty Bun multipart streams per-request to prevent cross-request state contamination.
 
-&nbsp;
 
 ### Documentation
 
-Fixed error names in JSDoc comments. Documented `ChildProcess` environment behavior. Migrated docgen. Clarified `GenericTag` key documentation.
+- Fixed error names in JSDoc comments. 
+- Documented `ChildProcess` environment behavior. 
+- Migrated docgen. 
+- Clarified `GenericTag` key documentation.
 
 ---
-
-&nbsp;
 
 ## Keep up with the Effect v4 beta
 
