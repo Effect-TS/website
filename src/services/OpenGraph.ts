@@ -256,9 +256,7 @@ const BLOG_TITLE_FONT_SIZE_STEPS = [52, 48, 44, 40] as const
 const BLOG_TITLE_LENGTH_THRESHOLDS = [88, 96, 105] as const
 
 if (BLOG_TITLE_FONT_SIZE_STEPS[0] !== BLOG_OG_TYPOGRAPHY.title.fontSize) {
-  throw new Error(
-    "BLOG_TITLE_FONT_SIZE_STEPS[0] must match BLOG_OG_TYPOGRAPHY.title.fontSize",
-  )
+  throw new Error("BLOG_TITLE_FONT_SIZE_STEPS[0] must match BLOG_OG_TYPOGRAPHY.title.fontSize")
 }
 
 // Separate from getTitleFontSize (docs) on purpose — docs and blog use
