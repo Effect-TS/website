@@ -8,10 +8,10 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Redacted from "effect/Redacted"
 import * as Schema from "effect/Schema"
-import type { GuideMetadata, SearchResult } from "./domain"
+import type { SearchResult } from "./domain"
 import {
   ApiReferenceGeneratedMetadata,
-  GuideGeneratedMetadata,
+  DocumentationGeneratedMetadata,
   SearchError,
   StoreSearchResponse,
 } from "./domain"
@@ -50,61 +50,6 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return cleaned.substring(0, maxLength).trim() + "..."
     }
 
-    function generateAnchorId(text: string) {
-      return text
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-    }
-
-    const CONTENT_PATH = "src/content/docs/"
-    function guideHref(metadata: typeof GuideMetadata.Type): string | undefined {
-      const index = metadata.file_path.indexOf(CONTENT_PATH)
-      if (index === -1) return undefined
-      const subpath = metadata.file_path
-        .substring(index + CONTENT_PATH.length)
-        .replace(/\.(md|mdx)$/, "")
-        .replace(/(^|\/)index$/, "")
-      return `/docs/${subpath}`.replace(/\/+$/, "/")
-    }
-
-    function guideTitleFromPath(filePath: string): string {
-      const parts = filePath.split("/")
-      const stem = (parts.at(-1) ?? "documentation").replace(/\.(md|mdx)$/, "")
-      const name = stem === "index" ? (parts.at(-2) ?? stem) : stem
-      return name
-        .split(/[-_]/)
-        .filter((part) => part.length > 0)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ")
-    }
-
-    function guideFrontmatter(text: string): {
-      readonly description?: string
-      readonly title?: string
-    } {
-      const frontmatter = /^---\s*\n([\s\S]*?)\n---/.exec(text)?.[1]
-      if (frontmatter === undefined) return {}
-
-      const value = (key: string) => {
-        const raw = new RegExp(`^${key}:\\s*(.+)$`, "m").exec(frontmatter)?.[1]?.trim()
-        if (raw === undefined) return undefined
-        const quote = raw.charAt(0)
-        return (quote === '"' || quote === "'") && raw.endsWith(quote) ? raw.slice(1, -1) : raw
-      }
-
-      const title = value("title")
-      const description = value("description")
-      return {
-        ...(title === undefined ? {} : { title }),
-        ...(description === undefined ? {} : { description }),
-      }
-    }
-
-    function markdownHeading(text: string): string | undefined {
-      return /^#{1,6}\s+(.+?)\s*#*$/m.exec(text)?.[1]?.trim()
-    }
-
     function groupSearchResults(response: StoreSearchResponse): ReadonlyArray<SearchResult> {
       const grouped = new Map<string, DeepMutable<SearchResult>>()
 
@@ -141,60 +86,41 @@ export class Search extends Context.Service<Search>()("app/Search", {
           return
         }
 
-        const href = guideHref(chunk.metadata)
-        if (href === undefined) {
-          return
-        }
+        if (chunk.metadata.content_source !== "documentation") return
+        const generated = chunk.generated_metadata
+        if (!Schema.is(DocumentationGeneratedMetadata)(generated)) return
 
-        const generated = Schema.is(GuideGeneratedMetadata)(chunk.generated_metadata)
-          ? chunk.generated_metadata
-          : undefined
-        const frontmatter = guideFrontmatter(chunk.text)
-        const discoveredTitle = generated?.title ?? frontmatter.title
-        const title = discoveredTitle ?? guideTitleFromPath(chunk.metadata.file_path)
-        const description = generated?.description ?? frontmatter.description ?? ""
-
-        if (!grouped.has(href)) {
-          grouped.set(href, {
-            kind: "guide",
-            id: chunk.file_id,
-            description,
-            title,
-            href,
+        const parentHref = generated.parent_section_anchor
+          ? `${generated.page_href}#${generated.parent_section_anchor}`
+          : generated.page_href
+        if (!grouped.has(parentHref)) {
+          grouped.set(parentHref, {
+            kind: "documentation",
+            id: parentHref,
+            breadcrumbs: [generated.group_label, generated.page_label].filter(
+              (label) => label.length > 0,
+            ),
+            description: generated.parent_section_excerpt,
+            title: generated.parent_section_title,
+            href: parentHref,
+            version: generated.docs_version,
             chunks: [],
           })
         }
 
-        const page = grouped.get(href)
-        if (page === undefined || page.kind !== "guide") return
-        if (discoveredTitle !== undefined) page.title = discoveredTitle
-        if (description.length > 0) page.description = description
+        const result = grouped.get(parentHref)
+        if (result === undefined || result.kind !== "documentation") return
+        if (generated.section_level <= 2) return
 
-        let chunkTitle = title
-        let hasHeading = false
-        if (generated !== undefined && generated.chunk_headings.length > 0) {
-          chunkTitle = generated.chunk_headings[0]?.text ?? title
-          hasHeading = true
-        } else if (generated !== undefined && generated.heading_context.length > 0) {
-          chunkTitle = generated.heading_context.at(-1)?.text ?? title
-          hasHeading = true
-        } else {
-          const heading = markdownHeading(chunk.text)
-          if (heading !== undefined) {
-            chunkTitle = heading
-            hasHeading = true
-          }
-        }
-
-        const snippet = extractSnippet(chunk.text)
-        const chunkHref = hasHeading ? `${href}#${generateAnchorId(chunkTitle)}` : href
-        if (page.chunks.some((match) => match.href === chunkHref)) return
-
-        page.chunks.push({
+        const sectionHref = generated.section_anchor
+          ? `${generated.page_href}#${generated.section_anchor}`
+          : generated.page_href
+        if (result.chunks.some((match) => match.href === sectionHref)) return
+        result.chunks.push({
           id: `${chunk.file_id}-${chunk.chunk_index}`,
-          href: chunkHref,
-          title: chunkTitle,
-          snippet,
+          href: sectionHref,
+          title: generated.section_title,
+          snippet: generated.section_excerpt,
           score: chunk.score,
         })
       })

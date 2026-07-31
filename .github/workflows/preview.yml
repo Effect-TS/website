@@ -38,9 +38,9 @@ jobs:
 
       - name: Synchronize Mixedbread preview store
         id: mixedbread
-        run: pnpm mixedbread:preview sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"
+        run: pnpm mixedbread:index sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"
         env:
-          MXBAI_PREVIEW_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
+          MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
 
       - name: Pull Vercel Environment Information
         run: pnpm exec vercel pull --yes --environment=preview --git-branch="${{ github.head_ref }}" --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
@@ -77,6 +77,6 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Delete Mixedbread preview store
-        run: pnpm mixedbread:preview delete --pr "${{ github.event.pull_request.number }}"
+        run: pnpm mixedbread:index delete-preview --pr "${{ github.event.pull_request.number }}"
         env:
-          MXBAI_PREVIEW_ADMIN_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
+          MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}

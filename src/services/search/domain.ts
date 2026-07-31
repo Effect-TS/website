@@ -1,12 +1,5 @@
 import * as Schema from "effect/Schema"
 
-export const HeadingInfo = Schema.Struct({
-  level: Schema.Int,
-  text: Schema.String,
-})
-
-export type HeadingInfo = typeof HeadingInfo.Type
-
 const CommonMetadata = {
   synced: Schema.Boolean,
   file_hash: Schema.String,
@@ -15,10 +8,15 @@ const CommonMetadata = {
   uploaded_at: Schema.DateTimeUtcFromString,
 } as const
 
-export const GuideMetadata = Schema.Struct({
+export const DocumentationMetadata = Schema.Struct({
   ...CommonMetadata,
-  content_source: Schema.optional(Schema.Literal("docs")),
+  content_source: Schema.Literal("documentation"),
+  docs_version: Schema.String,
   file_path: Schema.String,
+  group_label: Schema.String,
+  page_href: Schema.String,
+  page_label: Schema.String,
+  page_title: Schema.String,
 })
 
 export const ApiReferenceMetadata = Schema.Struct({
@@ -29,15 +27,24 @@ export const ApiReferenceMetadata = Schema.Struct({
   package_slug: Schema.String,
 })
 
-export const Metadata = Schema.Union([GuideMetadata, ApiReferenceMetadata])
+export const Metadata = Schema.Union([DocumentationMetadata, ApiReferenceMetadata])
 
 export type Metadata = typeof Metadata.Type
 
-export const GuideGeneratedMetadata = Schema.Struct({
-  title: Schema.String,
-  description: Schema.optional(Schema.String),
-  chunk_headings: Schema.Array(HeadingInfo),
-  heading_context: Schema.Array(HeadingInfo),
+export const DocumentationGeneratedMetadata = Schema.Struct({
+  type: Schema.Literal("text"),
+  docs_version: Schema.String,
+  group_label: Schema.String,
+  page_href: Schema.String,
+  page_label: Schema.String,
+  page_title: Schema.String,
+  parent_section_anchor: Schema.String,
+  parent_section_excerpt: Schema.String,
+  parent_section_title: Schema.String,
+  section_anchor: Schema.String,
+  section_excerpt: Schema.String,
+  section_level: Schema.Int,
+  section_title: Schema.String,
 })
 
 export const ApiReferenceGeneratedMetadata = Schema.Struct({
@@ -53,7 +60,7 @@ export const ApiReferenceGeneratedMetadata = Schema.Struct({
 
 export const GeneratedMetadata = Schema.Union([
   ApiReferenceGeneratedMetadata,
-  GuideGeneratedMetadata,
+  DocumentationGeneratedMetadata,
   Schema.Record(Schema.String, Schema.Unknown),
 ])
 
@@ -94,14 +101,17 @@ export const SearchResultChunk = Schema.Struct({
 
 export type SearchResultChunk = typeof SearchResultChunk.Type
 
-export const GuideSearchResult = Schema.Struct({
-  kind: Schema.Literal("guide"),
+export const DocumentationSearchResult = Schema.Struct({
+  kind: Schema.Literal("documentation"),
   id: Schema.String,
+  breadcrumbs: Schema.Array(Schema.String),
   title: Schema.String,
   description: Schema.String,
   href: Schema.String,
+  version: Schema.String,
   chunks: Schema.Array(SearchResultChunk),
 })
+export type DocumentationSearchResult = typeof DocumentationSearchResult.Type
 
 export const ApiReferenceSearchResult = Schema.Struct({
   kind: Schema.Literal("api-reference"),
@@ -113,15 +123,13 @@ export const ApiReferenceSearchResult = Schema.Struct({
   version: Schema.String,
   chunks: Schema.Array(SearchResultChunk),
 })
+export type ApiReferenceSearchResult = typeof ApiReferenceSearchResult.Type
 
-export const SearchResult = Schema.Union([GuideSearchResult, ApiReferenceSearchResult])
-
+export const SearchResult = Schema.Union([DocumentationSearchResult, ApiReferenceSearchResult])
 export type SearchResult = typeof SearchResult.Type
 
 export class SearchError extends Schema.TaggedErrorClass<SearchError>()(
   "SearchError",
-  {
-    cause: Schema.Defect(),
-  },
+  { cause: Schema.Defect() },
   { httpApiStatus: 500 },
 ) {}

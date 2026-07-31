@@ -21,9 +21,9 @@ import * as CliConfig from "effect/unstable/cli/CliConfig"
 import * as Command from "effect/unstable/cli/Command"
 import * as Flag from "effect/unstable/cli/Flag"
 import { Help } from "effect/unstable/cli/GlobalFlag"
-import * as NodeFs from "node:fs"
 import { ApiReference } from "../../src/features/api-reference/ApiReference.ts"
 import { loadApiReferenceDataset } from "../../src/features/api-reference/dataset.ts"
+import * as Documentation from "./documentation.ts"
 
 type MixedbreadError = FailedToDeleteError | FailedToIndexError | InvalidStoreError | UnknownError
 
@@ -73,10 +73,19 @@ const MAX_MIXEDBREAD_TEXT_LENGTH = 65_536
 const MAX_API_CHUNKS_PER_FILE = 250
 const UPLOAD_CONCURRENCY = 100
 
-interface SyncOptions {
+interface PreviewSyncOptions {
+  readonly kind: "preview"
   readonly pullRequest: number
   readonly revision: string
 }
+
+interface ProductionSyncOptions {
+  readonly kind: "production"
+  readonly revision: string
+  readonly storeId: string
+}
+
+type SyncOptions = PreviewSyncOptions | ProductionSyncOptions
 
 interface DeleteOptions {
   readonly pullRequest: number
@@ -93,13 +102,15 @@ class Mixedbread extends Context.Service<
   Mixedbread,
   {
     readonly syncStore: (options: SyncOptions) => Effect.Effect<void, MixedbreadError>
+    readonly syncProduction: (revision: string) => Effect.Effect<void, MixedbreadError>
     readonly deleteStore: (
       options: DeleteOptions,
     ) => Effect.Effect<void, InvalidStoreError | UnknownError, never>
   }
 >()("Mixedbread", {
   make: Effect.gen(function* () {
-    const apiKey = yield* Config.redacted("MXBAI_PREVIEW_ADMIN_API_KEY")
+    const apiKey = yield* Config.redacted("MXBAI_API_KEY")
+    const productionStoreId = yield* Config.option(Config.redacted("MXBAI_VECTOR_STORE_ID"))
     const storePrefix = yield* Config.string("MXBAI_PREVIEW_STORE_PREFIX").pipe(
       Config.withDefault("effect-website-pr-"),
     )
@@ -117,7 +128,7 @@ class Mixedbread extends Context.Service<
     const apiReferenceDir = yield* Config.string("API_REFERENCE_DIRECTORY").pipe(
       Config.withDefault(".data/api-reference"),
     )
-    const version = yield* Config.number("PREVIEW_STORE_VERSION").pipe(Config.withDefault(1))
+    const version = yield* Config.number("MXBAI_STORE_VERSION").pipe(Config.withDefault(2))
 
     const crypto = yield* Crypto.Crypto
     const fs = yield* FileSystem.FileSystem
@@ -129,7 +140,7 @@ class Mixedbread extends Context.Service<
     const getStoreDescription = (pullRequest: number) =>
       `Effect website search preview for PR ${pullRequest}`
 
-    const getStoreMetadata = (options: SyncOptions): StoreMetadataEncoded => ({
+    const getStoreMetadata = (options: PreviewSyncOptions): StoreMetadataEncoded => ({
       lifecycle: "pull-request-preview",
       pullRequest: options.pullRequest,
       repository: repository,
@@ -143,17 +154,32 @@ class Mixedbread extends Context.Service<
       return Encoding.encodeHex(digest)
     })
 
-    const toGuideFile = Effect.fn("Mixedbread.toGuideFile")(function* (filePath: string) {
+    const toDocumentationFile = Effect.fn("Mixedbread.toDocumentationFile")(function* (
+      filePath: string,
+    ) {
       const bytes = yield* fs.readFile(filePath)
       const externalId = filePath.split(path.sep).join("/")
+      const relativePath = path.relative(contentDir, filePath)
+      const document = yield* Effect.try({
+        try: () => Documentation.makeDocument(new TextDecoder().decode(bytes), relativePath),
+        catch: (cause) => new UnknownError({ cause }),
+      })
+      if (document === undefined) {
+        return undefined
+      }
+      const payload = new TextEncoder().encode(JSON.stringify(document.chunks))
+      const filename = `${path.basename(filePath, path.extname(filePath))}.mxjson`
       return {
         externalId,
-        fileHash: yield* hash(bytes),
+        fileHash: yield* hash(payload),
         metadata: {
-          content_source: "docs",
+          ...document.metadata,
           file_path: externalId,
         },
-        upload: () => NodeFs.createReadStream(filePath),
+        upload: () =>
+          toFile(payload, filename, {
+            type: "application/vnd-mxbai.chunks-json",
+          }),
       } satisfies LocalFile
     })
 
@@ -305,7 +331,9 @@ class Mixedbread extends Context.Service<
         }),
       ).pipe(Stream.withSpan("Mixedbread.listFiles"))
 
-    const createStore = Effect.fn("Mixedbread.createStore")(function* (options: SyncOptions) {
+    const createStore = Effect.fn("Mixedbread.createStore")(function* (
+      options: PreviewSyncOptions,
+    ) {
       const store = yield* Effect.tryPromise({
         try: () =>
           client.stores.create({
@@ -337,20 +365,25 @@ class Mixedbread extends Context.Service<
     })
 
     const syncStore = Effect.fn("Mixedbread.syncStore")(function* (options: SyncOptions) {
-      const storeName = getStoreName(options.pullRequest)
+      const store =
+        options.kind === "preview"
+          ? yield* findStore(getStoreName(options.pullRequest)).pipe(
+              Effect.flatMap(Effect.fromOption),
+              Effect.catchTag("NoSuchElementError", () => createStore(options)),
+            )
+          : yield* Effect.tryPromise({
+              try: () => client.stores.retrieve(options.storeId),
+              catch: (cause) => new UnknownError({ cause }),
+            })
 
-      const store = yield* findStore(storeName).pipe(
-        Effect.flatMap(Effect.fromOption),
-        Effect.catchTag("NoSuchElementError", () => createStore(options)),
-      )
+      if (options.kind === "preview") yield* validateStore(store, options.pullRequest)
 
-      yield* validateStore(store, options.pullRequest)
-
-      const guideFiles = yield* fs.glob(`${contentDir}/**/*.mdx`).pipe(
-        Effect.flatMap(Effect.forEach(toGuideFile, { concurrency: "unbounded" })),
+      const documentationFiles = yield* fs.glob(`${contentDir}/**/*.{md,mdx}`).pipe(
+        Effect.flatMap(Effect.forEach(toDocumentationFile, { concurrency: "unbounded" })),
+        Effect.map((files) => files.filter(Predicate.isNotUndefined)),
         Effect.mapError((cause) => new UnknownError({ cause })),
       )
-      const localFiles = [...guideFiles, ...(yield* apiReferenceFiles())]
+      const localFiles = [...documentationFiles, ...(yield* apiReferenceFiles())]
       const duplicateIds = Map.groupBy(localFiles, (file) => file.externalId)
         .entries()
         .filter(([, files]) => files.length > 1)
@@ -437,7 +470,7 @@ class Mixedbread extends Context.Service<
                     git_branch: branch,
                     git_commit: options.revision,
                     version,
-                    pull_request: options.pullRequest,
+                    ...(options.kind === "preview" ? { pull_request: options.pullRequest } : {}),
                     synced: true,
                     uploaded_at: DateTime.formatIso(now),
                   },
@@ -456,20 +489,24 @@ class Mixedbread extends Context.Service<
         { concurrency: UPLOAD_CONCURRENCY },
       )
 
-      yield* Effect.tryPromise({
-        try: () =>
-          client.stores.update(store.id, {
-            expires_after: { anchor: "last_active_at", days: 7 },
-            metadata: getStoreMetadata(options),
-          }),
-        catch: (cause) => new UnknownError({ cause }),
-      })
+      if (options.kind === "preview") {
+        yield* Effect.tryPromise({
+          try: () =>
+            client.stores.update(store.id, {
+              expires_after: { anchor: "last_active_at", days: 7 },
+              metadata: getStoreMetadata(options),
+            }),
+          catch: (cause) => new UnknownError({ cause }),
+        })
+      }
 
       if (Option.isSome(outputPath)) {
         yield* Effect.orDie(fs.writeFileString(outputPath.value, `store_id=${store.id}\n`))
       }
 
-      yield* Effect.log(`Preview store synchronized: ${store.id}`)
+      yield* Effect.log(
+        `${options.kind === "preview" ? "Preview" : "Production"} store synchronized: ${store.id}`,
+      )
     })
 
     const deleteStore = Effect.fn("Mixedbread.deleteStore")(function* (options: DeleteOptions) {
@@ -487,8 +524,25 @@ class Mixedbread extends Context.Service<
       }
     })
 
+    const syncProduction = (revision: string) =>
+      Option.match(productionStoreId, {
+        onNone: () =>
+          Effect.fail(
+            new InvalidStoreError({
+              message: "MXBAI_VECTOR_STORE_ID is required when synchronizing production",
+            }),
+          ),
+        onSome: (storeId) =>
+          syncStore({
+            kind: "production",
+            revision,
+            storeId: Redacted.value(storeId),
+          }),
+      })
+
     return {
       syncStore,
+      syncProduction,
       deleteStore,
     } as const
   }),
@@ -498,30 +552,43 @@ class Mixedbread extends Context.Service<
 
 const pullRequest = Flag.integer("pr").pipe(
   Flag.withDescription("Pull request number that identifies the preview store"),
+  Flag.optional,
 )
 
 const revision = Flag.string("sha").pipe(
   Flag.withDescription("Git commit SHA associated with the indexed content"),
 )
 
-const syncCommand = Command.make("sync", { pullRequest, revision }).pipe(
-  Command.withDescription("Create or update a pull request's Mixedbread preview store"),
-  Command.withHandler((options) => Mixedbread.use((mixedbread) => mixedbread.syncStore(options))),
+const deletePullRequest = Flag.integer("pr").pipe(
+  Flag.withDescription("Pull request number that identifies the preview store"),
 )
 
-const deleteCommand = Command.make("delete", { pullRequest }).pipe(
+const syncCommand = Command.make("sync", { pullRequest, revision }).pipe(
+  Command.withDescription("Synchronize a Mixedbread documentation search store"),
+  Command.withHandler(({ pullRequest, revision }) =>
+    Option.match(pullRequest, {
+      onNone: () => Mixedbread.use((mixedbread) => mixedbread.syncProduction(revision)),
+      onSome: (pullRequest) =>
+        Mixedbread.use((mixedbread) =>
+          mixedbread.syncStore({ kind: "preview", pullRequest, revision }),
+        ),
+    }),
+  ),
+)
+
+const deleteCommand = Command.make("delete-preview", { pullRequest: deletePullRequest }).pipe(
   Command.withDescription("Delete a pull request's Mixedbread preview store"),
   Command.withHandler(({ pullRequest }) =>
     Mixedbread.use((mixedbread) => mixedbread.deleteStore({ pullRequest })),
   ),
 )
 
-const previewCommand = Command.make("preview").pipe(
-  Command.withDescription("Manage per-pull-request Mixedbread preview stores"),
+const indexCommand = Command.make("index").pipe(
+  Command.withDescription("Manage Mixedbread documentation search stores"),
   Command.withSubcommands([syncCommand, deleteCommand]),
 )
 
-const program = Command.run(previewCommand, {
+const program = Command.run(indexCommand, {
   version: "0.0.0",
 })
 

@@ -1,18 +1,38 @@
 name: Vercel Production Deployment
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
 
+concurrency:
+  group: production-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
       - name: Install dependencies
         uses: ./.github/actions/setup
+
+      - name: Checkout Effect
+        uses: actions/checkout@v6
+        with:
+          repository: Effect-TS/effect
+          ref: 52838418db2e04db6aaed2fa01b280f2aad4032a
+          path: .effect-source
+          fetch-depth: 1
+
+      - name: Generate API reference
+        run: pnpm api-reference:generate --version v4 --repo .effect-source
 
       - name: Pull Vercel Environment Information
         run: pnpm exec vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
@@ -28,6 +48,12 @@ jobs:
 
       - name: Patch trailing-slash redirect into build output
         run: node scripts/patch-vercel-trailing-slash.mjs
+
+      - name: Synchronize Mixedbread production store
+        run: pnpm mixedbread:index sync --sha "${{ github.sha }}"
+        env:
+          MXBAI_API_KEY: ${{ secrets.MXBAI_API_KEY }}
+          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
 
       - name: Deploy Project Artifacts to Vercel
         run: pnpm exec vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
