@@ -11,12 +11,7 @@ const CommonMetadata = {
 export const DocumentationMetadata = Schema.Struct({
   ...CommonMetadata,
   content_source: Schema.Literal("documentation"),
-  docs_version: Schema.String,
   file_path: Schema.String,
-  group_label: Schema.String,
-  page_href: Schema.String,
-  page_label: Schema.String,
-  page_title: Schema.String,
 })
 
 export const ApiReferenceMetadata = Schema.Struct({
@@ -31,20 +26,38 @@ export const Metadata = Schema.Union([DocumentationMetadata, ApiReferenceMetadat
 
 export type Metadata = typeof Metadata.Type
 
-export const DocumentationGeneratedMetadata = Schema.Struct({
-  type: Schema.Literal("text"),
+export const HeadingInfo = Schema.Struct({
+  level: Schema.Int,
+  text: Schema.String,
+})
+
+export const DocumentationSearchSection = Schema.Struct({
+  line: Schema.Int,
+  level: Schema.Int,
+  title: Schema.String,
+  anchor: Schema.String,
+  parent_anchor: Schema.String,
+  excerpt: Schema.String,
+})
+
+export const DocumentationSearchMetadata = Schema.Struct({
+  schema_version: Schema.Literal(1),
+  content_source: Schema.Literal("documentation"),
   docs_version: Schema.String,
-  group_label: Schema.String,
+  breadcrumbs: Schema.Array(Schema.String),
   page_href: Schema.String,
   page_label: Schema.String,
   page_title: Schema.String,
-  parent_section_anchor: Schema.String,
-  parent_section_excerpt: Schema.String,
-  parent_section_title: Schema.String,
-  section_anchor: Schema.String,
-  section_excerpt: Schema.String,
-  section_level: Schema.Int,
-  section_title: Schema.String,
+  sections: Schema.Array(Schema.fromJsonString(DocumentationSearchSection)),
+})
+
+export const DocumentationGeneratedMetadata = Schema.Struct({
+  type: Schema.Literal("markdown"),
+  start_line: Schema.Int,
+  num_lines: Schema.Int,
+  chunk_headings: Schema.Array(HeadingInfo),
+  heading_context: Schema.Array(HeadingInfo),
+  search: DocumentationSearchMetadata,
 })
 
 export const ApiReferenceGeneratedMetadata = Schema.Struct({

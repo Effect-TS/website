@@ -50,6 +50,26 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return cleaned.substring(0, maxLength).trim() + "..."
     }
 
+    function documentationSection(generated: typeof DocumentationGeneratedMetadata.Type) {
+      const firstHeading = generated.chunk_headings[0]
+      const endLine = generated.start_line + generated.num_lines
+      const chunkSection =
+        firstHeading === undefined
+          ? undefined
+          : generated.search.sections.find(
+              (section) =>
+                section.line >= generated.start_line &&
+                section.line <= endLine &&
+                section.level === firstHeading.level &&
+                section.title === firstHeading.text,
+            )
+      return (
+        chunkSection ??
+        generated.search.sections.findLast((section) => section.line <= generated.start_line) ??
+        generated.search.sections[0]
+      )
+    }
+
     function groupSearchResults(response: StoreSearchResponse): ReadonlyArray<SearchResult> {
       const grouped = new Map<string, DeepMutable<SearchResult>>()
 
@@ -89,38 +109,42 @@ export class Search extends Context.Service<Search>()("app/Search", {
         if (chunk.metadata.content_source !== "documentation") return
         const generated = chunk.generated_metadata
         if (!Schema.is(DocumentationGeneratedMetadata)(generated)) return
+        const section = documentationSection(generated)
+        if (section === undefined) return
+        const parent =
+          generated.search.sections.find(
+            (candidate) => candidate.anchor === section.parent_anchor,
+          ) ?? section
 
-        const parentHref = generated.parent_section_anchor
-          ? `${generated.page_href}#${generated.parent_section_anchor}`
-          : generated.page_href
+        const parentHref = parent.anchor
+          ? `${generated.search.page_href}#${parent.anchor}`
+          : generated.search.page_href
         if (!grouped.has(parentHref)) {
           grouped.set(parentHref, {
             kind: "documentation",
             id: parentHref,
-            breadcrumbs: [generated.group_label, generated.page_label].filter(
-              (label) => label.length > 0,
-            ),
-            description: generated.parent_section_excerpt,
-            title: generated.parent_section_title,
+            breadcrumbs: [...generated.search.breadcrumbs],
+            description: parent.excerpt,
+            title: parent.title,
             href: parentHref,
-            version: generated.docs_version,
+            version: generated.search.docs_version,
             chunks: [],
           })
         }
 
         const result = grouped.get(parentHref)
         if (result === undefined || result.kind !== "documentation") return
-        if (generated.section_level <= 2) return
+        if (section.anchor === parent.anchor) return
 
-        const sectionHref = generated.section_anchor
-          ? `${generated.page_href}#${generated.section_anchor}`
-          : generated.page_href
+        const sectionHref = section.anchor
+          ? `${generated.search.page_href}#${section.anchor}`
+          : generated.search.page_href
         if (result.chunks.some((match) => match.href === sectionHref)) return
         result.chunks.push({
           id: `${chunk.file_id}-${chunk.chunk_index}`,
           href: sectionHref,
-          title: generated.section_title,
-          snippet: generated.section_excerpt,
+          title: section.title,
+          snippet: section.excerpt || extractSnippet(chunk.text),
           score: chunk.score,
         })
       })

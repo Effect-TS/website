@@ -295,7 +295,7 @@ function DocumentationItem({ result }: { readonly result: DocumentationSearchRes
     <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
       <a
         href={result.href}
-        className="group block rounded-md p-4 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
+        className="group block rounded-md px-4 py-3 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
       >
         <p className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-200 px-2 py-0.5 font-mono text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
@@ -310,20 +310,20 @@ function DocumentationItem({ result }: { readonly result: DocumentationSearchRes
             {result.breadcrumbs.join(" / ")}
           </span>
         </p>
-        <p className="mt-3 text-base font-semibold text-zinc-900 dark:text-white ">
-          {result.title}
-        </p>
-        <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 [&_code]:rounded [&_code]:bg-zinc-200/60 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs [&_code]:text-zinc-800 dark:[&_code]:bg-zinc-800 dark:[&_code]:text-zinc-200">
-          {result.description}
-        </p>
+        <p className="mt-2 text-base font-semibold text-zinc-900 dark:text-white">{result.title}</p>
+        {result.description ? (
+          <p className="mt-1 line-clamp-2 text-sm leading-snug text-zinc-600 dark:text-zinc-400 [&_code]:rounded [&_code]:bg-zinc-200/60 [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs [&_code]:text-zinc-800 dark:[&_code]:bg-zinc-800 dark:[&_code]:text-zinc-200">
+            {result.description}
+          </p>
+        ) : null}
       </a>
       {result.chunks.length > 0 ? (
-        <div className="mx-4 mb-3 border-l border-zinc-200 pl-3 dark:border-zinc-800">
+        <div className="mx-4 mb-2 border-l border-zinc-200 pl-3 dark:border-zinc-800">
           {result.chunks.map((chunk) => (
             <a
               key={chunk.id}
               href={chunk.href}
-              className="block rounded-md px-2 py-2 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
+              className="block rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
             >
               <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{chunk.title}</p>
               <p className="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
