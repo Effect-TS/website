@@ -1,4 +1,4 @@
-import type { Content, Heading, Root } from "mdast"
+import type { RootContent, Heading, Root } from "mdast"
 import * as Schema from "effect/Schema"
 import GithubSlugger from "github-slugger"
 import { toString } from "mdast-util-to-string"
@@ -98,12 +98,15 @@ export function stageDocument(source: string, relativePath: string): StagedDocum
     throw new Error(`Documentation metadata changed frontmatter height for ${relativePath}`)
   }
 
-  return { source: spliceFrontmatter(source, initial, finalFrontmatter), metadata }
+  return {
+    source: spliceFrontmatter(source, initial, finalFrontmatter),
+    metadata,
+  }
 }
 
 interface ParsedDocument {
   readonly tree: Root
-  readonly yaml: Content & { readonly type: "yaml"; readonly value: string }
+  readonly yaml: RootContent & { readonly type: "yaml"; readonly value: string }
   readonly frontmatter: typeof Frontmatter.Type
   readonly frontmatterRecord: typeof FrontmatterRecord.Type
 }
@@ -123,8 +126,8 @@ function parseDocument(source: string): ParsedDocument {
 }
 
 function isYaml(
-  node: Content,
-): node is Content & { readonly type: "yaml"; readonly value: string } {
+  node: RootContent,
+): node is RootContent & { readonly type: "yaml"; readonly value: string } {
   return node.type === "yaml"
 }
 
@@ -214,7 +217,7 @@ function requiredHeadingLine(heading: Heading): number {
   return line
 }
 
-function excerpt(nodes: ReadonlyArray<Content>, start: number): string {
+function excerpt(nodes: ReadonlyArray<RootContent>, start: number): string {
   const parts: Array<string> = []
   for (let index = start; index < nodes.length; index++) {
     const node = nodes[index]
