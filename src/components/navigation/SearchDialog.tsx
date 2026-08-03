@@ -167,6 +167,12 @@ export function SearchDialog() {
     }
   }
 
+  const handleResultsClick = (event: React.MouseEvent) => {
+    if (event.target instanceof Element && event.target.closest("[data-search-result-link]")) {
+      setOpen(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
@@ -212,7 +218,11 @@ export function SearchDialog() {
           </DialogClose>
         </div>
 
-        <div ref={resultsRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+        <div
+          ref={resultsRef}
+          className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3"
+          onClick={handleResultsClick}
+        >
           {AsyncResult.builder(searchResults)
             .onWaiting(() => <SearchPending />)
             .onInitial(() => <SearchPrompt />)
@@ -291,7 +301,7 @@ function ApiReferenceItem({ result }: { readonly result: ApiReferenceSearchResul
       <a
         href={result.href}
         data-search-result-link
-        className="block rounded-md p-4 transition-colors hover:bg-zinc-100/60 focus-visible:bg-zinc-100/60 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-zinc-900/60 dark:focus-visible:bg-zinc-900/60 dark:focus-visible:ring-zinc-600"
+        className="block cursor-pointer space-y-1.5 rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
       >
         <p className="flex flex-wrap items-center gap-2 font-mono text-xs font-medium">
           <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-300">
@@ -304,10 +314,10 @@ function ApiReferenceItem({ result }: { readonly result: ApiReferenceSearchResul
             {result.packageName} / {result.title}
           </span>
         </p>
-        <p className="mt-3 font-mono text-base font-semibold text-zinc-900 dark:text-white">
+        <p className="font-mono text-base font-semibold text-zinc-900 dark:text-white">
           {result.title}
         </p>
-        <p className="mt-1.5 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
           {result.description}
         </p>
       </a>
@@ -318,7 +328,7 @@ function ApiReferenceItem({ result }: { readonly result: ApiReferenceSearchResul
               key={chunk.id}
               href={chunk.href}
               data-search-result-link
-              className="block rounded-md px-2 py-2 transition-colors hover:bg-zinc-100/60 focus-visible:bg-zinc-100/60 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-zinc-900/60 dark:focus-visible:bg-zinc-900/60 dark:focus-visible:ring-zinc-600"
+              className="block cursor-pointer rounded-md px-2 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
             >
               <p className="font-mono text-sm font-medium text-zinc-800 dark:text-zinc-200">
                 {chunk.title}
@@ -345,7 +355,7 @@ function DocumentationItem({ result }: { readonly result: DocumentationSearchRes
       <a
         href={result.href}
         data-search-result-link
-        className="group block rounded-md px-4 py-3 transition-colors hover:bg-zinc-100/60 focus-visible:bg-zinc-100/60 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-zinc-900/60 dark:focus-visible:bg-zinc-900/60 dark:focus-visible:ring-zinc-600"
+        className="group block cursor-pointer rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
       >
         <p className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-200 px-2 py-0.5 font-mono text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
@@ -374,7 +384,7 @@ function DocumentationItem({ result }: { readonly result: DocumentationSearchRes
               key={chunk.id}
               href={chunk.href}
               data-search-result-link
-              className="block rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 focus-visible:bg-zinc-100/60 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-zinc-900/60 dark:focus-visible:bg-zinc-900/60 dark:focus-visible:ring-zinc-600"
+              className="block cursor-pointer rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
             >
               <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{chunk.title}</p>
               <p className="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
