@@ -23,16 +23,26 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
 
-      - name: Checkout Effect
+      - name: Checkout Effect v3
+        uses: actions/checkout@v6
+        with:
+          repository: Effect-TS/effect
+          ref: adf8a89decd1552b692710bf218ada12671af2ef
+          path: .effect-source-v3
+          fetch-depth: 1
+
+      - name: Checkout Effect v4
         uses: actions/checkout@v6
         with:
           repository: Effect-TS/effect
           ref: 52838418db2e04db6aaed2fa01b280f2aad4032a
-          path: .effect-source
+          path: .effect-source-v4
           fetch-depth: 1
 
       - name: Generate API reference
-        run: pnpm api-reference:generate --version v4 --repo .effect-source
+        run: |
+          pnpm api-reference:generate --version v3 --repo .effect-source-v3
+          pnpm api-reference:generate --version v4 --repo .effect-source-v4
 
       - name: Pull Vercel Environment Information
         run: pnpm exec vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts

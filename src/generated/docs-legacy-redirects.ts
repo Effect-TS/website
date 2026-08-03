@@ -7,7 +7,7 @@ export const docsLegacyRedirectList: Record<string, RedirectConfig> = {
   },
   "/docs/v3/additional-resources/api-reference": {
     status: 307,
-    destination: "/docs/api/v4",
+    destination: "/docs/api/v3",
   },
   "/docs/additional-resources/coming-from-zio": {
     status: 307,

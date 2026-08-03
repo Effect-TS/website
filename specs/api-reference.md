@@ -198,5 +198,5 @@ The generated `.data/api-reference` directory is ignored. The content loader ret
 - [ ] Implement ephemeral website dataset synchronization.
 - [ ] Run synchronization before every website build.
 - [ ] Configure deployment concurrency to prevent stale deployments.
-- [ ] Generate and test the latest v3 dataset.
+- [x] Generate and test the latest v3 dataset.
 - [x] Generate and test the latest v4 dataset.
