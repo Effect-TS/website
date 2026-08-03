@@ -5,7 +5,7 @@ import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import * as Atom from "effect/unstable/reactivity/Atom"
-import { FileText, LoaderCircle, Search, SearchX, X } from "lucide-react"
+import { Braces, FileText, LoaderCircle, Search, SearchX, X } from "lucide-react"
 import * as React from "react"
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { NAVIGATION_EVENTS } from "@/lib/navigation"
@@ -90,6 +90,8 @@ export function SearchDialog() {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = useAtom(searchQueryAtom)
   const searchResults = useAtomValue(searchResultsAtom)
+  const inputRef = React.useRef<HTMLInputElement>(null)
+  const resultsRef = React.useRef<HTMLDivElement>(null)
 
   const handleChange = React.useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,12 +130,51 @@ export function SearchDialog() {
     }
   }, [open])
 
+  const handleDialogKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return
+
+    const links = Array.from(
+      resultsRef.current?.querySelectorAll<HTMLAnchorElement>("[data-search-result-link]") ?? [],
+    )
+    if (links.length === 0) return
+
+    event.preventDefault()
+    const activeIndex = links.findIndex((link) => link === document.activeElement)
+    if (event.key === "ArrowUp" && activeIndex <= 0) {
+      inputRef.current?.focus({ preventScroll: true })
+      return
+    }
+
+    const nextIndex =
+      event.key === "ArrowDown"
+        ? Math.min(activeIndex + 1, links.length - 1)
+        : Math.max(activeIndex - 1, 0)
+    const nextLink = links[nextIndex]
+    nextLink?.focus({ preventScroll: true })
+    const resultsElement = resultsRef.current
+    if (nextLink && resultsElement) {
+      const linkRect = nextLink.getBoundingClientRect()
+      const resultsRect = resultsElement.getBoundingClientRect()
+      if (linkRect.top < resultsRect.top || linkRect.bottom > resultsRect.bottom) {
+        resultsElement.scrollTo({
+          top:
+            resultsElement.scrollTop +
+            linkRect.top -
+            resultsRect.top -
+            (resultsRect.height - linkRect.height) / 2,
+        })
+      }
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
         showCloseButton={false}
+        initialFocus={inputRef}
         overlayClassName="z-200 bg-black/40 backdrop-blur-sm"
         className="top-24 z-250 flex max-h-[min(36rem,calc(100dvh-10rem))] w-[calc(100%-2rem)] max-w-2xl translate-y-0 flex-col gap-0 overflow-hidden rounded-md border border-zinc-200 bg-white p-0 shadow-xl shadow-zinc-950/10 sm:max-w-2xl dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/40"
+        onKeyDown={handleDialogKeyDown}
       >
         <DialogTitle className="sr-only">
           Type to search. Use arrow keys to navigate results. Press Enter to select. Press Escape to
@@ -149,6 +190,7 @@ export function SearchDialog() {
           <Search className="size-4 shrink-0 text-base text-zinc-500 dark:text-zinc-400" />
 
           <input
+            ref={inputRef}
             className="min-w-0 flex-1 rounded-xs bg-transparent px-1 text-base text-zinc-900 outline-none placeholder:text-zinc-500 dark:text-white dark:placeholder:text-zinc-400"
             placeholder="Search documentation…"
             aria-label="Search documentation"
@@ -170,7 +212,7 @@ export function SearchDialog() {
           </DialogClose>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+        <div ref={resultsRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
           {AsyncResult.builder(searchResults)
             .onWaiting(() => <SearchPending />)
             .onInitial(() => <SearchPrompt />)
@@ -224,7 +266,7 @@ function SearchFailure() {
 
 function SearchResults({ results }: { readonly results: ReadonlyArray<SearchResult> }) {
   return (
-    <ul className="rounded-md border border-zinc-400 bg-zinc-100/60 transition-colors dark:border-zinc-500 dark:bg-zinc-900/60">
+    <ul className="space-y-2">
       {results.map((result) => (
         <SearchResultItem key={result.id} result={result} />
       ))}
@@ -248,13 +290,19 @@ function ApiReferenceItem({ result }: { readonly result: ApiReferenceSearchResul
     <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
       <a
         href={result.href}
-        className="block rounded-md p-4 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
+        data-search-result-link
+        className="block rounded-md p-4 transition-colors hover:bg-zinc-100/60 focus-visible:bg-zinc-100/60 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-zinc-900/60 dark:focus-visible:bg-zinc-900/60 dark:focus-visible:ring-zinc-600"
       >
         <p className="flex flex-wrap items-center gap-2 font-mono text-xs font-medium">
-          <span className="rounded-md bg-violet-100 px-2 py-0.5 text-violet-800 dark:bg-violet-950 dark:text-violet-200">
-            API Reference · {result.version.toUpperCase()}
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-100 px-2 py-0.5 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-300">
+            <Braces className="size-3 text-xs" />
+            <span>API</span>
+            <span aria-hidden="true">·</span>
+            <span>{result.version.toUpperCase()}</span>
           </span>
-          <span className="text-zinc-600 dark:text-zinc-300">{result.packageName}</span>
+          <span className="text-zinc-600 dark:text-zinc-300">
+            {result.packageName} / {result.title}
+          </span>
         </p>
         <p className="mt-3 font-mono text-base font-semibold text-zinc-900 dark:text-white">
           {result.title}
@@ -269,7 +317,8 @@ function ApiReferenceItem({ result }: { readonly result: ApiReferenceSearchResul
             <a
               key={chunk.id}
               href={chunk.href}
-              className="block rounded-md px-2 py-2 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
+              data-search-result-link
+              className="block rounded-md px-2 py-2 transition-colors hover:bg-zinc-100/60 focus-visible:bg-zinc-100/60 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-zinc-900/60 dark:focus-visible:bg-zinc-900/60 dark:focus-visible:ring-zinc-600"
             >
               <p className="font-mono text-sm font-medium text-zinc-800 dark:text-zinc-200">
                 {chunk.title}
@@ -295,11 +344,12 @@ function DocumentationItem({ result }: { readonly result: DocumentationSearchRes
     <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
       <a
         href={result.href}
-        className="group block rounded-md px-4 py-3 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
+        data-search-result-link
+        className="group block rounded-md px-4 py-3 transition-colors hover:bg-zinc-100/60 focus-visible:bg-zinc-100/60 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-zinc-900/60 dark:focus-visible:bg-zinc-900/60 dark:focus-visible:ring-zinc-600"
       >
         <p className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-200 px-2 py-0.5 font-mono text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
-            <FileText className="size-4" />
+            <FileText className="size-3" />
             <span>Docs</span>
             <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-500">
               ·
@@ -323,7 +373,8 @@ function DocumentationItem({ result }: { readonly result: DocumentationSearchRes
             <a
               key={chunk.id}
               href={chunk.href}
-              className="block rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
+              data-search-result-link
+              className="block rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 focus-visible:bg-zinc-100/60 focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none focus-visible:ring-inset dark:hover:bg-zinc-900/60 dark:focus-visible:bg-zinc-900/60 dark:focus-visible:ring-zinc-600"
             >
               <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{chunk.title}</p>
               <p className="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
