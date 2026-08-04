@@ -3,36 +3,21 @@ import NavigationAnchor from "@/components/navigation/NavigationAnchor.astro"
 import { getNavigationLinks, type NavigationActiveSlug } from "@/lib/navigation"
 
 interface Props {
-  readonly transparent?: boolean
   readonly activeSlug?: NavigationActiveSlug | undefined
 }
 
-const { transparent = false, activeSlug } = Astro.props
+const { activeSlug } = Astro.props
 
 const links = getNavigationLinks("desktop", "primary")
-const plainLinks = links.filter((link) => link.cta === "none")
-const ctaLinks = links.filter((link) => link.cta === "solid")
-
-const plainClass = `border-b border-transparent text-sm font-medium no-underline transition-colors hover:border-current ${transparent ? "text-white hover:text-white/80" : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"}`
 ---
 
-<>
-  {
-    plainLinks.map((link) => (
-      <NavigationAnchor
-        link={link}
-        class={plainClass}
-        active={link.id === activeSlug}
-        activeClass="border-zinc-900 text-zinc-900 dark:border-white dark:text-white"
-      />
-    ))
-  }
-  {
-    ctaLinks.map((link) => (
-      <NavigationAnchor
-        link={link}
-        class="rounded-md bg-white px-4 py-1.5 text-sm font-medium text-zinc-900 no-underline transition-colors hover:bg-zinc-200"
-      />
-    ))
-  }
-</>
+{
+  links.map((link) => (
+    <NavigationAnchor
+      link={link}
+      class="text-sm font-medium no-underline transition-colors text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+      active={link.id === activeSlug}
+      activeClass="text-zinc-900 dark:text-white"
+    />
+  ))
+}

@@ -7,12 +7,11 @@ import SearchDialogIsland from "@/components/navigation/SearchDialogIsland"
 import { getNavigationLinks, type NavigationActiveSlug } from "@/lib/navigation"
 
 interface Props {
-  readonly transparent?: boolean | undefined
   readonly activeSlug?: NavigationActiveSlug | undefined
   readonly wide?: boolean | undefined
 }
 
-const { transparent = false, activeSlug, wide = false } = Astro.props
+const { activeSlug, wide = false } = Astro.props
 
 const showThemeToggle =
   activeSlug === "playground" || activeSlug === "docs" || activeSlug === "blog"
@@ -22,12 +21,7 @@ const mobileSocialLinks = getNavigationLinks("mobile", "social")
 ---
 
 <div
-  class:list={[
-    "fixed top-0 right-0 left-0 z-100 w-full will-change-transform backdrop-blur-sm",
-    transparent
-      ? ""
-      : "border-b border-zinc-200 bg-zinc-50/85 dark:border-zinc-800 dark:bg-zinc-950/85",
-  ]}
+  class="fixed top-0 right-0 left-0 z-100 w-full will-change-transform backdrop-blur-sm border-b border-zinc-200 bg-zinc-50/85 dark:border-zinc-800 dark:bg-zinc-950/85"
 >
   <div class="w-full">
     <header class:list={["relative mx-auto w-full px-4", wide ? "max-w-352" : "max-w-295"]}>
@@ -35,18 +29,17 @@ const mobileSocialLinks = getNavigationLinks("mobile", "social")
         <NavigationLogo />
 
         <div class="ml-8 hidden items-center gap-6 md:flex">
-          <NavigationLinks transparent={transparent} activeSlug={activeSlug} />
+          <NavigationLinks activeSlug={activeSlug} />
         </div>
 
         <NavigationMobileMenu
-          transparent={transparent}
           primaryLinks={mobilePrimaryLinks}
           socialLinks={mobileSocialLinks}
           activeSlug={activeSlug}
         />
 
         <div class="ml-auto hidden items-center gap-4.5 md:flex">
-          <NavigationDesktopActions transparent={transparent} showThemeToggle={showThemeToggle} />
+          <NavigationDesktopActions showThemeToggle={showThemeToggle} />
         </div>
       </nav>
     </header>
