@@ -2,12 +2,13 @@ import { createHash } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { isAbsolute, relative, resolve } from "node:path"
 import { ReflectionKind, type JSONOutput } from "typedoc"
+import { CodeSnippet, type CodeSnippetLanguage } from "./CodeSnippet.ts"
 import type { ApiReferenceEntry, TypeDocProjectReflection } from "./schema.ts"
 import { TypeDocProjectReflection as TypeDocProjectReflectionSchema } from "./schema.ts"
 
 const defaultBaseDirectory = resolve(".data/api-reference")
 export interface ApiCodeExample {
-  language: "bash" | "javascript" | "json" | "typescript"
+  language: CodeSnippetLanguage
   ownerId: number
   ownerName: string
   since: string | undefined
@@ -52,26 +53,36 @@ export const ApiReference = {
   moduleView,
 } as const
 
-function moduleView(reflection: TypeDocProjectReflection): ApiModule {
+async function moduleView(reflection: TypeDocProjectReflection): Promise<ApiModule> {
   const moduleReflection = reflection.children?.find((child) => child.children !== undefined)
   const children = moduleReflection?.children ?? []
-  const examplesByOwner = Map.groupBy(codeExamples(reflection), (example) => example.ownerId)
-  const declarationCandidates = children.map((child) => {
-    const comment = declarationComment(child)
-    return {
-      anchor: declarationAnchor(child.name),
-      category: blockTagText(comment?.blockTags, "@category") ?? "Other",
-      commentHtml: commentHtml(comment),
-      commentMarkdown: commentMarkdown(comment),
-      examples: examplesByOwner.get(child.id) ?? [],
-      id: child.id,
-      kind: child.kind,
-      name: child.name,
-      signature: declarationSignature(child),
-      since: blockTagText(comment?.blockTags, "@since"),
-      sourceUrl: firstSourceUrl(child.sources),
-    }
-  })
+  const examples = await Promise.all(
+    codeExamples(reflection).map(async (example) => ({
+      ...example,
+      source: (await CodeSnippet.formatExample(example.source, example.language)).code,
+    })),
+  )
+  const examplesByOwner = Map.groupBy(examples, (example) => example.ownerId)
+  const declarationCandidates = await Promise.all(
+    children.map(async (child) => {
+      const comment = declarationComment(child)
+      const signature = declarationSignature(child)
+      return {
+        anchor: declarationAnchor(child.name),
+        category: blockTagText(comment?.blockTags, "@category") ?? "Other",
+        commentHtml: commentHtml(comment),
+        commentMarkdown: commentMarkdown(comment),
+        examples: examplesByOwner.get(child.id) ?? [],
+        id: child.id,
+        kind: child.kind,
+        name: child.name,
+        signature:
+          signature === undefined ? undefined : (await CodeSnippet.formatSignature(signature)).code,
+        since: blockTagText(comment?.blockTags, "@since"),
+        sourceUrl: firstSourceUrl(child.sources),
+      }
+    }),
+  )
   const anchorCounts = Map.groupBy(declarationCandidates, (declaration) => declaration.anchor)
   const declarations = declarationCandidates.map(({ kind, ...declaration }) => ({
     ...declaration,
@@ -327,6 +338,7 @@ function formatIndexSignature(signature: JSONOutput.SignatureReflection): string
 }
 
 function formatMember(member: JSONOutput.DeclarationReflection): ReadonlyArray<string> {
+  const name = CodeSnippet.typescriptPropertyName(member.name)
   const optional = member.flags.isOptional === true ? "?" : ""
   const readonly = member.flags.isReadonly === true ? "readonly " : ""
   const staticModifier = member.flags.isStatic === true ? "static " : ""
@@ -340,16 +352,15 @@ function formatMember(member: JSONOutput.DeclarationReflection): ReadonlyArray<s
       )
     case ReflectionKind.Method:
       return (member.signatures ?? []).map(
-        (signature) =>
-          `${modifiers}${member.name}${optional}${formatDeclarationSignature(signature)};`,
+        (signature) => `${modifiers}${name}${optional}${formatDeclarationSignature(signature)};`,
       )
     case ReflectionKind.Accessor: {
       const type = member.getSignature?.type ?? member.setSignature?.parameters?.[0]?.type
-      return [`${modifiers}${readonly}${member.name}${optional}: ${formatType(type)};`]
+      return [`${modifiers}${readonly}${name}${optional}: ${formatType(type)};`]
     }
     default:
       if (member.type !== undefined) {
-        return [`${modifiers}${readonly}${member.name}${optional}: ${formatType(member.type)};`]
+        return [`${modifiers}${readonly}${name}${optional}: ${formatType(member.type)};`]
       }
       return []
   }

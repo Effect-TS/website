@@ -302,9 +302,11 @@ class Mixedbread extends Context.Service<
                   ApiReference.loadReflection(entry.data, { baseDirectory: apiReferenceDir }),
                 catch: (cause) => new UnknownError({ cause }),
               })
-              const declarations = ApiReference.moduleView(reflection).groups.flatMap(
-                (group) => group.declarations,
-              )
+              const moduleView = yield* Effect.tryPromise({
+                try: () => ApiReference.moduleView(reflection),
+                catch: (cause) => new UnknownError({ cause }),
+              })
+              const declarations = moduleView.groups.flatMap((group) => group.declarations)
               if (
                 new Set(declarations.map((declaration) => declaration.anchor)).size !==
                 declarations.length
@@ -709,8 +711,8 @@ const MainLayer = Mixedbread.layer.pipe(
 program.pipe(Effect.provide(MainLayer), NodeRuntime.runMain)
 
 function declarationMarkdown(options: {
-  readonly declaration: ReturnType<
-    typeof ApiReference.moduleView
+  readonly declaration: Awaited<
+    ReturnType<typeof ApiReference.moduleView>
   >["groups"][number]["declarations"][number]
   readonly declarationHref: string
   readonly modulePath: string

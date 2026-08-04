@@ -26,7 +26,7 @@ export const getStaticPaths = (async () => {
 const { entry } = Astro.props
 const allEntries = await getCollection("apiReference")
 const reflection = await ApiReference.loadReflection(entry.data)
-const apiModule = ApiReference.ApiReference.moduleView(reflection)
+const apiModule = await ApiReference.ApiReference.moduleView(reflection)
 const moduleName = entry.data.modulePath.split("/").at(-1) ?? entry.data.modulePath
 const displayName = entry.data.packageName.replace("@effect/", "")
 const packageEntries = allEntries
