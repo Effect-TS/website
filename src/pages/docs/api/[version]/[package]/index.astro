@@ -90,6 +90,7 @@ const sections = [
   { label: undefined, groups: stableGroups },
   { label: "Unstable", groups: unstableGroups },
 ].filter(({ groups }) => groups.length > 0)
+const sidebarGroupCount = sections.reduce((count, section) => count + section.groups.length, 0)
 const mobileVersions = [...availableVersions].toSorted().map((candidate) => ({
   href: `/docs/api/${candidate}/${pkg.slug}`,
   label: candidate,
@@ -155,7 +156,7 @@ function moduleName(modulePath: string, group: string): string {
           data-api-sidebar
           class="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 py-8"
         >
-          <header class="mb-2 pb-4 border-b border-zinc-200 dark:border-zinc-800">
+          <header class="mb-4">
             <a
               href={`/docs/api/${version}`}
               aria-current="page"
@@ -168,7 +169,7 @@ function moduleName(modulePath: string, group: string): string {
               {displayName}
             </h2>
 
-            <p class="mb-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">{pkg.version}</p>
+            <p class="font-mono text-xs text-zinc-600 dark:text-zinc-400">{pkg.version}</p>
           </header>
 
           {
@@ -215,7 +216,7 @@ function moduleName(modulePath: string, group: string): string {
                       return (
                         <Fragment>
                           <li>
-                            <details open={sortedModules.length === 1}>
+                            <details open={sortedModules.length === 1 || sidebarGroupCount === 1}>
                               <summary class="flex cursor-pointer select-none list-none items-center justify-between rounded py-2 font-mono text-sm font-medium tracking-wider text-zinc-700 uppercase transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white">
                                 <span>{groupName(group)}</span>
                                 <ChevronDown
