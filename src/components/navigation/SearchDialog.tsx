@@ -220,7 +220,7 @@ export function SearchDialog() {
 
         <div
           ref={resultsRef}
-          className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3"
+          className="min-h-0 flex-1 scrollbar-thin space-y-2 overflow-y-auto p-3"
           onClick={handleResultsClick}
         >
           {AsyncResult.builder(searchResults)
