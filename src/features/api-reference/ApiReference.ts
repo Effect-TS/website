@@ -2,8 +2,8 @@ import { createHash } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { isAbsolute, relative, resolve } from "node:path"
 import { ReflectionKind, type JSONOutput } from "typedoc"
-import { CodeSnippet, type CodeSnippetLanguage } from "./CodeSnippet.ts"
 import type { ApiReferenceEntry, TypeDocProjectReflection } from "./schema.ts"
+import { CodeSnippet, type CodeSnippetLanguage } from "./CodeSnippet.ts"
 import { TypeDocProjectReflection as TypeDocProjectReflectionSchema } from "./schema.ts"
 
 const defaultBaseDirectory = resolve(".data/api-reference")

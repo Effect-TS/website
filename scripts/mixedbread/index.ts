@@ -1,6 +1,6 @@
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as NodeServices from "@effect/platform-node/NodeServices"
-import MixedbreadClient, { toFile, type Uploadable } from "@mixedbread/sdk"
+import MixedbreadClient, { ConflictError, toFile, type Uploadable } from "@mixedbread/sdk"
 import * as Config from "effect/Config"
 import * as Context from "effect/Context"
 import * as Crypto from "effect/Crypto"
@@ -46,6 +46,12 @@ class FailedToIndexError extends Data.TaggedError("FailedToIndexError")<{
   }
 }
 
+class FileInProgressError extends Data.TaggedError("FileInProgressError")<{
+  readonly externalId: string
+  readonly fileIdentifier: string
+  readonly cause: ConflictError
+}> {}
+
 class InvalidStoreError extends Data.TaggedError("InvalidStoreError")<{
   readonly message: string
   readonly cause?: unknown | undefined
@@ -80,6 +86,7 @@ const DocumentationFileMetadata = Schema.Struct({
 const MAX_MIXEDBREAD_TEXT_LENGTH = 65_536
 const MAX_API_CHUNKS_PER_FILE = 250
 const UPLOAD_CONCURRENCY = 100
+const FILE_UPLOAD_ATTEMPTS = 3
 
 interface PreviewSyncOptions {
   readonly kind: "preview"
@@ -545,37 +552,83 @@ class Mixedbread extends Context.Service<
         changedFiles,
         Effect.fnUntraced(function* ({ externalId, fileHash, metadata, upload }) {
           const now = yield* DateTime.now
-
-          const storeFile = yield* Effect.tryPromise({
-            try: async () =>
-              client.stores.files.upload({
-                storeIdentifier: store.id,
-                file: await upload(),
-                body: {
-                  external_id: externalId,
-                  overwrite: true,
-                  config: { parsing_strategy: "fast" },
-                  metadata: {
-                    ...metadata,
-                    file_hash: fileHash,
-                    git_branch: branch,
-                    git_commit: options.revision,
-                    version,
-                    ...(options.kind === "preview" ? { pull_request: options.pullRequest } : {}),
-                    synced: true,
-                    uploaded_at: DateTime.formatIso(now),
+          const uploadFile = (
+            attempt: number,
+          ): Effect.Effect<MixedbreadClient.Stores.StoreFile, FailedToIndexError> =>
+            Effect.tryPromise({
+              try: async () =>
+                client.stores.files.upload({
+                  storeIdentifier: store.id,
+                  file: await upload(),
+                  body: {
+                    external_id: externalId,
+                    overwrite: true,
+                    config: { parsing_strategy: "fast" },
+                    metadata: {
+                      ...metadata,
+                      file_hash: fileHash,
+                      git_branch: branch,
+                      git_commit: options.revision,
+                      version,
+                      ...(options.kind === "preview" ? { pull_request: options.pullRequest } : {}),
+                      synced: true,
+                      uploaded_at: DateTime.formatIso(now),
+                    },
                   },
-                },
-              }),
-            catch: (cause) => new FailedToIndexError({ externalId, cause }),
-          })
+                }),
+              catch: (cause) => {
+                const conflict = fileInProgressConflict(cause)
+                return conflict === undefined
+                  ? new FailedToIndexError({ externalId, cause })
+                  : new FileInProgressError({ externalId, ...conflict })
+              },
+            }).pipe(
+              Effect.catchTag("FileInProgressError", (error) =>
+                Effect.gen(function* () {
+                  const existing = yield* Effect.tryPromise({
+                    try: () =>
+                      client.stores.files.retrieve(error.fileIdentifier, {
+                        store_identifier: store.id,
+                      }),
+                    catch: (cause) => new FailedToIndexError({ externalId, cause }),
+                  })
+                  const existingMetadata = existing.metadata
+                  if (
+                    existing.status !== "failed" &&
+                    existing.status !== "cancelled" &&
+                    Schema.is(StoreFileMetadata)(existingMetadata) &&
+                    existingMetadata.file_hash === fileHash &&
+                    existingMetadata.version === version
+                  ) {
+                    return existing
+                  }
+                  if (attempt >= FILE_UPLOAD_ATTEMPTS) {
+                    return yield* new FailedToIndexError({
+                      externalId: error.externalId,
+                      cause: error.cause,
+                    })
+                  }
+                  yield* Effect.tryPromise({
+                    try: () =>
+                      client.stores.files.delete(error.fileIdentifier, {
+                        store_identifier: store.id,
+                      }),
+                    catch: (cause) => new FailedToIndexError({ externalId, cause }),
+                  })
+                  yield* Effect.sleep("1 second")
+                  return yield* uploadFile(attempt + 1)
+                }),
+              ),
+            )
+
+          const storeFile = yield* uploadFile(1)
           if (storeFile.status === "failed" || storeFile.status === "cancelled") {
             return yield* new FailedToIndexError({
               externalId,
               cause: storeFile.last_error ?? storeFile.status,
             })
           }
-          yield* Effect.log(`Uploaded API reference file: ${externalId}`)
+          yield* Effect.log(`Synchronized API reference file: ${externalId}`)
         }),
         { concurrency: UPLOAD_CONCURRENCY },
       )
@@ -659,6 +712,16 @@ class Mixedbread extends Context.Service<
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)
+}
+
+function fileInProgressConflict(
+  cause: unknown,
+): { readonly cause: ConflictError; readonly fileIdentifier: string } | undefined {
+  if (!(cause instanceof ConflictError)) return undefined
+  const fileIdentifier = /File '([^']+)' with version '[^']+' and status 'in_progress'/.exec(
+    cause.message,
+  )?.[1]
+  return fileIdentifier === undefined ? undefined : { cause, fileIdentifier }
 }
 
 const pullRequest = Flag.integer("pr").pipe(
