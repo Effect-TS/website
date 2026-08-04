@@ -21,6 +21,34 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Detect search index changes
+        id: search-changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed=false
+
+          while IFS= read -r file; do
+            case "$file" in
+              src/content/docs/*|\
+              scripts/mixedbread/*|\
+              scripts/api-reference/*|\
+              src/features/api-reference/ApiReference.ts|\
+              src/features/api-reference/dataset.ts|\
+              src/features/api-reference/schema.ts|\
+              package.json|\
+              pnpm-lock.yaml|\
+              .github/workflows/preview.yml)
+                changed=true
+                break
+                ;;
+            esac
+          done < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         uses: ./.github/actions/setup
@@ -47,6 +75,7 @@ jobs:
           pnpm api-reference:generate --version v4 --repo .effect-source-v4
 
       - name: Synchronize Mixedbread preview store
+        if: steps.search-changes.outputs.changed == 'true'
         id: mixedbread
         run: pnpm mixedbread:index sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"
         env:
@@ -68,8 +97,15 @@ jobs:
         run: node scripts/patch-vercel-trailing-slash.mjs
 
       - name: Deploy Project Artifacts to Vercel
-        run: pnpm exec vercel deploy --prebuilt --archive=tgz --env="MXBAI_VECTOR_STORE_ID=${{ steps.mixedbread.outputs.store_id }}" --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
+        run: |
+          if [[ -z "$SEARCH_STORE_ID" ]]; then
+            echo "::error::No Mixedbread search store is available for this preview"
+            exit 1
+          fi
+
+          pnpm exec vercel deploy --prebuilt --archive=tgz --env="MXBAI_VECTOR_STORE_ID=${SEARCH_STORE_ID}" --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
         env:
+          SEARCH_STORE_ID: ${{ steps.mixedbread.outputs.store_id || secrets.MXBAI_VECTOR_STORE_ID }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
