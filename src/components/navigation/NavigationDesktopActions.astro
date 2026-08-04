@@ -4,20 +4,15 @@ import SearchTriggerIsland from "@/components/navigation/SearchTriggerIsland"
 import ThemeToggle from "@/components/ui/ThemeToggle"
 
 interface Props {
-  readonly transparent?: boolean
   readonly showThemeToggle?: boolean
 }
 
-const { transparent = false, showThemeToggle = false } = Astro.props
+const { showThemeToggle = false } = Astro.props
 ---
 
-<SearchTriggerIsland client:load mode="desktop" transparent={transparent} />
+<SearchTriggerIsland client:load mode="desktop" />
 
-<div
-  class={`h-4.5 w-px ${transparent ? "bg-white/50" : "bg-zinc-200 dark:bg-zinc-700"}`}
-  aria-hidden="true"
->
-</div>
+<div class="h-4.5 w-px bg-zinc-200 dark:bg-zinc-700" aria-hidden="true"></div>
 
 <div class="flex items-center gap-4">
   <SocialLink variant="github" />
@@ -27,17 +22,10 @@ const { transparent = false, showThemeToggle = false } = Astro.props
 {
   showThemeToggle && (
     <>
-      <div
-        class={`h-4.5 w-px ${transparent ? "bg-white/50" : "bg-zinc-200 dark:bg-zinc-700"}`}
-        aria-hidden="true"
-      />
+      <div class="h-4.5 w-px bg-zinc-200 dark:bg-zinc-700" aria-hidden="true" />
       <ThemeToggle
         client:only="react"
-        className={
-          transparent
-            ? "text-white hover:text-white/80"
-            : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-        }
+        className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
       />
     </>
   )
