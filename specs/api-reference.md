@@ -5,10 +5,10 @@
 Publish a rich, versioned API reference at URLs such as:
 
 ```text
-/docs/api/v4/effect/Effect
-/docs/api/v4/effect/unstable/http/HttpClient
-/docs/api/v4/platform-node/NodeHttpClient
-/docs/api/v3/effect/Effect
+/docs/v4/api/effect/Effect
+/docs/v4/api/effect/unstable/http/HttpClient
+/docs/v4/api/platform-node/NodeHttpClient
+/docs/v3/api/effect/Effect
 ```
 
 The API reference is derived from TypeDoc JSON generated from Effect package exports. The complete TypeDoc representation must remain available to render signatures, overloads, comments, examples, source links, hierarchies, and future interactive components.
@@ -114,17 +114,17 @@ The collection loader reads only manifests. Rendering code calls a central acces
 The intended routes are:
 
 ```text
-src/pages/docs/api/[version]/index.astro
-src/pages/docs/api/[version]/[package]/index.astro
-src/pages/docs/api/[version]/[package]/[...module].astro
+src/pages/docs/[version]/api/index.astro
+src/pages/docs/[version]/api/[package]/index.astro
+src/pages/docs/[version]/api/[package]/[...module].astro
 ```
 
 Recommended redirects:
 
 ```text
-/docs/api -> /docs/api/v4
-/docs/api/v3 -> /docs/api/v3/effect
-/docs/api/v4 -> /docs/api/v4/effect
+/docs/api -> /docs/v4/api
+/docs/api/v3 -> /docs/v3/api
+/docs/api/v4 -> /docs/v4/api
 ```
 
 A version switcher attempts the same package and module in the other channel, then falls back to that package's index.

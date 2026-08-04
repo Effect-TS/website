@@ -3,11 +3,11 @@ import type { RedirectConfig } from "astro"
 export const docsLegacyRedirectList: Record<string, RedirectConfig> = {
   "/docs/additional-resources/api-reference": {
     status: 307,
-    destination: "/docs/api/v4",
+    destination: "/docs/v4/api",
   },
   "/docs/v3/additional-resources/api-reference": {
     status: 307,
-    destination: "/docs/api/v3",
+    destination: "/docs/v3/api",
   },
   "/docs/additional-resources/coming-from-zio": {
     status: 307,

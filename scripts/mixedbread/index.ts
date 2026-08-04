@@ -314,7 +314,7 @@ class Mixedbread extends Context.Service<
                 })
               }
               const moduleName = entry.data.modulePath.split("/").at(-1) ?? entry.data.modulePath
-              const moduleHref = `/docs/api/${entry.data.version}/${entry.data.packageSlug}/${entry.data.modulePath}`
+              const moduleHref = `/docs/${entry.data.version}/api/${entry.data.packageSlug}/${entry.data.modulePath}`
               const chunks = declarations.map((declaration) => ({
                 type: "text",
                 text: declarationMarkdown({

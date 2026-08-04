@@ -47,13 +47,13 @@ const versionLinks = ["v3", "v4"].map((version) => {
     href:
       exact === undefined
         ? undefined
-        : `/docs/api/${exact.data.version}/${exact.data.packageSlug}/${exact.data.modulePath}`,
+        : `/docs/${exact.data.version}/api/${exact.data.packageSlug}/${exact.data.modulePath}`,
     version,
   }
 })
 const showVersionSwitch = versionLinks.every(({ href }) => href !== undefined)
 const moduleHref = (modulePath: string) =>
-  `/docs/api/${entry.data.version}/${entry.data.packageSlug}/${modulePath}`
+  `/docs/${entry.data.version}/api/${entry.data.packageSlug}/${modulePath}`
 
 function moduleSection(modulePath: string): string {
   const parts = modulePath.split("/")
@@ -89,7 +89,7 @@ const mobilePackages = Array.from(
       ? []
       : [
           {
-            href: `/docs/api/${entry.data.version}/${candidate.data.packageSlug}`,
+            href: `/docs/${entry.data.version}/api/${candidate.data.packageSlug}`,
             label: candidate.data.packageName.replace("@effect/", ""),
             selected: candidate.data.packageSlug === entry.data.packageSlug,
           },
@@ -136,7 +136,7 @@ function sidebarModuleName(modulePath: string, group: string): string {
         >
           <header class="mb-4">
             <a
-              href={`/docs/api/${entry.data.version}`}
+              href={`/docs/${entry.data.version}/api`}
               class="mb-4 block font-mono text-sm font-semibold tracking-widest text-zinc-900 uppercase hover:underline dark:text-white"
             >
               API Reference
@@ -233,21 +233,21 @@ function sidebarModuleName(modulePath: string, group: string): string {
           class="mb-5 flex flex-wrap items-center gap-3 font-mono text-xs tracking-wider text-zinc-600 uppercase lg:mb-8 dark:text-zinc-400"
         >
           <a
-            href={`/docs/api/${entry.data.version}`}
+            href={`/docs/${entry.data.version}/api`}
             class="text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
           >
             API Reference
           </a>
           <span aria-hidden="true">/</span>
           <a
-            href={`/docs/api/${entry.data.version}`}
+            href={`/docs/${entry.data.version}/api`}
             class="text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
           >
             {entry.data.version}
           </a>
           <span aria-hidden="true">/</span>
           <a
-            href={`/docs/api/${entry.data.version}/${entry.data.packageSlug}`}
+            href={`/docs/${entry.data.version}/api/${entry.data.packageSlug}`}
             class="text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
           >
             {displayName}
