@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils"
 
 interface SearchTriggerIslandProps {
   readonly mode: "desktop" | "mobile"
-  readonly transparent?: boolean
   readonly onTrigger?: () => void
   readonly openDelayMs?: number
 }
@@ -61,7 +60,6 @@ const detectSearchShortcut = (): SearchShortcut => {
 
 const SearchTriggerIsland = memo(function SearchTriggerIsland({
   mode,
-  transparent = false,
   onTrigger,
   openDelayMs = 0,
 }: SearchTriggerIslandProps) {
@@ -111,18 +109,11 @@ const SearchTriggerIsland = memo(function SearchTriggerIsland({
       onClick={onClick}
       className={cn(
         "flex h-8 cursor-pointer appearance-none items-center gap-2 rounded-md border bg-transparent px-2.5 py-1 text-sm transition-colors",
-        transparent
-          ? "border-white/50 text-white hover:border-white hover:bg-zinc-800"
-          : "border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-white",
+        "border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-white",
       )}
     >
       <Search className="h-4.5 w-4.5" aria-hidden="true" />
-      <kbd
-        className={cn(
-          "inline-flex items-center justify-center gap-0.5 text-[12px] leading-none",
-          transparent ? "text-white/80" : "text-zinc-400/80 dark:text-zinc-400/80",
-        )}
-      >
+      <kbd className="inline-flex items-center justify-center gap-0.5 text-[12px] leading-none text-zinc-400/80 dark:text-zinc-400/80">
         <span>{shortcut.label}</span>
         <span>K</span>
       </kbd>

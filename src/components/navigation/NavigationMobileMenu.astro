@@ -4,24 +4,14 @@ import type { NavigationActiveSlug, NavigationLink } from "@/lib/navigation"
 import DiscordIcon from "@/assets/logos/discord/Discord.svg"
 import GitHubIcon from "@/assets/logos/github/GitHub.svg"
 import TwitterIcon from "@/assets/logos/twitter/Twitter.svg"
-import { cn } from "@/lib/utils"
 
 interface Props {
   readonly primaryLinks: ReadonlyArray<NavigationLink>
   readonly socialLinks: ReadonlyArray<NavigationLink>
-  readonly transparent?: boolean | undefined
   readonly activeSlug?: NavigationActiveSlug | undefined
 }
 
-const { transparent = false, primaryLinks, socialLinks, activeSlug } = Astro.props
-
-const actionButtonClass = cn(
-  "flex h-10 w-10 appearance-none items-center justify-center",
-  "rounded-lg border border-transparent bg-transparent transition-colors hover:bg-zinc-100 md:hidden dark:hover:bg-zinc-800",
-  transparent
-    ? "text-white/85 hover:text-white"
-    : "text-zinc-500/90 hover:text-zinc-900 dark:text-zinc-300/90 dark:hover:text-white",
-)
+const { primaryLinks, socialLinks, activeSlug } = Astro.props
 ---
 
 <effect-mobile-menu class="ml-auto">
@@ -30,7 +20,7 @@ const actionButtonClass = cn(
     data-role="menu-button"
     aria-label="Open navigation menu"
     aria-expanded="false"
-    class={actionButtonClass}
+    class="flex h-10 w-10 appearance-none items-center justify-center rounded-lg border border-transparent bg-transparent transition-colors hover:bg-zinc-100 md:hidden dark:hover:bg-zinc-800 text-zinc-500/90 hover:text-zinc-900 dark:text-zinc-300/90 dark:hover:text-white"
   >
     <svg
       data-role="icon-open"
@@ -82,9 +72,7 @@ const actionButtonClass = cn(
                   "block rounded-md px-3 py-2.5 text-[15px] no-underline transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white",
                   link.id === activeSlug
                     ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white"
-                    : link.cta === "solid"
-                      ? "font-medium text-zinc-900 dark:text-white"
-                      : "text-zinc-600 dark:text-zinc-300",
+                    : "text-zinc-600 dark:text-zinc-300",
                 ]}
               >
                 {link.label}

@@ -2,8 +2,6 @@ export type NavigationSurface = "desktop" | "mobile"
 
 export type NavigationGroup = "primary" | "secondary" | "social"
 
-export type NavigationCta = "none" | "solid"
-
 export const NAVIGATION_EVENTS = {
   SEARCH_OPEN: "effect-search:open",
   SEARCH_OPENED: "effect-search:opened",
@@ -16,7 +14,6 @@ interface NavigationLinkBase {
   readonly label: string
   readonly group: NavigationGroup
   readonly surfaces: ReadonlyArray<NavigationSurface>
-  readonly cta: NavigationCta
   readonly icon?: "discord" | "github" | "twitter"
 }
 
@@ -41,10 +38,9 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     id: "docs",
     kind: "internal",
     label: "Docs",
-    href: "/docs/",
+    href: "/docs",
     group: "primary",
     surfaces: ["desktop", "mobile"],
-    cta: "none",
   },
   {
     id: "api",
@@ -59,19 +55,17 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     id: "blog",
     kind: "internal",
     label: "Blog",
-    href: "/blog/",
+    href: "/blog",
     group: "primary",
     surfaces: ["desktop", "mobile"],
-    cta: "none",
   },
   {
     id: "podcast",
     kind: "internal",
     label: "Podcast",
-    href: "/podcast/",
+    href: "/podcast",
     group: "primary",
     surfaces: ["desktop", "mobile"],
-    cta: "none",
   },
   {
     id: "playground",
@@ -80,7 +74,6 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     href: "/play/",
     group: "primary",
     surfaces: ["desktop", "mobile"],
-    cta: "none",
   },
   {
     id: "github",
@@ -91,7 +84,6 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     rel: "noopener noreferrer",
     group: "social",
     surfaces: ["desktop", "mobile"],
-    cta: "none",
     icon: "github",
   },
   {
@@ -103,7 +95,6 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     rel: "noopener noreferrer",
     group: "social",
     surfaces: ["desktop", "mobile"],
-    cta: "none",
     icon: "discord",
   },
   {
@@ -115,7 +106,6 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     rel: "noopener noreferrer",
     group: "social",
     surfaces: ["desktop", "mobile"],
-    cta: "none",
     icon: "twitter",
   },
 ]
