@@ -49,7 +49,6 @@ export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
     href: "/docs/v4/api",
     group: "primary",
     surfaces: ["desktop", "mobile"],
-    cta: "none",
   },
   {
     id: "blog",
