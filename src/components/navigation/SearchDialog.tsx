@@ -1,4 +1,5 @@
 import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
+import * as BrowserKeyValueStore from "@effect/platform-browser/BrowserKeyValueStore"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
 import { constVoid } from "effect/Function"
@@ -12,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  History,
   LoaderCircle,
   Search,
   SearchX,
@@ -47,11 +49,51 @@ const selectedGroupsAtom = Atom.make<ReadonlyArray<SearchResultGroup>>([])
 
 const debouncedSearchQueryAtom = Atom.debounce(searchQueryAtom, "300 millis")
 
+const kvsRuntime = Atom.runtime(BrowserKeyValueStore.layerLocalStorage)
+
+const recentSearchesAtom = Atom.kvs({
+  runtime: kvsRuntime,
+  key: "effect-website:search:recent",
+  schema: Schema.Array(Schema.String),
+  defaultValue: () => [],
+})
+
 const dialogElementAtom = Atom.make(Option.none<HTMLDivElement>())
 
 const inputElementAtom = Atom.make(Option.none<HTMLInputElement>())
 
 const resultsElementAtom = Atom.make(Option.none<HTMLDivElement>())
+
+const addRecentSearchAtom = Atom.fnSync<string>()((query, get) => {
+  const trimmedQuery = query.trim()
+  if (trimmedQuery.length === 0) return
+
+  const normalizedQuery = trimmedQuery.toLowerCase()
+  const recentSearches = get(recentSearchesAtom).filter(
+    (recentSearch) => recentSearch.toLowerCase() !== normalizedQuery,
+  )
+  get.set(recentSearchesAtom, [trimmedQuery, ...recentSearches].slice(0, 5))
+})
+
+const selectSearchQueryAtom = Atom.fnSync<string>()((query, get) => {
+  get.set(searchQueryAtom, query)
+  get.set(addRecentSearchAtom, query)
+  Option.match(get(inputElementAtom), {
+    onNone: constVoid,
+    onSome: (element) => element.focus({ preventScroll: true }),
+  })
+})
+
+const clearRecentSearchesAtom = Atom.fnSync<void>()((_, get) => {
+  get.set(recentSearchesAtom, [])
+})
+
+const removeRecentSearchAtom = Atom.fnSync<string>()((search, get) => {
+  get.set(
+    recentSearchesAtom,
+    get(recentSearchesAtom).filter((recentSearch) => recentSearch !== search),
+  )
+})
 
 const scrollResultsToTopAtom = Atom.fnSync<void>()((_, get) => {
   Option.match(get(resultsElementAtom), {
@@ -65,16 +107,22 @@ const clearSelectedGroupsAtom = Atom.fnSync<void>()((_, get) => {
   get.set(scrollResultsToTopAtom, void 0)
 })
 
-const searchVersions: ReadonlyArray<SearchVersion> = ["v3", "v4"]
+const SEARCH_VERSIONS: ReadonlyArray<SearchVersion> = ["v3", "v4"]
 
-const searchResultGroups: ReadonlyArray<{
+const SUGGESTED_SEARCHES: ReadonlyArray<string> = [
+  "Getting Started",
+  "Error handling",
+  "Managing Services",
+]
+
+const SEARCH_RESULT_GROUPS: ReadonlyArray<{
   readonly value: SearchResultGroup
   readonly label: string
 }> = [
   { value: "api-reference", label: "api" },
   { value: "documentation", label: "docs" },
 ]
-const maxGroupedResults = 5
+const MAX_GROUP_RESULTS = 5
 
 type SearchResultsView =
   | { readonly _tag: "Grouped" }
@@ -89,8 +137,10 @@ const decodeSearchResults = Schema.decodeUnknownEffect(Schema.Array(SearchResult
 const searchRequestAtom = Atom.make((get) => {
   const query = get(debouncedSearchQueryAtom)
   if (query.trim().length === 0) {
-    return Effect.never
+    return Effect.succeed<ReadonlyArray<SearchResult>>([])
   }
+
+  get.set(addRecentSearchAtom, query)
 
   const url = `/api/search?query=${encodeURIComponent(query)}`
 
@@ -208,7 +258,8 @@ function useSearchDialogKeyDown() {
     const target = event.target
     if (
       !(target instanceof Element) ||
-      (!target.matches("#search-query") && !target.closest("[data-search-result-link]"))
+      (!target.matches("#search-query") &&
+        !target.closest("[data-search-result-link], [data-search-option]"))
     ) {
       return
     }
@@ -216,7 +267,9 @@ function useSearchDialogKeyDown() {
     // Event callbacks need the latest mounted nodes, not atom snapshots captured during render.
     const resultsElement = Option.getOrNull(registry.get(resultsElementAtom))
     const links = Array.from(
-      resultsElement?.querySelectorAll<HTMLAnchorElement>("[data-search-result-link]") ?? [],
+      resultsElement?.querySelectorAll<HTMLElement>(
+        "[data-search-result-link], [data-search-option]",
+      ) ?? [],
     )
     if (links.length === 0) return
 
@@ -376,7 +429,7 @@ function SearchVersionMenu() {
           align="end"
           className="min-w-20 rounded-md border border-zinc-200 bg-white px-0 py-1 shadow-lg shadow-zinc-950/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
         >
-          {searchVersions.map((searchVersion) => (
+          {SEARCH_VERSIONS.map((searchVersion) => (
             <DropdownMenuCheckboxItem
               key={searchVersion}
               checked={version === searchVersion}
@@ -413,7 +466,7 @@ function SearchGroupFilters() {
         aria-label="Filter search result groups"
         className="gap-2 rounded-none border-0 bg-transparent p-0 shadow-none"
       >
-        {searchResultGroups.map((group) => {
+        {SEARCH_RESULT_GROUPS.map((group) => {
           const count = versionResults.filter((result) => result.kind === group.value).length
           return (
             <ToggleGroupItem
@@ -457,7 +510,7 @@ function SearchDialogResults() {
     >
       {AsyncResult.builder(allSearchResults)
         .onWaiting(() => <SearchPending />)
-        .onInitial(() => <SearchPrompt />)
+        .onInitial(() => <SearchStart />)
         .onFailure(() => <SearchFailure />)
         .onSuccess(() => (
           <SearchResultsView key={`${query}:${version}:${selectedGroups.join(",")}`} />
@@ -467,14 +520,89 @@ function SearchDialogResults() {
   )
 }
 
-function SearchPrompt() {
+function SearchStart() {
+  const query = useAtomValue(searchQueryAtom)
+  const recentSearches = useAtomValue(recentSearchesAtom)
+
+  if (query.trim().length > 0) return null
+  return recentSearches.length > 0 ? (
+    <RecentSearches searches={recentSearches} />
+  ) : (
+    <SuggestedSearches />
+  )
+}
+
+function RecentSearches({ searches }: { readonly searches: ReadonlyArray<string> }) {
+  const selectSearchQuery = useAtomSet(selectSearchQueryAtom)
+  const clearRecentSearches = useAtomSet(clearRecentSearchesAtom)
+  const removeRecentSearch = useAtomSet(removeRecentSearchAtom)
+
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-      <div className="mb-4 flex size-11 items-center justify-center rounded-full border border-zinc-200/60 bg-zinc-50 dark:border-zinc-800/60 dark:bg-zinc-900">
-        <Search aria-hidden="true" className="size-5 text-zinc-500 dark:text-zinc-400" />
+    <section>
+      <div className="mb-2 flex items-center justify-between px-1 font-mono text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+        <h2>Recent</h2>
+        <button
+          type="button"
+          className="tracking-normal normal-case transition-colors hover:text-zinc-900 dark:hover:text-white"
+          onClick={() => clearRecentSearches()}
+        >
+          Clear
+        </button>
       </div>
-      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Search the docs</p>
-    </div>
+      <ul className="space-y-0.5">
+        {searches.map((search) => (
+          <li
+            key={search}
+            className="group flex items-center rounded-md transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
+          >
+            <button
+              type="button"
+              data-search-option
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-2 text-left text-sm text-zinc-700 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
+              onClick={() => selectSearchQuery(search)}
+            >
+              <History aria-hidden="true" className="size-4 shrink-0 text-zinc-500" />
+              <span className="truncate">{search}</span>
+            </button>
+            <button
+              type="button"
+              aria-label={`Remove recent search: ${search}`}
+              className="mr-1 flex size-7 shrink-0 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-white"
+              onClick={() => removeRecentSearch(search)}
+            >
+              <X aria-hidden="true" className="size-3.5" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function SuggestedSearches() {
+  const selectSearchQuery = useAtomSet(selectSearchQueryAtom)
+
+  return (
+    <section>
+      <h2 className="mb-2 px-1 font-mono text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+        Suggested
+      </h2>
+      <ul className="space-y-0.5">
+        {SUGGESTED_SEARCHES.map((search) => (
+          <li key={search}>
+            <button
+              type="button"
+              data-search-option
+              className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
+              onClick={() => selectSearchQuery(search)}
+            >
+              <Search aria-hidden="true" className="size-4 shrink-0 text-zinc-500" />
+              <span>{search}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -568,14 +696,14 @@ function SearchResultsOverview({
   return (
     <div className="space-y-5">
       <SearchResultsSection
-        title="API reference"
-        results={apiReferenceResults}
-        onViewAll={() => onViewSection("api-reference")}
-      />
-      <SearchResultsSection
         title="Documentation"
         results={documentationResults}
         onViewAll={() => onViewSection("documentation")}
+      />
+      <SearchResultsSection
+        title="API reference"
+        results={apiReferenceResults}
+        onViewAll={() => onViewSection("api-reference")}
       />
       <AlternateVersionResults />
     </div>
@@ -686,7 +814,7 @@ function SearchResultsSection({
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-4 px-1 font-mono text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
         <h2>{title}</h2>
-        {results.length > maxGroupedResults ? (
+        {results.length > MAX_GROUP_RESULTS ? (
           <button
             type="button"
             className="flex shrink-0 items-center gap-1 transition-colors hover:text-zinc-900 dark:hover:text-white"
@@ -702,7 +830,7 @@ function SearchResultsSection({
         )}
       </div>
       <ul className="space-y-2">
-        {results.slice(0, maxGroupedResults).map((result) => (
+        {results.slice(0, MAX_GROUP_RESULTS).map((result) => (
           <SearchResultItem key={result.id} result={result} />
         ))}
       </ul>
