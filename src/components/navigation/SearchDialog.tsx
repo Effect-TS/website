@@ -1,6 +1,7 @@
-import { useAtom, useAtomValue } from "@effect/atom-react/Hooks"
+import { RegistryContext, useAtom, useAtomSet, useAtomValue } from "@effect/atom-react"
 import * as Data from "effect/Data"
 import * as Effect from "effect/Effect"
+import { constVoid } from "effect/Function"
 import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
@@ -34,11 +35,38 @@ import {
 } from "@/services/search/domain"
 import MixedbreadLogo from "./MixedbreadLogo.svg?react"
 
-const searchQueryAtom = Atom.make("")
-const debouncedSearchQueryAtom = Atom.debounce(searchQueryAtom, "300 millis")
-type SearchVersion = "v3" | "v4"
-const searchVersions: ReadonlyArray<SearchVersion> = ["v3", "v4"]
 type SearchResultGroup = SearchResult["kind"]
+
+type SearchVersion = "v3" | "v4"
+
+const searchQueryAtom = Atom.make("")
+
+const selectedVersionAtom = Atom.make<SearchVersion>("v3")
+
+const selectedGroupsAtom = Atom.make<ReadonlyArray<SearchResultGroup>>([])
+
+const debouncedSearchQueryAtom = Atom.debounce(searchQueryAtom, "300 millis")
+
+const dialogElementAtom = Atom.make(Option.none<HTMLDivElement>())
+
+const inputElementAtom = Atom.make(Option.none<HTMLInputElement>())
+
+const resultsElementAtom = Atom.make(Option.none<HTMLDivElement>())
+
+const scrollResultsToTopAtom = Atom.fnSync<void>()((_, get) => {
+  Option.match(get(resultsElementAtom), {
+    onNone: constVoid,
+    onSome: (element) => element.scrollTo({ top: 0 }),
+  })
+})
+
+const clearSelectedGroupsAtom = Atom.fnSync<void>()((_, get) => {
+  get.set(selectedGroupsAtom, [])
+  get.set(scrollResultsToTopAtom, void 0)
+})
+
+const searchVersions: ReadonlyArray<SearchVersion> = ["v3", "v4"]
+
 const searchResultGroups: ReadonlyArray<{
   readonly value: SearchResultGroup
   readonly label: string
@@ -89,7 +117,7 @@ const searchRequestAtom = Atom.make((get) => {
   })
 })
 
-export const searchResultsAtom = Atom.make((get) => {
+export const allSearchResultsAtom = Atom.make((get) => {
   const query = get(searchQueryAtom)
 
   // Mount the debounce immediately so it also delays the first search.
@@ -119,29 +147,31 @@ export const searchResultsAtom = Atom.make((get) => {
   return get(searchRequestAtom)
 })
 
-export function SearchDialog() {
-  const [open, setOpen] = React.useState(false)
-  const [version, setVersion] = React.useState<SearchVersion>("v3")
-  const [selectedGroups, setSelectedGroups] = React.useState<Array<SearchResultGroup>>([])
-  const [query, setQuery] = useAtom(searchQueryAtom)
-  const searchResults = useAtomValue(searchResultsAtom)
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  const resultsRef = React.useRef<HTMLDivElement>(null)
-  const dialogContentRef = React.useRef<HTMLDivElement>(null)
-  const versionResults = AsyncResult.isSuccess(searchResults)
-    ? searchResults.value.filter((result) => result.version.toLowerCase() === version)
-    : []
+const versionResultsAtom = Atom.make((get) => {
+  const version = get(selectedVersionAtom)
 
-  const handleChange = React.useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setQuery(e.target.value)
-    },
-    [setQuery],
+  return get(allSearchResultsAtom).pipe(
+    AsyncResult.map((results) =>
+      results.filter((result) => result.version.toLowerCase() === version),
+    ),
+    AsyncResult.getOrElse<Array<SearchResult>>(() => []),
   )
+})
 
-  React.useEffect(() => {
-    const openDialog = () => setOpen(true)
-    const closeDialog = () => setOpen(false)
+const searchResultsAtom = Atom.make((get) => {
+  const groups = get(selectedGroupsAtom)
+
+  return get(versionResultsAtom).filter(
+    (result) => groups.length === 0 || groups.includes(result.kind),
+  )
+})
+
+const searchDialogOpenAtom = Atom.writable(
+  (get) => {
+    if (typeof window === "undefined") return false
+
+    const openDialog = () => get.setSelf(true)
+    const closeDialog = () => get.setSelf(false)
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -155,32 +185,46 @@ export function SearchDialog() {
     window.addEventListener(NAVIGATION_EVENTS.MOBILE_MENU_OPEN, closeDialog)
     window.addEventListener("keydown", handleKeyDown)
 
-    return () => {
+    get.addFinalizer(() => {
       window.removeEventListener(NAVIGATION_EVENTS.SEARCH_OPEN, openDialog)
       window.removeEventListener(NAVIGATION_EVENTS.SEARCH_CLOSE, closeDialog)
       window.removeEventListener(NAVIGATION_EVENTS.MOBILE_MENU_OPEN, closeDialog)
       window.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [])
+    })
 
-  React.useEffect(() => {
-    if (open) {
-      window.dispatchEvent(new Event(NAVIGATION_EVENTS.SEARCH_OPENED))
-    }
-  }, [open])
+    return false
+  },
+  (ctx, open: boolean) => ctx.setSelf(open),
+)
 
-  const handleDialogKeyDown = (event: React.KeyboardEvent) => {
+function useSearchDialogKeyDown() {
+  const registry = React.useContext(RegistryContext)
+
+  return (event: React.KeyboardEvent) => {
+    // Let nested controls such as menus and toggle groups own their arrow-key navigation.
+    if (event.defaultPrevented) return
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return
 
+    const target = event.target
+    if (
+      !(target instanceof Element) ||
+      (!target.matches("#search-query") && !target.closest("[data-search-result-link]"))
+    ) {
+      return
+    }
+
+    // Event callbacks need the latest mounted nodes, not atom snapshots captured during render.
+    const resultsElement = Option.getOrNull(registry.get(resultsElementAtom))
     const links = Array.from(
-      resultsRef.current?.querySelectorAll<HTMLAnchorElement>("[data-search-result-link]") ?? [],
+      resultsElement?.querySelectorAll<HTMLAnchorElement>("[data-search-result-link]") ?? [],
     )
     if (links.length === 0) return
 
     event.preventDefault()
+
     const activeIndex = links.findIndex((link) => link === document.activeElement)
     if (event.key === "ArrowUp" && activeIndex <= 0) {
-      inputRef.current?.focus({ preventScroll: true })
+      Option.getOrNull(registry.get(inputElementAtom))?.focus({ preventScroll: true })
       return
     }
 
@@ -190,34 +234,53 @@ export function SearchDialog() {
         : Math.max(activeIndex - 1, 0)
     const nextLink = links[nextIndex]
     nextLink?.focus({ preventScroll: true })
-    const resultsElement = resultsRef.current
-    if (nextLink && resultsElement) {
-      const linkRect = nextLink.getBoundingClientRect()
-      const resultsRect = resultsElement.getBoundingClientRect()
-      if (linkRect.top < resultsRect.top || linkRect.bottom > resultsRect.bottom) {
-        resultsElement.scrollTo({
-          top:
-            resultsElement.scrollTop +
-            linkRect.top -
-            resultsRect.top -
-            (resultsRect.height - linkRect.height) / 2,
-        })
-      }
+
+    if (nextLink === undefined || resultsElement === null) return
+
+    const linkRect = nextLink.getBoundingClientRect()
+    const resultsRect = resultsElement.getBoundingClientRect()
+    if (linkRect.top < resultsRect.top || linkRect.bottom > resultsRect.bottom) {
+      resultsElement.scrollTo({
+        top:
+          resultsElement.scrollTop +
+          linkRect.top -
+          resultsRect.top -
+          (resultsRect.height - linkRect.height) / 2,
+      })
     }
+  }
+}
+
+export function SearchDialog() {
+  const registry = React.useContext(RegistryContext)
+  const [open, setOpen] = useAtom(searchDialogOpenAtom)
+  const setDialogElement = useAtomSet(dialogElementAtom)
+  const handleDialogKeyDown = useSearchDialogKeyDown()
+
+  // Initial focus needs the latest mounted input, not an atom snapshot captured during render.
+  const getInputElement = () => {
+    return Option.getOrNull(registry.get(inputElementAtom))
   }
 
-  const handleResultsClick = (event: React.MouseEvent) => {
-    if (event.target instanceof Element && event.target.closest("[data-search-result-link]")) {
-      setOpen(false)
+  const registerDialogElement = React.useCallback(
+    (element: HTMLDivElement | null) => {
+      setDialogElement(Option.fromNullOr(element))
+    },
+    [setDialogElement],
+  )
+
+  React.useEffect(() => {
+    if (open) {
+      window.dispatchEvent(new Event(NAVIGATION_EVENTS.SEARCH_OPENED))
     }
-  }
+  }, [open])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
-        ref={dialogContentRef}
+        ref={registerDialogElement}
         showCloseButton={false}
-        initialFocus={inputRef}
+        initialFocus={getInputElement}
         overlayClassName="z-200 bg-black/40 backdrop-blur-sm"
         className="top-24 z-250 flex max-h-[min(36rem,calc(100dvh-10rem))] w-[calc(100%-2rem)] max-w-2xl translate-y-0 flex-col gap-0 rounded-md border border-zinc-200 bg-white p-0 shadow-xl shadow-zinc-950/10 sm:max-w-2xl dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/40"
         onKeyDown={handleDialogKeyDown}
@@ -226,134 +289,181 @@ export function SearchDialog() {
           Type to search. Use arrow keys to navigate results. Press Enter to select. Press Escape to
           close.
         </DialogTitle>
-
-        <div className="shrink-0 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="flex flex-row items-center gap-3 px-4 py-3">
-            <span id="search-instructions" className="sr-only">
-              Type to search. Use arrow keys to navigate results. Press Enter to select. Press
-              Escape to close.
-            </span>
-
-            <Search className="size-4 shrink-0 text-base text-zinc-500 dark:text-zinc-400" />
-
-            <input
-              ref={inputRef}
-              className="min-w-0 flex-1 rounded-xs bg-transparent px-1 text-base text-zinc-900 outline-none placeholder:text-zinc-500 dark:text-white dark:placeholder:text-zinc-400"
-              placeholder="Search documentation…"
-              aria-label="Search documentation"
-              aria-describedby="search-instructions"
-              value={query}
-              onChange={handleChange}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-            />
-
-            <div className="relative shrink-0">
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="outline"
-                      className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 font-mono text-xs font-medium text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:border-zinc-400 focus-visible:ring-0 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white dark:focus-visible:border-zinc-600"
-                    >
-                      {version}
-                      <ChevronDown className="size-3 transition-transform group-aria-expanded/button:rotate-180" />
-                    </Button>
-                  }
-                />
-                <DropdownMenuContent
-                  portalContainer={dialogContentRef}
-                  align="end"
-                  className="min-w-20 rounded-md border border-zinc-200 bg-white px-0 py-1 shadow-lg shadow-zinc-950/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
-                >
-                  {searchVersions.map((searchVersion) => (
-                    <DropdownMenuCheckboxItem
-                      key={searchVersion}
-                      checked={version === searchVersion}
-                      closeOnClick
-                      onCheckedChange={() => setVersion(searchVersion)}
-                      className="flex w-full cursor-pointer items-center justify-between rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
-                    >
-                      {searchVersion}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <DialogClose
-              aria-label="Close search"
-              className="flex size-4 items-center justify-center text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-            >
-              <X className="size-4" />
-              <span className="sr-only">Close</span>
-            </DialogClose>
-          </div>
-
-          {AsyncResult.isSuccess(searchResults) ? (
-            <div className="border-t border-zinc-200 px-4 py-2 dark:border-zinc-800">
-              <ToggleGroup
-                value={selectedGroups}
-                onValueChange={(groups) => {
-                  setSelectedGroups(groups)
-                  resultsRef.current?.scrollTo({ top: 0 })
-                }}
-                aria-label="Filter search result groups"
-                className="gap-2 rounded-none border-0 bg-transparent p-0 shadow-none"
-              >
-                {searchResultGroups.map((group) => {
-                  const count = versionResults.filter(
-                    (result) => result.kind === group.value,
-                  ).length
-
-                  return (
-                    <ToggleGroupItem
-                      key={group.value}
-                      value={group.value}
-                      tabIndex={0}
-                      aria-label={`Filter by ${group.label}`}
-                      className="inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md border border-zinc-200 bg-transparent px-2 py-0.5 text-center font-mono text-xs font-medium tracking-normal text-zinc-600 normal-case shadow-none hover:bg-zinc-100 hover:text-zinc-900 data-pressed:bg-zinc-900 data-pressed:text-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:data-pressed:bg-zinc-100 dark:data-pressed:text-zinc-950"
-                    >
-                      <span>in:{group.label}</span>
-                      <span className="text-zinc-400 tabular-nums dark:text-zinc-500">{count}</span>
-                    </ToggleGroupItem>
-                  )
-                })}
-              </ToggleGroup>
-            </div>
-          ) : null}
-        </div>
-
-        <div
-          ref={resultsRef}
-          className="min-h-0 flex-1 scrollbar-thin space-y-2 overflow-y-auto p-3"
-          onClick={handleResultsClick}
-        >
-          {AsyncResult.builder(searchResults)
-            .onWaiting(() => <SearchPending />)
-            .onInitial(() => <SearchPrompt />)
-            .onFailure(() => <SearchFailure />)
-            .onSuccess((results) => (
-              <SearchResults
-                key={`${query}:${version}:${selectedGroups.join(",")}`}
-                results={results}
-                version={version}
-                selectedGroups={selectedGroups}
-                onViewChange={() => resultsRef.current?.scrollTo({ top: 0 })}
-                onVersionChange={(nextVersion) => {
-                  setVersion(nextVersion)
-                  resultsRef.current?.scrollTo({ top: 0 })
-                }}
-              />
-            ))
-            .render()}
-        </div>
-
+        <SearchDialogHeader />
+        <SearchDialogResults />
         <SearchDialogFooter />
       </DialogContent>
     </Dialog>
+  )
+}
+
+function SearchDialogHeader() {
+  return (
+    <div className="shrink-0 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex flex-row items-center gap-3 px-4 py-3">
+        <span id="search-instructions" className="sr-only">
+          Type to search. Use arrow keys to navigate results. Press Enter to select. Press Escape to
+          close.
+        </span>
+        <SearchInput />
+        <SearchVersionMenu />
+        <DialogClose
+          aria-label="Close search"
+          className="flex size-4 items-center justify-center text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+        >
+          <X className="size-4" />
+          <span className="sr-only">Close</span>
+        </DialogClose>
+      </div>
+      <SearchGroupFilters />
+    </div>
+  )
+}
+
+function SearchInput() {
+  const [query, setQuery] = useAtom(searchQueryAtom)
+  const setInputElement = useAtomSet(inputElementAtom)
+
+  const registerInputElement = React.useCallback(
+    (element: HTMLInputElement | null) => setInputElement(Option.fromNullOr(element)),
+    [setInputElement],
+  )
+
+  return (
+    <>
+      <Search className="size-4 shrink-0 text-base text-zinc-500 dark:text-zinc-400" />
+      <input
+        ref={registerInputElement}
+        id="search-query"
+        name="search-query"
+        type="search"
+        data-search-dialog-input
+        className="min-w-0 flex-1 rounded-xs bg-transparent px-1 text-base text-zinc-900 outline-none placeholder:text-zinc-500 dark:text-white dark:placeholder:text-zinc-400"
+        placeholder="Search documentation…"
+        aria-label="Search documentation"
+        aria-describedby="search-instructions"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+      />
+    </>
+  )
+}
+
+function SearchVersionMenu() {
+  const [version, setVersion] = useAtom(selectedVersionAtom)
+  const dialogElement = useAtomValue(dialogElementAtom)
+
+  return (
+    <div className="relative shrink-0">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="outline"
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 font-mono text-xs font-medium text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:border-zinc-400 focus-visible:ring-0 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white dark:focus-visible:border-zinc-600"
+            >
+              {version}
+              <ChevronDown className="size-3 transition-transform group-aria-expanded/button:rotate-180" />
+            </Button>
+          }
+        />
+        <DropdownMenuContent
+          portalContainer={Option.getOrNull(dialogElement)}
+          align="end"
+          className="min-w-20 rounded-md border border-zinc-200 bg-white px-0 py-1 shadow-lg shadow-zinc-950/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
+        >
+          {searchVersions.map((searchVersion) => (
+            <DropdownMenuCheckboxItem
+              key={searchVersion}
+              checked={version === searchVersion}
+              closeOnClick
+              tabIndex={0}
+              onCheckedChange={() => setVersion(searchVersion)}
+              className="flex w-full cursor-pointer items-center justify-between rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus-visible:outline-none dark:text-white dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
+            >
+              {searchVersion}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
+function SearchGroupFilters() {
+  const allSearchResults = useAtomValue(allSearchResultsAtom)
+  const versionResults = useAtomValue(versionResultsAtom)
+  const [selectedGroups, setSelectedGroups] = useAtom(selectedGroupsAtom)
+  const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
+
+  if (!AsyncResult.isSuccess(allSearchResults)) return null
+
+  return (
+    <div className="border-t border-zinc-200 px-4 py-2 dark:border-zinc-800">
+      <ToggleGroup
+        value={selectedGroups}
+        onValueChange={(groups) => {
+          setSelectedGroups(groups)
+          scrollResultsToTop()
+        }}
+        aria-label="Filter search result groups"
+        className="gap-2 rounded-none border-0 bg-transparent p-0 shadow-none"
+      >
+        {searchResultGroups.map((group) => {
+          const count = versionResults.filter((result) => result.kind === group.value).length
+          return (
+            <ToggleGroupItem
+              key={group.value}
+              value={group.value}
+              tabIndex={0}
+              aria-label={`Filter by ${group.label}`}
+              className="inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md border border-zinc-200 bg-transparent px-2 py-0.5 text-center font-mono text-xs font-medium tracking-normal text-zinc-600 normal-case shadow-none hover:bg-zinc-100 hover:text-zinc-900 data-pressed:bg-zinc-900 data-pressed:text-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:data-pressed:bg-zinc-100 dark:data-pressed:text-zinc-950"
+            >
+              <span>in:{group.label}</span>
+              <span className="text-zinc-400 tabular-nums dark:text-zinc-500">{count}</span>
+            </ToggleGroupItem>
+          )
+        })}
+      </ToggleGroup>
+    </div>
+  )
+}
+
+function SearchDialogResults() {
+  const query = useAtomValue(searchQueryAtom)
+  const version = useAtomValue(selectedVersionAtom)
+  const selectedGroups = useAtomValue(selectedGroupsAtom)
+  const allSearchResults = useAtomValue(allSearchResultsAtom)
+  const setOpen = useAtomSet(searchDialogOpenAtom)
+  const setResultsElement = useAtomSet(resultsElementAtom)
+  const registerResultsElement = React.useCallback(
+    (element: HTMLDivElement | null) => setResultsElement(Option.fromNullOr(element)),
+    [setResultsElement],
+  )
+
+  return (
+    <div
+      ref={registerResultsElement}
+      className="min-h-0 flex-1 scrollbar-thin space-y-2 overflow-y-auto p-3"
+      onClick={(event) => {
+        if (event.target instanceof Element && event.target.closest("[data-search-result-link]")) {
+          setOpen(false)
+        }
+      }}
+    >
+      {AsyncResult.builder(allSearchResults)
+        .onWaiting(() => <SearchPending />)
+        .onInitial(() => <SearchPrompt />)
+        .onFailure(() => <SearchFailure />)
+        .onSuccess(() => (
+          <SearchResultsView key={`${query}:${version}:${selectedGroups.join(",")}`} />
+        ))
+        .render()}
+    </div>
   )
 }
 
@@ -394,119 +504,169 @@ function SearchFailure() {
   )
 }
 
-function SearchResults({
-  results,
-  version,
-  selectedGroups,
-  onViewChange,
-  onVersionChange,
-}: {
-  readonly results: ReadonlyArray<SearchResult>
-  readonly version: SearchVersion
-  readonly selectedGroups: ReadonlyArray<SearchResultGroup>
-  readonly onViewChange: () => void
-  readonly onVersionChange: (version: SearchVersion) => void
-}) {
+function SearchResultsView() {
   const [view, setView] = React.useState<SearchResultsView>({ _tag: "Grouped" })
-  const matchingResults = results.filter(
-    (result) =>
-      result.version.toLowerCase() === version &&
-      (selectedGroups.length === 0 || selectedGroups.includes(result.kind)),
+  const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
+
+  const showSection = (section: SearchResult["kind"]) => {
+    setView({ _tag: "Section", section })
+    scrollResultsToTop()
+  }
+
+  const showGroupedResults = () => {
+    setView({ _tag: "Grouped" })
+    scrollResultsToTop()
+  }
+
+  if (view._tag === "Section") {
+    return <SearchResultsDetail section={view.section} onBack={showGroupedResults} />
+  }
+
+  return <SearchResultsOverview onViewSection={showSection} />
+}
+
+function SearchResultsDetail({
+  section,
+  onBack,
+}: {
+  readonly section: SearchResultGroup
+  readonly onBack: () => void
+}) {
+  const results = useAtomValue(searchResultsAtom).filter((result) => result.kind === section)
+
+  return (
+    <div className="space-y-3">
+      <Button
+        type="button"
+        variant="ghost"
+        className="flex items-center gap-1 font-mono text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+        onClick={onBack}
+      >
+        <ChevronLeft className="size-3.5" />
+        All results
+      </Button>
+      <ul className="space-y-2">
+        {results.map((result) => (
+          <SearchResultItem key={result.id} result={result} />
+        ))}
+      </ul>
+    </div>
   )
-  const apiReferenceResults = matchingResults.filter((result) => result.kind === "api-reference")
-  const documentationResults = matchingResults.filter((result) => result.kind === "documentation")
+}
+
+function SearchResultsOverview({
+  onViewSection,
+}: {
+  readonly onViewSection: (section: SearchResultGroup) => void
+}) {
+  const results = useAtomValue(searchResultsAtom)
+  const apiReferenceResults = results.filter((result) => result.kind === "api-reference")
+  const documentationResults = results.filter((result) => result.kind === "documentation")
+
+  if (results.length === 0) return <SearchEmptyState />
+
+  return (
+    <div className="space-y-5">
+      <SearchResultsSection
+        title="API reference"
+        results={apiReferenceResults}
+        onViewAll={() => onViewSection("api-reference")}
+      />
+      <SearchResultsSection
+        title="Documentation"
+        results={documentationResults}
+        onViewAll={() => onViewSection("documentation")}
+      />
+      <AlternateVersionResults />
+    </div>
+  )
+}
+
+function SearchEmptyState() {
+  const query = useAtomValue(searchQueryAtom)
+  const version = useAtomValue(selectedVersionAtom)
+  const selectedGroups = useAtomValue(selectedGroupsAtom)
+  const allSearchResults = useAtomValue(allSearchResultsAtom)
+  const setVersion = useAtomSet(selectedVersionAtom)
+  const clearSelectedGroups = useAtomSet(clearSelectedGroupsAtom)
+  const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
+  const allResults = AsyncResult.getOrElse(allSearchResults, (): Array<SearchResult> => [])
   const alternateVersion: SearchVersion = version === "v4" ? "v3" : "v4"
-  const alternateVersionResultCount = results.filter(
+  const alternateVersionResultCount = allResults.filter(
     (result) =>
       result.version.toLowerCase() === alternateVersion &&
       (selectedGroups.length === 0 || selectedGroups.includes(result.kind)),
   ).length
-  const v3ResultCount = results.filter(
+  const noResultsAcrossVersions = alternateVersionResultCount === 0
+
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-8 text-center">
+      <div className="mb-3 flex size-10 items-center justify-center rounded-full border border-zinc-200/60 bg-zinc-50 dark:border-zinc-800/60 dark:bg-zinc-900">
+        <SearchX aria-hidden="true" className="size-4.5 text-zinc-500 dark:text-zinc-400" />
+      </div>
+      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+        No results for &ldquo;{query.trim()}&rdquo;
+      </p>
+      {selectedGroups.length === 0 && noResultsAcrossVersions ? (
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          Check spelling or try a broader term
+        </p>
+      ) : selectedGroups.length > 0 && noResultsAcrossVersions ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-3 border-zinc-200 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white"
+          onClick={() => clearSelectedGroups()}
+        >
+          Search everywhere
+        </Button>
+      ) : (
+        <button
+          type="button"
+          className="mt-1 flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+          onClick={() => {
+            setVersion(alternateVersion)
+            scrollResultsToTop()
+          }}
+        >
+          See <span className="tabular-nums">{alternateVersionResultCount}</span> more results in{" "}
+          {alternateVersion}
+          <ChevronRight className="size-3.5" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function AlternateVersionResults() {
+  const version = useAtomValue(selectedVersionAtom)
+  const selectedGroups = useAtomValue(selectedGroupsAtom)
+  const allSearchResults = useAtomValue(allSearchResultsAtom)
+  const setVersion = useAtomSet(selectedVersionAtom)
+  const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
+  const allResults = AsyncResult.getOrElse(allSearchResults, (): Array<SearchResult> => [])
+  const v3ResultCount = allResults.filter(
     (result) =>
       result.version.toLowerCase() === "v3" &&
       (selectedGroups.length === 0 || selectedGroups.includes(result.kind)),
   ).length
 
-  const showSection = (section: SearchResult["kind"]) => {
-    setView({ _tag: "Section", section })
-    onViewChange()
-  }
-
-  const showGroupedResults = () => {
-    setView({ _tag: "Grouped" })
-    onViewChange()
-  }
-
-  if (view._tag === "Section") {
-    const sectionResults =
-      view.section === "api-reference" ? apiReferenceResults : documentationResults
-
-    return (
-      <div className="space-y-3">
-        <button
-          type="button"
-          className="flex items-center gap-1 font-mono text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-          onClick={showGroupedResults}
-        >
-          <ChevronLeft className="size-3.5" />
-          All results
-        </button>
-        <ul className="space-y-2">
-          {sectionResults.map((result) => (
-            <SearchResultItem key={result.id} result={result} />
-          ))}
-        </ul>
-      </div>
-    )
-  }
+  if (version !== "v4" || v3ResultCount === 0) return null
 
   return (
-    <div className="space-y-5">
-      {matchingResults.length === 0 ? (
-        <div className="flex flex-col items-center justify-center px-6 py-8 text-center">
-          <div className="mb-3 flex size-10 items-center justify-center rounded-full border border-zinc-200/60 bg-zinc-50 dark:border-zinc-800/60 dark:bg-zinc-900">
-            <SearchX aria-hidden="true" className="size-4.5 text-zinc-500 dark:text-zinc-400" />
-          </div>
-          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">No results found</p>
-          {alternateVersionResultCount > 0 ? (
-            <button
-              type="button"
-              className="mt-1 flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-              onClick={() => onVersionChange(alternateVersion)}
-            >
-              See <span className="tabular-nums">{alternateVersionResultCount}</span> more results
-              in {alternateVersion}
-              <ChevronRight className="size-3.5" />
-            </button>
-          ) : null}
-        </div>
-      ) : (
-        <>
-          <SearchResultsSection
-            title="API reference"
-            results={apiReferenceResults}
-            onViewAll={() => showSection("api-reference")}
-          />
-          <SearchResultsSection
-            title="Documentation"
-            results={documentationResults}
-            onViewAll={() => showSection("documentation")}
-          />
-        </>
-      )}
-      {matchingResults.length > 0 && version === "v4" && v3ResultCount > 0 ? (
-        <div className="border-t border-zinc-200 pt-4 text-center dark:border-zinc-800">
-          <button
-            type="button"
-            className="mx-auto flex items-center gap-1 font-mono text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-            onClick={() => onVersionChange("v3")}
-          >
-            <span className="tabular-nums">{v3ResultCount}</span> more
-            {v3ResultCount === 1 ? " result" : " results"} in v3
-            <ChevronRight className="size-3.5" />
-          </button>
-        </div>
-      ) : null}
+    <div className="border-t border-zinc-200 pt-4 text-center dark:border-zinc-800">
+      <button
+        type="button"
+        className="mx-auto flex items-center gap-1 font-mono text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+        onClick={() => {
+          setVersion("v3")
+          scrollResultsToTop()
+        }}
+      >
+        <span className="tabular-nums">{v3ResultCount}</span> more
+        {v3ResultCount === 1 ? " result" : " results"} in v3
+        <ChevronRight className="size-3.5" />
+      </button>
     </div>
   )
 }
@@ -662,91 +822,6 @@ function DocumentationItem({ result }: { readonly result: DocumentationSearchRes
       ) : null}
     </li>
   )
-  // return (
-  //   <div class="rounded-md border transition-colors border-zinc-200 hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
-  //     <a
-  //       href="#result"
-  //       class="group block rounded-md p-4 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
-  //     >
-  //       <div class="flex flex-wrap items-center gap-2">
-  //         <span class="inline-flex items-center gap-1.5 rounded-md bg-zinc-200 px-2 py-0.5 font-mono text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
-  //           <svg
-  //             xmlns="http://www.w3.org/2000/svg"
-  //             width="24"
-  //             height="24"
-  //             viewBox="0 0 24 24"
-  //             fill="none"
-  //             stroke="currentColor"
-  //             stroke-width="2"
-  //             stroke-linecap="round"
-  //             stroke-linejoin="round"
-  //             class="lucide lucide-file-text icon-inline -translate-y-[0.5px] text-[11px]"
-  //             aria-hidden="true"
-  //           >
-  //             <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path>
-  //             <path d="M14 2v5a1 1 0 0 0 1 1h5"></path>
-  //             <path d="M10 9H8"></path>
-  //             <path d="M16 13H8"></path>
-  //             <path d="M16 17H8"></path>
-  //           </svg>
-  //           Docs
-  //           <span aria-hidden="true" class="text-zinc-400 dark:text-zinc-500">
-  //             ·
-  //           </span>
-  //           V4
-  //         </span>
-  //         <span class="font-mono text-xs font-medium text-zinc-600 dark:text-zinc-300">
-  //           Getting started / Control flow
-  //         </span>
-  //       </div>
-  //       <p class="mt-3 text-base font-semibold text-zinc-900 dark:text-white ">
-  //         Looping and iteration
-  //       </p>
-  //       <p class="mt-1.5 line-clamp-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400 [&amp;_code]:rounded [&amp;_code]:bg-zinc-200/60 [&amp;_code]:px-1 [&amp;_code]:py-0.5 [&amp;_code]:font-mono [&amp;_code]:text-xs [&amp;_code]:text-zinc-800 dark:[&amp;_code]:bg-zinc-800 dark:[&amp;_code]:text-zinc-200">
-  //         Use{" "}
-  //         <mark class="bg-transparent font-medium text-zinc-900 underline decoration-zinc-400 underline-offset-4 dark:text-white dark:decoration-zinc-500">
-  //           Effect.forEach
-  //         </mark>{" "}
-  //         to run an effect for every element of a collection.
-  //       </p>
-  //     </a>
-  //     <div class="mx-4 mb-3 border-l border-zinc-200 pl-3 dark:border-zinc-800">
-  //       <a
-  //         href="#result"
-  //         class="block rounded-md px-2 py-2 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
-  //       >
-  //         <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-  //           Concurrency options
-  //         </p>
-  //         <p class="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-  //           Bound how many effects run at once with the concurrency option.
-  //         </p>
-  //       </a>
-  //       <a
-  //         href="#result"
-  //         class="block rounded-md px-2 py-2 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
-  //       >
-  //         <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-  //           Discarding results
-  //         </p>
-  //         <p class="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-  //           Pass discard: true when you only need the effects' side effects.
-  //         </p>
-  //       </a>
-  //       <a
-  //         href="#result"
-  //         class="block rounded-md px-2 py-2 transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-900/60"
-  //       >
-  //         <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-  //           Iterating with index
-  //         </p>
-  //         <p class="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-  //           The callback receives the element and its index.
-  //         </p>
-  //       </a>
-  //     </div>
-  //   </div>
-  // );
 }
 
 function SearchDialogFooter() {
