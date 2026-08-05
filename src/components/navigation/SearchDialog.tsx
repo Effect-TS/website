@@ -5,9 +5,27 @@ import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import * as Atom from "effect/unstable/reactivity/Atom"
-import { Braces, FileText, LoaderCircle, Search, SearchX, X } from "lucide-react"
+import {
+  Braces,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  LoaderCircle,
+  Search,
+  SearchX,
+  X,
+} from "lucide-react"
 import * as React from "react"
+import { Button } from "@/components/ui/Button"
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { NAVIGATION_EVENTS } from "@/lib/navigation"
 import {
   SearchResult,
@@ -18,6 +36,21 @@ import MixedbreadLogo from "./MixedbreadLogo.svg?react"
 
 const searchQueryAtom = Atom.make("")
 const debouncedSearchQueryAtom = Atom.debounce(searchQueryAtom, "300 millis")
+type SearchVersion = "v3" | "v4"
+const searchVersions: ReadonlyArray<SearchVersion> = ["v3", "v4"]
+type SearchResultGroup = SearchResult["kind"]
+const searchResultGroups: ReadonlyArray<{
+  readonly value: SearchResultGroup
+  readonly label: string
+}> = [
+  { value: "api-reference", label: "api" },
+  { value: "documentation", label: "docs" },
+]
+const maxGroupedResults = 5
+
+type SearchResultsView =
+  | { readonly _tag: "Grouped" }
+  | { readonly _tag: "Section"; readonly section: SearchResult["kind"] }
 
 class SearchError extends Data.TaggedError("SearchError")<{
   readonly cause: unknown
@@ -88,10 +121,16 @@ export const searchResultsAtom = Atom.make((get) => {
 
 export function SearchDialog() {
   const [open, setOpen] = React.useState(false)
+  const [version, setVersion] = React.useState<SearchVersion>("v3")
+  const [selectedGroups, setSelectedGroups] = React.useState<Array<SearchResultGroup>>([])
   const [query, setQuery] = useAtom(searchQueryAtom)
   const searchResults = useAtomValue(searchResultsAtom)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const resultsRef = React.useRef<HTMLDivElement>(null)
+  const dialogContentRef = React.useRef<HTMLDivElement>(null)
+  const versionResults = AsyncResult.isSuccess(searchResults)
+    ? searchResults.value.filter((result) => result.version.toLowerCase() === version)
+    : []
 
   const handleChange = React.useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,10 +215,11 @@ export function SearchDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
+        ref={dialogContentRef}
         showCloseButton={false}
         initialFocus={inputRef}
         overlayClassName="z-200 bg-black/40 backdrop-blur-sm"
-        className="top-24 z-250 flex max-h-[min(36rem,calc(100dvh-10rem))] w-[calc(100%-2rem)] max-w-2xl translate-y-0 flex-col gap-0 overflow-hidden rounded-md border border-zinc-200 bg-white p-0 shadow-xl shadow-zinc-950/10 sm:max-w-2xl dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/40"
+        className="top-24 z-250 flex max-h-[min(36rem,calc(100dvh-10rem))] w-[calc(100%-2rem)] max-w-2xl translate-y-0 flex-col gap-0 rounded-md border border-zinc-200 bg-white p-0 shadow-xl shadow-zinc-950/10 sm:max-w-2xl dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/40"
         onKeyDown={handleDialogKeyDown}
       >
         <DialogTitle className="sr-only">
@@ -187,35 +227,103 @@ export function SearchDialog() {
           close.
         </DialogTitle>
 
-        <div className="flex shrink-0 flex-row items-center gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-          <span id="search-instructions" className="sr-only">
-            Type to search. Use arrow keys to navigate results. Press Enter to select. Press Escape
-            to close.
-          </span>
+        <div className="shrink-0 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="flex flex-row items-center gap-3 px-4 py-3">
+            <span id="search-instructions" className="sr-only">
+              Type to search. Use arrow keys to navigate results. Press Enter to select. Press
+              Escape to close.
+            </span>
 
-          <Search className="size-4 shrink-0 text-base text-zinc-500 dark:text-zinc-400" />
+            <Search className="size-4 shrink-0 text-base text-zinc-500 dark:text-zinc-400" />
 
-          <input
-            ref={inputRef}
-            className="min-w-0 flex-1 rounded-xs bg-transparent px-1 text-base text-zinc-900 outline-none placeholder:text-zinc-500 dark:text-white dark:placeholder:text-zinc-400"
-            placeholder="Search documentation…"
-            aria-label="Search documentation"
-            aria-describedby="search-instructions"
-            value={query}
-            onChange={handleChange}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-          />
+            <input
+              ref={inputRef}
+              className="min-w-0 flex-1 rounded-xs bg-transparent px-1 text-base text-zinc-900 outline-none placeholder:text-zinc-500 dark:text-white dark:placeholder:text-zinc-400"
+              placeholder="Search documentation…"
+              aria-label="Search documentation"
+              aria-describedby="search-instructions"
+              value={query}
+              onChange={handleChange}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+            />
 
-          <DialogClose
-            aria-label="Close search"
-            className="flex size-4 items-center justify-center text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-          >
-            <X className="size-4" />
-            <span className="sr-only">Close</span>
-          </DialogClose>
+            <div className="relative shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 font-mono text-xs font-medium text-zinc-600 transition-colors hover:border-zinc-400 hover:text-zinc-900 focus-visible:border-zinc-400 focus-visible:ring-0 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white dark:focus-visible:border-zinc-600"
+                    >
+                      {version}
+                      <ChevronDown className="size-3 transition-transform group-aria-expanded/button:rotate-180" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent
+                  portalContainer={dialogContentRef}
+                  align="end"
+                  className="min-w-20 rounded-md border border-zinc-200 bg-white px-0 py-1 shadow-lg shadow-zinc-950/10 dark:border-zinc-700 dark:bg-zinc-900 dark:shadow-black/40"
+                >
+                  {searchVersions.map((searchVersion) => (
+                    <DropdownMenuCheckboxItem
+                      key={searchVersion}
+                      checked={version === searchVersion}
+                      closeOnClick
+                      onCheckedChange={() => setVersion(searchVersion)}
+                      className="flex w-full cursor-pointer items-center justify-between rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800"
+                    >
+                      {searchVersion}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <DialogClose
+              aria-label="Close search"
+              className="flex size-4 items-center justify-center text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            >
+              <X className="size-4" />
+              <span className="sr-only">Close</span>
+            </DialogClose>
+          </div>
+
+          {AsyncResult.isSuccess(searchResults) ? (
+            <div className="border-t border-zinc-200 px-4 py-2 dark:border-zinc-800">
+              <ToggleGroup
+                value={selectedGroups}
+                onValueChange={(groups) => {
+                  setSelectedGroups(groups)
+                  resultsRef.current?.scrollTo({ top: 0 })
+                }}
+                aria-label="Filter search result groups"
+                className="gap-2 rounded-none border-0 bg-transparent p-0 shadow-none"
+              >
+                {searchResultGroups.map((group) => {
+                  const count = versionResults.filter(
+                    (result) => result.kind === group.value,
+                  ).length
+
+                  return (
+                    <ToggleGroupItem
+                      key={group.value}
+                      value={group.value}
+                      tabIndex={0}
+                      aria-label={`Filter by ${group.label}`}
+                      className="inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md border border-zinc-200 bg-transparent px-2 py-0.5 text-center font-mono text-xs font-medium tracking-normal text-zinc-600 normal-case shadow-none hover:bg-zinc-100 hover:text-zinc-900 data-pressed:bg-zinc-900 data-pressed:text-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white dark:data-pressed:bg-zinc-100 dark:data-pressed:text-zinc-950"
+                    >
+                      <span>in:{group.label}</span>
+                      <span className="text-zinc-400 tabular-nums dark:text-zinc-500">{count}</span>
+                    </ToggleGroupItem>
+                  )
+                })}
+              </ToggleGroup>
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -227,7 +335,19 @@ export function SearchDialog() {
             .onWaiting(() => <SearchPending />)
             .onInitial(() => <SearchPrompt />)
             .onFailure(() => <SearchFailure />)
-            .onSuccess((results) => <SearchResults results={results} />)
+            .onSuccess((results) => (
+              <SearchResults
+                key={`${query}:${version}:${selectedGroups.join(",")}`}
+                results={results}
+                version={version}
+                selectedGroups={selectedGroups}
+                onViewChange={() => resultsRef.current?.scrollTo({ top: 0 })}
+                onVersionChange={(nextVersion) => {
+                  setVersion(nextVersion)
+                  resultsRef.current?.scrollTo({ top: 0 })
+                }}
+              />
+            ))
             .render()}
         </div>
 
@@ -274,13 +394,159 @@ function SearchFailure() {
   )
 }
 
-function SearchResults({ results }: { readonly results: ReadonlyArray<SearchResult> }) {
+function SearchResults({
+  results,
+  version,
+  selectedGroups,
+  onViewChange,
+  onVersionChange,
+}: {
+  readonly results: ReadonlyArray<SearchResult>
+  readonly version: SearchVersion
+  readonly selectedGroups: ReadonlyArray<SearchResultGroup>
+  readonly onViewChange: () => void
+  readonly onVersionChange: (version: SearchVersion) => void
+}) {
+  const [view, setView] = React.useState<SearchResultsView>({ _tag: "Grouped" })
+  const matchingResults = results.filter(
+    (result) =>
+      result.version.toLowerCase() === version &&
+      (selectedGroups.length === 0 || selectedGroups.includes(result.kind)),
+  )
+  const apiReferenceResults = matchingResults.filter((result) => result.kind === "api-reference")
+  const documentationResults = matchingResults.filter((result) => result.kind === "documentation")
+  const alternateVersion: SearchVersion = version === "v4" ? "v3" : "v4"
+  const alternateVersionResultCount = results.filter(
+    (result) =>
+      result.version.toLowerCase() === alternateVersion &&
+      (selectedGroups.length === 0 || selectedGroups.includes(result.kind)),
+  ).length
+  const v3ResultCount = results.filter(
+    (result) =>
+      result.version.toLowerCase() === "v3" &&
+      (selectedGroups.length === 0 || selectedGroups.includes(result.kind)),
+  ).length
+
+  const showSection = (section: SearchResult["kind"]) => {
+    setView({ _tag: "Section", section })
+    onViewChange()
+  }
+
+  const showGroupedResults = () => {
+    setView({ _tag: "Grouped" })
+    onViewChange()
+  }
+
+  if (view._tag === "Section") {
+    const sectionResults =
+      view.section === "api-reference" ? apiReferenceResults : documentationResults
+
+    return (
+      <div className="space-y-3">
+        <button
+          type="button"
+          className="flex items-center gap-1 font-mono text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+          onClick={showGroupedResults}
+        >
+          <ChevronLeft className="size-3.5" />
+          All results
+        </button>
+        <ul className="space-y-2">
+          {sectionResults.map((result) => (
+            <SearchResultItem key={result.id} result={result} />
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
   return (
-    <ul className="space-y-2">
-      {results.map((result) => (
-        <SearchResultItem key={result.id} result={result} />
-      ))}
-    </ul>
+    <div className="space-y-5">
+      {matchingResults.length === 0 ? (
+        <div className="flex flex-col items-center justify-center px-6 py-8 text-center">
+          <div className="mb-3 flex size-10 items-center justify-center rounded-full border border-zinc-200/60 bg-zinc-50 dark:border-zinc-800/60 dark:bg-zinc-900">
+            <SearchX aria-hidden="true" className="size-4.5 text-zinc-500 dark:text-zinc-400" />
+          </div>
+          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">No results found</p>
+          {alternateVersionResultCount > 0 ? (
+            <button
+              type="button"
+              className="mt-1 flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              onClick={() => onVersionChange(alternateVersion)}
+            >
+              See <span className="tabular-nums">{alternateVersionResultCount}</span> more results
+              in {alternateVersion}
+              <ChevronRight className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <SearchResultsSection
+            title="API reference"
+            results={apiReferenceResults}
+            onViewAll={() => showSection("api-reference")}
+          />
+          <SearchResultsSection
+            title="Documentation"
+            results={documentationResults}
+            onViewAll={() => showSection("documentation")}
+          />
+        </>
+      )}
+      {matchingResults.length > 0 && version === "v4" && v3ResultCount > 0 ? (
+        <div className="border-t border-zinc-200 pt-4 text-center dark:border-zinc-800">
+          <button
+            type="button"
+            className="mx-auto flex items-center gap-1 font-mono text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            onClick={() => onVersionChange("v3")}
+          >
+            <span className="tabular-nums">{v3ResultCount}</span> more
+            {v3ResultCount === 1 ? " result" : " results"} in v3
+            <ChevronRight className="size-3.5" />
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function SearchResultsSection({
+  title,
+  results,
+  onViewAll,
+}: {
+  readonly title: string
+  readonly results: ReadonlyArray<SearchResult>
+  readonly onViewAll: () => void
+}) {
+  if (results.length === 0) return null
+
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center justify-between gap-4 px-1 font-mono text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+        <h2>{title}</h2>
+        {results.length > maxGroupedResults ? (
+          <button
+            type="button"
+            className="flex shrink-0 items-center gap-1 transition-colors hover:text-zinc-900 dark:hover:text-white"
+            onClick={onViewAll}
+          >
+            View all <span className="tabular-nums">{results.length}</span>
+            <ChevronRight className="size-3.5" />
+          </button>
+        ) : (
+          <span className="shrink-0 tabular-nums">
+            {results.length} {results.length === 1 ? "result" : "results"}
+          </span>
+        )}
+      </div>
+      <ul className="space-y-2">
+        {results.slice(0, maxGroupedResults).map((result) => (
+          <SearchResultItem key={result.id} result={result} />
+        ))}
+      </ul>
+    </section>
   )
 }
 
