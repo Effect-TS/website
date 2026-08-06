@@ -21,7 +21,7 @@ const Person = Schema.Struct({
 })
 
 Schema.decodeUnknownSync(Person)(null)
-// Output: ParseError: Expected { readonly name: string; readonly age: number }, actual null
+// Output: SchemaError: Expected object
 ```
 
 **Example** (Missing Properties)
@@ -37,11 +37,10 @@ const Person = Schema.Struct({
 Schema.decodeUnknownSync(Person)({}, { errors: "all" })
 /*
 throws:
-ParseError: { readonly name: string; readonly age: number }
-├─ ["name"]
-│  └─ is missing
-└─ ["age"]
-   └─ is missing
+SchemaError: Missing key
+  at ["name"]
+Missing key
+  at ["age"]
 */
 ```
 
@@ -58,11 +57,10 @@ const Person = Schema.Struct({
 Schema.decodeUnknownSync(Person)({ name: null, age: "age" }, { errors: "all" })
 /*
 throws:
-ParseError: { readonly name: string; readonly age: number }
-├─ ["name"]
-│  └─ Expected string, actual null
-└─ ["age"]
-   └─ Expected number, actual "age"
+SchemaError: Expected string
+  at ["name"]
+Expected number
+  at ["age"]
 */
 ```
 
@@ -76,39 +74,37 @@ To address this, you can enhance the clarity and brevity of these messages by ut
 ```ts twoslash
 import { Schema } from "effect"
 
-const Name = Schema.String.annotations({ identifier: "Name" })
+const Name = Schema.String.annotate({ identifier: "Name" })
 
-const Age = Schema.Number.annotations({ identifier: "Age" })
+const Age = Schema.Number.annotate({ identifier: "Age" })
 
 const Person = Schema.Struct({
   name: Name,
   age: Age,
-}).annotations({ identifier: "Person" })
+}).annotate({ identifier: "Person" })
 
 Schema.decodeUnknownSync(Person)(null)
 /*
 throws:
-ParseError: Expected Person, actual null
+SchemaError: Expected Person
 */
 
 Schema.decodeUnknownSync(Person)({}, { errors: "all" })
 /*
 throws:
-ParseError: Person
-├─ ["name"]
-│  └─ is missing
-└─ ["age"]
-   └─ is missing
+SchemaError: Missing key
+  at ["name"]
+Missing key
+  at ["age"]
 */
 
 Schema.decodeUnknownSync(Person)({ name: null, age: null }, { errors: "all" })
 /*
 throws:
-ParseError: Person
-├─ ["name"]
-│  └─ Expected Name, actual null
-└─ ["age"]
-   └─ Expected Age, actual null
+SchemaError: Expected Name
+  at ["name"]
+Expected Age
+  at ["age"]
 */
 ```
 
@@ -168,42 +164,36 @@ The system provides a structured error message to specify where the error occurr
 **Example** (Transformation Errors)
 
 ```ts twoslash
-import { ParseResult, Schema } from "effect"
+import { Effect, Schema, SchemaGetter, SchemaIssue } from "effect"
 
-const schema = Schema.transformOrFail(Schema.String, Schema.String.pipe(Schema.minLength(2)), {
-  strict: true,
-  decode: (s, _, ast) =>
-    s.length > 0 ? ParseResult.succeed(s) : ParseResult.fail(new ParseResult.Type(ast, s)),
-  encode: ParseResult.succeed,
-})
+const schema = Schema.String.pipe(
+  Schema.decodeTo(Schema.String.check(Schema.isMinLength(2)), {
+    decode: SchemaGetter.transformOrFail((s) =>
+      s.length > 0 ? Effect.succeed(s) : Effect.fail(new SchemaIssue.InvalidValue()),
+    ),
+    encode: SchemaGetter.passthrough(),
+  }),
+)
 
 // Encoded side failure
 Schema.decodeUnknownSync(schema)(null)
 /*
 throws:
-ParseError: (string <-> minLength(2))
-└─ Encoded side transformation failure
-   └─ Expected string, actual null
+SchemaError: Expected string
 */
 
 // transformation failure
 Schema.decodeUnknownSync(schema)("")
 /*
 throws:
-ParseError: (string <-> minLength(2))
-└─ Transformation process failure
-   └─ Expected (string <-> minLength(2)), actual ""
+SchemaError: Expected a valid value
 */
 
 // Type side failure
 Schema.decodeUnknownSync(schema)("a")
 /*
 throws:
-ParseError: (string <-> minLength(2))
-└─ Type side transformation failure
-   └─ minLength(2)
-      └─ Predicate refinement failure
-         └─ Expected a string at least 2 character(s) long, actual "a"
+SchemaError: Expected a value with a length of at least 2
 */
 ```
 
@@ -215,13 +205,7 @@ This allows developers to provide more context-specific feedback which can impro
 Here's an overview of the `MessageAnnotation` type, which you can use to craft these messages:
 
 ```ts showLineNumbers=false
-type MessageAnnotation = (issue: ParseIssue) =>
-  | string
-  | Effect<string>
-  | {
-      readonly message: string | Effect<string>
-      readonly override: boolean
-    }
+type MessageAnnotation = string
 ```
 
 | Return Type                            | Description                                                                                                                                                                                                                                                  |
@@ -242,53 +226,47 @@ const MyString = Schema.String
 Schema.decodeUnknownSync(MyString)(null)
 /*
 throws:
-ParseError: Expected string, actual null
+SchemaError: Expected string
 */
 
 // Define a string schema with a custom error message
-const MyStringWithMessage = Schema.String.annotations({
-  message: () => "not a string",
+const MyStringWithMessage = Schema.String.annotate({
+  message: "not a string",
 })
 
 // Decode with the custom schema, showing the new error message
 Schema.decodeUnknownSync(MyStringWithMessage)(null)
 /*
 throws:
-ParseError: not a string
+SchemaError: not a string
 */
 ```
 
 **Example** (Custom Error Message for a Union Schema with Override Option)
 
-```ts twoslash "override: true"
+```ts twoslash
 import { Schema } from "effect"
 
 // Define a union schema without a custom message
-const MyUnion = Schema.Union(Schema.String, Schema.Number)
+const MyUnion = Schema.Union([Schema.String, Schema.Number])
 
 // Decode `null`, resulting in default union error messages
 Schema.decodeUnknownSync(MyUnion)(null)
 /*
 throws:
-ParseError: string | number
-├─ Expected string, actual null
-└─ Expected number, actual null
+SchemaError: Expected string | number
 */
 
-// Define a union schema with a custom message and override flag
-const MyUnionWithMessage = Schema.Union(Schema.String, Schema.Number).annotations({
-  message: () => ({
-    message: "Please provide a string or a number",
-    // Ensures this message replaces all nested messages
-    override: true,
-  }),
+// Define a union schema with a custom message
+const MyUnionWithMessage = Schema.Union([Schema.String, Schema.Number]).annotate({
+  message: "Please provide a string or a number",
 })
 
 // Decode with the custom schema, showing the new error message
 Schema.decodeUnknownSync(MyUnionWithMessage)(null)
 /*
 throws:
-ParseError: Please provide a string or a number
+SchemaError: Please provide a string or a number
 */
 ```
 
@@ -308,34 +286,11 @@ Let's see some practical examples.
 
 **Example** (Simple Custom Message for Scalar Schema)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="scalar-schemas-1"
 import { Schema } from "effect"
 
-const MyString = Schema.String.annotations({
-  message: () => "my custom message",
-})
-
-const decode = Schema.decodeUnknownSync(MyString)
-
-try {
-  decode(null)
-} catch (e: any) {
-  console.log(e.message) // "my custom message"
-}
-```
-
-### Refinements
-
-This example demonstrates setting a custom message on the last refinement in a chain of refinements. As you can see, the custom message is only used if the refinement related to `maxLength` fails; otherwise, default messages are used.
-
-**Example** (Custom Message on Last Refinement in Chain)
-
-```ts twoslash
-import { Schema } from "effect"
-
-const MyString = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(2)).annotations({
-  // This message is displayed only if the last filter (`maxLength`) fails
-  message: () => "my custom message",
+const MyString = Schema.String.annotate({
+  message: "my custom message",
 })
 
 const decode = Schema.decodeUnknownSync(MyString)
@@ -344,33 +299,45 @@ try {
   decode(null)
 } catch (e: any) {
   console.log(e.message)
-  /*
-   minLength(1) & maxLength(2)
-   └─ From side refinement failure
-      └─ minLength(1)
-         └─ From side refinement failure
-            └─ Expected string, actual null
-  */
+  e.message // => "my custom message"
+}
+```
+
+### Refinements
+
+This example demonstrates setting a custom message on the last refinement in a chain of refinements. As you can see, the custom message is only used if the refinement related to `isMaxLength` fails; otherwise, default messages are used.
+
+**Example** (Custom Message on Last Refinement in Chain)
+
+```ts twoslash import.meta.vitest name="refinements-1"
+import { Schema } from "effect"
+
+const MyString = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(2)).annotate({
+  // This message is displayed only if the last filter (`isMaxLength`) fails
+  message: "my custom message",
+})
+
+const decode = Schema.decodeUnknownSync(MyString)
+
+try {
+  decode(null)
+} catch (e: any) {
+  console.log(e.message)
+  e.message // => "Expected string"
 }
 
 try {
   decode("")
 } catch (e: any) {
   console.log(e.message)
-  /*
-   minLength(1) & maxLength(2)
-   └─ From side refinement failure
-      └─ minLength(1)
-         └─ Predicate refinement failure
-            └─ Expected a string at least 1 character(s) long, actual ""
-  */
+  e.message // => "Expected a value with a length of at least 1"
 }
 
 try {
   decode("abc")
 } catch (e: any) {
   console.log(e.message)
-  // "my custom message"
+  e.message // => "my custom message"
 }
 ```
 
@@ -378,17 +345,17 @@ When setting multiple custom messages, the one corresponding to the **first** fa
 
 **Example** (Custom Messages for Multiple Refinements)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="refinements-2"
 import { Schema } from "effect"
 
 const MyString = Schema.String
   // This message is displayed only if a non-String is passed as input
-  .annotations({ message: () => "String custom message" })
-  .pipe(
-    // This message is displayed only if the filter `minLength` fails
-    Schema.minLength(1, { message: () => "minLength custom message" }),
-    // This message is displayed only if the filter `maxLength` fails
-    Schema.maxLength(2, { message: () => "maxLength custom message" }),
+  .annotate({ message: "String custom message" })
+  .check(
+    // This message is displayed only if the filter `isMinLength` fails
+    Schema.isMinLength(1, { message: "minLength custom message" }),
+    // This message is displayed only if the filter `isMaxLength` fails
+    Schema.isMaxLength(2, { message: "maxLength custom message" }),
   )
 
 const decode = Schema.decodeUnknownSync(MyString)
@@ -396,19 +363,22 @@ const decode = Schema.decodeUnknownSync(MyString)
 try {
   decode(null)
 } catch (e: any) {
-  console.log(e.message) // String custom message
+  console.log(e.message)
+  e.message // => "String custom message"
 }
 
 try {
   decode("")
 } catch (e: any) {
-  console.log(e.message) // minLength custom message
+  console.log(e.message)
+  e.message // => "minLength custom message"
 }
 
 try {
   decode("abc")
 } catch (e: any) {
-  console.log(e.message) // maxLength custom message
+  console.log(e.message)
+  e.message // => "maxLength custom message"
 }
 ```
 
@@ -451,48 +421,54 @@ In this example, `IntFromString` is a transformation schema that converts string
 
 **Example** (Custom Error Messages for String-to-Integer Transformation)
 
-```ts twoslash
-import { ParseResult, Schema } from "effect"
+```ts twoslash import.meta.vitest name="transformations-1"
+import { Effect, Schema, SchemaGetter, SchemaIssue } from "effect"
 
-const IntFromString = Schema.transformOrFail(
+const IntFromString = Schema.String
   // This message is displayed only if the input is not a string
-  Schema.String.annotations({ message: () => "please enter a string" }),
-  // This message is displayed only if the input can be converted
-  // to a number but it's not an integer
-  Schema.Int.annotations({ message: () => "please enter an integer" }),
-  {
-    strict: true,
-    decode: (s, _, ast) => {
-      const n = Number(s)
-      return Number.isNaN(n)
-        ? ParseResult.fail(new ParseResult.Type(ast, s))
-        : ParseResult.succeed(n)
-    },
-    encode: (n) => ParseResult.succeed(String(n)),
-  },
-)
-  // This message is displayed only if the input
-  // cannot be converted to a number
-  .annotations({ message: () => "please enter a parseable string" })
+  .annotate({ message: "please enter a string" })
+  .pipe(
+    Schema.decodeTo(
+      // This message is displayed only if the input can be converted
+      // to a number but it's not an integer
+      Schema.Int.annotate({ message: "please enter an integer" }),
+      {
+        decode: SchemaGetter.transformOrFail((s) => {
+          const n = Number(s)
+          return Number.isNaN(n)
+            ? Effect.fail(
+                // This message is displayed only if the input
+                // cannot be converted to a number
+                new SchemaIssue.InvalidValue({ message: "please enter a parseable string" }),
+              )
+            : Effect.succeed(n)
+        }),
+        encode: SchemaGetter.transform((n) => String(n)),
+      },
+    ),
+  )
 
 const decode = Schema.decodeUnknownSync(IntFromString)
 
 try {
   decode(null)
 } catch (e: any) {
-  console.log(e.message) // please enter a string
+  console.log(e.message)
+  e.message // => "please enter a string"
 }
 
 try {
   decode("1.2")
 } catch (e: any) {
-  console.log(e.message) // please enter an integer
+  console.log(e.message)
+  e.message // => "please enter an integer"
 }
 
 try {
   decode("not a number")
 } catch (e: any) {
-  console.log(e.message) // please enter a parseable string
+  console.log(e.message)
+  e.message // => "please enter a parseable string"
 }
 ```
 
@@ -503,26 +479,22 @@ The custom message system becomes especially handy when dealing with complex sch
 **Example** (Custom Error Messages in Nested Schemas)
 
 ```ts twoslash
-import { Schema, pipe } from "effect"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({
-  outcomes: pipe(
-    Schema.Array(
-      Schema.Struct({
-        id: Schema.String,
-        text: pipe(
-          Schema.String.annotations({
-            message: () => "error_invalid_outcome_type",
-          }),
-          Schema.minLength(1, { message: () => "error_required_field" }),
-          Schema.maxLength(50, {
-            message: () => "error_max_length_field",
-          }),
-        ),
-      }),
-    ),
-    Schema.minItems(1, { message: () => "error_min_length_field" }),
-  ),
+  outcomes: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      text: Schema.String.annotate({
+        message: "error_invalid_outcome_type",
+      }).check(
+        Schema.isMinLength(1, { message: "error_required_field" }),
+        Schema.isMaxLength(50, {
+          message: "error_max_length_field",
+        }),
+      ),
+    }),
+  ).check(Schema.isMinLength(1, { message: "error_min_length_field" })),
 })
 
 Schema.decodeUnknownSync(schema, { errors: "all" })({
@@ -530,9 +502,8 @@ Schema.decodeUnknownSync(schema, { errors: "all" })({
 })
 /*
 throws
-ParseError: { readonly outcomes: minItems(1) }
-└─ ["outcomes"]
-   └─ error_min_length_field
+SchemaError: error_min_length_field
+  at ["outcomes"]
 */
 
 Schema.decodeUnknownSync(schema, { errors: "all" })({
@@ -544,19 +515,10 @@ Schema.decodeUnknownSync(schema, { errors: "all" })({
 })
 /*
 throws
-ParseError: { readonly outcomes: minItems(1) }
-└─ ["outcomes"]
-   └─ minItems(1)
-      └─ From side refinement failure
-         └─ ReadonlyArray<{ readonly id: string; readonly text: minLength(1) & maxLength(50) }>
-            ├─ [0]
-            │  └─ { readonly id: string; readonly text: minLength(1) & maxLength(50) }
-            │     └─ ["text"]
-            │        └─ error_required_field
-            └─ [2]
-               └─ { readonly id: string; readonly text: minLength(1) & maxLength(50) }
-                  └─ ["text"]
-                     └─ error_max_length_field
+SchemaError: error_required_field
+  at ["outcomes"][0]["text"]
+error_max_length_field
+  at ["outcomes"][2]["text"]
 */
 ```
 
@@ -617,7 +579,7 @@ Schema.decodeUnknownEither(Name)("").pipe(
 
 ### Missing messages
 
-You can provide custom messages for missing fields or tuple elements using the `missingMessage` annotation.
+You can provide custom messages for missing fields or tuple elements using the `messageMissingKey` annotation.
 
 **Example** (Custom Message for Missing Property)
 
@@ -627,18 +589,17 @@ In this example, a custom message is defined for a missing `name` property in th
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
-  name: Schema.propertySignature(Schema.String).annotations({
+  name: Schema.String.pipe(
     // Custom message if "name" is missing
-    missingMessage: () => "Name is required",
-  }),
+    Schema.annotateKey({ messageMissingKey: "Name is required" }),
+  ),
 })
 
 Schema.decodeUnknownSync(Person)({})
 /*
 throws:
-ParseError: { readonly name: string }
-└─ ["name"]
-   └─ Name is required
+SchemaError: Name is required
+  at ["name"]
 */
 ```
 
@@ -649,24 +610,23 @@ Here, each element in the `Point` tuple schema has a specific custom message if 
 ```ts twoslash
 import { Schema } from "effect"
 
-const Point = Schema.Tuple(
-  Schema.element(Schema.Number).annotations({
+const Point = Schema.Tuple([
+  Schema.Number.pipe(
     // Message if X is missing
-    missingMessage: () => "X coordinate is required",
-  }),
-  Schema.element(Schema.Number).annotations({
+    Schema.annotateKey({ messageMissingKey: "X coordinate is required" }),
+  ),
+  Schema.Number.pipe(
     // Message if Y is missing
-    missingMessage: () => "Y coordinate is required",
-  }),
-)
+    Schema.annotateKey({ messageMissingKey: "Y coordinate is required" }),
+  ),
+])
 
 Schema.decodeUnknownSync(Point)([], { errors: "all" })
 /*
 throws:
-ParseError: readonly [number, number]
-├─ [0]
-│  └─ X coordinate is required
-└─ [1]
-   └─ Y coordinate is required
+SchemaError: X coordinate is required
+  at [0]
+Y coordinate is required
+  at [1]
 */
 ```
