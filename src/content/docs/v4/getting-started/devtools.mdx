@@ -1,6 +1,6 @@
 ---
 title: Devtools
-description: Enhance your Effect development experience with the Effect Language Service and official VS Code/Cursor extension for advanced diagnostics, refactors, and intelligent code completion.
+description: Enhance your Effect development experience with the Effect Language Service (@effect/tsgo) and official VS Code/Cursor extension for advanced diagnostics, refactors, and intelligent code completion.
 sidebar:
   order: 3
 ---
@@ -9,28 +9,44 @@ import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components"
 
 Effect provides powerful development tools to enhance your coding experience and help you write safer, more maintainable code. These tools integrate directly into your editor, providing real-time feedback, intelligent refactors, and helpful diagnostics.
 
-## Effect LSP
+## Effect LSP (`@effect/tsgo`)
 
-The Effect LSP extends your editor with Effect-specific features. It analyzes your Effect code and provides intelligent assistance through diagnostics, quick info, completions, and automated refactors.
+The Effect Language Service extends your editor with Effect-specific features. It analyzes your Effect code and provides intelligent assistance through diagnostics, quick info, completions, and automated refactors.
 
-It works in editors that supports the standard TypeScript LSP, such as Code, Cursor, Zed, NVim, etc.
+For Effect v4, the language service ships as `@effect/tsgo`: a build of [TypeScript-Go](https://github.com/microsoft/TypeScript-Go) (the new Go-based TypeScript compiler) with the Effect diagnostics layer built in. It is a **superset** of plain `tsgo` — use `@effect/tsgo` as your sole TypeScript language server rather than running both side by side, since that produces duplicate diagnostics.
+
+<Aside type="note">
+  On Effect v3 (or if your editor/tooling can't yet run a TypeScript-Go-based server), use the
+  classic `@effect/language-service` package instead — see the [v3 Devtools
+  docs](/docs/v3/getting-started/devtools/).
+</Aside>
+
+It works in editors that support the standard TypeScript LSP, such as Code, Cursor, Zed, NVim, etc.
 
 ### Installation
 
-To install the Effect Language Service in your project:
+The quickest way to set up `@effect/tsgo` in your project is the interactive CLI:
+
+```sh showLineNumbers=false
+npx @effect/tsgo setup
+```
+
+This guides you through adding the dependency, configuring your `tsconfig.json`, adjusting plugin options, and any editor configuration needed to activate the LSP.
+
+To set it up manually instead:
 
 <Steps>
 
 1. Install the package as a development dependency:
 
-   For monorepos, we suggest to install the language service at the root level. For single-package projects, install it in the package directory.
+   For monorepos, we suggest installing it at the root level. For single-package projects, install it in the package directory.
 
    <Tabs syncKey="package-manager">
 
    <TabItem label="npm" icon="seti:npm">
 
    ```sh showLineNumbers=false
-   npm install @effect/language-service --save-dev
+   npm install @effect/tsgo --save-dev
    ```
 
    </TabItem>
@@ -38,7 +54,7 @@ To install the Effect Language Service in your project:
    <TabItem label="pnpm" icon="pnpm">
 
    ```sh showLineNumbers=false
-   pnpm add -D @effect/language-service
+   pnpm add -D @effect/tsgo
    ```
 
    </TabItem>
@@ -46,7 +62,7 @@ To install the Effect Language Service in your project:
    <TabItem label="Yarn" icon="seti:yarn">
 
    ```sh showLineNumbers=false
-   yarn add --dev @effect/language-service
+   yarn add --dev @effect/tsgo
    ```
 
    </TabItem>
@@ -54,14 +70,16 @@ To install the Effect Language Service in your project:
    <TabItem label="Bun" icon="bun">
 
    ```sh showLineNumbers=false
-   bun add --dev @effect/language-service
+   bun add --dev @effect/tsgo
    ```
 
    </TabItem>
 
    </Tabs>
 
-2. Add the plugin to your `tsconfig.json`:
+   You'll also need a native TypeScript install alongside it: `typescript` >= 7 (e.g. `typescript@next`) or an alias such as `@typescript/native`.
+
+2. Add the plugin to your `tsconfig.json` (the plugin's `name` stays `@effect/language-service` even though the package is `@effect/tsgo`):
 
    ```json title="tsconfig.json"
    {
@@ -120,13 +138,14 @@ Catch common mistakes and potential issues as you write code:
 - **Unnecessary Code**: Identify redundant `Effect.gen` or `pipe()` calls
 - **Error Handling**: Detect misuse of catch functions on Effects that cannot fail
 - **Version Conflicts**: Detect when multiple Effect versions are present in your project
+- **Outdated APIs**: Flag usages of APIs that were removed or renamed going from v3 to v4, useful while migrating
 
 #### Smart Completions
 
 Speed up your coding with context-aware suggestions:
 
 - **Generator Boilerplate**: Quickly scaffold `Effect.gen` functions
-- **Scaffolds**: For `Effect.Service`, `Data.TaggedError` and friends.
+- **Scaffolds**: For `Context.Service`, `Data.TaggedError` and friends.
 - **Self Parameters**: Auto-complete for `Self` parameters in service declarations
 
 #### Powerful Refactors
@@ -144,7 +163,7 @@ Transform your code with intelligent automated refactors:
 
 The Effect LSP provides also lots of configuration options such as changing severity or disabling diagnostic messages.
 
-To see the full list of options and features, please visit the [README from the LSP repository](https://github.com/Effect-TS/language-service).
+To see the full list of options and features, please visit the [README from the tsgo repository](https://github.com/Effect-TS/tsgo).
 
 ### Build-Time Diagnostics
 
@@ -152,12 +171,12 @@ While LSPs only activate during editing sessions, you may want to catch diagnost
 
 Usually that's done through linting rules, but since almost all of the Effect diagnostics relies on types, that would mean enabling type-aware linting, which means performing type checking again on the project files.
 
-To solve this, the Effect Language Service allows you to patch your local TypeScript installation, so diagnostics are emitted while performing type checking.
+To solve this, `@effect/tsgo` allows you to patch your local TypeScript installation, so diagnostics are emitted while performing type checking.
 
 To enable it run the following command to modify your local TypeScript installation:
 
 ```sh showLineNumbers=false
-effect-language-service patch
+effect-tsgo patch
 ```
 
 To make this automatic for all developers, add it to your `package.json`:
@@ -165,7 +184,7 @@ To make this automatic for all developers, add it to your `package.json`:
 ```json title="package.json"
 {
   "scripts": {
-    "prepare": "effect-language-service patch"
+    "prepare": "effect-tsgo patch"
   }
 }
 ```
@@ -201,45 +220,7 @@ With the Effect Extension, you'll find couple of new sections inside the Debug s
 
 The built-in tracer and metrics view allows to quickly see Effect Spans and Metrics of your app without spinning up an entire telemetry service.
 
-To enable it, you need to install the following dependency in your project:
-
-<Tabs syncKey="package-manager">
-
-<TabItem label="npm" icon="seti:npm">
-
-```sh showLineNumbers=false
-npm install @effect/experimental
-```
-
-</TabItem>
-
-<TabItem label="pnpm" icon="pnpm">
-
-```sh showLineNumbers=false
-pnpm install @effect/experimental
-```
-
-</TabItem>
-
-<TabItem label="Yarn" icon="seti:yarn">
-
-```sh showLineNumbers=false
-yarn add @effect/experimental
-```
-
-</TabItem>
-
-<TabItem label="Bun" icon="bun">
-
-```sh showLineNumbers=false
-bun add @effect/experimental
-```
-
-</TabItem>
-
-</Tabs>
-
-You can then import and use the DevTools module in your Effect app:
+`DevTools` now ships as part of the core `effect` package (`effect/unstable/devtools`) — no separate install needed. Just import and use it in your Effect app (you'll still need `@effect/platform-node`, or the equivalent package for your runtime, for `NodeRuntime`/`NodeSocket`):
 
 ```ts
 import { DevTools } from "effect/unstable/devtools"
