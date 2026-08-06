@@ -11,6 +11,7 @@ Tracks progress against `specs/v3-to-v4-docs-snippet-migration.md`. Updated per 
 | `runtime.mdx` | 7 | 6 | 0 | 1: `Runtime.defaultRuntime`/`Runtime.runPromise` example — the `Runtime<R>` data type and its `run*` functions are removed entirely in v4, no replacement, left unchanged |
 | `getting-started/building-pipelines.mdx` | 19 | 11 | 0 | 8: pseudo-code syntax-shorthand fences for `pipe`/`map`/`flatMap`/`andThen`/`all`/the `pipe` method (x7, all unchanged APIs) plus one incomplete `flatMap` ignored-effect warning snippet |
 | `getting-started/control-flow.mdx` | 25 | 19 | 0 | 6: 4 pseudo-code syntax/desugaring illustrations of the removed `Effect.loop`/`Effect.iterate` signatures (left as historical illustration, nothing to migrate to under the same name), 1 `Effect.all` tuple syntax shorthand, 1 `mode: "validate"` example (option removed in v4, no replacement) |
+| `getting-started/creating-effects.mdx` | 22 | 17 | 4 | 5: 2 pseudo-code syntax shorthand (`try`/`catch`, `Effect.suspend(() => effect)`), 1 `Effect.callback<Buffer, Error>` type-annotation illustration snippet, 1 filesystem-writing interruption-cleanup demo (real side effects, code fixed but left unmarked per F6), 1 stack-overflow crash demo (`blowsUp`) |
 
 ## Unresolved items
 
@@ -28,6 +29,7 @@ Tracks progress against `specs/v3-to-v4-docs-snippet-migration.md`. Updated per 
 - **`getting-started/control-flow.mdx` — removed functions, no direct replacement**: `Effect.if`, `Effect.loop`, `Effect.iterate`, `Effect.unless`, `Effect.unlessEffect` are all gone in v4 (confirmed absent from `node_modules/effect/src/Effect.ts` and listed as removed in `specs/_references/v3-to-v4.md`, which documents the migration path as "rewrite around an explicit `Effect.gen` loop" for `loop`/`iterate`). Rewrote the runnable examples using `Effect.gen`; left the syntax-illustration pseudo-fences for `loop`/`iterate` unchanged since there's no v4 signature to illustrate under those names. `Effect.unless`/`Effect.unlessEffect` have no code fence in this file, only a prose mention — left unchanged.
 - **`getting-started/control-flow.mdx` — behavior change, no removed symbol**: `Effect.when`/`Effect.whenEffect` were consolidated into a single `Effect.when(effect, condition: Effect<boolean, E, R>)` — v3's plain-predicate `Effect.when(() => boolean)` no longer exists as a separate overload; the condition must always be an `Effect<boolean>`. Fixed by wrapping predicates in `Effect.succeed(...)`.
 - **`getting-started/control-flow.mdx` — removed option, no replacement**: `Effect.all`'s third `mode: "validate"` option (`Option`-based partial-failure collection) is gone — the option's type only accepts `"default" | "result"` now. Left that example's fence and prose mention unchanged.
+- **`getting-started/creating-effects.mdx`**: no removed-API-with-no-replacement issues found; all changes were confirmed straightforward renames (`UnknownException`→`UnknownError`, `Effect.async`→`Effect.callback`, `Effect.fork`→`Effect.forkChild`).
 - **Reference doc discrepancy**: `migration/MIGRATION.md` does not exist at pinned commit `a94cbed84e9e49bea4bff925599c0f19c4e3deab` (confirmed via GitHub contents API — the `migration/` dir at that commit contains only the individual guide files listed in spec §4.2 plus an `annotations/` subdirectory of per-module YAML data not referenced by the spec). All other listed guide files (`v3-to-v4.md`, `services.md`, `error-handling.md`, `forking.md`, `yieldable.md`, `fiberref.md`, `runtime.md`, `scope.md`, `equality.md`, `cause.md`, `layer-memoization.md`, `fiber-keep-alive.md`, `generators.md`, `schema.md`) fetched successfully and cached under `specs/_references/`.
 
 ## Verification log
@@ -86,6 +88,13 @@ Tracks progress against `specs/v3-to-v4-docs-snippet-migration.md`. Updated per 
 - G2 (`tsc -b tsconfig.doctest.json` over 53 extracted snippets total): clean.
 - G3 (`pnpm check`, `pnpm fmt`): clean.
 - Deepest API surface change encountered so far: 5 removed `Effect` combinators (`if`, `loop`, `iterate`, `unless`, `unlessEffect`), one consolidated/restructured combinator (`when`/`whenEffect` → single `when`), and a reshaped `Effect.all` `mode` option (`"either"` → `"result"`, `"validate"` dropped entirely). All confirmed directly against `node_modules/effect/src/Effect.ts` and cross-checked with `specs/_references/v3-to-v4.md`'s removal table.
+
+### `getting-started/creating-effects.mdx` (G1–G3)
+
+- G1 (`pnpm doctest:file`): 17/17 passed.
+- G2 (`tsc -b tsconfig.doctest.json` over 70 extracted snippets total): clean (pre-existing untagged-`Error` style warnings only).
+- G3 (`pnpm check`, `pnpm fmt`): clean (fmt auto-fixed cheatsheet table column widths after the `async`→`callback` rename lengthened one cell).
+- Lighter file than the previous two: mostly straightforward renames (`Effect.async`→`Effect.callback`, `Effect.fork`→`Effect.forkChild`, `UnknownException`→`UnknownError`), no removed-with-no-replacement APIs.
 
 ### G4–G5
 
