@@ -11,13 +11,15 @@ Effect is an ecosystem of tools that help you build better applications and libr
 
 In "typical" TypeScript, without Effect, we write code that assumes that a function is either successful or throws an exception. For example:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="why-effect-1"
 const divide = (a: number, b: number): number => {
   if (b === 0) {
     throw new Error("Cannot divide by zero")
   }
   return a / b
 }
+
+divide(4, 2) // => 2
 ```
 
 Based on the types, we have no idea that this function can throw an exception. We can only find out by reading the code. This may not seem like much of a problem when you only have one function in your codebase, but when you have hundreds or thousands, it really starts to add up. It's easy to forget that a function can throw an exception, and it's easy to forget to handle that exception.
@@ -34,11 +36,13 @@ Effect's major unique insight is that we can use the type system to track **erro
 
 Here's the same divide function from above, but with the Effect pattern:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="the-effect-pattern-1"
 import { Effect } from "effect"
 
 const divide = (a: number, b: number): Effect.Effect<number, Error, never> =>
   b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
+
+Effect.runSync(divide(4, 2)) // => 2
 ```
 
 With this approach, the function no longer throws exceptions. Instead, errors are handled as values, which can be passed along like success values. The type signature also makes it clear:
