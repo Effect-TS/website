@@ -27,7 +27,7 @@ When you use `Equal.equals` and your objects do not implement the `Equal` interf
 
 **Example** (Using `Equal.equals` with Default Comparison)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="how-to-perform-equality-checking-in-effect-1"
 import { Equal } from "effect"
 
 // Two objects with identical properties and values
@@ -55,7 +55,7 @@ To create custom equality behavior, you can implement the `Equal` interface in y
 
 **Example** (Implementing `Equal` and `Hash` for a Custom Class)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="implementing-the-equal-interface-1"
 import { Equal, Hash } from "effect"
 
 class Person implements Equal.Equal {
@@ -90,7 +90,7 @@ Once you've implemented the `Equal` interface, you can utilize the `Equal.equals
 
 **Example** (Comparing `Person` Instances)
 
-```ts twoslash collapse={3-26}
+```ts twoslash collapse={3-26} import.meta.vitest name="implementing-the-equal-interface-2"
 import { Equal, Hash } from "effect"
 
 class Person implements Equal.Equal {
@@ -135,14 +135,14 @@ Implementing both `Equal` and `Hash` can become cumbersome when all you need is 
 
 **Example** (Using `Data.struct` for Equality Checks)
 
-```ts twoslash
-import { Equal, Data } from "effect"
+```ts twoslash import.meta.vitest name="simplifying-equality-with-the-data-module-1"
+import { Equal } from "effect"
 
-const alice = Data.struct({ id: 1, name: "Alice", age: 30 })
+const alice = { id: 1, name: "Alice", age: 30 }
 
-const bob = Data.struct({ id: 2, name: "Bob", age: 40 })
+const bob = { id: 2, name: "Bob", age: 40 }
 
-console.log(Equal.equals(alice, Data.struct({ id: 1, name: "Alice", age: 30 })))
+console.log(Equal.equals(alice, { id: 1, name: "Alice", age: 30 }))
 // Output: true
 
 console.log(Equal.equals(alice, { id: 1, name: "Alice", age: 30 }))
@@ -162,7 +162,7 @@ JavaScript's built-in `Set` and `Map` can be a bit tricky when it comes to check
 
 **Example** (Native `Set` with Reference-Based Equality)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="working-with-collections-1"
 const set = new Set()
 
 // Adding two objects with the same content to the set
@@ -186,13 +186,13 @@ When you use the `HashSet`, it correctly handles value-based equality checks. In
 
 **Example** (Using `HashSet` for Value-Based Equality)
 
-```ts twoslash
-import { HashSet, Data } from "effect"
+```ts twoslash import.meta.vitest name="hashset-1"
+import { HashSet } from "effect"
 
 // Creating a HashSet with objects that implement the Equal interface
 const set = HashSet.empty().pipe(
-  HashSet.add(Data.struct({ name: "Alice", age: 30 })),
-  HashSet.add(Data.struct({ name: "Alice", age: 30 })),
+  HashSet.add({ name: "Alice", age: 30 }),
+  HashSet.add({ name: "Alice", age: 30 }),
 )
 
 // HashSet recognizes them as equal, so only one element is stored
@@ -204,7 +204,7 @@ console.log(HashSet.size(set))
 
 **Example** (Reference-Based Equality in `HashSet`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="hashset-2"
 import { HashSet } from "effect"
 
 // Creating a HashSet with objects that do NOT implement
@@ -228,20 +228,20 @@ When working with the `HashMap`, you have the advantage of comparing keys by the
 
 **Example** (Value-Based Key Comparisons with `HashMap`)
 
-```ts twoslash
-import { HashMap, Data } from "effect"
+```ts twoslash import.meta.vitest name="hashmap-1"
+import { HashMap } from "effect"
 
 // Adding two objects with identical values as keys
 const map = HashMap.empty().pipe(
-  HashMap.set(Data.struct({ name: "Alice", age: 30 }), 1),
-  HashMap.set(Data.struct({ name: "Alice", age: 30 }), 2),
+  HashMap.set({ name: "Alice", age: 30 }, 1),
+  HashMap.set({ name: "Alice", age: 30 }, 2),
 )
 
 console.log(HashMap.size(map))
 // Output: 1
 
 // Retrieve the value associated with a key
-console.log(HashMap.get(map, Data.struct({ name: "Alice", age: 30 })))
+console.log(HashMap.get(map, { name: "Alice", age: 30 }))
 /*
 Output:
 { _id: 'Option', _tag: 'Some', value: 2 }
