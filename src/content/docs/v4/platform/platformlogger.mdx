@@ -5,7 +5,7 @@ sidebar:
   order: 6
 ---
 
-Effect's logging system generally writes messages to the console by default. However, you might prefer to store logs in a file for easier debugging or archiving. The `PlatformLogger.toFile` function creates a logger that sends log messages to a file on disk.
+Effect's logging system generally writes messages to the console by default. However, you might prefer to store logs in a file for easier debugging or archiving. The `Logger.toFile` function creates a logger that sends log messages to a file on disk.
 
 ### toFile
 
@@ -20,21 +20,18 @@ Note that `toFile` returns an `Effect` that may fail with a `PlatformError` if t
 This logger requires a `FileSystem` implementation to open and write to the file. For Node.js, you can use `NodeFileSystem.layer`.
 
 ```ts twoslash
-import { PlatformLogger } from "@effect/platform"
 import { NodeFileSystem } from "@effect/platform-node"
 import { Effect, Layer, Logger } from "effect"
 
-// Create a string-based logger (logfmtLogger in this case)
-const myStringLogger = Logger.logfmtLogger
+// Create a string-based logger (formatLogFmt in this case)
+const myStringLogger = Logger.formatLogFmt
 
 // Apply toFile to write logs to "/tmp/log.txt"
-const fileLogger = myStringLogger.pipe(PlatformLogger.toFile("/tmp/log.txt"))
+const fileLogger = myStringLogger.pipe(Logger.toFile("/tmp/log.txt"))
 
 // Replace the default logger, providing NodeFileSystem
 // to access the file system
-const LoggerLive = Logger.replaceScoped(Logger.defaultLogger, fileLogger).pipe(
-  Layer.provide(NodeFileSystem.layer),
-)
+const LoggerLive = Logger.layer([fileLogger]).pipe(Layer.provide(NodeFileSystem.layer))
 
 const program = Effect.log("Hello")
 
@@ -51,18 +48,13 @@ In the following example, logs are written to both the console and a file. The c
 **Example** (Directing Logs to Both a File and the Console)
 
 ```ts twoslash
-import { PlatformLogger } from "@effect/platform"
 import { NodeFileSystem } from "@effect/platform-node"
 import { Effect, Layer, Logger } from "effect"
 
-const fileLogger = Logger.logfmtLogger.pipe(PlatformLogger.toFile("/tmp/log.txt"))
+const fileLogger = Logger.formatLogFmt.pipe(Logger.toFile("/tmp/log.txt"))
 
 // Combine the pretty logger for console output with the file logger
-const bothLoggers = Effect.map(fileLogger, (fileLogger) =>
-  Logger.zip(Logger.prettyLoggerDefault, fileLogger),
-)
-
-const LoggerLive = Logger.replaceScoped(Logger.defaultLogger, bothLoggers).pipe(
+const LoggerLive = Logger.layer([Logger.consolePretty(), fileLogger]).pipe(
   Layer.provide(NodeFileSystem.layer),
 )
 
