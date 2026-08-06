@@ -6,12 +6,12 @@ sidebar:
   order: 18
 ---
 
-The `Pretty.make` function is used to create pretty printers that generate a formatted string representation of values based on a schema.
+The `Schema.toFormatter` function is used to create pretty printers that generate a formatted string representation of values based on a schema.
 
 **Example** (Pretty Printer for a Struct Schema)
 
-```ts twoslash
-import { Pretty, Schema } from "effect"
+```ts twoslash import.meta.vitest name="schema-to-pretty-printer-1"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
@@ -19,7 +19,7 @@ const Person = Schema.Struct({
 })
 
 // Create a pretty printer for the schema
-const PersonPretty = Pretty.make(Person)
+const PersonPretty = Schema.toFormatter(Person)
 
 // Format and print a Person object
 console.log(PersonPretty({ name: "Alice", age: 30 }))
@@ -31,22 +31,22 @@ Output:
 
 ## Customizing Pretty Printer Generation
 
-You can customize how the pretty printer formats output by using the `pretty` annotation within your schema definition.
+You can customize how the pretty printer formats output by using the `toFormatter` annotation within your schema definition.
 
-The `pretty` annotation takes any type parameters provided (`typeParameters`) and formats the value into a string.
+The `toFormatter` annotation takes any type parameters provided (`typeParameters`) and formats the value into a string.
 
 **Example** (Custom Pretty Printer for Numbers)
 
-```ts twoslash
-import { Pretty, Schema } from "effect"
+```ts twoslash import.meta.vitest name="customizing-pretty-printer-generation-1"
+import { Schema } from "effect"
 
 // Define a schema with a custom pretty annotation
-const schema = Schema.Number.annotations({
-  pretty: (/**typeParameters**/) => (value) => `my format: ${value}`,
-})
+const schema = Schema.Number.pipe(
+  Schema.overrideToFormatter(() => (value) => `my format: ${value}`),
+)
 
 // Create the pretty printer
-const customPrettyPrinter = Pretty.make(schema)
+const customPrettyPrinter = Schema.toFormatter(schema)
 
 // Format and print a value
 console.log(customPrettyPrinter(1))
