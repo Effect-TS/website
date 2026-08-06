@@ -11,13 +11,13 @@ You can import the necessary types and functions from the `effect/Schema` module
 
 **Example** (Namespace Import)
 
-```ts showLineNumbers=false
+```ts showLineNumbers=false import.meta.vitest name="getting-started-1"
 import * as Schema from "effect/Schema"
 ```
 
 **Example** (Named Import)
 
-```ts showLineNumbers=false
+```ts showLineNumbers=false import.meta.vitest name="getting-started-2"
 import { Schema } from "effect"
 ```
 
@@ -31,7 +31,7 @@ Each property in the object is defined by its own schema, which specifies the da
 
 This `Person` schema describes an object with a `name` (string) and `age` (number) property:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="defining-a-schema-1"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -51,7 +51,7 @@ Once you've defined a schema (`Schema<Type, Encoded, Context>`), you can extract
 
 **Example** (Extracting Inferred Type)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="type-1"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -79,7 +79,7 @@ Alternatively, you can extract the `Person` type using the `interface` keyword, 
 
 **Example** (Extracting Type with an Interface)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="type-2"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -101,7 +101,7 @@ In a `Schema<Type, Encoded, Context>`, the `Encoded` type can differ from the `T
 
 **Example** (Extracting the Encoded Type)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="encoded-1"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -111,7 +111,7 @@ const Person = Schema.Struct({
 })
 
 // 1. Using the Schema.Encoded utility
-type PersonEncoded = Schema.Schema.Encoded<typeof Person>
+type PersonEncoded = Schema.Codec.Encoded<typeof Person>
 
 // 2. Accessing the Encoded field directly
 type PersonEncoded2 = typeof Person.Encoded
@@ -132,7 +132,7 @@ Alternatively, you can define the `PersonEncoded` type using the `interface` key
 
 **Example** (Extracting Encoded Type with an Interface)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="encoded-2"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -141,7 +141,7 @@ const Person = Schema.Struct({
   age: Schema.NumberFromString,
 })
 
-interface PersonEncoded extends Schema.Schema.Encoded<typeof Person> {}
+interface PersonEncoded extends Schema.Codec.Encoded<typeof Person> {}
 ```
 
 Both approaches yield the same result, but using an interface provides benefits such as performance advantages and improved readability.
@@ -155,7 +155,7 @@ In a `Schema<Type, Encoded, Context>`, the `Context` type represents any externa
 
 **Example** (Extracting the Context Type)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="context-1"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -163,11 +163,13 @@ const Person = Schema.Struct({
   age: Schema.Number,
 })
 
-// 1. Using the Schema.Context utility
-type PersonContext = Schema.Schema.Context<typeof Person>
+// 1. Using the Schema.Codec.DecodingServices / EncodingServices utilities
+type PersonDecodingServices = Schema.Codec.DecodingServices<typeof Person>
+type PersonEncodingServices = Schema.Codec.EncodingServices<typeof Person>
 
-// 2. Accessing the Context field directly
-type PersonContext2 = typeof Person.Context
+// 2. Accessing the DecodingServices / EncodingServices field directly
+type PersonDecodingServices2 = typeof Person.DecodingServices
+type PersonEncodingServices2 = typeof Person.EncodingServices
 ```
 
 ### Schemas with Opaque Types
@@ -178,7 +180,7 @@ When defining a schema, you may want to create a schema with an opaque type. Thi
 
 To create a schema with an opaque type, you can use the following technique that re-declares the schema:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="schemas-with-opaque-types-1"
 import { Schema } from "effect"
 
 // Define the schema structure
@@ -200,7 +202,7 @@ Note that the technique shown above becomes more complex when the schema is defi
 
 **Example** (Opaque Schema with Different Type and Encoded)
 
-```ts twoslash "NumberFromString"
+```ts twoslash "NumberFromString" import.meta.vitest name="schemas-with-opaque-types-2"
 import { Schema } from "effect"
 
 // Define the schema structure, with a field that
@@ -214,10 +216,10 @@ const _Person = Schema.Struct({
 interface Person extends Schema.Schema.Type<typeof _Person> {}
 
 // Create the `Encoded` interface for an opaque schema
-interface PersonEncoded extends Schema.Schema.Encoded<typeof _Person> {}
+interface PersonEncoded extends Schema.Codec.Encoded<typeof _Person> {}
 
 // Re-declare the schema with opaque Type and Encoded
-const Person: Schema.Schema<Person, PersonEncoded> = _Person
+const Person: Schema.Codec<Person, PersonEncoded> = _Person
 ```
 
 In this case, the field `"age"` is of type `string` in the `Encoded` type of the schema and is of type `number` in the `Type` type of the schema. Therefore, we need to define **two** interfaces (`PersonEncoded` and `Person`) and use both to redeclare our final schema `Person`.
@@ -231,7 +233,7 @@ It's important to note that by default, most constructors exported by
 
 For instance, in the `Person` schema below:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="readonly-types-by-default-1"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -257,9 +259,9 @@ When working with unknown data types in TypeScript, decoding them into a known s
 | ---------------------- | -------------------------------------------------------------------------------- |
 | `decodeUnknownSync`    | Synchronously decodes a value and throws an error if parsing fails.              |
 | `decodeUnknownOption`  | Decodes a value and returns an [Option](/docs/data-types/option/) type.          |
-| `decodeUnknownEither`  | Decodes a value and returns an [Either](/docs/data-types/either/) type.          |
+| `decodeUnknownResult`  | Decodes a value and returns an [Either](/docs/data-types/either/) type.          |
 | `decodeUnknownPromise` | Decodes a value and returns a `Promise`.                                         |
-| `decodeUnknown`        | Decodes a value and returns an [Effect](/docs/getting-started/the-effect-type/). |
+| `decodeUnknownEffect`  | Decodes a value and returns an [Effect](/docs/getting-started/the-effect-type/). |
 
 ### decodeUnknownSync
 
@@ -286,64 +288,53 @@ console.log(Schema.decodeUnknownSync(Person)(input))
 console.log(Schema.decodeUnknownSync(Person)(null))
 /*
 throws:
-ParseError: Expected { readonly name: string; readonly age: number }, actual null
+SchemaError: Expected object
 */
 ```
 
-### decodeUnknownEither
+### decodeUnknownResult
 
-The `Schema.decodeUnknownEither` function allows you to parse a value and receive the result as an [Either](/docs/data-types/either/), representing success (`Right`) or failure (`Left`). This approach lets you handle parsing errors more gracefully without throwing exceptions.
+The `Schema.decodeUnknownResult` function allows you to parse a value and receive the result as an [Either](/docs/data-types/either/), representing success (`Success`) or failure (`Failure`). This approach lets you handle parsing errors more gracefully without throwing exceptions.
 
-**Example** (Using `Schema.decodeUnknownEither` for Error Handling)
+**Example** (Using `Schema.decodeUnknownResult` for Error Handling)
 
-```ts twoslash
-import { Schema } from "effect"
-import { Either } from "effect"
+```ts twoslash import.meta.vitest name="decodeunknownresult-1"
+import { Result, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number,
 })
 
-const decode = Schema.decodeUnknownEither(Person)
+const decode = Schema.decodeUnknownResult(Person)
 
 // Simulate an unknown input
 const input: unknown = { name: "Alice", age: 30 }
 
 // Attempt decoding a valid input
-const result1 = decode(input)
-if (Either.isRight(result1)) {
-  console.log(result1.right)
-  /*
-  Output:
-  { name: "Alice", age: 30 }
-  */
+const result1 = decode(input) // => Result.succeed({ name: "Alice", age: 30 })
+if (Result.isSuccess(result1)) {
+  console.log(result1.success)
+  // Output: { name: 'Alice', age: 30 }
 }
 
 // Simulate decoding an invalid input
 const result2 = decode(null)
-if (Either.isLeft(result2)) {
-  console.log(result2.left)
-  /*
-  Output:
-  {
-    _id: 'ParseError',
-    message: 'Expected { readonly name: string; readonly age: number }, actual null'
-  }
-  */
+if (Result.isFailure(result2)) {
+  console.log(result2.failure.message)
+  // Output: Expected object
 }
 ```
 
 ### decodeUnknown
 
-If your schema involves asynchronous transformations, the `Schema.decodeUnknownSync` and `Schema.decodeUnknownEither` functions will not be suitable.
-In such cases, you should use the `Schema.decodeUnknown` function, which returns an [Effect](/docs/getting-started/the-effect-type/).
+If your schema involves asynchronous transformations, the `Schema.decodeUnknownSync` and `Schema.decodeUnknownExit` functions will not be suitable.
+In such cases, you should use the `Schema.decodeUnknownEffect` function, which returns an [Effect](/docs/getting-started/the-effect-type/).
 
 **Example** (Handling Asynchronous Decoding)
 
 ```ts twoslash
-import { Schema } from "effect"
-import { Effect } from "effect"
+import { Effect, Schema, SchemaGetter } from "effect"
 
 const PersonId = Schema.Number
 
@@ -353,39 +344,40 @@ const Person = Schema.Struct({
   age: Schema.Number,
 })
 
-const asyncSchema = Schema.transformOrFail(PersonId, Person, {
-  strict: true,
-  // Decode with simulated async transformation
-  decode: (id) => Effect.succeed({ id, name: "name", age: 18 }).pipe(Effect.delay("10 millis")),
-  encode: (person) => Effect.succeed(person.id).pipe(Effect.delay("10 millis")),
-})
+const asyncSchema = PersonId.pipe(
+  Schema.decodeTo(Person, {
+    // Decode with simulated async transformation
+    decode: SchemaGetter.transformOrFail((id) =>
+      Effect.succeed({ id, name: "name", age: 18 }).pipe(Effect.delay("10 millis")),
+    ),
+    encode: SchemaGetter.transformOrFail((person) =>
+      Effect.succeed(person.id).pipe(Effect.delay("10 millis")),
+    ),
+  }),
+)
 
 // Attempting to use a synchronous decoder on an async schema
-console.log(Schema.decodeUnknownEither(asyncSchema)(1))
+console.log(Schema.decodeUnknownExit(asyncSchema)(1))
 /*
 Output:
 {
-  _id: 'Either',
-  _tag: 'Left',
-  left: {
-    _id: 'ParseError',
-    message: '(number <-> { readonly id: number; readonly name: string; readonly age: number })\n' +
-      '└─ cannot be be resolved synchronously, this is caused by using runSync on an effect that performs async work'
-  }
+  _id: 'Exit',
+  _tag: 'Failure',
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 
-// Decoding asynchronously with `Schema.decodeUnknown`
-Effect.runPromise(Schema.decodeUnknown(asyncSchema)(1)).then(console.log)
+// Decoding asynchronously with `Schema.decodeUnknownEffect`
+Effect.runPromise(Schema.decodeUnknownEffect(asyncSchema)(1)).then(console.log)
 /*
 Output:
 { id: 1, name: 'name', age: 18 }
 */
 ```
 
-In the code above, the first approach using `Schema.decodeUnknownEither` results in an error indicating that the transformation cannot be resolved synchronously.
-This occurs because `Schema.decodeUnknownEither` is not designed for async operations.
-The second approach, which uses `Schema.decodeUnknown`, works correctly, allowing you to handle asynchronous transformations and return the expected result.
+In the code above, the first approach using `Schema.decodeUnknownExit` results in an error indicating that the transformation cannot be resolved synchronously.
+This occurs because `Schema.decodeUnknownExit` is not designed for async operations.
+The second approach, which uses `Schema.decodeUnknownEffect`, works correctly, allowing you to handle asynchronous transformations and return the expected result.
 
 ## Encoding
 
@@ -395,9 +387,9 @@ The `Schema` module provides several `encode*` functions to encode data accordin
 | --------------- | ---------------------------------------------------------------------------------------------------- |
 | `encodeSync`    | Synchronously encodes data and throws an error if encoding fails.                                    |
 | `encodeOption`  | Encodes data and returns an [Option](/docs/data-types/option/) type.                                 |
-| `encodeEither`  | Encodes data and returns an [Either](/docs/data-types/either/) type representing success or failure. |
+| `encodeResult`  | Encodes data and returns an [Either](/docs/data-types/either/) type representing success or failure. |
 | `encodePromise` | Encodes data and returns a `Promise`.                                                                |
-| `encode`        | Encodes data and returns an [Effect](/docs/getting-started/the-effect-type/).                        |
+| `encodeEffect`  | Encodes data and returns an [Effect](/docs/getting-started/the-effect-type/).                        |
 
 **Example** (Using `Schema.encodeSync` for Immediate Encoding)
 
@@ -419,11 +411,8 @@ console.log(Schema.encodeSync(Person)({ name: "Alice", age: 30 }))
 console.log(Schema.encodeSync(Person)({ name: "", age: 30 }))
 /*
 throws:
-ParseError: { readonly name: NonEmptyString; readonly age: NumberFromString }
-└─ ["name"]
-   └─ NonEmptyString
-      └─ Predicate refinement failure
-         └─ Expected a non empty string, actual ""
+SchemaError: Expected a value with a length of at least 1
+  at ["name"]
 */
 ```
 
@@ -438,63 +427,59 @@ In certain cases, it may not be feasible to support encoding for a schema. While
 Here is an example of a transformation that never fails during decoding. It returns an [Either](/docs/data-types/either/) containing either the decoded value or the original input. For encoding, it is reasonable to not support it and use `Forbidden` as the result.
 
 ```ts twoslash
-import { Either, ParseResult, Schema } from "effect"
+import { Effect, Result, Schema, SchemaGetter, SchemaIssue } from "effect"
 
-// Define a schema that safely decodes to Either type
-export const SafeDecode = <A, I>(self: Schema.Schema<A, I, never>) => {
-  const decodeUnknownEither = Schema.decodeUnknownEither(self)
-  return Schema.transformOrFail(
-    Schema.Unknown,
-    Schema.EitherFromSelf({
-      left: Schema.Unknown,
-      right: Schema.typeSchema(self),
-    }),
-    {
-      strict: true,
-      // Decode: map a failed result to the input as Left,
-      // successful result as Right
-      decode: (input) =>
-        ParseResult.succeed(Either.mapLeft(decodeUnknownEither(input), () => input)),
-      // Encode: only support encoding Right values,
-      // Left values raise Forbidden error
-      encode: (actual, _, ast) =>
-        Either.match(actual, {
-          onLeft: () =>
-            ParseResult.fail(new ParseResult.Forbidden(ast, actual, "cannot encode a Left")),
-          // Successfully encode a Right value
-          onRight: ParseResult.succeed,
+// Define a schema that safely decodes to Result type
+export const SafeDecode = <A, I>(self: Schema.Codec<A, I>) => {
+  const decodeUnknownResult = Schema.decodeUnknownResult(self)
+  return Schema.Unknown.pipe(
+    Schema.decodeTo(Schema.Result(Schema.toType(self), Schema.Unknown), {
+      // Decode: map a failed result to the input as Failure,
+      // successful result as Success
+      decode: SchemaGetter.transform((input) =>
+        Result.mapError(decodeUnknownResult(input), () => input),
+      ),
+      // Encode: only support encoding Success values,
+      // Failure values raise Forbidden error
+      encode: SchemaGetter.transformOrFail((actual) =>
+        Result.match(actual, {
+          onFailure: () =>
+            Effect.fail(new SchemaIssue.Forbidden({ message: "cannot encode a Failure" })),
+          // Successfully encode a Success value
+          onSuccess: Effect.succeed,
         }),
-    },
+      ),
+    }),
   )
 }
 ```
 
 **Explanation**
 
-- **Decoding**: The `SafeDecode` function ensures that decoding never fails. It wraps the decoded value in an [Either](/docs/data-types/either/), where a successful decoding results in a `Right` and a failed decoding results in a `Left` containing the original input.
-- **Encoding**: The encoding process uses the `Forbidden` error to indicate that encoding a `Left` value is not supported. Only `Right` values are successfully encoded.
+- **Decoding**: The `SafeDecode` function ensures that decoding never fails. It wraps the decoded value in an [Either](/docs/data-types/either/), where a successful decoding results in a `Success` and a failed decoding results in a `Failure` containing the original input.
+- **Encoding**: The encoding process uses the `Forbidden` error to indicate that encoding a `Failure` value is not supported. Only `Success` values are successfully encoded.
 
-## ParseError
+## SchemaError
 
-The `Schema.decodeUnknownEither` and `Schema.encodeEither` functions returns a [Either](/docs/data-types/either/):
+The `Schema.decodeUnknownResult` and `Schema.encodeResult` functions returns a [Either](/docs/data-types/either/):
 
 ```ts showLineNumbers=false
-Either<Type, ParseError>
+Result<Type, SchemaError>
 ```
 
-where `ParseError` is defined as follows (simplified):
+where `SchemaError` is defined as follows (simplified):
 
 ```ts showLineNumbers=false
-interface ParseError {
-  readonly _tag: "ParseError"
-  readonly issue: ParseIssue
+interface SchemaError {
+  readonly _tag: "SchemaError"
+  readonly issue: SchemaIssue.Issue
 }
 ```
 
-In this structure, `ParseIssue` represents an error that might occur during the parsing process.
+In this structure, `SchemaIssue.Issue` represents an error that might occur during the parsing process.
 It is wrapped in a tagged error to make it easier to catch errors using [Effect.catchTag](/docs/error-management/expected-errors/#catchtag).
-The result `Either<Type, ParseError>` contains the inferred data type described by the schema (`Type`).
-A successful parse yields a `Right` value with the parsed data `Type`, while a failed parse results in a `Left` value containing a `ParseError`.
+The result `Result<Type, SchemaError>` contains the inferred data type described by the schema (`Type`).
+A successful parse yields a `Success` value with the parsed data `Type`, while a failed parse results in a `Failure` value containing a `SchemaError`.
 
 <Aside type="tip" title="Returning All Errors">
   By default only the first error is returned. You can use the [`errors`](#receive-all-errors)
@@ -546,9 +531,8 @@ Schema.decodeUnknownSync(Person)(
 )
 /*
 throws
-ParseError: { readonly name: string; readonly age: number }
-└─ ["email"]
-   └─ is unexpected, expected: "name" | "age"
+SchemaError: Expected no excess property
+  at ["email"]
 */
 ```
 
@@ -556,7 +540,7 @@ To retain extra properties, set `onExcessProperty` to `"preserve"`.
 
 **Example** (Setting `onExcessProperty` to `"preserve"`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="managing-excess-properties-1"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -565,19 +549,14 @@ const Person = Schema.Struct({
 })
 
 // Excess properties are preserved in the output
-console.log(
-  Schema.decodeUnknownSync(Person)(
-    {
-      name: "Bob",
-      age: 40,
-      email: "bob@example.com",
-    },
-    { onExcessProperty: "preserve" },
-  ),
-)
-/*
-{ email: 'bob@example.com', name: 'Bob', age: 40 }
-*/
+Schema.decodeUnknownSync(Person)(
+  {
+    name: "Bob",
+    age: 40,
+    email: "bob@example.com",
+  },
+  { onExcessProperty: "preserve" },
+) // => { email: "bob@example.com", name: "Bob", age: 40 }
 ```
 
 ### Receive all errors
@@ -605,11 +584,10 @@ Schema.decodeUnknownSync(Person)(
 )
 /*
 throws
-ParseError: { readonly name: string; readonly age: number }
-├─ ["email"]
-│  └─ is unexpected, expected: "name" | "age"
-└─ ["age"]
-   └─ Expected number, actual "abc"
+SchemaError: Expected no excess property
+  at ["email"]
+Expected number
+  at ["age"]
 */
 ```
 
@@ -624,7 +602,7 @@ Setting `propertyOrder` to `"original"` ensures that the keys are ordered as the
 
 **Example** (Synchronous Decoding)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="managing-property-order-1"
 import { Schema } from "effect"
 
 const schema = Schema.Struct({
@@ -634,27 +612,26 @@ const schema = Schema.Struct({
 })
 
 // Default decoding, where property order is system-defined
-console.log(Schema.decodeUnknownSync(schema)({ b: "b", c: 2, a: 1 }))
-// Output may vary: { a: 1, b: 'b', c: 2 }
+Schema.decodeUnknownSync(schema)({ b: "b", c: 2, a: 1 }) // => { a: 1, b: "b", c: 2 }
 
 // Decoding while preserving input order
-console.log(Schema.decodeUnknownSync(schema)({ b: "b", c: 2, a: 1 }, { propertyOrder: "original" }))
-// Output preserves input order: { b: 'b', c: 2, a: 1 }
+Schema.decodeUnknownSync(schema)({ b: "b", c: 2, a: 1 }, { propertyOrder: "original" }) // => { b: "b", c: 2, a: 1 }
 ```
 
 **Example** (Asynchronous Decoding)
 
 ```ts twoslash
 import type { Duration } from "effect"
-import { Effect, ParseResult, Schema } from "effect"
+import { Effect, Schema, SchemaGetter } from "effect"
 
 // Helper function to simulate an async operation in schema
-const effectify = (duration: Duration.DurationInput) =>
+const effectify = (duration: Duration.Input) =>
   Schema.Number.pipe(
-    Schema.transformOrFail(Schema.Number, {
-      strict: true,
-      decode: (x) => Effect.sleep(duration).pipe(Effect.andThen(ParseResult.succeed(x))),
-      encode: ParseResult.succeed,
+    Schema.decodeTo(Schema.Number, {
+      decode: SchemaGetter.transformOrFail((x) =>
+        Effect.sleep(duration).pipe(Effect.andThen(Effect.succeed(x))),
+      ),
+      encode: SchemaGetter.passthrough(),
     }),
   )
 
@@ -663,14 +640,16 @@ const schema = Schema.Struct({
   a: effectify("200 millis"),
   b: effectify("300 millis"),
   c: effectify("100 millis"),
-}).annotations({ concurrency: 3 })
+})
 
 // Default decoding, where property order is system-defined
-Schema.decode(schema)({ a: 1, b: 2, c: 3 }).pipe(Effect.runPromise).then(console.log)
-// Output decided internally: { c: 3, a: 1, b: 2 }
+Schema.decodeEffect(schema)({ a: 1, b: 2, c: 3 }, { concurrency: 3 })
+  .pipe(Effect.runPromise)
+  .then(console.log)
+// Output decided internally: { a: 1, b: 2, c: 3 }
 
 // Decoding while preserving input order
-Schema.decode(schema)({ a: 1, b: 2, c: 3 }, { propertyOrder: "original" })
+Schema.decodeEffect(schema)({ a: 1, b: 2, c: 3 }, { concurrency: 3, propertyOrder: "original" })
   .pipe(Effect.runPromise)
   .then(console.log)
 // Output preserving input order: { a: 1, b: 2, c: 3 }
@@ -682,40 +661,31 @@ The `parseOptions` annotation allows you to customize parsing behavior at differ
 
 **Example** (Using `parseOptions` to Customize Error Handling)
 
-```ts twoslash
-import { Schema } from "effect"
-import { Either } from "effect"
+```ts twoslash import.meta.vitest name="customizing-parsing-behavior-at-the-schema-level-1"
+import { Result, Schema } from "effect"
 
 const schema = Schema.Struct({
   a: Schema.Struct({
     b: Schema.String,
     c: Schema.String,
-  }).annotations({
+  }).annotate({
     title: "first error only",
     // Limit errors to the first in this sub-schema
     parseOptions: { errors: "first" },
   }),
   d: Schema.String,
-}).annotations({
+}).annotate({
   title: "all errors",
   // Capture all errors for the main schema
   parseOptions: { errors: "all" },
 })
 
 // Decode input with custom error-handling behavior
-const result = Schema.decodeUnknownEither(schema)({ a: {} }, { errors: "first" })
-if (Either.isLeft(result)) {
-  console.log(result.left.message)
+const result = Schema.decodeUnknownResult(schema)({ a: {} }, { errors: "first" })
+if (Result.isFailure(result)) {
+  console.log(result.failure.message)
+  result.failure.message // => 'Missing key\n  at ["a"]["b"]\nMissing key\n  at ["d"]'
 }
-/*
-all errors
-├─ ["a"]
-│  └─ first error only
-│     └─ ["b"]
-│        └─ is missing
-└─ ["d"]
-   └─ is missing
-*/
 ```
 
 **Detailed Output Explanation:**
@@ -742,7 +712,7 @@ Here's how the `Schema.is` function works:
 
 **Example** (Creating and Using a Type Guard)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="type-guards-1"
 import { Schema } from "effect"
 
 // Define a schema for a Person object
@@ -755,23 +725,17 @@ const Person = Schema.Struct({
 const isPerson = Schema.is(Person)
 
 // Test the type guard with various inputs
-console.log(isPerson({ name: "Alice", age: 30 }))
-// Output: true
+isPerson({ name: "Alice", age: 30 }) // => true
 
-console.log(isPerson(null))
-// Output: false
+isPerson(null) // => false
 
-console.log(isPerson({}))
-// Output: false
+isPerson({}) // => false
 ```
 
 The generated `isPerson` function has the following signature:
 
 ```ts showLineNumbers=false
-const isPerson: (
-  u: unknown,
-  overrideOptions?: number | ParseOptions,
-) => u is {
+const isPerson: <I>(input: I) => input is I & {
   readonly name: string
   readonly age: number
 }
@@ -789,7 +753,7 @@ If the input does not match the schema, it throws a detailed error, making it us
 
 **Example** (Creating and Using an Assertion)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="assertions-1"
 import { Schema } from "effect"
 
 // Define a schema for a Person object
@@ -799,25 +763,19 @@ const Person = Schema.Struct({
 })
 
 // Generate an assertion function from the schema
-const assertsPerson: Schema.Schema.ToAsserts<typeof Person> = Schema.asserts(Person)
+const assertsPerson: (input: unknown) => asserts input is {
+  readonly name: string
+  readonly age: number
+} = (input) => Schema.asserts(Person, input)
 
 try {
   // Attempt to assert that the input matches the Person schema
   assertsPerson({ name: "Alice", age: "30" })
-} catch (e) {
+} catch (e: any) {
   console.error("The input does not match the schema:")
-  console.error(e)
+  console.error(e.message)
+  e.message // => 'Expected number\n  at ["age"]'
 }
-/*
-throws:
-The input does not match the schema:
-{
-  _id: 'ParseError',
-  message: '{ readonly name: string; readonly age: number }\n' +
-    '└─ ["age"]\n' +
-    '   └─ Expected number, actual "30"'
-}
-*/
 
 // This input matches the schema and will not throw an error
 assertsPerson({ name: "Alice", age: 30 })
@@ -826,10 +784,7 @@ assertsPerson({ name: "Alice", age: 30 })
 The `assertsPerson` function generated from the schema has the following signature:
 
 ```ts showLineNumbers=false
-const assertsPerson: (
-  input: unknown,
-  overrideOptions?: number | ParseOptions,
-) => asserts input is {
+const assertsPerson: (input: unknown) => asserts input is {
   readonly name: string
   readonly age: number
 }
@@ -942,7 +897,7 @@ When dealing with types that do not have a direct representation in JSON, the na
 
 For instance:
 
-- `Schema.DateFromSelf`: indicates that the schema handles `Date` objects, which are not natively JSON-serializable.
+- `Schema.Date`: indicates that the schema handles `Date` objects, which are not natively JSON-serializable.
 - `Schema.NumberFromString`: this naming suggests that the schema processes numbers that are initially represented as strings, emphasizing the transformation from string to number when decoding.
 
 The primary goal of these schemas is to ensure that domain objects can be easily serialized ("encoded") and deserialized ("decoded") for transmission over network connections, thus facilitating their transfer between different parts of an application or across different applications.
