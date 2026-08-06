@@ -16,7 +16,7 @@ At times, you may have a sink that works with one type of input, but your curren
 
 Suppose you have a `Sink.sum` that calculates the sum of numbers. If your stream contains strings rather than numbers, `Sink.mapInput` can convert those strings into numbers, allowing `Sink.sum` to work with your stream:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="converting-string-input-to-numeric-for-summing-1"
 import { Stream, Sink, Effect } from "effect"
 
 // A stream of numeric strings
@@ -28,8 +28,7 @@ const numericSum = Sink.sum
 // Use mapInput to adapt the sink, converting strings to numbers
 const stringSum = numericSum.pipe(Sink.mapInput((s: string) => Number.parseFloat(s)))
 
-Effect.runPromise(Stream.run(stream, stringSum)).then(console.log)
-// Output: 15
+await Effect.runPromise(Stream.run(stream, stringSum)) // => 15
 ```
 
 ## Transforming Both Input and Output
@@ -38,7 +37,7 @@ When you need to transform both the input and output of a sink, `Sink.dimap` pro
 
 **Example** (Converting Input to Integer, Summing, and Converting Output to String)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="converting-input-to-integer-summing-and-converting-output-to-string-1"
 import { Stream, Sink, Effect } from "effect"
 
 // A stream of numeric strings
@@ -46,15 +45,14 @@ const stream = Stream.make("1", "2", "3", "4", "5")
 
 // Convert string inputs to numbers, sum them,
 // then convert the result to a string
-const sumSink = Sink.dimap(Sink.sum, {
+const sumSink = Sink.sum.pipe(
   // Transform input: string to number
-  onInput: (s: string) => Number.parseFloat(s),
+  Sink.mapInput((s: string) => Number.parseFloat(s)),
   // Transform output: number to string
-  onDone: (n) => String(n),
-})
+  Sink.map((n) => String(n)),
+)
 
-Effect.runPromise(Stream.run(stream, sumSink)).then(console.log)
-// Output: "15"
+await Effect.runPromise(Stream.run(stream, sumSink)) // => "15"
 ```
 
 ## Filtering Input
