@@ -99,11 +99,11 @@ You can define and decode configuration values using a schema.
 
 **Example** (Decoding a Configuration Value)
 
-```ts twoslash
-import { Effect, Schema } from "effect"
+```ts twoslash import.meta.vitest name="using-config-with-schema-1"
+import { Config, Effect, Schema } from "effect"
 
 // Define a config that expects a string with at least 4 characters
-const myConfig = Schema.Config("Foo", Schema.String.pipe(Schema.minLength(4)))
+const myConfig = Config.schema(Schema.String.check(Schema.isMinLength(4)), "Foo")
 ```
 
 For more information, see the [Schema.Config](/docs/schema/effect-data-types/#config) documentation.
@@ -192,14 +192,14 @@ By default, when you pass a string to `Config.redacted`, it returns a `Redacted<
 **Example** (Redacting and Validating a Number)
 
 ```ts twoslash
-import { Effect, Config, Redacted } from "effect"
+import { Effect, Config, Redacted, Schema } from "effect"
 
 const program = Effect.gen(function* () {
   // Wrap the validated number configuration with redaction
   //
   //      ┌─── Redacted<number>
   //      ▼
-  const redacted = yield* Config.redacted(Config.number("SECRET"))
+  const redacted = yield* Config.schema(Schema.Redacted(Schema.NumberFromString), "SECRET")
 
   console.log(`Console output: ${redacted}`)
   console.log(`Actual value: ${Redacted.value(redacted)}`)
@@ -235,10 +235,10 @@ Additionally, there are three special combinators for specific use cases:
 The following example demonstrates how to load an environment variable as an array of strings using the `Config.array` constructor.
 
 ```ts twoslash title="index.ts"
-import { Config, Effect } from "effect"
+import { Config, Effect, Schema } from "effect"
 
 const program = Effect.gen(function* () {
-  const config = yield* Config.array(Config.string(), "MYARRAY")
+  const config = yield* Config.schema(Config.Array(Schema.String), "MYARRAY")
   console.log(config)
 })
 
@@ -252,10 +252,12 @@ Effect.runPromise(program)
 **Example** (Using the `hashSet` combinator)
 
 ```ts twoslash title="index.ts"
-import { Config, Effect } from "effect"
+import { Config, Effect, HashSet, Schema } from "effect"
 
 const program = Effect.gen(function* () {
-  const config = yield* Config.hashSet(Config.string(), "MYSET")
+  const config = yield* Config.schema(Config.Array(Schema.String), "MYSET").pipe(
+    Config.map(HashSet.fromIterable),
+  )
   console.log(config)
 })
 
@@ -269,10 +271,11 @@ Effect.runPromise(program)
 **Example** (Using the `hashMap` combinator)
 
 ```ts twoslash title="index.ts"
-import { Config, Effect } from "effect"
+import { Config, Effect, HashMap, Schema } from "effect"
 
 const program = Effect.gen(function* () {
-  const config = yield* Config.hashMap(Config.string(), "MYMAP")
+  const record = yield* Config.schema(Schema.Record(Schema.String, Schema.String), "MYMAP")
+  const config = HashMap.fromIterable(Object.entries(record))
   console.log(config)
 })
 
@@ -301,15 +304,15 @@ These operators enable you to modify configurations or validate their values:
 **Example** (Using `validate` Operator)
 
 ```ts twoslash title="validate.ts"
-import { Effect, Config } from "effect"
+import { Effect, Config, Schema } from "effect"
 
 const program = Effect.gen(function* () {
   // Load the NAME environment variable and validate its length
-  const config = yield* Config.string("NAME").pipe(
-    Config.validate({
-      message: "Expected a string at least 4 characters long",
-      validation: (s) => s.length >= 4,
-    }),
+  const config = yield* Config.schema(
+    Schema.String.check(
+      Schema.isMinLength(4, { message: "Expected a string at least 4 characters long" }),
+    ),
+    "NAME",
   )
   console.log(config)
 })
@@ -353,7 +356,7 @@ Fallback operators are useful when you want to provide alternative configuration
 
 In this example, the program requires two configuration values: `A` and `B`. We set up two configuration providers, each containing only one of the required values. Using the `orElse` operator, we combine these providers so the program can retrieve both `A` and `B`.
 
-```ts twoslash title="orElse.ts"
+```ts twoslash title="orElse.ts" import.meta.vitest name="using-orelse-for-fallback-1"
 import { Config, ConfigProvider, Effect } from "effect"
 
 // A program that requires two configurations: A and B
@@ -364,15 +367,15 @@ const program = Effect.gen(function* () {
 })
 
 // First provider has A but is missing B
-const provider1 = ConfigProvider.fromMap(new Map([["A", "A"]]))
+const provider1 = ConfigProvider.fromEnv({ env: { A: "A" } })
 
 // Second provider has B but is missing A
-const provider2 = ConfigProvider.fromMap(new Map([["B", "B"]]))
+const provider2 = ConfigProvider.fromEnv({ env: { B: "B" } })
 
 // Use `orElse` to fall back from provider1 to provider2
-const provider = provider1.pipe(ConfigProvider.orElse(() => provider2))
+const provider = provider1.pipe(ConfigProvider.orElse(provider2))
 
-Effect.runPromise(Effect.withConfigProvider(program, provider))
+Effect.runPromise(Effect.provideService(program, ConfigProvider.ConfigProvider, provider))
 ```
 
 If we run this program:
@@ -399,7 +402,7 @@ Effect allows you to define configurations for custom types by combining primiti
 
 For example, let's create a `HostPort` class, which has two fields: `host` and `port`.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="custom-configuration-types-1"
 class HostPort {
   constructor(
     readonly host: string,
@@ -409,13 +412,15 @@ class HostPort {
     return `${this.host}:${this.port}`
   }
 }
+
+new HostPort("localhost", 8080).url // => "localhost:8080"
 ```
 
 To define a configuration for this custom type, we can combine primitive configs for `string` and `number`:
 
 **Example** (Defining a Custom Configuration)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="defining-a-custom-configuration-1"
 import { Config } from "effect"
 
 class HostPort {
@@ -485,7 +490,7 @@ We've seen how to define configurations at the top level, whether for primitive 
 
 For instance, consider the following `ServiceConfig` type:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="nested-configurations-1"
 class ServiceConfig {
   constructor(
     readonly host: string,
@@ -496,13 +501,15 @@ class ServiceConfig {
     return `${this.host}:${this.port}`
   }
 }
+
+new ServiceConfig("localhost", 8080, 30).url // => "localhost:8080"
 ```
 
 If you were to use this configuration in your application, it would expect the `HOST`, `PORT`, and `TIMEOUT` environment variables at the top level. But in many cases, you may want to organize configurations under a shared namespace—for example, grouping `HOST` and `PORT` under a `SERVER` namespace, while keeping `TIMEOUT` at the root.
 
 To do this, you can use the `Config.nested` operator, which allows you to nest configuration values under a specific namespace. Let's update the previous example to reflect this:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="nested-configurations-2"
 import { Config } from "effect"
 
 class ServiceConfig {
@@ -547,7 +554,7 @@ You can then use this mock provider in place of the default one by calling `Effe
 
 **Example** (Mocking a Config Provider for Testing)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="mocking-a-config-provider-for-testing-1"
 import { Config, ConfigProvider, Effect } from "effect"
 
 class HostPort {
@@ -570,16 +577,16 @@ const program = Effect.gen(function* () {
   console.log(`Application started: ${hostPort.url}`)
 })
 
-// Create a mock config provider using a map with test data
-const mockConfigProvider = ConfigProvider.fromMap(
-  new Map([
-    ["HOST", "localhost"],
-    ["PORT", "8080"],
-  ]),
-)
+// Create a mock config provider using fixed test data
+const mockConfigProvider = ConfigProvider.fromEnv({
+  env: {
+    HOST: "localhost",
+    PORT: "8080",
+  },
+})
 
 // Run the program using the mock config provider
-Effect.runPromise(Effect.withConfigProvider(program, mockConfigProvider))
+Effect.runPromise(Effect.provideService(program, ConfigProvider.ConfigProvider, mockConfigProvider))
 // Output: Application started: localhost:8080
 ```
 
@@ -614,7 +621,7 @@ If your configuration data uses a different separator (such as `_`), you can cha
 
 **Example** (Using a Custom Path Delimiter)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-a-custom-path-delimiter-1"
 import { Config, ConfigProvider, Effect } from "effect"
 
 const config = Config.nested(Config.number("PORT"), "SERVER")
@@ -625,11 +632,11 @@ const program = Effect.gen(function* () {
 })
 
 // Mock configuration using '_' as the separator
-const mockConfigProvider = ConfigProvider.fromMap(new Map([["SERVER_PORT", "8080"]]), {
-  pathDelim: "_",
+const mockConfigProvider = ConfigProvider.fromEnv({
+  env: { SERVER_PORT: "8080" },
 })
 
-Effect.runPromise(Effect.withConfigProvider(program, mockConfigProvider))
+Effect.runPromise(Effect.provideService(program, ConfigProvider.ConfigProvider, mockConfigProvider))
 // Output: Server is running on port 8080
 ```
 
@@ -685,7 +692,7 @@ The `ConfigProvider.fromJson` function creates a `ConfigProvider` that loads val
 
 **Example** (Reading Nested Configuration from JSON)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="reading-nested-configuration-from-json-1"
 import { Config, ConfigProvider, Effect } from "effect"
 
 const program = Effect.gen(function* () {
@@ -696,9 +703,10 @@ const program = Effect.gen(function* () {
 })
 
 Effect.runPromise(
-  Effect.withConfigProvider(
+  Effect.provideService(
     program,
-    ConfigProvider.fromJson(JSON.parse(`{"SERVER":{"PORT":8080,"HOST":"localhost"}}`)),
+    ConfigProvider.ConfigProvider,
+    ConfigProvider.fromUnknown(JSON.parse(`{"SERVER":{"PORT":8080,"HOST":"localhost"}}`)),
   ),
 )
 // Output: Application started: localhost:8080
@@ -721,8 +729,9 @@ const program = Effect.gen(function* () {
 })
 
 Effect.runPromise(
-  Effect.withConfigProvider(
+  Effect.provideService(
     program,
+    ConfigProvider.ConfigProvider,
     ConfigProvider.fromEnv().pipe(
       // Uses SERVER as a namespace
       ConfigProvider.nested("SERVER"),
@@ -760,8 +769,9 @@ const program = Effect.gen(function* () {
 })
 
 Effect.runPromise(
-  Effect.withConfigProvider(
+  Effect.provideService(
     program,
+    ConfigProvider.ConfigProvider,
     // Convert keys to constant case
     ConfigProvider.fromEnv().pipe(ConfigProvider.constantCase),
   ),
