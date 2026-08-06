@@ -6,13 +6,9 @@ sidebar:
   order: 6
 ---
 
-The `Runtime<R>` data type represents a runtime system that can **execute effects**. To run an effect, `Effect<A, E, R>`, we need a `Runtime<R>` that contains the required resources, denoted by the `R` type parameter.
+The Effect **runtime system** is what turns an `Effect<A, E, R>` blueprint into a running program: it supplies the `R` requirements, executes each step, and produces a result.
 
-A `Runtime<R>` consists of three main components:
-
-- A value of type `Context<R>`
-- A value of type `FiberRefs`
-- A value of type `RuntimeFlags`
+Unlike in v3, there is no `Runtime<R>` data type that you construct or pass around directly. `Effect.run*` functions (`Effect.runPromise`, `Effect.runFork`, `Effect.runSync`, ...) execute an effect immediately using its runtime system; if you already have a `Context<R>` for the effect's requirements, the `Effect.run*With` variants (`Effect.runPromiseWith`, `Effect.runForkWith`, `Effect.runSyncWith`) let you run with that context directly. For a reusable, top-level execution configuration, use `ManagedRuntime` (covered later on this page).
 
 ## What is a Runtime System?
 
@@ -23,12 +19,12 @@ It represents a tree-like structure that combines various primitives to define w
 
 However, this data structure itself does not perform any actions, it is solely a description of a concurrent program.
 
-To execute this program, the Effect runtime system comes into play. The `Runtime.run*` functions (e.g., `Runtime.runPromise`, `Runtime.runFork`) are responsible for taking this blueprint and executing it.
+To execute this program, the Effect runtime system comes into play. The `Effect.run*` functions (e.g., `Effect.runPromise`, `Effect.runFork`) are responsible for taking this blueprint and executing it.
 
 When the runtime system runs an effect, it creates a root fiber, initializing it with:
 
 - The initial [context](/docs/requirements-management/services/#how-it-works)
-- The initial `FiberRefs`
+- The initial fiber-local state
 - The initial effect
 
 It then starts a loop, executing the instructions described by the `Effect` step by step.
@@ -62,46 +58,40 @@ Runtime Systems have a lot of responsibilities:
 | **Ensuring resource cleanup** | The runtime guarantees finalizers run properly to clean up resources when needed.                                  |
 | **Handling async callbacks**  | The runtime deals with asynchronous operations transparently, allowing you to write async and sync code uniformly. |
 
-## The Default Runtime
+## Running With an Explicit Context
 
-When we use [functions that run effects](/docs/getting-started/running-effects/) like `Effect.runPromise` or `Effect.runFork`, we are actually using the **default runtime** without explicitly mentioning it. These functions are designed as convenient shortcuts for executing our effects using the default runtime.
+When we use [functions that run effects](/docs/getting-started/running-effects/) like `Effect.runPromise` or `Effect.runFork`, we don't need to mention any runtime object at all — there is no separate "default runtime" value to look up or pass around. These functions execute an `Effect<A, E, never>` directly, using an empty context and the [default services](/docs/requirements-management/default-services/).
 
-Each of the `Effect.run*` functions internally calls the corresponding `Runtime.run*` function, passing in the default runtime. For example, `Effect.runPromise` is just an alias for `Runtime.runPromise(defaultRuntime)`.
+If your effect still has unmet requirements (`R` is not `never`) and you already have a `Context<R>` satisfying them — for example, one built manually with `Context.make`, rather than through a `Layer` — you can run it directly with the matching `Effect.run*With` function, instead of first wrapping it with `Effect.provide`:
 
-Both of the following executions are functionally equivalent:
+**Example** (Running Synchronously With an Explicit Context)
 
-**Example** (Running an Effect Using the Default Runtime)
+```ts twoslash import.meta.vitest name="running-synchronously-with-an-explicit-context-1"
+import { Context, Effect } from "effect"
 
-```ts twoslash
-import { Effect, Runtime } from "effect"
+// Define a service and its shape
+class MathService extends Context.Service<
+  MathService,
+  { readonly add: (a: number, b: number) => number }
+>()("MathService") {}
 
-const program = Effect.log("Application started!")
+// Build a context providing an implementation directly
+const context = Context.make(MathService, {
+  add: (a, b) => a + b,
+})
 
-Effect.runPromise(program)
-/*
-Output:
-timestamp=... level=INFO fiber=#0 message="Application started!"
-*/
+const program = Effect.gen(function* () {
+  const math = yield* MathService
+  return math.add(2, 3)
+})
 
-Runtime.runPromise(Runtime.defaultRuntime)(program)
-/*
-Output:
-timestamp=... level=INFO fiber=#0 message="Application started!"
-*/
+Effect.runSyncWith(context)(program) // => 5
 ```
 
-In both cases, the program runs using the default runtime, producing the same output.
+In most scenarios, this direct style is sufficient for effect execution.
+However, there are cases where it's helpful to build a reusable runtime, particularly when you need to reuse specific configurations or contexts across many separate calls.
 
-The default runtime includes:
-
-- An empty [context](/docs/requirements-management/services/#how-it-works)
-- A set of `FiberRefs` that include the [default services](/docs/requirements-management/default-services/)
-- A default configuration for `RuntimeFlags` that enables `Interruption` and `CooperativeYielding`
-
-In most scenarios, using the default runtime is sufficient for effect execution.
-However, there are cases where it's helpful to create a custom runtime, particularly when you need to reuse specific configurations or contexts.
-
-For example, in a React app or when executing operations on a server in response to API requests, you might create a `Runtime<R>` by initializing a [layer](/docs/requirements-management/layers/) `Layer<R, Err, RIn>`. This allows you to maintain a consistent context across different execution boundaries.
+For example, in a React app or when executing operations on a server in response to API requests, you might build a reusable runtime from a [layer](/docs/requirements-management/layers/) `Layer<R, Err, RIn>` using `ManagedRuntime`, covered next. This allows you to maintain a consistent context across different execution boundaries.
 
 ## Locally Scoped Runtime Configuration
 
@@ -232,13 +222,13 @@ Output:
 */
 ```
 
-### Effect.Tag
+### Context.Service
 
-When working with runtimes that you pass around, `Effect.Tag` can help simplify the access to services. It lets you define a new tag and embed the service shape directly into the static properties of the tag class.
+When working with runtimes that you pass around, `Context.Service` can help simplify the access to services. It lets you define a tag and the service's shape together, as a single class.
 
-**Example** (Defining a Tag for Notifications)
+**Example** (Defining a Service for Notifications)
 
-```ts twoslash import.meta.vitest name="defining-a-tag-for-notifications-1"
+```ts twoslash import.meta.vitest name="defining-a-service-for-notifications-1"
 import { Context, Effect } from "effect"
 
 class Notifications extends Context.Service<
@@ -247,7 +237,7 @@ class Notifications extends Context.Service<
 >()("Notifications") {}
 ```
 
-In this setup, the fields of the service (in this case, the `notify` method) are turned into static properties of the `Notifications` class, making it easier to access them.
+Unlike v3's `Effect.Tag`, the service's fields are not turned into static properties on the `Notifications` class itself — there is no static accessor proxy. Instead, use `.use()` (shown below) to run a callback with the resolved service, or `yield* Notifications` inside `Effect.gen` to access it directly.
 
 This allows you to interact with the service directly:
 
