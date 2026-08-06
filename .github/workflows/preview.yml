@@ -71,7 +71,21 @@ jobs:
           path: .effect-source-v4
           fetch-depth: 1
 
+      - name: Resolve Effect revisions
+        id: effect-revisions
+        run: |
+          echo "v3=$(git -C .effect-source-v3 rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "v4=$(git -C .effect-source-v4 rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore API reference cache
+        id: api-reference-cache
+        uses: actions/cache@v5
+        with:
+          path: .data/api-reference
+          key: api-reference-v1-${{ runner.os }}-v3-${{ steps.effect-revisions.outputs.v3 }}-v4-${{ steps.effect-revisions.outputs.v4 }}-${{ hashFiles('scripts/api-reference/generate.mjs', 'scripts/api-reference/package.json', 'pnpm-lock.yaml') }}
+
       - name: Generate API reference
+        if: steps.api-reference-cache.outputs.cache-hit != 'true'
         run: |
           pnpm api-reference:generate --version v3 --repo .effect-source-v3
           pnpm api-reference:generate --version v4 --repo .effect-source-v4

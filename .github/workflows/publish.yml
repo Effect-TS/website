@@ -1,0 +1,175 @@
+name: Publish
+
+on:
+  repository_dispatch:
+    types: [publish-api-reference]
+  workflow_dispatch:
+    inputs:
+      v3_revision:
+        description: Full Effect Git commit SHA for the v3 channel
+        required: true
+        type: string
+      v4_revision:
+        description: Full Effect Git commit SHA for the v4 channel
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-api-reference-${{ inputs.v3_revision || github.event.client_payload.channels.v3 }}-${{ inputs.v4_revision || github.event.client_payload.channels.v4 }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      snapshot_tag: ${{ steps.snapshot.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare snapshot
+        id: snapshot
+        env:
+          EVENT_REPOSITORY: ${{ github.event.client_payload.repository }}
+          GH_TOKEN: ${{ github.token }}
+          V3_REVISION: ${{ inputs.v3_revision || github.event.client_payload.channels.v3 }}
+          V4_REVISION: ${{ inputs.v4_revision || github.event.client_payload.channels.v4 }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "repository_dispatch" && "$EVENT_REPOSITORY" != "Effect-TS/effect" ]]; then
+            echo "::error::API reference dispatch must identify Effect-TS/effect as its source repository"
+            exit 1
+          fi
+          if [[ ! "$V3_REVISION" =~ ^[a-f0-9]{40}$ || ! "$V4_REVISION" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error::API reference revisions must be full Git commit SHAs"
+            exit 1
+          fi
+
+          generator_hash=$(git hash-object \
+            scripts/api-reference/generate.mjs \
+            scripts/api-reference/package.json \
+            src/features/api-reference/schema.ts \
+            pnpm-lock.yaml | git hash-object --stdin)
+          snapshot_id=$(node scripts/api-reference/snapshot.mjs id \
+            --v3 "$V3_REVISION" \
+            --v4 "$V4_REVISION" \
+            --generator "$generator_hash")
+          tag="api-reference-$snapshot_id"
+
+          published=false
+          if release=$(gh release view "$tag" --json isDraft 2>/dev/null); then
+            if [[ "$(jq -r .isDraft <<<"$release")" == "true" ]]; then
+              gh release delete "$tag" --yes --cleanup-tag
+            else
+              published=true
+            fi
+          fi
+
+          echo "v3=$V3_REVISION" >> "$GITHUB_OUTPUT"
+          echo "v4=$V4_REVISION" >> "$GITHUB_OUTPUT"
+          echo "generator=$generator_hash" >> "$GITHUB_OUTPUT"
+          echo "id=$snapshot_id" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "published=$published" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        if: steps.snapshot.outputs.published != 'true'
+        uses: ./.github/actions/setup
+
+      - name: Checkout Effect v3
+        if: steps.snapshot.outputs.published != 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: Effect-TS/effect
+          ref: ${{ steps.snapshot.outputs.v3 }}
+          path: .effect-source-v3
+          fetch-depth: 1
+
+      - name: Checkout Effect v4
+        if: steps.snapshot.outputs.published != 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: Effect-TS/effect
+          ref: ${{ steps.snapshot.outputs.v4 }}
+          path: .effect-source-v4
+          fetch-depth: 1
+
+      - name: Generate API reference
+        if: steps.snapshot.outputs.published != 'true'
+        run: |
+          pnpm api-reference:generate --version v3 --repo .effect-source-v3
+          pnpm api-reference:generate --version v4 --repo .effect-source-v4
+
+      - name: Package API reference snapshot
+        if: steps.snapshot.outputs.published != 'true'
+        env:
+          GENERATOR_HASH: ${{ steps.snapshot.outputs.generator }}
+          SNAPSHOT_ID: ${{ steps.snapshot.outputs.id }}
+          V3_REVISION: ${{ steps.snapshot.outputs.v3 }}
+          V4_REVISION: ${{ steps.snapshot.outputs.v4 }}
+        run: |
+          asset_dir="$RUNNER_TEMP/api-reference-assets"
+          mkdir -p "$asset_dir"
+          node scripts/api-reference/snapshot.mjs create \
+            --data .data/api-reference \
+            --output "$asset_dir/manifest.json" \
+            --v3 "$V3_REVISION" \
+            --v4 "$V4_REVISION" \
+            --generator "$GENERATOR_HASH" \
+            --website-revision "$GITHUB_SHA"
+          tar -czf "$asset_dir/api-reference.tar.gz" -C .data api-reference
+          sha256sum "$asset_dir/api-reference.tar.gz" | sed "s|$asset_dir/||" > "$asset_dir/api-reference.sha256"
+
+          manifest_id=$(node scripts/api-reference/snapshot.mjs validate \
+            --data .data/api-reference \
+            --manifest "$asset_dir/manifest.json")
+          if [[ "$manifest_id" != "$SNAPSHOT_ID" ]]; then
+            echo "::error::Generated API reference snapshot ID changed during packaging"
+            exit 1
+          fi
+
+      - name: Publish API reference snapshot
+        if: steps.snapshot.outputs.published != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SNAPSHOT_TAG: ${{ steps.snapshot.outputs.tag }}
+          V3_REVISION: ${{ steps.snapshot.outputs.v3 }}
+          V4_REVISION: ${{ steps.snapshot.outputs.v4 }}
+        run: |
+          asset_dir="$RUNNER_TEMP/api-reference-assets"
+          gh release create "$SNAPSHOT_TAG" \
+            --draft \
+            --latest=false \
+            --title "API reference snapshot ${SNAPSHOT_TAG#api-reference-}" \
+            --notes "Effect v3: $V3_REVISION
+          Effect v4: $V4_REVISION"
+          gh release upload "$SNAPSHOT_TAG" \
+            "$asset_dir/api-reference.tar.gz" \
+            "$asset_dir/api-reference.sha256" \
+            "$asset_dir/manifest.json"
+          gh release edit "$SNAPSHOT_TAG" --draft=false
+
+  deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/deploy
+        with:
+          website-ref: ${{ github.sha }}
+          api-reference-snapshot: ${{ needs.publish.outputs.snapshot_tag }}
+          mixedbread-scope: api-reference
+          mxbai-api-key: ${{ secrets.MXBAI_API_KEY }}
+          mxbai-vector-store-id: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}

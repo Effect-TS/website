@@ -2,71 +2,44 @@ name: Vercel Production Deployment
 
 on:
   workflow_dispatch:
+    inputs:
+      api_reference_snapshot:
+        description: Exact API reference snapshot tag; latest published snapshot when omitted
+        required: false
+        type: string
+      mixedbread_scope:
+        description: Mixedbread content scope to synchronize
+        required: true
+        default: markdown
+        type: choice
+        options:
+          - markdown
+          - api-reference
+          - all
   push:
     branches:
       - main
 
-concurrency:
-  group: production-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
-permissions: {}
+concurrency:
+  group: production
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install dependencies
-        uses: ./.github/actions/setup
-
-      - name: Checkout Effect v3
-        uses: actions/checkout@v6
+      - uses: ./.github/actions/deploy
         with:
-          repository: Effect-TS/effect
-          ref: adf8a89decd1552b692710bf218ada12671af2ef
-          path: .effect-source-v3
-          fetch-depth: 1
-
-      - name: Checkout Effect v4
-        uses: actions/checkout@v6
-        with:
-          repository: Effect-TS/effect
-          ref: 52838418db2e04db6aaed2fa01b280f2aad4032a
-          path: .effect-source-v4
-          fetch-depth: 1
-
-      - name: Generate API reference
-        run: |
-          pnpm api-reference:generate --version v3 --repo .effect-source-v3
-          pnpm api-reference:generate --version v4 --repo .effect-source-v4
-
-      - name: Pull Vercel Environment Information
-        run: pnpm exec vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Build Project Artifacts
-        run: pnpm exec vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Patch trailing-slash redirect into build output
-        run: node scripts/patch-vercel-trailing-slash.mjs
-
-      - name: Deploy Project Artifacts to Vercel
-        run: pnpm exec vercel deploy --prebuilt --archive=tgz --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Synchronize Mixedbread production store
-        run: pnpm mixedbread:index sync --sha "${{ github.sha }}"
-        env:
-          MXBAI_API_KEY: ${{ secrets.MXBAI_API_KEY }}
-          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
+          website-ref: ${{ github.sha }}
+          api-reference-snapshot: ${{ inputs.api_reference_snapshot || '' }}
+          mixedbread-scope: ${{ inputs.mixedbread_scope || 'markdown' }}
+          mxbai-api-key: ${{ secrets.MXBAI_API_KEY }}
+          mxbai-vector-store-id: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}

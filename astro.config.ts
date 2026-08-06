@@ -37,6 +37,10 @@ export default defineConfig({
 
   compressHTML: true,
 
+  build: {
+    concurrency: 2,
+  },
+
   experimental: {
     svgOptimizer: svgoOptimizer(),
   },

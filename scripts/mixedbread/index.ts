@@ -110,6 +110,7 @@ interface ProductionSyncOptions {
 }
 
 type SyncOptions = PreviewSyncOptions | ProductionSyncOptions
+type SyncScope = "all" | "markdown" | "api-reference"
 
 interface DeleteOptions {
   readonly pullRequest: number
@@ -125,8 +126,14 @@ interface LocalFile {
 class Mixedbread extends Context.Service<
   Mixedbread,
   {
-    readonly syncStore: (options: SyncOptions) => Effect.Effect<void, MixedbreadError>
-    readonly syncProduction: (revision: string) => Effect.Effect<void, MixedbreadError>
+    readonly syncStore: (
+      options: SyncOptions,
+      scope?: SyncScope,
+    ) => Effect.Effect<void, MixedbreadError>
+    readonly syncProduction: (
+      revision: string,
+      scope?: SyncScope,
+    ) => Effect.Effect<void, MixedbreadError>
     readonly deleteStore: (
       options: DeleteOptions,
     ) => Effect.Effect<void, InvalidStoreError | UnknownError, never>
@@ -699,7 +706,10 @@ class Mixedbread extends Context.Service<
       )
     })
 
-    const syncStore = Effect.fn("Mixedbread.syncStore")(function* (options: SyncOptions) {
+    const syncStore = Effect.fn("Mixedbread.syncStore")(function* (
+      options: SyncOptions,
+      scope: SyncScope = "all",
+    ) {
       const store =
         options.kind === "preview"
           ? yield* findStore(getStoreName(options.pullRequest)).pipe(
@@ -713,10 +723,11 @@ class Mixedbread extends Context.Service<
 
       if (options.kind === "preview") yield* validateStore(store, options.pullRequest)
 
-      yield* Effect.all([syncMarkdownStore(store.id, options), syncApiReference(store, options)], {
-        concurrency: "unbounded",
-        discard: true,
-      })
+      const synchronizations = [
+        ...(scope === "all" || scope === "markdown" ? [syncMarkdownStore(store.id, options)] : []),
+        ...(scope === "all" || scope === "api-reference" ? [syncApiReference(store, options)] : []),
+      ]
+      yield* Effect.all(synchronizations, { concurrency: "unbounded", discard: true })
 
       if (options.kind === "preview") {
         yield* Effect.tryPromise({
@@ -734,7 +745,7 @@ class Mixedbread extends Context.Service<
       }
 
       yield* Effect.log(
-        `${options.kind === "preview" ? "Preview" : "Production"} store synchronized: ${store.id}`,
+        `${options.kind === "preview" ? "Preview" : "Production"} store synchronized (${scope}): ${store.id}`,
       )
     })
 
@@ -753,7 +764,7 @@ class Mixedbread extends Context.Service<
       }
     })
 
-    const syncProduction = (revision: string) =>
+    const syncProduction = (revision: string, scope: SyncScope = "all") =>
       Option.match(productionStoreId, {
         onNone: () =>
           Effect.fail(
@@ -762,11 +773,14 @@ class Mixedbread extends Context.Service<
             }),
           ),
         onSome: (storeId) =>
-          syncStore({
-            kind: "production",
-            revision,
-            storeId: Redacted.value(storeId),
-          }),
+          syncStore(
+            {
+              kind: "production",
+              revision,
+              storeId: Redacted.value(storeId),
+            },
+            scope,
+          ),
       })
 
     return {
@@ -798,18 +812,23 @@ const revision = Flag.string("sha").pipe(
   Flag.withDescription("Git commit SHA associated with the indexed content"),
 )
 
+const scope = Flag.choice("scope", ["all", "markdown", "api-reference"]).pipe(
+  Flag.withDefault("all"),
+  Flag.withDescription("Content scope to synchronize"),
+)
+
 const deletePullRequest = Flag.integer("pr").pipe(
   Flag.withDescription("Pull request number that identifies the preview store"),
 )
 
-const syncCommand = Command.make("sync", { pullRequest, revision }).pipe(
+const syncCommand = Command.make("sync", { pullRequest, revision, scope }).pipe(
   Command.withDescription("Synchronize a Mixedbread documentation search store"),
-  Command.withHandler(({ pullRequest, revision }) =>
+  Command.withHandler(({ pullRequest, revision, scope }) =>
     Option.match(pullRequest, {
-      onNone: () => Mixedbread.use((mixedbread) => mixedbread.syncProduction(revision)),
+      onNone: () => Mixedbread.use((mixedbread) => mixedbread.syncProduction(revision, scope)),
       onSome: (pullRequest) =>
         Mixedbread.use((mixedbread) =>
-          mixedbread.syncStore({ kind: "preview", pullRequest, revision }),
+          mixedbread.syncStore({ kind: "preview", pullRequest, revision }, scope),
         ),
     }),
   ),
