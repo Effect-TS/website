@@ -30,7 +30,7 @@ A deferred can be created using the `Deferred.make` constructor. This returns an
 
 **Example** (Creating a Deferred)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-a-deferred-1"
 import { Deferred } from "effect"
 
 //      ┌─── Effect<Deferred<string, Error>>
@@ -42,7 +42,7 @@ const deferred = Deferred.make<string, Error>()
 
 To retrieve a value from a deferred, you can use `Deferred.await`. This operation suspends the calling fiber until the deferred is completed with a value or an error.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="awaiting-1"
 import { Effect, Deferred } from "effect"
 
 //      ┌─── Effect<Deferred<string, Error>, never, never>
@@ -71,7 +71,7 @@ You can complete a deferred in several ways, depending on whether you want to su
 
 **Example** (Completing a Deferred with Success)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="completing-1"
 import { Effect, Deferred } from "effect"
 
 const program = Effect.gen(function* () {
@@ -94,7 +94,7 @@ Completing a deferred produces an `Effect<boolean>`. This effect returns `true` 
 
 **Example** (Checking Completion Status)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="completing-2"
 import { Effect, Deferred } from "effect"
 
 const program = Effect.gen(function* () {
@@ -125,7 +125,7 @@ Additionally, you can use the `Deferred.isDone` function to check if a deferred 
 
 **Example** (Polling and Checking Completion Status)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="checking-completion-status-1"
 import { Effect, Deferred } from "effect"
 
 const program = Effect.gen(function* () {
@@ -167,7 +167,7 @@ In this example, a deferred is used to pass a value between two fibers.
 
 By running both fibers concurrently and using the deferred as a synchronization point, we can ensure that `fiberB` only proceeds after `fiberA` has completed its task.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="common-use-cases-1"
 import { Effect, Deferred, Fiber } from "effect"
 
 const program = Effect.gen(function* () {
@@ -190,11 +190,11 @@ const program = Effect.gen(function* () {
   })
 
   // Run both fibers concurrently
-  const fiberA = yield* Effect.fork(taskA)
-  const fiberB = yield* Effect.fork(taskB)
+  const fiberA = yield* Effect.forkChild(taskA)
+  const fiberB = yield* Effect.forkChild(taskB)
 
   // Wait for both fibers to complete
-  const both = yield* Fiber.join(Fiber.zip(fiberA, fiberB))
+  const both = yield* Effect.zip(Fiber.join(fiberA), Fiber.join(fiberB))
 
   console.log(both)
 })
