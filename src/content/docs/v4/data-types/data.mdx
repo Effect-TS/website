@@ -344,7 +344,7 @@ If you prefer working with classes instead of plain objects, you can use `Data.C
 
 Here's how to define a `Person` class using `Data.Class`:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="class-1"
 import { Data, Equal } from "effect"
 
 // Define a Person class extending Data.Class
@@ -364,7 +364,7 @@ One of the benefits of using classes is that you can easily add custom methods a
 
 In this example, we add a `upperName` getter to the `Person` class to return the name in uppercase:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="class-2"
 import { Data } from "effect"
 
 // Extend Person class with a custom getter
@@ -389,7 +389,7 @@ If you prefer a class-based approach but also want the benefits of tagging for d
 
 Here's how to define a `Person` class using `Data.TaggedClass`. Notice that the tag `"Person"` is automatically added:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="tagged-class-1"
 import { Data, Equal } from "effect"
 
 // Define a tagged class Person with the _tag "Person"
@@ -412,7 +412,7 @@ One benefit of using tagged classes is the ability to easily add custom methods 
 
 In this example, we add a `upperName` getter to the `Person` class, which returns the name in uppercase:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="tagged-class-2"
 import { Data } from "effect"
 
 // Extend the Person class with a custom getter
@@ -440,7 +440,7 @@ and the values define the structure of the corresponding data types.
 
 **Example** (Defining a Tagged Union and Checking Equality)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="definition-1"
 import { Data, Equal } from "effect"
 
 // Define a union type using TaggedEnum
@@ -480,7 +480,7 @@ The `Data.taggedEnum` provides `$is` and `$match` functions for convenient type 
 
 **Example** (Using Type Guards and Pattern Matching)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="is-and-match-1"
 import { Data } from "effect"
 
 type RemoteData = Data.TaggedEnum<{
@@ -516,7 +516,7 @@ You can create more flexible and reusable tagged unions by using `TaggedEnum.Wit
 
 **Example** (Using Generics with TaggedEnum)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-generics-1"
 import { Data } from "effect"
 
 // Define a generic TaggedEnum for RemoteData
@@ -555,7 +555,7 @@ These constructors make defining custom error types straightforward, while also 
 
 **Example** (Creating a Custom Error with Additional Fields)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="error-1"
 import { Data } from "effect"
 
 // Define a custom error with additional fields
@@ -575,9 +575,7 @@ console.log(err.file)
 console.log(err)
 /*
 Output:
-NotFound [Error]: Cannot find this file
-  file: 'foo.txt'
-  ... stack trace ...
+{ message: 'Cannot find this file', file: 'foo.txt' }
 */
 ```
 
@@ -600,16 +598,9 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 throws:
-Error: Cannot find this file
-    at ... {
-  name: '(FiberFailure) Error',
-  [Symbol(effect/Runtime/FiberFailure/Cause)]: {
-    _tag: 'Fail',
-    error: NotFound [Error]: Cannot find this file
-        at ...stack trace...
-      file: 'foo.txt'
-    }
-  }
+NotFound [Error]: Cannot find this file
+    ...stack trace... {
+  file: 'foo.txt'
 }
 */
 ```
@@ -618,7 +609,7 @@ Error: Cannot find this file
 
 Effect provides a `TaggedError` API to add a `_tag` field automatically to your custom errors. This simplifies error handling with APIs like [Effect.catchTag](/docs/error-management/expected-errors/#catchtag) or [Effect.catchTags](/docs/error-management/expected-errors/#catchtags).
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="tagged-error-1"
 import { Data, Effect, Console } from "effect"
 
 // Define a custom tagged error
@@ -628,7 +619,7 @@ class NotFound extends Data.TaggedError("NotFound")<{
 }> {}
 
 const program = Effect.gen(function* () {
-  yield* new NotFound({
+  return yield* new NotFound({
     message: "Cannot find this file",
     file: "foo.txt",
   })
@@ -662,14 +653,10 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 throws:
-Error: An error has occurred
-    at ... {
-  name: '(FiberFailure) Error',
-  [Symbol(effect/Runtime/FiberFailure/Cause)]: {
-    _tag: 'Fail',
-    error: MyError
-        at ...
-      [cause]: Error: Something went wrong
-          at ...
+MyError
+    ...stack trace... {
+  [cause]: Error: Something went wrong
+      ...stack trace...
+}
 */
 ```
