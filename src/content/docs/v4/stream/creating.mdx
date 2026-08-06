@@ -457,187 +457,37 @@ There are also similar operations like `Stream.paginate` and `Stream.paginate` t
 
 ### Unfolding vs. Pagination
 
-You might wonder about the difference between the `unfold` and `paginate` combinators and when to use one over the other. Let's explore this by diving into an example.
+You might wonder about the difference between the `unfold` and `paginate` combinators and when to use one over the other. `Stream.unfold` produces exactly one value per step, so it can't consume an API whose step naturally returns a batch of values at once. `Stream.paginate` is built for that shape: each step returns an array of values together with the next state, so a single call can emit zero, one, or many elements before deciding whether to continue.
 
-Imagine we have a paginated API that provides a substantial amount of data in a paginated manner. When we make a request to this API, it returns a `ResultPage` object containing the results for the current page and a flag indicating whether it's the last page or if there's more data to retrieve on the next page. Here's a simplified representation of our API:
+This is exactly the shape of a paginated API. Imagine a `fetchUsers` request that, given a cursor, returns a page of users and — if there's more data — the cursor for the next page:
 
 ```ts twoslash import.meta.vitest name="unfolding-vs-pagination-1"
-import { Chunk, Effect } from "effect"
+import { Effect, Option, Stream } from "effect"
 
-type RawData = string
-
-class PageResult {
-  constructor(
-    readonly results: Chunk.Chunk<RawData>,
-    readonly isLast: boolean,
-  ) {}
+interface Page<A> {
+  readonly items: ReadonlyArray<A>
+  readonly nextCursor: number | undefined
 }
 
-const pageSize = 2
-
-const listPaginated = (pageNumber: number): Effect.Effect<PageResult, Error> => {
-  return Effect.succeed(
-    new PageResult(
-      Chunk.map(Chunk.range(1, pageSize), (index) => `Result ${pageNumber}-${index}`),
-      pageNumber === 2, // Return 3 pages
-    ),
-  )
-}
-```
-
-Our goal is to convert this paginated API into a stream of `RowData` events. For our initial attempt, we might think that using the `Stream.unfold` operation is the way to go:
-
-```ts twoslash collapse={3-26}
-import { Chunk, Effect, Stream, Option } from "effect"
-
-type RawData = string
-
-class PageResult {
-  constructor(
-    readonly results: Chunk.Chunk<RawData>,
-    readonly isLast: boolean,
-  ) {}
+// A mock paginated API: six users, two per page.
+const fetchUsers = (cursor: number): Effect.Effect<Page<string>> => {
+  const users = ["Alice", "Bob", "Carol", "Dave", "Erin", "Frank"]
+  const pageSize = 2
+  const items = users.slice(cursor, cursor + pageSize)
+  const nextCursor = cursor + pageSize < users.length ? cursor + pageSize : undefined
+  return Effect.succeed({ items, nextCursor })
 }
 
-const pageSize = 2
-
-const listPaginated = (pageNumber: number): Effect.Effect<PageResult, Error> => {
-  return Effect.succeed(
-    new PageResult(
-      Chunk.map(Chunk.range(1, pageSize), (index) => `Result ${pageNumber}-${index}`),
-      pageNumber === 2, // Return 3 pages
-    ),
-  )
-}
-
-const firstAttempt = Stream.unfoldChunkEffect(0, (pageNumber) =>
-  listPaginated(pageNumber).pipe(
-    Effect.map((page) => {
-      if (page.isLast) {
-        return Option.none()
-      }
-      return Option.some([page.results, pageNumber + 1] as const)
-    }),
+const stream = Stream.paginate(0, (cursor) =>
+  fetchUsers(cursor).pipe(
+    Effect.map((page) => [page.items, Option.fromUndefinedOr(page.nextCursor)] as const),
   ),
 )
 
-Effect.runPromise(Stream.runCollect(firstAttempt)).then(console.log)
-/*
-Output:
-{
-  _id: "Chunk",
-  values: [ "Result 0-1", "Result 0-2", "Result 1-1", "Result 1-2" ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => ["Alice", "Bob", "Carol", "Dave", "Erin", "Frank"]
 ```
 
-However, this approach has a drawback, it doesn't include the results from the last page. To work around this, we perform an extra API call to include those missing results:
-
-```ts twoslash collapse={3-26}
-import { Chunk, Effect, Stream, Option } from "effect"
-
-type RawData = string
-
-class PageResult {
-  constructor(
-    readonly results: Chunk.Chunk<RawData>,
-    readonly isLast: boolean,
-  ) {}
-}
-
-const pageSize = 2
-
-const listPaginated = (pageNumber: number): Effect.Effect<PageResult, Error> => {
-  return Effect.succeed(
-    new PageResult(
-      Chunk.map(Chunk.range(1, pageSize), (index) => `Result ${pageNumber}-${index}`),
-      pageNumber === 2, // Return 3 pages
-    ),
-  )
-}
-
-const secondAttempt = Stream.unfoldChunkEffect(Option.some(0), (pageNumber) =>
-  Option.match(pageNumber, {
-    // We already hit the last page
-    onNone: () => Effect.succeed(Option.none()),
-    // We did not hit the last page yet
-    onSome: (pageNumber) =>
-      listPaginated(pageNumber).pipe(
-        Effect.map((page) =>
-          Option.some([page.results, page.isLast ? Option.none() : Option.some(pageNumber + 1)]),
-        ),
-      ),
-  }),
-)
-
-Effect.runPromise(Stream.runCollect(secondAttempt)).then(console.log)
-/*
-Output:
-{
-  _id: 'Chunk',
-  values: [
-    'Result 0-1',
-    'Result 0-2',
-    'Result 1-1',
-    'Result 1-2',
-    'Result 2-1',
-    'Result 2-2'
-  ]
-}
-*/
-```
-
-While this approach works, it's clear that `Stream.unfold` isn't the most friendly option for retrieving data from paginated APIs. It requires additional workarounds to include the results from the last page.
-
-This is where `Stream.paginate` comes to the rescue. It provides a more ergonomic way to convert a paginated API into an Effect stream. Let's rewrite our solution using `Stream.paginate`:
-
-```ts twoslash collapse={3-26}
-import { Chunk, Effect, Stream, Option } from "effect"
-
-type RawData = string
-
-class PageResult {
-  constructor(
-    readonly results: Chunk.Chunk<RawData>,
-    readonly isLast: boolean,
-  ) {}
-}
-
-const pageSize = 2
-
-const listPaginated = (pageNumber: number): Effect.Effect<PageResult, Error> => {
-  return Effect.succeed(
-    new PageResult(
-      Chunk.map(Chunk.range(1, pageSize), (index) => `Result ${pageNumber}-${index}`),
-      pageNumber === 2, // Return 3 pages
-    ),
-  )
-}
-
-const finalAttempt = Stream.paginateChunkEffect(0, (pageNumber) =>
-  listPaginated(pageNumber).pipe(
-    Effect.andThen((page) => {
-      return [page.results, page.isLast ? Option.none<number>() : Option.some(pageNumber + 1)]
-    }),
-  ),
-)
-
-Effect.runPromise(Stream.runCollect(finalAttempt)).then(console.log)
-/*
-Output:
-{
-  _id: 'Chunk',
-  values: [
-    'Result 0-1',
-    'Result 0-2',
-    'Result 1-1',
-    'Result 1-2',
-    'Result 2-1',
-    'Result 2-2'
-  ]
-}
-*/
-```
+Each call to `fetchUsers` hands back a whole page of items, and `Stream.paginate` flattens every page into the resulting stream, stopping once `nextCursor` is `undefined`. Modeling this with `Stream.unfold` would require peeling one item off the current page at a time and keeping the rest around as extra state — logic that `Stream.paginate` already handles by accepting an array per step.
 
 ## From Queue and PubSub
 
