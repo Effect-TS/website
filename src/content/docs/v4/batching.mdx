@@ -13,7 +13,7 @@ In typical application development, when interacting with external APIs, databas
 
 Here's a basic model that outlines the structure of our data and possible errors:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="simple-model-setup-1"
 import { Data } from "effect"
 
 // ------------------------------
@@ -39,6 +39,8 @@ interface Todo {
 class GetTodosError extends Data.TaggedError("GetTodosError")<{}> {}
 
 class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
+
+new GetUserError()._tag // => "GetUserError"
 ```
 
 <Aside type="tip" title="Use Precise Types and Detailed Errors">
@@ -51,7 +53,7 @@ class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 
 Let's define functions that interact with an external API, handling common operations such as fetching todos, retrieving user details, and sending emails.
 
-```ts twoslash collapse={7-25}
+```ts twoslash collapse={7-25} import.meta.vitest name="defining-api-functions-1"
 import { Effect, Data } from "effect"
 
 // ------------------------------
@@ -136,7 +138,7 @@ While this approach is straightforward and readable, it may not be the most effi
 
 While these functions are clear and easy to understand, their use may not be the most efficient. For example, notifying todo owners involves repeated API calls which can be optimized.
 
-```ts twoslash collapse={7-25,31-76}
+```ts twoslash collapse={7-25,31-76} import.meta.vitest name="using-the-api-functions-1"
 import { Effect, Data } from "effect"
 
 // ------------------------------
@@ -255,7 +257,7 @@ A `Request` is a construct representing a request for a value of type `Value`, w
 
 Let's start by defining a structured model for the types of requests our data sources can handle.
 
-```ts twoslash collapse={7-25}
+```ts twoslash collapse={7-25} import.meta.vitest name="declaring-requests-1"
 import { Request, Data } from "effect"
 
 // ------------------------------
@@ -315,6 +317,8 @@ interface SendEmail extends Request.Request<void, SendEmailError> {
 
 // Create a tagged constructor for SendEmail requests
 const SendEmail = Request.tagged<SendEmail>("SendEmail")
+
+GetTodos()._tag // => "GetTodos"
 ```
 
 Each request is defined with a specific data structure that extends from a generic `Request` type, ensuring that each request carries its unique data requirements along with a specific error type.
@@ -333,7 +337,7 @@ A `RequestResolver` requires an environment `R` and is capable of executing requ
 
 In this section, we'll create individual resolvers for each type of request. The granularity of your resolvers can vary, but typically, they are divided based on the batching capabilities of the corresponding API calls.
 
-```ts twoslash collapse={7-25,31-59}
+```ts twoslash collapse={7-25,31-59} import.meta.vitest name="declaring-resolvers-1"
 import { Effect, Request, RequestResolver, Data } from "effect"
 
 // ------------------------------
@@ -400,7 +404,7 @@ const SendEmail = Request.tagged<SendEmail>("SendEmail")
 
 // Assuming GetTodos cannot be batched, we create a standard resolver
 const GetTodosResolver = RequestResolver.fromEffect(
-  (_: GetTodos): Effect.Effect<Todo[], GetTodosError> =>
+  (_: Request.Entry<GetTodos>): Effect.Effect<Todo[], GetTodosError> =>
     Effect.tryPromise({
       try: () =>
         fetch("https://api.example.demo/todos").then((res) => res.json() as Promise<Array<Todo>>),
@@ -409,33 +413,34 @@ const GetTodosResolver = RequestResolver.fromEffect(
 )
 
 // Assuming GetUserById can be batched, we create a batched resolver
-const GetUserByIdResolver = RequestResolver.makeBatched((requests: ReadonlyArray<GetUserById>) =>
-  Effect.tryPromise({
-    try: () =>
-      fetch("https://api.example.demo/getUserByIdBatch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          users: requests.map(({ id }) => ({ id })),
-        }),
-      }).then((res) => res.json()) as Promise<Array<User>>,
-    catch: () => new GetUserError(),
-  }).pipe(
-    Effect.andThen((users) =>
-      Effect.forEach(requests, (request, index) =>
-        Request.completeEffect(request, Effect.succeed(users[index]!)),
+const GetUserByIdResolver = RequestResolver.make(
+  (entries: ReadonlyArray<Request.Entry<GetUserById>>) =>
+    Effect.tryPromise({
+      try: () =>
+        fetch("https://api.example.demo/getUserByIdBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            users: entries.map(({ request }) => ({ id: request.id })),
+          }),
+        }).then((res) => res.json()) as Promise<Array<User>>,
+      catch: () => new GetUserError(),
+    }).pipe(
+      Effect.andThen((users) =>
+        Effect.forEach(entries, (entry, index) =>
+          Request.completeEffect(entry, Effect.succeed(users[index]!)),
+        ),
+      ),
+      Effect.catch((error) =>
+        Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
       ),
     ),
-    Effect.catchAll((error) =>
-      Effect.forEach(requests, (request) => Request.completeEffect(request, Effect.fail(error))),
-    ),
-  ),
 )
 
 // Assuming SendEmail can be batched, we create a batched resolver
-const SendEmailResolver = RequestResolver.makeBatched((requests: ReadonlyArray<SendEmail>) =>
+const SendEmailResolver = RequestResolver.make((entries: ReadonlyArray<Request.Entry<SendEmail>>) =>
   Effect.tryPromise({
     try: () =>
       fetch("https://api.example.demo/sendEmailBatch", {
@@ -444,19 +449,17 @@ const SendEmailResolver = RequestResolver.makeBatched((requests: ReadonlyArray<S
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          emails: requests.map(({ address, text }) => ({
-            address,
-            text,
+          emails: entries.map(({ request }) => ({
+            address: request.address,
+            text: request.text,
           })),
         }),
       }).then((res) => res.json() as Promise<void>),
     catch: () => new SendEmailError(),
   }).pipe(
-    Effect.andThen(
-      Effect.forEach(requests, (request) => Request.completeEffect(request, Effect.void)),
-    ),
-    Effect.catchAll((error) =>
-      Effect.forEach(requests, (request) => Request.completeEffect(request, Effect.fail(error))),
+    Effect.andThen(Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.void))),
+    Effect.catch((error) =>
+      Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
     ),
   ),
 )
@@ -477,7 +480,7 @@ In this configuration:
 
 Now that we've set up our resolvers, we're ready to tie all the pieces together to define our queries. This step will enable us to perform data operations effectively within our application.
 
-```ts twoslash collapse={7-25,31-59,65-136}
+```ts twoslash collapse={7-25,31-59,65-136} import.meta.vitest name="defining-queries-1"
 import { Effect, Request, RequestResolver, Data } from "effect"
 
 // ------------------------------
@@ -544,7 +547,7 @@ const SendEmail = Request.tagged<SendEmail>("SendEmail")
 
 // Assuming GetTodos cannot be batched, we create a standard resolver
 const GetTodosResolver = RequestResolver.fromEffect(
-  (_: GetTodos): Effect.Effect<Todo[], GetTodosError> =>
+  (_: Request.Entry<GetTodos>): Effect.Effect<Todo[], GetTodosError> =>
     Effect.tryPromise({
       try: () =>
         fetch("https://api.example.demo/todos").then((res) => res.json() as Promise<Array<Todo>>),
@@ -553,33 +556,34 @@ const GetTodosResolver = RequestResolver.fromEffect(
 )
 
 // Assuming GetUserById can be batched, we create a batched resolver
-const GetUserByIdResolver = RequestResolver.makeBatched((requests: ReadonlyArray<GetUserById>) =>
-  Effect.tryPromise({
-    try: () =>
-      fetch("https://api.example.demo/getUserByIdBatch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          users: requests.map(({ id }) => ({ id })),
-        }),
-      }).then((res) => res.json()) as Promise<Array<User>>,
-    catch: () => new GetUserError(),
-  }).pipe(
-    Effect.andThen((users) =>
-      Effect.forEach(requests, (request, index) =>
-        Request.completeEffect(request, Effect.succeed(users[index]!)),
+const GetUserByIdResolver = RequestResolver.make(
+  (entries: ReadonlyArray<Request.Entry<GetUserById>>) =>
+    Effect.tryPromise({
+      try: () =>
+        fetch("https://api.example.demo/getUserByIdBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            users: entries.map(({ request }) => ({ id: request.id })),
+          }),
+        }).then((res) => res.json()) as Promise<Array<User>>,
+      catch: () => new GetUserError(),
+    }).pipe(
+      Effect.andThen((users) =>
+        Effect.forEach(entries, (entry, index) =>
+          Request.completeEffect(entry, Effect.succeed(users[index]!)),
+        ),
+      ),
+      Effect.catch((error) =>
+        Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
       ),
     ),
-    Effect.catchAll((error) =>
-      Effect.forEach(requests, (request) => Request.completeEffect(request, Effect.fail(error))),
-    ),
-  ),
 )
 
 // Assuming SendEmail can be batched, we create a batched resolver
-const SendEmailResolver = RequestResolver.makeBatched((requests: ReadonlyArray<SendEmail>) =>
+const SendEmailResolver = RequestResolver.make((entries: ReadonlyArray<Request.Entry<SendEmail>>) =>
   Effect.tryPromise({
     try: () =>
       fetch("https://api.example.demo/sendEmailBatch", {
@@ -588,19 +592,17 @@ const SendEmailResolver = RequestResolver.makeBatched((requests: ReadonlyArray<S
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          emails: requests.map(({ address, text }) => ({
-            address,
-            text,
+          emails: entries.map(({ request }) => ({
+            address: request.address,
+            text: request.text,
           })),
         }),
       }).then((res) => res.json() as Promise<void>),
     catch: () => new SendEmailError(),
   }).pipe(
-    Effect.andThen(
-      Effect.forEach(requests, (request) => Request.completeEffect(request, Effect.void)),
-    ),
-    Effect.catchAll((error) =>
-      Effect.forEach(requests, (request) => Request.completeEffect(request, Effect.fail(error))),
+    Effect.andThen(Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.void))),
+    Effect.catch((error) =>
+      Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
     ),
   ),
 )
@@ -611,7 +613,7 @@ const SendEmailResolver = RequestResolver.makeBatched((requests: ReadonlyArray<S
 
 // Defines a query to fetch all Todo items
 const getTodos: Effect.Effect<Array<Todo>, GetTodosError> = Effect.request(
-  GetTodos({}),
+  GetTodos(),
   GetTodosResolver,
 )
 
@@ -669,7 +671,7 @@ When creating request resolvers, it's crucial to manage the context carefully. P
 
 Consider the following example where we set up an HTTP service that the resolvers can use to execute API calls:
 
-```ts twoslash collapse={7-25,31-59}
+```ts twoslash collapse={7-25,31-59} import.meta.vitest name="resolvers-with-context-1"
 import { Effect, Context, RequestResolver, Request, Data } from "effect"
 
 // ------------------------------
@@ -702,7 +704,7 @@ class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
 
 // Define a request to get multiple Todo items which might
 // fail with a GetTodosError
-interface GetTodos extends Request.Request<Array<Todo>, GetTodosError> {
+interface GetTodos extends Request.Request<Array<Todo>, GetTodosError, HttpService> {
   readonly _tag: "GetTodos"
 }
 
@@ -734,12 +736,13 @@ const SendEmail = Request.tagged<SendEmail>("SendEmail")
 // Resolvers With Context
 // ------------------------------
 
-class HttpService extends Context.Tag("HttpService")<HttpService, { fetch: typeof fetch }>() {}
+class HttpService extends Context.Service<HttpService, { fetch: typeof fetch }>()("HttpService") {}
 
-const GetTodosResolver =
-  // we create a normal resolver like we did before
-  RequestResolver.fromEffect((_: GetTodos) =>
-    Effect.andThen(HttpService, (http) =>
+// the resolver itself must have no requirements, so we resolve HttpService
+// before constructing it, and let that outer effect carry the requirement
+const GetTodosResolver = Effect.map(HttpService, (http) =>
+  RequestResolver.fromEffect(
+    (_: Request.Entry<GetTodos>): Effect.Effect<Array<Todo>, GetTodosError> =>
       Effect.tryPromise({
         try: () =>
           http
@@ -747,17 +750,14 @@ const GetTodosResolver =
             .then((res) => res.json() as Promise<Array<Todo>>),
         catch: () => new GetTodosError(),
       }),
-    ),
-  ).pipe(
-    // we list the tags that the resolver can access
-    RequestResolver.contextFromServices(HttpService),
-  )
+  ),
+)
 ```
 
 We can see now that the type of `GetTodosResolver` is no longer a `RequestResolver` but instead it is:
 
 ```ts showLineNumbers=false
-const GetTodosResolver: Effect<RequestResolver<GetTodos, never>, never, HttpService>
+const GetTodosResolver: Effect<RequestResolver<GetTodos>, never, HttpService>
 ```
 
 which is an effect that access the `HttpService` and returns a composed resolver that has the minimal context ready to use.
@@ -766,7 +766,7 @@ Once we have such effect we can directly use it in our query definition:
 
 ```ts showLineNumbers=false
 const getTodos: Effect.Effect<Todo[], GetTodosError, HttpService> = Effect.request(
-  GetTodos({}),
+  GetTodos(),
   GetTodosResolver,
 )
 ```
@@ -777,7 +777,7 @@ Alternatively you can create `RequestResolver`s as part of layers direcly access
 
 **Example**
 
-```ts twoslash collapse={14-32,38-66,72-92}
+```ts twoslash collapse={14-32,38-66,72-92} import.meta.vitest name="resolvers-with-context-2"
 import { Effect, Context, RequestResolver, Request, Layer, Data } from "effect"
 
 // ------------------------------
@@ -842,12 +842,13 @@ const SendEmail = Request.tagged<SendEmail>("SendEmail")
 // Resolvers With Context
 // ------------------------------
 
-class HttpService extends Context.Tag("HttpService")<HttpService, { fetch: typeof fetch }>() {}
+class HttpService extends Context.Service<HttpService, { fetch: typeof fetch }>()("HttpService") {}
 
-const GetTodosResolver =
-  // we create a normal resolver like we did before
-  RequestResolver.fromEffect((_: GetTodos) =>
-    Effect.andThen(HttpService, (http) =>
+// the resolver itself must have no requirements, so we resolve HttpService
+// before constructing it, and let that outer effect carry the requirement
+const GetTodosResolver = Effect.map(HttpService, (http) =>
+  RequestResolver.fromEffect(
+    (_: Request.Entry<GetTodos>): Effect.Effect<Array<Todo>, GetTodosError> =>
       Effect.tryPromise({
         try: () =>
           http
@@ -855,28 +856,25 @@ const GetTodosResolver =
             .then((res) => res.json() as Promise<Array<Todo>>),
         catch: () => new GetTodosError(),
       }),
-    ),
-  ).pipe(
-    // we list the tags that the resolver can access
-    RequestResolver.contextFromServices(HttpService),
-  )
+  ),
+)
 
 // ------------------------------
 // Layers
 // ------------------------------
 
-class TodosService extends Context.Tag("TodosService")<
+class TodosService extends Context.Service<
   TodosService,
   {
     getTodos: Effect.Effect<Array<Todo>, GetTodosError>
   }
->() {}
+>()("TodosService") {}
 
 const TodosServiceLive = Layer.effect(
   TodosService,
   Effect.gen(function* () {
     const http = yield* HttpService
-    const resolver = RequestResolver.fromEffect((_: GetTodos) =>
+    const resolver = RequestResolver.fromEffect((_: Request.Entry<GetTodos>) =>
       Effect.tryPromise({
         try: () =>
           http.fetch("https://api.example.demo/todos").then<any, Todo[]>((res) => res.json()),
@@ -884,7 +882,7 @@ const TodosServiceLive = Layer.effect(
       }),
     )
     return {
-      getTodos: Effect.request(GetTodos({}), resolver),
+      getTodos: Effect.request(GetTodos(), resolver),
     }
   }),
 )
