@@ -8,13 +8,15 @@ sidebar:
 A `SubscriptionRef<A>` is a specialized form of a [SynchronizedRef](/docs/state-management/synchronizedref/). It allows us to subscribe and receive updates on the current value and any changes made to that value.
 
 ```ts showLineNumbers=false
-interface SubscriptionRef<A> extends SynchronizedRef<A> {
-  /**
-   * A stream containing the current value of the `Ref` as well as all changes
-   * to that value.
-   */
-  readonly changes: Stream<A>
+interface SubscriptionRef<A> {
+  readonly value: A
 }
+
+/**
+ * A stream containing the current value of the `Ref` as well as all changes
+ * to that value.
+ */
+declare const changes: <A>(self: SubscriptionRef<A>) => Stream<A>
 ```
 
 You can perform all standard operations on a `SubscriptionRef`, such as `get`, `set`, or `modify` to interact with the current value.
@@ -25,7 +27,7 @@ To create a `SubscriptionRef`, you can use the `SubscriptionRef.make` constructo
 
 **Example** (Creating a `SubscriptionRef`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="subscriptionref-1"
 import { SubscriptionRef } from "effect"
 
 const ref = SubscriptionRef.make(0)
@@ -37,22 +39,24 @@ const ref = SubscriptionRef.make(0)
 
 In the following example, a "server" continually updates a shared value, while multiple "clients" observe the changes:
 
-```ts twoslash
-import { Ref, Effect } from "effect"
+```ts twoslash import.meta.vitest name="subscriptionref-2"
+import { SubscriptionRef, Effect } from "effect"
 
 // Server function that increments a shared value forever
-const server = (ref: Ref.Ref<number>) => Ref.update(ref, (n) => n + 1).pipe(Effect.forever)
+const server = (ref: SubscriptionRef.SubscriptionRef<number>) =>
+  SubscriptionRef.update(ref, (n) => n + 1).pipe(Effect.forever)
 ```
 
 The `server` function operates on a regular `Ref` and continuously updates the value. It doesn't need to know about `SubscriptionRef` directly.
 
 Next, let's define a `client` that subscribes to changes and collects a specified number of values:
 
-```ts twoslash
-import { Ref, Effect, Stream, Random } from "effect"
+```ts twoslash import.meta.vitest name="subscriptionref-3"
+import { SubscriptionRef, Effect, Stream, Random } from "effect"
 
 // Server function that increments a shared value forever
-const server = (ref: Ref.Ref<number>) => Ref.update(ref, (n) => n + 1).pipe(Effect.forever)
+const server = (ref: SubscriptionRef.SubscriptionRef<number>) =>
+  SubscriptionRef.update(ref, (n) => n + 1).pipe(Effect.forever)
 
 // Client function that observes the stream of changes
 const client = (changes: Stream.Stream<number>) =>
@@ -67,11 +71,12 @@ Similarly, the `client` function only works with a `Stream` of values and doesn'
 
 To tie everything together, we start the server, launch multiple client instances in parallel, and then shut down the server when we're finished. We also create the `SubscriptionRef` in this process.
 
-```ts twoslash
-import { Ref, Effect, Stream, Random, SubscriptionRef, Fiber } from "effect"
+```ts twoslash import.meta.vitest name="subscriptionref-4"
+import { Effect, Stream, Random, SubscriptionRef, Fiber } from "effect"
 
 // Server function that increments a shared value forever
-const server = (ref: Ref.Ref<number>) => Ref.update(ref, (n) => n + 1).pipe(Effect.forever)
+const server = (ref: SubscriptionRef.SubscriptionRef<number>) =>
+  SubscriptionRef.update(ref, (n) => n + 1).pipe(Effect.forever)
 
 // Client function that observes the stream of changes
 const client = (changes: Stream.Stream<number>) =>
@@ -86,10 +91,10 @@ const program = Effect.gen(function* () {
   const ref = yield* SubscriptionRef.make(0)
 
   // Fork the server to run concurrently
-  const serverFiber = yield* Effect.fork(server(ref))
+  const serverFiber = yield* Effect.forkChild(server(ref))
 
   // Create 5 clients that subscribe to the changes stream
-  const clients = new Array(5).fill(null).map(() => client(ref.changes))
+  const clients = new Array(5).fill(null).map(() => client(SubscriptionRef.changes(ref)))
 
   // Run all clients in concurrently and collect their results
   const chunks = yield* Effect.all(clients, { concurrency: "unbounded" })
