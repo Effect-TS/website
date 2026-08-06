@@ -24,7 +24,7 @@ Use the `Option.some` constructor to create an `Option` that holds a value of ty
 
 **Example** (Creating an Option with a Value)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="some-1"
 import { Option } from "effect"
 
 // An Option holding the number 1
@@ -40,7 +40,7 @@ Use the `Option.none` constructor to create an `Option` representing the absence
 
 **Example** (Creating an Option with No Value)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="none-1"
 import { Option } from "effect"
 
 // An Option holding no value
@@ -58,7 +58,7 @@ You can create an `Option` based on a predicate, for example, to check if a valu
 
 Here's how you can achieve this using `Option.none` and `Option.some`:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="liftpredicate-1"
 import { Option } from "effect"
 
 const isPositive = (n: number) => n > 0
@@ -71,7 +71,7 @@ const parsePositive = (n: number): Option.Option<number> =>
 
 Alternatively, you can simplify the above logic with `Option.liftPredicate`:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="liftpredicate-2"
 import { Option } from "effect"
 
 const isPositive = (n: number) => n > 0
@@ -104,7 +104,7 @@ Here are examples of how to create `User` instances with and without an email:
 
 **Example** (Creating Users with and without Email)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="modeling-optional-properties-1"
 import { Option } from "effect"
 
 interface User {
@@ -132,7 +132,7 @@ You can check whether an `Option` is a `Some` or a `None` using the `Option.isSo
 
 **Example** (Using Guards to Check Option Values)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="guards-1"
 import { Option } from "effect"
 
 const foo = Option.some(1)
@@ -154,7 +154,7 @@ Use `Option.match` to handle both cases of an `Option` by specifying separate ca
 
 **Example** (Pattern Matching with Option)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="pattern-matching-1"
 import { Option } from "effect"
 
 const foo = Option.some(1)
@@ -176,7 +176,7 @@ The `Option.map` function lets you transform the value inside an `Option` withou
 
 **Example** (Mapping a Value in Some)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="map-1"
 import { Option } from "effect"
 
 // Transform the value inside Some
@@ -188,7 +188,7 @@ When dealing with `None`, the mapping function is not executed, and the `Option`
 
 **Example** (Mapping over None)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="map-2"
 import { Option } from "effect"
 
 // Mapping over None results in None
@@ -224,7 +224,7 @@ We can use `Option.flatMap` to extract the `street` property from `address`:
 
 **Example** (Extracting a Nested Optional Property)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="flatmap-1"
 import { Option } from "effect"
 
 interface Address {
@@ -272,7 +272,7 @@ Here's how you can simplify some code using `Option.filter` for a more idiomatic
 
 Original Code
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="filter-1"
 import { Option } from "effect"
 
 // Function to remove empty strings from an Option
@@ -297,7 +297,7 @@ Refactored Idiomatic Code
 
 Using `Option.filter`, we can write the same logic more concisely:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="filter-2"
 import { Option } from "effect"
 
 const removeEmptyString = (input: Option.Option<string>) =>
@@ -339,7 +339,7 @@ These functions convert a `None` to either `null` or `undefined`, which is usefu
 
 **Example** (Converting `None` to `null` or `undefined`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="getornull-getorundefined-1"
 import { Option } from "effect"
 
 console.log(Option.getOrNull(Option.some(5)))
@@ -361,7 +361,7 @@ This function allows you to specify a default value to return when the `Option` 
 
 **Example** (Providing a Default Value When `None`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="getorelse-1"
 import { Option } from "effect"
 
 console.log(Option.getOrElse(Option.some(5), () => 0))
@@ -379,7 +379,7 @@ When a computation returns `None`, you might want to try an alternative computat
 
 **Example** (Attempting Alternative Computations)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="orelse-1"
 import { Option } from "effect"
 
 // Simulating a computation that may or may not produce a result
@@ -409,7 +409,7 @@ You can also use `Option.firstSomeOf` to get the first `Some` value from an iter
 
 **Example** (Retrieving the First `Some` Value)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="firstsomeof-1"
 import { Option } from "effect"
 
 const first = Option.firstSomeOf([Option.none(), Option.some(2), Option.none(), Option.some(3)])
@@ -424,20 +424,20 @@ When dealing with the `Option` data type, you may encounter code that uses `unde
 
 ### fromNullable
 
-`Option.fromNullable` converts a nullable value (`null` or `undefined`) into an `Option`. If the value is `null` or `undefined`, it returns `Option.none()`. Otherwise, it wraps the value in `Option.some()`.
+`Option.fromNullishOr` converts a nullable value (`null` or `undefined`) into an `Option`. If the value is `null` or `undefined`, it returns `Option.none()`. Otherwise, it wraps the value in `Option.some()`.
 
 **Example** (Creating Option from Nullable Values)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="fromnullable-1"
 import { Option } from "effect"
 
-console.log(Option.fromNullable(null))
+console.log(Option.fromNullishOr(null))
 // Output: { _id: 'Option', _tag: 'None' }
 
-console.log(Option.fromNullable(undefined))
+console.log(Option.fromNullishOr(undefined))
 // Output: { _id: 'Option', _tag: 'None' }
 
-console.log(Option.fromNullable(1))
+console.log(Option.fromNullishOr(1))
 // Output: { _id: 'Option', _tag: 'Some', value: 1 }
 ```
 
@@ -448,23 +448,23 @@ If you need to convert an `Option` back to a nullable value, there are two helpe
 
 ## Interop with Effect
 
-The `Option` type works as a subtype of the `Effect` type, allowing you to use it with functions from the `Effect` module. While these functions are built to handle `Effect` values, they can also manage `Option` values correctly.
+Unlike in v3, `Option` is no longer a structural subtype of `Effect`. It implements the `Yieldable` trait instead, so `yield*` still works inside `Effect.gen`, but passing an `Option` directly to an `Effect` combinator (such as `Effect.all`) requires an explicit conversion with `Effect.fromOption`.
 
 ### How Option Maps to Effect
 
-| Option Variant | Mapped to Effect                        | Description                        |
-| -------------- | --------------------------------------- | ---------------------------------- |
-| `None`         | `Effect<never, NoSuchElementException>` | Represents the absence of a value  |
-| `Some<A>`      | `Effect<A>`                             | Represents the presence of a value |
+| Option Variant | Mapped to Effect                    | Description                        |
+| -------------- | ----------------------------------- | ---------------------------------- |
+| `None`         | `Effect<never, NoSuchElementError>` | Represents the absence of a value  |
+| `Some<A>`      | `Effect<A>`                         | Represents the presence of a value |
 
 **Example** (Combining `Option` with `Effect`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="interop-with-effect-1"
 import { Effect, Option } from "effect"
 
 // Function to get the head of an array, returning Option
 const head = <A>(array: ReadonlyArray<A>): Option.Option<A> =>
-  array.length > 0 ? Option.some(array[0]) : Option.none()
+  array.length > 0 ? Option.some(array[0]!) : Option.none()
 
 // Simulated fetch function that returns Effect
 const fetchData = (): Effect.Effect<string, string> => {
@@ -472,10 +472,10 @@ const fetchData = (): Effect.Effect<string, string> => {
   return success ? Effect.succeed("some data") : Effect.fail("Failed to fetch data")
 }
 
-// Mixing Either and Effect
-const program = Effect.all([head([1, 2, 3]), fetchData()])
+// Option is not an Effect subtype - convert explicitly with Effect.fromOption
+const program = Effect.all([Effect.fromOption(head([1, 2, 3])), fetchData()])
 
-Effect.runPromise(program).then(console.log)
+Effect.runPromise(program).then(console.log, console.error)
 /*
 Example Output:
 [ 1, 'some data' ]
@@ -490,7 +490,7 @@ The `Option.zipWith` function lets you combine two `Option` values using a provi
 
 **Example** (Combining Two Options into an Object)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="zipwith-1"
 import { Option } from "effect"
 
 const maybeName: Option.Option<string> = Option.some("John")
@@ -513,7 +513,7 @@ If either of the `Option` values is `None`, the result will be `None`:
 
 **Example** (Handling None Values)
 
-```ts {4} twoslash
+```ts {4} twoslash import.meta.vitest name="zipwith-2"
 import { Option } from "effect"
 
 const maybeName: Option.Option<string> = Option.some("John")
@@ -539,7 +539,7 @@ To combine multiple `Option` values without transforming their contents, you can
 
 **Example** (Combining Multiple Options into a Tuple and Struct)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="all-1"
 import { Option } from "effect"
 
 const maybeName: Option.Option<string> = Option.some("John")
@@ -568,7 +568,7 @@ If any of the `Option` values are `None`, the result will be `None`:
 
 **Example**
 
-```ts
+```ts import.meta.vitest name="all-2"
 import { Option } from "effect"
 
 const maybeName: Option.Option<string> = Option.some("John")
@@ -584,7 +584,7 @@ Similar to [Effect.gen](/docs/getting-started/using-generators/), `Option.gen` p
 
 **Example** (Using `Option.gen` to Create a Combined Value)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="gen-1"
 import { Option } from "effect"
 
 const maybeName: Option.Option<string> = Option.some("John")
@@ -609,7 +609,7 @@ When any of the `Option` values in the sequence is `None`, the generator immedia
 
 In this example, `Option.gen` halts execution as soon as it encounters the `None` value, effectively propagating the missing value without performing further operations.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="gen-2"
 import { Option } from "effect"
 
 const maybeName: Option.Option<string> = Option.none()
@@ -635,16 +635,16 @@ The use of `console.log` in these example is for demonstration purposes only. Wh
 
 ## Equivalence
 
-You can compare `Option` values using the `Option.getEquivalence` function. This function allows you to specify how to compare the contents of `Option` types by providing an [Equivalence](/docs/behaviour/equivalence/) for the type of value they may contain.
+You can compare `Option` values using the `Option.makeEquivalence` function. This function allows you to specify how to compare the contents of `Option` types by providing an [Equivalence](/docs/behaviour/equivalence/) for the type of value they may contain.
 
 **Example** (Comparing Optional Numbers for Equivalence)
 
-Suppose you have optional numbers and want to check if they are equivalent. Here's how you can use `Option.getEquivalence`:
+Suppose you have optional numbers and want to check if they are equivalent. Here's how you can use `Option.makeEquivalence`:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="equivalence-1"
 import { Option, Equivalence } from "effect"
 
-const myEquivalence = Option.getEquivalence(Equivalence.number)
+const myEquivalence = Option.makeEquivalence(Equivalence.Number)
 
 console.log(myEquivalence(Option.some(1), Option.some(1)))
 // Output: true, both options contain the number 1
@@ -658,19 +658,19 @@ console.log(myEquivalence(Option.some(1), Option.none()))
 
 ## Sorting
 
-You can sort a collection of `Option` values using the `Option.getOrder` function. This function helps specify a custom sorting rule for the type of value contained within the `Option`.
+You can sort a collection of `Option` values using the `Option.makeOrder` function. This function helps specify a custom sorting rule for the type of value contained within the `Option`.
 
 **Example** (Sorting Optional Numbers)
 
 Suppose you have a list of optional numbers and want to sort them in ascending order, with empty values (`Option.none()`) treated as the lowest:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="sorting-1"
 import { Option, Array, Order } from "effect"
 
 const items = [Option.some(1), Option.none(), Option.some(2)]
 
 // Create an order for sorting Option values containing numbers
-const myOrder = Option.getOrder(Order.number)
+const myOrder = Option.makeOrder(Order.Number)
 
 console.log(Array.sort(myOrder)(items))
 /*
@@ -687,7 +687,7 @@ Output:
 
 Consider a more complex case where you have a list of objects containing optional dates, and you want to sort them in descending order, with `Option.none()` values at the end:
 
-```ts
+```ts import.meta.vitest name="sorting-2"
 import { Option, Array, Order } from "effect"
 
 const items = [
@@ -697,18 +697,14 @@ const items = [
 ]
 
 // Define the order to sort dates within Option values in reverse
-const sorted = Array.sortWith(
-  items,
-  (item) => item.data,
-  Order.reverse(Option.getOrder(Order.Date)),
-)
+const sorted = Array.sortWith(items, (item) => item.data, Order.flip(Option.makeOrder(Order.Date)))
 
 console.log(sorted)
 /*
 Output:
 [
-  { data: { _id: 'Option', _tag: 'Some', value: '1970-01-01T00:00:00.020Z' } },
-  { data: { _id: 'Option', _tag: 'Some', value: '1970-01-01T00:00:00.010Z' } },
+  { data: { _id: 'Option', _tag: 'Some', value: 1970-01-01T00:00:00.020Z } },
+  { data: { _id: 'Option', _tag: 'Some', value: 1970-01-01T00:00:00.010Z } },
   { data: { _id: 'Option', _tag: 'None' } } // None placed last
 ]
 */
