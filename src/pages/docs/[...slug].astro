@@ -23,6 +23,7 @@ const { Content, headings } = await render(entry)
 const currentId = entry.id
 const currentVersion = currentId.split("/")[0]
 const currentLabel = entryLabel(entry)
+const versions = ["v4", "v3"] as const
 
 const sidebarEntry = await getEntry("docsSidebar", currentVersion)
 const groupConfig: Record<string, number> = sidebarEntry?.data ?? {}
@@ -184,6 +185,29 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3)
             aria-label="Documentation navigation"
             class="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto px-6 py-8"
           >
+            <div
+              role="group"
+              aria-label="Documentation version"
+              class="mb-6 inline-flex items-center rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-800 dark:bg-zinc-900"
+            >
+              {
+                versions.map((v) => (
+                  <a
+                    href={`/docs/${v}`}
+                    aria-current={currentVersion === v ? "page" : undefined}
+                    class:list={[
+                      "rounded-md px-3 py-1 text-xs font-medium transition-all duration-150",
+                      currentVersion === v
+                        ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white"
+                        : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200",
+                    ]}
+                  >
+                    {v === "v4" ? "v4 (rc)" : v}
+                  </a>
+                ))
+              }
+            </div>
+
             <ul class="flex flex-col gap-0.5">
               {
                 sidebarItems.map((item) =>
