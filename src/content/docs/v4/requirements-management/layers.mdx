@@ -873,10 +873,9 @@ Connecting to in-memory database
 */
 ```
 
-## Simplifying Service Definitions with Effect.Service
+## Defining Services with Context.Service
 
-The `Effect.Service` API provides a way to define a service in a single step, including its tag and layer.
-It also allows specifying dependencies upfront, making service construction more straightforward.
+`Context.Service` lets you define a service's tag and its implementation together, as a single class, instead of declaring the tag and building the layer separately.
 
 ### Defining a Service with Dependencies
 
@@ -888,7 +887,7 @@ The following example defines a `Cache` service that depends on a file system.
 import { NodeFileSystem } from "@effect/platform-node"
 import { Context, Effect, FileSystem, Layer } from "effect"
 
-// Define a Cache service
+// Define a Cache serviwce
 class Cache extends Context.Service<Cache>()("app/Cache", {
   // Define how to create the service
   make: Effect.gen(function* () {
@@ -902,14 +901,14 @@ class Cache extends Context.Service<Cache>()("app/Cache", {
 }
 ```
 
-### Using the Generated Layers
+### Declaring the Service's Layers
 
-The `Effect.Service` API automatically generates layers for the service.
+Unlike v3's `Effect.Service`, `Context.Service` does not generate any layers for you — you declare them yourself as static class fields, built from `this.make` with `Layer.effect`. The field names below are just a convention, not part of the API.
 
-| Layer                              | Description                                                                       |
-| ---------------------------------- | --------------------------------------------------------------------------------- |
-| `Cache.Default`                    | Provides the `Cache` service with its dependencies already included.              |
-| `Cache.DefaultWithoutDependencies` | Provides the `Cache` service but requires dependencies to be provided separately. |
+| Static field                     | Description                                                                       |
+| -------------------------------- | --------------------------------------------------------------------------------- |
+| `Cache.layer`                    | Provides the `Cache` service with its dependencies already included.              |
+| `Cache.layerWithoutDependencies` | Provides the `Cache` service but requires dependencies to be provided separately. |
 
 ```ts twoslash collapse={5-14} import.meta.vitest name="using-the-generated-layers-1"
 import { NodeFileSystem } from "@effect/platform-node"
@@ -942,7 +941,7 @@ const layerNoDeps = Cache.layerWithoutDependencies
 
 ### Accessing the Service
 
-A service created with `Effect.Service` can be accessed like any other Effect service.
+A service created with `Context.Service` can be accessed like any other Effect service.
 
 **Example** (Accessing the Cache Service)
 
@@ -1077,16 +1076,16 @@ Effect.runFork(runnable)
 // Output: Cache Content...
 ```
 
-### Alternative Ways to Define a Service
+### Alternative Ways to Construct `make`
 
-The `Effect.Service` API supports multiple ways to define a service:
+`Context.Service`'s `make` field accepts any `Effect`, so the named constructor options v3's `Effect.Service` used to offer are now just different ways to build that one `Effect` value:
 
-| Method    | Description                                        |
-| --------- | -------------------------------------------------- |
-| `succeed` | Provides a static implementation of the service.   |
-| `sync`    | Defines a service using a synchronous constructor. |
-| `effect`  | Defines a service with an effectful constructor.   |
-| `scoped`  | Creates a service with lifecycle management.       |
+| Style        | How to build `make`                                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Static value | `Effect.succeed(...)` — a constant implementation.                                                                              |
+| Synchronous  | `Effect.sync(() => ...)` — a synchronous constructor.                                                                           |
+| Effectful    | `Effect.gen(function* () { ... })` (or any other `Effect`) — a constructor that itself depends on other services.               |
+| Scoped       | `Effect.gen(...)` using `Effect.acquireRelease`/`Effect.addFinalizer` inside `make` — lifecycle management, no separate option. |
 
 **Example** (Defining a Service with a Static Implementation)
 
@@ -1182,62 +1181,3 @@ Releasing...
 ```
 
 The `Scoped.layer` layer does not require `Scope` as a dependency, since `Scoped` itself manages its lifecycle.
-
-### Enabling Direct Method Access
-
-By setting `accessors: true`, you can call service methods directly using the service tag instead of first extracting the service.
-
-**Example** (Defining a Service with Direct Method Access)
-
-```ts twoslash del={11-12} ins={13}
-import { Effect, Random } from "effect"
-
-class Sync extends Effect.Service<Sync>()("Sync", {
-  sync: () => ({
-    next: Random.nextInt,
-  }),
-  accessors: true, // Enables direct method access via the tag
-}) {}
-
-const program = Effect.gen(function* () {
-  // const sync = yield* Sync
-  // const n = yield* sync.next
-  const n = yield* Sync.next // No need to extract the service first
-  console.log(`The number is ${n}`)
-})
-
-Effect.runPromise(program.pipe(Effect.provide(Sync.Default)))
-// Example Output: The number is 3858843290019673
-```
-
-<Aside type="caution" title="Limitation of Direct Method Access">
-  Direct method access does not work with generic methods.
-</Aside>
-
-### Effect.Service vs Context.Tag
-
-Both `Effect.Service` and `Context.Tag` are ways to model services in the Effect ecosystem. They serve similar purposes but target different use-cases.
-
-| Feature                             | Effect.Service                                          | Context.Tag                               |
-| ----------------------------------- | ------------------------------------------------------- | ----------------------------------------- |
-| Tag creation                        | Generated for you (the class name acts as the tag)      | You declare the tag manually              |
-| Default implementation              | **Required** - supplied inline (`effect`, `sync`, etc.) | **Optional** - can be supplied later      |
-| Ready-made layers (`.Default`, ...) | Automatically generated                                 | You build layers yourself                 |
-| Best suited for                     | Application code with a clear runtime implementation    | Library code or dynamically-scoped values |
-| When no sensible default exists     | Not ideal; you would still have to invent one           | Preferred                                 |
-
-**Key points**
-
-- **Less boilerplate:** `Effect.Service` is syntactic sugar over `Context.Tag` plus the accompanying layer and helpers.
-- **Default required:**
-  A class that extends `Effect.Service` must declare **one** of the built-in constructors (`effect`, `sync`, `succeed`, or `scoped`). This baseline implementation becomes part of `MyService.Default`, so any code that imports the service can run without providing extra layers.
-  That is handy for app-level services where a sensible runtime implementation exists (logging, HTTP clients, real databases, and so on).
-  If your service is inherently contextual (for example, a per-request database handle) or you are writing a library that should not assume an implementation, prefer `Context.Tag`: you publish only the tag and let callers supply the layer that makes sense in their environment.
-- **The class _is_ the tag:** When you create a class with `extends Effect.Service`, the class constructor itself acts as the tag. You can provide alternate implementations by supplying a value for that class when wiring layers:
-
-  ```ts
-  const mock = MyService.of({
-    /* mocked methods */
-  })
-  program.pipe(Effect.provideService(MyService, mock))
-  ```
