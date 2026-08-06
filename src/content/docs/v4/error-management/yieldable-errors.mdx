@@ -14,7 +14,7 @@ The `Data.Error` constructor provides a way to define a base class for yieldable
 
 **Example** (Creating and Yielding a Custom Error)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-and-yielding-a-custom-error-1"
 import { Effect, Data } from "effect"
 
 // Define a custom error class extending Data.Error
@@ -22,7 +22,7 @@ class MyError extends Data.Error<{ message: string }> {}
 
 export const program = Effect.gen(function* () {
   // Yield a custom error (equivalent to failing with MyError)
-  yield* new MyError({ message: "Oh no!" })
+  return yield* new MyError({ message: "Oh no!" })
 })
 
 Effect.runPromiseExit(program).then(console.log)
@@ -31,7 +31,7 @@ Output:
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: { message: 'Oh no!' } }
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 ```
@@ -42,7 +42,7 @@ The `Data.TaggedError` constructor lets you define custom yieldable errors with 
 
 **Example** (Handling Multiple Tagged Errors)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-multiple-tagged-errors-1"
 import { Effect, Data, Random } from "effect"
 
 // An error with _tag: "Foo"
