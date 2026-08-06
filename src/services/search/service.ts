@@ -11,6 +11,7 @@ import * as Schema from "effect/Schema"
 import type { SearchResult } from "./domain"
 import {
   ApiReferenceGeneratedMetadata,
+  BlogGeneratedMetadata,
   DocumentationGeneratedMetadata,
   SearchError,
   StoreSearchResponse,
@@ -50,7 +51,9 @@ export class Search extends Context.Service<Search>()("app/Search", {
       return cleaned.substring(0, maxLength).trim() + "..."
     }
 
-    function documentationSection(generated: typeof DocumentationGeneratedMetadata.Type) {
+    function markdownSection(
+      generated: typeof DocumentationGeneratedMetadata.Type | typeof BlogGeneratedMetadata.Type,
+    ) {
       const firstHeading = generated.chunk_headings[0]
       const endLine = generated.start_line + generated.num_lines
       const chunkSection =
@@ -106,10 +109,44 @@ export class Search extends Context.Service<Search>()("app/Search", {
           return
         }
 
+        if (chunk.metadata.content_source === "blog") {
+          const generated = chunk.generated_metadata
+          if (!Schema.is(BlogGeneratedMetadata)(generated)) return
+          const href = generated.search.page_href
+          if (!grouped.has(href)) {
+            grouped.set(href, {
+              kind: "blog",
+              id: href,
+              title: generated.search.page_title,
+              description: generated.search.description,
+              href,
+              publishedAt: generated.search.published_at,
+              authors: [...generated.search.authors],
+              tags: [...generated.search.tags],
+              chunks: [],
+            })
+          }
+
+          const result = grouped.get(href)
+          if (result === undefined || result.kind !== "blog") return
+          const section = markdownSection(generated)
+          if (section === undefined || section.anchor.length === 0) return
+          const sectionHref = `${href}#${section.anchor}`
+          if (result.chunks.some((match) => match.href === sectionHref)) return
+          result.chunks.push({
+            id: `${chunk.file_id}-${chunk.chunk_index}`,
+            href: sectionHref,
+            title: section.title,
+            snippet: section.excerpt || extractSnippet(chunk.text),
+            score: chunk.score,
+          })
+          return
+        }
+
         if (chunk.metadata.content_source !== "documentation") return
         const generated = chunk.generated_metadata
         if (!Schema.is(DocumentationGeneratedMetadata)(generated)) return
-        const section = documentationSection(generated)
+        const section = markdownSection(generated)
         if (section === undefined) return
         const parent =
           generated.search.sections.find(

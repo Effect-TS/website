@@ -24,6 +24,7 @@ import { Help } from "effect/unstable/cli/GlobalFlag"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { ApiReference } from "../../src/features/api-reference/ApiReference.ts"
 import { loadApiReferenceDataset } from "../../src/features/api-reference/dataset.ts"
+import * as Blog from "./blog.ts"
 import * as Documentation from "./documentation.ts"
 
 type MixedbreadError = FailedToDeleteError | FailedToIndexError | InvalidStoreError | UnknownError
@@ -87,6 +88,14 @@ const MAX_MIXEDBREAD_TEXT_LENGTH = 65_536
 const MAX_API_CHUNKS_PER_FILE = 250
 const UPLOAD_CONCURRENCY = 100
 const FILE_UPLOAD_ATTEMPTS = 3
+const BLOG_CONTENT_PATTERNS = [
+  "cause-and-effect/*.mdx",
+  "this-week-in-effect/*/index.mdx",
+  "releases/effect/*.mdx",
+  "releases/schema/*.mdx",
+  "releases/*.mdx",
+  "*.mdx",
+] as const
 
 interface PreviewSyncOptions {
   readonly kind: "preview"
@@ -140,11 +149,17 @@ class Mixedbread extends Context.Service<
     const contentDir = yield* Config.string("CONTENT_DIRECTORY").pipe(
       Config.withDefault("src/content/docs"),
     )
+    const blogContentDir = yield* Config.string("BLOG_CONTENT_DIRECTORY").pipe(
+      Config.withDefault("src/content/blog"),
+    )
     const apiReferenceDir = yield* Config.string("API_REFERENCE_DIRECTORY").pipe(
       Config.withDefault(".data/api-reference"),
     )
     const documentationStageDir = yield* Config.string("DOCUMENTATION_STAGE_DIRECTORY").pipe(
       Config.withDefault(".data/mixedbread/documentation"),
+    )
+    const blogStageDir = yield* Config.string("BLOG_STAGE_DIRECTORY").pipe(
+      Config.withDefault(".data/mixedbread/blog"),
     )
     const version = yield* Config.number("MXBAI_STORE_VERSION").pipe(Config.withDefault(2))
 
@@ -211,6 +226,50 @@ class Mixedbread extends Context.Service<
       yield* Effect.log(`Staged ${count} documentation files in ${documentationStageDir}`)
     })
 
+    const stageBlog = Effect.fn("Mixedbread.stageBlog")(function* () {
+      yield* fs
+        .remove(blogStageDir, { recursive: true, force: true })
+        .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
+      const nestedFilePaths = yield* Effect.forEach(
+        BLOG_CONTENT_PATTERNS,
+        (pattern) =>
+          fs
+            .glob(`${blogContentDir}/${pattern}`)
+            .pipe(Effect.mapError((cause) => new UnknownError({ cause }))),
+        { concurrency: "unbounded" },
+      )
+      const filePaths = [...new Set(nestedFilePaths.flat())]
+      const staged = yield* Effect.forEach(
+        filePaths,
+        Effect.fnUntraced(function* (filePath) {
+          const source = yield* fs
+            .readFileString(filePath)
+            .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
+          const relativePath = path.relative(blogContentDir, filePath)
+          const post = yield* Effect.try({
+            try: () => Blog.stageBlogPost(source, relativePath),
+            catch: (cause) => new UnknownError({ cause }),
+          })
+          if (post === undefined) return false
+
+          const destination = path.join(blogStageDir, relativePath)
+          yield* fs
+            .makeDirectory(path.dirname(destination), { recursive: true })
+            .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
+          yield* fs
+            .writeFileString(destination, post.source)
+            .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
+          return true
+        }),
+        { concurrency: "unbounded" },
+      )
+      const count = staged.filter(Boolean).length
+      if (count === 0) {
+        return yield* new UnknownError({ cause: new Error("No blog posts to index") })
+      }
+      yield* Effect.log(`Staged ${count} blog posts in ${blogStageDir}`)
+    })
+
     const syncDocumentation = Effect.fn("Mixedbread.syncDocumentation")(function* (
       storeId: string,
       options: SyncOptions,
@@ -250,6 +309,50 @@ class Mixedbread extends Context.Service<
       if (exitCode !== 0) {
         return yield* new FailedToIndexError({
           externalId: documentationStageDir,
+          cause: new Error(`Mixedbread CLI exited with code ${exitCode}`),
+        })
+      }
+    })
+
+    const syncBlog = Effect.fn("Mixedbread.syncBlog")(function* (
+      storeId: string,
+      options: SyncOptions,
+    ) {
+      const metadata = JSON.stringify({
+        content_source: "blog",
+        version,
+        ...(options.kind === "preview" ? { pull_request: options.pullRequest } : {}),
+      })
+      const command = ChildProcess.make(
+        "pnpm",
+        [
+          "exec",
+          "mxbai",
+          "store",
+          "sync",
+          storeId,
+          `${blogStageDir}/**/*.mdx`,
+          "--yes",
+          "--strategy",
+          "fast",
+          "--max-chunk-size",
+          "500",
+          "--metadata",
+          metadata,
+        ],
+        {
+          env: { MXBAI_API_KEY: Redacted.value(apiKey) },
+          extendEnv: true,
+          stdout: "inherit",
+          stderr: "inherit",
+        },
+      )
+      const exitCode = yield* childProcesses
+        .exitCode(command)
+        .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
+      if (exitCode !== 0) {
+        return yield* new FailedToIndexError({
+          externalId: blogStageDir,
           cause: new Error(`Mixedbread CLI exited with code ${exitCode}`),
         })
       }
@@ -475,6 +578,14 @@ class Mixedbread extends Context.Service<
       yield* deleteLegacyDocumentation(storeId)
     })
 
+    const syncBlogStore = Effect.fn("Mixedbread.syncBlogStore")(function* (
+      storeId: string,
+      options: SyncOptions,
+    ) {
+      yield* stageBlog()
+      yield* syncBlog(storeId, options)
+    })
+
     const syncApiReference = Effect.fn("Mixedbread.syncApiReference")(function* (
       store: MixedbreadClient.Store,
       options: SyncOptions,
@@ -649,7 +760,11 @@ class Mixedbread extends Context.Service<
       if (options.kind === "preview") yield* validateStore(store, options.pullRequest)
 
       yield* Effect.all(
-        [syncDocumentationStore(store.id, options), syncApiReference(store, options)],
+        [
+          syncDocumentationStore(store.id, options),
+          syncBlogStore(store.id, options),
+          syncApiReference(store, options),
+        ],
         { concurrency: "unbounded", discard: true },
       )
 

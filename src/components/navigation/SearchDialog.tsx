@@ -15,6 +15,7 @@ import {
   FileText,
   History,
   LoaderCircle,
+  Newspaper,
   Search,
   SearchX,
   X,
@@ -33,6 +34,7 @@ import { NAVIGATION_EVENTS } from "@/lib/navigation"
 import {
   SearchResult,
   type ApiReferenceSearchResult,
+  type BlogSearchResult,
   type DocumentationSearchResult,
 } from "@/services/search/domain"
 import MixedbreadLogo from "./MixedbreadLogo.svg?react"
@@ -119,8 +121,9 @@ const SEARCH_RESULT_GROUPS: ReadonlyArray<{
   readonly value: SearchResultGroup
   readonly label: string
 }> = [
-  { value: "api-reference", label: "api" },
   { value: "documentation", label: "docs" },
+  { value: "blog", label: "blog" },
+  { value: "api-reference", label: "api" },
 ]
 const MAX_GROUP_RESULTS = 5
 
@@ -202,7 +205,9 @@ const versionResultsAtom = Atom.make((get) => {
 
   return get(allSearchResultsAtom).pipe(
     AsyncResult.map((results) =>
-      results.filter((result) => result.version.toLowerCase() === version),
+      results.filter(
+        (result) => result.kind === "blog" || result.version.toLowerCase() === version,
+      ),
     ),
     AsyncResult.getOrElse<Array<SearchResult>>(() => []),
   )
@@ -392,8 +397,8 @@ function SearchInput() {
         type="search"
         data-search-dialog-input
         className="min-w-0 flex-1 rounded-xs bg-transparent px-1 text-base text-zinc-900 outline-none placeholder:text-zinc-500 dark:text-white dark:placeholder:text-zinc-400"
-        placeholder="Search documentation…"
-        aria-label="Search documentation"
+        placeholder="Search Effect…"
+        aria-label="Search Effect"
         aria-describedby="search-instructions"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
@@ -448,12 +453,9 @@ function SearchVersionMenu() {
 }
 
 function SearchGroupFilters() {
-  const allSearchResults = useAtomValue(allSearchResultsAtom)
   const versionResults = useAtomValue(versionResultsAtom)
   const [selectedGroups, setSelectedGroups] = useAtom(selectedGroupsAtom)
   const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
-
-  if (!AsyncResult.isSuccess(allSearchResults)) return null
 
   return (
     <div className="border-t border-zinc-200 px-4 py-2 dark:border-zinc-800">
@@ -667,7 +669,7 @@ function SearchResultsDetail({
       <Button
         type="button"
         variant="ghost"
-        className="flex items-center gap-1 font-mono text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+        className="mb-2 flex h-4 items-center gap-1 p-0 font-mono text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
         onClick={onBack}
       >
         <ChevronLeft className="size-3.5" />
@@ -689,6 +691,7 @@ function SearchResultsOverview({
 }) {
   const results = useAtomValue(searchResultsAtom)
   const apiReferenceResults = results.filter((result) => result.kind === "api-reference")
+  const blogResults = results.filter((result) => result.kind === "blog")
   const documentationResults = results.filter((result) => result.kind === "documentation")
 
   if (results.length === 0) return <SearchEmptyState />
@@ -704,6 +707,11 @@ function SearchResultsOverview({
         title="API reference"
         results={apiReferenceResults}
         onViewAll={() => onViewSection("api-reference")}
+      />
+      <SearchResultsSection
+        title="Blog"
+        results={blogResults}
+        onViewAll={() => onViewSection("blog")}
       />
       <AlternateVersionResults />
     </div>
@@ -722,6 +730,7 @@ function SearchEmptyState() {
   const alternateVersion: SearchVersion = version === "v4" ? "v3" : "v4"
   const alternateVersionResultCount = allResults.filter(
     (result) =>
+      result.kind !== "blog" &&
       result.version.toLowerCase() === alternateVersion &&
       (selectedGroups.length === 0 || selectedGroups.includes(result.kind)),
   ).length
@@ -775,6 +784,7 @@ function AlternateVersionResults() {
   const allResults = AsyncResult.getOrElse(allSearchResults, (): Array<SearchResult> => [])
   const v3ResultCount = allResults.filter(
     (result) =>
+      result.kind !== "blog" &&
       result.version.toLowerCase() === "v3" &&
       (selectedGroups.length === 0 || selectedGroups.includes(result.kind)),
   ).length
@@ -846,7 +856,53 @@ function SearchResultItem({ result }: { readonly result: SearchResult }) {
     case "documentation": {
       return <DocumentationItem result={result} />
     }
+    case "blog": {
+      return <BlogItem result={result} />
+    }
   }
+}
+
+function BlogItem({ result }: { readonly result: BlogSearchResult }) {
+  return (
+    <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
+      <a
+        href={result.href}
+        data-search-result-link
+        className="group block cursor-pointer rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
+      >
+        <p className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 px-2 py-0.5 font-mono text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+            <Newspaper className="size-3" />
+            <span>Blog</span>
+          </span>
+          <time className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
+            {result.publishedAt}
+          </time>
+        </p>
+        <p className="mt-2 text-base font-semibold text-zinc-900 dark:text-white">{result.title}</p>
+        <p className="mt-1 line-clamp-2 text-sm leading-snug text-zinc-600 dark:text-zinc-400">
+          {result.description}
+        </p>
+      </a>
+      {result.chunks.length > 0 ? (
+        <div className="mx-4 mb-2 border-l border-zinc-200 pl-3 dark:border-zinc-800">
+          {result.chunks.map((chunk) => (
+            <a
+              key={chunk.id}
+              href={chunk.href}
+              data-search-result-link
+              className="block cursor-pointer rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
+            >
+              <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{chunk.title}</p>
+              <p className="mt-0.5 line-clamp-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                {chunk.snippet}
+              </p>
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </li>
+  )
 }
 
 function ApiReferenceItem({ result }: { readonly result: ApiReferenceSearchResult }) {

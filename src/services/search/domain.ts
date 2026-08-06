@@ -22,7 +22,13 @@ export const ApiReferenceMetadata = Schema.Struct({
   package_slug: Schema.String,
 })
 
-export const Metadata = Schema.Union([DocumentationMetadata, ApiReferenceMetadata])
+export const BlogMetadata = Schema.Struct({
+  ...CommonMetadata,
+  content_source: Schema.Literal("blog"),
+  file_path: Schema.String,
+})
+
+export const Metadata = Schema.Union([DocumentationMetadata, ApiReferenceMetadata, BlogMetadata])
 
 export type Metadata = typeof Metadata.Type
 
@@ -60,6 +66,27 @@ export const DocumentationGeneratedMetadata = Schema.Struct({
   search: DocumentationSearchMetadata,
 })
 
+export const BlogSearchMetadata = Schema.Struct({
+  schema_version: Schema.Literal(1),
+  content_source: Schema.Literal("blog"),
+  page_href: Schema.String,
+  page_title: Schema.String,
+  description: Schema.String,
+  published_at: Schema.String,
+  authors: Schema.Array(Schema.String),
+  tags: Schema.Array(Schema.String),
+  sections: Schema.Array(Schema.fromJsonString(DocumentationSearchSection)),
+})
+
+export const BlogGeneratedMetadata = Schema.Struct({
+  type: Schema.Literal("markdown"),
+  start_line: Schema.Int,
+  num_lines: Schema.Int,
+  chunk_headings: Schema.Array(HeadingInfo),
+  heading_context: Schema.Array(HeadingInfo),
+  search: BlogSearchMetadata,
+})
+
 export const ApiReferenceGeneratedMetadata = Schema.Struct({
   type: Schema.Literal("text"),
   declaration_anchor: Schema.String,
@@ -74,6 +101,7 @@ export const ApiReferenceGeneratedMetadata = Schema.Struct({
 export const GeneratedMetadata = Schema.Union([
   ApiReferenceGeneratedMetadata,
   DocumentationGeneratedMetadata,
+  BlogGeneratedMetadata,
   Schema.Record(Schema.String, Schema.Unknown),
 ])
 
@@ -138,7 +166,24 @@ export const ApiReferenceSearchResult = Schema.Struct({
 })
 export type ApiReferenceSearchResult = typeof ApiReferenceSearchResult.Type
 
-export const SearchResult = Schema.Union([DocumentationSearchResult, ApiReferenceSearchResult])
+export const BlogSearchResult = Schema.Struct({
+  kind: Schema.Literal("blog"),
+  id: Schema.String,
+  title: Schema.String,
+  description: Schema.String,
+  href: Schema.String,
+  publishedAt: Schema.String,
+  authors: Schema.Array(Schema.String),
+  tags: Schema.Array(Schema.String),
+  chunks: Schema.Array(SearchResultChunk),
+})
+export type BlogSearchResult = typeof BlogSearchResult.Type
+
+export const SearchResult = Schema.Union([
+  DocumentationSearchResult,
+  ApiReferenceSearchResult,
+  BlogSearchResult,
+])
 export type SearchResult = typeof SearchResult.Type
 
 export class SearchError extends Schema.TaggedErrorClass<SearchError>()(

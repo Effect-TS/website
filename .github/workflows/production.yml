@@ -59,14 +59,14 @@ jobs:
       - name: Patch trailing-slash redirect into build output
         run: node scripts/patch-vercel-trailing-slash.mjs
 
-      - name: Synchronize Mixedbread production store
-        run: pnpm mixedbread:index sync --sha "${{ github.sha }}"
-        env:
-          MXBAI_API_KEY: ${{ secrets.MXBAI_API_KEY }}
-          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
-
       - name: Deploy Project Artifacts to Vercel
         run: pnpm exec vercel deploy --prebuilt --archive=tgz --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Synchronize Mixedbread production store
+        run: pnpm mixedbread:index sync --sha "${{ github.sha }}"
+        env:
+          MXBAI_API_KEY: ${{ secrets.MXBAI_API_KEY }}
+          MXBAI_VECTOR_STORE_ID: ${{ secrets.MXBAI_VECTOR_STORE_ID }}
