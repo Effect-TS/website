@@ -16,20 +16,23 @@ The `Redacted.make` function creates a `Redacted<A>` instance from a given value
 
 Using `Redacted.make` helps prevent sensitive information, such as API keys, from being accidentally exposed in logs or error messages.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="make-1"
 import { Redacted, Effect } from "effect"
 
 // Create a redacted API key
 const API_KEY = Redacted.make("1234567890")
 
 console.log(API_KEY)
-// Output: {}
+// Output: <redacted>
 
 console.log(String(API_KEY))
 // Output: <redacted>
 
 Effect.runSync(Effect.log(API_KEY))
-// Output: timestamp=... level=INFO fiber=#0 message="\"<redacted>\""
+/*
+Output:
+[...] INFO (#...): <redacted>
+*/
 ```
 
 ## value
@@ -38,7 +41,7 @@ The `Redacted.value` function retrieves the original value from a `Redacted` ins
 
 **Example** (Accessing the Underlying Sensitive Value)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="value-1"
 import { Redacted } from "effect"
 
 const API_KEY = Redacted.make("1234567890")
@@ -50,7 +53,7 @@ console.log(Redacted.value(API_KEY))
 
 ## unsafeWipe
 
-The `Redacted.unsafeWipe` function erases the underlying value of a `Redacted` instance, making it inaccessible. This helps ensure that sensitive data does not remain in memory longer than needed.
+The `Redacted.wipeUnsafe` function erases the underlying value of a `Redacted` instance, making it inaccessible. This helps ensure that sensitive data does not remain in memory longer than needed.
 
 **Example** (Wiping Sensitive Data from Memory)
 
@@ -62,7 +65,7 @@ const API_KEY = Redacted.make("1234567890")
 console.log(Redacted.value(API_KEY))
 // Output: "1234567890"
 
-Redacted.unsafeWipe(API_KEY)
+Redacted.wipeUnsafe(API_KEY)
 
 console.log(Redacted.value(API_KEY))
 /*
@@ -73,18 +76,18 @@ Error: Unable to get redacted value
 
 ## getEquivalence
 
-The `Redacted.getEquivalence` function generates an [Equivalence](/docs/behaviour/equivalence/) for `Redacted<A>` values using an Equivalence for the underlying values of type `A`. This allows you to compare `Redacted` values securely without revealing their content.
+The `Redacted.makeEquivalence` function generates an [Equivalence](/docs/behaviour/equivalence/) for `Redacted<A>` values using an Equivalence for the underlying values of type `A`. This allows you to compare `Redacted` values securely without revealing their content.
 
 **Example** (Comparing Redacted Values)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="getequivalence-1"
 import { Redacted, Equivalence } from "effect"
 
 const API_KEY1 = Redacted.make("1234567890")
 const API_KEY2 = Redacted.make("1-34567890")
 const API_KEY3 = Redacted.make("1234567890")
 
-const equivalence = Redacted.getEquivalence(Equivalence.string)
+const equivalence = Redacted.makeEquivalence(Equivalence.String)
 
 console.log(equivalence(API_KEY1, API_KEY2))
 // Output: false
