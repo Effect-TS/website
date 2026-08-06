@@ -21,7 +21,7 @@ Executes an effect synchronously, running it immediately and returning the resul
 
 **Example** (Synchronous Logging)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="synchronous-logging-1"
 import { Effect } from "effect"
 
 const program = Effect.sync(() => {
@@ -51,7 +51,7 @@ try {
 }
 /*
 Output:
-(FiberFailure) Error: my error
+my error
 */
 
 try {
@@ -62,7 +62,12 @@ try {
 }
 /*
 Output:
-(FiberFailure) AsyncFiberException: Fiber #0 cannot be resolved synchronously. This is caused by using runSync on an effect that performs async work
+{
+  message: 'An asynchronous Effect was executed with Effect.runSync',
+  fiber: FiberImpl { ... },
+  _tag: 'AsyncFiberError',
+  '~effect/Cause/AsyncFiberError': '~effect/Cause/AsyncFiberError'
+}
 */
 ```
 
@@ -81,7 +86,7 @@ The `Exit` type represents the result of the effect:
 
 **Example** (Handling Results as Exit)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-results-as-exit-1"
 import { Effect } from "effect"
 
 console.log(Effect.runSyncExit(Effect.succeed(1)))
@@ -102,8 +107,7 @@ Output:
   _tag: "Failure",
   cause: {
     _id: "Cause",
-    _tag: "Fail",
-    failure: "my error"
+    failures: [ { _tag: "Fail", error: "my error" } ]
   }
 }
 */
@@ -126,12 +130,17 @@ Output:
   _tag: 'Failure',
   cause: {
     _id: 'Cause',
-    _tag: 'Die',
-    defect: [Fiber #0 cannot be resolved synchronously. This is caused by using runSync on an effect that performs async work] {
-      fiber: [FiberRuntime],
-      _tag: 'AsyncFiberException',
-      name: 'AsyncFiberException'
-    }
+    failures: [
+      {
+        _tag: 'Die',
+        defect: {
+          message: 'An asynchronous Effect was executed with Effect.runSync',
+          fiber: FiberImpl { ... },
+          _tag: 'AsyncFiberError',
+          '~effect/Cause/AsyncFiberError': '~effect/Cause/AsyncFiberError'
+        }
+      }
+    ]
   }
 }
 */
@@ -147,7 +156,7 @@ promise-based code.
 
 **Example** (Running a Successful Effect as a Promise)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="running-a-successful-effect-as-a-promise-1"
 import { Effect } from "effect"
 
 Effect.runPromise(Effect.succeed(1)).then(console.log)
@@ -159,13 +168,13 @@ effect fails, the promise will reject with an error.
 
 **Example** (Handling a Failing Effect as a Rejected Promise)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-a-failing-effect-as-a-rejected-promise-1"
 import { Effect } from "effect"
 
 Effect.runPromise(Effect.fail("my error")).catch(console.error)
 /*
 Output:
-(FiberFailure) Error: my error
+my error
 */
 ```
 
@@ -185,7 +194,7 @@ The `Exit` type represents the result of the effect:
 
 **Example** (Handling Results as Exit)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-results-as-exit-2"
 import { Effect } from "effect"
 
 Effect.runPromiseExit(Effect.succeed(1)).then(console.log)
@@ -206,8 +215,7 @@ Output:
   _tag: "Failure",
   cause: {
     _id: "Cause",
-    _tag: "Fail",
-    failure: "my error"
+    failures: [ { _tag: "Fail", error: "my error" } ]
   }
 }
 */
