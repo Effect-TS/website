@@ -89,8 +89,8 @@ First let's define a simple interaction with a large language model (LLM):
 
 **Example** (Using the `LanguageModel` Service to Generate a Dad Joke)
 
-```ts twoslash
-import { LanguageModel } from "@effect/ai"
+```ts twoslash import.meta.vitest name="define-an-interaction-with-a-language-model-1"
+import { LanguageModel } from "effect/unstable/ai"
 import { Effect } from "effect"
 
 // Using `LanguageModel` will add it to your program's requirements
@@ -123,7 +123,7 @@ Next, we need to select which model provider we want to use:
 
 ```ts twoslash collapse={5-11}
 import { OpenAiLanguageModel } from "@effect/ai-openai"
-import { LanguageModel } from "@effect/ai"
+import { LanguageModel } from "effect/unstable/ai"
 import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function* () {
@@ -136,15 +136,9 @@ const generateDadJoke = Effect.gen(function* () {
 
 // Create a `Model` which provides a concrete implementation of
 // `LanguageModel` and requires an `OpenAiClient`
-//
-//      ┌─── Model<"openai", LanguageModel | ProviderName, OpenAiClient>
-//      ▼
 const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
 // Provide the `Model` to the program
-//
-//     ┌─── Effect<GenerateTextResponse<{}>, AiError, OpenAiClient>
-//     ▼
 const main = generateDadJoke.pipe(Effect.provide(Gpt4o))
 ```
 
@@ -175,8 +169,6 @@ To create a `Model`, you can use the model-specific factory from one of Effect's
 ```ts showLineNumbers=false
 import { OpenAiLanguageModel } from "@effect/ai-openai"
 
-//      ┌─── Model<"openai", LanguageModel | ProviderName, OpenAiClient>
-//      ▼
 const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 ```
 
@@ -192,14 +184,10 @@ Once you've created a `Model`, you can directly `Effect.provide` it to your Effe
 
 ```ts
 import { OpenAiLanguageModel } from "@effect/ai-openai"
-import { LanguageModel } from "@effect/ai"
+import { LanguageModel } from "effect/unstable/ai"
 
-//      ┌─── Model<"openai", LanguageModel | ProviderName, OpenAiClient>
-//      ▼
 const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
-//       ┌─── Effect<GenerateTextResponse<{}>, AiError, OpenAiClient>
-//       ▼
 const program = LanguageModel.generateText({
   prompt: "Generate a dad joke",
 }).pipe(Effect.provide(Gpt4o))
@@ -217,7 +205,7 @@ You can provide the same `Model` to as many programs as you like.
 
 ```ts twoslash {18-20} collapse={5-11}
 import { OpenAiLanguageModel } from "@effect/ai-openai"
-import { LanguageModel } from "@effect/ai"
+import { LanguageModel } from "effect/unstable/ai"
 import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function* () {
@@ -250,7 +238,7 @@ For example, if we know Anthropic's Claude generates some really great dad jokes
 ```ts twoslash {24} collapse={6-12}
 import { AnthropicLanguageModel } from "@effect/ai-anthropic"
 import { OpenAiLanguageModel } from "@effect/ai-openai"
-import { LanguageModel } from "@effect/ai"
+import { LanguageModel } from "effect/unstable/ai"
 import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function* () {
@@ -264,8 +252,6 @@ const generateDadJoke = Effect.gen(function* () {
 const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 const Claude37 = AnthropicLanguageModel.model("claude-3-7-sonnet-latest")
 
-//      ┌─── Effect<void, AiError, AnthropicClient | OpenAiClient>
-//      ▼
 const main = Effect.gen(function* () {
   const res1 = yield* generateDadJoke
   const res2 = yield* generateDadJoke
@@ -283,23 +269,21 @@ For example, in the code below the `main` program is only dependent upon the `Da
 
 **Example** (Abstracting LLM Interactions into a Service)
 
-```ts twoslash collapse={18-24}
+```ts twoslash collapse={16-22}
 import { AnthropicLanguageModel } from "@effect/ai-anthropic"
 import { OpenAiLanguageModel } from "@effect/ai-openai"
-import { LanguageModel } from "@effect/ai"
-import { Effect } from "effect"
+import { LanguageModel } from "effect/unstable/ai"
+import { Context, Effect, Layer } from "effect"
 
 const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 const Claude37 = AnthropicLanguageModel.model("claude-3-7-sonnet-latest")
 
-class DadJokes extends Effect.Service<DadJokes>()("app/DadJokes", {
-  effect: Effect.gen(function* () {
-    // Yielding the model will return a layer with no requirements
-    //
-    //     ┌─── Layer<LanguageModel | ProviderName>
-    //     ▼
-    const gpt = yield* Gpt4o
-    const claude = yield* Claude37
+class DadJokes extends Context.Service<DadJokes>()("app/DadJokes", {
+  make: Effect.gen(function* () {
+    // Capturing the model's requirements returns a layer with no
+    // remaining requirements
+    const gpt = yield* Gpt4o.captureRequirements
+    const claude = yield* Claude37.captureRequirements
 
     const generateDadJoke = Effect.gen(function* () {
       const response = yield* LanguageModel.generateText({
@@ -314,13 +298,12 @@ class DadJokes extends Effect.Service<DadJokes>()("app/DadJokes", {
       generateBetterDadJoke: Effect.provide(generateDadJoke, claude),
     }
   }),
-}) {}
+}) {
+  static readonly layer = Layer.effect(this, this.make)
+}
 
 // Programs which utilize the `DadJokes` service have no knowledge of
 // any AI requirements
-//
-//     ┌─── Effect<void, AiError, DadJokes>
-//     ▼
 const main = Effect.gen(function* () {
   const dadJokes = yield* DadJokes
   const res1 = yield* dadJokes.generateDadJoke
@@ -328,10 +311,7 @@ const main = Effect.gen(function* () {
 })
 
 // The AI requirements are abstracted away into `Layer` composition
-//
-//         ┌─── Layer<DadJokes, never, AnthropicClient | OpenAiClient>
-//         ▼
-DadJokes.Default
+DadJokes.layer
 ```
 
 ## Create a Provider Client
@@ -342,7 +322,7 @@ Let's take another look at our program from earlier:
 
 ```ts twoslash "OpenAiClient" collapse={5-11}
 import { OpenAiLanguageModel } from "@effect/ai-openai"
-import { LanguageModel } from "@effect/ai"
+import { LanguageModel } from "effect/unstable/ai"
 import { Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function* () {
@@ -355,8 +335,6 @@ const generateDadJoke = Effect.gen(function* () {
 
 const Gpt4o = OpenAiLanguageModel.model("gpt-4o")
 
-//     ┌─── Effect<GenerateTextResponse<{}>, AiError, OpenAiClient>
-//     ▼
 const main = generateDadJoke.pipe(Effect.provide(Gpt4o))
 ```
 
@@ -366,9 +344,9 @@ Each of our provider integration packages exports a client module that can be us
 
 **Example** (Creating a Client Layer for a Model Provider)
 
-```ts twoslash /{ (OpenAiClient),/ {24-26} collapse={5-17}
+```ts twoslash /{ (OpenAiClient),/ {21-23} collapse={5-17}
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
-import { LanguageModel } from "@effect/ai"
+import { LanguageModel } from "effect/unstable/ai"
 import { Config, Effect } from "effect"
 
 const generateDadJoke = Effect.gen(function* () {
@@ -385,9 +363,6 @@ const main = generateDadJoke.pipe(Effect.provide(Gpt4o))
 
 // Create a `Layer` which produces an `OpenAiClient` and requires
 // an `HttpClient`
-//
-//      ┌─── Layer<OpenAiClient, ConfigError, HttpClient>
-//      ▼
 const OpenAi = OpenAiClient.layerConfig({
   apiKey: Config.redacted("OPENAI_API_KEY"),
 })
@@ -399,9 +374,9 @@ The provider clients also have a dependency on an `HttpClient` implementation to
 
 For example, if we know we are going to run this code in NodeJS, we can utilize the `NodeHttpClient` module from `@effect/platform-node` to provide an `HttpClient` implementation:
 
-```ts twoslash /{ (NodeHttpClient) }|, (HttpClient)>|, (never)>/ {35} collapse={6-18}
+```ts twoslash /{ (NodeHttpClient) }/ {29} collapse={6-18}
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
-import { LanguageModel } from "@effect/ai"
+import { LanguageModel } from "effect/unstable/ai"
 import { NodeHttpClient } from "@effect/platform-node"
 import { Config, Effect, Layer } from "effect"
 
@@ -419,18 +394,12 @@ const main = generateDadJoke.pipe(Effect.provide(Gpt4o))
 
 // Create a `Layer` which produces an `OpenAiClient` and requires
 // an `HttpClient`
-//
-//      ┌─── Layer<OpenAiClient, ConfigError, HttpClient>
-//      ▼
 const OpenAi = OpenAiClient.layerConfig({
   apiKey: Config.redacted("OPENAI_API_KEY"),
 })
 
 // Provide a platform-specific implementation of `HttpClient` to our
 // OpenAi layer
-//
-//        ┌─── Layer<OpenAiClient, ConfigError, never>
-//        ▼
 const OpenAiWithHttp = Layer.provide(OpenAi, NodeHttpClient.layerUndici)
 ```
 
@@ -442,7 +411,7 @@ Our final program looks like the following:
 
 ```ts twoslash
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
-import { LanguageModel } from "@effect/ai"
+import { LanguageModel } from "effect/unstable/ai"
 import { NodeHttpClient } from "@effect/platform-node"
 import { Config, Effect, Layer } from "effect"
 
