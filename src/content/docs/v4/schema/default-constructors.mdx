@@ -28,7 +28,7 @@ If you need a safer alternative, consider using [Schema.validateEither](#error-h
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.NumberFromString.pipe(Schema.between(1, 10))
+const schema = Schema.NumberFromString.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
 
 // The constructor only accepts numbers
 console.log(schema.make(5))
@@ -99,10 +99,7 @@ Record schemas allow you to define key-value mappings where the keys and values 
 ```ts twoslash
 import { Schema } from "effect"
 
-const Record = Schema.Record({
-  key: Schema.String,
-  value: Schema.NonEmptyString,
-})
+const Record = Schema.Record(Schema.String, Schema.NonEmptyString)
 
 // Successful creation
 Record.make({ a: "a", b: "b" })
@@ -119,7 +116,7 @@ ParseError: { readonly [x: string]: NonEmptyString }
 */
 
 // Bypasses validation
-Record.make({ a: "a", b: "" }, { disableValidation: true })
+Record.make({ a: "a", b: "" }, { disableChecks: true })
 ```
 
 ## Filters
@@ -131,7 +128,7 @@ Filters allow you to define constraints on individual values.
 ```ts twoslash
 import { Schema } from "effect"
 
-const MyNumber = Schema.Number.pipe(Schema.between(1, 10))
+const MyNumber = Schema.Number.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
 
 // Successful creation
 const n = MyNumber.make(5)
@@ -146,7 +143,7 @@ ParseError: a number between 1 and 10
 */
 
 // Bypasses validation
-MyNumber.make(20, { disableValidation: true })
+MyNumber.make(20, { disableChecks: true })
 ```
 
 ## Branded Types
@@ -158,7 +155,10 @@ Branded schemas add metadata to a value to give it a more specific type, while s
 ```ts twoslash
 import { Schema } from "effect"
 
-const BrandedNumberSchema = Schema.Number.pipe(Schema.between(1, 10), Schema.brand("MyNumber"))
+const BrandedNumberSchema = Schema.Number.pipe(
+  Schema.check(Schema.isBetween({ minimum: 1, maximum: 10 })),
+  Schema.brand("MyNumber"),
+)
 
 // Successful creation
 const n = BrandedNumberSchema.make(5)
@@ -173,7 +173,7 @@ ParseError: a number between 1 and 10 & Brand<"MyNumber">
 */
 
 // Bypasses validation
-BrandedNumberSchema.make(20, { disableValidation: true })
+BrandedNumberSchema.make(20, { disableChecks: true })
 ```
 
 When using default constructors, it is helpful to understand the type of value they produce.
@@ -193,10 +193,10 @@ If you need a "safe" constructor that does not throw errors but instead returns 
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.NumberFromString.pipe(Schema.between(1, 10))
+const schema = Schema.NumberFromString.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
 
 // Create a safe constructor that validates an unknown input
-const safeMake = Schema.validateEither(schema)
+const safeMake = Schema.decodeResult(Schema.toType(schema))
 
 // Valid input returns a Right value
 console.log(safeMake(5))
@@ -239,7 +239,7 @@ When creating objects, you might want to assign default values to certain fields
 
 In this example, all fields are required when creating a new instance.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="setting-default-values-1"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -258,15 +258,12 @@ Output: { name: 'John', age: 30 }
 
 Here, the `age` field is optional because it has a default value of `0`.
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="setting-default-values-2"
+import { Effect, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
-  age: Schema.Number.pipe(
-    Schema.propertySignature,
-    Schema.withConstructorDefault(() => 0),
-  ),
+  age: Schema.Number.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
 })
 
 // The age field is optional and defaults to 0
@@ -290,14 +287,13 @@ Default values in schemas are shallow, meaning that defaults defined in nested s
 **Example** (Shallow Defaults in Nested Structs)
 
 ```ts twoslash
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 const Config = Schema.Struct({
   // Define a nested struct with a default value
   web: Schema.Struct({
     application_url: Schema.String.pipe(
-      Schema.propertySignature,
-      Schema.withConstructorDefault(() => "http://localhost"),
+      Schema.withConstructorDefault(Effect.succeed("http://localhost")),
     ),
     application_port: Schema.Number,
   }),
@@ -305,7 +301,6 @@ const Config = Schema.Struct({
 
 // This will cause a type error because `application_url`
 // is missing in the nested struct
-// @errors: 2741
 Config.make({ web: { application_port: 3000 } })
 ```
 
@@ -315,14 +310,13 @@ To work around this limitation, extract the constructor for the nested struct an
 
 **Example** (Using Nested Struct Constructors)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="nested-structs-and-shallow-defaults-1"
+import { Effect, Schema } from "effect"
 
 const Config = Schema.Struct({
   web: Schema.Struct({
     application_url: Schema.String.pipe(
-      Schema.propertySignature,
-      Schema.withConstructorDefault(() => "http://localhost"),
+      Schema.withConstructorDefault(Effect.succeed("http://localhost")),
     ),
     application_port: Schema.Number,
   }),
@@ -352,18 +346,14 @@ Defaults are lazily evaluated, meaning that a new instance of the default is gen
 
 In this example, the `timestamp` field generates a new value for each instance.
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="lazy-evaluation-of-defaults-1"
+import { Effect, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
-  age: Schema.Number.pipe(
-    Schema.propertySignature,
-    Schema.withConstructorDefault(() => 0),
-  ),
+  age: Schema.Number.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
   timestamp: Schema.Number.pipe(
-    Schema.propertySignature,
-    Schema.withConstructorDefault(() => new Date().getTime()),
+    Schema.withConstructorDefault(Effect.sync(() => new Date().getTime())),
   ),
 })
 
@@ -386,18 +376,14 @@ Default values are also "portable", meaning that if you reuse the same property 
 
 **Example** (Reusing Defaults in Another Schema)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="reusing-defaults-across-schemas-1"
+import { Effect, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
-  age: Schema.Number.pipe(
-    Schema.propertySignature,
-    Schema.withConstructorDefault(() => 0),
-  ),
+  age: Schema.Number.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
   timestamp: Schema.Number.pipe(
-    Schema.propertySignature,
-    Schema.withConstructorDefault(() => new Date().getTime()),
+    Schema.withConstructorDefault(Effect.sync(() => new Date().getTime())),
   ),
 })
 
@@ -419,18 +405,14 @@ Default values can also be applied when working with the `Class` API, ensuring c
 
 **Example** (Defaults in a Class)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="using-defaults-in-classes-1"
+import { Effect, Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   name: Schema.NonEmptyString,
-  age: Schema.Number.pipe(
-    Schema.propertySignature,
-    Schema.withConstructorDefault(() => 0),
-  ),
+  age: Schema.Number.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
   timestamp: Schema.Number.pipe(
-    Schema.propertySignature,
-    Schema.withConstructorDefault(() => new Date().getTime()),
+    Schema.withConstructorDefault(Effect.sync(() => new Date().getTime())),
   ),
 }) {}
 
