@@ -25,7 +25,7 @@ You can define a cron schedule by specifying numeric constraints for seconds, mi
 
 **Example** (Creating a Cron)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-a-cron-1"
 import { Cron, DateTime } from "effect"
 
 // Build a cron that triggers at 4:00 AM
@@ -37,7 +37,7 @@ const cron = Cron.make({
   days: [8, 9, 10, 11, 12, 13, 14], // Specific days of the month
   months: [], // No restrictions on the month
   weekdays: [], // No restrictions on the weekday
-  tz: DateTime.zoneUnsafeMakeNamed("Europe/Rome"), // Optional time zone
+  tz: DateTime.zoneMakeNamedUnsafe("Europe/Rome"), // Optional time zone
 })
 ```
 
@@ -58,8 +58,8 @@ The `parse(cronExpression, tz?)` function safely parses a cron string into a `Cr
 
 **Example** (Safely Parsing a Cron Expression)
 
-```ts twoslash
-import { Either, Cron } from "effect"
+```ts twoslash import.meta.vitest name="parse-1"
+import { Result, Cron } from "effect"
 
 // Define a cron expression for 4:00 AM
 // on the 8th to the 14th of every month
@@ -68,28 +68,28 @@ const expression = "0 0 4 8-14 * *"
 // Parse the cron expression
 const eitherCron = Cron.parse(expression)
 
-if (Either.isRight(eitherCron)) {
+if (Result.isSuccess(eitherCron)) {
   // Successfully parsed
-  console.log("Parsed cron:", eitherCron.right)
+  console.log("Parsed cron:", eitherCron.success)
 } else {
   // Parsing failed
-  console.error("Failed to parse cron:", eitherCron.left.message)
+  console.error("Failed to parse cron:", eitherCron.failure.message)
 }
 ```
 
 ### unsafeParse
 
-The `unsafeParse(cronExpression, tz?)` function works like [parse](#parse), but instead of returning an [Either](/docs/data-types/either/), it throws an exception if the input is invalid.
+The `parseUnsafe(cronExpression, tz?)` function works like [parse](#parse), but instead of returning an [Either](/docs/data-types/either/), it throws an exception if the input is invalid.
 
 **Example** (Parsing a Cron Expression)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="unsafe-parse-1"
 import { Cron } from "effect"
 
 // Parse a cron expression for 4:00 AM
 // on the 8th to the 14th of every month
 // Throws if the expression is invalid
-const cron = Cron.unsafeParse("0 0 4 8-14 * *")
+const cron = Cron.parseUnsafe("0 0 4 8-14 * *")
 ```
 
 ## Checking Dates with match
@@ -100,12 +100,12 @@ If the date meets the schedule's conditions, `match` returns `true`. Otherwise, 
 
 **Example** (Checking if a Date Matches a Cron Schedule)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="match-1"
 import { Cron } from "effect"
 
 // Suppose we have a cron that triggers at 4:00 AM
 // on the 8th to the 14th of each month
-const cron = Cron.unsafeParse("0 0 4 8-14 * *")
+const cron = Cron.parseUnsafe("0 0 4 8-14 * *")
 
 const checkDate = new Date("2025-01-08 04:00:00")
 
@@ -121,12 +121,12 @@ If `next` cannot find a matching date within a predefined number of iterations, 
 
 **Example** (Determining the Next Matching Date)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="next-1"
 import { Cron } from "effect"
 
 // Define a cron expression for 4:00 AM
 // on the 8th to the 14th of every month
-const cron = Cron.unsafeParse("0 0 4 8-14 * *", "UTC")
+const cron = Cron.parseUnsafe("0 0 4 8-14 * *", "UTC")
 
 // Specify the starting point for the search
 const after = new Date("2025-01-08")
@@ -144,12 +144,12 @@ To generate multiple future dates that match a cron schedule, you can use the `s
 
 **Example** (Generating Future Dates with an Iterator)
 
-```ts
+```ts import.meta.vitest name="iterating-over-future-dates-1"
 import { Cron } from "effect"
 
 // Define a cron expression for 4:00 AM
 // on the 8th to the 14th of every month
-const cron = Cron.unsafeParse("0 0 4 8-14 * *", "UTC")
+const cron = Cron.parseUnsafe("0 0 4 8-14 * *", "UTC")
 
 // Specify the starting date
 const start = new Date("2021-01-08")
@@ -176,40 +176,41 @@ The `Schedule.cron` function generates a [Schedule](/docs/scheduling/introductio
 
 **Example** (Creating a Schedule from a Cron)
 
-```ts twoslash collapse={12-40}
-import { Effect, Schedule, TestClock, Fiber, TestContext, Cron, Console } from "effect"
+```ts twoslash collapse={4-30} import.meta.vitest name="cron-1"
+import { Effect, Schedule, Fiber, Cron, Console, Duration } from "effect"
+import { TestClock } from "effect/testing"
 
 // A helper function to log output at each interval of the schedule
 const log = <A>(
   action: Effect.Effect<A>,
-  schedule: Schedule.Schedule<[number, number], void>,
-): void => {
+  schedule: Schedule.Schedule<Duration.Duration, unknown, Cron.CronParseError>,
+) => {
   let i = 0
 
-  Effect.gen(function* () {
-    const fiber: Fiber.RuntimeFiber<[[number, number], number]> = yield* Effect.gen(function* () {
+  return Effect.gen(function* () {
+    const fiber = yield* Effect.gen(function* () {
       yield* action
       i++
     }).pipe(
       Effect.repeat(
         schedule.pipe(
           // Limit the number of iterations for the example
-          Schedule.intersect(Schedule.recurs(10)),
-          Schedule.tapOutput(([Out]) =>
-            Console.log(i === 11 ? "..." : [new Date(Out[0]), new Date(Out[1])]),
+          Schedule.upTo({ times: 10 }),
+          Schedule.tap(({ now, output }) =>
+            Console.log(i === 11 ? "..." : new Date(now + Duration.toMillis(output))),
           ),
         ),
       ),
-      Effect.fork,
+      Effect.forkChild,
     )
     yield* TestClock.adjust(Infinity)
     yield* Fiber.join(fiber)
-  }).pipe(Effect.provide(TestContext.TestContext), Effect.runPromise)
+  }).pipe(Effect.provide(TestClock.layer()), Effect.runPromise)
 }
 
 // Build a cron that triggers at 4:00 AM
 // on the 8th to the 14th of each month
-const cron = Cron.unsafeParse("0 0 4 8-14 * *", "UTC")
+const cron = Cron.parseUnsafe("0 0 4 8-14 * *", "UTC")
 
 // Convert the Cron into a Schedule
 const schedule = Schedule.cron(cron)
@@ -218,19 +219,19 @@ const schedule = Schedule.cron(cron)
 const action = Effect.void
 
 // Log the schedule intervals
-log(action, schedule)
+await log(action, schedule)
 /*
 Output:
-[ 1970-01-08T04:00:00.000Z, 1970-01-08T04:00:01.000Z ]
-[ 1970-01-09T04:00:00.000Z, 1970-01-09T04:00:01.000Z ]
-[ 1970-01-10T04:00:00.000Z, 1970-01-10T04:00:01.000Z ]
-[ 1970-01-11T04:00:00.000Z, 1970-01-11T04:00:01.000Z ]
-[ 1970-01-12T04:00:00.000Z, 1970-01-12T04:00:01.000Z ]
-[ 1970-01-13T04:00:00.000Z, 1970-01-13T04:00:01.000Z ]
-[ 1970-01-14T04:00:00.000Z, 1970-01-14T04:00:01.000Z ]
-[ 1970-02-08T04:00:00.000Z, 1970-02-08T04:00:01.000Z ]
-[ 1970-02-09T04:00:00.000Z, 1970-02-09T04:00:01.000Z ]
-[ 1970-02-10T04:00:00.000Z, 1970-02-10T04:00:01.000Z ]
+1970-01-08T04:00:00.000Z
+1970-01-09T04:00:00.000Z
+1970-01-10T04:00:00.000Z
+1970-01-11T04:00:00.000Z
+1970-01-12T04:00:00.000Z
+1970-01-13T04:00:00.000Z
+1970-01-14T04:00:00.000Z
+1970-02-08T04:00:00.000Z
+1970-02-09T04:00:00.000Z
+1970-02-10T04:00:00.000Z
 ...
 */
 ```
