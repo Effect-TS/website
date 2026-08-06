@@ -15,7 +15,7 @@ Although not yet a native feature in JavaScript, there's an ongoing [tc39 propos
 
 **Example** (Handling Different Data Types with Pattern Matching)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-different-data-types-with-pattern-matching-1"
 import { Match } from "effect"
 
 // Simulated dynamic input that can be a string or a number
@@ -62,7 +62,7 @@ The `Match.type` constructor defines a `Matcher` that operates on a specific typ
 
 **Example** (Matching Numbers and Strings)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="matching-numbers-and-strings-1"
 import { Match } from "effect"
 
 // Create a matcher for values that are either strings or numbers
@@ -91,7 +91,7 @@ Instead of creating a matcher for a type, you can define one directly from a spe
 
 **Example** (Matching an Object by Property)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="matching-an-object-by-property-1"
 import { Match } from "effect"
 
 const input = { name: "John", age: 30 }
@@ -144,7 +144,7 @@ The `Match.when` function allows you to define conditions for matching values. I
 
 **Example** (Matching with Values and Predicates)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="matching-with-values-and-predicates-1"
 import { Match } from "effect"
 
 // Create a matcher for objects with an "age" property
@@ -173,7 +173,7 @@ The `Match.not` function allows you to exclude specific values while matching al
 
 **Example** (Ignoring a Specific Value)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="ignoring-a-specific-value-1"
 import { Match } from "effect"
 
 // Create a matcher for string or number values
@@ -197,7 +197,7 @@ The `Match.tag` function allows pattern matching based on the `_tag` field in a 
 
 **Example** (Matching a Discriminated Union by Tag)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="matching-a-discriminated-union-by-tag-1"
 import { Match } from "effect"
 
 type Event =
@@ -236,7 +236,7 @@ The `Match` module provides built-in predicates for common types, such as `Match
 
 **Example** (Using Built-in Predicates for Property Keys)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-built-in-predicates-for-property-keys-1"
 import { Match } from "effect"
 
 const matchPropertyKey = Match.type<PropertyKey>().pipe(
@@ -305,7 +305,7 @@ The `Match.orElse` method defines a fallback value to return when no other patte
 
 **Example** (Providing a Default Value When No Patterns Match)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="providing-a-default-value-when-no-patterns-match-1"
 import { Match } from "effect"
 
 // Create a matcher for string or number values
@@ -329,7 +329,7 @@ console.log(match("b"))
 
 **Example** (Extracting a User Role with Option)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="extracting-a-user-role-with-option-1"
 import { Match } from "effect"
 
 type User = { readonly role: "admin" | "editor" | "viewer" }
@@ -350,11 +350,11 @@ console.log(getRole({ role: "viewer" }))
 
 ### either
 
-The `Match.either` method wraps the result in an [Either](/docs/data-types/either/), providing a structured way to distinguish between matched and unmatched cases. If a match is found, it returns `Right(value)`, otherwise, it returns `Left(no match)`.
+The `Match.result` method wraps the result in an [Either](/docs/data-types/either/), providing a structured way to distinguish between matched and unmatched cases. If a match is found, it returns `Success(value)`, otherwise, it returns `Failure(no match)`.
 
 **Example** (Extracting a User Role with Either)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="extracting-a-user-role-with-either-1"
 import { Match } from "effect"
 
 type User = { readonly role: "admin" | "editor" | "viewer" }
@@ -363,12 +363,12 @@ type User = { readonly role: "admin" | "editor" | "viewer" }
 const getRole = Match.type<User>().pipe(
   Match.when({ role: "admin" }, () => "Has full access"),
   Match.when({ role: "editor" }, () => "Can edit content"),
-  Match.either, // Wrap the result in an Either
+  Match.result, // Wrap the result in a Result
 )
 
 console.log(getRole({ role: "admin" }))
-// Output: { _id: 'Either', _tag: 'Right', right: 'Has full access' }
+// Output: { _id: 'Result', _tag: 'Success', value: 'Has full access' }
 
 console.log(getRole({ role: "viewer" }))
-// Output: { _id: 'Either', _tag: 'Left', left: { role: 'viewer' } }
+// Output: { _id: 'Result', _tag: 'Failure', failure: { role: 'viewer' } }
 ```
