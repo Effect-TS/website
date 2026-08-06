@@ -23,7 +23,7 @@ You can intentionally create an effect with a specific cause using `Effect.failC
 
 **Example** (Defining Effects with Different Causes)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-causes-1"
 import { Effect, Cause } from "effect"
 
 // Define an effect that dies with an unexpected error
@@ -55,154 +55,112 @@ There are several causes for various errors, in this section, we will describe e
 
 ### Empty
 
-The `Empty` cause signifies the absence of any errors.
+The `Empty` cause signifies the absence of any errors, represented by an empty `reasons` array (`Cause.empty`).
 
 ### Fail
 
-The `Fail<E>` cause represents a failure due to an expected error of type `E`.
+The `Fail<E>` reason represents a failure due to an expected error of type `E`. A `Cause<E>` holding only this reason is created with `Cause.fail`.
 
 ### Die
 
-The `Die` cause indicates a failure resulting from a defect, which is an unexpected or unintended error.
+The `Die` reason indicates a failure resulting from a defect, which is an unexpected or unintended error. A `Cause` holding only this reason is created with `Cause.die`.
 
 ### Interrupt
 
-The `Interrupt` cause represents a failure due to `Fiber` interruption and contains the `FiberId` of the interrupted `Fiber`.
+The `Interrupt` reason represents a failure due to `Fiber` interruption and contains the numeric id (`number | undefined`) of the interrupted `Fiber`. A `Cause` holding only this reason is created with `Cause.interrupt`.
 
-### Sequential
+### Combining Causes
 
-The `Sequential` cause combines two causes that occurred one after the other.
+`Cause<E>` no longer stores a recursive tree, so there is no separate representation for causes that occurred one after another versus causes that occurred concurrently. Both cases are represented the same way: a flat `reasons` array. Use `Cause.combine` to merge two causes into one.
 
-For example, in an `Effect.ensuring` operation (analogous to `try-finally`), if both the `try` and `finally` sections fail, the two errors are represented in sequence by a `Sequential` cause.
+**Example** (Combining Multiple Failures into One Cause)
 
-**Example** (Capturing Sequential Failures with a `Sequential` Cause)
+```ts twoslash import.meta.vitest name="combining-causes-1"
+import { Cause } from "effect"
 
-```ts twoslash
-import { Effect, Cause } from "effect"
+const combined = Cause.combine(Cause.fail("Oh no!"), Cause.die("Boom!"))
 
-const program = Effect.failCause(Cause.fail("Oh no!")).pipe(
-  Effect.ensuring(Effect.failCause(Cause.die("Boom!"))),
-)
-
-Effect.runPromiseExit(program).then(console.log)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Sequential',
-    left: { _id: 'Cause', _tag: 'Fail', failure: 'Oh no!' },
-    right: { _id: 'Cause', _tag: 'Die', defect: 'Boom!' }
-  }
-}
-*/
-```
-
-### Parallel
-
-The `Parallel` cause combines two causes that occurred concurrently.
-
-In Effect programs, two operations may run in parallel, potentially leading to multiple failures. When both computations fail simultaneously, a `Parallel` cause represents the concurrent errors within the effect workflow.
-
-**Example** (Capturing Concurrent Failures with a `Parallel` Cause)
-
-```ts twoslash
-import { Effect, Cause } from "effect"
-
-const program = Effect.all(
-  [Effect.failCause(Cause.fail("Oh no!")), Effect.failCause(Cause.die("Boom!"))],
-  { concurrency: 2 },
-)
-
-Effect.runPromiseExit(program).then(console.log)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Parallel',
-    left: { _id: 'Cause', _tag: 'Fail', failure: 'Oh no!' },
-    right: { _id: 'Cause', _tag: 'Die', defect: 'Boom!' }
-  }
-}
-*/
+combined.reasons.map((reason) => reason._tag) // => ["Fail", "Die"]
 ```
 
 ## Retrieving the Cause of an Effect
 
-To retrieve the cause of a failed effect, use `Effect.cause`. This allows you to inspect or handle the exact reason behind the failure.
+To retrieve the cause of a failed effect, use `Effect.exit` and inspect the `cause` field of a `Failure`. This allows you to inspect or handle the exact reason behind the failure.
 
 **Example** (Retrieving and Inspecting a Failure Cause)
 
-```ts twoslash
-import { Effect } from "effect"
+```ts twoslash import.meta.vitest name="retrieving-the-cause-of-an-effect-1"
+import { Effect, Exit } from "effect"
 
 const program = Effect.gen(function* () {
-  const cause = yield* Effect.cause(Effect.fail("Oh no!"))
-  console.log(cause)
+  const exit = yield* Effect.exit(Effect.fail("Oh no!"))
+  if (Exit.isFailure(exit)) {
+    console.log(exit.cause)
+  }
 })
 
 Effect.runPromise(program)
 /*
 Output:
-{ _id: 'Cause', _tag: 'Fail', failure: 'Oh no!' }
+{ _id: 'Cause', failures: [ { _tag: 'Fail', error: 'Oh no!' } ] }
 */
 ```
 
 ## Guards
 
-To determine the specific type of a `Cause`, use the guards provided in the Cause module:
+To determine what happened inside a `Cause`, the Cause module provides two kinds of guards: cause-level predicates that check whether a `Cause` contains a certain kind of reason, and reason-level guards that narrow an individual entry of `cause.reasons`.
 
-- `Cause.isEmpty`: Checks if the cause is empty, indicating no error.
-- `Cause.isFailType`: Identifies causes that represent an expected failure.
-- `Cause.isDie`: Identifies causes that represent an unexpected defect.
-- `Cause.isInterruptType`: Identifies causes related to fiber interruptions.
-- `Cause.isSequentialType`: Checks if the cause consists of sequential errors.
-- `Cause.isParallelType`: Checks if the cause contains parallel errors.
+- `Cause.hasFails`: Checks if the cause contains at least one expected failure.
+- `Cause.hasDies`: Checks if the cause contains at least one unexpected defect.
+- `Cause.hasInterrupts`: Checks if the cause contains at least one fiber interruption.
+- `Cause.hasInterruptsOnly`: Checks if every reason in the cause is an interruption.
+- `Cause.isFailReason`: Narrows a `Reason` to `Fail`.
+- `Cause.isDieReason`: Narrows a `Reason` to `Die`.
+- `Cause.isInterruptReason`: Narrows a `Reason` to `Interrupt`.
 
-**Example** (Using Guards to Identify Cause Types)
+An empty cause (no errors) is checked with `cause.reasons.length === 0`; there is no dedicated `isEmpty` function.
 
-```ts twoslash
+**Example** (Using Guards to Identify Reason Types)
+
+```ts twoslash import.meta.vitest name="guards-1"
 import { Cause } from "effect"
 
 const cause = Cause.fail(new Error("my message"))
 
-if (Cause.isFailType(cause)) {
-  console.log(cause.error.message) // Output: my message
+for (const reason of cause.reasons) {
+  if (Cause.isFailReason(reason)) {
+    console.log(reason.error.message) // Output: my message
+  }
 }
 ```
 
-These guards allow you to accurately identify the type of a `Cause`, making it easier to handle various error cases in your code. Whether dealing with expected failures, unexpected defects, interruptions, or composite errors, these guards provide a clear method for assessing and managing error scenarios.
+These guards allow you to accurately identify the reasons behind a `Cause`, making it easier to handle various error cases in your code. Whether dealing with expected failures, unexpected defects, or interruptions, these guards provide a clear method for assessing and managing error scenarios.
 
-## Pattern Matching
+## Formatting Reasons
 
-The `Cause.match` function provides a straightforward way to handle each case of a `Cause`. By defining callbacks for each possible cause type, you can respond to specific error scenarios with custom behavior.
+There is no longer a single `Cause.match` combinator, because `Cause<E>` is a flat array of `reasons` rather than a tree with `Sequential` and `Parallel` nodes to fold over. Instead, iterate `cause.reasons` and switch on each reason's `_tag` to respond to specific error scenarios with custom behavior.
 
-**Example** (Pattern Matching on Different Causes)
+**Example** (Formatting Each Reason in a Cause)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="formatting-reasons-1"
 import { Cause } from "effect"
 
-const cause = Cause.parallel(Cause.fail(new Error("my fail message")), Cause.die("my die message"))
+const cause = Cause.combine(Cause.fail(new Error("my fail message")), Cause.die("my die message"))
 
-console.log(
-  Cause.match(cause, {
-    onEmpty: "(empty)",
-    onFail: (error) => `(error: ${error.message})`,
-    onDie: (defect) => `(defect: ${defect})`,
-    onInterrupt: (fiberId) => `(fiberId: ${fiberId})`,
-    onSequential: (left, right) => `(onSequential (left: ${left}) (right: ${right}))`,
-    onParallel: (left, right) => `(onParallel (left: ${left}) (right: ${right})`,
-  }),
-)
-/*
-Output:
-(onParallel (left: (error: my fail message)) (right: (defect: my die message))
-*/
+const formatted = cause.reasons
+  .map((reason) => {
+    switch (reason._tag) {
+      case "Fail":
+        return `(error: ${reason.error.message})`
+      case "Die":
+        return `(defect: ${reason.defect})`
+      case "Interrupt":
+        return `(fiberId: ${reason.fiberId})`
+    }
+  })
+  .join(", ")
+
+formatted // => "(error: my fail message), (defect: my die message)"
 ```
 
 ## Pretty Printing
@@ -211,13 +169,13 @@ Clear and readable error messages are key for effective debugging. The `Cause.pr
 
 **Example** (Using `Cause.pretty` for Readable Error Messages)
 
-```ts twoslash
-import { Cause, FiberId } from "effect"
+```ts twoslash import.meta.vitest name="pretty-printing-1"
+import { Cause } from "effect"
 
 console.log(Cause.pretty(Cause.empty))
 /*
 Output:
-All fibers interrupted without errors.
+(empty string)
 */
 
 console.log(Cause.pretty(Cause.fail(new Error("my fail message"))))
@@ -231,43 +189,51 @@ console.log(Cause.pretty(Cause.die("my die message")))
 /*
 Output:
 Error: my die message
+    ...stack trace...
 */
 
-console.log(Cause.pretty(Cause.interrupt(FiberId.make(1, 0))))
+console.log(Cause.pretty(Cause.interrupt(1)))
 /*
 Output:
-All fibers interrupted without errors.
+InterruptError: All fibers interrupted without error {
+  [cause]: InterruptCause: The fiber was interrupted by:
+      at fiber (#1)
+}
 */
 
-console.log(Cause.pretty(Cause.sequential(Cause.fail("fail1"), Cause.fail("fail2"))))
+console.log(Cause.pretty(Cause.combine(Cause.fail("fail1"), Cause.fail("fail2"))))
 /*
 Output:
 Error: fail1
+    ...stack trace...
 Error: fail2
+    ...stack trace...
 */
 ```
 
 ## Retrieval of Failures and Defects
 
-To specifically collect failures or defects from a `Cause`, you can use `Cause.failures` and `Cause.defects`. These functions allow you to inspect only the errors or unexpected defects that occurred.
+`Cause.failures` and `Cause.defects` were removed along with the recursive tree; filter `cause.reasons` directly with `Cause.isFailReason` and `Cause.isDieReason` to inspect only the errors or unexpected defects that occurred.
 
 **Example** (Extracting Failures and Defects from a Cause)
 
-```ts twoslash
-import { Effect, Cause } from "effect"
+```ts twoslash import.meta.vitest name="retrieval-of-failures-and-defects-1"
+import { Effect, Cause, Exit } from "effect"
 
 const program = Effect.gen(function* () {
-  const cause = yield* Effect.cause(
+  const exit = yield* Effect.exit(
     Effect.all([Effect.fail("error 1"), Effect.die("defect"), Effect.fail("error 2")]),
   )
-  console.log(Cause.failures(cause))
-  console.log(Cause.defects(cause))
+  if (Exit.isFailure(exit)) {
+    console.log(exit.cause.reasons.filter(Cause.isFailReason).map((reason) => reason.error))
+    console.log(exit.cause.reasons.filter(Cause.isDieReason).map((reason) => reason.defect))
+  }
 })
 
 Effect.runPromise(program)
 /*
 Output:
-{ _id: 'Chunk', values: [ 'error 1' ] }
-{ _id: 'Chunk', values: [] }
+[ 'error 1' ]
+[]
 */
 ```
