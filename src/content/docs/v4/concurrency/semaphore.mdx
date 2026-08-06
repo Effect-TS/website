@@ -13,16 +13,16 @@ A semaphore acts as a generalized mutex, allowing a set number of **permits** to
 
 ## Creating a Semaphore
 
-The `Effect.makeSemaphore` function initializes a semaphore with a specified number of permits.
+The `Semaphore.make` function initializes a semaphore with a specified number of permits.
 Each permit allows one task to access a resource or perform an operation concurrently, and multiple permits enable a configurable level of concurrency.
 
 **Example** (Creating a Semaphore with 3 Permits)
 
-```ts twoslash
-import { Effect } from "effect"
+```ts twoslash import.meta.vitest name="creating-a-semaphore-1"
+import { Semaphore } from "effect"
 
 // Create a semaphore with 3 permits
-const mutex = Effect.makeSemaphore(3)
+const mutex = Semaphore.make(3)
 ```
 
 ## withPermits
@@ -33,8 +33,8 @@ The `withPermits` method lets you specify the number of permits required to run 
 
 In this example, three tasks are started concurrently, but they run sequentially because the one-permit semaphore only allows one task to proceed at a time.
 
-```ts twoslash
-import { Effect } from "effect"
+```ts twoslash import.meta.vitest name="withpermits-1"
+import { Effect, Semaphore } from "effect"
 
 const task = Effect.gen(function* () {
   yield* Effect.log("start")
@@ -43,7 +43,7 @@ const task = Effect.gen(function* () {
 })
 
 const program = Effect.gen(function* () {
-  const mutex = yield* Effect.makeSemaphore(1)
+  const mutex = yield* Semaphore.make(1)
 
   // Wrap the task to require one permit, forcing sequential execution
   const semTask = mutex.withPermits(1)(task).pipe(Effect.withLogSpan("elapsed"))
@@ -71,11 +71,11 @@ timestamp=... level=INFO fiber=#3 message=end elapsed=6026ms
 
 In this example, we create a semaphore with five permits and use `withPermits(n)` to allocate a different number of permits for each task:
 
-```ts twoslash
-import { Effect } from "effect"
+```ts twoslash import.meta.vitest name="withpermits-2"
+import { Effect, Semaphore } from "effect"
 
 const program = Effect.gen(function* () {
-  const mutex = yield* Effect.makeSemaphore(5)
+  const mutex = yield* Semaphore.make(5)
 
   const tasks = [1, 2, 3, 4, 5].map((n) =>
     mutex
