@@ -11,6 +11,7 @@ import * as Schema from "effect/Schema"
 import type { SearchResult } from "./domain"
 import {
   ApiReferenceGeneratedMetadata,
+  ApiReferenceMetadata,
   BlogGeneratedMetadata,
   DocumentationGeneratedMetadata,
   SearchError,
@@ -77,7 +78,7 @@ export class Search extends Context.Service<Search>()("app/Search", {
       const grouped = new Map<string, DeepMutable<SearchResult>>()
 
       response.data.forEach((chunk) => {
-        if (chunk.metadata.content_source === "api-reference") {
+        if (Schema.is(ApiReferenceMetadata)(chunk.metadata)) {
           const metadata = chunk.metadata
           const generated = chunk.generated_metadata
           if (!Schema.is(ApiReferenceGeneratedMetadata)(generated)) return

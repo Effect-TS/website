@@ -397,7 +397,9 @@ const { primaryLinks, socialLinks, activeSlug } = Astro.props
       document.documentElement.setAttribute("data-search-open", "true")
       document.body.setAttribute("data-search-open", "true")
       this.#pendingSearchTransition = true
-      window.dispatchEvent(new Event(NAVIGATION_EVENTS.SEARCH_OPEN))
+      window.dispatchEvent(
+        new CustomEvent(NAVIGATION_EVENTS.SEARCH_OPEN, { detail: { source: "mobile" } }),
+      )
     }
 
     #onSearchOpened = () => {

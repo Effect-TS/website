@@ -74,12 +74,16 @@ const SearchTriggerIsland = memo(function SearchTriggerIsland({
 
     if (openDelayMs > 0) {
       window.setTimeout(() => {
-        window.dispatchEvent(new Event(NAVIGATION_EVENTS.SEARCH_OPEN))
+        window.dispatchEvent(
+          new CustomEvent(NAVIGATION_EVENTS.SEARCH_OPEN, { detail: { source: mode } }),
+        )
       }, openDelayMs)
       return
     }
 
-    window.dispatchEvent(new Event(NAVIGATION_EVENTS.SEARCH_OPEN))
+    window.dispatchEvent(
+      new CustomEvent(NAVIGATION_EVENTS.SEARCH_OPEN, { detail: { source: mode } }),
+    )
   }
 
   if (mode === "mobile") {
