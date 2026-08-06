@@ -15,24 +15,16 @@ The `Sink.head` sink retrieves only the first element from a stream, wrapping it
 
 **Example** (Retrieving the First Element)
 
-```ts twoslash
-import { Stream, Sink, Effect } from "effect"
+```ts twoslash import.meta.vitest name="retrieving-the-first-element-1"
+import { Stream, Sink, Effect, Option } from "effect"
 
 const nonEmptyStream = Stream.make(1, 2, 3, 4)
 
-Effect.runPromise(Stream.run(nonEmptyStream, Sink.head())).then(console.log)
-/*
-Output:
-{ _id: 'Option', _tag: 'Some', value: 1 }
-*/
+await Effect.runPromise(Stream.run(nonEmptyStream, Sink.head())) // => Option.some(1)
 
 const emptyStream = Stream.empty
 
-Effect.runPromise(Stream.run(emptyStream, Sink.head())).then(console.log)
-/*
-Output:
-{ _id: 'Option', _tag: 'None' }
-*/
+await Effect.runPromise(Stream.run(emptyStream, Sink.head())) // => Option.none()
 ```
 
 ### last
@@ -41,73 +33,59 @@ The `Sink.last` sink retrieves only the last element from a stream, wrapping it 
 
 **Example** (Retrieving the Last Element)
 
-```ts twoslash
-import { Stream, Sink, Effect } from "effect"
+```ts twoslash import.meta.vitest name="retrieving-the-last-element-1"
+import { Stream, Sink, Effect, Option } from "effect"
 
 const nonEmptyStream = Stream.make(1, 2, 3, 4)
 
-Effect.runPromise(Stream.run(nonEmptyStream, Sink.last())).then(console.log)
-/*
-Output:
-{ _id: 'Option', _tag: 'Some', value: 4 }
-*/
+await Effect.runPromise(Stream.run(nonEmptyStream, Sink.last())) // => Option.some(4)
 
 const emptyStream = Stream.empty
 
-Effect.runPromise(Stream.run(emptyStream, Sink.last())).then(console.log)
-/*
-Output:
-{ _id: 'Option', _tag: 'None' }
-*/
+await Effect.runPromise(Stream.run(emptyStream, Sink.last())) // => Option.none()
 ```
 
 ### count
 
 The `Sink.count` sink consumes all elements of the stream and counts the number of elements fed to it.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="count-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)
 
-Effect.runPromise(Stream.run(stream, Sink.count)).then(console.log)
-// Output: 4
+await Effect.runPromise(Stream.run(stream, Sink.count)) // => 4
 ```
 
 ### sum
 
 The `Sink.sum` sink consumes all elements of the stream and sums incoming numeric values.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="sum-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)
 
-Effect.runPromise(Stream.run(stream, Sink.sum)).then(console.log)
-// Output: 10
+await Effect.runPromise(Stream.run(stream, Sink.sum)) // => 10
 ```
 
 ### take
 
 The `Sink.take` sink takes the specified number of values from the stream and results in a [Chunk](/docs/data-types/chunk/) data type.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="take-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)
 
-Effect.runPromise(Stream.run(stream, Sink.take(3))).then(console.log)
-/*
-Output:
-{ _id: 'Chunk', values: [ 1, 2, 3 ] }
-*/
+await Effect.runPromise(Stream.run(stream, Sink.take(3))) // => [1, 2, 3]
 ```
 
 ### drain
 
 The `Sink.drain` sink ignores its inputs, effectively discarding them.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="drain-1"
 import { Stream, Console, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4).pipe(Stream.tap(Console.log))
@@ -127,7 +105,7 @@ undefined
 
 The `Sink.timed` sink executes the stream and measures its execution time, providing the [Duration](/docs/data-types/duration/).
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="timed-1"
 import { Stream, Schedule, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4).pipe(Stream.schedule(Schedule.spaced("100 millis")))
@@ -143,7 +121,7 @@ Output:
 
 The `Sink.forEach` sink executes the provided effectful function for every element fed to it.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="foreach-1"
 import { Stream, Console, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)
@@ -169,13 +147,12 @@ This example creates a sink that doesn’t consume any elements from its upstrea
 
 **Example** (Sink that Always Succeeds with a Value)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="succeeding-sink-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)
 
-Effect.runPromise(Stream.run(stream, Sink.succeed(0))).then(console.log)
-// Output: 0
+await Effect.runPromise(Stream.run(stream, Sink.succeed(0))) // => 0
 ```
 
 ### Failing Sink
@@ -184,90 +161,70 @@ In this example, the sink also doesn’t consume any elements from its upstream 
 
 **Example** (Sink that Always Fails with an Error Message)
 
-```ts twoslash
-import { Stream, Sink, Effect } from "effect"
+```ts twoslash import.meta.vitest name="failing-sink-1"
+import { Stream, Sink, Effect, Exit } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)
 
-Effect.runPromiseExit(Stream.run(stream, Sink.fail("fail!"))).then(console.log)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'fail!' }
-}
-*/
+await Effect.runPromiseExit(Stream.run(stream, Sink.fail("fail!"))) // => Exit.fail("fail!")
 ```
 
 ## Collecting
 
 ### Collecting All Elements
 
-To gather all elements from a data stream into a [Chunk](/docs/data-types/chunk/), use the `Sink.collectAll` sink.
+To gather all elements from a data stream into a [Chunk](/docs/data-types/chunk/), use the `Sink.collect` sink.
 
 The final output is a chunk containing all elements from the stream, in the order they were emitted.
 
 **Example** (Collecting All Stream Elements)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="collecting-all-stream-elements-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)
 
-Effect.runPromise(Stream.run(stream, Sink.collectAll())).then(console.log)
-/*
-Output:
-{ _id: 'Chunk', values: [ 1, 2, 3, 4 ] }
-*/
+await Effect.runPromise(Stream.run(stream, Sink.collect())) // => [1, 2, 3, 4]
 ```
 
 ### Collecting a Specified Number
 
-To collect a fixed number of elements from a stream into a [Chunk](/docs/data-types/chunk/), use `Sink.collectAllN`. This sink stops collecting once it reaches the specified limit.
+To collect a fixed number of elements from a stream into a [Chunk](/docs/data-types/chunk/), use `Sink.take`. This sink stops collecting once it reaches the specified limit.
 
 **Example** (Collecting a Limited Number of Elements)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="collecting-a-limited-number-of-elements-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4, 5)
 
-Effect.runPromise(
+await Effect.runPromise(
   Stream.run(
     stream,
-    // Collect the first 3 elements into a Chunk
-    Sink.collectAllN(3),
+    // Collect the first 3 elements into an array
+    Sink.take(3),
   ),
-).then(console.log)
-/*
-Output:
-{ _id: 'Chunk', values: [ 1, 2, 3 ] }
-*/
+) // => [1, 2, 3]
 ```
 
 ### Collecting While Meeting a Condition
 
-To gather elements from a stream while they satisfy a specific condition, use `Sink.collectAllWhile`. This sink collects elements until the provided predicate returns `false`.
+To gather elements from a stream while they satisfy a specific condition, use `Sink.takeWhile`. This sink collects elements until the provided predicate returns `false`.
 
 **Example** (Collecting Elements Until a Condition Fails)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="collecting-elements-until-a-condition-fails-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 0, 4, 0, 6, 7)
 
-Effect.runPromise(
+await Effect.runPromise(
   Stream.run(
     stream,
     // Collect elements while they are not equal to 0
-    Sink.collectAllWhile((n) => n !== 0),
+    Sink.takeWhile((n) => n !== 0),
   ),
-).then(console.log)
-/*
-Output:
-{ _id: 'Chunk', values: [ 1, 2 ] }
-*/
+) // => [1, 2]
 ```
 
 ### Collecting into a HashSet
@@ -276,16 +233,20 @@ To accumulate stream elements into a `HashSet`, use `Sink.collectAllToSet()`. Th
 
 **Example** (Collecting Unique Elements into a HashSet)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="collecting-unique-elements-into-a-hashset-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 2, 3, 4, 4)
 
-Effect.runPromise(Stream.run(stream, Sink.collectAllToSet())).then(console.log)
-/*
-Output:
-{ _id: 'HashSet', values: [ 1, 2, 3, 4 ] }
-*/
+await Effect.runPromise(
+  Stream.run(
+    stream,
+    Sink.reduce(
+      () => new Set<number>(),
+      (s, n) => s.add(n),
+    ),
+  ),
+) // => new Set([1, 2, 3, 4])
 ```
 
 ### Collecting into HashSets of a Specific Size
@@ -294,22 +255,22 @@ For controlled collection into a `HashSet` with a specified maximum size, use `S
 
 **Example** (Collecting Unique Elements with a Set Size Limit)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="collecting-unique-elements-with-a-set-size-limit-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 2, 3, 4, 4)
 
-Effect.runPromise(
+await Effect.runPromise(
   Stream.run(
     stream,
     // Collect unique elements, limiting the set size to 3
-    Sink.collectAllToSetN(3),
+    Sink.reduceWhile(
+      () => new Set<number>(),
+      (s) => s.size < 3,
+      (s, n) => s.add(n),
+    ),
   ),
-).then(console.log)
-/*
-Output:
-{ _id: 'HashSet', values: [ 1, 2, 3 ] }
-*/
+) // => new Set([1, 2, 3])
 ```
 
 ### Collecting into a HashMap
@@ -321,24 +282,23 @@ This sink requires both a key function to define each element's grouping and a m
 
 In this example, we use `(n) => n % 3` to determine map keys and `(a, b) => a + b` to merge elements with the same key:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="grouping-and-merging-stream-elements-in-a-hashmap-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 3, 2, 3, 1, 5, 1)
 
-Effect.runPromise(
+await Effect.runPromise(
   Stream.run(
     stream,
-    Sink.collectAllToMap(
-      (n) => n % 3, // Key function to group by element value
-      (a, b) => a + b, // Merge function to sum values with the same key
+    Sink.reduce(
+      () => new Map<number, number>(),
+      (m, n) => {
+        const key = n % 3 // Key function to group by element value
+        return m.set(key, m.has(key) ? m.get(key)! + n : n) // Merge function to sum values with the same key
+      },
     ),
   ),
-).then(console.log)
-/*
-Output:
-{ _id: 'HashMap', values: [ [ 0, 6 ], [ 1, 3 ], [ 2, 7 ] ] }
-*/
+) // => new Map([[1, 3], [0, 6], [2, 7]])
 ```
 
 ### Collecting into a HashMap with Limited Keys
@@ -372,23 +332,25 @@ Output:
 
 ### Folding Left
 
-If you want to reduce a stream into a single cumulative value by applying an operation to each element in sequence, you can use the `Sink.foldLeft` function.
+If you want to reduce a stream into a single cumulative value by applying an operation to each element in sequence, you can use the `Sink.reduce` function.
 
 **Example** (Summing Elements in a Stream Using Fold Left)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="summing-elements-in-a-stream-using-fold-left-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)
 
-Effect.runPromise(
+await Effect.runPromise(
   Stream.run(
     stream,
-    // Use foldLeft to sequentially add each element, starting with 0
-    Sink.foldLeft(0, (a, b) => a + b),
+    // Use reduce to sequentially add each element, starting with 0
+    Sink.reduce(
+      () => 0,
+      (a, b) => a + b,
+    ),
   ),
-).then(console.log)
-// Output: 10
+) // => 10
 ```
 
 ### Folding with Termination
@@ -397,22 +359,21 @@ Sometimes, you may want to fold elements in a stream but stop the process once a
 
 **Example** (Folding with a Condition to Stop Early)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="folding-with-a-condition-to-stop-early-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.iterate(0, (n) => n + 1)
 
-Effect.runPromise(
+await Effect.runPromise(
   Stream.run(
     stream,
     Sink.fold(
-      0, // Initial value
+      () => 0, // Initial value
       (sum) => sum <= 10, // Termination condition
-      (a, b) => a + b, // Folding operation
+      (a, b) => Effect.succeed(a + b), // Folding operation
     ),
   ),
-).then(console.log)
-// Output: 15
+) // => 15
 ```
 
 ### Folding Until a Limit
@@ -421,19 +382,22 @@ To accumulate elements until a specific count is reached, use `Sink.foldUntil`. 
 
 **Example** (Accumulating a Set Number of Elements)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="accumulating-a-set-number-of-elements-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
-Effect.runPromise(
+await Effect.runPromise(
   Stream.run(
     stream,
     // Fold elements, stopping after accumulating 3 values
-    Sink.foldUntil(0, 3, (a, b) => a + b),
+    Sink.foldUntil(
+      () => 0,
+      3,
+      (a, b) => Effect.succeed(a + b),
+    ),
   ),
-).then(console.log)
-// Output: 6
+) // => 6
 ```
 
 ### Folding with Weighted Elements
