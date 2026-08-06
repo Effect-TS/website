@@ -27,13 +27,13 @@ This can be useful when dealing with intermittent failures, such as network issu
 
 **Example** (Retrying with a Fixed Delay)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="retrying-with-a-fixed-delay-1"
 import { Effect, Schedule } from "effect"
 
 let count = 0
 
 // Simulates an effect with possible failures
-const task = Effect.async<string, Error>((resume) => {
+const task = Effect.callback<string, Error>((resume) => {
   if (count <= 2) {
     count++
     console.log("failure")
@@ -66,13 +66,13 @@ You can also retry a failing effect a set number of times with a simpler policy 
 
 **Example** (Retrying a Task up to 5 times)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="retrying-a-task-up-to-5-times-1"
 import { Effect } from "effect"
 
 let count = 0
 
 // Simulates an effect with possible failures
-const task = Effect.async<string, Error>((resume) => {
+const task = Effect.callback<string, Error>((resume) => {
   if (count <= 2) {
     count++
     console.log("failure")
@@ -100,7 +100,7 @@ You can customize how retries are managed by specifying conditions. Use the `unt
 
 **Example** (Retrying Until a Specific Condition is Met)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="retrying-until-a-specific-condition-is-met-1"
 import { Effect } from "effect"
 
 let count = 0
@@ -125,7 +125,7 @@ Action called 3 time(s)
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Error 3' }
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 ```
@@ -145,13 +145,13 @@ This function is useful when you want to handle failures gracefully by specifyin
 
 **Example** (Retrying with Fallback)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="retrying-with-fallback-1"
 import { Effect, Schedule, Console } from "effect"
 
 let count = 0
 
 // Simulates an effect with possible failures
-const task = Effect.async<string, Error>((resume) => {
+const task = Effect.callback<string, Error>((resume) => {
   if (count <= 2) {
     count++
     console.log("failure")
@@ -163,7 +163,7 @@ const task = Effect.async<string, Error>((resume) => {
 })
 
 // Retry the task with a delay between retries and a maximum of 2 retries
-const policy = Schedule.addDelay(Schedule.recurs(2), () => "100 millis")
+const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 millis"))
 
 // If all retries fail, run the fallback effect
 const repeated = Effect.retryOrElse(
