@@ -20,7 +20,7 @@ type Options = {
 The `concurrency` option is used to determine the level of concurrency, with the following values:
 
 ```ts showLineNumbers=false
-type Concurrency = number | "unbounded" | "inherit"
+type Concurrency = number | "unbounded"
 ```
 
 Let's explore each configuration in detail.
@@ -36,11 +36,11 @@ By default, if you don't specify any concurrency option, effects will run sequen
 
 **Example** (Sequential Execution)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="sequential-execution-default-1"
 import { Effect, Duration } from "effect"
 
 // Helper function to simulate a task with a delay
-const makeTask = (n: number, delay: Duration.DurationInput) =>
+const makeTask = (n: number, delay: Duration.Input) =>
   Effect.promise(
     () =>
       new Promise<void>((resolve) => {
@@ -73,11 +73,11 @@ You can control how many effects run concurrently by setting a `number` for `con
 
 **Example** (Limiting to 2 Concurrent Tasks)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="numbered-concurrency-1"
 import { Effect, Duration } from "effect"
 
 // Helper function to simulate a task with a delay
-const makeTask = (n: number, delay: Duration.DurationInput) =>
+const makeTask = (n: number, delay: Duration.Input) =>
   Effect.promise(
     () =>
       new Promise<void>((resolve) => {
@@ -121,11 +121,11 @@ When `concurrency: "unbounded"` is used, there's no limit to the number of effec
 
 **Example** (Unbounded Concurrency)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="unbounded-concurrency-1"
 import { Effect, Duration } from "effect"
 
 // Helper function to simulate a task with a delay
-const makeTask = (n: number, delay: Duration.DurationInput) =>
+const makeTask = (n: number, delay: Duration.Input) =>
   Effect.promise(
     () =>
       new Promise<void>((resolve) => {
@@ -289,7 +289,7 @@ The resulting interruption can be observed in the [Exit](/docs/data-types/exit/)
 
 In this case, the program runs without any interruption, logging the start and completion of the task.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="interrupt-1"
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
@@ -312,15 +312,13 @@ done
 
 Here, the fiber is interrupted after the log `"start"` but before the `"done"` log. The `Effect.interrupt` stops the fiber, and it never reaches the final log.
 
-```ts {6} twoslash
+```ts {6} twoslash import.meta.vitest name="interrupt-2"
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
   console.log("start")
   yield* Effect.sleep("2 seconds")
-  yield* Effect.interrupt
-  console.log("done")
-  return "some result"
+  return yield* Effect.interrupt
 })
 
 Effect.runPromiseExit(program).then(console.log)
@@ -355,7 +353,7 @@ when the fiber is interrupted, allowing you to perform cleanup or other actions.
 
 In this example, we set up a handler that logs "Cleanup completed" whenever the fiber is interrupted. We then show three cases: a successful effect, a failing effect, and an interrupted effect, demonstrating how the handler is triggered depending on how the effect ends.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="oninterrupt-1"
 import { Console, Effect } from "effect"
 
 // This handler is executed when the fiber is interrupted
@@ -395,7 +393,7 @@ The resulting [cause](/docs/data-types/cause/) includes information about which 
 
 **Example** (Interrupting Concurrent Effects)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="interruption-of-concurrent-effects-1"
 import { Effect, Console } from "effect"
 
 const program = Effect.forEach(
@@ -405,7 +403,7 @@ const program = Effect.forEach(
       console.log(`start #${n}`)
       yield* Effect.sleep(`${n} seconds`)
       if (n > 1) {
-        yield* Effect.interrupt
+        return yield* Effect.interrupt
       }
       console.log(`done #${n}`)
     }).pipe(Effect.onInterrupt(() => Console.log(`interrupted #${n}`))),
@@ -477,7 +475,7 @@ worrying about the other effect.
 
 **Example** (Both Tasks Succeed)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="race-1"
 import { Effect, Console } from "effect"
 
 const task1 = Effect.succeed("task1").pipe(
@@ -503,7 +501,7 @@ task1 interrupted
 
 **Example** (One Task Fails, One Succeeds)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="race-2"
 import { Effect, Console } from "effect"
 
 const task1 = Effect.fail("task1").pipe(
@@ -528,7 +526,7 @@ task2 done
 
 **Example** (Both Tasks Fail)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="race-3"
 import { Effect, Console } from "effect"
 
 const task1 = Effect.fail("task1").pipe(
@@ -560,11 +558,11 @@ Output:
 */
 ```
 
-If you want to handle the result of whichever task completes first, whether it succeeds or fails, you can use the `Effect.either` function. This function wraps the result in an [Either](/docs/data-types/either/) type, allowing you to see if the result was a success (`Right`) or a failure (`Left`):
+If you want to handle the result of whichever task completes first, whether it succeeds or fails, you can use the `Effect.result` function. This function wraps the result in an [Either](/docs/data-types/either/) type, allowing you to see if the result was a success (`Success`) or a failure (`Failure`):
 
 **Example** (Handling Success or Failure with Either)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="race-4"
 import { Effect, Console } from "effect"
 
 const task1 = Effect.fail("task1").pipe(
@@ -579,8 +577,8 @@ const task2 = Effect.succeed("task2").pipe(
 )
 
 // Run both tasks concurrently, wrapping the result
-// in Either to capture success or failure
-const program = Effect.race(Effect.either(task1), Effect.either(task2))
+// in Result to capture success or failure
+const program = Effect.race(Effect.result(task1), Effect.result(task2))
 
 Effect.runPromise(program).then(console.log)
 /*
@@ -603,7 +601,7 @@ worrying about the other effects.
 
 **Example** (All Tasks Succeed)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="raceall-1"
 import { Effect, Console } from "effect"
 
 const task1 = Effect.succeed("task1").pipe(
@@ -636,7 +634,7 @@ task3 interrupted
 
 **Example** (One Task Fails, Two Tasks Succeed)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="raceall-2"
 import { Effect, Console } from "effect"
 
 const task1 = Effect.fail("task1").pipe(
@@ -668,7 +666,7 @@ task2 interrupted
 
 **Example** (All Tasks Fail)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="raceall-3"
 import { Effect, Console } from "effect"
 
 const task1 = Effect.fail("task1").pipe(
@@ -713,7 +711,7 @@ or fails.
 
 **Example** (Both Tasks Succeed)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="racefirst-1"
 import { Effect, Console } from "effect"
 
 const task1 = Effect.succeed("task1").pipe(
@@ -741,7 +739,7 @@ more work...
 
 **Example** (One Task Fails, One Succeeds)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="racefirst-2"
 import { Effect, Console } from "effect"
 
 const task1 = Effect.fail("task1").pipe(
