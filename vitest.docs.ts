@@ -11,12 +11,15 @@ import { defineConfig } from "vitest/config"
 // (Uses node:module's stripTypeScriptTypes rather than the `typescript`
 // package: this repo's `typescript` dependency is TS 7 (tsgo), whose npm
 // package no longer ships the classic transpileModule compiler API.)
+// mode: "transform" (not "strip") because doc snippets use constructor
+// parameter properties (e.g. `constructor(readonly host: string) {}`), which
+// "strip" mode rejects since it can't rewrite them into an assignment.
 const stripDoctestSnippetTypes: Plugin = {
   name: "effect-doctest-strip-types",
   enforce: "pre",
   transform(code, id) {
     if (!id.includes("effect-doctest=snippet")) return null
-    return { code: stripTypeScriptTypes(code, { mode: "strip" }), map: null }
+    return { code: stripTypeScriptTypes(code, { mode: "transform" }), map: null }
   },
 }
 
