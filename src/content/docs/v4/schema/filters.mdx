@@ -11,7 +11,7 @@ Developers can define custom validation logic beyond basic type checks, giving m
 
 ## Declaring Filters
 
-Filters are declared using the `Schema.filter` function. This function requires two arguments: the schema to be validated and a predicate function. The predicate function is user-defined and determines whether the data satisfies the condition. If the data fails the validation, an error message can be provided.
+Filters are declared using the `Schema.makeFilter` function. This function requires two arguments: the schema to be validated and a predicate function. The predicate function is user-defined and determines whether the data satisfies the condition. If the data fails the validation, an error message can be provided.
 
 **Example** (Defining a Minimum String Length Filter)
 
@@ -20,8 +20,8 @@ import { Schema } from "effect"
 
 // Define a string schema with a filter to ensure the string
 // is at least 10 characters long
-const LongString = Schema.String.pipe(
-  Schema.filter(
+const LongString = Schema.String.check(
+  Schema.makeFilter(
     // Custom error message for strings shorter than 10 characters
     (s) => s.length >= 10 || "a string at least 10 characters long",
   ),
@@ -34,9 +34,7 @@ type Type = typeof LongString.Type
 console.log(Schema.decodeUnknownSync(LongString)("a"))
 /*
 throws:
-ParseError: { string | filter }
-└─ Predicate refinement failure
-   └─ a string at least 10 characters long
+SchemaError: a string at least 10 characters long
 */
 ```
 
@@ -60,32 +58,33 @@ Filters add additional validation constraints without modifying the schema's und
 The predicate function in a filter follows this structure:
 
 ```ts
-type Predicate = (a: A, options: ParseOptions, self: AST.Refinement) => FilterReturnType
+type Predicate<T> = (input: T, ast: SchemaAST.AST, options: SchemaAST.ParseOptions) => FilterOutput
 ```
 
 where
 
 ```ts
-interface FilterIssue {
-  readonly path: ReadonlyArray<PropertyKey>
-  readonly issue: string | ParseResult.ParseIssue
-}
+type FilterIssue =
+  | string
+  | SchemaIssue.Issue
+  | {
+      readonly path: ReadonlyArray<PropertyKey>
+      readonly issue: string | SchemaIssue.Issue
+    }
 
-type FilterOutput = undefined | boolean | string | ParseResult.ParseIssue | FilterIssue
-
-type FilterReturnType = FilterOutput | ReadonlyArray<FilterOutput>
+type FilterOutput = undefined | boolean | FilterIssue | ReadonlyArray<FilterIssue>
 ```
 
 The filter's predicate can return several types of values, each affecting validation in a different way:
 
-| Return Type                   | Behavior                                                                                         |
-| ----------------------------- | ------------------------------------------------------------------------------------------------ |
-| `true` or `undefined`         | The data satisfies the filter's condition and passes validation.                                 |
-| `false`                       | The data does not meet the condition, and no specific error message is provided.                 |
-| `string`                      | The validation fails, and the provided string is used as the error message.                      |
-| `ParseResult.ParseIssue`      | The validation fails with a detailed error structure, specifying where and why it failed.        |
-| `FilterIssue`                 | Allows for more detailed error messages with specific paths, providing enhanced error reporting. |
-| `ReadonlyArray<FilterOutput>` | An array of issues can be returned if multiple validation errors need to be reported.            |
+| Return Type                  | Behavior                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ |
+| `true` or `undefined`        | The data satisfies the filter's condition and passes validation.                                 |
+| `false`                      | The data does not meet the condition, and no specific error message is provided.                 |
+| `string`                     | The validation fails, and the provided string is used as the error message.                      |
+| `SchemaIssue.Issue`          | The validation fails with a detailed error structure, specifying where and why it failed.        |
+| `FilterIssue`                | Allows for more detailed error messages with specific paths, providing enhanced error reporting. |
+| `ReadonlyArray<FilterIssue>` | An array of issues can be returned if multiple validation errors need to be reported.            |
 
 <Aside type="tip" title="Effectful Filters">
   Normal filters only handle synchronous, non-effectful validations. If you need filters that
@@ -100,12 +99,12 @@ Embedding metadata within the schema, such as identifiers, JSON schema specifica
 **Example** (Adding Metadata with Annotations)
 
 ```ts twoslash
-import { Schema, JSONSchema } from "effect"
+import { Schema } from "effect"
 
-const LongString = Schema.String.pipe(
-  Schema.filter((s) => (s.length >= 10 ? undefined : "a string at least 10 characters long"), {
+const LongString = Schema.String.check(
+  Schema.makeFilter((s) => (s.length >= 10 ? undefined : "a string at least 10 characters long"), {
     identifier: "LongString",
-    jsonSchema: { minLength: 10 },
+    toJsonSchema: () => ({ minLength: 10 }),
     description: "Lorem ipsum dolor sit amet, ...",
   }),
 )
@@ -113,24 +112,28 @@ const LongString = Schema.String.pipe(
 console.log(Schema.decodeUnknownSync(LongString)("a"))
 /*
 throws:
-ParseError: LongString
-└─ Predicate refinement failure
-   └─ a string at least 10 characters long
+SchemaError: a string at least 10 characters long
 */
 
-console.log(JSON.stringify(JSONSchema.make(LongString), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(LongString), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$defs": {
+  "dialect": "draft-2020-12",
+  "schema": {
+    "$ref": "#/$defs/LongString"
+  },
+  "definitions": {
     "LongString": {
       "type": "string",
-      "description": "Lorem ipsum dolor sit amet, ...",
-      "minLength": 10
+      "allOf": [
+        {
+          "minLength": 10,
+          "description": "Lorem ipsum dolor sit amet, ..."
+        }
+      ]
     }
-  },
-  "$ref": "#/$defs/LongString"
+  }
 }
 */
 ```
@@ -141,55 +144,57 @@ When validating forms or structured data, it's possible to associate specific er
 
 **Example** (Matching Passwords)
 
-```ts twoslash
-import { Either, Schema, ParseResult } from "effect"
+```ts twoslash import.meta.vitest name="specifying-error-paths-1"
+import { Result, Schema, SchemaIssue } from "effect"
 
-const Password = Schema.Trim.pipe(Schema.minLength(2))
+const Password = Schema.Trim.check(Schema.isMinLength(2))
 
 const MyForm = Schema.Struct({
   password: Password,
   confirm_password: Password,
-}).pipe(
+}).check(
   // Add a filter to ensure that passwords match
-  Schema.filter((input) => {
-    if (input.password !== input.confirm_password) {
-      // Return an error message associated
-      // with the "confirm_password" field
-      return {
-        path: ["confirm_password"],
-        message: "Passwords do not match",
-      }
-    }
-  }),
-)
-
-console.log(
-  JSON.stringify(
-    Schema.decodeUnknownEither(MyForm)({
-      password: "abc",
-      confirm_password: "abd", // Confirm password does not match
-    }).pipe(Either.mapLeft((error) => ParseResult.ArrayFormatter.formatErrorSync(error))),
-    null,
-    2,
+  Schema.makeFilter((input) =>
+    input.password === input.confirm_password
+      ? undefined
+      : // Return an error message associated
+        // with the "confirm_password" field
+        {
+          path: ["confirm_password"],
+          issue: "Passwords do not match",
+        },
   ),
 )
-/*
-  "_id": "Either",
-  "_tag": "Left",
-  "left": [
-    {
-      "_tag": "Type",
-      "path": [
-        "confirm_password"
-      ],
-      "message": "Passwords do not match"
-    }
-  ]
+
+const result = Schema.decodeUnknownResult(MyForm)({
+  password: "abc",
+  confirm_password: "abd", // Confirm password does not match
+})
+
+if (Result.isFailure(result)) {
+  console.log(
+    JSON.stringify(
+      SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues,
+      null,
+      2,
+    ),
+  )
+  SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues // => [{ path: ["confirm_password"], message: "Passwords do not match" }]
 }
+/*
+Output:
+[
+  {
+    "path": [
+      "confirm_password"
+    ],
+    "message": "Passwords do not match"
+  }
+]
 */
 ```
 
-In this example, we define a `MyForm` schema with two password fields (`password` and `confirm_password`). We use `Schema.filter` to check that both passwords match. If they don't, an error message is returned, specifically associated with the `confirm_password` field. This makes it easier to pinpoint the exact location of the validation failure.
+In this example, we define a `MyForm` schema with two password fields (`password` and `confirm_password`). We use `Schema.makeFilter` to check that both passwords match. If they don't, an error message is returned, specifically associated with the `confirm_password` field. This makes it easier to pinpoint the exact location of the validation failure.
 
 The error is formatted in a structured way using `ArrayFormatter`, allowing for easier post-processing and integration with form libraries.
 
@@ -201,14 +206,14 @@ The error is formatted in a structured way using `ArrayFormatter`, allowing for 
 
 ## Multiple Error Reporting
 
-The `Schema.filter` API supports reporting multiple validation issues at once, which is especially useful in scenarios like form validation where several checks might fail simultaneously.
+The `Schema.makeFilter` API supports reporting multiple validation issues at once, which is especially useful in scenarios like form validation where several checks might fail simultaneously.
 
 **Example** (Reporting Multiple Validation Errors)
 
-```ts twoslash
-import { Either, Schema, ParseResult } from "effect"
+```ts twoslash import.meta.vitest name="multiple-error-reporting-1"
+import { Result, Schema, SchemaIssue } from "effect"
 
-const Password = Schema.Trim.pipe(Schema.minLength(2))
+const Password = Schema.Trim.check(Schema.isMinLength(2))
 const OptionalString = Schema.optional(Schema.String)
 
 const MyForm = Schema.Struct({
@@ -216,15 +221,15 @@ const MyForm = Schema.Struct({
   confirm_password: Password,
   name: OptionalString,
   surname: OptionalString,
-}).pipe(
-  Schema.filter((input) => {
+}).check(
+  Schema.makeFilter((input) => {
     const issues: Array<Schema.FilterIssue> = []
 
     // Check if passwords match
     if (input.password !== input.confirm_password) {
       issues.push({
         path: ["confirm_password"],
-        message: "Passwords do not match",
+        issue: "Passwords do not match",
       })
     }
 
@@ -232,48 +237,45 @@ const MyForm = Schema.Struct({
     if (!input.name && !input.surname) {
       issues.push({
         path: ["surname"],
-        message: "Surname must be present if name is not present",
+        issue: "Surname must be present if name is not present",
       })
     }
     return issues
   }),
 )
 
-console.log(
-  JSON.stringify(
-    Schema.decodeUnknownEither(MyForm)({
-      password: "abc",
-      confirm_password: "abd", // Confirm password does not match
-    }).pipe(Either.mapLeft((error) => ParseResult.ArrayFormatter.formatErrorSync(error))),
-    null,
-    2,
-  ),
-)
+const result = Schema.decodeUnknownResult(MyForm)({
+  password: "abc",
+  confirm_password: "abd", // Confirm password does not match
+})
+
+if (Result.isFailure(result)) {
+  console.log(
+    JSON.stringify(
+      SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues,
+      null,
+      2,
+    ),
+  )
+  SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues // => [{ path: ["confirm_password"], message: "Passwords do not match" }, { path: ["surname"], message: "Surname must be present if name is not present" }]
+}
 /*
 {
-  "_id": "Either",
-  "_tag": "Left",
-  "left": [
-    {
-      "_tag": "Type",
-      "path": [
-        "confirm_password"
-      ],
-      "message": "Passwords do not match"
-    },
-    {
-      "_tag": "Type",
-      "path": [
-        "surname"
-      ],
-      "message": "Surname must be present if name is not present"
-    }
-  ]
+  "path": [
+    "confirm_password"
+  ],
+  "message": "Passwords do not match"
+},
+{
+  "path": [
+    "surname"
+  ],
+  "message": "Surname must be present if name is not present"
 }
 */
 ```
 
-In this example, we define a `MyForm` schema with fields for password validation and optional name/surname fields. The `Schema.filter` function checks if the passwords match and ensures that either a name or surname is provided. If either validation fails, the corresponding error message is associated with the relevant field and both errors are returned in a structured format.
+In this example, we define a `MyForm` schema with fields for password validation and optional name/surname fields. The `Schema.makeFilter` function checks if the passwords match and ensures that either a name or surname is provided. If either validation fails, the corresponding error message is associated with the relevant field and both errors are returned in a structured format.
 
 <Aside type="tip" title="Using ArrayFormatter for Structured Errors">
   The `ArrayFormatter` provides a detailed and structured error format rather than a simple error
@@ -308,52 +310,52 @@ Here is a list of useful string filters provided by the Schema module:
 import { Schema } from "effect"
 
 // Specifies maximum length of a string
-Schema.String.pipe(Schema.maxLength(5))
+Schema.String.check(Schema.isMaxLength(5))
 
 // Specifies minimum length of a string
-Schema.String.pipe(Schema.minLength(5))
+Schema.String.check(Schema.isMinLength(5))
 
-// Equivalent to minLength(1)
-Schema.String.pipe(Schema.nonEmptyString())
+// Equivalent to isMinLength(1)
+Schema.String.check(Schema.isNonEmpty())
 // or
 Schema.NonEmptyString
 
 // Specifies exact length of a string
-Schema.String.pipe(Schema.length(5))
+Schema.String.check(Schema.isLengthBetween(5, 5))
 
 // Specifies a range for the length of a string
-Schema.String.pipe(Schema.length({ min: 2, max: 4 }))
+Schema.String.check(Schema.isLengthBetween(2, 4))
 
 // Matches a string against a regular expression pattern
-Schema.String.pipe(Schema.pattern(/^[a-z]+$/))
+Schema.String.check(Schema.isPattern(/^[a-z]+$/))
 
 // Ensures a string starts with a specific substring
-Schema.String.pipe(Schema.startsWith("prefix"))
+Schema.String.check(Schema.isStartsWith("prefix"))
 
 // Ensures a string ends with a specific substring
-Schema.String.pipe(Schema.endsWith("suffix"))
+Schema.String.check(Schema.isEndsWith("suffix"))
 
 // Checks if a string includes a specific substring
-Schema.String.pipe(Schema.includes("substring"))
+Schema.String.check(Schema.isIncludes("substring"))
 
 // Validates that a string has no leading or trailing whitespaces
-Schema.String.pipe(Schema.trimmed())
+Schema.String.check(Schema.isTrimmed())
 
 // Validates that a string is entirely in lowercase
-Schema.String.pipe(Schema.lowercased())
+Schema.String.check(Schema.isLowercased())
 
 // Validates that a string is entirely in uppercase
-Schema.String.pipe(Schema.uppercased())
+Schema.String.check(Schema.isUppercased())
 
 // Validates that a string is capitalized
-Schema.String.pipe(Schema.capitalized())
+Schema.String.check(Schema.isCapitalized())
 
 // Validates that a string is uncapitalized
-Schema.String.pipe(Schema.uncapitalized())
+Schema.String.check(Schema.isUncapitalized())
 ```
 
 <Aside type="tip" title="Trim vs Trimmed">
-  The `trimmed` combinator does not make any transformations, it only validates. If what you were
+  The `isTrimmed` combinator does not make any transformations, it only validates. If what you were
   looking for was a combinator to trim strings, then check out the `trim` combinator or the `Trim`
   schema.
 </Aside>
@@ -366,64 +368,54 @@ Here is a list of useful number filters provided by the Schema module:
 import { Schema } from "effect"
 
 // Specifies a number greater than 5
-Schema.Number.pipe(Schema.greaterThan(5))
+Schema.Number.check(Schema.isGreaterThan(5))
 
 // Specifies a number greater than or equal to 5
-Schema.Number.pipe(Schema.greaterThanOrEqualTo(5))
+Schema.Number.check(Schema.isGreaterThanOrEqualTo(5))
 
 // Specifies a number less than 5
-Schema.Number.pipe(Schema.lessThan(5))
+Schema.Number.check(Schema.isLessThan(5))
 
 // Specifies a number less than or equal to 5
-Schema.Number.pipe(Schema.lessThanOrEqualTo(5))
+Schema.Number.check(Schema.isLessThanOrEqualTo(5))
 
 // Specifies a number between -2 and 2, inclusive
-Schema.Number.pipe(Schema.between(-2, 2))
+Schema.Number.check(Schema.isBetween({ minimum: -2, maximum: 2 }))
 
 // Specifies that the value must be an integer
-Schema.Number.pipe(Schema.int())
+Schema.Number.check(Schema.isInt())
 // or
 Schema.Int
 
 // Ensures the value is not NaN
-Schema.Number.pipe(Schema.nonNaN())
-// or
-Schema.NonNaN
+Schema.Number.check(Schema.makeFilter((n) => !Number.isNaN(n)))
 
 // Ensures that the provided value is a finite number
 // (excluding NaN, +Infinity, and -Infinity)
-Schema.Number.pipe(Schema.finite())
+Schema.Number.check(Schema.isFinite())
 // or
 Schema.Finite
 
 // Specifies a positive number (> 0)
-Schema.Number.pipe(Schema.positive())
-// or
-Schema.Positive
+Schema.Number.check(Schema.isGreaterThan(0))
 
 // Specifies a non-negative number (>= 0)
-Schema.Number.pipe(Schema.nonNegative())
-// or
-Schema.NonNegative
+Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
 
 // A non-negative integer
-Schema.NonNegativeInt
+Schema.Number.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0))
 
 // Specifies a negative number (< 0)
-Schema.Number.pipe(Schema.negative())
-// or
-Schema.Negative
+Schema.Number.check(Schema.isLessThan(0))
 
 // Specifies a non-positive number (<= 0)
-Schema.Number.pipe(Schema.nonPositive())
-// or
-Schema.NonPositive
+Schema.Number.check(Schema.isLessThanOrEqualTo(0))
 
 // Specifies a number that is evenly divisible by 5
-Schema.Number.pipe(Schema.multipleOf(5))
+Schema.Number.check(Schema.isMultipleOf(5))
 
 // A 8-bit unsigned integer (0 to 255)
-Schema.Uint8
+Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 0, maximum: 255 }))
 ```
 
 ### ReadonlyArray Filters
@@ -434,13 +426,13 @@ Here is a list of useful array filters provided by the Schema module:
 import { Schema } from "effect"
 
 // Specifies the maximum number of items in the array
-Schema.Array(Schema.Number).pipe(Schema.maxItems(2))
+Schema.Array(Schema.Number).check(Schema.isMaxLength(2))
 
 // Specifies the minimum number of items in the array
-Schema.Array(Schema.Number).pipe(Schema.minItems(2))
+Schema.Array(Schema.Number).check(Schema.isMinLength(2))
 
 // Specifies the exact number of items in the array
-Schema.Array(Schema.Number).pipe(Schema.itemsCount(2))
+Schema.Array(Schema.Number).check(Schema.isLengthBetween(2, 2))
 ```
 
 ### Date Filters
@@ -449,24 +441,24 @@ Schema.Array(Schema.Number).pipe(Schema.itemsCount(2))
 import { Schema } from "effect"
 
 // Specifies a valid date (rejects values like `new Date("Invalid Date")`)
-Schema.DateFromSelf.pipe(Schema.validDate())
+Schema.Date
 // or
-Schema.ValidDateFromSelf
+Schema.Date
 
 // Specifies a date greater than the current date
-Schema.Date.pipe(Schema.greaterThanDate(new Date()))
+Schema.Date.check(Schema.isGreaterThanDate(new Date()))
 
 // Specifies a date greater than or equal to the current date
-Schema.Date.pipe(Schema.greaterThanOrEqualToDate(new Date()))
+Schema.Date.check(Schema.isGreaterThanOrEqualToDate(new Date()))
 
 // Specifies a date less than the current date
-Schema.Date.pipe(Schema.lessThanDate(new Date()))
+Schema.Date.check(Schema.isLessThanDate(new Date()))
 
 // Specifies a date less than or equal to the current date
-Schema.Date.pipe(Schema.lessThanOrEqualToDate(new Date()))
+Schema.Date.check(Schema.isLessThanOrEqualToDate(new Date()))
 
 // Specifies a date between two dates
-Schema.Date.pipe(Schema.betweenDate(new Date(0), new Date()))
+Schema.Date.check(Schema.isBetweenDate({ minimum: new Date(0), maximum: new Date() }))
 ```
 
 ### BigInt Filters
@@ -477,39 +469,31 @@ Here is a list of useful `BigInt` filters provided by the Schema module:
 import { Schema } from "effect"
 
 // Specifies a BigInt greater than 5
-Schema.BigInt.pipe(Schema.greaterThanBigInt(5n))
+Schema.BigInt.check(Schema.isGreaterThanBigInt(5n))
 
 // Specifies a BigInt greater than or equal to 5
-Schema.BigInt.pipe(Schema.greaterThanOrEqualToBigInt(5n))
+Schema.BigInt.check(Schema.isGreaterThanOrEqualToBigInt(5n))
 
 // Specifies a BigInt less than 5
-Schema.BigInt.pipe(Schema.lessThanBigInt(5n))
+Schema.BigInt.check(Schema.isLessThanBigInt(5n))
 
 // Specifies a BigInt less than or equal to 5
-Schema.BigInt.pipe(Schema.lessThanOrEqualToBigInt(5n))
+Schema.BigInt.check(Schema.isLessThanOrEqualToBigInt(5n))
 
 // Specifies a BigInt between -2n and 2n, inclusive
-Schema.BigInt.pipe(Schema.betweenBigInt(-2n, 2n))
+Schema.BigInt.check(Schema.isBetweenBigInt({ minimum: -2n, maximum: 2n }))
 
 // Specifies a positive BigInt (> 0n)
-Schema.BigInt.pipe(Schema.positiveBigInt())
-// or
-Schema.PositiveBigIntFromSelf
+Schema.BigInt.check(Schema.isGreaterThanBigInt(0n))
 
 // Specifies a non-negative BigInt (>= 0n)
-Schema.BigInt.pipe(Schema.nonNegativeBigInt())
-// or
-Schema.NonNegativeBigIntFromSelf
+Schema.BigInt.check(Schema.isGreaterThanOrEqualToBigInt(0n))
 
 // Specifies a negative BigInt (< 0n)
-Schema.BigInt.pipe(Schema.negativeBigInt())
-// or
-Schema.NegativeBigIntFromSelf
+Schema.BigInt.check(Schema.isLessThanBigInt(0n))
 
 // Specifies a non-positive BigInt (<= 0n)
-Schema.BigInt.pipe(Schema.nonPositiveBigInt())
-// or
-Schema.NonPositiveBigIntFromSelf
+Schema.BigInt.check(Schema.isLessThanOrEqualToBigInt(0n))
 ```
 
 ### BigDecimal Filters
@@ -520,32 +504,35 @@ Here is a list of useful `BigDecimal` filters provided by the Schema module:
 import { Schema, BigDecimal } from "effect"
 
 // Specifies a BigDecimal greater than 5
-Schema.BigDecimal.pipe(Schema.greaterThanBigDecimal(BigDecimal.unsafeFromNumber(5)))
+Schema.BigDecimal.check(Schema.isGreaterThanBigDecimal(BigDecimal.fromNumberUnsafe(5)))
 
 // Specifies a BigDecimal greater than or equal to 5
-Schema.BigDecimal.pipe(Schema.greaterThanOrEqualToBigDecimal(BigDecimal.unsafeFromNumber(5)))
+Schema.BigDecimal.check(Schema.isGreaterThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(5)))
 // Specifies a BigDecimal less than 5
-Schema.BigDecimal.pipe(Schema.lessThanBigDecimal(BigDecimal.unsafeFromNumber(5)))
+Schema.BigDecimal.check(Schema.isLessThanBigDecimal(BigDecimal.fromNumberUnsafe(5)))
 
 // Specifies a BigDecimal less than or equal to 5
-Schema.BigDecimal.pipe(Schema.lessThanOrEqualToBigDecimal(BigDecimal.unsafeFromNumber(5)))
+Schema.BigDecimal.check(Schema.isLessThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(5)))
 
 // Specifies a BigDecimal between -2 and 2, inclusive
-Schema.BigDecimal.pipe(
-  Schema.betweenBigDecimal(BigDecimal.unsafeFromNumber(-2), BigDecimal.unsafeFromNumber(2)),
+Schema.BigDecimal.check(
+  Schema.isBetweenBigDecimal({
+    minimum: BigDecimal.fromNumberUnsafe(-2),
+    maximum: BigDecimal.fromNumberUnsafe(2),
+  }),
 )
 
 // Specifies a positive BigDecimal (> 0)
-Schema.BigDecimal.pipe(Schema.positiveBigDecimal())
+Schema.BigDecimal.check(Schema.isGreaterThanBigDecimal(BigDecimal.fromNumberUnsafe(0)))
 
 // Specifies a non-negative BigDecimal (>= 0)
-Schema.BigDecimal.pipe(Schema.nonNegativeBigDecimal())
+Schema.BigDecimal.check(Schema.isGreaterThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(0)))
 
 // Specifies a negative BigDecimal (< 0)
-Schema.BigDecimal.pipe(Schema.negativeBigDecimal())
+Schema.BigDecimal.check(Schema.isLessThanBigDecimal(BigDecimal.fromNumberUnsafe(0)))
 
 // Specifies a non-positive BigDecimal (<= 0)
-Schema.BigDecimal.pipe(Schema.nonPositiveBigDecimal())
+Schema.BigDecimal.check(Schema.isLessThanOrEqualToBigDecimal(BigDecimal.fromNumberUnsafe(0)))
 ```
 
 ### Duration Filters
@@ -553,20 +540,28 @@ Schema.BigDecimal.pipe(Schema.nonPositiveBigDecimal())
 Here is a list of useful [Duration](/docs/data-types/duration/) filters provided by the Schema module:
 
 ```ts twoslash
-import { Schema } from "effect"
+import { Schema, Duration } from "effect"
 
 // Specifies a duration greater than 5 seconds
-Schema.Duration.pipe(Schema.greaterThanDuration("5 seconds"))
+Schema.Duration.check(Schema.makeFilter((d) => Duration.isGreaterThan(d, Duration.seconds(5))))
 
 // Specifies a duration greater than or equal to 5 seconds
-Schema.Duration.pipe(Schema.greaterThanOrEqualToDuration("5 seconds"))
+Schema.Duration.check(
+  Schema.makeFilter((d) => Duration.isGreaterThanOrEqualTo(d, Duration.seconds(5))),
+)
 
 // Specifies a duration less than 5 seconds
-Schema.Duration.pipe(Schema.lessThanDuration("5 seconds"))
+Schema.Duration.check(Schema.makeFilter((d) => Duration.isLessThan(d, Duration.seconds(5))))
 
 // Specifies a duration less than or equal to 5 seconds
-Schema.Duration.pipe(Schema.lessThanOrEqualToDuration("5 seconds"))
+Schema.Duration.check(
+  Schema.makeFilter((d) => Duration.isLessThanOrEqualTo(d, Duration.seconds(5))),
+)
 
 // Specifies a duration between 5 seconds and 10 seconds, inclusive
-Schema.Duration.pipe(Schema.betweenDuration("5 seconds", "10 seconds"))
+Schema.Duration.check(
+  Schema.makeFilter((d) =>
+    Duration.between(d, { minimum: Duration.seconds(5), maximum: Duration.seconds(10) }),
+  ),
+)
 ```
