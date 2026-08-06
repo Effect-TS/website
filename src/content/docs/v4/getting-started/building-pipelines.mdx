@@ -71,7 +71,7 @@ Let's see an example to better understand how `pipe` works:
 
 **Example** (Chaining Arithmetic Operations)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="chaining-arithmetic-operations-1"
 import { pipe } from "effect"
 
 // Define simple arithmetic operations
@@ -116,7 +116,7 @@ effect, creating a new effect with the transformed value.
 
 Here's a practical example where we apply a service charge to a transaction amount:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-a-service-charge-1"
 import { pipe, Effect } from "effect"
 
 // Function to add a small service charge to a transaction amount
@@ -144,7 +144,7 @@ Replaces the value inside an effect with a constant value.
 
 **Example** (Replacing a Value)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="replacing-a-value-1"
 import { pipe, Effect } from "effect"
 
 // Replace the value 5 with the constant "new value"
@@ -184,7 +184,7 @@ effect structures.
 
 **Example** (Applying a Discount)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="applying-a-discount-1"
 import { pipe, Effect } from "effect"
 
 // Function to apply a discount safely to a transaction amount
@@ -251,7 +251,7 @@ The second action can be:
 
 Let's look at an example comparing `Effect.andThen` with `Effect.map` and `Effect.flatMap`:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="applying-a-discount-based-on-fetched-amount-1"
 import { pipe, Effect } from "effect"
 
 // Function to apply a discount safely to a transaction amount
@@ -275,7 +275,7 @@ Effect.runPromise(result1).then(console.log) // Output: 190
 // Using Effect.andThen
 const result2 = pipe(
   fetchTransactionAmount,
-  Effect.andThen((amount) => amount * 2),
+  Effect.map((amount) => amount * 2),
   Effect.andThen((amount) => applyDiscount(amount, 5)),
 )
 
@@ -284,58 +284,58 @@ Effect.runPromise(result2).then(console.log) // Output: 190
 
 ### Option and Either with andThen
 
-Both [Option](/docs/data-types/option/#interop-with-effect) and [Either](/docs/data-types/either/#interop-with-effect) are commonly used for handling optional or missing values or simple error cases. These types integrate well with `Effect.andThen`. When used with `Effect.andThen`, the operations are categorized as scenarios 5 and 6 (as discussed earlier) because both `Option` and `Either` are treated as effects in this context.
+Both [Option](/docs/data-types/option/#interop-with-effect) and [Either](/docs/data-types/either/#interop-with-effect) are commonly used for handling optional or missing values or simple error cases. These types integrate well with `Effect.andThen`. When used with `Effect.andThen`, the operations are categorized as scenarios 5 and 6 (as discussed earlier) because both `Option` and `Result` are treated as effects in this context.
 
 **Example** (with Option)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="with-option-1"
 import { pipe, Effect, Option } from "effect"
 
 // Simulated asynchronous task fetching a number from a database
 const fetchNumberValue = Effect.tryPromise(() => Promise.resolve(42))
 
-//      ┌─── Effect<number, UnknownException | NoSuchElementException, never>
+//      ┌─── Effect<number, UnknownError | NoSuchElementError, never>
 //      ▼
 const program = pipe(
   fetchNumberValue,
-  Effect.andThen((x) => (x > 0 ? Option.some(x) : Option.none())),
+  Effect.andThen((x) => Effect.fromOption(x > 0 ? Option.some(x) : Option.none())),
 )
 ```
 
-You might expect the type of `program` to be `Effect<Option<number>, UnknownException, never>`, but it is actually `Effect<number, UnknownException | NoSuchElementException, never>`.
+You might expect the type of `program` to be `Effect<Option<number>, UnknownError, never>`, but it is actually `Effect<number, UnknownError | NoSuchElementError, never>`.
 
-This is because `Option<A>` is treated as an effect of type `Effect<A, NoSuchElementException>`, and as a result, the possible errors are combined into a union type.
+This is because `Option<A>` is treated as an effect of type `Effect<A, NoSuchElementError>`, and as a result, the possible errors are combined into a union type.
 
 <Aside type="tip" title="Option As Effect">
-A value of type `Option<A>` is interpreted as an effect of type `Effect<A, NoSuchElementException>`.
+A value of type `Option<A>` is interpreted as an effect of type `Effect<A, NoSuchElementError>`.
 </Aside>
 
 **Example** (with Either)
 
-```ts twoslash
-import { pipe, Effect, Either } from "effect"
+```ts twoslash import.meta.vitest name="with-either-1"
+import { pipe, Effect, Result } from "effect"
 
 // Function to parse an integer from a string that can fail
-const parseInteger = (input: string): Either.Either<number, string> =>
-  isNaN(parseInt(input)) ? Either.left("Invalid integer") : Either.right(parseInt(input))
+const parseInteger = (input: string): Result.Result<number, string> =>
+  isNaN(parseInt(input)) ? Result.fail("Invalid integer") : Result.succeed(parseInt(input))
 
 // Simulated asynchronous task fetching a string from database
 const fetchStringValue = Effect.tryPromise(() => Promise.resolve("42"))
 
-//      ┌─── Effect<number, string | UnknownException, never>
+//      ┌─── Effect<number, string | UnknownError, never>
 //      ▼
 const program = pipe(
   fetchStringValue,
-  Effect.andThen((str) => parseInteger(str)),
+  Effect.andThen((str) => Effect.fromResult(parseInteger(str))),
 )
 ```
 
-Although one might expect the type of `program` to be `Effect<Either<number, string>, UnknownException, never>`, it is actually `Effect<number, string | UnknownException, never>`.
+Although one might expect the type of `program` to be `Effect<Result<number, string>, UnknownError, never>`, it is actually `Effect<number, string | UnknownError, never>`.
 
-This is because `Either<A, E>` is treated as an effect of type `Effect<A, E>`, meaning the errors are combined into a union type.
+This is because `Result<A, E>` is treated as an effect of type `Effect<A, E>`, meaning the errors are combined into a union type.
 
 <Aside type="tip" title="Either As Effect">
-A value of type `Either<A, E>` is interpreted as an effect of type `Effect<A, E>`.
+A value of type `Result<A, E>` is interpreted as an effect of type `Effect<A, E>`.
 </Aside>
 
 ## tap
@@ -353,7 +353,7 @@ will fail too.
 
 **Example** (Logging a step in a pipeline)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="logging-a-step-in-a-pipeline-1"
 import { pipe, Effect, Console } from "effect"
 
 // Function to apply a discount safely to a transaction amount
@@ -412,7 +412,7 @@ See [Collecting](/docs/getting-started/control-flow/#all) for more information o
 
 **Example** (Combining Configuration and Database Checks)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="combining-configuration-and-database-checks-1"
 import { Effect } from "effect"
 
 // Simulated function to read configuration from a file
@@ -440,7 +440,7 @@ Let's now combine the `pipe` function, `Effect.all`, and `Effect.andThen` to cre
 
 **Example** (Building a Transaction Pipeline)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="building-a-transaction-pipeline-1"
 import { Effect, pipe } from "effect"
 
 // Function to add a small service charge to a transaction amount
@@ -471,10 +471,10 @@ const program = pipe(
   ),
 
   // Add the service charge to the discounted amount
-  Effect.andThen(addServiceCharge),
+  Effect.map(addServiceCharge),
 
   // Format the final result for display
-  Effect.andThen((finalAmount) => `Final amount to charge: ${finalAmount}`),
+  Effect.map((finalAmount) => `Final amount to charge: ${finalAmount}`),
 )
 
 // Execute the program and log the result
@@ -506,7 +506,7 @@ The `pipe` method is available on all effects and many other data types, elimina
 
 Let's rewrite an [earlier example](#build-your-first-pipeline), this time using the `pipe` method.
 
-```ts twoslash collapse={3-15}
+```ts twoslash collapse={3-15} import.meta.vitest name="using-the-pipe-method-1"
 import { Effect } from "effect"
 
 const addServiceCharge = (amount: number) => amount + 1
@@ -524,8 +524,8 @@ const program = Effect.all([fetchTransactionAmount, fetchDiscountRate]).pipe(
   Effect.andThen(([transactionAmount, discountRate]) =>
     applyDiscount(transactionAmount, discountRate),
   ),
-  Effect.andThen(addServiceCharge),
-  Effect.andThen((finalAmount) => `Final amount to charge: ${finalAmount}`),
+  Effect.map(addServiceCharge),
+  Effect.map((finalAmount) => `Final amount to charge: ${finalAmount}`),
 )
 ```
 
