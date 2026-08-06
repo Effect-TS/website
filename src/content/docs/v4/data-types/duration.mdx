@@ -13,7 +13,7 @@ The Duration module includes several constructors to create durations in differe
 
 **Example** (Creating Durations in Various Units)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-durations-1"
 import { Duration } from "effect"
 
 // Create a duration of 100 milliseconds
@@ -32,17 +32,17 @@ For an infinite duration, use `Duration.infinity`.
 
 **Example** (Creating an Infinite Duration)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-durations-2"
 import { Duration } from "effect"
 
 console.log(String(Duration.infinity))
 /*
 Output:
-Duration(Infinity)
+Infinity
 */
 ```
 
-Another option for creating durations is using the `Duration.decode` helper:
+Another option for creating durations is using the `Duration.fromInputUnsafe` helper:
 
 - `number` values are treated as milliseconds.
 - `bigint` values are treated as nanoseconds.
@@ -50,20 +50,20 @@ Another option for creating durations is using the `Duration.decode` helper:
 
 **Example** (Decoding Values into Durations)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-durations-3"
 import { Duration } from "effect"
 
-Duration.decode(10n) // same as Duration.nanos(10)
-Duration.decode(100) // same as Duration.millis(100)
-Duration.decode(Infinity) // same as Duration.infinity
+Duration.fromInputUnsafe(10n) // same as Duration.nanos(10)
+Duration.fromInputUnsafe(100) // same as Duration.millis(100)
+Duration.fromInputUnsafe(Infinity) // same as Duration.infinity
 
-Duration.decode("10 nanos") // same as Duration.nanos(10)
-Duration.decode("20 micros") // same as Duration.micros(20)
-Duration.decode("100 millis") // same as Duration.millis(100)
-Duration.decode("2 seconds") // same as Duration.seconds(2)
-Duration.decode("5 minutes") // same as Duration.minutes(5)
-Duration.decode("7 hours") // same as Duration.hours(7)
-Duration.decode("3 weeks") // same as Duration.weeks(3)
+Duration.fromInputUnsafe("10 nanos") // same as Duration.nanos(10)
+Duration.fromInputUnsafe("20 micros") // same as Duration.micros(20)
+Duration.fromInputUnsafe("100 millis") // same as Duration.millis(100)
+Duration.fromInputUnsafe("2 seconds") // same as Duration.seconds(2)
+Duration.fromInputUnsafe("5 minutes") // same as Duration.minutes(5)
+Duration.fromInputUnsafe("7 hours") // same as Duration.hours(7)
+Duration.fromInputUnsafe("3 weeks") // same as Duration.weeks(3)
 ```
 
 ## Getting the Duration Value
@@ -72,7 +72,7 @@ You can retrieve the value of a duration in milliseconds using `Duration.toMilli
 
 **Example** (Getting Duration in Milliseconds)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="getting-the-duration-value-1"
 import { Duration } from "effect"
 
 console.log(Duration.toMillis(Duration.seconds(30)))
@@ -83,7 +83,7 @@ To get the value of a duration in nanoseconds, use `Duration.toNanos`. Note that
 
 **Example** (Getting Duration in Nanoseconds)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="getting-the-duration-value-2"
 import { Duration } from "effect"
 
 console.log(Duration.toNanos(Duration.millis(100)))
@@ -93,17 +93,17 @@ Output:
 */
 ```
 
-To get a `bigint` value without `Option`, use `Duration.unsafeToNanos`. However, it will throw an error for infinite durations.
+To get a `bigint` value without `Option`, use `Duration.toNanosUnsafe`. However, it will throw an error for infinite durations.
 
 **Example** (Retrieving Nanoseconds Unsafely)
 
 ```ts twoslash
 import { Duration } from "effect"
 
-console.log(Duration.unsafeToNanos(Duration.millis(100)))
+console.log(Duration.toNanosUnsafe(Duration.millis(100)))
 // Output: 100000000n
 
-console.log(Duration.unsafeToNanos(Duration.infinity))
+console.log(Duration.toNanosUnsafe(Duration.infinity))
 /*
 throws:
 Error: Cannot convert infinite duration to nanos
@@ -115,31 +115,31 @@ Error: Cannot convert infinite duration to nanos
 
 Use the following functions to compare two durations:
 
-| API                    | Description                                                                  |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| `lessThan`             | Returns `true` if the first duration is less than the second.                |
-| `lessThanOrEqualTo`    | Returns `true` if the first duration is less than or equal to the second.    |
-| `greaterThan`          | Returns `true` if the first duration is greater than the second.             |
-| `greaterThanOrEqualTo` | Returns `true` if the first duration is greater than or equal to the second. |
+| API                      | Description                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `isLessThan`             | Returns `true` if the first duration is less than the second.                |
+| `isLessThanOrEqualTo`    | Returns `true` if the first duration is less than or equal to the second.    |
+| `isGreaterThan`          | Returns `true` if the first duration is greater than the second.             |
+| `isGreaterThanOrEqualTo` | Returns `true` if the first duration is greater than or equal to the second. |
 
 **Example** (Comparing Two Durations)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="comparing-durations-1"
 import { Duration } from "effect"
 
 const duration1 = Duration.seconds(30)
 const duration2 = Duration.minutes(1)
 
-console.log(Duration.lessThan(duration1, duration2))
+console.log(Duration.isLessThan(duration1, duration2))
 // Output: true
 
-console.log(Duration.lessThanOrEqualTo(duration1, duration2))
+console.log(Duration.isLessThanOrEqualTo(duration1, duration2))
 // Output: true
 
-console.log(Duration.greaterThan(duration1, duration2))
+console.log(Duration.isGreaterThan(duration1, duration2))
 // Output: false
 
-console.log(Duration.greaterThanOrEqualTo(duration1, duration2))
+console.log(Duration.isGreaterThanOrEqualTo(duration1, duration2))
 // Output: false
 ```
 
@@ -149,7 +149,7 @@ You can perform arithmetic operations on durations, like addition and multiplica
 
 **Example** (Adding and Multiplying Durations)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="performing-arithmetic-operations-1"
 import { Duration } from "effect"
 
 const duration1 = Duration.seconds(30)
@@ -159,14 +159,14 @@ const duration2 = Duration.minutes(1)
 console.log(String(Duration.sum(duration1, duration2)))
 /*
 Output:
-Duration(1m 30s)
+90000 millis
 */
 
 // Multiply a duration by a factor
 console.log(String(Duration.times(duration1, 2)))
 /*
 Output:
-Duration(1m)
+60000 millis
 */
 ```
 
@@ -176,9 +176,9 @@ Converts a `Duration` to a human readable string.
 
 **Example**
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="conversions-1"
 import { Duration } from "effect"
 
-Duration.format(Duration.millis(1000)) // "1s"
-Duration.format(Duration.millis(1001)) // "1s 1ms"
+Duration.format(Duration.millis(1000)) // => "1s"
+Duration.format(Duration.millis(1001)) // => "1s 1ms"
 ```
