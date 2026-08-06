@@ -28,7 +28,7 @@ To process a stream using a `Sink`, you can pass it directly to the `Stream.run`
 
 **Example** (Using a Sink to Collect Stream Elements)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-a-sink-to-collect-stream-elements-1"
 import { Stream, Sink, Effect } from "effect"
 
 //      ┌─── Stream<number, never, never>
@@ -37,21 +37,17 @@ const stream = Stream.make(1, 2, 3)
 
 // Create a sink to take the first 2 elements of the stream
 //
-//      ┌─── Sink<Chunk<number>, number, number, never, never>
+//      ┌─── Sink<Array<number>, number, number, never, never>
 //      ▼
 const sink = Sink.take<number>(2)
 
 // Run the stream through the sink to collect the elements
 //
-//      ┌─── Effect<number, never, never>
+//      ┌─── Effect<Array<number>, never, never>
 //      ▼
 const sum = Stream.run(stream, sink)
 
-Effect.runPromise(sum).then(console.log)
-/*
-Output:
-{ _id: 'Chunk', values: [ 1, 2 ] }
-*/
+await Effect.runPromise(sum) // => [1, 2]
 ```
 
 The type of `sink` is as follows:
@@ -63,7 +59,7 @@ The type of `sink` is as follows:
        │              |       |       ┌─── no errors
        │              │       |       |      ┌─── no dependencies
        ▼              ▼       ▼       ▼      ▼
-Sink<Chunk<number>, number, number, never, never>
+Sink<Array<number>, number, number, never, never>
 ```
 
 Here's the breakdown:
