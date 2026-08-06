@@ -8,11 +8,11 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components"
 
-The `Schema.standardSchemaV1` API allows you to generate a [Standard Schema v1](https://standardschema.dev/) object from an Effect `Schema`.
+The `Schema.toStandardSchemaV1` API allows you to generate a [Standard Schema v1](https://standardschema.dev/) object from an Effect `Schema`.
 
 **Example** (Generating a Standard Schema V1)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="schema-to-standard-schema-1"
 import { Schema } from "effect"
 
 const schema = Schema.Struct({
@@ -20,10 +20,9 @@ const schema = Schema.Struct({
 })
 
 // Convert an Effect schema into a Standard Schema V1 object
-//
-//      ┌─── StandardSchemaV1<{ readonly name: string; }>
-//      ▼
-const standardSchema = Schema.standardSchemaV1(schema)
+const standardSchema = Schema.toStandardSchemaV1(schema)
+
+standardSchema["~standard"].vendor // => "effect"
 ```
 
 <Aside type="note" title="Schema Restrictions">
@@ -33,13 +32,13 @@ const standardSchema = Schema.standardSchemaV1(schema)
 
 ## Sync vs Async Validation
 
-The `Schema.standardSchemaV1` API creates a schema whose `validate` method attempts to decode and validate the provided input synchronously. If the underlying `Schema` includes any asynchronous components (e.g., asynchronous message resolutions
+The `Schema.toStandardSchemaV1` API creates a schema whose `validate` method attempts to decode and validate the provided input synchronously. If the underlying `Schema` includes any asynchronous components (e.g., asynchronous message resolutions
 or checks), then validation will necessarily return a `Promise` instead.
 
 **Example** (Handling Synchronous and Asynchronous Validation)
 
-```ts twoslash
-import { Effect, Schema } from "effect"
+```ts twoslash import.meta.vitest name="sync-vs-async-validation-1"
+import { Effect, Schema, SchemaGetter } from "effect"
 
 // Utility function to display sync and async results
 const print = <T>(t: T) =>
@@ -53,10 +52,11 @@ const sync = Schema.Struct({
 })
 
 // Generate a Standard Schema V1 object
-const syncStandardSchema = Schema.standardSchemaV1(sync)
+const syncStandardSchema = Schema.toStandardSchemaV1(sync)
 
 // Validate synchronously
 print(syncStandardSchema["~standard"].validate({ name: null }))
+syncStandardSchema["~standard"].validate({ name: null }) // => { issues: [{ path: ["name"], message: "Expected string" }] }
 /*
 Output:
 {
@@ -65,30 +65,32 @@ Output:
       "path": [
         "name"
       ],
-      "message": "Expected string, actual null"
+      "message": "Expected string"
     }
   ]
 }
 */
 
 // Define an asynchronous schema with a transformation
-const async = Schema.transformOrFail(
-  sync,
-  Schema.Struct({
-    name: Schema.NonEmptyString,
-  }),
-  {
-    // Simulate an asynchronous validation delay
-    decode: (x) => Effect.sleep("100 millis").pipe(Effect.as(x)),
-    encode: Effect.succeed,
-  },
+const async = sync.pipe(
+  Schema.decodeTo(
+    Schema.Struct({
+      name: Schema.NonEmptyString,
+    }),
+    {
+      // Simulate an asynchronous validation delay
+      decode: SchemaGetter.transformOrFail((x) => Effect.sleep("100 millis").pipe(Effect.as(x))),
+      encode: SchemaGetter.passthrough(),
+    },
+  ),
 )
 
 // Generate a Standard Schema V1 object
-const asyncStandardSchema = Schema.standardSchemaV1(async)
+const asyncStandardSchema = Schema.toStandardSchemaV1(async)
 
 // Validate asynchronously
 print(asyncStandardSchema["~standard"].validate({ name: "" }))
+await asyncStandardSchema["~standard"].validate({ name: "" }) // => { issues: [{ path: ["name"], message: "Expected a value with a length of at least 1" }] }
 /*
 Output:
 Promise {
@@ -97,7 +99,7 @@ Promise {
       "path": [
         "name"
       ],
-      "message": "Expected a non empty string, actual \"\""
+      "message": "Expected a value with a length of at least 1"
     }
   ]
 }
@@ -110,18 +112,20 @@ If an unexpected defect occurs during validation, it is reported as a single iss
 
 **Example** (Handling Defects)
 
-```ts twoslash
-import { Effect, Schema } from "effect"
+```ts twoslash import.meta.vitest name="defects-1"
+import { Effect, Schema, SchemaGetter } from "effect"
 
 // Define a schema with a defect in the decode function
-const defect = Schema.transformOrFail(Schema.String, Schema.String, {
-  // Simulate an internal failure
-  decode: () => Effect.die("Boom!"),
-  encode: Effect.succeed,
-})
+const defect = Schema.String.pipe(
+  Schema.decodeTo(Schema.String, {
+    // Simulate an internal failure
+    decode: SchemaGetter.transformOrFail(() => Effect.die("Boom!")),
+    encode: SchemaGetter.passthrough(),
+  }),
+)
 
 // Generate a Standard Schema V1 object
-const defectStandardSchema = Schema.standardSchemaV1(defect)
+const defectStandardSchema = Schema.toStandardSchemaV1(defect)
 
 // Validate input, triggering a defect
 console.log(defectStandardSchema["~standard"].validate("a"))
