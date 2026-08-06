@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-The `@effect/platform/KeyValueStore` module provides a robust and effectful interface for managing key-value pairs.
+The `effect/unstable/persistence/KeyValueStore` module provides a robust and effectful interface for managing key-value pairs.
 It supports asynchronous operations, ensuring data integrity and consistency, and includes built-in implementations for in-memory, file system-based, and schema-validated stores.
 
 ## Basic Usage
@@ -14,8 +14,8 @@ The module exposes a single [service](/docs/requirements-management/services/), 
 
 **Example** (Accessing the KeyValueStore Service)
 
-```ts twoslash
-import { KeyValueStore } from "@effect/platform"
+```ts twoslash import.meta.vitest name="basic-usage-1"
+import { KeyValueStore } from "effect/unstable/persistence"
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
@@ -43,8 +43,8 @@ The `KeyValueStore` interface includes the following operations:
 
 **Example** (Basic Operations with a Key-Value Store)
 
-```ts twoslash
-import { KeyValueStore, layerMemory } from "@effect/platform/KeyValueStore"
+```ts twoslash import.meta.vitest name="basic-operations-with-a-key-value-store-1"
+import { KeyValueStore, layerMemory } from "effect/unstable/persistence/KeyValueStore"
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
@@ -88,14 +88,18 @@ The module includes two built-in implementations of the `KeyValueStore` interfac
 
 ## Working with Non-String Values
 
-By default, `KeyValueStore` works with `string` and `Uint8Array` values. To store other types such as objects, numbers, or booleans, use the `forSchema` method to create a `SchemaStore`.
+By default, `KeyValueStore` works with `string` and `Uint8Array` values. To store other types such as objects, numbers, or booleans, use the `toSchemaStore` function to create a `SchemaStore`.
 
 A `SchemaStore` uses a [schema](/docs/schema/introduction/) to validate and convert values. Internally, it serializes data using `JSON.stringify` and deserializes it with `JSON.parse`.
 
 **Example** (Storing a Typed Object Using a Schema)
 
-```ts twoslash
-import { KeyValueStore, layerMemory } from "@effect/platform/KeyValueStore"
+```ts twoslash import.meta.vitest name="storing-a-typed-object-using-a-schema-1"
+import {
+  KeyValueStore,
+  layerMemory,
+  toSchemaStore,
+} from "effect/unstable/persistence/KeyValueStore"
 import { Effect, Schema } from "effect"
 
 // Define a JSON-compatible schema
@@ -106,7 +110,7 @@ const Person = Schema.Struct({
 
 const program = Effect.gen(function* () {
   // Create a typed store based on the schema
-  const kv = (yield* KeyValueStore).forSchema(Person)
+  const kv = toSchemaStore(yield* KeyValueStore, Person)
 
   // Store a typed value
   const value = { name: "Alice", age: 30 }
