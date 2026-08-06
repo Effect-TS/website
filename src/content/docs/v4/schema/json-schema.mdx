@@ -6,88 +6,110 @@ sidebar:
   order: 16
 ---
 
-The `JSONSchema.make` function allows you to generate a JSON Schema from a schema.
+The `Schema.toJsonSchemaDocument` function allows you to generate a JSON Schema from a schema.
 
 **Example** (Creating a JSON Schema for a Struct)
 
 The following example defines a `Person` schema with properties for `name` (a string) and `age` (a number). It then generates the corresponding JSON Schema.
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="json-schema-1"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number,
 })
 
-const jsonSchema = JSONSchema.make(Person)
+const jsonSchema = Schema.toJsonSchemaDocument(Person)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "required": [
-    "name",
-    "age"
-  ],
-  "properties": {
-    "name": {
-      "type": "string"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "age": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "enum": [
+              "Infinity",
+              "-Infinity",
+              "NaN"
+            ]
+          }
+        ]
+      }
     },
-    "age": {
-      "type": "number"
-    }
+    "required": [
+      "name",
+      "age"
+    ],
+    "additionalProperties": false
   },
-  "additionalProperties": false
+  "definitions": {}
 }
 */
 ```
 
-The `JSONSchema.make` function aims to produce an optimal JSON Schema representing the input part of the decoding phase.
+The `Schema.toJsonSchemaDocument` function aims to produce an optimal JSON Schema representing the input part of the decoding phase.
 It does this by traversing the schema from the most nested component, incorporating each refinement, and **stops at the first transformation** encountered.
 
 **Example** (Excluding Transformations in JSON Schema)
 
 Consider modifying the `age` field to include both a refinement and a transformation. Only the refinement is reflected in the JSON Schema.
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="json-schema-2"
+import { Number, Schema, SchemaTransformation } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number.pipe(
     // Refinement included in the JSON Schema
-    Schema.int(),
+    Schema.check(Schema.isInt()),
     // Transformation excluded from the JSON Schema
-    Schema.clamp(1, 10),
+    Schema.decodeTo(
+      Schema.Number,
+      SchemaTransformation.transform({
+        decode: Number.clamp({ minimum: 1, maximum: 10 }),
+        encode: (n) => n,
+      }),
+    ),
   ),
 })
 
-const jsonSchema = JSONSchema.make(Person)
+const jsonSchema = Schema.toJsonSchemaDocument(Person)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "required": [
-    "name",
-    "age"
-  ],
-  "properties": {
-    "name": {
-      "type": "string"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "age": {
+        "type": "integer"
+      }
     },
-    "age": {
-      "type": "integer",
-      "description": "an integer",
-      "title": "integer"
-    }
+    "required": [
+      "name",
+      "age"
+    ],
+    "additionalProperties": false
   },
-  "additionalProperties": false
+  "definitions": {}
 }
 */
 ```
@@ -96,7 +118,7 @@ In this case, the JSON Schema reflects the integer refinement but does not inclu
 
 ## Targeting a Specific JSON Schema Version
 
-By default, `JSONSchema.make` generates a JSON Schema compatible with **Draft 07**. You can change the target schema version by passing an options object with a `target` property. The supported targets are:
+By default, `Schema.toJsonSchemaDocument` generates a JSON Schema compatible with **Draft 07**. You can change the target schema version by passing an options object with a `target` property. The supported targets are:
 
 - `"jsonSchema7"` (default) - JSON Schema Draft 07
 - `"jsonSchema2019-09"` - JSON Schema Draft 2019-09
@@ -107,31 +129,44 @@ Changing the target can affect the generated output. For example, tuple schemas 
 
 **Example** (Using JSON Schema 2020-12 for a Tuple)
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="targeting-a-specific-json-schema-version-1"
+import { Schema } from "effect"
 
-const schema = Schema.Tuple(Schema.String, Schema.Number)
+const schema = Schema.Tuple([Schema.String, Schema.Number])
 
-const jsonSchema = JSONSchema.make(schema, {
-  target: "jsonSchema2020-12",
-})
+const jsonSchema = Schema.toJsonSchemaDocument(schema)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "array",
-  "minItems": 2,
-  "prefixItems": [
-    {
-      "type": "string"
-    },
-    {
-      "type": "number"
-    }
-  ],
-  "items": false
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "array",
+    "prefixItems": [
+      {
+        "type": "string"
+      },
+      {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "enum": [
+              "Infinity",
+              "-Infinity",
+              "NaN"
+            ]
+          }
+        ]
+      }
+    ],
+    "maxItems": 2,
+    "minItems": 2
+  },
+  "definitions": {}
 }
 */
 ```
@@ -144,220 +179,267 @@ Literals are transformed into `enum` types within JSON Schema.
 
 **Example** (Single Literal)
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="literals-1"
+import { Schema } from "effect"
 
 const schema = Schema.Literal("a")
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "string",
-  "enum": [
-    "a"
-  ]
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "string",
+    "enum": [
+      "a"
+    ]
+  },
+  "definitions": {}
 }
 */
 ```
 
 **Example** (Union of literals)
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="literals-2"
+import { Schema } from "effect"
 
-const schema = Schema.Literal("a", "b")
+const schema = Schema.Literals(["a", "b"])
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "string",
-  "enum": [
-    "a",
-    "b"
-  ]
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "string",
+    "enum": [
+      "a",
+      "b"
+    ]
+  },
+  "definitions": {}
 }
 */
 ```
 
 ### Void
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="void-1"
+import { Schema } from "effect"
 
 const schema = Schema.Void
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/void",
-  "title": "void"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "null"
+  },
+  "definitions": {}
 }
 */
 ```
 
 ### Any
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="any-1"
+import { Schema } from "effect"
 
 const schema = Schema.Any
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/any",
-  "title": "any"
+  "dialect": "draft-2020-12",
+  "schema": {},
+  "definitions": {}
 }
 */
 ```
 
 ### Unknown
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="unknown-1"
+import { Schema } from "effect"
 
 const schema = Schema.Unknown
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/unknown",
-  "title": "unknown"
+  "dialect": "draft-2020-12",
+  "schema": {},
+  "definitions": {}
 }
 */
 ```
 
 ### Object
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="object-1"
+import { Schema } from "effect"
 
-const schema = Schema.Object
+const schema = Schema.ObjectKeyword
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/object",
-  "anyOf": [
-    {
-      "type": "object"
-    },
-    {
-      "type": "array"
-    }
-  ],
-  "description": "an object in the TypeScript meaning, i.e. the `object` type",
-  "title": "object"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "anyOf": [
+      {
+        "type": "array"
+      },
+      {
+        "type": "object"
+      }
+    ]
+  },
+  "definitions": {}
 }
 */
 ```
 
 ### String
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="string-1"
+import { Schema } from "effect"
 
 const schema = Schema.String
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "string"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "string"
+  },
+  "definitions": {}
 }
 */
 ```
 
 ### Number
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="number-1"
+import { Schema } from "effect"
 
 const schema = Schema.Number
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "number"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "anyOf": [
+      {
+        "type": "number"
+      },
+      {
+        "type": "string",
+        "enum": [
+          "Infinity",
+          "-Infinity",
+          "NaN"
+        ]
+      }
+    ]
+  },
+  "definitions": {}
 }
 */
 ```
 
 ### Boolean
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="boolean-1"
+import { Schema } from "effect"
 
 const schema = Schema.Boolean
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "boolean"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "boolean"
+  },
+  "definitions": {}
 }
 */
 ```
 
 ### Tuples
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="tuples-1"
+import { Schema } from "effect"
 
-const schema = Schema.Tuple(Schema.String, Schema.Number)
+const schema = Schema.Tuple([Schema.String, Schema.Number])
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "array",
-  "minItems": 2,
-  "items": [
-    {
-      "type": "string"
-    },
-    {
-      "type": "number"
-    }
-  ],
-  "additionalItems": false
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "array",
+    "prefixItems": [
+      {
+        "type": "string"
+      },
+      {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "enum": [
+              "Infinity",
+              "-Infinity",
+              "NaN"
+            ]
+          }
+        ]
+      }
+    ],
+    "maxItems": 2,
+    "minItems": 2
+  },
+  "definitions": {}
 }
 */
 ```
 
 ### Arrays
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="arrays-1"
+import { Schema } from "effect"
 
 const schema = Schema.Array(Schema.String)
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "array",
-  "items": {
-    "type": "string"
-  }
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "array",
+    "items": {
+      "type": "string"
+    }
+  },
+  "definitions": {}
 }
 */
 ```
@@ -368,81 +450,112 @@ Represents an array with at least one element.
 
 **Example**
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="non-empty-arrays-1"
+import { Schema } from "effect"
 
 const schema = Schema.NonEmptyArray(Schema.String)
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "array",
-  "minItems": 1,
-  "items": {
-    "type": "string"
-  }
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "array",
+    "prefixItems": [
+      {
+        "type": "string"
+      }
+    ],
+    "minItems": 1,
+    "items": {
+      "type": "string"
+    }
+  },
+  "definitions": {}
 }
 */
 ```
 
 ### Structs
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="structs-1"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({
   name: Schema.String,
   age: Schema.Number,
 })
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "required": [
-    "name",
-    "age"
-  ],
-  "properties": {
-    "name": {
-      "type": "string"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "age": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "enum": [
+              "Infinity",
+              "-Infinity",
+              "NaN"
+            ]
+          }
+        ]
+      }
     },
-    "age": {
-      "type": "number"
-    }
+    "required": [
+      "name",
+      "age"
+    ],
+    "additionalProperties": false
   },
-  "additionalProperties": false
+  "definitions": {}
 }
 */
 ```
 
 ### Records
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="records-1"
+import { Schema } from "effect"
 
-const schema = Schema.Record({
-  key: Schema.String,
-  value: Schema.Number,
-})
+const schema = Schema.Record(Schema.String, Schema.Number)
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "required": [],
-  "properties": {},
-  "patternProperties": {
-    "": {
-      "type": "number"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "object",
+    "additionalProperties": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "Infinity",
+            "-Infinity",
+            "NaN"
+          ]
+        }
+      ]
     }
-  }
+  },
+  "definitions": {}
 }
 */
 ```
@@ -453,108 +566,133 @@ Combines fixed properties from a struct with dynamic properties from a record.
 
 **Example**
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="mixed-structs-with-records-1"
+import { Schema } from "effect"
 
-const schema = Schema.Struct(
-  {
+const schema = Schema.StructWithRest(
+  Schema.Struct({
     name: Schema.String,
     age: Schema.Number,
-  },
-  Schema.Record({
-    key: Schema.String,
-    value: Schema.Union(Schema.String, Schema.Number),
   }),
+  [Schema.Record(Schema.String, Schema.Union([Schema.String, Schema.Number]))],
 )
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "required": [
-    "name",
-    "age"
-  ],
-  "properties": {
-    "name": {
-      "type": "string"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "age": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "enum": [
+              "Infinity",
+              "-Infinity",
+              "NaN"
+            ]
+          }
+        ]
+      }
     },
-    "age": {
-      "type": "number"
-    }
-  },
-  "patternProperties": {
-    "": {
+    "required": [
+      "name",
+      "age"
+    ],
+    "additionalProperties": {
       "anyOf": [
         {
           "type": "string"
         },
         {
-          "type": "number"
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "enum": [
+                "Infinity",
+                "-Infinity",
+                "NaN"
+              ]
+            }
+          ]
         }
       ]
     }
-  }
+  },
+  "definitions": {}
 }
 */
 ```
 
 ### Enums
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="enums-1"
+import { Schema } from "effect"
 
 enum Fruits {
   Apple,
   Banana,
 }
 
-const schema = Schema.Enums(Fruits)
+const schema = Schema.Enum(Fruits)
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$comment": "/schemas/enums",
-  "anyOf": [
-    {
-      "type": "number",
-      "title": "Apple",
-      "enum": [
-        0
-      ]
-    },
-    {
-      "type": "number",
-      "title": "Banana",
-      "enum": [
-        1
-      ]
-    }
-  ]
+  "dialect": "draft-2020-12",
+  "schema": {
+    "anyOf": [
+      {
+        "type": "number",
+        "enum": [
+          0
+        ],
+        "title": "Apple"
+      },
+      {
+        "type": "number",
+        "enum": [
+          1
+        ],
+        "title": "Banana"
+      }
+    ]
+  },
+  "definitions": {}
 }
 */
 ```
 
 ### Template Literals
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="template-literals-1"
+import { Schema } from "effect"
 
-const schema = Schema.TemplateLiteral(Schema.Literal("a"), Schema.Number)
+const schema = Schema.TemplateLiteral([Schema.Literal("a"), Schema.Number])
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "string",
-  "title": "`a${number}`",
-  "description": "a template literal",
-  "pattern": "^a[+-]?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?$"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "string",
+    "pattern": "^a[+-]?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?$"
+  },
+  "definitions": {}
 }
 */
 ```
@@ -565,45 +703,63 @@ Unions are expressed using `anyOf` or `enum`, depending on the types involved:
 
 **Example** (Generic Union)
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="unions-1"
+import { Schema } from "effect"
 
-const schema = Schema.Union(Schema.String, Schema.Number)
+const schema = Schema.Union([Schema.String, Schema.Number])
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "anyOf": [
-    {
-      "type": "string"
-    },
-    {
-      "type": "number"
-    }
-  ]
+  "dialect": "draft-2020-12",
+  "schema": {
+    "anyOf": [
+      {
+        "type": "string"
+      },
+      {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "enum": [
+              "Infinity",
+              "-Infinity",
+              "NaN"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "definitions": {}
 }
 */
 ```
 
 **Example** (Union of literals)
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="unions-2"
+import { Schema } from "effect"
 
-const schema = Schema.Literal("a", "b")
+const schema = Schema.Literals(["a", "b"])
 
-console.log(JSON.stringify(JSONSchema.make(schema), null, 2))
+console.log(JSON.stringify(Schema.toJsonSchemaDocument(schema), null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "string",
-  "enum": [
-    "a",
-    "b"
-  ]
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "string",
+    "enum": [
+      "a",
+      "b"
+    ]
+  },
+  "definitions": {}
 }
 */
 ```
@@ -614,51 +770,61 @@ You can add `identifier` annotations to schemas to improve structure and maintai
 
 **Example** (Using Identifier Annotations)
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="identifier-annotations-1"
+import { Schema } from "effect"
 
-const Name = Schema.String.annotations({ identifier: "Name" })
+const Name = Schema.String.annotate({ identifier: "Name" })
 
-const Age = Schema.Number.annotations({ identifier: "Age" })
+const Age = Schema.Number.annotate({ identifier: "Age" })
 
 const Person = Schema.Struct({
   name: Name,
   age: Age,
 })
 
-const jsonSchema = JSONSchema.make(Person)
+const jsonSchema = Schema.toJsonSchemaDocument(Person)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$defs": {
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "$ref": "#/$defs/Name"
+      },
+      "age": {
+        "$ref": "#/$defs/AgeEncoded"
+      }
+    },
+    "required": [
+      "name",
+      "age"
+    ],
+    "additionalProperties": false
+  },
+  "definitions": {
     "Name": {
-      "type": "string",
-      "description": "a string",
-      "title": "string"
+      "type": "string"
     },
-    "Age": {
-      "type": "number",
-      "description": "a number",
-      "title": "number"
+    "AgeEncoded": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "Infinity",
+            "-Infinity",
+            "NaN"
+          ]
+        }
+      ]
     }
-  },
-  "type": "object",
-  "required": [
-    "name",
-    "age"
-  ],
-  "properties": {
-    "name": {
-      "$ref": "#/$defs/Name"
-    },
-    "age": {
-      "$ref": "#/$defs/Age"
-    }
-  },
-  "additionalProperties": false
+  }
 }
 */
 ```
@@ -672,31 +838,34 @@ These annotations allow you to enrich your schemas with metadata that can enhanc
 
 **Example** (Using Annotations for Metadata)
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="standard-json-schema-annotations-1"
+import { Schema } from "effect"
 
-const schema = Schema.String.annotations({
+const schema = Schema.String.annotate({
   description: "my custom description",
   title: "my custom title",
   default: "",
   examples: ["a", "b"],
 })
 
-const jsonSchema = JSONSchema.make(schema)
+const jsonSchema = Schema.toJsonSchemaDocument(schema)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "string",
-  "description": "my custom description",
-  "title": "my custom title",
-  "examples": [
-    "a",
-    "b"
-  ],
-  "default": ""
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "string",
+    "title": "my custom title",
+    "description": "my custom description",
+    "default": "",
+    "examples": [
+      "a",
+      "b"
+    ]
+  },
+  "definitions": {}
 }
 */
 ```
@@ -708,41 +877,44 @@ This method is more semantically appropriate as it links descriptive titles and 
 
 **Example** (Annotated Struct Properties)
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="adding-annotations-to-struct-properties-1"
+import { Schema } from "effect"
 
 const Person = Schema.Struct({
-  firstName: Schema.propertySignature(Schema.String).annotations({
+  firstName: Schema.String.annotate({
     title: "First name",
   }),
-  lastName: Schema.propertySignature(Schema.String).annotations({
+  lastName: Schema.String.annotate({
     title: "Last Name",
   }),
 })
 
-const jsonSchema = JSONSchema.make(Person)
+const jsonSchema = Schema.toJsonSchemaDocument(Person)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "required": [
-    "firstName",
-    "lastName"
-  ],
-  "properties": {
-    "firstName": {
-      "type": "string",
-      "title": "First name"
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "firstName": {
+        "type": "string",
+        "title": "First name"
+      },
+      "lastName": {
+        "type": "string",
+        "title": "Last Name"
+      }
     },
-    "lastName": {
-      "type": "string",
-      "title": "Last Name"
-    }
+    "required": [
+      "firstName",
+      "lastName"
+    ],
+    "additionalProperties": false
   },
-  "additionalProperties": false
+  "definitions": {}
 }
 */
 ```
@@ -755,8 +927,8 @@ Recursive and mutually recursive schemas are supported, however it's **mandatory
 
 In this example, the `Category` schema refers to itself, making it necessary to use an `identifier` annotation to facilitate the reference.
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="recursive-and-mutually-recursive-schemas-1"
+import { Schema } from "effect"
 
 // Define the interface representing a category structure
 interface Category {
@@ -771,22 +943,21 @@ const Category = Schema.Struct({
     // Recursive reference to the Category schema
     Schema.suspend((): Schema.Schema<Category> => Category),
   ),
-}).annotations({ identifier: "Category" })
+}).annotate({ identifier: "Category" })
 
-const jsonSchema = JSONSchema.make(Category)
+const jsonSchema = Schema.toJsonSchemaDocument(Category)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$defs": {
+  "dialect": "draft-2020-12",
+  "schema": {
+    "$ref": "#/$defs/Category"
+  },
+  "definitions": {
     "Category": {
       "type": "object",
-      "required": [
-        "name",
-        "categories"
-      ],
       "properties": {
         "name": {
           "type": "string"
@@ -798,10 +969,13 @@ Output:
           }
         }
       },
+      "required": [
+        "name",
+        "categories"
+      ],
       "additionalProperties": false
     }
-  },
-  "$ref": "#/$defs/Category"
+  }
 }
 */
 ```
@@ -815,22 +989,39 @@ This absence typically leads to an error when the schema is generated.
 
 Attempting to generate a JSON Schema for unsupported types like `bigint` will lead to a missing annotation error:
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="customizing-json-schema-generation-1"
+import { Schema } from "effect"
 
 const schema = Schema.Struct({
-  a_bigint_field: Schema.BigIntFromSelf,
+  a_bigint_field: Schema.BigInt,
 })
 
-const jsonSchema = JSONSchema.make(schema)
+const jsonSchema = Schema.toJsonSchemaDocument(schema)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
-throws:
-Error: Missing annotation
-at path: ["a_bigint_field"]
-details: Generating a JSON Schema for this schema requires a "jsonSchema" annotation
-schema (BigIntKeyword): bigint
+Output:
+{
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "a_bigint_field": {
+        "type": "string",
+        "allOf": [
+          {
+            "pattern": "^-?\\d+$"
+          }
+        ]
+      }
+    },
+    "required": [
+      "a_bigint_field"
+    ],
+    "additionalProperties": false
+  },
+  "definitions": {}
+}
 */
 ```
 
@@ -873,37 +1064,62 @@ Output:
 
 ### Refinements
 
-When defining a refinement (e.g., through the `Schema.filter` function), you can include a JSON Schema annotation to describe the refinement. This annotation is added as a "fragment" that becomes part of the generated JSON Schema. If a schema contains multiple refinements, their respective annotations are merged into the output.
+When defining a refinement (e.g., through the `Schema.makeFilter` function), you can include a JSON Schema annotation to describe the refinement. This annotation is added as a "fragment" that becomes part of the generated JSON Schema. If a schema contains multiple refinements, their respective annotations are merged into the output.
 
 **Example** (Using Refinements with Merged Annotations)
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="refinements-1"
+import { Schema } from "effect"
 
 // Define a schema with a refinement for positive numbers
 const Positive = Schema.Number.pipe(
-  Schema.filter((n) => n > 0, {
-    jsonSchema: { minimum: 0 },
-  }),
+  Schema.check(
+    Schema.makeFilter((n) => n > 0, {
+      toJsonSchema: () => ({ minimum: 0 }),
+    }),
+  ),
 )
 
 // Add an upper bound refinement to the schema
 const schema = Positive.pipe(
-  Schema.filter((n) => n <= 10, {
-    jsonSchema: { maximum: 10 },
-  }),
+  Schema.check(
+    Schema.makeFilter((n) => n <= 10, {
+      toJsonSchema: () => ({ maximum: 10 }),
+    }),
+  ),
 )
 
-const jsonSchema = JSONSchema.make(schema)
+const jsonSchema = Schema.toJsonSchemaDocument(schema)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "number",
-  "minimum": 0,
-  "maximum": 10
+  "dialect": "draft-2020-12",
+  "schema": {
+    "anyOf": [
+      {
+        "type": "number",
+        "allOf": [
+          {
+            "minimum": 0
+          },
+          {
+            "maximum": 10
+          }
+        ]
+      },
+      {
+        "type": "string",
+        "enum": [
+          "Infinity",
+          "-Infinity",
+          "NaN"
+        ]
+      }
+    ]
+  },
+  "definitions": {}
 }
 */
 ```
@@ -917,31 +1133,56 @@ If you prefer stricter type enforcement or need to support non-standard extensio
 In the following example, we've used the `@types/json-schema` package to provide TypeScript definitions for JSON Schema. This approach not only ensures type correctness but also enables autocomplete suggestions in your IDE.
 
 ```ts twoslash
-import { JSONSchema, Schema } from "effect"
+import { Schema } from "effect"
 import type { JSONSchema7 } from "json-schema"
 
 const Positive = Schema.Number.pipe(
-  Schema.filter((n) => n > 0, {
-    jsonSchema: { minimum: 0 }, // Generic object, no type enforcement
-  }),
+  Schema.check(
+    Schema.makeFilter((n) => n > 0, {
+      toJsonSchema: () => ({ minimum: 0 }), // Generic object, no type enforcement
+    }),
+  ),
 )
 
 const schema = Positive.pipe(
-  Schema.filter((n) => n <= 10, {
-    jsonSchema: { maximum: 10 } satisfies JSONSchema7, // Enforces type constraints
-  }),
+  Schema.check(
+    Schema.makeFilter((n) => n <= 10, {
+      toJsonSchema: () => ({ maximum: 10 }) satisfies JSONSchema7, // Enforces type constraints
+    }),
+  ),
 )
 
-const jsonSchema = JSONSchema.make(schema)
+const jsonSchema = Schema.toJsonSchemaDocument(schema)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "number",
-  "minimum": 0,
-  "maximum": 10
+  "dialect": "draft-2020-12",
+  "schema": {
+    "anyOf": [
+      {
+        "type": "number",
+        "allOf": [
+          {
+            "minimum": 0
+          },
+          {
+            "maximum": 10
+          }
+        ]
+      },
+      {
+        "type": "string",
+        "enum": [
+          "Infinity",
+          "-Infinity",
+          "NaN"
+        ]
+      }
+    ]
+  },
+  "definitions": {}
 }
 */
 ```
@@ -992,35 +1233,29 @@ This behavior ensures that the generated JSON Schema reflects the intended struc
 
 **Example** (Generating JSON Schema for a Parsed Object)
 
-```ts twoslash
-import { JSONSchema, Schema } from "effect"
+```ts twoslash import.meta.vitest name="specialized-json-schema-generation-with-schema-parsejson-1"
+import { Schema } from "effect"
 
 // Define a schema that parses a JSON string into a structured object
-const schema = Schema.parseJson(
+const schema = Schema.fromJsonString(
   Schema.Struct({
     // Nested parsing: JSON string to a number
-    a: Schema.parseJson(Schema.NumberFromString),
+    a: Schema.fromJsonString(Schema.NumberFromString),
   }),
 )
 
-const jsonSchema = JSONSchema.make(schema)
+const jsonSchema = Schema.toJsonSchemaDocument(schema)
 
 console.log(JSON.stringify(jsonSchema, null, 2))
 /*
 Output:
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "required": [
-    "a"
-  ],
-  "properties": {
-    "a": {
-      "type": "string",
-      "contentMediaType": "application/json"
-    }
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "string",
+    "contentMediaType": "application/json"
   },
-  "additionalProperties": false
+  "definitions": {}
 }
 */
 ```
