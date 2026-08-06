@@ -189,7 +189,7 @@ You cannot directly assign a `number` to `ProductId`. The Brand module provides 
 
 ## Constructing Branded Types
 
-The Brand module provides two main functions for creating branded types: `nominal` and `refined`.
+The Brand module provides two main functions for creating branded types: `nominal` and `make`.
 
 ### nominal
 
@@ -199,7 +199,7 @@ Nominal branded types are useful when we only want to create distinct types for 
 
 **Example** (Defining Distinct Identifiers with Nominal Branding)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="nominal-1"
 import { Brand } from "effect"
 
 // Define UserId as a branded number
@@ -260,24 +260,23 @@ getProductById(UserId(1))
 
 ### refined
 
-The `Brand.refined` function enables the creation of branded types that include data validation. It requires a refinement predicate to check the validity of input data against specific criteria.
+The `Brand.make` function enables the creation of branded types that include data validation. It requires a refinement predicate to check the validity of input data against specific criteria.
 
 When the input data does not meet the criteria, the function uses `Brand.error` to generate a `BrandErrors` data type. This provides detailed information about why the validation failed.
 
 **Example** (Creating a Branded Type with Validation)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="refined-1"
 import { Brand } from "effect"
 
 // Define a branded type 'Int' to represent integer values
 type Int = number & Brand.Brand<"Int">
 
-// Define the constructor using 'refined' to enforce integer values
-const Int = Brand.refined<Int>(
-  // Validation to ensure the value is an integer
-  (n) => Number.isInteger(n),
-  // Provide an error if validation fails
-  (n) => Brand.error(`Expected ${n} to be an integer`),
+// Define the constructor using 'make' to enforce integer values
+const Int = Brand.make<Int>(
+  (n) =>
+    // Validation to ensure the value is an integer, with an error message if not
+    Number.isInteger(n) || `Expected ${n} to be an integer`,
 )
 ```
 
@@ -288,11 +287,10 @@ import { Brand } from "effect"
 
 type Int = number & Brand.Brand<"Int">
 
-const Int = Brand.refined<Int>(
-  // Check if the value is an integer
-  (n) => Number.isInteger(n),
-  // Error message if the value is not an integer
-  (n) => Brand.error(`Expected ${n} to be an integer`),
+const Int = Brand.make<Int>(
+  (n) =>
+    // Check if the value is an integer, with an error message if not
+    Number.isInteger(n) || `Expected ${n} to be an integer`,
 )
 
 // Create a valid Int value
@@ -301,7 +299,7 @@ console.log(x) // Output: 3
 
 // Attempt to create an Int with an invalid value
 const y: Int = Int(3.14)
-// throws [ { message: 'Expected 3.14 to be an integer' } ]
+// throws BrandError(Expected 3.14 to be an integer)
 ```
 
 Attempting to assign a non-`Int` value will result in a compile-time error:
@@ -313,10 +311,7 @@ import { Brand } from "effect"
 
 type Int = number & Brand.Brand<"Int">
 
-const Int = Brand.refined<Int>(
-  (n) => Number.isInteger(n),
-  (n) => Brand.error(`Expected ${n} to be an integer`),
-)
+const Int = Brand.make<Int>((n) => Number.isInteger(n) || `Expected ${n} to be an integer`)
 
 // Correct usage
 const good: Int = Int(3)
@@ -341,17 +336,11 @@ import { Brand } from "effect"
 
 type Int = number & Brand.Brand<"Int">
 
-const Int = Brand.refined<Int>(
-  (n) => Number.isInteger(n),
-  (n) => Brand.error(`Expected ${n} to be an integer`),
-)
+const Int = Brand.make<Int>((n) => Number.isInteger(n) || `Expected ${n} to be an integer`)
 
 type Positive = number & Brand.Brand<"Positive">
 
-const Positive = Brand.refined<Positive>(
-  (n) => n > 0,
-  (n) => Brand.error(`Expected ${n} to be positive`),
-)
+const Positive = Brand.make<Positive>((n) => n > 0 || `Expected ${n} to be positive`)
 
 // Combine the Int and Positive constructors
 // into a new branded constructor PositiveInt
@@ -365,9 +354,9 @@ type PositiveInt = Brand.Brand.FromConstructor<typeof PositiveInt>
 // Valid positive integer
 const good: PositiveInt = PositiveInt(10)
 
-// throws [ { message: 'Expected -5 to be positive' } ]
+// throws BrandError(Expected -5 to be positive)
 const bad1: PositiveInt = PositiveInt(-5)
 
-// throws [ { message: 'Expected 3.14 to be an integer' } ]
+// throws BrandError(Expected 3.14 to be an integer)
 const bad2: PositiveInt = PositiveInt(3.14)
 ```
