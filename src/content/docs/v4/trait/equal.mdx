@@ -9,13 +9,13 @@ The Equal module provides a simple and convenient way to define and check for eq
 
 Here are some key reasons why Effect exports an Equal module:
 
-1. **Value-Based Equality**: JavaScript's native equality operators (`===` and `==`) check for equality by reference, meaning they compare objects based on their memory addresses rather than their content. This behavior can be problematic when you want to compare objects with the same values but different references. The Equal module offers a solution by allowing developers to define custom equality checks based on the values of objects.
+1. **Value-Based Equality by Default**: JavaScript's native equality operators (`===` and `==`) check for equality by reference, meaning they compare objects based on their memory addresses rather than their content. This behavior can be problematic when you want to compare objects with the same values but different references. The `Equal.equals` function solves this for the common cases out of the box: plain objects, arrays, `Map`, `Set`, `Date`, and `RegExp` are compared structurally, without any extra setup.
 
-2. **Custom Equality**: The Equal module enables developers to implement custom equality checks for their data types and classes. This is crucial when you have specific requirements for determining when two objects should be considered equal. By implementing the `Equal` interface, developers can define their own equality logic.
+2. **Custom Equality**: Sometimes structural comparison isn't what you want, for example when equality should depend on only part of a value. The Equal module enables developers to implement custom equality checks for their data types and classes. By implementing the `Equal` interface, developers can define their own equality logic.
 
 3. **Data Integrity**: In some applications, maintaining data integrity is crucial. The ability to perform value-based equality checks ensures that identical data is not duplicated within collections like sets or maps. This can lead to more efficient memory usage and more predictable behavior.
 
-4. **Predictable Behavior**: The Equal module promotes more predictable behavior when comparing objects. By explicitly defining equality criteria, developers can avoid unexpected results that may occur with JavaScript's default reference-based equality checks.
+4. **Predictable Behavior**: The Equal module promotes more predictable behavior when comparing objects. Structural values are compared consistently by content, custom types are compared using the logic they define, and you can still opt individual objects into reference equality when that's genuinely what you need.
 
 ## How to Perform Equality Checking in Effect
 
@@ -23,9 +23,9 @@ In Effect it's advisable to **stop using** JavaScript's `===` and `==` operators
 This function can work with any data type that implements the `Equal` interface.
 Some examples of such data types include [Option](/docs/data-types/option/), [Result](/docs/data-types/result/), [HashSet](https://effect-ts.github.io/effect/effect/HashSet.ts.html), and [HashMap](https://effect-ts.github.io/effect/effect/HashMap.ts.html).
 
-When you use `Equal.equals` and your objects do not implement the `Equal` interface, it defaults to using the `===` operator for object comparison:
+By default, `Equal.equals` performs a deep structural comparison. Plain objects, arrays, `Map`s, `Set`s, `Date`s, and `RegExp`s are compared by their contents, not their reference, even if they don't implement the `Equal` interface:
 
-**Example** (Using `Equal.equals` with Default Comparison)
+**Example** (Using `Equal.equals` with the Default Structural Comparison)
 
 ```ts twoslash import.meta.vitest name="how-to-perform-equality-checking-in-effect-1"
 import { Equal } from "effect"
@@ -34,18 +34,18 @@ import { Equal } from "effect"
 const a = { name: "Alice", age: 30 }
 const b = { name: "Alice", age: 30 }
 
-// Equal.equals falls back to the default '===' comparison
+// Equal.equals compares plain objects structurally by default
 console.log(Equal.equals(a, b))
-// Output: false
+// Output: true
 ```
 
-In this example, `a` and `b` are two separate objects with the same contents. However, `===` considers them different because they occupy different memory locations. This behavior can lead to unexpected results when you want to compare values based on their content.
+In this example, `a` and `b` are two separate objects with the same contents. `===` would consider them different because they occupy different memory locations, but `Equal.equals` reports them as equal because plain objects are compared structurally by default.
 
-However, you can configure your models to ensure that `Equal.equals` behaves consistently with your custom equality checks. There are two alternative approaches:
+Structural comparison isn't always what you want, though. Sometimes equality should depend on only part of a value (for example, an identifier) while ignoring the rest, or you may need `Equal.equals` to compare a specific object by reference instead of by value. There are two ways to change the default behavior:
 
-1. **Implementing the `Equal` Interface**: This method is useful when you need to define your custom equality check.
+1. **Implementing the `Equal` Interface**: This method is useful when you need to define custom equality logic.
 
-2. **Using the Data Module**: For simple value equality, the [Data](/docs/data-types/data/) module provides a more straightforward solution by automatically generating default implementations for `Equal`.
+2. **Opting Into Reference Equality**: Mark specific objects so `Equal.equals` compares them by reference instead of structurally.
 
 Let's explore both.
 
@@ -53,7 +53,7 @@ Let's explore both.
 
 To create custom equality behavior, you can implement the `Equal` interface in your models. This interface extends the `Hash` interface from the [Hash](/docs/trait/hash/) module.
 
-**Example** (Implementing `Equal` and `Hash` for a Custom Class)
+**Example** (Implementing `Equal` and `Hash` to Ignore an Irrelevant Field)
 
 ```ts twoslash import.meta.vitest name="implementing-the-equal-interface-1"
 import { Equal, Hash } from "effect"
@@ -63,9 +63,10 @@ class Person implements Equal.Equal {
     readonly id: number, // Unique identifier
     readonly name: string,
     readonly age: number,
+    readonly updatedAt: Date, // Changes on every edit, irrelevant to identity
   ) {}
 
-  // Define equality based on id, name, and age
+  // Define equality based on id, name, and age only
   [Equal.symbol](that: Equal.Equal): boolean {
     if (that instanceof Person) {
       return (
@@ -84,13 +85,13 @@ class Person implements Equal.Equal {
 }
 ```
 
-In the above code, we define a custom equality function `[Equal.symbol]` and a hash function `[Hash.symbol]` for the `Person` class. The `Hash` interface optimizes equality checks by comparing hash values instead of the objects themselves. When you use the `Equal.equals` function to compare two objects, it first checks if their hash values are equal. If not, it quickly determines that the objects are not equal, avoiding the need for a detailed property-by-property comparison.
+Without a custom implementation, the default structural comparison would also take `updatedAt` into account, so two records for the same person captured at different times would count as different. The `[Equal.symbol]` method above defines equality based on `id`, `name`, and `age` only, ignoring `updatedAt`. The `Hash` interface optimizes equality checks by comparing hash values instead of the objects themselves. When you use the `Equal.equals` function to compare two objects, it first checks if their hash values are equal. If not, it quickly determines that the objects are not equal, avoiding the need for a detailed property-by-property comparison.
 
 Once you've implemented the `Equal` interface, you can utilize the `Equal.equals` function to check for equality using your custom logic.
 
 **Example** (Comparing `Person` Instances)
 
-```ts twoslash collapse={3-26} import.meta.vitest name="implementing-the-equal-interface-2"
+```ts twoslash collapse={3-27} import.meta.vitest name="implementing-the-equal-interface-2"
 import { Equal, Hash } from "effect"
 
 class Person implements Equal.Equal {
@@ -98,6 +99,7 @@ class Person implements Equal.Equal {
     readonly id: number, // Unique identifier for each person
     readonly name: string,
     readonly age: number,
+    readonly updatedAt: Date,
   ) {}
 
   // Defines equality based on id, name, and age
@@ -118,43 +120,41 @@ class Person implements Equal.Equal {
   }
 }
 
-const alice = new Person(1, "Alice", 30)
-console.log(Equal.equals(alice, new Person(1, "Alice", 30)))
+const alice = new Person(1, "Alice", 30, new Date("2024-01-01"))
+console.log(Equal.equals(alice, new Person(1, "Alice", 30, new Date("2024-06-01"))))
 // Output: true
 
-const bob = new Person(2, "Bob", 40)
+const bob = new Person(2, "Bob", 40, new Date("2024-01-01"))
 console.log(Equal.equals(alice, bob))
 // Output: false
 ```
 
-In this code, the equality check returns `true` when comparing `alice` to a new `Person` object with identical property values and `false` when comparing `alice` to `bob` due to their differing property values.
+In this code, the equality check returns `true` when comparing `alice` to another `Person` record with the same `id`, `name`, and `age` but a different `updatedAt`, because `updatedAt` doesn't participate in the comparison. It returns `false` when comparing `alice` to `bob` because their identifying fields differ.
 
-### Simplifying Equality with the Data Module
+### Opting Into Reference Equality
 
-Implementing both `Equal` and `Hash` can become cumbersome when all you need is straightforward value equality checks. Luckily, the [Data](/docs/data-types/data/) module provides a simpler solution. It offers APIs that automatically generate default implementations for both `Equal` and `Hash`.
+Sometimes you want `Equal.equals` to compare a specific object or array by reference instead of by value, for example when identity matters more than content. The `Equal.byReference` function returns a proxy that opts a value out of structural comparison, without mutating the original:
 
-**Example** (Using `Data.struct` for Equality Checks)
+**Example** (Opting a Value Out of Structural Comparison)
 
-```ts twoslash import.meta.vitest name="simplifying-equality-with-the-data-module-1"
+```ts twoslash import.meta.vitest name="opting-into-reference-equality-1"
 import { Equal } from "effect"
 
 const alice = { id: 1, name: "Alice", age: 30 }
+const aliceCopy = { id: 1, name: "Alice", age: 30 }
 
-const bob = { id: 2, name: "Bob", age: 40 }
-
-console.log(Equal.equals(alice, { id: 1, name: "Alice", age: 30 }))
+console.log(Equal.equals(alice, aliceCopy))
 // Output: true
 
-console.log(Equal.equals(alice, { id: 1, name: "Alice", age: 30 }))
-// Output: false
+const aliceByReference = Equal.byReference(alice)
 
-console.log(Equal.equals(alice, bob))
+console.log(Equal.equals(aliceByReference, aliceCopy))
 // Output: false
 ```
 
-In this example, we use the [Data.struct](/docs/data-types/data/#struct) function to create structured data objects and check their equality using `Equal.equals`. The Data module simplifies the process by providing a default implementation for both `Equal` and `Hash`, allowing you to focus on comparing values without the need for explicit implementations.
+`Equal.byReferenceUnsafe` does the same thing without allocating a proxy, by marking the original object directly. The marking is irreversible for the lifetime of that object.
 
-The Data module isn't limited to just structs. It can handle various data types, including tuples, arrays, and records. If you're curious about how to leverage its full range of features, you can explore the [Data module documentation](/docs/data-types/data/#value-equality).
+The [Data](/docs/data-types/data/) module still provides `Data.Class`, `Data.TaggedClass`, `Data.TaggedError`, and `Data.taggedEnum` for building tagged data types and errors — see the [Data module documentation](/docs/data-types/data/) for details.
 
 ## Working with Collections
 
@@ -176,9 +176,9 @@ console.log(set.size)
 // Output: 2
 ```
 
-Even though the two elements in the set have the same values, the set contains two elements. Why? JavaScript's `Set` checks for equality by reference, not by values.
+Even though the two elements in the set have the same values, the set contains two elements. Why? JavaScript's `Set` checks for equality by reference, not by values. This is unaffected by Effect's `Equal` module, since the native `Set` never consults it.
 
-To perform value-based equality checks, you'll need to use the `Hash*` collection types available in the `effect` package. These collection types, such as [HashSet](https://effect-ts.github.io/effect/effect/HashSet.ts.html) and [HashMap](https://effect-ts.github.io/effect/effect/HashMap.ts.html), provide support for the `Equal` interface.
+To perform value-based equality checks, you'll need to use the `Hash*` collection types available in the `effect` package. These collection types, such as [HashSet](https://effect-ts.github.io/effect/effect/HashSet.ts.html) and [HashMap](https://effect-ts.github.io/effect/effect/HashMap.ts.html), use `Equal.equals` for comparisons — which means plain objects, arrays, and other structurally-comparable values are deduplicated automatically, without needing any extra setup.
 
 ### HashSet
 
@@ -189,7 +189,7 @@ When you use the `HashSet`, it correctly handles value-based equality checks. In
 ```ts twoslash import.meta.vitest name="hashset-1"
 import { HashSet } from "effect"
 
-// Creating a HashSet with objects that implement the Equal interface
+// Creating a HashSet with plain objects
 const set = HashSet.empty().pipe(
   HashSet.add({ name: "Alice", age: 30 }),
   HashSet.add({ name: "Alice", age: 30 }),
@@ -200,27 +200,25 @@ console.log(HashSet.size(set))
 // Output: 1
 ```
 
-**Note**: It's crucial to use elements that implement the `Equal` interface, either by implementing custom equality checks or by using the Data module. This ensures proper functionality when working with `HashSet`. Without this, you'll encounter the same behavior as the native `Set` data type:
+**Note**: Structural comparison covers every enumerable property, though. If two values are meant to represent the same entity but carry extra fields that legitimately differ (timestamps, request IDs, and similar metadata), `Equal.equals` treats them as unequal, and `HashSet` won't dedupe them:
 
-**Example** (Reference-Based Equality in `HashSet`)
+**Example** (Structural Equality Considers Every Field)
 
 ```ts twoslash import.meta.vitest name="hashset-2"
 import { HashSet } from "effect"
 
-// Creating a HashSet with objects that do NOT implement
-// the Equal interface
+// Two records for "the same" data, but with differing request IDs
 const set = HashSet.empty().pipe(
-  HashSet.add({ name: "Alice", age: 30 }),
-  HashSet.add({ name: "Alice", age: 30 }),
+  HashSet.add({ name: "Alice", age: 30, requestId: "a1b2" }),
+  HashSet.add({ name: "Alice", age: 30, requestId: "c3d4" }),
 )
 
-// Since these objects are compared by reference,
-// HashSet considers them different
+// requestId differs, so the objects are not structurally equal
 console.log(HashSet.size(set))
 // Output: 2
 ```
 
-In this case, without using the Data module alongside `HashSet`, you'll experience the same behavior as the native `Set` data type. The set contains two elements because it checks for equality by reference, not by values.
+In this case, `HashSet` keeps both entries because `requestId` is part of the structural comparison. If you want deduplication based on only some fields, implement the `Equal` interface as shown [above](#implementing-the-equal-interface) so equality ignores the fields that don't matter.
 
 ### HashMap
 
@@ -248,6 +246,6 @@ Output:
 */
 ```
 
-In this code snippet, `HashMap` is used to create a map where the keys are objects constructed with `Data.struct`. These objects contain identical values, which would usually create separate entries in a regular JavaScript `Map` because the default comparison is reference-based.
+In this code snippet, `HashMap` is used to create a map where the keys are plain objects with identical values. A regular JavaScript `Map` would treat them as separate entries, because its default comparison is reference-based.
 
-`HashMap`, however, uses value-based comparison, meaning the two objects with identical content are treated as the same key. Thus, when we add both objects, the second key-value pair overrides the first, resulting in a single entry in the map.
+`HashMap`, however, uses `Equal.equals` for comparisons, so plain objects with identical content are treated as the same key without any extra setup. Thus, when we add both objects, the second key-value pair overrides the first, resulting in a single entry in the map.
