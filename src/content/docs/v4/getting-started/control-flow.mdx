@@ -15,7 +15,7 @@ When working with Effect values, we can use standard JavaScript if-then-else sta
 
 Here we are using the [Option](/docs/data-types/option/) data type to represent the absence of a valid value.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="returning-none-for-invalid-weight-1"
 import { Effect, Option } from "effect"
 
 // Function to validate weight and return an Option
@@ -34,7 +34,7 @@ const validateWeightOption = (weight: number): Effect.Effect<Option.Option<numbe
 
 You can also handle invalid inputs by using the error channel, which allows you to return an error when the input is invalid:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="returning-error-for-invalid-weight-1"
 import { Effect } from "effect"
 
 // Function to validate weight or fail with an error
@@ -63,13 +63,12 @@ is executed. If it is `false`, the `onFalse` effect is executed instead.
 
 In this example, we simulate a virtual coin flip using `Random.nextBoolean` to generate a random boolean value. If the value is `true`, the `onTrue` effect logs "Head". If the value is `false`, the `onFalse` effect logs "Tail".
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="simulating-a-coin-flip-1"
 import { Effect, Random, Console } from "effect"
 
-const flipTheCoin = Effect.if(Random.nextBoolean, {
-  onTrue: () => Console.log("Head"), // Runs if the predicate is true
-  onFalse: () => Console.log("Tail"), // Runs if the predicate is false
-})
+const flipTheCoin = Random.nextBoolean.pipe(
+  Effect.andThen((isHead) => (isHead ? Console.log("Head") : Console.log("Tail"))),
+)
 
 Effect.runFork(flipTheCoin)
 ```
@@ -90,12 +89,12 @@ representing that the effect was skipped.
 
 **Example** (Conditional Effect Execution)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="conditional-effect-execution-1"
 import { Effect, Option } from "effect"
 
 const validateWeightOption = (weight: number): Effect.Effect<Option.Option<number>> =>
   // Conditionally execute the effect if the weight is non-negative
-  Effect.succeed(weight).pipe(Effect.when(() => weight >= 0))
+  Effect.succeed(weight).pipe(Effect.when(Effect.succeed(weight >= 0)))
 
 // Run with a valid weight
 Effect.runPromise(validateWeightOption(100)).then(console.log)
@@ -139,10 +138,10 @@ representing that the effect was skipped.
 
 The following function creates a random integer, but only if a randomly generated boolean is `true`.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-an-effect-as-a-condition-1"
 import { Effect, Random } from "effect"
 
-const randomIntOption = Random.nextInt.pipe(Effect.whenEffect(Random.nextBoolean))
+const randomIntOption = Random.nextInt.pipe(Effect.when(Random.nextBoolean))
 
 console.log(Effect.runSync(randomIntOption))
 /*
@@ -166,7 +165,7 @@ Once both effects succeed, their results are combined into a tuple.
 
 **Example** (Combining Two Effects Sequentially)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="combining-two-effects-sequentially-1"
 import { Effect } from "effect"
 
 const task1 = Effect.succeed(1).pipe(
@@ -198,7 +197,7 @@ By default, the effects are run sequentially. To run them concurrently, use the 
 
 **Example** (Combining Two Effects Concurrently)
 
-```ts collapse={3-11} "{ concurrent: true }" "task2 done"
+```ts collapse={3-11} "{ concurrent: true }" "task2 done" import.meta.vitest name="combining-two-effects-concurrently-1"
 import { Effect } from "effect"
 
 const task1 = Effect.succeed(1).pipe(
@@ -236,7 +235,7 @@ By default, the effects are run sequentially. To run them concurrently, use the 
 
 **Example** (Combining Effects with a Custom Function)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="combining-effects-with-a-custom-function-1"
 import { Effect } from "effect"
 
 const task1 = Effect.succeed(1).pipe(
@@ -298,22 +297,19 @@ return result
 
 **Example** (Looping with Collected Results)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="looping-with-collected-results-1"
 import { Effect } from "effect"
 
 // A loop that runs 5 times, collecting each iteration's result
-const result = Effect.loop(
-  // Initial state
-  1,
-  {
-    // Condition to continue looping
-    while: (state) => state <= 5,
-    // State update function
-    step: (state) => state + 1,
-    // Effect to be performed on each iteration
-    body: (state) => Effect.succeed(state),
-  },
-)
+const result = Effect.gen(function* () {
+  let state = 1
+  const results: Array<number> = []
+  while (state <= 5) {
+    results.push(yield* Effect.succeed(state))
+    state = state + 1
+  }
+  return results
+})
 
 Effect.runPromise(result).then(console.log)
 // Output: [1, 2, 3, 4, 5]
@@ -327,23 +323,17 @@ The `discard` option, when set to `true`, will discard the results of each effec
 
 **Example** (Loop with Discarded Results)
 
-```ts twoslash "discard: true"
+```ts twoslash import.meta.vitest name="loop-with-discarded-results-1"
 import { Effect, Console } from "effect"
 
-const result = Effect.loop(
-  // Initial state
-  1,
-  {
-    // Condition to continue looping
-    while: (state) => state <= 5,
-    // State update function
-    step: (state) => state + 1,
-    // Effect to be performed on each iteration
-    body: (state) => Console.log(`Currently at state ${state}`),
-    // Discard intermediate results
-    discard: true,
-  },
-)
+// Discard intermediate results
+const result = Effect.gen(function* () {
+  let state = 1
+  while (state <= 5) {
+    yield* Console.log(`Currently at state ${state}`)
+    state = state + 1
+  }
+})
 
 Effect.runPromise(result).then(console.log)
 /*
@@ -386,19 +376,19 @@ return result
 
 **Example** (Effectful Iteration)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="effectful-iteration-1"
 import { Effect } from "effect"
 
-const result = Effect.iterate(
+const result = Effect.gen(function* () {
   // Initial result
-  1,
-  {
-    // Condition to continue iterating
-    while: (result) => result <= 5,
+  let result = 1
+  // Condition to continue iterating
+  while (result <= 5) {
     // Operation to change the result
-    body: (result) => Effect.succeed(result + 1),
-  },
-)
+    result = yield* Effect.succeed(result + 1)
+  }
+  return result
+})
 
 Effect.runPromise(result).then(console.log)
 // Output: 6
@@ -418,7 +408,7 @@ concurrently. By default, the operations are performed sequentially.
 
 **Example** (Applying Effects to Iterable Elements)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="applying-effects-to-iterable-elements-1"
 import { Effect, Console } from "effect"
 
 const result = Effect.forEach([1, 2, 3, 4, 5], (n, index) =>
@@ -445,7 +435,7 @@ The `discard` option, when set to `true`, will discard the results of each effec
 
 **Example** (Using `discard` to Ignore Results)
 
-```ts twoslash "{ discard: true }"
+```ts twoslash "{ discard: true }" import.meta.vitest name="using-discard-to-ignore-results-1"
 import { Effect, Console } from "effect"
 
 // Apply effects but discard the results
@@ -495,7 +485,7 @@ Let's explore examples for different types of structures: tuples, iterables, obj
 
 **Example** (Combining Effects in Tuples)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="combining-effects-in-tuples-1"
 import { Effect, Console } from "effect"
 
 const tupleOfEffects = [
@@ -518,7 +508,7 @@ Hello
 
 **Example** (Combining Effects in Iterables)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="combining-effects-in-iterables-1"
 import { Effect, Console } from "effect"
 
 const iterableOfEffects: Iterable<Effect.Effect<number>> = [1, 2, 3].map((n) =>
@@ -541,7 +531,7 @@ Output:
 
 **Example** (Combining Effects in Structs)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="combining-effects-in-structs-1"
 import { Effect, Console } from "effect"
 
 const structOfEffects = {
@@ -564,7 +554,7 @@ Hello
 
 **Example** (Combining Effects in Records)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="combining-effects-in-records-1"
 import { Effect, Console } from "effect"
 
 const recordOfEffects: Record<string, Effect.Effect<number>> = {
@@ -592,7 +582,7 @@ If any effect in the collection fails, the remaining effects will not run, and t
 
 **Example** (Bail Out on First Failure)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="bail-out-on-first-failure-1"
 import { Effect, Console } from "effect"
 
 const program = Effect.all([
@@ -618,11 +608,11 @@ You can override this behavior by using the `mode` option.
 
 #### The `mode` option
 
-The `{ mode: "either" }` option changes the behavior of `Effect.all` to ensure all effects run, even if some fail. Instead of stopping on the first failure, this mode collects both successes and failures, returning an array of `Either` instances where each result is either a `Right` (success) or a `Left` (failure).
+The `{ mode: "either" }` option changes the behavior of `Effect.all` to ensure all effects run, even if some fail. Instead of stopping on the first failure, this mode collects both successes and failures, returning an array of `Result` instances where each result is either a `Success` (success) or a `Failure` (failure).
 
 **Example** (Collecting Results with `mode: "either"`)
 
-```ts twoslash /{ mode: "either" }/
+```ts twoslash /{ mode: "result" }/ import.meta.vitest name="collecting-results-with-mode-either-1"
 import { Effect, Console } from "effect"
 
 const effects = [
@@ -631,7 +621,7 @@ const effects = [
   Effect.succeed("Task3").pipe(Effect.tap(Console.log)),
 ]
 
-const program = Effect.all(effects, { mode: "either" })
+const program = Effect.all(effects, { mode: "result" })
 
 Effect.runPromiseExit(program).then(console.log)
 /*
@@ -642,9 +632,9 @@ Task3
   _id: 'Exit',
   _tag: 'Success',
   value: [
-    { _id: 'Either', _tag: 'Right', right: 'Task1' },
-    { _id: 'Either', _tag: 'Left', left: 'Task2: Oh no!' },
-    { _id: 'Either', _tag: 'Right', right: 'Task3' }
+    { _id: 'Result', _tag: 'Success', success: 'Task1' },
+    { _id: 'Result', _tag: 'Failure', failure: 'Task2: Oh no!' },
+    { _id: 'Result', _tag: 'Success', success: 'Task3' }
   ]
 }
 */
