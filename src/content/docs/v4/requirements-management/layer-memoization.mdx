@@ -29,14 +29,14 @@ One important feature of an Effect application is that layers are shared by defa
 
 For example, assume we have the three services `A`, `B`, and `C`. The implementation of both `B` and `C` is dependent on the `A` service:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="memoization-when-providing-globally-1"
 import { Effect, Context, Layer } from "effect"
 
-class A extends Context.Tag("A")<A, { readonly a: number }>() {}
+class A extends Context.Service<A, { readonly a: number }>()("A") {}
 
-class B extends Context.Tag("B")<B, { readonly b: string }>() {}
+class B extends Context.Service<B, { readonly b: string }>()("B") {}
 
-class C extends Context.Tag("C")<C, { readonly c: boolean }>() {}
+class C extends Context.Service<C, { readonly c: boolean }>()("C") {}
 
 const ALive = Layer.effect(
   A,
@@ -84,14 +84,14 @@ If we don't want to share a module, we should create a fresh, non-shared version
 
 **Example**
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="acquiring-a-fresh-version-1"
 import { Effect, Context, Layer } from "effect"
 
-class A extends Context.Tag("A")<A, { readonly a: number }>() {}
+class A extends Context.Service<A, { readonly a: number }>()("A") {}
 
-class B extends Context.Tag("B")<B, { readonly b: string }>() {}
+class B extends Context.Service<B, { readonly b: string }>()("B") {}
 
-class C extends Context.Tag("C")<C, { readonly c: boolean }>() {}
+class C extends Context.Service<C, { readonly c: boolean }>()("C") {}
 
 const ALive = Layer.effect(
   A,
@@ -141,10 +141,10 @@ If we don't provide a layer globally but instead provide them locally, that laye
 In the following example, we provided the `ALive` layer two times locally, and Effect doesn't memoize the construction of the `ALive` layer.
 So, it will be initialized two times:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="no-memoization-when-providing-locally-1"
 import { Effect, Context, Layer } from "effect"
 
-class A extends Context.Tag("A")<A, { readonly a: number }>() {}
+class A extends Context.Service<A, { readonly a: number }>()("A") {}
 
 const ALive = Layer.effect(
   A,
