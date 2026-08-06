@@ -47,7 +47,7 @@ You can add tracing to an effect by creating a span using the `Effect.withSpan` 
 
 **Example** (Adding a Span to an Effect)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-spans-1"
 import { Effect } from "effect"
 
 // Define an effect that delays for 100 milliseconds
@@ -642,7 +642,7 @@ To get Docker, follow these steps:
        task("/payment Gateway", 6, [task("DB", 7), task("Ext. Merchant", 8)]),
        task("/dispatch", 9, [
          task("/dispatch/search", 10),
-         Effect.all([poll, poll, poll], { concurrency: "inherit" }),
+         Effect.all([poll, poll, poll]),
          task("/pollDriver/{id}", 11),
        ]),
      ]),
@@ -653,9 +653,7 @@ To get Docker, follow these steps:
      spanProcessor: new BatchSpanProcessor(new OTLPTraceExporter()),
    }))
 
-   Effect.runPromise(
-     program.pipe(Effect.provide(NodeSdkLive), Effect.catchAllCause(Effect.logError)),
-   )
+   Effect.runPromise(program.pipe(Effect.provide(NodeSdkLive), Effect.catchCause(Effect.logError)))
    /*
    Output:
    timestamp=... level=INFO fiber=#0 message=client
