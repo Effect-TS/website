@@ -46,20 +46,20 @@ Ensures an effect is executed only once, even if invoked multiple times.
 
 **Example** (Single Execution of an Effect)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="single-execution-of-an-effect-1"
 import { Effect, Console } from "effect"
 
 const program = Effect.gen(function* () {
   const task1 = Console.log("task1")
 
   // Repeats task1 three times
-  yield* Effect.repeatN(task1, 2)
+  yield* Effect.repeat(task1, { times: 2 })
 
   // Ensures task2 is executed only once
-  const task2 = yield* Effect.once(Console.log("task2"))
+  const task2 = yield* Effect.cached(Console.log("task2"))
 
   // Attempts to repeat task2, but it will only execute once
-  yield* Effect.repeatN(task2, 2)
+  yield* Effect.repeat(task2, { times: 2 })
 })
 
 Effect.runFork(program)
@@ -78,7 +78,7 @@ Returns an effect that computes a result lazily and caches it. Subsequent evalua
 
 **Example** (Lazy Caching of an Expensive Task)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="lazy-caching-of-an-expensive-task-1"
 import { Effect, Console } from "effect"
 
 let i = 1
@@ -127,7 +127,7 @@ Returns an effect that caches its result for a specified duration, known as the 
 
 **Example** (Caching with Time-to-Live)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="caching-with-time-to-live-1"
 import { Effect, Console } from "effect"
 
 let i = 1
@@ -176,7 +176,7 @@ Similar to `Effect.cachedWithTTL`, this function caches an effect's result for a
 
 **Example** (Invalidating Cache Manually)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="invalidating-cache-manually-1"
 import { Effect, Console } from "effect"
 
 let i = 1
