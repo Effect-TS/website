@@ -95,14 +95,13 @@ Let's create a service for generating random numbers.
 1. **Identifier**. We'll use the string `"MyRandomService"` as the unique identifier.
 2. **Type**. The service type will have a single operation called `next` that returns a random number.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-a-service-1"
 import { Effect, Context } from "effect"
 
 // Declaring a tag for a service that generates random numbers
-class Random extends Context.Tag("MyRandomService")<
-  Random,
-  { readonly next: Effect.Effect<number> }
->() {}
+class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
+  "MyRandomService",
+) {}
 ```
 
 The exported `Random` value is known as a **tag** in Effect. It acts as a representation of the service and allows Effect to locate and use this service at runtime.
@@ -138,14 +137,13 @@ Now that we have our service tag defined, let's see how we can use it by buildin
 
 <TabItem label="Using Effect.gen">
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-the-service-1"
 import { Effect, Context } from "effect"
 
 // Declaring a tag for a service that generates random numbers
-class Random extends Context.Tag("MyRandomService")<
-  Random,
-  { readonly next: Effect.Effect<number> }
->() {}
+class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
+  "MyRandomService",
+) {}
 
 // Using the service
 //
@@ -165,14 +163,13 @@ This allows us to access the `next` operation of the service.
 
 <TabItem label="Using pipe">
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-the-service-2"
 import { Effect, Context, Console } from "effect"
 
 // Declaring a tag for a service that generates random numbers
-class Random extends Context.Tag("MyRandomService")<
-  Random,
-  { readonly next: Effect.Effect<number> }
->() {}
+class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
+  "MyRandomService",
+) {}
 
 // Using the service
 //
@@ -207,10 +204,9 @@ If we attempt to execute the effect without providing the necessary service we w
 import { Effect, Context } from "effect"
 
 // Declaring a tag for a service that generates random numbers
-class Random extends Context.Tag("MyRandomService")<
-  Random,
-  { readonly next: Effect.Effect<number> }
->() {}
+class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
+  "MyRandomService",
+) {}
 
 // Using the service
 const program = Effect.gen(function* () {
@@ -219,7 +215,7 @@ const program = Effect.gen(function* () {
   console.log(`random number: ${randomNumber}`)
 })
 
-// @errors: 2379
+// @errors: 2345
 Effect.runSync(program)
 ```
 
@@ -233,14 +229,13 @@ In order to provide an actual implementation of the `Random` service, we can uti
 
 **Example** (Providing a Random Number Implementation)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="providing-a-service-implementation-1"
 import { Effect, Context } from "effect"
 
 // Declaring a tag for a service that generates random numbers
-class Random extends Context.Tag("MyRandomService")<
-  Random,
-  { readonly next: Effect.Effect<number> }
->() {}
+class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
+  "MyRandomService",
+) {}
 
 // Using the service
 const program = Effect.gen(function* () {
@@ -275,21 +270,20 @@ With the implementation of the `Random` service in place, we are able to run the
 
 ## Extracting the Service Type
 
-To retrieve the service type from a tag, use the `Context.Tag.Service` utility type.
+To retrieve the service type from a tag, use the `Context.Service.Shape` utility type.
 
 **Example** (Extracting Service Type)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="extracting-the-service-type-1"
 import { Effect, Context } from "effect"
 
 // Declaring a tag
-class Random extends Context.Tag("MyRandomService")<
-  Random,
-  { readonly next: Effect.Effect<number> }
->() {}
+class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
+  "MyRandomService",
+) {}
 
 // Extracting the type
-type RandomShape = Context.Tag.Service<Random>
+type RandomShape = Context.Service.Shape<typeof Random>
 /*
 This is equivalent to:
 type RandomShape = {
@@ -306,24 +300,24 @@ When we require the usage of more than one service, the process remains similar 
 
 Let's examine an example where we need two services, namely `Random` and `Logger`:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-multiple-services-1"
 import { Effect, Context } from "effect"
 
 // Declaring a tag for a service that generates random numbers
-class Random extends Context.Tag("MyRandomService")<
+class Random extends Context.Service<
   Random,
   {
     readonly next: Effect.Effect<number>
   }
->() {}
+>()("MyRandomService") {}
 
 // Declaring a tag for the logging service
-class Logger extends Context.Tag("MyLoggerService")<
+class Logger extends Context.Service<
   Logger,
   {
     readonly log: (message: string) => Effect.Effect<void>
   }
->() {}
+>()("MyLoggerService") {}
 
 const program = Effect.gen(function* () {
   // Acquire instances of the 'Random' and 'Logger' services
@@ -348,24 +342,24 @@ To execute the `program`, we need to provide implementations for both services:
 
 **Example** (Providing Multiple Services)
 
-```ts twoslash collapse={3-24}
+```ts twoslash collapse={3-24} import.meta.vitest name="using-multiple-services-2"
 import { Effect, Context } from "effect"
 
 // Declaring a tag for a service that generates random numbers
-class Random extends Context.Tag("MyRandomService")<
+class Random extends Context.Service<
   Random,
   {
     readonly next: Effect.Effect<number>
   }
->() {}
+>()("MyRandomService") {}
 
 // Declaring a tag for the logging service
-class Logger extends Context.Tag("MyLoggerService")<
+class Logger extends Context.Service<
   Logger,
   {
     readonly log: (message: string) => Effect.Effect<void>
   }
->() {}
+>()("MyLoggerService") {}
 
 const program = Effect.gen(function* () {
   const random = yield* Random
@@ -389,24 +383,24 @@ Alternatively, instead of calling `provideService` multiple times, we can combin
 
 **Example** (Combining Service Implementations)
 
-```ts twoslash collapse={3-24}
+```ts twoslash collapse={3-24} import.meta.vitest name="using-multiple-services-3"
 import { Effect, Context } from "effect"
 
 // Declaring a tag for a service that generates random numbers
-class Random extends Context.Tag("MyRandomService")<
+class Random extends Context.Service<
   Random,
   {
     readonly next: Effect.Effect<number>
   }
->() {}
+>()("MyRandomService") {}
 
 // Declaring a tag for the logging service
-class Logger extends Context.Tag("MyLoggerService")<
+class Logger extends Context.Service<
   Logger,
   {
     readonly log: (message: string) => Effect.Effect<void>
   }
->() {}
+>()("MyLoggerService") {}
 
 const program = Effect.gen(function* () {
   const random = yield* Random
@@ -439,14 +433,13 @@ To represent this optionality it returns an [Option](/docs/data-types/option/) o
 
 To determine what action to take, we can use the `Option.isNone` function provided by the Option module. This function allows us to check if the service is available or not by returning `true` when the service is not available.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="optional-services-1"
 import { Effect, Context, Option } from "effect"
 
 // Declaring a tag for a service that generates random numbers
-class Random extends Context.Tag("MyRandomService")<
-  Random,
-  { readonly next: Effect.Effect<number> }
->() {}
+class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
+  "MyRandomService",
+) {}
 
 const program = Effect.gen(function* () {
   const maybeRandom = yield* Effect.serviceOption(Random)
@@ -491,20 +484,20 @@ Sometimes a service in your application may depend on other services. To maintai
 
 Consider a scenario where multiple services depend on each other. In this case, the `Logger` service requires access to a configuration service (`Config`).
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-services-with-dependencies-1"
 import { Effect, Context } from "effect"
 
 // Declaring a tag for the Config service
-class Config extends Context.Tag("Config")<Config, {}>() {}
+class Config extends Context.Service<Config, {}>()("Config") {}
 
 // Declaring a tag for the logging service
-class Logger extends Context.Tag("MyLoggerService")<
+class Logger extends Context.Service<
   Logger,
   {
     // ❌ Avoid exposing Config as a requirement
     readonly log: (message: string) => Effect.Effect<void, never, Config>
   }
->() {}
+>()("MyLoggerService") {}
 ```
 
 To handle these dependencies in a structured way and prevent them from leaking into the service interfaces, you can use the `Layer` abstraction. For more details on managing dependencies with layers, refer to the [Managing Layers](/docs/requirements-management/layers/) page.
