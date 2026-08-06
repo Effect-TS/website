@@ -5,58 +5,48 @@ sidebar:
   order: 1
 ---
 
-The `@effect/platform/Command` module provides a way to create and run commands with the specified process name and an optional list of arguments.
+The `effect/unstable/process/ChildProcess` module provides a way to create and run commands with the specified process name and an optional list of arguments.
 
 ## Creating Commands
 
-The `Command.make` function generates a command object, which includes details such as the process name, arguments, and environment.
+The `ChildProcess.make` function generates a command object, which includes details such as the process name, arguments, and environment.
 
 **Example** (Defining a Command for Directory Listing)
 
-```ts twoslash
-import { Command } from "@effect/platform"
+```ts twoslash import.meta.vitest name="creating-commands-1"
+import { ChildProcess } from "effect/unstable/process"
 
-const command = Command.make("ls", "-al")
-console.log(command)
-/*
-{
-  _id: '@effect/platform/Command',
-  _tag: 'StandardCommand',
-  command: 'ls',
-  args: [ '-al' ],
-  env: {},
-  cwd: { _id: 'Option', _tag: 'None' },
-  shell: false,
-  gid: { _id: 'Option', _tag: 'None' },
-  uid: { _id: 'Option', _tag: 'None' }
-}
-*/
+const command = ChildProcess.make("ls", ["-al"])
+const details = { command: command.command, args: command.args }
+details // => { command: "ls", args: ["-al"] }
 ```
 
 This command object does not execute until run by an executor.
 
 ## Running Commands
 
-You need a `CommandExecutor` to run the command, which can capture output in various formats such as strings, lines, or streams.
+You need a `ChildProcessSpawner` to run the command, which can capture output in various formats such as strings, lines, or streams.
 
 **Example** (Running a Command and Printing Output)
 
 ```ts twoslash
-import { Command } from "@effect/platform"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
+import { ChildProcess } from "effect/unstable/process"
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import { NodeServices, NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 
-const command = Command.make("ls", "-al")
+const command = ChildProcess.make("ls", ["-al"])
 
-// The program depends on a CommandExecutor
+// The program depends on a ChildProcessSpawner
 const program = Effect.gen(function* () {
+  const spawner = yield* ChildProcessSpawner
   // Runs the command returning the output as a string
-  const output = yield* Command.string(command)
+  const output = yield* spawner.string(command)
   console.log(output)
 })
 
-// Provide the necessary CommandExecutor
-NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+// Provide the necessary ChildProcessSpawner
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)))
 ```
 
 ### Output Formats
@@ -72,75 +62,84 @@ You can choose different methods to handle command output:
 
 ### exitCode
 
-If you only need the exit code of a command, use `Command.exitCode`.
+If you only need the exit code of a command, use `ChildProcessSpawner.exitCode`.
 
 **Example** (Getting the Exit Code)
 
 ```ts twoslash
-import { Command } from "@effect/platform"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
+import { ChildProcess } from "effect/unstable/process"
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import { NodeServices, NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 
-const command = Command.make("ls", "-al")
+const command = ChildProcess.make("ls", ["-al"])
 
 const program = Effect.gen(function* () {
-  const exitCode = yield* Command.exitCode(command)
+  const spawner = yield* ChildProcessSpawner
+  const exitCode = yield* spawner.exitCode(command)
   console.log(exitCode)
 })
 
-NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)))
 // Output: 0
 ```
 
 ## Custom Environment Variables
 
-You can customize environment variables in a command by using `Command.env`. This is useful when you need specific variables for the command's execution.
+You can customize environment variables in a command by using `ChildProcess.setEnv`. This is useful when you need specific variables for the command's execution.
 
 **Example** (Setting Environment Variables)
 
 In this example, the command runs in a shell to ensure environment variables are correctly processed.
 
 ```ts twoslash
-import { Command } from "@effect/platform"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
+import { ChildProcess } from "effect/unstable/process"
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import { NodeServices, NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 
-const command = Command.make("echo", "-n", "$MY_CUSTOM_VAR").pipe(
-  Command.env({
-    MY_CUSTOM_VAR: "Hello, this is a custom environment variable!",
-  }),
+const command = ChildProcess.make("echo", ["-n", "$MY_CUSTOM_VAR"], {
   // Use shell to interpret variables correctly
   // on Windows and Unix-like systems
-  Command.runInShell(true),
+  shell: true,
+}).pipe(
+  ChildProcess.setEnv({
+    MY_CUSTOM_VAR: "Hello, this is a custom environment variable!",
+  }),
 )
 
 const program = Effect.gen(function* () {
-  const output = yield* Command.string(command)
+  const spawner = yield* ChildProcessSpawner
+  const output = yield* spawner.string(command)
   console.log(output)
 })
 
-NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)))
 // Output: Hello, this is a custom environment variable!
 ```
 
 ## Feeding Input to a Command
 
-You can send input directly to a command's standard input using the `Command.feed` function.
+You can send input directly to a command's standard input using the `stdin` option of `ChildProcess.make`.
 
 **Example** (Sending Input to a Command's Standard Input)
 
 ```ts twoslash
-import { Command } from "@effect/platform"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
-import { Effect } from "effect"
+import { ChildProcess } from "effect/unstable/process"
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import { NodeServices, NodeRuntime } from "@effect/platform-node"
+import { Effect, Stream } from "effect"
 
-const command = Command.make("cat").pipe(Command.feed("Hello"))
-
-const program = Effect.gen(function* () {
-  console.log(yield* Command.string(command))
+const command = ChildProcess.make("cat", [], {
+  stdin: Stream.make(new TextEncoder().encode("Hello")),
 })
 
-NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+const program = Effect.gen(function* () {
+  const spawner = yield* ChildProcessSpawner
+  console.log(yield* spawner.string(command))
+})
+
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)))
 // Output: Hello
 ```
 
@@ -151,20 +150,25 @@ You can access details about a running process, such as `exitCode`, `stdout`, an
 **Example** (Accessing Exit Code and Streams from a Running Process)
 
 ```ts twoslash
-import { Command } from "@effect/platform"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
+import { ChildProcess } from "effect/unstable/process"
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import { NodeServices, NodeRuntime } from "@effect/platform-node"
 import { Effect, Stream, String, pipe } from "effect"
 
 // Helper function to collect stream output as a string
 const runString = <E, R>(stream: Stream.Stream<Uint8Array, E, R>): Effect.Effect<string, E, R> =>
-  stream.pipe(Stream.decodeText(), Stream.runFold(String.empty, String.concat))
+  stream.pipe(
+    Stream.decodeText(),
+    Stream.runFold(() => String.empty, String.concat),
+  )
 
 const program = Effect.gen(function* () {
-  const command = Command.make("ls")
+  const spawner = yield* ChildProcessSpawner
+  const command = ChildProcess.make("ls", [])
 
   const [exitCode, stdout, stderr] = yield* pipe(
     // Start running the command and return a handle to the running process
-    Command.start(command),
+    spawner.spawn(command),
     Effect.flatMap((process) =>
       Effect.all(
         [
@@ -183,7 +187,7 @@ const program = Effect.gen(function* () {
   console.log({ exitCode, stdout, stderr })
 })
 
-NodeRuntime.runMain(Effect.scoped(program).pipe(Effect.provide(NodeContext.layer)))
+NodeRuntime.runMain(Effect.scoped(program).pipe(Effect.provide(NodeServices.layer)))
 ```
 
 ## Streaming stdout to process.stdout
@@ -193,15 +197,21 @@ To stream a command's `stdout` directly to `process.stdout`, you can use the fol
 **Example** (Streaming Command Output Directly to Standard Output)
 
 ```ts twoslash
-import { Command } from "@effect/platform"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
+import { ChildProcess } from "effect/unstable/process"
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import { NodeServices, NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 
 // Create a command to run `cat` on a file and inherit stdout
-const program = Command.make("cat", "./some-file.txt").pipe(
-  Command.stdout("inherit"), // Stream stdout to process.stdout
-  Command.exitCode, // Get the exit code
-)
+const command = ChildProcess.make("cat", ["./some-file.txt"], {
+  stdout: "inherit", // Stream stdout to process.stdout
+})
 
-NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+const program = Effect.gen(function* () {
+  const spawner = yield* ChildProcessSpawner
+  // Get the exit code
+  return yield* spawner.exitCode(command)
+})
+
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)))
 ```
