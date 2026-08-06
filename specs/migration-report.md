@@ -15,6 +15,11 @@ Tracks progress against `specs/v3-to-v4-docs-snippet-migration.md`. Updated per 
 | `getting-started/devtools.mdx` | 1 | 0 | 0 | 1: `NodeRuntime.runMain` process-entry-point demo with an `Effect.forever` loop — would hang the doctest run, left unmarked |
 | `getting-started/importing-effect.mdx` | 0 (no changes needed) | — | — | n/a — install instructions and trivial single-line import illustrations only, no API usage to migrate |
 | `getting-started/installation.mdx` | 3 (ts/js) | 3 | 0 | 0 — a `diff lang="tsx"` snippet is out of spec scope (not a ts/js fence) |
+| `getting-started/introduction.mdx` | 0 (no changes needed) | — | — | n/a — pure prose/table, no code fences at all |
+| `getting-started/running-effects.mdx` | 8 | 5 | 0 | 3: two `Cause`/`Exit` async-defect demos (console output includes a live `FiberImpl` object, not stable/comparable) and the `runFork` background-execution example (fire-and-forget via `setTimeout`+`Fiber.interrupt`, not observable within one synchronous doctest tick) |
+| `getting-started/the-effect-type.mdx` | 1 | 1 | 0 | 0 |
+| `getting-started/using-generators.mdx` | 9 | 7 | 0 | 2: the deprecated `$`-adapter example (removed overload, no replacement) and one dead-code-after-failure example whose two possible fixes each trigger a different strict-mode compiler error without altering its teaching point |
+| `getting-started/why-effect.mdx` | 2 | 2 | 2 | 0 |
 
 ## Unresolved items
 
@@ -34,6 +39,11 @@ Tracks progress against `specs/v3-to-v4-docs-snippet-migration.md`. Updated per 
 - **`getting-started/control-flow.mdx` — removed option, no replacement**: `Effect.all`'s third `mode: "validate"` option (`Option`-based partial-failure collection) is gone — the option's type only accepts `"default" | "result"` now. Left that example's fence and prose mention unchanged.
 - **`getting-started/creating-effects.mdx`**: no removed-API-with-no-replacement issues found; all changes were confirmed straightforward renames (`UnknownException`→`UnknownError`, `Effect.async`→`Effect.callback`, `Effect.fork`→`Effect.forkChild`).
 - **`getting-started/devtools.mdx` — out-of-scope staleness, flagged for human review**: the 4 shell install snippets ("npm/pnpm/yarn/bun install @effect/experimental") are no longer necessary — `DevTools` moved into the core `effect` package (`effect/unstable/devtools`, confirmed in `node_modules/effect/src/unstable/devtools/index.ts`) and no longer requires a separate package install. Left unchanged because `sh` fences are outside the spec's scope (§2 restricts migration to `ts`/`js` fences only), but this is real, user-facing staleness a human should probably fix directly (delete the install step, or note DevTools now ships with `effect`).
+- **`getting-started/running-effects.mdx` — inspect-format changes, confirmed empirically**: `Cause`'s console/inspect shape changed from a flat single-reason node (`{_id:"Cause", _tag:"Fail", failure: E}`) to an array of reasons (`{_id:"Cause", failures:[{_tag:"Fail", error: E}]}` — note the field also renamed `failure`→`error`). `Effect.runSync` throwing a failure (and `Effect.runPromise`'s rejection) now surfaces the raw failure value directly, not a `"(FiberFailure) Error: ..."` wrapper. The async-in-runSync defect changed from a `FiberRuntime`-wrapped `AsyncFiberException` to a plain object tagged `AsyncFiberError` with a different message. All confirmed by actually running the code against the installed package, not inferred from types.
+- **`getting-started/the-effect-type.mdx` — behavior change**: `Effect.Context<T>` (utility type) renamed to `Effect.Services<T>`. Separately, `Effect.Effect.Success<T>`/`Effect.Effect.Error<T>` (the doubly-nested access pattern) no longer resolves — v4's `Success`/`Error`/`Services` utility types are plain top-level exports of `Effect.ts`, not nested inside a `namespace Effect {}` block merged with the `Effect` interface, so the correct v4 access is one level shallower: `Effect.Success<T>` etc. Caught via the G2 gate (TS2724).
+- **`getting-started/using-generators.mdx` — behavior change**: `Effect.gen`'s `this`-binding overload changed call shape from `Effect.gen(this, function* () {...})` (bare first argument) to `Effect.gen({ self: this }, function* () {...})` (options object). Confirmed directly against the overload signatures in `node_modules/effect/src/Effect.ts`.
+- **`getting-started/using-generators.mdx` — removed API, no replacement**: the deprecated `$`-adapter overload of `Effect.gen` (`function* ($) { yield* $(effect) }`) — v4's `Effect.gen` only has the plain and `{self}`-options overloads confirmed above, no adapter parameter. The v3 prose already predicted this ("anticipated to be removed in the upcoming major release of Effect") — v4 is that release.
+- **Infra fix (corpus-wide, found via `getting-started/why-effect.mdx`)**: extracted doctest snippets with no `import`/`export` statement are TypeScript "scripts", not modules — their top-level declarations join one global scope shared by every other script-style snippet in the same `tsc` project. Two unrelated docs that both declare `const divide = ...` with no imports (`why-effect.mdx`, `creating-effects.mdx`) collided with "Cannot redeclare block-scoped variable" once both were marked runnable. Fixed in `scripts/extract-doctest-snippets.mjs`: any extracted snippet with no import/export gets a trailing `export {}` appended, forcing isolated module scope. Verified this eliminated all TS2451 "Cannot redeclare" errors corpus-wide.
 - **Reference doc discrepancy**: `migration/MIGRATION.md` does not exist at pinned commit `a94cbed84e9e49bea4bff925599c0f19c4e3deab` (confirmed via GitHub contents API — the `migration/` dir at that commit contains only the individual guide files listed in spec §4.2 plus an `annotations/` subdirectory of per-module YAML data not referenced by the spec). All other listed guide files (`v3-to-v4.md`, `services.md`, `error-handling.md`, `forking.md`, `yieldable.md`, `fiberref.md`, `runtime.md`, `scope.md`, `equality.md`, `cause.md`, `layer-memoization.md`, `fiber-keep-alive.md`, `generators.md`, `schema.md`) fetched successfully and cached under `specs/_references/`.
 
 ## Verification log
@@ -106,6 +116,16 @@ Tracks progress against `specs/v3-to-v4-docs-snippet-migration.md`. Updated per 
 - G2: no new snippets contributed (unchanged extraction count).
 - G3 (`pnpm check`, `pnpm fmt`): clean.
 
+### `getting-started/{importing-effect,installation,introduction,running-effects,the-effect-type,using-generators,why-effect}.mdx` (G1–G3)
+
+All green (`pnpm doctest:file`, `tsc -b tsconfig.doctest.json`, `pnpm check`, `oxfmt --check`) for every file. `importing-effect.mdx` and `introduction.mdx` needed no changes at all (no commit, per protocol). This closes out `getting-started/` — all 11 files done.
+
+### Multi-agent parallel pass (all other directories)
+
+At the user's explicit request, the remaining 18 directories (error-management, requirements-management, resource-management, observability, scheduling, state-management, caching, concurrency, stream, sink, testing, code-style, data-types, trait, behaviour, schema, ai, platform) were migrated by 18 concurrent background agents, one per directory, each following this same spec and gate protocol, each restricted to its own directory's files via pathspec-scoped commits. This is a deviation from the spec's literal "never parallelize two directories" instruction — noted here as an explicit, requested deviation, not a silent one. Each agent's own findings are being consolidated into this report as they complete; see the per-file table and per-directory verification entries below for each.
+
+A shared infra hiccup during the parallel run: concurrent `pnpm install`-triggered `effect-tsgo patch` prepare hooks accumulated over 100 backup copies of the local `tsc` binary, hitting a hard-coded safety limit and blocking every agent's `pnpm` commands ("Too many backup files exist"). Fixed by deleting the redundant numbered backups (a `node_modules` cache artifact, not tracked work) after explicit user confirmation, per the tool's own suggested remedy.
+
 ### G4–G5
 
-Not yet run — the rest of `getting-started/` and all other directories are still pending.
+Not yet run — directory consolidation and final sweep pending until all parallel agents complete.
