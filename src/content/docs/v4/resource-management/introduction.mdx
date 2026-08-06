@@ -23,7 +23,7 @@ If you need access to the effect's result, consider using [onExit](#onexit).
 
 **Example** (Running a Finalizer in All Outcomes)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="running-a-finalizer-in-all-outcomes-1"
 import { Console, Effect } from "effect"
 
 // Define a cleanup effect
@@ -72,12 +72,12 @@ The cleanup step itself is uninterruptible, which can help manage resources in c
 
 **Example** (Running a Cleanup Function with the Effect's Result)
 
-```ts twoslash
-import { Console, Effect, Exit } from "effect"
+```ts twoslash import.meta.vitest name="running-a-cleanup-function-with-the-effects-result-1"
+import { Console, Effect, Exit, identity } from "effect"
 
 // Define a cleanup effect that logs the result
 const handler = Effect.onExit((exit) =>
-  Console.log(`Cleanup completed: ${Exit.getOrElse(exit, String)}`),
+  Console.log(`Cleanup completed: ${Exit.match(exit, { onSuccess: identity, onFailure: String })}`),
 )
 
 // Define a successful effect
@@ -121,7 +121,7 @@ The cleanup effect will also run if the failure is caused by interruption, and i
 
 **Example** (Running Cleanup Only on Failure)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="running-cleanup-only-on-failure-1"
 import { Console, Effect } from "effect"
 
 // This handler logs the failure cause when the effect fails
@@ -192,7 +192,7 @@ Effect.acquireUseRelease(acquire, use, release)
 
 **Example** (Automatically Managing Resource Lifetime)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="automatically-managing-resource-lifetime-1"
 import { Effect, Console } from "effect"
 
 // Define an interface for a resource
