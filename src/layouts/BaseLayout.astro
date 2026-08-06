@@ -12,9 +12,15 @@ interface Props {
   readonly title?: string | undefined
   readonly description?: string | undefined
   readonly forceDark?: boolean | undefined
+  readonly ogImageVersion?: string | undefined
 }
 
-const { title = "Effect | Production Grade TypeScript", description, forceDark = false } = Astro.props
+const {
+  title = "Effect | Production Grade TypeScript",
+  description,
+  forceDark = false,
+  ogImageVersion,
+} = Astro.props
 
 const getOgImagePath = () => {
   const pathname = Astro.url.pathname
@@ -25,6 +31,7 @@ const getOgImagePath = () => {
 
 const ogImagePath = getOgImagePath()
 const ogImageUrl = new URL(ogImagePath, Astro.url.origin)
+if (ogImageVersion !== undefined) ogImageUrl.searchParams.set("v", ogImageVersion)
 
 const pagePathname = Astro.url.pathname.replace(/\/$/, "")
 const canonicalUrl = new URL(pagePathname, Astro.site)

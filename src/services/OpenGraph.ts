@@ -2,11 +2,16 @@ import type { CSSProperties } from "react"
 import { Resvg } from "@resvg/resvg-js"
 import { readFile } from "node:fs/promises"
 import satori, { type SatoriOptions } from "satori"
-import { OPENGRAPH_IMAGE_HEIGHT, OPENGRAPH_IMAGE_WIDTH } from "@/lib/open-graph"
+import { OPENGRAPH_IMAGE_HEIGHT, OPENGRAPH_IMAGE_WIDTH } from "../lib/open-graph.ts"
 
 export interface OgTemplateProps {
   readonly title: string
   readonly subtitle?: string | undefined
+}
+
+export interface ApiReferenceOgTemplateProps {
+  readonly eyebrow: string
+  readonly title: string
 }
 
 type SatoriFont = NonNullable<SatoriOptions["fonts"]>[number]
@@ -29,13 +34,15 @@ export async function loadAssets(): Promise<OgAssets> {
   if (_assets !== null) {
     return _assets
   }
-  const [interRegular, interBold, jetbrainsMono, docsBase, blogBase] = await Promise.all([
-    readFile("src/assets/fonts/Inter-Regular.ttf"),
-    readFile("src/assets/fonts/Inter-Bold.ttf"),
-    readFile("src/assets/fonts/JetBrainsMono-Regular.ttf"),
-    readFile("src/pages/og/_assets/docs/base.png"),
-    readFile("src/pages/og/_assets/blog/base.png"),
-  ])
+  const [interRegular, interBold, jetbrainsMono, jetbrainsMonoBold, docsBase, blogBase] =
+    await Promise.all([
+      readFile("src/assets/fonts/Inter-Regular.ttf"),
+      readFile("src/assets/fonts/Inter-Bold.ttf"),
+      readFile("src/assets/fonts/JetBrainsMono-Regular.ttf"),
+      readFile("src/assets/fonts/JetBrainsMono-Bold.ttf"),
+      readFile("src/pages/og/_assets/docs/base.png"),
+      readFile("src/pages/og/_assets/blog/base.png"),
+    ])
   const fonts: Array<SatoriFont> = [
     {
       name: "Inter",
@@ -54,6 +61,12 @@ export async function loadAssets(): Promise<OgAssets> {
       style: "normal",
       data: toArrayBuffer(jetbrainsMono),
       weight: 400,
+    },
+    {
+      name: "JetBrains Mono",
+      style: "normal",
+      data: toArrayBuffer(jetbrainsMonoBold),
+      weight: 700,
     },
   ]
   _assets = {
@@ -79,6 +92,25 @@ export async function renderDocsOg(props: OgTemplateProps, assets: OgAssets): Pr
     height: OPENGRAPH_IMAGE_HEIGHT,
     fonts: assets.fonts as SatoriOptions["fonts"],
   })
+  return renderPng(svg)
+}
+
+export async function renderApiReferenceOg(
+  props: ApiReferenceOgTemplateProps,
+  assets: OgAssets,
+): Promise<Uint8Array> {
+  const svg = await satori(
+    createApiReferenceTemplate({
+      bgDataUri: assets.docsBgDataUri,
+      eyebrow: safeText(props.eyebrow),
+      title: safeText(props.title),
+    }),
+    {
+      width: OPENGRAPH_IMAGE_WIDTH,
+      height: OPENGRAPH_IMAGE_HEIGHT,
+      fonts: assets.fonts as SatoriOptions["fonts"],
+    },
+  )
   return renderPng(svg)
 }
 
@@ -365,6 +397,91 @@ const createDocsTemplate = (props: OgTemplateProps, docsBgDataUri: string): OgNo
     title: props.title,
     subtitle: props.subtitle,
     bgDataUri: docsBgDataUri,
+  })
+}
+
+const createApiReferenceTemplate = ({
+  eyebrow,
+  title,
+  bgDataUri,
+}: ApiReferenceOgTemplateProps & { readonly bgDataUri: string }): OgNode => {
+  return createNode("div", {
+    style: {
+      width: "1200px",
+      height: "630px",
+      display: "flex",
+      position: "relative",
+      fontFamily: "JetBrains Mono",
+    },
+    children: [
+      createNode("img", {
+        src: bgDataUri,
+        width: OPENGRAPH_IMAGE_WIDTH,
+        height: OPENGRAPH_IMAGE_HEIGHT,
+      }),
+      createNode("div", {
+        style: {
+          position: "absolute",
+          top: "320px",
+          left: "80px",
+          right: "80px",
+          display: "flex",
+          flexDirection: "column",
+        },
+        children: [
+          createNode("div", {
+            style: {
+              display: "flex",
+              alignItems: "center",
+            },
+            children: [
+              createNode("div", {
+                style: {
+                  color: "#a1a1aa",
+                  display: "flex",
+                  fontSize: "22px",
+                  fontWeight: 500,
+                  letterSpacing: "0.04em",
+                  lineHeight: 1.1,
+                  textTransform: "uppercase",
+                },
+                children: eyebrow,
+              }),
+            ],
+          }),
+          createNode("div", {
+            style: {
+              color: "#ffffff",
+              display: "flex",
+              fontSize: "64px",
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              lineHeight: 1.1,
+              marginTop: "30px",
+              maxWidth: "1040px",
+            },
+            children: title,
+          }),
+        ],
+      }),
+      createNode("div", {
+        style: {
+          position: "absolute",
+          right: "80px",
+          bottom: "20px",
+          paddingLeft: "12px",
+          backgroundColor: "#08090b",
+          color: "#a1a1aa",
+          display: "flex",
+          fontSize: "22px",
+          fontWeight: 500,
+          letterSpacing: "0.04em",
+          lineHeight: 1.1,
+          textTransform: "uppercase",
+        },
+        children: "API Reference",
+      }),
+    ],
   })
 }
 

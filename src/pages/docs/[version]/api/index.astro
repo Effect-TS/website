@@ -6,6 +6,7 @@ import { ChevronDown, Search } from "@lucide/astro"
 import Footer from "@/components/Footer.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
+import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 
@@ -29,6 +30,10 @@ export const getStaticPaths = (async () => {
 }) satisfies GetStaticPaths
 
 const { entries, version } = Astro.props
+const openGraph = resolveApiReferenceOpenGraph(
+  `docs/${version}/api`,
+  entries.map((entry) => entry.data),
+)
 
 const groupNames: Record<string, Record<string, string>> = {
   v3: {
@@ -177,7 +182,11 @@ const mobilePackages = [
 ]
 ---
 
-<BaseLayout title="API Reference">
+<BaseLayout
+  title={`Effect ${version} API Reference`}
+  description={openGraph?.description}
+  ogImageVersion={openGraph?.revision}
+>
   <Navigation activeSlug="api" wide />
 
   <div class="relative w-full pt-16">
