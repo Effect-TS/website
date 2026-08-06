@@ -22,8 +22,8 @@ A `PubSub<A>` stores messages of type `A` and provides two fundamental operation
 
 **Example** (Publishing a Message to Multiple Subscribers)
 
-```ts twoslash
-import { Effect, PubSub, Queue } from "effect"
+```ts twoslash import.meta.vitest name="basic-operations-1"
+import { Effect, PubSub } from "effect"
 
 const program = Effect.scoped(
   Effect.gen(function* () {
@@ -37,8 +37,8 @@ const program = Effect.scoped(
     yield* PubSub.publish(pubsub, "Hello from a PubSub!")
 
     // Each subscriber receives the message
-    console.log("Subscriber 1: " + (yield* Queue.take(dequeue1)))
-    console.log("Subscriber 2: " + (yield* Queue.take(dequeue2)))
+    console.log("Subscriber 1: " + (yield* PubSub.take(dequeue1)))
+    console.log("Subscriber 2: " + (yield* PubSub.take(dequeue2)))
   }),
 )
 
@@ -66,7 +66,7 @@ Back pressure ensures that all subscribers receive all messages while they are s
 
 **Example** (Bounded PubSub Creation)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="bounded-pubsub-1"
 import { PubSub } from "effect"
 
 // Creates a bounded PubSub with a capacity of 2
@@ -81,7 +81,7 @@ In a dropping pubsub, publishers can continue to publish new values, but subscri
 
 **Example** (Dropping PubSub Creation)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="dropping-pubsub-1"
 import { PubSub } from "effect"
 
 // Creates a dropping PubSub with a capacity of 2
@@ -96,7 +96,7 @@ A sliding pubsub prevents slow subscribers from impacting the message delivery r
 
 **Example** (Sliding PubSub Creation)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="sliding-pubsub-1"
 import { PubSub } from "effect"
 
 // Creates a sliding PubSub with a capacity of 2
@@ -113,7 +113,7 @@ Generally, it's recommended to use bounded, dropping, or sliding pubsubs unless 
 
 **Example**
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="unbounded-pubsub-1"
 import { PubSub } from "effect"
 
 // Creates an unbounded PubSub with unlimited capacity
@@ -128,15 +128,15 @@ The `PubSub.publishAll` function lets you publish multiple values to the pubsub 
 
 **Example** (Publishing Multiple Messages)
 
-```ts twoslash
-import { Effect, PubSub, Queue } from "effect"
+```ts twoslash import.meta.vitest name="publishall-1"
+import { Effect, PubSub } from "effect"
 
 const program = Effect.scoped(
   Effect.gen(function* () {
     const pubsub = yield* PubSub.bounded<string>(2)
     const dequeue = yield* PubSub.subscribe(pubsub)
     yield* PubSub.publishAll(pubsub, ["Message 1", "Message 2"])
-    console.log(yield* Queue.takeAll(dequeue))
+    console.log(yield* PubSub.takeAll(dequeue))
   }),
 )
 
@@ -156,7 +156,7 @@ In contrast, `PubSub.size` returns an effect that determines the current size of
 
 **Example** (Retrieving PubSub Capacity and Size)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="capacity-size-1"
 import { Effect, PubSub } from "effect"
 
 const program = Effect.gen(function* () {
