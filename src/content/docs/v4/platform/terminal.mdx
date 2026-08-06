@@ -5,7 +5,7 @@ sidebar:
   order: 7
 ---
 
-The `@effect/platform/Terminal` module provides an abstraction for interacting with standard input and output, including reading user input and displaying messages on the terminal.
+The `effect/Terminal` module provides an abstraction for interacting with standard input and output, including reading user input and displaying messages on the terminal.
 
 ## Basic Usage
 
@@ -13,9 +13,8 @@ The module provides a single `Terminal` [tag](/docs/requirements-management/serv
 
 **Example** (Using the Terminal Service)
 
-```ts twoslash
-import { Terminal } from "@effect/platform"
-import { Effect } from "effect"
+```ts twoslash import.meta.vitest name="basic-usage-1"
+import { Effect, Terminal } from "effect"
 
 const program = Effect.gen(function* () {
   const terminal = yield* Terminal.Terminal
@@ -29,9 +28,8 @@ const program = Effect.gen(function* () {
 **Example** (Displaying a Message on the Terminal)
 
 ```ts twoslash
-import { Terminal } from "@effect/platform"
 import { NodeRuntime, NodeTerminal } from "@effect/platform-node"
-import { Effect } from "effect"
+import { Effect, Terminal } from "effect"
 
 const program = Effect.gen(function* () {
   const terminal = yield* Terminal.Terminal
@@ -47,9 +45,8 @@ NodeRuntime.runMain(program.pipe(Effect.provide(NodeTerminal.layer)))
 **Example** (Reading a Line from Standard Input)
 
 ```ts twoslash
-import { Terminal } from "@effect/platform"
 import { NodeRuntime, NodeTerminal } from "@effect/platform-node"
-import { Effect } from "effect"
+import { Effect, Terminal } from "effect"
 
 const program = Effect.gen(function* () {
   const terminal = yield* Terminal.Terminal
@@ -69,9 +66,8 @@ This example demonstrates how to create a complete number-guessing game by readi
 **Example** (Interactive Number Guessing Game)
 
 ```ts twoslash
-import { Terminal } from "@effect/platform"
-import type { PlatformError } from "@effect/platform/Error"
-import { Effect, Option, Random } from "effect"
+import { Effect, Option, Random, Terminal } from "effect"
+import type { PlatformError } from "effect/PlatformError"
 import { NodeRuntime, NodeTerminal } from "@effect/platform-node"
 
 // Generate a secret random number between 1 and 100
@@ -98,7 +94,7 @@ const prompt = Effect.gen(function* () {
 })
 
 // Get the user's guess, validating it as an integer between 1 and 100
-const answer: Effect.Effect<number, Terminal.QuitException | PlatformError, Terminal.Terminal> =
+const answer: Effect.Effect<number, Terminal.QuitError | PlatformError, Terminal.Terminal> =
   Effect.gen(function* () {
     const input = yield* prompt
     const guess = parseGuess(input)
@@ -134,7 +130,7 @@ const end = display("You guessed it!")
 // Main game loop
 const loop = (
   secret: number,
-): Effect.Effect<void, Terminal.QuitException | PlatformError, Terminal.Terminal> =>
+): Effect.Effect<void, Terminal.QuitError | PlatformError, Terminal.Terminal> =>
   Effect.gen(function* () {
     const guess = yield* answer
     return yield* check(
