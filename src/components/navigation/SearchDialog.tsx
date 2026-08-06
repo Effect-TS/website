@@ -151,7 +151,10 @@ const searchRequestAtom = Atom.make((get) => {
     const response = yield* Effect.tryPromise({
       try: (signal) => fetch(url, { signal }),
       catch: (cause) => new SearchError({ cause }),
-    })
+    }).pipe(
+      Effect.timeout("5 seconds"),
+      Effect.catchTag("TimeoutError", (cause) => new SearchError({ cause })),
+    )
 
     if (!response.ok) {
       return yield* new SearchError({
@@ -669,7 +672,7 @@ function SearchResultsDetail({
       <Button
         type="button"
         variant="ghost"
-        className="mb-2 flex h-4 items-center gap-1 p-0 font-mono text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+        className="mb-2 flex h-4 items-center gap-1 p-0 font-mono text-xs leading-4 font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
         onClick={onBack}
       >
         <ChevronLeft className="size-3.5" />
@@ -822,7 +825,7 @@ function SearchResultsSection({
 
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between gap-4 px-1 font-mono text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+      <div className="flex h-4 items-center justify-between gap-4 px-1 font-mono text-xs leading-4 font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
         <h2>{title}</h2>
         {results.length > MAX_GROUP_RESULTS ? (
           <button
