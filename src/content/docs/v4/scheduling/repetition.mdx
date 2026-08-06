@@ -21,20 +21,20 @@ The `Effect.repeat` function returns a new effect that repeats the given effect 
 
 **Example** (Repeating a Successful Effect)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="repeating-a-successful-effect-1"
 import { Effect, Schedule, Console } from "effect"
 
 // Define an effect that logs a message to the console
 const action = Console.log("success")
 
 // Define a schedule that repeats the action 2 more times with a delay
-const policy = Schedule.addDelay(Schedule.recurs(2), () => "100 millis")
+const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 millis"))
 
 // Repeat the action according to the schedule
 const program = Effect.repeat(action, policy)
 
 // Run the program and log the number of repetitions
-Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+await Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
 /*
 Output:
 success
@@ -46,13 +46,13 @@ repetitions: 2
 
 **Example** (Handling Failures in Repetition)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-failures-in-repetition-1"
 import { Effect, Schedule } from "effect"
 
 let count = 0
 
 // Define an async effect that simulates an action with potential failure
-const action = Effect.async<string, string>((resume) => {
+const action = Effect.callback<string, string>((resume) => {
   if (count > 1) {
     console.log("failure")
     resume(Effect.fail("Uh oh!"))
@@ -64,13 +64,13 @@ const action = Effect.async<string, string>((resume) => {
 })
 
 // Define a schedule that repeats the action 2 more times with a delay
-const policy = Schedule.addDelay(Schedule.recurs(2), () => "100 millis")
+const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 millis"))
 
 // Repeat the action according to the schedule
 const program = Effect.repeat(action, policy)
 
 // Run the program and observe the result on failure
-Effect.runPromiseExit(program).then(console.log)
+await Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
 success
@@ -90,16 +90,16 @@ If you want to avoid the first execution and only run the action according to a 
 
 **Example** (Skipping First Execution)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="skipping-first-execution-1"
 import { Effect, Schedule, Console } from "effect"
 
 const action = Console.log("success")
 
-const policy = Schedule.addDelay(Schedule.recurs(2), () => "100 millis")
+const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 millis"))
 
 const program = Effect.schedule(action, policy)
 
-Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+await Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
 /*
 Output:
 success
@@ -110,19 +110,19 @@ repetitions: 2
 
 ## repeatN
 
-The `repeatN` function returns a new effect that repeats the specified effect a given number of times or until the first failure. The repeats are in addition to the initial execution, so `Effect.repeatN(action, 1)` executes `action` once initially and then repeats it one additional time if it succeeds.
+The `Effect.repeat` function returns a new effect that repeats the specified effect a given number of times or until the first failure. The repeats are in addition to the initial execution, so `Effect.repeat(action, { times: 1 })` executes `action` once initially and then repeats it one additional time if it succeeds.
 
 **Example** (Repeating an Action Multiple Times)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="repeating-an-action-multiple-times-1"
 import { Effect, Console } from "effect"
 
 const action = Console.log("success")
 
 // Repeat the action 2 additional times after the first execution
-const program = Effect.repeatN(action, 2)
+const program = Effect.repeat(action, { times: 2 })
 
-Effect.runPromise(program)
+await Effect.runPromise(program)
 /*
 Output:
 success
@@ -139,13 +139,13 @@ Scheduled recurrences are in addition to the initial execution, so `Effect.repea
 
 **Example** (Handling Failure During Repeats)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-failure-during-repeats-1"
 import { Effect, Schedule } from "effect"
 
 let count = 0
 
 // Define an async effect that simulates an action with possible failures
-const action = Effect.async<string, string>((resume) => {
+const action = Effect.callback<string, string>((resume) => {
   if (count > 1) {
     console.log("failure")
     resume(Effect.fail("Uh oh!"))
@@ -158,7 +158,7 @@ const action = Effect.async<string, string>((resume) => {
 
 // Define a schedule that repeats up to 2 times
 // with a 100ms delay between attempts
-const policy = Schedule.addDelay(Schedule.recurs(2), () => "100 millis")
+const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 millis"))
 
 // Provide a handler to run when failure occurs after the retries
 const program = Effect.repeatOrElse(action, policy, () =>
@@ -168,7 +168,7 @@ const program = Effect.repeatOrElse(action, policy, () =>
   }),
 )
 
-Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+await Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
 /*
 Output:
 success
@@ -185,7 +185,7 @@ You can control the repetition of an effect by a condition using either a `while
 
 **Example** (Repeating Until a Condition is Met)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="repeating-until-a-condition-is-met-1"
 import { Effect } from "effect"
 
 let count = 0
@@ -199,7 +199,7 @@ const action = Effect.sync(() => {
 // Repeat the action until the count reaches 3
 const program = Effect.repeat(action, { until: (n) => n === 3 })
 
-Effect.runFork(program)
+await Effect.runPromise(program)
 /*
 Output:
 Action called 1 time(s)
