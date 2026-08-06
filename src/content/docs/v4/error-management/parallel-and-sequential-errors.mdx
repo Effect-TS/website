@@ -13,11 +13,11 @@ When working with Effect, if an error occurs, the default behavior is to fail wi
 
 Here, the program fails with the first error it encounters, `"Oh uh!"`.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="failing-on-the-first-error-1"
 import { Effect } from "effect"
 
 const fail = Effect.fail("Oh uh!")
-const die = Effect.dieMessage("Boom!")
+const die = Effect.die(new Error("Boom!"))
 
 // Run both effects sequentially
 const program = Effect.all([fail, die])
@@ -28,7 +28,7 @@ Output:
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Oh uh!' }
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 ```
@@ -41,11 +41,11 @@ In some cases, you might encounter multiple errors, especially during concurrent
 
 In this example, both the `fail` and `die` effects are executed concurrently. Since both fail, the program will report multiple errors in the output.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-multiple-errors-in-concurrent-computations-1"
 import { Effect } from "effect"
 
 const fail = Effect.fail("Oh uh!")
-const die = Effect.dieMessage("Boom!")
+const die = Effect.die(new Error("Boom!"))
 
 // Run both effects concurrently
 const program = Effect.all([fail, die], {
@@ -58,12 +58,7 @@ Output:
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Parallel',
-    left: { _id: 'Cause', _tag: 'Fail', failure: 'Oh uh!' },
-    right: { _id: 'Cause', _tag: 'Die', defect: [Object] }
-  }
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 ```
@@ -112,14 +107,14 @@ This happens because regardless of whether the original effect has any errors or
 
 In this example, both `fail` and the finalizer `die` result in sequential errors, and both are captured.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-multiple-sequential-errors-1"
 import { Effect } from "effect"
 
 // Simulate an effect that fails
 const fail = Effect.fail("Oh uh!")
 
 // Simulate a finalizer that causes a defect
-const die = Effect.dieMessage("Boom!")
+const die = Effect.die(new Error("Boom!"))
 
 // The finalizer 'die' will always run, even if 'fail' fails
 const program = fail.pipe(Effect.ensuring(die))
@@ -130,12 +125,7 @@ Output:
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Sequential',
-    left: { _id: 'Cause', _tag: 'Fail', failure: 'Oh uh!' },
-    right: { _id: 'Cause', _tag: 'Die', defect: [Object] }
-  }
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 ```
