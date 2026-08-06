@@ -1,14 +1,16 @@
+import { useAtomSet, useAtomValue } from "@effect/atom-react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { SerializedPost } from "./PostCard"
+import { BlogCategory, blogPostHref, type BlogPostSummary } from "../domain"
+import { scrollToBlogGrid, selectCategoryAtom, twiePostsAtom } from "./BlogAtoms"
 
-function TWIECard({ post }: { post: SerializedPost }) {
+function TWIECard({ post }: { post: BlogPostSummary }) {
   const lastSegment = post.id.split("/").pop()
   const issueNumber = /^\d+$/.test(lastSegment ?? "") ? `#${lastSegment}` : null
 
   return (
     <a
-      href={post.href}
+      href={blogPostHref(post.id)}
       className="group relative flex w-[280px] shrink-0 flex-col justify-between overflow-hidden rounded-md border border-zinc-200 bg-zinc-100/40 p-4 pb-5 transition-colors duration-200 hover:border-zinc-400 hover:bg-zinc-100/70 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:border-zinc-600 dark:hover:bg-zinc-900/70"
     >
       <div>
@@ -30,20 +32,24 @@ function TWIECard({ post }: { post: SerializedPost }) {
   )
 }
 
-export function TWIEScrollRail({
-  posts,
-  viewAllHref,
-}: {
-  posts: SerializedPost[]
-  viewAllHref: string
-}) {
+export function TWIEScrollRail() {
+  const posts = useAtomValue(twiePostsAtom)
+  const selectCategory = useAtomSet(selectCategoryAtom)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
 
+  const viewAll = useCallback(() => {
+    selectCategory(BlogCategory.ThisWeekInEffect())
+    scrollToBlogGrid()
+  }, [selectCategory])
+
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current
-    if (!el) return
+    if (!el) {
+      return
+    }
     setCanScrollLeft(el.scrollLeft > 0)
     setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 1)
   }, [])
@@ -55,11 +61,15 @@ export function TWIEScrollRail({
 
   const scroll = useCallback((direction: "left" | "right") => {
     const el = scrollRef.current
-    if (!el) return
+    if (!el) {
+      return
+    }
     el.scrollBy({ left: direction === "left" ? -300 : 300, behavior: "smooth" })
   }, [])
 
-  if (posts.length === 0) return null
+  if (posts.length === 0) {
+    return null
+  }
 
   return (
     <section aria-label="This Week in Effect posts" className="pt-16 pb-2 md:pt-20">
@@ -68,12 +78,13 @@ export function TWIEScrollRail({
           This Week in Effect
         </h2>
         <div className="flex items-center gap-5">
-          <a
-            href={viewAllHref}
+          <button
+            type="button"
+            onClick={viewAll}
             className="font-mono text-sm text-zinc-800 transition-colors hover:text-zinc-900 dark:text-zinc-200 dark:hover:text-white"
           >
             View all
-          </a>
+          </button>
           <div className="hidden items-center gap-2 sm:flex">
             <button
               type="button"
