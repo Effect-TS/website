@@ -14,6 +14,7 @@ Tracks progress against `specs/v3-to-v4-docs-snippet-migration.md`. Updated per 
 | `getting-started/creating-effects.mdx` | 22 | 17 | 4 | 5: 2 pseudo-code syntax shorthand (`try`/`catch`, `Effect.suspend(() => effect)`), 1 `Effect.callback<Buffer, Error>` type-annotation illustration snippet, 1 filesystem-writing interruption-cleanup demo (real side effects, code fixed but left unmarked per F6), 1 stack-overflow crash demo (`blowsUp`) |
 | `getting-started/devtools.mdx` | 1 | 0 | 0 | 1: `NodeRuntime.runMain` process-entry-point demo with an `Effect.forever` loop — would hang the doctest run, left unmarked |
 | `getting-started/importing-effect.mdx` | 0 (no changes needed) | — | — | n/a — install instructions and trivial single-line import illustrations only, no API usage to migrate |
+| `getting-started/installation.mdx` | 3 (ts/js) | 3 | 0 | 0 — a `diff lang="tsx"` snippet is out of spec scope (not a ts/js fence) |
 
 ## Unresolved items
 
