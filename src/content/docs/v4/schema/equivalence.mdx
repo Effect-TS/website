@@ -6,12 +6,12 @@ sidebar:
   order: 17
 ---
 
-The `Schema.equivalence` function allows you to generate an [Equivalence](/docs/schema/equivalence/) based on a schema definition.
+The `Schema.toEquivalence` function allows you to generate an [Equivalence](/docs/schema/equivalence/) based on a schema definition.
 This function is designed to compare data structures for equivalence according to the rules defined in the schema.
 
 **Example** (Comparing Structs for Equivalence)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="schema-to-equivalence-1"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
@@ -20,7 +20,7 @@ const Person = Schema.Struct({
 })
 
 // Generate an equivalence function based on the schema
-const PersonEquivalence = Schema.equivalence(Person)
+const PersonEquivalence = Schema.toEquivalence(Person)
 
 const john = { name: "John", age: 23 }
 const alice = { name: "Alice", age: 30 }
@@ -48,7 +48,7 @@ This is because these types can hold almost any kind of value.
 
 **Example** (Comparing Empty Objects Using Reference Equality)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="equivalence-for-any-unknown-and-object-1"
 import { Schema } from "effect"
 
 const schema = Schema.Struct({})
@@ -56,30 +56,32 @@ const schema = Schema.Struct({})
 const input1 = {}
 const input2 = {}
 
-console.log(Schema.equivalence(schema)(input1, input2))
+console.log(Schema.toEquivalence(schema)(input1, input2))
 // Output: false (because they are different references)
 ```
 
 ## Customizing Equivalence Generation
 
-You can customize the equivalence logic by providing an `equivalence` annotation in the schema definition.
+You can customize the equivalence logic by providing an `toEquivalence` annotation in the schema definition.
 
-The `equivalence` annotation takes any type parameters provided (`typeParameters`) and two values for comparison, returning a boolean based on the desired condition of equivalence.
+The `toEquivalence` annotation takes any type parameters provided (`typeParameters`) and two values for comparison, returning a boolean based on the desired condition of equivalence.
 
 **Example** (Custom Equivalence for Strings)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="customizing-equivalence-generation-1"
 import { Schema } from "effect"
 
 // Define a schema with a custom equivalence annotation
-const schema = Schema.String.annotations({
-  equivalence: (/**typeParameters**/) => (s1, s2) =>
-    // Custom rule: Compare only the first character of the strings
-    s1.charAt(0) === s2.charAt(0),
-})
+const schema = Schema.String.pipe(
+  Schema.overrideToEquivalence(
+    () => (s1, s2) =>
+      // Custom rule: Compare only the first character of the strings
+      s1.charAt(0) === s2.charAt(0),
+  ),
+)
 
 // Generate the equivalence function
-const customEquivalence = Schema.equivalence(schema)
+const customEquivalence = Schema.toEquivalence(schema)
 
 // Use the custom equivalence function
 console.log(customEquivalence("aaa", "abb"))
