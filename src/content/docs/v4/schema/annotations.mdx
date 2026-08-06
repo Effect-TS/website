@@ -10,27 +10,27 @@ One of the key features of the Schema design is its flexibility and ability to b
 This is achieved through "annotations."
 Each node in the `ast` field of a schema has an `annotations: Record<string | symbol, unknown>` field,
 which allows you to attach additional information to the schema.
-You can manage these annotations using the `annotations` method or the `Schema.annotations` API.
+You can manage these annotations using the `annotate` method or the `Schema.annotate` API.
 
 **Example** (Using Annotations to Customize Schema)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="schema-annotations-1"
 import { Schema } from "effect"
 
 // Define a Password schema, starting with a string type
 const Password = Schema.String
   // Add a custom error message for non-string values
-  .annotations({ message: () => "not a string" })
+  .annotate({ message: "not a string" })
   .pipe(
     // Enforce non-empty strings and provide a custom error message
-    Schema.nonEmptyString({ message: () => "required" }),
-    // Restrict the string length to 10 characters or fewer
-    // with a custom error message for exceeding length
-    Schema.maxLength(10, {
-      message: (issue) => `${issue.actual} is too long`,
-    }),
+    Schema.check(
+      Schema.isNonEmpty({ message: "required" }),
+      // Restrict the string length to 10 characters or fewer
+      // with a custom error message for exceeding length
+      Schema.makeFilter((s) => (s.length <= 10 ? undefined : `${s} is too long`)),
+    ),
   )
-  .annotations({
+  .annotate({
     // Add a unique identifier for the schema
     identifier: "Password",
     // Provide a title for the schema
@@ -48,24 +48,24 @@ const Password = Schema.String
 
 The following table provides an overview of common built-in annotations and their uses:
 
-| Annotation         | Description                                                                                                                                                                                                                                                                         |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `identifier`       | Assigns a unique identifier to the schema, ideal for TypeScript identifiers and code generation purposes. Commonly used in tools like [TreeFormatter](/docs/schema/error-formatters/#customizing-the-output) to clarify output. Examples include `"Person"`, `"Product"`.           |
-| `title`            | Sets a short, descriptive title for the schema, similar to a JSON Schema title. Useful for documentation or UI headings. It is also used by [TreeFormatter](/docs/schema/error-formatters/#customizing-the-output) to enhance readability of error messages.                        |
-| `description`      | Provides a detailed explanation about the schema's purpose, akin to a JSON Schema description. Used by [TreeFormatter](/docs/schema/error-formatters/#customizing-the-output) to provide more detailed error messages.                                                              |
-| `documentation`    | Extends detailed documentation for the schema, beneficial for developers or automated documentation generation.                                                                                                                                                                     |
-| `examples`         | Lists examples of valid schema values, akin to the examples attribute in JSON Schema, useful for documentation and validation testing.                                                                                                                                              |
-| `default`          | Defines a default value for the schema, similar to the default attribute in JSON Schema, to ensure schemas are pre-populated where applicable.                                                                                                                                      |
-| `message`          | Customizes the error message for validation failures, improving clarity in outputs from tools like [TreeFormatter](/docs/schema/error-formatters/#customizing-the-output) and [ArrayFormatter](/docs/schema/error-formatters/#arrayformatter) during decoding or validation errors. |
-| `jsonSchema`       | Specifies annotations that affect the generation of [JSON Schema](/docs/schema/json-schema/) documents, customizing how schemas are represented.                                                                                                                                    |
-| `arbitrary`        | Configures settings for generating [Arbitrary](/docs/schema/arbitrary/) test data.                                                                                                                                                                                                  |
-| `pretty`           | Configures settings for generating [Pretty](/docs/schema/pretty/) output.                                                                                                                                                                                                           |
-| `equivalence`      | Configures settings for evaluating data [Equivalence](/docs/schema/equivalence/).                                                                                                                                                                                                   |
-| `concurrency`      | Controls concurrency behavior, ensuring schemas perform optimally under concurrent operations. Refer to [Concurrency Annotation](#concurrency-annotation) for detailed usage.                                                                                                       |
-| `batching`         | Manages settings for batching operations to enhance performance when operations can be grouped.                                                                                                                                                                                     |
-| `parseIssueTitle`  | Provides a custom title for parsing issues, enhancing error descriptions in outputs from [TreeFormatter](/docs/schema/error-formatters/#treeformatter-default). See [ParseIssueTitle Annotation](/docs/schema/error-formatters/#parseissuetitle-annotation) for more information.   |
-| `parseOptions`     | Allows overriding of parsing options at the schema level, offering granular control over parsing behaviors. See [Customizing Parsing Behavior at the Schema Level](/docs/schema/getting-started/#customizing-parsing-behavior-at-the-schema-level) for application details.         |
-| `decodingFallback` | Provides a way to define custom fallback behaviors that trigger when decoding operations fail. Refer to [Handling Decoding Errors with Fallbacks](#handling-decoding-errors-with-fallbacks) for detailed usage.                                                                     |
+| Annotation        | Description                                                                                                                                                                                                                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `identifier`      | Assigns a unique identifier to the schema, ideal for TypeScript identifiers and code generation purposes. Commonly used in tools like [TreeFormatter](/docs/schema/error-formatters/#customizing-the-output) to clarify output. Examples include `"Person"`, `"Product"`.           |
+| `title`           | Sets a short, descriptive title for the schema, similar to a JSON Schema title. Useful for documentation or UI headings. It is also used by [TreeFormatter](/docs/schema/error-formatters/#customizing-the-output) to enhance readability of error messages.                        |
+| `description`     | Provides a detailed explanation about the schema's purpose, akin to a JSON Schema description. Used by [TreeFormatter](/docs/schema/error-formatters/#customizing-the-output) to provide more detailed error messages.                                                              |
+| `documentation`   | Extends detailed documentation for the schema, beneficial for developers or automated documentation generation.                                                                                                                                                                     |
+| `examples`        | Lists examples of valid schema values, akin to the examples attribute in JSON Schema, useful for documentation and validation testing.                                                                                                                                              |
+| `default`         | Defines a default value for the schema, similar to the default attribute in JSON Schema, to ensure schemas are pre-populated where applicable.                                                                                                                                      |
+| `message`         | Customizes the error message for validation failures, improving clarity in outputs from tools like [TreeFormatter](/docs/schema/error-formatters/#customizing-the-output) and [ArrayFormatter](/docs/schema/error-formatters/#arrayformatter) during decoding or validation errors. |
+| `toJsonSchema`    | Specifies annotations that affect the generation of [JSON Schema](/docs/schema/json-schema/) documents, customizing how schemas are represented.                                                                                                                                    |
+| `toArbitrary`     | Configures settings for generating [Arbitrary](/docs/schema/arbitrary/) test data.                                                                                                                                                                                                  |
+| `toFormatter`     | Configures settings for generating [Pretty](/docs/schema/pretty/) output.                                                                                                                                                                                                           |
+| `toEquivalence`   | Configures settings for evaluating data [Equivalence](/docs/schema/equivalence/).                                                                                                                                                                                                   |
+| `concurrency`     | Controls concurrency behavior, ensuring schemas perform optimally under concurrent operations. Refer to [Concurrency Annotation](#concurrency-annotation) for detailed usage.                                                                                                       |
+| `batching`        | Manages settings for batching operations to enhance performance when operations can be grouped.                                                                                                                                                                                     |
+| `parseIssueTitle` | Provides a custom title for parsing issues, enhancing error descriptions in outputs from [TreeFormatter](/docs/schema/error-formatters/#treeformatter-default). See [ParseIssueTitle Annotation](/docs/schema/error-formatters/#parseissuetitle-annotation) for more information.   |
+| `parseOptions`    | Allows overriding of parsing options at the schema level, offering granular control over parsing behaviors. See [Customizing Parsing Behavior at the Schema Level](/docs/schema/getting-started/#customizing-parsing-behavior-at-the-schema-level) for application details.         |
+| `catchDecoding`   | Provides a way to define custom fallback behaviors that trigger when decoding operations fail. Refer to [Handling Decoding Errors with Fallbacks](#handling-decoding-errors-with-fallbacks) for detailed usage.                                                                     |
 
 ## Concurrency Annotation
 
@@ -88,26 +88,29 @@ Here's a shorter version presented in a table:
 
 In this example, we define three tasks that simulate asynchronous operations with different durations. Since no concurrency is specified, the tasks are executed sequentially, one after the other.
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="concurrency-annotation-1"
+import { Schema, SchemaGetter } from "effect"
 import type { Duration } from "effect"
 import { Effect } from "effect"
 
 // Simulates an async task
-const item = (id: number, duration: Duration.DurationInput) =>
+const item = (id: number, duration: Duration.Input) =>
   Schema.String.pipe(
-    Schema.filterEffect(() =>
-      Effect.gen(function* () {
-        yield* Effect.sleep(duration)
-        console.log(`Task ${id} done`)
-        return true
-      }),
-    ),
+    Schema.decode({
+      decode: SchemaGetter.checkEffect(() =>
+        Effect.gen(function* () {
+          yield* Effect.sleep(duration)
+          console.log(`Task ${id} done`)
+          return true
+        }),
+      ),
+      encode: SchemaGetter.passthrough(),
+    }),
   )
 
-const Sequential = Schema.Tuple(item(1, "30 millis"), item(2, "10 millis"), item(3, "20 millis"))
+const Sequential = Schema.Tuple([item(1, "30 millis"), item(2, "10 millis"), item(3, "20 millis")])
 
-Effect.runPromise(Schema.decode(Sequential)(["a", "b", "c"]))
+Effect.runPromise(Schema.decodeEffect(Sequential)(["a", "b", "c"]))
 /*
 Output:
 Task 1 done
@@ -120,30 +123,29 @@ Task 3 done
 
 By adding a `concurrency` annotation set to `"unbounded"`, the tasks can now run concurrently, meaning they don't wait for one another to finish before starting. This allows faster execution when multiple tasks are involved.
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="concurrency-annotation-2"
+import { Schema, SchemaGetter } from "effect"
 import type { Duration } from "effect"
 import { Effect } from "effect"
 
 // Simulates an async task
-const item = (id: number, duration: Duration.DurationInput) =>
+const item = (id: number, duration: Duration.Input) =>
   Schema.String.pipe(
-    Schema.filterEffect(() =>
-      Effect.gen(function* () {
-        yield* Effect.sleep(duration)
-        console.log(`Task ${id} done`)
-        return true
-      }),
-    ),
+    Schema.decode({
+      decode: SchemaGetter.checkEffect(() =>
+        Effect.gen(function* () {
+          yield* Effect.sleep(duration)
+          console.log(`Task ${id} done`)
+          return true
+        }),
+      ),
+      encode: SchemaGetter.passthrough(),
+    }),
   )
 
-const Concurrent = Schema.Tuple(
-  item(1, "30 millis"),
-  item(2, "10 millis"),
-  item(3, "20 millis"),
-).annotations({ concurrency: "unbounded" })
+const Concurrent = Schema.Tuple([item(1, "30 millis"), item(2, "10 millis"), item(3, "20 millis")])
 
-Effect.runPromise(Schema.decode(Concurrent)(["a", "b", "c"]))
+Effect.runPromise(Schema.decodeEffect(Concurrent, { concurrency: "unbounded" })(["a", "b", "c"]))
 /*
 Output:
 Task 2 done
@@ -157,7 +159,9 @@ Task 1 done
 The `DecodingFallbackAnnotation` allows you to handle decoding errors by providing a custom fallback logic.
 
 ```ts showLineNumbers=false
-type DecodingFallbackAnnotation<A> = (issue: ParseIssue) => Effect<A, ParseIssue>
+type DecodingFallbackAnnotation<A> = (
+  issue: SchemaIssue.Issue,
+) => Effect<Option<A>, SchemaIssue.Issue>
 ```
 
 This annotation enables you to specify fallback behavior when decoding fails, making it possible to recover gracefully from errors.
@@ -166,14 +170,12 @@ This annotation enables you to specify fallback behavior when decoding fails, ma
 
 In this basic example, when decoding fails (e.g., the input is `null`), the fallback value is returned instead of an error.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-decoding-errors-with-fallbacks-1"
 import { Schema } from "effect"
-import { Either } from "effect"
+import { Effect } from "effect"
 
 // Schema with a fallback value
-const schema = Schema.String.annotations({
-  decodingFallback: () => Either.right("<fallback>"),
-})
+const schema = Schema.String.pipe(Schema.catchDecoding(() => Effect.succeedSome("<fallback>")))
 
 console.log(Schema.decodeUnknownSync(schema)("valid input"))
 // Output: valid input
@@ -187,25 +189,26 @@ console.log(Schema.decodeUnknownSync(schema)(null))
 In this advanced example, when a decoding error occurs, the schema logs the issue and then returns a fallback value.
 This demonstrates how you can incorporate logging and other side effects during error handling.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-decoding-errors-with-fallbacks-2"
 import { Schema } from "effect"
 import { Effect } from "effect"
 
 // Schema with logging and fallback
-const schemaWithLog = Schema.String.annotations({
-  decodingFallback: (issue) =>
+const schemaWithLog = Schema.String.pipe(
+  Schema.catchDecoding((issue) =>
     Effect.gen(function* () {
       // Log the error issue
       yield* Effect.log(issue._tag)
       // Simulate a delay
       yield* Effect.sleep(10)
       // Return a fallback value
-      return yield* Effect.succeed("<fallback>")
+      return yield* Effect.succeedSome("<fallback>")
     }),
-})
+  ),
+)
 
 // Run the effectful fallback logic
-Effect.runPromise(Schema.decodeUnknown(schemaWithLog)(null)).then(console.log)
+Effect.runPromise(Schema.decodeUnknownEffect(schemaWithLog)(null)).then(console.log)
 /*
 Output:
 timestamp=2024-07-25T13:22:37.706Z level=INFO fiber=#0 message=Type
@@ -219,14 +222,14 @@ In addition to built-in annotations, you can define custom annotations to meet s
 
 **Example** (Defining a Custom Annotation)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="custom-annotations-1"
 import { Schema } from "effect"
 
 // Define a unique identifier for your custom annotation
 const DeprecatedId = Symbol.for("some/unique/identifier/for/your/custom/annotation")
 
 // Apply the custom annotation to the schema
-const MyString = Schema.String.annotations({ [DeprecatedId]: true })
+const MyString = Schema.String.annotate({ [DeprecatedId]: true })
 
 console.log(MyString)
 /*
@@ -257,41 +260,40 @@ const DeprecatedId = Symbol.for("some/unique/identifier/for/your/custom/annotati
 // Module augmentation
 declare module "effect/Schema" {
   namespace Annotations {
-    interface GenericSchema<A> extends Schema<A> {
+    interface Annotations {
       [DeprecatedId]?: boolean
     }
   }
 }
 
-const MyString = Schema.String.annotations({
+const MyString = Schema.String.annotate({
   // @errors: 2418
   [DeprecatedId]: "bad value",
 })
 ```
 
-You can retrieve custom annotations using the `SchemaAST.getAnnotation` helper function.
+You can retrieve custom annotations using the `Schema.resolveAnnotations` helper function.
 
 **Example** (Retrieving a Custom Annotation)
 
-```ts twoslash collapse={4-16}
-import { SchemaAST, Schema } from "effect"
-import { Option } from "effect"
+```ts twoslash collapse={3-15} import.meta.vitest name="custom-annotations-3"
+import { Schema } from "effect"
 
 const DeprecatedId = Symbol.for("some/unique/identifier/for/your/custom/annotation")
 
 declare module "effect/Schema" {
   namespace Annotations {
-    interface GenericSchema<A> extends Schema<A> {
+    interface Annotations {
       [DeprecatedId]?: boolean
     }
   }
 }
 
-const MyString = Schema.String.annotations({ [DeprecatedId]: true })
+const MyString = Schema.String.annotate({ [DeprecatedId]: true })
 
 // Helper function to check if a schema is marked as deprecated
-const isDeprecated = <A, I, R>(schema: Schema.Schema<A, I, R>): boolean =>
-  SchemaAST.getAnnotation<boolean>(DeprecatedId)(schema.ast).pipe(Option.getOrElse(() => false))
+const isDeprecated = (schema: Schema.Top): boolean =>
+  Schema.resolveAnnotations(schema)?.[DeprecatedId] ?? false
 
 console.log(isDeprecated(Schema.String))
 // Output: false
