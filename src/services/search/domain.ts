@@ -203,7 +203,7 @@ export const SearchResult = Schema.Union([
 ])
 export type SearchResult = typeof SearchResult.Type
 
-export class SearchError extends Schema.TaggedErrorClass<SearchError>()(
+export class SearchError extends Schema.TaggedError<SearchError>()(
   "SearchError",
   { cause: Schema.Defect() },
   { httpApiStatus: 500 },

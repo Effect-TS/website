@@ -61,7 +61,7 @@ export const snippetResultTargetKey = "result"
 
 export const toStepSnippetTargetKey = (stepId: string): string => `step:${stepId}`
 
-export class CodeSnippetHighlightResolutionError extends Schema.TaggedErrorClass<CodeSnippetHighlightResolutionError>()(
+export class CodeSnippetHighlightResolutionError extends Schema.TaggedError<CodeSnippetHighlightResolutionError>()(
   "CodeSnippetHighlightResolutionError",
   {
     exampleLabel: Schema.String,
@@ -76,7 +76,7 @@ export class CodeSnippetHighlightResolutionError extends Schema.TaggedErrorClass
   },
 ) {}
 
-export class EmptyHighlightSelectorsError extends Schema.TaggedErrorClass<EmptyHighlightSelectorsError>()(
+export class EmptyHighlightSelectorsError extends Schema.TaggedError<EmptyHighlightSelectorsError>()(
   "EmptyHighlightSelectorsError",
   {
     exampleLabel: Schema.String,
@@ -84,7 +84,7 @@ export class EmptyHighlightSelectorsError extends Schema.TaggedErrorClass<EmptyH
   },
 ) {}
 
-export class InvalidCodeSnippetLanguageError extends Schema.TaggedErrorClass<InvalidCodeSnippetLanguageError>()(
+export class InvalidCodeSnippetLanguageError extends Schema.TaggedError<InvalidCodeSnippetLanguageError>()(
   "InvalidCodeSnippetLanguageError",
   {
     exampleLabel: Schema.String,
