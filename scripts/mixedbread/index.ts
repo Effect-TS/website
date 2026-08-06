@@ -270,12 +270,12 @@ class Mixedbread extends Context.Service<
       yield* Effect.log(`Staged ${count} blog posts in ${blogStageDir}`)
     })
 
-    const syncDocumentation = Effect.fn("Mixedbread.syncDocumentation")(function* (
+    const syncMarkdown = Effect.fn("Mixedbread.syncMarkdown")(function* (
       storeId: string,
       options: SyncOptions,
     ) {
       const metadata = JSON.stringify({
-        content_source: "documentation",
+        content_source: "markdown",
         version,
         ...(options.kind === "preview" ? { pull_request: options.pullRequest } : {}),
       })
@@ -288,49 +288,6 @@ class Mixedbread extends Context.Service<
           "sync",
           storeId,
           `${documentationStageDir}/**/*.{md,mdx}`,
-          "--yes",
-          "--strategy",
-          "fast",
-          "--max-chunk-size",
-          "500",
-          "--metadata",
-          metadata,
-        ],
-        {
-          env: { MXBAI_API_KEY: Redacted.value(apiKey) },
-          extendEnv: true,
-          stdout: "inherit",
-          stderr: "inherit",
-        },
-      )
-      const exitCode = yield* childProcesses
-        .exitCode(command)
-        .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
-      if (exitCode !== 0) {
-        return yield* new FailedToIndexError({
-          externalId: documentationStageDir,
-          cause: new Error(`Mixedbread CLI exited with code ${exitCode}`),
-        })
-      }
-    })
-
-    const syncBlog = Effect.fn("Mixedbread.syncBlog")(function* (
-      storeId: string,
-      options: SyncOptions,
-    ) {
-      const metadata = JSON.stringify({
-        content_source: "blog",
-        version,
-        ...(options.kind === "preview" ? { pull_request: options.pullRequest } : {}),
-      })
-      const command = ChildProcess.make(
-        "pnpm",
-        [
-          "exec",
-          "mxbai",
-          "store",
-          "sync",
-          storeId,
           `${blogStageDir}/**/*.mdx`,
           "--yes",
           "--strategy",
@@ -352,7 +309,7 @@ class Mixedbread extends Context.Service<
         .pipe(Effect.mapError((cause) => new UnknownError({ cause })))
       if (exitCode !== 0) {
         return yield* new FailedToIndexError({
-          externalId: blogStageDir,
+          externalId: `${documentationStageDir}, ${blogStageDir}`,
           cause: new Error(`Mixedbread CLI exited with code ${exitCode}`),
         })
       }
@@ -569,21 +526,16 @@ class Mixedbread extends Context.Service<
       )
     })
 
-    const syncDocumentationStore = Effect.fn("Mixedbread.syncDocumentationStore")(function* (
+    const syncMarkdownStore = Effect.fn("Mixedbread.syncMarkdownStore")(function* (
       storeId: string,
       options: SyncOptions,
     ) {
-      yield* stageDocumentation()
-      yield* syncDocumentation(storeId, options)
+      yield* Effect.all([stageDocumentation(), stageBlog()], {
+        concurrency: "unbounded",
+        discard: true,
+      })
+      yield* syncMarkdown(storeId, options)
       yield* deleteLegacyDocumentation(storeId)
-    })
-
-    const syncBlogStore = Effect.fn("Mixedbread.syncBlogStore")(function* (
-      storeId: string,
-      options: SyncOptions,
-    ) {
-      yield* stageBlog()
-      yield* syncBlog(storeId, options)
     })
 
     const syncApiReference = Effect.fn("Mixedbread.syncApiReference")(function* (
@@ -759,14 +711,10 @@ class Mixedbread extends Context.Service<
 
       if (options.kind === "preview") yield* validateStore(store, options.pullRequest)
 
-      yield* Effect.all(
-        [
-          syncDocumentationStore(store.id, options),
-          syncBlogStore(store.id, options),
-          syncApiReference(store, options),
-        ],
-        { concurrency: "unbounded", discard: true },
-      )
+      yield* Effect.all([syncMarkdownStore(store.id, options), syncApiReference(store, options)], {
+        concurrency: "unbounded",
+        discard: true,
+      })
 
       if (options.kind === "preview") {
         yield* Effect.tryPromise({

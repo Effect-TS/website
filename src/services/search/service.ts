@@ -109,9 +109,8 @@ export class Search extends Context.Service<Search>()("app/Search", {
           return
         }
 
-        if (chunk.metadata.content_source === "blog") {
-          const generated = chunk.generated_metadata
-          if (!Schema.is(BlogGeneratedMetadata)(generated)) return
+        const generated = chunk.generated_metadata
+        if (Schema.is(BlogGeneratedMetadata)(generated)) {
           const href = generated.search.page_href
           if (!grouped.has(href)) {
             grouped.set(href, {
@@ -143,8 +142,6 @@ export class Search extends Context.Service<Search>()("app/Search", {
           return
         }
 
-        if (chunk.metadata.content_source !== "documentation") return
-        const generated = chunk.generated_metadata
         if (!Schema.is(DocumentationGeneratedMetadata)(generated)) return
         const section = markdownSection(generated)
         if (section === undefined) return
