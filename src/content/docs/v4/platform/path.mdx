@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-The `@effect/platform/Path` module provides a set of operations for working with file paths.
+The `effect/Path` module provides a set of operations for working with file paths.
 
 ## Basic Usage
 
@@ -13,9 +13,8 @@ The module provides a single `Path` [tag](/docs/requirements-management/services
 
 **Example** (Accessing the Path Service)
 
-```ts twoslash
-import { Path } from "@effect/platform"
-import { Effect } from "effect"
+```ts twoslash import.meta.vitest name="basic-usage-1"
+import { Effect, Path } from "effect"
 
 const program = Effect.gen(function* () {
   const path = yield* Path.Path
@@ -46,9 +45,8 @@ The `Path` interface includes the following operations:
 **Example** (Joining Path Segments)
 
 ```ts twoslash
-import { Path } from "@effect/platform"
-import { Effect } from "effect"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
+import { Effect, Path } from "effect"
+import { NodeServices, NodeRuntime } from "@effect/platform-node"
 
 const program = Effect.gen(function* () {
   const path = yield* Path.Path
@@ -57,6 +55,6 @@ const program = Effect.gen(function* () {
   console.log(mypath)
 })
 
-NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)))
 // Output: "tmp/file.txt"
 ```
