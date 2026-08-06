@@ -1,6 +1,6 @@
-import { stripTypeScriptTypes } from "node:module"
-import * as Doctest from "@effect/doctest/Plugin"
 import type { Plugin } from "vite"
+import * as Doctest from "@effect/doctest/Plugin"
+import { stripTypeScriptTypes } from "node:module"
 import { defineConfig } from "vitest/config"
 
 // Doctest's extracted snippet modules keep the .mdx extension of their source

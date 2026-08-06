@@ -1,15 +1,14 @@
+import { extractFile } from "@effect/doctest/Source"
 // Reproduces @effect/doctest's markdown extraction over src/content/docs/v4/**/*.mdx
 // and writes one .ts file per marked snippet to test-results/doctest/, for the G2 type gate.
 import { mkdir, readdir, rm, writeFile } from "node:fs/promises"
 import { extname, join, relative, sep } from "node:path"
-import { extractFile } from "@effect/doctest/Source"
 
 const root = new URL("..", import.meta.url).pathname
 const docsDir = join(root, "src/content/docs/v4")
 const outDir = join(root, "test-results/doctest")
 
-const twoslashAnnotationLine =
-  /^\s*\/\/\s*(\^\?|---cut(-after|-start|-end)?---|@\w|[┌└│▼▲├┤┬┴])/
+const twoslashAnnotationLine = /^\s*\/\/\s*(\^\?|---cut(-after|-start|-end)?---|@\w|[┌└│▼▲├┤┬┴])/
 
 const walk = async (dir) => {
   const entries = await readdir(dir, { withFileTypes: true })
@@ -25,7 +24,11 @@ const walk = async (dir) => {
   return files
 }
 
-const slugify = (file) => relative(docsDir, file).replace(/\.mdx$/, "").split(sep).join("-")
+const slugify = (file) =>
+  relative(docsDir, file)
+    .replace(/\.mdx$/, "")
+    .split(sep)
+    .join("-")
 
 const stripTwoslashAnnotations = (source) =>
   source
@@ -39,7 +42,8 @@ const stripTwoslashAnnotations = (source) =>
 // declare the same identifier (e.g. two different docs' `const divide = ...`)
 // collide. Force module scope so each snippet's file is self-contained.
 const hasImportOrExport = /^\s*(import|export)\b/m
-const ensureModuleScope = (source) => (hasImportOrExport.test(source) ? source : `${source}\nexport {}\n`)
+const ensureModuleScope = (source) =>
+  hasImportOrExport.test(source) ? source : `${source}\nexport {}\n`
 
 const main = async () => {
   await rm(outDir, { recursive: true, force: true })
@@ -64,7 +68,9 @@ const main = async () => {
     })
   }
 
-  console.log(`extracted ${total} snippet(s) from ${files.length} file(s) into ${relative(root, outDir)}`)
+  console.log(
+    `extracted ${total} snippet(s) from ${files.length} file(s) into ${relative(root, outDir)}`,
+  )
 }
 
 main()
