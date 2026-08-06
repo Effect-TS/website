@@ -15,7 +15,7 @@ When we employ these services, there's no need to explicitly provide their imple
 
 **Example** (Using Clock and Console)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="default-services-1"
 import { Effect, Clock, Console } from "effect"
 
 //      ┌─── Effect<void, never, never>
@@ -54,7 +54,7 @@ Sometimes, you might need to replace the default services with custom implementa
 
 **Example** (Overriding Random Service)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="overriding-default-services-1"
 import { Effect, Random } from "effect"
 
 // A program that logs a random number
@@ -66,7 +66,7 @@ Effect.runSync(program)
 // Example Output: 0.23208633934454326 (varies each run)
 
 // Override the Random service with a seeded generator
-const override = program.pipe(Effect.withRandom(Random.make("myseed")))
+const override = program.pipe(Random.withSeed("myseed"))
 
 Effect.runSync(override)
 // Output: 0.6862142528438508 (consistent output with the seed)
