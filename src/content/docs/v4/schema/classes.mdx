@@ -44,7 +44,7 @@ In this example, `Person` is both a schema and a TypeScript class. Instances of 
 
 **Example** (Creating Instances)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="definition-1"
 import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
@@ -84,7 +84,7 @@ Class schemas [transform](/docs/schema/transformations/) a struct schema into a 
 
 **Example** (Decoding and Encoding a Class)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="class-schemas-are-transformations-1"
 import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
@@ -111,17 +111,17 @@ When your schema does not require any fields, you can define a class with an emp
 
 **Example** (Defining and Using a Class Without Arguments)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="defining-classes-without-fields-1"
 import { Schema } from "effect"
 
 // Define a class with no fields
 class NoArgs extends Schema.Class<NoArgs>("NoArgs")({}) {}
 
 // Create an instance using the default constructor
-const noargs1 = new NoArgs()
+const noargs1 = new NoArgs() // => new NoArgs({})
 
 // Alternatively, create an instance by explicitly passing an empty object
-const noargs2 = new NoArgs({})
+const noargs2 = new NoArgs({}) // => new NoArgs()
 ```
 
 ### Defining Classes With Filters
@@ -137,7 +137,7 @@ class WithFilter extends Schema.Class<WithFilter>("WithFilter")(
   Schema.Struct({
     a: Schema.NumberFromString,
     b: Schema.NumberFromString,
-  }).pipe(Schema.filter(({ a, b }) => a >= b || "a must be greater than b")),
+  }).check(Schema.makeFilter(({ a, b }) => a >= b || "a must be greater than b")),
 ) {}
 
 // Constructor
@@ -171,7 +171,7 @@ The constructor ensures that each property, like `id` and `name`, adheres to the
 
 **Example** (Creating a Valid Instance)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="defining-and-instantiating-a-valid-class-instance-1"
 import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
@@ -180,7 +180,7 @@ class Person extends Schema.Class<Person>("Person")({
 }) {}
 
 // Create an instance with valid properties
-const john = new Person({ id: 1, name: "John" })
+const john = new Person({ id: 1, name: "John" }) // => new Person({ id: 1, name: "John" })
 ```
 
 ### Handling Invalid Properties
@@ -242,9 +242,8 @@ Two class instances are considered equal if their properties have identical valu
 
 **Example** (Comparing Instances with Equal Properties)
 
-```ts twoslash
-import { Schema } from "effect"
-import { Equal } from "effect"
+```ts twoslash import.meta.vitest name="basic-equality-check-1"
+import { Equal, Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -265,9 +264,8 @@ The `Equal` trait performs comparisons at the first level. If a property is a mo
 
 **Example** (Shallow Equality for Arrays)
 
-```ts twoslash
-import { Schema } from "effect"
-import { Equal } from "effect"
+```ts twoslash import.meta.vitest name="nested-or-complex-properties-1"
+import { Equal, Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   id: Schema.Number,
@@ -331,7 +329,7 @@ A getter can be used to derive computed values from the fields of the class. For
 
 **Example** (Adding a Getter for Uppercase Name)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-custom-getters-1"
 import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
@@ -357,7 +355,7 @@ In addition to getters, you can define methods to encapsulate more complex logic
 
 **Example** (Adding a Method)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-custom-methods-1"
 import { Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
@@ -414,8 +412,8 @@ class Person extends Schema.Class<Person>("Person")({
 }) {}
 
 //       ┌─── {
-//       |      readonly id: typeof Schema.Number;
-//       |      readonly name: typeof Schema.NonEmptyString;
+//       |      readonly id: Schema.Number;
+//       |      readonly name: Schema.NonEmptyString;
 //       |    }
 //       ▼
 Person.fields
@@ -586,15 +584,12 @@ import { Schema } from "effect"
 
 class Expression extends Schema.Class<Expression>("Expression")({
   type: Schema.Literal("expression"),
-  value: Schema.Union(
-    Schema.Number,
-    Schema.suspend((): Schema.Schema<Operation> => Operation),
-  ),
+  value: Schema.Union([Schema.Number, Schema.suspend((): Schema.Schema<Operation> => Operation)]),
 }) {}
 
 class Operation extends Schema.Class<Operation>("Operation")({
   type: Schema.Literal("operation"),
-  operator: Schema.Literal("+", "-"),
+  operator: Schema.Literals(["+", "-"]),
   left: Expression,
   right: Expression,
 }) {}
@@ -616,10 +611,7 @@ import { Schema } from "effect"
 class Category extends Schema.Class<Category>("Category")({
   id: Schema.NumberFromString,
   name: Schema.String,
-  subcategories: Schema.Array(
-    // @errors: 2322
-    Schema.suspend((): Schema.Schema<Category> => Category),
-  ),
+  subcategories: Schema.Array(Schema.suspend((): Schema.Schema<Category> => Category)),
 }) {}
 ```
 
@@ -640,7 +632,7 @@ class Category extends Schema.Class<Category>("Category")({
   id: Schema.NumberFromString,
   name: Schema.String,
   subcategories: Schema.Array(
-    Schema.suspend((): Schema.Schema<Category, CategoryEncoded> => Category),
+    Schema.suspend((): Schema.Codec<Category, CategoryEncoded> => Category),
   ),
 }) {}
 ```
@@ -668,7 +660,7 @@ class Category extends Schema.Class<Category>("Category")({
   ...fields, // Include the fields
   subcategories: Schema.Array(
     // Define `subcategories` using recursion
-    Schema.suspend((): Schema.Schema<Category, CategoryEncoded> => Category),
+    Schema.suspend((): Schema.Codec<Category, CategoryEncoded> => Category),
   ),
 }) {}
 ```
@@ -679,7 +671,7 @@ You can also create classes that extend [TaggedClass](/docs/data-types/data/#tag
 
 **Example** (Creating Tagged Classes and Errors)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="tagged-class-variants-1"
 import { Schema } from "effect"
 
 // Define a tagged class with a "name" field
@@ -709,7 +701,7 @@ The `extend` static utility allows you to enhance an existing schema class by ad
 
 **Example** (Extending a Schema Class)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="extending-existing-classes-1"
 import { Schema } from "effect"
 
 // Define the base class
