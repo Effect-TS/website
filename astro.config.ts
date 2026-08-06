@@ -37,6 +37,10 @@ export default defineConfig({
 
   compressHTML: true,
 
+  build: {
+    concurrency: 2,
+  },
+
   experimental: {
     svgOptimizer: svgoOptimizer(),
   },
@@ -127,6 +131,22 @@ export default defineConfig({
     "/docs/v3": {
       status: 307,
       destination: "/docs/v3/getting-started/introduction",
+    },
+    "/docs/api": {
+      status: 307,
+      destination: "/docs/v4/api",
+    },
+    "/docs/api/[version]": {
+      status: 308,
+      destination: "/docs/[version]/api",
+    },
+    "/docs/api/[version]/[package]": {
+      status: 308,
+      destination: "/docs/[version]/api/[package]",
+    },
+    "/docs/api/[version]/[package]/[...module]": {
+      status: 308,
+      destination: "/docs/[version]/api/[package]/[...module]",
     },
   },
 })

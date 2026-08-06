@@ -1,7 +1,16 @@
 import { file, glob } from "astro/loaders"
 import { z } from "astro/zod"
 import { defineCollection, reference } from "astro:content"
+import { apiReferenceLoader } from "./features/api-reference/loader"
+import { ApiReferenceEntry } from "./features/api-reference/schema"
 import { PodcastEpisodeEntry } from "./features/podcast/collection"
+
+const apiReference = defineCollection({
+  loader: apiReferenceLoader({
+    base: new URL("../.data/api-reference/", import.meta.url),
+  }),
+  schema: ApiReferenceEntry,
+})
 
 const blog = defineCollection({
   loader: glob({
@@ -120,6 +129,7 @@ const docs = defineCollection({
 })
 
 export const collections = {
+  apiReference,
   docs,
   docsSidebar,
   blog,

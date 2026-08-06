@@ -3,7 +3,7 @@ import NavigationMobileMenu from "@/components/navigation/NavigationMobileMenu.a
 import NavigationLogo from "@/components/navigation/NavigationLogo.astro"
 import NavigationDesktopActions from "@/components/navigation/NavigationDesktopActions.astro"
 import NavigationLinks from "@/components/navigation/NavigationLinks.astro"
-import SearchDialogIsland from "@/components/navigation/SearchDialogIsland"
+import { SearchDialog } from "@/components/navigation/SearchDialog"
 import { getNavigationLinks, type NavigationActiveSlug } from "@/lib/navigation"
 
 interface Props {
@@ -14,7 +14,10 @@ interface Props {
 const { activeSlug, wide = false } = Astro.props
 
 const showThemeToggle =
-  activeSlug === "playground" || activeSlug === "docs" || activeSlug === "blog"
+  activeSlug === "playground" ||
+  activeSlug === "docs" ||
+  activeSlug === "api" ||
+  activeSlug === "blog"
 
 const mobilePrimaryLinks = getNavigationLinks("mobile", "primary")
 const mobileSocialLinks = getNavigationLinks("mobile", "social")
@@ -46,4 +49,4 @@ const mobileSocialLinks = getNavigationLinks("mobile", "social")
   </div>
 </div>
 
-<SearchDialogIsland client:load />
+<SearchDialog client:load />

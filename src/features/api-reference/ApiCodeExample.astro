@@ -1,0 +1,46 @@
+---
+import type { ApiCodeExample } from "./ApiReference"
+import { docsShikiThemes, getHighlighter } from "@/features/visual-effect/runtime/shiki-singleton"
+
+interface Props {
+  example: ApiCodeExample
+}
+
+const { example } = Astro.props
+const highlighter = await getHighlighter()
+const highlighted = highlighter.codeToHtml(example.source, {
+  lang: example.language,
+  themes: docsShikiThemes,
+})
+---
+
+<article>
+  <div class="mb-2 flex items-baseline gap-1.5">
+    <h3 class="text-base font-semibold text-zinc-600 dark:text-white">Example</h3>
+    {example.title && <p class="text-sm text-zinc-500">({example.title})</p>}
+  </div>
+
+  <div
+    class="api-example-code overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100/60 dark:border-zinc-800 dark:bg-zinc-900/60"
+    set:html={highlighted}
+  />
+</article>
+
+<style>
+  .api-example-code :global(.shiki) {
+    min-width: max-content;
+    margin: 0;
+    padding: 1.25rem 1.4rem;
+    background: transparent !important;
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+      monospace;
+    font-size: 0.85rem;
+    line-height: 1.65;
+  }
+
+  :global(.dark) .api-example-code :global(.shiki),
+  :global(.dark) .api-example-code :global(.shiki span) {
+    color: var(--shiki-dark) !important;
+  }
+</style>

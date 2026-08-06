@@ -1,7 +1,10 @@
 ---
+import { getImage } from "astro:assets"
 import { ArrowUpRight } from "@lucide/astro"
+import { YouTube } from "@astro-community/astro-embed-youtube"
 import BenDavisThumbnail from "@/assets/images/ben-davis-thumbnail.png"
-import BenDavisVideo from "@/assets/videos/ben-davis-video.mp4"
+
+const benDavisPoster = await getImage({ src: BenDavisThumbnail, format: "webp" })
 ---
 
 <section id="coding-with-ai" class="relative w-full overflow-hidden py-24 md:pt-40 md:pb-24">
@@ -35,43 +38,16 @@ import BenDavisVideo from "@/assets/videos/ben-davis-video.mp4"
         </a>
       </div>
 
-      <video-poster-overlay
-        data-src={BenDavisVideo}
-        data-poster={BenDavisThumbnail.src}
-        class="relative block aspect-video w-full overflow-hidden rounded-lg border border-zinc-800 bg-black"
+      <div
+        class="aspect-video w-full overflow-hidden rounded-lg border border-zinc-800 bg-black/30"
       >
-        <video
-          data-role="video"
-          playsinline
-          preload="metadata"
-          class="h-full w-full object-contain"
-        >
-          <track kind="captions" />
-        </video>
-
-        <img
-          data-role="poster"
-          src={BenDavisThumbnail.src}
-          alt=""
-          aria-hidden="true"
-          class="pointer-events-none absolute inset-0 h-full w-full bg-black object-contain transition-opacity duration-300 ease-out opacity-100"
+        <YouTube
+          id="TXHQDOFW6Uc"
+          playlabel="Play video"
+          poster={benDavisPoster.src}
+          class="h-full w-full"
         />
-
-        <button
-          type="button"
-          data-role="play-button"
-          aria-label="Play video"
-          class="group absolute inset-0 flex items-center justify-center bg-black/30 transition-opacity duration-300 ease-out hover:bg-black/40 opacity-100 cursor-pointer"
-        >
-          <span
-            class="flex h-16 w-16 items-center justify-center rounded-full bg-white/80 text-zinc-900 backdrop-blur-sm transition-transform group-hover:scale-105"
-          >
-            <svg class="ml-0.5 size-8" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M8 5.14v14l11-7-11-7z"></path>
-            </svg>
-          </span>
-        </button>
-      </video-poster-overlay>
+      </div>
     </div>
 
     <!-- Features grid -->
@@ -109,89 +85,3 @@ import BenDavisVideo from "@/assets/videos/ben-davis-video.mp4"
     </div>
   </div>
 </section>
-
-<script>
-  class VideoPosterOverlayElement extends HTMLElement {
-    #video: HTMLVideoElement | null = null
-    #poster: HTMLImageElement | null = null
-    #playButton: HTMLButtonElement | null = null
-
-    #showOverlay = () => {
-      if (this.#poster) {
-        this.#poster.classList.add("opacity-100")
-        this.#poster.classList.remove("opacity-0")
-      }
-      if (this.#playButton) {
-        this.#playButton.classList.add("opacity-100")
-        this.#playButton.classList.remove("pointer-events-none", "opacity-0")
-        this.#playButton.tabIndex = 0
-        this.#playButton.setAttribute("aria-hidden", "false")
-      }
-      if (this.#video) this.#video.removeAttribute("controls")
-    }
-
-    #hideOverlay = () => {
-      if (this.#poster) {
-        this.#poster.classList.remove("opacity-100")
-        this.#poster.classList.add("opacity-0")
-      }
-      if (this.#playButton) {
-        this.#playButton.classList.remove("opacity-100")
-        this.#playButton.classList.add("pointer-events-none", "opacity-0")
-        this.#playButton.tabIndex = -1
-        this.#playButton.setAttribute("aria-hidden", "true")
-      }
-      if (this.#video) this.#video.setAttribute("controls", "")
-    }
-
-    #onEnded = () => {
-      if (this.#video) this.#video.currentTime = 0
-      this.#showOverlay()
-    }
-
-    #startPlayback = () => {
-      if (!this.#video) return
-      this.#hideOverlay()
-      void this.#video.play()
-    }
-
-    connectedCallback() {
-      this.#video = this.querySelector("[data-role='video']")
-      this.#poster = this.querySelector("[data-role='poster']")
-      this.#playButton = this.querySelector("[data-role='play-button']")
-
-      if (!(this.#video instanceof HTMLVideoElement)) return
-
-      const src = this.dataset.src
-      const poster = this.dataset.poster
-      if (src) this.#video.src = src
-      if (poster) this.#video.poster = poster
-
-      this.#video.addEventListener("play", this.#hideOverlay)
-      this.#video.addEventListener("pause", this.#showOverlay)
-      this.#video.addEventListener("ended", this.#onEnded)
-
-      if (this.#playButton) {
-        this.#playButton.addEventListener("click", this.#startPlayback)
-      }
-    }
-
-    disconnectedCallback() {
-      if (this.#video) {
-        this.#video.removeEventListener("play", this.#hideOverlay)
-        this.#video.removeEventListener("pause", this.#showOverlay)
-        this.#video.removeEventListener("ended", this.#onEnded)
-      }
-      if (this.#playButton) {
-        this.#playButton.removeEventListener("click", this.#startPlayback)
-      }
-      this.#video = null
-      this.#poster = null
-      this.#playButton = null
-    }
-  }
-
-  if (!customElements.get("video-poster-overlay")) {
-    customElements.define("video-poster-overlay", VideoPosterOverlayElement)
-  }
-</script>
