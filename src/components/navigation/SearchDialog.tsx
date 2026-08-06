@@ -32,6 +32,11 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { NAVIGATION_EVENTS } from "@/lib/navigation"
 import {
+  SearchAnalytics,
+  type SearchFailureReason,
+  type SearchOpenSource,
+} from "@/services/search/analytics"
+import {
   SearchResult,
   type ApiReferenceSearchResult,
   type BlogSearchResult,
@@ -48,6 +53,8 @@ const searchQueryAtom = Atom.make("")
 const selectedVersionAtom = Atom.make<SearchVersion>("v3")
 
 const selectedGroupsAtom = Atom.make<ReadonlyArray<SearchResultGroup>>([])
+
+const searchOpenSourceAtom = Atom.make<SearchOpenSource>("unknown")
 
 const debouncedSearchQueryAtom = Atom.debounce(searchQueryAtom, "300 millis")
 
@@ -133,6 +140,8 @@ type SearchResultsView =
 
 class SearchError extends Data.TaggedError("SearchError")<{
   readonly cause: unknown
+  readonly reason: SearchFailureReason
+  readonly httpStatus?: number
 }> {}
 
 const decodeSearchResults = Schema.decodeUnknownEffect(Schema.Array(SearchResult))
@@ -148,27 +157,48 @@ const searchRequestAtom = Atom.make((get) => {
   const url = `/api/search?query=${encodeURIComponent(query)}`
 
   return Effect.gen(function* () {
-    const response = yield* Effect.tryPromise({
-      try: (signal) => fetch(url, { signal }),
-      catch: (cause) => new SearchError({ cause }),
-    }).pipe(
-      Effect.timeout("5 seconds"),
-      Effect.catchTag("TimeoutError", (cause) => new SearchError({ cause })),
-    )
+    const startedAt = performance.now()
+    return yield* Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: (signal) => fetch(url, { signal }),
+        catch: (cause) => new SearchError({ cause, reason: "network" }),
+      }).pipe(
+        Effect.timeout("5 seconds"),
+        Effect.catchTag("TimeoutError", (cause) => new SearchError({ cause, reason: "timeout" })),
+      )
 
-    if (!response.ok) {
-      return yield* new SearchError({
-        cause: new Error(`Search request failed: ${response.status}`),
+      if (!response.ok) {
+        return yield* new SearchError({
+          cause: new Error(`Search request failed: ${response.status}`),
+          reason: "http",
+          httpStatus: response.status,
+        })
+      }
+
+      const data = yield* Effect.tryPromise({
+        try: () => response.json(),
+        catch: (cause) => new SearchError({ cause, reason: "invalid_response" }),
       })
-    }
 
-    const data = yield* Effect.tryPromise({
-      try: () => response.json(),
-      catch: (cause) => new SearchError({ cause }),
-    })
-
-    return yield* decodeSearchResults(data).pipe(
-      Effect.mapError((cause) => new SearchError({ cause })),
+      return yield* decodeSearchResults(data).pipe(
+        Effect.mapError((cause) => new SearchError({ cause, reason: "invalid_response" })),
+      )
+    }).pipe(
+      Effect.tap((results) =>
+        Effect.sync(() =>
+          SearchAnalytics.requestComplete(query, performance.now() - startedAt, results),
+        ),
+      ),
+      Effect.tapError((error) =>
+        Effect.sync(() =>
+          SearchAnalytics.requestFail(
+            query,
+            performance.now() - startedAt,
+            error.reason,
+            error.httpStatus,
+          ),
+        ),
+      ),
     )
   })
 })
@@ -224,17 +254,29 @@ const searchResultsAtom = Atom.make((get) => {
   )
 })
 
+function searchOpenSource(event: Event): SearchOpenSource {
+  const detail: unknown = event instanceof CustomEvent ? event.detail : undefined
+  if (typeof detail !== "object" || detail === null) return "unknown"
+
+  const source = Reflect.get(detail, "source")
+  return source === "desktop" || source === "mobile" ? source : "unknown"
+}
+
 const searchDialogOpenAtom = Atom.writable(
   (get) => {
     if (typeof window === "undefined") return false
 
-    const openDialog = () => get.setSelf(true)
+    const openDialog = (event: Event) => {
+      get.set(searchOpenSourceAtom, searchOpenSource(event))
+      get.setSelf(true)
+    }
     const closeDialog = () => get.setSelf(false)
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault()
-        openDialog()
+        get.set(searchOpenSourceAtom, "keyboard")
+        get.setSelf(true)
       }
     }
 
@@ -317,6 +359,7 @@ export function SearchDialog() {
   const [open, setOpen] = useAtom(searchDialogOpenAtom)
   const setDialogElement = useAtomSet(dialogElementAtom)
   const handleDialogKeyDown = useSearchDialogKeyDown()
+  const wasOpen = React.useRef(false)
 
   // Initial focus needs the latest mounted input, not an atom snapshot captured during render.
   const getInputElement = () => {
@@ -331,10 +374,18 @@ export function SearchDialog() {
   )
 
   React.useEffect(() => {
-    if (open) {
+    if (open && !wasOpen.current) {
+      SearchAnalytics.dialogOpen(
+        registry.get(searchOpenSourceAtom),
+        registry.get(selectedVersionAtom),
+        registry.get(searchQueryAtom).trim().length > 0,
+      )
       window.dispatchEvent(new Event(NAVIGATION_EVENTS.SEARCH_OPENED))
+    } else if (!open && wasOpen.current) {
+      SearchAnalytics.dialogClose()
     }
-  }, [open])
+    wasOpen.current = open
+  }, [open, registry])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -343,7 +394,7 @@ export function SearchDialog() {
         showCloseButton={false}
         initialFocus={getInputElement}
         overlayClassName="z-200 bg-black/40 backdrop-blur-sm"
-        className="top-24 z-250 flex max-h-[min(36rem,calc(100dvh-10rem))] w-[calc(100%-2rem)] max-w-2xl translate-y-0 flex-col gap-0 rounded-md border border-zinc-200 bg-white p-0 shadow-xl shadow-zinc-950/10 sm:max-w-2xl dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/40"
+        className="ph-no-capture top-24 z-250 flex max-h-[min(36rem,calc(100dvh-10rem))] w-[calc(100%-2rem)] max-w-2xl translate-y-0 flex-col gap-0 rounded-md border border-zinc-200 bg-white p-0 shadow-xl shadow-zinc-950/10 sm:max-w-2xl dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/40"
         onKeyDown={handleDialogKeyDown}
       >
         <DialogTitle className="sr-only">
@@ -443,7 +494,11 @@ function SearchVersionMenu() {
               checked={version === searchVersion}
               closeOnClick
               tabIndex={0}
-              onCheckedChange={() => setVersion(searchVersion)}
+              onCheckedChange={() => {
+                if (version === searchVersion) return
+                SearchAnalytics.versionChange(version, searchVersion)
+                setVersion(searchVersion)
+              }}
               className="flex w-full cursor-pointer items-center justify-between rounded-none px-2.5 py-1.5 text-left font-mono text-xs font-medium text-zinc-900 transition-colors hover:bg-zinc-100 focus:bg-zinc-100 focus-visible:outline-none dark:text-white dark:hover:bg-zinc-800 dark:focus:bg-zinc-800"
             >
               {searchVersion}
@@ -465,6 +520,13 @@ function SearchGroupFilters() {
       <ToggleGroup
         value={selectedGroups}
         onValueChange={(groups) => {
+          if (
+            groups.length === selectedGroups.length &&
+            groups.every((group, index) => group === selectedGroups[index])
+          ) {
+            return
+          }
+          SearchAnalytics.filterChange(groups)
           setSelectedGroups(groups)
           scrollResultsToTop()
         }}
@@ -508,9 +570,38 @@ function SearchDialogResults() {
       ref={registerResultsElement}
       className="min-h-0 flex-1 scrollbar-thin space-y-2 overflow-y-auto p-3"
       onClick={(event) => {
-        if (event.target instanceof Element && event.target.closest("[data-search-result-link]")) {
-          setOpen(false)
+        if (!(event.target instanceof Element)) return
+        const resultLink = event.target.closest("[data-search-result-link]")
+        if (!(resultLink instanceof HTMLAnchorElement)) return
+
+        const kind = resultLink.dataset.searchResultKind
+        const level = resultLink.dataset.searchResultLevel
+        const view = resultLink.dataset.searchResultsView
+        const rank = Number(resultLink.dataset.searchResultRank)
+        const chunkRank =
+          resultLink.dataset.searchChunkRank === undefined
+            ? undefined
+            : Number(resultLink.dataset.searchChunkRank)
+        if (
+          (kind !== "documentation" && kind !== "api-reference" && kind !== "blog") ||
+          (level !== "page" && level !== "chunk") ||
+          (view !== "grouped" && view !== "section") ||
+          !Number.isInteger(rank) ||
+          (chunkRank !== undefined && !Number.isInteger(chunkRank))
+        ) {
+          return
         }
+
+        const destination = new URL(resultLink.href)
+        SearchAnalytics.resultClick({
+          kind,
+          level,
+          view,
+          rank,
+          ...(chunkRank === undefined ? {} : { chunkRank }),
+          destinationPath: `${destination.pathname}${destination.hash}`,
+        })
+        setOpen(false)
       }}
     >
       {AsyncResult.builder(allSearchResults)
@@ -642,6 +733,7 @@ function SearchResultsView() {
   const scrollResultsToTop = useAtomSet(scrollResultsToTopAtom)
 
   const showSection = (section: SearchResult["kind"]) => {
+    SearchAnalytics.viewAll(section)
     setView({ _tag: "Section", section })
     scrollResultsToTop()
   }
@@ -679,8 +771,8 @@ function SearchResultsDetail({
         All results
       </Button>
       <ul className="space-y-2">
-        {results.map((result) => (
-          <SearchResultItem key={result.id} result={result} />
+        {results.map((result, index) => (
+          <SearchResultItem key={result.id} result={result} rank={index + 1} view="section" />
         ))}
       </ul>
     </div>
@@ -756,7 +848,10 @@ function SearchEmptyState() {
           type="button"
           variant="outline"
           className="mt-3 border-zinc-200 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white"
-          onClick={() => clearSelectedGroups()}
+          onClick={() => {
+            SearchAnalytics.filterChange([])
+            clearSelectedGroups()
+          }}
         >
           Search everywhere
         </Button>
@@ -765,6 +860,7 @@ function SearchEmptyState() {
           type="button"
           className="mt-1 flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
           onClick={() => {
+            SearchAnalytics.versionChange(version, alternateVersion)
             setVersion(alternateVersion)
             scrollResultsToTop()
           }}
@@ -800,6 +896,7 @@ function AlternateVersionResults() {
         type="button"
         className="mx-auto flex items-center gap-1 font-mono text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
         onClick={() => {
+          SearchAnalytics.versionChange(version, "v3")
           setVersion("v3")
           scrollResultsToTop()
         }}
@@ -843,34 +940,48 @@ function SearchResultsSection({
         )}
       </div>
       <ul className="space-y-2">
-        {results.slice(0, MAX_GROUP_RESULTS).map((result) => (
-          <SearchResultItem key={result.id} result={result} />
+        {results.slice(0, MAX_GROUP_RESULTS).map((result, index) => (
+          <SearchResultItem key={result.id} result={result} rank={index + 1} view="grouped" />
         ))}
       </ul>
     </section>
   )
 }
 
-function SearchResultItem({ result }: { readonly result: SearchResult }) {
+interface SearchResultItemProps {
+  readonly result: SearchResult
+  readonly rank: number
+  readonly view: "grouped" | "section"
+}
+
+function SearchResultItem({ result, rank, view }: SearchResultItemProps) {
   switch (result.kind) {
     case "api-reference": {
-      return <ApiReferenceItem result={result} />
+      return <ApiReferenceItem result={result} rank={rank} view={view} />
     }
     case "documentation": {
-      return <DocumentationItem result={result} />
+      return <DocumentationItem result={result} rank={rank} view={view} />
     }
     case "blog": {
-      return <BlogItem result={result} />
+      return <BlogItem result={result} rank={rank} view={view} />
     }
   }
 }
 
-function BlogItem({ result }: { readonly result: BlogSearchResult }) {
+function BlogItem({
+  result,
+  rank,
+  view,
+}: SearchResultItemProps & { readonly result: BlogSearchResult }) {
   return (
     <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
       <a
         href={result.href}
         data-search-result-link
+        data-search-result-kind={result.kind}
+        data-search-result-level="page"
+        data-search-result-rank={rank}
+        data-search-results-view={view}
         className="group block cursor-pointer rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
       >
         <p className="flex flex-wrap items-center gap-2">
@@ -889,11 +1000,16 @@ function BlogItem({ result }: { readonly result: BlogSearchResult }) {
       </a>
       {result.chunks.length > 0 ? (
         <div className="mx-4 mb-2 border-l border-zinc-200 pl-3 dark:border-zinc-800">
-          {result.chunks.map((chunk) => (
+          {result.chunks.map((chunk, index) => (
             <a
               key={chunk.id}
               href={chunk.href}
               data-search-result-link
+              data-search-result-kind={result.kind}
+              data-search-result-level="chunk"
+              data-search-result-rank={rank}
+              data-search-chunk-rank={index + 1}
+              data-search-results-view={view}
               className="block cursor-pointer rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
             >
               <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{chunk.title}</p>
@@ -908,12 +1024,20 @@ function BlogItem({ result }: { readonly result: BlogSearchResult }) {
   )
 }
 
-function ApiReferenceItem({ result }: { readonly result: ApiReferenceSearchResult }) {
+function ApiReferenceItem({
+  result,
+  rank,
+  view,
+}: SearchResultItemProps & { readonly result: ApiReferenceSearchResult }) {
   return (
     <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
       <a
         href={result.href}
         data-search-result-link
+        data-search-result-kind={result.kind}
+        data-search-result-level="page"
+        data-search-result-rank={rank}
+        data-search-results-view={view}
         className="block cursor-pointer space-y-1.5 rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
       >
         <p className="flex flex-wrap items-center gap-2 font-mono text-xs font-medium">
@@ -936,11 +1060,16 @@ function ApiReferenceItem({ result }: { readonly result: ApiReferenceSearchResul
       </a>
       {result.chunks.length > 0 ? (
         <div className="mx-4 mb-3 border-l border-zinc-200 pl-3 dark:border-zinc-800">
-          {result.chunks.map((chunk) => (
+          {result.chunks.map((chunk, index) => (
             <a
               key={chunk.id}
               href={chunk.href}
               data-search-result-link
+              data-search-result-kind={result.kind}
+              data-search-result-level="chunk"
+              data-search-result-rank={rank}
+              data-search-chunk-rank={index + 1}
+              data-search-results-view={view}
               className="block cursor-pointer rounded-md px-2 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
             >
               <p className="font-mono text-sm font-medium text-zinc-800 dark:text-zinc-200">
@@ -962,12 +1091,20 @@ function ApiReferenceItem({ result }: { readonly result: ApiReferenceSearchResul
   )
 }
 
-function DocumentationItem({ result }: { readonly result: DocumentationSearchResult }) {
+function DocumentationItem({
+  result,
+  rank,
+  view,
+}: SearchResultItemProps & { readonly result: DocumentationSearchResult }) {
   return (
     <li className="rounded-md border border-zinc-200 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600">
       <a
         href={result.href}
         data-search-result-link
+        data-search-result-kind={result.kind}
+        data-search-result-level="page"
+        data-search-result-rank={rank}
+        data-search-results-view={view}
         className="group block cursor-pointer rounded-md px-4 py-2 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
       >
         <p className="flex flex-wrap items-center gap-2">
@@ -992,11 +1129,16 @@ function DocumentationItem({ result }: { readonly result: DocumentationSearchRes
       </a>
       {result.chunks.length > 0 ? (
         <div className="mx-4 mb-2 border-l border-zinc-200 pl-3 dark:border-zinc-800">
-          {result.chunks.map((chunk) => (
+          {result.chunks.map((chunk, index) => (
             <a
               key={chunk.id}
               href={chunk.href}
               data-search-result-link
+              data-search-result-kind={result.kind}
+              data-search-result-level="chunk"
+              data-search-result-rank={rank}
+              data-search-chunk-rank={index + 1}
+              data-search-results-view={view}
               className="block cursor-pointer rounded-md px-2 py-1.5 transition-colors hover:bg-zinc-100/60 focus:bg-zinc-100/60 dark:hover:bg-zinc-900/60 dark:focus:bg-zinc-900/60"
             >
               <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{chunk.title}</p>

@@ -34,11 +34,17 @@ export const MarkdownMetadata = Schema.Struct({
   file_path: Schema.String,
 })
 
+const UnclassifiedMetadata = Schema.Struct({
+  ...CommonMetadata,
+  file_path: Schema.String,
+})
+
 export const Metadata = Schema.Union([
   DocumentationMetadata,
   ApiReferenceMetadata,
   BlogMetadata,
   MarkdownMetadata,
+  UnclassifiedMetadata,
 ])
 
 export type Metadata = typeof Metadata.Type
