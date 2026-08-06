@@ -14,7 +14,7 @@ In this guide, we will cover some of the common methods that you can use to crea
 
 In traditional programming, when an error occurs, it is often handled by throwing an exception:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="why-not-throw-errors-1"
 // Type signature doesn't show possible exceptions
 const divide = (a: number, b: number): number => {
   if (b === 0) {
@@ -22,6 +22,8 @@ const divide = (a: number, b: number): number => {
   }
   return a / b
 }
+
+divide(4, 2) // => 2
 ```
 
 However, throwing errors can be problematic. The type signatures of functions do not indicate that they can throw exceptions, making it difficult to reason about potential errors.
@@ -37,7 +39,7 @@ without any errors or external dependencies.
 
 **Example** (Creating a Successful Effect)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-a-successful-effect-1"
 import { Effect } from "effect"
 
 //      ┌─── Effect<number, never, never>
@@ -70,7 +72,7 @@ functions like [Effect.catchAll](/docs/error-management/expected-errors/#catchal
 
 **Example** (Creating a Failed Effect)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="creating-a-failed-effect-1"
 import { Effect } from "effect"
 
 //      ┌─── Effect<never, Error, never>
@@ -98,7 +100,7 @@ Using "tagged" errors (objects with a `_tag` field) can help identify error type
 
 **Example** (Using Tagged Errors)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-tagged-errors-1"
 import { Effect, Data } from "effect"
 
 class HttpError extends Data.TaggedError("HttpError")<{}> {}
@@ -116,11 +118,13 @@ With `Effect.succeed` and `Effect.fail`, you can explicitly handle success and f
 
 Here's how you can rewrite the [`divide`](#why-not-throw-errors) function using Effect, making error handling explicit.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="rewriting-a-division-function-1"
 import { Effect } from "effect"
 
 const divide = (a: number, b: number): Effect.Effect<number, Error> =>
   b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
+
+Effect.runSync(divide(4, 2)) // => 2
 ```
 
 In this example, the `divide` function indicates in its return type `Effect<number, Error>` that the operation can either succeed with a `number` or fail with an `Error`.
@@ -138,7 +142,7 @@ This clear type signature helps ensure that errors are handled properly and that
 
 Let's imagine another scenario where we use `Effect.succeed` and `Effect.fail` to model a simple user retrieval operation where the user data is hardcoded, which could be useful in testing scenarios or when mocking data:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="simulating-a-user-retrieval-operation-1"
 import { Effect } from "effect"
 
 // Define a User type
@@ -166,6 +170,8 @@ const getUser = (userId: number): Effect.Effect<User, Error> => {
 
 // When executed, this will successfully return the user with id 1
 const exampleUserEffect = getUser(1)
+
+Effect.runSync(exampleUserEffect).name // => "John Doe"
 ```
 
 In this example, `exampleUserEffect`, which has the type `Effect<User, Error>`, will either produce a `User` object or an `Error`, depending on whether the user exists in the mocked database.
@@ -200,7 +206,7 @@ This feature ensures that even unexpected failures in your application are not l
 
 In the example below, `Effect.sync` is used to defer the side-effect of writing to the console.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="logging-a-message-1"
 import { Effect } from "effect"
 
 const log = (message: string) =>
@@ -226,14 +232,14 @@ This constructor is designed to handle operations that could throw exceptions by
 
 Suppose you have a function that attempts to parse a JSON string. This operation can fail and throw an error if the input string is not properly formatted as JSON:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="safe-json-parsing-1"
 import { Effect } from "effect"
 
 const parse = (input: string) =>
   // This might throw an error if input is not valid JSON
   Effect.try(() => JSON.parse(input))
 
-//      ┌─── Effect<any, UnknownException, never>
+//      ┌─── Effect<any, UnknownError, never>
 //      ▼
 const program = parse("")
 ```
@@ -241,7 +247,7 @@ const program = parse("")
 In this example:
 
 - `parse` is a function that creates an effect encapsulating the JSON parsing operation.
-- If `JSON.parse(input)` throws an error due to invalid input, `Effect.try` catches this error and the effect represented by `program` will fail with an `UnknownException`. This ensures that errors are not silently ignored but are instead handled within the structured flow of effects.
+- If `JSON.parse(input)` throws an error due to invalid input, `Effect.try` catches this error and the effect represented by `program` will fail with an `UnknownError`. This ensures that errors are not silently ignored but are instead handled within the structured flow of effects.
 
 #### Customizing Error Handling
 
@@ -249,7 +255,7 @@ You might want to transform the caught exception into a more specific error or p
 
 **Example** (Custom Error Handling)
 
-```ts twoslash {8}
+```ts twoslash {8} import.meta.vitest name="customizing-error-handling-1"
 import { Effect } from "effect"
 
 const parse = (input: string) =>
@@ -295,7 +301,7 @@ This feature ensures that even unexpected failures in your application are not l
 
 **Example** (Delayed Message)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="delayed-message-1"
 import { Effect } from "effect"
 
 const delay = (message: string) =>
@@ -325,26 +331,26 @@ Creates an `Effect` that represents an asynchronous computation that might fail.
 
 Unlike `Effect.promise`, this constructor is suitable when the underlying `Promise` might reject.
 It provides a way to catch errors and handle them appropriately.
-By default if an error occurs, it will be caught and propagated to the error channel as an `UnknownException`.
+By default if an error occurs, it will be caught and propagated to the error channel as an `UnknownError`.
 
 **Example** (Fetching a TODO Item)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="fetching-a-todo-item-1"
 import { Effect } from "effect"
 
 const getTodo = (id: number) =>
-  // Will catch any errors and propagate them as UnknownException
+  // Will catch any errors and propagate them as UnknownError
   Effect.tryPromise(() => fetch(`https://jsonplaceholder.typicode.com/todos/${id}`))
 
-//      ┌─── Effect<Response, UnknownException, never>
+//      ┌─── Effect<Response, UnknownError, never>
 //      ▼
 const program = getTodo(1)
 ```
 
-The `program` value has the type `Effect<Response, UnknownException, never>` and can be interpreted as an effect that:
+The `program` value has the type `Effect<Response, UnknownError, never>` and can be interpreted as an effect that:
 
 - succeeds with a value of type `Response`
-- might produce an error (`UnknownException`)
+- might produce an error (`UnknownError`)
 - does not require any context (`never`)
 
 #### Customizing Error Handling
@@ -353,7 +359,7 @@ If you want more control over what gets propagated to the error channel, you can
 
 **Example** (Custom Error Handling)
 
-```ts twoslash {7}
+```ts twoslash {7} import.meta.vitest name="customizing-error-handling-2"
 import { Effect } from "effect"
 
 const getTodo = (id: number) =>
@@ -373,18 +379,18 @@ const program = getTodo(1)
 Creates an `Effect` from a callback-based asynchronous function.
 
 Sometimes you have to work with APIs that don't support `async/await` or `Promise` and instead use the callback style.
-To handle callback-based APIs, Effect provides the `Effect.async` constructor.
+To handle callback-based APIs, Effect provides the `Effect.callback` constructor.
 
 **Example** (Wrapping a Callback API)
 
 Let's wrap the `readFile` function from Node.js's `fs` module into an Effect-based API (make sure `@types/node` is installed):
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="wrapping-a-callback-api-1"
 import { Effect } from "effect"
 import * as NodeFS from "node:fs"
 
 const readFile = (filename: string) =>
-  Effect.async<Buffer, Error>((resume) => {
+  Effect.callback<Buffer, Error>((resume) => {
     NodeFS.readFile(filename, (error, data) => {
       if (error) {
         // Resume with a failed Effect if an error occurs
@@ -401,10 +407,10 @@ const readFile = (filename: string) =>
 const program = readFile("example.txt")
 ```
 
-In the above example, we manually annotate the types when calling `Effect.async`:
+In the above example, we manually annotate the types when calling `Effect.callback`:
 
 ```ts showLineNumbers=false "<Buffer, Error>"
-Effect.async<Buffer, Error>((resume) => {
+Effect.callback<Buffer, Error>((resume) => {
   // ...
 })
 ```
@@ -412,14 +418,14 @@ Effect.async<Buffer, Error>((resume) => {
 because TypeScript cannot infer the type parameters for a callback
 based on the return value inside the callback body. Annotating the types ensures that the values provided to `resume` match the expected types.
 
-The `resume` function inside `Effect.async` should be called exactly once. Calling it more than once will result in the extra calls being ignored.
+The `resume` function inside `Effect.callback` should be called exactly once. Calling it more than once will result in the extra calls being ignored.
 
 **Example** (Ignoring Subsequent `resume` Calls)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="ignoring-subsequent-resume-calls-1"
 import { Effect } from "effect"
 
-const program = Effect.async<number>((resume) => {
+const program = Effect.callback<number>((resume) => {
   resume(Effect.succeed(1))
   resume(Effect.succeed(2)) // This line will be ignored
 })
@@ -430,7 +436,7 @@ Effect.runPromise(program).then(console.log) // Output: 1
 
 ### Advanced Usage
 
-For more advanced use cases, the callback passed to Effect.async may return an Effect that will be executed if the fiber running this effect is interrupted. This can be used to perform cleanup when the operation is cancelled.
+For more advanced use cases, the callback passed to Effect.callback may return an Effect that will be executed if the fiber running this effect is interrupted. This can be used to perform cleanup when the operation is cancelled.
 
 **Example** (Handling Interruption with Cleanup)
 
@@ -446,7 +452,7 @@ import * as NodeFS from "node:fs"
 
 // Simulates a long-running operation to write to a file
 const writeFileWithCleanup = (filename: string, data: string) =>
-  Effect.async<void, Error>((resume) => {
+  Effect.callback<void, Error>((resume) => {
     const writeStream = NodeFS.createWriteStream(filename)
 
     // Start writing data to the file
@@ -466,7 +472,7 @@ const writeFileWithCleanup = (filename: string, data: string) =>
   })
 
 const program = Effect.gen(function* () {
-  const fiber = yield* Effect.fork(writeFileWithCleanup("example.txt", "Some long data..."))
+  const fiber = yield* Effect.forkChild(writeFileWithCleanup("example.txt", "Some long data..."))
   // Simulate interrupting the fiber after 1 second
   yield* Effect.sleep("1 second")
   yield* Fiber.interrupt(fiber) // This will trigger the cleanup
@@ -484,11 +490,11 @@ If the operation you're wrapping supports interruption, the `resume` function ca
 
 **Example** (Handling Interruption with `AbortSignal`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-interruption-with-abortsignal-1"
 import { Effect, Fiber } from "effect"
 
 // A task that supports interruption using AbortSignal
-const interruptibleTask = Effect.async<void, Error>((resume, signal) => {
+const interruptibleTask = Effect.callback<void, Error>((resume, signal) => {
   // Simulate a long-running task
   const timeoutId = setTimeout(() => {
     console.log("Operation completed")
@@ -503,7 +509,7 @@ const interruptibleTask = Effect.async<void, Error>((resume, signal) => {
 })
 
 const program = Effect.gen(function* () {
-  const fiber = yield* Effect.fork(interruptibleTask)
+  const fiber = yield* Effect.forkChild(interruptibleTask)
   // Simulate interrupting the fiber after 1 second
   yield* Effect.sleep("1 second")
   yield* Fiber.interrupt(fiber)
@@ -539,7 +545,7 @@ Also, when effects with side effects or scoped captures are created, use `Effect
 
 **Example** (Lazy Evaluation with Side Effects)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="lazy-evaluation-with-side-effects-1"
 import { Effect } from "effect"
 
 let i = 0
@@ -605,7 +611,7 @@ In situations where TypeScript struggles to unify the returned effect type, `Eff
 
 **Example** (Using `Effect.suspend` to Help TypeScript Infer Types)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-effect-suspend-to-help-typescript-infer-types-1"
 import { Effect } from "effect"
 
 /*
@@ -634,17 +640,17 @@ const withSuspend = (a: number, b: number) =>
 
 The table provides a summary of the available constructors, along with their input and output types, allowing you to choose the appropriate function based on your needs.
 
-| API                     | Given                              | Result                        |
-| ----------------------- | ---------------------------------- | ----------------------------- |
-| `succeed`               | `A`                                | `Effect<A>`                   |
-| `fail`                  | `E`                                | `Effect<never, E>`            |
-| `sync`                  | `() => A`                          | `Effect<A>`                   |
-| `try`                   | `() => A`                          | `Effect<A, UnknownException>` |
-| `try` (overload)        | `() => A`, `unknown => E`          | `Effect<A, E>`                |
-| `promise`               | `() => Promise<A>`                 | `Effect<A>`                   |
-| `tryPromise`            | `() => Promise<A>`                 | `Effect<A, UnknownException>` |
-| `tryPromise` (overload) | `() => Promise<A>`, `unknown => E` | `Effect<A, E>`                |
-| `async`                 | `(Effect<A, E> => void) => void`   | `Effect<A, E>`                |
-| `suspend`               | `() => Effect<A, E, R>`            | `Effect<A, E, R>`             |
+| API                     | Given                              | Result                    |
+| ----------------------- | ---------------------------------- | ------------------------- |
+| `succeed`               | `A`                                | `Effect<A>`               |
+| `fail`                  | `E`                                | `Effect<never, E>`        |
+| `sync`                  | `() => A`                          | `Effect<A>`               |
+| `try`                   | `() => A`                          | `Effect<A, UnknownError>` |
+| `try` (overload)        | `() => A`, `unknown => E`          | `Effect<A, E>`            |
+| `promise`               | `() => Promise<A>`                 | `Effect<A>`               |
+| `tryPromise`            | `() => Promise<A>`                 | `Effect<A, UnknownError>` |
+| `tryPromise` (overload) | `() => Promise<A>`, `unknown => E` | `Effect<A, E>`            |
+| `callback`              | `(Effect<A, E> => void) => void`   | `Effect<A, E>`            |
+| `suspend`               | `() => Effect<A, E, R>`            | `Effect<A, E, R>`         |
 
 For the complete list of constructors, visit the [Effect Constructors Documentation](https://effect-ts.github.io/effect/effect/Effect.ts.html#constructors).
