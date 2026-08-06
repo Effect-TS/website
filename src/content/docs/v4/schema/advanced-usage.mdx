@@ -86,47 +86,45 @@ Type constructors are generic types that take one or more types as arguments and
 **Example** (Declaring a Schema for `ReadonlySet<A>`)
 
 ```ts twoslash
-import { ParseResult, Schema } from "effect"
+import { Effect, Schema, SchemaIssue, SchemaParser, SchemaTransformation } from "effect"
 
 export const MyReadonlySet = <A, I, R>(
   // Schema for the elements of the Set
-  item: Schema.Schema<A, I, R>,
-): Schema.Schema<ReadonlySet<A>, ReadonlySet<I>, R> =>
-  Schema.declare(
+  item: Schema.Codec<A, I, R>,
+) =>
+  Schema.declareConstructor<ReadonlySet<A>, ReadonlySet<I>>()(
     // Store the schema for the Set's elements
     [item],
-    {
-      // Decoding function
-      decode: (item) => (input, parseOptions, ast) => {
+    // Decoding function
+    ([item]) =>
+      (input, ast, options) => {
         if (input instanceof Set) {
           // Decode each element in the Set
-          const elements = ParseResult.decodeUnknown(Schema.Array(item))(
-            Array.from(input.values()),
-            parseOptions,
+          return Effect.map(
+            SchemaParser.decodeUnknownEffect(Schema.Array(item))(
+              Array.from(input.values()),
+              options,
+            ),
+            // Return a ReadonlySet containing the decoded elements
+            (as): ReadonlySet<A> => new Set(as),
           )
-          // Return a ReadonlySet containing the decoded elements
-          return ParseResult.map(elements, (as): ReadonlySet<A> => new Set(as))
         }
         // Handle invalid input
-        return ParseResult.fail(new ParseResult.Type(ast, input))
+        return Effect.fail(new SchemaIssue.InvalidType(ast))
       },
-      // Encoding function
-      encode: (item) => (input, parseOptions, ast) => {
-        if (input instanceof Set) {
-          // Encode each element in the Set
-          const elements = ParseResult.encodeUnknown(Schema.Array(item))(
-            Array.from(input.values()),
-            parseOptions,
-          )
-          // Return a ReadonlySet containing the encoded elements
-          return ParseResult.map(elements, (is): ReadonlySet<I> => new Set(is))
-        }
-        // Handle invalid input
-        return ParseResult.fail(new ParseResult.Type(ast, input))
-      },
-    },
     {
-      description: `ReadonlySet<${Schema.format(item)}>`,
+      description: `ReadonlySet<${item.toString()}>`,
+      // Define the encoding side by linking back to an Array schema
+      toCodec: ([item]) =>
+        Schema.link<ReadonlySet<A>>()(
+          Schema.Array(item),
+          SchemaTransformation.transform({
+            // Decode an array into a ReadonlySet
+            decode: (is): ReadonlySet<I> => new Set(is),
+            // Encode a ReadonlySet back into an array
+            encode: (set) => Array.from(set.values()),
+          }),
+        ),
     },
   )
 
@@ -170,7 +168,7 @@ This can result in an error, as the compiler may lack the necessary information 
 **Example** (Attempting to Generate Arbitrary Values Without Required Annotations)
 
 ```ts twoslash
-import { Arbitrary, Schema } from "effect"
+import { Schema } from "effect"
 
 // Define a schema for the File type
 const FileFromSelf = Schema.declare((input: unknown): input is File => input instanceof File, {
@@ -178,7 +176,7 @@ const FileFromSelf = Schema.declare((input: unknown): input is File => input ins
 })
 
 // Try creating an Arbitrary instance for the schema
-const arb = Arbitrary.make(FileFromSelf)
+const arb = Schema.toArbitrary(FileFromSelf)
 /*
 throws:
 Error: Missing annotation
@@ -191,18 +189,19 @@ In the above example, attempting to generate arbitrary values for the `FileFromS
 
 **Example** (Adding Arbitrary Annotation for Custom `File` Schema)
 
-```ts twoslash
-import { Arbitrary, FastCheck, Pretty, Schema } from "effect"
+```ts twoslash import.meta.vitest name="adding-compilers-annotations-1"
+import { Schema } from "effect"
+import { FastCheck } from "effect/testing"
 
 const FileFromSelf = Schema.declare((input: unknown): input is File => input instanceof File, {
   identifier: "FileFromSelf",
   // Provide a function to generate random File instances
-  arbitrary: () => (fc) =>
+  toArbitrary: () => (fc) =>
     fc.tuple(fc.string(), fc.string()).map(([content, path]) => new File([content], path)),
 })
 
 // Create an Arbitrary instance for the schema
-const arb = Arbitrary.make(FileFromSelf)
+const arb = Schema.toArbitrary(FileFromSelf)
 
 // Generate sample files using the Arbitrary instance
 const files = FastCheck.sample(arb, 2)
@@ -309,19 +308,19 @@ type UserId = string & Brand.Brand<"UserId">
 const UserId = Brand.nominal<UserId>()
 
 // Define a schema for the branded type
-const UserIdSchema = Schema.String.pipe(Schema.fromBrand(UserId))
+const UserIdSchema = Schema.String.pipe(Schema.fromBrand("UserId", UserId))
 ```
 
 ### Utilizing Default Constructors
 
 The `Schema.brand` function includes a default constructor to facilitate the creation of branded values.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="utilizing-default-constructors-1"
 import { Schema } from "effect"
 
 const UserId = Schema.String.pipe(Schema.brand("UserId"))
 
-const userId = UserId.make("123") // Creates a branded UserId
+const userId = UserId.make("123") // => "123"
 ```
 
 ## Property Signatures
@@ -339,9 +338,11 @@ import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
-  age: Schema.propertySignature(Schema.NumberFromString).annotations({
-    title: "Age", // Annotation to label the age field
-  }),
+  age: Schema.NumberFromString.pipe(
+    Schema.annotateKey({
+      title: "Age", // Annotation to label the age field
+    }),
+  ),
 })
 ```
 
@@ -383,15 +384,13 @@ Sometimes, the source field (the "From" field) may have a different name from th
 
 **Example** (Mapping from a Different Key)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="basic-usage-1"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
-  age: Schema.propertySignature(Schema.NumberFromString).pipe(
-    Schema.fromKey("AGE"), // Maps from "AGE" to "age"
-  ),
-})
+  age: Schema.NumberFromString, // Maps from "AGE" to "age"
+}).pipe(Schema.encodeKeys({ age: "AGE" }))
 
 console.log(Schema.decodeUnknownSync(Person)({ name: "name", AGE: "18" }))
 // Output: { name: 'name', age: 18 }
@@ -434,7 +433,7 @@ creates an optional property within a schema, allowing fields to be omitted or s
 
 **Example** (Defining an Optional Number Field)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="basic-optional-property-1"
 import { Schema } from "effect"
 
 const Product = Schema.Struct({
@@ -515,13 +514,16 @@ creates an optional property within a schema, treating `null` values the same as
 
 **Example** (Handling Null as Missing Value)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="optional-with-nullability-1"
+import { Option, Predicate, Schema, SchemaGetter } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, {
-    nullable: true,
-  }),
+  quantity: Schema.optional(Schema.NullOr(Schema.NumberFromString)).pipe(
+    Schema.decodeTo(Schema.optional(Schema.Number), {
+      decode: SchemaGetter.transformOptional((o) => o.pipe(Option.filter(Predicate.isNotNull))),
+      encode: SchemaGetter.transformOptional((o) => o),
+    }),
+  ),
 })
 
 //     ┌─── { readonly quantity?: string | null | undefined; }
@@ -604,7 +606,7 @@ creates an optional property while enforcing strict typing. This means that only
 import { Schema } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, { exact: true }),
+  quantity: Schema.optionalKey(Schema.NumberFromString),
 })
 
 //     ┌─── { readonly quantity?: string; }
@@ -649,12 +651,12 @@ You can access the original schema type (before it was marked as optional) using
 import { Schema } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, { exact: true }),
+  quantity: Schema.optionalKey(Schema.NumberFromString),
 })
 
 //      ┌─── typeof Schema.NumberFromString
 //      ▼
-const from = Product.fields.quantity.from
+const from = Product.fields.quantity.schema
 ```
 
 #### Combining Nullability and Exactness
@@ -686,13 +688,15 @@ allows you to define an optional property that enforces strict typing (exact typ
 **Example** (Using Exactness and Handling Null as Missing Value with Optional Field)
 
 ```ts twoslash
-import { Schema } from "effect"
+import { Option, Predicate, Schema, SchemaGetter } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, {
-    exact: true,
-    nullable: true,
-  }),
+  quantity: Schema.optionalKey(Schema.NullOr(Schema.NumberFromString)).pipe(
+    Schema.decodeTo(Schema.optionalKey(Schema.Number), {
+      decode: SchemaGetter.transformOptional((o) => o.pipe(Option.filter(Predicate.isNotNull))),
+      encode: SchemaGetter.transformOptional((o) => o),
+    }),
+  ),
 })
 
 //     ┌─── { readonly quantity?: string | null; }
@@ -796,7 +800,7 @@ It ensures stricter enforcement of the field's absence.
 import { Schema } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.Never, { exact: true }),
+  quantity: Schema.optionalKey(Schema.Never),
 })
 
 //     ┌─── { readonly quantity?: never; }
@@ -832,13 +836,14 @@ Schema.optionalWith(schema: Schema<A, I, R>, { default: () => A })
 
 **Example** (Applying Default When Field Is Missing or `undefined`)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="basic-default-1"
+import { Effect, Schema } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, {
-    default: () => 1, // Default value for quantity
-  }),
+  quantity: Schema.NumberFromString.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(1)), // Default value for quantity
+    Schema.withConstructorDefault(Effect.succeed(1)),
+  ),
 })
 
 //     ┌─── { readonly quantity?: string | undefined; }
@@ -910,13 +915,12 @@ Schema.optionalWith(schema: Schema<A, I, R>, {
 **Example** (Applying Default Only When Field Is Missing)
 
 ```ts twoslash
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, {
-    default: () => 1, // Default value for quantity
-    exact: true, // Only apply default if quantity is not provided
-  }),
+  quantity: Schema.NumberFromString.pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed(1)), // Default value for quantity, only if quantity is not provided
+  ),
 })
 
 //     ┌─── { readonly quantity?: string; }
@@ -966,14 +970,21 @@ Schema.optionalWith(schema: Schema<A, I, R>, {
 
 **Example** (Applying Default When Field Is Missing or `undefined` or `null`)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="default-with-nullability-1"
+import { Option, Predicate, Schema, SchemaGetter } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, {
-    default: () => 1, // Default value for quantity
-    nullable: true, // Apply default if quantity is null
-  }),
+  quantity: Schema.optional(Schema.NullOr(Schema.NumberFromString)).pipe(
+    Schema.decodeTo(Schema.Number, {
+      decode: SchemaGetter.transformOptional((o) =>
+        o.pipe(
+          Option.filter(Predicate.isNotNullish),
+          Option.orElseSome(() => 1),
+        ),
+      ),
+      encode: SchemaGetter.required(),
+    }),
+  ),
 })
 
 //     ┌─── { readonly quantity?: string | null | undefined; }
@@ -1019,14 +1030,20 @@ Schema.optionalWith(schema: Schema<A, I, R>, {
 **Example** (Applying Default Only When Field Is Missing or `null`)
 
 ```ts twoslash
-import { Schema } from "effect"
+import { Option, Predicate, Schema, SchemaGetter } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, {
-    default: () => 1, // Default value for quantity
-    exact: true, // Only apply default if quantity is not provided
-    nullable: true, // Apply default if quantity is null
-  }),
+  quantity: Schema.optionalKey(Schema.NullOr(Schema.NumberFromString)).pipe(
+    Schema.decodeTo(Schema.Number, {
+      decode: SchemaGetter.transformOptional((o) =>
+        o.pipe(
+          Option.filter(Predicate.isNotNull),
+          Option.orElseSome(() => 1),
+        ),
+      ),
+      encode: SchemaGetter.required(),
+    }),
+  ),
 })
 
 //     ┌─── { readonly quantity?: string | null; }
@@ -1090,11 +1107,11 @@ optionalWith(schema: Schema<A, I, R>, { as: "Option" })
 
 **Example** (Handling Optional Field as Option)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="basic-optional-with-option-type-1"
 import { Schema } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, { as: "Option" }),
+  quantity: Schema.OptionFromOptional(Schema.NumberFromString),
 })
 
 //     ┌─── { readonly quantity?: string | undefined; }
@@ -1167,10 +1184,7 @@ optionalWith(schema: Schema<A, I, R>, {
 import { Schema } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, {
-    as: "Option",
-    exact: true,
-  }),
+  quantity: Schema.OptionFromOptionalKey(Schema.NumberFromString),
 })
 
 //     ┌─── { readonly quantity?: string; }
@@ -1252,14 +1266,11 @@ optionalWith(schema: Schema<A, I, R>, {
 
 **Example** (Handling Null as Missing Value with Optional Field as Option)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="optional-with-nullability-2"
 import { Schema } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, {
-    as: "Option",
-    nullable: true,
-  }),
+  quantity: Schema.OptionFromOptionalNullOr(Schema.NumberFromString),
 })
 
 //     ┌─── { readonly quantity?: string | null | undefined; }
@@ -1337,14 +1348,17 @@ optionalWith(schema: Schema<A, I, R>, {
 **Example** (Using Exactness and Handling Null as Missing Value with Optional Field as Option)
 
 ```ts twoslash
-import { Schema } from "effect"
+import { Option, Predicate, Schema, SchemaGetter } from "effect"
 
 const Product = Schema.Struct({
-  quantity: Schema.optionalWith(Schema.NumberFromString, {
-    as: "Option",
-    exact: true,
-    nullable: true,
-  }),
+  quantity: Schema.optionalKey(Schema.NullOr(Schema.NumberFromString)).pipe(
+    Schema.decodeTo(Schema.Option(Schema.Number), {
+      decode: SchemaGetter.transformOptional((o) =>
+        Option.some(o.pipe(Option.filter(Predicate.isNotNull))),
+      ),
+      encode: SchemaGetter.transformOptional(Option.flatten),
+    }),
+  ),
 })
 
 //     ┌─── { readonly quantity?: string | null; }
@@ -1431,37 +1445,39 @@ In this function:
 
 Consider an optional field of type `string` where empty strings in the input should be removed from the output.
 
-```ts twoslash
-import { Option, Schema } from "effect"
+```ts twoslash import.meta.vitest name="optional-to-optional-1"
+import { Option, Schema, SchemaGetter } from "effect"
 
 const schema = Schema.Struct({
-  nonEmpty: Schema.optionalToOptional(Schema.String, Schema.String, {
-    //         ┌─── Option<string>
-    //         ▼
-    decode: (maybeString) => {
-      if (Option.isNone(maybeString)) {
-        // If `maybeString` is `None`, the field is absent in the input.
-        // Return Option.none() to omit it in the output.
-        return Option.none()
-      }
-      // Extract the value from the `Some` instance
-      const value = maybeString.value
-      if (value === "") {
-        // Treat empty strings as missing in the output
-        // by returning Option.none().
-        return Option.none()
-      }
-      // Include non-empty strings in the output.
-      return Option.some(value)
-    },
-    // In the encoding phase, you can decide to process the field
-    // similarly to the decoding phase or use a different logic.
-    // Here, the logic is left unchanged.
-    //
-    //         ┌─── Option<string>
-    //         ▼
-    encode: (maybeString) => maybeString,
-  }),
+  nonEmpty: Schema.optionalKey(Schema.String).pipe(
+    Schema.decodeTo(Schema.optionalKey(Schema.String), {
+      //         ┌─── Option<string>
+      //         ▼
+      decode: SchemaGetter.transformOptional((maybeString) => {
+        if (Option.isNone(maybeString)) {
+          // If `maybeString` is `None`, the field is absent in the input.
+          // Return Option.none() to omit it in the output.
+          return Option.none()
+        }
+        // Extract the value from the `Some` instance
+        const value = maybeString.value
+        if (value === "") {
+          // Treat empty strings as missing in the output
+          // by returning Option.none().
+          return Option.none()
+        }
+        // Include non-empty strings in the output.
+        return Option.some(value)
+      }),
+      // In the encoding phase, you can decide to process the field
+      // similarly to the decoding phase or use a different logic.
+      // Here, the logic is left unchanged.
+      //
+      //         ┌─── Option<string>
+      //         ▼
+      encode: SchemaGetter.transformOptional((maybeString) => maybeString),
+    }),
+  ),
 })
 
 // Decoding examples
@@ -1492,13 +1508,15 @@ You can simplify the decoding logic with `Option.filter`, which filters out unwa
 **Example** (Using `Option.filter` for Decoding)
 
 ```ts twoslash
-import { identity, Option, Schema } from "effect"
+import { identity, Option, Schema, SchemaGetter } from "effect"
 
 const schema = Schema.Struct({
-  nonEmpty: Schema.optionalToOptional(Schema.String, Schema.String, {
-    decode: Option.filter((s) => s !== ""),
-    encode: identity,
-  }),
+  nonEmpty: Schema.optionalKey(Schema.String).pipe(
+    Schema.decodeTo(Schema.optionalKey(Schema.String), {
+      decode: SchemaGetter.transformOptional(Option.filter((s) => s !== "")),
+      encode: SchemaGetter.transformOptional(identity),
+    }),
+  ),
 })
 ```
 
@@ -1530,39 +1548,45 @@ In this function:
 
 This example demonstrates how to use `optionalToRequired` to provide a `null` default value when the `nullable` field is missing in the input. During encoding, fields with a value of `null` are omitted from the output.
 
-```ts twoslash
-import { Option, Schema } from "effect"
+```ts twoslash import.meta.vitest name="optional-to-required-1"
+import { Option, Schema, SchemaGetter } from "effect"
 
 const schema = Schema.Struct({
-  nullable: Schema.optionalToRequired(
+  nullable: Schema.optionalKey(
     // Input schema for an optional string
     Schema.String,
-    // Output schema allowing null or string
-    Schema.NullOr(Schema.String),
-    {
-      //         ┌─── Option<string>
-      //         ▼
-      decode: (maybeString) => {
-        if (Option.isNone(maybeString)) {
-          // If `maybeString` is `None`, the field is absent in the input.
-          // Return `null` as the default value for the output.
-          return null
-        }
-        // Extract the value from the `Some` instance
-        // and use it as the output.
-        return maybeString.value
+  ).pipe(
+    Schema.decodeTo(
+      // Output schema allowing null or string
+      Schema.NullOr(Schema.String),
+      {
+        //         ┌─── Option<string>
+        //         ▼
+        decode: SchemaGetter.transformOptional((maybeString) => {
+          if (Option.isNone(maybeString)) {
+            // If `maybeString` is `None`, the field is absent in the input.
+            // Return `null` as the default value for the output.
+            return Option.some(null)
+          }
+          // Extract the value from the `Some` instance
+          // and use it as the output.
+          return Option.some(maybeString.value)
+        }),
+        // During encoding, treat `null` as an absent field
+        //
+        //         ┌─── string | null
+        //         ▼
+        encode: SchemaGetter.transformOptional((maybeStringOrNull) =>
+          Option.flatMap(maybeStringOrNull, (stringOrNull) =>
+            stringOrNull === null
+              ? // Omit the field by returning `None`
+                Option.none()
+              : // Include the field by returning `Some`
+                Option.some(stringOrNull),
+          ),
+        ),
       },
-      // During encoding, treat `null` as an absent field
-      //
-      //         ┌─── string | null
-      //         ▼
-      encode: (stringOrNull) =>
-        stringOrNull === null
-          ? // Omit the field by returning `None`
-            Option.none()
-          : // Include the field by returning `Some`
-            Option.some(stringOrNull),
-    },
+    ),
   ),
 })
 
@@ -1590,13 +1614,15 @@ You can streamline the decoding and encoding logic using `Option.getOrElse` and 
 **Example** (Using `Option.getOrElse` and `Option.liftPredicate`)
 
 ```ts twoslash
-import { Option, Schema } from "effect"
+import { Option, Schema, SchemaGetter } from "effect"
 
 const schema = Schema.Struct({
-  nullable: Schema.optionalToRequired(Schema.String, Schema.NullOr(Schema.String), {
-    decode: Option.getOrElse(() => null),
-    encode: Option.liftPredicate((value) => value !== null),
-  }),
+  nullable: Schema.optionalKey(Schema.String).pipe(
+    Schema.decodeTo(Schema.NullOr(Schema.String), {
+      decode: SchemaGetter.transformOptional(Option.orElseSome(() => null)),
+      encode: SchemaGetter.transformOptional(Option.filter((value) => value !== null)),
+    }),
+  ),
 })
 ```
 
@@ -1626,34 +1652,38 @@ With `decode` and `encode` functions, you control the presence or absence of the
 
 In this example, the `name` field is required but treated as optional if it is an empty string. During decoding, an empty string in `name` is considered absent, while encoding ensures a value (using an empty string as a default if `name` is absent).
 
-```ts twoslash
-import { Option, Schema } from "effect"
+```ts twoslash import.meta.vitest name="required-to-optional-1"
+import { Option, Schema, SchemaGetter } from "effect"
 
 const schema = Schema.Struct({
-  name: Schema.requiredToOptional(Schema.String, Schema.String, {
-    //         ┌─── string
-    //         ▼
-    decode: (string) => {
-      // Treat empty string as a missing value
-      if (string === "") {
-        // Omit the field by returning `None`
-        return Option.none()
-      }
-      // Otherwise, return the string as is
-      return Option.some(string)
-    },
-    //         ┌─── Option<string>
-    //         ▼
-    encode: (maybeString) => {
-      // Check if the field is missing
-      if (Option.isNone(maybeString)) {
-        // Provide an empty string as default
-        return ""
-      }
-      // Otherwise, return the string as is
-      return maybeString.value
-    },
-  }),
+  name: Schema.String.pipe(
+    Schema.decodeTo(Schema.optionalKey(Schema.String), {
+      //         ┌─── Option<string>
+      //         ▼
+      decode: SchemaGetter.transformOptional((maybeString) =>
+        Option.flatMap(maybeString, (string) => {
+          // Treat empty string as a missing value
+          if (string === "") {
+            // Omit the field by returning `None`
+            return Option.none()
+          }
+          // Otherwise, return the string as is
+          return Option.some(string)
+        }),
+      ),
+      //         ┌─── Option<string>
+      //         ▼
+      encode: SchemaGetter.transformOptional((maybeString) => {
+        // Check if the field is missing
+        if (Option.isNone(maybeString)) {
+          // Provide an empty string as default
+          return Option.some("")
+        }
+        // Otherwise, return the string as is
+        return maybeString
+      }),
+    }),
+  ),
 })
 
 // Decoding examples
@@ -1680,13 +1710,22 @@ You can streamline the decoding and encoding logic using `Option.liftPredicate` 
 **Example** (Using `Option.liftPredicate` and `Option.getOrElse`)
 
 ```ts twoslash
-import { Option, Schema } from "effect"
+import { Option, Schema, SchemaGetter } from "effect"
 
 const schema = Schema.Struct({
-  name: Schema.requiredToOptional(Schema.String, Schema.String, {
-    decode: Option.liftPredicate((s) => s !== ""),
-    encode: Option.getOrElse(() => ""),
-  }),
+  name: Schema.String.pipe(
+    Schema.decodeTo(Schema.optionalKey(Schema.String), {
+      decode: SchemaGetter.transformOptional((maybeString) =>
+        Option.flatMap(
+          maybeString,
+          Option.liftPredicate((s) => s !== ""),
+        ),
+      ),
+      encode: SchemaGetter.transformOptional((maybeString) =>
+        Option.some(Option.getOrElse(maybeString, () => "")),
+      ),
+    }),
+  ),
 })
 ```
 
@@ -1742,10 +1781,10 @@ const Original = Schema.Struct({
   b: Schema.String,
 })
 
-const Extended = Schema.Struct(
-  Original.fields,
+const Extended = Schema.StructWithRest(
+  Schema.Struct(Original.fields),
   // Adding an index signature
-  Schema.Record({ key: Schema.String, value: Schema.String }),
+  [Schema.Record(Schema.String, Schema.String)],
 )
 
 //     ┌─── {
@@ -1811,18 +1850,18 @@ Supported extensions include:
 **Example** (Extending a Struct with a Union of Structs)
 
 ```ts twoslash
-import { Schema } from "effect"
+import { Schema, Tuple } from "effect"
 
 const Struct = Schema.Struct({
   a: Schema.String,
 })
 
-const UnionOfStructs = Schema.Union(
+const UnionOfStructs = Schema.Union([
   Schema.Struct({ b: Schema.String }),
   Schema.Struct({ c: Schema.String }),
-)
+])
 
-const Extended = Schema.extend(Struct, UnionOfStructs)
+const Extended = UnionOfStructs.mapMembers(Tuple.map(Schema.fieldsAssign(Struct.fields)))
 
 //     ┌─── {
 //     |        readonly a: string;
@@ -1901,13 +1940,13 @@ To rename a property directly during schema creation, you can utilize the `Schem
 
 **Example** (Renaming a Required Property)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="renaming-a-property-during-definition-1"
 import { Schema } from "effect"
 
 const schema = Schema.Struct({
-  a: Schema.propertySignature(Schema.String).pipe(Schema.fromKey("c")),
+  a: Schema.String,
   b: Schema.Number,
-})
+}).pipe(Schema.encodeKeys({ a: "c" }))
 
 //     ┌─── { readonly c: string; readonly b: number; }
 //     ▼
@@ -1923,13 +1962,13 @@ console.log(Schema.decodeUnknownSync(schema)({ c: "c", b: 1 }))
 
 **Example** (Renaming an Optional Property)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="renaming-a-property-during-definition-2"
 import { Schema } from "effect"
 
 const schema = Schema.Struct({
-  a: Schema.optional(Schema.String).pipe(Schema.fromKey("c")),
+  a: Schema.optional(Schema.String),
   b: Schema.Number,
-})
+}).pipe(Schema.encodeKeys({ a: "c" }))
 
 //     ┌─── { readonly b: number; readonly c?: string | undefined; }
 //     ▼
@@ -1954,8 +1993,8 @@ For existing schemas, the `Schema.rename` API offers a way to systematically cha
 
 **Example** (Renaming Properties in a Struct Schema)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="renaming-properties-of-an-existing-schema-1"
+import { Schema, Struct } from "effect"
 
 const Original = Schema.Struct({
   c: Schema.String,
@@ -1970,7 +2009,10 @@ const Original = Schema.Struct({
 //      |      readonly b: number;
 //      |    }>
 //      ▼
-const Renamed = Schema.rename(Original, { c: "a" })
+const Renamed = Original.mapFields((fields) => ({
+  a: fields.c,
+  ...Struct.omit(fields, ["c"]),
+})).pipe(Schema.encodeKeys({ a: "c" }))
 
 console.log(Schema.decodeUnknownSync(Renamed)({ c: "c", b: 1 }))
 // Output: { a: "c", b: 1 }
@@ -1978,10 +2020,10 @@ console.log(Schema.decodeUnknownSync(Renamed)({ c: "c", b: 1 }))
 
 **Example** (Renaming Properties in Union Schemas)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="renaming-properties-of-an-existing-schema-2"
 import { Schema } from "effect"
 
-const Original = Schema.Union(
+const Original = Schema.Union([
   Schema.Struct({
     c: Schema.String,
     b: Schema.Number,
@@ -1990,7 +2032,7 @@ const Original = Schema.Union(
     c: Schema.String,
     d: Schema.Boolean,
   }),
-)
+])
 
 // Renaming the "c" property to "a" for all members
 //
@@ -2002,7 +2044,10 @@ const Original = Schema.Union(
 //      |      readonly d: number;
 //      |    }>
 //      ▼
-const Renamed = Schema.rename(Original, { c: "a" })
+const Renamed = Schema.Union([
+  Schema.Struct({ a: Schema.String, b: Schema.Number }).pipe(Schema.encodeKeys({ a: "c" })),
+  Schema.Struct({ a: Schema.String, d: Schema.Boolean }).pipe(Schema.encodeKeys({ a: "c" })),
+])
 
 console.log(Schema.decodeUnknownSync(Renamed)({ c: "c", b: 1 }))
 // Output: { a: "c", b: 1 }
@@ -2106,15 +2151,12 @@ interface Operation {
 
 const Expression = Schema.Struct({
   type: Schema.Literal("expression"),
-  value: Schema.Union(
-    Schema.Number,
-    Schema.suspend((): Schema.Schema<Operation> => Operation),
-  ),
+  value: Schema.Union([Schema.Number, Schema.suspend((): Schema.Schema<Operation> => Operation)]),
 })
 
 const Operation = Schema.Struct({
   type: Schema.Literal("operation"),
-  operator: Schema.Literal("+", "-"),
+  operator: Schema.Literals(["+", "-"]),
   left: Expression,
   right: Expression,
 })
@@ -2172,7 +2214,7 @@ interface CategoryEncoded extends Schema.Struct.Encoded<typeof fields> {
 const Category = Schema.Struct({
   ...fields,
   subcategories: Schema.Array(
-    Schema.suspend((): Schema.Schema<Category, CategoryEncoded> => Category),
+    Schema.suspend((): Schema.Codec<Category, CategoryEncoded> => Category),
   ),
 })
 ```
