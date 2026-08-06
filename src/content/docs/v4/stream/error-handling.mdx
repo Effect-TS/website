@@ -8,11 +8,11 @@ sidebar:
 
 ## Recovering from Failure
 
-When working with streams that may encounter errors, it's crucial to know how to handle these errors gracefully. The `Stream.orElse` function is a powerful tool for recovering from failures and switching to an alternative stream in case of an error.
+When working with streams that may encounter errors, it's crucial to know how to handle these errors gracefully. The `Stream.catch` function is a powerful tool for recovering from failures and switching to an alternative stream in case of an error.
 
 **Example**
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="recovering-from-failure-1"
 import { Stream, Effect } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
@@ -22,7 +22,7 @@ const s1 = Stream.make(1, 2, 3).pipe(
 
 const s2 = Stream.make("a", "b", "c")
 
-const stream = Stream.orElse(s1, () => s2)
+const stream = Stream.catch(s1, () => s2)
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
@@ -34,12 +34,12 @@ Output:
 */
 ```
 
-In this example, `s1` encounters an error, but instead of terminating the stream, we gracefully switch to `s2` using `Stream.orElse`. This ensures that we can continue processing data even if one stream fails.
+In this example, `s1` encounters an error, but instead of terminating the stream, we gracefully switch to `s2` using `Stream.catch`. This ensures that we can continue processing data even if one stream fails.
 
 There's also a variant called `Stream.orElseEither` that uses the [Either](/docs/data-types/either/) data type to distinguish elements from the two streams based on success or failure:
 
-```ts twoslash
-import { Stream, Effect } from "effect"
+```ts twoslash import.meta.vitest name="recovering-from-failure-2"
+import { Stream, Effect, Result } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
   Stream.concat(Stream.fail("Oh! Error!")),
@@ -48,7 +48,7 @@ const s1 = Stream.make(1, 2, 3).pipe(
 
 const s2 = Stream.make("a", "b", "c")
 
-const stream = Stream.orElseEither(s1, () => s2)
+const stream = Stream.map(s1, Result.succeed).pipe(Stream.catch(() => Stream.map(s2, Result.fail)))
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
@@ -86,9 +86,9 @@ Output:
 */
 ```
 
-The `Stream.catchAll` function provides advanced error handling capabilities compared to `Stream.orElse`. With `Stream.catchAll`, you can make decisions based on both the type and value of the encountered failure.
+The `Stream.catch` function provides advanced error handling capabilities compared to `Stream.catch`. With `Stream.catch`, you can make decisions based on both the type and value of the encountered failure.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="recovering-from-failure-3"
 import { Stream, Effect } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
@@ -101,7 +101,7 @@ const s2 = Stream.make("a", "b", "c")
 
 const s3 = Stream.make(true, false, false)
 
-const stream = Stream.catchAll(s1, (error): Stream.Stream<string | boolean> => {
+const stream = Stream.catch(s1, (error): Stream.Stream<string | boolean> => {
   switch (error) {
     case "Uh Oh!":
       return s2
@@ -120,25 +120,25 @@ Output:
 */
 ```
 
-In this example, we have a stream, `s1`, which may encounter two different types of errors. Instead of a straightforward switch to an alternative stream, as done with `Stream.orElse`, we employ `Stream.catchAll` to precisely determine how to handle each type of error. This level of control over error recovery enables you to choose different streams or actions based on the specific error conditions.
+In this example, we have a stream, `s1`, which may encounter two different types of errors. Instead of a straightforward switch to an alternative stream, as done with `Stream.catch`, we employ `Stream.catch` to precisely determine how to handle each type of error. This level of control over error recovery enables you to choose different streams or actions based on the specific error conditions.
 
 ## Recovering from Defects
 
-When working with streams, it's essential to be prepared for various failure scenarios, including defects that might occur during stream processing. To address this, the `Stream.catchAllCause` function provides a robust solution. It enables you to gracefully handle and recover from any type of failure that may arise.
+When working with streams, it's essential to be prepared for various failure scenarios, including defects that might occur during stream processing. To address this, the `Stream.catchCause` function provides a robust solution. It enables you to gracefully handle and recover from any type of failure that may arise.
 
 **Example**
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="recovering-from-defects-1"
 import { Stream, Effect } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
-  Stream.concat(Stream.dieMessage("Boom!")),
+  Stream.concat(Stream.die(new Error("Boom!"))),
   Stream.concat(Stream.make(4, 5)),
 )
 
 const s2 = Stream.make("a", "b", "c")
 
-const stream = Stream.catchAllCause(s1, () => s2)
+const stream = Stream.catchCause(s1, () => s2)
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
@@ -150,16 +150,16 @@ Output:
 */
 ```
 
-In this example, `s1` may encounter a defect, but instead of crashing the application, we use `Stream.catchAllCause` to gracefully switch to an alternative stream, `s2`. This ensures that your application remains robust and continues processing data even in the face of unexpected issues.
+In this example, `s1` may encounter a defect, but instead of crashing the application, we use `Stream.catchCause` to gracefully switch to an alternative stream, `s2`. This ensures that your application remains robust and continues processing data even in the face of unexpected issues.
 
 ## Recovery from Some Errors
 
-In stream processing, there may be situations where you need to recover from specific types of failures. The `Stream.catchSome` and `Stream.catchSomeCause` functions come to the rescue, allowing you to handle and mitigate errors selectively.
+In stream processing, there may be situations where you need to recover from specific types of failures. The `Stream.catchFilter` and `Stream.catchCauseFilter` functions come to the rescue, allowing you to handle and mitigate errors selectively.
 
-If you want to recover from a particular error, you can use `Stream.catchSome`:
+If you want to recover from a particular error, you can use `Stream.catchFilter`:
 
-```ts twoslash
-import { Stream, Effect, Option } from "effect"
+```ts twoslash import.meta.vitest name="recovery-from-some-errors-1"
+import { Stream, Effect, Filter } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
   Stream.concat(Stream.fail("Oh! Error!")),
@@ -168,12 +168,11 @@ const s1 = Stream.make(1, 2, 3).pipe(
 
 const s2 = Stream.make("a", "b", "c")
 
-const stream = Stream.catchSome(s1, (error) => {
-  if (error === "Oh! Error!") {
-    return Option.some(s2)
-  }
-  return Option.none()
-})
+const stream = Stream.catchFilter(
+  s1,
+  Filter.fromPredicate((error) => error === "Oh! Error!"),
+  () => s2,
+)
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
@@ -185,24 +184,19 @@ Output:
 */
 ```
 
-To recover from a specific cause, you can use the `Stream.catchSomeCause` function:
+To recover from a specific cause, you can use the `Stream.catchCauseFilter` function:
 
-```ts twoslash
-import { Stream, Effect, Option, Cause } from "effect"
+```ts twoslash import.meta.vitest name="recovery-from-some-errors-2"
+import { Stream, Effect, Cause } from "effect"
 
 const s1 = Stream.make(1, 2, 3).pipe(
-  Stream.concat(Stream.dieMessage("Oh! Error!")),
+  Stream.concat(Stream.die(new Error("Oh! Error!"))),
   Stream.concat(Stream.make(4, 5)),
 )
 
 const s2 = Stream.make("a", "b", "c")
 
-const stream = Stream.catchSomeCause(s1, (cause) => {
-  if (Cause.isDie(cause)) {
-    return Option.some(s2)
-  }
-  return Option.none()
-})
+const stream = Stream.catchCauseFilter(s1, Cause.findDie, () => s2)
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
@@ -222,7 +216,7 @@ In stream processing, it's crucial to handle errors gracefully and perform clean
 import { Stream, Console, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3).pipe(
-  Stream.concat(Stream.dieMessage("Oh! Boom!")),
+  Stream.concat(Stream.die(new Error("Oh! Boom!"))),
   Stream.concat(Stream.make(4, 5)),
   Stream.onError(() =>
     Console.log("Stream application closed! We are doing some cleanup jobs.").pipe(Effect.orDie),
@@ -299,16 +293,14 @@ When working with streams, there might be situations where you want to selective
 
 **Example**
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="refining-errors-1"
 import { Stream, Option } from "effect"
 
 const stream = Stream.fail(new Error())
 
-const res = Stream.refineOrDie(stream, (error) => {
-  if (error instanceof SyntaxError) {
-    return Option.some(error)
-  }
-  return Option.none()
+const res = Stream.catch(stream, (error) => {
+  const refined = error instanceof SyntaxError ? Option.some(error) : Option.none()
+  return Option.isSome(refined) ? Stream.fail(refined.value) : Stream.die(error)
 })
 ```
 
@@ -322,7 +314,7 @@ When working with streams, there are scenarios where you may want to handle time
 
 The `Stream.timeout` operator allows you to set a timeout on a stream. If the stream does not produce a value within the specified duration, it terminates.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="timeout-1"
 import { Stream, Effect } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(Stream.timeout("2 seconds"))
@@ -338,13 +330,13 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 
 ### timeoutFail
 
-The `Stream.timeoutFail` operator combines a timeout with a custom failure message. If the stream times out, it fails with the specified error message.
+The `Stream.timeoutOrElse` operator combines a timeout with a custom failure message. If the stream times out, it fails with the specified error message.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="timeoutfail-1"
 import { Stream, Effect } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
-  Stream.timeoutFail(() => "timeout", "2 seconds"),
+  Stream.timeoutOrElse({ duration: "2 seconds", orElse: () => Stream.fail("timeout") }),
 )
 
 Effect.runPromiseExit(Stream.runCollect(stream)).then(console.log)
@@ -360,13 +352,16 @@ Output:
 
 ### timeoutFailCause
 
-Similar to `Stream.timeoutFail`, `Stream.timeoutFailCause` combines a timeout with a custom failure cause. If the stream times out, it fails with the specified cause.
+Similar to `Stream.timeoutOrElse`, `Stream.timeoutOrElse` combines a timeout with a custom failure cause. If the stream times out, it fails with the specified cause.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="timeoutfailcause-1"
 import { Stream, Effect, Cause } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
-  Stream.timeoutFailCause(() => Cause.die("timeout"), "2 seconds"),
+  Stream.timeoutOrElse({
+    duration: "2 seconds",
+    orElse: () => Stream.failCause(Cause.die("timeout")),
+  }),
 )
 
 Effect.runPromiseExit(Stream.runCollect(stream)).then(console.log)
@@ -382,13 +377,13 @@ Output:
 
 ### timeoutTo
 
-The `Stream.timeoutTo` operator allows you to switch to another stream if the first stream does not produce a value within the specified duration.
+The `Stream.timeoutOrElse` operator allows you to switch to another stream if the first stream does not produce a value within the specified duration.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="timeoutto-1"
 import { Stream, Effect } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
-  Stream.timeoutTo("2 seconds", Stream.make(1, 2, 3)),
+  Stream.timeoutOrElse({ duration: "2 seconds", orElse: () => Stream.make(1, 2, 3) }),
 )
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
