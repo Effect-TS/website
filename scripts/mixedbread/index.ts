@@ -593,7 +593,9 @@ class Mixedbread extends Context.Service<
         (file) => Predicate.isNotNullish(file.external_id) && !desiredIds.has(file.external_id),
       )
       yield* Effect.log(
-        `Synchronizing ${changed} changed and ${unchanged} unchanged API reference files to ${store.name}`,
+        changed === 0
+          ? `API reference index for ${store.name} is up to date; no uploads required (${unchanged} files unchanged)`
+          : `Uploading ${changed} changed API reference files to ${store.name} (${unchanged} files unchanged)`,
       )
 
       yield* Effect.forEach(
