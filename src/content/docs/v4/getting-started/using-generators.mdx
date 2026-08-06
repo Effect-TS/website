@@ -23,7 +23,7 @@ The `Effect.gen` utility simplifies the task of writing effectful code by utiliz
 
 Let's explore a practical program that performs a series of data transformations commonly found in application logic:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="performing-transactions-with-discounts-1"
 import { Effect } from "effect"
 
 // Function to add a small service charge to a transaction amount
@@ -90,7 +90,7 @@ Let's compare the two approaches:
 
 <TabItem label="Using Effect.gen">
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="comparing-effect-gen-with-async-await-1"
 import { Effect } from "effect"
 
 const addServiceCharge = (amount: number) => amount + 1
@@ -117,7 +117,7 @@ export const program = Effect.gen(function* () {
 
 <TabItem label="Using Async / Await">
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="comparing-effect-gen-with-async-await-2"
 const addServiceCharge = (amount: number) => amount + 1
 
 const applyDiscount = (total: number, discountRate: number): Promise<number> =>
@@ -150,7 +150,7 @@ One significant advantage of using `Effect.gen` in conjunction with generators i
 
 **Example** (Using Control Flow)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-control-flow-1"
 import { Effect } from "effect"
 
 const calculateTax = (amount: number, taxRate: number): Effect.Effect<number, Error> =>
@@ -192,7 +192,7 @@ You can introduce errors with `Effect.fail`, as shown in the example below.
 
 **Example** (Introducing an Error into the Flow)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="introducing-an-error-into-the-flow-1"
 import { Effect, Console } from "effect"
 
 const task1 = Console.log("task1...")
@@ -203,7 +203,7 @@ const program = Effect.gen(function* () {
   yield* task1
   yield* task2
   // Introduce an error
-  yield* Effect.fail("Something went wrong!")
+  return yield* Effect.fail("Something went wrong!")
 })
 
 Effect.runPromise(program).then(console.log, console.error)
@@ -211,7 +211,7 @@ Effect.runPromise(program).then(console.log, console.error)
 Output:
 task1...
 task2...
-(FiberFailure) Error: Something went wrong!
+Something went wrong!
 */
 ```
 
@@ -224,7 +224,7 @@ How does this affect your code? If you have several operations in sequence, once
 
 In simpler terms, if something fails at any point, the program will stop right there and deliver the error to you.
 
-If you don't want to stop on an error, you can use the `Effect.either` method to encapsulate the error in the [Either](/docs/data-types/either/) data type: see the [examples of managing expected errors](/docs/error-management/expected-errors/#either).
+If you don't want to stop on an error, you can use the `Effect.result` method to encapsulate the error in the [Either](/docs/data-types/either/) data type: see the [examples of managing expected errors](/docs/error-management/expected-errors/#either).
 
 **Example** (Halting Execution at the First Error)
 
@@ -251,7 +251,7 @@ Effect.runPromise(program).then(console.log, console.error)
 Output:
 task1...
 task2...
-(FiberFailure) Error: Something went wrong!
+Something went wrong!
 */
 ```
 
@@ -293,7 +293,7 @@ To fix this, explicitly return right after calling `Effect.fail`:
 
 **Example** (Type Narrowing with Explicit Return)
 
-```ts twoslash {15}
+```ts twoslash {15} import.meta.vitest name="type-narrowing-with-explicit-return-1"
 import { Effect } from "effect"
 
 type User = {
@@ -329,12 +329,12 @@ You can achieve this by utilizing an overload that accepts the reference as the 
 
 **Example** (Passing `this` to Generator)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="passing-this-to-generator-1"
 import { Effect } from "effect"
 
 class MyClass {
   readonly local = 1
-  compute = Effect.gen(this, function* () {
+  compute = Effect.gen({ self: this }, function* () {
     const n = this.local + 1
 
     yield* Effect.log(`Computed value: ${n}`)
