@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-The `@effect/platform/FileSystem` module provides a set of operations for reading and writing from/to the file system.
+The `effect/FileSystem` module provides a set of operations for reading and writing from/to the file system.
 
 ## Basic Usage
 
@@ -13,9 +13,8 @@ The module provides a single `FileSystem` [tag](/docs/requirements-management/se
 
 **Example** (Accessing File System Operations)
 
-```ts twoslash
-import { FileSystem } from "@effect/platform"
-import { Effect } from "effect"
+```ts twoslash import.meta.vitest name="basic-usage-1"
+import { Effect, FileSystem } from "effect"
 
 const program = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem
@@ -61,9 +60,8 @@ The `FileSystem` interface includes the following operations:
 **Example** (Reading a File as a String)
 
 ```ts twoslash
-import { FileSystem } from "@effect/platform"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
-import { Effect } from "effect"
+import { Effect, FileSystem } from "effect"
+import { NodeServices, NodeRuntime } from "@effect/platform-node"
 
 //      ┌─── Effect<void, PlatformError, FileSystem>
 //      ▼
@@ -76,7 +74,7 @@ const program = Effect.gen(function* () {
 })
 
 // Provide the necessary context and run the program
-NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)))
 ```
 
 ## Mocking the File System
@@ -88,9 +86,8 @@ However, you can override specific behaviors by passing an object to `FileSystem
 
 **Example** (Mocking File System with Custom Behavior)
 
-```ts twoslash
-import { FileSystem } from "@effect/platform"
-import { Effect } from "effect"
+```ts twoslash import.meta.vitest name="mocking-the-file-system-1"
+import { Effect, FileSystem } from "effect"
 
 const program = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem
