@@ -12,6 +12,7 @@ Tracks progress against `specs/v3-to-v4-docs-snippet-migration.md`. Updated per 
 | `getting-started/building-pipelines.mdx` | 19 | 11 | 0 | 8: pseudo-code syntax-shorthand fences for `pipe`/`map`/`flatMap`/`andThen`/`all`/the `pipe` method (x7, all unchanged APIs) plus one incomplete `flatMap` ignored-effect warning snippet |
 | `getting-started/control-flow.mdx` | 25 | 19 | 0 | 6: 4 pseudo-code syntax/desugaring illustrations of the removed `Effect.loop`/`Effect.iterate` signatures (left as historical illustration, nothing to migrate to under the same name), 1 `Effect.all` tuple syntax shorthand, 1 `mode: "validate"` example (option removed in v4, no replacement) |
 | `getting-started/creating-effects.mdx` | 22 | 17 | 4 | 5: 2 pseudo-code syntax shorthand (`try`/`catch`, `Effect.suspend(() => effect)`), 1 `Effect.callback<Buffer, Error>` type-annotation illustration snippet, 1 filesystem-writing interruption-cleanup demo (real side effects, code fixed but left unmarked per F6), 1 stack-overflow crash demo (`blowsUp`) |
+| `getting-started/devtools.mdx` | 1 | 0 | 0 | 1: `NodeRuntime.runMain` process-entry-point demo with an `Effect.forever` loop — would hang the doctest run, left unmarked |
 
 ## Unresolved items
 
@@ -30,6 +31,7 @@ Tracks progress against `specs/v3-to-v4-docs-snippet-migration.md`. Updated per 
 - **`getting-started/control-flow.mdx` — behavior change, no removed symbol**: `Effect.when`/`Effect.whenEffect` were consolidated into a single `Effect.when(effect, condition: Effect<boolean, E, R>)` — v3's plain-predicate `Effect.when(() => boolean)` no longer exists as a separate overload; the condition must always be an `Effect<boolean>`. Fixed by wrapping predicates in `Effect.succeed(...)`.
 - **`getting-started/control-flow.mdx` — removed option, no replacement**: `Effect.all`'s third `mode: "validate"` option (`Option`-based partial-failure collection) is gone — the option's type only accepts `"default" | "result"` now. Left that example's fence and prose mention unchanged.
 - **`getting-started/creating-effects.mdx`**: no removed-API-with-no-replacement issues found; all changes were confirmed straightforward renames (`UnknownException`→`UnknownError`, `Effect.async`→`Effect.callback`, `Effect.fork`→`Effect.forkChild`).
+- **`getting-started/devtools.mdx` — out-of-scope staleness, flagged for human review**: the 4 shell install snippets ("npm/pnpm/yarn/bun install @effect/experimental") are no longer necessary — `DevTools` moved into the core `effect` package (`effect/unstable/devtools`, confirmed in `node_modules/effect/src/unstable/devtools/index.ts`) and no longer requires a separate package install. Left unchanged because `sh` fences are outside the spec's scope (§2 restricts migration to `ts`/`js` fences only), but this is real, user-facing staleness a human should probably fix directly (delete the install step, or note DevTools now ships with `effect`).
 - **Reference doc discrepancy**: `migration/MIGRATION.md` does not exist at pinned commit `a94cbed84e9e49bea4bff925599c0f19c4e3deab` (confirmed via GitHub contents API — the `migration/` dir at that commit contains only the individual guide files listed in spec §4.2 plus an `annotations/` subdirectory of per-module YAML data not referenced by the spec). All other listed guide files (`v3-to-v4.md`, `services.md`, `error-handling.md`, `forking.md`, `yieldable.md`, `fiberref.md`, `runtime.md`, `scope.md`, `equality.md`, `cause.md`, `layer-memoization.md`, `fiber-keep-alive.md`, `generators.md`, `schema.md`) fetched successfully and cached under `specs/_references/`.
 
 ## Verification log
@@ -95,6 +97,12 @@ Tracks progress against `specs/v3-to-v4-docs-snippet-migration.md`. Updated per 
 - G2 (`tsc -b tsconfig.doctest.json` over 70 extracted snippets total): clean (pre-existing untagged-`Error` style warnings only).
 - G3 (`pnpm check`, `pnpm fmt`): clean (fmt auto-fixed cheatsheet table column widths after the `async`→`callback` rename lengthened one cell).
 - Lighter file than the previous two: mostly straightforward renames (`Effect.async`→`Effect.callback`, `Effect.fork`→`Effect.forkChild`, `UnknownException`→`UnknownError`), no removed-with-no-replacement APIs.
+
+### `getting-started/devtools.mdx` (G1–G3)
+
+- G1: 0 marked fences — vacuously passes. Almost the entire file is prose/shell/JSON (installation instructions, feature lists), out of migration scope.
+- G2: no new snippets contributed (unchanged extraction count).
+- G3 (`pnpm check`, `pnpm fmt`): clean.
 
 ### G4–G5
 
