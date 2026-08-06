@@ -403,7 +403,7 @@ import { Stream, Effect } from "effect"
 const stream = Stream.unfold(1, (n) => Effect.succeed([n, n + 1] as const))
 
 Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
-// { _id: 'Chunk', values: [ 1, 2, 3, 4, 5 ] }
+// [ 1, 2, 3, 4, 5 ]
 ```
 
 #### unfoldEffect
@@ -420,12 +420,8 @@ const stream = Stream.unfold(1, (n) =>
 )
 
 Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
-// Example Output: { _id: 'Chunk', values: [ 1, 1, 1, 1, -1 ] }
+// Example Output: [ 1, 1, 1, 1, -1 ]
 ```
-
-#### Additional Variants
-
-There are also similar operations like `Stream.paginate` and `Stream.paginate` tailored for working with `Chunk` data types.
 
 ### Pagination
 
@@ -450,10 +446,6 @@ Here's how it works:
 
 - We start with an initial value of `0`.
 - The provided function takes the current value `n` and returns a tuple. The first element of the tuple is the value to emit (`n`), and the second element determines whether to continue (`Option.some(n + 1)`) or stop (`Option.none()`).
-
-#### Additional Variants
-
-There are also similar operations like `Stream.paginate` and `Stream.paginate` tailored for working with `Chunk` data types.
 
 ### Unfolding vs. Pagination
 
