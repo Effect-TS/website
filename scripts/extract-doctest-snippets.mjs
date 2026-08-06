@@ -33,6 +33,14 @@ const stripTwoslashAnnotations = (source) =>
     .filter((line) => !twoslashAnnotationLine.test(line))
     .join("\n")
 
+// A .ts file with no import/export is a TS "script", not a module: its
+// top-level declarations join the global scope shared by every other script
+// file in the same tsc project, so two unrelated snippets that happen to
+// declare the same identifier (e.g. two different docs' `const divide = ...`)
+// collide. Force module scope so each snippet's file is self-contained.
+const hasImportOrExport = /^\s*(import|export)\b/m
+const ensureModuleScope = (source) => (hasImportOrExport.test(source) ? source : `${source}\nexport {}\n`)
+
 const main = async () => {
   await rm(outDir, { recursive: true, force: true })
   await mkdir(outDir, { recursive: true })
@@ -50,7 +58,7 @@ const main = async () => {
 
     snippets.forEach((snippet, index) => {
       const name = snippet.name ?? `unnamed-${index + 1}`
-      const body = stripTwoslashAnnotations(snippet.source)
+      const body = ensureModuleScope(stripTwoslashAnnotations(snippet.source))
       writeFile(join(dir, `${index + 1}-${name}.ts`), body, "utf8")
       total++
     })
