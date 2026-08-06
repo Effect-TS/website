@@ -11,15 +11,15 @@ This page explains various techniques for handling failures and creating fallbac
 
 ## orElse
 
-`Effect.orElse` allows you to attempt to run an effect, and if it fails, you
+`Effect.catch` allows you to attempt to run an effect, and if it fails, you
 can provide a fallback effect to run instead.
 
 This is useful for handling failures gracefully by defining an alternative effect to execute if the first
 one encounters an error.
 
-**Example** (Handling Fallback with `Effect.orElse`)
+**Example** (Handling Fallback with `Effect.catch`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-fallback-with-effect-catch-1"
 import { Effect } from "effect"
 
 const success = Effect.succeed("success")
@@ -27,28 +27,28 @@ const failure = Effect.fail("failure")
 const fallback = Effect.succeed("fallback")
 
 // Try the success effect first, fallback is not used
-const program1 = Effect.orElse(success, () => fallback)
+const program1 = Effect.catch(success, () => fallback)
 console.log(Effect.runSync(program1))
 // Output: "success"
 
 // Try the failure effect first, fallback is used
-const program2 = Effect.orElse(failure, () => fallback)
+const program2 = Effect.catch(failure, () => fallback)
 console.log(Effect.runSync(program2))
 // Output: "fallback"
 ```
 
 ## orElseFail
 
-`Effect.orElseFail` allows you to replace the failure from one effect with a
+`Effect.mapError` allows you to replace the failure from one effect with a
 custom failure value. If the effect fails, you can provide a new failure to
 be returned instead of the original one.
 
 This function only applies to failed effects. If the effect
 succeeds, it will remain unaffected.
 
-**Example** (Replacing Failure with `Effect.orElseFail`)
+**Example** (Replacing Failure with `Effect.mapError`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="replacing-failure-with-effect-maperror-1"
 import { Effect } from "effect"
 
 const validate = (age: number): Effect.Effect<number, string> => {
@@ -61,7 +61,7 @@ const validate = (age: number): Effect.Effect<number, string> => {
   }
 }
 
-const program = Effect.orElseFail(validate(-1), () => "invalid age")
+const program = Effect.mapError(validate(-1), () => "invalid age")
 
 console.log(Effect.runSyncExit(program))
 /*
@@ -69,7 +69,7 @@ Output:
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'invalid age' }
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 ```
@@ -92,7 +92,7 @@ already succeeds, it will remain unchanged.
 
 **Example** (Replacing Failure with Success using `Effect.orElseSucceed`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="replacing-failure-with-success-using-effect-orelsesucceed-1"
 import { Effect } from "effect"
 
 const validate = (age: number): Effect.Effect<number, string> => {
@@ -136,7 +136,7 @@ the outcome of the resulting `Effect` value.
 
 In this example, we try to retrieve a configuration from different nodes. If the primary node fails, we fall back to other nodes until we find a successful configuration.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="finding-configuration-with-fallbacks-1"
 import { Effect, Console } from "effect"
 
 interface Config {
