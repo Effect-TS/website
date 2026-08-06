@@ -259,7 +259,7 @@ When working with unknown data types in TypeScript, decoding them into a known s
 | ---------------------- | -------------------------------------------------------------------------------- |
 | `decodeUnknownSync`    | Synchronously decodes a value and throws an error if parsing fails.              |
 | `decodeUnknownOption`  | Decodes a value and returns an [Option](/docs/data-types/option/) type.          |
-| `decodeUnknownResult`  | Decodes a value and returns an [Either](/docs/data-types/either/) type.          |
+| `decodeUnknownResult`  | Decodes a value and returns a [Result](/docs/data-types/result/) type.           |
 | `decodeUnknownPromise` | Decodes a value and returns a `Promise`.                                         |
 | `decodeUnknownEffect`  | Decodes a value and returns an [Effect](/docs/getting-started/the-effect-type/). |
 
@@ -294,7 +294,7 @@ SchemaError: Expected object
 
 ### decodeUnknownResult
 
-The `Schema.decodeUnknownResult` function allows you to parse a value and receive the result as an [Either](/docs/data-types/either/), representing success (`Success`) or failure (`Failure`). This approach lets you handle parsing errors more gracefully without throwing exceptions.
+The `Schema.decodeUnknownResult` function allows you to parse a value and receive the result as a [Result](/docs/data-types/result/), representing success (`Success`) or failure (`Failure`). This approach lets you handle parsing errors more gracefully without throwing exceptions.
 
 **Example** (Using `Schema.decodeUnknownResult` for Error Handling)
 
@@ -383,13 +383,13 @@ The second approach, which uses `Schema.decodeUnknownEffect`, works correctly, a
 
 The `Schema` module provides several `encode*` functions to encode data according to a schema:
 
-| API             | Description                                                                                          |
-| --------------- | ---------------------------------------------------------------------------------------------------- |
-| `encodeSync`    | Synchronously encodes data and throws an error if encoding fails.                                    |
-| `encodeOption`  | Encodes data and returns an [Option](/docs/data-types/option/) type.                                 |
-| `encodeResult`  | Encodes data and returns an [Either](/docs/data-types/either/) type representing success or failure. |
-| `encodePromise` | Encodes data and returns a `Promise`.                                                                |
-| `encodeEffect`  | Encodes data and returns an [Effect](/docs/getting-started/the-effect-type/).                        |
+| API             | Description                                                                                         |
+| --------------- | --------------------------------------------------------------------------------------------------- |
+| `encodeSync`    | Synchronously encodes data and throws an error if encoding fails.                                   |
+| `encodeOption`  | Encodes data and returns an [Option](/docs/data-types/option/) type.                                |
+| `encodeResult`  | Encodes data and returns a [Result](/docs/data-types/result/) type representing success or failure. |
+| `encodePromise` | Encodes data and returns a `Promise`.                                                               |
+| `encodeEffect`  | Encodes data and returns an [Effect](/docs/getting-started/the-effect-type/).                       |
 
 **Example** (Using `Schema.encodeSync` for Immediate Encoding)
 
@@ -424,7 +424,7 @@ In certain cases, it may not be feasible to support encoding for a schema. While
 
 **Example** (Using `Forbidden` to Indicate Unsupported Encoding)
 
-Here is an example of a transformation that never fails during decoding. It returns an [Either](/docs/data-types/either/) containing either the decoded value or the original input. For encoding, it is reasonable to not support it and use `Forbidden` as the result.
+Here is an example of a transformation that never fails during decoding. It returns a [Result](/docs/data-types/result/) containing either the decoded value or the original input. For encoding, it is reasonable to not support it and use `Forbidden` as the result.
 
 ```ts twoslash
 import { Effect, Result, Schema, SchemaGetter, SchemaIssue } from "effect"
@@ -456,12 +456,12 @@ export const SafeDecode = <A, I>(self: Schema.Codec<A, I>) => {
 
 **Explanation**
 
-- **Decoding**: The `SafeDecode` function ensures that decoding never fails. It wraps the decoded value in an [Either](/docs/data-types/either/), where a successful decoding results in a `Success` and a failed decoding results in a `Failure` containing the original input.
+- **Decoding**: The `SafeDecode` function ensures that decoding never fails. It wraps the decoded value in a [Result](/docs/data-types/result/), where a successful decoding results in a `Success` and a failed decoding results in a `Failure` containing the original input.
 - **Encoding**: The encoding process uses the `Forbidden` error to indicate that encoding a `Failure` value is not supported. Only `Success` values are successfully encoded.
 
 ## SchemaError
 
-The `Schema.decodeUnknownResult` and `Schema.encodeResult` functions returns a [Either](/docs/data-types/either/):
+The `Schema.decodeUnknownResult` and `Schema.encodeResult` functions return a [Result](/docs/data-types/result/):
 
 ```ts showLineNumbers=false
 Result<Type, SchemaError>
