@@ -24,7 +24,7 @@ You use this function when you want to indicate that a computation completed suc
 
 **Example** (Creating a Successful Exit)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="succeed-1"
 import { Exit } from "effect"
 
 // Create an Exit representing a successful outcome with the value 42
@@ -44,7 +44,7 @@ The failure is described using a [Cause](/docs/data-types/cause/) object, which 
 
 **Example** (Creating a Failed Exit)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="failcause-1"
 import { Exit, Cause } from "effect"
 
 // Create an Exit representing a failure with an error message
@@ -59,7 +59,10 @@ Output:
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Something went wrong' }
+  cause: {
+    _id: 'Cause',
+    failures: [ { _tag: 'Fail', error: 'Something went wrong' } ]
+  }
 }
 */
 ```
@@ -71,7 +74,7 @@ This function lets you provide two separate callbacks to handle both success and
 
 **Example** (Matching Success and Failure States)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="pattern-matching-1"
 import { Effect, Exit, Cause } from "effect"
 
 //      ┌─── Exit<number, never>
@@ -96,18 +99,22 @@ console.log(
     onSuccess: (value) => `Exited with success value: ${value}`,
   }),
 )
-// Output: "Exited with failure state: Error: error"
+/*
+Output:
+Exited with failure state: Error: error
+    ...stack trace...
+*/
 ```
 
-## Exit vs Either
+## Exit vs Result
 
-Conceptually, `Exit<A, E>` can be thought of as `Either<A, Cause<E>>`. However, the [Cause](/docs/data-types/cause/) type represents more than just expected errors of type `E`. It includes:
+Conceptually, `Exit<A, E>` can be thought of as `Result<A, Cause<E>>`. However, the [Cause](/docs/data-types/cause/) type represents more than just expected errors of type `E`. It includes:
 
 - Interruption causes
 - Defects (unexpected errors)
 - The combination of multiple causes
 
-This allows `Cause` to capture richer and more complex error states compared to a simple `Either`.
+This allows `Cause` to capture richer and more complex error states compared to a simple `Result`.
 
 ## Exit vs Effect
 
