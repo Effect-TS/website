@@ -23,24 +23,24 @@ interface Equivalence<A> {
 
 The module provides several built-in equivalence relations for common data types:
 
-| Equivalence | Description                                 |
-| ----------- | ------------------------------------------- |
-| `string`    | Uses strict equality (`===`) for strings    |
-| `number`    | Uses strict equality (`===`) for numbers    |
-| `boolean`   | Uses strict equality (`===`) for booleans   |
-| `symbol`    | Uses strict equality (`===`) for symbols    |
-| `bigint`    | Uses strict equality (`===`) for bigints    |
-| `Date`      | Compares `Date` objects by their timestamps |
+| Equivalence             | Description                                 |
+| ----------------------- | ------------------------------------------- |
+| `String`                | Uses strict equality (`===`) for strings    |
+| `Number`                | Uses strict equality (`===`) for numbers    |
+| `Boolean`               | Uses strict equality (`===`) for booleans   |
+| `strictEqual<symbol>()` | Uses strict equality (`===`) for symbols    |
+| `BigInt`                | Uses strict equality (`===`) for bigints    |
+| `Date`                  | Compares `Date` objects by their timestamps |
 
 **Example** (Using Built-in Equivalences)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-built-in-equivalences-1"
 import { Equivalence } from "effect"
 
-console.log(Equivalence.string("apple", "apple"))
+console.log(Equivalence.String("apple", "apple"))
 // Output: true
 
-console.log(Equivalence.string("apple", "orange"))
+console.log(Equivalence.String("apple", "orange"))
 // Output: false
 
 console.log(Equivalence.Date(new Date(2023, 1, 1), new Date(2023, 1, 1)))
@@ -56,7 +56,7 @@ For more complex data structures, you may need custom equivalences. The Equivale
 
 **Example** (Creating a Custom Equivalence for Objects)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="deriving-equivalences-1"
 import { Equivalence } from "effect"
 
 interface User {
@@ -66,7 +66,7 @@ interface User {
 
 // Create an equivalence that compares User objects based only on the id
 const equivalence = Equivalence.mapInput(
-  Equivalence.number, // Base equivalence for comparing numbers
+  Equivalence.Number, // Base equivalence for comparing numbers
   (user: User) => user.id, // Function to extract the id from a User
 )
 
@@ -77,5 +77,5 @@ console.log(equivalence({ id: 1, name: "Alice" }, { id: 1, name: "Al" }))
 
 The `Equivalence.mapInput` function takes two arguments:
 
-1. The existing `Equivalence` you want to use as a base (`Equivalence.number` in this case, for comparing numbers).
+1. The existing `Equivalence` you want to use as a base (`Equivalence.Number` in this case, for comparing numbers).
 2. A function that extracts the value used for the equivalence check from your data structure (`(user: User) => user.id` in this case).
