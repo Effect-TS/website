@@ -29,7 +29,7 @@ The `Effect.log` function allows you to log a message at the default `INFO` leve
 
 **Example** (Logging a Simple Message)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="log-1"
 import { Effect } from "effect"
 
 const program = Effect.log("Application started")
@@ -61,7 +61,7 @@ You can also log multiple messages at once.
 
 **Example** (Logging Multiple Messages)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="log-2"
 import { Effect } from "effect"
 
 const program = Effect.log("message1", "message2", "message3")
@@ -78,7 +78,7 @@ which provide detailed error information under an additional `cause` annotation:
 
 **Example** (Logging with Causes)
 
-```ts twoslash "cause"
+```ts twoslash "cause" import.meta.vitest name="log-3"
 import { Effect, Cause } from "effect"
 
 const program = Effect.log("message1", "message2", Cause.die("Oh no!"), Cause.die("Oh uh!"))
@@ -95,17 +95,17 @@ Error: Oh uh!"
 
 ### logDebug
 
-By default, `DEBUG` messages **are not displayed**. To enable `DEBUG` logs, you can adjust the logging configuration using `Logger.withMinimumLogLevel`, setting the minimum level to `LogLevel.Debug`.
+By default, `DEBUG` messages **are not displayed**. To enable `DEBUG` logs, you can adjust the logging configuration using `Logger.withMinimumLogLevel`, setting the minimum level to `"Debug"`.
 
 **Example** (Enabling Debug Logs)
 
-```ts twoslash
-import { Effect, Logger, LogLevel } from "effect"
+```ts twoslash import.meta.vitest name="logdebug-1"
+import { Effect, References } from "effect"
 
 const task1 = Effect.gen(function* () {
   yield* Effect.sleep("2 seconds")
   yield* Effect.logDebug("task1 done") // Log a debug message
-}).pipe(Logger.withMinimumLogLevel(LogLevel.Debug)) // Enable DEBUG level
+}).pipe(Effect.provideService(References.MinimumLogLevel, "Debug")) // Enable DEBUG level
 
 const task2 = Effect.gen(function* () {
   yield* Effect.sleep("1 second")
@@ -139,7 +139,7 @@ The `INFO` log level is displayed by default. This level is typically used for g
 
 **Example** (Logging at the Info Level)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="loginfo-1"
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
@@ -163,18 +163,18 @@ The `WARN` log level is displayed by default. This level is intended for potenti
 
 **Example** (Logging at the Warning Level)
 
-```ts twoslash
-import { Effect, Either } from "effect"
+```ts twoslash import.meta.vitest name="logwarning-1"
+import { Effect, Result } from "effect"
 
 const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
 const program = Effect.gen(function* () {
-  const failureOrSuccess = yield* Effect.either(task)
-  if (Either.isLeft(failureOrSuccess)) {
-    yield* Effect.logWarning(failureOrSuccess.left)
+  const failureOrSuccess = yield* Effect.result(task)
+  if (Result.isFailure(failureOrSuccess)) {
+    yield* Effect.logWarning(failureOrSuccess.failure)
     return 0
   } else {
-    return failureOrSuccess.right
+    return failureOrSuccess.success
   }
 })
 
@@ -191,18 +191,18 @@ The `ERROR` log level is displayed by default. These messages represent issues t
 
 **Example** (Logging at the Error Level)
 
-```ts twoslash
-import { Effect, Either } from "effect"
+```ts twoslash import.meta.vitest name="logerror-1"
+import { Effect, Result } from "effect"
 
 const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
 const program = Effect.gen(function* () {
-  const failureOrSuccess = yield* Effect.either(task)
-  if (Either.isLeft(failureOrSuccess)) {
-    yield* Effect.logError(failureOrSuccess.left)
+  const failureOrSuccess = yield* Effect.result(task)
+  if (Result.isFailure(failureOrSuccess)) {
+    yield* Effect.logError(failureOrSuccess.failure)
     return 0
   } else {
-    return failureOrSuccess.right
+    return failureOrSuccess.success
   }
 })
 
@@ -219,18 +219,18 @@ The `FATAL` log level is displayed by default. This log level is typically reser
 
 **Example** (Logging at the Fatal Level)
 
-```ts twoslash
-import { Effect, Either } from "effect"
+```ts twoslash import.meta.vitest name="logfatal-1"
+import { Effect, Result } from "effect"
 
 const task = Effect.fail("Oh uh!").pipe(Effect.as(2))
 
 const program = Effect.gen(function* () {
-  const failureOrSuccess = yield* Effect.either(task)
-  if (Either.isLeft(failureOrSuccess)) {
-    yield* Effect.logFatal(failureOrSuccess.left)
+  const failureOrSuccess = yield* Effect.result(task)
+  if (Result.isFailure(failureOrSuccess)) {
+    yield* Effect.logFatal(failureOrSuccess.failure)
     return 0
   } else {
-    return failureOrSuccess.right
+    return failureOrSuccess.success
   }
 })
 
@@ -252,7 +252,7 @@ You can apply a single annotation as a key/value pair to all log entries within 
 
 **Example** (Single Key/Value Annotation)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-a-single-annotation-1"
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
@@ -286,7 +286,7 @@ Annotations propagate to all logs generated within nested or downstream effects.
 
 In this example, the annotation `key=value` is included in all logs, even those from the nested `anotherProgram` effect.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="annotations-with-nested-effects-1"
 import { Effect } from "effect"
 
 // Define a child program that logs an error
@@ -319,7 +319,7 @@ You can also apply multiple annotations at once by passing an object with key/va
 
 **Example** (Multiple Annotations)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-multiple-annotations-1"
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
@@ -346,7 +346,7 @@ If you want to limit the scope of your annotations so that they only apply to ce
 
 **Example** (Scoped Annotations)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="scoped-annotations-1"
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
@@ -376,7 +376,7 @@ Effect provides built-in support for log spans, which allow you to measure and l
 
 **Example** (Measuring Task Duration with a Log Span)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="log-spans-1"
 import { Effect } from "effect"
 
 const program = Effect.gen(function* () {
@@ -405,8 +405,8 @@ Sometimes, perhaps during test execution, you might want to disable default logg
 
 One convenient way to disable logging is by using the `Logger.withMinimumLogLevel` function. This allows you to set the minimum log level to `None`, effectively turning off all log output.
 
-```ts twoslash
-import { Effect, Logger, LogLevel } from "effect"
+```ts twoslash import.meta.vitest name="disabling-default-logging-1"
+import { Effect, References } from "effect"
 
 const program = Effect.gen(function* () {
   yield* Effect.log("Executing task...")
@@ -423,7 +423,7 @@ task done
 */
 
 // Disable logging by setting minimum log level to 'None'
-Effect.runFork(program.pipe(Logger.withMinimumLogLevel(LogLevel.None)))
+Effect.runFork(program.pipe(Effect.provideService(References.MinimumLogLevel, "None")))
 /*
 Output:
 task done
@@ -432,10 +432,10 @@ task done
 
 **Example** (Using a Layer)
 
-Another approach to disable logging is by creating a layer that sets the minimum log level to `LogLevel.None`, effectively turning off all log output.
+Another approach to disable logging is by creating a layer that sets the minimum log level to `"None"`, effectively turning off all log output.
 
-```ts twoslash
-import { Effect, Logger, LogLevel } from "effect"
+```ts twoslash import.meta.vitest name="disabling-default-logging-2"
+import { Effect, Layer, References } from "effect"
 
 const program = Effect.gen(function* () {
   yield* Effect.log("Executing task...")
@@ -444,7 +444,7 @@ const program = Effect.gen(function* () {
 })
 
 // Create a layer that disables logging
-const layer = Logger.minimumLogLevel(LogLevel.None)
+const layer = Layer.succeed(References.MinimumLogLevel, "None")
 
 // Apply the layer to disable logging
 Effect.runFork(program.pipe(Effect.provide(layer)))
@@ -458,8 +458,8 @@ task done
 
 You can also disable logging by creating a custom runtime that includes the configuration to turn off logging:
 
-```ts twoslash
-import { Effect, Logger, LogLevel, ManagedRuntime } from "effect"
+```ts twoslash import.meta.vitest name="disabling-default-logging-3"
+import { Effect, Layer, ManagedRuntime, References } from "effect"
 
 const program = Effect.gen(function* () {
   yield* Effect.log("Executing task...")
@@ -468,7 +468,7 @@ const program = Effect.gen(function* () {
 })
 
 // Create a custom runtime that disables logging
-const customRuntime = ManagedRuntime.make(Logger.minimumLogLevel(LogLevel.None))
+const customRuntime = ManagedRuntime.make(Layer.succeed(References.MinimumLogLevel, "None"))
 
 // Run the program using the custom runtime
 customRuntime.runFork(program)
@@ -484,8 +484,8 @@ To dynamically load the log level from a [configuration](/docs/configuration/) a
 
 **Example** (Loading Log Level from Configuration)
 
-```ts twoslash
-import { Effect, Config, Logger, Layer, ConfigProvider, LogLevel } from "effect"
+```ts twoslash import.meta.vitest name="loading-the-log-level-from-configuration-1"
+import { Effect, Config, Layer, ConfigProvider, References } from "effect"
 
 // Simulate a program with logs
 const program = Effect.gen(function* () {
@@ -497,11 +497,11 @@ const program = Effect.gen(function* () {
 
 // Load the log level from the configuration and apply it as a layer
 const LogLevelLive = Config.logLevel("LOG_LEVEL").pipe(
-  Effect.andThen((level) =>
+  Effect.map((level) =>
     // Set the minimum log level
-    Logger.minimumLogLevel(level),
+    Layer.succeed(References.MinimumLogLevel, level),
   ),
-  Layer.unwrapEffect, // Convert the effect into a layer
+  Layer.unwrap, // Convert the effect into a layer
 )
 
 // Provide the loaded log level to the program
@@ -510,7 +510,7 @@ const configured = Effect.provide(program, LogLevelLive)
 // Test the program using a mock configuration provider
 const test = Effect.provide(
   configured,
-  Layer.setConfigProvider(ConfigProvider.fromMap(new Map([["LOG_LEVEL", LogLevel.Warning.label]]))),
+  ConfigProvider.layer(ConfigProvider.fromUnknown({ LOG_LEVEL: "Warn" })),
 )
 
 Effect.runFork(test)
@@ -522,8 +522,8 @@ Output:
 ```
 
 <Aside type="tip" title="Using ConfigProvider for Testing">
-  The `ConfigProvider.fromMap` function is useful for testing by simulating configuration values.
-  You can also refer to [Mocking Configurations in
+  The `ConfigProvider.fromUnknown` function is useful for testing by simulating configuration
+  values. You can also refer to [Mocking Configurations in
   Tests](/docs/configuration/#mocking-configurations-in-tests) for more details on using mock
   configuration during tests.
 </Aside>
@@ -538,12 +538,12 @@ You can define your own logger using the `Logger.make` function. This function a
 
 **Example** (Defining a Simple Custom Logger)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="defining-a-custom-logger-1"
 import { Logger } from "effect"
 
 // Custom logger that outputs log messages to the console
 const logger = Logger.make(({ logLevel, message }) => {
-  globalThis.console.log(`[${logLevel.label}] ${message}`)
+  globalThis.console.log(`[${logLevel.toUpperCase()}] ${message}`)
 })
 ```
 
@@ -553,12 +553,12 @@ In this example, the custom logger logs messages to the console with the log lev
 
 Let's assume you have the following tasks and a program where you log some messages:
 
-```ts twoslash collapse={3-6}
+```ts twoslash collapse={3-6} import.meta.vitest name="using-a-custom-logger-in-a-program-1"
 import { Effect, Logger } from "effect"
 
 // Custom logger that outputs log messages to the console
 const logger = Logger.make(({ logLevel, message }) => {
-  globalThis.console.log(`[${logLevel.label}] ${message}`)
+  globalThis.console.log(`[${logLevel.toUpperCase()}] ${message}`)
 })
 
 const task1 = Effect.gen(function* () {
@@ -583,12 +583,12 @@ To replace the default logger with your custom logger, you can use the `Logger.r
 
 **Example** (Replacing the Default Logger with a Custom Logger)
 
-```ts twoslash collapse={3-23}
-import { Effect, Logger, LogLevel } from "effect"
+```ts twoslash collapse={3-23} import.meta.vitest name="using-a-custom-logger-in-a-program-2"
+import { Effect, Logger, References } from "effect"
 
 // Custom logger that outputs log messages to the console
 const logger = Logger.make(({ logLevel, message }) => {
-  globalThis.console.log(`[${logLevel.label}] ${message}`)
+  globalThis.console.log(`[${logLevel.toUpperCase()}] ${message}`)
 })
 
 const task1 = Effect.gen(function* () {
@@ -609,9 +609,11 @@ const program = Effect.gen(function* () {
 })
 
 // Replace the default logger with the custom logger
-const layer = Logger.replace(Logger.defaultLogger, logger)
+const layer = Logger.layer([logger, Logger.tracerLogger])
 
-Effect.runFork(program.pipe(Logger.withMinimumLogLevel(LogLevel.Debug), Effect.provide(layer)))
+Effect.runFork(
+  program.pipe(Effect.provideService(References.MinimumLogLevel, "Debug"), Effect.provide(layer)),
+)
 ```
 
 When you run the above program, the following log messages are printed to the console:
@@ -635,7 +637,7 @@ The `stringLogger` logger produces logs in a human-readable key-value style. Thi
 
 This logger does not have a corresponding layer because it is the default logger.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="stringlogger-default-1"
 import { Effect } from "effect"
 
 const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
@@ -660,7 +662,7 @@ timestamp=2024-12-28T10:44:31.281Z level=INFO fiber=#0 message=msg1 message=msg2
 
 The `logfmtLogger` logger produces logs in a human-readable key-value format, similar to the [stringLogger](#stringlogger-default) logger. The main difference is that `logfmtLogger` removes extra spaces to make logs more compact.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="logfmtlogger-1"
 import { Effect, Logger } from "effect"
 
 const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
@@ -669,7 +671,9 @@ const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
   Effect.withLogSpan("myspan"),
 )
 
-Effect.runFork(program.pipe(Effect.provide(Logger.logFmt)))
+Effect.runFork(
+  program.pipe(Effect.provide(Logger.layer([Logger.consoleLogFmt, Logger.tracerLogger]))),
+)
 ```
 
 Output:
@@ -682,7 +686,7 @@ timestamp=2024-12-28T10:44:31.281Z level=INFO fiber=#0 message=msg1 message=msg2
 
 The `prettyLogger` logger enhances log output by using color and indentation for better readability, making it particularly useful during development when visually scanning logs in the console.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="prettylogger-1"
 import { Effect, Logger } from "effect"
 
 const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
@@ -691,7 +695,9 @@ const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
   Effect.withLogSpan("myspan"),
 )
 
-Effect.runFork(program.pipe(Effect.provide(Logger.pretty)))
+Effect.runFork(
+  program.pipe(Effect.provide(Logger.layer([Logger.consolePretty(), Logger.tracerLogger]))),
+)
 ```
 
 Output:
@@ -708,7 +714,7 @@ Output:
 
 The `structuredLogger` logger produces logs in a detailed object-based format. This format is helpful when you need more traceable logs, especially if other systems analyze them or store them for later review.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="structuredlogger-1"
 import { Effect, Logger } from "effect"
 
 const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
@@ -717,7 +723,9 @@ const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
   Effect.withLogSpan("myspan"),
 )
 
-Effect.runFork(program.pipe(Effect.provide(Logger.structured)))
+Effect.runFork(
+  program.pipe(Effect.provide(Logger.layer([Logger.consoleStructured, Logger.tracerLogger]))),
+)
 ```
 
 Output:
@@ -749,7 +757,7 @@ Output:
 The `jsonLogger` logger produces logs in JSON format. This can be useful for tools or services that parse and store JSON logs.
 It calls `JSON.stringify` on the object created by the [structuredLogger](#structuredlogger) logger.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="jsonlogger-1"
 import { Effect, Logger } from "effect"
 
 const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
@@ -758,7 +766,9 @@ const program = Effect.log("msg1", "msg2", ["msg3", "msg4"]).pipe(
   Effect.withLogSpan("myspan"),
 )
 
-Effect.runFork(program.pipe(Effect.provide(Logger.json)))
+Effect.runFork(
+  program.pipe(Effect.provide(Logger.layer([Logger.consoleJson, Logger.tracerLogger]))),
+)
 ```
 
 Output:
@@ -775,26 +785,26 @@ The `Logger.zip` function combines two loggers into a new logger. This new logge
 
 **Example** (Combining Two Loggers)
 
-```ts
+```ts import.meta.vitest name="zip-1"
 import { Effect, Logger } from "effect"
 
 // Define a custom logger that logs to the console
 const logger = Logger.make(({ logLevel, message }) => {
-  globalThis.console.log(`[${logLevel.label}] ${message}`)
+  globalThis.console.log(`[${logLevel.toUpperCase()}] ${message}`)
 })
 
 // Combine the default logger and the custom logger
 //
 //      ┌─── Logger<unknown, [void, void]>
 //      ▼
-const combined = Logger.zip(Logger.defaultLogger, logger)
+const combined = Logger.make((options) => [Logger.defaultLogger.log(options), logger.log(options)])
 
 const program = Effect.log("something")
 
 Effect.runFork(
   program.pipe(
     // Replace the default logger with the combined logger
-    Effect.provide(Logger.replace(Logger.defaultLogger, combined)),
+    Effect.provide(Logger.layer([combined, Logger.tracerLogger])),
   ),
 )
 /*
