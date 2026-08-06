@@ -42,25 +42,23 @@ In this example, we start with a schema that accepts `"on"` or `"off"` and trans
 
 **Example** (Converting a String to a Boolean)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="combining-two-primitive-schemas-1"
+import { Schema, SchemaTransformation } from "effect"
 
 // Convert "on"/"off" to boolean and back
-const BooleanFromString = Schema.transform(
-  // Source schema: "on" or "off"
-  Schema.Literal("on", "off"),
-  // Target schema: boolean
-  Schema.Boolean,
-  {
-    // optional but you get better error messages from TypeScript
-    strict: true,
-    // Transformation to convert the output of the
-    // source schema ("on" | "off") into the input of the
-    // target schema (boolean)
-    decode: (literal) => literal === "on", // Always succeeds here
-    // Reverse transformation
-    encode: (bool) => (bool ? "on" : "off"),
-  },
+const BooleanFromString = Schema.Literals(["on", "off"]).pipe(
+  Schema.decodeTo(
+    // Target schema: boolean
+    Schema.Boolean,
+    SchemaTransformation.transform({
+      // Transformation to convert the output of the
+      // source schema ("on" | "off") into the input of the
+      // target schema (boolean)
+      decode: (literal) => literal === "on", // Always succeeds here
+      // Reverse transformation
+      encode: (bool) => (bool ? "on" : "off"),
+    }),
+  ),
 )
 
 //     ┌─── "on" | "off"
@@ -73,6 +71,8 @@ type Type = typeof BooleanFromString.Type
 
 console.log(Schema.decodeUnknownSync(BooleanFromString)("on"))
 // Output: true
+
+Schema.decodeUnknownSync(BooleanFromString)("on") // => true
 ```
 
 The `decode` function above never fails by itself. However, the full decoding process can still fail if the input does not fit the source schema. For example, if you provide `"wrong"` instead of `"on"` or `"off"`, the source schema will fail before calling `decode`.
@@ -80,24 +80,24 @@ The `decode` function above never fails by itself. However, the full decoding pr
 **Example** (Handling Invalid Input)
 
 ```ts twoslash collapse={4-12}
-import { Schema } from "effect"
+import { Schema, SchemaTransformation } from "effect"
 
 // Convert "on"/"off" to boolean and back
-const BooleanFromString = Schema.transform(Schema.Literal("on", "off"), Schema.Boolean, {
-  strict: true,
-  decode: (s) => s === "on",
-  encode: (bool) => (bool ? "on" : "off"),
-})
+const BooleanFromString = Schema.Literals(["on", "off"]).pipe(
+  Schema.decodeTo(
+    Schema.Boolean,
+    SchemaTransformation.transform({
+      decode: (s) => s === "on",
+      encode: (bool) => (bool ? "on" : "off"),
+    }),
+  ),
+)
 
 // Providing input not allowed by the source schema
 Schema.decodeUnknownSync(BooleanFromString)("wrong")
 /*
 throws:
-ParseError: ("on" | "off" <-> boolean)
-└─ Encoded side transformation failure
-   └─ "on" | "off"
-      ├─ Expected "on", actual "wrong"
-      └─ Expected "off", actual "wrong"
+SchemaError: Expected "on" | "off"
 */
 ```
 
@@ -117,28 +117,31 @@ By composing these transformations, we get a schema that decodes a string into a
 
 **Example** (Combining Two Transformation Schemas)
 
-```ts twoslash collapse={4-12}
-import { Schema } from "effect"
+```ts twoslash collapse={4-12} import.meta.vitest name="combining-two-transformation-schemas-1"
+import { Schema, SchemaTransformation } from "effect"
 
 // Convert "on"/"off" to boolean and back
-const BooleanFromString = Schema.transform(Schema.Literal("on", "off"), Schema.Boolean, {
-  strict: true,
-  decode: (s) => s === "on",
-  encode: (bool) => (bool ? "on" : "off"),
-})
+const BooleanFromString = Schema.Literals(["on", "off"]).pipe(
+  Schema.decodeTo(
+    Schema.Boolean,
+    SchemaTransformation.transform({
+      decode: (s) => s === "on",
+      encode: (bool) => (bool ? "on" : "off"),
+    }),
+  ),
+)
 
-const BooleanFromNumericString = Schema.transform(
-  // Source schema: Convert string -> number
-  Schema.NumberFromString,
-  // Target schema: Convert "on"/"off" -> boolean
-  BooleanFromString,
-  {
-    strict: true,
-    // If number is positive, use "on", otherwise "off"
-    decode: (n) => (n > 0 ? "on" : "off"),
-    // If boolean is "on", use 1, otherwise -1
-    encode: (bool) => (bool === "on" ? 1 : -1),
-  },
+const BooleanFromNumericString = Schema.NumberFromString.pipe(
+  Schema.decodeTo(
+    // Target schema: Convert "on"/"off" -> boolean
+    BooleanFromString,
+    SchemaTransformation.transform({
+      // If number is positive, use "on", otherwise "off"
+      decode: (n) => (n > 0 ? "on" : "off"),
+      // If boolean is "on", use 1, otherwise -1
+      encode: (bool) => (bool === "on" ? 1 : -1),
+    }),
+  ),
 )
 
 //     ┌─── string
@@ -151,32 +154,33 @@ type Type = typeof BooleanFromNumericString.Type
 
 console.log(Schema.decodeUnknownSync(BooleanFromNumericString)("100"))
 // Output: true
+
+Schema.decodeUnknownSync(BooleanFromNumericString)("100") // => true
 ```
 
 **Example** (Converting an array to a ReadonlySet)
 
 In this example, we convert an array into a `ReadonlySet`. The `decode` function takes an array and creates a new `ReadonlySet`. The `encode` function converts the set back into an array. We also provide the schema of the array items so they are properly validated.
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="combining-two-transformation-schemas-2"
+import { Schema, SchemaTransformation } from "effect"
 
 // This function builds a schema that converts between a readonly array
 // and a readonly set of items
 const ReadonlySetFromArray = <A, I, R>(
-  itemSchema: Schema.Schema<A, I, R>,
-): Schema.Schema<ReadonlySet<A>, ReadonlyArray<I>, R> =>
-  Schema.transform(
-    // Source schema: array of items
-    Schema.Array(itemSchema),
-    // Target schema: readonly set of items
-    // **IMPORTANT** We use `Schema.typeSchema` here to obtain the schema
-    // of the items to avoid decoding the elements twice
-    Schema.ReadonlySetFromSelf(Schema.typeSchema(itemSchema)),
-    {
-      strict: true,
-      decode: (items) => new Set(items),
-      encode: (set) => Array.from(set.values()),
-    },
+  itemSchema: Schema.Codec<A, I, R>,
+): Schema.Codec<ReadonlySet<A>, ReadonlyArray<I>, R> =>
+  Schema.Array(itemSchema).pipe(
+    Schema.decodeTo(
+      // Target schema: readonly set of items
+      // **IMPORTANT** We use `Schema.toType` here to obtain the schema
+      // of the items to avoid decoding the elements twice
+      Schema.ReadonlySet(Schema.toType(itemSchema)),
+      SchemaTransformation.transform({
+        decode: (items: ReadonlyArray<A>) => new Set(items) as ReadonlySet<A>,
+        encode: (set: ReadonlySet<A>): ReadonlyArray<A> => Array.from(set.values()),
+      }),
+    ),
   )
 
 const schema = ReadonlySetFromArray(Schema.String)
@@ -194,13 +198,15 @@ console.log(Schema.decodeUnknownSync(schema)(["a", "b", "c"]))
 
 console.log(Schema.encodeSync(schema)(new Set(["a", "b", "c"])))
 // Output: [ 'a', 'b', 'c' ]
+
+Schema.encodeSync(schema)(new Set(["a", "b", "c"])) // => ["a", "b", "c"]
 ```
 
-<Aside type="note" title="Why Schema.typeSchema is used">
+<Aside type="note" title="Why Schema.toType is used">
   Please note that to define the target schema, we used
-  [Schema.typeSchema](/docs/schema/projections/#typeschema). This is because the decoding/encoding
-  of the elements is already handled by the `from` schema: `Schema.Array(itemSchema)`, avoiding
-  double decoding.
+  [Schema.toType](/docs/schema/projections/#totype). This is because the decoding/encoding of the
+  elements is already handled by the `from` schema: `Schema.Array(itemSchema)`, avoiding double
+  decoding.
 </Aside>
 
 ### Non-strict option
@@ -307,36 +313,27 @@ These tools allow for detailed and specific error handling, enhancing the reliab
 A common use case for `Schema.transformOrFail` is converting string representations of numbers into actual numeric types. This scenario is typical when dealing with user inputs or data from external sources.
 
 ```ts twoslash
-import { ParseResult, Schema } from "effect"
+import { Effect, Schema, SchemaGetter, SchemaIssue } from "effect"
 
-export const NumberFromString = Schema.transformOrFail(
-  // Source schema: accepts any string
-  Schema.String,
-  // Target schema: expects a number
-  Schema.Number,
-  {
-    // optional but you get better error messages from TypeScript
-    strict: true,
-    decode: (input, options, ast) => {
-      const parsed = parseFloat(input)
-      // If parsing fails (NaN), return a ParseError with a custom error
-      if (isNaN(parsed)) {
-        return ParseResult.fail(
-          // Create a Type Mismatch error
-          new ParseResult.Type(
-            // Provide the schema's abstract syntax tree for context
-            ast,
-            // Include the problematic input
-            input,
+export const NumberFromString = Schema.String.pipe(
+  Schema.decodeTo(
+    // Target schema: expects a number
+    Schema.Number,
+    {
+      decode: SchemaGetter.transformOrFail((input) => {
+        const parsed = parseFloat(input)
+        // If parsing fails (NaN), fail with a custom issue
+        if (isNaN(parsed)) {
+          return Effect.fail(
             // Optional custom error message
-            "Failed to convert string to number",
-          ),
-        )
-      }
-      return ParseResult.succeed(parsed)
+            new SchemaIssue.InvalidValue({ message: "Failed to convert string to number" }),
+          )
+        }
+        return Effect.succeed(parsed)
+      }),
+      encode: SchemaGetter.transformOrFail((input) => Effect.succeed(input.toString())),
     },
-    encode: (input, options, ast) => ParseResult.succeed(input.toString()),
-  },
+  ),
 )
 
 //     ┌─── string
@@ -353,9 +350,7 @@ console.log(Schema.decodeUnknownSync(NumberFromString)("123"))
 console.log(Schema.decodeUnknownSync(NumberFromString)("-"))
 /*
 throws:
-ParseError: (string <-> number)
-└─ Transformation process failure
-   └─ Failed to convert string to number
+SchemaError: Failed to convert string to number
 */
 ```
 
@@ -370,7 +365,7 @@ In modern applications, especially those interacting with external APIs, you mig
 Consider a scenario where you need to validate a person's ID by making an API call. Here's how you can implement it:
 
 ```ts twoslash
-import { Effect, Schema, ParseResult } from "effect"
+import { Effect, Schema, SchemaGetter, SchemaIssue } from "effect"
 
 // Define a function to make API requests
 const get = (url: string): Effect.Effect<unknown, Error> =>
@@ -389,18 +384,20 @@ const get = (url: string): Effect.Effect<unknown, Error> =>
 const PeopleId = Schema.String.pipe(Schema.brand("PeopleId"))
 
 // Define a schema with async transformation
-const PeopleIdFromString = Schema.transformOrFail(Schema.String, PeopleId, {
-  strict: true,
-  decode: (s, _, ast) =>
-    // Make an API call to validate the ID
-    Effect.mapBoth(get(`https://swapi.dev/api/people/${s}`), {
-      // Error handling for failed API call
-      onFailure: (e) => new ParseResult.Type(ast, s, e.message),
-      // Return the ID if the API call succeeds
-      onSuccess: () => s,
-    }),
-  encode: ParseResult.succeed,
-})
+const PeopleIdFromString = Schema.String.pipe(
+  Schema.decodeTo(PeopleId, {
+    decode: SchemaGetter.transformOrFail((s) =>
+      // Make an API call to validate the ID
+      Effect.mapBoth(get(`https://swapi.dev/api/people/${s}`), {
+        // Error handling for failed API call
+        onFailure: (e) => new SchemaIssue.InvalidValue({ message: e.message }),
+        // Return the ID if the API call succeeds
+        onSuccess: () => s,
+      }),
+    ),
+    encode: SchemaGetter.passthrough(),
+  }),
+)
 
 //     ┌─── string
 //     ▼
@@ -412,32 +409,23 @@ type Type = typeof PeopleIdFromString.Type
 
 //     ┌─── never
 //     ▼
-type Context = typeof PeopleIdFromString.Context
+type DecodingServices = typeof PeopleIdFromString.DecodingServices
 
 // Run a successful decode operation
-Effect.runPromiseExit(Schema.decodeUnknown(PeopleIdFromString)("1")).then(console.log)
+Effect.runPromiseExit(Schema.decodeUnknownEffect(PeopleIdFromString)("1")).then(console.log)
 /*
 Output:
 { _id: 'Exit', _tag: 'Success', value: '1' }
 */
 
 // Run a decode operation that will fail
-Effect.runPromiseExit(Schema.decodeUnknown(PeopleIdFromString)("fail")).then(console.log)
+Effect.runPromiseExit(Schema.decodeUnknownEffect(PeopleIdFromString)("fail")).then(console.log)
 /*
 Output:
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Fail',
-    failure: {
-      _id: 'ParseError',
-      message: '(string <-> string & Brand<"PeopleId">)\n' +
-        '└─ Transformation process failure\n' +
-        '   └─ Error: 404'
-    }
-  }
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 ```
@@ -452,35 +440,37 @@ Schema<Type, Encoded, Requirements>
 
 **Example** (Validating Data with a Service)
 
-```ts twoslash {46}
-import { Context, Effect, Schema, ParseResult, Layer } from "effect"
+```ts twoslash
+import { Context, Effect, Schema, SchemaGetter, SchemaIssue, Layer } from "effect"
 
 // Define a Validation service for dependency injection
-class Validation extends Context.Tag("Validation")<
+class Validation extends Context.Service<
   Validation,
   {
     readonly validatePeopleid: (s: string) => Effect.Effect<void, Error>
   }
->() {}
+>()("Validation") {}
 
 // Create a branded schema for a person's ID
 const PeopleId = Schema.String.pipe(Schema.brand("PeopleId"))
 
 // Transform a string into a validated PeopleId,
 // using an external validation service
-const PeopleIdFromString = Schema.transformOrFail(Schema.String, PeopleId, {
-  strict: true,
-  decode: (s, _, ast) =>
-    // Asynchronously validate the ID using the injected service
-    Effect.gen(function* () {
-      // Access the validation service
-      const validator = yield* Validation
-      // Use service to validate ID
-      yield* validator.validatePeopleid(s)
-      return s
-    }).pipe(Effect.mapError((e) => new ParseResult.Type(ast, s, e.message))),
-  encode: ParseResult.succeed, // Encode by simply returning the string
-})
+const PeopleIdFromString = Schema.String.pipe(
+  Schema.decodeTo(PeopleId, {
+    decode: SchemaGetter.transformOrFail((s) =>
+      // Asynchronously validate the ID using the injected service
+      Effect.gen(function* () {
+        // Access the validation service
+        const validator = yield* Validation
+        // Use service to validate ID
+        yield* validator.validatePeopleid(s)
+        return s
+      }).pipe(Effect.mapError((e) => new SchemaIssue.InvalidValue({ message: e.message }))),
+    ),
+    encode: SchemaGetter.passthrough(), // Encode by simply returning the string
+  }),
+)
 
 //     ┌─── string
 //     ▼
@@ -492,7 +482,7 @@ type Type = typeof PeopleIdFromString.Type
 
 //     ┌─── Validation
 //     ▼
-type Context = typeof PeopleIdFromString.Context
+type DecodingServices = typeof PeopleIdFromString.DecodingServices
 
 // Layer to provide a successful validation service
 const SuccessTest = Layer.succeed(Validation, {
@@ -501,7 +491,7 @@ const SuccessTest = Layer.succeed(Validation, {
 
 // Run a successful decode operation
 Effect.runPromiseExit(
-  Schema.decodeUnknown(PeopleIdFromString)("1").pipe(Effect.provide(SuccessTest)),
+  Schema.decodeUnknownEffect(PeopleIdFromString)("1").pipe(Effect.provide(SuccessTest)),
 ).then(console.log)
 /*
 Output:
@@ -515,23 +505,14 @@ const FailureTest = Layer.succeed(Validation, {
 
 // Run a decode operation that will fail
 Effect.runPromiseExit(
-  Schema.decodeUnknown(PeopleIdFromString)("fail").pipe(Effect.provide(FailureTest)),
+  Schema.decodeUnknownEffect(PeopleIdFromString)("fail").pipe(Effect.provide(FailureTest)),
 ).then(console.log)
 /*
 Output:
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Fail',
-    failure: {
-      _id: 'ParseError',
-      message: '(string <-> string & Brand<"PeopleId">)\n' +
-        '└─ Transformation process failure\n' +
-        '   └─ Error: 404'
-    }
-  }
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 ```
@@ -545,44 +526,37 @@ In some cases, encoding a value back to its original form may not make sense or 
 Consider a scenario where you need to hash a user's plain text password for secure storage. It is important that the hashed password cannot be reversed back to plain text. By using `Schema.transformOrFail`, you can enforce this restriction, ensuring a one-way transformation from plain text to a hashed password.
 
 ```ts twoslash
-import { Schema, ParseResult, Redacted } from "effect"
+import { Schema, SchemaGetter, Redacted } from "effect"
 import { createHash } from "node:crypto"
 
 // Define a schema for plain text passwords
 // with a minimum length requirement
 const PlainPassword = Schema.String.pipe(
-  Schema.minLength(6),
-  Schema.brand("PlainPassword", { identifier: "PlainPassword" }),
+  Schema.check(Schema.isMinLength(6)),
+  Schema.brand("PlainPassword"),
 )
 
 // Define a schema for hashed passwords as a separate branded type
-const HashedPassword = Schema.String.pipe(
-  Schema.brand("HashedPassword", { identifier: "HashedPassword" }),
-)
+const HashedPassword = Schema.String.pipe(Schema.brand("HashedPassword"))
 
 // Define a one-way transformation from plain passwords to hashed passwords
-export const PasswordHashing = Schema.transformOrFail(
-  PlainPassword,
-  // Wrap the output in Redacted for added safety
-  Schema.RedactedFromSelf(HashedPassword),
-  {
-    strict: true,
-    // Decode: Transform a plain password into a hashed password
-    decode: (plainPassword) => {
-      const hash = createHash("sha256").update(plainPassword).digest("hex")
-      // Wrap the hash in Redacted
-      return ParseResult.succeed(Redacted.make(hash))
-    },
-    // Encode: Forbid reversing the hashed password back to plain text
-    encode: (hashedPassword, _, ast) =>
-      ParseResult.fail(
-        new ParseResult.Forbidden(
-          ast,
-          hashedPassword,
-          "Encoding hashed passwords back to plain text is forbidden.",
-        ),
+export const PasswordHashing = PlainPassword.pipe(
+  Schema.decodeTo(
+    // Wrap the output in Redacted for added safety
+    Schema.Redacted(HashedPassword),
+    {
+      // Decode: Transform a plain password into a hashed password
+      decode: SchemaGetter.transform((plainPassword) => {
+        const hash = createHash("sha256").update(plainPassword).digest("hex")
+        // Wrap the hash in Redacted
+        return Redacted.make(hash)
+      }),
+      // Encode: Forbid reversing the hashed password back to plain text
+      encode: SchemaGetter.forbidden(
+        () => "Encoding hashed passwords back to plain text is forbidden.",
       ),
-  },
+    },
+  ),
 )
 
 //     ┌─── string
@@ -601,10 +575,7 @@ console.log(Schema.decodeUnknownSync(PasswordHashing)("myPlainPassword123"))
 console.log(Schema.encodeUnknownSync(PasswordHashing)(Redacted.make("2ef2b7...")))
 /*
 throws:
-ParseError: (PlainPassword <-> Redacted(<redacted>))
-└─ Transformation process failure
-   └─ (PlainPassword <-> Redacted(<redacted>))
-      └─ Encoding hashed passwords back to plain text is forbidden.
+SchemaError: Encoding hashed passwords back to plain text is forbidden.
 */
 ```
 
@@ -667,7 +638,7 @@ The `Schema.filterEffect` function enables validations that require asynchronous
 **Example** (Asynchronous Username Validation)
 
 ```ts twoslash
-import { Effect, Schema } from "effect"
+import { Effect, Schema, SchemaGetter } from "effect"
 
 // Mock async function to validate a username
 async function validateUsername(username: string) {
@@ -676,20 +647,22 @@ async function validateUsername(username: string) {
 
 // Define a schema with an effectful filter
 const ValidUsername = Schema.String.pipe(
-  Schema.filterEffect((username) =>
-    Effect.promise(() =>
-      // Validate the username asynchronously,
-      // returning an error message if invalid
-      validateUsername(username).then((valid) => valid || "Invalid username"),
+  Schema.decode({
+    decode: SchemaGetter.checkEffect((username) =>
+      Effect.promise(() =>
+        // Validate the username asynchronously,
+        // returning an error message if invalid
+        validateUsername(username).then((valid) => valid || "Invalid username"),
+      ),
     ),
-  ),
-).annotations({ identifier: "ValidUsername" })
+    encode: SchemaGetter.passthrough(),
+  }),
+).annotate({ identifier: "ValidUsername" })
 
-Effect.runPromise(Schema.decodeUnknown(ValidUsername)("xxx")).then(console.log)
+Effect.runPromise(Schema.decodeUnknownEffect(ValidUsername)("xxx")).then(console.log)
 /*
-ParseError: ValidUsername
-└─ Transformation process failure
-   └─ Invalid username
+throws:
+SchemaError: Invalid username
 */
 ```
 
@@ -701,10 +674,22 @@ Splits a string by a specified delimiter into an array of substrings.
 
 **Example** (Splitting a String by Comma)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="split-1"
+import { Schema, SchemaTransformation } from "effect"
 
-const schema = Schema.split(",")
+function split(separator: string) {
+  return Schema.String.pipe(
+    Schema.decodeTo(
+      Schema.Array(Schema.String),
+      SchemaTransformation.transform({
+        decode: (s) => s.split(separator) as ReadonlyArray<string>,
+        encode: (as) => as.join(separator),
+      }),
+    ),
+  )
+}
+
+const schema = split(",")
 
 const decode = Schema.decodeUnknownSync(schema)
 
@@ -712,6 +697,8 @@ console.log(decode("")) // [""]
 console.log(decode(",")) // ["", ""]
 console.log(decode("a,")) // ["a", ""]
 console.log(decode("a,b")) // ["a", "b"]
+
+decode("a,b") // => ["a", "b"]
 ```
 
 ### Trim
@@ -720,7 +707,7 @@ Removes whitespace from the beginning and end of a string.
 
 **Example** (Trimming Whitespace)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="trim-1"
 import { Schema } from "effect"
 
 const decode = Schema.decodeUnknownSync(Schema.Trim)
@@ -729,11 +716,13 @@ console.log(decode("a")) // "a"
 console.log(decode(" a")) // "a"
 console.log(decode("a ")) // "a"
 console.log(decode(" a ")) // "a"
+
+decode(" a ") // => "a"
 ```
 
 <Aside type="tip" title="Trimmed Check">
   If you were looking for a combinator to check if a string is trimmed, check out the
-  `Schema.trimmed` filter.
+  `Schema.isTrimmed` filter.
 </Aside>
 
 ### Lowercase
@@ -742,20 +731,26 @@ Converts a string to lowercase.
 
 **Example** (Converting to Lowercase)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="lowercase-1"
+import { Schema, SchemaTransformation } from "effect"
 
-const decode = Schema.decodeUnknownSync(Schema.Lowercase)
+const decode = Schema.decodeUnknownSync(
+  Schema.String.pipe(
+    Schema.decodeTo(Schema.String.check(Schema.isLowercased()), SchemaTransformation.toLowerCase()),
+  ),
+)
 
 console.log(decode("A")) // "a"
 console.log(decode(" AB")) // " ab"
 console.log(decode("Ab ")) // "ab "
 console.log(decode(" ABc ")) // " abc "
+
+decode("A") // => "a"
 ```
 
 <Aside type="tip" title="Lowercase And Lowercased">
   If you were looking for a combinator to check if a string is lowercased, check out the
-  `Schema.Lowercased` schema or the `Schema.lowercased` filter.
+  `Schema.Lowercased` schema or the `Schema.isLowercased` filter.
 </Aside>
 
 ### Uppercase
@@ -764,20 +759,26 @@ Converts a string to uppercase.
 
 **Example** (Converting to Uppercase)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="uppercase-1"
+import { Schema, SchemaTransformation } from "effect"
 
-const decode = Schema.decodeUnknownSync(Schema.Uppercase)
+const decode = Schema.decodeUnknownSync(
+  Schema.String.pipe(
+    Schema.decodeTo(Schema.String.check(Schema.isUppercased()), SchemaTransformation.toUpperCase()),
+  ),
+)
 
 console.log(decode("a")) // "A"
 console.log(decode(" ab")) // " AB"
 console.log(decode("aB ")) // "AB "
 console.log(decode(" abC ")) // " ABC "
+
+decode("a") // => "A"
 ```
 
 <Aside type="tip" title="Uppercase And Uppercased">
   If you were looking for a combinator to check if a string is uppercased, check out the
-  `Schema.Uppercased` schema or the `Schema.uppercased` filter.
+  `Schema.Uppercased` schema or the `Schema.isUppercased` filter.
 </Aside>
 
 ### Capitalize
@@ -786,20 +787,26 @@ Converts the first character of a string to uppercase.
 
 **Example** (Capitalizing a String)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="capitalize-1"
+import { Schema, SchemaTransformation } from "effect"
 
-const decode = Schema.decodeUnknownSync(Schema.Capitalize)
+const decode = Schema.decodeUnknownSync(
+  Schema.String.pipe(
+    Schema.decodeTo(Schema.String.check(Schema.isCapitalized()), SchemaTransformation.capitalize()),
+  ),
+)
 
 console.log(decode("aa")) // "Aa"
 console.log(decode(" ab")) // " ab"
 console.log(decode("aB ")) // "AB "
 console.log(decode(" abC ")) // " abC "
+
+decode("aa") // => "Aa"
 ```
 
 <Aside type="tip" title="Capitalize And Capitalized">
   If you were looking for a combinator to check if a string is capitalized, check out the
-  `Schema.Capitalized` schema or the `Schema.capitalized` filter.
+  `Schema.Capitalized` schema or the `Schema.isCapitalized` filter.
 </Aside>
 
 ### Uncapitalize
@@ -808,20 +815,29 @@ Converts the first character of a string to lowercase.
 
 **Example** (Uncapitalizing a String)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="uncapitalize-1"
+import { Schema, SchemaTransformation } from "effect"
 
-const decode = Schema.decodeUnknownSync(Schema.Uncapitalize)
+const decode = Schema.decodeUnknownSync(
+  Schema.String.pipe(
+    Schema.decodeTo(
+      Schema.String.check(Schema.isUncapitalized()),
+      SchemaTransformation.uncapitalize(),
+    ),
+  ),
+)
 
 console.log(decode("AA")) // "aA"
 console.log(decode(" AB")) // " AB"
 console.log(decode("Ab ")) // "ab "
 console.log(decode(" AbC ")) // " AbC "
+
+decode("AA") // => "aA"
 ```
 
 <Aside type="tip" title="Uncapitalize And Uncapitalized">
   If you were looking for a combinator to check if a string is uncapitalized, check out the
-  `Schema.Uncapitalized` schema or the `Schema.uncapitalized` filter.
+  `Schema.Uncapitalized` schema or the `Schema.isUncapitalized` filter.
 </Aside>
 
 ### parseJson
@@ -834,7 +850,7 @@ It also employs `JSON.stringify` for encoding.
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.parseJson()
+const schema = Schema.UnknownFromJsonString
 const decode = Schema.decodeUnknownSync(schema)
 
 // Parse valid JSON strings
@@ -845,9 +861,7 @@ console.log(decode(`{"a":"b"}`)) // Output: { a: "b" }
 decode("")
 /*
 throws:
-ParseError: (JsonString <-> unknown)
-└─ Transformation process failure
-   └─ Unexpected end of JSON input
+SchemaError: Expected a valid JSON string
 */
 ```
 
@@ -857,12 +871,10 @@ To further refine the result of JSON parsing, you can provide a schema to the `S
 
 In this example, `Schema.parseJson` uses a struct schema to ensure the parsed JSON is an object with a numeric property `a`. This adds validation to the parsed data, confirming that it follows the expected structure.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="parsejson-1"
 import { Schema } from "effect"
 
-//     ┌─── SchemaClass<{ readonly a: number; }, string, never>
-//     ▼
-const schema = Schema.parseJson(Schema.Struct({ a: Schema.Number }))
+const schema = Schema.fromJsonString(Schema.Struct({ a: Schema.Number }))
 ```
 
 ### StringFromBase64
@@ -871,13 +883,15 @@ Decodes a base64 (RFC4648) encoded string into a UTF-8 string.
 
 **Example** (Decoding Base64)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="stringfrombase64-1"
 import { Schema } from "effect"
 
 const decode = Schema.decodeUnknownSync(Schema.StringFromBase64)
 
 console.log(decode("Zm9vYmFy"))
 // Output: "foobar"
+
+decode("Zm9vYmFy") // => "foobar"
 ```
 
 ### StringFromBase64Url
@@ -886,13 +900,15 @@ Decodes a base64 (URL) encoded string into a UTF-8 string.
 
 **Example** (Decoding Base64 URL)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="stringfrombase64url-1"
 import { Schema } from "effect"
 
 const decode = Schema.decodeUnknownSync(Schema.StringFromBase64Url)
 
 console.log(decode("Zm9vYmFy"))
 // Output: "foobar"
+
+decode("Zm9vYmFy") // => "foobar"
 ```
 
 ### StringFromHex
@@ -901,7 +917,7 @@ Decodes a hex encoded string into a UTF-8 string.
 
 **Example** (Decoding Hex String)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="stringfromhex-1"
 import { Schema } from "effect"
 
 const decode = Schema.decodeUnknownSync(Schema.StringFromHex)
@@ -948,7 +964,7 @@ The following special string values are supported: "NaN", "Infinity", "-Infinity
 
 **Example** (Parsing Number from String)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="numberfromstring-1"
 import { Schema } from "effect"
 
 const schema = Schema.NumberFromString
@@ -963,14 +979,10 @@ console.log(decode("NaN")) // NaN
 console.log(decode("Infinity")) // Infinity
 console.log(decode("-Infinity")) // -Infinity
 
-// failure cases
-decode("a")
-/*
-throws:
-ParseError: NumberFromString
-└─ Transformation process failure
-   └─ Expected NumberFromString, actual "a"
-*/
+// non-numeric strings decode to NaN
+console.log(decode("a")) // NaN
+
+decode("1") // => 1
 ```
 
 ### clamp
@@ -1065,7 +1077,7 @@ Converts a string to a `BigInt` using the `BigInt` constructor.
 ```ts twoslash
 import { Schema } from "effect"
 
-const decode = Schema.decodeUnknownSync(Schema.BigInt)
+const decode = Schema.decodeUnknownSync(Schema.BigIntFromString)
 
 // success cases
 console.log(decode("1")) // 1n
@@ -1075,9 +1087,7 @@ console.log(decode("-1")) // -1n
 decode("a")
 /*
 throws:
-ParseError: bigint
-└─ Transformation process failure
-   └─ Expected bigint, actual "a"
+SchemaError: Expected a string representing a bigint
 */
 decode("1.5") // throws
 decode("NaN") // throws
@@ -1154,7 +1164,7 @@ Converts a string into a **valid** `Date`, ensuring that invalid dates, such as 
 ```ts twoslash
 import { Schema } from "effect"
 
-const decode = Schema.decodeUnknownSync(Schema.Date)
+const decode = Schema.decodeUnknownSync(Schema.DateFromString)
 
 console.log(decode("1970-01-01T00:00:00.000Z"))
 // Output: 1970-01-01T00:00:00.000Z
@@ -1162,12 +1172,10 @@ console.log(decode("1970-01-01T00:00:00.000Z"))
 decode("a")
 /*
 throws:
-ParseError: Date
-└─ Predicate refinement failure
-   └─ Expected Date, actual Invalid Date
+SchemaError: Expected a valid Date
 */
 
-const validate = Schema.validateSync(Schema.Date)
+const validate = Schema.decodeSync(Schema.toType(Schema.DateFromString))
 
 console.log(validate(new Date(0)))
 // Output: 1970-01-01T00:00:00.000Z
@@ -1175,9 +1183,7 @@ console.log(validate(new Date(0)))
 console.log(validate(new Date("Invalid Date")))
 /*
 throws:
-ParseError: Date
-└─ Predicate refinement failure
-   └─ Expected Date, actual Invalid Date
+SchemaError: Expected a valid Date
 */
 ```
 
@@ -1189,10 +1195,10 @@ Converts a string to a `BigDecimal`.
 
 **Example** (Parsing BigDecimal from String)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="bigdecimal-1"
 import { Schema } from "effect"
 
-const decode = Schema.decodeUnknownSync(Schema.BigDecimal)
+const decode = Schema.decodeUnknownSync(Schema.BigDecimalFromString)
 
 console.log(decode(".124"))
 // Output: { _id: 'BigDecimal', value: '124', scale: 3 }
