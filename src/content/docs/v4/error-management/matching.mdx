@@ -21,7 +21,7 @@ This is useful for structuring your code to respond differently to success or fa
 
 **Example** (Handling Both Success and Failure Cases)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-both-success-and-failure-cases-1"
 import { Effect } from "effect"
 
 const success: Effect.Effect<number, Error> = Effect.succeed(42)
@@ -56,7 +56,7 @@ This is useful when you only care about the side effects of the effect and do no
 
 **Example** (Using `Effect.ignore` to Discard Values)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-effect-ignore-to-discard-values-1"
 import { Effect } from "effect"
 
 //      ┌─── Effect<number, string, never>
@@ -80,7 +80,7 @@ fails.
 
 **Example** (Handling Success and Failure with Side Effects)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-success-and-failure-with-side-effects-1"
 import { Effect } from "effect"
 
 const success: Effect.Effect<number, Error> = Effect.succeed(42)
@@ -122,23 +122,25 @@ failure type based on the cause.
 
 **Example** (Handling Different Failure Causes)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-different-failure-causes-1"
 import { Effect } from "effect"
 
 const task: Effect.Effect<number, Error> = Effect.die("Uh oh!")
 
 const program = Effect.matchCause(task, {
   onFailure: (cause) => {
-    switch (cause._tag) {
-      case "Fail":
-        // Handle standard failure
-        return `Fail: ${cause.error.message}`
-      case "Die":
-        // Handle defects (unexpected errors)
-        return `Die: ${cause.defect}`
-      case "Interrupt":
-        // Handle interruption
-        return `${cause.fiberId} interrupted!`
+    for (const reason of cause.reasons) {
+      switch (reason._tag) {
+        case "Fail":
+          // Handle standard failure
+          return `Fail: ${reason.error.message}`
+        case "Die":
+          // Handle defects (unexpected errors)
+          return `Die: ${reason.defect}`
+        case "Interrupt":
+          // Handle interruption
+          return `${reason.fiberId} interrupted!`
+      }
     }
     // Fallback for other causes
     return "failed due to other causes"
@@ -165,23 +167,25 @@ logging or other operations).
 
 **Example** (Handling Different Failure Causes with Side Effects)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="handling-different-failure-causes-with-side-effects-1"
 import { Effect, Console } from "effect"
 
 const task: Effect.Effect<number, Error> = Effect.die("Uh oh!")
 
 const program = Effect.matchCauseEffect(task, {
   onFailure: (cause) => {
-    switch (cause._tag) {
-      case "Fail":
-        // Handle standard failure with a logged message
-        return Console.log(`Fail: ${cause.error.message}`)
-      case "Die":
-        // Handle defects (unexpected errors) by logging the defect
-        return Console.log(`Die: ${cause.defect}`)
-      case "Interrupt":
-        // Handle interruption and log the fiberId that was interrupted
-        return Console.log(`${cause.fiberId} interrupted!`)
+    for (const reason of cause.reasons) {
+      switch (reason._tag) {
+        case "Fail":
+          // Handle standard failure with a logged message
+          return Console.log(`Fail: ${reason.error.message}`)
+        case "Die":
+          // Handle defects (unexpected errors) by logging the defect
+          return Console.log(`Die: ${reason.defect}`)
+        case "Interrupt":
+          // Handle interruption and log the fiberId that was interrupted
+          return Console.log(`${reason.fiberId} interrupted!`)
+      }
     }
     // Fallback for other causes
     return Console.log("failed due to other causes")
