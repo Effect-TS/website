@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-api-reference-${{ inputs.v3_revision || github.event.client_payload.channels.v3 }}-${{ inputs.v4_revision || github.event.client_payload.channels.v4 }}
+  group: publish-api-reference
   cancel-in-progress: false
 
 jobs:
@@ -34,15 +34,41 @@ jobs:
       - name: Prepare snapshot
         id: snapshot
         env:
+          EVENT_CHANNEL: ${{ github.event.client_payload.channel }}
           EVENT_REPOSITORY: ${{ github.event.client_payload.repository }}
+          EVENT_REVISION: ${{ github.event.client_payload.revision }}
           GH_TOKEN: ${{ github.token }}
-          V3_REVISION: ${{ inputs.v3_revision || github.event.client_payload.channels.v3 }}
-          V4_REVISION: ${{ inputs.v4_revision || github.event.client_payload.channels.v4 }}
+          V3_REVISION: ${{ inputs.v3_revision }}
+          V4_REVISION: ${{ inputs.v4_revision }}
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == "repository_dispatch" && "$EVENT_REPOSITORY" != "Effect-TS/effect" ]]; then
-            echo "::error::API reference dispatch must identify Effect-TS/effect as its source repository"
-            exit 1
+          if [[ "$GITHUB_EVENT_NAME" == "repository_dispatch" ]]; then
+            if [[ "$EVENT_REPOSITORY" != "Effect-TS/effect" ]]; then
+              echo "::error::API reference dispatch must identify Effect-TS/effect as its source repository"
+              exit 1
+            fi
+            if [[ ! "$EVENT_CHANNEL" =~ ^v[34]$ || ! "$EVENT_REVISION" =~ ^[a-f0-9]{40}$ ]]; then
+              echo "::error::API reference dispatch must provide channel v3 or v4 and a full Git commit SHA"
+              exit 1
+            fi
+
+            previous_tag=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '[.[] | select(.draft == false and .prerelease == false and (.tag_name | startswith("api-reference-")))] | sort_by(.published_at) | last | (.tag_name // "")')
+            if [[ ! "$previous_tag" =~ ^api-reference-[a-f0-9]{64}$ ]]; then
+              echo "::error::No published API reference snapshot is available. Run this workflow manually with both released revisions to create the initial snapshot."
+              exit 1
+            fi
+
+            previous_dir="$RUNNER_TEMP/previous-api-reference"
+            mkdir -p "$previous_dir"
+            gh release download "$previous_tag" --dir "$previous_dir" --pattern manifest.json
+            V3_REVISION=$(jq -r '.channels.v3.revision // ""' "$previous_dir/manifest.json")
+            V4_REVISION=$(jq -r '.channels.v4.revision // ""' "$previous_dir/manifest.json")
+            if [[ "$EVENT_CHANNEL" == "v3" ]]; then
+              V3_REVISION="$EVENT_REVISION"
+            else
+              V4_REVISION="$EVENT_REVISION"
+            fi
           fi
+
           if [[ ! "$V3_REVISION" =~ ^[a-f0-9]{40}$ || ! "$V4_REVISION" =~ ^[a-f0-9]{40}$ ]]; then
             echo "::error::API reference revisions must be full Git commit SHAs"
             exit 1
