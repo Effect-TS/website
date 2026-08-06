@@ -18,7 +18,7 @@ With the `Scope` data type, you can:
 
 **Example** (Managing a Scope)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="managing-a-scope-1"
 import { Scope, Effect, Console, Exit } from "effect"
 
 const program =
@@ -56,7 +56,7 @@ The `Effect.addFinalizer` function is a high-level API that allows you to add fi
 
 <TabItem label="Using Effect.gen">
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-a-finalizer-on-success-1"
 import { Effect, Console } from "effect"
 
 //      ┌─── Effect<string, never, Scope>
@@ -84,7 +84,7 @@ Finalizer executed. Exit status: Success
 
 <TabItem label="Using pipe">
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-a-finalizer-on-success-2"
 import { Effect, Console } from "effect"
 
 //      ┌─── Effect<string, never, Scope>
@@ -132,7 +132,7 @@ shows that the workflow requires a `Scope` to run. You can provide this `Scope` 
 
 <TabItem label="Using Effect.gen">
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-a-finalizer-on-failure-1"
 import { Effect, Console } from "effect"
 
 //      ┌─── Effect<never, string, Scope>
@@ -164,7 +164,7 @@ Finalizer executed. Exit status: Failure
 
 <TabItem label="Using pipe">
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-a-finalizer-on-failure-2"
 import { Effect, Console } from "effect"
 
 //      ┌─── Effect<never, string, Scope>
@@ -203,7 +203,7 @@ In this case, the finalizer is executed even when the effect fails. The log outp
 
 <TabItem label="Using Effect.gen">
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-a-finalizer-on-interruption-1"
 import { Effect, Console } from "effect"
 
 //      ┌─── Effect<never, never, Scope>
@@ -244,7 +244,7 @@ Finalizer executed. Exit status: Failure
 
 <TabItem label="Using pipe">
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="adding-a-finalizer-on-interruption-2"
 import { Effect, Console } from "effect"
 
 //      ┌─── Effect<never, never, Scope>
@@ -295,7 +295,7 @@ Let's start by looking at how scopes are merged by default:
 
 **Example** (Merging Scopes)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="merging-scopes-1"
 import { Effect, Console } from "effect"
 
 const task1 = Effect.gen(function* () {
@@ -330,7 +330,7 @@ If you want more control over when each scope is closed, you can manually create
 
 **Example** (Manually Creating and Closing Scopes)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="manually-creating-and-closing-scopes-1"
 import { Console, Effect, Exit, Scope } from "effect"
 
 const task1 = Effect.gen(function* () {
@@ -348,10 +348,10 @@ const program = Effect.gen(function* () {
   const scope2 = yield* Scope.make()
 
   // Extend the scope of task1 into scope1
-  yield* task1.pipe(Scope.extend(scope1))
+  yield* task1.pipe(Scope.provide(scope1))
 
   // Extend the scope of task2 into scope2
-  yield* task2.pipe(Scope.extend(scope2))
+  yield* task2.pipe(Scope.provide(scope2))
 
   // Manually close scope1 and scope2
   yield* Scope.close(scope1, Exit.void)
@@ -373,7 +373,7 @@ finalizer after task 2
 In this example, we create two separate scopes, `scope1` and `scope2`, and extend the scope of each task into its respective scope. When you run the program, it outputs the tasks and their finalizers in a different order.
 
 <Aside type="note" title="Extending a Scope">
-  The `Scope.extend` function allows you to extend the scope of an effect workflow that requires a
+  The `Scope.provide` function allows you to extend the scope of an effect workflow that requires a
   scope into another scope without closing the scope when the workflow finishes executing. This
   allows you to extend a scoped value into a larger scope.
 </Aside>
@@ -383,7 +383,7 @@ The key point to note is that the scope closing doesn't force the task to be int
 
 **Example** (Closing a Scope with Pending Tasks)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="closing-a-scope-with-pending-tasks-1"
 import { Console, Effect, Exit, Scope } from "effect"
 
 const task = Effect.gen(function* () {
@@ -400,7 +400,7 @@ const program = Effect.gen(function* () {
   console.log("Scope closed")
 
   // This task will be executed even if the scope is closed
-  yield* task.pipe(Scope.extend(scope))
+  yield* task.pipe(Scope.provide(scope))
 })
 
 Effect.runPromise(program)
@@ -429,7 +429,7 @@ The `Effect.acquireRelease` function guarantees that once a resource is successf
 
 **Example** (Defining a Simple Resource)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="defining-a-simple-resource-1"
 import { Effect } from "effect"
 
 // Define an interface for a resource
@@ -483,7 +483,7 @@ We can continue working with the resource for as long as we want by using `Effec
 
 **Example** (Using the Resource)
 
-```ts twoslash collapse={3-34}
+```ts twoslash collapse={3-34} import.meta.vitest name="using-the-resource-1"
 import { Effect } from "effect"
 
 // Define an interface for a resource
@@ -531,7 +531,7 @@ To ensure proper resource management, the `Scope` should be closed when you're d
 
 **Example** (Providing the `Scope` with `Effect.scoped`)
 
-```ts twoslash collapse={3-34}
+```ts twoslash collapse={3-34} import.meta.vitest name="providing-the-scope-with-effect-scoped-1"
 import { Effect } from "effect"
 
 // Define an interface for a resource
@@ -597,7 +597,7 @@ To begin, we define the domain model for the required [services](/docs/requireme
 - `ElasticSearch`
 - `Database`
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="example-pattern-sequencing-operations-1"
 import { Effect, Context, Data } from "effect"
 
 class S3Error extends Data.TaggedError("S3Error")<{}> {}
@@ -606,13 +606,13 @@ interface Bucket {
   readonly name: string
 }
 
-class S3 extends Context.Tag("S3")<
+class S3 extends Context.Service<
   S3,
   {
     readonly createBucket: Effect.Effect<Bucket, S3Error>
     readonly deleteBucket: (bucket: Bucket) => Effect.Effect<void>
   }
->() {}
+>()("S3") {}
 
 class ElasticSearchError extends Data.TaggedError("ElasticSearchError")<{}> {}
 
@@ -620,13 +620,13 @@ interface Index {
   readonly id: string
 }
 
-class ElasticSearch extends Context.Tag("ElasticSearch")<
+class ElasticSearch extends Context.Service<
   ElasticSearch,
   {
     readonly createIndex: Effect.Effect<Index, ElasticSearchError>
     readonly deleteIndex: (index: Index) => Effect.Effect<void>
   }
->() {}
+>()("ElasticSearch") {}
 
 class DatabaseError extends Data.TaggedError("DatabaseError")<{}> {}
 
@@ -634,18 +634,18 @@ interface Entry {
   readonly id: string
 }
 
-class Database extends Context.Tag("Database")<
+class Database extends Context.Service<
   Database,
   {
     readonly createEntry: (bucket: Bucket, index: Index) => Effect.Effect<Entry, DatabaseError>
     readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
   }
->() {}
+>()("Database") {}
 ```
 
 Next, we define the three create actions and the overall transaction (`make`) for the workspace.
 
-```ts twoslash collapse={3-48}
+```ts twoslash collapse={3-48} import.meta.vitest name="example-pattern-sequencing-operations-2"
 import { Effect, Context, Exit, Data } from "effect"
 
 class S3Error extends Data.TaggedError("S3Error")<{}> {}
@@ -654,13 +654,13 @@ interface Bucket {
   readonly name: string
 }
 
-class S3 extends Context.Tag("S3")<
+class S3 extends Context.Service<
   S3,
   {
     readonly createBucket: Effect.Effect<Bucket, S3Error>
     readonly deleteBucket: (bucket: Bucket) => Effect.Effect<void>
   }
->() {}
+>()("S3") {}
 
 class ElasticSearchError extends Data.TaggedError("ElasticSearchError")<{}> {}
 
@@ -668,13 +668,13 @@ interface Index {
   readonly id: string
 }
 
-class ElasticSearch extends Context.Tag("ElasticSearch")<
+class ElasticSearch extends Context.Service<
   ElasticSearch,
   {
     readonly createIndex: Effect.Effect<Index, ElasticSearchError>
     readonly deleteIndex: (index: Index) => Effect.Effect<void>
   }
->() {}
+>()("ElasticSearch") {}
 
 class DatabaseError extends Data.TaggedError("DatabaseError")<{}> {}
 
@@ -682,13 +682,13 @@ interface Entry {
   readonly id: string
 }
 
-class Database extends Context.Tag("Database")<
+class Database extends Context.Service<
   Database,
   {
     readonly createEntry: (bucket: Bucket, index: Index) => Effect.Effect<Entry, DatabaseError>
     readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
   }
->() {}
+>()("Database") {}
 
 // Create a bucket, and define the release function that deletes the
 // bucket if the operation fails.
@@ -740,7 +740,7 @@ We then create simple service implementations to test the behavior of our Worksp
 To achieve this, we will utilize [layers](/docs/requirements-management/layers/) to construct test
 These layers will be able to handle various scenarios, including errors, which we can control using the `FailureCase` type.
 
-```ts twoslash collapse={3-95}
+```ts twoslash collapse={3-95} import.meta.vitest name="example-pattern-sequencing-operations-3"
 import { Effect, Context, Exit, Data, Layer, Console } from "effect"
 
 class S3Error extends Data.TaggedError("S3Error")<{}> {}
@@ -749,13 +749,13 @@ interface Bucket {
   readonly name: string
 }
 
-class S3 extends Context.Tag("S3")<
+class S3 extends Context.Service<
   S3,
   {
     readonly createBucket: Effect.Effect<Bucket, S3Error>
     readonly deleteBucket: (bucket: Bucket) => Effect.Effect<void>
   }
->() {}
+>()("S3") {}
 
 class ElasticSearchError extends Data.TaggedError("ElasticSearchError")<{}> {}
 
@@ -763,13 +763,13 @@ interface Index {
   readonly id: string
 }
 
-class ElasticSearch extends Context.Tag("ElasticSearch")<
+class ElasticSearch extends Context.Service<
   ElasticSearch,
   {
     readonly createIndex: Effect.Effect<Index, ElasticSearchError>
     readonly deleteIndex: (index: Index) => Effect.Effect<void>
   }
->() {}
+>()("ElasticSearch") {}
 
 class DatabaseError extends Data.TaggedError("DatabaseError")<{}> {}
 
@@ -777,13 +777,13 @@ interface Entry {
   readonly id: string
 }
 
-class Database extends Context.Tag("Database")<
+class Database extends Context.Service<
   Database,
   {
     readonly createEntry: (bucket: Bucket, index: Index) => Effect.Effect<Entry, DatabaseError>
     readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
   }
->() {}
+>()("Database") {}
 
 // Create a bucket, and define the release function that deletes the
 // bucket if the operation fails.
@@ -845,7 +845,7 @@ const make = Effect.scoped(
 // services and verify their behavior under different error conditions.
 type FailureCaseLiterals = "S3" | "ElasticSearch" | "Database" | undefined
 
-class FailureCase extends Context.Tag("FailureCase")<FailureCase, FailureCaseLiterals>() {}
+class FailureCase extends Context.Service<FailureCase, FailureCaseLiterals>()("FailureCase") {}
 
 // Create a test layer for the S3 service
 
@@ -917,9 +917,12 @@ const layer = Layer.mergeAll(S3Test, ElasticSearchTest, DatabaseTest)
 // Create a runnable effect to test the Workspace code. The effect is
 // provided with the test layer and a FailureCase service with undefined
 // value (no failure case).
-const runnable = make.pipe(Effect.provide(layer), Effect.provideService(FailureCase, undefined))
+const runnable = make.pipe(
+  Effect.provide(layer),
+  Effect.provide(Layer.succeed(FailureCase, undefined)),
+)
 
-Effect.runPromise(Effect.either(runnable)).then(console.log)
+Effect.runPromise(Effect.result(runnable)).then(console.log)
 ```
 
 Let's examine the test results for the scenario where `FailureCase` is set to `undefined` (happy path):
