@@ -15,8 +15,8 @@ The `Effect.repeat` function returns a new effect that repeats the given effect 
 
 <Aside type="note" title="Initial Execution Included">
   The scheduled recurrences are in addition to the initial execution, so `Effect.repeat(action,
-  Schedule.once)` executes `action` once initially, and if it succeeds, repeats it an additional
-  time.
+  Schedule.duration(Duration.zero))` executes `action` once initially, and if it succeeds, repeats
+  it an additional time.
 </Aside>
 
 **Example** (Repeating a Successful Effect)
@@ -135,7 +135,7 @@ success
 
 The `repeatOrElse` function returns a new effect that repeats the specified effect according to the given schedule or until the first failure.
 When a failure occurs, the failure value and schedule output are passed to a specified handler.
-Scheduled recurrences are in addition to the initial execution, so `Effect.repeat(action, Schedule.once)` executes `action` once initially and then repeats it an additional time if it succeeds.
+Scheduled recurrences are in addition to the initial execution, so `Effect.repeat(action, Schedule.duration(Duration.zero))` executes `action` once initially and then repeats it an additional time if it succeeds.
 
 **Example** (Handling Failure During Repeats)
 
