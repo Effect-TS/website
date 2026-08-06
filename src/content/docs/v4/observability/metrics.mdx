@@ -40,7 +40,7 @@ To create a counter, you can use the `Metric.counter` constructor.
 
 **Example** (Creating a Counter)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="how-to-create-a-counter-1"
 import { Metric, Effect } from "effect"
 
 const requestCount = Metric.counter("request_count", {
@@ -53,18 +53,18 @@ Once created, the counter can accept an effect that returns a `number`, which wi
 
 **Example** (Using a Counter)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="how-to-create-a-counter-2"
 import { Metric, Effect } from "effect"
 
 const requestCount = Metric.counter("request_count")
 
 const program = Effect.gen(function* () {
   // Increment the counter by 1
-  const a = yield* requestCount(Effect.succeed(1))
+  const a = yield* Effect.succeed(1).pipe(Effect.trackSuccesses(requestCount))
   // Increment the counter by 2
-  const b = yield* requestCount(Effect.succeed(2))
+  const b = yield* Effect.succeed(2).pipe(Effect.trackSuccesses(requestCount))
   // Decrement the counter by 4
-  const c = yield* requestCount(Effect.succeed(-4))
+  const c = yield* Effect.succeed(-4).pipe(Effect.trackSuccesses(requestCount))
 
   // Get the current state of the counter
   const state = yield* Metric.value(requestCount)
@@ -93,7 +93,7 @@ CounterState {
 
 You can specify whether the counter tracks a `number` or `bigint`.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="counter-types-1"
 import { Metric } from "effect"
 
 const numberCounter = Metric.counter("request_count", {
@@ -113,7 +113,7 @@ If you need a counter that only increments, you can use the `incremental: true` 
 
 **Example** (Using an Increment-Only Counter)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="increment-only-counters-1"
 import { Metric, Effect } from "effect"
 
 const incrementalCounter = Metric.counter("count", {
@@ -122,10 +122,10 @@ const incrementalCounter = Metric.counter("count", {
 })
 
 const program = Effect.gen(function* () {
-  const a = yield* incrementalCounter(Effect.succeed(1))
-  const b = yield* incrementalCounter(Effect.succeed(2))
+  const a = yield* Effect.succeed(1).pipe(Effect.trackSuccesses(incrementalCounter))
+  const b = yield* Effect.succeed(2).pipe(Effect.trackSuccesses(incrementalCounter))
   // This will have no effect on the counter
-  const c = yield* incrementalCounter(Effect.succeed(-4))
+  const c = yield* Effect.succeed(-4).pipe(Effect.trackSuccesses(incrementalCounter))
 
   const state = yield* Metric.value(incrementalCounter)
   console.log(state)
@@ -152,7 +152,7 @@ You can configure a counter to always increment by a fixed value each time it is
 
 **Example** (Constant Input)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="counters-with-constant-input-1"
 import { Metric, Effect } from "effect"
 
 const taskCount = Metric.counter("task_count").pipe(
@@ -164,9 +164,9 @@ const task2 = Effect.succeed(2).pipe(Effect.delay("200 millis"))
 const task3 = Effect.succeed(-4).pipe(Effect.delay("300 millis"))
 
 const program = Effect.gen(function* () {
-  const a = yield* taskCount(task1)
-  const b = yield* taskCount(task2)
-  const c = yield* taskCount(task3)
+  const a = yield* task1.pipe(Effect.trackSuccesses(taskCount))
+  const b = yield* task2.pipe(Effect.trackSuccesses(taskCount))
+  const c = yield* task3.pipe(Effect.trackSuccesses(taskCount))
 
   const state = yield* Metric.value(taskCount)
   console.log(state)
@@ -206,7 +206,7 @@ To create a gauge, you can use the `Metric.gauge` constructor.
 
 **Example** (Creating a Gauge)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="how-to-create-a-gauge-1"
 import { Metric } from "effect"
 
 const memory = Metric.gauge("memory_usage", {
@@ -219,7 +219,7 @@ Once created, a gauge can be updated by passing an effect that produces the valu
 
 **Example** (Using a Gauge)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="how-to-create-a-gauge-2"
 import { Metric, Effect, Random } from "effect"
 
 // Create a gauge to track temperature
@@ -237,9 +237,9 @@ const getTemperature = Effect.gen(function* () {
 const program = Effect.gen(function* () {
   const series: Array<number> = []
   // Update the gauge with new temperature readings
-  series.push(yield* temperature(getTemperature))
-  series.push(yield* temperature(getTemperature))
-  series.push(yield* temperature(getTemperature))
+  series.push(yield* getTemperature.pipe(Effect.trackSuccesses(temperature)))
+  series.push(yield* getTemperature.pipe(Effect.trackSuccesses(temperature)))
+  series.push(yield* getTemperature.pipe(Effect.trackSuccesses(temperature)))
 
   // Retrieve the current state of the gauge
   const state = yield* Metric.value(temperature)
@@ -271,7 +271,7 @@ GaugeState {
 
 You can specify whether the gauge tracks a `number` or `bigint`.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="gauge-types-1"
 import { Metric } from "effect"
 
 const numberGauge = Metric.gauge("memory_usage", {
@@ -322,21 +322,23 @@ In this example, we define a histogram with linear buckets, where the values ran
 
 The program generates random numbers between `1` and `120`, records them in the histogram, and then prints the histogram's state, showing the count of values that fall into each bucket.
 
-```ts twoslash
-import { Effect, Metric, MetricBoundaries, Random } from "effect"
+```ts twoslash import.meta.vitest name="histogram-1"
+import { Effect, Metric, Random } from "effect"
 
 // Define a histogram to track request latencies, with linear buckets
-const latency = Metric.histogram(
-  "request_latency",
+const latency = Metric.histogram("request_latency", {
   // Buckets from 0-100, with an extra Infinity bucket
-  MetricBoundaries.linear({ start: 0, width: 10, count: 11 }),
+  boundaries: Metric.linearBoundaries({ start: 0, width: 10, count: 11 }),
   // Optional
-  "Measures the distribution of request latency.",
-)
+  description: "Measures the distribution of request latency.",
+})
 
 const program = Effect.gen(function* () {
   // Generate 100 random values and record them in the histogram
-  yield* latency(Random.nextIntBetween(1, 120)).pipe(Effect.repeatN(99))
+  yield* Random.nextIntBetween(1, 120).pipe(
+    Effect.trackSuccesses(latency),
+    Effect.repeat({ times: 99 }),
+  )
 
   // Fetch and display the histogram's state
   const state = yield* Metric.value(latency)
@@ -377,11 +379,11 @@ We generate random values to simulate varying wait times, record the durations i
 
 **Example** (Tracking Workflow Durations with a Timer Metric)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="timer-metric-1"
 import { Metric, Array, Random, Effect } from "effect"
 
 // Create a timer metric with predefined boundaries from 1 to 10
-const timer = Metric.timerWithBoundaries("timer", Array.range(1, 10))
+const timer = Metric.timer("timer", { boundaries: Array.range(1, 10) })
 
 // Define a task that simulates random wait times
 const task = Effect.gen(function* () {
@@ -393,7 +395,7 @@ const task = Effect.gen(function* () {
 
 const program = Effect.gen(function* () {
   // Track the duration of the task and repeat it 100 times
-  yield* Metric.trackDuration(task, timer).pipe(Effect.repeatN(99))
+  yield* task.pipe(Effect.trackDuration(timer), Effect.repeat({ times: 99 }))
 
   // Retrieve and print the current state of the timer histogram
   const state = yield* Metric.value(timer)
@@ -459,15 +461,13 @@ In this example, we will create a summary to track response times. The summary w
 
 We'll apply the summary to an effect that generates random integers, simulating response times.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="summary-1"
 import { Metric, Random, Effect } from "effect"
 
 // Define the summary for response times
-const responseTimeSummary = Metric.summary({
-  name: "response_time_summary", // Name of the summary metric
+const responseTimeSummary = Metric.summary("response_time_summary", {
   maxAge: "1 day", // Maximum sample age
   maxSize: 100, // Maximum number of samples to retain
-  error: 0.03, // Error margin for quantile calculation
   quantiles: [0.1, 0.5, 0.9], // Quantiles to observe (10%, 50%, 90%)
   // Optional
   description: "Measures the distribution of response times",
@@ -475,7 +475,10 @@ const responseTimeSummary = Metric.summary({
 
 const program = Effect.gen(function* () {
   // Record 100 random response times between 1 and 120 ms
-  yield* responseTimeSummary(Random.nextIntBetween(1, 120)).pipe(Effect.repeatN(99))
+  yield* Random.nextIntBetween(1, 120).pipe(
+    Effect.trackSuccesses(responseTimeSummary),
+    Effect.repeat({ times: 99 }),
+  )
 
   // Retrieve and log the current state of the summary
   const state = yield* Metric.value(responseTimeSummary)
@@ -514,7 +517,7 @@ Frequencies are particularly useful for tracking how often distinct string value
 
 In this example, we'll create a `Frequency` to observe how often different error codes occur. This can be applied to effects that return a `string` value:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="frequency-1"
 import { Metric, Random, Effect } from "effect"
 
 // Define a frequency metric to track errors
@@ -530,7 +533,7 @@ const task = Effect.gen(function* () {
 
 // Program that simulates random errors and tracks their occurrences
 const program = Effect.gen(function* () {
-  yield* errorFrequency(task).pipe(Effect.repeatN(99))
+  yield* task.pipe(Effect.trackSuccesses(errorFrequency), Effect.repeat({ times: 99 }))
 
   // Retrieve and log the current state of the summary
   const state = yield* Metric.value(errorFrequency)
@@ -565,17 +568,19 @@ When creating metrics, you can add tags to them. Tags are key-value pairs that p
 
 ### Tagging a Specific Metric
 
-You can tag individual metrics using the `Metric.tagged` function.
+You can tag individual metrics using the `Metric.withAttributes` function.
 This allows you to add specific tags to a single metric, providing detailed context without applying tags globally.
 
 **Example** (Tagging an Individual Metric)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="tagging-a-specific-metric-1"
 import { Metric } from "effect"
 
 // Create a counter metric for request count
 // and tag it with "environment: production"
-const counter = Metric.counter("request_count").pipe(Metric.tagged("environment", "production"))
+const counter = Metric.counter("request_count").pipe(
+  Metric.withAttributes({ environment: "production" }),
+)
 ```
 
 Here, the `request_count` metric is tagged with `"environment": "production"`, allowing you to filter or analyze metrics by this tag later.
@@ -586,7 +591,7 @@ You can use `Effect.tagMetrics` to apply tags to all metrics within the same con
 
 **Example** (Tagging Multiple Metrics)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="tagging-multiple-metrics-1"
 import { Metric, Effect } from "effect"
 
 // Create two separate counters
@@ -597,10 +602,10 @@ const counter2 = Metric.counter("counter2")
 const task = Effect.succeed(1).pipe(Effect.delay("100 millis"))
 
 // Apply the environment tag to both counters in the same context
-Effect.gen(function* () {
-  yield* counter1(task)
-  yield* counter2(task)
-}).pipe(Effect.tagMetrics("environment", "production"))
+const program = Effect.gen(function* () {
+  yield* task.pipe(Effect.trackSuccesses(counter1))
+  yield* task.pipe(Effect.trackSuccesses(counter2))
+}).pipe(Effect.provideService(Metric.CurrentMetricAttributes, { environment: "production" }))
 ```
 
 If you only want to apply tags within a specific [scope](/docs/resource-management/scope/), you can use `Effect.tagMetricsScoped`. This limits the tag application to metrics within that scope, allowing for more precise tagging control.
