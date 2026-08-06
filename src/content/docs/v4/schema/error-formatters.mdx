@@ -13,26 +13,26 @@ The `TreeFormatter` is the default method for formatting errors. It organizes er
 
 **Example** (Decoding with Missing Properties)
 
-```ts twoslash
-import { Either, Schema, ParseResult } from "effect"
+```ts twoslash import.meta.vitest name="tree-formatter-default-1"
+import { Result, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number,
 })
 
-const decode = Schema.decodeUnknownEither(Person)
+const decode = Schema.decodeUnknownResult(Person)
 
 const result = decode({})
-if (Either.isLeft(result)) {
+if (Result.isFailure(result)) {
   console.error("Decoding failed:")
-  console.error(ParseResult.TreeFormatter.formatErrorSync(result.left))
+  console.error(result.failure.message)
+  result.failure.message // => "Missing key\n  at [\"name\"]"
 }
 /*
 Decoding failed:
-{ readonly name: string; readonly age: number }
-└─ ["name"]
-   └─ is missing
+Missing key
+  at ["name"]
 */
 ```
 
@@ -50,53 +50,53 @@ You can make the error output more concise and meaningful by annotating the sche
 
 Adding a `title` annotation replaces the schema structure in the error message with the more human-readable "Person" making it easier to understand.
 
-```ts twoslash
-import { Either, Schema, ParseResult } from "effect"
+```ts twoslash import.meta.vitest name="customizing-the-output-1"
+import { Result, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number,
-}).annotations({ title: "Person" }) // Add a title annotation
+}).annotate({ title: "Person" }) // Add a title annotation
 
-const result = Schema.decodeUnknownEither(Person)({})
-if (Either.isLeft(result)) {
-  console.error(ParseResult.TreeFormatter.formatErrorSync(result.left))
+const result = Schema.decodeUnknownResult(Person)({})
+if (Result.isFailure(result)) {
+  console.error(result.failure.message)
+  result.failure.message // => "Missing key\n  at [\"name\"]"
 }
 /*
-Person
-└─ ["name"]
-   └─ is missing
+Missing key
+  at ["name"]
 */
 ```
 
 ### Handling Multiple Errors
 
-By default, decoding functions like `Schema.decodeUnknownEither` report only the first error. To list all errors, use the `{ errors: "all" }` option.
+By default, decoding functions like `Schema.decodeUnknownResult` report only the first error. To list all errors, use the `{ errors: "all" }` option.
 
 **Example** (Listing All Errors)
 
-```ts twoslash
-import { Either, Schema, ParseResult } from "effect"
+```ts twoslash import.meta.vitest name="handling-multiple-errors-1"
+import { Result, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number,
 })
 
-const decode = Schema.decodeUnknownEither(Person, { errors: "all" })
+const decode = Schema.decodeUnknownResult(Person, { errors: "all" })
 
 const result = decode({})
-if (Either.isLeft(result)) {
+if (Result.isFailure(result)) {
   console.error("Decoding failed:")
-  console.error(ParseResult.TreeFormatter.formatErrorSync(result.left))
+  console.error(result.failure.message)
+  result.failure.message // => "Missing key\n  at [\"name\"]\nMissing key\n  at [\"age\"]"
 }
 /*
 Decoding failed:
-{ readonly name: string; readonly age: number }
-├─ ["name"]
-│  └─ is missing
-└─ ["age"]
-   └─ is missing
+Missing key
+  at ["name"]
+Missing key
+  at ["age"]
 */
 ```
 
@@ -207,24 +207,25 @@ The `ArrayFormatter` provides a structured, array-based approach to formatting e
 
 **Example** (Single Error in Array Format)
 
-```ts twoslash
-import { Either, Schema, ParseResult } from "effect"
+```ts twoslash import.meta.vitest name="array-formatter-1"
+import { Result, Schema, SchemaIssue } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number,
 })
 
-const decode = Schema.decodeUnknownEither(Person)
+const decode = Schema.decodeUnknownResult(Person)
 
 const result = decode({})
-if (Either.isLeft(result)) {
+if (Result.isFailure(result)) {
   console.error("Decoding failed:")
-  console.error(ParseResult.ArrayFormatter.formatErrorSync(result.left))
+  console.error(SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues)
+  SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues // => [{ path: ["name"], message: "Missing key" }]
 }
 /*
 Decoding failed:
-[ { _tag: 'Missing', path: [ 'name' ], message: 'is missing' } ]
+[ { path: [ 'name' ], message: 'Missing key' } ]
 */
 ```
 
@@ -236,30 +237,31 @@ In this example:
 
 ### Handling Multiple Errors
 
-By default, decoding functions like `Schema.decodeUnknownEither` report only the first error. To list all errors, use the `{ errors: "all" }` option.
+By default, decoding functions like `Schema.decodeUnknownResult` report only the first error. To list all errors, use the `{ errors: "all" }` option.
 
 **Example** (Listing All Errors)
 
-```ts twoslash
-import { Either, Schema, ParseResult } from "effect"
+```ts twoslash import.meta.vitest name="handling-multiple-errors-1-2"
+import { Result, Schema, SchemaIssue } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
   age: Schema.Number,
 })
 
-const decode = Schema.decodeUnknownEither(Person, { errors: "all" })
+const decode = Schema.decodeUnknownResult(Person, { errors: "all" })
 
 const result = decode({})
-if (Either.isLeft(result)) {
+if (Result.isFailure(result)) {
   console.error("Decoding failed:")
-  console.error(ParseResult.ArrayFormatter.formatErrorSync(result.left))
+  console.error(SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues)
+  SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues // => [{ path: ["name"], message: "Missing key" }, { path: ["age"], message: "Missing key" }]
 }
 /*
 Decoding failed:
 [
-  { _tag: 'Missing', path: [ 'name' ], message: 'is missing' },
-  { _tag: 'Missing', path: [ 'age' ], message: 'is missing' }
+  { path: [ 'name' ], message: 'Missing key' },
+  { path: [ 'age' ], message: 'Missing key' }
 ]
 */
 ```
