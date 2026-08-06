@@ -100,9 +100,8 @@ Here's a basic example using the `Path` module to create a file path, which can 
 
 **Example** (Cross-Platform Path Handling)
 
-```ts twoslash title="index.ts"
-import { Path } from "@effect/platform"
-import { Effect } from "effect"
+```ts twoslash title="index.ts" import.meta.vitest name="getting-started-with-cross-platform-programming-1"
+import { Effect, Path } from "effect"
 
 const program = Effect.gen(function* () {
   // Access the Path service
@@ -159,10 +158,9 @@ Update the program to load the Node.js-specific context:
 
 **Example** (Providing Node.js Context)
 
-```ts twoslash title="index.ts" ins={3,15}
-import { Path } from "@effect/platform"
-import { Effect } from "effect"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
+```ts twoslash title="index.ts" ins={2,14}
+import { Effect, Path } from "effect"
+import { NodeServices, NodeRuntime } from "@effect/platform-node"
 
 const program = Effect.gen(function* () {
   // Access the Path service
@@ -174,7 +172,7 @@ const program = Effect.gen(function* () {
   console.log(mypath)
 })
 
-NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+NodeRuntime.runMain(program.pipe(Effect.provide(NodeServices.layer)))
 ```
 
 Finally, run the program in Node.js using `tsx`, or directly in Deno:
@@ -237,10 +235,9 @@ Update the program to use the Bun-specific context:
 
 **Example** (Providing Bun Context)
 
-```ts twoslash title="index.ts" ins={3,15}
-import { Path } from "@effect/platform"
-import { Effect } from "effect"
-import { BunContext, BunRuntime } from "@effect/platform-bun"
+```ts twoslash title="index.ts" ins={2,14}
+import { Effect, Path } from "effect"
+import { BunServices, BunRuntime } from "@effect/platform-bun"
 
 const program = Effect.gen(function* () {
   // Access the Path service
@@ -252,7 +249,7 @@ const program = Effect.gen(function* () {
   console.log(mypath)
 })
 
-BunRuntime.runMain(program.pipe(Effect.provide(BunContext.layer)))
+BunRuntime.runMain(program.pipe(Effect.provide(BunServices.layer)))
 ```
 
 Run the program in Bun:
