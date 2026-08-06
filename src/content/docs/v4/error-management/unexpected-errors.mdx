@@ -35,7 +35,7 @@ it cannot recover from this failure.
 
 **Example** (Terminating on Division by Zero with a Specified Error)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="terminating-on-division-by-zero-with-a-specified-error-1"
 import { Effect } from "effect"
 
 const divide = (a: number, b: number) =>
@@ -48,7 +48,7 @@ const program = divide(1, 0)
 Effect.runPromise(program).catch(console.error)
 /*
 Output:
-(FiberFailure) Error: Cannot divide by zero
+Error: Cannot divide by zero
   ...stack trace...
 */
 ```
@@ -69,11 +69,11 @@ not handle or recover from the error.
 
 **Example** (Terminating on Division by Zero with a Specified Message)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="terminating-on-division-by-zero-with-a-specified-message-1"
 import { Effect } from "effect"
 
 const divide = (a: number, b: number) =>
-  b === 0 ? Effect.dieMessage("Cannot divide by zero") : Effect.succeed(a / b)
+  b === 0 ? Effect.die(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
 
 //      ┌─── Effect<number, never, never>
 //      ▼
@@ -82,7 +82,7 @@ const program = divide(1, 0)
 Effect.runPromise(program).catch(console.error)
 /*
 Output:
-(FiberFailure) RuntimeException: Cannot divide by zero
+Error: Cannot divide by zero
   ...stack trace...
 */
 ```
@@ -101,7 +101,7 @@ This is useful for propagating failures as defects, signaling that they should n
 
 **Example** (Propagating an Error as a Defect)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="propagating-an-error-as-a-defect-1"
 import { Effect } from "effect"
 
 const divide = (a: number, b: number) =>
@@ -114,7 +114,7 @@ const program = Effect.orDie(divide(1, 0))
 Effect.runPromise(program).catch(console.error)
 /*
 Output:
-(FiberFailure) Error: Cannot divide by zero
+Error: Cannot divide by zero
   ...stack trace...
 */
 ```
@@ -133,7 +133,7 @@ as a defect.
 
 **Example** (Customizing Defect)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="customizing-defect-1"
 import { Effect } from "effect"
 
 const divide = (a: number, b: number) =>
@@ -141,12 +141,14 @@ const divide = (a: number, b: number) =>
 
 //      ┌─── Effect<number, never, never>
 //      ▼
-const program = Effect.orDieWith(divide(1, 0), (error) => new Error(`defect: ${error.message}`))
+const program = Effect.orDie(
+  Effect.mapError(divide(1, 0), (error) => new Error(`defect: ${error.message}`)),
+)
 
 Effect.runPromise(program).catch(console.error)
 /*
 Output:
-(FiberFailure) Error: defect: Cannot divide by zero
+Error: defect: Cannot divide by zero
   ...stack trace...
 */
 ```
@@ -185,20 +187,22 @@ By yielding an `Exit`, we gain the ability to "pattern match" on this type to ha
 
 **Example** (Catching Defects with `Effect.exit`)
 
-```ts twoslash
-import { Effect, Cause, Console, Exit } from "effect"
+```ts twoslash import.meta.vitest name="catching-defects-with-effect-exit-1"
+import { Effect, Cause, Console, Exit, Predicate } from "effect"
 
 // Simulating a runtime error
-const task = Effect.dieMessage("Boom!")
+const task = Effect.die(new Error("Boom!"))
 
 const program = Effect.gen(function* () {
   const exit = yield* Effect.exit(task)
   if (Exit.isFailure(exit)) {
     const cause = exit.cause
-    if (Cause.isDieType(cause) && Cause.isRuntimeException(cause.defect)) {
-      yield* Console.log(`RuntimeException defect caught: ${cause.defect.message}`)
-    } else {
-      yield* Console.log("Unknown failure caught.")
+    for (const reason of cause.reasons) {
+      if (Cause.isDieReason(reason) && Predicate.isError(reason.defect)) {
+        yield* Console.log(`Error defect caught: ${reason.defect.message}`)
+      } else {
+        yield* Console.log("Unknown failure caught.")
+      }
     }
   }
 })
@@ -207,12 +211,8 @@ const program = Effect.gen(function* () {
 Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
-RuntimeException defect caught: Boom!
-{
-  _id: "Exit",
-  _tag: "Success",
-  value: undefined
-}
+Error defect caught: Boom!
+{ _id: 'Exit', _tag: 'Success', value: undefined }
 */
 ```
 
@@ -220,7 +220,7 @@ RuntimeException defect caught: Boom!
 
 Recovers from all defects using a provided recovery function.
 
-`Effect.catchAllDefect` allows you to handle defects, which are unexpected errors
+`Effect.catchDefect` allows you to handle defects, which are unexpected errors
 that usually cause the program to terminate. This function lets you recover
 from these defects by providing a function that handles the error.
 
@@ -229,15 +229,15 @@ execution interruptions (like those from [Effect.interrupt](/docs/concurrency/ba
 
 **Example** (Handling All Defects)
 
-```ts twoslash
-import { Effect, Cause, Console } from "effect"
+```ts twoslash import.meta.vitest name="handling-all-defects-1"
+import { Effect, Predicate, Console } from "effect"
 
 // Simulating a runtime error
-const task = Effect.dieMessage("Boom!")
+const task = Effect.die(new Error("Boom!"))
 
-const program = Effect.catchAllDefect(task, (defect) => {
-  if (Cause.isRuntimeException(defect)) {
-    return Console.log(`RuntimeException defect caught: ${defect.message}`)
+const program = Effect.catchDefect(task, (defect) => {
+  if (Predicate.isError(defect)) {
+    return Console.log(`Error defect caught: ${defect.message}`)
   }
   return Console.log("Unknown defect caught.")
 })
@@ -246,12 +246,8 @@ const program = Effect.catchAllDefect(task, (defect) => {
 Effect.runPromiseExit(program).then(console.log)
 /*
 Output:
-RuntimeException defect caught: Boom!
-{
-  _id: "Exit",
-  _tag: "Success",
-  value: undefined
-}
+Error defect caught: Boom!
+{ _id: 'Exit', _tag: 'Success', value: undefined }
 */
 ```
 
