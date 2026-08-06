@@ -13,7 +13,7 @@ Here's an example using `Effect.zip`, which stops at the first failure and only 
 
 **Example** (Fail Fast with `Effect.zip`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="fail-fast-with-effect-zip-1"
 import { Effect, Console } from "effect"
 
 const task1 = Console.log("task1").pipe(Effect.as(1))
@@ -27,7 +27,7 @@ Effect.runPromise(program).then(console.log, console.error)
 /*
 Output:
 task1
-(FiberFailure) Error: Oh uh!
+Oh uh!
 */
 ```
 
@@ -35,7 +35,7 @@ The `Effect.forEach` function behaves similarly. It applies an effectful operati
 
 **Example** (Fail Fast with `Effect.forEach`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="fail-fast-with-effect-foreach-1"
 import { Effect, Console } from "effect"
 
 const program = Effect.forEach([1, 2, 3, 4, 5], (n) => {
@@ -52,7 +52,7 @@ Output:
 item 1
 item 2
 item 3
-(FiberFailure) Error: 4 is not less that 4
+4 is not less that 4
 */
 ```
 
@@ -64,7 +64,7 @@ The `Effect.validate` function is similar to `Effect.zip`, but it continues comb
 
 **Example** (Validating and Collecting Errors)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="validating-and-collecting-errors-1"
 import { Effect, Console } from "effect"
 
 const task1 = Console.log("task1").pipe(Effect.as(1))
@@ -72,7 +72,7 @@ const task2 = Effect.fail("Oh uh!").pipe(Effect.as(2))
 const task3 = Console.log("task2").pipe(Effect.as(3))
 const task4 = Effect.fail("Oh no!").pipe(Effect.as(4))
 
-const program = task1.pipe(Effect.validate(task2), Effect.validate(task3), Effect.validate(task4))
+const program = Effect.validate([task1, task2, task3, task4], (task) => task)
 
 Effect.runPromiseExit(program).then(console.log)
 /*
@@ -82,26 +82,21 @@ task2
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Sequential',
-    left: { _id: 'Cause', _tag: 'Fail', failure: 'Oh uh!' },
-    right: { _id: 'Cause', _tag: 'Fail', failure: 'Oh no!' }
-  }
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 ```
 
 ## validateAll
 
-The `Effect.validateAll` function is similar to the `Effect.forEach` function. It transforms all elements of a collection using the provided effectful operation, but it collects all errors in the error channel, as well as the success values in the success channel.
+The `Effect.validate` function is similar to the `Effect.forEach` function. It transforms all elements of a collection using the provided effectful operation, but it collects all errors in the error channel, as well as the success values in the success channel.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="validate-all-1"
 import { Effect, Console } from "effect"
 
-//      ┌─── Effect<number[], string[], never>
+//      ┌─── Effect<number[], [string, ...string[]], never>
 //      ▼
-const program = Effect.validateAll([1, 2, 3, 4, 5], (n) => {
+const program = Effect.validate([1, 2, 3, 4, 5], (n) => {
   if (n < 4) {
     return Console.log(`item ${n}`).pipe(Effect.as(n))
   } else {
@@ -118,11 +113,7 @@ item 3
 {
   _id: 'Exit',
   _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Fail',
-    failure: [ '4 is not less that 4', '5 is not less that 4' ]
-  }
+  cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
 ```
@@ -135,7 +126,7 @@ item 3
 
 ## validateFirst
 
-The `Effect.validateFirst` function is similar to `Effect.validateAll` but it returns the first successful result, or all errors if none succeed.
+The `Effect.validateFirst` function is similar to `Effect.validate` but it returns the first successful result, or all errors if none succeed.
 
 **Example** (Returning the First Success)
 
@@ -160,7 +151,7 @@ item 4
 */
 ```
 
-Notice that `Effect.validateFirst` returns a single `number` as the success type, rather than an array of results like `Effect.validateAll`.
+Notice that `Effect.validateFirst` returns a single `number` as the success type, rather than an array of results like `Effect.validate`.
 
 ## partition
 
@@ -168,7 +159,7 @@ The `Effect.partition` function processes an iterable and applies an effectful f
 
 **Example** (Partitioning Successes and Failures)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="partitioning-successes-and-failures-1"
 import { Effect } from "effect"
 
 //      ┌─── Effect<[string[], number[]], never, never>
