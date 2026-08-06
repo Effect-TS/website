@@ -25,7 +25,7 @@ Here is a simple example using `Ref` to create a counter:
 
 **Example** (Basic Counter with `Ref`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-ref-1"
 import { Effect, Ref } from "effect"
 
 class Counter {
@@ -40,12 +40,12 @@ class Counter {
   }
 }
 
-const make = Effect.andThen(Ref.make(0), (value) => new Counter(value))
+const make = Effect.map(Ref.make(0), (value) => new Counter(value))
 ```
 
 **Example** (Using the Counter)
 
-```ts twoslash collapse={3-15}
+```ts twoslash collapse={3-15} import.meta.vitest name="using-ref-2"
 import { Effect, Ref } from "effect"
 
 class Counter {
@@ -60,7 +60,7 @@ class Counter {
   }
 }
 
-const make = Effect.andThen(Ref.make(0), (value) => new Counter(value))
+const make = Effect.map(Ref.make(0), (value) => new Counter(value))
 
 const program = Effect.gen(function* () {
   const counter = yield* make
@@ -92,7 +92,7 @@ We can also use `Ref` in concurrent scenarios, where multiple tasks might be upd
 
 For this example, let's update the counter concurrently:
 
-```ts twoslash collapse={3-15}
+```ts twoslash collapse={3-15} import.meta.vitest name="using-ref-in-a-concurrent-environment-1"
 import { Effect, Ref } from "effect"
 
 class Counter {
@@ -107,7 +107,7 @@ class Counter {
   }
 }
 
-const make = Effect.andThen(Ref.make(0), (value) => new Counter(value))
+const make = Effect.map(Ref.make(0), (value) => new Counter(value))
 
 const program = Effect.gen(function* () {
   const counter = yield* make
@@ -146,11 +146,11 @@ You can pass a `Ref` as a [service](/docs/requirements-management/services/) to 
 
 **Example** (Using `Ref` as a Service)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="using-ref-as-a-service-1"
 import { Effect, Context, Ref } from "effect"
 
 // Create a Tag for our state
-class MyState extends Context.Tag("MyState")<MyState, Ref.Ref<number>>() {}
+class MyState extends Context.Service<MyState, Ref.Ref<number>>()("MyState") {}
 
 // Subprogram 1: Increment the state value twice
 const subprogram1 = Effect.gen(function* () {
@@ -206,7 +206,7 @@ Let's look at an example where we continuously read names from user input until 
 
 First, let's introduce a `readLine` utility to read user input (ensure you have `@types/node` installed):
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="sharing-state-between-fibers-1"
 import { Effect } from "effect"
 import * as NodeReadLine from "node:readline"
 
@@ -304,7 +304,7 @@ const getNames = Effect.gen(function* () {
   const ref = yield* Ref.make(Chunk.empty<string>())
 
   // Fiber 1: Reading names from user input
-  const fiber1 = yield* Effect.fork(
+  const fiber1 = yield* Effect.forkChild(
     Effect.gen(function* () {
       while (true) {
         const name = yield* readLine("Please enter a name or `q` to exit: ")
@@ -317,7 +317,7 @@ const getNames = Effect.gen(function* () {
   )
 
   // Fiber 2: Updating the state with predefined names
-  const fiber2 = yield* Effect.fork(
+  const fiber2 = yield* Effect.forkChild(
     Effect.gen(function* () {
       for (const name of ["John", "Jane", "Joe", "Tom"]) {
         yield* Ref.update(ref, (state) => Chunk.append(state, name))
