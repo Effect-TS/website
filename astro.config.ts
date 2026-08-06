@@ -29,6 +29,7 @@ export default defineConfig({
       "./src/assets/fonts/Inter-Regular.ttf",
       "./src/assets/fonts/Inter-Bold.ttf",
       "./src/assets/fonts/JetBrainsMono-Regular.ttf",
+      "./src/assets/fonts/JetBrainsMono-Bold.ttf",
       ...ogAssetPngs,
     ],
   }),

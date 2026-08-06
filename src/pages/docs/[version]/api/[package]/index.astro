@@ -6,6 +6,7 @@ import { ChevronDown, Search } from "@lucide/astro"
 import Footer from "@/components/Footer.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
+import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 
@@ -67,6 +68,10 @@ const collection = await getCollection("apiReference")
 const { modules, pkg, version } = Astro.props
 
 const displayName = pkg.name.replace("@effect/", "")
+const openGraph = resolveApiReferenceOpenGraph(
+  `docs/${version}/api/${pkg.slug}`,
+  modules.map((module) => module.data),
+)
 
 const availableVersions = new Set(
   collection
@@ -139,7 +144,11 @@ function moduleName(modulePath: string, group: string): string {
 }
 ---
 
-<BaseLayout title="API Reference">
+<BaseLayout
+  title={`${pkg.name} API Reference | Effect`}
+  description={pkg.description}
+  ogImageVersion={openGraph?.revision}
+>
   <Navigation activeSlug="api" wide />
 
   <div class="relative w-full pt-16">

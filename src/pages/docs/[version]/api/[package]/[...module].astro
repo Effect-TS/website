@@ -8,6 +8,7 @@ import Navigation from "@/components/navigation/Navigation.astro"
 import ApiDeclaration from "@/features/api-reference/ApiDeclaration.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import * as ApiReference from "@/features/api-reference/ApiReference"
+import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
 
@@ -29,6 +30,10 @@ const reflection = await ApiReference.loadReflection(entry.data)
 const apiModule = await ApiReference.ApiReference.moduleView(reflection)
 const moduleName = entry.data.modulePath.split("/").at(-1) ?? entry.data.modulePath
 const displayName = entry.data.packageName.replace("@effect/", "")
+const openGraph = resolveApiReferenceOpenGraph(
+  `docs/${entry.data.version}/api/${entry.data.packageSlug}/${entry.data.modulePath}`,
+  [entry.data],
+)
 const packageEntries = allEntries
   .filter(
     (candidate) =>
@@ -114,7 +119,11 @@ function sidebarModuleName(modulePath: string, group: string): string {
 }
 ---
 
-<BaseLayout title={`${moduleName} API Reference | Effect`}>
+<BaseLayout
+  title={`${moduleName} API Reference | Effect`}
+  description={openGraph?.description}
+  ogImageVersion={entry.data.revision}
+>
   <Navigation activeSlug="api" wide />
 
   <div class="relative w-full pt-16">

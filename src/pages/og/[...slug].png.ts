@@ -6,7 +6,8 @@ import * as Function from "effect/Function"
 import * as Option from "effect/Option"
 import { readFile } from "node:fs/promises"
 import type { OgTemplateProps } from "@/services/OpenGraph"
-import { loadAssets, renderBlogOg, renderDocsOg } from "@/services/OpenGraph"
+import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
+import { loadAssets, renderApiReferenceOg, renderBlogOg, renderDocsOg } from "@/services/OpenGraph"
 
 // On-demand server endpoint: slugs derive from arbitrary page pathnames
 // (see BaseLayout.getOgImagePath), so the route cannot be enumerated at build
@@ -104,6 +105,19 @@ export const GET: APIRoute = async (context) => {
   const staticImage = await readStaticPng(maybeSlug.value)
   if (Option.isSome(staticImage)) {
     return pngResponse(staticImage.value)
+  }
+
+  if (/^docs\/v\d+\/api(?:\/|$)/.test(maybeSlug.value)) {
+    const entries = await getCollection("apiReference")
+    const card = resolveApiReferenceOpenGraph(
+      maybeSlug.value,
+      entries.map((entry) => entry.data),
+    )
+    if (card === undefined) {
+      return notFound()
+    }
+    const ogAssets = await loadAssets()
+    return pngResponse(await renderApiReferenceOg(card.template, ogAssets))
   }
 
   if (maybeSlug.value.startsWith("docs/")) {
