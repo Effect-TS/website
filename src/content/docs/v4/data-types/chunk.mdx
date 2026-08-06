@@ -29,7 +29,7 @@ Create an empty `Chunk` with `Chunk.empty`.
 
 **Example** (Creating an Empty Chunk)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="empty-1"
 import { Chunk } from "effect"
 
 //      ┌─── Chunk<number>
@@ -43,7 +43,7 @@ To create a `Chunk` with specific values, use `Chunk.make(...values)`. Note that
 
 **Example** (Creating a Non-Empty Chunk)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="make-1"
 import { Chunk } from "effect"
 
 //      ┌─── NonEmptyChunk<number>
@@ -57,12 +57,14 @@ You can create a `Chunk` by providing a collection, either from an iterable or d
 
 **Example** (Creating a Chunk from an Iterable)
 
-```ts twoslash
-import { Chunk, List } from "effect"
+```ts twoslash import.meta.vitest name="from-iterable-1"
+import { Chunk } from "effect"
 
 const fromArray = Chunk.fromIterable([1, 2, 3])
 
-const fromList = Chunk.fromIterable(List.make(1, 2, 3))
+const fromSet = Chunk.fromIterable(new Set([1, 2, 3]))
+
+Chunk.toReadonlyArray(fromSet) // => [1, 2, 3]
 ```
 
 <Aside type="caution" title="Performance Consideration">
@@ -72,18 +74,18 @@ const fromList = Chunk.fromIterable(List.make(1, 2, 3))
 
 ### unsafeFromArray
 
-`Chunk.unsafeFromArray` creates a `Chunk` directly from an array without cloning. This approach can improve performance by avoiding the overhead of copying data but requires caution, as it bypasses the usual immutability guarantees.
+`Chunk.fromArrayUnsafe` creates a `Chunk` directly from an array without cloning. This approach can improve performance by avoiding the overhead of copying data but requires caution, as it bypasses the usual immutability guarantees.
 
 **Example** (Directly Creating a Chunk from an Array)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="unsafe-from-array-1"
 import { Chunk } from "effect"
 
-const chunk = Chunk.unsafeFromArray([1, 2, 3])
+const chunk = Chunk.fromArrayUnsafe([1, 2, 3])
 ```
 
 <Aside type="caution" title="Risk of Mutable Data">
-  Using `Chunk.unsafeFromArray` can lead to unexpected behavior if the original array is modified
+  Using `Chunk.fromArrayUnsafe` can lead to unexpected behavior if the original array is modified
   after the chunk is created. For safer, immutable behavior, use `Chunk.fromIterable` instead.
 </Aside>
 
@@ -93,7 +95,7 @@ To combine two `Chunk` instances into one, use `Chunk.appendAll`.
 
 **Example** (Combining Two Chunks into One)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="concatenating-1"
 import { Chunk } from "effect"
 
 // Concatenate two chunks with different types of elements
@@ -115,11 +117,13 @@ To remove elements from the beginning of a `Chunk`, use `Chunk.drop`, specifying
 
 **Example** (Dropping Elements from the Start)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="dropping-1"
 import { Chunk } from "effect"
 
 // Drops the first 2 elements from the Chunk
 const chunk = Chunk.drop(Chunk.make(1, 2, 3, 4), 2)
+
+Chunk.toReadonlyArray(chunk) // => [3, 4]
 ```
 
 ## Comparing
@@ -128,7 +132,7 @@ To check if two `Chunk` instances are equal, use [`Equal.equals`](/docs/trait/eq
 
 **Example** (Comparing Two Chunks)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="comparing-1"
 import { Chunk, Equal } from "effect"
 
 const chunk1 = Chunk.make(1, 2)
