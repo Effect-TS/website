@@ -63,15 +63,15 @@ You can create a new fiber by **forking** an effect. This starts the effect in a
 
 In this example, the Fibonacci calculation is forked into its own fiber, allowing it to run independently of the main fiber. The reference to the `fib10Fiber` can be used later to join or interrupt the fiber.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="forking-effects-1"
 import { Effect } from "effect"
 
 const fib = (n: number): Effect.Effect<number> =>
   n < 2 ? Effect.succeed(n) : Effect.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Effect<RuntimeFiber<number, never>, never, never>
+//      ┌─── Effect<Fiber<number, never>, never, never>
 //      ▼
-const fib10Fiber = Effect.fork(fib(10))
+const fib10Fiber = Effect.forkChild(fib(10))
 ```
 
 ## Joining Fibers
@@ -80,15 +80,15 @@ One common operation with fibers is **joining** them. By using the `Fiber.join` 
 
 **Example** (Joining a Fiber)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="joining-fibers-1"
 import { Effect, Fiber } from "effect"
 
 const fib = (n: number): Effect.Effect<number> =>
   n < 2 ? Effect.succeed(n) : Effect.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Effect<RuntimeFiber<number, never>, never, never>
+//      ┌─── Effect<Fiber<number, never>, never, never>
 //      ▼
-const fib10Fiber = Effect.fork(fib(10))
+const fib10Fiber = Effect.forkChild(fib(10))
 
 const program = Effect.gen(function* () {
   // Retrieve the fiber
@@ -107,15 +107,15 @@ The `Fiber.await` function is a helpful tool when working with fibers. It allows
 
 **Example** (Awaiting Fiber Completion)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="awaiting-fibers-1"
 import { Effect, Fiber } from "effect"
 
 const fib = (n: number): Effect.Effect<number> =>
   n < 2 ? Effect.succeed(n) : Effect.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
 
-//      ┌─── Effect<RuntimeFiber<number, never>, never, never>
+//      ┌─── Effect<Fiber<number, never>, never, never>
 //      ▼
-const fib10Fiber = Effect.fork(fib(10))
+const fib10Fiber = Effect.forkChild(fib(10))
 
 const program = Effect.gen(function* () {
   // Retrieve the fiber
@@ -170,12 +170,12 @@ Like `Fiber.await`, the `Fiber.interrupt` function returns an [Exit](/docs/data-
 
 **Example** (Interrupting a Fiber)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="interrupting-fibers-1"
 import { Effect, Fiber } from "effect"
 
 const program = Effect.gen(function* () {
   // Fork a fiber that runs indefinitely, printing "Hi!"
-  const fiber = yield* Effect.fork(
+  const fiber = yield* Effect.forkChild(
     Effect.forever(Effect.log("Hi!").pipe(Effect.delay("10 millis"))),
   )
   yield* Effect.sleep("30 millis")
@@ -212,15 +212,15 @@ If you do not require this waiting behavior, you can fork the interruption itsel
 
 **Example** (Forking an Interruption)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="interrupting-fibers-2"
 import { Effect, Fiber } from "effect"
 
 const program = Effect.gen(function* () {
-  const fiber = yield* Effect.fork(
+  const fiber = yield* Effect.forkChild(
     Effect.forever(Effect.log("Hi!").pipe(Effect.delay("10 millis"))),
   )
   yield* Effect.sleep("30 millis")
-  const _ = yield* Effect.fork(Fiber.interrupt(fiber))
+  const _ = yield* Effect.forkChild(Fiber.interrupt(fiber))
   console.log("Do something else...")
 })
 
@@ -235,16 +235,16 @@ Do something else...
 
 There is also a shorthand for background interruption called `Fiber.interruptFork`.
 
-```ts twoslash del={8} ins={9}
+```ts twoslash del={8} ins={9} import.meta.vitest name="interrupting-fibers-3"
 import { Effect, Fiber } from "effect"
 
 const program = Effect.gen(function* () {
-  const fiber = yield* Effect.fork(
+  const fiber = yield* Effect.forkChild(
     Effect.forever(Effect.log("Hi!").pipe(Effect.delay("10 millis"))),
   )
   yield* Effect.sleep("30 millis")
-  // const _ = yield* Effect.fork(Fiber.interrupt(fiber))
-  const _ = yield* Fiber.interruptFork(fiber)
+  // const _ = yield* Effect.forkChild(Fiber.interrupt(fiber))
+  fiber.interruptUnsafe()
   console.log("Do something else...")
 })
 
@@ -270,19 +270,16 @@ The `Fiber.zip` and `Fiber.zipWith` functions allow you to combine two fibers in
 
 In this example, both fibers run concurrently, and the results are combined into a tuple.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="composing-fibers-1"
 import { Effect, Fiber } from "effect"
 
 const program = Effect.gen(function* () {
   // Fork two fibers that each produce a string
-  const fiber1 = yield* Effect.fork(Effect.succeed("Hi!"))
-  const fiber2 = yield* Effect.fork(Effect.succeed("Bye!"))
+  const fiber1 = yield* Effect.forkChild(Effect.succeed("Hi!"))
+  const fiber2 = yield* Effect.forkChild(Effect.succeed("Bye!"))
 
-  // Combine the two fibers using Fiber.zip
-  const fiber = Fiber.zip(fiber1, fiber2)
-
-  // Join the combined fiber and get the result as a tuple
-  const tuple = yield* Fiber.join(fiber)
+  // Join both fibers and zip their results into a tuple
+  const tuple = yield* Effect.zip(Fiber.join(fiber1), Fiber.join(fiber2))
   console.log(tuple)
 })
 
@@ -297,17 +294,16 @@ Another way to compose fibers is by using `Fiber.orElse`. This function allows y
 
 **Example** (Providing a Fallback Fiber with `Fiber.orElse`)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="composing-fibers-2"
 import { Effect, Fiber } from "effect"
 
 const program = Effect.gen(function* () {
   // Fork a fiber that will fail
-  const fiber1 = yield* Effect.fork(Effect.fail("Uh oh!"))
+  const fiber1 = yield* Effect.forkChild(Effect.fail("Uh oh!"))
   // Fork another fiber that will succeed
-  const fiber2 = yield* Effect.fork(Effect.succeed("Hurray!"))
+  const fiber2 = yield* Effect.forkChild(Effect.succeed("Hurray!"))
   // If fiber1 fails, fiber2 will be used as a fallback
-  const fiber = Fiber.orElse(fiber1, fiber2)
-  const message = yield* Fiber.join(fiber)
+  const message = yield* Effect.catchCause(Fiber.join(fiber1), () => Fiber.join(fiber2))
   console.log(message)
 })
 
@@ -322,9 +318,9 @@ Hurray!
 
 When we fork fibers, depending on how we fork them we can have four different lifetime strategies for the child fibers:
 
-1. **Fork With Automatic Supervision**. If we use the ordinary `Effect.fork` operation, the child fiber will be automatically supervised by the parent fiber. The lifetime child fibers are tied to the lifetime of their parent fiber. This means that these fibers will be terminated either when they end naturally, or when their parent fiber is terminated.
+1. **Fork With Automatic Supervision**. If we use the ordinary `Effect.forkChild` operation, the child fiber will be automatically supervised by the parent fiber. The lifetime child fibers are tied to the lifetime of their parent fiber. This means that these fibers will be terminated either when they end naturally, or when their parent fiber is terminated.
 
-2. **Fork in Global Scope (Daemon)**. Sometimes we want to run long-running background fibers that aren't tied to their parent fiber, and also we want to fork them in a global scope. Any fiber that is forked in global scope will become daemon fiber. This can be achieved by using the `Effect.forkDaemon` operator. As these fibers have no parent, they are not supervised, and they will be terminated when they end naturally, or when our application is terminated.
+2. **Fork in Global Scope (Daemon)**. Sometimes we want to run long-running background fibers that aren't tied to their parent fiber, and also we want to fork them in a global scope. Any fiber that is forked in global scope will become daemon fiber. This can be achieved by using the `Effect.forkDetach` operator. As these fibers have no parent, they are not supervised, and they will be terminated when they end naturally, or when our application is terminated.
 
 3. **Fork in Local Scope**. Sometimes, we want to run a background fiber that isn't tied to its parent fiber, but we want that fiber to live in the local scope. We can fork fibers in the local scope by using `Effect.forkScoped`. Such fibers can outlive their parent fiber (so they are not supervised by their parents), and they will be terminated when their life end or their local scope is closed.
 
@@ -339,7 +335,7 @@ Effect follows a **structured concurrency** model, where child fibers' lifetimes
 In this scenario, the `parent` fiber spawns a `child` fiber that repeatedly prints a message every second.
 The `child` fiber will be terminated when the `parent` fiber completes.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="fork-with-automatic-supervision-1"
 import { Effect, Console, Schedule } from "effect"
 
 // Child fiber that logs a message repeatedly every second
@@ -348,7 +344,7 @@ const child = Effect.repeat(Console.log("child: still running!"), Schedule.fixed
 const parent = Effect.gen(function* () {
   console.log("parent: started!")
   // Child fiber is supervised by the parent
-  yield* Effect.fork(child)
+  yield* Effect.forkChild(child)
   yield* Effect.sleep("3 seconds")
   console.log("parent: finished!")
 })
@@ -368,7 +364,7 @@ This behavior can be extended to any level of nested fibers, ensuring a predicta
 
 ### Fork in Global Scope (Daemon)
 
-You can create a long-running background fiber using `Effect.forkDaemon`. This type of fiber, known as a daemon fiber, is not tied to the lifecycle of its parent fiber. Instead, its lifetime is linked to the global scope. A daemon fiber continues running even if its parent fiber is terminated and will only stop when the global scope is closed or the fiber completes naturally.
+You can create a long-running background fiber using `Effect.forkDetach`. This type of fiber, known as a daemon fiber, is not tied to the lifecycle of its parent fiber. Instead, its lifetime is linked to the global scope. A daemon fiber continues running even if its parent fiber is terminated and will only stop when the global scope is closed or the fiber completes naturally.
 
 **Example** (Creating a Daemon Fiber)
 
@@ -383,7 +379,7 @@ const daemon = Effect.repeat(Console.log("daemon: still running!"), Schedule.fix
 const parent = Effect.gen(function* () {
   console.log("parent: started!")
   // Daemon fiber running independently
-  yield* Effect.forkDaemon(daemon)
+  yield* Effect.forkDetach(daemon)
   yield* Effect.sleep("3 seconds")
   console.log("parent: finished!")
 })
@@ -420,14 +416,14 @@ const daemon = Effect.repeat(Console.log("daemon: still running!"), Schedule.fix
 const parent = Effect.gen(function* () {
   console.log("parent: started!")
   // Daemon fiber running independently
-  yield* Effect.forkDaemon(daemon)
+  yield* Effect.forkDetach(daemon)
   yield* Effect.sleep("3 seconds")
   console.log("parent: finished!")
 }).pipe(Effect.onInterrupt(() => Console.log("parent: interrupted!")))
 
 // Program that interrupts the parent fiber after 2 seconds
 const program = Effect.gen(function* () {
-  const fiber = yield* Effect.fork(parent)
+  const fiber = yield* Effect.forkChild(parent)
   yield* Effect.sleep("2 seconds")
   yield* Fiber.interrupt(fiber) // Interrupt the parent fiber
 })
@@ -458,7 +454,7 @@ Fibers created with `Effect.forkScoped` can outlive their parent fibers and will
 
 In this example, the `child` fiber continues to run beyond the lifetime of the `parent` fiber. The `child` fiber is tied to the local scope and will be terminated only when the scope ends.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="fork-in-local-scope-1"
 import { Effect, Console, Schedule } from "effect"
 
 // Child fiber that logs a message repeatedly every second
@@ -478,7 +474,7 @@ const parent = Effect.gen(function* () {
 const program = Effect.scoped(
   Effect.gen(function* () {
     console.log("Local scope started!")
-    yield* Effect.fork(parent)
+    yield* Effect.forkChild(parent)
     // Scope lasts for 5 seconds
     yield* Effect.sleep("5 seconds")
     console.log("Leaving the local scope!")
@@ -509,7 +505,7 @@ We can use the `Effect.forkIn` operator which takes the target scope as an argum
 
 In this example, the `child` fiber is forked into the `outerScope`, allowing it to outlive the inner scope but still be terminated when the `outerScope` is closed.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="fork-in-specific-scope-1"
 import { Console, Effect, Schedule } from "effect"
 
 // Child fiber that logs a message repeatedly every second
@@ -560,19 +556,19 @@ Forked fibers begin execution after the current fiber completes or yields.
 **Example** (Late Fiber Start Captures Only One Value)
 
 In the following example, the `changes` stream only captures a single value, `2`.
-This happens because the fiber created by `Effect.fork` starts **after** the value is updated.
+This happens because the fiber created by `Effect.forkChild` starts **after** the value is updated.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="when-do-fibers-run-1"
 import { Effect, SubscriptionRef, Stream, Console } from "effect"
 
 const program = Effect.gen(function* () {
   const ref = yield* SubscriptionRef.make(0)
-  yield* ref.changes.pipe(
+  yield* SubscriptionRef.changes(ref).pipe(
     // Log each change in SubscriptionRef
     Stream.tap((n) => Console.log(`SubscriptionRef changed to ${n}`)),
     Stream.runDrain,
     // Fork a fiber to run the stream
-    Effect.fork,
+    Effect.forkChild,
   )
   yield* SubscriptionRef.set(ref, 1)
   yield* SubscriptionRef.set(ref, 2)
@@ -595,17 +591,17 @@ If you add a short delay with `Effect.sleep()` or call `Effect.yieldNow()`, you 
 
 **Example** (Delay Allows Fiber to Capture All Values)
 
-```ts twoslash ins={14}
+```ts twoslash ins={14} import.meta.vitest name="when-do-fibers-run-2"
 import { Effect, SubscriptionRef, Stream, Console } from "effect"
 
 const program = Effect.gen(function* () {
   const ref = yield* SubscriptionRef.make(0)
-  yield* ref.changes.pipe(
+  yield* SubscriptionRef.changes(ref).pipe(
     // Log each change in SubscriptionRef
     Stream.tap((n) => Console.log(`SubscriptionRef changed to ${n}`)),
     Stream.runDrain,
     // Fork a fiber to run the stream
-    Effect.fork,
+    Effect.forkChild,
   )
 
   // Allow the fiber a chance to start
