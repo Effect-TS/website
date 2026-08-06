@@ -121,6 +121,10 @@ export default defineConfig({
       status: 307,
       destination: "/docs/v3/getting-started/introduction",
     },
+    "/docs/v4": {
+      status: 307,
+      destination: "/docs/v4/getting-started/introduction",
+    },
     "/docs/api": {
       status: 307,
       destination: "/docs/v4/api",
