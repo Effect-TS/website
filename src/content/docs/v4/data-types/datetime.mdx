@@ -21,9 +21,9 @@ A `DateTime` represents a moment in time. It can be stored as either a simple UT
 
 There are two main variants of `DateTime`:
 
-1. **Utc**: An immutable structure that uses `epochMillis` (milliseconds since the Unix epoch) to represent a point in time in Coordinated Universal Time (UTC).
+1. **Utc**: An immutable structure that uses `epochMilliseconds` (milliseconds since the Unix epoch) to represent a point in time in Coordinated Universal Time (UTC).
 
-2. **Zoned**: Includes `epochMillis` along with a `TimeZone`, allowing you to attach an offset or a named region (like "America/New_York") to the timestamp.
+2. **Zoned**: Includes `epochMilliseconds` along with a `TimeZone`, allowing you to attach an offset or a named region (like "America/New_York") to the timestamp.
 
 ### Why Have Two Variants?
 
@@ -46,12 +46,12 @@ type DateTime = Utc | Zoned
 
 interface Utc {
   readonly _tag: "Utc"
-  readonly epochMillis: number
+  readonly epochMilliseconds: number
 }
 
 interface Zoned {
   readonly _tag: "Zoned"
-  readonly epochMillis: number
+  readonly epochMilliseconds: number
   readonly zone: TimeZone
 }
 
@@ -77,10 +77,10 @@ The `DateTime.Parts` type defines the main components of a date, such as the yea
 ```ts showLineNumbers=false
 namespace DateTime {
   interface Parts {
-    readonly millis: number
-    readonly seconds: number
-    readonly minutes: number
-    readonly hours: number
+    readonly millisecond: number
+    readonly second: number
+    readonly minute: number
+    readonly hour: number
     readonly day: number
     readonly month: number
     readonly year: number
@@ -110,12 +110,12 @@ namespace DateTime {
 
 ## Utc Constructors
 
-`Utc` is an immutable structure that uses `epochMillis` (milliseconds since the Unix epoch) to represent a point in time in Coordinated Universal Time (UTC).
+`Utc` is an immutable structure that uses `epochMilliseconds` (milliseconds since the Unix epoch) to represent a point in time in Coordinated Universal Time (UTC).
 
 ### unsafeFromDate
 
 Creates a `Utc` from a JavaScript `Date`.
-Throws an `IllegalArgumentException` if the provided `Date` is invalid.
+Throws an `IllegalArgumentError` if the provided `Date` is invalid.
 
 When a `Date` object is passed, it is converted to a `Utc` instance. The time is interpreted as the local time of the system executing the code and then adjusted to UTC. This ensures a consistent, timezone-independent representation of the date and time.
 
@@ -123,19 +123,19 @@ When a `Date` object is passed, it is converted to a `Utc` instance. The time is
 
 The following example assumes the code is executed on a system in Italy (CET timezone):
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="unsafe-from-date-1"
 import { DateTime } from "effect"
 
 // Create a Utc instance from a local JavaScript Date
 //
 //     ┌─── Utc
 //     ▼
-const utc = DateTime.unsafeFromDate(new Date("2025-01-01 04:00:00"))
+const utc = DateTime.fromDateUnsafe(new Date("2025-01-01 04:00:00"))
 
 console.log(utc)
 // Output: DateTime.Utc(2025-01-01T03:00:00.000Z)
 
-console.log(utc.epochMillis)
+console.log(utc.epochMilliseconds)
 // Output: 1735700400000
 ```
 
@@ -143,7 +143,7 @@ console.log(utc.epochMillis)
 
 - The local time **2025-01-01 04:00:00** (in Italy, CET) is converted to **UTC** by subtracting the timezone offset (UTC+1 in January).
 - As a result, the UTC time becomes **2025-01-01 03:00:00.000Z**.
-- `epochMillis` provides the same time as milliseconds since the Unix Epoch, ensuring a precise numeric representation of the UTC timestamp.
+- `epochMilliseconds` provides the same time as milliseconds since the Unix Epoch, ensuring a precise numeric representation of the UTC timestamp.
 
 ### unsafeMake
 
@@ -153,21 +153,21 @@ Creates a `Utc` from a [DateTime.Input](#the-datetimeinput-type).
 
 The following example assumes the code is executed on a system in Italy (CET timezone):
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="unsafe-make-1"
 import { DateTime } from "effect"
 
 // From a JavaScript Date
-const utc1 = DateTime.unsafeMake(new Date("2025-01-01 04:00:00"))
+const utc1 = DateTime.makeUnsafe(new Date("2025-01-01 04:00:00"))
 console.log(utc1)
 // Output: DateTime.Utc(2025-01-01T03:00:00.000Z)
 
 // From partial date parts
-const utc2 = DateTime.unsafeMake({ year: 2025 })
+const utc2 = DateTime.makeUnsafe({ year: 2025 })
 console.log(utc2)
 // Output: DateTime.Utc(2025-01-01T00:00:00.000Z)
 
 // From a string
-const utc3 = DateTime.unsafeMake("2025-01-01")
+const utc3 = DateTime.makeUnsafe("2025-01-01")
 console.log(utc3)
 // Output: DateTime.Utc(2025-01-01T00:00:00.000Z)
 ```
@@ -186,7 +186,7 @@ If the input is invalid, it returns `None`. If valid, it returns `Some` containi
 
 The following example assumes the code is executed on a system in Italy (CET timezone):
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="make-1"
 import { DateTime } from "effect"
 
 // From a JavaScript Date
@@ -221,7 +221,7 @@ Output:
 
 ## Zoned Constructors
 
-A `Zoned` includes `epochMillis` along with a `TimeZone`, allowing you to attach an offset or a named region (like "America/New_York") to the timestamp.
+A `Zoned` includes `epochMilliseconds` along with a `TimeZone`, allowing you to attach an offset or a named region (like "America/New_York") to the timestamp.
 
 ### unsafeMakeZoned
 
@@ -234,17 +234,17 @@ The time zone can be provided in several ways:
 - A string identifier (e.g., `"Europe/London"`)
 - A numeric offset in milliseconds
 
-If the input or time zone is invalid, an `IllegalArgumentException` is thrown.
+If the input or time zone is invalid, an `IllegalArgumentError` is thrown.
 
 **Example** (Creating a Zoned DateTime Without Specifying a Time Zone)
 
 The following example assumes the code is executed on a system in Italy (CET timezone):
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="unsafe-make-zoned-1"
 import { DateTime } from "effect"
 
 // Create a Zoned DateTime based on the system's local time zone
-const zoned = DateTime.unsafeMakeZoned(new Date("2025-01-01 04:00:00"))
+const zoned = DateTime.makeZonedUnsafe(new Date("2025-01-01 04:00:00"))
 
 console.log(zoned)
 // Output: DateTime.Zoned(2025-01-01T04:00:00.000+01:00)
@@ -259,11 +259,11 @@ Here, the system's time zone (CET, which is UTC+1 in January) is used to create 
 
 The following example assumes the code is executed on a system in Italy (CET timezone):
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="unsafe-make-zoned-2"
 import { DateTime } from "effect"
 
 // Create a Zoned DateTime with a specified named time zone
-const zoned = DateTime.unsafeMakeZoned(new Date("2025-01-01 04:00:00"), {
+const zoned = DateTime.makeZonedUnsafe(new Date("2025-01-01 04:00:00"), {
   timeZone: "Europe/Rome",
 })
 
@@ -282,11 +282,11 @@ By default, the input date is treated as a UTC value and then adjusted for the s
 
 The following example assumes the code is executed on a system in Italy (CET timezone):
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="unsafe-make-zoned-3"
 import { DateTime } from "effect"
 
 // Interpret the input date as being in the specified time zone
-const zoned = DateTime.unsafeMakeZoned(new Date("2025-01-01 04:00:00"), {
+const zoned = DateTime.makeZonedUnsafe(new Date("2025-01-01 04:00:00"), {
   timeZone: "Europe/Rome",
   adjustForTimeZone: true,
 })
@@ -310,7 +310,7 @@ If the input is invalid, it returns `None`. If valid, it returns `Some` containi
 
 **Example** (Safely Creating a Zoned DateTime)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="make-zoned-1"
 import { DateTime, Option } from "effect"
 
 //      ┌─── Option<Zoned>
@@ -332,7 +332,7 @@ If the input string is valid, the function returns a `Some` containing the `Zone
 
 **Example** (Parsing a Zoned DateTime from a String)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="make-zoned-from-string-1"
 import { DateTime, Option } from "effect"
 
 //      ┌─── Option<Zoned>
@@ -352,7 +352,7 @@ Provides the current UTC time as a `Effect<Utc>`, using the [Clock](/docs/requir
 
 **Example** (Retrieving the Current UTC Time)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="now-1"
 import { DateTime, Effect } from "effect"
 
 const program = Effect.gen(function* () {
@@ -374,12 +374,12 @@ Retrieves the current UTC time immediately using `Date.now()`, without the [Cloc
 
 **Example** (Getting the Current UTC Time Immediately)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="unsafe-now-1"
 import { DateTime } from "effect"
 
 //      ┌─── Utc
 //      ▼
-const currentTime = DateTime.unsafeNow()
+const currentTime = DateTime.nowUnsafe()
 ```
 
 ## Guards
@@ -395,7 +395,7 @@ const currentTime = DateTime.unsafeNow()
 
 **Example** (Validating a DateTime)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="guards-1"
 import { DateTime } from "effect"
 
 function printDateTimeInfo(x: unknown) {
@@ -409,36 +409,36 @@ function printDateTimeInfo(x: unknown) {
 
 ## Time Zone Management
 
-| Function              | Description                                                                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `setZone`             | Creates a `Zoned` from `DateTime` by applying the given `TimeZone`.                                                                              |
-| `setZoneOffset`       | Creates a `Zoned` from `DateTime` using a fixed offset (in ms).                                                                                  |
-| `setZoneNamed`        | Creates a `Zoned` from `DateTime` from an IANA time zone identifier or returns `None` if invalid.                                                |
-| `unsafeSetZoneNamed`  | Creates a `Zoned` from `DateTime` from an IANA time zone identifier or throws if invalid.                                                        |
-| `zoneUnsafeMakeNamed` | Creates a `TimeZone.Named` from a IANA time zone identifier or throws if the identifier is invalid.                                              |
-| `zoneMakeNamed`       | Creates a `TimeZone.Named` from a IANA time zone identifier or returns `None` if invalid.                                                        |
-| `zoneMakeNamedEffect` | Creates a `Effect<TimeZone.Named, IllegalArgumentException>` from a IANA time zone identifier failing with `IllegalArgumentException` if invalid |
-| `zoneMakeOffset`      | Creates a `TimeZone.Offset` from a numeric offset in milliseconds.                                                                               |
-| `zoneMakeLocal`       | Creates a `TimeZone.Named` from the system's local time zone.                                                                                    |
-| `zoneFromString`      | Attempts to parse a time zone from a string, returning `None` if invalid.                                                                        |
-| `zoneToString`        | Returns a string representation of a `TimeZone`.                                                                                                 |
+| Function              | Description                                                                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `setZone`             | Creates a `Zoned` from `DateTime` by applying the given `TimeZone`.                                                                      |
+| `setZoneOffset`       | Creates a `Zoned` from `DateTime` using a fixed offset (in ms).                                                                          |
+| `setZoneNamed`        | Creates a `Zoned` from `DateTime` from an IANA time zone identifier or returns `None` if invalid.                                        |
+| `setZoneNamedUnsafe`  | Creates a `Zoned` from `DateTime` from an IANA time zone identifier or throws if invalid.                                                |
+| `zoneMakeNamedUnsafe` | Creates a `TimeZone.Named` from a IANA time zone identifier or throws if the identifier is invalid.                                      |
+| `zoneMakeNamed`       | Creates a `TimeZone.Named` from a IANA time zone identifier or returns `None` if invalid.                                                |
+| `zoneMakeNamedEffect` | Creates a `Effect<TimeZone.Named, IllegalArgumentError>` from a IANA time zone identifier failing with `IllegalArgumentError` if invalid |
+| `zoneMakeOffset`      | Creates a `TimeZone.Offset` from a numeric offset in milliseconds.                                                                       |
+| `zoneMakeLocal`       | Creates a `TimeZone.Named` from the system's local time zone.                                                                            |
+| `zoneFromString`      | Attempts to parse a time zone from a string, returning `None` if invalid.                                                                |
+| `zoneToString`        | Returns a string representation of a `TimeZone`.                                                                                         |
 
 **Example** (Applying a Time Zone to a DateTime)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="time-zone-management-1"
 import { DateTime } from "effect"
 
 // Create a UTC DateTime
 //
 //     ┌─── Utc
 //     ▼
-const utc = DateTime.unsafeMake("2024-01-01")
+const utc = DateTime.makeUnsafe("2024-01-01")
 
 // Create a named time zone for New York
 //
 //      ┌─── TimeZone.Named
 //      ▼
-const zoneNY = DateTime.zoneUnsafeMakeNamed("America/New_York")
+const zoneNY = DateTime.zoneMakeNamedUnsafe("America/New_York")
 
 // Apply it to the DateTime
 //
@@ -466,7 +466,7 @@ If the input string is invalid, `Option.none()` is returned.
 
 **Example** (Parsing a Time Zone from a String)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="zone-from-string-1"
 import { DateTime, Option } from "effect"
 
 // Attempt to parse a numeric offset
@@ -487,39 +487,25 @@ console.log(Option.isSome(invalidZone))
 
 ## Comparisons
 
-| Function                                     | Description                                                  |
-| -------------------------------------------- | ------------------------------------------------------------ |
-| `distance`                                   | Returns the difference (in ms) between two `DateTime`s.      |
-| `distanceDurationEither`                     | Returns a `Left` or `Right` `Duration` depending on order.   |
-| `distanceDuration`                           | Returns a `Duration` indicating how far apart two times are. |
-| `min`                                        | Returns the earlier of two `DateTime` values.                |
-| `max`                                        | Returns the later of two `DateTime` values.                  |
-| `greaterThan`, `greaterThanOrEqualTo`, etc.  | Checks ordering between two `DateTime` values.               |
-| `between`                                    | Checks if a `DateTime` lies within the given bounds.         |
-| `isFuture`, `isPast`, `unsafeIsFuture`, etc. | Checks if a `DateTime` is in the future or past.             |
+| Function                                        | Description                                                                                                   |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `distance`                                      | Returns the difference between two `DateTime`s as a signed `Duration` (negative if `other` is before `self`). |
+| `min`                                           | Returns the earlier of two `DateTime` values.                                                                 |
+| `max`                                           | Returns the later of two `DateTime` values.                                                                   |
+| `isGreaterThan`, `isGreaterThanOrEqualTo`, etc. | Checks ordering between two `DateTime` values.                                                                |
+| `between`                                       | Checks if a `DateTime` lies within the given bounds.                                                          |
+| `isFuture`, `isPast`, `isFutureUnsafe`, etc.    | Checks if a `DateTime` is in the future or past.                                                              |
 
 **Example** (Finding the Distance Between Two DateTimes)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="comparisons-1"
 import { DateTime } from "effect"
 
-const utc1 = DateTime.unsafeMake("2025-01-01T00:00:00Z")
+const utc1 = DateTime.makeUnsafe("2025-01-01T00:00:00Z")
 const utc2 = DateTime.add(utc1, { days: 1 })
 
+// `distance` returns a signed Duration directly (one day)
 console.log(DateTime.distance(utc1, utc2))
-// Output: 86400000 (one day)
-
-console.log(DateTime.distanceDurationEither(utc1, utc2))
-/*
-Output:
-{
-  _id: 'Either',
-  _tag: 'Right',
-  right: { _id: 'Duration', _tag: 'Millis', millis: 86400000 }
-}
-*/
-
-console.log(DateTime.distanceDuration(utc1, utc2))
 // Output: { _id: 'Duration', _tag: 'Millis', millis: 86400000 }
 ```
 
@@ -545,12 +531,12 @@ console.log(DateTime.distanceDuration(utc1, utc2))
 
 **Example** (Extracting Parts from a DateTime)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="parts-1"
 import { DateTime } from "effect"
 
 const zoned = DateTime.setZone(
-  DateTime.unsafeMake("2024-01-01"),
-  DateTime.zoneUnsafeMakeNamed("Europe/Rome"),
+  DateTime.makeUnsafe("2024-01-01"),
+  DateTime.zoneMakeNamedUnsafe("Europe/Rome"),
 )
 
 console.log(DateTime.getPart(zoned, "month"))
@@ -601,7 +587,7 @@ console.log(DateTime.getPart(zoned, "month"))
 
 **Example** (Using the Current Time Zone in an Effect)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="layers-for-current-time-zone-1"
 import { DateTime, Effect } from "effect"
 
 // Retrieve the current time in the "Europe/London" time zone
