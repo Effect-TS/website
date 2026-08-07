@@ -33,7 +33,7 @@ await Effect.runPromise(Stream.run(stream, stringSum)) // => 15
 
 ## Transforming Both Input and Output
 
-When you need to transform both the input and output of a sink, `Sink.dimap` provides a flexible solution. It extends `mapInput` by allowing you to transform the input type, perform the operation, and then transform the output to a new type. This can be useful for complete conversions between input and output types.
+When you need to transform both the input and output of a sink, combine `Sink.mapInput` with `Sink.map`. Together they let you transform the input type, perform the operation, and then transform the output to a new type. This can be useful for complete conversions between input and output types.
 
 **Example** (Converting Input to Integer, Summing, and Converting Output to String)
 
@@ -57,35 +57,22 @@ await Effect.runPromise(Stream.run(stream, sumSink)) // => "15"
 
 ## Filtering Input
 
-Sinks can also filter incoming elements based on specific conditions with `Sink.filterInput`. This operation allows the sink to process only elements that meet certain criteria.
+You can filter the elements a sink ends up processing by filtering the stream that feeds it, before handing it off with `Stream.transduce`. This lets you combine a filter with a sink like `Sink.take` that only cares about elements meeting certain criteria.
 
 **Example** (Filtering Negative Numbers in Chunks of Three)
 
 In the example below, elements are collected in chunks of three, but only positive numbers are included:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="filtering-negative-numbers-in-chunks-of-three-1"
 import { Stream, Sink, Effect } from "effect"
 
 // Define a stream with positive, negative, and zero values
 const stream = Stream.fromIterable([1, -2, 0, 1, 3, -3, 4, 2, 0, 1, -3, 1, 1, 6]).pipe(
-  Stream.transduce(
-    // Collect chunks of 3, filtering out non-positive numbers
-    Sink.collectAllN<number>(3).pipe(Sink.filterInput((n) => n > 0)),
-  ),
+  // Filter out non-positive numbers before chunking
+  Stream.filter((n) => n > 0),
+  // Collect the remaining elements in chunks of 3
+  Stream.transduce(Sink.take(3)),
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then((chunk) => console.log("%o", chunk))
-/*
-Output:
-{
-  _id: 'Chunk',
-  values: [
-    { _id: 'Chunk', values: [ 1, 1, 3, [length]: 3 ] },
-    { _id: 'Chunk', values: [ 4, 2, 1, [length]: 3 ] },
-    { _id: 'Chunk', values: [ 1, 1, 6, [length]: 3 ] },
-    { _id: 'Chunk', values: [ [length]: 0 ] },
-    [length]: 4
-  ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [[1, 1, 3], [4, 2, 1], [1, 1, 6], []]
 ```

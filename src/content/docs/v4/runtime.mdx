@@ -109,7 +109,7 @@ To achieve this, we make use of the `Effect.provide` function, which allow us to
 In this example, we create a simple logger using `Logger.replace`, which replaces the default logger with a custom one that logs messages without timestamps or levels. We then use `Effect.provide` to apply this custom logger to the program.
 
 ```ts twoslash import.meta.vitest name="overriding-the-logger-configuration-1"
-import { Logger, Effect } from "effect"
+import { Logger, Effect, Fiber, Exit } from "effect"
 
 const addSimpleLogger = Logger.layer([
   // Custom logger implementation
@@ -130,12 +130,13 @@ timestamp=... level=INFO fiber=#0 message="Application is about to exit!"
 */
 
 // Overriding the default logger with a custom one
-Effect.runFork(program.pipe(Effect.provide(addSimpleLogger)))
+const fiber = Effect.runFork(program.pipe(Effect.provide(addSimpleLogger)))
 /*
 Output:
 [ 'Application started!' ]
 [ 'Application is about to exit!' ]
 */
+Effect.runSync(Fiber.await(fiber)) // => Exit.succeed(undefined)
 ```
 
 To ensure that the runtime configuration is only applied to a specific part of an Effect application, we should provide the configuration layer exclusively to that particular section.
@@ -178,7 +179,7 @@ const program = Effect.gen(function* () {
   yield* Effect.log("Application is about to exit!")
 })
 
-Effect.runSync(program)
+Effect.runSync(program) // => undefined
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message="Application started!"
@@ -212,7 +213,7 @@ const runtime = ManagedRuntime.make(appLayer)
 const program = Effect.log("Application started!")
 
 // Execute the program using the custom runtime
-runtime.runSync(program)
+runtime.runSync(program) // => undefined
 
 // Clean up resources associated with the custom runtime
 Effect.runFork(runtime.disposeEffect)
@@ -235,6 +236,8 @@ class Notifications extends Context.Service<
   Notifications,
   { readonly notify: (message: string) => Effect.Effect<void> }
 >()("Notifications") {}
+
+Notifications.key // => "Notifications"
 ```
 
 Unlike v3's `Effect.Tag`, the service's fields are not turned into static properties on the `Notifications` class itself — there is no static accessor proxy. Instead, use `.use()` (shown below) to run a callback with the resolved service, or `yield* Notifications` inside `Effect.gen` to access it directly.
@@ -244,7 +247,7 @@ This allows you to interact with the service directly:
 **Example** (Using the Notifications Tag)
 
 ```ts twoslash import.meta.vitest name="using-the-notifications-tag-1"
-import { Context, Effect } from "effect"
+import { Context, Effect, Layer } from "effect"
 
 class Notifications extends Context.Service<
   Notifications,
@@ -256,6 +259,10 @@ class Notifications extends Context.Service<
 //      ┌─── Effect<void, never, Notifications>
 //      ▼
 const action = Notifications.use((n) => n.notify("Hello, world!"))
+
+Effect.runSync(
+  action.pipe(Effect.provide(Layer.succeed(Notifications, { notify: () => Effect.void }))),
+) // => undefined
 ```
 
 In this example, the `action` effect depends on the `Notifications` service. This approach allows you to reference services without manually passing them around. Later, you can create a `Layer` that provides the `Notifications` service and build a `ManagedRuntime` with that layer to ensure the service is available where needed.
@@ -290,9 +297,13 @@ async function main() {
   const runtime = ManagedRuntime.make(Notifications.Live)
 
   // Run the effect
-  await runtime.runPromise(Notifications.use((n) => n.notify("Hello, world!")))
+  const result = await runtime.runPromise(Notifications.use((n) => n.notify("Hello, world!")))
 
   // Dispose of the runtime, cleaning up resources
   await runtime.dispose()
+
+  return result
 }
+
+await main() // => undefined
 ```

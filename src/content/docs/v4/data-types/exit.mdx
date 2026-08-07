@@ -34,7 +34,7 @@ import { Exit } from "effect"
 const successExit = Exit.succeed(42)
 
 console.log(successExit)
-// Output: { _id: 'Exit', _tag: 'Success', value: 42 }
+successExit // => Exit.succeed(42)
 ```
 
 ### failCause
@@ -54,17 +54,7 @@ import { Exit, Cause } from "effect"
 const failureExit = Exit.failCause(Cause.fail("Something went wrong"))
 
 console.log(failureExit)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    failures: [ { _tag: 'Fail', error: 'Something went wrong' } ]
-  }
-}
-*/
+failureExit // => Exit.fail("Something went wrong")
 ```
 
 ## Pattern Matching
@@ -87,7 +77,10 @@ console.log(
     onSuccess: (value) => `Exited with success value: ${value}`,
   }),
 )
-// Output: "Exited with success value: 1"
+Exit.match(simulatedSuccess, {
+  onFailure: (cause) => `Exited with failure state: ${Cause.pretty(cause)}`,
+  onSuccess: (value) => `Exited with success value: ${value}`,
+}) // => "Exited with success value: 1"
 
 //      ┌─── Exit<never, string>
 //      ▼
@@ -104,6 +97,10 @@ Output:
 Exited with failure state: Error: error
     ...stack trace...
 */
+Exit.match(simulatedFailure, {
+  onFailure: (cause) => `Exited with failure state: ${Cause.pretty(cause)}`,
+  onSuccess: (value) => `Exited with success value: ${value}`,
+}).split("\n")[0] // => "Exited with failure state: Error: error"
 ```
 
 ## Exit vs Result

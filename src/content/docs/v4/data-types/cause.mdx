@@ -24,7 +24,7 @@ You can intentionally create an effect with a specific cause using `Effect.failC
 **Example** (Defining Effects with Different Causes)
 
 ```ts twoslash import.meta.vitest name="creating-causes-1"
-import { Effect, Cause } from "effect"
+import { Effect, Cause, Exit } from "effect"
 
 // Define an effect that dies with an unexpected error
 //
@@ -37,6 +37,8 @@ const die = Effect.failCause(Cause.die("Boom!"))
 //      ┌─── Effect<never, string, never>
 //      ▼
 const fail = Effect.failCause(Cause.fail("Oh no!"))
+
+Effect.runSyncExit(fail) // => Exit.fail("Oh no!")
 ```
 
 Some causes do not influence the error type of the effect, leading to `never` in the error channel:
@@ -90,20 +92,17 @@ To retrieve the cause of a failed effect, use `Effect.exit` and inspect the `cau
 **Example** (Retrieving and Inspecting a Failure Cause)
 
 ```ts twoslash import.meta.vitest name="retrieving-the-cause-of-an-effect-1"
-import { Effect, Exit } from "effect"
+import { Effect, Exit, Cause } from "effect"
 
 const program = Effect.gen(function* () {
   const exit = yield* Effect.exit(Effect.fail("Oh no!"))
   if (Exit.isFailure(exit)) {
     console.log(exit.cause)
+    exit.cause // => Cause.fail("Oh no!")
   }
 })
 
-Effect.runPromise(program)
-/*
-Output:
-{ _id: 'Cause', failures: [ { _tag: 'Fail', error: 'Oh no!' } ] }
-*/
+await Effect.runPromise(program)
 ```
 
 ## Guards
@@ -129,7 +128,8 @@ const cause = Cause.fail(new Error("my message"))
 
 for (const reason of cause.reasons) {
   if (Cause.isFailReason(reason)) {
-    console.log(reason.error.message) // Output: my message
+    console.log(reason.error.message)
+    reason.error.message // => "my message"
   }
 }
 ```
@@ -177,6 +177,7 @@ console.log(Cause.pretty(Cause.empty))
 Output:
 (empty string)
 */
+Cause.pretty(Cause.empty) // => ""
 
 console.log(Cause.pretty(Cause.fail(new Error("my fail message"))))
 /*
@@ -184,6 +185,7 @@ Output:
 Error: my fail message
     ...stack trace...
 */
+Cause.pretty(Cause.fail(new Error("my fail message"))).split("\n")[0] // => "Error: my fail message"
 
 console.log(Cause.pretty(Cause.die("my die message")))
 /*
@@ -191,15 +193,10 @@ Output:
 Error: my die message
     ...stack trace...
 */
+Cause.pretty(Cause.die("my die message")).split("\n")[0] // => "Error: my die message"
 
 console.log(Cause.pretty(Cause.interrupt(1)))
-/*
-Output:
-InterruptError: All fibers interrupted without error {
-  [cause]: InterruptCause: The fiber was interrupted by:
-      at fiber (#1)
-}
-*/
+Cause.pretty(Cause.interrupt(1)) // => "InterruptError: All fibers interrupted without error {\n  [cause]: InterruptCause: The fiber was interrupted by:\n      at fiber (#1)\n}"
 
 console.log(Cause.pretty(Cause.combine(Cause.fail("fail1"), Cause.fail("fail2"))))
 /*
@@ -209,6 +206,9 @@ Error: fail1
 Error: fail2
     ...stack trace...
 */
+Cause.pretty(Cause.combine(Cause.fail("fail1"), Cause.fail("fail2")))
+  .split("\n")
+  .filter((line) => line.startsWith("Error:")) // => ["Error: fail1", "Error: fail2"]
 ```
 
 ## Retrieval of Failures and Defects
@@ -226,14 +226,11 @@ const program = Effect.gen(function* () {
   )
   if (Exit.isFailure(exit)) {
     console.log(exit.cause.reasons.filter(Cause.isFailReason).map((reason) => reason.error))
+    exit.cause.reasons.filter(Cause.isFailReason).map((reason) => reason.error) // => ["error 1"]
     console.log(exit.cause.reasons.filter(Cause.isDieReason).map((reason) => reason.defect))
+    exit.cause.reasons.filter(Cause.isDieReason).map((reason) => reason.defect) // => []
   }
 })
 
-Effect.runPromise(program)
-/*
-Output:
-[ 'error 1' ]
-[]
-*/
+await Effect.runPromise(program)
 ```

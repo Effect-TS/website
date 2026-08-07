@@ -24,6 +24,8 @@ const duration2 = Duration.seconds(2)
 
 // Create a duration of 5 minutes
 const duration3 = Duration.minutes(5)
+
+Duration.toMillis(duration3) // => 300000
 ```
 
 You can create durations using units such as nanoseconds, microsecond, milliseconds, seconds, minutes, hours, days, and weeks.
@@ -36,10 +38,7 @@ For an infinite duration, use `Duration.infinity`.
 import { Duration } from "effect"
 
 console.log(String(Duration.infinity))
-/*
-Output:
-Infinity
-*/
+String(Duration.infinity) // => "Infinity"
 ```
 
 Another option for creating durations is using the `Duration.fromInputUnsafe` helper:
@@ -53,17 +52,17 @@ Another option for creating durations is using the `Duration.fromInputUnsafe` he
 ```ts twoslash import.meta.vitest name="creating-durations-3"
 import { Duration } from "effect"
 
-Duration.fromInputUnsafe(10n) // same as Duration.nanos(10)
-Duration.fromInputUnsafe(100) // same as Duration.millis(100)
-Duration.fromInputUnsafe(Infinity) // same as Duration.infinity
+Duration.fromInputUnsafe(10n) // => Duration.nanos(10n)
+Duration.fromInputUnsafe(100) // => Duration.millis(100)
+Duration.fromInputUnsafe(Infinity) // => Duration.infinity
 
-Duration.fromInputUnsafe("10 nanos") // same as Duration.nanos(10)
-Duration.fromInputUnsafe("20 micros") // same as Duration.micros(20)
-Duration.fromInputUnsafe("100 millis") // same as Duration.millis(100)
-Duration.fromInputUnsafe("2 seconds") // same as Duration.seconds(2)
-Duration.fromInputUnsafe("5 minutes") // same as Duration.minutes(5)
-Duration.fromInputUnsafe("7 hours") // same as Duration.hours(7)
-Duration.fromInputUnsafe("3 weeks") // same as Duration.weeks(3)
+Duration.fromInputUnsafe("10 nanos") // => Duration.nanos(10n)
+Duration.fromInputUnsafe("20 micros") // => Duration.micros(20n)
+Duration.fromInputUnsafe("100 millis") // => Duration.millis(100)
+Duration.fromInputUnsafe("2 seconds") // => Duration.seconds(2)
+Duration.fromInputUnsafe("5 minutes") // => Duration.minutes(5)
+Duration.fromInputUnsafe("7 hours") // => Duration.hours(7)
+Duration.fromInputUnsafe("3 weeks") // => Duration.weeks(3)
 ```
 
 ## Getting the Duration Value
@@ -76,7 +75,7 @@ You can retrieve the value of a duration in milliseconds using `Duration.toMilli
 import { Duration } from "effect"
 
 console.log(Duration.toMillis(Duration.seconds(30)))
-// Output: 30000
+Duration.toMillis(Duration.seconds(30)) // => 30000
 ```
 
 To get the value of a duration in nanoseconds, use `Duration.toNanos`. Note that `toNanos` returns an `Option<bigint>` because the duration might be infinite.
@@ -84,13 +83,10 @@ To get the value of a duration in nanoseconds, use `Duration.toNanos`. Note that
 **Example** (Getting Duration in Nanoseconds)
 
 ```ts twoslash import.meta.vitest name="getting-the-duration-value-2"
-import { Duration } from "effect"
+import { Duration, Option } from "effect"
 
 console.log(Duration.toNanos(Duration.millis(100)))
-/*
-Output:
-{ _id: 'Option', _tag: 'Some', value: 100000000n }
-*/
+Duration.toNanos(Duration.millis(100)) // => Option.some(100000000n)
 ```
 
 To get a `bigint` value without `Option`, use `Duration.toNanosUnsafe`. However, it will throw an error for infinite durations.
@@ -131,16 +127,16 @@ const duration1 = Duration.seconds(30)
 const duration2 = Duration.minutes(1)
 
 console.log(Duration.isLessThan(duration1, duration2))
-// Output: true
+Duration.isLessThan(duration1, duration2) // => true
 
 console.log(Duration.isLessThanOrEqualTo(duration1, duration2))
-// Output: true
+Duration.isLessThanOrEqualTo(duration1, duration2) // => true
 
 console.log(Duration.isGreaterThan(duration1, duration2))
-// Output: false
+Duration.isGreaterThan(duration1, duration2) // => false
 
 console.log(Duration.isGreaterThanOrEqualTo(duration1, duration2))
-// Output: false
+Duration.isGreaterThanOrEqualTo(duration1, duration2) // => false
 ```
 
 ## Performing Arithmetic Operations
@@ -157,17 +153,11 @@ const duration2 = Duration.minutes(1)
 
 // Add two durations
 console.log(String(Duration.sum(duration1, duration2)))
-/*
-Output:
-90000 millis
-*/
+String(Duration.sum(duration1, duration2)) // => "90000 millis"
 
 // Multiply a duration by a factor
 console.log(String(Duration.times(duration1, 2)))
-/*
-Output:
-60000 millis
-*/
+String(Duration.times(duration1, 2)) // => "60000 millis"
 ```
 
 ## Conversions

@@ -21,6 +21,8 @@ const program = Effect.gen(function* () {
 
   // Use `fs` to perform file system operations
 })
+
+Effect.isEffect(program) // => true
 ```
 
 The `FileSystem` interface includes the following operations:
@@ -94,9 +96,11 @@ const program = Effect.gen(function* () {
 
   const exists = yield* fs.exists("/some/path")
   console.log(exists)
+  exists // => true
 
   const content = yield* fs.readFileString("/some/path")
   console.log(content)
+  content // => "mocked content"
 })
 
 //      ┌─── Layer<FileSystem.FileSystem, never, never>
@@ -108,9 +112,4 @@ const customMock = FileSystem.layerNoop({
 
 // Provide the customized FileSystem mock implementation
 Effect.runPromise(program.pipe(Effect.provide(customMock)))
-/*
-Output:
-true
-mocked content
-*/
 ```

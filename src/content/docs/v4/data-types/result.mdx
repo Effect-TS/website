@@ -30,10 +30,7 @@ import { Result } from "effect"
 const successValue = Result.succeed(42)
 
 console.log(successValue)
-/*
-Output:
-{ _id: 'Result', _tag: 'Success', value: 42 }
-*/
+successValue // => Result.succeed(42)
 ```
 
 Use `Result.fail` to create a `Failure` value of type `E`.
@@ -46,10 +43,7 @@ import { Result } from "effect"
 const failureValue = Result.fail("not a number")
 
 console.log(failureValue)
-/*
-Output:
-{ _id: 'Result', _tag: 'Failure', failure: 'not a number' }
-*/
+failureValue // => Result.fail("not a number")
 ```
 
 ## Guards
@@ -67,6 +61,7 @@ if (Result.isFailure(foo)) {
   console.log(`The failure value is: ${foo.failure}`)
 } else {
   console.log(`The Success value is: ${foo.success}`)
+  foo.success // => 42
 }
 // Output: "The Success value is: 42"
 ```
@@ -88,7 +83,7 @@ const message = Result.match(foo, {
 })
 
 console.log(message)
-// Output: "The Success value is: 42"
+message // => "The Success value is: 42"
 ```
 
 ## Mapping
@@ -105,18 +100,12 @@ import { Result } from "effect"
 // Transform the Success value by adding 1
 const successResult = Result.map(Result.succeed(1), (n) => n + 1)
 console.log(successResult)
-/*
-Output:
-{ _id: 'Result', _tag: 'Success', value: 2 }
-*/
+successResult // => Result.succeed(2)
 
 // The transformation is ignored for Failure values
 const failureResult = Result.map(Result.fail("not a number"), (n) => n + 1)
 console.log(failureResult)
-/*
-Output:
-{ _id: 'Result', _tag: 'Failure', failure: 'not a number' }
-*/
+failureResult // => Result.fail("not a number")
 ```
 
 ### Mapping over the Failure Value
@@ -131,18 +120,12 @@ import { Result } from "effect"
 // The transformation is ignored for Success values
 const successResult = Result.mapError(Result.succeed(1), (s) => s + "!")
 console.log(successResult)
-/*
-Output:
-{ _id: 'Result', _tag: 'Success', value: 1 }
-*/
+successResult // => Result.succeed(1)
 
 // Transform the Failure value by appending "!"
 const failureResult = Result.mapError(Result.fail("not a number"), (s) => s + "!")
 console.log(failureResult)
-/*
-Output:
-{ _id: 'Result', _tag: 'Failure', failure: 'not a number!' }
-*/
+failureResult // => Result.fail("not a number!")
 ```
 
 ### Mapping over Both Values
@@ -159,20 +142,14 @@ const transformedSuccess = Result.mapBoth(Result.succeed(1), {
   onSuccess: (n) => n + 1,
 })
 console.log(transformedSuccess)
-/*
-Output:
-{ _id: 'Result', _tag: 'Success', value: 2 }
-*/
+transformedSuccess // => Result.succeed(2)
 
 const transformedFailure = Result.mapBoth(Result.fail("not a number"), {
   onFailure: (s) => s + "!",
   onSuccess: (n) => n + 1,
 })
 console.log(transformedFailure)
-/*
-Output:
-{ _id: 'Result', _tag: 'Failure', failure: 'not a number!' }
-*/
+transformedFailure // => Result.fail("not a number!")
 ```
 
 ## Interop with Effect
@@ -194,6 +171,8 @@ import { Effect, Result } from "effect"
 // Function to get the head of an array, returning Result
 const head = <A>(array: ReadonlyArray<A>): Result.Result<A, string> =>
   array.length > 0 ? Result.succeed(array[0]!) : Result.fail("empty array")
+
+head([1, 2, 3]) // => Result.succeed(1)
 
 // Simulated fetch function that returns Effect
 const fetchData = (): Effect.Effect<string, string> => {
@@ -234,10 +213,7 @@ const person = Result.flatMap(maybeName, (name) =>
 )
 
 console.log(person)
-/*
-Output:
-{ _id: 'Result', _tag: 'Success', value: { name: 'JOHN', age: 25 } }
-*/
+person // => Result.succeed({ name: "JOHN", age: 25 })
 ```
 
 If either of the `Result` values is a `Failure`, the result will be a `Failure`, holding the first encountered `Failure` value:
@@ -285,19 +261,13 @@ const maybeAge: Result.Result<number, string> = Result.succeed(25)
 //      ▼
 const tuple = Result.all([maybeName, maybeAge])
 console.log(tuple)
-/*
-Output:
-{ _id: 'Result', _tag: 'Success', value: [ 'John', 25 ] }
-*/
+tuple // => Result.succeed(["John", 25])
 
 //      ┌─── Result<{ name: string; age: number; }, string>
 //      ▼
 const struct = Result.all({ name: maybeName, age: maybeAge })
 console.log(struct)
-/*
-Output:
-{ _id: 'Result', _tag: 'Success', value: { name: 'John', age: 25 } }
-*/
+struct // => Result.succeed({ name: "John", age: 25 })
 ```
 
 If one or more `Result` values are a `Failure`, the first `Failure` encountered is returned:
@@ -312,10 +282,7 @@ const maybeAge: Result.Result<number, string> = Result.fail("age not found")
 
 // The first Failure value will be returned
 console.log(Result.all([maybeName, maybeAge]))
-/*
-Output:
-{ _id: 'Result', _tag: 'Failure', failure: 'name not found' }
-*/
+Result.all([maybeName, maybeAge]) // => Result.fail("name not found")
 ```
 
 ## gen
@@ -337,10 +304,7 @@ const program = Result.gen(function* () {
 })
 
 console.log(program)
-/*
-Output:
-{ _id: 'Result', _tag: 'Success', value: { name: 'JOHN', age: 25 } }
-*/
+program // => Result.succeed({ name: "JOHN", age: 25 })
 ```
 
 When any of the `Result` values in the sequence is a `Failure`, the generator immediately returns the `Failure` value, skipping further operations:
@@ -367,8 +331,8 @@ console.log(program)
 /*
 Output:
 Retrieving name...
-{ _id: 'Result', _tag: 'Failure', failure: 'Oh no!' }
 */
+program // => Result.fail("Oh no!")
 ```
 
 The use of `console.log` in these example is for demonstration purposes only. When using `Result.gen`, avoid including side effects in your generator functions, as `Result` should remain a pure data structure.

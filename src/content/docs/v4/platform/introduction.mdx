@@ -111,7 +111,10 @@ const program = Effect.gen(function* () {
   const mypath = path.join("tmp", "file.txt")
 
   console.log(mypath)
+  return mypath
 })
+
+Effect.runSync(program.pipe(Effect.provide(Path.layer))) // => "tmp/file.txt"
 ```
 
 ### Running the Program in Node.js or Deno

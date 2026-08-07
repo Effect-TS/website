@@ -70,14 +70,17 @@ const program = Effect.gen(function* () {
   // The lookup only ran once, so the cache now holds a single entry
   const size = yield* Cache.size(cache)
   console.log(`Cache size: ${size}`)
+
+  return { result, size }
 })
 
-Effect.runPromise(program)
+const output = await Effect.runPromise(program)
 /*
 Output:
 Result of parallel execution of three effects with the same key: 4,4,4
 Cache size: 1
 */
+output // => { result: [4, 4, 4], size: 1 }
 ```
 
 ## Concurrent Access

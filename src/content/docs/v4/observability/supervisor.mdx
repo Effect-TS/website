@@ -17,7 +17,7 @@ A `FiberSet<A, E>` collects fibers so they can be observed, joined, or interrupt
 
 In this example, we periodically monitor the number of fibers running in the application while calculating a Fibonacci number. The program forks two child fibers for every recursive step, adding each to a shared `FiberSet`, while a separate monitor fiber logs the set's size on a schedule until the calculation finishes.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="monitoring-fiber-count"
 import { Console, Effect, Fiber, FiberSet, Schedule } from "effect"
 
 // Main program that monitors fibers while calculating a Fibonacci number
@@ -38,6 +38,9 @@ const program = Effect.gen(function* () {
   yield* Fiber.interrupt(monitorFiber)
 
   console.log(`fibonacci result: ${result}`)
+  // The final result is deterministic even though the intermediate
+  // "number of fibers" logs above are racy and vary between runs
+  result // => 55
 }).pipe(Effect.scoped)
 
 // Function to monitor and log the number of active fibers
@@ -66,7 +69,7 @@ const fib = (n: number, set: FiberSet.FiberSet<number>): Effect.Effect<number> =
     return v1 + v2 // Combine the results
   })
 
-Effect.runPromise(program)
+await Effect.runPromise(program)
 /*
 Example Output:
 number of fibers: 0
@@ -83,7 +86,6 @@ number of fibers: 62
 number of fibers: 35
 number of fibers: 8
 number of fibers: 8
-fibonacci result: 55
 */
 ```
 

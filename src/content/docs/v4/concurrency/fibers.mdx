@@ -64,7 +64,7 @@ You can create a new fiber by **forking** an effect. This starts the effect in a
 In this example, the Fibonacci calculation is forked into its own fiber, allowing it to run independently of the main fiber. The reference to the `fib10Fiber` can be used later to join or interrupt the fiber.
 
 ```ts twoslash import.meta.vitest name="forking-effects-1"
-import { Effect } from "effect"
+import { Effect, Fiber } from "effect"
 
 const fib = (n: number): Effect.Effect<number> =>
   n < 2 ? Effect.succeed(n) : Effect.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
@@ -72,6 +72,8 @@ const fib = (n: number): Effect.Effect<number> =>
 //      ┌─── Effect<Fiber<number, never>, never, never>
 //      ▼
 const fib10Fiber = Effect.forkChild(fib(10))
+
+await Effect.runPromise(fib10Fiber.pipe(Effect.andThen(Fiber.join))) // => 55
 ```
 
 ## Joining Fibers
@@ -96,9 +98,10 @@ const program = Effect.gen(function* () {
   // Join the fiber and get the result
   const n = yield* Fiber.join(fiber)
   console.log(n)
+  n // => 55
 })
 
-Effect.runFork(program) // Output: 55
+await Effect.runPromise(program) // => undefined
 ```
 
 ## Awaiting Fibers
@@ -108,7 +111,7 @@ The `Fiber.await` function is a helpful tool when working with fibers. It allows
 **Example** (Awaiting Fiber Completion)
 
 ```ts twoslash import.meta.vitest name="awaiting-fibers-1"
-import { Effect, Fiber } from "effect"
+import { Effect, Fiber, Exit } from "effect"
 
 const fib = (n: number): Effect.Effect<number> =>
   n < 2 ? Effect.succeed(n) : Effect.zipWith(fib(n - 1), fib(n - 2), (a, b) => a + b)
@@ -123,13 +126,10 @@ const program = Effect.gen(function* () {
   // Await its completion and get the Exit result
   const exit = yield* Fiber.await(fiber)
   console.log(exit)
+  exit // => Exit.succeed(55)
 })
 
-Effect.runFork(program)
-/*
-Output:
-{ _id: 'Exit', _tag: 'Success', value: 55 }
-*/
+await Effect.runPromise(program) // => undefined
 ```
 
 ## Interruption Model
@@ -166,7 +166,7 @@ Instead, there are two popular and valid solutions to tackle this problem:
 
 Fibers can be interrupted if their result is no longer needed. This action immediately stops the fiber and safely runs all finalizers to release any resources.
 
-Like `Fiber.await`, the `Fiber.interrupt` function returns an [Exit](/docs/data-types/exit/) value that provides detailed information about how the fiber ended.
+Unlike `Fiber.await`, which returns an [Exit](/docs/data-types/exit/) value describing how a fiber completed, `Fiber.interrupt` returns `Effect<void>`. It still waits until the fiber has fully terminated (running all its finalizers along the way) before resuming, but it does not hand back the fiber's `Exit`.
 
 **Example** (Interrupting a Fiber)
 
@@ -179,9 +179,9 @@ const program = Effect.gen(function* () {
     Effect.forever(Effect.log("Hi!").pipe(Effect.delay("10 millis"))),
   )
   yield* Effect.sleep("30 millis")
-  // Interrupt the fiber and get an Exit value detailing how it finished
-  const exit = yield* Fiber.interrupt(fiber)
-  console.log(exit)
+  // Interrupt the fiber and wait for it to fully terminate
+  const result = yield* Fiber.interrupt(fiber)
+  console.log(result)
 })
 
 Effect.runFork(program)
@@ -189,20 +189,7 @@ Effect.runFork(program)
 Output:
 timestamp=... level=INFO fiber=#1 message=Hi!
 timestamp=... level=INFO fiber=#1 message=Hi!
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Interrupt',
-    fiberId: {
-      _id: 'FiberId',
-      _tag: 'Runtime',
-      id: 0,
-      startTimeMillis: ...
-    }
-  }
-}
+undefined
 */
 ```
 
@@ -224,7 +211,7 @@ const program = Effect.gen(function* () {
   console.log("Do something else...")
 })
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 timestamp=... level=INFO fiber=#1 message=Hi!
@@ -248,7 +235,7 @@ const program = Effect.gen(function* () {
   console.log("Do something else...")
 })
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 timestamp=... level=INFO fiber=#1 message=Hi!
@@ -281,13 +268,10 @@ const program = Effect.gen(function* () {
   // Join both fibers and zip their results into a tuple
   const tuple = yield* Effect.zip(Fiber.join(fiber1), Fiber.join(fiber2))
   console.log(tuple)
+  tuple // => ["Hi!", "Bye!"]
 })
 
-Effect.runFork(program)
-/*
-Output:
-[ 'Hi!', 'Bye!' ]
-*/
+await Effect.runPromise(program) // => undefined
 ```
 
 Another way to compose fibers is by using `Fiber.orElse`. This function allows you to provide an alternative fiber that will execute if the first one fails. If the first fiber succeeds, its result will be returned. If it fails, the second fiber will run instead, and its result will be returned regardless of its outcome.
@@ -305,13 +289,10 @@ const program = Effect.gen(function* () {
   // If fiber1 fails, fiber2 will be used as a fallback
   const message = yield* Effect.catchCause(Fiber.join(fiber1), () => Fiber.join(fiber2))
   console.log(message)
+  message // => "Hurray!"
 })
 
-Effect.runFork(program)
-/*
-Output:
-Hurray!
-*/
+await Effect.runPromise(program) // => undefined
 ```
 
 ## Lifetime of Child Fibers
@@ -349,7 +330,7 @@ const parent = Effect.gen(function* () {
   console.log("parent: finished!")
 })
 
-Effect.runFork(parent)
+await Effect.runPromise(parent) // => undefined
 /*
 Output:
 parent: started!
@@ -481,7 +462,7 @@ const program = Effect.scoped(
   }),
 )
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 Local scope started!
@@ -532,7 +513,7 @@ const program = Effect.scoped(
   }),
 )
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 child: still running!
@@ -574,7 +555,7 @@ const program = Effect.gen(function* () {
   yield* SubscriptionRef.set(ref, 2)
 })
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 SubscriptionRef changed to 2
@@ -611,7 +592,7 @@ const program = Effect.gen(function* () {
   yield* SubscriptionRef.set(ref, 2)
 })
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 SubscriptionRef changed to 0

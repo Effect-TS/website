@@ -102,6 +102,8 @@ import { Effect, Context } from "effect"
 class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
   "MyRandomService",
 ) {}
+
+Random.key // => "MyRandomService"
 ```
 
 The exported `Random` value is known as a **tag** in Effect. It acts as a representation of the service and allows Effect to locate and use this service at runtime.
@@ -154,6 +156,9 @@ const program = Effect.gen(function* () {
   const randomNumber = yield* random.next
   console.log(`random number: ${randomNumber}`)
 })
+
+// Providing a fixed implementation lets us exercise the program above
+await Effect.runPromise(Effect.provideService(program, Random, { next: Effect.succeed(42) })) // => undefined
 ```
 
 In the code above, we can observe that we are able to yield the `Random` tag as if it were an effect itself.
@@ -179,6 +184,9 @@ const program = Random.pipe(
   Effect.andThen((random) => random.next),
   Effect.andThen((randomNumber) => Console.log(`random number: ${randomNumber}`)),
 )
+
+// Providing a fixed implementation lets us exercise the program above
+await Effect.runPromise(Effect.provideService(program, Random, { next: Effect.succeed(42) })) // => undefined
 ```
 
 In the code above, we can observe that we are able to flat-map over the `Random` tag as if it were an effect itself.
@@ -253,7 +261,7 @@ const runnable = Effect.provideService(program, Random, {
 })
 
 // Run successfully
-Effect.runPromise(runnable)
+await Effect.runPromise(runnable) // => undefined
 /*
 Example Output:
 random number: 0.8241872233134417
@@ -328,6 +336,14 @@ const program = Effect.gen(function* () {
 
   yield* logger.log(String(randomNumber))
 })
+
+// Providing fixed implementations lets us exercise the program above
+await Effect.runPromise(
+  program.pipe(
+    Effect.provideService(Random, { next: Effect.succeed(7) }),
+    Effect.provideService(Logger, { log: (message) => Effect.sync(() => console.log(message)) }),
+  ),
+) // => undefined
 ```
 
 The `program` effect now has a `Requirements` type parameter of `Random | Logger`:
@@ -377,6 +393,8 @@ const runnable = program.pipe(
     log: (message) => Effect.sync(() => console.log(message)),
   }),
 )
+
+await Effect.runPromise(runnable) // => undefined
 ```
 
 Alternatively, instead of calling `provideService` multiple times, we can combine the service implementations into a single `Context` and then provide the entire context using the `Effect.provide` function:
@@ -419,6 +437,8 @@ const context = Context.empty().pipe(
 
 // Provide the entire context
 const runnable = Effect.provide(program, context)
+
+await Effect.runPromise(runnable) // => undefined
 ```
 
 ## Optional Services
@@ -450,6 +470,9 @@ const program = Effect.gen(function* () {
       yield* maybeRandom.value.next
   console.log(randomNumber)
 })
+
+// Without providing the service, serviceOption resolves to None
+await Effect.runPromise(Effect.serviceOption(Random)) // => Option.none()
 ```
 
 In the code above, we can observe that the `Requirements` type parameter of the `program` effect is `never`, even though we are working with a service. This allows us to access something from the context only if it is actually provided before executing this effect.
@@ -498,6 +521,8 @@ class Logger extends Context.Service<
     readonly log: (message: string) => Effect.Effect<void, never, Config>
   }
 >()("MyLoggerService") {}
+
+Logger.key // => "MyLoggerService"
 ```
 
 To handle these dependencies in a structured way and prevent them from leaking into the service interfaces, you can use the `Layer` abstraction. For more details on managing dependencies with layers, refer to the [Managing Layers](/docs/requirements-management/layers/) page.

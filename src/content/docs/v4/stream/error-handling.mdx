@@ -24,19 +24,12 @@ const s2 = Stream.make("a", "b", "c")
 
 const stream = Stream.catch(s1, () => s2)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-/*
-Output:
-{
-  _id: "Chunk",
-  values: [ 1, 2, 3, "a", "b", "c" ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3, "a", "b", "c"]
 ```
 
 In this example, `s1` encounters an error, but instead of terminating the stream, we gracefully switch to `s2` using `Stream.catch`. This ensures that we can continue processing data even if one stream fails.
 
-There's also a variant called `Stream.orElseEither` that uses the [Result](/docs/data-types/result/) data type to distinguish elements from the two streams based on success or failure:
+You can also distinguish elements from the two streams based on success or failure by tagging each side with the [Result](/docs/data-types/result/) data type before merging them, mapping `s1`'s elements into `Result.succeed` and `s2`'s elements into `Result.fail`:
 
 ```ts twoslash import.meta.vitest name="recovering-from-failure-2"
 import { Stream, Effect, Result } from "effect"
@@ -50,40 +43,7 @@ const s2 = Stream.make("a", "b", "c")
 
 const stream = Stream.map(s1, Result.succeed).pipe(Stream.catch(() => Stream.map(s2, Result.fail)))
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-/*
-Output:
-{
-  _id: "Chunk",
-  values: [
-    {
-      _id: "Either",
-      _tag: "Left",
-      left: 1
-    }, {
-      _id: "Either",
-      _tag: "Left",
-      left: 2
-    }, {
-      _id: "Either",
-      _tag: "Left",
-      left: 3
-    }, {
-      _id: "Either",
-      _tag: "Right",
-      right: "a"
-    }, {
-      _id: "Either",
-      _tag: "Right",
-      right: "b"
-    }, {
-      _id: "Either",
-      _tag: "Right",
-      right: "c"
-    }
-  ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [Result.succeed(1), Result.succeed(2), Result.succeed(3), Result.fail("a"), Result.fail("b"), Result.fail("c")]
 ```
 
 The `Stream.catch` function provides advanced error handling capabilities compared to `Stream.catch`. With `Stream.catch`, you can make decisions based on both the type and value of the encountered failure.
@@ -110,14 +70,7 @@ const stream = Stream.catch(s1, (error): Stream.Stream<string | boolean> => {
   }
 })
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-/*
-Output:
-{
-  _id: "Chunk",
-  values: [ 1, 2, 3, "a", "b", "c" ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3, "a", "b", "c"]
 ```
 
 In this example, we have a stream, `s1`, which may encounter two different types of errors. Instead of a straightforward switch to an alternative stream, as done with `Stream.catch`, we employ `Stream.catch` to precisely determine how to handle each type of error. This level of control over error recovery enables you to choose different streams or actions based on the specific error conditions.
@@ -140,14 +93,7 @@ const s2 = Stream.make("a", "b", "c")
 
 const stream = Stream.catchCause(s1, () => s2)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-/*
-Output:
-{
-  _id: "Chunk",
-  values: [ 1, 2, 3, "a", "b", "c" ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3, "a", "b", "c"]
 ```
 
 In this example, `s1` may encounter a defect, but instead of crashing the application, we use `Stream.catchCause` to gracefully switch to an alternative stream, `s2`. This ensures that your application remains robust and continues processing data even in the face of unexpected issues.
@@ -174,14 +120,7 @@ const stream = Stream.catchFilter(
   () => s2,
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-/*
-Output:
-{
-  _id: "Chunk",
-  values: [ 1, 2, 3, "a", "b", "c" ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3, "a", "b", "c"]
 ```
 
 To recover from a specific cause, you can use the `Stream.catchCauseFilter` function:
@@ -198,14 +137,7 @@ const s2 = Stream.make("a", "b", "c")
 
 const stream = Stream.catchCauseFilter(s1, Cause.findDie, () => s2)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-/*
-Output:
-{
-  _id: "Chunk",
-  values: [ 1, 2, 3, "a", "b", "c" ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3, "a", "b", "c"]
 ```
 
 ## Recovering to Effect
@@ -263,10 +195,7 @@ Enter a number: a
 Enter a number: b
 Enter a number: c
 Enter a number: 4
-{
-  _id: "Chunk",
-  values: [ 1, 2, 3, 4 ]
-}
+[ 1, 2, 3, 4 ]
 */
 
 const readLine = (message: string): Effect.Effect<string> =>
@@ -289,12 +218,12 @@ In this example, the stream asks the user to input a number, but if an invalid v
 
 ## Refining Errors
 
-When working with streams, there might be situations where you want to selectively keep certain errors and terminate the stream with the remaining errors. You can achieve this using the `Stream.refineOrDie` function.
+When working with streams, there might be situations where you want to selectively keep certain errors and terminate the stream with the remaining errors. You can achieve this by pattern matching on the error inside `Stream.catch`, re-failing with the errors you want to keep and dying (`Stream.die`) on the rest.
 
 **Example**
 
 ```ts twoslash import.meta.vitest name="refining-errors-1"
-import { Stream, Option } from "effect"
+import { Stream, Option, Effect, Exit } from "effect"
 
 const stream = Stream.fail(new Error())
 
@@ -302,9 +231,11 @@ const res = Stream.catch(stream, (error) => {
   const refined = error instanceof SyntaxError ? Option.some(error) : Option.none()
   return Option.isSome(refined) ? Stream.fail(refined.value) : Stream.die(error)
 })
+
+await Effect.runPromiseExit(Stream.runCollect(res)) // => Exit.die(new Error())
 ```
 
-In this example, `stream` initially fails with a generic `Error`. However, we use `Stream.refineOrDie` to filter and keep only errors of type `SyntaxError`. Any other errors will be terminated, while `SyntaxErrors` will be retained in `refinedStream`.
+In this example, `stream` initially fails with a generic `Error`. However, `res` filters and keeps only errors of type `SyntaxError`, re-failing the stream with them. Any other error is turned into a defect via `Stream.die`, terminating the stream.
 
 ## Timing Out
 
@@ -319,13 +250,7 @@ import { Stream, Effect } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(Stream.timeout("2 seconds"))
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-/*
-{
-  _id: "Chunk",
-  values: []
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => []
 ```
 
 ### timeoutFail
@@ -333,21 +258,13 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 The `Stream.timeoutOrElse` operator combines a timeout with a custom failure message. If the stream times out, it fails with the specified error message.
 
 ```ts twoslash import.meta.vitest name="timeoutfail-1"
-import { Stream, Effect } from "effect"
+import { Stream, Effect, Exit } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
   Stream.timeoutOrElse({ duration: "2 seconds", orElse: () => Stream.fail("timeout") }),
 )
 
-Effect.runPromiseExit(Stream.runCollect(stream)).then(console.log)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'timeout' }
-}
-*/
+await Effect.runPromiseExit(Stream.runCollect(stream)) // => Exit.fail("timeout")
 ```
 
 ### timeoutFailCause
@@ -355,7 +272,7 @@ Output:
 Similar to `Stream.timeoutOrElse`, `Stream.timeoutOrElse` combines a timeout with a custom failure cause. If the stream times out, it fails with the specified cause.
 
 ```ts twoslash import.meta.vitest name="timeoutfailcause-1"
-import { Stream, Effect, Cause } from "effect"
+import { Stream, Effect, Cause, Exit } from "effect"
 
 const stream = Stream.fromEffect(Effect.never).pipe(
   Stream.timeoutOrElse({
@@ -364,15 +281,7 @@ const stream = Stream.fromEffect(Effect.never).pipe(
   }),
 )
 
-Effect.runPromiseExit(Stream.runCollect(stream)).then(console.log)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Die', defect: 'timeout' }
-}
-*/
+await Effect.runPromiseExit(Stream.runCollect(stream)) // => Exit.die("timeout")
 ```
 
 ### timeoutTo
@@ -386,11 +295,5 @@ const stream = Stream.fromEffect(Effect.never).pipe(
   Stream.timeoutOrElse({ duration: "2 seconds", orElse: () => Stream.make(1, 2, 3) }),
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-/*
-{
-  _id: "Chunk",
-  values: [ 1, 2, 3 ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3]
 ```

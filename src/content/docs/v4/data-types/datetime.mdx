@@ -133,10 +133,10 @@ import { DateTime } from "effect"
 const utc = DateTime.fromDateUnsafe(new Date("2025-01-01 04:00:00"))
 
 console.log(utc)
-// Output: DateTime.Utc(2025-01-01T03:00:00.000Z)
+utc // => DateTime.makeUnsafe(1735700400000)
 
 console.log(utc.epochMilliseconds)
-// Output: 1735700400000
+utc.epochMilliseconds // => 1735700400000
 ```
 
 **Explanation**:
@@ -159,17 +159,17 @@ import { DateTime } from "effect"
 // From a JavaScript Date
 const utc1 = DateTime.makeUnsafe(new Date("2025-01-01 04:00:00"))
 console.log(utc1)
-// Output: DateTime.Utc(2025-01-01T03:00:00.000Z)
+utc1 // => DateTime.makeUnsafe(1735700400000)
 
 // From partial date parts
 const utc2 = DateTime.makeUnsafe({ year: 2025 })
 console.log(utc2)
-// Output: DateTime.Utc(2025-01-01T00:00:00.000Z)
+utc2 // => DateTime.makeUnsafe(1735689600000)
 
 // From a string
 const utc3 = DateTime.makeUnsafe("2025-01-01")
 console.log(utc3)
-// Output: DateTime.Utc(2025-01-01T00:00:00.000Z)
+utc3 // => DateTime.makeUnsafe(1735689600000)
 ```
 
 **Explanation**:
@@ -187,31 +187,22 @@ If the input is invalid, it returns `None`. If valid, it returns `Some` containi
 The following example assumes the code is executed on a system in Italy (CET timezone):
 
 ```ts twoslash import.meta.vitest name="make-1"
-import { DateTime } from "effect"
+import { DateTime, Option } from "effect"
 
 // From a JavaScript Date
 const maybeUtc1 = DateTime.make(new Date("2025-01-01 04:00:00"))
 console.log(maybeUtc1)
-/*
-Output:
-{ _id: 'Option', _tag: 'Some', value: '2025-01-01T03:00:00.000Z' }
-*/
+maybeUtc1 // => Option.some(DateTime.makeUnsafe(1735700400000))
 
 // From partial date parts
 const maybeUtc2 = DateTime.make({ year: 2025 })
 console.log(maybeUtc2)
-/*
-Output:
-{ _id: 'Option', _tag: 'Some', value: '2025-01-01T00:00:00.000Z' }
-*/
+maybeUtc2 // => Option.some(DateTime.makeUnsafe(1735689600000))
 
 // From a string
 const maybeUtc3 = DateTime.make("2025-01-01")
 console.log(maybeUtc3)
-/*
-Output:
-{ _id: 'Option', _tag: 'Some', value: '2025-01-01T00:00:00.000Z' }
-*/
+maybeUtc3 // => Option.some(DateTime.makeUnsafe(1735689600000))
 ```
 
 **Explanation**:
@@ -247,10 +238,10 @@ import { DateTime } from "effect"
 const zoned = DateTime.makeZonedUnsafe(new Date("2025-01-01 04:00:00"))
 
 console.log(zoned)
-// Output: DateTime.Zoned(2025-01-01T04:00:00.000+01:00)
+zoned // => DateTime.makeZonedUnsafe(1735700400000, { timeZone: 3600000 })
 
 console.log(zoned.zone)
-// Output: TimeZone.Offset(+01:00)
+zoned.zone // => DateTime.zoneMakeOffset(3600000)
 ```
 
 Here, the system's time zone (CET, which is UTC+1 in January) is used to create the `Zoned` instance.
@@ -268,10 +259,10 @@ const zoned = DateTime.makeZonedUnsafe(new Date("2025-01-01 04:00:00"), {
 })
 
 console.log(zoned)
-// Output: DateTime.Zoned(2025-01-01T04:00:00.000+01:00[Europe/Rome])
+zoned // => DateTime.makeZonedUnsafe(1735700400000, { timeZone: "Europe/Rome" })
 
 console.log(zoned.zone)
-// Output: TimeZone.Named(Europe/Rome)
+zoned.zone // => DateTime.zoneMakeNamedUnsafe("Europe/Rome")
 ```
 
 In this case, the `"Europe/Rome"` time zone is explicitly provided, resulting in the `Zoned` instance being tied to this named time zone.
@@ -292,10 +283,10 @@ const zoned = DateTime.makeZonedUnsafe(new Date("2025-01-01 04:00:00"), {
 })
 
 console.log(zoned)
-// Output: DateTime.Zoned(2025-01-01T03:00:00.000+01:00[Europe/Rome])
+zoned // => DateTime.makeZonedUnsafe(1735696800000, { timeZone: "Europe/Rome" })
 
 console.log(zoned.zone)
-// Output: TimeZone.Named(Europe/Rome)
+zoned.zone // => DateTime.zoneMakeNamedUnsafe("Europe/Rome")
 ```
 
 **Explanation**
@@ -322,6 +313,8 @@ const zoned = DateTime.makeZoned(new Date("2025-01-01 04:00:00"), {
 if (Option.isSome(zoned)) {
   console.log("The DateTime is valid")
 }
+
+Option.isSome(zoned) // => true
 ```
 
 ### makeZonedFromString
@@ -342,6 +335,8 @@ const zoned = DateTime.makeZonedFromString("2025-01-01T03:00:00.000+01:00[Europe
 if (Option.isSome(zoned)) {
   console.log("The DateTime is valid")
 }
+
+Option.isSome(zoned) // => true
 ```
 
 ## Current Time
@@ -359,7 +354,10 @@ const program = Effect.gen(function* () {
   //      ┌─── Utc
   //      ▼
   const currentTime = yield* DateTime.now
+  return DateTime.isUtc(currentTime)
 })
+
+await Effect.runPromise(program) // => true
 ```
 
 <Aside type="tip" title="Why Use the Clock Service?">
@@ -380,6 +378,8 @@ import { DateTime } from "effect"
 //      ┌─── Utc
 //      ▼
 const currentTime = DateTime.nowUnsafe()
+
+DateTime.isUtc(currentTime) // => true
 ```
 
 ## Guards
@@ -405,6 +405,9 @@ function printDateTimeInfo(x: unknown) {
     console.log("Not a DateTime")
   }
 }
+
+DateTime.isDateTime(DateTime.nowUnsafe()) // => true
+DateTime.isDateTime("not a date") // => false
 ```
 
 ## Time Zone Management
@@ -447,7 +450,7 @@ const zoneNY = DateTime.zoneMakeNamedUnsafe("America/New_York")
 const zoned = DateTime.setZone(utc, zoneNY)
 
 console.log(zoned)
-// Output: DateTime.Zoned(2023-12-31T19:00:00.000-05:00[America/New_York])
+zoned // => DateTime.makeZonedUnsafe(1704067200000, { timeZone: "America/New_York" })
 ```
 
 ### zoneFromString
@@ -472,17 +475,17 @@ import { DateTime, Option } from "effect"
 // Attempt to parse a numeric offset
 const offsetZone = DateTime.zoneFromString("+01:00")
 console.log(Option.isSome(offsetZone))
-// Output: true
+Option.isSome(offsetZone) // => true
 
 // Attempt to parse an IANA time zone
 const namedZone = DateTime.zoneFromString("Europe/London")
 console.log(Option.isSome(namedZone))
-// Output: true
+Option.isSome(namedZone) // => true
 
 // Invalid input
 const invalidZone = DateTime.zoneFromString("Invalid/Zone")
 console.log(Option.isSome(invalidZone))
-// Output: false
+Option.isSome(invalidZone) // => false
 ```
 
 ## Comparisons
@@ -499,14 +502,14 @@ console.log(Option.isSome(invalidZone))
 **Example** (Finding the Distance Between Two DateTimes)
 
 ```ts twoslash import.meta.vitest name="comparisons-1"
-import { DateTime } from "effect"
+import { DateTime, Duration } from "effect"
 
 const utc1 = DateTime.makeUnsafe("2025-01-01T00:00:00Z")
 const utc2 = DateTime.add(utc1, { days: 1 })
 
 // `distance` returns a signed Duration directly (one day)
 console.log(DateTime.distance(utc1, utc2))
-// Output: { _id: 'Duration', _tag: 'Millis', millis: 86400000 }
+DateTime.distance(utc1, utc2) // => Duration.millis(86400000)
 ```
 
 ## Conversions
@@ -540,7 +543,7 @@ const zoned = DateTime.setZone(
 )
 
 console.log(DateTime.getPart(zoned, "month"))
-// Output: 1
+DateTime.getPart(zoned, "month") // => 1
 ```
 
 ## Math
@@ -594,11 +597,13 @@ import { DateTime, Effect } from "effect"
 const program = Effect.gen(function* () {
   const zonedNow = yield* DateTime.nowInCurrentZone
   console.log(zonedNow)
+  return zonedNow
 }).pipe(DateTime.withCurrentZoneNamed("Europe/London"))
 
-Effect.runFork(program)
+const zonedNow = await Effect.runPromise(program)
 /*
 Example Output:
 DateTime.Zoned(2025-01-06T18:36:38.573+00:00[Europe/London])
 */
+zonedNow.zone // => DateTime.zoneMakeNamedUnsafe("Europe/London")
 ```

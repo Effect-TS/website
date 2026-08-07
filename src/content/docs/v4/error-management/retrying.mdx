@@ -49,15 +49,17 @@ const policy = Schedule.fixed("100 millis")
 
 const repeated = Effect.retry(task, policy)
 
-Effect.runPromise(repeated).then(console.log)
+const result = await Effect.runPromise(repeated)
+console.log(result)
 /*
 Output:
 failure
 failure
 failure
 success
-yay!
 */
+
+result // => "yay!"
 ```
 
 ### Retrying n Times Immediately
@@ -84,7 +86,7 @@ const task = Effect.callback<string, Error>((resume) => {
 })
 
 // Retry the task up to 5 times
-Effect.runPromise(Effect.retry(task, { times: 5 }))
+const result = await Effect.runPromise(Effect.retry(task, { times: 5 }))
 /*
 Output:
 failure
@@ -92,6 +94,8 @@ failure
 failure
 success
 */
+
+result // => "yay!"
 ```
 
 ### Retrying Based on a Condition
@@ -101,7 +105,7 @@ You can customize how retries are managed by specifying conditions. Use the `unt
 **Example** (Retrying Until a Specific Condition is Met)
 
 ```ts twoslash import.meta.vitest name="retrying-until-a-specific-condition-is-met-1"
-import { Effect } from "effect"
+import { Effect, Exit } from "effect"
 
 let count = 0
 
@@ -116,7 +120,8 @@ const program = Effect.retry(action, {
   until: (err) => err === "Error 3",
 })
 
-Effect.runPromiseExit(program).then(console.log)
+const exit = await Effect.runPromiseExit(program)
+console.log(exit)
 /*
 Output:
 Action called 1 time(s)
@@ -128,6 +133,8 @@ Action called 3 time(s)
   cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
+
+exit // => Exit.fail("Error 3")
 ```
 
 <Aside type="tip" title="Alternative">
@@ -173,13 +180,15 @@ const repeated = Effect.retryOrElse(
   () => Console.log("orElse").pipe(Effect.as("default value")),
 )
 
-Effect.runPromise(repeated).then(console.log)
+const result = await Effect.runPromise(repeated)
+console.log(result)
 /*
 Output:
 failure
 failure
 failure
 orElse
-default value
 */
+
+result // => "default value"
 ```

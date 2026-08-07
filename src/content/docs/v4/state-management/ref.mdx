@@ -41,6 +41,15 @@ class Counter {
 }
 
 const make = Effect.map(Ref.make(0), (value) => new Counter(value))
+
+await Effect.runPromise(
+  Effect.gen(function* () {
+    const counter = yield* make
+    yield* counter.inc
+    yield* counter.inc
+    return yield* counter.get
+  }),
+) // => 2
 ```
 
 **Example** (Using the Counter)
@@ -77,6 +86,17 @@ Effect.runPromise(program)
 Output:
 This counter has a value of 2.
 */
+
+await Effect.runPromise(
+  Effect.gen(function* () {
+    const counter = yield* make
+    yield* counter.inc
+    yield* counter.inc
+    yield* counter.dec
+    yield* counter.inc
+    return yield* counter.get
+  }),
+) // => 2
 ```
 
 <Aside type="note" title="Ref Operations Are Effectful">
@@ -138,6 +158,20 @@ timestamp=... fiber=#8 message="task 1 get: 0"
 timestamp=... fiber=#9 message="task 2 get: 1"
 timestamp=... fiber=#0 message="This counter has a value of 2."
 */
+
+// The interleaving of the concurrent updates is non-deterministic, but
+// the final value is not: +1 +1 -1 +1 always nets out to 2
+await Effect.runPromise(
+  Effect.gen(function* () {
+    const counter = yield* make
+    yield* counter.inc.pipe(
+      Effect.zip(counter.inc, { concurrent: true }),
+      Effect.zip(counter.dec, { concurrent: true }),
+      Effect.zip(counter.inc, { concurrent: true }),
+    )
+    return yield* counter.get
+  }),
+) // => 2
 ```
 
 ## Using Ref as a Service
@@ -192,6 +226,15 @@ Effect.runPromise(runnable)
 Output:
 MyState has a value of 2.
 */
+
+await Effect.runPromise(
+  Effect.gen(function* () {
+    yield* subprogram1
+    yield* subprogram2
+    const state = yield* MyState
+    return yield* Ref.get(state)
+  }).pipe(Effect.provideServiceEffect(MyState, initialState)),
+) // => 2
 ```
 
 Note that we use `Effect.provideServiceEffect` instead of `Effect.provideService` to provide an actual implementation of the `MyState` service because all the operations on the `Ref` data type are effectful, including the creation `Ref.make(0)`.

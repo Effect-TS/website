@@ -29,12 +29,12 @@ const fallback = Effect.succeed("fallback")
 // Try the success effect first, fallback is not used
 const program1 = Effect.catch(success, () => fallback)
 console.log(Effect.runSync(program1))
-// Output: "success"
+Effect.runSync(program1) // => "success"
 
 // Try the failure effect first, fallback is used
 const program2 = Effect.catch(failure, () => fallback)
 console.log(Effect.runSync(program2))
-// Output: "fallback"
+Effect.runSync(program2) // => "fallback"
 ```
 
 ## orElseFail
@@ -49,7 +49,7 @@ succeeds, it will remain unaffected.
 **Example** (Replacing Failure with `Effect.mapError`)
 
 ```ts twoslash import.meta.vitest name="replacing-failure-with-effect-maperror-1"
-import { Effect } from "effect"
+import { Effect, Exit } from "effect"
 
 const validate = (age: number): Effect.Effect<number, string> => {
   if (age < 0) {
@@ -72,6 +72,7 @@ Output:
   cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
+Effect.runSyncExit(program) // => Exit.fail("invalid age")
 ```
 
 ## orElseSucceed
@@ -93,7 +94,7 @@ already succeeds, it will remain unchanged.
 **Example** (Replacing Failure with Success using `Effect.orElseSucceed`)
 
 ```ts twoslash import.meta.vitest name="replacing-failure-with-success-using-effect-orelsesucceed-1"
-import { Effect } from "effect"
+import { Effect, Exit } from "effect"
 
 const validate = (age: number): Effect.Effect<number, string> => {
   if (age < 0) {
@@ -108,10 +109,7 @@ const validate = (age: number): Effect.Effect<number, string> => {
 const program = Effect.orElseSucceed(validate(-1), () => 18)
 
 console.log(Effect.runSyncExit(program))
-/*
-Output:
-{ _id: 'Exit', _tag: 'Success', value: 18 }
-*/
+Effect.runSyncExit(program) // => Exit.succeed(18)
 ```
 
 ## firstSuccessOf
@@ -183,6 +181,6 @@ Unavailable config for master
 Unavailable config for node1
 Unavailable config for node2
 Config for node3 found
-{ host: 'node3.example.com', port: 8080, apiKey: '12345-abcde' }
 */
+result // => { host: "node3.example.com", port: 8080, apiKey: "12345-abcde" }
 ```

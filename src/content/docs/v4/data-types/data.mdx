@@ -43,7 +43,7 @@ const alice = { name: "Alice", age: 30 }
 // Check if Alice is equal to a new object
 // with the same structure and values
 console.log(Equal.equals(alice, { name: "Alice", age: 30 }))
-// Output: true
+Equal.equals(alice, { name: "Alice", age: 30 }) // => true
 ```
 
 The comparison performed by `Equal.equals` is **deep**: nested objects are compared recursively, with no extra work required.
@@ -57,7 +57,7 @@ const nested = { name: "Alice", nested_field: { value: 42 } }
 
 // Nested objects are compared recursively, so this is true
 console.log(Equal.equals(nested, { name: "Alice", nested_field: { value: 42 } }))
-// Output: true
+Equal.equals(nested, { name: "Alice", nested_field: { value: 42 } }) // => true
 ```
 
 A different nested value makes the objects unequal, as you would expect.
@@ -70,7 +70,7 @@ import { Equal } from "effect"
 const nested = { name: "Alice", nested_field: { value: 42 } }
 
 console.log(Equal.equals(nested, { name: "Alice", nested_field: { value: 43 } }))
-// Output: false
+Equal.equals(nested, { name: "Alice", nested_field: { value: 43 } }) // => false
 ```
 
 ### tuple
@@ -89,7 +89,7 @@ const alice = ["Alice", 30] as const
 // Check if Alice is equal to a new tuple
 // with the same structure and values
 console.log(Equal.equals(alice, ["Alice", 30]))
-// Output: true
+Equal.equals(alice, ["Alice", 30]) // => true
 ```
 
 <Aside type="tip" title="Deep Comparison">
@@ -113,7 +113,7 @@ const numbers = [1, 2, 3, 4, 5]
 // Check if the array is equal to a new array
 // with the same values
 console.log(Equal.equals(numbers, [1, 2, 3, 4, 5]))
-// Output: true
+Equal.equals(numbers, [1, 2, 3, 4, 5]) // => true
 ```
 
 <Aside type="tip" title="Deep Comparison">
@@ -155,10 +155,10 @@ const make = (args: Person): Person => ({ ...args })
 const alice = make({ name: "Alice" })
 
 console.log(Equal.equals(alice, make({ name: "Alice" })))
-// Output: true
+Equal.equals(alice, make({ name: "Alice" })) // => true
 
 console.log(Equal.equals(alice, make({ name: "John" })))
-// Output: false
+Equal.equals(alice, make({ name: "John" })) // => false
 ```
 
 **Example** (Defining and Comparing Nested Data)
@@ -195,7 +195,7 @@ const anotherAlice = Person({
 })
 
 console.log(Equal.equals(alice, anotherAlice))
-// Output: true
+Equal.equals(alice, anotherAlice) // => true
 ```
 
 Since nested plain objects are also compared structurally by default, you don't even need a separate `Address` constructor — an inline object literal works just as well.
@@ -227,7 +227,7 @@ const anotherAlice = Person({
 })
 
 console.log(Equal.equals(alice, anotherAlice))
-// Output: true
+Equal.equals(alice, anotherAlice) // => true
 ```
 
 **Example** (Defining and Comparing Recursive Data)
@@ -259,7 +259,7 @@ const tree2 = BinaryTree({
 })
 
 console.log(Equal.equals(tree1, tree2))
-// Output: true
+Equal.equals(tree1, tree2) // => true
 ```
 
 ### Tagged constructor functions
@@ -302,7 +302,7 @@ const alice = Person({ name: "Alice" })
 const bob = Person({ name: "Bob" })
 
 console.log(alice)
-// Output: { name: 'Alice', _tag: 'Person' }
+alice // => { name: "Alice", _tag: "Person" }
 ```
 
 ### Class
@@ -324,7 +324,7 @@ const alice = new Person({ name: "Alice" })
 
 // Check for equality between two instances
 console.log(Equal.equals(alice, new Person({ name: "Alice" })))
-// Output: true
+Equal.equals(alice, new Person({ name: "Alice" })) // => true
 ```
 
 One of the benefits of using classes is that you can easily add custom methods and getters. This allows you to extend the functionality of your data types.
@@ -347,7 +347,7 @@ class Person extends Data.Class<{ name: string }> {
 const alice = new Person({ name: "Alice" })
 
 console.log(alice.upperName)
-// Output: ALICE
+alice.upperName // => "ALICE"
 ```
 
 ### TaggedClass
@@ -369,10 +369,11 @@ const alice = new Person({ name: "Alice" })
 
 console.log(alice)
 // Output: Person { name: 'Alice', _tag: 'Person' }
+alice._tag // => "Person"
 
 // Check equality between two instances
 console.log(Equal.equals(alice, new Person({ name: "Alice" })))
-// Output: true
+Equal.equals(alice, new Person({ name: "Alice" })) // => true
 ```
 
 One benefit of using tagged classes is the ability to easily add custom methods and getters, extending the class's functionality as needed.
@@ -395,7 +396,7 @@ class Person extends Data.TaggedClass("Person")<{ name: string }> {
 const alice = new Person({ name: "Alice" })
 
 console.log(alice.upperName)
-// Output: ALICE
+alice.upperName // => "ALICE"
 ```
 
 ## Union of Tagged Structs
@@ -429,13 +430,18 @@ const state3 = Success({ data: "test" })
 const state4 = Failure({ reason: "not found" })
 
 // Check equality between states
-console.log(Equal.equals(state2, state3)) // Output: true
-console.log(Equal.equals(state2, state4)) // Output: false
+console.log(Equal.equals(state2, state3))
+Equal.equals(state2, state3) // => true
+console.log(Equal.equals(state2, state4))
+Equal.equals(state2, state4) // => false
 
 // Display the states
-console.log(state1) // Output: { _tag: 'Loading' }
-console.log(state2) // Output: { data: 'test', _tag: 'Success' }
-console.log(state4) // Output: { reason: 'not found', _tag: 'Failure' }
+console.log(state1)
+state1 // => { _tag: "Loading" }
+console.log(state2)
+state2 // => { data: "test", _tag: "Success" }
+console.log(state4)
+state4 // => { reason: "not found", _tag: "Failure" }
 ```
 
 <Aside type="note" title="Tag Field Naming Convention">
@@ -464,9 +470,9 @@ const { $is, $match, Loading, Success } = Data.taggedEnum<RemoteData>()
 const isLoading = $is("Loading")
 
 console.log(isLoading(Loading()))
-// Output: true
+isLoading(Loading()) // => true
 console.log(isLoading(Success({ data: "test" })))
-// Output: false
+isLoading(Success({ data: "test" })) // => false
 
 // Use `$match` for pattern matching
 const matcher = $match({
@@ -476,7 +482,7 @@ const matcher = $match({
 })
 
 console.log(matcher(Success({ data: "test" })))
-// Output: "this is a Success: test"
+matcher(Success({ data: "test" })) // => "this is a Success: test"
 ```
 
 ### Adding Generics
@@ -507,6 +513,8 @@ const { Loading, Failure, Success } = Data.taggedEnum<RemoteDataDefinition>()
 const loading = Loading()
 const failure = Failure({ reason: "not found" })
 const success = Success({ data: 1 })
+
+success.data // => 1
 ```
 
 ## Errors
@@ -537,15 +545,12 @@ const err = new NotFound({
 })
 
 console.log(err instanceof Error)
-// Output: true
+err instanceof Error // => true
 
 console.log(err.file)
-// Output: foo.txt
+err.file // => "foo.txt"
 console.log(err)
-/*
-Output:
-{ message: 'Cannot find this file', file: 'foo.txt' }
-*/
+err.message // => "Cannot find this file"
 ```
 
 You can yield an instance of `NotFound` directly in an [Effect.gen](/docs/getting-started/using-generators/), without needing to use `Effect.fail`.
@@ -597,7 +602,7 @@ const program = Effect.gen(function* () {
   Effect.catchTag("NotFound", (err) => Console.error(`${err.message} (${err.file})`)),
 )
 
-Effect.runPromise(program)
+await Effect.runPromise(program) // => undefined
 // Output: Cannot find this file (foo.txt)
 ```
 

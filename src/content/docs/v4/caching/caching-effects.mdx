@@ -23,8 +23,10 @@ const randomNumber = (n: number) => Effect.sync(() => n + i++)
 
 const program = Effect.gen(function* () {
   console.log("non-memoized version:")
-  console.log(yield* randomNumber(10)) // Computes a new result
-  console.log(yield* randomNumber(10)) // Computes a different result
+  const a = yield* randomNumber(10) // Computes a new result
+  console.log(a)
+  const b = yield* randomNumber(10) // Computes a different result
+  console.log(b)
 
   console.log("memoized version:")
   const cache = yield* Cache.make({
@@ -32,20 +34,16 @@ const program = Effect.gen(function* () {
     lookup: randomNumber,
   })
   const memoized = (n: number) => Cache.get(cache, n)
-  console.log(yield* memoized(10)) // Computes and caches the result
-  console.log(yield* memoized(10)) // Reuses the cached result
+  const c = yield* memoized(10) // Computes and caches the result
+  console.log(c)
+  const d = yield* memoized(10) // Reuses the cached result
+  console.log(d)
+
+  return { a, b, c, d }
 })
 
-Effect.runPromise(program)
-/*
-Output:
-non-memoized version:
-11
-12
-memoized version:
-13
-13
-*/
+const result = await Effect.runPromise(program)
+result // => { a: 11, b: 12, c: 13, d: 13 }
 ```
 
 ## once
@@ -70,7 +68,7 @@ const program = Effect.gen(function* () {
   yield* Effect.repeat(task2, { times: 2 })
 })
 
-Effect.runFork(program)
+const result = await Effect.runPromise(program)
 /*
 Output:
 task1
@@ -78,6 +76,7 @@ task1
 task1
 task2
 */
+result // => undefined
 ```
 
 ## cached
@@ -114,7 +113,7 @@ const program = Effect.gen(function* () {
   yield* cached.pipe(Effect.andThen(Console.log))
 })
 
-Effect.runFork(program)
+const result = await Effect.runPromise(program)
 /*
 Output:
 -- non-cached version:
@@ -127,6 +126,7 @@ expensive task...
 result 3
 result 3
 */
+result // => undefined
 ```
 
 ## cachedWithTTL
@@ -160,14 +160,14 @@ const program = Effect.gen(function* () {
   // Second evaluation returns the cached result
   yield* cached.pipe(Effect.andThen(Console.log))
 
-  // Wait for 100 milliseconds, ensuring the cache expires
-  yield* Effect.sleep("100 millis")
+  // Wait for 200 milliseconds, ensuring the cache expires
+  yield* Effect.sleep("200 millis")
 
   // Recomputes the task after cache expiration
   yield* cached.pipe(Effect.andThen(Console.log))
 })
 
-Effect.runFork(program)
+const result = await Effect.runPromise(program)
 /*
 Output:
 expensive task...
@@ -176,6 +176,7 @@ result 1
 expensive task...
 result 2
 */
+result // => undefined
 ```
 
 ## cachedInvalidateWithTTL
@@ -217,7 +218,7 @@ const program = Effect.gen(function* () {
   yield* cached.pipe(Effect.andThen(Console.log))
 })
 
-Effect.runFork(program)
+const result = await Effect.runPromise(program)
 /*
 Output:
 expensive task...
@@ -226,4 +227,5 @@ result 1
 expensive task...
 result 2
 */
+result // => undefined
 ```

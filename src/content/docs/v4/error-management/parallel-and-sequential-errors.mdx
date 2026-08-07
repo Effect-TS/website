@@ -14,7 +14,7 @@ When working with Effect, if an error occurs, the default behavior is to fail wi
 Here, the program fails with the first error it encounters, `"Oh uh!"`.
 
 ```ts twoslash import.meta.vitest name="failing-on-the-first-error-1"
-import { Effect } from "effect"
+import { Effect, Exit } from "effect"
 
 const fail = Effect.fail("Oh uh!")
 const die = Effect.die(new Error("Boom!"))
@@ -31,6 +31,8 @@ Output:
   cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
+
+await Effect.runPromiseExit(program) // => Exit.fail("Oh uh!")
 ```
 
 ## Parallel Errors
@@ -42,7 +44,7 @@ In some cases, you might encounter multiple errors, especially during concurrent
 In this example, both the `fail` and `die` effects are executed concurrently. Since both fail, the program will report multiple errors in the output.
 
 ```ts twoslash import.meta.vitest name="handling-multiple-errors-in-concurrent-computations-1"
-import { Effect } from "effect"
+import { Effect, Exit } from "effect"
 
 const fail = Effect.fail("Oh uh!")
 const die = Effect.die(new Error("Boom!"))
@@ -61,6 +63,8 @@ Output:
   cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
+
+await Effect.runPromiseExit(program) // => Exit.fail("Oh uh!")
 ```
 
 ## Sequential Errors
@@ -73,7 +77,7 @@ This happens because regardless of whether the original effect has any errors or
 In this example, both `fail` and the finalizer `die` result in sequential errors, and both are captured.
 
 ```ts twoslash import.meta.vitest name="handling-multiple-sequential-errors-1"
-import { Effect } from "effect"
+import { Effect, Exit } from "effect"
 
 // Simulate an effect that fails
 const fail = Effect.fail("Oh uh!")
@@ -93,4 +97,6 @@ Output:
   cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
+
+await Effect.runPromiseExit(program) // => Exit.die(new Error("Boom!"))
 ```

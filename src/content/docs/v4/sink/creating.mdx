@@ -90,15 +90,7 @@ import { Stream, Console, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4).pipe(Stream.tap(Console.log))
 
-Effect.runPromise(Stream.run(stream, Sink.drain)).then(console.log)
-/*
-Output:
-1
-2
-3
-4
-undefined
-*/
+await Effect.runPromise(Stream.run(stream, Sink.drain)) // => undefined
 ```
 
 ### timed
@@ -126,15 +118,7 @@ import { Stream, Console, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)
 
-Effect.runPromise(Stream.run(stream, Sink.forEach(Console.log))).then(console.log)
-/*
-Output:
-1
-2
-3
-4
-undefined
-*/
+await Effect.runPromise(Stream.run(stream, Sink.forEach(Console.log))) // => undefined
 ```
 
 ## Creating Sinks from Success and Failure
@@ -229,7 +213,7 @@ await Effect.runPromise(
 
 ### Collecting into a HashSet
 
-To accumulate stream elements into a `HashSet`, use `Sink.collectAllToSet()`. This ensures that each element appears only once in the final set.
+To accumulate stream elements into a native `Set`, fold them with `Sink.reduce`. This ensures that each element appears only once in the final set.
 
 **Example** (Collecting Unique Elements into a HashSet)
 
@@ -251,7 +235,7 @@ await Effect.runPromise(
 
 ### Collecting into HashSets of a Specific Size
 
-For controlled collection into a `HashSet` with a specified maximum size, use `Sink.collectAllToSetN`. This sink gathers unique elements up to the given limit.
+For controlled collection into a `Set` with a specified maximum size, fold with `Sink.reduceWhile`, stopping once the set reaches the given limit.
 
 **Example** (Collecting Unique Elements with a Set Size Limit)
 
@@ -275,8 +259,7 @@ await Effect.runPromise(
 
 ### Collecting into a HashMap
 
-For more complex collection scenarios, `Sink.collectAllToMap` lets you gather elements into a `HashMap<K, A>` with a specified keying and merging strategy.
-This sink requires both a key function to define each element's grouping and a merge function to combine values sharing the same key.
+For more complex collection scenarios, fold elements into a native `Map<K, A>` with `Sink.reduce`, using a key function to define each element's grouping and a merge function to combine values sharing the same key.
 
 **Example** (Grouping and Merging Stream Elements in a HashMap)
 
@@ -303,29 +286,28 @@ await Effect.runPromise(
 
 ### Collecting into a HashMap with Limited Keys
 
-To accumulate elements into a `HashMap` with a maximum number of keys, use `Sink.collectAllToMapN`. This sink collects elements until it reaches the specified key limit, requiring a key function to define the grouping of each element and a merge function to combine values with the same key.
+To accumulate elements into a native `Map` with a maximum number of keys, fold with `Sink.reduceWhile`, stopping once the map reaches the specified key limit. This requires a key function to define the grouping of each element and a merge function to combine values with the same key.
 
 **Example** (Limiting Collected Keys in a HashMap)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="limiting-collected-keys-in-a-hashmap-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 3, 2, 3, 1, 5, 1)
 
-Effect.runPromise(
+await Effect.runPromise(
   Stream.run(
     stream,
-    Sink.collectAllToMapN(
-      3, // Maximum of 3 keys
-      (n) => n, // Key function to group by element value
-      (a, b) => a + b, // Merge function to sum values with the same key
+    Sink.reduceWhile(
+      () => new Map<number, number>(),
+      (m) => m.size < 3, // Stop once the map has 3 keys
+      (m, n) => {
+        const key = n // Key function to group by element value
+        return m.set(key, m.has(key) ? m.get(key)! + n : n) // Merge function to sum values with the same key
+      },
     ),
   ),
-).then(console.log)
-/*
-Output:
-{ _id: 'HashMap', values: [ [ 1, 2 ], [ 2, 2 ], [ 3, 6 ] ] }
-*/
+) // => new Map([[1, 1], [3, 3], [2, 2]])
 ```
 
 ## Folding
@@ -402,38 +384,30 @@ await Effect.runPromise(
 
 ### Folding with Weighted Elements
 
-In some scenarios, you may want to fold elements based on a defined "weight" or "cost," accumulating elements until a specified maximum cost is reached. You can accomplish this with `Sink.foldWeighted`.
+In some scenarios, you may want to fold elements based on a defined "weight" or "cost," accumulating elements until a specified maximum cost is reached. You can accomplish this by building a custom sink out of `Sink.fold`, whose termination condition checks the accumulated cost instead of a plain element count.
 
 **Example** (Accumulating Elements Based on Weight)
 
 In the example below, each element has a weight of `1`, and the folding resets when the accumulated weight hits `3`.
 
-```ts twoslash
-import { Stream, Sink, Chunk, Effect } from "effect"
+```ts twoslash import.meta.vitest name="folding-with-weighted-elements-1"
+import { Stream, Sink, Effect } from "effect"
+
+const foldWeighted = <A>(cost: (a: A) => number, maxCost: number) =>
+  Sink.fold<{ readonly elements: Array<A>; readonly cost: number }, A>(
+    () => ({ elements: [], cost: 0 }),
+    (state) => state.cost < maxCost, // Keep accumulating while under the max cost
+    (state, a) => Effect.succeed({ elements: [...state.elements, a], cost: state.cost + cost(a) }),
+  ).pipe(Sink.map((state) => state.elements))
 
 const stream = Stream.make(3, 2, 4, 1, 5, 6, 2, 1, 3, 5, 6).pipe(
   Stream.transduce(
-    Sink.foldWeighted({
-      initial: Chunk.empty<number>(), // Initial empty Chunk
-      maxCost: 3, // Maximum accumulated cost
-      cost: () => 1, // Each element has a weight of 1
-      body: (acc, el) => Chunk.append(acc, el), // Append element to the Chunk
-    }),
+    foldWeighted(
+      () => 1, // Each element has a weight of 1
+      3, // Maximum accumulated cost
+    ),
   ),
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then((chunk) => console.log("%o", chunk))
-/*
-Output:
-{
-  _id: 'Chunk',
-  values: [
-    { _id: 'Chunk', values: [ 3, 2, 4, [length]: 3 ] },
-    { _id: 'Chunk', values: [ 1, 5, 6, [length]: 3 ] },
-    { _id: 'Chunk', values: [ 2, 1, 3, [length]: 3 ] },
-    { _id: 'Chunk', values: [ 5, 6, [length]: 2 ] },
-    [length]: 4
-  ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [[3, 2, 4], [1, 5, 6], [2, 1, 3], [5, 6]]
 ```

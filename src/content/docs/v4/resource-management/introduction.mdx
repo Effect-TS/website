@@ -24,7 +24,7 @@ If you need access to the effect's result, consider using [onExit](#onexit).
 **Example** (Running a Finalizer in All Outcomes)
 
 ```ts twoslash import.meta.vitest name="running-a-finalizer-in-all-outcomes-1"
-import { Console, Effect } from "effect"
+import { Console, Effect, Exit } from "effect"
 
 // Define a cleanup effect
 const handler = Effect.ensuring(Console.log("Cleanup completed"))
@@ -39,6 +39,8 @@ Task completed
 Cleanup completed
 */
 
+await Effect.runPromise(success) // => "some result"
+
 // Define a failing effect
 const failure = Console.log("Task failed").pipe(Effect.andThen(Effect.fail("some error")), handler)
 
@@ -49,6 +51,8 @@ Task failed
 Cleanup completed
 */
 
+await Effect.runPromiseExit(failure) // => Exit.fail("some error")
+
 // Define an interrupted effect
 const interruption = Console.log("Task interrupted").pipe(Effect.andThen(Effect.interrupt), handler)
 
@@ -58,6 +62,10 @@ Output:
 Task interrupted
 Cleanup completed
 */
+
+// The interruption cause carries a fiber id, so we check the shape instead
+// of comparing the whole Exit for equality
+Exit.hasInterrupts(await Effect.runPromiseExit(interruption)) // => true
 ```
 
 ### onExit
@@ -90,6 +98,8 @@ Task completed
 Cleanup completed: some result
 */
 
+await Effect.runPromise(success) // => "some result"
+
 // Define a failing effect
 const failure = Console.log("Task failed").pipe(Effect.andThen(Effect.fail("some error")), handler)
 
@@ -100,6 +110,8 @@ Task failed
 Cleanup completed: Error: some error
 */
 
+await Effect.runPromiseExit(failure) // => Exit.fail("some error")
+
 // Define an interrupted effect
 const interruption = Console.log("Task interrupted").pipe(Effect.andThen(Effect.interrupt), handler)
 
@@ -109,6 +121,10 @@ Output:
 Task interrupted
 Cleanup completed: All fibers interrupted without errors.
 */
+
+// The interruption cause carries a fiber id, so we check the shape instead
+// of comparing the whole Exit for equality
+Exit.hasInterrupts(await Effect.runPromiseExit(interruption)) // => true
 ```
 
 ### onError
@@ -122,7 +138,7 @@ The cleanup effect will also run if the failure is caused by interruption, and i
 **Example** (Running Cleanup Only on Failure)
 
 ```ts twoslash import.meta.vitest name="running-cleanup-only-on-failure-1"
-import { Console, Effect } from "effect"
+import { Console, Effect, Exit } from "effect"
 
 // This handler logs the failure cause when the effect fails
 const handler = Effect.onError((cause) => Console.log(`Cleanup completed: ${cause}`))
@@ -136,6 +152,8 @@ Output:
 Task completed
 */
 
+await Effect.runPromise(success) // => "some result"
+
 // Define a failing effect
 const failure = Console.log("Task failed").pipe(Effect.andThen(Effect.fail("some error")), handler)
 
@@ -145,6 +163,8 @@ Output:
 Task failed
 Cleanup completed: Error: some error
 */
+
+await Effect.runPromiseExit(failure) // => Exit.fail("some error")
 
 // Define a failing effect
 const defect = Console.log("Task failed with defect").pipe(
@@ -159,6 +179,8 @@ Task failed with defect
 Cleanup completed: Error: Boom!
 */
 
+await Effect.runPromiseExit(defect) // => Exit.die("Boom!")
+
 // Define an interrupted effect
 const interruption = Console.log("Task interrupted").pipe(Effect.andThen(Effect.interrupt), handler)
 
@@ -168,6 +190,10 @@ Output:
 Task interrupted
 Cleanup completed: All fibers interrupted without errors.
 */
+
+// The interruption cause carries a fiber id, so we check the shape instead
+// of comparing the whole Exit for equality
+Exit.hasInterrupts(await Effect.runPromiseExit(interruption)) // => true
 ```
 
 ## acquireUseRelease
@@ -231,7 +257,7 @@ const use = (res: MyResource) => Console.log(`content is ${res.contents}`)
 //      ▼
 const program = Effect.acquireUseRelease(acquire, use, release)
 
-Effect.runPromise(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 Resource acquired

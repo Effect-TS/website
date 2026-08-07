@@ -47,6 +47,8 @@ const requestCount = Metric.counter("request_count", {
   // Optional
   description: "A counter for tracking requests",
 })
+
+Metric.isMetric(requestCount) // => true
 ```
 
 Once created, the counter can accept an effect that returns a `number`, which will increment or decrement the counter.
@@ -69,18 +71,18 @@ const program = Effect.gen(function* () {
   // Get the current state of the counter
   const state = yield* Metric.value(requestCount)
   console.log(state)
+  state.count // => -1
 
   return a * b * c
 })
 
-Effect.runPromise(program).then(console.log)
+await Effect.runPromise(program) // => -8
 /*
 Output:
 CounterState {
   count: -1,
   ...
 }
--8
 */
 ```
 
@@ -105,6 +107,8 @@ const bigintCounter = Metric.counter("error_count", {
   description: "A counter for tracking errors",
   bigint: true,
 })
+
+Metric.isMetric(numberCounter) && Metric.isMetric(bigintCounter) // => true
 ```
 
 ### Increment-Only Counters
@@ -129,18 +133,18 @@ const program = Effect.gen(function* () {
 
   const state = yield* Metric.value(incrementalCounter)
   console.log(state)
+  state.count // => 3
 
   return a * b * c
 })
 
-Effect.runPromise(program).then(console.log)
+await Effect.runPromise(program) // => -8
 /*
 Output:
 CounterState {
   count: 3,
   ...
 }
--8
 */
 ```
 
@@ -170,18 +174,18 @@ const program = Effect.gen(function* () {
 
   const state = yield* Metric.value(taskCount)
   console.log(state)
+  state.count // => 3
 
   return a * b * c
 })
 
-Effect.runPromise(program).then(console.log)
+await Effect.runPromise(program) // => -8
 /*
 Output:
 CounterState {
   count: 3,
   ...
 }
--8
 */
 ```
 
@@ -213,6 +217,8 @@ const memory = Metric.gauge("memory_usage", {
   // Optional
   description: "A gauge for memory usage",
 })
+
+Metric.isMetric(memory) // => true
 ```
 
 Once created, a gauge can be updated by passing an effect that produces the value you want to set for the gauge.
@@ -244,11 +250,16 @@ const program = Effect.gen(function* () {
   // Retrieve the current state of the gauge
   const state = yield* Metric.value(temperature)
   console.log(state)
+  // The gauge always reflects the most recently set value, regardless of
+  // what that (randomly generated) value happens to be
+  state.value === series[series.length - 1] // => true
 
   return series
 })
 
-Effect.runPromise(program).then(console.log)
+const series = await Effect.runPromise(program)
+console.log(series)
+series.length // => 3
 /*
 Example Output:
 new temperature: 9
@@ -283,6 +294,8 @@ const bigintGauge = Metric.gauge("cpu_load", {
   description: "A gauge for CPU load",
   bigint: true,
 })
+
+Metric.isMetric(numberGauge) && Metric.isMetric(bigintGauge) // => true
 ```
 
 ## Histogram
@@ -343,9 +356,13 @@ const program = Effect.gen(function* () {
   // Fetch and display the histogram's state
   const state = yield* Metric.value(latency)
   console.log(state)
+  // The bucket boundaries are fixed by configuration, and every value is
+  // observed exactly once, regardless of the randomly generated numbers
+  state.count // => 100
+  state.buckets.length // => 10
 })
 
-Effect.runPromise(program)
+await Effect.runPromise(program)
 /*
 Example Output:
 HistogramState {
@@ -400,9 +417,12 @@ const program = Effect.gen(function* () {
   // Retrieve and print the current state of the timer histogram
   const state = yield* Metric.value(timer)
   console.log(state)
+  // Every repetition is observed exactly once, regardless of the randomly
+  // generated durations
+  state.count // => 100
 })
 
-Effect.runPromise(program)
+await Effect.runPromise(program)
 /*
 Example Output:
 HistogramState {
@@ -480,9 +500,13 @@ const program = Effect.gen(function* () {
   // Retrieve and log the current state of the summary
   const state = yield* Metric.value(responseTimeSummary)
   console.log("%o", state)
+  // The sample count and number of reported quantiles are fixed by
+  // configuration, regardless of the randomly generated response times
+  state.count // => 100
+  state.quantiles.length // => 3
 })
 
-Effect.runPromise(program)
+await Effect.runPromise(program)
 /*
 Example Output:
 {
@@ -533,9 +557,13 @@ const program = Effect.gen(function* () {
   // Retrieve and log the current state of the summary
   const state = yield* Metric.value(errorFrequency)
   console.log("%o", state)
+  // The total number of occurrences across all distinct error codes is
+  // fixed by the number of repetitions, regardless of which codes were
+  // randomly generated
+  Array.from(state.occurrences.values()).reduce((sum, n) => sum + n, 0) // => 100
 })
 
-Effect.runPromise(program)
+await Effect.runPromise(program)
 /*
 Example Output:
 FrequencyState {
@@ -576,6 +604,8 @@ import { Metric } from "effect"
 const counter = Metric.counter("request_count").pipe(
   Metric.withAttributes({ environment: "production" }),
 )
+
+Metric.isMetric(counter) // => true
 ```
 
 Here, the `request_count` metric is tagged with `"environment": "production"`, allowing you to filter or analyze metrics by this tag later.
@@ -601,6 +631,19 @@ const program = Effect.gen(function* () {
   yield* task.pipe(Effect.trackSuccesses(counter1))
   yield* task.pipe(Effect.trackSuccesses(counter2))
 }).pipe(Effect.provideService(Metric.CurrentMetricAttributes, { environment: "production" }))
+
+// Confirm that running the program updates both tagged counters
+// (state must be read under the same tag context it was written under)
+const readState = Effect.gen(function* () {
+  yield* program
+  const state1 = yield* Metric.value(counter1)
+  const state2 = yield* Metric.value(counter2)
+  return { state1, state2 }
+}).pipe(Effect.provideService(Metric.CurrentMetricAttributes, { environment: "production" }))
+
+const { state1, state2 } = await Effect.runPromise(readState)
+state1.count // => 1
+state2.count // => 1
 ```
 
 If you only want to apply tags within a specific [scope](/docs/resource-management/scope/), you can use `Effect.tagMetricsScoped`. This limits the tag application to metrics within that scope, allowing for more precise tagging control.

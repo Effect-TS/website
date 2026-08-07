@@ -19,10 +19,16 @@ Each permit allows one task to access a resource or perform an operation concurr
 **Example** (Creating a Semaphore with 3 Permits)
 
 ```ts twoslash import.meta.vitest name="creating-a-semaphore-1"
-import { Semaphore } from "effect"
+import { Effect, Semaphore } from "effect"
 
 // Create a semaphore with 3 permits
 const mutex = Semaphore.make(3)
+
+// The semaphore was created with exactly 3 permits available
+const acquired = await Effect.runPromise(
+  mutex.pipe(Effect.flatMap((sem) => Semaphore.take(sem, 3))),
+)
+acquired // => 3
 ```
 
 ## withPermits
@@ -55,7 +61,7 @@ const program = Effect.gen(function* () {
   })
 })
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 timestamp=... level=INFO fiber=#1 message=start elapsed=3ms
@@ -86,7 +92,7 @@ const program = Effect.gen(function* () {
   yield* Effect.all(tasks, { concurrency: "unbounded" })
 })
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 timestamp=... level=INFO fiber=#1 message="process: 1" elapsed=2011ms

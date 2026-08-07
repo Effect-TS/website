@@ -30,18 +30,7 @@ const stream = Stream.scoped(
   Stream.fromEffect(Effect.acquireRelease(open("file.txt"), (file) => file.close)),
 ).pipe(Stream.flatMap((file) => Stream.fromEffect(file.getLines)))
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-/*
-Output:
-Opening file.txt
-Closing file.txt
-{
-  _id: "Chunk",
-  values: [
-    [ "Line 1", "Line 2", "Line 3" ]
-  ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [["Line 1", "Line 2", "Line 3"]]
 ```
 
 In this code snippet, we're simulating file operations using the `open` function. The `Stream.acquireRelease` function is employed to ensure that the file is correctly opened and closed, and we then process the lines of the file using the acquired resource.
@@ -71,17 +60,7 @@ const program = application.pipe(
   ),
 )
 
-Effect.runPromise(Stream.runCollect(program)).then(console.log)
-/*
-Output:
-Application Logic.
-Deleting dir: tmp
-Temporary directory was deleted.
-{
-  _id: "Chunk",
-  values: [ undefined, undefined ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(program)) // => [undefined, undefined]
 ```
 
 In this code example, we start with our application logic represented by the `application` stream. We then use `Stream.finalizer` to define a finalization step, which deletes a temporary directory and logs a message. This ensures that the temporary directory is cleaned up properly when the application completes its execution.
@@ -104,17 +83,7 @@ const program = Stream.fromEffect(Console.log("Application Logic.")).pipe(
   Stream.ensuring(Console.log("Doing some other works after stream's finalization")),
 )
 
-Effect.runPromise(Stream.runCollect(program)).then(console.log)
-/*
-Output:
-Application Logic.
-Finalizing the stream
-Doing some other works after stream's finalization
-{
-  _id: "Chunk",
-  values: [ undefined, undefined ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(program)) // => [undefined, undefined]
 ```
 
 In this code example, we start with our application logic represented by the `Application Logic.` message. We then use `Stream.finalizer` to specify the finalization step, which logs `Finalizing the stream`. After that, we use `Stream.ensuring` to indicate that we want to perform additional tasks after the stream's finalization, resulting in the message `Performing additional tasks after stream's finalization`. This ensures that our post-finalization actions are executed as expected.

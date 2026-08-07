@@ -45,12 +45,17 @@ const divide = (a: number, b: number) =>
 //      ▼
 const program = divide(1, 0)
 
-Effect.runPromise(program).catch(console.error)
-/*
-Output:
-Error: Cannot divide by zero
-  ...stack trace...
-*/
+try {
+  await Effect.runPromise(program)
+} catch (e: any) {
+  console.error(e)
+  /*
+  Output:
+  Error: Cannot divide by zero
+    ...stack trace...
+  */
+  e.message // => "Cannot divide by zero"
+}
 ```
 
 ### dieMessage
@@ -79,12 +84,17 @@ const divide = (a: number, b: number) =>
 //      ▼
 const program = divide(1, 0)
 
-Effect.runPromise(program).catch(console.error)
-/*
-Output:
-Error: Cannot divide by zero
-  ...stack trace...
-*/
+try {
+  await Effect.runPromise(program)
+} catch (e: any) {
+  console.error(e)
+  /*
+  Output:
+  Error: Cannot divide by zero
+    ...stack trace...
+  */
+  e.message // => "Cannot divide by zero"
+}
 ```
 
 ## Converting Failures to Defects
@@ -111,12 +121,17 @@ const divide = (a: number, b: number) =>
 //      ▼
 const program = Effect.orDie(divide(1, 0))
 
-Effect.runPromise(program).catch(console.error)
-/*
-Output:
-Error: Cannot divide by zero
-  ...stack trace...
-*/
+try {
+  await Effect.runPromise(program)
+} catch (e: any) {
+  console.error(e)
+  /*
+  Output:
+  Error: Cannot divide by zero
+    ...stack trace...
+  */
+  e.message // => "Cannot divide by zero"
+}
 ```
 
 ### orDieWith
@@ -145,12 +160,17 @@ const program = Effect.orDie(
   Effect.mapError(divide(1, 0), (error) => new Error(`defect: ${error.message}`)),
 )
 
-Effect.runPromise(program).catch(console.error)
-/*
-Output:
-Error: defect: Cannot divide by zero
-  ...stack trace...
-*/
+try {
+  await Effect.runPromise(program)
+} catch (e: any) {
+  console.error(e)
+  /*
+  Output:
+  Error: defect: Cannot divide by zero
+    ...stack trace...
+  */
+  e.message // => "defect: Cannot divide by zero"
+}
 ```
 
 ## Catching All Defects
@@ -208,12 +228,14 @@ const program = Effect.gen(function* () {
 })
 
 // We get an Exit.Success because we caught all failures
-Effect.runPromiseExit(program).then(console.log)
+const exit = await Effect.runPromiseExit(program)
+console.log(exit)
 /*
 Output:
 Error defect caught: Boom!
-{ _id: 'Exit', _tag: 'Success', value: undefined }
 */
+
+exit // => Exit.succeed(undefined)
 ```
 
 ### catchAllDefect
@@ -230,7 +252,7 @@ execution interruptions (like those from [Effect.interrupt](/docs/concurrency/ba
 **Example** (Handling All Defects)
 
 ```ts twoslash import.meta.vitest name="handling-all-defects-1"
-import { Effect, Predicate, Console } from "effect"
+import { Effect, Predicate, Console, Exit } from "effect"
 
 // Simulating a runtime error
 const task = Effect.die(new Error("Boom!"))
@@ -243,12 +265,14 @@ const program = Effect.catchDefect(task, (defect) => {
 })
 
 // We get an Exit.Success because we caught all defects
-Effect.runPromiseExit(program).then(console.log)
+const exit = await Effect.runPromiseExit(program)
+console.log(exit)
 /*
 Output:
 Error defect caught: Boom!
-{ _id: 'Exit', _tag: 'Success', value: undefined }
 */
+
+exit // => Exit.succeed(undefined)
 ```
 
 <Aside type="tip" title="When to Recover from Defects">

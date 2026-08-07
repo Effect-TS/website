@@ -27,6 +27,8 @@ const program = Effect.gen(function* () {
 
 Effect.runFork(program)
 // Output: Application started at <current time>
+
+await Effect.runPromise(program) // => undefined
 ```
 
 As you can observe, even if our program utilizes both `Clock` and `Console`, the `Requirements` parameter, representing the services required for the effect to execute, remains set to `never`.
@@ -69,5 +71,8 @@ Effect.runSync(program)
 const override = program.pipe(Random.withSeed("myseed"))
 
 Effect.runSync(override)
-// Output: 0.6862142528438508 (consistent output with the seed)
+// Output: 0.10428056576185751 (consistent output with the seed)
+
+// The seed makes the generated value fully deterministic
+Effect.runSync(Random.next.pipe(Random.withSeed("myseed"))) // => 0.10428056576185751
 ```

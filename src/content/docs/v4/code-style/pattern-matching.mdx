@@ -33,7 +33,7 @@ const result = Match.value(input).pipe(
 )
 
 console.log(result)
-// Output: "string: some input"
+result // => "string: some input"
 ```
 
 ## How Pattern Matching Works
@@ -79,10 +79,10 @@ const match = Match.type<string | number>().pipe(
 )
 
 console.log(match(0))
-// Output: "number: 0"
+match(0) // => "number: 0"
 
 console.log(match("hello"))
-// Output: "string: hello"
+match("hello") // => "string: hello"
 ```
 
 ### Matching by Value
@@ -105,7 +105,7 @@ const result = Match.value(input).pipe(
 )
 
 console.log(result)
-// Output: "John is 30 years old"
+result // => "John is 30 years old"
 ```
 
 ### Enforcing a Return Type
@@ -158,13 +158,13 @@ const match = Match.type<{ age: number }>().pipe(
 )
 
 console.log(match({ age: 20 }))
-// Output: "Age: 20"
+match({ age: 20 }) // => "Age: 20"
 
 console.log(match({ age: 18 }))
-// Output: "You can vote"
+match({ age: 18 }) // => "You can vote"
 
 console.log(match({ age: 4 }))
-// Output: "4 is too young"
+match({ age: 4 }) // => "4 is too young"
 ```
 
 ### not
@@ -185,10 +185,10 @@ const match = Match.type<string | number>().pipe(
 )
 
 console.log(match("hello"))
-// Output: "ok"
+match("hello") // => "ok"
 
 console.log(match("hi"))
-// Output: "fallback"
+match("hi") // => "fallback"
 ```
 
 ### tag
@@ -218,10 +218,10 @@ const match = Match.type<Event>().pipe(
 )
 
 console.log(match({ _tag: "success", data: "Hello" }))
-// Output: "Ok!"
+match({ _tag: "success", data: "Hello" }) // => "Ok!"
 
 console.log(match({ _tag: "error", error: new Error("Oops!") }))
-// Output: "Error: Oops!"
+match({ _tag: "error", error: new Error("Oops!") }) // => "Error: Oops!"
 ```
 
 <Aside type="caution" title="Tag Field Naming Convention">
@@ -251,13 +251,13 @@ const matchPropertyKey = Match.type<PropertyKey>().pipe(
 )
 
 console.log(matchPropertyKey(42))
-// Output: "Key is a number: 42"
+matchPropertyKey(42) // => "Key is a number: 42"
 
 console.log(matchPropertyKey("username"))
-// Output: "Key is a string: username"
+matchPropertyKey("username") // => "Key is a string: username"
 
 console.log(matchPropertyKey(Symbol("id")))
-// Output: "Key is a symbol: Symbol(id)"
+matchPropertyKey(Symbol("id")) // => "Key is a symbol: Symbol(id)"
 ```
 
 | Predicate                 | Description                                                                   |
@@ -317,10 +317,10 @@ const match = Match.type<string | number>().pipe(
 )
 
 console.log(match("a"))
-// Output: "ok"
+match("a") // => "ok"
 
 console.log(match("b"))
-// Output: "fallback"
+match("b") // => "fallback"
 ```
 
 ### option
@@ -330,7 +330,7 @@ console.log(match("b"))
 **Example** (Extracting a User Role with Option)
 
 ```ts twoslash import.meta.vitest name="extracting-a-user-role-with-option-1"
-import { Match } from "effect"
+import { Match, Option } from "effect"
 
 type User = { readonly role: "admin" | "editor" | "viewer" }
 
@@ -342,10 +342,10 @@ const getRole = Match.type<User>().pipe(
 )
 
 console.log(getRole({ role: "admin" }))
-// Output: { _id: 'Option', _tag: 'Some', value: 'Has full access' }
+getRole({ role: "admin" }) // => Option.some("Has full access")
 
 console.log(getRole({ role: "viewer" }))
-// Output: { _id: 'Option', _tag: 'None' }
+getRole({ role: "viewer" }) // => Option.none()
 ```
 
 ### either
@@ -355,7 +355,7 @@ The `Match.result` method wraps the result in a [Result](/docs/data-types/result
 **Example** (Extracting a User Role with Either)
 
 ```ts twoslash import.meta.vitest name="extracting-a-user-role-with-either-1"
-import { Match } from "effect"
+import { Match, Result } from "effect"
 
 type User = { readonly role: "admin" | "editor" | "viewer" }
 
@@ -367,8 +367,8 @@ const getRole = Match.type<User>().pipe(
 )
 
 console.log(getRole({ role: "admin" }))
-// Output: { _id: 'Result', _tag: 'Success', value: 'Has full access' }
+getRole({ role: "admin" }) // => Result.succeed("Has full access")
 
 console.log(getRole({ role: "viewer" }))
-// Output: { _id: 'Result', _tag: 'Failure', failure: { role: 'viewer' } }
+getRole({ role: "viewer" }) // => Result.fail({ role: "viewer" })
 ```

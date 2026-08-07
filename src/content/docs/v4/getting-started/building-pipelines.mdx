@@ -83,7 +83,8 @@ const subtractTen = (x: number) => x - 10
 const result = pipe(5, increment, double, subtractTen)
 
 console.log(result)
-// Output: 2
+
+result // => 2
 ```
 
 In the above example, we start with an input value of `5`. The `increment` function adds `1` to the initial value, resulting in `6`. Then, the `double` function doubles the value, giving us `12`. Finally, the `subtractTen` function subtracts `10` from `12`, resulting in the final output of `2`.
@@ -128,7 +129,8 @@ const fetchTransactionAmount = Effect.promise(() => Promise.resolve(100))
 // Apply service charge to the transaction amount
 const finalAmount = pipe(fetchTransactionAmount, Effect.map(addServiceCharge))
 
-Effect.runPromise(finalAmount).then(console.log) // Output: 101
+const result = await Effect.runPromise(finalAmount) // => 101
+console.log(result)
 ```
 
 ## as
@@ -150,7 +152,8 @@ import { pipe, Effect } from "effect"
 // Replace the value 5 with the constant "new value"
 const program = pipe(Effect.succeed(5), Effect.as("new value"))
 
-Effect.runPromise(program).then(console.log) // Output: "new value"
+const result = await Effect.runPromise(program) // => "new value"
+console.log(result)
 ```
 
 ## flatMap
@@ -202,8 +205,8 @@ const finalAmount = pipe(
   Effect.flatMap((amount) => applyDiscount(amount, 5)),
 )
 
-Effect.runPromise(finalAmount).then(console.log)
-// Output: 95
+const result = await Effect.runPromise(finalAmount) // => 95
+console.log(result)
 ```
 
 ### Ensure All Effects Are Considered
@@ -268,7 +271,8 @@ const result1 = pipe(
   Effect.flatMap((amount) => applyDiscount(amount, 5)),
 )
 
-Effect.runPromise(result1).then(console.log) // Output: 190
+const value1 = await Effect.runPromise(result1) // => 190
+console.log(value1)
 
 // Using Effect.andThen
 const result2 = pipe(
@@ -277,7 +281,8 @@ const result2 = pipe(
   Effect.andThen((amount) => applyDiscount(amount, 5)),
 )
 
-Effect.runPromise(result2).then(console.log) // Output: 190
+const value2 = await Effect.runPromise(result2) // => 190
+console.log(value2)
 ```
 
 ### Option and Result with andThen
@@ -298,6 +303,8 @@ const program = pipe(
   fetchNumberValue,
   Effect.andThen((x) => Effect.fromOption(x > 0 ? Option.some(x) : Option.none())),
 )
+
+await Effect.runPromise(program) // => 42
 ```
 
 You might expect the type of `program` to be `Effect<Option<number>, UnknownError, never>`, but it is actually `Effect<number, UnknownError | NoSuchElementError, never>`.
@@ -326,6 +333,8 @@ const program = pipe(
   fetchStringValue,
   Effect.andThen((str) => Effect.fromResult(parseInteger(str))),
 )
+
+await Effect.runPromise(program) // => 42
 ```
 
 Although one might expect the type of `program` to be `Effect<Result<number, string>, UnknownError, never>`, it is actually `Effect<number, string | UnknownError, never>`.
@@ -371,11 +380,11 @@ const finalAmount = pipe(
   Effect.flatMap((amount) => applyDiscount(amount, 5)),
 )
 
-Effect.runPromise(finalAmount).then(console.log)
+const result = await Effect.runPromise(finalAmount) // => 95
+console.log(result)
 /*
 Output:
 Apply a discount to: 100
-95
 */
 ```
 
@@ -422,14 +431,9 @@ const checkDatabaseConnectivity = Effect.promise(() => Promise.resolve("Connecte
 // Combine both effects to perform startup checks
 const startupChecks = Effect.all([webConfig, checkDatabaseConnectivity])
 
-Effect.runPromise(startupChecks).then(([config, dbStatus]) => {
-  console.log(`Configuration: ${JSON.stringify(config)}\nDB Status: ${dbStatus}`)
-})
-/*
-Output:
-Configuration: {"dbConnection":"localhost","port":8080}
-DB Status: Connected to Database
-*/
+const results = await Effect.runPromise(startupChecks) // => [{ dbConnection: "localhost", port: 8080 }, "Connected to Database"]
+const [config, dbStatus] = results
+console.log(`Configuration: ${JSON.stringify(config)}\nDB Status: ${dbStatus}`)
 ```
 
 ## Build your first pipeline
@@ -476,8 +480,8 @@ const program = pipe(
 )
 
 // Execute the program and log the result
-Effect.runPromise(program).then(console.log)
-// Output: "Final amount to charge: 96"
+const result = await Effect.runPromise(program) // => "Final amount to charge: 96"
+console.log(result)
 ```
 
 This pipeline demonstrates how you can structure your code by combining different effects into a clear, readable flow.
@@ -525,6 +529,8 @@ const program = Effect.all([fetchTransactionAmount, fetchDiscountRate]).pipe(
   Effect.map(addServiceCharge),
   Effect.map((finalAmount) => `Final amount to charge: ${finalAmount}`),
 )
+
+await Effect.runPromise(program) // => "Final amount to charge: 96"
 ```
 
 ## Cheatsheet

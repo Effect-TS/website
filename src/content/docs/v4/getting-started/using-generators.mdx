@@ -62,8 +62,8 @@ const program = Effect.gen(function* () {
 })
 
 // Execute the program and log the result
-Effect.runPromise(program).then(console.log)
-// Output: Final amount to charge: 96
+const result = await Effect.runPromise(program) // => "Final amount to charge: 96"
+console.log(result)
 ```
 
 Key steps to follow when using `Effect.gen`:
@@ -111,6 +111,8 @@ export const program = Effect.gen(function* () {
   const finalAmount = addServiceCharge(discountedAmount)
   return `Final amount to charge: ${finalAmount}`
 })
+
+await Effect.runPromise(program) // => "Final amount to charge: 96"
 ```
 
 </TabItem>
@@ -136,6 +138,8 @@ export const program = async function () {
   const finalAmount = addServiceCharge(discountedAmount)
   return `Final amount to charge: ${finalAmount}`
 }
+
+await program() // => "Final amount to charge: 96"
 ```
 
 </TabItem>
@@ -175,7 +179,7 @@ const program = Effect.gen(function* () {
   }
 })
 
-Effect.runPromise(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 2
@@ -206,13 +210,17 @@ const program = Effect.gen(function* () {
   return yield* Effect.fail("Something went wrong!")
 })
 
-Effect.runPromise(program).then(console.log, console.error)
-/*
-Output:
-task1...
-task2...
-Something went wrong!
-*/
+try {
+  await Effect.runPromise(program)
+} catch (e) {
+  console.error(e)
+  /*
+  Output:
+  task1...
+  task2...
+  */
+  e // => "Something went wrong!"
+}
 ```
 
 ## The Role of Short-Circuiting
@@ -315,6 +323,8 @@ function greetUser(id: string) {
     return `Hello, ${user.name}!`
   })
 }
+
+greetUser.length // => 1
 ```
 
 <Aside type="note" title="Further Learning">
@@ -343,10 +353,10 @@ class MyClass {
   })
 }
 
-Effect.runPromise(new MyClass().compute).then(console.log)
+const result = await Effect.runPromise(new MyClass().compute) // => 2
+console.log(result)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message="Computed value: 2"
-2
 */
 ```

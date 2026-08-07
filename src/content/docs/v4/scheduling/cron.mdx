@@ -39,6 +39,9 @@ const cron = Cron.make({
   weekdays: [], // No restrictions on the weekday
   tz: DateTime.zoneMakeNamedUnsafe("Europe/Rome"), // Optional time zone
 })
+
+const hours = [...cron.hours]
+hours // => [4]
 ```
 
 - `seconds`, `minutes`, and `hours`: Define the time of day.
@@ -75,6 +78,8 @@ if (Result.isSuccess(eitherCron)) {
   // Parsing failed
   console.error("Failed to parse cron:", eitherCron.failure.message)
 }
+
+Result.isSuccess(eitherCron) // => true
 ```
 
 ### unsafeParse
@@ -90,6 +95,9 @@ import { Cron } from "effect"
 // on the 8th to the 14th of every month
 // Throws if the expression is invalid
 const cron = Cron.parseUnsafe("0 0 4 8-14 * *")
+
+const hours = [...cron.hours]
+hours // => [4]
 ```
 
 ## Checking Dates with match
@@ -110,7 +118,7 @@ const cron = Cron.parseUnsafe("0 0 4 8-14 * *")
 const checkDate = new Date("2025-01-08 04:00:00")
 
 console.log(Cron.match(cron, checkDate))
-// Output: true
+Cron.match(cron, checkDate) // => true
 ```
 
 ## Finding the Next Run
@@ -135,7 +143,7 @@ const after = new Date("2025-01-08")
 const nextDate = Cron.next(cron, after)
 
 console.log(nextDate)
-// Output: 2025-01-08T04:00:00.000Z
+nextDate.toISOString() // => "2025-01-08T04:00:00.000Z"
 ```
 
 ## Iterating Over Future Dates
@@ -158,12 +166,14 @@ const start = new Date("2021-01-08")
 const iterator = Cron.sequence(cron, start)
 
 // Get the first matching date after the start date
-console.log(iterator.next().value)
-// Output: 2021-01-08T04:00:00.000Z
+const first = iterator.next().value
+console.log(first)
+first?.toISOString() // => "2021-01-08T04:00:00.000Z"
 
 // Get the second matching date after the start date
-console.log(iterator.next().value)
-// Output: 2021-01-09T04:00:00.000Z
+const second = iterator.next().value
+console.log(second)
+second?.toISOString() // => "2021-01-09T04:00:00.000Z"
 ```
 
 ## Converting to Schedule
@@ -234,6 +244,12 @@ Output:
 1970-02-10T04:00:00.000Z
 ...
 */
+
+// The schedule fires at the same instants the Cron itself reports,
+// starting from the Unix epoch (TestClock starts at time 0)
+const iterator = Cron.sequence(cron, new Date(0))
+const firstTen = Array.from({ length: 10 }, () => iterator.next().value?.toISOString())
+firstTen // => ["1970-01-08T04:00:00.000Z", "1970-01-09T04:00:00.000Z", "1970-01-10T04:00:00.000Z", "1970-01-11T04:00:00.000Z", "1970-01-12T04:00:00.000Z", "1970-01-13T04:00:00.000Z", "1970-01-14T04:00:00.000Z", "1970-02-08T04:00:00.000Z", "1970-02-09T04:00:00.000Z", "1970-02-10T04:00:00.000Z"]
 ```
 
 <Aside type="note" title="Using a Real Clock">

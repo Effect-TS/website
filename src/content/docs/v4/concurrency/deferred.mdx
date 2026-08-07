@@ -31,11 +31,14 @@ A deferred can be created using the `Deferred.make` constructor. This returns an
 **Example** (Creating a Deferred)
 
 ```ts twoslash import.meta.vitest name="creating-a-deferred-1"
-import { Deferred } from "effect"
+import { Deferred, Effect } from "effect"
 
 //      ┌─── Effect<Deferred<string, Error>>
 //      ▼
 const deferred = Deferred.make<string, Error>()
+
+const d = await Effect.runPromise(deferred)
+Deferred.isDeferred(d) // => true
 ```
 
 ## Awaiting
@@ -52,6 +55,12 @@ const deferred = Deferred.make<string, Error>()
 //      ┌─── Effect<string, Error, never>
 //      ▼
 const value = deferred.pipe(Effect.andThen(Deferred.await))
+
+// The Deferred is never completed, so awaiting it suspends the fiber
+const result = await Effect.runPromise(
+  Effect.race(value, Effect.sleep("50 millis").pipe(Effect.as("timeout"))),
+)
+result // => "timeout"
 ```
 
 ## Completing
@@ -84,10 +93,10 @@ const program = Effect.gen(function* () {
   const value = yield* Deferred.await(deferred)
 
   console.log(value)
+  value // => 1
 })
 
-Effect.runFork(program)
-// Output: 1
+await Effect.runPromise(program)
 ```
 
 Completing a deferred produces an `Effect<boolean>`. This effect returns `true` if the deferred was successfully completed, and `false` if it had already been completed previously. This can be useful for tracking the state of the deferred.
@@ -107,10 +116,10 @@ const program = Effect.gen(function* () {
   const secondAttempt = yield* Deferred.succeed(deferred, 1)
 
   console.log([firstAttempt, secondAttempt])
+  const both = [firstAttempt, secondAttempt] // => [true, false]
 })
 
-Effect.runFork(program)
-// Output: [ true, false ]
+await Effect.runPromise(program)
 ```
 
 ## Checking Completion Status
@@ -126,7 +135,7 @@ Additionally, you can use the `Deferred.isDone` function to check if a deferred 
 **Example** (Polling and Checking Completion Status)
 
 ```ts twoslash import.meta.vitest name="checking-completion-status-1"
-import { Effect, Deferred } from "effect"
+import { Effect, Deferred, Option } from "effect"
 
 const program = Effect.gen(function* () {
   const deferred = yield* Deferred.make<number, string>()
@@ -138,13 +147,10 @@ const program = Effect.gen(function* () {
   const done2 = yield* Deferred.isDone(deferred)
 
   console.log([done1, done2])
+  const both = [done1, done2] // => [Option.none(), false]
 })
 
-Effect.runFork(program)
-/*
-Output:
-[ { _id: 'Option', _tag: 'None' }, false ]
-*/
+await Effect.runPromise(program)
 ```
 
 ## Common Use Cases
@@ -197,9 +203,10 @@ const program = Effect.gen(function* () {
   const both = yield* Effect.zip(Fiber.join(fiberA), Fiber.join(fiberB))
 
   console.log(both)
+  both // => [true, "hello world"]
 })
 
-Effect.runFork(program)
+await Effect.runPromise(program)
 /*
 Starting task to complete the Deferred
 Starting task to get the value from the Deferred

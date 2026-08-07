@@ -37,17 +37,16 @@ const program = Effect.scoped(
     yield* PubSub.publish(pubsub, "Hello from a PubSub!")
 
     // Each subscriber receives the message
-    console.log("Subscriber 1: " + (yield* PubSub.take(dequeue1)))
-    console.log("Subscriber 2: " + (yield* PubSub.take(dequeue2)))
+    const message1 = yield* PubSub.take(dequeue1)
+    const message2 = yield* PubSub.take(dequeue2)
+    console.log("Subscriber 1: " + message1)
+    console.log("Subscriber 2: " + message2)
+    message1 // => "Hello from a PubSub!"
+    message2 // => "Hello from a PubSub!"
   }),
 )
 
-Effect.runFork(program)
-/*
-Output:
-Subscriber 1: Hello from a PubSub!
-Subscriber 2: Hello from a PubSub!
-*/
+await Effect.runPromise(program) // => undefined
 ```
 
 <Aside type="caution" title="Subscribe Before Publishing">
@@ -67,10 +66,12 @@ Back pressure ensures that all subscribers receive all messages while they are s
 **Example** (Bounded PubSub Creation)
 
 ```ts twoslash import.meta.vitest name="bounded-pubsub-1"
-import { PubSub } from "effect"
+import { Effect, PubSub } from "effect"
 
 // Creates a bounded PubSub with a capacity of 2
 const boundedPubSub = PubSub.bounded<string>(2)
+
+PubSub.capacity(await Effect.runPromise(boundedPubSub)) // => 2
 ```
 
 ### Dropping PubSub
@@ -82,10 +83,12 @@ In a dropping pubsub, publishers can continue to publish new values, but subscri
 **Example** (Dropping PubSub Creation)
 
 ```ts twoslash import.meta.vitest name="dropping-pubsub-1"
-import { PubSub } from "effect"
+import { Effect, PubSub } from "effect"
 
 // Creates a dropping PubSub with a capacity of 2
 const droppingPubSub = PubSub.dropping<string>(2)
+
+PubSub.capacity(await Effect.runPromise(droppingPubSub)) // => 2
 ```
 
 ### Sliding PubSub
@@ -97,10 +100,12 @@ A sliding pubsub prevents slow subscribers from impacting the message delivery r
 **Example** (Sliding PubSub Creation)
 
 ```ts twoslash import.meta.vitest name="sliding-pubsub-1"
-import { PubSub } from "effect"
+import { Effect, PubSub } from "effect"
 
 // Creates a sliding PubSub with a capacity of 2
 const slidingPubSub = PubSub.sliding<string>(2)
+
+PubSub.capacity(await Effect.runPromise(slidingPubSub)) // => 2
 ```
 
 ### Unbounded PubSub
@@ -114,10 +119,12 @@ Generally, it's recommended to use bounded, dropping, or sliding pubsubs unless 
 **Example**
 
 ```ts twoslash import.meta.vitest name="unbounded-pubsub-1"
-import { PubSub } from "effect"
+import { Effect, PubSub } from "effect"
 
 // Creates an unbounded PubSub with unlimited capacity
 const unboundedPubSub = PubSub.unbounded<string>()
+
+PubSub.capacity(await Effect.runPromise(unboundedPubSub)) // => Number.MAX_SAFE_INTEGER
 ```
 
 ## Operators On PubSubs
@@ -136,15 +143,13 @@ const program = Effect.scoped(
     const pubsub = yield* PubSub.bounded<string>(2)
     const dequeue = yield* PubSub.subscribe(pubsub)
     yield* PubSub.publishAll(pubsub, ["Message 1", "Message 2"])
-    console.log(yield* PubSub.takeAll(dequeue))
+    const messages = yield* PubSub.takeAll(dequeue)
+    console.log(messages)
+    messages // => ["Message 1", "Message 2"]
   }),
 )
 
-Effect.runFork(program)
-/*
-Output:
-{ _id: 'Chunk', values: [ 'Message 1', 'Message 2' ] }
-*/
+await Effect.runPromise(program) // => undefined
 ```
 
 ### capacity / size
@@ -162,15 +167,12 @@ import { Effect, PubSub } from "effect"
 const program = Effect.gen(function* () {
   const pubsub = yield* PubSub.bounded<number>(2)
   console.log(`capacity: ${PubSub.capacity(pubsub)}`)
+  const capacityMessage = `capacity: ${PubSub.capacity(pubsub)}` // => "capacity: 2"
   console.log(`size: ${yield* PubSub.size(pubsub)}`)
+  const sizeMessage = `size: ${yield* PubSub.size(pubsub)}` // => "size: 0"
 })
 
-Effect.runFork(program)
-/*
-Output:
-capacity: 2
-size: 0
-*/
+await Effect.runPromise(program) // => undefined
 ```
 
 ### Shutting Down a PubSub

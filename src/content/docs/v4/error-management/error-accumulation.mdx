@@ -14,7 +14,7 @@ Here's an example using `Effect.zip`, which stops at the first failure and only 
 **Example** (Fail Fast with `Effect.zip`)
 
 ```ts twoslash import.meta.vitest name="fail-fast-with-effect-zip-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 const task1 = Console.log("task1").pipe(Effect.as(1))
 const task2 = Effect.fail("Oh uh!").pipe(Effect.as(2))
@@ -29,6 +29,8 @@ Output:
 task1
 Oh uh!
 */
+
+await Effect.runPromiseExit(program) // => Exit.fail("Oh uh!")
 ```
 
 The `Effect.forEach` function behaves similarly. It applies an effectful operation to each element in a collection, but will stop when it hits the first error:
@@ -65,7 +67,7 @@ The `Effect.validate` function is similar to `Effect.zip`, but it continues comb
 **Example** (Validating and Collecting Errors)
 
 ```ts twoslash import.meta.vitest name="validating-and-collecting-errors-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 const task1 = Console.log("task1").pipe(Effect.as(1))
 const task2 = Effect.fail("Oh uh!").pipe(Effect.as(2))
@@ -85,6 +87,8 @@ task2
   cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
+
+await Effect.runPromiseExit(program) // => Exit.fail(["Oh uh!", "Oh no!"])
 ```
 
 ## validateAll
@@ -92,7 +96,7 @@ task2
 The `Effect.validate` function is similar to the `Effect.forEach` function. It transforms all elements of a collection using the provided effectful operation, but it collects all errors in the error channel, as well as the success values in the success channel.
 
 ```ts twoslash import.meta.vitest name="validate-all-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 //      ┌─── Effect<number[], [string, ...string[]], never>
 //      ▼
@@ -116,6 +120,8 @@ item 3
   cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
+
+await Effect.runPromiseExit(program) // => Exit.fail(["4 is not less that 4", "5 is not less that 4"])
 ```
 
 <Aside type="caution" title="Loss of Successes">
@@ -144,10 +150,8 @@ const program = Effect.partition([0, 1, 2, 3, 4], (n) => {
 })
 
 Effect.runPromise(program).then(console.log, console.error)
-/*
-Output:
-[ [ '1 is not even', '3 is not even' ], [ 0, 2, 4 ] ]
-*/
+
+await Effect.runPromise(program) // => [["1 is not even", "3 is not even"], [0, 2, 4]]
 ```
 
 This operator is an unexceptional effect, meaning the error channel type is `never`. Failures are collected without stopping the effect, so the entire operation completes and returns both errors and successes.

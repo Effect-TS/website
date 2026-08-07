@@ -45,6 +45,8 @@ import { Effect } from "effect"
 //      ┌─── Effect<number, never, never>
 //      ▼
 const success = Effect.succeed(42)
+
+await Effect.runPromise(success) // => 42
 ```
 
 The type of `success` is `Effect<number, never, never>`, which means:
@@ -73,11 +75,13 @@ functions like [Effect.catchAll](/docs/error-management/expected-errors/#catchal
 **Example** (Creating a Failed Effect)
 
 ```ts twoslash import.meta.vitest name="creating-a-failed-effect-1"
-import { Effect } from "effect"
+import { Effect, Exit } from "effect"
 
 //      ┌─── Effect<never, Error, never>
 //      ▼
 const failure = Effect.fail(new Error("Operation failed due to network error"))
+
+await Effect.runPromiseExit(failure) // => Exit.fail(new Error("Operation failed due to network error"))
 ```
 
 The type of `failure` is `Effect<never, Error, never>`, which means:
@@ -101,13 +105,15 @@ Using "tagged" errors (objects with a `_tag` field) can help identify error type
 **Example** (Using Tagged Errors)
 
 ```ts twoslash import.meta.vitest name="using-tagged-errors-1"
-import { Effect, Data } from "effect"
+import { Effect, Data, Exit } from "effect"
 
 class HttpError extends Data.TaggedError("HttpError")<{}> {}
 
 //      ┌─── Effect<never, HttpError, never>
 //      ▼
 const program = Effect.fail(new HttpError())
+
+await Effect.runPromiseExit(program) // => Exit.fail(new HttpError())
 ```
 
 ## Error Tracking
@@ -217,6 +223,8 @@ const log = (message: string) =>
 //      ┌─── Effect<void, never, never>
 //      ▼
 const program = log("Hello, World!")
+
+Effect.runSync(program) // => undefined
 ```
 
 The side effect (logging to the console) encapsulated within `program` won't occur until the effect is explicitly run (see the [Running Effects](/docs/getting-started/running-effects/) section for more details). This allows you to define side effects at one point in your code and control when they are activated, improving manageability and predictability of side effects in larger applications.
@@ -242,6 +250,9 @@ const parse = (input: string) =>
 //      ┌─── Effect<any, UnknownError, never>
 //      ▼
 const program = parse("")
+
+const error = await Effect.runPromise(Effect.flip(program))
+error.message // => "An error occurred in Effect.try"
 ```
 
 In this example:
@@ -269,6 +280,9 @@ const parse = (input: string) =>
 //      ┌─── Effect<any, Error, never>
 //      ▼
 const program = parse("")
+
+const error = await Effect.runPromise(Effect.flip(program))
+error.message // => "something went wrong SyntaxError: Unexpected end of JSON input"
 ```
 
 You can think of this as a similar pattern to the traditional try-catch block in JavaScript:
@@ -317,6 +331,8 @@ const delay = (message: string) =>
 //      ┌─── Effect<string, never, never>
 //      ▼
 const program = delay("Async operation completed successfully!")
+
+await Effect.runPromise(program) // => "Async operation completed successfully!"
 ```
 
 The `program` value has the type `Effect<string, never, never>` and can be interpreted as an effect that:
@@ -345,6 +361,8 @@ const getTodo = (id: number) =>
 //      ┌─── Effect<Response, UnknownError, never>
 //      ▼
 const program = getTodo(1)
+
+Effect.isEffect(program) // => true
 ```
 
 The `program` value has the type `Effect<Response, UnknownError, never>` and can be interpreted as an effect that:
@@ -372,6 +390,8 @@ const getTodo = (id: number) =>
 //      ┌─── Effect<Response, Error, never>
 //      ▼
 const program = getTodo(1)
+
+Effect.isEffect(program) // => true
 ```
 
 ## From a Callback
@@ -405,6 +425,9 @@ const readFile = (filename: string) =>
 //      ┌─── Effect<Buffer, Error, never>
 //      ▼
 const program = readFile("example.txt")
+
+const error = await Effect.runPromise(Effect.flip(program))
+error.message // => "ENOENT: no such file or directory, open 'example.txt'"
 ```
 
 In the above example, we manually annotate the types when calling `Effect.callback`:
@@ -431,7 +454,8 @@ const program = Effect.callback<number>((resume) => {
 })
 
 // Run the program
-Effect.runPromise(program).then(console.log) // Output: 1
+const result = await Effect.runPromise(program) // => 1
+console.log(result)
 ```
 
 ### Advanced Usage
@@ -516,7 +540,7 @@ const program = Effect.gen(function* () {
 })
 
 // Run the program
-Effect.runPromise(program)
+await Effect.runPromise(program) // => undefined
 /*
 Output:
 Abort signal received
@@ -554,11 +578,21 @@ const bad = Effect.succeed(i++)
 
 const good = Effect.suspend(() => Effect.succeed(i++))
 
-console.log(Effect.runSync(bad)) // Output: 0
-console.log(Effect.runSync(bad)) // Output: 0
+const bad1 = Effect.runSync(bad)
+console.log(bad1)
+bad1 // => 0
 
-console.log(Effect.runSync(good)) // Output: 1
-console.log(Effect.runSync(good)) // Output: 2
+const bad2 = Effect.runSync(bad)
+console.log(bad2)
+bad2 // => 0
+
+const good1 = Effect.runSync(good)
+console.log(good1)
+good1 // => 1
+
+const good2 = Effect.runSync(good)
+console.log(good2)
+good2 // => 2
 ```
 
 <Aside type="note" title="Running Effects">
@@ -612,7 +646,7 @@ In situations where TypeScript struggles to unify the returned effect type, `Eff
 **Example** (Using `Effect.suspend` to Help TypeScript Infer Types)
 
 ```ts twoslash import.meta.vitest name="using-effect-suspend-to-help-typescript-infer-types-1"
-import { Effect } from "effect"
+import { Effect, Exit } from "effect"
 
 /*
   Without suspend, TypeScript may struggle with type inference.
@@ -634,6 +668,9 @@ const withSuspend = (a: number, b: number) =>
   Effect.suspend(() =>
     b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b),
   )
+
+await Effect.runPromise(withSuspend(4, 2)) // => 2
+await Effect.runPromiseExit(withSuspend(4, 0)) // => Exit.fail(new Error("Cannot divide by zero"))
 ```
 
 ## Cheatsheet

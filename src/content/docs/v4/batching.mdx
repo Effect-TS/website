@@ -124,6 +124,8 @@ const notifyOwner = (todo: Todo) =>
   getUserById(todo.ownerId).pipe(
     Effect.andThen((user) => sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)),
   )
+
+new SendEmailError()._tag // => "SendEmailError"
 ```
 
 <Aside type="tip" title="Validating API Responses">
@@ -217,6 +219,8 @@ const program = Effect.gen(function* () {
     concurrency: "unbounded",
   })
 })
+
+new GetTodosError()._tag // => "GetTodosError"
 ```
 
 This implementation performs an API call for each todo to fetch the owner's details and send an email. If multiple todos have the same owner, this results in redundant API calls.
@@ -463,6 +467,8 @@ const SendEmailResolver = RequestResolver.make((entries: ReadonlyArray<Request.E
     ),
   ),
 )
+
+SendEmail({ address: "a@b.com", text: "hi" })._tag // => "SendEmail"
 ```
 
 <Aside type="tip" title="Accessing Context in Resolvers">
@@ -633,6 +639,8 @@ const notifyOwner = (todo: Todo) =>
   getUserById(todo.ownerId).pipe(
     Effect.andThen((user) => sendEmailToUser(user.id, `hey ${user.name} you got a todo!`)),
   )
+
+GetUserById({ id: 1 }).id // => 1
 ```
 
 By using the `Effect.request` function, we integrate the resolvers with the request model effectively. This approach ensures that each query is optimally resolved using the appropriate resolver.
@@ -739,6 +747,8 @@ const GetTodosResolver = Effect.map(HttpService, (http) =>
       }),
   ),
 )
+
+HttpService.key // => "HttpService"
 ```
 
 We can see now that the type of `GetTodosResolver` is no longer a `RequestResolver` but instead it is:
@@ -878,6 +888,8 @@ const getTodos: Effect.Effect<Array<Todo>, GetTodosError, TodosService> = Effect
   TodosService,
   (service) => service.getTodos,
 )
+
+TodosService.key // => "TodosService"
 ```
 
 This way is probably the best for most of the cases given that layers are the natural primitive where to wire services together.

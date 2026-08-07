@@ -100,10 +100,19 @@ You can define and decode configuration values using a schema.
 **Example** (Decoding a Configuration Value)
 
 ```ts twoslash import.meta.vitest name="using-config-with-schema-1"
-import { Config, Effect, Schema } from "effect"
+import { Config, ConfigProvider, Effect, Schema } from "effect"
 
 // Define a config that expects a string with at least 4 characters
 const myConfig = Config.schema(Schema.String.check(Schema.isMinLength(4)), "Foo")
+
+const result = await Effect.runPromise(
+  Effect.provideService(
+    myConfig,
+    ConfigProvider.ConfigProvider,
+    ConfigProvider.fromEnv({ env: { Foo: "test" } }),
+  ),
+)
+result // => "test"
 ```
 
 For more information, see the [Schema.Config](/docs/schema/effect-data-types/#config) documentation.
@@ -363,7 +372,9 @@ import { Config, ConfigProvider, Effect } from "effect"
 const program = Effect.gen(function* () {
   const A = yield* Config.string("A") // Retrieve config A
   const B = yield* Config.string("B") // Retrieve config B
-  console.log(`A: ${A}, B: ${B}`)
+  const message = `A: ${A}, B: ${B}`
+  console.log(message)
+  message // => "A: A, B: B"
 })
 
 // First provider has A but is missing B
@@ -421,7 +432,7 @@ To define a configuration for this custom type, we can combine primitive configs
 **Example** (Defining a Custom Configuration)
 
 ```ts twoslash import.meta.vitest name="defining-a-custom-configuration-1"
-import { Config } from "effect"
+import { Config, ConfigProvider, Effect } from "effect"
 
 class HostPort {
   constructor(
@@ -438,6 +449,15 @@ const both = Config.all([Config.string("HOST"), Config.number("PORT")])
 
 // Map the configuration values into a HostPort instance
 const config = Config.map(both, ([host, port]) => new HostPort(host, port))
+
+const result = await Effect.runPromise(
+  Effect.provideService(
+    config,
+    ConfigProvider.ConfigProvider,
+    ConfigProvider.fromEnv({ env: { HOST: "localhost", PORT: "8080" } }),
+  ),
+)
+result.url // => "localhost:8080"
 ```
 
 In this example, `Config.all(configs)` combines two primitive configurations, `Config<string>` and `Config<number>`, into a `Config<[string, number]>`. The `Config.map` operator is then used to transform these values into an instance of the `HostPort` class.
@@ -510,7 +530,7 @@ If you were to use this configuration in your application, it would expect the `
 To do this, you can use the `Config.nested` operator, which allows you to nest configuration values under a specific namespace. Let's update the previous example to reflect this:
 
 ```ts twoslash import.meta.vitest name="nested-configurations-2"
-import { Config } from "effect"
+import { Config, ConfigProvider, Effect } from "effect"
 
 class ServiceConfig {
   constructor(
@@ -534,6 +554,17 @@ const serviceConfig = Config.map(
   ]),
   ([[host, port], timeout]) => new ServiceConfig(host, port, timeout),
 )
+
+const result = await Effect.runPromise(
+  Effect.provideService(
+    serviceConfig,
+    ConfigProvider.ConfigProvider,
+    ConfigProvider.fromEnv({
+      env: { SERVER_HOST: "localhost", SERVER_PORT: "8080", TIMEOUT: "30" },
+    }),
+  ),
+)
+result.url // => "localhost:8080"
 ```
 
 Now, if you run your application with this configuration setup, it will look for the following environment variables:
@@ -574,7 +605,9 @@ const config = Config.map(
 
 const program = Effect.gen(function* () {
   const hostPort = yield* config
-  console.log(`Application started: ${hostPort.url}`)
+  const message = `Application started: ${hostPort.url}`
+  console.log(message)
+  message // => "Application started: localhost:8080"
 })
 
 // Create a mock config provider using fixed test data
@@ -587,7 +620,6 @@ const mockConfigProvider = ConfigProvider.fromEnv({
 
 // Run the program using the mock config provider
 Effect.runPromise(Effect.provideService(program, ConfigProvider.ConfigProvider, mockConfigProvider))
-// Output: Application started: localhost:8080
 ```
 
 This approach helps you create isolated tests that don't rely on external environment variables, ensuring your tests run consistently with mock configurations.
@@ -605,7 +637,9 @@ const config = Config.nested(Config.number("PORT"), "SERVER")
 
 const program = Effect.gen(function* () {
   const port = yield* config
-  console.log(`Server is running on port ${port}`)
+  const message = `Server is running on port ${port}`
+  console.log(message)
+  message // => "Server is running on port 8080"
 })
 
 // Mock configuration using '_' as the separator for nested keys
@@ -614,7 +648,6 @@ const mockConfigProvider = ConfigProvider.fromEnv({
 })
 
 Effect.runPromise(Effect.provideService(program, ConfigProvider.ConfigProvider, mockConfigProvider))
-// Output: Server is running on port 8080
 ```
 
 ## ConfigProvider
@@ -641,7 +674,9 @@ const program = Effect.gen(function* () {
   // Read SERVER_HOST and SERVER_PORT as nested configuration values
   const port = yield* Config.nested(Config.number("PORT"), "SERVER")
   const host = yield* Config.nested(Config.string("HOST"), "SERVER")
-  console.log(`Application started: ${host}:${port}`)
+  const message = `Application started: ${host}:${port}`
+  console.log(message)
+  message // => "Application started: localhost:8080"
 })
 
 Effect.runPromise(
@@ -651,7 +686,6 @@ Effect.runPromise(
     ConfigProvider.fromUnknown(JSON.parse(`{"SERVER":{"PORT":8080,"HOST":"localhost"}}`)),
   ),
 )
-// Output: Application started: localhost:8080
 ```
 
 ### Using Nested Configuration Namespaces

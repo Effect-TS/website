@@ -166,13 +166,14 @@ const policy = Schedule.max([
 
 const program = request.pipe(Effect.retry(policy))
 
-await Effect.runPromise(program)
+const result = await Effect.runPromise(program)
 /*
 Output:
 Attempt #1, retry after 500 millis...
 Attempt #2, retry after 1000 millis...
 Done
 */
+result // => "some result"
 ```
 
 ## Running Periodic Tasks Until Another Task Completes
@@ -197,7 +198,7 @@ const schedule = Schedule.fixed("1.5 seconds")
 // Run the action repeatedly until the long-running task completes
 const program = Effect.race(Effect.repeat(action, schedule), longRunningEffect)
 
-await Effect.runPromise(program)
+const result = await Effect.runPromise(program)
 /*
 Output:
 action...
@@ -206,4 +207,5 @@ action...
 action...
 done
 */
+result // => undefined
 ```

@@ -19,7 +19,7 @@ Think of a `Stream` as an extension of an `Effect`. While an `Effect<A, E, R>` r
 To clarify, let's examine some examples using `Effect`:
 
 ```ts twoslash import.meta.vitest name="what-is-a-stream-1"
-import { Effect, Chunk, Option } from "effect"
+import { Effect, Chunk, Option, Exit } from "effect"
 
 // An Effect that fails with a string error
 const failedEffect = Effect.fail("fail!")
@@ -32,6 +32,8 @@ const oneListValue = Effect.succeed(Chunk.make(1, 2, 3))
 
 // An Effect that produces an optional number
 const oneOption = Effect.succeed(Option.some(1))
+
+await Effect.runPromiseExit(failedEffect) // => Exit.fail("fail!")
 ```
 
 In each case, the `Effect` always ends with **exactly one value**. There is no variability; you always get one result.
@@ -50,7 +52,7 @@ Here are the possible scenarios for a `Stream`:
 Let's see these scenarios in action:
 
 ```ts twoslash import.meta.vitest name="understanding-streams-1"
-import { Stream } from "effect"
+import { Stream, Effect } from "effect"
 
 // An empty Stream
 const emptyStream = Stream.empty
@@ -63,6 +65,8 @@ const finiteNumberStream = Stream.range(1, 10)
 
 // An infinite Stream of numbers starting from 1 and incrementing
 const infiniteNumberStream = Stream.iterate(1, (n) => n + 1)
+
+await Effect.runPromise(Stream.runCollect(finiteNumberStream)) // => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 ```
 
 In summary, a `Stream` is a versatile tool for representing programs that may yield multiple values, making it suitable for a wide range of tasks, from processing finite lists to handling infinite sequences.

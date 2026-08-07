@@ -57,7 +57,7 @@ const task2 = makeTask(2, "100 millis")
 
 const sequential = Effect.all([task1, task2])
 
-Effect.runPromise(sequential)
+await Effect.runPromise(sequential) // => [undefined, undefined]
 /*
 Output:
 start task1
@@ -99,7 +99,7 @@ const numbered = Effect.all([task1, task2, task3, task4, task5], {
   concurrency: 2,
 })
 
-Effect.runPromise(numbered)
+await Effect.runPromise(numbered) // => [undefined, undefined, undefined, undefined, undefined]
 /*
 Output:
 start task1
@@ -147,7 +147,7 @@ const unbounded = Effect.all([task1, task2, task3, task4, task5], {
   concurrency: "unbounded",
 })
 
-Effect.runPromise(unbounded)
+await Effect.runPromise(unbounded) // => [undefined, undefined, undefined, undefined, undefined]
 /*
 Output:
 start task1
@@ -290,7 +290,7 @@ The resulting interruption can be observed in the [Exit](/docs/data-types/exit/)
 In this case, the program runs without any interruption, logging the start and completion of the task.
 
 ```ts twoslash import.meta.vitest name="interrupt-1"
-import { Effect } from "effect"
+import { Effect, Exit } from "effect"
 
 const program = Effect.gen(function* () {
   console.log("start")
@@ -299,12 +299,11 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-Effect.runPromiseExit(program).then(console.log)
+await Effect.runPromiseExit(program) // => Exit.succeed("some result")
 /*
 Output:
 start
 done
-{ _id: 'Exit', _tag: 'Success', value: 'some result' }
 */
 ```
 
@@ -321,7 +320,8 @@ const program = Effect.gen(function* () {
   return yield* Effect.interrupt
 })
 
-Effect.runPromiseExit(program).then(console.log)
+const exit = await Effect.runPromiseExit(program)
+exit._tag // => "Failure"
 /*
 Output:
 start
@@ -354,14 +354,14 @@ when the fiber is interrupted, allowing you to perform cleanup or other actions.
 In this example, we set up a handler that logs "Cleanup completed" whenever the fiber is interrupted. We then show three cases: a successful effect, a failing effect, and an interrupted effect, demonstrating how the handler is triggered depending on how the effect ends.
 
 ```ts twoslash import.meta.vitest name="oninterrupt-1"
-import { Console, Effect } from "effect"
+import { Console, Effect, Exit } from "effect"
 
 // This handler is executed when the fiber is interrupted
 const handler = Effect.onInterrupt((_fibers) => Console.log("Cleanup completed"))
 
 const success = Console.log("Task completed").pipe(Effect.as("some result"), handler)
 
-Effect.runFork(success)
+await Effect.runPromise(success) // => "some result"
 /*
 Output:
 Task completed
@@ -369,7 +369,7 @@ Task completed
 
 const failure = Console.log("Task failed").pipe(Effect.andThen(Effect.fail("some error")), handler)
 
-Effect.runFork(failure)
+await Effect.runPromiseExit(failure) // => Exit.fail("some error")
 /*
 Output:
 Task failed
@@ -377,7 +377,8 @@ Task failed
 
 const interruption = Console.log("Task interrupted").pipe(Effect.andThen(Effect.interrupt), handler)
 
-Effect.runFork(interruption)
+const interruptionExit = await Effect.runPromiseExit(interruption)
+interruptionExit._tag // => "Failure"
 /*
 Output:
 Task interrupted
@@ -410,7 +411,9 @@ const program = Effect.forEach(
   { concurrency: "unbounded" },
 )
 
-Effect.runPromiseExit(program).then((exit) => console.log(JSON.stringify(exit, null, 2)))
+const exit = await Effect.runPromiseExit(program)
+console.log(JSON.stringify(exit, null, 2))
+exit._tag // => "Failure"
 /*
 Output:
 start #1
@@ -491,7 +494,7 @@ const task2 = Effect.succeed("task2").pipe(
 
 const program = Effect.race(task1, task2)
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => "task2"
 /*
 Output:
 task2 done
@@ -517,7 +520,7 @@ const task2 = Effect.succeed("task2").pipe(
 
 const program = Effect.race(task1, task2)
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => "task2"
 /*
 Output:
 task2 done
@@ -542,7 +545,9 @@ const task2 = Effect.fail("task2").pipe(
 
 const program = Effect.race(task1, task2)
 
-Effect.runPromiseExit(program).then(console.log)
+const exit = await Effect.runPromiseExit(program)
+console.log(exit)
+exit._tag // => "Failure"
 /*
 Output:
 {
@@ -563,7 +568,7 @@ If you want to handle the result of whichever task completes first, whether it s
 **Example** (Handling Success or Failure with Either)
 
 ```ts twoslash import.meta.vitest name="race-4"
-import { Effect, Console } from "effect"
+import { Effect, Console, Result } from "effect"
 
 const task1 = Effect.fail("task1").pipe(
   Effect.delay("100 millis"),
@@ -580,11 +585,11 @@ const task2 = Effect.succeed("task2").pipe(
 // in Result to capture success or failure
 const program = Effect.race(Effect.result(task1), Effect.result(task2))
 
-Effect.runPromise(program).then(console.log)
+await Effect.runPromise(program) // => Result.fail("task1")
 /*
 Output:
 task2 interrupted
-{ _id: 'Either', _tag: 'Left', left: 'task1' }
+{ _id: 'Result', _tag: 'Failure', failure: 'task1' }
 */
 ```
 
@@ -623,7 +628,7 @@ const task3 = Effect.succeed("task3").pipe(
 
 const program = Effect.raceAll([task1, task2, task3])
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => "task1"
 /*
 Output:
 task1 done
@@ -656,7 +661,7 @@ const task3 = Effect.succeed("task3").pipe(
 
 const program = Effect.raceAll([task1, task2, task3])
 
-Effect.runFork(program)
+await Effect.runPromise(program) // => "task3"
 /*
 Output:
 task3 done
@@ -688,7 +693,9 @@ const task3 = Effect.fail("task3").pipe(
 
 const program = Effect.raceAll([task1, task2, task3])
 
-Effect.runPromiseExit(program).then(console.log)
+const exit = await Effect.runPromiseExit(program)
+console.log(exit)
+exit._tag // => "Failure"
 /*
 Output:
 {
@@ -712,7 +719,7 @@ or fails.
 **Example** (Both Tasks Succeed)
 
 ```ts twoslash import.meta.vitest name="racefirst-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 const task1 = Effect.succeed("task1").pipe(
   Effect.delay("100 millis"),
@@ -727,20 +734,19 @@ const task2 = Effect.succeed("task2").pipe(
 
 const program = Effect.raceFirst(task1, task2).pipe(Effect.tap(Console.log("more work...")))
 
-Effect.runPromiseExit(program).then(console.log)
+await Effect.runPromiseExit(program) // => Exit.succeed("task1")
 /*
 Output:
 task1 done
 task2 interrupted
 more work...
-{ _id: 'Exit', _tag: 'Success', value: 'task1' }
 */
 ```
 
 **Example** (One Task Fails, One Succeeds)
 
 ```ts twoslash import.meta.vitest name="racefirst-2"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 const task1 = Effect.fail("task1").pipe(
   Effect.delay("100 millis"),
@@ -755,15 +761,10 @@ const task2 = Effect.succeed("task2").pipe(
 
 const program = Effect.raceFirst(task1, task2).pipe(Effect.tap(Console.log("more work...")))
 
-Effect.runPromiseExit(program).then(console.log)
+await Effect.runPromiseExit(program) // => Exit.fail("task1")
 /*
 Output:
 task2 interrupted
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'task1' }
-}
 */
 ```
 

@@ -28,6 +28,9 @@ const validateWeightOption = (weight: number): Effect.Effect<Option.Option<numbe
     return Effect.succeed(Option.none())
   }
 }
+
+await Effect.runPromise(validateWeightOption(5)) // => Option.some(5)
+await Effect.runPromise(validateWeightOption(-5)) // => Option.none()
 ```
 
 **Example** (Returning Error for Invalid Weight)
@@ -35,7 +38,7 @@ const validateWeightOption = (weight: number): Effect.Effect<Option.Option<numbe
 You can also handle invalid inputs by using the error channel, which allows you to return an error when the input is invalid:
 
 ```ts twoslash import.meta.vitest name="returning-error-for-invalid-weight-1"
-import { Effect } from "effect"
+import { Effect, Exit } from "effect"
 
 // Function to validate weight or fail with an error
 const validateWeightOrFail = (weight: number): Effect.Effect<number, string> => {
@@ -47,6 +50,9 @@ const validateWeightOrFail = (weight: number): Effect.Effect<number, string> => 
     return Effect.fail(`negative input: ${weight}`)
   }
 }
+
+await Effect.runPromise(validateWeightOrFail(5)) // => 5
+await Effect.runPromiseExit(validateWeightOrFail(-5)) // => Exit.fail("negative input: -5")
 ```
 
 ## Conditional Operators
@@ -111,12 +117,12 @@ const task2 = Effect.succeed("hello").pipe(
 //      ▼
 const program = Effect.zip(task1, task2)
 
-Effect.runPromise(program).then(console.log)
+const result = await Effect.runPromise(program) // => [1, "hello"]
+console.log(result)
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message="task1 done"
 timestamp=... level=INFO fiber=#0 message="task2 done"
-[ 1, 'hello' ]
 */
 ```
 
@@ -140,12 +146,12 @@ const task2 = Effect.succeed("hello").pipe(
 // Run both effects concurrently using the concurrent option
 const program = Effect.zip(task1, task2, { concurrent: true })
 
-Effect.runPromise(program).then(console.log)
+const result = await Effect.runPromise(program) // => [1, "hello"]
+console.log(result)
 /*
 Output:
 timestamp=... level=INFO fiber=#3 message="task2 done"
 timestamp=... level=INFO fiber=#2 message="task1 done"
-[ 1, 'hello' ]
 */
 ```
 
@@ -183,12 +189,12 @@ const task3 = Effect.zipWith(
   (number, string) => number + string.length,
 )
 
-Effect.runPromise(task3).then(console.log)
+const result = await Effect.runPromise(task3) // => 6
+console.log(result)
 /*
 Output:
 timestamp=... level=INFO fiber=#3 message="task1 done"
 timestamp=... level=INFO fiber=#2 message="task2 done"
-6
 */
 ```
 
@@ -238,8 +244,8 @@ const result = Effect.gen(function* () {
   return results
 })
 
-Effect.runPromise(result).then(console.log)
-// Output: [1, 2, 3, 4, 5]
+const value = await Effect.runPromise(result) // => [1, 2, 3, 4, 5]
+console.log(value)
 ```
 
 In this example, the loop starts with the state `1` and continues until the state exceeds `5`. Each state is incremented by `1` and is collected into an array, which becomes the final result.
@@ -262,7 +268,8 @@ const result = Effect.gen(function* () {
   }
 })
 
-Effect.runPromise(result).then(console.log)
+const value = await Effect.runPromise(result) // => undefined
+console.log(value)
 /*
 Output:
 Currently at state 1
@@ -270,7 +277,6 @@ Currently at state 2
 Currently at state 3
 Currently at state 4
 Currently at state 5
-undefined
 */
 ```
 
@@ -297,7 +303,8 @@ const result = Effect.forEach([1, 2, 3, 4, 5], (n, index) =>
   Console.log(`Currently at index ${index}`).pipe(Effect.as(n * 2)),
 )
 
-Effect.runPromise(result).then(console.log)
+const value = await Effect.runPromise(result) // => [2, 4, 6, 8, 10]
+console.log(value)
 /*
 Output:
 Currently at index 0
@@ -305,7 +312,6 @@ Currently at index 1
 Currently at index 2
 Currently at index 3
 Currently at index 4
-[ 2, 4, 6, 8, 10 ]
 */
 ```
 
@@ -327,7 +333,8 @@ const result = Effect.forEach(
   { discard: true },
 )
 
-Effect.runPromise(result).then(console.log)
+const value = await Effect.runPromise(result) // => undefined
+console.log(value)
 /*
 Output:
 Currently at index 0
@@ -335,7 +342,6 @@ Currently at index 1
 Currently at index 2
 Currently at index 3
 Currently at index 4
-undefined
 */
 ```
 
@@ -379,12 +385,12 @@ const tupleOfEffects = [
 //      ▼
 const resultsAsTuple = Effect.all(tupleOfEffects)
 
-Effect.runPromise(resultsAsTuple).then(console.log)
+const result = await Effect.runPromise(resultsAsTuple) // => [42, "Hello"]
+console.log(result)
 /*
 Output:
 42
 Hello
-[ 42, 'Hello' ]
 */
 ```
 
@@ -401,13 +407,13 @@ const iterableOfEffects: Iterable<Effect.Effect<number>> = [1, 2, 3].map((n) =>
 //      ▼
 const resultsAsArray = Effect.all(iterableOfEffects)
 
-Effect.runPromise(resultsAsArray).then(console.log)
+const result = await Effect.runPromise(resultsAsArray) // => [1, 2, 3]
+console.log(result)
 /*
 Output:
 1
 2
 3
-[ 1, 2, 3 ]
 */
 ```
 
@@ -425,12 +431,12 @@ const structOfEffects = {
 //      ▼
 const resultsAsStruct = Effect.all(structOfEffects)
 
-Effect.runPromise(resultsAsStruct).then(console.log)
+const result = await Effect.runPromise(resultsAsStruct) // => { a: 42, b: "Hello" }
+console.log(result)
 /*
 Output:
 42
 Hello
-{ a: 42, b: 'Hello' }
 */
 ```
 
@@ -448,12 +454,12 @@ const recordOfEffects: Record<string, Effect.Effect<number>> = {
 //      ▼
 const resultsAsRecord = Effect.all(recordOfEffects)
 
-Effect.runPromise(resultsAsRecord).then(console.log)
+const result = await Effect.runPromise(resultsAsRecord) // => { key1: 1, key2: 2 }
+console.log(result)
 /*
 Output:
 1
 2
-{ key1: 1, key2: 2 }
 */
 ```
 
@@ -465,7 +471,7 @@ If any effect in the collection fails, the remaining effects will not run, and t
 **Example** (Bail Out on First Failure)
 
 ```ts twoslash import.meta.vitest name="bail-out-on-first-failure-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 const program = Effect.all([
   Effect.succeed("Task1").pipe(Effect.tap(Console.log)),
@@ -474,15 +480,11 @@ const program = Effect.all([
   Effect.succeed("Task3").pipe(Effect.tap(Console.log)),
 ])
 
-Effect.runPromiseExit(program).then(console.log)
+const result = await Effect.runPromiseExit(program) // => Exit.fail("Task2: Oh no!")
+console.log(result)
 /*
 Output:
 Task1
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Task2: Oh no!' }
-}
 */
 ```
 
@@ -495,7 +497,7 @@ The `{ mode: "either" }` option changes the behavior of `Effect.all` to ensure a
 **Example** (Collecting Results with `mode: "either"`)
 
 ```ts twoslash /{ mode: "result" }/ import.meta.vitest name="collecting-results-with-mode-either-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit, Result } from "effect"
 
 const effects = [
   Effect.succeed("Task1").pipe(Effect.tap(Console.log)),
@@ -505,19 +507,11 @@ const effects = [
 
 const program = Effect.all(effects, { mode: "result" })
 
-Effect.runPromiseExit(program).then(console.log)
+const result = await Effect.runPromiseExit(program) // => Exit.succeed([Result.succeed("Task1"), Result.fail("Task2: Oh no!"), Result.succeed("Task3")])
+console.log(result)
 /*
 Output:
 Task1
 Task3
-{
-  _id: 'Exit',
-  _tag: 'Success',
-  value: [
-    { _id: 'Result', _tag: 'Success', value: 'Task1' },
-    { _id: 'Result', _tag: 'Failure', failure: 'Task2: Oh no!' },
-    { _id: 'Result', _tag: 'Success', value: 'Task3' }
-  ]
-}
 */
 ```

@@ -15,7 +15,7 @@ The `Data.Error` constructor provides a way to define a base class for yieldable
 **Example** (Creating and Yielding a Custom Error)
 
 ```ts twoslash import.meta.vitest name="creating-and-yielding-a-custom-error-1"
-import { Effect, Data } from "effect"
+import { Effect, Data, Exit } from "effect"
 
 // Define a custom error class extending Data.Error
 class MyError extends Data.Error<{ message: string }> {}
@@ -34,6 +34,8 @@ Output:
   cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
+
+await Effect.runPromiseExit(program) // => Exit.fail(new MyError({ message: "Oh no!" }))
 ```
 
 ## Data.TaggedError
@@ -75,4 +77,6 @@ Effect.runPromise(program).then(console.log, console.error)
 Example Output (n < 0.2):
 Foo error: Oh no!
 */
+
+new FooError({ message: "Oh no!" })._tag // => "Foo"
 ```

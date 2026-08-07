@@ -79,4 +79,9 @@ timestamp=... level=INFO fiber=#3 message="task 4" message="[
 ]"
 [ 10, 20, 30, 40 ]
 */
+
+// The order in which concurrent tasks append their result depends on
+// real timing, but all four ages always end up in the shared state
+const value = await Effect.runPromise(meanAge)
+value.slice().sort((a, b) => a - b) // => [10, 20, 30, 40]
 ```

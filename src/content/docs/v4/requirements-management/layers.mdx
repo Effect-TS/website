@@ -59,6 +59,8 @@ class Database extends Context.Service<
     readonly query: (sql: string) => Effect.Effect<unknown, never, Config | Logger>
   }
 >()("Database") {}
+
+Database.key // => "Database"
 ```
 
 Here, the `query` function of the `Database` service requires both `Config` and `Logger`. This design leaks implementation details, making the `Database` service aware of its dependencies, which complicates testing and makes it difficult to mock.
@@ -116,6 +118,8 @@ const incompleteTestSetup = test.pipe(
   // Attempt to provide only the Database service without Config and Logger
   Effect.provideService(Database, DatabaseTest),
 )
+
+Database.key // => "Database"
 ```
 
 Because the `Database` service interface directly includes dependencies on `Config` and `Logger`, it forces any test setup to include these services, even if they're irrelevant to the test. This adds unnecessary complexity and makes it difficult to write simple, isolated unit tests.
@@ -203,6 +207,8 @@ const ConfigLive = Layer.succeed(
     }),
   }),
 )
+
+await Effect.runPromise(Effect.provide(Config.pipe(Effect.andThen((c) => c.getConfig)), ConfigLive)) // => { logLevel: "INFO", connection: "mysql://username:password@hostname:port/database_name" }
 ```
 
 Looking at the type of `ConfigLive` we can observe:
@@ -237,6 +243,8 @@ const ConfigLive = Layer.succeed(Config, {
     connection: "mysql://username:password@hostname:port/database_name",
   }),
 })
+
+await Effect.runPromise(Effect.provide(Config.pipe(Effect.andThen((c) => c.getConfig)), ConfigLive)) // => { logLevel: "INFO", connection: "mysql://username:password@hostname:port/database_name" }
 ```
 
 ### Logger
@@ -289,6 +297,13 @@ const LoggerLive = Layer.effect(
     }
   }),
 )
+
+await Effect.runPromise(
+  Effect.provide(
+    Logger.pipe(Effect.andThen((logger) => logger.log("hello"))),
+    Layer.provide(LoggerLive, ConfigLive),
+  ),
+) // => undefined
 ```
 
 Looking at the type of `LoggerLive`:
@@ -372,6 +387,15 @@ const DatabaseLive = Layer.effect(
     }
   }),
 )
+
+const AppConfigLive = Layer.merge(ConfigLive, LoggerLive).pipe(Layer.provide(ConfigLive))
+
+await Effect.runPromise(
+  Effect.provide(
+    Database.pipe(Effect.andThen((db) => db.query("SELECT * FROM users"))),
+    Layer.provide(DatabaseLive, AppConfigLive),
+  ),
+) // => { result: "Results from mysql://username:password@hostname:port/database_name" }
 ```
 
 Looking at the type of `DatabaseLive`:
@@ -452,6 +476,13 @@ const LoggerLive = Layer.effect(
 
 // Layer<Config | Logger, never, Config>
 const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
+
+await Effect.runPromise(
+  Effect.provide(
+    Config.pipe(Effect.andThen((c) => c.getConfig)),
+    AppConfigLive.pipe(Layer.provide(ConfigLive)),
+  ),
+) // => { logLevel: "INFO", connection: "mysql://username:password@hostname:port/database_name" }
 ```
 
 ### Composing Layers
@@ -549,6 +580,10 @@ const MainLive = DatabaseLive.pipe(
   // provides the config to AppConfigLive
   Layer.provide(ConfigLive),
 )
+
+await Effect.runPromise(
+  Effect.provide(Database.pipe(Effect.andThen((db) => db.query("SELECT * FROM users"))), MainLive),
+) // => { result: "Results from mysql://username:password@hostname:port/database_name" }
 ```
 
 We obtained a `MainLive` layer that produces the `Database` service:
@@ -631,6 +666,18 @@ const AppConfigLive = Layer.merge(ConfigLive, LoggerLive)
 
 // Layer<Config | Database, never, never>
 const MainLive = DatabaseLive.pipe(Layer.provide(AppConfigLive), Layer.provideMerge(ConfigLive))
+
+await Effect.runPromise(
+  Effect.provide(
+    Effect.gen(function* () {
+      const config = yield* Config
+      const database = yield* Database
+      const queryResult = yield* database.query("SELECT * FROM users")
+      return { logLevel: (yield* config.getConfig).logLevel, queryResult }
+    }),
+    MainLive,
+  ),
+) // => { logLevel: "INFO", queryResult: { result: "Results from mysql://username:password@hostname:port/database_name" } }
 ```
 
 ## Providing a Layer to an Effect
@@ -714,13 +761,10 @@ const program = Effect.gen(function* () {
 //      ▼
 const runnable = Effect.provide(program, MainLive)
 
-Effect.runPromise(runnable).then(console.log)
+await Effect.runPromise(runnable) // => { result: "Results from mysql://username:password@hostname:port/database_name" }
 /*
 Output:
 [INFO] Executing query: SELECT * FROM users
-{
-  result: 'Results from mysql://username:password@hostname:port/database_name'
-}
 */
 ```
 
@@ -751,6 +795,11 @@ Output:
 Listening on http://localhost:3000
 ...
 */
+
+// Layer.launch never completes on its own; building the layer directly
+// lets us verify what it produces without hanging the process
+const context = await Effect.runPromise(Effect.scoped(Layer.build(server)))
+Context.get(context, HTTPServer) // => undefined
 ```
 
 ## Tapping
@@ -899,6 +948,8 @@ class Cache extends Context.Service<Cache>()("app/Cache", {
   // Specify dependencies
   static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(NodeFileSystem.layer))
 }
+
+Cache.key // => "app/Cache"
 ```
 
 ### Declaring the Service's Layers
@@ -937,6 +988,21 @@ const layer = Cache.layer
 //      ┌─── Layer.Layer<Cache, never, FileSystem>
 //      ▼
 const layerNoDeps = Cache.layerWithoutDependencies
+
+// Exercise layerNoDeps with a test FileSystem to confirm the wiring works
+const FileSystemTest = FileSystem.layerNoop({
+  readFileString: () => Effect.succeed("File Content..."),
+})
+
+await Effect.runPromise(
+  Effect.provide(
+    Effect.gen(function* () {
+      const cache = yield* Cache
+      return yield* cache.lookup("my-key")
+    }),
+    Layer.provide(layerNoDeps, FileSystemTest),
+  ),
+) // => "File Content..."
 ```
 
 ### Accessing the Service
@@ -1033,6 +1099,8 @@ const runnable = program.pipe(
 
 Effect.runFork(runnable)
 // Output: File Content...
+
+await Effect.runPromise(runnable) // => undefined
 ```
 
 ### Mocking the Service Directly
@@ -1074,6 +1142,8 @@ const runnable = program.pipe(Effect.provideService(Cache, cache))
 
 Effect.runFork(runnable)
 // Output: Cache Content...
+
+await Effect.runPromise(runnable) // => undefined
 ```
 
 ### Alternative Ways to Construct `make`
@@ -1107,7 +1177,7 @@ const program = Effect.gen(function* () {
   console.log(`The magic number is ${magicNumber.value}`)
 })
 
-Effect.runPromise(program.pipe(Effect.provide(MagicNumber.layer)))
+await Effect.runPromise(program.pipe(Effect.provide(MagicNumber.layer))) // => undefined
 // The magic number is 42
 ```
 
@@ -1132,7 +1202,7 @@ const program = Effect.gen(function* () {
   console.log(`The number is ${n}`)
 })
 
-Effect.runPromise(program.pipe(Effect.provide(Sync.layer)))
+await Effect.runPromise(program.pipe(Effect.provide(Sync.layer))) // => undefined
 // Example Output: The number is 3858843290019673
 ```
 
@@ -1163,7 +1233,7 @@ const program = Effect.gen(function* () {
   console.log(`The resource is ${resource}`)
 })
 
-Effect.runPromise(
+await Effect.runPromise(
   program.pipe(
     Effect.provide(
       //       ┌─── Layer<Scoped, never, never>
@@ -1171,7 +1241,7 @@ Effect.runPromise(
       Scoped.layer,
     ),
   ),
-)
+) // => undefined
 /*
 Acquiring...
 The resource is foo

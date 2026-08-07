@@ -34,7 +34,8 @@ const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 m
 const program = Effect.repeat(action, policy)
 
 // Run the program and log the number of repetitions
-await Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+const repetitions = await Effect.runPromise(program)
+console.log(`repetitions: ${repetitions}`)
 /*
 Output:
 success
@@ -42,12 +43,13 @@ success
 success
 repetitions: 2
 */
+repetitions // => 2
 ```
 
 **Example** (Handling Failures in Repetition)
 
 ```ts twoslash import.meta.vitest name="handling-failures-in-repetition-1"
-import { Effect, Schedule } from "effect"
+import { Effect, Schedule, Exit } from "effect"
 
 let count = 0
 
@@ -70,18 +72,15 @@ const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 m
 const program = Effect.repeat(action, policy)
 
 // Run the program and observe the result on failure
-await Effect.runPromiseExit(program).then(console.log)
+const exit = await Effect.runPromiseExit(program)
+console.log(exit)
 /*
 Output:
 success
 success
 failure
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Uh oh!' }
-}
 */
+exit // => Exit.fail("Uh oh!")
 ```
 
 ### Skipping First Execution
@@ -99,13 +98,15 @@ const policy = Schedule.addDelay(Schedule.recurs(2), () => Effect.succeed("100 m
 
 const program = Effect.schedule(action, policy)
 
-await Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+const repetitions = await Effect.runPromise(program)
+console.log(`repetitions: ${repetitions}`)
 /*
 Output:
 success
 success
 repetitions: 2
 */
+repetitions // => 2
 ```
 
 ## repeatN
@@ -122,13 +123,14 @@ const action = Console.log("success")
 // Repeat the action 2 additional times after the first execution
 const program = Effect.repeat(action, { times: 2 })
 
-await Effect.runPromise(program)
+const result = await Effect.runPromise(program)
 /*
 Output:
 success
 success
 success
 */
+result // => undefined
 ```
 
 ## repeatOrElse
@@ -168,7 +170,8 @@ const program = Effect.repeatOrElse(action, policy, () =>
   }),
 )
 
-await Effect.runPromise(program).then((n) => console.log(`repetitions: ${n}`))
+const repetitions = await Effect.runPromise(program)
+console.log(`repetitions: ${repetitions}`)
 /*
 Output:
 success
@@ -177,6 +180,7 @@ failure
 orElse
 repetitions: 1
 */
+repetitions // => 1
 ```
 
 ## Repeating Based on a Condition
@@ -199,13 +203,14 @@ const action = Effect.sync(() => {
 // Repeat the action until the count reaches 3
 const program = Effect.repeat(action, { until: (n) => n === 3 })
 
-await Effect.runPromise(program)
+const result = await Effect.runPromise(program)
 /*
 Output:
 Action called 1 time(s)
 Action called 2 time(s)
 Action called 3 time(s)
 */
+result // => 3
 ```
 
 <Aside type="tip" title="Retrying on Errors">

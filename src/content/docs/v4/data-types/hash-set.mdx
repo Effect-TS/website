@@ -103,10 +103,10 @@ const original = HashSet.make(1, 2, 3)
 const modified = original.pipe(HashSet.add(4), HashSet.add(5), HashSet.remove(1))
 
 console.log(Array.from(original))
-// Output: [1, 2, 3] - original remains unchanged
+Array.from(original) // => [1, 2, 3]
 
 console.log(Array.from(modified))
-// Output: [2, 3, 4, 5] - changes applied to a new version
+Array.from(modified) // => [2, 3, 4, 5]
 ```
 
 ## Performance characteristics
@@ -172,7 +172,7 @@ const set = HashSet.empty().pipe(
 
 // Only one instance is kept
 console.log(HashSet.size(set))
-// Output: 1
+HashSet.size(set) // => 1
 ```
 
 ### Simplifying Equality with Plain Objects and Schema
@@ -190,17 +190,17 @@ const person2 = { id: 1, name: "Alice", age: 30 }
 
 // They are different object references
 console.log(Object.is(person1, person2))
-// Output: false
+Object.is(person1, person2) // => false
 
 // But they are equal in value (based on content)
 console.log(Equal.equals(person1, person2))
-// Output: true
+Equal.equals(person1, person2) // => true
 
 // Add both to a HashSet — only one will be stored
 const set = pipe(HashSet.empty(), HashSet.add(person1), HashSet.add(person2))
 
 console.log(HashSet.size(set))
-// Output: 1
+HashSet.size(set) // => 1
 ```
 
 **Example** (Decoding with `Schema.Struct`)
@@ -225,13 +225,13 @@ const person2 = Person({ id: 1, name: "Alice", age: 30 })
 
 // person1 and person2 are different instances but equal in value
 console.log(Equal.equals(person1, person2))
-// Output: true
+Equal.equals(person1, person2) // => true
 
 // Add both to a MutableHashSet — only one will be stored
 const set = MutableHashSet.empty().pipe(MutableHashSet.add(person1), MutableHashSet.add(person2))
 
 console.log(MutableHashSet.size(set))
-// Output: 1
+MutableHashSet.size(set) // => 1
 ```
 
 ## HashSet
@@ -277,10 +277,10 @@ const set2 = HashSet.add(set1, 4)
 
 // The original set is unchanged
 console.log(Array.from(set1))
-// Output: [1, 2, 3]
+Array.from(set1) // => [1, 2, 3]
 
 console.log(Array.from(set2))
-// Output: [1, 2, 3, 4]
+Array.from(set2) // => [1, 2, 3, 4]
 
 // Perform set operations with another set
 const set3 = HashSet.make(3, 4, 5)
@@ -289,19 +289,19 @@ const set3 = HashSet.make(3, 4, 5)
 const union = HashSet.union(set2, set3)
 
 console.log(Array.from(union))
-// Output: [1, 2, 3, 4, 5]
+Array.from(union) // => [1, 2, 3, 4, 5]
 
 // Shared values
 const intersection = HashSet.intersection(set2, set3)
 
 console.log(Array.from(intersection))
-// Output: [3, 4]
+Array.from(intersection) // => [3, 4]
 
 // Values only in set2
 const difference = HashSet.difference(set2, set3)
 
 console.log(Array.from(difference))
-// Output: [1, 2]
+Array.from(difference) // => [1, 2]
 ```
 
 **Example** (Chaining with `pipe`)
@@ -321,7 +321,7 @@ const result = pipe(
 )
 
 console.log(result)
-// Output: [4, 8]
+result // => [4, 8]
 ```
 
 ## MutableHashSet
@@ -357,19 +357,19 @@ MutableHashSet.add(set, 4)
 
 // Check current contents
 console.log([...set])
-// Output: [1, 2, 3, 4]
+Array.from(set) // => [1, 2, 3, 4]
 
 // Remove an element (modifies in place)
 MutableHashSet.remove(set, 1)
 
 console.log([...set])
-// Output: [2, 3, 4]
+Array.from(set) // => [2, 3, 4]
 
 // Clear the set entirely
 MutableHashSet.clear(set)
 
 console.log(MutableHashSet.size(set))
-// Output: 0
+MutableHashSet.size(set) // => 0
 ```
 
 ## Interoperability with JavaScript
@@ -402,6 +402,7 @@ const iterable: Iterable<number> = hashSet
 // Spread into console.log
 console.log(...iterable)
 // Output: 1 2 3
+Array.from(iterable) // => [1, 2, 3]
 
 // Use in a for...of loop
 for (const value of mutableSet) {
@@ -411,16 +412,15 @@ for (const value of mutableSet) {
 
 // Convert to array with Array.from
 console.log(Array.from(mutableSet))
-// Output: [ 4, 5, 6 ]
+Array.from(mutableSet) // => [4, 5, 6]
 
 // Convert immutable HashSet to array using Array.from
 //
 //      ┌─── Array<number>
 //      ▼
-const array = Array.from(hashSet)
+const array = Array.from(hashSet) // => [1, 2, 3]
 
 console.log(array)
-// Output: [ 1, 2, 3 ]
 ```
 
 <Aside type="caution" title="Performance considerations">

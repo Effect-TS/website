@@ -29,6 +29,9 @@ const simulatedTask = Effect.fail("Oh no!").pipe(Effect.as(1))
 //      ┌─── Effect<number, Error, never>
 //      ▼
 const mapped = Effect.mapError(simulatedTask, (message) => new Error(message))
+
+const error = await Effect.runPromise(Effect.flip(mapped))
+error.message // => "Oh no!"
 ```
 
 <Aside type="note">
@@ -56,6 +59,9 @@ const modified = Effect.mapBoth(simulatedTask, {
   onFailure: (message) => new Error(message),
   onSuccess: (n) => n > 0,
 })
+
+const error = await Effect.runPromise(Effect.flip(modified))
+error.message // => "Oh no!"
 ```
 
 <Aside type="note">
@@ -155,7 +161,7 @@ Executes an effectful operation to inspect the failure of an effect without alte
 **Example** (Inspecting Errors)
 
 ```ts twoslash import.meta.vitest name="inspecting-errors-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 // Simulate a task that fails with an error
 const task: Effect.Effect<number, string> = Effect.fail("NetworkError")
@@ -168,6 +174,8 @@ Effect.runFork(tapping)
 Output:
 expected error: NetworkError
 */
+
+await Effect.runPromiseExit(tapping) // => Exit.fail("NetworkError")
 ```
 
 ### tapErrorTag
@@ -177,7 +185,7 @@ This function allows you to inspect errors that match a specific tag, helping yo
 **Example** (Inspecting Tagged Errors)
 
 ```ts twoslash import.meta.vitest name="inspecting-tagged-errors-1"
-import { Effect, Console, Data } from "effect"
+import { Effect, Console, Data, Exit } from "effect"
 
 class NetworkError extends Data.TaggedError("NetworkError")<{
   readonly statusCode: number
@@ -203,6 +211,8 @@ Effect.runFork(tapping)
 Output:
 expected error: 504
 */
+
+await Effect.runPromiseExit(tapping) // => Exit.fail(new NetworkError({ statusCode: 504 }))
 ```
 
 ### tapErrorCause
@@ -212,7 +222,7 @@ This function inspects the complete cause of an error, including failures and de
 **Example** (Inspecting Error Causes)
 
 ```ts twoslash import.meta.vitest name="inspecting-error-causes-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 // Create a task that fails with a NetworkError
 const task1: Effect.Effect<number, string> = Effect.fail("NetworkError")
@@ -235,6 +245,9 @@ Effect.runFork(tapping2)
 Output:
 error cause: Cause([Die(Error: Something went wrong)])
 */
+
+await Effect.runPromiseExit(tapping1) // => Exit.fail("NetworkError")
+await Effect.runPromiseExit(tapping2) // => Exit.die(new Error("Something went wrong"))
 ```
 
 ### tapDefect
@@ -244,7 +257,7 @@ Specifically inspects non-recoverable failures or defects in an effect (i.e., on
 **Example** (Inspecting Defects)
 
 ```ts twoslash import.meta.vitest name="inspecting-defects-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 // Simulate a task that fails with a recoverable error
 const task1: Effect.Effect<number, string> = Effect.fail("NetworkError")
@@ -268,6 +281,9 @@ Effect.runFork(tapping2)
 Output:
 defect: Error: Something went wrong
 */
+
+await Effect.runPromiseExit(tapping1) // => Exit.fail("NetworkError")
+await Effect.runPromiseExit(tapping2) // => Exit.die(new Error("Something went wrong"))
 ```
 
 ### tapBoth
@@ -356,8 +372,9 @@ Effect.runPromise(recovered).then(console.log)
 /*
 Output:
 failure: Oh uh!
-0
 */
+
+await Effect.runPromise(recovered) // => 0
 ```
 
 ## Exposing the Cause in The Success Channel
@@ -381,6 +398,8 @@ const recovered = Effect.gen(function* () {
     yield* Console.log(exit.cause)
   }
 })
+
+await Effect.runPromise(Effect.exit(program)) // => Exit.fail("Oh uh!")
 ```
 
 ## Merging the Error Channel into the Success Channel
@@ -399,6 +418,8 @@ const program = Effect.fail("Oh uh!").pipe(Effect.as(2))
 //      ┌─── Effect<string | number, never, never>
 //      ▼
 const recovered = Effect.catch(program, Effect.succeed)
+
+await Effect.runPromise(recovered) // => "Oh uh!"
 ```
 
 ## Flipping Error and Success Channels
@@ -417,4 +438,6 @@ const program = Effect.fail("Oh uh!").pipe(Effect.as(2))
 //      ┌─── Effect<string, number, never>
 //      ▼
 const flipped = Effect.flip(program)
+
+await Effect.runPromise(flipped) // => "Oh uh!"
 ```

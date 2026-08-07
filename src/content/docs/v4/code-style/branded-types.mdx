@@ -221,6 +221,9 @@ const ProductId = Brand.nominal<ProductId>()
 const getProductById = (id: ProductId) => {
   // Logic to retrieve product
 }
+
+// `Brand.nominal` performs no runtime validation, it just brands the value
+ProductId(1) // => 1
 ```
 
 Attempting to assign a non-`ProductId` value will result in a compile-time error:
@@ -278,6 +281,9 @@ const Int = Brand.make<Int>(
     // Validation to ensure the value is an integer, with an error message if not
     Number.isInteger(n) || `Expected ${n} to be an integer`,
 )
+
+// A valid integer passes validation and is returned unchanged
+Int(3) // => 3
 ```
 
 **Example** (Using the `Int` Constructor)

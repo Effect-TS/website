@@ -19,9 +19,9 @@ Note that `toFile` returns an `Effect` that may fail with a `PlatformError` if t
 
 This logger requires a `FileSystem` implementation to open and write to the file. For Node.js, you can use `NodeFileSystem.layer`.
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="directing-logs-to-a-file"
 import { NodeFileSystem } from "@effect/platform-node"
-import { Effect, Layer, Logger } from "effect"
+import { Effect, FileSystem, Layer, Logger } from "effect"
 
 // Create a string-based logger (formatLogFmt in this case)
 const myStringLogger = Logger.formatLogFmt
@@ -36,20 +36,32 @@ const LoggerLive = Logger.layer([fileLogger]).pipe(Layer.provide(NodeFileSystem.
 const program = Effect.log("Hello")
 
 // Run the program, writing logs to /tmp/log.txt
-Effect.runFork(program.pipe(Effect.provide(LoggerLive)))
+await Effect.runPromise(program.pipe(Effect.provide(LoggerLive)))
 /*
 Logs will be written to "/tmp/log.txt" in the logfmt format,
 and won't appear on the console.
 */
+
+// Read back the file to verify the log entry was written
+// (the timestamp is omitted from the assertion since it varies)
+const content = await Effect.runPromise(
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem
+    return yield* fs.readFileString("/tmp/log.txt")
+  }).pipe(Effect.provide(NodeFileSystem.layer)),
+)
+
+content.includes("level=Info") // => true
+content.includes("message=Hello") // => true
 ```
 
 In the following example, logs are written to both the console and a file. The console uses the pretty logger, while the file uses the logfmt format.
 
 **Example** (Directing Logs to Both a File and the Console)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="directing-logs-to-a-file-and-the-console"
 import { NodeFileSystem } from "@effect/platform-node"
-import { Effect, Layer, Logger } from "effect"
+import { Effect, FileSystem, Layer, Logger } from "effect"
 
 const fileLogger = Logger.formatLogFmt.pipe(Logger.toFile("/tmp/log.txt"))
 
@@ -62,5 +74,16 @@ const program = Effect.log("Hello")
 
 // Run the program, writing logs to both the console (pretty format)
 // and "/tmp/log.txt" (logfmt)
-Effect.runFork(program.pipe(Effect.provide(LoggerLive)))
+await Effect.runPromise(program.pipe(Effect.provide(LoggerLive)))
+
+// The console output includes ANSI styling and a wall-clock timestamp,
+// so only the file (logfmt) output is asserted here
+const content = await Effect.runPromise(
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem
+    return yield* fs.readFileString("/tmp/log.txt")
+  }).pipe(Effect.provide(NodeFileSystem.layer)),
+)
+
+content.includes("message=Hello") // => true
 ```

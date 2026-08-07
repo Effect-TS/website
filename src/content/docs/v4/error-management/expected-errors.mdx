@@ -42,6 +42,8 @@ const program = Effect.gen(function* () {
 
   return "some result"
 })
+
+new HttpError()._tag // => "HttpError"
 ```
 
 The type of `program` tells us that it can either return a `string` or fail with an `HttpError`:
@@ -106,6 +108,8 @@ const program = Effect.gen(function* () {
 
   return "some result"
 })
+
+new HttpError()._tag // => "HttpError"
 ```
 
 Effect automatically keeps track of the possible errors that can occur during the execution of the program as a union:
@@ -128,7 +132,7 @@ In simpler terms, the short-circuiting behavior ensures that if something goes w
 **Example** (Short-Circuiting Behavior)
 
 ```ts twoslash {14-15} import.meta.vitest name="short-circuiting-behavior-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 // Define three effects representing different tasks.
 const task1 = Console.log("Executing task1...")
@@ -155,6 +159,8 @@ Executing task1...
   cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
+
+await Effect.runPromiseExit(program) // => Exit.fail("Something went wrong!")
 ```
 
 This code snippet demonstrates the short-circuiting behavior when an error occurs.
@@ -227,6 +233,8 @@ const recovered = Effect.gen(function* () {
     return failureOrSuccess.success
   }
 })
+
+new HttpError()._tag // => "HttpError"
 ```
 
 As you can see since all errors are handled, the error type of the resulting effect `recovered` is `never`:
@@ -271,6 +279,8 @@ const recovered = Effect.gen(function* () {
     onSuccess: (value) => value, // Do nothing in case of success
   })
 })
+
+new HttpError()._tag // => "HttpError"
 ```
 
 ### option
@@ -287,31 +297,19 @@ The resulting effect cannot fail directly, as the error type is set to `never`. 
 **Example** (Using `Effect.option` to Handle Errors)
 
 ```ts twoslash import.meta.vitest name="using-effect-option-to-handle-errors-1"
-import { Effect } from "effect"
+import { Effect, Exit, Option } from "effect"
 
 const maybe1 = Effect.option(Effect.succeed(1))
 
 Effect.runPromiseExit(maybe1).then(console.log)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Success',
-  value: { _id: 'Option', _tag: 'Some', value: 1 }
-}
-*/
+
+await Effect.runPromiseExit(maybe1) // => Exit.succeed(Option.some(1))
 
 const maybe2 = Effect.option(Effect.fail("Uh oh!"))
 
 Effect.runPromiseExit(maybe2).then(console.log)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Success',
-  value: { _id: 'Option', _tag: 'None' }
-}
-*/
+
+await Effect.runPromiseExit(maybe2) // => Exit.succeed(Option.none())
 
 const maybe3 = Effect.option(Effect.die("Boom!"))
 
@@ -324,6 +322,8 @@ Output:
   cause: { _id: 'Cause', failures: [ [Object] ] }
 }
 */
+
+await Effect.runPromiseExit(maybe3) // => Exit.die("Boom!")
 ```
 
 ### catchAll
@@ -368,6 +368,8 @@ const program = Effect.gen(function* () {
 const recovered = program.pipe(
   Effect.catch((error) => Effect.succeed(`Recovering from ${error._tag}`)),
 )
+
+new HttpError()._tag // => "HttpError"
 ```
 
 We can observe that the type in the error channel of our program has changed to `never`:
@@ -405,7 +407,8 @@ const recovered = program.pipe(
 )
 
 Effect.runPromise(recovered).then(console.log)
-// Output: "Recovered from a regular error"
+
+await Effect.runPromise(recovered) // => "Recovered from a regular error"
 ```
 
 <Aside type="tip" title="When to Recover from Defects">
@@ -462,6 +465,8 @@ const recovered = Effect.gen(function* () {
     return failureOrSuccess.success
   }
 })
+
+new HttpError()._tag // => "HttpError"
 ```
 
 We can observe that the type in the error channel of our program has changed to only show `ValidationError`:
@@ -509,6 +514,8 @@ const recovered = Effect.gen(function* () {
     return failureOrSuccess.success
   }
 })
+
+new HttpError()._tag // => "HttpError"
 ```
 
 We can observe that the type in the error channel has changed to `never`:
@@ -560,6 +567,8 @@ const recovered = program.pipe(
     Effect.succeed("Recovering from HttpError"),
   ),
 )
+
+new HttpError()._tag // => "HttpError"
 ```
 
 In the code above, `Effect.catchFilter` takes a function that examines the error and decides whether to attempt recovery or not. If the error matches a specific condition, recovery can be attempted by returning `Option.some(effect)`. If no recovery is possible, you can simply return `Option.none()`.
@@ -613,6 +622,8 @@ const recovered = program.pipe(
     () => Effect.succeed("Recovering from HttpError"),
   ),
 )
+
+new HttpError()._tag // => "HttpError"
 ```
 
 It's important to note that for TypeScript versions < 5.5, while `Effect.catchIf` lets you catch specific errors, it **doesn't alter the error type** itself.
@@ -658,6 +669,8 @@ const recovered = program.pipe(
     () => Effect.succeed("Recovering from HttpError"),
   ),
 )
+
+new HttpError()._tag // => "HttpError"
 ```
 
 ### catchTag
@@ -701,6 +714,8 @@ const recovered = program.pipe(
   // Only handle HttpError errors
   Effect.catchTag("HttpError", (_HttpError) => Effect.succeed("Recovering from HttpError")),
 )
+
+new HttpError()._tag // => "HttpError"
 ```
 
 In the example above, the `Effect.catchTag` function allows us to handle `HttpError` specifically.
@@ -749,6 +764,8 @@ const recovered = program.pipe(
     Effect.succeed("Recovering from ValidationError"),
   ),
 )
+
+new HttpError()._tag // => "HttpError"
 ```
 
 We can observe that the type in the error channel of our program has changed to `never`:
@@ -805,6 +822,8 @@ const recovered = program.pipe(
     ValidationError: (_ValidationError) => Effect.succeed(`Recovering from ValidationError`),
   }),
 )
+
+new HttpError()._tag // => "HttpError"
 ```
 
 This function takes an object where each property represents a specific error `_tag` (`"HttpError"` and `"ValidationError"` in this case),

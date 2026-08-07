@@ -44,7 +44,8 @@ const test = Effect.gen(function* () {
   assert.ok(Option.isNone(result))
 }).pipe(Effect.provide(TestClock.layer()))
 
-await Effect.runPromise(test)
+const outcome = await Effect.runPromise(test)
+outcome // => undefined
 ```
 
 A key point is forking the fiber where `Effect.sleep` is invoked. Calls to `Effect.sleep` and related methods wait until the clock time matches or exceeds the scheduled time for their execution. By forking the fiber, we retain control over the clock time adjustments.
@@ -104,7 +105,8 @@ const test = Effect.gen(function* () {
   assert.ok(a && b && c && d && e)
 }).pipe(Effect.provide(TestClock.layer()))
 
-await Effect.runPromise(test)
+const outcome = await Effect.runPromise(test)
+outcome // => undefined
 ```
 
 It's important to note that after each recurrence, the next occurrence is scheduled to happen at the appropriate time. Adjusting the clock by 60 minutes places exactly one value in the queue; adjusting by another 60 minutes adds another value.
@@ -135,7 +137,8 @@ const test = Effect.gen(function* () {
   assert.ok(endTime - startTime >= 60_000)
 }).pipe(Effect.provide(TestClock.layer()))
 
-await Effect.runPromise(test)
+const outcome = await Effect.runPromise(test)
+outcome // => undefined
 ```
 
 ## Testing Deferred
@@ -169,5 +172,6 @@ const test = Effect.gen(function* () {
   assert.ok(readRef === 1)
 }).pipe(Effect.provide(TestClock.layer()))
 
-await Effect.runPromise(test)
+const outcome = await Effect.runPromise(test)
+outcome // => undefined
 ```

@@ -31,8 +31,7 @@ const program = Effect.gen(function* () {
   return value
 })
 
-Effect.runPromise(program).then(console.log)
-// Output: 1
+await Effect.runPromise(program) // => 1
 ```
 
 ## Creating a Queue
@@ -46,10 +45,12 @@ A bounded queue applies back-pressure when full, meaning any `Queue.offer` opera
 **Example** (Creating a Bounded Queue)
 
 ```ts twoslash import.meta.vitest name="bounded-queue-1"
-import { Queue } from "effect"
+import { Effect, Queue } from "effect"
 
 // Creating a bounded queue with a capacity of 100
 const boundedQueue = Queue.bounded<number>(100)
+
+;(await Effect.runPromise(boundedQueue)).capacity // => 100
 ```
 
 ### Dropping Queue
@@ -59,10 +60,12 @@ A dropping queue discards new values if the queue is full.
 **Example** (Creating a Dropping Queue)
 
 ```ts twoslash import.meta.vitest name="dropping-queue-1"
-import { Queue } from "effect"
+import { Effect, Queue } from "effect"
 
 // Creating a dropping queue with a capacity of 100
 const droppingQueue = Queue.dropping<number>(100)
+
+;(await Effect.runPromise(droppingQueue)).capacity // => 100
 ```
 
 ### Sliding Queue
@@ -72,10 +75,12 @@ A sliding queue removes old values to make space for new ones when it reaches ca
 **Example** (Creating a Sliding Queue)
 
 ```ts twoslash import.meta.vitest name="sliding-queue-1"
-import { Queue } from "effect"
+import { Effect, Queue } from "effect"
 
 // Creating a sliding queue with a capacity of 100
 const slidingQueue = Queue.sliding<number>(100)
+
+;(await Effect.runPromise(slidingQueue)).capacity // => 100
 ```
 
 ### Unbounded Queue
@@ -85,10 +90,12 @@ An unbounded queue has no capacity limit, allowing unrestricted additions.
 **Example** (Creating an Unbounded Queue)
 
 ```ts twoslash import.meta.vitest name="unbounded-queue-1"
-import { Queue } from "effect"
+import { Effect, Queue } from "effect"
 
 // Creates an unbounded queue without a capacity limit
 const unboundedQueue = Queue.unbounded<number>()
+
+;(await Effect.runPromise(unboundedQueue)).capacity // => Infinity
 ```
 
 ## Adding Items to a Queue
@@ -106,7 +113,10 @@ const program = Effect.gen(function* () {
   const queue = yield* Queue.bounded<number>(100)
   // Adds 1 to the queue
   yield* Queue.offer(queue, 1)
+  return yield* Queue.size(queue)
 })
+
+await Effect.runPromise(program) // => 1
 ```
 
 When using a back-pressured queue, `Queue.offer` suspends if the queue is full. To avoid blocking the main fiber, you can fork the `Queue.offer` operation.
@@ -130,8 +140,7 @@ const program = Effect.gen(function* () {
   return yield* Queue.size(queue)
 })
 
-Effect.runPromise(program).then(console.log)
-// Output: 1
+await Effect.runPromise(program) // => 1
 ```
 
 ### offerAll
@@ -152,8 +161,7 @@ const program = Effect.gen(function* () {
   return yield* Queue.size(queue)
 })
 
-Effect.runPromise(program).then(console.log)
-// Output: 10
+await Effect.runPromise(program) // => 10
 ```
 
 ## Consuming Items from a Queue
@@ -178,8 +186,7 @@ const program = Effect.gen(function* () {
   return value
 })
 
-Effect.runPromise(program).then(console.log)
-// Output: something
+await Effect.runPromise(program) // => "something"
 ```
 
 ### poll
@@ -189,7 +196,7 @@ To retrieve the queue's first item without suspending, use `Queue.poll`. If the 
 **Example** (Polling an Item)
 
 ```ts twoslash import.meta.vitest name="poll-1"
-import { Effect, Queue } from "effect"
+import { Effect, Queue, Option } from "effect"
 
 const program = Effect.gen(function* () {
   const queue = yield* Queue.bounded<number>(100)
@@ -201,15 +208,7 @@ const program = Effect.gen(function* () {
   return head
 })
 
-Effect.runPromise(program).then(console.log)
-/*
-Output:
-{
-  _id: "Option",
-  _tag: "Some",
-  value: 10
-}
-*/
+await Effect.runPromise(program) // => Option.some(10)
 ```
 
 ### takeUpTo
@@ -234,9 +233,10 @@ const program = Effect.gen(function* () {
   yield* Queue.offer(queue, 2)
   yield* Queue.offer(queue, 3)
 
-  // Retrieves up to 2 items
-  const chunk = yield* Queue.takeBetween(queue, 0, 2)
-  console.log(chunk)
+  // Retrieves up to 2 items (min must be at least 1, otherwise
+  // takeBetween short-circuits and returns an empty array)
+  const items = yield* Queue.takeBetween(queue, 1, 2)
+  console.log(items)
 
   return "some result"
 })
@@ -244,7 +244,7 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program).then(console.log)
 /*
 Output:
-{ _id: 'Chunk', values: [ 1, 2 ] }
+[ 1, 2 ]
 some result
 */
 ```
@@ -290,21 +290,13 @@ const program = Effect.gen(function* () {
   return "some result"
 })
 
-Effect.runPromise(program).then(console.log)
+await Effect.runPromise(program) // => "some result"
 /*
 Output:
 Offered 2 items. The fiber is now waiting for the 3rd item...
 Attempting to take 3 items from the queue...
 Offered the 3rd item, which should unblock the fiber.
-Successfully took 3 items: {
-  "_id": "Chunk",
-  "values": [
-    1,
-    2,
-    3
-  ]
-}
-some result
+Successfully took 3 items: 1,2,3
 */
 ```
 
@@ -328,14 +320,7 @@ const program = Effect.gen(function* () {
   return chunk
 })
 
-Effect.runPromise(program).then(console.log)
-/*
-Output:
-{
-  _id: "Chunk",
-  values: [ 10, 20, 30 ]
-}
-*/
+await Effect.runPromise(program) // => [10, 20, 30]
 ```
 
 ## Shutting Down a Queue
@@ -358,6 +343,9 @@ const program = Effect.gen(function* () {
   // Joins the interrupted fiber
   yield* Fiber.join(fiber)
 })
+
+const exit = await Effect.runPromiseExit(program)
+exit._tag // => "Failure"
 ```
 
 ### await
@@ -381,7 +369,7 @@ const program = Effect.gen(function* () {
   yield* Fiber.await(fiber)
 })
 
-Effect.runPromise(program)
+await Effect.runPromise(program) // => undefined
 // Output: shutting down
 ```
 
@@ -454,14 +442,13 @@ const program = Effect.gen(function* () {
   yield* send(queue, 2)
 
   // Retrieve values from the queue
-  console.log(yield* receive(queue))
-  console.log(yield* receive(queue))
+  const first = yield* receive(queue)
+  const second = yield* receive(queue)
+  console.log(first)
+  console.log(second)
+  first // => 1
+  second // => 2
 })
 
-Effect.runFork(program)
-/*
-Output:
-1
-2
-*/
+await Effect.runPromise(program) // => undefined
 ```

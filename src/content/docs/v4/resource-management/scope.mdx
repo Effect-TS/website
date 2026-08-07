@@ -38,6 +38,8 @@ Output:
 finalizer 2 <-- finalizers are closed in reverse order
 finalizer 1
 */
+
+await Effect.runPromise(program) // => undefined
 ```
 
 In the above example, finalizers are added to the scope, and when the scope is closed, the finalizers are **executed in the reverse order**.
@@ -57,7 +59,7 @@ The `Effect.addFinalizer` function is a high-level API that allows you to add fi
 <TabItem label="Using Effect.gen">
 
 ```ts twoslash import.meta.vitest name="adding-a-finalizer-on-success-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 //      ┌─── Effect<string, never, Scope>
 //      ▼
@@ -76,8 +78,9 @@ Effect.runPromiseExit(runnable).then(console.log)
 /*
 Output:
 Finalizer executed. Exit status: Success
-{ _id: 'Exit', _tag: 'Success', value: 'some result' }
 */
+
+await Effect.runPromiseExit(runnable) // => Exit.succeed("some result")
 ```
 
 </TabItem>
@@ -85,7 +88,7 @@ Finalizer executed. Exit status: Success
 <TabItem label="Using pipe">
 
 ```ts twoslash import.meta.vitest name="adding-a-finalizer-on-success-2"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 //      ┌─── Effect<string, never, Scope>
 //      ▼
@@ -103,8 +106,9 @@ Effect.runPromiseExit(runnable).then(console.log)
 /*
 Output:
 Finalizer executed. Exit status: Success
-{ _id: 'Exit', _tag: 'Success', value: 'some result' }
 */
+
+await Effect.runPromiseExit(runnable) // => Exit.succeed("some result")
 ```
 
 </TabItem>
@@ -133,7 +137,7 @@ shows that the workflow requires a `Scope` to run. You can provide this `Scope` 
 <TabItem label="Using Effect.gen">
 
 ```ts twoslash import.meta.vitest name="adding-a-finalizer-on-failure-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 //      ┌─── Effect<never, string, Scope>
 //      ▼
@@ -152,12 +156,9 @@ Effect.runPromiseExit(runnable).then(console.log)
 /*
 Output:
 Finalizer executed. Exit status: Failure
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Uh oh!' }
-}
 */
+
+await Effect.runPromiseExit(runnable) // => Exit.fail("Uh oh!")
 ```
 
 </TabItem>
@@ -165,7 +166,7 @@ Finalizer executed. Exit status: Failure
 <TabItem label="Using pipe">
 
 ```ts twoslash import.meta.vitest name="adding-a-finalizer-on-failure-2"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 //      ┌─── Effect<never, string, Scope>
 //      ▼
@@ -183,12 +184,9 @@ Effect.runPromiseExit(runnable).then(console.log)
 /*
 Output:
 Finalizer executed. Exit status: Failure
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', _tag: 'Fail', failure: 'Uh oh!' }
-}
 */
+
+await Effect.runPromiseExit(runnable) // => Exit.fail("Uh oh!")
 ```
 
 </TabItem>
@@ -204,7 +202,7 @@ In this case, the finalizer is executed even when the effect fails. The log outp
 <TabItem label="Using Effect.gen">
 
 ```ts twoslash import.meta.vitest name="adding-a-finalizer-on-interruption-1"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 //      ┌─── Effect<never, never, Scope>
 //      ▼
@@ -238,6 +236,10 @@ Finalizer executed. Exit status: Failure
   }
 }
 */
+
+// The interruption cause carries a fiber id, so we check the shape instead
+// of comparing the whole Exit for equality
+Exit.hasInterrupts(await Effect.runPromiseExit(runnable)) // => true
 ```
 
 </TabItem>
@@ -245,7 +247,7 @@ Finalizer executed. Exit status: Failure
 <TabItem label="Using pipe">
 
 ```ts twoslash import.meta.vitest name="adding-a-finalizer-on-interruption-2"
-import { Effect, Console } from "effect"
+import { Effect, Console, Exit } from "effect"
 
 //      ┌─── Effect<never, never, Scope>
 //      ▼
@@ -278,6 +280,10 @@ Finalizer executed. Exit status: Failure
   }
 }
 */
+
+// The interruption cause carries a fiber id, so we check the shape instead
+// of comparing the whole Exit for equality
+Exit.hasInterrupts(await Effect.runPromiseExit(runnable)) // => true
 ```
 
 </TabItem>
@@ -322,6 +328,8 @@ task 2
 finalizer after task 2
 finalizer after task 1
 */
+
+await Effect.runPromise(Effect.scoped(program)) // => undefined
 ```
 
 In this case, the scopes of `task1` and `task2` are merged into a single scope, and when the program is run, it outputs the tasks and their finalizers in a specific order.
@@ -368,6 +376,8 @@ finalizer after task 1
 doing something else
 finalizer after task 2
 */
+
+await Effect.runPromise(program) // => undefined
 ```
 
 In this example, we create two separate scopes, `scope1` and `scope2`, and extend the scope of each task into its respective scope. When you run the program, it outputs the tasks and their finalizers in a different order.
@@ -410,6 +420,8 @@ Scope closed
 Executed <-- after 1 second
 Task Finalizer
 */
+
+await Effect.runPromise(program) // => undefined
 ```
 
 ## Defining Resources
@@ -467,6 +479,8 @@ const release = (res: MyResource) => Effect.promise(() => res.close())
 //      ┌─── Effect<MyResource, Error, Scope>
 //      ▼
 const resource = Effect.acquireRelease(acquire, release)
+
+await Effect.runPromise(Effect.scoped(Effect.map(resource, (res) => res.contents))) // => "lorem ipsum"
 ```
 
 In the code above, the `Effect.acquireRelease` function creates a resource workflow that requires a `Scope`:
@@ -525,6 +539,8 @@ const program = Effect.gen(function* () {
   const res = yield* resource
   console.log(`content is ${res.contents}`)
 })
+
+await Effect.runPromise(Effect.scoped(program)) // => undefined
 ```
 
 To ensure proper resource management, the `Scope` should be closed when you're done with the resource. The `Effect.scoped` function handles this for you by creating a `Scope`, running the effect, and then closing the `Scope` when the effect finishes.
@@ -583,6 +599,8 @@ Resource acquired
 content is lorem ipsum
 Resource released
 */
+
+await Effect.runPromise(program) // => undefined
 ```
 
 ### Example Pattern: Sequencing Operations
@@ -641,12 +659,14 @@ class Database extends Context.Service<
     readonly deleteEntry: (entry: Entry) => Effect.Effect<void>
   }
 >()("Database") {}
+
+Database.key // => "Database"
 ```
 
 Next, we define the three create actions and the overall transaction (`make`) for the workspace.
 
 ```ts twoslash collapse={3-48} import.meta.vitest name="example-pattern-sequencing-operations-2"
-import { Effect, Context, Exit, Data } from "effect"
+import { Effect, Context, Exit, Data, Layer } from "effect"
 
 class S3Error extends Data.TaggedError("S3Error")<{}> {}
 
@@ -734,6 +754,24 @@ const make = Effect.scoped(
     return yield* createEntry(bucket, index)
   }),
 )
+
+// Exercise the happy path with minimal stub implementations
+const S3Stub = Layer.succeed(S3, {
+  createBucket: Effect.succeed({ name: "bucket" }),
+  deleteBucket: () => Effect.void,
+})
+const ElasticSearchStub = Layer.succeed(ElasticSearch, {
+  createIndex: Effect.succeed({ id: "idx" }),
+  deleteIndex: () => Effect.void,
+})
+const DatabaseStub = Layer.succeed(Database, {
+  createEntry: () => Effect.succeed({ id: "entry" }),
+  deleteEntry: () => Effect.void,
+})
+
+await Effect.runPromise(
+  Effect.provide(make, Layer.mergeAll(S3Stub, ElasticSearchStub, DatabaseStub)),
+) // => { id: "entry" }
 ```
 
 We then create simple service implementations to test the behavior of our Workspace code.
@@ -741,7 +779,7 @@ To achieve this, we will utilize [layers](/docs/requirements-management/layers/)
 These layers will be able to handle various scenarios, including errors, which we can control using the `FailureCase` type.
 
 ```ts twoslash collapse={3-95} import.meta.vitest name="example-pattern-sequencing-operations-3"
-import { Effect, Context, Exit, Data, Layer, Console } from "effect"
+import { Effect, Context, Exit, Data, Layer, Console, Result } from "effect"
 
 class S3Error extends Data.TaggedError("S3Error")<{}> {}
 
@@ -922,7 +960,7 @@ const runnable = make.pipe(
   Effect.provide(Layer.succeed(FailureCase, undefined)),
 )
 
-Effect.runPromise(Effect.result(runnable)).then(console.log)
+await Effect.runPromise(Effect.result(runnable)) // => Result.succeed({ id: "<entry.id>" })
 ```
 
 Let's examine the test results for the scenario where `FailureCase` is set to `undefined` (happy path):

@@ -33,7 +33,8 @@ const program1 = Effect.match(success, {
 
 // Run and log the result of the successful effect
 Effect.runPromise(program1).then(console.log)
-// Output: "success: 42"
+
+await Effect.runPromise(program1) // => "success: 42"
 
 const failure: Effect.Effect<number, Error> = Effect.fail(new Error("Uh oh!"))
 
@@ -44,7 +45,8 @@ const program2 = Effect.match(failure, {
 
 // Run and log the result of the failed effect
 Effect.runPromise(program2).then(console.log)
-// Output: "failure: Uh oh!"
+
+await Effect.runPromise(program2) // => "failure: Uh oh!"
 ```
 
 ## ignore
@@ -66,6 +68,8 @@ const task = Effect.fail("Uh oh!").pipe(Effect.as(5))
 //      ┌─── Effect<void, never, never>
 //      ▼
 const program = Effect.ignore(task)
+
+await Effect.runPromise(program) // => undefined
 ```
 
 ## matchEffect
@@ -95,8 +99,8 @@ console.log(Effect.runSync(program1))
 /*
 Output:
 timestamp=... level=INFO fiber=#0 message="success: 42"
-success: 42
 */
+Effect.runSync(program1) // => "success: 42"
 
 const program2 = Effect.matchEffect(failure, {
   onFailure: (error) => Effect.succeed(`failure: ${error.message}`).pipe(Effect.tap(Effect.log)),
@@ -107,8 +111,8 @@ console.log(Effect.runSync(program2))
 /*
 Output:
 timestamp=... level=INFO fiber=#1 message="failure: Uh oh!"
-failure: Uh oh!
 */
+Effect.runSync(program2) // => "failure: Uh oh!"
 ```
 
 ## matchCause
@@ -151,7 +155,8 @@ const program = Effect.matchCause(task, {
 })
 
 Effect.runPromise(program).then(console.log)
-// Output: "Die: Uh oh!"
+
+await Effect.runPromise(program) // => "Die: Uh oh!"
 ```
 
 ## matchCauseEffect
@@ -197,4 +202,6 @@ const program = Effect.matchCauseEffect(task, {
 
 Effect.runPromise(program)
 // Output: "Die: Uh oh!"
+
+await Effect.runPromise(program) // => undefined
 ```

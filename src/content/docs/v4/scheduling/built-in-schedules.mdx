@@ -50,6 +50,8 @@ const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): v
     )
   })
 }
+
+typeof log // => "function"
 ```
 
 ## Infinite and Fixed Repeats
@@ -63,7 +65,10 @@ A schedule that repeats indefinitely, producing the number of recurrences each t
 ```ts twoslash collapse={3-33} import.meta.vitest name="indefinitely-recurring-schedule-1"
 import { Array, Duration, Effect, Pull, Schedule } from "effect"
 
-const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): void => {
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.Input = 0,
+): Array<Duration.Duration> => {
   const maxRecurs = 10
   const withDelay = Schedule.addDelay(schedule, () => Effect.succeed(delay))
   const delays = Effect.runSync(
@@ -93,6 +98,7 @@ const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): v
           : `#${i + 1}: ${Duration.toMillis(duration)}ms`,
     )
   })
+  return delays
 }
 
 const schedule = Schedule.forever
@@ -112,6 +118,9 @@ Output:
 #10: 0ms
 ...
 */
+
+const result = log(schedule)
+result.map(Duration.toMillis) // => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ```
 
 ### once
@@ -123,7 +132,10 @@ A schedule that recurs only once.
 ```ts twoslash collapse={3-33} import.meta.vitest name="single-recurrence-schedule-1"
 import { Array, Duration, Effect, Pull, Schedule } from "effect"
 
-const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): void => {
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.Input = 0,
+): Array<Duration.Duration> => {
   const maxRecurs = 10
   const withDelay = Schedule.addDelay(schedule, () => Effect.succeed(delay))
   const delays = Effect.runSync(
@@ -153,6 +165,7 @@ const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): v
           : `#${i + 1}: ${Duration.toMillis(duration)}ms`,
     )
   })
+  return delays
 }
 
 const schedule = Schedule.duration(Duration.zero)
@@ -163,6 +176,9 @@ Output:
 #1: 0ms < once
 (end)
 */
+
+const result = log(schedule)
+result.map(Duration.toMillis) // => [0]
 ```
 
 ### recurs
@@ -174,7 +190,10 @@ A schedule that repeats a specified number of times, producing the number of rec
 ```ts twoslash collapse={3-33} import.meta.vitest name="fixed-number-of-recurrences-1"
 import { Array, Duration, Effect, Pull, Schedule } from "effect"
 
-const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): void => {
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.Input = 0,
+): Array<Duration.Duration> => {
   const maxRecurs = 10
   const withDelay = Schedule.addDelay(schedule, () => Effect.succeed(delay))
   const delays = Effect.runSync(
@@ -204,6 +223,7 @@ const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): v
           : `#${i + 1}: ${Duration.toMillis(duration)}ms`,
     )
   })
+  return delays
 }
 
 const schedule = Schedule.recurs(5)
@@ -218,6 +238,9 @@ Output:
 #5: 0ms
 (end)
 */
+
+const result = log(schedule)
+result.map(Duration.toMillis) // => [0, 0, 0, 0, 0]
 ```
 
 ## Recurring at specific intervals
@@ -237,7 +260,10 @@ It returns the number of recurrences each time it runs.
 ```ts twoslash collapse={3-33} import.meta.vitest name="recurring-with-delay-between-executions-1"
 import { Array, Duration, Effect, Pull, Schedule } from "effect"
 
-const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): void => {
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.Input = 0,
+): Array<Duration.Duration> => {
   const maxRecurs = 10
   const withDelay = Schedule.addDelay(schedule, () => Effect.succeed(delay))
   const delays = Effect.runSync(
@@ -267,6 +293,7 @@ const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): v
           : `#${i + 1}: ${Duration.toMillis(duration)}ms`,
     )
   })
+  return delays
 }
 
 const schedule = Schedule.spaced("200 millis")
@@ -289,6 +316,9 @@ Output:
 #10: 300ms
 ...
 */
+
+const result = log(schedule, "100 millis")
+result.map(Duration.toMillis) // => [300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 300]
 ```
 
 The first delay is approximately 100 milliseconds, as the initial execution is not affected by the schedule. Subsequent delays are approximately 200 milliseconds apart, demonstrating the effect of the `spaced` schedule.
@@ -308,7 +338,10 @@ If the action run between updates takes longer than the interval, then the actio
 ```ts twoslash collapse={3-33} import.meta.vitest name="fixed-interval-recurrence-1"
 import { Array, Duration, Effect, Pull, Schedule } from "effect"
 
-const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): void => {
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.Input = 0,
+): Array<Duration.Duration> => {
   const maxRecurs = 10
   const withDelay = Schedule.addDelay(schedule, () => Effect.succeed(delay))
   const delays = Effect.runSync(
@@ -338,6 +371,7 @@ const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): v
           : `#${i + 1}: ${Duration.toMillis(duration)}ms`,
     )
   })
+  return delays
 }
 
 const schedule = Schedule.fixed("200 millis")
@@ -360,6 +394,9 @@ Output:
 #10: 200ms
 ...
 */
+
+const result = log(schedule, "100 millis")
+result.map(Duration.toMillis) // => [300, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200]
 ```
 
 ## Increasing Delays Between Executions
@@ -374,7 +411,10 @@ Returns the current duration between recurrences.
 ```ts twoslash collapse={3-33} import.meta.vitest name="exponential-backoff-schedule-1"
 import { Array, Duration, Effect, Pull, Schedule } from "effect"
 
-const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): void => {
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.Input = 0,
+): Array<Duration.Duration> => {
   const maxRecurs = 10
   const withDelay = Schedule.addDelay(schedule, () => Effect.succeed(delay))
   const delays = Effect.runSync(
@@ -404,6 +444,7 @@ const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): v
           : `#${i + 1}: ${Duration.toMillis(duration)}ms`,
     )
   })
+  return delays
 }
 
 const schedule = Schedule.exponential("10 millis")
@@ -423,6 +464,9 @@ Output:
 #10: 5120ms
 ...
 */
+
+const result = log(schedule)
+result.map(Duration.toMillis) // => [10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240]
 ```
 
 ### fibonacci
@@ -434,7 +478,10 @@ A schedule that always recurs, increasing delays by summing the preceding two de
 ```ts twoslash collapse={3-33} import.meta.vitest name="fibonacci-delay-schedule-1"
 import { Array, Duration, Effect, Pull, Schedule } from "effect"
 
-const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): void => {
+const log = (
+  schedule: Schedule.Schedule<unknown>,
+  delay: Duration.Input = 0,
+): Array<Duration.Duration> => {
   const maxRecurs = 10
   const withDelay = Schedule.addDelay(schedule, () => Effect.succeed(delay))
   const delays = Effect.runSync(
@@ -464,6 +511,7 @@ const log = (schedule: Schedule.Schedule<unknown>, delay: Duration.Input = 0): v
           : `#${i + 1}: ${Duration.toMillis(duration)}ms`,
     )
   })
+  return delays
 }
 
 const schedule = Schedule.fibonacci("10 millis")
@@ -471,16 +519,19 @@ const schedule = Schedule.fibonacci("10 millis")
 log(schedule)
 /*
 Output:
-#1: 10ms < fibonacci
-#2: 10ms
-#3: 20ms
-#4: 30ms
-#5: 50ms
-#6: 80ms
-#7: 130ms
-#8: 210ms
-#9: 340ms
-#10: 550ms
+#1: 10ms
+#2: 20ms
+#3: 30ms
+#4: 50ms
+#5: 80ms
+#6: 130ms
+#7: 210ms
+#8: 340ms
+#9: 550ms
+#10: 890ms
 ...
 */
+
+const result = log(schedule)
+result.map(Duration.toMillis) // => [10, 20, 30, 50, 80, 130, 210, 340, 550, 890, 1440]
 ```

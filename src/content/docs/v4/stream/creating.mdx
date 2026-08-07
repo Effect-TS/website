@@ -18,8 +18,7 @@ import { Stream, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// { _id: 'Chunk', values: [ 1, 2, 3 ] }
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3]
 ```
 
 ### empty
@@ -31,21 +30,19 @@ import { Stream, Effect } from "effect"
 
 const stream = Stream.empty
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// { _id: 'Chunk', values: [] }
+await Effect.runPromise(Stream.runCollect(stream)) // => []
 ```
 
 ### void
 
-If you need a stream that contains a single `void` value, you can use `Stream.void`. This constructor is handy when you want to represent a stream with a single event or signal.
+If you need a stream that contains a single `void` value, you can use `Stream.succeed(void 0)`. This is handy when you want to represent a stream with a single event or signal.
 
 ```ts twoslash import.meta.vitest name="void-1"
 import { Stream, Effect } from "effect"
 
 const stream = Stream.succeed(void 0)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// { _id: 'Chunk', values: [ undefined ] }
+await Effect.runPromise(Stream.runCollect(stream)) // => [undefined]
 ```
 
 ### range
@@ -58,8 +55,7 @@ import { Stream, Effect } from "effect"
 // Creating a stream of numbers from 1 to 5
 const stream = Stream.range(1, 5)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// { _id: 'Chunk', values: [ 1, 2, 3, 4, 5 ] }
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3, 4, 5]
 ```
 
 ### iterate
@@ -72,8 +68,7 @@ import { Stream, Effect } from "effect"
 // Creating a stream of incrementing numbers
 const stream = Stream.iterate(1, (n) => n + 1) // Produces 1, 2, 3, ...
 
-Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
-// { _id: 'Chunk', values: [ 1, 2, 3, 4, 5 ] }
+await Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))) // => [1, 2, 3, 4, 5]
 ```
 
 ### scoped
@@ -94,13 +89,12 @@ const stream = Stream.scoped(
   ),
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
+await Effect.runPromise(Stream.runCollect(stream)) // => [undefined]
 /*
 Output:
 acquire
 use
 release
-{ _id: 'Chunk', values: [ undefined ] }
 */
 ```
 
@@ -121,12 +115,12 @@ Effect.runPromise(Stream.runCollect(streamWithError))
 const streamWithNumber: Stream.Stream<number> = Stream.succeed(5)
 
 Effect.runPromise(Stream.runCollect(streamWithNumber)).then(console.log)
-// { _id: 'Chunk', values: [ 5 ] }
+// [ 5 ]
 ```
 
-## From Chunks
+## From Arrays
 
-You can construct a stream from a `Chunk` like this:
+You can construct a stream from an array like this:
 
 ```ts twoslash import.meta.vitest name="from-chunks-1"
 import { Stream, Effect } from "effect"
@@ -134,11 +128,10 @@ import { Stream, Effect } from "effect"
 // Creating a stream with values from a single array
 const stream = Stream.fromArray([1, 2, 3])
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// { _id: 'Chunk', values: [ 1, 2, 3 ] }
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3]
 ```
 
-Moreover, you can create a stream from multiple `Chunk`s as well:
+Moreover, you can create a stream from multiple arrays as well:
 
 ```ts twoslash import.meta.vitest name="from-chunks-2"
 import { Stream, Effect } from "effect"
@@ -146,8 +139,7 @@ import { Stream, Effect } from "effect"
 // Creating a stream with values from multiple arrays
 const stream = Stream.fromArrays([1, 2, 3], [4, 5, 6])
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// { _id: 'Chunk', values: [ 1, 2, 3, 4, 5, 6 ] }
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3, 4, 5, 6]
 ```
 
 ## From Effect
@@ -160,14 +152,18 @@ import { Stream, Random, Effect } from "effect"
 const stream = Stream.fromEffect(Random.nextInt)
 
 Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// Example Output: { _id: 'Chunk', values: [ 1042302242 ] }
+// Example Output: [ 1042302242 ]
+
+// The value is random, but the stream always emits exactly one element
+const result = await Effect.runPromise(Stream.runCollect(stream))
+result.length // => 1
 ```
 
 This method allows you to seamlessly transform the output of an Effect into a stream, providing a straightforward way to work with asynchronous operations within your streams.
 
 ## From Asynchronous Callback
 
-Imagine you have an asynchronous function that relies on callbacks. If you want to capture the results emitted by those callbacks as a stream, you can use the `Stream.async` function. This function is designed to adapt functions that invoke their callbacks multiple times and emit the results as a stream.
+Imagine you have an asynchronous function that relies on callbacks. If you want to capture the results emitted by those callbacks as a stream, you can use the `Stream.callback` function. This function is designed to adapt functions that invoke their callbacks multiple times and emit the results as a stream.
 
 Let's break down how to use it in the following example:
 
@@ -192,19 +188,18 @@ const stream = Stream.callback<number>((queue) =>
   }),
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// { _id: 'Chunk', values: [ 1, 2 ] }
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2]
 ```
 
-The `StreamEmit.Emit<R, E, A, void>` type represents an asynchronous callback that can be called multiple times. This callback takes a value of type `Effect<Chunk<A>, Option<E>, R>`. Here's what each of the possible outcomes means:
+The function you pass to `Stream.callback` receives a `Queue` that you use to drive the stream from your asynchronous code. Here's what each of the possible outcomes means:
 
-- When the value provided to the callback results in a `Chunk<A>` upon success, it signifies that the specified elements should be emitted as part of the stream.
+- Calling `Queue.offerUnsafe` (or the effectful `Queue.offer`) on the queue emits the given element as part of the stream.
 
-- If the value passed to the callback results in a failure with `Some<E>`, it indicates the termination of the stream with the specified error.
+- Calling `Queue.fail` (or `Queue.failCauseUnsafe`/`Queue.failCause`) on the queue terminates the stream with the specified error.
 
-- When the value passed to the callback results in a failure with `None`, it serves as a signal for the end of the stream, essentially terminating it.
+- Calling `Queue.endUnsafe`/`Queue.end` on the queue signals the end of the stream, terminating it successfully.
 
-To put it simply, this type allows you to specify how your asynchronous callback interacts with the stream, determining when to emit elements, when to terminate with an error, or when to signal the end of the stream.
+To put it simply, this gives you full control over how your asynchronous callback interacts with the stream, determining when to emit elements, when to terminate with an error, or when to signal the end of the stream.
 
 ## From Iterables
 
@@ -219,8 +214,7 @@ const numbers = [1, 2, 3]
 
 const stream = Stream.fromIterable(numbers)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// { _id: 'Chunk', values: [ 1, 2, 3 ] }
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3]
 ```
 
 ### fromIterableEffect
@@ -241,7 +235,7 @@ const getUsers = Database.use((_) => _.getUsers)
 
 const stream = Stream.fromIterableEffect(getUsers)
 
-Effect.runPromise(
+await Effect.runPromise(
   Stream.runCollect(
     stream.pipe(
       Stream.provideService(Database, {
@@ -249,8 +243,7 @@ Effect.runPromise(
       }),
     ),
   ),
-).then(console.log)
-// { _id: 'Chunk', values: [ 'user1', 'user2' ] }
+) // => ["user1", "user2"]
 ```
 
 This enables you to work seamlessly with effects and convert their results into streams for further processing.
@@ -272,8 +265,7 @@ const stream = Stream.fromAsyncIterable(
   (e) => new Error(String(e)), // Error Handling
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// { _id: 'Chunk', values: [ 1, 2 ] }
+await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2]
 ```
 
 In this code, we define an async iterable and then create a stream named `stream` from it. Additionally, we provide an error handler function to manage any potential errors that may occur during the conversion.
@@ -282,15 +274,14 @@ In this code, we define an async iterable and then create a stream named `stream
 
 ### Repeating a Single Value
 
-You can create a stream that endlessly repeats a specific value using the `Stream.repeatValue` constructor:
+You can create a stream that endlessly repeats a specific value using `Stream.forever(Stream.succeed(value))`:
 
 ```ts twoslash import.meta.vitest name="repeating-a-single-value-1"
 import { Stream, Effect } from "effect"
 
 const stream = Stream.forever(Stream.succeed(0))
 
-Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
-// { _id: 'Chunk', values: [ 0, 0, 0, 0, 0 ] }
+await Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))) // => [0, 0, 0, 0, 0]
 ```
 
 ### Repeating a Stream's Content
@@ -303,8 +294,7 @@ import { Stream, Effect, Schedule } from "effect"
 // Creating a stream that repeats a value indefinitely
 const stream = Stream.repeat(Stream.succeed(1), Schedule.forever)
 
-Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
-// { _id: 'Chunk', values: [ 1, 1, 1, 1, 1 ] }
+await Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))) // => [1, 1, 1, 1, 1]
 ```
 
 ### Repeating an Effect's Result
@@ -321,11 +311,12 @@ const stream = Stream.fromEffectRepeat(Random.nextInt)
 Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
 /*
 Example Output:
-{
-  _id: 'Chunk',
-  values: [ 1666935266, 604851965, 2194299958, 3393707011, 4090317618 ]
-}
+[ 1666935266, 604851965, 2194299958, 3393707011, 4090317618 ]
 */
+
+// The values are random, but the stream always emits exactly 5 elements
+const result = await Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5))))
+result.length // => 5
 ```
 
 ### Repeating an Effect with Termination
@@ -348,6 +339,10 @@ const drainIterator = <A>(it: Iterator<A>): Stream.Stream<A> =>
       }),
     ),
   )
+
+const numbers = [10, 20, 30]
+
+await Effect.runPromise(Stream.runCollect(drainIterator(numbers[Symbol.iterator]()))) // => [10, 20, 30]
 ```
 
 ### Generating Ticks
@@ -359,14 +354,7 @@ import { Stream, Effect } from "effect"
 
 const stream = Stream.tick("100 millis")
 
-Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
-/*
-Output:
-{
-  _id: 'Chunk',
-  values: [ undefined, undefined, undefined, undefined, undefined ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))) // => [undefined, undefined, undefined, undefined, undefined]
 ```
 
 ## From Unfolding/Pagination
@@ -393,7 +381,7 @@ declare const unfold: <S, A, E, R>(
 Here's how it works:
 
 - **initialState**. This is the initial state value.
-- **step**. The state function `step` takes the current state `s` as input. If the result of this function is `None`, the stream ends. If it's `Some<[A, S]>`, the next element in the stream is `A`, and the state `S` is updated for the next step process.
+- **step**. The state function `step` takes the current state `s` as input and returns an effect. If the effect resolves to `undefined`, the stream ends. If it resolves to a tuple `[A, S]`, the next element in the stream is `A`, and the state `S` is updated for the next step process.
 
 For example, let's create a stream of natural numbers using `Stream.unfold`:
 
@@ -402,15 +390,14 @@ import { Stream, Effect } from "effect"
 
 const stream = Stream.unfold(1, (n) => Effect.succeed([n, n + 1] as const))
 
-Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
-// [ 1, 2, 3, 4, 5 ]
+await Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))) // => [1, 2, 3, 4, 5]
 ```
 
-#### unfoldEffect
+#### Unfolding with Effects
 
-Sometimes, we may need to perform effectful state transformations during the unfolding operation. This is where `Stream.unfoldEffect` comes in handy. It allows us to work with effects while generating streams.
+Sometimes, we may need to perform effectful state transformations during the unfolding operation. Since the `step` function passed to `Stream.unfold` already returns an `Effect`, it can depend on any effectful computation, such as generating a random value, while producing the next element and state.
 
-Here's an example of creating an infinite stream of random `1` and `-1` values using `Stream.unfoldEffect`:
+Here's an example of creating an infinite stream of random `1` and `-1` values using `Stream.unfold`:
 
 ```ts twoslash import.meta.vitest name="unfoldeffect-1"
 import { Stream, Effect, Random } from "effect"
@@ -421,6 +408,11 @@ const stream = Stream.unfold(1, (n) =>
 
 Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5)))).then(console.log)
 // Example Output: [ 1, 1, 1, 1, -1 ]
+
+// The sign is random, but the state starts at 1 and only ever flips sign,
+// so its absolute value is deterministically always 1
+const result = await Effect.runPromise(Stream.runCollect(stream.pipe(Stream.take(5))))
+result.map(Math.abs) // => [1, 1, 1, 1, 1]
 ```
 
 ### Pagination
@@ -438,8 +430,7 @@ const stream = Stream.paginate(0, (n) =>
   Effect.succeed([[n], n < 3 ? Option.some(n + 1) : Option.none()] as const),
 )
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-// { _id: 'Chunk', values: [ 0, 1, 2, 3 ] }
+await Effect.runPromise(Stream.runCollect(stream)) // => [0, 1, 2, 3]
 ```
 
 Here's how it works:
@@ -489,23 +480,13 @@ In Effect, there are two essential asynchronous messaging data types: [Queue](/d
 
 We can create a stream from a `Schedule` that does not require any further input. The stream will emit an element for each value output from the schedule, continuing for as long as the schedule continues:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="from-schedule-1"
 import { Effect, Stream, Schedule } from "effect"
 
-// Emits values every 1 second for a total of 10 emissions
-const schedule = Schedule.spaced("1 second").pipe(Schedule.compose(Schedule.recurs(10)))
+// Emits values every 100 milliseconds for a total of 10 emissions
+const schedule = Schedule.spaced("100 millis").pipe(Schedule.upTo({ times: 10 }))
 
 const stream = Stream.fromSchedule(schedule)
 
-Effect.runPromise(Stream.runCollect(stream)).then(console.log)
-/*
-Output:
-{
-  _id: 'Chunk',
-  values: [
-    0, 1, 2, 3, 4,
-    5, 6, 7, 8, 9
-  ]
-}
-*/
+await Effect.runPromise(Stream.runCollect(stream)) // => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 ```
