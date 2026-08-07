@@ -48,11 +48,17 @@ export interface StagedDocument {
   readonly metadata: SearchMetadata
 }
 
-const processor = unified().use(remarkParse).use(remarkMdx).use(remarkFrontmatter, ["yaml"])
+const processor = unified()
+  .use(remarkParse)
+  .use(remarkMdx)
+  .use(remarkFrontmatter, ["yaml"])
 const MAX_EXCERPT_LENGTH = 240
 const MAX_SEARCH_METADATA_LENGTH = 64_000
 
-export function stageDocument(source: string, relativePath: string): StagedDocument | undefined {
+export function stageDocument(
+  source: string,
+  relativePath: string,
+): StagedDocument | undefined {
   const initial = parseDocument(source)
   if (initial.frontmatter.draft === true) return undefined
 
@@ -63,10 +69,13 @@ export function stageDocument(source: string, relativePath: string): StagedDocum
   const docsVersion = pathParts[0] ?? "unknown"
   const group = pathParts.length > 2 ? (pathParts[1] ?? "") : ""
   const groupLabel = titleCase(group)
-  const pageLabel = initial.frontmatter.sidebar?.label ?? initial.frontmatter.title
+  const pageLabel =
+    initial.frontmatter.sidebar?.label ?? initial.frontmatter.title
   const routePath = pathParts.join("/").replace(/(^|\/)index$/, "")
   const pageHref = `/docs/${routePath}`.replace(/\/+$/, "/")
-  const breadcrumbs = [groupLabel, pageLabel].filter((label) => label.length > 0)
+  const breadcrumbs = [groupLabel, pageLabel].filter(
+    (label) => label.length > 0,
+  )
 
   const originalSections = sections(
     initial.tree,
@@ -83,9 +92,13 @@ export function stageDocument(source: string, relativePath: string): StagedDocum
     page_title: initial.frontmatter.title,
     sections: originalSections,
   }
-  const provisionalFrontmatter = serializeFrontmatter(initial.frontmatterRecord, baseMetadata)
+  const provisionalFrontmatter = serializeFrontmatter(
+    initial.frontmatterRecord,
+    baseMetadata,
+  )
   const originalFrontmatterLines = frontmatterLines(initial)
-  const lineDelta = countLines(provisionalFrontmatter) - originalFrontmatterLines
+  const lineDelta =
+    countLines(provisionalFrontmatter) - originalFrontmatterLines
   const metadata: SearchMetadata = {
     ...baseMetadata,
     sections: originalSections.map((section) => ({
@@ -93,9 +106,14 @@ export function stageDocument(source: string, relativePath: string): StagedDocum
       line: section.line === 1 ? 1 : section.line + lineDelta,
     })),
   }
-  const finalFrontmatter = serializeFrontmatter(initial.frontmatterRecord, metadata)
+  const finalFrontmatter = serializeFrontmatter(
+    initial.frontmatterRecord,
+    metadata,
+  )
   if (countLines(finalFrontmatter) !== countLines(provisionalFrontmatter)) {
-    throw new Error(`Documentation metadata changed frontmatter height for ${relativePath}`)
+    throw new Error(
+      `Documentation metadata changed frontmatter height for ${relativePath}`,
+    )
   }
 
   return {
@@ -114,7 +132,8 @@ interface ParsedDocument {
 function parseDocument(source: string): ParsedDocument {
   const tree = processor.parse(source)
   const yaml = tree.children.find(isYaml)
-  if (yaml === undefined) throw new Error("Documentation file must have YAML frontmatter")
+  if (yaml === undefined)
+    throw new Error("Documentation file must have YAML frontmatter")
 
   const value: unknown = parseYaml(yaml.value)
   return {
@@ -162,7 +181,11 @@ function frontmatterLines(parsed: ParsedDocument): number {
   return end - start + 1
 }
 
-function spliceFrontmatter(source: string, parsed: ParsedDocument, frontmatter: string): string {
+function spliceFrontmatter(
+  source: string,
+  parsed: ParsedDocument,
+  frontmatter: string,
+): string {
   const start = parsed.yaml.position?.start.offset
   const end = parsed.yaml.position?.end.offset
   if (start === undefined || end === undefined) {
@@ -213,7 +236,8 @@ function sections(
 
 function requiredHeadingLine(heading: Heading): number {
   const line = heading.position?.start.line
-  if (line === undefined) throw new Error(`Heading is missing a source line: ${toString(heading)}`)
+  if (line === undefined)
+    throw new Error(`Heading is missing a source line: ${toString(heading)}`)
   return line
 }
 

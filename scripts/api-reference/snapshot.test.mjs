@@ -1,10 +1,15 @@
-import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import test from "node:test"
 import { fileURLToPath } from "node:url"
+import { assert, test } from "vite-plus/test"
 
 const script = fileURLToPath(new URL("snapshot.mjs", import.meta.url))
 const v3 = "a".repeat(40)

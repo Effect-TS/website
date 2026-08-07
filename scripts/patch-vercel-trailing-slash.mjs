@@ -32,7 +32,9 @@ import { readFileSync, writeFileSync } from "node:fs"
 const configPath = ".vercel/output/config.json"
 const config = JSON.parse(readFileSync(configPath, "utf-8"))
 
-const unscopedRuleIndex = config.routes.findIndex((route) => route.src === "^/(.*)/$")
+const unscopedRuleIndex = config.routes.findIndex(
+  (route) => route.src === "^/(.*)/$",
+)
 if (unscopedRuleIndex === -1) {
   throw new Error(
     `Expected to find the unscoped trailing-slash rule ("^/(.*)/$") in ${configPath}. ` +

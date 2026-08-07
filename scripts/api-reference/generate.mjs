@@ -25,7 +25,14 @@ import TypeScript from "typescript"
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const websiteDirectory = resolve(scriptDirectory, "../..")
 const outputMarker = ".effect-api-reference"
-const ignoredDirectoryNames = new Set([".git", "build", "coverage", "dist", "docs", "node_modules"])
+const ignoredDirectoryNames = new Set([
+  ".git",
+  "build",
+  "coverage",
+  "dist",
+  "docs",
+  "node_modules",
+])
 // These modules exceeded one second in the PR 1408 Astro preview build.
 const excludedModuleExports = new Map([
   ["@effect/ai-anthropic", new Set(["./Generated"])],
@@ -43,7 +50,10 @@ const options = parseArguments(process.argv.slice(2))
 if (options.version === undefined || !/^v\d+$/.test(options.version)) {
   throw new Error("--version must be a major-version channel such as v3 or v4")
 }
-const repositoryDirectory = resolve(websiteDirectory, options.repository ?? "../effect")
+const repositoryDirectory = resolve(
+  websiteDirectory,
+  options.repository ?? "../effect",
+)
 const outputDirectory = resolve(
   websiteDirectory,
   options.output ?? join(".data/api-reference", options.version),
@@ -56,13 +66,26 @@ const packagesDirectory = join(repositoryDirectory, "packages")
 assertDirectory(packagesDirectory, "Effect packages directory")
 
 const packages = discoverPackages(packagesDirectory)
-  .filter(({ manifest }) => manifest.private !== true && manifest.exports !== undefined)
-  .filter(({ manifest }) => options.package === undefined || manifest.name === options.package)
-  .sort((left, right) => compareStrings(left.manifest.name, right.manifest.name))
+  .filter(
+    ({ manifest }) =>
+      manifest.private !== true && manifest.exports !== undefined,
+  )
+  .filter(
+    ({ manifest }) =>
+      options.package === undefined || manifest.name === options.package,
+  )
+  .sort((left, right) =>
+    compareStrings(left.manifest.name, right.manifest.name),
+  )
 
 if (packages.length === 0) {
-  const suffix = options.package === undefined ? "" : ` matching ${JSON.stringify(options.package)}`
-  throw new Error(`No public packages with export maps were found${suffix} in ${packagesDirectory}`)
+  const suffix =
+    options.package === undefined
+      ? ""
+      : ` matching ${JSON.stringify(options.package)}`
+  throw new Error(
+    `No public packages with export maps were found${suffix} in ${packagesDirectory}`,
+  )
 }
 
 prepareOutputDirectory(outputDirectory)
@@ -71,9 +94,15 @@ const revision = readRevision(repositoryDirectory)
 const packageManifests = []
 
 for (const packageInfo of packages) {
-  const discoveredModules = discoverModules(packageInfo.directory, packageInfo.manifest.exports)
-  const excludedExports = excludedModuleExports.get(packageInfo.manifest.name) ?? new Set()
-  const slowModules = discoveredModules.filter(({ exportPath }) => excludedExports.has(exportPath))
+  const discoveredModules = discoverModules(
+    packageInfo.directory,
+    packageInfo.manifest.exports,
+  )
+  const excludedExports =
+    excludedModuleExports.get(packageInfo.manifest.name) ?? new Set()
+  const slowModules = discoveredModules.filter(({ exportPath }) =>
+    excludedExports.has(exportPath),
+  )
   const internalModules = discoveredModules.filter(isInternalModule)
   const includedModules = discoveredModules
     .filter(({ exportPath }) => !excludedExports.has(exportPath))
@@ -96,8 +125,17 @@ for (const packageInfo of packages) {
   const generatedModules =
     modules.length === 0
       ? []
-      : await generatePackage(packageInfo, modules, barrels, repositoryDirectory, outputDirectory)
-  const packageOutputDirectory = packageOutputPath(outputDirectory, packageInfo.manifest.name)
+      : await generatePackage(
+          packageInfo,
+          modules,
+          barrels,
+          repositoryDirectory,
+          outputDirectory,
+        )
+  const packageOutputDirectory = packageOutputPath(
+    outputDirectory,
+    packageInfo.manifest.name,
+  )
   const packageManifest = {
     schemaVersion: 3,
     channel: options.version,
@@ -121,7 +159,9 @@ for (const packageInfo of packages) {
   packageManifests.push({
     name: packageInfo.manifest.name,
     version: packageInfo.manifest.version,
-    manifest: toPosixPath(relative(outputDirectory, join(packageOutputDirectory, "manifest.json"))),
+    manifest: toPosixPath(
+      relative(outputDirectory, join(packageOutputDirectory, "manifest.json")),
+    ),
   })
 }
 
@@ -134,9 +174,17 @@ writeJson(join(outputDirectory, "manifest.json"), {
   packages: packageManifests,
 })
 
-console.log(`Generated ${packageManifests.length} packages in ${outputDirectory}`)
+console.log(
+  `Generated ${packageManifests.length} packages in ${outputDirectory}`,
+)
 
-async function generatePackage(packageInfo, modules, barrels, repository, output) {
+async function generatePackage(
+  packageInfo,
+  modules,
+  barrels,
+  repository,
+  output,
+) {
   const tsconfig = join(packageInfo.directory, "tsconfig.json")
   accessSync(tsconfig, constants.R_OK)
 
@@ -164,13 +212,18 @@ async function generatePackage(packageInfo, modules, barrels, repository, output
 
   const entryPoints = app.getEntryPoints()
   if (entryPoints === undefined) {
-    throw new Error(`TypeDoc could not resolve the entry points for ${packageInfo.manifest.name}`)
+    throw new Error(
+      `TypeDoc could not resolve the entry points for ${packageInfo.manifest.name}`,
+    )
   }
 
   await app.initializeRepositories(entryPoints)
 
   const entryPointsBySource = new Map(
-    entryPoints.map((entryPoint) => [resolve(entryPoint.sourceFile.fileName), entryPoint]),
+    entryPoints.map((entryPoint) => [
+      resolve(entryPoint.sourceFile.fileName),
+      entryPoint,
+    ]),
   )
   const packageDirectory = packageOutputPath(output, packageInfo.manifest.name)
   const generated = []
@@ -178,7 +231,9 @@ async function generatePackage(packageInfo, modules, barrels, repository, output
   for (const module of modules) {
     const entryPoint = entryPointsBySource.get(resolve(module.source))
     if (entryPoint === undefined) {
-      throw new Error(`TypeDoc did not create an entry point for ${module.source}`)
+      throw new Error(
+        `TypeDoc did not create an entry point for ${module.source}`,
+      )
     }
 
     entryPoint.displayName =
@@ -210,7 +265,10 @@ function attachLeadingModuleComment(app, project, sourcePath) {
   const moduleReflection = project.children?.find(
     (reflection) => reflection.kind === ReflectionKind.Module,
   )
-  if (moduleReflection === undefined || moduleReflection.comment !== undefined) {
+  if (
+    moduleReflection === undefined ||
+    moduleReflection.comment !== undefined
+  ) {
     return
   }
 
@@ -242,7 +300,9 @@ function attachLeadingModuleComment(app, project, sourcePath) {
 }
 
 function splitJsDocComment(comment) {
-  const lines = comment.split("\n").map((line) => line.replace(/^\s*\* ?/, "").replace(/\s+$/, ""))
+  const lines = comment
+    .split("\n")
+    .map((line) => line.replace(/^\s*\* ?/, "").replace(/\s+$/, ""))
   const summary = []
   const tags = []
   let currentTag
@@ -252,7 +312,9 @@ function splitJsDocComment(comment) {
     if (/^\s*```/.test(line)) {
       fenced = !fenced
     }
-    const tagMatch = fenced ? null : /^\s*(@[a-zA-Z][\w-]*)(?:\s+(.*))?$/.exec(line)
+    const tagMatch = fenced
+      ? null
+      : /^\s*(@[a-zA-Z][\w-]*)(?:\s+(.*))?$/.exec(line)
     if (tagMatch !== null) {
       currentTag = { tag: tagMatch[1], lines: [tagMatch[2] ?? ""] }
       tags.push(currentTag)
@@ -355,10 +417,13 @@ function addModule(modules, blockedExports, exportPath, source) {
     return
   }
 
-  const outputPath = exportPath === "." ? "index" : exportPath.replace(/^\.\//, "")
+  const outputPath =
+    exportPath === "." ? "index" : exportPath.replace(/^\.\//, "")
   if (
     outputPath.length === 0 ||
-    outputPath.split("/").some((part) => part === "" || part === "." || part === "..")
+    outputPath
+      .split("/")
+      .some((part) => part === "" || part === "." || part === "..")
   ) {
     throw new Error(
       `Cannot derive a safe output path from package export ${JSON.stringify(exportPath)}`,
@@ -368,7 +433,9 @@ function addModule(modules, blockedExports, exportPath, source) {
   const existing = modules.get(outputPath)
   if (existing !== undefined) {
     if (existing.source !== source) {
-      throw new Error(`${exportPath} and ${existing.exportPath} both map to ${outputPath}.json`)
+      throw new Error(
+        `${exportPath} and ${existing.exportPath} both map to ${outputPath}.json`,
+      )
     }
     return
   }
@@ -392,7 +459,8 @@ function isBarrelModule(module) {
     sourceFile.statements.length > 0 &&
     sourceFile.statements.every(
       (statement) =>
-        TypeScript.isExportDeclaration(statement) && statement.moduleSpecifier !== undefined,
+        TypeScript.isExportDeclaration(statement) &&
+        statement.moduleSpecifier !== undefined,
     )
   )
 }
@@ -403,7 +471,11 @@ function isInternalModule(module) {
 
 function nearestBarrel(exportPath, barrels) {
   return barrels
-    .filter((barrel) => barrel.exportPath === "." || exportPath.startsWith(`${barrel.exportPath}/`))
+    .filter(
+      (barrel) =>
+        barrel.exportPath === "." ||
+        exportPath.startsWith(`${barrel.exportPath}/`),
+    )
     .sort((left, right) => right.exportPath.length - left.exportPath.length)[0]
 }
 
@@ -412,7 +484,8 @@ function normalizeExportEntries(exportsField) {
     typeof exportsField === "string" ||
     exportsField === null ||
     Array.isArray(exportsField) ||
-    (isObject(exportsField) && Object.keys(exportsField).every((key) => !key.startsWith(".")))
+    (isObject(exportsField) &&
+      Object.keys(exportsField).every((key) => !key.startsWith(".")))
   ) {
     return [[".", exportsField]]
   }
@@ -421,7 +494,9 @@ function normalizeExportEntries(exportsField) {
     return []
   }
 
-  return Object.entries(exportsField).sort(([left], [right]) => compareStrings(left, right))
+  return Object.entries(exportsField).sort(([left], [right]) =>
+    compareStrings(left, right),
+  )
 }
 
 function sourceTargets(target) {
@@ -459,13 +534,17 @@ function listFiles(directory) {
 function patternMatcher(pattern) {
   const parts = pattern.split("*")
   if (parts.length !== 2) {
-    throw new Error(`Only one wildcard is supported in package export patterns: ${pattern}`)
+    throw new Error(
+      `Only one wildcard is supported in package export patterns: ${pattern}`,
+    )
   }
   return new RegExp(`^${escapeRegExp(parts[0])}(.*)${escapeRegExp(parts[1])}$`)
 }
 
 function patternMatches(pattern, value) {
-  return pattern.includes("*") ? patternMatcher(pattern).test(value) : pattern === value
+  return pattern.includes("*")
+    ? patternMatcher(pattern).test(value)
+    : pattern === value
 }
 
 function parseArguments(arguments_) {

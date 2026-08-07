@@ -44,16 +44,28 @@ switch (command) {
     const dataDirectory = resolve(requiredOption("data"))
     const manifest = readJson(resolve(requiredOption("manifest")))
     if (!isRecord(manifest) || manifest.schemaVersion !== 1) {
-      throw new Error("API reference snapshot manifest has an unsupported schema")
+      throw new Error(
+        "API reference snapshot manifest has an unsupported schema",
+      )
     }
     const id = requiredString(manifest, "snapshotId", digestPattern)
     const generator = requiredString(manifest, "generator", digestPattern)
     const channels = requiredRecord(manifest, "channels")
-    const v3 = requiredString(requiredRecord(channels, "v3"), "revision", revisionPattern)
-    const v4 = requiredString(requiredRecord(channels, "v4"), "revision", revisionPattern)
+    const v3 = requiredString(
+      requiredRecord(channels, "v3"),
+      "revision",
+      revisionPattern,
+    )
+    const v4 = requiredString(
+      requiredRecord(channels, "v4"),
+      "revision",
+      revisionPattern,
+    )
     const expectedId = snapshotId({ generator, v3, v4 })
     if (id !== expectedId) {
-      throw new Error(`API reference snapshot ID mismatch: expected ${expectedId}, received ${id}`)
+      throw new Error(
+        `API reference snapshot ID mismatch: expected ${expectedId}, received ${id}`,
+      )
     }
     validateDatasets(dataDirectory, { v3, v4 })
     process.stdout.write(id)
@@ -65,7 +77,9 @@ switch (command) {
 
 function snapshotId({ generator, v3, v4 }) {
   return createHash("sha256")
-    .update(JSON.stringify({ schemaVersion: 1, generator, channels: { v3, v4 } }))
+    .update(
+      JSON.stringify({ schemaVersion: 1, generator, channels: { v3, v4 } }),
+    )
     .digest("hex")
 }
 
@@ -74,7 +88,9 @@ function validateDatasets(dataDirectory, revisions) {
     const manifestPath = join(dataDirectory, channel, "manifest.json")
     const manifest = readJson(manifestPath)
     if (!isRecord(manifest) || manifest.datasetSchemaVersion !== 1) {
-      throw new Error(`API reference dataset has an unsupported schema: ${manifestPath}`)
+      throw new Error(
+        `API reference dataset has an unsupported schema: ${manifestPath}`,
+      )
     }
     if (manifest.channel !== channel) {
       throw new Error(`API reference dataset channel mismatch: ${manifestPath}`)
@@ -102,19 +118,22 @@ function parseOptions(arguments_) {
 
 function requiredOption(name) {
   const value = options.get(name)
-  if (value === undefined || value.length === 0) throw new Error(`Missing --${name}`)
+  if (value === undefined || value.length === 0)
+    throw new Error(`Missing --${name}`)
   return value
 }
 
 function requiredRevision(name) {
   const value = requiredOption(name)
-  if (!revisionPattern.test(value)) throw new Error(`--${name} must be a full Git commit SHA`)
+  if (!revisionPattern.test(value))
+    throw new Error(`--${name} must be a full Git commit SHA`)
   return value
 }
 
 function requiredDigest(name) {
   const value = requiredOption(name)
-  if (!digestPattern.test(value)) throw new Error(`--${name} must be a hexadecimal digest`)
+  if (!digestPattern.test(value))
+    throw new Error(`--${name} must be a hexadecimal digest`)
   return value
 }
 
@@ -128,7 +147,8 @@ function isRecord(value) {
 
 function requiredRecord(record, key) {
   const value = record[key]
-  if (!isRecord(value)) throw new Error(`API reference snapshot manifest is missing ${key}`)
+  if (!isRecord(value))
+    throw new Error(`API reference snapshot manifest is missing ${key}`)
   return value
 }
 

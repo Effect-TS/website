@@ -1,8 +1,7 @@
 import * as Schema from "effect/Schema"
-import assert from "node:assert/strict"
-import test from "node:test"
+import { assert, test } from "vite-plus/test"
 import { parse as parseYaml } from "yaml"
-import { BlogSearchMetadata } from "../../src/services/search/domain.ts"
+import { BlogSearchMetadata } from "../../apps/web/src/services/search/domain.ts"
 import { blogPostId, stageBlogPost } from "./blog.ts"
 
 test("stages source-preserving blog metadata", () => {
@@ -40,9 +39,9 @@ tags:
 
   const yaml = /^---\n([\s\S]*?)\n---/.exec(post.source)?.[1]
   assert.ok(yaml)
-  const stagedMetadata = Schema.decodeUnknownSync(Schema.Struct({ search: BlogSearchMetadata }))(
-    parseYaml(yaml),
-  )
+  const stagedMetadata = Schema.decodeUnknownSync(
+    Schema.Struct({ search: BlogSearchMetadata }),
+  )(parseYaml(yaml))
   assert.equal(stagedMetadata.search.sections[2]?.title, "Error handling")
 
   const restaged = stageBlogPost(post.source, "from-react-to-effect.mdx")
@@ -50,7 +49,16 @@ tags:
 })
 
 test("derives blog IDs using Astro collection conventions", () => {
-  assert.equal(blogPostId("this-week-in-effect/126/index.mdx"), "this-week-in-effect/126")
-  assert.equal(blogPostId("releases/effect/4.0-beta.mdx"), "releases/effect/40-beta")
-  assert.equal(blogPostId("effect-v4Beta-july-recap.mdx"), "effect-v4beta-july-recap")
+  assert.equal(
+    blogPostId("this-week-in-effect/126/index.mdx"),
+    "this-week-in-effect/126",
+  )
+  assert.equal(
+    blogPostId("releases/effect/4.0-beta.mdx"),
+    "releases/effect/40-beta",
+  )
+  assert.equal(
+    blogPostId("effect-v4Beta-july-recap.mdx"),
+    "effect-v4beta-july-recap",
+  )
 })

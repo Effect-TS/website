@@ -1,0 +1,679 @@
+@import "tailwindcss";
+
+@plugin "@tailwindcss/typography";
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+  scroll-padding-top: 5rem;
+  scroll-behavior: smooth;
+}
+
+@layer utilities {
+  /* docs-tabs: context-aware tab component used in docs and blog MDX */
+  docs-tabs {
+    display: block;
+    margin-block: 1.5rem;
+  }
+
+  .docs-tabs-list {
+    display: flex;
+    border-bottom: 1px solid currentColor;
+    border-bottom-color: oklch(from currentColor l c h / 0.15);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .docs-tabs-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* No-JS default: show first panel, hide the rest */
+  .docs-tab-panel {
+    display: none;
+  }
+
+  .docs-tab-panel:first-of-type {
+    display: block;
+  }
+
+  /* JS-initialized: web component takes over via data attributes */
+  docs-tabs[data-initialized] .docs-tab-panel {
+    display: none;
+  }
+
+  docs-tabs[data-initialized] .docs-tab-panel[data-active] {
+    display: block;
+  }
+
+  .docs-tabs-panels {
+    padding-top: 1rem;
+  }
+
+  /* Tab buttons (built by the web component) */
+  .docs-tabs-list [role="tab"] {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: inherit;
+    opacity: 0.5;
+    cursor: pointer;
+    transition:
+      opacity 150ms,
+      border-color 150ms;
+    white-space: nowrap;
+  }
+
+  .docs-tabs-list [role="tab"]:hover {
+    opacity: 0.8;
+  }
+
+  .docs-tabs-list [role="tab"][aria-selected="true"] {
+    opacity: 1;
+    font-weight: 600;
+    border-bottom-color: currentColor;
+  }
+
+  /* Align prose heading sizes with the project's @theme font-size scale */
+  .prose :where(h1):not(:where([class~="not-prose"] *)) {
+    font-size: var(--text-3xl);
+    line-height: var(--text-3xl--line-height);
+  }
+
+  @media (min-width: 768px) {
+    .prose :where(h1):not(:where([class~="not-prose"] *)) {
+      font-size: var(--text-4xl);
+      line-height: var(--text-4xl--line-height);
+    }
+  }
+
+  .prose :where(h2):not(:where([class~="not-prose"] *)) {
+    font-size: var(--text-2xl);
+    line-height: var(--text-2xl--line-height);
+  }
+
+  .prose :where(h3):not(:where([class~="not-prose"] *)) {
+    font-size: var(--text-xl);
+    line-height: var(--text-xl--line-height);
+  }
+
+  .prose :where(h4):not(:where([class~="not-prose"] *)) {
+    font-size: var(--text-lg);
+    line-height: var(--text-lg--line-height);
+  }
+
+  .prose :where(h1, h2, h3, h4, h5, h6) code {
+    font-size: 0.85em;
+  }
+
+  /* Blog prose headings use literal reading sizes (not the project's oversized text-2xl/xl/lg
+     tokens above, which are tuned for marketing/hero copy) so body copy matches the blog
+     typography reference. */
+  .blog-article :where(h2):not(:where([class~="not-prose"] *)) {
+    font-size: 1.5rem;
+    line-height: 1.33;
+    letter-spacing: -0.012em;
+  }
+
+  .blog-article :where(h3):not(:where([class~="not-prose"] *)) {
+    font-size: 1.25rem;
+    line-height: 1.4;
+  }
+
+  .blog-article :where(h4):not(:where([class~="not-prose"] *)) {
+    font-size: 1.0625rem;
+    line-height: 1.4;
+  }
+
+  .blog-article ul,
+  .blog-article ol {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .blog-article ul {
+    list-style: none;
+  }
+
+  .blog-article ul > li::before {
+    content: "•";
+    float: left;
+    width: 1.25em;
+    margin-left: -1.25em;
+    color: oklch(0.446 0.03 256.8);
+  }
+
+  .blog-article ul > li:has(> p:first-child)::before {
+    margin-top: 1.25rem;
+  }
+
+  .dark .blog-article ul > li::before {
+    color: oklch(0.552 0.016 285.938);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-ring: var(--ring);
+  --color-border: var(--border);
+}
+
+@theme {
+  /* Font Sizes */
+  --text-xs: 0.7rem;
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.375;
+  --text-xl: 1.563rem;
+  --text-xl--line-height: 1.375;
+  --text-2xl: 1.953rem;
+  --text-2xl--line-height: 1.375;
+  --text-3xl: 2.441rem;
+  --text-3xl--line-height: 1.25;
+  --text-4xl: 3.052rem;
+  --text-4xl--line-height: 1.25;
+  --text-5xl: 3.815rem;
+  --text-5xl--line-height: 1.15;
+  --text-6xl: 4.768rem;
+  --text-6xl--line-height: 1.15;
+
+  /* Line Heights */
+  --leading-tighter: 1.15;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-loose: 2;
+
+  /* Font Families */
+  --font-sans: var(--font-inter), Inter, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+
+  /* Border Radius */
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
+
+  /* Colors - Zinc */
+  --color-zinc-900: #18181b;
+  --color-zinc-950: #09090b;
+}
+
+:root {
+  /* Native UI (scrollbars, form controls) must follow the active theme, which the
+     inline script in BaseLayout resolves to a `dark` class on <html> (auto included) */
+  color-scheme: light;
+
+  --zinc-700: #3f3f46;
+  --zinc-800: #27272a;
+  --zinc-950: #09090b;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.004 285.766);
+  --muted-foreground: oklch(0.552 0.014 285.866);
+  --ring: oklch(0.696 0.149 162.505);
+  --border: oklch(0.92 0.004 285.888);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.141 0.004 285.766);
+  --foreground: oklch(0.985 0 0);
+  --muted-foreground: oklch(0.712 0.013 285.965);
+  --ring: oklch(0.773 0.153 163.251);
+  --border: oklch(0.274 0.005 285.941);
+}
+
+/* Theme-aware values for inline-style backgrounds (glows) */
+:root {
+  --hero-glow-a: rgba(9, 9, 11, 0.05);
+  --hero-glow-b: rgba(9, 9, 11, 0.03);
+}
+.dark {
+  --hero-glow-a: rgba(255, 255, 255, 0.12);
+  --hero-glow-b: rgba(255, 255, 255, 0.08);
+}
+
+:root {
+  --nav-height: 5.5rem;
+}
+
+body {
+  font-family: var(--font-inter), Inter, sans-serif;
+}
+
+code,
+pre,
+.font-mono {
+  font-family:
+    var(--font-jetbrains-mono), "JetBrains Mono", monospace !important;
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+  position: relative;
+  width: 28.308px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-track {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 100px;
+  border: 1px solid #86efac;
+  background: transparent;
+}
+
+.toggle-thumb {
+  position: absolute;
+  width: 11.077px;
+  height: 11.077px;
+  border-radius: 30px;
+  background: white;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 2.5px;
+  box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.38);
+}
+
+.toggle-switch:not(.active) .toggle-track {
+  border-color: #71717a;
+}
+
+.toggle-switch:not(.active) .toggle-thumb {
+  right: auto;
+  left: 2.5px;
+}
+
+/* Chart Styles */
+#complexity-chart {
+  overflow: hidden;
+}
+
+.chart-line {
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+}
+
+.chart-line.animate {
+  animation: drawLine 2s ease-out forwards;
+}
+
+@keyframes drawLine {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Scrollbar hide */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+/* Thin always-visible scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #3f3f46 transparent; /* Firefox: thumb track */
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* Mobile menu animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Modal dialog entrance — subtle fade + scale-up */
+@keyframes dialogIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.mobile-menu-panel-enter {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
+.mobile-menu-panel-exit {
+  animation: slideOutRight 0.3s ease-in forwards;
+}
+
+.mobile-menu-backdrop-enter {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.mobile-menu-backdrop-exit {
+  animation: fadeOut 0.3s ease-in forwards;
+}
+
+/* Pointer cursor on interactive buttons (Tailwind v4 removed the default) */
+button:not(:disabled):not([aria-disabled="true"]),
+[role="button"]:not([aria-disabled="true"]),
+summary {
+  cursor: pointer;
+}
+
+[data-search-dialog-input]::-webkit-search-cancel-button {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  opacity: 0.55;
+  background-color: currentColor;
+  transition: opacity 150ms;
+  -webkit-appearance: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 3l10 10M13 3L3 13' fill='none' stroke='black' stroke-linecap='round' stroke-width='2'/%3E%3C/svg%3E")
+    center / 0.75rem 0.75rem no-repeat;
+}
+
+[data-search-dialog-input]::-webkit-search-cancel-button:hover {
+  opacity: 1;
+}
+
+/* Global Focus Indicators */
+*:focus-visible {
+  outline: 2px solid var(--color-zinc-900);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-zinc-900);
+  outline-offset: 2px;
+}
+
+.dark *:focus-visible,
+.dark button:focus-visible,
+.dark a:focus-visible {
+  outline-color: var(--color-white);
+}
+
+[data-api-sidebar] :focus-visible {
+  outline-color: var(--color-zinc-900);
+}
+
+.dark [data-api-sidebar] :focus-visible {
+  outline-color: var(--color-white);
+}
+
+/* Visual Effect Tab Styles */
+.visual-effect-tab {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.visual-effect-tab:hover {
+  opacity: 1 !important;
+  color: white !important;
+}
+
+.visual-effect-tab.active {
+  background: rgba(255, 255, 255, 0.06);
+  opacity: 1 !important;
+  color: white !important;
+}
+
+/* Dashed gradient border for feature cards */
+.dashed-gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-width: 1px;
+  border-style: solid;
+  border-image: linear-gradient(to bottom, #09090b, #3f3f46) 1;
+  -webkit-mask:
+    repeating-linear-gradient(
+        to right,
+        black 0px,
+        black 2px,
+        transparent 2px,
+        transparent 4px
+      )
+      left / 100% 1px no-repeat,
+    repeating-linear-gradient(
+        to right,
+        black 0px,
+        black 2px,
+        transparent 2px,
+        transparent 4px
+      )
+      left bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(
+        to bottom,
+        black 0px,
+        black 2px,
+        transparent 2px,
+        transparent 4px
+      )
+      left / 1px 100% no-repeat,
+    repeating-linear-gradient(
+        to bottom,
+        black 0px,
+        black 2px,
+        transparent 2px,
+        transparent 4px
+      )
+      right / 1px 100% no-repeat;
+  mask:
+    repeating-linear-gradient(
+        to right,
+        black 0px,
+        black 2px,
+        transparent 2px,
+        transparent 4px
+      )
+      left / 100% 1px no-repeat,
+    repeating-linear-gradient(
+        to right,
+        black 0px,
+        black 2px,
+        transparent 2px,
+        transparent 4px
+      )
+      left bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(
+        to bottom,
+        black 0px,
+        black 2px,
+        transparent 2px,
+        transparent 4px
+      )
+      left / 1px 100% no-repeat,
+    repeating-linear-gradient(
+        to bottom,
+        black 0px,
+        black 2px,
+        transparent 2px,
+        transparent 4px
+      )
+      right / 1px 100% no-repeat;
+  pointer-events: none;
+  background: linear-gradient(to bottom, #09090b, #3f3f46);
+}
+
+/* Static gradient border from zinc-400 (top) to zinc-900 (bottom) */
+.animated-gradient-border {
+  background:
+    linear-gradient(#18181b, #09090b) padding-box,
+    linear-gradient(to bottom, #71717a, #3f3f46, #09090b) border-box;
+  border: 1px solid transparent;
+}
+
+/* Gradient text for icons */
+.gradient-icon {
+  background: linear-gradient(to bottom, #27272a, #d4d4d8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Grid Overlay */
+.grid-overlay {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Wave animation for podcast episode cards */
+@keyframes wave {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Blog post grid content transition */
+@keyframes blogFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.blog-grid-enter {
+  animation: blogFadeIn 0.25s ease-out both;
+}
+
+.blog-grid-enter > * {
+  animation: blogFadeIn 0.25s ease-out both;
+}
+
+.blog-grid-enter > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.blog-grid-enter > *:nth-child(2) {
+  animation-delay: 30ms;
+}
+.blog-grid-enter > *:nth-child(3) {
+  animation-delay: 60ms;
+}
+.blog-grid-enter > *:nth-child(4) {
+  animation-delay: 90ms;
+}
+.blog-grid-enter > *:nth-child(5) {
+  animation-delay: 120ms;
+}
+.blog-grid-enter > *:nth-child(6) {
+  animation-delay: 150ms;
+}
+.blog-grid-enter > *:nth-child(7) {
+  animation-delay: 180ms;
+}
+.blog-grid-enter > *:nth-child(8) {
+  animation-delay: 210ms;
+}
+.blog-grid-enter > *:nth-child(9) {
+  animation-delay: 240ms;
+}
+.blog-grid-enter > *:nth-child(10) {
+  animation-delay: 270ms;
+}
+.blog-grid-enter > *:nth-child(11) {
+  animation-delay: 300ms;
+}
+.blog-grid-enter > *:nth-child(12) {
+  animation-delay: 330ms;
+}
+
+/* Smooth theme switch — .theme-transition is added to <html> for the duration
+   of a light/dark toggle, then removed so hover states stay snappy */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition:
+    background-color 0.25s ease-out,
+    border-color 0.25s ease-out,
+    color 0.25s ease-out,
+    fill 0.25s ease-out,
+    stroke 0.25s ease-out,
+    opacity 0.25s ease-out !important;
+  transition-delay: 0s !important;
+}

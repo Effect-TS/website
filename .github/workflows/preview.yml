@@ -87,13 +87,13 @@ jobs:
       - name: Generate API reference
         if: steps.api-reference-cache.outputs.cache-hit != 'true'
         run: |
-          pnpm api-reference:generate --version v3 --repo .effect-source-v3
-          pnpm api-reference:generate --version v4 --repo .effect-source-v4
+          vp run api-reference:generate --version v3 --repo .effect-source-v3
+          vp run api-reference:generate --version v4 --repo .effect-source-v4
 
       - name: Synchronize Mixedbread preview store
         if: steps.search-changes.outputs.changed == 'true'
         id: mixedbread
-        run: pnpm mixedbread:index sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"
+        run: vp run mixedbread:index sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"
         env:
           MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
 
@@ -139,6 +139,6 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Delete Mixedbread preview store
-        run: pnpm mixedbread:index delete-preview --pr "${{ github.event.pull_request.number }}"
+        run: vp run mixedbread:index delete-preview --pr "${{ github.event.pull_request.number }}"
         env:
           MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}

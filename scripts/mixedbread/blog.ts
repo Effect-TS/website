@@ -38,11 +38,17 @@ export interface StagedBlogPost {
   readonly metadata: SearchMetadata
 }
 
-const processor = unified().use(remarkParse).use(remarkMdx).use(remarkFrontmatter, ["yaml"])
+const processor = unified()
+  .use(remarkParse)
+  .use(remarkMdx)
+  .use(remarkFrontmatter, ["yaml"])
 const MAX_EXCERPT_LENGTH = 240
 const MAX_SEARCH_METADATA_LENGTH = 64_000
 
-export function stageBlogPost(source: string, relativePath: string): StagedBlogPost | undefined {
+export function stageBlogPost(
+  source: string,
+  relativePath: string,
+): StagedBlogPost | undefined {
   const initial = parseDocument(source)
   if (initial.frontmatter.draft === true) return undefined
 
@@ -63,8 +69,12 @@ export function stageBlogPost(source: string, relativePath: string): StagedBlogP
     tags: initial.frontmatter.tags,
     sections: originalSections,
   }
-  const provisionalFrontmatter = serializeFrontmatter(initial.frontmatterRecord, baseMetadata)
-  const lineDelta = countLines(provisionalFrontmatter) - frontmatterLines(initial)
+  const provisionalFrontmatter = serializeFrontmatter(
+    initial.frontmatterRecord,
+    baseMetadata,
+  )
+  const lineDelta =
+    countLines(provisionalFrontmatter) - frontmatterLines(initial)
   const metadata: SearchMetadata = {
     ...baseMetadata,
     sections: originalSections.map((section) => ({
@@ -72,9 +82,14 @@ export function stageBlogPost(source: string, relativePath: string): StagedBlogP
       line: section.line === 1 ? 1 : section.line + lineDelta,
     })),
   }
-  const finalFrontmatter = serializeFrontmatter(initial.frontmatterRecord, metadata)
+  const finalFrontmatter = serializeFrontmatter(
+    initial.frontmatterRecord,
+    metadata,
+  )
   if (countLines(finalFrontmatter) !== countLines(provisionalFrontmatter)) {
-    throw new Error(`Blog metadata changed frontmatter height for ${relativePath}`)
+    throw new Error(
+      `Blog metadata changed frontmatter height for ${relativePath}`,
+    )
   }
 
   return {
@@ -104,7 +119,8 @@ interface ParsedDocument {
 function parseDocument(source: string): ParsedDocument {
   const tree = processor.parse(source)
   const yaml = tree.children.find(isYaml)
-  if (yaml === undefined) throw new Error("Blog post must have YAML frontmatter")
+  if (yaml === undefined)
+    throw new Error("Blog post must have YAML frontmatter")
 
   const value: unknown = parseYaml(yaml.value)
   return {
@@ -136,7 +152,9 @@ function serializeFrontmatter(
     { lineWidth: 0 },
   ).trimEnd()
   if (new TextEncoder().encode(yaml).length > MAX_SEARCH_METADATA_LENGTH) {
-    throw new Error(`Generated blog frontmatter exceeds ${MAX_SEARCH_METADATA_LENGTH} bytes`)
+    throw new Error(
+      `Generated blog frontmatter exceeds ${MAX_SEARCH_METADATA_LENGTH} bytes`,
+    )
   }
   return `---\n${yaml}\n---`
 }
@@ -150,7 +168,11 @@ function frontmatterLines(parsed: ParsedDocument): number {
   return end - start + 1
 }
 
-function spliceFrontmatter(source: string, parsed: ParsedDocument, frontmatter: string): string {
+function spliceFrontmatter(
+  source: string,
+  parsed: ParsedDocument,
+  frontmatter: string,
+): string {
   const start = parsed.yaml.position?.start.offset
   const end = parsed.yaml.position?.end.offset
   if (start === undefined || end === undefined) {
@@ -201,7 +223,8 @@ function sections(
 
 function requiredHeadingLine(heading: Heading): number {
   const line = heading.position?.start.line
-  if (line === undefined) throw new Error(`Heading is missing a source line: ${toString(heading)}`)
+  if (line === undefined)
+    throw new Error(`Heading is missing a source line: ${toString(heading)}`)
   return line
 }
 

@@ -1,8 +1,7 @@
 import * as Schema from "effect/Schema"
-import assert from "node:assert/strict"
-import test from "node:test"
+import { assert, test } from "vite-plus/test"
 import { parse as parseYaml } from "yaml"
-import { DocumentationSearchMetadata } from "../../src/services/search/domain.ts"
+import { DocumentationSearchMetadata } from "../../apps/web/src/services/search/domain.ts"
 import { stageDocument } from "./documentation.ts"
 
 test("stages source-preserving documentation metadata", () => {
@@ -32,9 +31,18 @@ sidebar:
   )
 
   assert.ok(document)
-  assert.equal(document.source.slice(document.source.indexOf("---", 3) + 3), body)
-  assert.deepEqual(document.metadata.breadcrumbs, ["Getting Started", "Control flow"])
-  assert.equal(document.metadata.page_href, "/docs/v4/getting-started/control-flow")
+  assert.equal(
+    document.source.slice(document.source.indexOf("---", 3) + 3),
+    body,
+  )
+  assert.deepEqual(document.metadata.breadcrumbs, [
+    "Getting Started",
+    "Control flow",
+  ])
+  assert.equal(
+    document.metadata.page_href,
+    "/docs/v4/getting-started/control-flow",
+  )
   assert.deepEqual(
     document.metadata.sections.map(({ title, anchor, parent_anchor }) => ({
       title,
@@ -60,7 +68,10 @@ sidebar:
       },
     ],
   )
-  assert.equal(document.metadata.sections[1]?.excerpt, "Use Effect.forEach for every element.")
+  assert.equal(
+    document.metadata.sections[1]?.excerpt,
+    "Use Effect.forEach for every element.",
+  )
 
   const lines = document.source.split("\n")
   for (const section of document.metadata.sections.slice(1)) {
@@ -74,7 +85,10 @@ sidebar:
   )(parseYaml(yaml))
   assert.equal(stagedMetadata.search.sections[2]?.title, "Concurrency options")
 
-  const restaged = stageDocument(document.source, "v4/getting-started/control-flow.mdx")
+  const restaged = stageDocument(
+    document.source,
+    "v4/getting-started/control-flow.mdx",
+  )
   assert.deepEqual(restaged, document)
 })
 
