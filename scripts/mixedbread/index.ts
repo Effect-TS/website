@@ -39,7 +39,7 @@ type MixedbreadError =
 
 class FailedToDeleteError extends Data.TaggedError("FailedToDeleteError")<{
   readonly file: MixedbreadClient.Stores.StoreFile
-  readonly cause?: unknown | undefined
+  readonly cause?: unknown
 }> {
   override get message(): string {
     return `Mixedbread failed to delete file: ${this.file.external_id}`
@@ -48,7 +48,7 @@ class FailedToDeleteError extends Data.TaggedError("FailedToDeleteError")<{
 
 class FailedToIndexError extends Data.TaggedError("FailedToIndexError")<{
   readonly externalId: string
-  readonly cause?: unknown | undefined
+  readonly cause?: unknown
 }> {
   override get message(): string {
     return `Mixedbread failed to index ${this.externalId}`
@@ -63,7 +63,7 @@ class FileInProgressError extends Data.TaggedError("FileInProgressError")<{
 
 class InvalidStoreError extends Data.TaggedError("InvalidStoreError")<{
   readonly message: string
-  readonly cause?: unknown | undefined
+  readonly cause?: unknown
 }> {}
 
 class UnknownError extends Data.TaggedError("UnknownError")<{

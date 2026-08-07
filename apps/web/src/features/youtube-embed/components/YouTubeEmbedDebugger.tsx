@@ -325,7 +325,7 @@ function StatePill({
   )
 }
 
-const parseDebugEvent = (event: string): unknown | null => {
+const parseDebugEvent = (event: string): unknown => {
   try {
     return JSON.parse(event)
   } catch {
@@ -344,7 +344,7 @@ const getDebugEventLabel = (event: unknown): string => {
   return "unknown"
 }
 
-const formatDebugEvent = (parsed: unknown | null, raw: string): string => {
+const formatDebugEvent = (parsed: unknown, raw: string): string => {
   if (parsed === null) return raw
   return JSON.stringify(parsed, null, 2)
 }
