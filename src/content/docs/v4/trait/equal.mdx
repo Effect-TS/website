@@ -21,7 +21,7 @@ Here are some key reasons why Effect exports an Equal module:
 
 In Effect it's advisable to **stop using** JavaScript's `===` and `==` operators and instead rely on the `Equal.equals` function.
 This function can work with any data type that implements the `Equal` interface.
-Some examples of such data types include [Option](/docs/data-types/option/), [Result](/docs/data-types/result/), [HashSet](https://effect-ts.github.io/effect/effect/HashSet.ts.html), and [HashMap](https://effect-ts.github.io/effect/effect/HashMap.ts.html).
+Some examples of such data types include [Option](/docs/data-types/option/), [Result](/docs/data-types/result/), [HashSet](/docs/v4/api/effect/HashSet), and [HashMap](/docs/v4/api/effect/HashMap).
 
 By default, `Equal.equals` performs a deep structural comparison. Plain objects, arrays, `Map`s, `Set`s, `Date`s, and `RegExp`s are compared by their contents, not their reference, even if they don't implement the `Equal` interface:
 
@@ -178,7 +178,7 @@ console.log(set.size)
 
 Even though the two elements in the set have the same values, the set contains two elements. Why? JavaScript's `Set` checks for equality by reference, not by values. This is unaffected by Effect's `Equal` module, since the native `Set` never consults it.
 
-To perform value-based equality checks, you'll need to use the `Hash*` collection types available in the `effect` package. These collection types, such as [HashSet](https://effect-ts.github.io/effect/effect/HashSet.ts.html) and [HashMap](https://effect-ts.github.io/effect/effect/HashMap.ts.html), use `Equal.equals` for comparisons — which means plain objects, arrays, and other structurally-comparable values are deduplicated automatically, without needing any extra setup.
+To perform value-based equality checks, you'll need to use the `Hash*` collection types available in the `effect` package. These collection types, such as [HashSet](/docs/v4/api/effect/HashSet) and [HashMap](/docs/v4/api/effect/HashMap), use `Equal.equals` for comparisons — which means plain objects, arrays, and other structurally-comparable values are deduplicated automatically, without needing any extra setup.
 
 ### HashSet
 
