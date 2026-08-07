@@ -11,9 +11,9 @@ The Data module simplifies creating and handling data structures in TypeScript. 
 
 ## Value Equality
 
-The Data module provides constructors for creating data types with built-in support for equality and hashing, eliminating the need for custom implementations.
+In v4, plain JavaScript objects, arrays, tuples, `Map`s, and `Set`s get structural equality with `Equal.equals` by default — no special constructor is required. See [Equal](/docs/trait/equal/) for the full explanation.
 
-This means that two values created using these constructors are considered equal if they have the same structure and values.
+This means that two plain values are considered equal if they have the same structure and values.
 
 ### struct
 
@@ -29,123 +29,96 @@ const alice = { name: "Alice", age: 30 }
 console.log(alice === { name: "Alice", age: 30 }) // Output: false
 ```
 
-However, the `Data.struct` constructor allows you to compare values based on their structure and content.
+However, `Equal.equals` lets you compare the same two objects based on their structure and content.
 
-**Example** (Creating and Checking Equality of Structs)
+**Example** (Checking Equality of Plain Objects)
 
-```ts twoslash
-import { Data, Equal } from "effect"
+```ts twoslash import.meta.vitest name="struct-1"
+import { Equal } from "effect"
 
 //      ┌─── { readonly name: string; readonly age: number; }
 //      ▼
-const alice = Data.struct({ name: "Alice", age: 30 })
+const alice = { name: "Alice", age: 30 }
 
 // Check if Alice is equal to a new object
 // with the same structure and values
-console.log(Equal.equals(alice, Data.struct({ name: "Alice", age: 30 })))
-// Output: true
-
-// Check if Alice is equal to a plain JavaScript object
-// with the same content
 console.log(Equal.equals(alice, { name: "Alice", age: 30 }))
-// Output: false
-```
-
-The comparison performed by `Equal.equals` is **shallow**, meaning nested objects are not compared recursively unless they are also created using `Data.struct`.
-
-**Example** (Shallow Comparison with Nested Objects)
-
-```ts twoslash
-import { Data, Equal } from "effect"
-
-const nested = Data.struct({ name: "Alice", nested_field: { value: 42 } })
-
-// This will be false because the nested objects are compared by reference
-console.log(Equal.equals(nested, Data.struct({ name: "Alice", nested_field: { value: 42 } })))
-// Output: false
-```
-
-To ensure nested objects are compared by structure, use `Data.struct` for them as well.
-
-**Example** (Correctly Comparing Nested Objects)
-
-```ts twoslash
-import { Data, Equal } from "effect"
-
-const nested = Data.struct({
-  name: "Alice",
-  nested_field: Data.struct({ value: 42 }),
-})
-
-// Now, the comparison returns true
-console.log(
-  Equal.equals(
-    nested,
-    Data.struct({
-      name: "Alice",
-      nested_field: Data.struct({ value: 42 }),
-    }),
-  ),
-)
 // Output: true
+```
+
+The comparison performed by `Equal.equals` is **deep**: nested objects are compared recursively, with no extra work required.
+
+**Example** (Deep Comparison of Nested Objects)
+
+```ts twoslash import.meta.vitest name="struct-2"
+import { Equal } from "effect"
+
+const nested = { name: "Alice", nested_field: { value: 42 } }
+
+// Nested objects are compared recursively, so this is true
+console.log(Equal.equals(nested, { name: "Alice", nested_field: { value: 42 } }))
+// Output: true
+```
+
+A different nested value makes the objects unequal, as you would expect.
+
+**Example** (Nested Objects with Different Values)
+
+```ts twoslash import.meta.vitest name="struct-3"
+import { Equal } from "effect"
+
+const nested = { name: "Alice", nested_field: { value: 42 } }
+
+console.log(Equal.equals(nested, { name: "Alice", nested_field: { value: 43 } }))
+// Output: false
 ```
 
 ### tuple
 
-To represent your data using tuples, you can use the `Data.tuple` constructor. This ensures that your tuples can be compared structurally.
+Plain arrays used as tuples are compared structurally as well.
 
-**Example** (Creating and Checking Equality of Tuples)
+**Example** (Checking Equality of Tuples)
 
-```ts twoslash
-import { Data, Equal } from "effect"
+```ts twoslash import.meta.vitest name="tuple-1"
+import { Equal } from "effect"
 
 //      ┌─── readonly [string, number]
 //      ▼
-const alice = Data.tuple("Alice", 30)
+const alice = ["Alice", 30] as const
 
 // Check if Alice is equal to a new tuple
 // with the same structure and values
-console.log(Equal.equals(alice, Data.tuple("Alice", 30)))
-// Output: true
-
-// Check if Alice is equal to a plain JavaScript tuple
-// with the same content
 console.log(Equal.equals(alice, ["Alice", 30]))
-// Output: false
+// Output: true
 ```
 
-<Aside type="caution" title="Shallow Comparison">
-  `Equal.equals` only checks the top-level structure. Use `Data` constructors for nested objects if
-  you need deep comparisons.
+<Aside type="tip" title="Deep Comparison">
+  `Equal.equals` compares arrays and tuples recursively, including any nested objects or arrays,
+  with no extra work required.
 </Aside>
 
 ### array
 
-You can use `Data.array` to create an array-like data structure that supports structural equality.
+Plain arrays support structural equality too.
 
-**Example** (Creating and Checking Equality of Arrays)
+**Example** (Checking Equality of Arrays)
 
-```ts twoslash
-import { Data, Equal } from "effect"
+```ts twoslash import.meta.vitest name="array-1"
+import { Equal } from "effect"
 
 //      ┌─── readonly number[]
 //      ▼
-const numbers = Data.array([1, 2, 3, 4, 5])
+const numbers = [1, 2, 3, 4, 5]
 
 // Check if the array is equal to a new array
 // with the same values
-console.log(Equal.equals(numbers, Data.array([1, 2, 3, 4, 5])))
-// Output: true
-
-// Check if the array is equal to a plain JavaScript array
-// with the same content
 console.log(Equal.equals(numbers, [1, 2, 3, 4, 5]))
-// Output: false
+// Output: true
 ```
 
-<Aside type="caution" title="Shallow Comparison">
-  `Equal.equals` only checks the top-level structure. Use `Data` constructors for nested objects if
-  you need deep comparisons.
+<Aside type="tip" title="Deep Comparison">
+  `Equal.equals` compares arrays and tuples recursively, including any nested objects or arrays,
+  with no extra work required.
 </Aside>
 
 ## Constructors
@@ -155,19 +128,19 @@ These operations include generating **constructors**, handling **equality** chec
 
 Case classes can be defined in two primary ways:
 
-- as plain objects using `case` or `tagged`
-- as TypeScript classes using `Class` or `TaggedClass`
+- as plain objects, using an ordinary factory function when you want a reusable constructor — equality and hashing come for free
+- as TypeScript classes using `Class` or `TaggedClass`, when you want a class-oriented structure with methods and custom logic
 
-### case
+### Constructor functions
 
-The `Data.case` helper generates constructors and built-in support for equality checks and hashing for your data type.
+A plain factory function that returns an object literal gives you a reusable constructor. Since v4 gives plain objects structural equality by default, no special helper is needed for equality or hashing.
 
-**Example** (Defining a Case Class and Checking Equality)
+**Example** (Defining a Constructor Function and Checking Equality)
 
-In this example, `Data.case` is used to create a constructor for `Person`. The resulting instances have built-in support for equality checks, allowing you to compare them directly using `Equal.equals`.
+In this example, a plain arrow function creates a constructor for `Person`. The resulting instances are plain objects, so they already support equality checks — you can compare them directly using `Equal.equals`.
 
-```ts twoslash
-import { Data, Equal } from "effect"
+```ts twoslash import.meta.vitest name="constructor-functions-1"
+import { Equal } from "effect"
 
 interface Person {
   readonly name: string
@@ -175,9 +148,9 @@ interface Person {
 
 // Create a constructor for `Person`
 //
-//      ┌─── (args: { readonly name: string; }) => Person
+//      ┌─── (args: Person) => Person
 //      ▼
-const make = Data.case<Person>()
+const make = (args: Person): Person => ({ ...args })
 
 const alice = make({ name: "Alice" })
 
@@ -188,12 +161,12 @@ console.log(Equal.equals(alice, make({ name: "John" })))
 // Output: false
 ```
 
-**Example** (Defining and Comparing Nested Case Classes)
+**Example** (Defining and Comparing Nested Data)
 
-This example demonstrates using `Data.case` to create nested data structures, such as a `Person` type containing an `Address`. Both `Person` and `Address` constructors support equality checks.
+This example demonstrates nested data structures, such as a `Person` type containing an `Address`. Both `Person` and `Address` constructors return plain objects, so equality checks work out of the box.
 
-```ts twoslash
-import { Data, Equal } from "effect"
+```ts twoslash import.meta.vitest name="constructor-functions-2"
+import { Equal } from "effect"
 
 interface Address {
   readonly street: string
@@ -201,7 +174,7 @@ interface Address {
 }
 
 // Create a constructor for `Address`
-const Address = Data.case<Address>()
+const Address = (args: Address): Address => ({ ...args })
 
 interface Person {
   readonly name: string
@@ -209,7 +182,7 @@ interface Person {
 }
 
 // Create a constructor for `Person`
-const Person = Data.case<Person>()
+const Person = (args: Person): Person => ({ ...args })
 
 const alice = Person({
   name: "Alice",
@@ -225,12 +198,12 @@ console.log(Equal.equals(alice, anotherAlice))
 // Output: true
 ```
 
-Alternatively, you can use `Data.struct` to create nested data structures without defining a separate `Address` constructor.
+Since nested plain objects are also compared structurally by default, you don't even need a separate `Address` constructor — an inline object literal works just as well.
 
-**Example** (Using `Data.struct` for Nested Objects)
+**Example** (Using a Plain Object Literal for Nested Data)
 
-```ts twoslash
-import { Data, Equal } from "effect"
+```ts twoslash import.meta.vitest name="constructor-functions-3"
+import { Equal } from "effect"
 
 interface Person {
   readonly name: string
@@ -241,28 +214,28 @@ interface Person {
 }
 
 // Create a constructor for `Person`
-const Person = Data.case<Person>()
+const Person = (args: Person): Person => ({ ...args })
 
 const alice = Person({
   name: "Alice",
-  address: Data.struct({ street: "123 Main St", city: "Wonderland" }),
+  address: { street: "123 Main St", city: "Wonderland" },
 })
 
 const anotherAlice = Person({
   name: "Alice",
-  address: Data.struct({ street: "123 Main St", city: "Wonderland" }),
+  address: { street: "123 Main St", city: "Wonderland" },
 })
 
 console.log(Equal.equals(alice, anotherAlice))
 // Output: true
 ```
 
-**Example** (Defining and Comparing Recursive Case Classes)
+**Example** (Defining and Comparing Recursive Data)
 
-This example demonstrates a recursive structure using `Data.case` to define a binary tree where each node can contain other nodes.
+This example demonstrates a recursive structure defining a binary tree where each node can contain other nodes.
 
-```ts twoslash
-import { Data, Equal } from "effect"
+```ts twoslash import.meta.vitest name="constructor-functions-4"
+import { Equal } from "effect"
 
 interface BinaryTree<T> {
   readonly value: T
@@ -270,8 +243,8 @@ interface BinaryTree<T> {
   readonly right: BinaryTree<T> | null
 }
 
-// Create a constructor for `BinaryTree`
-const BinaryTree = Data.case<BinaryTree<number>>()
+// Create a constructor for `BinaryTree<number>`
+const BinaryTree = (args: BinaryTree<number>): BinaryTree<number> => ({ ...args })
 
 const tree1 = BinaryTree({
   value: 0,
@@ -289,44 +262,40 @@ console.log(Equal.equals(tree1, tree2))
 // Output: true
 ```
 
-### tagged
+### Tagged constructor functions
 
-When you're working with a data type that includes a tag field, like in disjoint union types, defining the tag manually for each instance can get repetitive. Using the `case` approach requires you to specify the tag field every time, which can be cumbersome.
+When you're working with a data type that includes a tag field, like in disjoint union types, defining the tag manually for each instance can get repetitive.
 
-**Example** (Defining a Tagged Case Class Manually)
+**Example** (Defining a Tagged Constructor Manually)
 
-Here, we create a `Person` type with a `_tag` field using `Data.case`. Notice that the `_tag` needs to be specified for every new instance.
+Here, we create a `Person` type with a `_tag` field. Notice that the `_tag` needs to be specified for every new instance.
 
 ```ts twoslash
-import { Data } from "effect"
-
 interface Person {
   readonly _tag: "Person" // the tag
   readonly name: string
 }
 
-const Person = Data.case<Person>()
+const Person = (args: Person): Person => ({ ...args })
 
 // Repeating `_tag: 'Person'` for each instance
 const alice = Person({ _tag: "Person", name: "Alice" })
 const bob = Person({ _tag: "Person", name: "Bob" })
 ```
 
-To streamline this process, the `Data.tagged` helper automatically adds the tag. It follows the convention in the Effect ecosystem of naming the tag field as `"_tag"`.
+To streamline this process, write a constructor function that adds the tag automatically. It follows the convention in the Effect ecosystem of naming the tag field as `"_tag"`.
 
-**Example** (Using Data.tagged to Simplify Tagging)
+**Example** (Simplifying Tagging with a Constructor Function)
 
-The `Data.tagged` helper allows you to define the tag just once, making instance creation simpler.
+This way you define the tag just once, making instance creation simpler.
 
-```ts twoslash
-import { Data } from "effect"
-
+```ts twoslash import.meta.vitest name="tagged-constructor-functions-1"
 interface Person {
   readonly _tag: "Person" // the tag
   readonly name: string
 }
 
-const Person = Data.tagged<Person>("Person")
+const Person = (args: Omit<Person, "_tag">): Person => ({ ...args, _tag: "Person" })
 
 // The `_tag` field is automatically added
 const alice = Person({ name: "Alice" })
@@ -338,7 +307,7 @@ console.log(alice)
 
 ### Class
 
-If you prefer working with classes instead of plain objects, you can use `Data.Class` as an alternative to `Data.case`. This approach may feel more natural in scenarios where you want a class-oriented structure, complete with methods and custom logic.
+If you prefer working with classes instead of plain objects, you can use `Data.Class` as an alternative to a constructor function. This approach may feel more natural in scenarios where you want a class-oriented structure, complete with methods and custom logic.
 
 **Example** (Using Data.Class for a Class-Oriented Structure)
 

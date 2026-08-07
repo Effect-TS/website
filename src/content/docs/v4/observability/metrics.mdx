@@ -443,8 +443,6 @@ Summaries are commonly used to calculate **quantiles** over this sliding window.
 
 Quantiles are helpful for monitoring important performance metrics, such as latency, and for ensuring that your system meets performance goals (like Service Level Agreements, or SLAs).
 
-The Effect Metrics API also allows you to configure summaries with an **error margin**. This margin introduces a range of acceptable values for quantiles, improving the accuracy of the result.
-
 Summaries are particularly useful in cases where:
 
 - The range of values you're observing is not known or estimated in advance, making histograms less practical.
@@ -456,7 +454,6 @@ In this example, we will create a summary to track response times. The summary w
 
 - Hold up to `100` samples.
 - Discard samples older than `1 day`.
-- Have a `3%` error margin when calculating quantiles.
 - Report the `10%`, `50%`, and `90%` quantiles, which help track response time distributions.
 
 We'll apply the summary to an effect that generates random integers, simulating response times.
@@ -488,18 +485,16 @@ const program = Effect.gen(function* () {
 Effect.runPromise(program)
 /*
 Example Output:
-SummaryState {
-  error: 0.03,    // Error margin used for quantile calculation
+{
   quantiles: [
-    [ 0.1, { _id: 'Option', _tag: 'Some', value: 17 } ],   // 10th percentile: 17 ms
-    [ 0.5, { _id: 'Option', _tag: 'Some', value: 62 } ],   // 50th percentile (median): 62 ms
-    [ 0.9, { _id: 'Option', _tag: 'Some', value: 109 } ]   // 90th percentile: 109 ms
+    [ 0.1, 17 ],   // 10th percentile: 17 ms
+    [ 0.5, 62 ],   // 50th percentile (median): 62 ms
+    [ 0.9, 109 ]   // 90th percentile: 109 ms
   ],
   count: 100,    // Total number of samples recorded
   min: 4,        // Minimum observed value
   max: 119,      // Maximum observed value
-  sum: 6058,     // Sum of all recorded values
-  ...
+  sum: 6058      // Sum of all recorded values
 }
 */
 ```

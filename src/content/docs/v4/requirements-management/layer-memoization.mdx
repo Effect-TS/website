@@ -166,35 +166,36 @@ timestamp=... level=INFO fiber=#0 message=initialized
 
 ## Manual Memoization
 
-We can memoize a layer manually using the `Layer.memoize` function.
-It will return a scoped effect that, if evaluated, will return the lazily computed result of this layer.
+We can memoize a layer manually using a `Layer.MemoMap`. A `MemoMap` tracks which layers have already been built so that building the same layer again, against the same `MemoMap`, reuses the earlier result instead of re-running its acquisition effect.
+
+Create a `MemoMap` with `Layer.makeMemoMap`, then build a layer into a `Context` with `Layer.buildWithMemoMap`, passing the `MemoMap` and a `Scope`.
 
 **Example**
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="manual-memoization-1"
 import { Effect, Context, Layer } from "effect"
 
-class A extends Context.Tag("A")<A, { readonly a: number }>() {}
+class A extends Context.Service<A, { readonly a: number }>()("A") {}
 
 const ALive = Layer.effect(
   A,
   Effect.succeed({ a: 5 }).pipe(Effect.tap(() => Effect.log("initialized"))),
 )
 
-const program = Effect.scoped(
-  Layer.memoize(ALive).pipe(
-    Effect.andThen((memoized) =>
-      Effect.gen(function* () {
-        yield* Effect.provide(A, memoized)
-        yield* Effect.provide(A, memoized)
-      }),
-    ),
-  ),
-)
+const program = Effect.gen(function* () {
+  const memoMap = yield* Layer.makeMemoMap
+  const scope = yield* Effect.scope
 
-Effect.runPromise(program)
+  const context1 = yield* Layer.buildWithMemoMap(ALive, memoMap, scope)
+  const context2 = yield* Layer.buildWithMemoMap(ALive, memoMap, scope)
+
+  yield* Effect.provide(A, context1)
+  yield* Effect.provide(A, context2)
+})
+
+Effect.runPromise(Effect.scoped(program))
 /*
 Output:
-timestamp=... level=INFO fiber=#0 message=initialized
+timestamp=... level=INFO fiber=#1 message=initialized
 */
 ```

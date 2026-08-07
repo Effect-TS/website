@@ -175,18 +175,18 @@ console.log(HashSet.size(set))
 // Output: 1
 ```
 
-### Simplifying Equality with Data and Schema
+### Simplifying Equality with Plain Objects and Schema
 
-Effect's [`Data`](/docs/data-types/data/) and [`Schema.Data`](/docs/schema/effect-data-types/#interop-with-data) modules implement `Equal` for you automatically, based on structural equality.
+In v4, plain objects implement [`Equal`](/docs/trait/equal/) automatically, based on structural equality — no wrapper needed. Values decoded with `Schema` already benefit from this, as shown below.
 
-**Example** (Using `Data.struct`)
+**Example** (Structural Equality of Plain Objects)
 
-```ts twoslash
-import { Data, Equal, HashSet, pipe } from "effect"
+```ts twoslash import.meta.vitest name="structural-equality-of-plain-objects-1"
+import { Equal, HashSet, pipe } from "effect"
 
 // Define two records with the same content
-const person1 = Data.struct({ id: 1, name: "Alice", age: 30 })
-const person2 = Data.struct({ id: 1, name: "Alice", age: 30 })
+const person1 = { id: 1, name: "Alice", age: 30 }
+const person2 = { id: 1, name: "Alice", age: 30 }
 
 // They are different object references
 console.log(Object.is(person1, person2))

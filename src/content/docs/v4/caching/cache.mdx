@@ -14,7 +14,7 @@ Key Features of Cache:
 | **Compositionality**              | Allows overlapping work across different parts of the application while preserving compositional programming.          |
 | **Unified Sync and Async Caches** | Integrates both synchronous and asynchronous caches through a unified lookup function that computes values either way. |
 | **Effect Integration**            | Works natively with the Effect library, supporting concurrent lookups, failure handling, and interruption.             |
-| **Cache Metrics**                 | Tracks key metrics like entries, hits, and misses, providing insights for performance optimization.                    |
+| **Cache Inspection**              | Provides functions like `Cache.size`, `Cache.keys`, and `Cache.entries` to inspect the current state of the cache.     |
 
 ## Creating a Cache
 
@@ -36,8 +36,8 @@ declare const make: <Key, Value, Error, Requirements>(options: {
 }) => Effect<Cache<Key, Value, Error>, never, Requirements>
 ```
 
-Once a cache is created, the most idiomatic way to work with it is the `get` method.
-The `get` method returns the current value in the cache if it exists, or computes a new value, puts it in the cache, and returns it.
+Once a cache is created, the most idiomatic way to work with it is `Cache.get`.
+`Cache.get` returns the current value in the cache if it exists, or computes a new value, puts it in the cache, and returns it.
 
 If multiple concurrent processes request the same value, it will only be computed once. All other processes will receive the computed value as soon as it is available. This is managed using Effect's fiber-based concurrency model without blocking the underlying thread.
 
@@ -46,11 +46,11 @@ If multiple concurrent processes request the same value, it will only be compute
 In this example, we call `timeConsumingEffect` three times concurrently with the same key.
 The cache runs this effect only once, so concurrent lookups will wait until the value is available:
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="concurrent-cache-lookups-1"
 import { Effect, Cache, Duration } from "effect"
 
 // Simulating an expensive lookup with a delay
-const expensiveLookup = (key: string) => Effect.sleep("2 seconds").pipe(Effect.as(key.length))
+const expensiveLookup = (key: string) => Effect.sleep("100 millis").pipe(Effect.as(key.length))
 
 const program = Effect.gen(function* () {
   // Create a cache with a capacity of 100 and an infinite TTL
@@ -61,24 +61,22 @@ const program = Effect.gen(function* () {
   })
 
   // Perform concurrent lookups using the same key
-  const result = yield* Effect.all([cache.get("key1"), cache.get("key1"), cache.get("key1")], {
-    concurrency: "unbounded",
-  })
+  const result = yield* Effect.all(
+    [Cache.get(cache, "key1"), Cache.get(cache, "key1"), Cache.get(cache, "key1")],
+    { concurrency: "unbounded" },
+  )
   console.log("Result of parallel execution of three effects" + `with the same key: ${result}`)
 
-  // Fetch and display cache stats
-  const hits = yield* cache.cacheStats.pipe(Effect.map((stats) => stats.hits))
-  console.log(`Number of cache hits: ${hits}`)
-  const misses = yield* cache.cacheStats.pipe(Effect.map((stats) => stats.misses))
-  console.log(`Number of cache misses: ${misses}`)
+  // The lookup only ran once, so the cache now holds a single entry
+  const size = yield* Cache.size(cache)
+  console.log(`Cache size: ${size}`)
 })
 
 Effect.runPromise(program)
 /*
 Output:
 Result of parallel execution of three effects with the same key: 4,4,4
-Number of cache hits: 2
-Number of cache misses: 1
+Cache size: 1
 */
 ```
 
@@ -96,14 +94,14 @@ A cache is created with a specified capacity. When the cache reaches capacity, t
 
 A cache can also have a specified time to live (TTL). Values older than the TTL will not be returned. The age is calculated from when the value was loaded into the cache.
 
-## Methods
+## Functions
 
-In addition to `get`, the cache provides several other methods:
+In addition to `Cache.get`, the `Cache` module provides several other functions for working with a cache. Each takes the cache as its first argument, for example `Cache.refresh(cache, key)`:
 
-| Method          | Description                                                                                                                                                                |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `refresh`       | Triggers a recomputation of the value for a key without removing the old value, allowing continued access.                                                                 |
-| `size`          | Returns the current size of the cache. The size is approximate under concurrent conditions.                                                                                |
-| `has`           | Checks if a value associated with a specified key exists in the cache. Under concurrent access, the result is valid as of the check time but may change immediately after. |
-| `invalidate`    | Evicts the value associated with a specific key.                                                                                                                           |
-| `invalidateAll` | Evicts all values from the cache.                                                                                                                                          |
+| Function              | Description                                                                                                                                                                |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Cache.refresh`       | Triggers a recomputation of the value for a key without removing the old value, allowing continued access.                                                                 |
+| `Cache.size`          | Returns the current size of the cache. The size is approximate under concurrent conditions.                                                                                |
+| `Cache.has`           | Checks if a value associated with a specified key exists in the cache. Under concurrent access, the result is valid as of the check time but may change immediately after. |
+| `Cache.invalidate`    | Evicts the value associated with a specific key.                                                                                                                           |
+| `Cache.invalidateAll` | Evicts all values from the cache.                                                                                                                                          |

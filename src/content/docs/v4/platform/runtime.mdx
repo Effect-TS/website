@@ -13,8 +13,6 @@ sidebar:
   If your effect fails or is interrupted, `runMain` assigns a suitable exit code (for example, `1` for errors and `0` for success).
 - **Logs**
   By default, it records errors. This can be turned off if needed.
-- **Pretty Logging**
-  By default, error messages are recorded using a "pretty" format. You can switch this off when required.
 - **Interrupt Handling**
   If the application receives `SIGINT` (Ctrl+C) or a similar signal, `runMain` will interrupt the effect and still run any necessary teardown steps.
 - **Teardown Logic**
@@ -25,7 +23,6 @@ sidebar:
 When calling `runMain`, pass in a configuration object with these fields (all optional):
 
 - `disableErrorReporting`: If `true`, errors are not automatically logged.
-- `disablePrettyLogger`: If `true`, it avoids adding the "pretty" logger.
 - `teardown`: Provide a custom function for finalizing the program. If missing, the default sets exit code `1` for a non-interrupted failure.
 
 **Example** (Running a Successful Program)
@@ -53,21 +50,6 @@ NodeRuntime.runMain(failure)
 Output:
 [12:43:07.186] ERROR (#0):
   Error: Uh oh!
-*/
-```
-
-**Example** (Running a Failing Program Without Pretty Logger)
-
-```ts twoslash
-import { NodeRuntime } from "@effect/platform-node"
-import { Effect } from "effect"
-
-const failure = Effect.fail("Uh oh!")
-
-NodeRuntime.runMain(failure, { disablePrettyLogger: true })
-/*
-Output:
-timestamp=2025-01-14T11:43:46.276Z level=ERROR fiber=#0 cause="Error: Uh oh!"
 */
 ```
 

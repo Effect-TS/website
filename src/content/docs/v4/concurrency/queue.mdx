@@ -360,24 +360,25 @@ const program = Effect.gen(function* () {
 })
 ```
 
-### awaitShutdown
+### await
 
-The `Queue.await` operation can be used to run an effect when the queue shuts down. It waits until the queue is closed and resumes immediately if the queue is already shut down.
+The `Queue.await` operation waits until the queue reaches its `Done` state. Because `Queue.shutdown` completes the queue with an interrupt cause, an effect that is awaiting shutdown is itself interrupted, not resolved as a normal success. To run cleanup logic regardless of that outcome, use `Effect.onExit` instead of `Effect.andThen`, and use `Fiber.await` instead of `Fiber.join` so the interruption does not propagate to the fiber that joins it.
 
 **Example** (Waiting for Queue Shutdown)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="await-shutdown-1"
 import { Effect, Queue, Fiber, Console } from "effect"
 
 const program = Effect.gen(function* () {
   const queue = yield* Queue.bounded<number>(3)
-  // Forks a fiber to await queue shutdown and log a message
+  // Forks a fiber to await queue shutdown and log a message,
+  // regardless of whether the wait completes or is interrupted
   const fiber = yield* Effect.forkChild(
-    Queue.awaitShutdown(queue).pipe(Effect.andThen(Console.log("shutting down"))),
+    Queue.await(queue).pipe(Effect.onExit(() => Console.log("shutting down"))),
   )
-  // Shuts down the queue, triggering the await in the fiber
+  // Shuts down the queue, triggering (and interrupting) the await in the fiber
   yield* Queue.shutdown(queue)
-  yield* Fiber.join(fiber)
+  yield* Fiber.await(fiber)
 })
 
 Effect.runPromise(program)

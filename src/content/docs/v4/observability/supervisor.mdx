@@ -1,80 +1,63 @@
 ---
-title: Supervisor
-description: Effect's Supervisor manages fiber lifecycles, enabling tracking, monitoring, and controlling fibers' behavior within an application.
+title: Fiber Supervision
+description: Track the fibers forked by your program using FiberSet and FiberMap, Effect's v4 primitives for managing many fibers together.
 sidebar:
   order: 3
 ---
 
-A `Supervisor<A>` is a utility for managing fibers in Effect, allowing you to track their lifecycle (creation and termination) and producing a value of type `A` that reflects this supervision. Supervisors are useful when you need insight into or control over the behavior of fibers within your application.
+import { Aside } from "@astrojs/starlight/components"
 
-To create a supervisor, you can use the `Supervisor.track` function. This generates a new supervisor that keeps track of its child fibers, maintaining them in a set. This allows you to observe and monitor their status during execution.
+Unlike in v3, there is no standalone `Supervisor` type or `Effect.supervised` function in v4 — the entire `effect/Supervisor` module (`Supervisor.track`, `Effect.supervised`, `effect/FiberStatus`) was removed with no direct replacement. Instead, v4 exposes structured-concurrency primitives that track a set of fibers directly: `FiberSet` for an unkeyed collection, and `FiberMap` for a collection keyed by an arbitrary value. Both automatically remove a fiber once it completes, and interrupt every fiber they still hold when their owning `Scope` closes.
 
-You can supervise an effect by using the `Effect.supervised` function. This function takes a supervisor as an argument and returns an effect where all child fibers forked within it are supervised by the provided supervisor. This enables you to capture detailed information about these child fibers, such as their status, through the supervisor.
+## Tracking Fibers with FiberSet
+
+A `FiberSet<A, E>` collects fibers so they can be observed, joined, or interrupted together. You add fibers to it with `FiberSet.run` (fork an effect and track the resulting fiber) or `FiberSet.add` (track a fiber you already forked), and inspect it with `FiberSet.size` or by iterating over it directly.
 
 **Example** (Monitoring Fiber Count)
 
-In this example, we'll periodically monitor the number of fibers running in the application using a supervisor. The program calculates a Fibonacci number, spawning multiple fibers in the process, while a separate monitor tracks the fiber count.
+In this example, we periodically monitor the number of fibers running in the application while calculating a Fibonacci number. The program forks two child fibers for every recursive step, adding each to a shared `FiberSet`, while a separate monitor fiber logs the set's size on a schedule until the calculation finishes.
 
 ```ts twoslash
-import { Effect, Supervisor, Schedule, Fiber, FiberStatus } from "effect"
+import { Console, Effect, Fiber, FiberSet, Schedule } from "effect"
 
 // Main program that monitors fibers while calculating a Fibonacci number
 const program = Effect.gen(function* () {
-  // Create a supervisor to track child fibers
-  const supervisor = yield* Supervisor.track
+  // Create a FiberSet to track child fibers
+  const set = yield* FiberSet.make<number>()
 
-  // Start a Fibonacci calculation, supervised by the supervisor
-  const fibFiber = yield* fib(20).pipe(
-    Effect.supervised(supervisor),
-    // Fork the Fibonacci effect into a fiber
-    Effect.fork,
+  // Start a Fibonacci calculation, forking every recursive step into the set
+  const fibFiber = yield* Effect.forkChild(fib(10, set))
+
+  // Start monitoring the fibers, logging the FiberSet's size every 20ms
+  const monitorFiber = yield* Effect.forkChild(
+    monitorFibers(set).pipe(Effect.repeat(Schedule.spaced("20 millis"))),
   )
 
-  // Define a schedule to periodically monitor the fiber count every 500ms
-  const policy = Schedule.spaced("500 millis").pipe(
-    Schedule.whileInputEffect((_) =>
-      Fiber.status(fibFiber).pipe(
-        // Continue while the Fibonacci fiber is not done
-        Effect.andThen((status) => status !== FiberStatus.done),
-      ),
-    ),
-  )
-
-  // Start monitoring the fibers, using the supervisor to track the count
-  const monitorFiber = yield* monitorFibers(supervisor).pipe(
-    // Repeat the monitoring according to the schedule
-    Effect.repeat(policy),
-    // Fork the monitoring into its own fiber
-    Effect.fork,
-  )
-
-  // Join the monitor and Fibonacci fibers to ensure they complete
-  yield* Fiber.join(monitorFiber)
+  // Wait for the Fibonacci calculation to finish, then stop the monitor
   const result = yield* Fiber.join(fibFiber)
+  yield* Fiber.interrupt(monitorFiber)
 
   console.log(`fibonacci result: ${result}`)
-})
+}).pipe(Effect.scoped)
 
 // Function to monitor and log the number of active fibers
-const monitorFibers = (
-  supervisor: Supervisor.Supervisor<Array<Fiber.RuntimeFiber<any, any>>>,
-): Effect.Effect<void> =>
+const monitorFibers = (set: FiberSet.FiberSet<number>) =>
   Effect.gen(function* () {
-    const fibers = yield* supervisor.value // Get the current set of fibers
-    console.log(`number of fibers: ${fibers.length}`)
+    const count = yield* FiberSet.size(set) // Get the current number of tracked fibers
+    console.log(`number of fibers: ${count}`)
   })
 
-// Recursive Fibonacci calculation, spawning fibers for each recursive step
-const fib = (n: number): Effect.Effect<number> =>
+// Recursive Fibonacci calculation, adding a fiber to the set for each recursive step
+const fib = (n: number, set: FiberSet.FiberSet<number>): Effect.Effect<number> =>
   Effect.gen(function* () {
     if (n <= 1) {
-      return 1
+      return n
     }
-    yield* Effect.sleep("500 millis") // Simulate work by delaying
+    yield* Effect.sleep("30 millis") // Simulate work by delaying
 
-    // Fork two fibers for the recursive Fibonacci calls
-    const fiber1 = yield* Effect.fork(fib(n - 2))
-    const fiber2 = yield* Effect.fork(fib(n - 1))
+    // Fork two fibers for the recursive Fibonacci calls, tracked by the FiberSet
+    const fiber1 = yield* FiberSet.run(set, fib(n - 2, set))
+    const fiber2 = yield* FiberSet.run(set, fib(n - 1, set))
 
     // Join the fibers to retrieve their results
     const v1 = yield* Fiber.join(fiber1)
@@ -85,27 +68,33 @@ const fib = (n: number): Effect.Effect<number> =>
 
 Effect.runPromise(program)
 /*
-Output:
+Example Output:
+number of fibers: 0
 number of fibers: 0
 number of fibers: 2
 number of fibers: 6
+number of fibers: 6
 number of fibers: 14
 number of fibers: 30
+number of fibers: 30
+number of fibers: 55
 number of fibers: 62
-number of fibers: 126
-number of fibers: 254
-number of fibers: 510
-number of fibers: 1022
-number of fibers: 2034
-number of fibers: 3795
-number of fibers: 5810
-number of fibers: 6474
-number of fibers: 4942
-number of fibers: 2515
-number of fibers: 832
-number of fibers: 170
-number of fibers: 18
-number of fibers: 0
-fibonacci result: 10946
+number of fibers: 62
+number of fibers: 35
+number of fibers: 8
+number of fibers: 8
+fibonacci result: 55
 */
 ```
+
+<Aside type="tip" title="Reference documentation">
+  For the full list of `FiberSet` operations — including `FiberSet.join` (fail the parent if any
+  tracked fiber fails) and `FiberSet.awaitEmpty` (wait until every tracked fiber has completed) —
+  see the [FiberSet](https://effect-ts.github.io/effect/effect/FiberSet.ts.html) module reference.
+</Aside>
+
+## Tracking Fibers with FiberMap
+
+`FiberMap<K, A, E>` behaves like `FiberSet`, but each fiber is tracked under a key. This is useful when you need to look up, replace, or interrupt a specific fiber later — for example, one fiber per connected client, keyed by client ID. Setting a new fiber under a key that's already in use interrupts the previous one first.
+
+For the full `FiberMap` API, see the [FiberMap](https://effect-ts.github.io/effect/effect/FiberMap.ts.html) module reference.

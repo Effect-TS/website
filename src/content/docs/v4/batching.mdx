@@ -333,7 +333,7 @@ After defining our requests, the next step is configuring how Effect resolves th
 RequestResolver<A>
 ```
 
-A `RequestResolver` requires an environment `R` and is capable of executing requests of type `A`.
+A `RequestResolver<A>` is capable of executing requests of type `A`. Unlike in v3, it no longer carries a separate environment type parameter — the resolver passed to `Effect.request` must have no requirements of its own (see [Resolvers with Context](#resolvers-with-context) below for how to resolve services before constructing one).
 
 In this section, we'll create individual resolvers for each type of request. The granularity of your resolvers can vary, but typically, they are divided based on the batching capabilities of the corresponding API calls.
 
@@ -650,19 +650,6 @@ const program = Effect.gen(function* () {
 
 In the final setup, this program will execute only **3** queries to the APIs, regardless of the number of todos. This contrasts sharply with the traditional approach, which would potentially execute **1 + 2n** queries, where **n** is the number of todos. This represents a significant improvement in efficiency, especially for applications with a high volume of data interactions.
 
-### Disabling Batching
-
-Batching can be locally disabled using the `Effect.withRequestBatching` utility in the following way:
-
-```ts {6} showLineNumbers=false
-const program = Effect.gen(function* () {
-  const todos = yield* getTodos
-  yield* Effect.forEach(todos, (todo) => notifyOwner(todo), {
-    concurrency: "unbounded",
-  })
-}).pipe(Effect.withRequestBatching(false))
-```
-
 ### Resolvers with Context
 
 In complex applications, resolvers often need access to shared services or configurations to handle requests effectively. However, maintaining the ability to batch requests while providing the necessary context can be challenging. Here, we'll explore how to manage context in resolvers to ensure that batching capabilities are not compromised.
@@ -899,13 +886,150 @@ This way is probably the best for most of the cases given that layers are the na
 
 While we have significantly optimized request batching, there's another area that can enhance our application's efficiency: caching. Without caching, even with optimized batch processing, the same requests could be executed multiple times, leading to unnecessary data fetching.
 
-In the Effect library, caching is handled through built-in utilities that allow requests to be stored temporarily, preventing the need to re-fetch data that hasn't changed. This feature is crucial for reducing the load on both the server and the network, especially in applications that make frequent similar requests.
+Unlike in v3, caching is no longer an ambient toggle applied at the call site. Instead, `RequestResolver.withCache` wraps a resolver in a bounded, in-memory cache keyed by request equality — the resolver itself decides whether it caches, and any query built on top of it (via `Effect.request`) inherits that behavior automatically.
 
 Here's how you can implement caching for the `getUserById` query:
 
-```ts {3} showLineNumbers=false
-const getUserById = (id: number) =>
-  Effect.request(GetUserById({ id }), GetUserByIdResolver).pipe(Effect.withRequestCaching(true))
+```ts twoslash collapse={7-25,31-59,65-125} import.meta.vitest name="caching-1"
+import { Effect, Request, RequestResolver, Data } from "effect"
+
+// ------------------------------
+// Model
+// ------------------------------
+
+interface User {
+  readonly _tag: "User"
+  readonly id: number
+  readonly name: string
+  readonly email: string
+}
+
+class GetUserError extends Data.TaggedError("GetUserError")<{}> {}
+
+interface Todo {
+  readonly _tag: "Todo"
+  readonly id: number
+  readonly message: string
+  readonly ownerId: number
+}
+
+class GetTodosError extends Data.TaggedError("GetTodosError")<{}> {}
+
+class SendEmailError extends Data.TaggedError("SendEmailError")<{}> {}
+
+// ------------------------------
+// Requests
+// ------------------------------
+
+// Define a request to get multiple Todo items which might
+// fail with a GetTodosError
+interface GetTodos extends Request.Request<Array<Todo>, GetTodosError> {
+  readonly _tag: "GetTodos"
+}
+
+// Create a tagged constructor for GetTodos requests
+const GetTodos = Request.tagged<GetTodos>("GetTodos")
+
+// Define a request to fetch a User by ID which might
+// fail with a GetUserError
+interface GetUserById extends Request.Request<User, GetUserError> {
+  readonly _tag: "GetUserById"
+  readonly id: number
+}
+
+// Create a tagged constructor for GetUserById requests
+const GetUserById = Request.tagged<GetUserById>("GetUserById")
+
+// Define a request to send an email which might
+// fail with a SendEmailError
+interface SendEmail extends Request.Request<void, SendEmailError> {
+  readonly _tag: "SendEmail"
+  readonly address: string
+  readonly text: string
+}
+
+// Create a tagged constructor for SendEmail requests
+const SendEmail = Request.tagged<SendEmail>("SendEmail")
+
+// ------------------------------
+// Resolvers
+// ------------------------------
+
+// Assuming GetTodos cannot be batched, we create a standard resolver
+const GetTodosResolver = RequestResolver.fromEffect(
+  (_: Request.Entry<GetTodos>): Effect.Effect<Todo[], GetTodosError> =>
+    Effect.tryPromise({
+      try: () =>
+        fetch("https://api.example.demo/todos").then((res) => res.json() as Promise<Array<Todo>>),
+      catch: () => new GetTodosError(),
+    }),
+)
+
+// Assuming GetUserById can be batched, we create a batched resolver
+const GetUserByIdResolver = RequestResolver.make(
+  (entries: ReadonlyArray<Request.Entry<GetUserById>>) =>
+    Effect.tryPromise({
+      try: () =>
+        fetch("https://api.example.demo/getUserByIdBatch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            users: entries.map(({ request }) => ({ id: request.id })),
+          }),
+        }).then((res) => res.json()) as Promise<Array<User>>,
+      catch: () => new GetUserError(),
+    }).pipe(
+      Effect.andThen((users) =>
+        Effect.forEach(entries, (entry, index) =>
+          Request.completeEffect(entry, Effect.succeed(users[index]!)),
+        ),
+      ),
+      Effect.catch((error) =>
+        Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
+      ),
+    ),
+)
+
+// Assuming SendEmail can be batched, we create a batched resolver
+const SendEmailResolver = RequestResolver.make((entries: ReadonlyArray<Request.Entry<SendEmail>>) =>
+  Effect.tryPromise({
+    try: () =>
+      fetch("https://api.example.demo/sendEmailBatch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          emails: entries.map(({ request }) => ({
+            address: request.address,
+            text: request.text,
+          })),
+        }),
+      }).then((res) => res.json() as Promise<void>),
+    catch: () => new SendEmailError(),
+  }).pipe(
+    Effect.andThen(Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.void))),
+    Effect.catch((error) =>
+      Effect.forEach(entries, (entry) => Request.completeEffect(entry, Effect.fail(error))),
+    ),
+  ),
+)
+
+// ------------------------------
+// Caching
+// ------------------------------
+
+// Wrap the resolver in a bounded, in-memory cache keyed by request equality.
+// Build it once and reuse the resulting resolver for every call.
+const cachedGetUserByIdResolver = Effect.runSync(
+  RequestResolver.withCache(GetUserByIdResolver, { capacity: 256 }),
+)
+
+const getUserById = (id: number) => Effect.request(GetUserById({ id }), cachedGetUserByIdResolver)
+
+cachedGetUserByIdResolver === GetUserByIdResolver // => false
 ```
 
 ## Final Program
@@ -925,34 +1049,18 @@ With this program, the `getTodos` operation retrieves the todos for each user. T
 
 The `repeat` function is applied to the entire chain of operations, and it ensures that the program repeats every 10 seconds using a fixed schedule. This means that the entire process, including fetching todos and sending notifications, will be executed repeatedly with a 10-second interval.
 
-The program incorporates a caching mechanism, which prevents the same `GetUserById` operation from being executed more than once within a span of 1 minute. This default caching behavior helps optimize the program's execution and reduces unnecessary requests to fetch user data.
+Since `getUserById` is built on top of `cachedGetUserByIdResolver`, the program reuses cached results for a `GetUserById` request as long as its resolver's cache hasn't evicted it (bounded by the `capacity` given to `RequestResolver.withCache`), reducing unnecessary requests to fetch user data.
 
 Furthermore, the program is designed to send emails in batches, allowing for efficient processing and better utilization of resources.
 
 ## Customizing Request Caching
 
-In real-world applications, effective caching strategies can significantly improve performance by reducing redundant data fetching. The Effect library provides flexible caching mechanisms that can be tailored for specific parts of your application or applied globally.
-
-There may be scenarios where different parts of your application have unique caching requirements—some might benefit from a localized cache, while others might need a global cache setup. Let’s explore how you can configure a custom cache to meet these varied needs.
-
-### Creating a Custom Cache
-
-Here's how you can create a custom cache and apply it to part of your application. This example demonstrates setting up a cache that repeats a task every 10 seconds, caching requests with specific parameters like capacity and TTL (time-to-live).
+`RequestResolver.withCache` takes a `strategy` option (`"lru"`, the default, or `"fifo"`) controlling which entry is evicted once the cache reaches `capacity`:
 
 ```ts showLineNumbers=false
-const program = Effect.gen(function* () {
-  const todos = yield* getTodos
-  yield* Effect.forEach(todos, (todo) => notifyOwner(todo), {
-    concurrency: "unbounded",
-  })
-}).pipe(
-  Effect.repeat(Schedule.fixed("10 seconds")),
-  Effect.provide(
-    Layer.setRequestCache(Request.makeCache({ capacity: 256, timeToLive: "60 minutes" })),
-  ),
+const fifoCachedResolver = Effect.runSync(
+  RequestResolver.withCache(GetUserByIdResolver, { capacity: 256, strategy: "fifo" }),
 )
 ```
 
-### Direct Cache Application
-
-You can also construct a cache using `Request.makeCache` and apply it directly to a specific program using `Effect.withRequestCache`. This method ensures that all requests originating from the specified program are managed through the custom cache, provided that caching is enabled.
+Cache entries created this way don't expire by time. If you need time-to-live-based expiry, or want cache lookups exposed as a first-class `Cache` (with `get`/`refresh`/`invalidate`, see [Cache](/docs/caching/cache/)) instead of a plain `RequestResolver`, use [`RequestResolver.asCache`](https://effect-ts.github.io/effect/effect/RequestResolver.ts.html) instead — it accepts the same `capacity` option plus an optional `timeToLive`. For caching that survives process restarts, see `RequestResolver.persisted`.

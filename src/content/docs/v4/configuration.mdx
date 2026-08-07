@@ -391,9 +391,9 @@ A: A, B: B
 ```
 
 <Aside type="tip">
-  In this example, we use `ConfigProvider.fromMap` to create a configuration provider from a simple
-  JavaScript `Map`. This is particularly useful for testing, as described in the [Mocking
-  Configurations in Tests](#mocking-configurations-in-tests) section.
+  In this example, we use `ConfigProvider.fromEnv` to create a configuration provider from a plain
+  object. This is particularly useful for testing, as described in the [Mocking Configurations in
+  Tests](#mocking-configurations-in-tests) section.
 </Aside>
 
 ## Custom Configuration Types
@@ -548,9 +548,9 @@ This structured approach keeps your configuration more organized, especially whe
 
 When testing services, there are times when you need to provide specific configurations for your tests. To simulate this, it's useful to mock the configuration backend that reads these values.
 
-You can achieve this using the `ConfigProvider.fromMap` constructor.
-This method allows you to create a configuration provider from a `Map<string, string>`, where the map represents the configuration data.
-You can then use this mock provider in place of the default one by calling `Effect.withConfigProvider`.
+You can achieve this using the `ConfigProvider.fromEnv` constructor.
+This method allows you to create a configuration provider from a plain `Record<string, string>`, so you don't have to rely on real process environment variables.
+You can then use this mock provider in place of the default one by providing it as the `ConfigProvider.ConfigProvider` service.
 
 **Example** (Mocking a Config Provider for Testing)
 
@@ -594,11 +594,11 @@ This approach helps you create isolated tests that don't rely on external enviro
 
 ### Handling Nested Configuration Values
 
-For more complex setups, configurations often include nested keys. By default, `ConfigProvider.fromMap` uses `.` as the separator for nested keys.
+For more complex setups, configurations often include nested keys. `ConfigProvider.fromEnv` uses `_` as the fixed separator for nested keys — this isn't customizable.
 
 **Example** (Providing Nested Configuration Values)
 
-```ts twoslash
+```ts twoslash import.meta.vitest name="providing-nested-configuration-values-1"
 import { Config, ConfigProvider, Effect } from "effect"
 
 const config = Config.nested(Config.number("PORT"), "SERVER")
@@ -608,30 +608,7 @@ const program = Effect.gen(function* () {
   console.log(`Server is running on port ${port}`)
 })
 
-// Mock configuration using '.' as the separator for nested keys
-const mockConfigProvider = ConfigProvider.fromMap(new Map([["SERVER.PORT", "8080"]]))
-
-Effect.runPromise(Effect.withConfigProvider(program, mockConfigProvider))
-// Output: Server is running on port 8080
-```
-
-### Customizing the Path Delimiter
-
-If your configuration data uses a different separator (such as `_`), you can change the delimiter using the `pathDelim` option in `ConfigProvider.fromMap`.
-
-**Example** (Using a Custom Path Delimiter)
-
-```ts twoslash import.meta.vitest name="using-a-custom-path-delimiter-1"
-import { Config, ConfigProvider, Effect } from "effect"
-
-const config = Config.nested(Config.number("PORT"), "SERVER")
-
-const program = Effect.gen(function* () {
-  const port = yield* config
-  console.log(`Server is running on port ${port}`)
-})
-
-// Mock configuration using '_' as the separator
+// Mock configuration using '_' as the separator for nested keys
 const mockConfigProvider = ConfigProvider.fromEnv({
   env: { SERVER_PORT: "8080" },
 })
@@ -649,42 +626,7 @@ The default provider reads from environment variables, but you can customize its
 
 The `ConfigProvider.fromEnv` function creates a `ConfigProvider` that loads values from environment variables. This is the default provider used by Effect unless another is specified.
 
-If your application requires a custom delimiter for nested configuration keys, you can configure `ConfigProvider.fromEnv` accordingly.
-
-**Example** (Changing the Path Delimiter)
-
-The following example modifies the path delimiter (`"__"`) and sequence delimiter (`"|"`) for environment variables.
-
-```ts twoslash title="index.ts"
-import { Config, ConfigProvider, Effect } from "effect"
-
-const program = Effect.gen(function* () {
-  // Read SERVER_HOST and SERVER_PORT as nested configuration values
-  const port = yield* Config.nested(Config.number("PORT"), "SERVER")
-  const host = yield* Config.nested(Config.string("HOST"), "SERVER")
-  console.log(`Application started: ${host}:${port}`)
-})
-
-Effect.runPromise(
-  Effect.withConfigProvider(
-    program,
-    // Custom delimiters
-    ConfigProvider.fromEnv({ pathDelim: "__", seqDelim: "|" }),
-  ),
-)
-```
-
-To match the custom delimiter (`"__"`), set environment variables like this:
-
-```sh showLineNumbers=false
-SERVER__HOST=localhost SERVER__PORT=8080 npx tsx index.ts
-```
-
-Output:
-
-```ansi showLineNumbers=false
-Application started: localhost:8080
-```
+Unlike in v3, the path delimiter for nested configuration keys is fixed to `_` and can't be customized — see [Handling Nested Configuration Values](#handling-nested-configuration-values) above.
 
 ### Loading Configuration from JSON
 

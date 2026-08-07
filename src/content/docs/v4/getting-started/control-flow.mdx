@@ -276,51 +276,6 @@ undefined
 
 In this example, the loop performs a side effect of logging the current index on each iteration, but it discards all intermediate results. The final result is `undefined`.
 
-### iterate
-
-The `Effect.iterate` function lets you repeatedly update a state through an effectful operation. It runs the `body` effect to update the state in each iteration and continues as long as the `while` condition evaluates to `true`.
-
-**Syntax**
-
-```ts showLineNumbers=false
-Effect.iterate(initial, {
-  while: (result) => boolean,
-  body: (result) => Effect,
-})
-```
-
-This function is similar to a `while` loop in JavaScript, with the addition of effectful computations:
-
-```ts showLineNumbers=false
-let result = initial
-
-while (options.while(result)) {
-  result = options.body(result)
-}
-
-return result
-```
-
-**Example** (Effectful Iteration)
-
-```ts twoslash import.meta.vitest name="effectful-iteration-1"
-import { Effect } from "effect"
-
-const result = Effect.gen(function* () {
-  // Initial result
-  let result = 1
-  // Condition to continue iterating
-  while (result <= 5) {
-    // Operation to change the result
-    result = yield* Effect.succeed(result + 1)
-  }
-  return result
-})
-
-Effect.runPromise(result).then(console.log)
-// Output: 6
-```
-
 ### forEach
 
 Executes an effectful operation for each element in an `Iterable`.
@@ -394,7 +349,7 @@ Combines multiple effects into one, returning results based on the input structu
 
 Use `Effect.all` when you need to run multiple effects and combine their results into a single output. It supports tuples, iterables, structs, and records, making it flexible for different input types.
 
-If any effect fails, it stops execution (short-circuiting) and propagates the error. To change this behavior, you can use the [`mode`](#the-mode-option) option, which allows all effects to run and collect results as [Result](/docs/data-types/result/) or [Option](/docs/data-types/option/).
+If any effect fails, it stops execution (short-circuiting) and propagates the error. To change this behavior, you can use the [`mode`](#the-mode-option) option, which allows all effects to run and collect results as [Result](/docs/data-types/result/).
 
 You can control the execution order (e.g., sequential vs. concurrent) using the [Concurrency Options](/docs/concurrency/basic-concurrency/#concurrency-options).
 
@@ -563,42 +518,6 @@ Task3
     { _id: 'Result', _tag: 'Failure', failure: 'Task2: Oh no!' },
     { _id: 'Result', _tag: 'Success', value: 'Task3' }
   ]
-}
-*/
-```
-
-Similarly, the `{ mode: "validate" }` option uses `Option` to indicate success or failure. Each effect returns `None` for success and `Some` with the error for failure.
-
-**Example** (Collecting Results with `mode: "validate"`)
-
-```ts twoslash /{ mode: "validate" }/
-import { Effect, Console } from "effect"
-
-const effects = [
-  Effect.succeed("Task1").pipe(Effect.tap(Console.log)),
-  Effect.fail("Task2: Oh no!").pipe(Effect.tap(Console.log)),
-  Effect.succeed("Task3").pipe(Effect.tap(Console.log)),
-]
-
-const program = Effect.all(effects, { mode: "validate" })
-
-Effect.runPromiseExit(program).then((result) => console.log("%o", result))
-/*
-Output:
-Task1
-Task3
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: {
-    _id: 'Cause',
-    _tag: 'Fail',
-    failure: [
-      { _id: 'Option', _tag: 'None' },
-      { _id: 'Option', _tag: 'Some', value: 'Task2: Oh no!' },
-      { _id: 'Option', _tag: 'None' }
-    ]
-  }
 }
 */
 ```
