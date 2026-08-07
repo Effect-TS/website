@@ -1,4 +1,15 @@
 import * as Schema from "effect/Schema"
+import {
+  BlogSearchMetadata,
+  DocumentationSearchMetadata,
+  DocumentationSearchSection,
+} from "@website/mixedbread/SearchMetadata"
+
+export {
+  BlogSearchMetadata,
+  DocumentationSearchMetadata,
+  DocumentationSearchSection,
+}
 
 const CommonMetadata = {
   synced: Schema.Boolean,
@@ -54,26 +65,6 @@ export const HeadingInfo = Schema.Struct({
   text: Schema.String,
 })
 
-export const DocumentationSearchSection = Schema.Struct({
-  line: Schema.Int,
-  level: Schema.Int,
-  title: Schema.String,
-  anchor: Schema.String,
-  parent_anchor: Schema.String,
-  excerpt: Schema.String,
-})
-
-export const DocumentationSearchMetadata = Schema.Struct({
-  schema_version: Schema.Literal(1),
-  content_source: Schema.Literal("documentation"),
-  docs_version: Schema.String,
-  breadcrumbs: Schema.Array(Schema.String),
-  page_href: Schema.String,
-  page_label: Schema.String,
-  page_title: Schema.String,
-  sections: Schema.Array(Schema.fromJsonString(DocumentationSearchSection)),
-})
-
 export const DocumentationGeneratedMetadata = Schema.Struct({
   type: Schema.Literal("markdown"),
   start_line: Schema.Int,
@@ -81,18 +72,6 @@ export const DocumentationGeneratedMetadata = Schema.Struct({
   chunk_headings: Schema.Array(HeadingInfo),
   heading_context: Schema.Array(HeadingInfo),
   search: DocumentationSearchMetadata,
-})
-
-export const BlogSearchMetadata = Schema.Struct({
-  schema_version: Schema.Literal(1),
-  content_source: Schema.Literal("blog"),
-  page_href: Schema.String,
-  page_title: Schema.String,
-  description: Schema.String,
-  published_at: Schema.String,
-  authors: Schema.Array(Schema.String),
-  tags: Schema.Array(Schema.String),
-  sections: Schema.Array(Schema.fromJsonString(DocumentationSearchSection)),
 })
 
 export const BlogGeneratedMetadata = Schema.Struct({

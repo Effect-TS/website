@@ -28,7 +28,10 @@ export default defineConfig({
         test: {
           name: "web",
           root: "apps/web",
-          include: ["test/**/*.test.ts", "../../scripts/**/*.test.{ts,mjs}"],
+          include: [
+            "test/**/*.test.ts",
+            "../../scripts/api-reference/**/*.test.mjs",
+          ],
         },
       },
       "apps/!(web)",
@@ -62,7 +65,7 @@ export default defineConfig({
       },
 
       "mixedbread:index": {
-        command: "node scripts/mixedbread/index.ts",
+        command: "vp exec mixedbread",
         cache: false,
       },
 

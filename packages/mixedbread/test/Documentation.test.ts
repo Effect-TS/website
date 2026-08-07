@@ -1,8 +1,8 @@
 import * as Schema from "effect/Schema"
 import { assert, test } from "vite-plus/test"
 import { parse as parseYaml } from "yaml"
-import { DocumentationSearchMetadata } from "../../apps/web/src/services/search/domain.ts"
-import { stageDocument } from "./documentation.ts"
+import { DocumentationSearchMetadata } from "../src/SearchMetadata.ts"
+import { stageDocument } from "../src/Documentation.ts"
 
 test("stages source-preserving documentation metadata", () => {
   const body = `
