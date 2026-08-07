@@ -82,7 +82,7 @@ runs:
         rm -rf .data/api-reference
         mkdir -p .data
         tar -xzf "$snapshot_dir/api-reference.tar.gz" -C .data
-        snapshot_id=$(node scripts/api-reference/snapshot.mjs validate \
+        snapshot_id=$(vp exec api-reference snapshot validate \
           --data .data/api-reference \
           --manifest "$snapshot_dir/manifest.json")
         if [[ "$SNAPSHOT_TAG" != "api-reference-$snapshot_id" ]]; then

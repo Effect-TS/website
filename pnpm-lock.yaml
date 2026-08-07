@@ -26,6 +26,9 @@ importers:
       '@types/node':
         specifier: ^26.1.1
         version: 26.1.1
+      '@website/api-reference':
+        specifier: workspace:*
+        version: link:packages/api-reference
       '@website/mixedbread':
         specifier: workspace:*
         version: link:packages/mixedbread
@@ -125,9 +128,12 @@ importers:
       '@webcontainer/api':
         specifier: ^1.6.4
         version: 1.6.4
-      '@website/mixedbread':
+      '@website/api-reference':
         specifier: workspace:*
-        version: link:../../packages/mixedbread
+        version: link:../../packages/api-reference
+      '@website/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@xterm/addon-fit':
         specifier: ^0.11.0
         version: 0.11.0
@@ -226,6 +232,41 @@ importers:
         specifier: ^5.2.0
         version: 5.2.0(@voidzero-dev/vite-plus-core@0.2.8(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.9.0))(rollup@4.62.0)(supports-color@7.2.0)(typescript@6.0.3)
 
+  packages/api-reference:
+    dependencies:
+      '@website/domain':
+        specifier: workspace:*
+        version: link:../domain
+      effect:
+        specifier: 4.0.0-beta.100
+        version: 4.0.0-beta.100
+      typedoc:
+        specifier: 0.28.20
+        version: 0.28.20(typescript@6.0.3)
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+    devDependencies:
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.1.1
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.2.8(@edge-runtime/vm@3.2.0)(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(typescript@6.0.3)(vite@8.2.0(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(yaml@2.9.0)
+
+  packages/domain:
+    dependencies:
+      effect:
+        specifier: 4.0.0-beta.100
+        version: 4.0.0-beta.100
+    devDependencies:
+      typedoc:
+        specifier: 0.28.20
+        version: 0.28.20(typescript@6.0.3)
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.2.8(@edge-runtime/vm@3.2.0)(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(typescript@6.0.3)(vite@8.2.0(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(yaml@2.9.0)
+
   packages/mixedbread:
     dependencies:
       '@effect/platform-node':
@@ -237,6 +278,12 @@ importers:
       '@mixedbread/sdk':
         specifier: ^0.77.0
         version: 0.77.0
+      '@website/api-reference':
+        specifier: workspace:*
+        version: link:../api-reference
+      '@website/domain':
+        specifier: workspace:*
+        version: link:../domain
       effect:
         specifier: 4.0.0-beta.100
         version: 4.0.0-beta.100
@@ -255,9 +302,6 @@ importers:
       remark-parse:
         specifier: ^11.0.0
         version: 11.0.0(supports-color@7.2.0)
-      typedoc:
-        specifier: 0.28.20
-        version: 0.28.20(typescript@6.0.3)
       unified:
         specifier: ^11.0.5
         version: 11.0.5

@@ -10,7 +10,7 @@ import {
 import {
   DocumentationStagedSearchMetadata,
   SearchSection,
-} from "./SearchMetadata.ts"
+} from "@website/domain/SearchMetadata"
 
 export const SearchMetadata = DocumentationStagedSearchMetadata
 export { SearchSection }

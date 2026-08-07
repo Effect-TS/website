@@ -11,7 +11,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { assert, test } from "vite-plus/test"
 
-const script = fileURLToPath(new URL("snapshot.mjs", import.meta.url))
+const script = fileURLToPath(new URL("../src/cli.mjs", import.meta.url))
 const v3 = "a".repeat(40)
 const v4 = "b".repeat(40)
 const generator = "c".repeat(40)
@@ -62,7 +62,7 @@ function writeDataset(directory, channel, revision) {
 }
 
 function run(...arguments_) {
-  return execFileSync(process.execPath, [script, ...arguments_], {
+  return execFileSync(process.execPath, [script, "snapshot", ...arguments_], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   })

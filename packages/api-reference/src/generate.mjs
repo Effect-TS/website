@@ -23,7 +23,7 @@ import {
 import TypeScript from "typescript"
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
-const websiteDirectory = resolve(scriptDirectory, "../..")
+const websiteDirectory = resolve(scriptDirectory, "../../..")
 const outputMarker = ".effect-api-reference"
 const ignoredDirectoryNames = new Set([
   ".git",
@@ -556,7 +556,7 @@ function parseArguments(arguments_) {
       continue
     }
     if (argument === "--help") {
-      console.log(`Usage: pnpm api-reference:generate -- [options]
+      console.log(`Usage: api-reference generate [options]
 
 Options:
   --repo <path>       Effect repository (default: ../effect)

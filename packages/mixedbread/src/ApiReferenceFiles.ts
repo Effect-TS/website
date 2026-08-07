@@ -5,8 +5,12 @@ import {
   MAX_MIXEDBREAD_TEXT_LENGTH,
 } from "./Config.ts"
 import { UnknownError } from "./Error.ts"
-import { ApiReference, type ApiDeclaration } from "./ApiReference.ts"
-import { loadApiReferenceDataset } from "./ApiReferenceDataset.ts"
+import {
+  ApiReference,
+  type ApiDeclaration,
+} from "@website/api-reference/ApiReference"
+import { loadApiReferenceDataset } from "@website/api-reference/ApiReferenceDataset"
+import { loadReflection } from "@website/api-reference/Reflection"
 
 export interface LocalFile {
   readonly externalId: string
@@ -50,7 +54,7 @@ export const generateApiReferenceFiles = Effect.fn(
         Effect.fnUntraced(function* (entry) {
           const reflection = yield* Effect.tryPromise({
             try: () =>
-              ApiReference.loadReflection(entry.data, {
+              loadReflection(entry.data, {
                 baseDirectory: apiReferenceDir,
               }),
             catch: (cause) => new UnknownError({ cause }),

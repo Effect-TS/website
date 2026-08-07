@@ -1,11 +1,11 @@
 import { readFile, readdir } from "node:fs/promises"
 import { dirname, isAbsolute, join, relative, resolve } from "node:path"
-import * as Schema from "effect/Schema"
-import type { ApiReferenceEntry } from "./ApiReferenceSchema.ts"
+import type { ApiReferenceEntry } from "@website/domain/ApiReference"
 import {
   ApiReferenceDatasetManifest,
   ApiReferencePackageManifest,
-} from "./ApiReferenceSchema.ts"
+} from "@website/domain/ApiReference"
+import * as Schema from "effect/Schema"
 
 export interface ApiReferenceDatasetEntry {
   readonly data: ApiReferenceEntry

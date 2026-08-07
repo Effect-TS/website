@@ -7,7 +7,7 @@ import {
   serializeSearchFrontmatter,
   spliceFrontmatter,
 } from "./Markdown.ts"
-import { BlogStagedSearchMetadata } from "./SearchMetadata.ts"
+import { BlogStagedSearchMetadata } from "@website/domain/SearchMetadata"
 
 export const SearchMetadata = BlogStagedSearchMetadata
 export type SearchMetadata = typeof BlogStagedSearchMetadata.Type

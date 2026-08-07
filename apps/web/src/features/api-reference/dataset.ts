@@ -1,1 +1,1 @@
-export * from "@website/mixedbread/ApiReferenceDataset"
+export * from "@website/api-reference/ApiReferenceDataset"

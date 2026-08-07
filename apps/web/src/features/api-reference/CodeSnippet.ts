@@ -1,1 +1,1 @@
-export { CodeSnippet } from "@website/mixedbread/ApiReference"
+export { CodeSnippet } from "@website/api-reference/CodeSnippet"

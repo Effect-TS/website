@@ -31,6 +31,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+
       - name: Prepare snapshot
         id: snapshot
         env:
@@ -75,11 +78,13 @@ jobs:
           fi
 
           generator_hash=$(git hash-object \
-            scripts/api-reference/generate.mjs \
-            scripts/api-reference/package.json \
-            packages/mixedbread/src/ApiReferenceSchema.ts \
+            packages/api-reference/src/generate.mjs \
+            packages/api-reference/src/snapshot.mjs \
+            packages/api-reference/package.json \
+            packages/domain/src/ApiReference.ts \
+            packages/domain/src/ApiReferenceSnapshot.ts \
             pnpm-lock.yaml | git hash-object --stdin)
-          snapshot_id=$(node scripts/api-reference/snapshot.mjs id \
+          snapshot_id=$(vp exec api-reference snapshot id \
             --v3 "$V3_REVISION" \
             --v4 "$V4_REVISION" \
             --generator "$generator_hash")
@@ -100,10 +105,6 @@ jobs:
           echo "id=$snapshot_id" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "published=$published" >> "$GITHUB_OUTPUT"
-
-      - name: Install dependencies
-        if: steps.snapshot.outputs.published != 'true'
-        uses: ./.github/actions/setup
 
       - name: Checkout Effect v3
         if: steps.snapshot.outputs.published != 'true'
@@ -139,7 +140,7 @@ jobs:
         run: |
           asset_dir="$RUNNER_TEMP/api-reference-assets"
           mkdir -p "$asset_dir"
-          node scripts/api-reference/snapshot.mjs create \
+          vp exec api-reference snapshot create \
             --data .data/api-reference \
             --output "$asset_dir/manifest.json" \
             --v3 "$V3_REVISION" \
@@ -149,7 +150,7 @@ jobs:
           tar -czf "$asset_dir/api-reference.tar.gz" -C .data api-reference
           sha256sum "$asset_dir/api-reference.tar.gz" | sed "s|$asset_dir/||" > "$asset_dir/api-reference.sha256"
 
-          manifest_id=$(node scripts/api-reference/snapshot.mjs validate \
+          manifest_id=$(vp exec api-reference snapshot validate \
             --data .data/api-reference \
             --manifest "$asset_dir/manifest.json")
           if [[ "$manifest_id" != "$SNAPSHOT_ID" ]]; then

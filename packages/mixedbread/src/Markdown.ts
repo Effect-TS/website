@@ -6,7 +6,7 @@ import remarkMdx from "remark-mdx"
 import remarkParse from "remark-parse"
 import { unified } from "unified"
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml"
-import type { SearchSection } from "./SearchMetadata.ts"
+import type { SearchSection } from "@website/domain/SearchMetadata"
 
 const processor = unified()
   .use(remarkParse)

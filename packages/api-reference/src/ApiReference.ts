@@ -1,18 +1,9 @@
-import { createHash } from "node:crypto"
-import { readFile } from "node:fs/promises"
-import { isAbsolute, relative, resolve } from "node:path"
-import * as Schema from "effect/Schema"
+import type { TypeDocProjectReflection } from "@website/domain/ApiReference"
 import { ReflectionKind, type JSONOutput } from "typedoc"
-import type {
-  ApiReferenceEntry,
-  TypeDocProjectReflection,
-} from "./ApiReferenceSchema.ts"
 import { CodeSnippet, type CodeSnippetLanguage } from "./CodeSnippet.ts"
-import { TypeDocProjectReflection as TypeDocProjectReflectionSchema } from "./ApiReferenceSchema.ts"
 
 export { CodeSnippet, type CodeSnippetLanguage }
 
-const defaultBaseDirectory = resolve(".data/api-reference")
 export interface ApiCodeExample {
   language: CodeSnippetLanguage
   ownerId: number
@@ -55,7 +46,6 @@ export interface ApiModule {
 
 export const ApiReference = {
   codeExamples,
-  loadReflection,
   moduleView,
 } as const
 
@@ -676,30 +666,4 @@ function firstSourceUrl(
   value: ReadonlyArray<JSONOutput.SourceReference> | undefined,
 ): string | undefined {
   return value?.find((source) => source.url !== undefined)?.url
-}
-
-export async function loadReflection(
-  entry: ApiReferenceEntry,
-  options?: { baseDirectory?: string },
-): Promise<TypeDocProjectReflection> {
-  const baseDirectory = resolve(options?.baseDirectory ?? defaultBaseDirectory)
-  const reflectionPath = resolve(baseDirectory, entry.reflectionPath)
-  const relativePath = relative(baseDirectory, reflectionPath)
-  if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
-    throw new Error(
-      `API reflection path escapes its dataset: ${entry.reflectionPath}`,
-    )
-  }
-
-  const contents = await readFile(reflectionPath)
-  const digest = createHash("sha256").update(contents).digest("hex")
-  if (digest !== entry.reflectionDigest) {
-    throw new Error(
-      `API reflection checksum mismatch for ${entry.version}/${entry.packageSlug}/${entry.modulePath}: expected ${entry.reflectionDigest}, received ${digest}`,
-    )
-  }
-
-  return Schema.decodeUnknownSync(TypeDocProjectReflectionSchema)(
-    JSON.parse(contents.toString("utf8")),
-  )
 }

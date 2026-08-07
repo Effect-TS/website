@@ -3,7 +3,7 @@ import {
   BlogSearchMetadata,
   DocumentationSearchMetadata,
   DocumentationSearchSection,
-} from "@website/mixedbread/SearchMetadata"
+} from "@website/domain/SearchMetadata"
 
 export {
   BlogSearchMetadata,

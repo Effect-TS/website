@@ -1,7 +1,7 @@
 import * as Schema from "effect/Schema"
 import { assert, test } from "vite-plus/test"
 import { parse as parseYaml } from "yaml"
-import { BlogSearchMetadata } from "../src/SearchMetadata.ts"
+import { BlogSearchMetadata } from "@website/domain/SearchMetadata"
 import { blogPostId, stageBlogPost } from "../src/Blog.ts"
 
 test("stages source-preserving blog metadata", () => {

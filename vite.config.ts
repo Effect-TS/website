@@ -28,10 +28,7 @@ export default defineConfig({
         test: {
           name: "web",
           root: "apps/web",
-          include: [
-            "test/**/*.test.ts",
-            "../../scripts/api-reference/**/*.test.mjs",
-          ],
+          include: ["test/**/*.test.ts"],
         },
       },
       "apps/!(web)",
@@ -41,7 +38,7 @@ export default defineConfig({
   run: {
     cache: true,
     tasks: {
-      "api-reference:generate": "node scripts/api-reference/generate.mjs",
+      "api-reference:generate": "vp exec api-reference generate",
 
       build: "vp -C apps/web exec astro build",
 

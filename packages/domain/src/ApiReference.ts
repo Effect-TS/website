@@ -71,6 +71,9 @@ export const ApiReferenceDatasetManifest = Schema.Struct({
   ),
 })
 
+export type ApiReferenceDatasetManifest =
+  typeof ApiReferenceDatasetManifest.Type
+
 export const ApiReferencePackageManifest = Schema.Struct({
   schemaVersion: Schema.Literal(3),
   channel: Version,
@@ -96,3 +99,6 @@ export const ApiReferencePackageManifest = Schema.Struct({
     }),
   ),
 })
+
+export type ApiReferencePackageManifest =
+  typeof ApiReferencePackageManifest.Type
