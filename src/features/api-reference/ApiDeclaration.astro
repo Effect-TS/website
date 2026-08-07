@@ -1,23 +1,15 @@
 ---
 import { ExternalLink, Link as LinkIcon } from "@lucide/astro"
+import { Code } from "astro-expressive-code/components"
 
 import type { ApiDeclaration } from "./ApiReference"
 import ApiCodeExample from "./ApiCodeExample.astro"
-import { docsShikiThemes, getHighlighter } from "@/features/visual-effect/runtime/shiki-singleton"
 
 interface Props {
   declaration: ApiDeclaration
 }
 
 const { declaration } = Astro.props
-const highlighter = await getHighlighter()
-const signatureHtml =
-  declaration.signature === undefined
-    ? undefined
-    : highlighter.codeToHtml(declaration.signature, {
-        lang: "typescript",
-        themes: docsShikiThemes,
-      })
 ---
 
 <section id={declaration.anchor} class="scroll-mt-12 py-8">
@@ -62,12 +54,13 @@ const signatureHtml =
   {declaration.commentHtml && <div class="api-comment" set:html={declaration.commentHtml} />}
 
   {
-    signatureHtml && (
+    declaration.signature && (
       <div class="not-prose mt-3">
         <h4 class="mb-1.5 text-base font-semibold text-zinc-600 dark:text-white">Signature</h4>
-        <div
-          class="api-signature overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-100/60 dark:border-zinc-800 dark:bg-zinc-900/60"
-          set:html={signatureHtml}
+        <Code
+          code={declaration.signature}
+          lang="typescript"
+          meta="showLineNumbers=false playground=false"
         />
       </div>
     )
@@ -146,22 +139,5 @@ const signatureHtml =
 
   :global(.dark) .api-comment :global(code) {
     background: var(--color-zinc-800);
-  }
-
-  .api-signature :global(.shiki) {
-    min-width: max-content;
-    margin: 0;
-    padding: 1rem 1.25rem;
-    background: transparent !important;
-    font-family:
-      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-      monospace;
-    font-size: 0.85rem;
-    line-height: 1.65;
-  }
-
-  :global(.dark) .api-signature :global(.shiki),
-  :global(.dark) .api-signature :global(.shiki span) {
-    color: var(--shiki-dark) !important;
   }
 </style>

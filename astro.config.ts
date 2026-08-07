@@ -1,8 +1,6 @@
 import mdx from "@astrojs/mdx"
 import react from "@astrojs/react"
 import vercel from "@astrojs/vercel"
-import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections"
-import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers"
 import tailwindcss from "@tailwindcss/vite"
 import expressiveCode from "astro-expressive-code"
 import { defineConfig, envField, fontProviders, svgoOptimizer } from "astro/config"
@@ -12,7 +10,6 @@ import svgr from "vite-plugin-svgr"
 import { monacoEditorPlugin } from "./src/features/playground/plugins/monaco-editor"
 import { docsLegacyRedirectList } from "./src/generated/docs-legacy-redirects"
 import { twieRedirectList } from "./src/generated/twie-redirects"
-import { pluginOpenInPlayground } from "./src/plugins/expressive-code/open-in-playground.ts"
 
 const GoogleFontProvider = fontProviders.google()
 
@@ -89,16 +86,7 @@ export default defineConfig({
     },
   },
 
-  integrations: [
-    expressiveCode({
-      plugins: [pluginCollapsibleSections(), pluginLineNumbers(), pluginOpenInPlayground()],
-      themes: ["github-light", "github-dark"],
-      useDarkModeMediaQuery: false,
-      themeCssSelector: (theme) => `[data-theme='${theme.type}']`,
-    }),
-    react(),
-    mdx(),
-  ],
+  integrations: [expressiveCode(), react(), mdx()],
 
   fonts: [
     {
