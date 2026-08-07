@@ -3,6 +3,11 @@
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
 
+html {
+  scroll-padding-top: 5rem;
+  scroll-behavior: smooth;
+}
+
 @layer utilities {
   /* docs-tabs: context-aware tab component used in docs and blog MDX */
   docs-tabs {
@@ -98,6 +103,10 @@
   .prose :where(h4):not(:where([class~="not-prose"] *)) {
     font-size: var(--text-lg);
     line-height: var(--text-lg--line-height);
+  }
+
+  .prose :where(h1, h2, h3, h4, h5, h6) code {
+    font-size: 0.85em;
   }
 
   /* Blog prose headings use literal reading sizes (not the project's oversized text-2xl/xl/lg
