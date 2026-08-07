@@ -1,6 +1,6 @@
 import { type ExpressiveCodePlugin, PluginTexts } from "@expressive-code/core"
 import { h, select } from "@expressive-code/core/hast"
-import jsModule from "./open-in-playground/js-module.min"
+import jsModule from "./open-in-playground/js-module.min.ts"
 
 const pluginTexts = new PluginTexts({
   openInPlaygroundButtonTooltip: "Open in the Effect Playground",
