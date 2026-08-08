@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/@effect/language-service/schema.json",
+  "extends": "./tsconfig.base.json",
+  "references": [{ "path": "tsconfig.packages.json" }],
+  "include": [
+    "**/vitest.*.ts", // All vitest config files across all packages
+    "./apps/**/*.ts",
+    "./apps/**/*.json",
+    "./packages/*/test/**/*.ts",
+    "./packages/*/test/**/*.json"
+  ],
+  "exclude": ["**/node_modules/**", "**/dist/**"],
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": false,
+    "resolveJsonModule": true,
+    "rewriteRelativeImportExtensions": false,
+    "types": ["node"],
+    "paths": {
+      // These path aliases allow us to load internal modules in tests and to use other workspace packages in tests
+      // that would otherwise be considered cyclic dependencies (e.g. loading `@effect/sql-sqlite-node` in the test
+      // suite of `@effect/platform-node` which itself depends on `@effect/platform-node`).
+    },
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "namespaceImportPackages": [],
+        "includeSuggestionsInTsc": false,
+        "ignoreEffectWarningsInTscExitCode": true,
+        "ignoreEffectErrorsInTscExitCode": true,
+        "diagnosticSeverity": {
+          "unknownInEffectCatch": "off",
+          "multipleEffectProvide": "off"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,371 @@
+---
+import { ArrowUpRight } from "@lucide/astro"
+
+import EffectLogoBlack from "@/assets/logos/effect/combination-mark/svg/effect-logo-black.svg"
+import EffectLogoWhite from "@/assets/logos/effect/combination-mark/svg/effect-logo-white.svg"
+import { Link } from "@/components/ui/Link"
+
+interface Props {
+  readonly activePath?: string
+}
+
+const { activePath } = Astro.props
+
+const year = new Date().getFullYear()
+---
+
+<footer class="relative w-full px-4 pt-16 md:px-8 md:pt-20">
+  <div
+    class="pointer-events-none absolute inset-0 hidden bg-gradient-to-b from-zinc-950/0 via-zinc-950/0 to-zinc-900/50 dark:block"
+    aria-hidden="true"
+  >
+  </div>
+
+  <div class="absolute top-0 right-0 left-0 h-px bg-zinc-200 dark:bg-zinc-800" aria-hidden="true">
+  </div>
+
+  <div class="relative mx-auto w-full max-w-295">
+    <div class="flex flex-col">
+      <!-- Links -->
+      <div class="mb-12 grid grid-cols-2 gap-x-6 gap-y-8 md:mb-20 md:gap-x-0 lg:grid-cols-4">
+        <!-- Column 1: Resources -->
+        <div class="flex flex-1 flex-col gap-4 lg:pl-4">
+          <h3 class="font-mono font-semibold text-sm text-zinc-900 uppercase dark:text-zinc-100">
+            Resources
+          </h3>
+          <ul class="flex flex-col items-start gap-2">
+            <li>
+              <Link
+                href="/docs/"
+                variant="footer"
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Documentation
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/docs/v3/api"
+                variant="footer"
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                API reference
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="https://www.youtube.com/playlist?list=PLDf3uQLaK2B9vHzUNyvOSvoMv61LW7792"
+                variant="footer"
+                className="inline-flex items-center gap-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Workshops
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/blog/the-one-weird-git-trick-that-makes-coding-agents-more-effect-ive/"
+                variant="footer"
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                LLM Guide
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Column 2: DevTools -->
+        <div
+          class="flex flex-1 flex-col gap-4 lg:border-l lg:border-dashed lg:border-zinc-200 lg:pl-4 dark:lg:border-zinc-800"
+        >
+          <h3 class="font-mono font-semibold text-sm text-zinc-900 uppercase dark:text-zinc-100">
+            DevTools
+          </h3>
+          <ul class="flex flex-col items-start gap-2">
+            <li>
+              <Link
+                href="/play/"
+                variant="footer"
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Effect Playground
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="https://github.com/Effect-TS/language-service"
+                variant="footer"
+                className="inline-flex items-center gap-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Effect LSP
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="https://marketplace.visualstudio.com/items?itemName=effectful-tech.effect-vscode"
+                variant="footer"
+                className="inline-flex items-center gap-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                VS Code Extension
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="https://github.com/Effect-TS/tsgo#lsp-based-linter"
+                variant="footer"
+                className="inline-flex items-center gap-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Linting Rules
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        <div
+          class="flex flex-1 flex-col gap-4 lg:border-l lg:border-dashed lg:border-zinc-200 lg:pl-4 dark:lg:border-zinc-800"
+        >
+          <h3 class="font-mono font-semibold text-sm text-zinc-900 uppercase dark:text-zinc-100">
+            Community
+          </h3>
+          <ul class="flex flex-col items-start gap-2">
+            <li>
+              <Link
+                href="/podcast"
+                variant="footer"
+                active={activePath?.startsWith("/podcast") ?? false}
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Podcast 🎙️
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="https://discord.gg/effect-ts"
+                variant="footer"
+                className="inline-flex items-center gap-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Discord
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/community-hub"
+                variant="footer"
+                active={activePath?.startsWith("/community-hub") ?? false}
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Community Hub
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/effect-jobs/"
+                variant="footer"
+                active={activePath?.startsWith("/effect-jobs") ?? false}
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Effect Jobs
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/adoption-partners/"
+                variant="footer"
+                active={activePath?.startsWith("/adoption-partners") ?? false}
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Adoption Partner
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Column 4: Other -->
+        <div
+          class="flex flex-1 flex-col gap-4 lg:border-l lg:border-dashed lg:border-zinc-200 lg:pl-4 dark:lg:border-zinc-800"
+        >
+          <h3 class="font-mono font-semibold text-sm text-zinc-900 uppercase dark:text-zinc-100">
+            Other
+          </h3>
+          <ul class="flex flex-col items-start gap-2">
+            <li>
+              <Link
+                href="/blog/"
+                variant="footer"
+                active={activePath?.startsWith("/blog") ?? false}
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Blog
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/myths/"
+                variant="footer"
+                active={activePath?.startsWith("/myths") ?? false}
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Myths about Effect 💀
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/merch/"
+                variant="footer"
+                active={activePath?.startsWith("/merch") ?? false}
+                className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Effect merch 🧢
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/brand-assets/"
+                variant="footer"
+                active={activePath?.startsWith("/brand-assets") ?? false}
+                className="inline-flex items-center gap-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >
+                Logo guidelines
+              </Link>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Middle Section: Social & Branding -->
+      <div class="flex flex-col gap-10 md:gap-8">
+        <div class="mx-4 h-px bg-zinc-200 dark:bg-zinc-800"></div>
+
+        <div class="flex flex-col items-center gap-8 md:grid md:grid-cols-3 md:items-center">
+          <!-- Logo -->
+          <div class="md:pl-4">
+            <a href="/" aria-label="Go to Effect homepage">
+              <img
+                class="block h-7 w-auto dark:hidden"
+                src={EffectLogoBlack.src}
+                alt="Effect"
+                width={EffectLogoBlack.width}
+                height={EffectLogoBlack.height}
+              />
+              <img
+                class="hidden h-7 w-auto dark:block"
+                src={EffectLogoWhite.src}
+                alt="Effect"
+                width={EffectLogoWhite.width}
+                height={EffectLogoWhite.height}
+              />
+            </a>
+          </div>
+
+          <!-- Social Icons -->
+          <div class="flex items-center justify-center gap-6 md:gap-5">
+            <Link
+              href="https://github.com/Effect-TS"
+              variant="icon"
+              aria-label="Visit Effect on GitHub"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            >
+              <div class="flex w-6 items-center justify-center">
+                <i class="ri-github-fill text-2xl md:text-xl" aria-hidden="true"></i>
+              </div>
+            </Link>
+            <Link
+              href="https://discord.gg/effect-ts"
+              variant="icon"
+              aria-label="Join Effect Discord server"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            >
+              <div class="flex w-6 items-center justify-center">
+                <i class="ri-discord-fill text-2xl md:text-xl" aria-hidden="true"></i>
+              </div>
+            </Link>
+            <Link
+              href="https://x.com/EffectTS_"
+              variant="icon"
+              aria-label="Follow Effect on X (Twitter)"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            >
+              <div class="flex w-6 items-center justify-center">
+                <i class="ri-twitter-x-fill text-2xl md:text-xl" aria-hidden="true"></i>
+              </div>
+            </Link>
+            <Link
+              href="https://www.youtube.com/@Effect-TS"
+              variant="icon"
+              aria-label="Subscribe to Effect on YouTube"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            >
+              <div class="flex w-6 items-center justify-center">
+                <i class="ri-youtube-fill text-2xl md:text-xl" aria-hidden="true"></i>
+              </div>
+            </Link>
+            <Link
+              href="https://www.linkedin.com/company/effect-ts"
+              variant="icon"
+              aria-label="Follow Effect on LinkedIn"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            >
+              <div class="flex w-6 items-center justify-center">
+                <i class="ri-linkedin-fill text-2xl md:text-xl" aria-hidden="true"></i>
+              </div>
+            </Link>
+            <Link
+              href="https://bsky.app/profile/effect-ts.bsky.social"
+              variant="icon"
+              aria-label="Follow Effect on Bluesky"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            >
+              <div class="flex w-6 items-center justify-center">
+                <i class="ri-bluesky-fill text-2xl md:text-xl" aria-hidden="true"></i>
+              </div>
+            </Link>
+          </div>
+
+          <div class="md:pr-4 md:text-right">
+            <p class="text-sm text-zinc-600 dark:text-zinc-400">MIT Licensed</p>
+          </div>
+        </div>
+
+        <div class="mx-4 h-px bg-zinc-200 dark:bg-zinc-800"></div>
+      </div>
+
+      <!-- Bottom Copyright Section -->
+      <div
+        class="flex flex-col items-center justify-between gap-4 px-4 pt-10 pb-16 md:flex-row md:gap-8 md:pt-8 md:pb-16"
+      >
+        <p class="text-sm text-zinc-600 dark:text-zinc-400 text-center lg:text-start">
+          <span>© {year}</span>
+          <a href="https://effectful.co/">
+            <span
+              class="text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              >Effectful Technologies Inc.</span
+            >
+          </a>
+          <span>All rights reserved.</span>
+        </p>
+        <div class="flex items-center gap-5">
+          <div class="flex items-center gap-4">
+            <Link
+              href="mailto:contact@effectful.co"
+              variant="footer"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            >
+              Email us
+            </Link>
+            <Link
+              href="/privacy"
+              variant="footer"
+              className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+            >
+              Privacy
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>

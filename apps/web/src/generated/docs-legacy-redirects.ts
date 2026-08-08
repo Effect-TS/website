@@ -1,0 +1,471 @@
+import type { RedirectConfig } from "astro"
+
+export const docsLegacyRedirectList: Record<string, RedirectConfig> = {
+  "/docs/additional-resources/api-reference": {
+    status: 307,
+    destination: "/docs/v4/api",
+  },
+  "/docs/v3/additional-resources/api-reference": {
+    status: 307,
+    destination: "/docs/v3/api",
+  },
+  "/docs/additional-resources/coming-from-zio": {
+    status: 307,
+    destination: "/docs/v3/additional-resources/coming-from-zio",
+  },
+  "/docs/additional-resources/effect-vs-fp-ts": {
+    status: 307,
+    destination: "/docs/v3/additional-resources/effect-vs-fp-ts",
+  },
+  "/docs/additional-resources/effect-vs-neverthrow": {
+    status: 307,
+    destination: "/docs/v3/additional-resources/effect-vs-neverthrow",
+  },
+  "/docs/additional-resources/effect-vs-promise": {
+    status: 307,
+    destination: "/docs/v3/additional-resources/effect-vs-promise",
+  },
+  "/docs/additional-resources/myths": {
+    status: 307,
+    destination: "/docs/v3/additional-resources/myths",
+  },
+  "/docs/ai/getting-started": {
+    status: 307,
+    destination: "/docs/v3/ai/getting-started",
+  },
+  "/docs/ai/introduction": {
+    status: 307,
+    destination: "/docs/v3/ai/introduction",
+  },
+  "/docs/ai/planning-llm-interactions": {
+    status: 307,
+    destination: "/docs/v3/ai/planning-llm-interactions",
+  },
+  "/docs/ai/tool-use": { status: 307, destination: "/docs/v3/ai/tool-use" },
+  "/docs/batching": { status: 307, destination: "/docs/v3/batching" },
+  "/docs/behaviour/equivalence": {
+    status: 307,
+    destination: "/docs/v3/behaviour/equivalence",
+  },
+  "/docs/behaviour/order": {
+    status: 307,
+    destination: "/docs/v3/behaviour/order",
+  },
+  "/docs/caching/cache": { status: 307, destination: "/docs/v3/caching/cache" },
+  "/docs/caching/caching-effects": {
+    status: 307,
+    destination: "/docs/v3/caching/caching-effects",
+  },
+  "/docs/code-style/branded-types": {
+    status: 307,
+    destination: "/docs/v3/code-style/branded-types",
+  },
+  "/docs/code-style/do": { status: 307, destination: "/docs/v3/code-style/do" },
+  "/docs/code-style/dual": {
+    status: 307,
+    destination: "/docs/v3/code-style/dual",
+  },
+  "/docs/code-style/guidelines": {
+    status: 307,
+    destination: "/docs/v3/code-style/guidelines",
+  },
+  "/docs/code-style/pattern-matching": {
+    status: 307,
+    destination: "/docs/v3/code-style/pattern-matching",
+  },
+  "/docs/concurrency/basic-concurrency": {
+    status: 307,
+    destination: "/docs/v3/concurrency/basic-concurrency",
+  },
+  "/docs/concurrency/deferred": {
+    status: 307,
+    destination: "/docs/v3/concurrency/deferred",
+  },
+  "/docs/concurrency/fibers": {
+    status: 307,
+    destination: "/docs/v3/concurrency/fibers",
+  },
+  "/docs/concurrency/latch": {
+    status: 307,
+    destination: "/docs/v3/concurrency/latch",
+  },
+  "/docs/concurrency/pubsub": {
+    status: 307,
+    destination: "/docs/v3/concurrency/pubsub",
+  },
+  "/docs/concurrency/queue": {
+    status: 307,
+    destination: "/docs/v3/concurrency/queue",
+  },
+  "/docs/concurrency/semaphore": {
+    status: 307,
+    destination: "/docs/v3/concurrency/semaphore",
+  },
+  "/docs/configuration": { status: 307, destination: "/docs/v3/configuration" },
+  "/docs/data-types/bigdecimal": {
+    status: 307,
+    destination: "/docs/v3/data-types/bigdecimal",
+  },
+  "/docs/data-types/cause": {
+    status: 307,
+    destination: "/docs/v3/data-types/cause",
+  },
+  "/docs/data-types/chunk": {
+    status: 307,
+    destination: "/docs/v3/data-types/chunk",
+  },
+  "/docs/data-types/data": {
+    status: 307,
+    destination: "/docs/v3/data-types/data",
+  },
+  "/docs/data-types/datetime": {
+    status: 307,
+    destination: "/docs/v3/data-types/datetime",
+  },
+  "/docs/data-types/duration": {
+    status: 307,
+    destination: "/docs/v3/data-types/duration",
+  },
+  "/docs/data-types/either": {
+    status: 307,
+    destination: "/docs/v3/data-types/either",
+  },
+  "/docs/data-types/exit": {
+    status: 307,
+    destination: "/docs/v3/data-types/exit",
+  },
+  "/docs/data-types/hash-set": {
+    status: 307,
+    destination: "/docs/v3/data-types/hash-set",
+  },
+  "/docs/data-types/option": {
+    status: 307,
+    destination: "/docs/v3/data-types/option",
+  },
+  "/docs/data-types/redacted": {
+    status: 307,
+    destination: "/docs/v3/data-types/redacted",
+  },
+  "/docs/error-management/error-accumulation": {
+    status: 307,
+    destination: "/docs/v3/error-management/error-accumulation",
+  },
+  "/docs/error-management/error-channel-operations": {
+    status: 307,
+    destination: "/docs/v3/error-management/error-channel-operations",
+  },
+  "/docs/error-management/expected-errors": {
+    status: 307,
+    destination: "/docs/v3/error-management/expected-errors",
+  },
+  "/docs/error-management/fallback": {
+    status: 307,
+    destination: "/docs/v3/error-management/fallback",
+  },
+  "/docs/error-management/matching": {
+    status: 307,
+    destination: "/docs/v3/error-management/matching",
+  },
+  "/docs/error-management/parallel-and-sequential-errors": {
+    status: 307,
+    destination: "/docs/v3/error-management/parallel-and-sequential-errors",
+  },
+  "/docs/error-management/retrying": {
+    status: 307,
+    destination: "/docs/v3/error-management/retrying",
+  },
+  "/docs/error-management/sandboxing": {
+    status: 307,
+    destination: "/docs/v3/error-management/sandboxing",
+  },
+  "/docs/error-management/timing-out": {
+    status: 307,
+    destination: "/docs/v3/error-management/timing-out",
+  },
+  "/docs/error-management/two-error-types": {
+    status: 307,
+    destination: "/docs/v3/error-management/two-error-types",
+  },
+  "/docs/error-management/unexpected-errors": {
+    status: 307,
+    destination: "/docs/v3/error-management/unexpected-errors",
+  },
+  "/docs/error-management/yieldable-errors": {
+    status: 307,
+    destination: "/docs/v3/error-management/yieldable-errors",
+  },
+  "/docs/getting-started/building-pipelines": {
+    status: 307,
+    destination: "/docs/v3/getting-started/building-pipelines",
+  },
+  "/docs/getting-started/control-flow": {
+    status: 307,
+    destination: "/docs/v3/getting-started/control-flow",
+  },
+  "/docs/getting-started/creating-effects": {
+    status: 307,
+    destination: "/docs/v3/getting-started/creating-effects",
+  },
+  "/docs/getting-started/devtools": {
+    status: 307,
+    destination: "/docs/v3/getting-started/devtools",
+  },
+  "/docs/getting-started/importing-effect": {
+    status: 307,
+    destination: "/docs/v3/getting-started/importing-effect",
+  },
+  "/docs/getting-started/installation": {
+    status: 307,
+    destination: "/docs/v3/getting-started/installation",
+  },
+  "/docs/getting-started/introduction": {
+    status: 307,
+    destination: "/docs/v3/getting-started/introduction",
+  },
+  "/docs/getting-started/running-effects": {
+    status: 307,
+    destination: "/docs/v3/getting-started/running-effects",
+  },
+  "/docs/getting-started/the-effect-type": {
+    status: 307,
+    destination: "/docs/v3/getting-started/the-effect-type",
+  },
+  "/docs/getting-started/using-generators": {
+    status: 307,
+    destination: "/docs/v3/getting-started/using-generators",
+  },
+  "/docs/getting-started/why-effect": {
+    status: 307,
+    destination: "/docs/v3/getting-started/why-effect",
+  },
+  "/docs/micro/effect-users": {
+    status: 307,
+    destination: "/docs/v3/micro/effect-users",
+  },
+  "/docs/micro/new-users": {
+    status: 307,
+    destination: "/docs/v3/micro/new-users",
+  },
+  "/docs/observability/logging": {
+    status: 307,
+    destination: "/docs/v3/observability/logging",
+  },
+  "/docs/observability/metrics": {
+    status: 307,
+    destination: "/docs/v3/observability/metrics",
+  },
+  "/docs/observability/supervisor": {
+    status: 307,
+    destination: "/docs/v3/observability/supervisor",
+  },
+  "/docs/observability/tracing": {
+    status: 307,
+    destination: "/docs/v3/observability/tracing",
+  },
+  "/docs/platform/command": {
+    status: 307,
+    destination: "/docs/v3/platform/command",
+  },
+  "/docs/platform/file-system": {
+    status: 307,
+    destination: "/docs/v3/platform/file-system",
+  },
+  "/docs/platform/introduction": {
+    status: 307,
+    destination: "/docs/v3/platform/introduction",
+  },
+  "/docs/platform/key-value-store": {
+    status: 307,
+    destination: "/docs/v3/platform/key-value-store",
+  },
+  "/docs/platform/path": { status: 307, destination: "/docs/v3/platform/path" },
+  "/docs/platform/platformlogger": {
+    status: 307,
+    destination: "/docs/v3/platform/platformlogger",
+  },
+  "/docs/platform/runtime": {
+    status: 307,
+    destination: "/docs/v3/platform/runtime",
+  },
+  "/docs/platform/terminal": {
+    status: 307,
+    destination: "/docs/v3/platform/terminal",
+  },
+  "/docs/requirements-management/default-services": {
+    status: 307,
+    destination: "/docs/v3/requirements-management/default-services",
+  },
+  "/docs/requirements-management/layer-memoization": {
+    status: 307,
+    destination: "/docs/v3/requirements-management/layer-memoization",
+  },
+  "/docs/requirements-management/layers": {
+    status: 307,
+    destination: "/docs/v3/requirements-management/layers",
+  },
+  "/docs/requirements-management/services": {
+    status: 307,
+    destination: "/docs/v3/requirements-management/services",
+  },
+  "/docs/resource-management/introduction": {
+    status: 307,
+    destination: "/docs/v3/resource-management/introduction",
+  },
+  "/docs/resource-management/scope": {
+    status: 307,
+    destination: "/docs/v3/resource-management/scope",
+  },
+  "/docs/runtime": { status: 307, destination: "/docs/v3/runtime" },
+  "/docs/scheduling/built-in-schedules": {
+    status: 307,
+    destination: "/docs/v3/scheduling/built-in-schedules",
+  },
+  "/docs/scheduling/cron": {
+    status: 307,
+    destination: "/docs/v3/scheduling/cron",
+  },
+  "/docs/scheduling/examples": {
+    status: 307,
+    destination: "/docs/v3/scheduling/examples",
+  },
+  "/docs/scheduling/introduction": {
+    status: 307,
+    destination: "/docs/v3/scheduling/introduction",
+  },
+  "/docs/scheduling/repetition": {
+    status: 307,
+    destination: "/docs/v3/scheduling/repetition",
+  },
+  "/docs/scheduling/schedule-combinators": {
+    status: 307,
+    destination: "/docs/v3/scheduling/schedule-combinators",
+  },
+  "/docs/schema/advanced-usage": {
+    status: 307,
+    destination: "/docs/v3/schema/advanced-usage",
+  },
+  "/docs/schema/annotations": {
+    status: 307,
+    destination: "/docs/v3/schema/annotations",
+  },
+  "/docs/schema/arbitrary": {
+    status: 307,
+    destination: "/docs/v3/schema/arbitrary",
+  },
+  "/docs/schema/basic-usage": {
+    status: 307,
+    destination: "/docs/v3/schema/basic-usage",
+  },
+  "/docs/schema/classes": {
+    status: 307,
+    destination: "/docs/v3/schema/classes",
+  },
+  "/docs/schema/default-constructors": {
+    status: 307,
+    destination: "/docs/v3/schema/default-constructors",
+  },
+  "/docs/schema/effect-data-types": {
+    status: 307,
+    destination: "/docs/v3/schema/effect-data-types",
+  },
+  "/docs/schema/equivalence": {
+    status: 307,
+    destination: "/docs/v3/schema/equivalence",
+  },
+  "/docs/schema/error-formatters": {
+    status: 307,
+    destination: "/docs/v3/schema/error-formatters",
+  },
+  "/docs/schema/error-messages": {
+    status: 307,
+    destination: "/docs/v3/schema/error-messages",
+  },
+  "/docs/schema/filters": {
+    status: 307,
+    destination: "/docs/v3/schema/filters",
+  },
+  "/docs/schema/getting-started": {
+    status: 307,
+    destination: "/docs/v3/schema/getting-started",
+  },
+  "/docs/schema/introduction": {
+    status: 307,
+    destination: "/docs/v3/schema/introduction",
+  },
+  "/docs/schema/json-schema": {
+    status: 307,
+    destination: "/docs/v3/schema/json-schema",
+  },
+  "/docs/schema/pretty": { status: 307, destination: "/docs/v3/schema/pretty" },
+  "/docs/schema/projections": {
+    status: 307,
+    destination: "/docs/v3/schema/projections",
+  },
+  "/docs/schema/standard-schema": {
+    status: 307,
+    destination: "/docs/v3/schema/standard-schema",
+  },
+  "/docs/schema/transformations": {
+    status: 307,
+    destination: "/docs/v3/schema/transformations",
+  },
+  "/docs/sink/concurrency": {
+    status: 307,
+    destination: "/docs/v3/sink/concurrency",
+  },
+  "/docs/sink/creating": { status: 307, destination: "/docs/v3/sink/creating" },
+  "/docs/sink/introduction": {
+    status: 307,
+    destination: "/docs/v3/sink/introduction",
+  },
+  "/docs/sink/leftovers": {
+    status: 307,
+    destination: "/docs/v3/sink/leftovers",
+  },
+  "/docs/sink/operations": {
+    status: 307,
+    destination: "/docs/v3/sink/operations",
+  },
+  "/docs/state-management/ref": {
+    status: 307,
+    destination: "/docs/v3/state-management/ref",
+  },
+  "/docs/state-management/subscriptionref": {
+    status: 307,
+    destination: "/docs/v3/state-management/subscriptionref",
+  },
+  "/docs/state-management/synchronizedref": {
+    status: 307,
+    destination: "/docs/v3/state-management/synchronizedref",
+  },
+  "/docs/stream/consuming-streams": {
+    status: 307,
+    destination: "/docs/v3/stream/consuming-streams",
+  },
+  "/docs/stream/creating": {
+    status: 307,
+    destination: "/docs/v3/stream/creating",
+  },
+  "/docs/stream/error-handling": {
+    status: 307,
+    destination: "/docs/v3/stream/error-handling",
+  },
+  "/docs/stream/introduction": {
+    status: 307,
+    destination: "/docs/v3/stream/introduction",
+  },
+  "/docs/stream/operations": {
+    status: 307,
+    destination: "/docs/v3/stream/operations",
+  },
+  "/docs/stream/resourceful-streams": {
+    status: 307,
+    destination: "/docs/v3/stream/resourceful-streams",
+  },
+  "/docs/testing/testclock": {
+    status: 307,
+    destination: "/docs/v3/testing/testclock",
+  },
+  "/docs/trait/equal": { status: 307, destination: "/docs/v3/trait/equal" },
+  "/docs/trait/hash": { status: 307, destination: "/docs/v3/trait/hash" },
+}
