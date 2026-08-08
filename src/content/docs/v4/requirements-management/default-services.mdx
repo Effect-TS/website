@@ -5,11 +5,7 @@ sidebar:
   order: 1
 ---
 
-Effect comes equipped with five pre-built services:
-
-```ts showLineNumbers=false
-type DefaultServices = Clock | ConfigProvider | Console | Random | Tracer
-```
+Effect comes equipped with live implementations of five services: `Clock`, `ConfigProvider`, `Console`, `Random`, and `Tracer`.
 
 When we employ these services, there's no need to explicitly provide their implementations. Effect automatically supplies live versions of these services to our effects, sparing us from manual setup.
 
@@ -36,23 +32,9 @@ Effect takes care of handling these services seamlessly for us.
 
 ## Overriding Default Services
 
-Sometimes, you might need to replace the default services with custom implementations. Effect provides built-in utilities to override these services using `Effect.with<service>` and `Effect.with<service>Scoped`.
+Each default service is exposed as a `Context.Reference`: `Clock.Clock`, `ConfigProvider.ConfigProvider`, `Console.Console`, `Random.Random`, and `Tracer.Tracer`. Use `Effect.provideService` to run an effect with a different implementation. The override applies only to the effect being provided.
 
-- `Effect.with<service>`: Overrides a service for the duration of the effect.
-- `Effect.with<service>Scoped`: Overrides a service within a scope and restores the original service afterward.
-
-| Function                          | Description                                                                    |
-| --------------------------------- | ------------------------------------------------------------------------------ |
-| `Effect.withClock`                | Executes an effect using a specific `Clock` service.                           |
-| `Effect.withClockScoped`          | Temporarily overrides the `Clock` service and restores it when the scope ends. |
-| `Effect.withConfigProvider`       | Executes an effect using a specific `ConfigProvider` service.                  |
-| `Effect.withConfigProviderScoped` | Temporarily overrides the `ConfigProvider` service within a scope.             |
-| `Effect.withConsole`              | Executes an effect using a specific `Console` service.                         |
-| `Effect.withConsoleScoped`        | Temporarily overrides the `Console` service within a scope.                    |
-| `Effect.withRandom`               | Executes an effect using a specific `Random` service.                          |
-| `Effect.withRandomScoped`         | Temporarily overrides the `Random` service within a scope.                     |
-| `Effect.withTracer`               | Executes an effect using a specific `Tracer` service.                          |
-| `Effect.withTracerScoped`         | Temporarily overrides the `Tracer` service within a scope.                     |
+Some modules also provide higher-level helpers for common overrides. For example, `Random.withSeed` installs a deterministic random-number generator for an effect.
 
 **Example** (Overriding Random Service)
 

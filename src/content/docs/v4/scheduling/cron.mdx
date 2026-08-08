@@ -8,7 +8,7 @@ sidebar:
 import { Aside } from "@astrojs/starlight/components"
 
 The Cron module lets you define schedules in a style similar to [UNIX cron expressions](https://en.wikipedia.org/wiki/Cron).
-It also supports partial constraints (e.g., certain months or weekdays), time zone awareness through the [DateTime](/docs/data-types/datetime/) module, and robust error handling.
+It also supports partial constraints (e.g., certain months or weekdays), time zone awareness through the [DateTime](/docs/v4/data-types/datetime/) module, and robust error handling.
 
 This module helps you:
 
@@ -57,7 +57,7 @@ Instead of manually constructing a `Cron`, you can use UNIX-like cron strings an
 
 ### parse
 
-The `parse(cronExpression, tz?)` function safely parses a cron string into a `Cron` instance. It returns a [Result](/docs/data-types/result/), which will contain either the parsed `Cron` or a parsing error.
+The `parse(cronExpression, tz?)` function safely parses a cron string into a `Cron` instance. It returns a [Result](/docs/v4/data-types/result/), which will contain either the parsed `Cron` or a parsing error.
 
 **Example** (Safely Parsing a Cron Expression)
 
@@ -69,22 +69,22 @@ import { Result, Cron } from "effect"
 const expression = "0 0 4 8-14 * *"
 
 // Parse the cron expression
-const eitherCron = Cron.parse(expression)
+const result = Cron.parse(expression)
 
-if (Result.isSuccess(eitherCron)) {
+if (Result.isSuccess(result)) {
   // Successfully parsed
-  console.log("Parsed cron:", eitherCron.success)
+  console.log("Parsed cron:", result.success)
 } else {
   // Parsing failed
-  console.error("Failed to parse cron:", eitherCron.failure.message)
+  console.error("Failed to parse cron:", result.failure.message)
 }
 
-Result.isSuccess(eitherCron) // => true
+Result.isSuccess(result) // => true
 ```
 
-### unsafeParse
+### parseUnsafe
 
-The `parseUnsafe(cronExpression, tz?)` function works like [parse](#parse), but instead of returning a [Result](/docs/data-types/result/), it throws an exception if the input is invalid.
+The `parseUnsafe(cronExpression, tz?)` function works like [parse](#parse), but instead of returning a [Result](/docs/v4/data-types/result/), it throws an exception if the input is invalid.
 
 **Example** (Parsing a Cron Expression)
 
@@ -102,7 +102,7 @@ hours // => [4]
 
 ## Checking Dates with match
 
-The `match` function allows you to determine if a given `Date` (or any [DateTime.Input](/docs/data-types/datetime/#the-datetimeinput-type)) satisfies the constraints of a cron schedule.
+The `match` function allows you to determine if a given `Date` (or any [DateTime.Input](/docs/v4/data-types/datetime/#the-datetimeinput-type)) satisfies the constraints of a cron schedule.
 
 If the date meets the schedule's conditions, `match` returns `true`. Otherwise, it returns `false`.
 
@@ -182,7 +182,7 @@ The Schedule module allows you to define recurring behaviors, such as retries or
 
 ### cron
 
-The `Schedule.cron` function generates a [Schedule](/docs/scheduling/introduction/) that triggers at the start of each interval defined by the provided cron expression or `Cron` instance. When triggered, the schedule produces a tuple `[start, end]` representing the timestamps (in milliseconds) of the cron interval window.
+The `Schedule.cron` function generates a [Schedule](/docs/v4/scheduling/introduction/) that triggers at the start of each interval defined by the provided cron expression or `Cron` instance. When triggered, the schedule produces a tuple `[start, end]` representing the timestamps (in milliseconds) of the cron interval window.
 
 **Example** (Creating a Schedule from a Cron)
 

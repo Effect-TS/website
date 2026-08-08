@@ -45,8 +45,8 @@ new GetUserError()._tag // => "GetUserError"
 
 <Aside type="tip" title="Use Precise Types and Detailed Errors">
   In a real world scenario we may want to use a more precise types instead of directly using
-  primitives for identifiers (see [Branded Types](/docs/code-style/branded-types/)). Additionally,
-  you may want to include more detailed information in the errors.
+  primitives for identifiers (see [Branded Types](/docs/v4/code-style/branded-types/)).
+  Additionally, you may want to include more detailed information in the errors.
 </Aside>
 
 ### Defining API Functions
@@ -130,8 +130,8 @@ new SendEmailError()._tag // => "SendEmailError"
 
 <Aside type="tip" title="Validating API Responses">
   In a real-world scenario, you might not want to trust your APIs to always return the expected data
-  - for this, you can use [`effect/Schema`](/docs/schema/introduction/) or similar alternatives such
-  as `zod`.
+  - for this, you can use [`effect/Schema`](/docs/v4/schema/introduction/) or similar alternatives
+  such as `zod`.
 </Aside>
 
 While this approach is straightforward and readable, it may not be the most efficient. Repeated API calls, especially when many todos share the same owner, can significantly increase network overhead and slow down your application.
@@ -245,7 +245,7 @@ Let's assume that `getUserById` and `sendEmail` can be batched. This means that 
 
 <Aside type="caution" title="Ensuring Request Comparability">
   It's crucial for the requests to be modeled in a way that allows them to be comparable. This means
-  implementing comparability (using methods like [Equals.equals](/docs/trait/equal/)) to identify
+  implementing comparability (using methods like [Equals.equals](/docs/v4/trait/equal/)) to identify
   and batch identical requests effectively.
 </Aside>
 
@@ -1075,4 +1075,4 @@ const fifoCachedResolver = Effect.runSync(
 )
 ```
 
-Cache entries created this way don't expire by time. If you need time-to-live-based expiry, or want cache lookups exposed as a first-class `Cache` (with `get`/`refresh`/`invalidate`, see [Cache](/docs/caching/cache/)) instead of a plain `RequestResolver`, use [`RequestResolver.asCache`](/docs/v4/api/effect/RequestResolver) instead — it accepts the same `capacity` option plus an optional `timeToLive`. For caching that survives process restarts, see `RequestResolver.persisted`.
+Cache entries created this way don't expire by time. If you need time-to-live-based expiry, or want cache lookups exposed as a first-class `Cache` (with `get`/`refresh`/`invalidate`, see [Cache](/docs/v4/caching/cache/)) instead of a plain `RequestResolver`, use [`RequestResolver.asCache`](/docs/v4/api/effect/RequestResolver) instead — it accepts the same `capacity` option plus an optional `timeToLive`.

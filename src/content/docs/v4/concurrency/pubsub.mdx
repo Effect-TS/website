@@ -9,16 +9,16 @@ import { Aside } from "@astrojs/starlight/components"
 
 A `PubSub` serves as an asynchronous message hub, allowing publishers to send messages that can be received by all current subscribers.
 
-Unlike a [Queue](/docs/concurrency/queue/), where each value is delivered to only one consumer, a `PubSub` broadcasts each published message to all subscribers. This makes `PubSub` ideal for scenarios requiring message broadcasting rather than load distribution.
+Unlike a [Queue](/docs/v4/concurrency/queue/), where each value is delivered to only one consumer, a `PubSub` broadcasts each published message to all subscribers. This makes `PubSub` ideal for scenarios requiring message broadcasting rather than load distribution.
 
 ## Basic Operations
 
 A `PubSub<A>` stores messages of type `A` and provides two fundamental operations:
 
-| API                | Description                                                                                                                                                                                                                           |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PubSub.publish`   | Sends a message of type `A` to the `PubSub`, returning an effect indicating if the message was successfully published.                                                                                                                |
-| `PubSub.subscribe` | Creates a scoped effect that allows subscription to the `PubSub`, automatically unsubscribing when the scope ends. Subscribers receive messages through a [Dequeue](/docs/concurrency/queue/#dequeue) which holds published messages. |
+| API                | Description                                                                                                                                                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PubSub.publish`   | Sends a message of type `A` to the `PubSub`, returning an effect indicating if the message was successfully published.                                                                                                                   |
+| `PubSub.subscribe` | Creates a scoped effect that allows subscription to the `PubSub`, automatically unsubscribing when the scope ends. Subscribers receive messages through a [Dequeue](/docs/v4/concurrency/queue/#dequeue) which holds published messages. |
 
 **Example** (Publishing a Message to Multiple Subscribers)
 
@@ -178,19 +178,3 @@ await Effect.runPromise(program) // => undefined
 ### Shutting Down a PubSub
 
 To shut down a pubsub, use `PubSub.shutdown`. You can also verify if it has been shut down with `PubSub.isShutdown`, or wait for the shutdown to complete with `PubSub.awaitShutdown`. Shutting down a pubsub also terminates all associated queues, ensuring that the shutdown signal is effectively communicated.
-
-## PubSub as an Enqueue
-
-`PubSub` operators mirror those of [Queue](/docs/concurrency/queue/) with the main difference being that `PubSub.publish` and `PubSub.subscribe` are used in place of `Queue.offer` and `Queue.take`. If you're already familiar with using a `Queue`, you’ll find `PubSub` straightforward.
-
-Essentially, a `PubSub` can be seen as a `Enqueue` that only allows writes:
-
-```ts twoslash showLineNumbers=false
-import type { Queue } from "effect"
-
-interface PubSub<A> extends Queue.Enqueue<A> {}
-```
-
-Here, the `Enqueue` type refers to a queue that only accepts enqueues (or writes). Any value enqueued here is published to the pubsub, and operations like shutdown will also affect the pubsub.
-
-This design makes `PubSub` highly flexible, letting you use it anywhere you need a `Enqueue` that only accepts published values.

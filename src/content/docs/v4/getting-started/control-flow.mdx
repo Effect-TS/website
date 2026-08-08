@@ -13,7 +13,7 @@ When working with Effect values, we can use standard JavaScript if-then-else sta
 
 **Example** (Returning None for Invalid Weight)
 
-Here we are using the [Option](/docs/data-types/option/) data type to represent the absence of a valid value.
+Here we are using the [Option](/docs/v4/data-types/option/) data type to represent the absence of a valid value.
 
 ```ts twoslash import.meta.vitest name="returning-none-for-invalid-weight-1"
 import { Effect, Option } from "effect"
@@ -355,9 +355,9 @@ Combines multiple effects into one, returning results based on the input structu
 
 Use `Effect.all` when you need to run multiple effects and combine their results into a single output. It supports tuples, iterables, structs, and records, making it flexible for different input types.
 
-If any effect fails, it stops execution (short-circuiting) and propagates the error. To change this behavior, you can use the [`mode`](#the-mode-option) option, which allows all effects to run and collect results as [Result](/docs/data-types/result/).
+If any effect fails, it stops execution (short-circuiting) and propagates the error. To change this behavior, you can use the [`mode`](#the-mode-option) option, which allows all effects to run and collect results as [Result](/docs/v4/data-types/result/).
 
-You can control the execution order (e.g., sequential vs. concurrent) using the [Concurrency Options](/docs/concurrency/basic-concurrency/#concurrency-options).
+You can control the execution order (e.g., sequential vs. concurrent) using the [Concurrency Options](/docs/v4/concurrency/basic-concurrency/#concurrency-options).
 
 For instance, if the input is a tuple:
 
@@ -492,11 +492,11 @@ You can override this behavior by using the `mode` option.
 
 #### The `mode` option
 
-The `{ mode: "either" }` option changes the behavior of `Effect.all` to ensure all effects run, even if some fail. Instead of stopping on the first failure, this mode collects both successes and failures, returning an array of `Result` instances where each result is either a `Success` (success) or a `Failure` (failure).
+The `{ mode: "result" }` option changes the behavior of `Effect.all` to ensure all effects run, even if some fail. Instead of stopping on the first failure, this mode collects both successes and failures, returning an array of `Result` instances.
 
-**Example** (Collecting Results with `mode: "either"`)
+**Example** (Collecting Results with `mode: "result"`)
 
-```ts twoslash /{ mode: "result" }/ import.meta.vitest name="collecting-results-with-mode-either-1"
+```ts twoslash /{ mode: "result" }/ import.meta.vitest name="collecting-results-with-mode-result-1"
 import { Effect, Console, Exit, Result } from "effect"
 
 const effects = [

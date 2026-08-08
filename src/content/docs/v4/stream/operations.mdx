@@ -158,7 +158,7 @@ const randomResults = await Effect.runPromise(Stream.runCollect(stream))
 randomResults.length // => 3
 ```
 
-To handle multiple effectful transformations concurrently, you can use the [concurrency](/docs/concurrency/basic-concurrency/#concurrency-options) option. This option allows a specified number of effects to run concurrently, with results emitted downstream in their original order.
+To handle multiple effectful transformations concurrently, you can use the [concurrency](/docs/v4/concurrency/basic-concurrency/#concurrency-options) option. This option allows a specified number of effects to run concurrently, with results emitted downstream in their original order.
 
 **Example** (Fetching URLs Concurrently)
 
@@ -248,7 +248,7 @@ const stream = Stream.range(1, 5).pipe(Stream.scan(0, (a, b) => a + b))
 await Effect.runPromise(Stream.runCollect(stream)) // => [0, 1, 3, 6, 10, 15]
 ```
 
-If you need only the final accumulated value, you can use [Stream.runFold](/docs/stream/consuming-streams/#using-a-fold-operation):
+If you need only the final accumulated value, you can use [Stream.runFold](/docs/v4/stream/consuming-streams/#using-runfold):
 
 **Example** (Final Accumulated Result)
 
@@ -669,7 +669,7 @@ const stream = Stream.make(1, 2, 3).pipe(
 await Effect.runPromise(Stream.runCollect(stream)) // => [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
 ```
 
-If you need to perform the `flatMap` operation concurrently, you can use the [concurrency](/docs/concurrency/basic-concurrency/#concurrency-options) option to control how many inner streams run simultaneously.
+If you need to perform the `flatMap` operation concurrently, you can use the [concurrency](/docs/v4/concurrency/basic-concurrency/#concurrency-options) option to control how many inner streams run simultaneously.
 
 Additionally, you can use the `switch` option to implement a "switch" behavior where previous streams are automatically
 cancelled when new elements arrive from the source stream. This is particularly useful when you only need the most recent

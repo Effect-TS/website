@@ -59,18 +59,18 @@ await Effect.runPromise(Stream.run(stream, sumSink)) // => "15"
 
 You can filter the elements a sink ends up processing by filtering the stream that feeds it, before handing it off with `Stream.transduce`. This lets you combine a filter with a sink like `Sink.take` that only cares about elements meeting certain criteria.
 
-**Example** (Filtering Negative Numbers in Chunks of Three)
+**Example** (Filtering Negative Numbers in Groups of Three)
 
-In the example below, elements are collected in chunks of three, but only positive numbers are included:
+In the example below, elements are collected into arrays of three, but only positive numbers are included:
 
 ```ts twoslash import.meta.vitest name="filtering-negative-numbers-in-chunks-of-three-1"
 import { Stream, Sink, Effect } from "effect"
 
 // Define a stream with positive, negative, and zero values
 const stream = Stream.fromIterable([1, -2, 0, 1, 3, -3, 4, 2, 0, 1, -3, 1, 1, 6]).pipe(
-  // Filter out non-positive numbers before chunking
+  // Filter out non-positive numbers before grouping
   Stream.filter((n) => n > 0),
-  // Collect the remaining elements in chunks of 3
+  // Collect the remaining elements in groups of 3
   Stream.transduce(Sink.take(3)),
 )
 

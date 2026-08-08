@@ -23,13 +23,13 @@ To execute this program, the Effect runtime system comes into play. The `Effect.
 
 When the runtime system runs an effect, it creates a root fiber, initializing it with:
 
-- The initial [context](/docs/requirements-management/services/#how-it-works)
+- The initial [context](/docs/v4/requirements-management/services/#how-it-works)
 - The initial fiber-local state
 - The initial effect
 
 It then starts a loop, executing the instructions described by the `Effect` step by step.
 
-You can think of the runtime as a system that takes an [`Effect<A, E, R>`](/docs/getting-started/the-effect-type/) and its associated context `Context<R>` and produces an [`Exit<A, E>`](/docs/data-types/exit/) result.
+You can think of the runtime as a system that takes an [`Effect<A, E, R>`](/docs/v4/getting-started/the-effect-type/) and its associated context `Context<R>` and produces an [`Exit<A, E>`](/docs/v4/data-types/exit/) result.
 
 ```text showLineNumbers=false
 ┌────────────────────────────────┐
@@ -53,14 +53,14 @@ Runtime Systems have a lot of responsibilities:
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | **Executing the program**     | The runtime must execute every step of the effect in a loop until the program completes.                           |
 | **Handling errors**           | It handles both expected and unexpected errors that occur during execution.                                        |
-| **Managing concurrency**      | The runtime spawns new fibers when `Effect.fork` is called to handle concurrent operations.                        |
+| **Managing concurrency**      | The runtime spawns new fibers when `Effect.forkChild` is called to handle concurrent operations.                   |
 | **Cooperative yielding**      | It ensures fibers don't monopolize resources, yielding control when necessary.                                     |
 | **Ensuring resource cleanup** | The runtime guarantees finalizers run properly to clean up resources when needed.                                  |
 | **Handling async callbacks**  | The runtime deals with asynchronous operations transparently, allowing you to write async and sync code uniformly. |
 
 ## Running With an Explicit Context
 
-When we use [functions that run effects](/docs/getting-started/running-effects/) like `Effect.runPromise` or `Effect.runFork`, we don't need to mention any runtime object at all — there is no separate "default runtime" value to look up or pass around. These functions execute an `Effect<A, E, never>` directly, using an empty context and the [default services](/docs/requirements-management/default-services/).
+When we use [functions that run effects](/docs/v4/getting-started/running-effects/) like `Effect.runPromise` or `Effect.runFork`, we don't need to mention any runtime object at all — there is no separate "default runtime" value to look up or pass around. These functions execute an `Effect<A, E, never>` directly, using an empty context and the [default services](/docs/v4/requirements-management/default-services/).
 
 If your effect still has unmet requirements (`R` is not `never`) and you already have a `Context<R>` satisfying them — for example, one built manually with `Context.make`, rather than through a `Layer` — you can run it directly with the matching `Effect.run*With` function, instead of first wrapping it with `Effect.provide`:
 
@@ -91,7 +91,7 @@ Effect.runSyncWith(context)(program) // => 5
 In most scenarios, this direct style is sufficient for effect execution.
 However, there are cases where it's helpful to build a reusable runtime, particularly when you need to reuse specific configurations or contexts across many separate calls.
 
-For example, in a React app or when executing operations on a server in response to API requests, you might build a reusable runtime from a [layer](/docs/requirements-management/layers/) `Layer<R, Err, RIn>` using `ManagedRuntime`, covered next. This allows you to maintain a consistent context across different execution boundaries.
+For example, in a React app or when executing operations on a server in response to API requests, you might build a reusable runtime from a [layer](/docs/v4/requirements-management/layers/) `Layer<R, Err, RIn>` using `ManagedRuntime`, covered next. This allows you to maintain a consistent context across different execution boundaries.
 
 ## Locally Scoped Runtime Configuration
 
@@ -102,11 +102,11 @@ However, there are cases where we want to temporarily **override the runtime con
 This concept is known as locally scoped runtime configuration.
 Once the execution of that code region is completed, the runtime configuration **reverts** to its original settings.
 
-To achieve this, we make use of the `Effect.provide` function, which allow us to provide a new runtime configuration to a specific section of our code.
+To achieve this, we use `Effect.provide`, which allows us to provide a new runtime configuration to a specific section of our code.
 
 **Example** (Overriding the Logger Configuration)
 
-In this example, we create a simple logger using `Logger.replace`, which replaces the default logger with a custom one that logs messages without timestamps or levels. We then use `Effect.provide` to apply this custom logger to the program.
+In this example, we create a layer containing a custom logger that logs messages without timestamps or levels. We then use `Effect.provide` to apply this logger layer to the program.
 
 ```ts twoslash import.meta.vitest name="overriding-the-logger-configuration-1"
 import { Logger, Effect, Fiber, Exit } from "effect"
@@ -225,7 +225,7 @@ Output:
 
 ### Context.Service
 
-When working with runtimes that you pass around, `Context.Service` can help simplify the access to services. It lets you define a tag and the service's shape together, as a single class.
+When working with runtimes that you pass around, `Context.Service` can simplify access to services. It lets you define a service key and its shape together as a single class.
 
 **Example** (Defining a Service for Notifications)
 
@@ -244,9 +244,9 @@ Use `.use()` (shown below) to run a callback with the resolved service, or `yiel
 
 This allows you to interact with the service directly:
 
-**Example** (Using the Notifications Tag)
+**Example** (Using the Notifications Service Key)
 
-```ts twoslash import.meta.vitest name="using-the-notifications-tag-1"
+```ts twoslash import.meta.vitest name="using-the-notifications-service-key-1"
 import { Context, Effect, Layer } from "effect"
 
 class Notifications extends Context.Service<

@@ -29,7 +29,7 @@ await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3, "a", "b", "c"
 
 In this example, `s1` encounters an error, but instead of terminating the stream, we gracefully switch to `s2` using `Stream.catch`. This ensures that we can continue processing data even if one stream fails.
 
-You can also distinguish elements from the two streams based on success or failure by tagging each side with the [Result](/docs/data-types/result/) data type before merging them, mapping `s1`'s elements into `Result.succeed` and `s2`'s elements into `Result.fail`:
+You can also distinguish elements from the two streams based on success or failure by tagging each side with the [Result](/docs/v4/data-types/result/) data type before merging them, mapping `s1`'s elements into `Result.succeed` and `s2`'s elements into `Result.fail`:
 
 ```ts twoslash import.meta.vitest name="recovering-from-failure-2"
 import { Stream, Effect, Result } from "effect"
@@ -140,9 +140,9 @@ const stream = Stream.catchCauseFilter(s1, Cause.findDie, () => s2)
 await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3, "a", "b", "c"]
 ```
 
-## Recovering to Effect
+## Running Cleanup on Failure
 
-In stream processing, it's crucial to handle errors gracefully and perform cleanup tasks when needed. The `Stream.onError` function allows us to do just that. If our stream encounters an error, we can specify a cleanup task to be executed.
+`Stream.onError` runs an effect when the stream fails, then preserves the original failure. Use it for cleanup or diagnostics, not for recovery.
 
 ```ts twoslash
 import { Stream, Console, Effect } from "effect"
@@ -159,7 +159,7 @@ Effect.runPromise(Stream.runCollect(stream)).then(console.log)
 /*
 Output:
 Stream application closed! We are doing some cleanup jobs.
-error: RuntimeException: Oh! Boom!
+Error: Oh! Boom!
 */
 ```
 
