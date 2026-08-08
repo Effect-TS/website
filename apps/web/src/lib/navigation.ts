@@ -31,7 +31,13 @@ export interface ExternalNavigationLink extends NavigationLinkBase {
 
 export type NavigationLink = InternalNavigationLink | ExternalNavigationLink
 
-export type NavigationActiveSlug = "api" | "blog" | "podcast" | "docs" | "playground" | "community"
+export type NavigationActiveSlug =
+  | "api"
+  | "blog"
+  | "podcast"
+  | "docs"
+  | "playground"
+  | "community"
 
 export const LANDING_NAVIGATION_LINKS: ReadonlyArray<NavigationLink> = [
   {
