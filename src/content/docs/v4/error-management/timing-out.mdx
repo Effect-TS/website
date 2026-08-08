@@ -1,356 +1,101 @@
 ---
 title: Timing Out
-description: Set time limits on operations with Effect, ensuring tasks complete within specified durations and customizing behavior for timeouts.
+description: Limit how long an Effect may run and customize the timeout outcome.
 sidebar:
   order: 6
 ---
 
-import { Aside } from "@astrojs/starlight/components"
+Timeout operators race an Effect against a duration. If the timeout wins, the source Effect is interrupted before the timeout outcome is produced.
 
-In programming, it's common to deal with tasks that may take some time to complete. Often, we want to enforce a limit on how long we're willing to wait for these tasks. The `Effect.timeout` function helps by placing a time constraint on an operation, ensuring it doesn't run indefinitely.
+## timeout
 
-## Basic Usage
+`Effect.timeout` represents a timeout as a typed `Cause.TimeoutError`.
 
-### timeout
+**Example** (Failing with TimeoutError)
 
-The `Effect.timeout` function employs a [Duration](/docs/data-types/duration/) parameter to establish a time limit on an operation. If the operation exceeds this limit, a `TimeoutError` is triggered, indicating a timeout has occurred.
+```ts twoslash import.meta.vitest name="failing-with-timeout-error-1"
+import { Effect } from "effect"
 
-**Example** (Setting a Timeout)
+const program = Effect.never.pipe(Effect.timeout(0))
+const error = await Effect.runPromise(Effect.flip(program))
 
-Here, the task completes within the timeout duration, so the result is returned successfully.
-
-```ts twoslash import.meta.vitest name="setting-a-timeout-1"
-import { Effect, Exit } from "effect"
-
-const task = Effect.gen(function* () {
-  console.log("Start processing...")
-  yield* Effect.sleep("2 seconds") // Simulates a delay in processing
-  console.log("Processing complete.")
-  return "Result"
-})
-
-// Sets a 3-second timeout for the task
-const timedEffect = task.pipe(Effect.timeout("3 seconds"))
-
-// Output will show that the task completes successfully
-// as it falls within the timeout duration
-const exit = await Effect.runPromiseExit(timedEffect)
-console.log(exit)
-/*
-Output:
-Start processing...
-Processing complete.
-*/
-
-exit // => Exit.succeed("Result")
+error._tag // => "TimeoutError"
 ```
 
-If the operation exceeds the specified duration, a `TimeoutError` is raised:
+If the source fails before the timeout, its original error is preserved. If it succeeds in time, its success value is returned unchanged.
 
-```ts twoslash import.meta.vitest name="setting-a-timeout-2"
-import { Effect, Cause, Exit } from "effect"
+```ts twoslash import.meta.vitest name="completing-before-a-timeout-1"
+import { Effect } from "effect"
 
-const task = Effect.gen(function* () {
-  console.log("Start processing...")
-  yield* Effect.sleep("2 seconds") // Simulates a delay in processing
-  console.log("Processing complete.")
-  return "Result"
-})
+const program = Effect.succeed("result").pipe(Effect.timeout("1 second"))
 
-// Output will show a TimeoutError as the task takes longer
-// than the specified timeout duration
-const timedEffect = task.pipe(Effect.timeout("1 second"))
-
-const exit = await Effect.runPromiseExit(timedEffect)
-console.log(exit)
-/*
-Output:
-Start processing...
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', failures: [ [Object] ] }
-}
-*/
-
-exit // => Exit.fail(new Cause.TimeoutError())
+Effect.runSync(program) // => "result"
 ```
 
-### timeoutOption
+## timeoutOption
 
-If you want to handle timeouts more gracefully, consider using `Effect.timeoutOption`. This function treats timeouts as regular results, wrapping the outcome in an [Option](/docs/data-types/option/).
+`Effect.timeoutOption` represents only the timeout case as `Option.none()`. A timely success becomes `Option.some(value)`, while a typed failure from the source remains in the error channel.
 
-**Example** (Handling Timeout as an Option)
+**Example** (Returning None on Timeout)
 
-In this example, the first task completes successfully, while the second times out. The result of the timed-out task is represented as `None` in the `Option` type.
-
-```ts twoslash import.meta.vitest name="handling-timeout-as-an-option-1"
+```ts twoslash import.meta.vitest name="returning-none-on-timeout-1"
 import { Effect, Option } from "effect"
 
-const task = Effect.gen(function* () {
-  console.log("Start processing...")
-  yield* Effect.sleep("2 seconds") // Simulates a delay in processing
-  console.log("Processing complete.")
-  return "Result"
-})
+const timedOut = await Effect.runPromise(Effect.never.pipe(Effect.timeoutOption(0)))
 
-const timedOutEffect = Effect.all([
-  task.pipe(Effect.timeoutOption("3 seconds")),
-  task.pipe(Effect.timeoutOption("1 second")),
-])
+timedOut // => Option.none()
 
-const result = await Effect.runPromise(timedOutEffect)
-console.log(result)
-/*
-Output:
-Start processing...
-Processing complete.
-Start processing...
-*/
+const completed = Effect.runSync(Effect.succeed("result").pipe(Effect.timeoutOption("1 second")))
 
-result // => [Option.some("Result"), Option.none()]
+completed // => Option.some("result")
 ```
 
-## Handling Timeouts
+Use this operator only when a timeout genuinely means absence. It does not discard ordinary failures from the source Effect.
 
-When an operation does not finish within the specified duration, the behavior of the `Effect.timeout` depends on whether the operation is "uninterruptible".
+## timeoutOrElse
 
-<Aside type="note" title="Uninterruptible Effects">
-  An uninterruptible effect is one that, once started, cannot be stopped mid-execution by the
-  timeout mechanism directly. This could be because the operations within the effect need to run to
-  completion to avoid leaving the system in an inconsistent state.
-</Aside>
+`Effect.timeoutOrElse` switches to a lazily constructed fallback Effect when the timeout wins. The fallback may introduce its own success, error, and requirement types.
 
-1. **Interruptible Operation**: If the operation can be interrupted, it is terminated immediately once the timeout threshold is reached, resulting in a `TimeoutError`.
+**Example** (Using Cached Data on Timeout)
 
-   ```ts twoslash import.meta.vitest name="interruptible-operation-1"
-   import { Effect, Cause, Exit } from "effect"
+```ts twoslash import.meta.vitest name="using-cached-data-on-timeout-1"
+import { Effect } from "effect"
 
-   const task = Effect.gen(function* () {
-     console.log("Start processing...")
-     yield* Effect.sleep("2 seconds") // Simulates a delay in processing
-     console.log("Processing complete.")
-     return "Result"
-   })
-
-   const timedEffect = task.pipe(Effect.timeout("1 second"))
-
-   const exit = await Effect.runPromiseExit(timedEffect)
-   console.log(exit)
-   /*
-    Output:
-    Start processing...
-    {
-      _id: 'Exit',
-      _tag: 'Failure',
-      cause: { _id: 'Cause', failures: [ [Object] ] }
-    }
-    */
-
-   exit // => Exit.fail(new Cause.TimeoutError())
-   ```
-
-2. **Uninterruptible Operation**: If the operation is uninterruptible, it continues until completion before the `TimeoutError` is assessed.
-
-   ```ts twoslash import.meta.vitest name="uninterruptible-operation-1"
-   import { Effect, Cause, Exit } from "effect"
-
-   const task = Effect.gen(function* () {
-     console.log("Start processing...")
-     yield* Effect.sleep("2 seconds") // Simulates a delay in processing
-     console.log("Processing complete.")
-     return "Result"
-   })
-
-   const timedEffect = task.pipe(Effect.uninterruptible, Effect.timeout("1 second"))
-
-   // Outputs a TimeoutError after the task completes,
-   // because the task is uninterruptible
-   const exit = await Effect.runPromiseExit(timedEffect)
-   console.log(exit)
-   /*
-    Output:
-    Start processing...
-    Processing complete.
-    {
-      _id: 'Exit',
-      _tag: 'Failure',
-      cause: { _id: 'Cause', failures: [ [Object] ] }
-    }
-    */
-
-   exit // => Exit.fail(new Cause.TimeoutError())
-   ```
-
-## Disconnection on Timeout
-
-The `Effect.disconnect` function provides a way to handle timeouts in uninterruptible effects more flexibly. It allows an uninterruptible effect to complete in the background, while the main control flow proceeds as if a timeout had occurred.
-
-Here's the distinction:
-
-**Without** `Effect.disconnect`:
-
-- An uninterruptible effect will ignore the timeout and continue executing until it completes, after which the timeout error is assessed.
-- This can lead to delays in recognizing a timeout condition because the system must wait for the effect to complete.
-
-**With** `Effect.disconnect`:
-
-- The uninterruptible effect is allowed to continue in the background, independent of the main control flow.
-- The main control flow recognizes the timeout immediately and proceeds with the timeout error or alternative logic, without having to wait for the effect to complete.
-- This method is particularly useful when the operations of the effect do not need to block the continuation of the program, despite being marked as uninterruptible.
-
-**Example** (Running Uninterruptible Tasks with Timeout and Background Completion)
-
-Consider a scenario where a long-running data processing task is initiated, and you want to ensure the system remains responsive, even if the data processing takes too long:
-
-```ts twoslash import.meta.vitest name="running-uninterruptible-tasks-with-timeout-and-background-completion-1"
-import { Effect, Fiber, Cause, Exit } from "effect"
-
-const longRunningTask = Effect.gen(function* () {
-  console.log("Start heavy processing...")
-  yield* Effect.sleep("5 seconds") // Simulate a long process
-  console.log("Heavy processing done.")
-  return "Data processed"
-})
-
-const timedEffect = Effect.gen(function* () {
-  // Fork the uninterruptible task into a detached fiber so it can
-  // keep running in the background if it times out
-  const fiber = yield* Effect.forkDetach(longRunningTask.pipe(Effect.uninterruptible))
-  return yield* Fiber.join(fiber).pipe(Effect.timeout("1 second"))
-})
-
-const exit = await Effect.runPromiseExit(timedEffect)
-console.log(exit)
-/*
-Output:
-Start heavy processing...
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', failures: [ [Object] ] }
-}
-Heavy processing done.
-*/
-
-exit // => Exit.fail(new Cause.TimeoutError())
-```
-
-In this example, the system detects the timeout after one second, but the long-running task continues and completes in the background, without blocking the program's flow.
-
-## Customizing Timeout Behavior
-
-In addition to the basic `Effect.timeout` function, there are variations available that allow you to customize the behavior when a timeout occurs.
-
-### timeoutFail
-
-The `Effect.timeoutFail` function allows you to produce a specific error when a timeout happens.
-
-**Example** (Custom Timeout Error)
-
-```ts twoslash import.meta.vitest name="custom-timeout-error-1"
-import { Effect, Data, Exit } from "effect"
-
-const task = Effect.gen(function* () {
-  console.log("Start processing...")
-  yield* Effect.sleep("2 seconds") // Simulates a delay in processing
-  console.log("Processing complete.")
-  return "Result"
-})
-
-class MyTimeoutError extends Data.TaggedError("MyTimeoutError")<{}> {}
-
-const program = task.pipe(
+const program = Effect.never.pipe(
   Effect.timeoutOrElse({
-    duration: "1 second",
-    orElse: () => Effect.fail(new MyTimeoutError()), // Custom timeout error
+    duration: 0,
+    orElse: () => Effect.succeed("cached result"),
   }),
 )
 
-const exit = await Effect.runPromiseExit(program)
-console.log(exit)
-/*
-Output:
-Start processing...
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', failures: [ [Object] ] }
-}
-*/
-
-exit // => Exit.fail(new MyTimeoutError())
+await Effect.runPromise(program) // => "cached result"
 ```
 
-### timeoutFailCause
+### Producing a Custom Error
 
-`Effect.timeoutFailCause` lets you define a specific defect to throw when a timeout occurs. This is helpful for treating timeouts as exceptional cases in your code.
+Return `Effect.fail` from the fallback when the timeout should use a domain-specific error.
 
-**Example** (Custom Defect on Timeout)
+```ts twoslash import.meta.vitest name="producing-a-custom-timeout-error-1"
+import { Data, Effect, Exit } from "effect"
 
-```ts twoslash import.meta.vitest name="custom-defect-on-timeout-1"
-import { Effect, Cause, Exit } from "effect"
+class RequestTimeout extends Data.TaggedError("RequestTimeout")<{
+  readonly endpoint: string
+}> {}
 
-const task = Effect.gen(function* () {
-  console.log("Start processing...")
-  yield* Effect.sleep("2 seconds") // Simulates a delay in processing
-  console.log("Processing complete.")
-  return "Result"
-})
-
-const program = task.pipe(
+const program = Effect.never.pipe(
   Effect.timeoutOrElse({
-    duration: "1 second",
-    orElse: () => Effect.failCause(Cause.die("Timed out!")), // Custom defect for timeout
+    duration: 0,
+    orElse: () => Effect.fail(new RequestTimeout({ endpoint: "/users" })),
   }),
 )
 
-const exit = await Effect.runPromiseExit(program)
-console.log(exit)
-/*
-Output:
-Start processing...
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', failures: [ [Object] ] }
-}
-*/
-
-exit // => Exit.die("Timed out!")
+await Effect.runPromiseExit(program) // => Exit.fail(new RequestTimeout({ endpoint: "/users" }))
 ```
 
-### timeoutTo
+Returning `Effect.die` or `Effect.failCause(Cause.die(...))` from the fallback instead makes the timeout a defect. This should be reserved for situations where timing out violates an invariant.
 
-`Effect.timeoutTo` provides more flexibility compared to `Effect.timeout`, allowing you to define different outcomes for both successful and timed-out operations. This can be useful when you want to customize the result based on whether the operation completes in time or not.
+## Interruption and Uninterruptible Work
 
-**Example** (Handling Success and Timeout with [Result](/docs/data-types/result/))
+The timeout fiber interrupts the source when the duration expires. Most Effects respond immediately. An uninterruptible region defers that interruption until it becomes interruptible again, so the caller may wait longer than the configured duration.
 
-```ts twoslash import.meta.vitest name="handling-success-and-timeout-with-either-1"
-import { Effect, Result } from "effect"
-
-const task = Effect.gen(function* () {
-  console.log("Start processing...")
-  yield* Effect.sleep("2 seconds") // Simulates a delay in processing
-  console.log("Processing complete.")
-  return "Result"
-})
-
-const program = task.pipe(
-  Effect.map((result): Result.Result<string, string> => Result.succeed(result)),
-  Effect.timeoutOrElse({
-    duration: "1 second",
-    orElse: (): Effect.Effect<Result.Result<string, string>> =>
-      Effect.succeed(Result.fail("Timed out!")),
-  }),
-)
-
-const result = await Effect.runPromise(program)
-console.log(result)
-/*
-Output:
-Start processing...
-*/
-
-result // => Result.fail("Timed out!")
-```
+If work is intentionally allowed to outlive the caller, model that lifecycle explicitly by forking it into an appropriately supervised or detached fiber. Do not use detachment merely to make a timeout return early: detached work continues consuming resources after the caller has moved on.

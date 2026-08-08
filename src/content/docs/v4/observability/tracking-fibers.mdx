@@ -1,13 +1,13 @@
 ---
-title: Fiber Supervision
-description: Track the fibers forked by your program using FiberSet and FiberMap, Effect's v4 primitives for managing many fibers together.
+title: Tracking Fibers
+description: Track groups of fibers using FiberSet and FiberMap.
 sidebar:
   order: 3
 ---
 
 import { Aside } from "@astrojs/starlight/components"
 
-Unlike in v3, there is no standalone `Supervisor` type or `Effect.supervised` function in v4 — the entire `effect/Supervisor` module (`Supervisor.track`, `Effect.supervised`, `effect/FiberStatus`) was removed with no direct replacement. Instead, v4 exposes structured-concurrency primitives that track a set of fibers directly: `FiberSet` for an unkeyed collection, and `FiberMap` for a collection keyed by an arbitrary value. Both automatically remove a fiber once it completes, and interrupt every fiber they still hold when their owning `Scope` closes.
+Effect provides two structured-concurrency primitives for tracking groups of fibers: `FiberSet` for an unkeyed collection and `FiberMap` for a collection keyed by an arbitrary value. Both automatically remove fibers when they complete and interrupt any remaining fibers when their owning `Scope` closes.
 
 ## Tracking Fibers with FiberSet
 

@@ -413,18 +413,3 @@ Effect.runSync(Effect.provide(program, ProviderLayer)) // => 8080
 ```
 
 For a single config, `config.parse(provider)` is simpler and does not change the provider for the rest of the Effect program.
-
-## Migrating from v3
-
-The v4 configuration API is schema-based. Common migrations include:
-
-| v3 usage                                      | v4 replacement                                                         |
-| --------------------------------------------- | ---------------------------------------------------------------------- |
-| `Config.integer`                              | `Config.int`                                                           |
-| `Config.validate`                             | A check passed through `Config.schema`                                 |
-| `Config.array` or `Config.repeat`             | `Config.schema(Config.Array(valueSchema), path)`                       |
-| `Config.hashMap`                              | `Config.schema(Config.Record(keySchema, valueSchema), path)`, then map |
-| `ConfigProvider.fromJson`                     | `ConfigProvider.fromUnknown`                                           |
-| Installing a provider with an Effect operator | `config.parse(provider)` or `ConfigProvider.layer(provider)`           |
-
-The v3 collection constructors (`chunk`, `hashSet`, and similar helpers) are no longer `Config` combinators. Decode an array or record with a schema, then map it to the desired collection type.

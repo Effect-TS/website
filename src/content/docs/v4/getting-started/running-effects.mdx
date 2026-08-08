@@ -229,11 +229,11 @@ For a deeper understanding of how fibers work and how to handle interruptions, c
 
 ## Synchronous vs. Asynchronous Effects
 
-In the Effect library, there is no built-in way to determine in advance whether an effect will execute synchronously or asynchronously. While this idea was considered in earlier versions of Effect, it was ultimately not implemented for a few important reasons:
+There is no built-in way to determine in advance whether an effect will execute synchronously or asynchronously. Tracking this distinction would introduce several problems:
 
 1. **Complexity:** Introducing this feature to track sync/async behavior in the type system would make Effect more complex to use and limit its composability.
 
-2. **Safety Concerns:** We experimented with different approaches to track asynchronous Effects, but they all resulted in a worse developer experience without significantly improving safety. Even with fully synchronous types, we needed to support a `fromCallback` combinator to work with APIs using Continuation-Passing Style (CPS). However, at the type level, it's impossible to guarantee that such a function is always called immediately and not deferred.
+2. **Safety Concerns:** Tracking asynchronous effects would not significantly improve safety. A callback-based API can invoke its callback immediately or defer it, and the type system cannot distinguish those behaviors reliably.
 
 ### Best Practices for Running Effects
 

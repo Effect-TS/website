@@ -1,207 +1,82 @@
 ---
 title: Matching
-description: Learn to handle success and failure cases in Effect programs with tools for pattern matching, value ignoring, side effects, and precise failure analysis.
+description: Handle success and failure outcomes with pure or effectful handlers.
 sidebar:
   order: 4
 ---
 
-import { Aside } from "@astrojs/starlight/components"
-
-In the Effect module, similar to other modules like [Option](/docs/data-types/option/#pattern-matching) and [Exit](/docs/data-types/exit/#pattern-matching), we have a `Effect.match` function that allows us to handle different cases simultaneously.
-Additionally, Effect provides various functions to manage both success and failure scenarios in effectful programs.
+Matching consumes both channels of an Effect and produces one result. Use the ordinary variants for typed failures and the `Cause` variants when defects and interruptions must also be considered.
 
 ## match
 
-`Effect.match` lets you define custom handlers for both success and failure
-scenarios. You provide separate functions to handle each case, allowing you
-to process the result if the effect succeeds, or handle the error if the
-effect fails.
+`Effect.match` handles a typed failure or success with pure functions. Defects and interruptions are not handled.
 
-This is useful for structuring your code to respond differently to success or failure without triggering side effects.
+**Example** (Matching Both Channels)
 
-**Example** (Handling Both Success and Failure Cases)
-
-```ts twoslash import.meta.vitest name="handling-both-success-and-failure-cases-1"
+```ts twoslash import.meta.vitest name="matching-both-channels-1"
 import { Effect } from "effect"
 
-const success: Effect.Effect<number, Error> = Effect.succeed(42)
+const task: Effect.Effect<number, string> = Effect.fail("unavailable")
 
-const program1 = Effect.match(success, {
-  onFailure: (error) => `failure: ${error.message}`,
+const program = Effect.match(task, {
+  onFailure: (error) => `failure: ${error}`,
   onSuccess: (value) => `success: ${value}`,
 })
 
-// Run and log the result of the successful effect
-Effect.runPromise(program1).then(console.log)
-
-await Effect.runPromise(program1) // => "success: 42"
-
-const failure: Effect.Effect<number, Error> = Effect.fail(new Error("Uh oh!"))
-
-const program2 = Effect.match(failure, {
-  onFailure: (error) => `failure: ${error.message}`,
-  onSuccess: (value) => `success: ${value}`,
-})
-
-// Run and log the result of the failed effect
-Effect.runPromise(program2).then(console.log)
-
-await Effect.runPromise(program2) // => "failure: Uh oh!"
-```
-
-## ignore
-
-`Effect.ignore` allows you to run an effect without caring about its result,
-whether it succeeds or fails.
-
-This is useful when you only care about the side effects of the effect and do not need to handle or process its outcome.
-
-**Example** (Using `Effect.ignore` to Discard Values)
-
-```ts twoslash import.meta.vitest name="using-effect-ignore-to-discard-values-1"
-import { Effect } from "effect"
-
-//      ┌─── Effect<number, string, never>
-//      ▼
-const task = Effect.fail("Uh oh!").pipe(Effect.as(5))
-
-//      ┌─── Effect<void, never, never>
-//      ▼
-const program = Effect.ignore(task)
-
-await Effect.runPromise(program) // => undefined
+Effect.runSync(program) // => "failure: unavailable"
 ```
 
 ## matchEffect
 
-The `Effect.matchEffect` function is similar to [Effect.match](#match), but it
-enables you to perform side effects in the handlers for both success and
-failure outcomes.
+`Effect.matchEffect` is the effectful version: both handlers return Effects and may introduce new errors or requirements.
 
-This is useful when you need to execute additional actions,
-like logging or notifying users, based on whether an effect succeeds or
-fails.
+**Example** (Running an Effectful Handler)
 
-**Example** (Handling Success and Failure with Side Effects)
-
-```ts twoslash import.meta.vitest name="handling-success-and-failure-with-side-effects-1"
+```ts twoslash import.meta.vitest name="matching-with-effects-1"
 import { Effect } from "effect"
 
-const success: Effect.Effect<number, Error> = Effect.succeed(42)
-const failure: Effect.Effect<number, Error> = Effect.fail(new Error("Uh oh!"))
+const task: Effect.Effect<number, string> = Effect.succeed(42)
 
-const program1 = Effect.matchEffect(success, {
-  onFailure: (error) => Effect.succeed(`failure: ${error.message}`).pipe(Effect.tap(Effect.log)),
-  onSuccess: (value) => Effect.succeed(`success: ${value}`).pipe(Effect.tap(Effect.log)),
+const program = Effect.matchEffect(task, {
+  onFailure: (error) => Effect.succeed(`failure: ${error}`),
+  onSuccess: (value) => Effect.succeed(`success: ${value}`),
 })
 
-console.log(Effect.runSync(program1))
-/*
-Output:
-timestamp=... level=INFO fiber=#0 message="success: 42"
-*/
-Effect.runSync(program1) // => "success: 42"
-
-const program2 = Effect.matchEffect(failure, {
-  onFailure: (error) => Effect.succeed(`failure: ${error.message}`).pipe(Effect.tap(Effect.log)),
-  onSuccess: (value) => Effect.succeed(`success: ${value}`).pipe(Effect.tap(Effect.log)),
-})
-
-console.log(Effect.runSync(program2))
-/*
-Output:
-timestamp=... level=INFO fiber=#1 message="failure: Uh oh!"
-*/
-Effect.runSync(program2) // => "failure: Uh oh!"
+Effect.runSync(program) // => "success: 42"
 ```
 
-## matchCause
+## matchCause and matchCauseEffect
 
-The `Effect.matchCause` function allows you to handle failures with access to
-the full [cause](/docs/data-types/cause/) of the failure within a fiber.
+`Effect.matchCause` passes the complete `Cause` to `onFailure`, so it also handles defects and interruptions. `Effect.matchCauseEffect` is its effectful counterpart.
 
-This is useful for differentiating between different types of errors, such as regular failures,
-defects, or interruptions. You can provide specific handling logic for each
-failure type based on the cause.
+**Example** (Matching a Defect)
 
-**Example** (Handling Different Failure Causes)
+```ts twoslash import.meta.vitest name="matching-a-defect-1"
+import { Cause, Effect } from "effect"
 
-```ts twoslash import.meta.vitest name="handling-different-failure-causes-1"
-import { Effect } from "effect"
+const program = Effect.die("boom").pipe(
+  Effect.matchCause({
+    onFailure: (cause) => (Cause.hasDies(cause) ? "terminated by a defect" : "failed"),
+    onSuccess: () => "succeeded",
+  }),
+)
 
-const task: Effect.Effect<number, Error> = Effect.die("Uh oh!")
-
-const program = Effect.matchCause(task, {
-  onFailure: (cause) => {
-    for (const reason of cause.reasons) {
-      switch (reason._tag) {
-        case "Fail":
-          // Handle standard failure
-          return `Fail: ${reason.error.message}`
-        case "Die":
-          // Handle defects (unexpected errors)
-          return `Die: ${reason.defect}`
-        case "Interrupt":
-          // Handle interruption
-          return `${reason.fiberId} interrupted!`
-      }
-    }
-    // Fallback for other causes
-    return "failed due to other causes"
-  },
-  onSuccess: (value) =>
-    // task completes successfully
-    `succeeded with ${value} value`,
-})
-
-Effect.runPromise(program).then(console.log)
-
-await Effect.runPromise(program) // => "Die: Uh oh!"
+Effect.runSync(program) // => "terminated by a defect"
 ```
 
-## matchCauseEffect
+## ignore and ignoreCause
 
-The `Effect.matchCauseEffect` function works similarly to [Effect.matchCause](#matchcause),
-but it also allows you to perform additional side effects based on the
-failure cause.
+`Effect.ignore` discards the success value and recovers from typed errors, producing `Effect<void, never, R>`. Defects and interruptions are preserved.
 
-This function provides access to the complete [cause](/docs/data-types/cause/) of the
-failure, making it possible to differentiate between various failure types,
-and allows you to respond accordingly while performing side effects (like
-logging or other operations).
+`Effect.ignoreCause` also discards every failure cause. Use it sparingly because it can hide defects.
 
-**Example** (Handling Different Failure Causes with Side Effects)
+```ts twoslash import.meta.vitest name="ignoring-errors-1"
+import { Effect, Exit } from "effect"
 
-```ts twoslash import.meta.vitest name="handling-different-failure-causes-with-side-effects-1"
-import { Effect, Console } from "effect"
+Effect.runSync(Effect.ignore(Effect.fail("error"))) // => undefined
 
-const task: Effect.Effect<number, Error> = Effect.die("Uh oh!")
+const defect = Effect.ignore(Effect.die("boom"))
+Effect.runSyncExit(defect) // => Exit.die("boom")
 
-const program = Effect.matchCauseEffect(task, {
-  onFailure: (cause) => {
-    for (const reason of cause.reasons) {
-      switch (reason._tag) {
-        case "Fail":
-          // Handle standard failure with a logged message
-          return Console.log(`Fail: ${reason.error.message}`)
-        case "Die":
-          // Handle defects (unexpected errors) by logging the defect
-          return Console.log(`Die: ${reason.defect}`)
-        case "Interrupt":
-          // Handle interruption and log the fiberId that was interrupted
-          return Console.log(`${reason.fiberId} interrupted!`)
-      }
-    }
-    // Fallback for other causes
-    return Console.log("failed due to other causes")
-  },
-  onSuccess: (value) =>
-    // Log success if the task completes successfully
-    Console.log(`succeeded with ${value} value`),
-})
-
-Effect.runPromise(program)
-// Output: "Die: Uh oh!"
-
-await Effect.runPromise(program) // => undefined
+Effect.runSync(Effect.ignoreCause(Effect.die("boom"))) // => undefined
 ```

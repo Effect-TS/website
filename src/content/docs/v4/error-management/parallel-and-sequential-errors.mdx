@@ -1,102 +1,36 @@
 ---
 title: Parallel and Sequential Errors
-description: Handle concurrent and sequential errors in Effect programs, capturing multiple failures and ensuring robust error management in concurrent and sequential workflows.
+description: Understand how Effect represents multiple failure reasons in Cause.
 sidebar:
   order: 10
 ---
 
-import { Aside } from "@astrojs/starlight/components"
+Most Effect combinators fail fast: once an effect fails, later work is not started and concurrent work is interrupted. Some operations can nevertheless produce several failure reasons, for example when concurrent fibers fail together or when both an operation and its finalizer fail.
 
-When working with Effect, if an error occurs, the default behavior is to fail with the first error encountered.
+## Flat Causes
 
-**Example** (Failing on the First Error)
+`Cause<E>` contains a flat readonly array of `Reason<E>` values:
 
-Here, the program fails with the first error it encounters, `"Oh uh!"`.
-
-```ts twoslash import.meta.vitest name="failing-on-the-first-error-1"
-import { Effect, Exit } from "effect"
-
-const fail = Effect.fail("Oh uh!")
-const die = Effect.die(new Error("Boom!"))
-
-// Run both effects sequentially
-const program = Effect.all([fail, die])
-
-Effect.runPromiseExit(program).then(console.log)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', failures: [ [Object] ] }
-}
-*/
-
-await Effect.runPromiseExit(program) // => Exit.fail("Oh uh!")
+```ts showLineNumbers=false
+type Reason<E> = Cause.Fail<E> | Cause.Die | Cause.Interrupt
 ```
 
-## Parallel Errors
+Reasons combined sequentially and reasons combined in parallel use the same `reasons` array representation.
 
-In some cases, you might encounter multiple errors, especially during concurrent computations. When tasks are run concurrently, multiple errors can happen at the same time.
+**Example** (Inspecting Multiple Reasons)
 
-**Example** (Handling Multiple Errors in Concurrent Computations)
+```ts twoslash import.meta.vitest name="inspecting-multiple-reasons-1"
+import { Cause, Exit } from "effect"
 
-In this example, both the `fail` and `die` effects are executed concurrently. Since both fail, the program will report multiple errors in the output.
+const cause = Cause.combine(Cause.fail("request failed"), Cause.die(new Error("finalizer failed")))
 
-```ts twoslash import.meta.vitest name="handling-multiple-errors-in-concurrent-computations-1"
-import { Effect, Exit } from "effect"
+const exit = Exit.failCause(cause)
 
-const fail = Effect.fail("Oh uh!")
-const die = Effect.die(new Error("Boom!"))
-
-// Run both effects concurrently
-const program = Effect.all([fail, die], {
-  concurrency: "unbounded",
-}).pipe(Effect.asVoid)
-
-Effect.runPromiseExit(program).then(console.log)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', failures: [ [Object] ] }
-}
-*/
-
-await Effect.runPromiseExit(program) // => Exit.fail("Oh uh!")
+exit.cause.reasons.map((reason) => reason._tag) // => ["Fail", "Die"]
 ```
 
-## Sequential Errors
+Use `Cause.hasFails`, `Cause.hasDies`, and `Cause.hasInterrupts` when only the kind of failure matters. Use `cause.reasons` or extractors such as `Cause.findError` and `Cause.findDefect` when the individual values are needed.
 
-When working with resource-safety operators like `Effect.ensuring`, you may encounter multiple sequential errors.
-This happens because regardless of whether the original effect has any errors or not, the finalizer is uninterruptible and will always run.
+## Accumulating Domain Errors
 
-**Example** (Handling Multiple Sequential Errors)
-
-In this example, both `fail` and the finalizer `die` result in sequential errors, and both are captured.
-
-```ts twoslash import.meta.vitest name="handling-multiple-sequential-errors-1"
-import { Effect, Exit } from "effect"
-
-// Simulate an effect that fails
-const fail = Effect.fail("Oh uh!")
-
-// Simulate a finalizer that causes a defect
-const die = Effect.die(new Error("Boom!"))
-
-// The finalizer 'die' will always run, even if 'fail' fails
-const program = fail.pipe(Effect.ensuring(die))
-
-Effect.runPromiseExit(program).then(console.log)
-/*
-Output:
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', failures: [ [Object] ] }
-}
-*/
-
-await Effect.runPromiseExit(program) // => Exit.die(new Error("Boom!"))
-```
+Multiple typed validation errors are usually better represented as data rather than as multiple `Cause` reasons. Use [`Effect.validate`](/docs/v4/error-management/error-accumulation/#validate) to collect every typed error, or [`Effect.partition`](/docs/v4/error-management/error-accumulation/#partition) to preserve both failures and successes.

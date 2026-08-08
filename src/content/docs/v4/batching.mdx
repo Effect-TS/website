@@ -337,7 +337,7 @@ After defining our requests, the next step is configuring how Effect resolves th
 RequestResolver<A>
 ```
 
-A `RequestResolver<A>` is capable of executing requests of type `A`. Unlike in v3, it no longer carries a separate environment type parameter — the resolver passed to `Effect.request` must have no requirements of its own (see [Resolvers with Context](#resolvers-with-context) below for how to resolve services before constructing one).
+A `RequestResolver<A>` is capable of executing requests of type `A`. The resolver passed to `Effect.request` must have no requirements of its own; see [Resolvers with Context](#resolvers-with-context) for how to resolve services before constructing one.
 
 In this section, we'll create individual resolvers for each type of request. The granularity of your resolvers can vary, but typically, they are divided based on the batching capabilities of the corresponding API calls.
 
@@ -898,7 +898,7 @@ This way is probably the best for most of the cases given that layers are the na
 
 While we have significantly optimized request batching, there's another area that can enhance our application's efficiency: caching. Without caching, even with optimized batch processing, the same requests could be executed multiple times, leading to unnecessary data fetching.
 
-Unlike in v3, caching is no longer an ambient toggle applied at the call site. Instead, `RequestResolver.withCache` wraps a resolver in a bounded, in-memory cache keyed by request equality — the resolver itself decides whether it caches, and any query built on top of it (via `Effect.request`) inherits that behavior automatically.
+Caching is configured on the resolver. `RequestResolver.withCache` wraps a resolver in a bounded, in-memory cache keyed by request equality. Any query built on top of that resolver with `Effect.request` uses the same caching behavior automatically.
 
 Here's how you can implement caching for the `getUserById` query:
 

@@ -8,7 +8,7 @@ sidebar:
 
 The Effect **runtime system** is what turns an `Effect<A, E, R>` blueprint into a running program: it supplies the `R` requirements, executes each step, and produces a result.
 
-Unlike in v3, there is no `Runtime<R>` data type that you construct or pass around directly. `Effect.run*` functions (`Effect.runPromise`, `Effect.runFork`, `Effect.runSync`, ...) execute an effect immediately using its runtime system; if you already have a `Context<R>` for the effect's requirements, the `Effect.run*With` variants (`Effect.runPromiseWith`, `Effect.runForkWith`, `Effect.runSyncWith`) let you run with that context directly. For a reusable, top-level execution configuration, use `ManagedRuntime` (covered later on this page).
+`Effect.run*` functions (`Effect.runPromise`, `Effect.runFork`, `Effect.runSync`, ...) execute an effect immediately using its runtime system. If you already have a `Context<R>` for the effect's requirements, the `Effect.run*With` variants (`Effect.runPromiseWith`, `Effect.runForkWith`, `Effect.runSyncWith`) let you run with that context directly. For a reusable, top-level execution configuration, use `ManagedRuntime` (covered later on this page).
 
 ## What is a Runtime System?
 
@@ -240,7 +240,7 @@ class Notifications extends Context.Service<
 Notifications.key // => "Notifications"
 ```
 
-Unlike v3's `Effect.Tag`, the service's fields are not turned into static properties on the `Notifications` class itself — there is no static accessor proxy. Instead, use `.use()` (shown below) to run a callback with the resolved service, or `yield* Notifications` inside `Effect.gen` to access it directly.
+Use `.use()` (shown below) to run a callback with the resolved service, or `yield* Notifications` inside `Effect.gen` to access it directly.
 
 This allows you to interact with the service directly:
 

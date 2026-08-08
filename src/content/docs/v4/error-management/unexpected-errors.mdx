@@ -1,282 +1,132 @@
 ---
 title: Unexpected Errors
-description: Understand how Effect handles unexpected errors with tools to manage defects, terminate execution, and selectively recover from critical failures.
+description: Create, inspect, report, and selectively recover from defects.
 sidebar:
   order: 2
 ---
 
-import { Aside } from "@astrojs/starlight/components"
+Unexpected errors, or **defects**, indicate bugs, violated invariants, or failures outside the program's expected domain. They are retained in the runtime `Cause`, but do not appear in the typed error channel.
 
-There are situations where you may encounter unexpected errors, and you need to decide how to handle them. Effect provides functions to help you deal with such scenarios, allowing you to take appropriate actions when errors occur during the execution of your effects.
+Defects normally should be reported and allowed to terminate the affected fiber. Recover from them only at boundaries where continuing is explicitly safe.
 
-## Creating Unrecoverable Errors
+## Creating a Defect
 
-In the same way it is possible to leverage combinators such as [Effect.fail](/docs/getting-started/creating-effects/#fail) to create values of type `Effect<never, E, never>` the Effect library provides tools to create defects.
+`Effect.die(defect)` creates an Effect that terminates with the supplied defect. Its typed error channel is `never`.
 
-Creating defects is a common necessity when dealing with errors from which it is not possible to recover from a business logic perspective, such as attempting to establish a connection that is refused after multiple retries.
+**Example** (Terminating on an Impossible Input)
 
-In those cases terminating the execution of the effect and moving into reporting, through an output such as stdout or some external monitoring service, might be the best solution.
-
-The following functions and combinators allow for termination of the effect and are often used to convert values of type `Effect<A, E, R>` into values of type `Effect<A, never, R>` allowing the programmer an escape hatch from having to handle and recover from errors for which there is no sensible way to recover.
-
-### die
-
-Creates an effect that terminates a fiber with a specified error.
-
-Use `Effect.die` when encountering unexpected conditions in your code that should
-not be handled as regular errors but instead represent unrecoverable defects.
-
-The `Effect.die` function is used to signal a defect, which represents a critical
-and unexpected error in the code. When invoked, it produces an effect that
-does not handle the error and instead terminates the fiber.
-
-The error channel of the resulting effect is of type `never`, indicating that
-it cannot recover from this failure.
-
-**Example** (Terminating on Division by Zero with a Specified Error)
-
-```ts twoslash import.meta.vitest name="terminating-on-division-by-zero-with-a-specified-error-1"
-import { Effect } from "effect"
+```ts twoslash import.meta.vitest name="creating-a-defect-1"
+import { Effect, Exit } from "effect"
 
 const divide = (a: number, b: number) =>
   b === 0 ? Effect.die(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
 
-//      ┌─── Effect<number, never, never>
-//      ▼
-const program = divide(1, 0)
+const exit = Effect.runSyncExit(divide(1, 0))
 
-try {
-  await Effect.runPromise(program)
-} catch (e: any) {
-  console.error(e)
-  /*
-  Output:
-  Error: Cannot divide by zero
-    ...stack trace...
-  */
-  e.message // => "Cannot divide by zero"
-}
+Exit.isFailure(exit) && exit.cause.reasons[0]?._tag // => "Die"
 ```
 
-### dieMessage
+Pass a string or, preferably, an `Error` with a useful message to `Effect.die`.
 
-Creates an effect that terminates a fiber with a `RuntimeException` containing the specified message.
+Exceptions thrown while evaluating Effect callbacks such as `Effect.sync` are also represented as defects.
 
-Use `Effect.dieMessage` when you want to terminate a fiber due to an unrecoverable
-defect and include a clear explanation in the message.
+## Converting Typed Errors to Defects
 
-The `Effect.dieMessage` function is used to signal a defect, representing a critical
-and unexpected error in the code. When invoked, it produces an effect that
-terminates the fiber with a `RuntimeException` carrying the given message.
+`Effect.orDie` converts every typed failure into a defect and removes the typed error channel.
 
-The resulting effect has an error channel of type `never`, indicating it does
-not handle or recover from the error.
+**Example** (Treating a Failure as Unrecoverable)
 
-**Example** (Terminating on Division by Zero with a Specified Message)
+```ts twoslash import.meta.vitest name="converting-a-failure-to-a-defect-1"
+import { Effect, Exit } from "effect"
 
-```ts twoslash import.meta.vitest name="terminating-on-division-by-zero-with-a-specified-message-1"
-import { Effect } from "effect"
+const program = Effect.fail(new Error("Invalid startup configuration")).pipe(Effect.orDie)
 
-const divide = (a: number, b: number) =>
-  b === 0 ? Effect.die(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
+const exit = Effect.runSyncExit(program)
 
-//      ┌─── Effect<number, never, never>
-//      ▼
-const program = divide(1, 0)
-
-try {
-  await Effect.runPromise(program)
-} catch (e: any) {
-  console.error(e)
-  /*
-  Output:
-  Error: Cannot divide by zero
-    ...stack trace...
-  */
-  e.message // => "Cannot divide by zero"
-}
+Exit.isFailure(exit) && exit.cause.reasons[0]?._tag // => "Die"
 ```
 
-## Converting Failures to Defects
+To customize the defect, transform the typed error first with `Effect.mapError` and then apply `Effect.orDie`.
 
-### orDie
+```ts twoslash import.meta.vitest name="customizing-a-converted-defect-1"
+import { Cause, Effect, Exit, Predicate } from "effect"
 
-Converts an effect's failure into a fiber termination, removing the error from the effect's type.
-
-Use `Effect.orDie` when failures should be treated as unrecoverable defects and no error handling is required.
-
-The `Effect.orDie` function is used when you encounter errors that you do not want to handle or recover from.
-It removes the error type from the effect and ensures that any failure will terminate the fiber.
-This is useful for propagating failures as defects, signaling that they should not be handled within the effect.
-
-**Example** (Propagating an Error as a Defect)
-
-```ts twoslash import.meta.vitest name="propagating-an-error-as-a-defect-1"
-import { Effect } from "effect"
-
-const divide = (a: number, b: number) =>
-  b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
-
-//      ┌─── Effect<number, never, never>
-//      ▼
-const program = Effect.orDie(divide(1, 0))
-
-try {
-  await Effect.runPromise(program)
-} catch (e: any) {
-  console.error(e)
-  /*
-  Output:
-  Error: Cannot divide by zero
-    ...stack trace...
-  */
-  e.message // => "Cannot divide by zero"
-}
-```
-
-### orDieWith
-
-Converts an effect's failure into a fiber termination with a custom error.
-
-Use `Effect.orDieWith` when failures should terminate the fiber as defects, and you want to customize
-the error for clarity or debugging purposes.
-
-The `Effect.orDieWith` function behaves like [Effect.orDie](#ordie), but it allows you to provide a mapping
-function to transform the error before terminating the fiber. This is useful for cases where
-you want to include a more detailed or user-friendly error when the failure is propagated
-as a defect.
-
-**Example** (Customizing Defect)
-
-```ts twoslash import.meta.vitest name="customizing-defect-1"
-import { Effect } from "effect"
-
-const divide = (a: number, b: number) =>
-  b === 0 ? Effect.fail(new Error("Cannot divide by zero")) : Effect.succeed(a / b)
-
-//      ┌─── Effect<number, never, never>
-//      ▼
-const program = Effect.orDie(
-  Effect.mapError(divide(1, 0), (error) => new Error(`defect: ${error.message}`)),
+const program = Effect.fail("missing token").pipe(
+  Effect.mapError((message) => new Error(`Startup failed: ${message}`)),
+  Effect.orDie,
 )
 
-try {
-  await Effect.runPromise(program)
-} catch (e: any) {
-  console.error(e)
-  /*
-  Output:
-  Error: defect: Cannot divide by zero
-    ...stack trace...
-  */
-  e.message // => "defect: Cannot divide by zero"
-}
+const exit = Effect.runSyncExit(program)
+
+const reason = Exit.isFailure(exit) ? exit.cause.reasons[0] : undefined
+const message =
+  reason !== undefined && Cause.isDieReason(reason) && Predicate.isError(reason.defect)
+    ? reason.defect.message
+    : undefined
+
+message // => "Startup failed: missing token"
 ```
 
-## Catching All Defects
+## Inspecting the Complete Exit
 
-There is no sensible way to recover from defects. The functions we're
-about to discuss should be used only at the boundary between Effect and
-an external system, to transmit information on a defect for diagnostic
-or explanatory purposes.
+`Effect.exit` moves the complete outcome into the success channel:
 
-### exit
-
-The `Effect.exit` function transforms an `Effect<A, E, R>` into an effect that encapsulates both potential failure and success within an [Exit](/docs/data-types/exit/) data type:
-
-```ts showLineNumbers=false
+```text showLineNumbers=false
 Effect<A, E, R> -> Effect<Exit<A, E>, never, R>
 ```
 
-This means if you have an effect with the following type:
+Unlike `Effect.result`, an `Exit` preserves the complete `Cause`, including defects and interruptions.
 
-```ts showLineNumbers=false
-Effect<string, HttpError, never>
+**Example** (Inspecting a Defect with Exit)
+
+```ts twoslash import.meta.vitest name="inspecting-a-defect-with-exit-1"
+import { Cause, Effect, Exit } from "effect"
+
+const exit = Effect.runSync(Effect.exit(Effect.die("boom")))
+
+const hasDefect = Exit.isFailure(exit) && Cause.hasDies(exit.cause)
+
+hasDefect // => true
 ```
 
-and you call `Effect.exit` on it, the type becomes:
+This is useful at application boundaries, in tests, and when integrating with APIs that need an explicit value for every outcome.
 
-```ts showLineNumbers=false
-Effect<Exit<string, HttpError>, never, never>
+## catchDefect
+
+`Effect.catchDefect` handles defects only. Typed failures and interruptions are left unchanged.
+
+**Example** (Recovering from a Defect)
+
+```ts twoslash import.meta.vitest name="recovering-from-a-defect-1"
+import { Effect, Predicate } from "effect"
+
+const program = Effect.die(new Error("plugin crashed")).pipe(
+  Effect.catchDefect((defect) =>
+    Predicate.isError(defect)
+      ? Effect.succeed(`disabled plugin: ${defect.message}`)
+      : Effect.die(defect),
+  ),
+)
+
+Effect.runSync(program) // => "disabled plugin: plugin crashed"
 ```
 
-The resulting effect cannot fail because the potential failure is now represented within the `Exit`'s `Failure` type.
-The error type of the returned effect is specified as `never`, confirming that the effect is structured to not fail.
+## catchCause
 
-By yielding an `Exit`, we gain the ability to "pattern match" on this type to handle both failure and success cases within the generator function.
+`Effect.catchCause` handles the complete `Cause`, including typed failures, defects, interruptions, and multiple reasons.
 
-**Example** (Catching Defects with `Effect.exit`)
+**Example** (Recovering Based on the Cause)
 
-```ts twoslash import.meta.vitest name="catching-defects-with-effect-exit-1"
-import { Effect, Cause, Console, Exit, Predicate } from "effect"
+```ts twoslash import.meta.vitest name="recovering-based-on-the-cause-1"
+import { Cause, Effect } from "effect"
 
-// Simulating a runtime error
-const task = Effect.die(new Error("Boom!"))
+const program = Effect.die("boom").pipe(
+  Effect.catchCause((cause) =>
+    Cause.hasDies(cause) ? Effect.succeed("recovered at the boundary") : Effect.failCause(cause),
+  ),
+)
 
-const program = Effect.gen(function* () {
-  const exit = yield* Effect.exit(task)
-  if (Exit.isFailure(exit)) {
-    const cause = exit.cause
-    for (const reason of cause.reasons) {
-      if (Cause.isDieReason(reason) && Predicate.isError(reason.defect)) {
-        yield* Console.log(`Error defect caught: ${reason.defect.message}`)
-      } else {
-        yield* Console.log("Unknown failure caught.")
-      }
-    }
-  }
-})
-
-// We get an Exit.Success because we caught all failures
-const exit = await Effect.runPromiseExit(program)
-console.log(exit)
-/*
-Output:
-Error defect caught: Boom!
-*/
-
-exit // => Exit.succeed(undefined)
+Effect.runSync(program) // => "recovered at the boundary"
 ```
 
-### catchAllDefect
-
-Recovers from all defects using a provided recovery function.
-
-`Effect.catchDefect` allows you to handle defects, which are unexpected errors
-that usually cause the program to terminate. This function lets you recover
-from these defects by providing a function that handles the error.
-
-However, it does not handle expected errors (like those from [Effect.fail](/docs/getting-started/creating-effects/#fail)) or
-execution interruptions (like those from [Effect.interrupt](/docs/concurrency/basic-concurrency/#interrupt)).
-
-**Example** (Handling All Defects)
-
-```ts twoslash import.meta.vitest name="handling-all-defects-1"
-import { Effect, Predicate, Console, Exit } from "effect"
-
-// Simulating a runtime error
-const task = Effect.die(new Error("Boom!"))
-
-const program = Effect.catchDefect(task, (defect) => {
-  if (Predicate.isError(defect)) {
-    return Console.log(`Error defect caught: ${defect.message}`)
-  }
-  return Console.log("Unknown defect caught.")
-})
-
-// We get an Exit.Success because we caught all defects
-const exit = await Effect.runPromiseExit(program)
-console.log(exit)
-/*
-Output:
-Error defect caught: Boom!
-*/
-
-exit // => Exit.succeed(undefined)
-```
-
-<Aside type="tip" title="When to Recover from Defects">
-  Defects are unexpected errors that typically shouldn't be recovered from, as they often indicate
-  serious issues. However, in some cases, such as dynamically loaded plugins, controlled recovery
-  might be needed.
-</Aside>
+Prefer typed recovery operators such as `Effect.catch` and `Effect.catchTag` for domain errors. Use `catchDefect` or `catchCause` only where recovering from unexpected failures is intentional and safe.

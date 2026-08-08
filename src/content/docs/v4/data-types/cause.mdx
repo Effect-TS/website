@@ -73,7 +73,7 @@ The `Interrupt` reason represents a failure due to `Fiber` interruption and cont
 
 ### Combining Causes
 
-`Cause<E>` no longer stores a recursive tree, so there is no separate representation for causes that occurred one after another versus causes that occurred concurrently. Both cases are represented the same way: a flat `reasons` array. Use `Cause.combine` to merge two causes into one.
+`Cause<E>` stores its failure reasons in a flat `reasons` array. Reasons that occurred sequentially and reasons that occurred concurrently use the same representation. Use `Cause.combine` to merge two causes into one.
 
 **Example** (Combining Multiple Failures into One Cause)
 
@@ -138,7 +138,7 @@ These guards allow you to accurately identify the reasons behind a `Cause`, maki
 
 ## Formatting Reasons
 
-There is no longer a single `Cause.match` combinator, because `Cause<E>` is a flat array of `reasons` rather than a tree with `Sequential` and `Parallel` nodes to fold over. Instead, iterate `cause.reasons` and switch on each reason's `_tag` to respond to specific error scenarios with custom behavior.
+To respond to specific error scenarios with custom behavior, iterate `cause.reasons` and switch on each reason's `_tag`.
 
 **Example** (Formatting Each Reason in a Cause)
 
@@ -213,7 +213,7 @@ Cause.pretty(Cause.combine(Cause.fail("fail1"), Cause.fail("fail2")))
 
 ## Retrieval of Failures and Defects
 
-`Cause.failures` and `Cause.defects` were removed along with the recursive tree; filter `cause.reasons` directly with `Cause.isFailReason` and `Cause.isDieReason` to inspect only the errors or unexpected defects that occurred.
+Filter `cause.reasons` with `Cause.isFailReason` and `Cause.isDieReason` to inspect only the expected errors or unexpected defects that occurred.
 
 **Example** (Extracting Failures and Defects from a Cause)
 

@@ -177,7 +177,7 @@ HashSet.size(set) // => 1
 
 ### Simplifying Equality with Plain Objects and Schema
 
-In v4, plain objects implement [`Equal`](/docs/trait/equal/) automatically, based on structural equality — no wrapper needed. Values decoded with `Schema` already benefit from this, as shown below.
+Plain objects implement [`Equal`](/docs/trait/equal/) automatically, based on structural equality — no wrapper needed. Values decoded with `Schema` already benefit from this, as shown below.
 
 **Example** (Structural Equality of Plain Objects)
 
@@ -209,7 +209,7 @@ HashSet.size(set) // => 1
 import { Equal, MutableHashSet, Schema } from "effect"
 
 // Define a schema that describes the structure of a Person
-// (no Data wrapper needed - v4 gives decoded objects structural
+// (no Data wrapper needed - decoded objects have structural
 // equality automatically)
 const PersonSchema = Schema.Struct({
   id: Schema.Finite,
@@ -262,7 +262,7 @@ Any operation that would modify the set (like adding or removing a value) return
 | folding      | [reduce](/docs/v4/api/effect/HashSet#reduce)             | Reduces the set to a single value           | O(n)            |
 | filtering    | [filter](/docs/v4/api/effect/HashSet#filter)             | Keeps elements that satisfy a predicate     | O(n)            |
 
-`values`, `toValues`, `toggle`, `flatMap`, `forEach`, and `partition` were removed in v4. `HashSet` is directly `Iterable`, so use `Array.from(self)` or `self[Symbol.iterator]()` for values; compose `flatMap`/`forEach`/`partition` from the `Iterable` module or two `filter` calls instead.
+`HashSet` is directly `Iterable`, so use `Array.from(self)` or `self[Symbol.iterator]()` to access its values. For transformations and traversals, compose the operations from the `Iterable` module; to split a set, use two `HashSet.filter` calls.
 
 **Example** (Basic creation and operations)
 
