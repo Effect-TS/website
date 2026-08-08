@@ -1,4 +1,5 @@
 import type { TypeDocProjectReflection } from "@website/domain/ApiReference"
+import { findAndReplace } from "mdast-util-find-and-replace"
 import rehypeStringify from "rehype-stringify"
 import remarkGfm from "remark-gfm"
 import remarkParse from "remark-parse"
@@ -51,6 +52,11 @@ export interface ApiModule {
 
 export interface ApiReferenceOptions {
   moduleHref?: (modulePath: string) => string | undefined
+  modulePath?: string
+}
+
+interface ApiReferenceRenderOptions extends ApiReferenceOptions {
+  declarationAnchors: ReadonlySet<string>
 }
 
 export const ApiReference = {
@@ -66,6 +72,21 @@ function moduleView(
     (child) => child.children !== undefined,
   )
   const children = moduleReflection?.children ?? []
+  const childAnchorCounts = Map.groupBy(children, (child) =>
+    declarationAnchor(child.name),
+  )
+  const declarationAnchors = new Set(
+    children.map((child) => {
+      const anchor = declarationAnchor(child.name)
+      return (childAnchorCounts.get(anchor)?.length ?? 0) > 1
+        ? `${anchor}-${reflectionKindName(child.kind)}`
+        : anchor
+    }),
+  )
+  const renderOptions: ApiReferenceRenderOptions = {
+    ...options,
+    declarationAnchors,
+  }
   const examples = codeExamples(reflection)
   const examplesByOwner = Map.groupBy(examples, (example) => example.ownerId)
   const declarationCandidates = children.map((child) => {
@@ -73,7 +94,7 @@ function moduleView(
     return {
       anchor: declarationAnchor(child.name),
       category: blockTagText(comment?.blockTags, "@category") ?? "Other",
-      commentHtml: commentHtml(comment, options),
+      commentHtml: commentHtml(comment, renderOptions),
       commentMarkdown: commentMarkdown(comment),
       examples: examplesByOwner.get(child.id) ?? [],
       id: child.id,
@@ -122,7 +143,7 @@ function moduleView(
   )
 
   return {
-    commentHtml: commentHtml(moduleReflection?.comment, options),
+    commentHtml: commentHtml(moduleReflection?.comment, renderOptions),
     commentMarkdown: commentMarkdown(moduleReflection?.comment),
     declarationCount: declarations.length,
     groups: sortedGroups,
@@ -198,39 +219,87 @@ function compareVersions(left: string, right: string): number {
 
 function commentHtml(
   value: JSONOutput.Comment | undefined,
-  options: ApiReferenceOptions,
+  options: ApiReferenceRenderOptions,
 ): string | undefined {
-  const markdown = commentMarkdown(value, options)
+  const markdown = commentMarkdown(value)
   if (markdown === undefined) return undefined
-  const blocks = [renderMarkdown(markdown)]
+  const blocks = [renderMarkdown(markdown, options)]
   const see = value?.blockTags
     ?.filter((tag) => tag.tag === "@see")
-    .map((tag) => commentPartsMarkdown(tag.content, options).trim())
+    .map((tag) => commentPartsMarkdown(tag.content).trim())
     .filter(Boolean)
   if (see !== undefined && see.length > 0) {
     blocks.push(
       "<h4>See</h4>",
       renderMarkdown(
         see.map((item) => (/^-\s/.test(item) ? item : `- ${item}`)).join("\n"),
+        options,
       ),
     )
   }
   return blocks.length > 0 ? blocks.join("") : undefined
 }
 
-const markdownProcessor = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkRehype)
-  .use(rehypeStringify)
-
-function renderMarkdown(markdown: string): string {
-  return markdownProcessor
+function renderMarkdown(
+  markdown: string,
+  options: ApiReferenceRenderOptions,
+): string {
+  return unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkModuleReferences, options)
+    .use(remarkRehype)
+    .use(rehypeStringify)
     .processSync(removeEmptyTableRows(markdown))
     .toString()
     .trim()
     .replaceAll("<table>", '<div class="api-table"><table>')
     .replaceAll("</table>", "</table></div>")
+}
+
+function remarkModuleReferences(options: ApiReferenceRenderOptions) {
+  return (tree: Parameters<typeof findAndReplace>[0]) => {
+    findAndReplace(
+      tree,
+      [
+        /\bmodule:[A-Za-z0-9_/-]+(?:\.[A-Za-z0-9_$-]+)?/g,
+        (value: string) => {
+          const reference = parseModuleReference(value)
+          if (reference === undefined) return false
+          const name =
+            reference.declaration ?? reference.modulePath.split("/").at(-1)
+          const label = name === undefined ? reference.modulePath : name
+          const href = options.moduleHref?.(reference.modulePath)
+          if (href === undefined) return { type: "inlineCode", value: label }
+          if (
+            reference.declaration !== undefined &&
+            options.modulePath !== undefined &&
+            reference.modulePath === options.modulePath
+          ) {
+            const anchor = declarationAnchor(reference.declaration)
+            if (!options.declarationAnchors.has(anchor)) {
+              return { type: "inlineCode", value: label }
+            }
+            return {
+              type: "link",
+              url: `${href}#${anchor}`,
+              children: [{ type: "inlineCode", value: label }],
+            }
+          }
+          return {
+            type: "link",
+            url:
+              reference.declaration === undefined ||
+              options.modulePath !== undefined
+                ? href
+                : `${href}#${declarationAnchor(reference.declaration)}`,
+            children: [{ type: "inlineCode", value: label }],
+          }
+        },
+      ],
+      { ignore: ["link", "linkReference"] },
+    )
+  }
 }
 
 function removeEmptyTableRows(markdown: string): string {
@@ -242,10 +311,9 @@ function removeEmptyTableRows(markdown: string): string {
 
 function commentMarkdown(
   value: JSONOutput.Comment | undefined,
-  options: ApiReferenceOptions = {},
 ): string | undefined {
   if (value === undefined) return undefined
-  const markdown = commentPartsMarkdown(value.summary, options)
+  const markdown = commentPartsMarkdown(value.summary)
   const withoutExample = markdown
     .replace(/\n\n\*\*Example\*\*[\s\S]*$/, "")
     .trim()
@@ -254,24 +322,16 @@ function commentMarkdown(
 
 function commentPartsMarkdown(
   parts: ReadonlyArray<JSONOutput.CommentDisplayPart>,
-  options: ApiReferenceOptions,
 ): string {
   return parts
     .flatMap((part) => {
       if (part.kind === "code" && parseFencedCode(part.text) !== undefined)
         return []
       if (part.kind !== "inline-tag") return [part.text]
-      const reference = parseModuleReference(part.tsLinkText ?? part.text)
-      if (reference === undefined) return [part.text]
-      const name =
-        reference.declaration ?? reference.modulePath.split("/").at(-1)
-      const label = name === undefined ? reference.modulePath : name
-      const href = options.moduleHref?.(reference.modulePath)
-      return href === undefined
-        ? [`\`${label}\``]
-        : [
-            `[\`${label}\`](${href}${reference.declaration === undefined ? "" : `#${declarationAnchor(reference.declaration)}`})`,
-          ]
+      const referenceText = part.tsLinkText ?? part.text
+      return parseModuleReference(referenceText) === undefined
+        ? [part.text]
+        : [referenceText]
     })
     .join("")
 }

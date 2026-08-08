@@ -104,6 +104,10 @@ runs:
         VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
         VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
 
+    - name: Verify generated API reference links
+      shell: bash
+      run: node apps/web/scripts/verify-api-reference-links.mjs
+
     - name: Patch trailing-slash redirect into build output
       shell: bash
       run: node apps/web/scripts/patch-vercel-trailing-slash.mjs

@@ -51,9 +51,6 @@ const config = defineConfig({
   },
 
   vite: {
-    optimizeDeps: {
-      exclude: ["@website/api-reference", "@website/domain"],
-    },
     plugins: [
       tailwindcss(),
       svgr(),
@@ -69,9 +66,6 @@ const config = defineConfig({
           new URL("./src/components/docs/starlight-shim.ts", import.meta.url),
         ),
       },
-    },
-    ssr: {
-      noExternal: ["@website/api-reference", "@website/domain"],
     },
     server: {
       proxy: {

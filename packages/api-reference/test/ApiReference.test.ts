@@ -19,7 +19,22 @@ test("renders GFM module comments without empty table rows", () => {
         variant: "declaration",
         kind: ReflectionKind.Module,
         flags: {},
-        children: [],
+        children: [
+          {
+            id: 3,
+            name: "parse",
+            variant: "declaration",
+            kind: ReflectionKind.Function,
+            flags: {},
+          },
+          {
+            id: 4,
+            name: "sum",
+            variant: "declaration",
+            kind: ReflectionKind.Function,
+            flags: {},
+          },
+        ],
         comment: {
           summary: [
             {
@@ -28,43 +43,35 @@ test("renders GFM module comments without empty table rows", () => {
                 "| Category | Domain |",
                 "| --- | --- |",
                 "| | |",
-                "| math | ",
-              ].join("\n"),
-            },
-            {
-              kind: "inline-tag",
-              tag: "@link",
-              text: "module:Number.parse",
-            },
-            {
-              kind: "text",
-              text: [
-                " |",
+                "| math | module:Number.parse |",
+                "| errors | module:Number.Missing |",
                 "",
                 "## Composition Patterns",
                 "",
                 "- Chain operations",
                 "- Handle failures",
+                "",
+                "See also ",
               ].join("\n"),
             },
+            {
+              kind: "inline-tag",
+              tag: "@link",
+              text: "module:Number.sum",
+            },
+            { kind: "text", text: "." },
           ],
           blockTags: [
             {
               tag: "@see",
               content: [
-                { kind: "text", text: " - " },
                 {
-                  kind: "inline-tag",
-                  tag: "@link",
-                  text: "module:BigInt",
+                  kind: "text",
+                  text: [
+                    " - module:BigInt for integer operations",
+                    " - module:BigDecimal for decimal operations",
+                  ].join("\n"),
                 },
-                { kind: "text", text: " for integer operations\n - " },
-                {
-                  kind: "inline-tag",
-                  tag: "@link",
-                  text: "module:BigDecimal",
-                },
-                { kind: "text", text: " for decimal operations\n" },
               ],
             },
           ],
@@ -75,14 +82,20 @@ test("renders GFM module comments without empty table rows", () => {
 
   const html = ApiReference.moduleView(reflection, {
     moduleHref: (modulePath) => `/docs/v3/api/effect/${modulePath}`,
+    modulePath: "Number",
   }).commentHtml
   assert.ok(html)
-  assert.equal(html.match(/<tr>/g)?.length, 2)
+  assert.equal(html.match(/<tr>/g)?.length, 3)
   assert.match(
     html,
     /<td><a href="\/docs\/v3\/api\/effect\/Number#parse"><code>parse<\/code><\/a><\/td>/,
   )
+  assert.match(html, /<td><code>Missing<\/code><\/td>/)
   assert.match(html, /<h2>Composition Patterns<\/h2>/)
+  assert.match(
+    html,
+    /See also <a href="\/docs\/v3\/api\/effect\/Number#sum"><code>sum<\/code><\/a>\./,
+  )
   assert.match(
     html,
     /<ul>\s*<li>Chain operations<\/li>\s*<li>Handle failures<\/li>\s*<\/ul>/,

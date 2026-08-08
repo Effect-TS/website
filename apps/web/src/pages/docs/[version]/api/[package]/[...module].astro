@@ -46,6 +46,7 @@ const packageModulePaths = new Set(packageEntries.map((candidate) => candidate.d
 const apiModule = ApiReference.ApiReference.moduleView(reflection, {
   moduleHref: (modulePath) =>
     packageModulePaths.has(modulePath) ? moduleHref(modulePath) : undefined,
+  modulePath: entry.data.modulePath,
 })
 const versionLinks = ["v3", "v4"].map((version) => {
   const exact = allEntries.find(

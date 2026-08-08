@@ -111,6 +111,9 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      - name: Verify generated API reference links
+        run: node apps/web/scripts/verify-api-reference-links.mjs
+
       - name: Patch trailing-slash redirect into build output
         run: node apps/web/scripts/patch-vercel-trailing-slash.mjs
 
