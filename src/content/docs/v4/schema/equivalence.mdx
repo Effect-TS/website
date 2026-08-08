@@ -1,92 +1,91 @@
 ---
 title: Schema to Equivalence
-description: Generate and customize equivalence checks for data structures based on schema definitions.
+description: Derive and customize equivalence checks from schema structure.
 sidebar:
   label: Equivalence
   order: 17
 ---
 
-The `Schema.toEquivalence` function allows you to generate an [Equivalence](/docs/schema/equivalence/) based on a schema definition.
-This function is designed to compare data structures for equivalence according to the rules defined in the schema.
+`Schema.toEquivalence` derives an [Equivalence](/docs/v4/behaviour/equivalence/) for a schema's `Type`. Nested values are compared according to the corresponding nested schemas.
 
-**Example** (Comparing Structs for Equivalence)
+**Example** (Comparing Structs)
 
 ```ts twoslash import.meta.vitest name="schema-to-equivalence-1"
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
-  age: Schema.Number,
+  age: Schema.Finite,
+  tags: Schema.Array(Schema.String),
 })
 
-// Generate an equivalence function based on the schema
-const PersonEquivalence = Schema.toEquivalence(Person)
+const equivalence = Schema.toEquivalence(Person)
 
-const john = { name: "John", age: 23 }
-const alice = { name: "Alice", age: 30 }
+equivalence({ name: "John", age: 23, tags: ["admin"] }, { name: "John", age: 23, tags: ["admin"] }) // => true
 
-// Use the equivalence function to compare objects
-
-console.log(PersonEquivalence(john, { name: "John", age: 23 }))
-// Output: true
-
-console.log(PersonEquivalence(john, alice))
-// Output: false
+equivalence({ name: "John", age: 23, tags: ["admin"] }, { name: "John", age: 24, tags: ["admin"] }) // => false
 ```
 
-## Equivalence for Any, Unknown, and Object
+For a struct, only fields described by the schema participate in the derived equivalence. Arrays and nested structs are compared recursively.
 
-When working with the following schemas:
+## Broad Schemas
 
-- `Schema.Any`
-- `Schema.Unknown`
-- `Schema.Object`
-- `Schema.Struct({})` (representing the broad `{}` TypeScript type)
+`Schema.Any`, `Schema.Unknown`, `Schema.ObjectKeyword`, and an empty `Schema.Struct({})` use `Equal.equals`. In v4, `Equal.equals` performs deep structural comparison for objects and arrays rather than defaulting to reference equality.
 
-the most sensible form of equivalence is to use `Equal.equals` from the [Equal](/docs/trait/equal/) module, which defaults to reference equality (`===`).
-This is because these types can hold almost any kind of value.
+**Example** (Structural Equality for an Empty Struct)
 
-**Example** (Comparing Empty Objects Using Reference Equality)
-
-```ts twoslash import.meta.vitest name="equivalence-for-any-unknown-and-object-1"
+```ts twoslash import.meta.vitest name="equivalence-empty-struct-1"
 import { Schema } from "effect"
 
-const schema = Schema.Struct({})
+const equivalence = Schema.toEquivalence(Schema.Struct({}))
 
-const input1 = {}
-const input2 = {}
-
-console.log(Schema.toEquivalence(schema)(input1, input2))
-// Output: false (because they are different references)
+equivalence({ nested: [1, 2] }, { nested: [1, 2] }) // => true
 ```
 
-## Customizing Equivalence Generation
+## Declarations
 
-You can customize the equivalence logic by providing an `toEquivalence` annotation in the schema definition.
+Declarations are opaque to automatic derivation. Provide a `toEquivalence` annotation when the declaration needs behavior other than `Equal.equals`.
 
-The `toEquivalence` annotation takes any type parameters provided (`typeParameters`) and two values for comparison, returning a boolean based on the desired condition of equivalence.
+**Example** (Defining Equivalence for a Class)
 
-**Example** (Custom Equivalence for Strings)
+```ts twoslash import.meta.vitest name="equivalence-declaration-1"
+import { Schema } from "effect"
+
+class User {
+  constructor(
+    readonly id: number,
+    readonly displayName: string,
+  ) {}
+}
+
+const UserSchema = Schema.instanceOf(User, {
+  toEquivalence: () => (self, that) => self.id === that.id,
+})
+
+const equivalence = Schema.toEquivalence(UserSchema)
+
+equivalence(new User(1, "Alice"), new User(1, "Alicia")) // => true
+```
+
+Parameterized declarations receive the derived equivalence for each type parameter in the annotation callback.
+
+## Overrides
+
+Use `Schema.overrideToEquivalence` to replace the equivalence derived for an existing schema.
+
+**Example** (Comparing a Struct by One Field)
 
 ```ts twoslash import.meta.vitest name="customizing-equivalence-generation-1"
 import { Schema } from "effect"
 
-// Define a schema with a custom equivalence annotation
-const schema = Schema.String.pipe(
-  Schema.overrideToEquivalence(
-    () => (s1, s2) =>
-      // Custom rule: Compare only the first character of the strings
-      s1.charAt(0) === s2.charAt(0),
-  ),
-)
+const User = Schema.Struct({
+  id: Schema.Finite,
+  displayName: Schema.String,
+}).pipe(Schema.overrideToEquivalence(() => (self, that) => self.id === that.id))
 
-// Generate the equivalence function
-const customEquivalence = Schema.toEquivalence(schema)
+const equivalence = Schema.toEquivalence(User)
 
-// Use the custom equivalence function
-console.log(customEquivalence("aaa", "abb"))
-// Output: true (both start with 'a')
+equivalence({ id: 1, displayName: "Alice" }, { id: 1, displayName: "Alicia" }) // => true
 
-console.log(customEquivalence("aaa", "bba"))
-// Output: false (strings start with different characters)
+equivalence({ id: 1, displayName: "Alice" }, { id: 2, displayName: "Alice" }) // => false
 ```

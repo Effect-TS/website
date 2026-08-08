@@ -8,7 +8,7 @@ sidebar:
 
 import { Aside } from "@astrojs/starlight/components"
 
-The `Schema.toStandardSchemaV1` API allows you to generate a [Standard Schema v1](https://standardschema.dev/) object from an Effect `Schema`.
+`Schema.toStandardSchemaV1` exposes an Effect schema through the [Standard Schema V1](https://standardschema.dev/) interface. The resulting object can be passed to libraries that support the standard while retaining the original Effect schema APIs.
 
 **Example** (Generating a Standard Schema V1)
 
@@ -26,14 +26,12 @@ standardSchema["~standard"].vendor // => "effect"
 ```
 
 <Aside type="note" title="Schema Restrictions">
-  Only schemas that do not have dependencies (i.e., `R = never`) can be converted to a Standard
-  Schema V1 object.
+  The schema must not require decoding services: its `DecodingServices` must be `never`.
 </Aside>
 
 ## Sync vs Async Validation
 
-The `Schema.toStandardSchemaV1` API creates a schema whose `validate` method attempts to decode and validate the provided input synchronously. If the underlying `Schema` includes any asynchronous components (e.g., asynchronous message resolutions
-or checks), then validation will necessarily return a `Promise` instead.
+The Standard Schema `validate` method first attempts to decode synchronously. If decoding encounters an asynchronous transformation or check, it returns a `Promise` instead.
 
 **Example** (Handling Synchronous and Asynchronous Validation)
 
@@ -134,3 +132,5 @@ Output:
 { issues: [ { message: 'Error: Boom!' } ] }
 */
 ```
+
+Standard Schema failures use the same formatter described in [Error Formatters](/docs/v4/schema/error-formatters/#standard-schema-v1-formatter). Pass `leafHook`, `checkHook`, or `parseOptions` to `Schema.toStandardSchemaV1` to customize its output.
