@@ -154,7 +154,7 @@ transformedFailure // => Result.fail("not a number!")
 
 ## Interop with Effect
 
-Unlike in v3, `Result` is no longer a structural subtype of `Effect`. It implements the `Yieldable` trait instead, so `yield*` still works inside `Effect.gen`, but passing a `Result` directly to an `Effect` combinator (such as `Effect.all`) requires an explicit conversion with `Effect.fromResult`.
+`Result` implements the `Yieldable` trait, so it can be yielded directly inside `Effect.gen`. To pass a `Result` to an Effect combinator such as `Effect.all`, convert it explicitly with `Effect.fromResult`.
 
 ### How Result Maps to Effect
 
@@ -194,7 +194,7 @@ Example Output:
 
 ### Combining with flatMap and map
 
-There is no direct `zipWith` combinator in v4's `Result` module. Combine two `Result` values with a provided function by chaining `Result.flatMap` and `Result.map`: this creates a new `Result` that holds the combined value of both original `Result` values.
+Combine two `Result` values with a provided function by chaining `Result.flatMap` and `Result.map`. This creates a new `Result` that holds the combined value of both original `Result` values.
 
 **Example** (Combining Two Results into an Object)
 

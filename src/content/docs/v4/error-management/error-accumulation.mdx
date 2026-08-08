@@ -1,157 +1,44 @@
 ---
 title: Error Accumulation
-description: Learn to manage errors effectively in Effect workflows with tools for sequential execution, error accumulation, and result partitioning.
+description: Accumulate every typed error or preserve both failures and successes.
 sidebar:
   order: 8
 ---
 
-import { Aside } from "@astrojs/starlight/components"
-
-Sequential combinators such as [Effect.zip](/docs/getting-started/control-flow/#zip), [Effect.all](/docs/getting-started/control-flow/#all) and [Effect.forEach](/docs/getting-started/control-flow/#foreach) have a "fail fast" policy when it comes to error management. This means that they stop and return immediately when they encounter the first error.
-
-Here's an example using `Effect.zip`, which stops at the first failure and only shows the first error:
-
-**Example** (Fail Fast with `Effect.zip`)
-
-```ts twoslash import.meta.vitest name="fail-fast-with-effect-zip-1"
-import { Effect, Console, Exit } from "effect"
-
-const task1 = Console.log("task1").pipe(Effect.as(1))
-const task2 = Effect.fail("Oh uh!").pipe(Effect.as(2))
-const task3 = Console.log("task2").pipe(Effect.as(3))
-const task4 = Effect.fail("Oh no!").pipe(Effect.as(4))
-
-const program = task1.pipe(Effect.zip(task2), Effect.zip(task3), Effect.zip(task4))
-
-Effect.runPromise(program).then(console.log, console.error)
-/*
-Output:
-task1
-Oh uh!
-*/
-
-await Effect.runPromiseExit(program) // => Exit.fail("Oh uh!")
-```
-
-The `Effect.forEach` function behaves similarly. It applies an effectful operation to each element in a collection, but will stop when it hits the first error:
-
-**Example** (Fail Fast with `Effect.forEach`)
-
-```ts twoslash import.meta.vitest name="fail-fast-with-effect-foreach-1"
-import { Effect, Console } from "effect"
-
-const program = Effect.forEach([1, 2, 3, 4, 5], (n) => {
-  if (n < 4) {
-    return Console.log(`item ${n}`).pipe(Effect.as(n))
-  } else {
-    return Effect.fail(`${n} is not less that 4`)
-  }
-})
-
-Effect.runPromise(program).then(console.log, console.error)
-/*
-Output:
-item 1
-item 2
-item 3
-4 is not less that 4
-*/
-```
-
-However, there are cases where you may want to collect all errors rather than fail fast. In these situations, you can use functions that accumulate both successes and errors.
+Combinators such as `Effect.all` and `Effect.forEach` fail fast by default. Validation often needs different behavior: evaluate every input and report all problems together.
 
 ## validate
 
-The `Effect.validate` function is similar to `Effect.zip`, but it continues combining effects even after encountering errors, accumulating both successes and failures.
+`Effect.validate` applies an effectful function to every element. If all elements succeed, it returns all success values. If any fail, it returns every error as a non-empty array and discards the successes.
 
-**Example** (Validating and Collecting Errors)
+**Example** (Collecting Validation Errors)
 
-```ts twoslash import.meta.vitest name="validating-and-collecting-errors-1"
-import { Effect, Console, Exit } from "effect"
+```ts twoslash import.meta.vitest name="collecting-validation-errors-1"
+import { Effect, Exit } from "effect"
 
-const task1 = Console.log("task1").pipe(Effect.as(1))
-const task2 = Effect.fail("Oh uh!").pipe(Effect.as(2))
-const task3 = Console.log("task2").pipe(Effect.as(3))
-const task4 = Effect.fail("Oh no!").pipe(Effect.as(4))
+const program = Effect.validate([1, 2, 3, 4], (value) =>
+  value % 2 === 0 ? Effect.succeed(value) : Effect.fail(`${value} is not even`),
+)
 
-const program = Effect.validate([task1, task2, task3, task4], (task) => task)
-
-Effect.runPromiseExit(program).then(console.log)
-/*
-Output:
-task1
-task2
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', failures: [ [Object] ] }
-}
-*/
-
-await Effect.runPromiseExit(program) // => Exit.fail(["Oh uh!", "Oh no!"])
+Effect.runSyncExit(program) // => Exit.fail(["1 is not even", "3 is not even"])
 ```
 
-## validateAll
-
-The `Effect.validate` function is similar to the `Effect.forEach` function. It transforms all elements of a collection using the provided effectful operation, but it collects all errors in the error channel, as well as the success values in the success channel.
-
-```ts twoslash import.meta.vitest name="validate-all-1"
-import { Effect, Console, Exit } from "effect"
-
-//      ┌─── Effect<number[], [string, ...string[]], never>
-//      ▼
-const program = Effect.validate([1, 2, 3, 4, 5], (n) => {
-  if (n < 4) {
-    return Console.log(`item ${n}`).pipe(Effect.as(n))
-  } else {
-    return Effect.fail(`${n} is not less that 4`)
-  }
-})
-
-Effect.runPromiseExit(program).then(console.log)
-/*
-Output:
-item 1
-item 2
-item 3
-{
-  _id: 'Exit',
-  _tag: 'Failure',
-  cause: { _id: 'Cause', failures: [ [Object] ] }
-}
-*/
-
-await Effect.runPromiseExit(program) // => Exit.fail(["4 is not less that 4", "5 is not less that 4"])
-```
-
-<Aside type="caution" title="Loss of Successes">
-  Note that this function is lossy, which means that if there are any errors, all successes will be
-  lost. If you need to preserve both successes and failures, consider using
-  [Effect.partition](#partition).
-</Aside>
+Every element is evaluated. Use `{ concurrency }` to control parallelism and `{ discard: true }` when only validation, not the success values, is needed.
 
 ## partition
 
-The `Effect.partition` function processes an iterable and applies an effectful function to each element. It returns a tuple, where the first part contains all the failures, and the second part contains all the successes.
+`Effect.partition` also evaluates every element, but never fails. It returns `[failures, successes]`, preserving both sides.
 
-**Example** (Partitioning Successes and Failures)
+**Example** (Partitioning Failures and Successes)
 
-```ts twoslash import.meta.vitest name="partitioning-successes-and-failures-1"
+```ts twoslash import.meta.vitest name="partitioning-failures-and-successes-1"
 import { Effect } from "effect"
 
-//      ┌─── Effect<[string[], number[]], never, never>
-//      ▼
-const program = Effect.partition([0, 1, 2, 3, 4], (n) => {
-  if (n % 2 === 0) {
-    return Effect.succeed(n)
-  } else {
-    return Effect.fail(`${n} is not even`)
-  }
-})
+const program = Effect.partition([0, 1, 2, 3, 4], (value) =>
+  value % 2 === 0 ? Effect.succeed(value) : Effect.fail(`${value} is not even`),
+)
 
-Effect.runPromise(program).then(console.log, console.error)
-
-await Effect.runPromise(program) // => [["1 is not even", "3 is not even"], [0, 2, 4]]
+Effect.runSync(program) // => [["1 is not even", "3 is not even"], [0, 2, 4]]
 ```
 
-This operator is an unexceptional effect, meaning the error channel type is `never`. Failures are collected without stopping the effect, so the entire operation completes and returns both errors and successes.
+Like `validate`, `partition` accepts a `concurrency` option.
