@@ -1,767 +1,430 @@
 ---
 title: Configuration
-description: Efficiently manage application configurations with built-in types, flexible providers, and advanced features like defaults, validation, and redaction.
+description: Describe, load, validate, and test application configuration with Config and ConfigProvider.
 sidebar:
   order: 5
 ---
 
-import { Aside } from "@astrojs/starlight/components"
+Effect separates the **description** of a configuration from the source that supplies its values:
 
-Configuration is an essential aspect of any cloud-native application. Effect simplifies the process of managing configuration by offering a convenient interface for configuration providers.
+- A `Config<T>` describes how to load and decode a value of type `T`. It is also an `Effect<T, ConfigError>`, so it can be yielded directly inside `Effect.gen`.
+- A `ConfigProvider` supplies the raw values. The default provider reads environment variables.
 
-The configuration front-end in Effect enables ecosystem libraries and applications to specify their configuration requirements in a declarative manner. It offloads the complex tasks to a `ConfigProvider`, which can be supplied by third-party libraries.
+Keeping these concerns separate lets application code define its requirements once and choose a different provider for production, local development, or tests.
 
-Effect comes bundled with a straightforward default `ConfigProvider` that retrieves configuration data from environment variables. This default provider can be used during development or as a starting point before transitioning to more advanced configuration providers.
+## Defining and Parsing a Config
 
-To make our application configurable, we need to understand three essential elements:
+Use the constructors in the `Config` module for individual values and `Config.all` to combine them.
 
-- **Config Description**: We describe the configuration data using an instance of `Config<A>`. If the configuration data is simple, such as a `string`, `number`, or `boolean`, we can use the built-in functions provided by the `Config` module. For more complex data types like [HostPort](#custom-configuration-types), we can combine primitive configs to create a custom configuration description.
+**Example** (Parsing a Config with a Specific Provider)
 
-- **Config Frontend**: We utilize the instance of `Config<A>` to load the configuration data described by the instance (a `Config` is, in itself, an effect). This process leverages the current `ConfigProvider` to retrieve the configuration.
-
-- **Config Backend**: The `ConfigProvider` serves as the underlying engine that manages the configuration loading process. Effect comes with a default config provider as part of its default services. This default provider reads the configuration data from environment variables. If we want to use a custom config provider, we can utilize the `Effect.withConfigProvider` API to configure the Effect runtime accordingly.
-
-## Basic Configuration Types
-
-Effect provides several built-in types for configuration values, which you can use right out of the box:
-
-| Type       | Description                                                             |
-| ---------- | ----------------------------------------------------------------------- |
-| `string`   | Reads a configuration value as a string.                                |
-| `number`   | Reads a value as a floating-point number.                               |
-| `boolean`  | Reads a value as a boolean (`true` or `false`).                         |
-| `integer`  | Reads a value as an integer.                                            |
-| `date`     | Parses a value into a `Date` object.                                    |
-| `literal`  | Reads a fixed literal (\*).                                             |
-| `logLevel` | Reads a value as a [LogLevel](/docs/observability/logging/#log-levels). |
-| `duration` | Parses a value as a time duration.                                      |
-| `redacted` | Reads a **sensitive value**, ensuring it is protected when logged.      |
-| `url`      | Parses a value as a valid URL.                                          |
-
-(\*) `string | number | boolean | null | bigint`
-
-**Example** (Loading Environment Variables)
-
-Here's an example of loading a basic configuration using environment variables for `HOST` and `PORT`:
-
-```ts twoslash title="primitives.ts"
-import { Effect, Config } from "effect"
-
-// Define a program that loads HOST and PORT configuration
-const program = Effect.gen(function* () {
-  const host = yield* Config.string("HOST") // Read as a string
-  const port = yield* Config.number("PORT") // Read as a number
-
-  console.log(`Application started: ${host}:${port}`)
-})
-
-Effect.runPromise(program)
-```
-
-If you run this without setting the required environment variables:
-
-```sh showLineNumbers=false
-npx tsx primitives.ts
-```
-
-you'll see an error indicating the missing configuration:
-
-```ansi showLineNumbers=false
-[Error: (Missing data at HOST: "Expected HOST to exist in the process context")] {
-  name: '(FiberFailure) Error',
-  [Symbol(effect/Runtime/FiberFailure)]: Symbol(effect/Runtime/FiberFailure),
-  [Symbol(effect/Runtime/FiberFailure/Cause)]: {
-    _tag: 'Fail',
-    error: {
-      _op: 'MissingData',
-      path: [ 'HOST' ],
-      message: 'Expected HOST to exist in the process context'
-    }
-  }
-}
-```
-
-To run the program successfully, set the environment variables as shown below:
-
-```sh showLineNumbers=false
-HOST=localhost PORT=8080 npx tsx primitives.ts
-```
-
-Output:
-
-```ansi showLineNumbers=false
-Application started: localhost:8080
-```
-
-## Using Config with Schema
-
-You can define and decode configuration values using a schema.
-
-**Example** (Decoding a Configuration Value)
-
-```ts twoslash import.meta.vitest name="using-config-with-schema-1"
-import { Config, ConfigProvider, Effect, Schema } from "effect"
-
-// Define a config that expects a string with at least 4 characters
-const myConfig = Config.schema(Schema.String.check(Schema.isMinLength(4)), "Foo")
-
-const result = await Effect.runPromise(
-  Effect.provideService(
-    myConfig,
-    ConfigProvider.ConfigProvider,
-    ConfigProvider.fromEnv({ env: { Foo: "test" } }),
-  ),
-)
-result // => "test"
-```
-
-For more information, see the [Schema.Config](/docs/schema/effect-data-types/#config) documentation.
-
-## Providing Default Values
-
-Sometimes, you may encounter situations where an environment variable is missing, leading to an incomplete configuration. To address this, Effect provides the `Config.withDefault` function, which allows you to specify a default value. This fallback ensures that your application continues to function even if a required environment variable is not set.
-
-**Example** (Using Default Values)
-
-```ts twoslash title="defaults.ts"
-import { Effect, Config } from "effect"
-
-const program = Effect.gen(function* () {
-  const host = yield* Config.string("HOST")
-  // Use default 8080 if PORT is not set
-  const port = yield* Config.number("PORT").pipe(Config.withDefault(8080))
-  console.log(`Application started: ${host}:${port}`)
-})
-
-Effect.runPromise(program)
-```
-
-Running this program with only the `HOST` environment variable set:
-
-```sh showLineNumbers=false
-HOST=localhost npx tsx defaults.ts
-```
-
-produces the following output:
-
-```ansi showLineNumbers=false
-Application started: localhost:8080
-```
-
-In this case, even though the `PORT` environment variable is not set, the program continues to run, using the default value of `8080` for the port. This ensures that the application remains functional without requiring every configuration to be explicitly provided.
-
-## Handling Sensitive Values
-
-Some configuration values, like API keys, should not be printed in logs.
-
-The `Config.redacted` function is used to handle sensitive information safely.
-It parses the configuration value and wraps it in a `Redacted<string>`, a specialized [data type](/docs/data-types/redacted/) designed to protect secrets.
-
-When you log a `Redacted` value using `console.log`, the actual content remains hidden, providing an extra layer of security. To access the real value, you must explicitly use `Redacted.value`.
-
-**Example** (Protecting Sensitive Data)
-
-```ts twoslash title="redacted.ts"
-import { Effect, Config, Redacted } from "effect"
-
-const program = Effect.gen(function* () {
-  //      ┌─── Redacted<string>
-  //      ▼
-  const redacted = yield* Config.redacted("API_KEY")
-
-  // Log the redacted value, which won't reveal the actual secret
-  console.log(`Console output: ${redacted}`)
-
-  // Access the real value using Redacted.value and log it
-  console.log(`Actual value: ${Redacted.value(redacted)}`)
-})
-
-Effect.runPromise(program)
-```
-
-When this program is executed:
-
-```sh showLineNumbers=false
-API_KEY=my-api-key tsx redacted.ts
-```
-
-The output will look like this:
-
-```ansi showLineNumbers=false
-Console output: <redacted>
-Actual value: my-api-key
-```
-
-As shown, when logging the `Redacted` value using `console.log`, the output is `<redacted>`, ensuring that sensitive data remains concealed. However, by using `Redacted.value`, the true value (`"my-api-key"`) can be accessed and displayed, providing controlled access to the secret.
-
-### Wrapping a Config with Redacted
-
-By default, when you pass a string to `Config.redacted`, it returns a `Redacted<string>`. You can also pass a `Config` (such as `Config.number`) to ensure that only validated values are accepted. This adds an extra layer of security by ensuring that sensitive data is properly validated before being redacted.
-
-**Example** (Redacting and Validating a Number)
-
-```ts twoslash
-import { Effect, Config, Redacted, Schema } from "effect"
-
-const program = Effect.gen(function* () {
-  // Wrap the validated number configuration with redaction
-  //
-  //      ┌─── Redacted<number>
-  //      ▼
-  const redacted = yield* Config.schema(Schema.Redacted(Schema.FiniteFromString), "SECRET")
-
-  console.log(`Console output: ${redacted}`)
-  console.log(`Actual value: ${Redacted.value(redacted)}`)
-})
-
-Effect.runPromise(program)
-```
-
-## Combining Configurations
-
-Effect provides several built-in combinators that allow you to define and manipulate configurations.
-These combinators take a `Config` as input and produce another `Config`, enabling more complex configuration structures.
-
-| Combinator | Description                                                                                                         |
-| ---------- | ------------------------------------------------------------------------------------------------------------------- |
-| `array`    | Constructs a configuration for an array of values.                                                                  |
-| `chunk`    | Constructs a configuration for a sequence of values.                                                                |
-| `option`   | Returns an optional configuration. If the data is missing, the result will be `None`; otherwise, it will be `Some`. |
-| `repeat`   | Describes a sequence of values, each following the structure of the given config.                                   |
-| `hashSet`  | Constructs a configuration for a set of values.                                                                     |
-| `hashMap`  | Constructs a configuration for a key-value map.                                                                     |
-
-Additionally, there are three special combinators for specific use cases:
-
-| Combinator | Description                                                              |
-| ---------- | ------------------------------------------------------------------------ |
-| `succeed`  | Constructs a config that contains a predefined value.                    |
-| `fail`     | Constructs a config that fails with the specified error message.         |
-| `all`      | Combines multiple configurations into a tuple, struct, or argument list. |
-
-**Example** (Using the `array` combinator)
-
-The following example demonstrates how to load an environment variable as an array of strings using the `Config.array` constructor.
-
-```ts twoslash title="index.ts"
-import { Config, Effect, Schema } from "effect"
-
-const program = Effect.gen(function* () {
-  const config = yield* Config.schema(Config.Array(Schema.String), "MYARRAY")
-  console.log(config)
-})
-
-Effect.runPromise(program)
-// Run:
-// MYARRAY=a,b,c,a npx tsx index.ts
-// Output:
-// [ 'a', 'b', 'c', 'a' ]
-```
-
-**Example** (Using the `hashSet` combinator)
-
-```ts twoslash title="index.ts"
-import { Config, Effect, HashSet, Schema } from "effect"
-
-const program = Effect.gen(function* () {
-  const config = yield* Config.schema(Config.Array(Schema.String), "MYSET").pipe(
-    Config.map(HashSet.fromIterable),
-  )
-  console.log(config)
-})
-
-Effect.runPromise(program)
-// Run:
-// MYSET=a,"b c",d,a npx tsx index.ts
-// Output:
-// { _id: 'HashSet', values: [ 'd', 'a', 'b c' ] }
-```
-
-**Example** (Using the `hashMap` combinator)
-
-```ts twoslash title="index.ts"
-import { Config, Effect, HashMap, Schema } from "effect"
-
-const program = Effect.gen(function* () {
-  const record = yield* Config.schema(Schema.Record(Schema.String, Schema.String), "MYMAP")
-  const config = HashMap.fromIterable(Object.entries(record))
-  console.log(config)
-})
-
-Effect.runPromise(program)
-// Run:
-// MYMAP_A=a MYMAP_B=b npx tsx index.ts
-// Output:
-// { _id: 'HashMap', values: [ [ 'A', 'a' ], [ 'B', 'b' ] ] }
-```
-
-## Operators
-
-Effect provides several built-in operators to work with configurations, allowing you to manipulate and transform them according to your needs.
-
-### Transforming Operators
-
-These operators enable you to modify configurations or validate their values:
-
-| Operator     | Description                                                                                               |
-| ------------ | --------------------------------------------------------------------------------------------------------- |
-| `validate`   | Ensures that a configuration meets certain criteria, returning a validation error if it does not.         |
-| `map`        | Transforms the values of a configuration using a provided function.                                       |
-| `mapAttempt` | Similar to `map`, but catches any errors thrown by the function and converts them into validation errors. |
-| `mapOrFail`  | Like `map`, but the function can fail. If it does, the result is a validation error.                      |
-
-**Example** (Using `validate` Operator)
-
-```ts twoslash title="validate.ts"
-import { Effect, Config, Schema } from "effect"
-
-const program = Effect.gen(function* () {
-  // Load the NAME environment variable and validate its length
-  const config = yield* Config.schema(
-    Schema.String.check(
-      Schema.isMinLength(4, { message: "Expected a string at least 4 characters long" }),
-    ),
-    "NAME",
-  )
-  console.log(config)
-})
-
-Effect.runPromise(program)
-```
-
-If we run this program with an invalid `NAME` value:
-
-```sh showLineNumbers=false
-NAME=foo npx tsx validate.ts
-```
-
-The output will be:
-
-```ansi showLineNumbers=false
-[Error: (Invalid data at NAME: "Expected a string at least 4 characters long")] {
-  name: '(FiberFailure) Error',
-  [Symbol(effect/Runtime/FiberFailure)]: Symbol(effect/Runtime/FiberFailure),
-  [Symbol(effect/Runtime/FiberFailure/Cause)]: {
-    _tag: 'Fail',
-    error: {
-      _op: 'InvalidData',
-      path: [ 'NAME' ],
-      message: 'Expected a string at least 4 characters long'
-    }
-  }
-}
-```
-
-### Fallback Operators
-
-Fallback operators are useful when you want to provide alternative configurations in case of errors or missing data. These operators ensure that your program can still run even if some configuration values are unavailable.
-
-| Operator   | Description                                                                                           |
-| ---------- | ----------------------------------------------------------------------------------------------------- |
-| `orElse`   | Attempts to use the primary config first. If it fails or is missing, it falls back to another config. |
-| `orElseIf` | Similar to `orElse`, but it switches to the fallback config only if the error matches a condition.    |
-
-**Example** (Using `orElse` for Fallback)
-
-In this example, the program requires two configuration values: `A` and `B`. We set up two configuration providers, each containing only one of the required values. Using the `orElse` operator, we combine these providers so the program can retrieve both `A` and `B`.
-
-```ts twoslash title="orElse.ts" import.meta.vitest name="using-orelse-for-fallback-1"
+```ts twoslash import.meta.vitest name="parsing-a-config-1"
 import { Config, ConfigProvider, Effect } from "effect"
 
-// A program that requires two configurations: A and B
-const program = Effect.gen(function* () {
-  const A = yield* Config.string("A") // Retrieve config A
-  const B = yield* Config.string("B") // Retrieve config B
-  const message = `A: ${A}, B: ${B}`
-  console.log(message)
-  message // => "A: A, B: B"
+const AppConfig = Config.all({
+  host: Config.nonEmptyString("HOST"),
+  port: Config.port("PORT"),
 })
 
-// First provider has A but is missing B
-const provider1 = ConfigProvider.fromEnv({ env: { A: "A" } })
-
-// Second provider has B but is missing A
-const provider2 = ConfigProvider.fromEnv({ env: { B: "B" } })
-
-// Use `orElse` to fall back from provider1 to provider2
-const provider = provider1.pipe(ConfigProvider.orElse(provider2))
-
-Effect.runPromise(Effect.provideService(program, ConfigProvider.ConfigProvider, provider))
-```
-
-If we run this program:
-
-```sh showLineNumbers=false
-npx tsx orElse.ts
-```
-
-The output will be:
-
-```ansi showLineNumbers=false
-A: A, B: B
-```
-
-<Aside type="tip">
-  In this example, we use `ConfigProvider.fromEnv` to create a configuration provider from a plain
-  object. This is particularly useful for testing, as described in the [Mocking Configurations in
-  Tests](#mocking-configurations-in-tests) section.
-</Aside>
-
-## Custom Configuration Types
-
-Effect allows you to define configurations for custom types by combining primitive configurations using [combinators](#combining-configurations) and [operators](#operators).
-
-For example, let's create a `HostPort` class, which has two fields: `host` and `port`.
-
-```ts twoslash import.meta.vitest name="custom-configuration-types-1"
-class HostPort {
-  constructor(
-    readonly host: string,
-    readonly port: number,
-  ) {}
-  get url() {
-    return `${this.host}:${this.port}`
-  }
-}
-
-new HostPort("localhost", 8080).url // => "localhost:8080"
-```
-
-To define a configuration for this custom type, we can combine primitive configs for `string` and `number`:
-
-**Example** (Defining a Custom Configuration)
-
-```ts twoslash import.meta.vitest name="defining-a-custom-configuration-1"
-import { Config, ConfigProvider, Effect } from "effect"
-
-class HostPort {
-  constructor(
-    readonly host: string,
-    readonly port: number,
-  ) {}
-  get url() {
-    return `${this.host}:${this.port}`
-  }
-}
-
-// Combine the configuration for 'HOST' and 'PORT'
-const both = Config.all([Config.string("HOST"), Config.number("PORT")])
-
-// Map the configuration values into a HostPort instance
-const config = Config.map(both, ([host, port]) => new HostPort(host, port))
-
-const result = await Effect.runPromise(
-  Effect.provideService(
-    config,
-    ConfigProvider.ConfigProvider,
-    ConfigProvider.fromEnv({ env: { HOST: "localhost", PORT: "8080" } }),
-  ),
-)
-result.url // => "localhost:8080"
-```
-
-In this example, `Config.all(configs)` combines two primitive configurations, `Config<string>` and `Config<number>`, into a `Config<[string, number]>`. The `Config.map` operator is then used to transform these values into an instance of the `HostPort` class.
-
-**Example** (Using Custom Configuration)
-
-```ts twoslash title="App.ts"
-import { Effect, Config } from "effect"
-
-class HostPort {
-  constructor(
-    readonly host: string,
-    readonly port: number,
-  ) {}
-  get url() {
-    return `${this.host}:${this.port}`
-  }
-}
-
-// Combine the configuration for 'HOST' and 'PORT'
-const both = Config.all([Config.string("HOST"), Config.number("PORT")])
-
-// Map the configuration values into a HostPort instance
-const config = Config.map(both, ([host, port]) => new HostPort(host, port))
-
-// Main program that reads configuration and starts the application
-const program = Effect.gen(function* () {
-  const hostPort = yield* config
-  console.log(`Application started: ${hostPort.url}`)
-})
-
-Effect.runPromise(program)
-```
-
-When you run this program, it will try to retrieve the values for `HOST` and `PORT` from your environment variables:
-
-```sh showLineNumbers=false
-HOST=localhost PORT=8080 npx tsx App.ts
-```
-
-If successful, it will print:
-
-```ansi showLineNumbers=false
-Application started: localhost:8080
-```
-
-## Nested Configurations
-
-We've seen how to define configurations at the top level, whether for primitive or custom types. In some cases, though, you might want to structure your configurations in a more nested way, organizing them under common namespaces for clarity and manageability.
-
-For instance, consider the following `ServiceConfig` type:
-
-```ts twoslash import.meta.vitest name="nested-configurations-1"
-class ServiceConfig {
-  constructor(
-    readonly host: string,
-    readonly port: number,
-    readonly timeout: number,
-  ) {}
-  get url() {
-    return `${this.host}:${this.port}`
-  }
-}
-
-new ServiceConfig("localhost", 8080, 30).url // => "localhost:8080"
-```
-
-If you were to use this configuration in your application, it would expect the `HOST`, `PORT`, and `TIMEOUT` environment variables at the top level. But in many cases, you may want to organize configurations under a shared namespace—for example, grouping `HOST` and `PORT` under a `SERVER` namespace, while keeping `TIMEOUT` at the root.
-
-To do this, you can use the `Config.nested` operator, which allows you to nest configuration values under a specific namespace. Let's update the previous example to reflect this:
-
-```ts twoslash import.meta.vitest name="nested-configurations-2"
-import { Config, ConfigProvider, Effect } from "effect"
-
-class ServiceConfig {
-  constructor(
-    readonly host: string,
-    readonly port: number,
-    readonly timeout: number,
-  ) {}
-  get url() {
-    return `${this.host}:${this.port}`
-  }
-}
-
-const serverConfig = Config.all([Config.string("HOST"), Config.number("PORT")])
-
-const serviceConfig = Config.map(
-  Config.all([
-    // Read 'HOST' and 'PORT' from 'SERVER' namespace
-    Config.nested(serverConfig, "SERVER"),
-    // Read 'TIMEOUT' from the root namespace
-    Config.number("TIMEOUT"),
-  ]),
-  ([[host, port], timeout]) => new ServiceConfig(host, port, timeout),
-)
-
-const result = await Effect.runPromise(
-  Effect.provideService(
-    serviceConfig,
-    ConfigProvider.ConfigProvider,
-    ConfigProvider.fromEnv({
-      env: { SERVER_HOST: "localhost", SERVER_PORT: "8080", TIMEOUT: "30" },
-    }),
-  ),
-)
-result.url // => "localhost:8080"
-```
-
-Now, if you run your application with this configuration setup, it will look for the following environment variables:
-
-- `SERVER_HOST` for the host value
-- `SERVER_PORT` for the port value
-- `TIMEOUT` for the timeout value
-
-This structured approach keeps your configuration more organized, especially when dealing with multiple services or complex applications.
-
-## Mocking Configurations in Tests
-
-When testing services, there are times when you need to provide specific configurations for your tests. To simulate this, it's useful to mock the configuration backend that reads these values.
-
-You can achieve this using the `ConfigProvider.fromEnv` constructor.
-This method allows you to create a configuration provider from a plain `Record<string, string>`, so you don't have to rely on real process environment variables.
-You can then use this mock provider in place of the default one by providing it as the `ConfigProvider.ConfigProvider` service.
-
-**Example** (Mocking a Config Provider for Testing)
-
-```ts twoslash import.meta.vitest name="mocking-a-config-provider-for-testing-1"
-import { Config, ConfigProvider, Effect } from "effect"
-
-class HostPort {
-  constructor(
-    readonly host: string,
-    readonly port: number,
-  ) {}
-  get url() {
-    return `${this.host}:${this.port}`
-  }
-}
-
-const config = Config.map(
-  Config.all([Config.string("HOST"), Config.number("PORT")]),
-  ([host, port]) => new HostPort(host, port),
-)
-
-const program = Effect.gen(function* () {
-  const hostPort = yield* config
-  const message = `Application started: ${hostPort.url}`
-  console.log(message)
-  message // => "Application started: localhost:8080"
-})
-
-// Create a mock config provider using fixed test data
-const mockConfigProvider = ConfigProvider.fromEnv({
+const provider = ConfigProvider.fromEnv({
   env: {
     HOST: "localhost",
     PORT: "8080",
   },
 })
 
-// Run the program using the mock config provider
-Effect.runPromise(Effect.provideService(program, ConfigProvider.ConfigProvider, mockConfigProvider))
+const result = Effect.runSync(AppConfig.parse(provider))
+
+result // => { host: "localhost", port: 8080 }
 ```
 
-This approach helps you create isolated tests that don't rely on external environment variables, ensuring your tests run consistently with mock configurations.
+Calling `config.parse(provider)` is useful when the provider is already available explicitly, especially in tests.
 
-### Handling Nested Configuration Values
+In application code, a `Config` can instead be yielded as an Effect. It then uses the `ConfigProvider` installed in the Effect context. When no provider is installed explicitly, Effect uses `ConfigProvider.fromEnv()`.
 
-For more complex setups, configurations often include nested keys. `ConfigProvider.fromEnv` uses `_` as the fixed separator for nested keys — this isn't customizable.
+**Example** (Using the Default Environment Provider)
 
-**Example** (Providing Nested Configuration Values)
+```ts twoslash title="app.ts"
+import { Config, Effect } from "effect"
 
-```ts twoslash import.meta.vitest name="providing-nested-configuration-values-1"
-import { Config, ConfigProvider, Effect } from "effect"
-
-const config = Config.nested(Config.number("PORT"), "SERVER")
-
-const program = Effect.gen(function* () {
-  const port = yield* config
-  const message = `Server is running on port ${port}`
-  console.log(message)
-  message // => "Server is running on port 8080"
+const AppConfig = Config.all({
+  host: Config.nonEmptyString("HOST"),
+  port: Config.port("PORT").pipe(Config.withDefault(8080)),
 })
 
-// Mock configuration using '_' as the separator for nested keys
-const mockConfigProvider = ConfigProvider.fromEnv({
-  env: { SERVER_PORT: "8080" },
-})
-
-Effect.runPromise(Effect.provideService(program, ConfigProvider.ConfigProvider, mockConfigProvider))
-```
-
-## ConfigProvider
-
-The `ConfigProvider` module in Effect allows applications to load configuration values from different sources.
-The default provider reads from environment variables, but you can customize its behavior when needed.
-
-### Loading Configuration from Environment Variables
-
-The `ConfigProvider.fromEnv` function creates a `ConfigProvider` that loads values from environment variables. This is the default provider used by Effect unless another is specified.
-
-Unlike in v3, the path delimiter for nested configuration keys is fixed to `_` and can't be customized — see [Handling Nested Configuration Values](#handling-nested-configuration-values) above.
-
-### Loading Configuration from JSON
-
-The `ConfigProvider.fromJson` function creates a `ConfigProvider` that loads values from a JSON object.
-
-**Example** (Reading Nested Configuration from JSON)
-
-```ts twoslash import.meta.vitest name="reading-nested-configuration-from-json-1"
-import { Config, ConfigProvider, Effect } from "effect"
-
 const program = Effect.gen(function* () {
-  // Read SERVER_HOST and SERVER_PORT as nested configuration values
-  const port = yield* Config.nested(Config.number("PORT"), "SERVER")
-  const host = yield* Config.nested(Config.string("HOST"), "SERVER")
-  const message = `Application started: ${host}:${port}`
-  console.log(message)
-  message // => "Application started: localhost:8080"
-})
-
-Effect.runPromise(
-  Effect.provideService(
-    program,
-    ConfigProvider.ConfigProvider,
-    ConfigProvider.fromUnknown(JSON.parse(`{"SERVER":{"PORT":8080,"HOST":"localhost"}}`)),
-  ),
-)
-```
-
-### Using Nested Configuration Namespaces
-
-The `ConfigProvider.nested` function allows **grouping configuration values** under a namespace.
-This is helpful when structuring settings logically, such as grouping `SERVER`-related values.
-
-**Example** (Using a Nested Namespace)
-
-```ts twoslash title="index.ts"
-import { Config, ConfigProvider, Effect } from "effect"
-
-const program = Effect.gen(function* () {
-  const port = yield* Config.number("PORT") // Reads SERVER_PORT
-  const host = yield* Config.string("HOST") // Reads SERVER_HOST
+  const { host, port } = yield* AppConfig
   console.log(`Application started: ${host}:${port}`)
 })
 
-Effect.runPromise(
-  Effect.provideService(
-    program,
-    ConfigProvider.ConfigProvider,
-    ConfigProvider.fromEnv().pipe(
-      // Uses SERVER as a namespace
-      ConfigProvider.nested("SERVER"),
-    ),
-  ),
-)
+Effect.runPromise(program)
 ```
-
-Since we defined `"SERVER"` as the namespace, the environment variables must follow this pattern:
 
 ```sh showLineNumbers=false
-SERVER_HOST=localhost SERVER_PORT=8080 npx tsx index.ts
+HOST=localhost PORT=3000 npx tsx app.ts
 ```
-
-Output:
 
 ```ansi showLineNumbers=false
-Application started: localhost:8080
+Application started: localhost:3000
 ```
 
-### Converting Configuration Keys to Constant Case
+## Built-in Config Values
 
-The `ConfigProvider.constantCase` function transforms all configuration keys into constant case (uppercase with underscores).
-This is useful when adapting environment variables to match different naming conventions.
+Effect provides convenience constructors for common scalar values:
 
-**Example** (Using `constantCase` for Environment Variables)
+| Constructor               | Result                                                   |
+| ------------------------- | -------------------------------------------------------- |
+| `string(name?)`           | A string                                                 |
+| `nonEmptyString(name?)`   | A non-empty string                                       |
+| `finite(name?)`           | A finite number                                          |
+| `int(name?)`              | An integer                                               |
+| `port(name?)`             | An integer between 1 and 65,535                          |
+| `boolean(name?)`          | A boolean                                                |
+| `literal(value, name?)`   | One literal value                                        |
+| `literals(values, name?)` | One of several literal values                            |
+| `duration(name?)`         | A `Duration`                                             |
+| `date(name?)`             | A `Date`                                                 |
+| `url(name?)`              | A `URL`                                                  |
+| `logLevel(name?)`         | A [LogLevel](/docs/v4/observability/logging/#log-levels) |
+| `redacted(name?)`         | A [`Redacted<string>`](/docs/v4/data-types/redacted/)    |
 
-```ts twoslash title="index.ts"
-import { Config, ConfigProvider, Effect } from "effect"
+For ordinary numeric settings, prefer `Config.finite`. `Config.number` also accepts non-finite values such as `NaN` and `Infinity`, which are rarely valid configuration values.
 
-const program = Effect.gen(function* () {
-  const port = yield* Config.number("Port") // Reads PORT
-  const host = yield* Config.string("Host") // Reads HOST
-  console.log(`Application started: ${host}:${port}`)
+`Config.boolean` accepts the case-sensitive strings `true`, `false`, `yes`, `no`, `on`, `off`, `1`, `0`, `y`, and `n`.
+
+## Using Config with Schema
+
+Use `Config.schema` when a setting needs a custom type, validation, or a structured representation. The provider supplies the encoded representation and the resulting `Config` produces the schema's `Type`.
+
+**Example** (Validating a Configuration Value)
+
+```ts twoslash import.meta.vitest name="config-schema-validation-1"
+import { Config, ConfigProvider, Effect, Schema } from "effect"
+
+const Username = Schema.String.check(
+  Schema.isMinLength(4, { message: "Expected at least 4 characters" }),
+)
+
+const username = Config.schema(Username, "USERNAME")
+const provider = ConfigProvider.fromEnv({ env: { USERNAME: "alice" } })
+
+Effect.runSync(username.parse(provider)) // => "alice"
+```
+
+Schemas can also describe an entire configuration object.
+
+**Example** (Reading Structured Configuration)
+
+```ts twoslash import.meta.vitest name="structured-config-1"
+import { Config, ConfigProvider, Effect, Schema } from "effect"
+
+const ServerConfig = Config.schema(
+  Schema.Struct({
+    host: Schema.String,
+    port: Config.Port,
+  }),
+  "server",
+)
+
+const provider = ConfigProvider.fromUnknown({
+  server: {
+    host: "localhost",
+    port: 8080,
+  },
 })
 
-Effect.runPromise(
-  Effect.provideService(
-    program,
-    ConfigProvider.ConfigProvider,
-    // Convert keys to constant case
-    ConfigProvider.fromEnv().pipe(ConfigProvider.constantCase),
-  ),
+Effect.runSync(ServerConfig.parse(provider)) // => { host: "localhost", port: 8080 }
+```
+
+`Config.schema` derives a tree-shaped string encoding from the schema. This allows the same structured config to read `SERVER_HOST` and `SERVER_PORT` from an environment provider, or `{ server: { host, port } }` from `ConfigProvider.fromUnknown`.
+
+See [Schema: Config](/docs/v4/schema/effect-data-types/#config) for more details.
+
+### Arrays and Records
+
+`Config.Array` and `Config.Record` are schemas for values that may be supplied either structurally or as one separated string. Pass them to `Config.schema`; they are not `Config` combinators.
+
+**Example** (Reading a Comma-Separated Array)
+
+```ts twoslash import.meta.vitest name="config-array-1"
+import { Config, ConfigProvider, Effect, Schema } from "effect"
+
+const exporters = Config.schema(Config.Array(Schema.String), "EXPORTERS")
+const provider = ConfigProvider.fromEnv({
+  env: { EXPORTERS: "otlp,prometheus" },
+})
+
+Effect.runSync(exporters.parse(provider)) // => ["otlp", "prometheus"]
+```
+
+`Config.Record(key, value)` similarly accepts either a record or a string such as `"service.name=api,service.version=1.0"`. Both schemas accept options for customizing their separators.
+
+Plain `Schema.Array` and `Schema.Record` remain useful when the provider must supply a structural array or object rather than a separated scalar value.
+
+## Combining Configs
+
+`Config.all` combines configs into a tuple or a named object while preserving the input shape.
+
+**Example** (Combining and Nesting Configs)
+
+```ts twoslash import.meta.vitest name="combining-and-nesting-configs-1"
+import { Config, ConfigProvider, Effect } from "effect"
+
+const DatabaseConfig = Config.all({
+  host: Config.nonEmptyString("HOST"),
+  port: Config.port("PORT"),
+}).pipe(Config.nested("DATABASE"))
+
+const provider = ConfigProvider.fromEnv({
+  env: {
+    DATABASE_HOST: "localhost",
+    DATABASE_PORT: "5432",
+  },
+})
+
+Effect.runSync(DatabaseConfig.parse(provider)) // => { host: "localhost", port: 5432 }
+```
+
+`Config.nested(config, path)` prepends a string or path to every lookup performed by that config. With `ConfigProvider.fromEnv`, path segments are joined with `_`.
+
+For APIs that accept either an already-built `Config<T>` or a nested record of configs, `Config.Wrap<T>` and `Config.unwrap` provide the corresponding input type and conversion.
+
+## Defaults and Optional Values
+
+`Config.withDefault` supplies a value only when none of the relevant input is present.
+
+**Example** (Providing a Default)
+
+```ts twoslash import.meta.vitest name="config-default-1"
+import { Config, ConfigProvider, Effect } from "effect"
+
+const port = Config.port("PORT").pipe(Config.withDefault(8080))
+const provider = ConfigProvider.fromUnknown({})
+
+Effect.runSync(port.parse(provider)) // => 8080
+```
+
+Invalid input is not treated as missing. For example, `PORT=not-a-port` still fails instead of silently producing `8080`. The same rule applies to a combined config: if part of the group is supplied, a missing or invalid sibling makes the group incomplete rather than replacing the whole group with a default.
+
+Use `Config.option` when absence should produce an `Option` instead.
+
+**Example** (Reading an Optional Value)
+
+```ts twoslash import.meta.vitest name="optional-config-1"
+import { Config, ConfigProvider, Effect, Option } from "effect"
+
+const apiKey = Config.string("API_KEY").pipe(Config.option)
+const provider = ConfigProvider.fromUnknown({})
+
+Effect.runSync(apiKey.parse(provider)) // => Option.none()
+```
+
+### Falling Back After Any Config Error
+
+`Config.orElse` is broader than `Config.withDefault`: it tries another config after any `ConfigError`, including invalid input.
+
+**Example** (Falling Back to Another Config)
+
+```ts twoslash import.meta.vitest name="config-or-else-1"
+import { Config, ConfigProvider, Effect } from "effect"
+
+const host = Config.string("HOST").pipe(Config.orElse(() => Config.string("FALLBACK_HOST")))
+
+const provider = ConfigProvider.fromUnknown({ FALLBACK_HOST: "localhost" })
+
+Effect.runSync(host.parse(provider)) // => "localhost"
+```
+
+Because `orElse` can recover from validation errors, use it only when replacing invalid input is intentional. Use `withDefault` for the common case where only absence should trigger a fallback.
+
+## Transforming Values
+
+Use `Config.map` for a transformation that cannot fail.
+
+**Example** (Mapping a Config)
+
+```ts twoslash import.meta.vitest name="mapping-a-config-1"
+import { Config, ConfigProvider, Effect } from "effect"
+
+const origin = Config.all({
+  host: Config.nonEmptyString("HOST"),
+  port: Config.port("PORT"),
+}).pipe(Config.map(({ host, port }) => `http://${host}:${port}`))
+
+const provider = ConfigProvider.fromUnknown({
+  HOST: "localhost",
+  PORT: 8080,
+})
+
+Effect.runSync(origin.parse(provider)) // => "http://localhost:8080"
+```
+
+For validation and parsing, prefer expressing the rules in a schema and using `Config.schema`. `Config.mapOrFail` is available when a transformation instead needs to return an `Effect<B, ConfigError>`.
+
+## Handling Sensitive Values
+
+`Config.redacted` wraps a string in `Redacted<string>`, whose string representation does not reveal the value. Accessing the secret requires an explicit call to `Redacted.value`.
+
+**Example** (Protecting a Secret)
+
+```ts twoslash import.meta.vitest name="redacted-config-1"
+import { Config, ConfigProvider, Effect, Redacted } from "effect"
+
+const apiKey = Config.redacted("API_KEY")
+const provider = ConfigProvider.fromEnv({
+  env: { API_KEY: "secret-value" },
+})
+
+const result = Effect.runSync(apiKey.parse(provider))
+
+String(result) // => "<redacted>"
+Redacted.value(result) // => "secret-value"
+```
+
+To decode a value and then wrap it, combine `Config.schema` with `Schema.RedactedFromValue`.
+
+```ts twoslash import.meta.vitest name="redacted-schema-config-1"
+import { Config, ConfigProvider, Effect, Redacted, Schema } from "effect"
+
+const secretNumber = Config.schema(
+  Schema.RedactedFromValue(Schema.FiniteFromString),
+  "SECRET_NUMBER",
 )
+
+const provider = ConfigProvider.fromEnv({
+  env: { SECRET_NUMBER: "42" },
+})
+
+const result = Effect.runSync(secretNumber.parse(provider))
+
+Redacted.value(result) // => 42
 ```
 
-Since `constantCase` converts `"Port"` → `"PORT"` and `"Host"` → `"HOST"`, the environment variables must be set as follows:
+## Config Providers
 
-```sh showLineNumbers=false
-HOST=localhost PORT=8080 npx tsx index.ts
+The `ConfigProvider` module includes providers for several common sources:
+
+| Constructor          | Source                                                     |
+| -------------------- | ---------------------------------------------------------- |
+| `fromEnv`            | Environment variables                                      |
+| `fromUnknown`        | An in-memory JavaScript value, including parsed JSON       |
+| `fromDotEnvContents` | The contents of a `.env` file                              |
+| `fromDotEnv`         | A `.env` file read through the `FileSystem` service        |
+| `fromDir`            | A directory tree, including mounted ConfigMaps and Secrets |
+| `make`               | A custom backing store                                     |
+
+`fromEnv` merges `process.env` and `import.meta.env` by default. Passing `{ env }` replaces that source, which makes it convenient for tests and non-Node runtimes.
+
+Both `fromEnv` and `fromUnknown` treat an empty string as missing by default. Pass `{ preserveEmptyStrings: true }` when an empty string is a meaningful value.
+
+### Loading an In-Memory Object
+
+Use `ConfigProvider.fromUnknown` for a JavaScript value or parsed JSON object. Object keys and array indexes become configuration path segments.
+
+**Example** (Loading a Parsed JSON Object)
+
+```ts twoslash import.meta.vitest name="provider-from-unknown-1"
+import { Config, ConfigProvider, Effect } from "effect"
+
+const provider = ConfigProvider.fromUnknown(
+  JSON.parse(`{"server":{"host":"localhost","port":8080}}`),
+)
+
+const server = Config.all({
+  host: Config.string("host"),
+  port: Config.port("port"),
+}).pipe(Config.nested("server"))
+
+Effect.runSync(server.parse(provider)) // => { host: "localhost", port: 8080 }
 ```
 
-Output:
+### Loading .env Files and Directories
 
-```ansi showLineNumbers=false
-Application started: localhost:8080
+`ConfigProvider.fromDotEnvContents` parses an already-loaded string. `ConfigProvider.fromDotEnv()` reads `.env` from the current directory by default and returns an Effect that requires the `FileSystem` service.
+
+`ConfigProvider.fromDir()` reads each file as a leaf value and each directory as a record. This is useful for configuration mounted as files, such as Kubernetes ConfigMaps and Secrets. It requires the `FileSystem` and `Path` services.
+
+### Transforming Provider Paths
+
+Provider combinators change how all configs look up their paths:
+
+- `ConfigProvider.nested` prefixes every lookup.
+- `ConfigProvider.constantCase` converts string path segments to `CONSTANT_CASE`.
+- `ConfigProvider.mapInput` performs an arbitrary path transformation.
+
+**Example** (Adapting camelCase Keys to Environment Variables)
+
+```ts twoslash import.meta.vitest name="provider-constant-case-1"
+import { Config, ConfigProvider, Effect } from "effect"
+
+const provider = ConfigProvider.fromEnv({
+  env: { DATABASE_HOST: "localhost" },
+}).pipe(ConfigProvider.constantCase)
+
+const databaseHost = Config.string("databaseHost")
+
+Effect.runSync(databaseHost.parse(provider)) // => "localhost"
 ```
+
+### Combining Providers
+
+`ConfigProvider.orElse(primary, fallback)` consults the fallback only when the primary provider has no value at a requested path. Unlike `Config.orElse`, it does not recover from source errors or schema validation errors.
+
+**Example** (Adding Provider Defaults)
+
+```ts twoslash import.meta.vitest name="combining-providers-1"
+import { Config, ConfigProvider, Effect } from "effect"
+
+const environment = ConfigProvider.fromEnv({
+  env: { HOST: "production.example.com" },
+})
+
+const defaults = ConfigProvider.fromUnknown({
+  HOST: "localhost",
+  PORT: 8080,
+})
+
+const provider = ConfigProvider.orElse(environment, defaults)
+const app = Config.all({
+  host: Config.string("HOST"),
+  port: Config.port("PORT"),
+})
+
+Effect.runSync(app.parse(provider)) // => { host: "production.example.com", port: 8080 }
+```
+
+### Installing a Provider
+
+Use `ConfigProvider.layer(provider)` to replace the provider used by configs yielded as Effects. `ConfigProvider.layerAdd(provider)` instead adds a fallback to the current provider; pass `{ asPrimary: true }` to make the added provider take precedence.
+
+**Example** (Providing a ConfigProvider Layer)
+
+```ts twoslash import.meta.vitest name="provider-layer-1"
+import { Config, ConfigProvider, Effect } from "effect"
+
+const provider = ConfigProvider.fromUnknown({ PORT: 8080 })
+const ProviderLayer = ConfigProvider.layer(provider)
+
+const program = Effect.gen(function* () {
+  return yield* Config.port("PORT")
+})
+
+Effect.runSync(Effect.provide(program, ProviderLayer)) // => 8080
+```
+
+For a single config, `config.parse(provider)` is simpler and does not change the provider for the rest of the Effect program.
+
+## Migrating from v3
+
+The v4 configuration API is schema-based. Common migrations include:
+
+| v3 usage                                      | v4 replacement                                                         |
+| --------------------------------------------- | ---------------------------------------------------------------------- |
+| `Config.integer`                              | `Config.int`                                                           |
+| `Config.validate`                             | A check passed through `Config.schema`                                 |
+| `Config.array` or `Config.repeat`             | `Config.schema(Config.Array(valueSchema), path)`                       |
+| `Config.hashMap`                              | `Config.schema(Config.Record(keySchema, valueSchema), path)`, then map |
+| `ConfigProvider.fromJson`                     | `ConfigProvider.fromUnknown`                                           |
+| Installing a provider with an Effect operator | `config.parse(provider)` or `ConfigProvider.layer(provider)`           |
+
+The v3 collection constructors (`chunk`, `hashSet`, and similar helpers) are no longer `Config` combinators. Decode an array or record with a schema, then map it to the desired collection type.
