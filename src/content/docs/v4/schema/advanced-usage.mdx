@@ -160,10 +160,10 @@ ParseError: ReadonlyArray<NumberFromString>
   within these functions.
 </Aside>
 
-### Adding Compilers Annotations
+### Adding Interpreter Annotations
 
-When defining a new data type, some compilers like [Arbitrary](/docs/schema/arbitrary/) or [Pretty](/docs/schema/pretty/) may not know how to handle the new type.
-This can result in an error, as the compiler may lack the necessary information for generating instances or producing readable output:
+When defining a new data type, schema interpreters such as [Arbitrary](/docs/v4/schema/arbitrary) or [Formatter](/docs/v4/schema/formatter) may not know how to handle the new type.
+This can result in an error, as the interpreter may lack the necessary information for generating instances or producing readable output:
 
 **Example** (Attempting to Generate Arbitrary Values Without Required Annotations)
 
@@ -185,11 +185,11 @@ schema (Declaration): FileFromSelf
 */
 ```
 
-In the above example, attempting to generate arbitrary values for the `FileFromSelf` schema fails because the compiler lacks necessary annotations. To resolve this, you need to provide annotations for generating arbitrary data:
+In the above example, attempting to generate arbitrary values for the `FileFromSelf` schema fails because the interpreter lacks the necessary annotations. To resolve this, you need to provide annotations for generating arbitrary data:
 
 **Example** (Adding Arbitrary Annotation for Custom `File` Schema)
 
-```ts twoslash import.meta.vitest name="adding-compilers-annotations-1"
+```ts twoslash import.meta.vitest name="adding-interpreter-annotations-1"
 import { Schema } from "effect"
 import { FastCheck } from "effect/testing"
 
@@ -215,7 +215,7 @@ Example Output:
 */
 ```
 
-For more details on how to add annotations for the Arbitrary compiler, refer to the [Arbitrary](/docs/schema/arbitrary/) documentation.
+For more details on how to add annotations for the Arbitrary interpreter, refer to the [Arbitrary](/docs/v4/schema/arbitrary) documentation.
 
 ## Branded types
 

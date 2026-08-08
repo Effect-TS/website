@@ -10,31 +10,31 @@ import { Aside } from "@astrojs/starlight/components"
 
 Welcome to the documentation for `effect/Schema`, a module for defining and using schemas to validate and transform data in TypeScript.
 
-The `effect/Schema` module allows you to define a `Schema<Type, Encoded, Requirements>` that provides a blueprint for describing the structure and data types of your data. Once defined, you can leverage this schema to perform a range of operations, including:
+The `effect/Schema` module allows you to define schema values that describe the structure and data types of your data. Once defined, you can leverage these schemas to perform a range of operations, including:
 
-| Operation       | Description                                                                          |
-| --------------- | ------------------------------------------------------------------------------------ |
-| Decoding        | Transforming data from an input type `Encoded` to an output type `Type`.             |
-| Encoding        | Converting data from an output type `Type` back to an input type `Encoded`.          |
-| Asserting       | Verifying that a value adheres to the schema's output type `Type`.                   |
-| Standard Schema | Generate a [Standard Schema V1](https://standardschema.dev/).                        |
-| Arbitraries     | Generate arbitraries for [fast-check](https://github.com/dubzzz/fast-check) testing. |
-| JSON Schemas    | Create JSON Schemas based on defined schemas.                                        |
-| Equivalence     | Create [Equivalence](/docs/schema/equivalence/) based on defined schemas.            |
-| Pretty printing | Support pretty printing for data structures.                                         |
+| Operation       | Description                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Decoding        | Transforming data from an input type `Encoded` to an output type `Type`.                                          |
+| Encoding        | Converting data from an output type `Type` back to an input type `Encoded`.                                       |
+| Asserting       | Verifying that a value adheres to the schema's output type `Type`.                                                |
+| Standard Schema | Generate a [Standard Schema V1](https://standardschema.dev/).                                                     |
+| Arbitraries     | Generate [Arbitraries](/docs/v4/schema/arbitrary) for [fast-check](https://github.com/dubzzz/fast-check) testing. |
+| JSON Schemas    | Create [JSON Schemas](/docs/v4/schema/json-schema) for the encoded representation of schemas.                     |
+| Equivalence     | Create an [Equivalence](/docs/v4/schema/equivalence) based on a schema.                                           |
+| Formatting      | Create a [Formatter](/docs/v4/schema/formatter) based on a schema.                                                |
 
 ## Requirements
 
-- TypeScript 5.4 or newer.
+- TypeScript 5.9 or newer.
 - The `strict` flag enabled in your `tsconfig.json` file.
 - (Optional) The `exactOptionalPropertyTypes` flag enabled in your `tsconfig.json` file.
 
-```json showLineNumbers=false
+```jsonc showLineNumbers=false
 {
   "compilerOptions": {
     "strict": true,
-    "exactOptionalPropertyTypes": true // optional
-  }
+    "exactOptionalPropertyTypes": true, // optional
+  },
 }
 ```
 
@@ -48,12 +48,12 @@ The `effect/Schema` module takes advantage of the `exactOptionalPropertyTypes` o
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
-  name: Schema.optionalKey(Schema.NonEmptyString),
+  name: Schema.optionalKey(Schema.String),
 })
 
-type Type = Schema.Schema.Type<typeof Person>
+type T = typeof Person.Type
 /*
-type Type = {
+type T = {
     readonly name?: string;
 }
 */
@@ -62,7 +62,7 @@ type Type = {
 Schema.decodeSync(Person)({ name: undefined })
 ```
 
-Here, notice that the type of `name` is "exact" (`string`), which means the type checker will catch any attempt to assign an invalid value (like `undefined`).
+With `exactOptionalPropertyTypes` enabled, `name` may be omitted, but when the property is present its value must be a `string`. TypeScript does not widen the property type to `string | undefined`, so the type checker rejects an explicit `{ name: undefined }`.
 
 **Example** (With `exactOptionalPropertyTypes` Disabled)
 
@@ -72,12 +72,12 @@ If, for some reason, you can't enable the `exactOptionalPropertyTypes` option (p
 import { Schema } from "effect"
 
 const Person = Schema.Struct({
-  name: Schema.optionalKey(Schema.NonEmptyString),
+  name: Schema.optionalKey(Schema.String),
 })
 
-type Type = Schema.Schema.Type<typeof Person>
+type T = typeof Person.Type
 /*
-type Type = {
+type T = {
     readonly name?: string | undefined;
 }
 */
@@ -85,7 +85,7 @@ type Type = {
 // No type error, but a decoding failure occurs
 Schema.decodeSync(Person)({ name: undefined })
 /*
-throws:
+throws
 SchemaError: Expected string
   at ["name"]
 */
@@ -93,96 +93,106 @@ SchemaError: Expected string
 
 In this case, the type of `name` is widened to `string | undefined`, which means the type checker won't catch the invalid value (`undefined`). However, during decoding, you'll encounter an error, indicating that `undefined` is not allowed.
 
-## The Schema Type
+## Schema Views
 
-A schema is an immutable value that describes the structure of your data, and it is represented by the `Schema` type.
+A schema is an immutable value that describes the structure of your data. In v4, the same schema value can be viewed through different interfaces, depending on which type-level information an API needs:
 
-Here is the general form of a `Schema`:
+| View                                                       | Type-level information retained                                      |
+| ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| `Top`                                                      | No specific type information; accepts any schema                     |
+| `Schema<Type>`                                             | Decoded type                                                         |
+| `Decoder<Type, DecodingServices>`                          | Decoded type and services required for decoding                      |
+| `Encoder<Encoded, EncodingServices>`                       | Encoded type and services required for encoding                      |
+| `Codec<Type, Encoded, DecodingServices, EncodingServices>` | Decoded type, encoded type, and services required in both directions |
+
+For example, the `Codec` view retains all four directional type parameters:
 
 ```text showLineNumbers=false
-         ┌─── Type of the decoded value
-         │        ┌─── Encoded type (input/output)
-         │        │      ┌─── Requirements (context)
-         ▼        ▼      ▼
-Schema<Type, Encoded, Requirements>
+      ┌─── Type of the decoded value
+      │     ┌─── Encoded type (input/output)
+      │     │        ┌─── Services required for decoding
+      │     │        │                 ┌─── Services required for encoding
+      ▼     ▼        ▼                 ▼
+Codec<Type, Encoded, DecodingServices, EncodingServices>
 ```
 
-The `Schema` type has three type parameters with the following meanings:
+These type parameters have the following meanings:
 
-| Parameter        | Description                                                                                                                                                                                                                                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Type**         | Represents the type of value that a schema can succeed with during decoding.                                                                                                                                                                                                                                  |
-| **Encoded**      | Represents the type of value that a schema can succeed with during encoding. By default, it's equal to `Type` if not explicitly provided.                                                                                                                                                                     |
-| **Requirements** | Similar to the [`Effect`](https://effect.website/docs/getting-started/the-effect-type) type, it represents the contextual data required by the schema to execute both decoding and encoding. If this type parameter is `never` (default if not explicitly provided), it means the schema has no requirements. |
+| Parameter            | Description                                                                                                       |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Type**             | The type of value produced by decoding.                                                                           |
+| **Encoded**          | The encoded representation accepted during decoding and produced during encoding. It defaults to `Type`.          |
+| **DecodingServices** | The services required during decoding. It defaults to `never`, meaning that decoding has no service requirements. |
+| **EncodingServices** | The services required during encoding. It defaults to `never`, meaning that encoding has no service requirements. |
 
 **Examples**
 
-- `Schema<string>` (defaulted to `Schema<string, string, never>`) represents a schema that decodes to `string`, encodes to `string`, and has no requirements.
-- `Schema<number, string>` (defaulted to `Schema<number, string, never>`) represents a schema that decodes to `number` from `string`, encodes a `number` to a `string`, and has no requirements.
+- `Schema<string>` is a type-only view of any schema whose decoded type is `string`.
+- `Decoder<number>` retains the decoded type but does not constrain the encoded type or encoding services.
+- `Encoder<string>` retains the encoded type but does not constrain the decoded type or decoding services.
+- `Codec<string>` is shorthand for `Codec<string, string, never, never>`.
+- `Codec<number, string>` represents a codec that decodes a `number` from a `string`, encodes a `number` to a `string`, and requires no services.
 
 <Aside type="note" title="Type Parameter Abbreviations">
-  In the Effect ecosystem, you may often encounter the type parameters of `Schema` abbreviated as
-  `A`, `I`, and `R` respectively. This is just shorthand for the type value of type **A**,
-  **I**nput, and **R**equirements.
+  In the Effect ecosystem, you may encounter the type parameters of `Codec` abbreviated as `T`, `E`,
+  `RD`, and `RE`: decoded **T**ype, **E**ncoded type, decoding services, and encoding services.
 </Aside>
 
 ## Understanding Schema Values
 
-**Immutability**. `Schema` values are immutable, and every function in the `effect/Schema` module produces a new `Schema` value.
+**Schema Values**. Schema values are immutable descriptions of data. Combinators that compose, refine, or transform a schema return a new schema without modifying the original.
 
-**Modeling Data Structure**. These values do not perform any actions themselves, they simply model or describe the structure of your data.
-
-**Interpretation by Compilers**. A `Schema` can be interpreted by various "compilers" into specific operations, depending on the compiler type (decoding, encoding, pretty printing, arbitraries, etc...).
+**Schema Interpreters**. A schema can be interpreted by different interpreters to produce operations such as decoding, encoding, formatting, and arbitrary generation.
 
 ## Understanding Decoding and Encoding
 
 When working with data in TypeScript, you often need to handle data coming from or being sent to external systems. This data may not always match the format or types you expect, especially when dealing with user input, data from APIs, or data stored in different formats. To handle these discrepancies, we use **decoding** and **encoding**.
 
-| Term         | Description                                                                                                  |
-| ------------ | ------------------------------------------------------------------------------------------------------------ |
-| **Decoding** | Used for parsing data from external sources where you have no control over the data format.                  |
-| **Encoding** | Used when sending data out to external sources, converting it to a format that is expected by those sources. |
+| Term         | Description                                                 |
+| ------------ | ----------------------------------------------------------- |
+| **Decoding** | Converts a value from its encoded type `E` to its type `T`. |
+| **Encoding** | Converts a value from its type `T` to its encoded type `E`. |
 
-For instance, when working with forms in the frontend, you often receive untyped data in the form of strings. This data can be tampered with and does not natively support arrays or booleans. Decoding helps you validate and parse this data into more useful types like numbers, dates, and arrays. Encoding allows you to convert these types back into the string format expected by forms.
+For example, consider an HTTP endpoint whose request and response bodies contain a finite number represented as a JSON string. After the request body is parsed as JSON, decoding converts `"42"` into the number `42`. Before sending the response, encoding converts `42` back into `"42"`, which can then be serialized as JSON.
 
-Below is a diagram that shows the relationship between encoding and decoding using a `Schema<A, I, R>`:
+Below is a diagram that shows the relationship between encoding and decoding through the `Codec<T, E, RD, RE>` view:
 
 ```text showLineNumbers=false
-┌─────────┐       ┌───┐       ┌───┐       ┌─────────┐
-| unknown |       | A |       | I |       | unknown |
-└─────────┘       └───┘       └───┘       └─────────┘
-     |              |           |              |
-     | validate     |           |              |
-     |─────────────►│           |              |
-     |              |           |              |
-     | is           |           |              |
-     |─────────────►│           |              |
-     |              |           |              |
-     | asserts      |           |              |
-     |─────────────►│           |              |
-     |              |           |              |
-     | encodeUnknown|           |              |
-     |─────────────────────────►|              |
-                    |           |              |
-                    | encode    |              |
-                    |──────────►│              |
-                    |           |              |
-                    |    decode |              |
-                    | ◄─────────|              |
-                    |           |              |
-                    |           | decodeUnknown|
-                    | ◄────────────────────────|
+┌─────────┐            ┌───┐                    ┌───┐                  ┌─────────┐
+│ unknown │            │ T │                    │ E │                  │ unknown │
+└─────────┘            └───┘                    └───┘                  └─────────┘
+     │                   │                        │                         │
+     │ is                │                        │                         │
+     │───────────────────▶                        │                         │
+     │                   │                        │                         │
+     │ asserts           │                        │                         │
+     │───────────────────▶                        │                         │
+     │                   │                        │                         │
+     │ encodeUnknownEffect                        │                         │
+     │────────────────────────────────────────────▶                         │
+     │                   │                        │                         │
+     │                   │ encodeEffect           │                         │
+     │                   │────────────────────────▶                         │
+     │                   │                        │                         │
+     │                   │ decodeEffect           │                         │
+     │                   ◀────────────────────────│                         │
+     │                   │                        │                         │
+     │                   │ decodeUnknownEffect    │                         │
+     │                   ◀──────────────────────────────────────────────────│
+     │                   │                        │                         │
 ```
 
-We'll break down these concepts using an example with a `Schema<Date, string, never>`. This schema serves as a tool to transform a `string` into a `Date` and vice versa.
+The diagram shows the Effect-based interpreters because they preserve the `RD` and `RE` service requirements. The `Sync`, `Result`, `Exit`, `Option`, and `Promise` variants follow the same directions but can only be used when the corresponding operation requires no services.
+
+We'll illustrate these concepts using `Schema.FiniteFromString`, which can be viewed as a `Codec<number, string>`. It decodes a `string` into a finite `number`, encodes a finite `number` as a `string`, and requires no services in either direction.
 
 ### Encoding
 
-When we talk about "encoding," we are referring to the process of changing a `Date` into a `string`. To put it simply, it's the act of converting data from one format to another.
+When we talk about "encoding," we are referring to the process of changing a finite `number` into a `string`. To put it simply, it's the act of converting data from one format to another.
 
 ### Decoding
 
-Conversely, "decoding" entails transforming a `string` back into a `Date`. It's essentially the reverse operation of encoding, where data is returned to its original form.
+Conversely, "decoding" entails transforming a `string` into a finite `number`. It's essentially the reverse operation of encoding, where data is returned to its original form.
 
 ### Decoding From Unknown
 
@@ -190,22 +200,24 @@ Decoding from `unknown` involves two key steps:
 
 1. **Checking:** Initially, we verify that the input data (which is of the `unknown` type) matches the expected structure. In our specific case, this means ensuring that the input is indeed a `string`.
 
-2. **Decoding:** Following the successful check, we proceed to convert the `string` into a `Date`. This process completes the decoding operation, where the data is both validated and transformed.
+2. **Decoding:** Following the successful check, we proceed to convert the `string` into a finite `number`. This process completes the decoding operation, where the data is both validated and transformed.
 
 ### Encoding From Unknown
 
 Encoding from `unknown` involves two key steps:
 
-1. **Checking:** Initially, we verify that the input data (which is of the `unknown` type) matches the expected structure. In our specific case, this means ensuring that the input is indeed a `Date`.
+1. **Checking:** Initially, we verify that the input data (which is of the `unknown` type) matches the expected structure. In our specific case, this means ensuring that the input is indeed a finite `number`.
 
-2. **Encoding:** Following the successful check, we proceed to convert the `Date` into a `string`. This process completes the encoding operation, where the data is both validated and transformed.
+2. **Encoding:** Following the successful check, we proceed to convert the finite `number` into a `string`. This process completes the encoding operation, where the data is both validated and transformed.
 
-## The Rule of Schemas
+## Round-Trip
 
-When working with schemas, there's an important rule to keep in mind: your schemas should be crafted in a way that when you perform both encoding and decoding operations, you should end up with the original value.
+A highly desirable property of a schema is that an encoding-decoding round trip returns a value equivalent to the original:
 
-In simpler terms, if you encode a value and then immediately decode it, the result should match the original value you started with. This rule ensures that your data remains consistent and reliable throughout the encoding and decoding process.
+```text showLineNumbers=false
+decode(encode(value)) ≈ value
+```
 
-<Aside type="tip" title="Ensure Consistency">
-  As a general rule, schemas should be defined such that encode + decode return the original value.
-</Aside>
+The round trip starts with encoding because `value` has type `T`: encoding produces an `E`, which is then decoded back into a `T`.
+
+This property is not guaranteed. Some transformations intentionally normalize or discard information during encoding or decoding.

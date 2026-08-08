@@ -1,0 +1,54 @@
+---
+title: Schema to Formatter
+description: Generate formatted string representations of values based on schemas.
+sidebar:
+  label: Formatter
+  order: 18
+---
+
+The `Schema.toFormatter` function creates a formatter that generates a formatted string representation of values based on a schema.
+
+**Example** (Formatter for a Struct Schema)
+
+```ts twoslash import.meta.vitest name="schema-to-formatter-1"
+import { Schema } from "effect"
+
+const Person = Schema.Struct({
+  name: Schema.String,
+  age: Schema.Number,
+})
+
+// Create a formatter for the schema
+const PersonFormatter = Schema.toFormatter(Person)
+
+// Format and print a Person object
+console.log(PersonFormatter({ name: "Alice", age: 30 }))
+/*
+Output:
+'{ "name": "Alice", "age": 30 }'
+*/
+```
+
+## Customizing Formatter Generation
+
+You can customize how the formatter produces output by using the `toFormatter` annotation within your schema definition.
+
+The `toFormatter` annotation takes any type parameters provided (`typeParameters`) and formats the value into a string.
+
+**Example** (Custom Formatter for Numbers)
+
+```ts twoslash import.meta.vitest name="customizing-formatter-generation-1"
+import { Schema } from "effect"
+
+// Define a schema with a custom formatter annotation
+const schema = Schema.Number.pipe(
+  Schema.overrideToFormatter(() => (value) => `my format: ${value}`),
+)
+
+// Create the formatter
+const customFormatter = Schema.toFormatter(schema)
+
+// Format and print a value
+console.log(customFormatter(1))
+// Output: "my format: 1"
+```
