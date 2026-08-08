@@ -6,7 +6,9 @@ sidebar:
   order: 18
 ---
 
-The `Schema.toFormatter` function creates a formatter that generates a formatted string representation of values based on a schema.
+`Schema.toFormatter` derives a human-readable formatter for values of a schema's `Type`. It recursively formats structs, arrays, unions, and declarations; it does not validate the value.
+
+This value formatter is distinct from the [Error Formatters](/docs/v4/schema/error-formatters/) used for decoding and encoding failures.
 
 **Example** (Formatter for a Struct Schema)
 
@@ -15,40 +17,51 @@ import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.String,
-  age: Schema.Number,
+  age: Schema.Finite,
 })
 
-// Create a formatter for the schema
 const PersonFormatter = Schema.toFormatter(Person)
 
-// Format and print a Person object
-console.log(PersonFormatter({ name: "Alice", age: 30 }))
-/*
-Output:
-'{ "name": "Alice", "age": 30 }'
-*/
+PersonFormatter({ name: "Alice", age: 30 }) // => `{ "name": "Alice", "age": 30 }`
 ```
 
 ## Customizing Formatter Generation
 
-You can customize how the formatter produces output by using the `toFormatter` annotation within your schema definition.
-
-The `toFormatter` annotation takes any type parameters provided (`typeParameters`) and formats the value into a string.
+Use `Schema.overrideToFormatter` to replace the formatter derived for an existing schema.
 
 **Example** (Custom Formatter for Numbers)
 
 ```ts twoslash import.meta.vitest name="customizing-formatter-generation-1"
 import { Schema } from "effect"
 
-// Define a schema with a custom formatter annotation
-const schema = Schema.Number.pipe(
+const schema = Schema.Finite.pipe(
   Schema.overrideToFormatter(() => (value) => `my format: ${value}`),
 )
 
-// Create the formatter
 const customFormatter = Schema.toFormatter(schema)
 
-// Format and print a value
-console.log(customFormatter(1))
-// Output: "my format: 1"
+customFormatter(1) // => "my format: 1"
+```
+
+Declarations can instead provide a `toFormatter` annotation when they are defined. Parameterized declarations receive the formatter derived for each type parameter.
+
+## Intercepting AST Nodes
+
+Pass an `onBefore` hook to intercept selected AST nodes before the default formatter is derived. Return `undefined` to retain the default behavior.
+
+**Example** (Customizing All String Nodes)
+
+```ts twoslash import.meta.vitest name="formatter-on-before-1"
+import { Schema } from "effect"
+
+const Person = Schema.Struct({
+  name: Schema.String,
+  city: Schema.String,
+})
+
+const formatter = Schema.toFormatter(Person, {
+  onBefore: (ast) => (ast._tag === "String" ? (value: string) => `<${value}>` : undefined),
+})
+
+formatter({ name: "Alice", city: "Rome" }) // => `{ "name": <Alice>, "city": <Rome> }`
 ```

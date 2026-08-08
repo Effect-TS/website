@@ -14,9 +14,9 @@ The Schema module provides built-in schemas for common primitive types.
 | Schema                 | Equivalent TypeScript Type |
 | ---------------------- | -------------------------- |
 | `Schema.String`        | `string`                   |
-| `Schema.Number`        | `number`                   |
+| `Schema.Finite`        | `number`                   |
 | `Schema.Boolean`       | `boolean`                  |
-| `Schema.BigInt`        | `BigInt`                   |
+| `Schema.BigInt`        | `bigint`                   |
 | `Schema.Symbol`        | `symbol`                   |
 | `Schema.ObjectKeyword` | `object`                   |
 | `Schema.Undefined`     | `undefined`                |
@@ -38,23 +38,23 @@ const schema = Schema.String
 //     ▼
 type Type = typeof schema.Type
 
-// Attempt to decode a null value, which will throw a parse error
+// Attempt to decode a null value, which will throw a SchemaError
 Schema.decodeUnknownSync(schema)(null)
 /*
 throws:
-ParseError: Expected string, actual null
+SchemaError: Expected string
 */
 ```
 
-## asSchema
+## revealCodec
 
 To make it easier to work with schemas, built-in schemas are exposed with shorter, opaque types when possible.
 
-The `Schema.revealCodec` function allows you to view any schema as `Schema<Type, Encoded, Context>`.
+The `Schema.revealCodec` function returns the same schema value widened to its full `Codec<T, E, RD, RE>` view, prompting TypeScript to infer all four parameters without any runtime cost.
 
-**Example** (Expanding a Schema with `asSchema`)
+**Example** (Revealing the Full Codec View)
 
-For example, while `Schema.String` is defined as a class with a type of `typeof Schema.String`, using `Schema.revealCodec` provides the schema in its extended form as `Schema<string, string, never>`.
+For example, `Schema.String` has the concrete type `typeof Schema.String`. Passing it to `Schema.revealCodec` exposes its full view as `Codec<string, string, never, never>`.
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -65,7 +65,7 @@ const schema = Schema.String
 
 //     ┌─── Codec<string, string, never, never>
 //     ▼
-const nomalized = Schema.revealCodec(schema)
+const codec = Schema.revealCodec(schema)
 ```
 
 ## Unique Symbols
@@ -88,7 +88,7 @@ type Type = typeof schema.Type
 Schema.decodeUnknownSync(schema)(null)
 /*
 throws:
-ParseError: Expected Symbol(mySymbol), actual null
+SchemaError: Expected Symbol(mySymbol)
 */
 ```
 
@@ -111,7 +111,7 @@ Literals can be of the following types:
 import { Schema } from "effect"
 
 // Define various literal schemas
-Schema.Null // Same as S.Literal(null)
+Schema.Null // Same as Schema.Literal(null)
 Schema.Literal("a") // string literal
 Schema.Literal(1) // number literal
 Schema.Literal(true) // boolean literal
@@ -137,7 +137,7 @@ console.log(Schema.decodeUnknownSync(schema)("a"))
 console.log(Schema.decodeUnknownSync(schema)("b"))
 /*
 throws:
-ParseError: Expected "a", actual "b"
+SchemaError: Expected "a"
 */
 ```
 
@@ -161,14 +161,11 @@ type Type = typeof schema.Type
 Schema.decodeUnknownSync(schema)(null)
 /*
 throws:
-ParseError: "a" | "b" | "c"
-├─ Expected "a", actual null
-├─ Expected "b", actual null
-└─ Expected "c", actual null
+SchemaError: Expected "a" | "b" | "c"
 */
 ```
 
-If you want to set a custom error message for the entire union of literals, you can use the `override: true` option (see [Custom Error Messages](/docs/schema/error-messages/#custom-error-messages) for more details) to specify a unified message.
+You can annotate the entire union to replace its default error message (see [Custom Error Messages](/docs/v4/schema/error-messages#custom-error-messages)).
 
 **Example** (Adding a Custom Message to a Union of Literals)
 
@@ -181,21 +178,18 @@ const individualMessages = Schema.Literals(["a", "b", "c"])
 console.log(Schema.decodeUnknownSync(individualMessages)(null))
 /*
 throws:
-ParseError: "a" | "b" | "c"
-├─ Expected "a", actual null
-├─ Expected "b", actual null
-└─ Expected "c", actual null
+SchemaError: Expected "a" | "b" | "c"
 */
 
 // Schema with a unified custom message for all literals
 const unifiedMessage = Schema.Literals(["a", "b", "c"]).annotate({
-  message: () => ({ message: "Not a valid code", override: true }),
+  message: "Not a valid code",
 })
 
 console.log(Schema.decodeUnknownSync(unifiedMessage)(null))
 /*
 throws:
-ParseError: Not a valid code
+SchemaError: Not a valid code
 */
 ```
 
@@ -213,11 +207,11 @@ const schema = Schema.Literals(["a", "b", "c"])
 const literals = schema.literals // => ["a", "b", "c"]
 ```
 
-### The pickLiteral Utility
+### Picking Literals
 
-You can use `Schema.pickLiteral` with a literal schema to narrow down its possible values.
+You can use the `.pick` method of a `Schema.Literals` value to narrow down its possible values.
 
-**Example** (Using `pickLiteral` to Narrow Values)
+**Example** (Picking a Subset of Literals)
 
 ```ts twoslash import.meta.vitest name="the-pickliteral-utility-1"
 import { Schema } from "effect"
@@ -241,13 +235,13 @@ const FruitCategory = Schema.Literals(["sweet", "citrus", "tropical"])
 
 // Define a general Fruit schema with the base category set
 const Fruit = Schema.Struct({
-  id: Schema.Number,
+  id: Schema.Finite,
   category: FruitCategory,
 })
 
 // Define a specific Fruit schema for only "sweet" and "citrus" categories
 const SweetAndCitrusFruit = Schema.Struct({
-  id: Schema.Number,
+  id: Schema.Finite,
   category: FruitCategory.pick(["sweet", "citrus"]),
 })
 ```
@@ -304,7 +298,7 @@ const schema = Schema.TemplateLiteral([Schema.Union([EmailLocaleIDs, FooterLocal
 The `Schema.TemplateLiteral` constructor supports the following types of spans:
 
 - `Schema.String`
-- `Schema.Number`
+- `Schema.Finite`
 - Literals: `string | number | boolean | null | bigint`. These can be either wrapped by `Schema.Literal` or used directly
 - Unions of the above types
 - Brands of the above types
@@ -324,7 +318,7 @@ const schema = Schema.TemplateLiteral(["Bearer ", AuthorizationToken])
 
 ### TemplateLiteralParser
 
-The `Schema.TemplateLiteral` constructor, while useful as a simple validator, only verifies that an input conforms to a specific string pattern by converting template literal definitions into regular expressions. Similarly, [`Schema.pattern`](/docs/schema/filters/#string-filters) employs regular expressions directly for the same purpose. Post-validation, both methods require additional manual parsing to convert the validated string into a usable data format.
+The `Schema.TemplateLiteral` constructor, while useful as a simple validator, only verifies that an input conforms to a specific string pattern by converting template literal definitions into regular expressions. Similarly, [`Schema.isPattern`](/docs/v4/schema/filters#string-filters) uses regular expressions directly for the same purpose. Post-validation, both approaches require additional manual parsing to convert the validated string into a usable data format.
 
 To address these limitations and eliminate the need for manual post-validation parsing, the `Schema.TemplateLiteralParser` API has been developed. It not only validates the input format but also automatically parses it into a more structured and type-safe output, specifically into a **tuple** format.
 
@@ -335,7 +329,7 @@ The `Schema.TemplateLiteralParser` constructor supports the same types of [spans
 ```ts twoslash import.meta.vitest name="templateliteralparser-1"
 import { Schema } from "effect"
 
-const schema = Schema.TemplateLiteralParser([Schema.NumberFromString, "a", Schema.NonEmptyString])
+const schema = Schema.TemplateLiteralParser([Schema.FiniteFromString, "a", Schema.NonEmptyString])
 
 console.log(Schema.decodeSync(schema)("100afoo"))
 // Output: [ 100, 'a', 'foo' ]
@@ -396,9 +390,9 @@ The Schema module includes a built-in `Schema.Union` constructor for creating "O
 ```ts twoslash import.meta.vitest name="unions-1"
 import { Schema } from "effect"
 
-//      ┌─── Union<[typeof Schema.String, typeof Schema.Number]>
+//      ┌─── Union<[typeof Schema.String, typeof Schema.Finite]>
 //      ▼
-const schema = Schema.Union([Schema.String, Schema.Number])
+const schema = Schema.Union([Schema.String, Schema.Finite])
 
 //     ┌─── string | number
 //     ▼
@@ -424,7 +418,7 @@ const Member1 = Schema.Struct({
 
 const Member2 = Schema.Struct({
   a: Schema.String,
-  b: Schema.Number,
+  b: Schema.Finite,
 })
 
 // ❌ Define a union where Member1 appears first
@@ -470,7 +464,7 @@ const schema = Schema.Literals(["a", "b", "c"])
 type Type = typeof schema.Type
 ```
 
-If you want to set a custom error message for the entire union of literals, you can use the `override: true` option (see [Custom Error Messages](/docs/schema/error-messages/#custom-error-messages) for more details) to specify a unified message.
+You can annotate the entire union to replace its default error message (see [Custom Error Messages](/docs/v4/schema/error-messages#custom-error-messages)).
 
 **Example** (Adding a Custom Message to a Union of Literals)
 
@@ -483,21 +477,18 @@ const individualMessages = Schema.Literals(["a", "b", "c"])
 console.log(Schema.decodeUnknownSync(individualMessages)(null))
 /*
 throws:
-ParseError: "a" | "b" | "c"
-├─ Expected "a", actual null
-├─ Expected "b", actual null
-└─ Expected "c", actual null
+SchemaError: Expected "a" | "b" | "c"
 */
 
 // Schema with a unified custom message for all literals
 const unifiedMessage = Schema.Literals(["a", "b", "c"]).annotate({
-  message: () => ({ message: "Not a valid code", override: true }),
+  message: "Not a valid code",
 })
 
 console.log(Schema.decodeUnknownSync(unifiedMessage)(null))
 /*
 throws:
-ParseError: Not a valid code
+SchemaError: Not a valid code
 */
 ```
 
@@ -551,12 +542,12 @@ import { Schema } from "effect"
 
 const Circle = Schema.Struct({
   kind: Schema.Literal("circle"),
-  radius: Schema.Number,
+  radius: Schema.Finite,
 })
 
 const Square = Schema.Struct({
   kind: Schema.Literal("square"),
-  sideLength: Schema.Number,
+  sideLength: Schema.Finite,
 })
 
 const Shape = Schema.Union([Circle, Square])
@@ -576,11 +567,11 @@ For example, let's say you've defined a `Shape` union as a combination of `Circl
 import { Schema } from "effect"
 
 const Circle = Schema.Struct({
-  radius: Schema.Number,
+  radius: Schema.Finite,
 })
 
 const Square = Schema.Struct({
-  sideLength: Schema.Number,
+  sideLength: Schema.Finite,
 })
 
 const Shape = Schema.Union([Circle, Square])
@@ -589,7 +580,7 @@ const Shape = Schema.Union([Circle, Square])
 To make your code more manageable, you may want to transform the simple union into a discriminated union. This way, TypeScript will be able to automatically determine which member of the union you're working with based on the value of a specific property.
 
 To achieve this, you can add a special property to each member of the union, which will allow TypeScript to know which type it's dealing with at runtime.
-Here's how you can [transform](/docs/schema/transformations/#transform) the `Shape` schema into another schema that represents a discriminated union:
+Here's how you can [transform](/docs/v4/schema/transformations#transform) the `Shape` schema into another schema that represents a discriminated union:
 
 **Example** (Adding Discriminant Property)
 
@@ -597,11 +588,11 @@ Here's how you can [transform](/docs/schema/transformations/#transform) the `Sha
 import { Schema, SchemaTransformation } from "effect"
 
 const Circle = Schema.Struct({
-  radius: Schema.Number,
+  radius: Schema.Finite,
 })
 
 const Square = Schema.Struct({
-  sideLength: Schema.Number,
+  sideLength: Schema.Finite,
 })
 
 const DiscriminatedShape = Schema.Union([
@@ -639,20 +630,19 @@ console.log(Schema.decodeUnknownSync(DiscriminatedShape)({ sideLength: 10 }))
 // Output: { sideLength: 10, kind: 'square' }
 ```
 
-The previous solution works perfectly and shows how we can add properties to our schema at will, making it easier to consume the result within our domain model.
-However, it requires a lot of boilerplate. Fortunately, there is an API called `Schema.attachPropertySignature` designed specifically for this use case, which allows us to achieve the same result with much less effort:
+The previous solution works but requires a lot of boilerplate. In v4, you can add the discriminant with `mapFields` and use `Schema.tagDefaultOmit` to provide its decoded default while omitting it during encoding:
 
-**Example** (Using `Schema.attachPropertySignature` for Less Code)
+**Example** (Using `Schema.tagDefaultOmit`)
 
 ```ts twoslash import.meta.vitest name="transforming-a-simple-union-into-a-discriminated-union-3"
 import { Schema } from "effect"
 
 const Circle = Schema.Struct({
-  radius: Schema.Number,
+  radius: Schema.Finite,
 })
 
 const Square = Schema.Struct({
-  sideLength: Schema.Number,
+  sideLength: Schema.Finite,
 })
 
 const DiscriminatedShape = Schema.Union([
@@ -674,11 +664,6 @@ console.log(
 // Output: { radius: 10 }
 ```
 
-<Aside type="caution" title="Property Addition Only">
-  Please note that with `Schema.attachPropertySignature`, you can only add a property, it cannot
-  replace or override an existing one.
-</Aside>
-
 ### Exposed Values
 
 You can access the individual members of a union schema represented as a tuple:
@@ -686,7 +671,7 @@ You can access the individual members of a union schema represented as a tuple:
 ```ts twoslash import.meta.vitest name="exposed-values-3"
 import { Schema } from "effect"
 
-const schema = Schema.Union([Schema.String, Schema.Number])
+const schema = Schema.Union([Schema.String, Schema.Finite])
 
 // Accesses the members of the union
 const members = schema.members
@@ -695,7 +680,7 @@ const members = schema.members
 //      ▼
 const firstMember = members[0]
 
-//      ┌─── typeof Schema.Number
+//      ┌─── typeof Schema.Finite
 //      ▼
 const secondMember = members[1]
 ```
@@ -716,9 +701,9 @@ import { Schema } from "effect"
 
 // Define a tuple with a string and a number as required elements
 //
-//      ┌─── Tuple<[typeof Schema.String, typeof Schema.Number]>
+//      ┌─── Tuple<[typeof Schema.String, typeof Schema.Finite]>
 //      ▼
-const schema = Schema.Tuple([Schema.String, Schema.Number])
+const schema = Schema.Tuple([Schema.String, Schema.Finite])
 
 //     ┌─── readonly [string, number]
 //     ▼
@@ -734,7 +719,7 @@ You can append additional required elements to an existing tuple by using the sp
 ```ts twoslash import.meta.vitest name="append-a-required-element-1"
 import { Schema } from "effect"
 
-const tuple1 = Schema.Tuple([Schema.String, Schema.Number])
+const tuple1 = Schema.Tuple([Schema.String, Schema.Finite])
 
 // Append a boolean to the existing tuple
 const tuple2 = Schema.Tuple([...tuple1.elements, Schema.Boolean])
@@ -756,7 +741,7 @@ import { Schema } from "effect"
 // Define a tuple with a required string and an optional number
 const schema = Schema.Tuple([
   Schema.String, // required element
-  Schema.optionalKey(Schema.Number), // optional element
+  Schema.optionalKey(Schema.Finite), // optional element
 ])
 
 //     ┌─── readonly [string, number?]
@@ -776,7 +761,7 @@ import { Schema } from "effect"
 
 // Define a tuple with required elements and a rest element of type boolean
 const schema = Schema.TupleWithRest(
-  Schema.Tuple([Schema.String, Schema.optionalKey(Schema.Number)]), // elements
+  Schema.Tuple([Schema.String, Schema.optionalKey(Schema.Finite)]), // elements
   [Schema.Boolean], // rest element
 )
 
@@ -793,14 +778,14 @@ import { Schema } from "effect"
 // Define a tuple with required elements, a rest element,
 // and an additional element
 const schema = Schema.TupleWithRest(
-  Schema.Tuple([Schema.String, Schema.UndefinedOr(Schema.Number)]), // elements
+  Schema.Tuple([Schema.String, Schema.UndefinedOr(Schema.Finite)]), // elements
   [Schema.Boolean, Schema.String], // rest element, then an additional element
 )
 
 type Type = typeof schema.Type
 ```
 
-### Annotations
+### Element Annotations
 
 Annotations are useful for adding metadata to tuple elements, making it easier to describe their purpose or requirements.
 This is especially helpful for generating documentation or JSON schemas.
@@ -808,37 +793,42 @@ This is especially helpful for generating documentation or JSON schemas.
 **Example** (Adding Annotations to Tuple Elements)
 
 ```ts twoslash
-import { JSONSchema, Schema } from "effect"
+import { Schema } from "effect"
 
 // Define a tuple representing a point with annotations for each coordinate
-const Point = Schema.Tuple(
-  Schema.element(Schema.Number).annotations({
+const Point = Schema.Tuple([
+  Schema.Finite.annotateKey({
     title: "X",
     description: "X coordinate",
   }),
-  Schema.optionalElement(Schema.Number).annotations({
+  Schema.optionalKey(Schema.Finite).annotateKey({
     title: "Y",
     description: "optional Y coordinate",
   }),
-)
+])
 
 // Generate a JSON Schema from the tuple
-console.log(JSONSchema.make(Point))
+console.log(Schema.toJsonSchemaDocument(Point))
 /*
 Output:
 {
-  '$schema': 'http://json-schema.org/draft-07/schema#',
-  type: 'array',
-  minItems: 1,
-  items: [
-    { type: 'number', description: 'X coordinate', title: 'X' },
-    {
-      type: 'number',
-      description: 'optional Y coordinate',
-      title: 'Y'
-    }
-  ],
-  additionalItems: false
+  dialect: 'draft-2020-12',
+  schema: {
+    type: 'array',
+    prefixItems: [
+      {
+        type: 'number',
+        allOf: [{ title: 'X', description: 'X coordinate' }]
+      },
+      {
+        type: 'number',
+        allOf: [{ title: 'Y', description: 'optional Y coordinate' }]
+      }
+    ],
+    maxItems: 2,
+    minItems: 1
+  },
+  definitions: {}
 }
 */
 ```
@@ -854,13 +844,13 @@ import { Schema } from "effect"
 
 // Define a tuple with required, optional, and rest elements
 const schema = Schema.TupleWithRest(
-  Schema.Tuple([Schema.String, Schema.UndefinedOr(Schema.Number)]), // elements
+  Schema.Tuple([Schema.String, Schema.UndefinedOr(Schema.Finite)]), // elements
   [Schema.Boolean, Schema.String], // rest element, then an additional element
 )
 
 // Access the required and optional elements of the tuple
 //
-//      ┌─── readonly [typeof Schema.String, Schema.UndefinedOr<typeof Schema.Number>]
+//      ┌─── readonly [typeof Schema.String, Schema.UndefinedOr<typeof Schema.Finite>]
 //      ▼
 const tupleElements = schema.schema.elements
 
@@ -882,9 +872,9 @@ import { Schema } from "effect"
 
 // Define a schema for an array of numbers
 //
-//      ┌─── $Array<typeof Schema.Number>
+//      ┌─── $Array<typeof Schema.Finite>
 //      ▼
-const schema = Schema.Array(Schema.Number)
+const schema = Schema.Array(Schema.Finite)
 
 //     ┌─── readonly number[]
 //     ▼
@@ -903,9 +893,9 @@ import { Schema } from "effect"
 
 // Define a schema for a mutable array of numbers
 //
-//      ┌─── mutable<Schema.$Array<typeof Schema.Number>>
+//      ┌─── mutable<Schema.$Array<typeof Schema.Finite>>
 //      ▼
-const schema = Schema.mutable(Schema.Array(Schema.Number))
+const schema = Schema.mutable(Schema.Array(Schema.Finite))
 
 //     ┌─── number[]
 //     ▼
@@ -921,11 +911,11 @@ You can access the value type of an array schema using the `value` property:
 ```ts twoslash import.meta.vitest name="exposed-values-4"
 import { Schema } from "effect"
 
-const schema = Schema.Array(Schema.Number)
+const schema = Schema.Array(Schema.Finite)
 
 // Access the value type of the array schema
 //
-//      ┌─── typeof Schema.Number
+//      ┌─── typeof Schema.Finite
 //      ▼
 const value = schema.value
 ```
@@ -941,9 +931,9 @@ import { Schema } from "effect"
 
 // Define a schema for a non-empty array of numbers
 //
-//      ┌─── NonEmptyArray<typeof Schema.Number>
+//      ┌─── NonEmptyArray<typeof Schema.Finite>
 //      ▼
-const schema = Schema.NonEmptyArray(Schema.Number)
+const schema = Schema.NonEmptyArray(Schema.Finite)
 
 //     ┌─── readonly [number, ...number[]]
 //     ▼
@@ -960,11 +950,11 @@ You can access the value type of a non-empty array schema using the `value` prop
 import { Schema } from "effect"
 
 // Define a schema for a non-empty array of numbers
-const schema = Schema.NonEmptyArray(Schema.Number)
+const schema = Schema.NonEmptyArray(Schema.Finite)
 
 // Access the value type of the non-empty array schema
 //
-//      ┌─── typeof Schema.Number
+//      ┌─── typeof Schema.Finite
 //      ▼
 const value = schema.value
 ```
@@ -984,9 +974,9 @@ import { Schema } from "effect"
 
 // Define a record schema with string keys and number values
 //
-//      ┌─── $Record<typeof Schema.String, typeof Schema.Number>
+//      ┌─── $Record<typeof Schema.String, typeof Schema.Finite>
 //      ▼
-const schema = Schema.Record(Schema.String, Schema.Number)
+const schema = Schema.Record(Schema.String, Schema.Finite)
 
 //     ┌─── { readonly [x: string]: number; }
 //     ▼
@@ -1003,7 +993,7 @@ Records can also use symbols as keys.
 import { Schema } from "effect"
 
 // Define a record schema with symbol keys and number values
-const schema = Schema.Record(Schema.Symbol, Schema.Number)
+const schema = Schema.Record(Schema.Symbol, Schema.Finite)
 
 //     ┌─── { readonly [x: symbol]: number; }
 //     ▼
@@ -1023,7 +1013,7 @@ import { Schema } from "effect"
 // to specific string literals ("a" or "b")
 const schema = Schema.Record(
   Schema.Union([Schema.Literal("a"), Schema.Literal("b")]),
-  Schema.Number,
+  Schema.Finite,
 )
 
 //     ┌─── { readonly a: number; readonly b: number; }
@@ -1044,7 +1034,7 @@ import { Schema } from "effect"
 // the template literal pattern "a${string}"
 const schema = Schema.Record(
   Schema.TemplateLiteral([Schema.Literal("a"), Schema.String]),
-  Schema.Number,
+  Schema.Finite,
 )
 
 //     ┌─── { readonly [x: `a${string}`]: number; }
@@ -1062,7 +1052,7 @@ You can refine the key type with additional constraints.
 import { Schema } from "effect"
 
 // Define a record schema where keys are strings with a minimum length of 2
-const schema = Schema.Record(Schema.String.check(Schema.isMinLength(2)), Schema.Number)
+const schema = Schema.Record(Schema.String.check(Schema.isMinLength(2)), Schema.Finite)
 
 //     ┌─── { readonly [x: string]: number; }
 //     ▼
@@ -1078,21 +1068,21 @@ it is removed from the decoded output instead of triggering an error.
 ```ts twoslash import.meta.vitest name="refined-keys-2"
 import { Schema } from "effect"
 
-const schema = Schema.Record(Schema.String.check(Schema.isMinLength(2)), Schema.Number)
+const schema = Schema.Record(Schema.String.check(Schema.isMinLength(2)), Schema.Finite)
 
 console.log(Schema.decodeUnknownSync(schema)({ a: 1, bb: 2 }))
 // Output: { bb: 2 } ("a" is removed because it is too short)
 ```
 
 If you want decoding to fail when a key does not meet the constraints,
-you can set [`onExcessProperty`](/docs/schema/getting-started/#managing-excess-properties) to `"error"`.
+you can set [`onExcessProperty`](/docs/v4/schema/getting-started#managing-excess-properties) to `"error"`.
 
 **Example** (Forcing an Error on Invalid Keys)
 
 ```ts twoslash "onExcessProperty"
 import { Schema } from "effect"
 
-const schema = Schema.Record(Schema.String.check(Schema.isMinLength(2)), Schema.Number)
+const schema = Schema.Record(Schema.String.check(Schema.isMinLength(2)), Schema.Finite)
 
 console.log(
   Schema.decodeUnknownSync(schema, { onExcessProperty: "error" })({
@@ -1102,7 +1092,7 @@ console.log(
 )
 /*
 throws:
-ParseError: { readonly [x: minLength(2)]: number }
+SchemaError: { readonly [x: minLength(2)]: number }
 └─ ["a"]
    └─ is unexpected, expected: minLength(2)
 */
@@ -1118,7 +1108,7 @@ Attempting to apply a transformation to keys will result in an `Unsupported key 
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.Record(Schema.Trim, Schema.NumberFromString)
+const schema = Schema.Record(Schema.Trim, Schema.FiniteFromString)
 /*
 throws:
 Error: Unsupported key schema
@@ -1133,17 +1123,17 @@ schema (Transformation): Trim
 </Aside>
 
 To modify record keys, you must apply transformations outside of `Schema.Record`.
-A common approach is to use [Schema.transform](/docs/schema/transformations/#transform) to adjust keys during decoding.
+A common approach is to use [`Schema.decodeTo`](/docs/v4/schema/transformations#transform) with `SchemaTransformation.transform` to adjust keys during decoding.
 
 **Example** (Trimming Keys While Decoding)
 
 ```ts twoslash import.meta.vitest name="transforming-keys-1"
 import { Record, Schema, SchemaTransformation, identity } from "effect"
 
-const schema = Schema.Record(Schema.String, Schema.NumberFromString).pipe(
+const schema = Schema.Record(Schema.String, Schema.FiniteFromString).pipe(
   Schema.decodeTo(
     // Define the output schema with transformed keys
-    Schema.Record(Schema.Trimmed, Schema.Number),
+    Schema.Record(Schema.Trimmed, Schema.Finite),
     SchemaTransformation.transform({
       // Trim keys during decoding
       decode: (record) => Record.mapKeys(record, (key) => key.trim()),
@@ -1167,7 +1157,7 @@ To create a schema for a mutable record, you can use the `Schema.mutable` functi
 import { Schema } from "effect"
 
 // Create a schema for a mutable record with string keys and number values
-const schema = Schema.Record(Schema.String, Schema.mutableKey(Schema.Number))
+const schema = Schema.Record(Schema.String, Schema.mutableKey(Schema.Finite))
 
 //     ┌─── { [x: string]: number; }
 //     ▼
@@ -1183,7 +1173,7 @@ You can access the `key` and `value` types of a record schema using the `key` an
 ```ts twoslash import.meta.vitest name="exposed-values-6"
 import { Schema } from "effect"
 
-const schema = Schema.Record(Schema.String, Schema.Number)
+const schema = Schema.Record(Schema.String, Schema.Finite)
 
 // Accesses the key
 //
@@ -1193,7 +1183,7 @@ const key = schema.key
 
 // Accesses the value
 //
-//      ┌─── typeof Schema.Number
+//      ┌─── typeof Schema.Finite
 //      ▼
 const value = schema.value
 ```
@@ -1216,12 +1206,12 @@ import { Schema } from "effect"
 
 //      ┌─── Schema.Struct<{
 //      │      name: typeof Schema.String;
-//      │      age: typeof Schema.Number;
+//      │      age: typeof Schema.Finite;
 //      │    }>
 //      ▼
 const schema = Schema.Struct({
   name: Schema.String,
-  age: Schema.Number,
+  age: Schema.Finite,
 })
 
 // The inferred TypeScript type from the schema
@@ -1235,17 +1225,13 @@ type Type = typeof schema.Type
 ```
 
 <Aside type="caution" title="Empty Structs Allow Any Data">
-  Using `Schema.Struct({})` results in a TypeScript type `{}`, which behaves similarly to `unknown`.
-  This means that any data will be considered valid, as there are no defined constraints.
+  `Schema.Struct({})` produces the TypeScript type `{}` and accepts any non-nullish value. It
+  rejects only `null` and `undefined`.
 </Aside>
 
 ### Index Signatures
 
-The `Schema.Struct` constructor can optionally accept a list of key/value pairs representing index signatures, allowing you to define additional dynamic properties.
-
-```ts showLineNumbers=false
-declare const Struct: (props, ...indexSignatures) => Struct<...>
-```
+Use `Schema.StructWithRest` to combine a struct with one or more records representing index signatures.
 
 **Example** (Adding an Index Signature)
 
@@ -1256,33 +1242,10 @@ import { Schema } from "effect"
 // and an index signature allowing additional properties
 const schema = Schema.StructWithRest(
   // Defined properties
-  Schema.Struct({ a: Schema.Number }),
+  Schema.Struct({ a: Schema.Finite }),
   // Index signature: allows additional string keys with number values
-  [Schema.Record(Schema.String, Schema.Number)],
+  [Schema.Record(Schema.String, Schema.Finite)],
 )
-
-// The inferred TypeScript type:
-//
-//     ┌─── {
-//     │      readonly [x: string]: number;
-//     │      readonly a: number;
-//     │    }
-//     ▼
-type Type = typeof schema.Type
-```
-
-**Example** (Using `Schema.Record`)
-
-You can achieve the same result using `Schema.Record`:
-
-```ts twoslash import.meta.vitest name="index-signatures-2"
-import { Schema } from "effect"
-
-// Define a struct with a fixed property "a"
-// and a dynamic index signature using Schema.Record
-const schema = Schema.StructWithRest(Schema.Struct({ a: Schema.Number }), [
-  Schema.Record(Schema.String, Schema.Number),
-])
 
 // The inferred TypeScript type:
 //
@@ -1305,11 +1268,11 @@ import { Schema } from "effect"
 
 // Define a struct with a fixed property "a"
 // and valid index signatures for both strings and symbols
-const schema = Schema.StructWithRest(Schema.Struct({ a: Schema.Number }), [
+const schema = Schema.StructWithRest(Schema.Struct({ a: Schema.Finite }), [
   // String index signature
-  Schema.Record(Schema.String, Schema.Number),
+  Schema.Record(Schema.String, Schema.Finite),
   // Symbol index signature
-  Schema.Record(Schema.Symbol, Schema.Number),
+  Schema.Record(Schema.Symbol, Schema.Finite),
 ])
 
 // The inferred TypeScript type:
@@ -1331,9 +1294,9 @@ Defining multiple index signatures of the same key type (`string` or `symbol`) w
 import { Schema } from "effect"
 
 Schema.StructWithRest(
-  Schema.Struct({ a: Schema.Number }),
+  Schema.Struct({ a: Schema.Finite }),
   // Attempting to define multiple string index signatures
-  [Schema.Record(Schema.String, Schema.Number), Schema.Record(Schema.String, Schema.Boolean)],
+  [Schema.Record(Schema.String, Schema.Finite), Schema.Record(Schema.String, Schema.Boolean)],
 )
 /*
 throws:
@@ -1356,7 +1319,7 @@ import { Schema } from "effect"
 // - The fixed property "a" is a string
 // - The index signature requires all values to be numbers
 const schema = Schema.StructWithRest(Schema.Struct({ a: Schema.String }), [
-  Schema.Record(Schema.String, Schema.Number),
+  Schema.Record(Schema.String, Schema.Finite),
 ])
 
 // ❌ Incorrect TypeScript type:
@@ -1423,8 +1386,8 @@ type IndexSignatureProperties = {
 type OutputData = readonly [FixedProperties, IndexSignatureProperties]
 ```
 
-By using [Schema.transform](/docs/schema/transformations/#transform) and [Schema.compose](/docs/schema/transformations/#composition),
-you can preprocess the input data before validation. This approach ensures that fixed properties and index signature properties are treated independently.
+By using [`Schema.decodeTo`](/docs/v4/schema/transformations#composition) and `SchemaTransformation.transform`,
+you can preprocess the input data before decoding. This approach ensures that fixed properties and index signature properties are treated independently.
 
 ```ts twoslash import.meta.vitest name="workaround-for-conflicting-index-signatures-1"
 import { Schema, SchemaTransformation } from "effect"
@@ -1440,7 +1403,7 @@ const IndexSignatureProperties = Schema.Record(
   Schema.String.check(
     Schema.makeFilter((key) => !Object.keys(FixedProperties.fields).includes(key)),
   ),
-  Schema.Number,
+  Schema.Finite,
 )
 
 // Create a schema that duplicates an object into two parts
@@ -1482,19 +1445,19 @@ You can access the fields and records of a struct schema using the `fields` and 
 ```ts twoslash import.meta.vitest name="structs-exposed-values-1"
 import { Schema } from "effect"
 
-const schema = Schema.StructWithRest(Schema.Struct({ a: Schema.Number }), [
-  Schema.Record(Schema.String, Schema.Number),
+const schema = Schema.StructWithRest(Schema.Struct({ a: Schema.Finite }), [
+  Schema.Record(Schema.String, Schema.Finite),
 ])
 
 // Accesses the fields
 //
-//      ┌─── { readonly a: typeof Schema.Number; }
+//      ┌─── { readonly a: typeof Schema.Finite; }
 //      ▼
 const fields = schema.schema.fields
 
 // Accesses the records
 //
-//      ┌─── readonly [Schema.$Record<typeof Schema.String, typeof Schema.Number>]
+//      ┌─── readonly [Schema.$Record<typeof Schema.String, typeof Schema.Finite>]
 //      ▼
 const records = schema.records
 ```
@@ -1509,7 +1472,7 @@ To create a mutable version of the struct, use the `Schema.mutable` function, wh
 ```ts twoslash import.meta.vitest name="mutable-structs-1"
 import { Schema, Struct } from "effect"
 
-const schema = Schema.Struct({ a: Schema.String, b: Schema.Number }).mapFields(
+const schema = Schema.Struct({ a: Schema.String, b: Schema.Finite }).mapFields(
   Struct.map(Schema.mutableKey),
 )
 
@@ -1538,7 +1501,7 @@ import { Schema } from "effect"
 const User = Schema.Struct({
   _tag: Schema.tag("User"),
   name: Schema.String,
-  age: Schema.Number,
+  age: Schema.Finite,
 })
 
 //     ┌─── { readonly _tag: "User"; readonly name: string; readonly age: number; }
@@ -1566,7 +1529,7 @@ import { Schema } from "effect"
 
 const User = Schema.TaggedStruct("User", {
   name: Schema.String,
-  age: Schema.Number,
+  age: Schema.Finite,
 })
 
 // `_tag` is automatically applied when constructing an instance
@@ -1577,7 +1540,7 @@ console.log(User.make({ name: "John", age: 44 }))
 console.log(Schema.decodeUnknownSync(User)({ name: "John", age: 44 }))
 /*
 throws:
-ParseError: { readonly _tag: "User"; readonly name: string; readonly age: number }
+SchemaError: { readonly _tag: "User"; readonly name: string; readonly age: number }
 └─ ["_tag"]
    └─ is missing
 */
@@ -1601,19 +1564,13 @@ const TaggedStruct = <Tag extends SchemaAST.LiteralValue, Fields extends Schema.
   fields: Fields,
 ) =>
   Schema.Struct({
-    _tag: Schema.Literal(tag).pipe(
-      Schema.optional,
-      Schema.withDefaults({
-        constructor: () => tag, // Apply _tag during instance construction
-        decoding: () => tag, // Apply _tag during decoding
-      }),
-    ),
+    _tag: Schema.tagDefaultOmit(tag),
     ...fields,
   })
 
 const User = TaggedStruct("User", {
   name: Schema.String,
-  age: Schema.Number,
+  age: Schema.Finite,
 })
 
 console.log(User.make({ name: "John", age: 44 }))
@@ -1637,7 +1594,7 @@ import { Schema } from "effect"
 const Product = Schema.TaggedStruct("Product", {
   category: Schema.tag("Electronics"),
   name: Schema.String,
-  price: Schema.Number,
+  price: Schema.Finite,
 })
 
 // `_tag` and `category` are optional when creating an instance
@@ -1680,11 +1637,11 @@ console.log(Schema.decodeUnknownSync(MyDataSchema)(new MyData("name")))
 console.log(Schema.decodeUnknownSync(MyDataSchema)({ name: "name" }))
 /*
 throws:
-ParseError: Expected MyData, actual {"name":"name"}
+SchemaError: Expected MyData
 */
 ```
 
-The `Schema.instanceOf` constructor is just a lightweight wrapper of the [Schema.declare](/docs/schema/advanced-usage/#declaring-new-data-types) API, which is the primitive in `effect/Schema` for declaring new custom data types.
+The `Schema.instanceOf` constructor is just a lightweight wrapper of the [Schema.declare](/docs/v4/schema/advanced-usage#declaring-new-data-types) API, which is the primitive in `effect/Schema` for declaring new custom data types.
 
 ### Private Constructors
 
@@ -1705,7 +1662,7 @@ class MyData {
 const MyDataSchema = Schema.instanceOf(MyData)
 ```
 
-In such cases, you cannot use `Schema.instanceOf`, and you must rely on [Schema.declare](/docs/schema/advanced-usage/#declaring-new-data-types) like this:
+In such cases, you cannot use `Schema.instanceOf`, and you must rely on [Schema.declare](/docs/v4/schema/advanced-usage#declaring-new-data-types) like this:
 
 **Example** (Using `Schema.declare` With Private Constructors)
 
@@ -1727,13 +1684,13 @@ console.log(Schema.decodeUnknownSync(MyDataSchema)(MyData.make("name")))
 console.log(Schema.decodeUnknownSync(MyDataSchema)({ name: "name" }))
 /*
 throws:
-ParseError: Expected MyData, actual {"name":"name"}
+SchemaError: Expected MyData
 */
 ```
 
 ### Validating Fields of the Instance
 
-To validate the fields of a class instance, you can use a [filter](/docs/schema/filters/). This approach combines instance validation with additional checks on the instance's fields.
+To validate the fields of a class instance, you can use a [filter](/docs/v4/schema/filters/). This approach combines instance validation with additional checks on the instance's fields.
 
 **Example** (Adding Field Validation to an Instance Schema)
 
@@ -1758,29 +1715,29 @@ const MyDataSchema = Schema.instanceOf(MyData).check(
   }),
 )
 
-const validateSync = Schema.decodeSync(Schema.toType(MyDataSchema))
+const decodeTypeSync = Schema.decodeSync(Schema.toType(MyDataSchema))
 
 // Example: Valid instance
-console.log(validateSync(new MyData("John")))
+console.log(decodeTypeSync(new MyData("John")))
 // Output: MyData { name: 'John' }
 
 // Example: Invalid instance (empty name)
-console.log(validateSync(new MyData("")))
+console.log(decodeTypeSync(new MyData("")))
 /*
 throws:
-ParseError: { MyData | filter }
+SchemaError: { MyData | filter }
 └─ Predicate refinement failure
    └─ { readonly name: NonEmptyString }
       └─ ["name"]
          └─ NonEmptyString
             └─ Predicate refinement failure
-               └─ Expected a non empty string, actual ""
+               └─ Expected a non empty string
 */
 ```
 
 ## Picking
 
-The `pick` static function available on each struct schema can be used to create a new `Struct` by selecting specific properties from an existing `Struct`.
+Use `Struct.pick` with `Struct.mapFields` to create a new struct schema by selecting fields from an existing one.
 
 **Example** (Picking Properties from a Struct)
 
@@ -1790,7 +1747,7 @@ import { Schema, Struct } from "effect"
 // Define a struct schema with properties "a", "b", and "c"
 const MyStruct = Schema.Struct({
   a: Schema.String,
-  b: Schema.Number,
+  b: Schema.Finite,
   c: Schema.Boolean,
 })
 
@@ -1804,33 +1761,9 @@ const MyStruct = Schema.Struct({
 const PickedSchema = MyStruct.mapFields(Struct.pick(["a", "c"]))
 ```
 
-The `Schema.pick` function can be applied more broadly beyond just `Struct` types, such as with unions of schemas.
-However it returns a generic `SchemaClass`.
-
-**Example** (Picking Properties from a Union)
-
-```ts twoslash
-import { Schema } from "effect"
-
-// Define a union of two struct schemas
-const MyUnion = Schema.Union([
-  Schema.Struct({ a: Schema.String, b: Schema.String, c: Schema.String }),
-  Schema.Struct({ a: Schema.Number, b: Schema.Number, d: Schema.Number }),
-])
-
-// Create a new schema that picks properties "a" and "b"
-//
-//      ┌─── SchemaClass<{
-//      |      readonly a: string | number;
-//      |      readonly b: string | number;
-//      |    }>
-//      ▼
-const PickedSchema = MyUnion.pipe(Schema.pick("a", "b"))
-```
-
 ## Omitting
 
-The `omit` static function available in each struct schema can be used to create a new `Struct` by excluding particular properties from an existing `Struct`.
+Use `Struct.omit` with `Struct.mapFields` to create a new struct schema by excluding fields from an existing one.
 
 **Example** (Omitting Properties from a Struct)
 
@@ -1840,7 +1773,7 @@ import { Schema, Struct } from "effect"
 // Define a struct schema with properties "a", "b", and "c"
 const MyStruct = Schema.Struct({
   a: Schema.String,
-  b: Schema.Number,
+  b: Schema.Finite,
   c: Schema.Boolean,
 })
 
@@ -1851,35 +1784,12 @@ const MyStruct = Schema.Struct({
 //      |      c: typeof Schema.Boolean;
 //      |    }>
 //      ▼
-const PickedSchema = MyStruct.mapFields(Struct.omit(["b"]))
+const OmittedSchema = MyStruct.mapFields(Struct.omit(["b"]))
 ```
 
-The `Schema.omit` function can be applied more broadly beyond just `Struct` types, such as with unions of schemas.
-However it returns a generic `Schema`.
+## Making Properties Optional
 
-**Example** (Omitting Properties from a Union)
-
-```ts twoslash
-import { Schema } from "effect"
-
-// Define a union of two struct schemas
-const MyUnion = Schema.Union([
-  Schema.Struct({ a: Schema.String, b: Schema.String, c: Schema.String }),
-  Schema.Struct({ a: Schema.Number, b: Schema.Number, d: Schema.Number }),
-])
-
-// Create a new schema that omits property "b"
-//
-//      ┌─── SchemaClass<{
-//      |      readonly a: string | number;
-//      |    }>
-//      ▼
-const PickedSchema = MyUnion.pipe(Schema.omit("b"))
-```
-
-## partial
-
-The `Schema.partial` function makes all properties within a schema optional.
+Use `Struct.map` with `Schema.optional` to make every field in a struct optional.
 
 **Example** (Making All Properties Optional)
 
@@ -1894,7 +1804,7 @@ const schema = Schema.Struct({ a: Schema.String }).mapFields(Struct.map(Schema.o
 type Type = typeof schema.Type
 ```
 
-By default, the `Schema.partial` operation adds `undefined` to the type of each property. If you want to avoid this, you can use `Schema.partialWith` and pass `{ exact: true }` as an argument.
+`Schema.optional` adds `undefined` to each field type. Use `Schema.optionalKey` instead when a field may be omitted but, when present, must contain a value accepted by its schema.
 
 **Example** (Defining an Exact Partial Schema)
 
@@ -1911,9 +1821,9 @@ const schema = Schema.Struct({
 type Type = typeof schema.Type
 ```
 
-## required
+## Making Properties Required
 
-The `Schema.required` function ensures that all properties in a schema are mandatory.
+Use `Struct.map` with `Schema.requiredKey` to make every optional key in a struct required.
 
 **Example** (Making All Properties Required)
 
@@ -1923,7 +1833,7 @@ import { Schema, Struct } from "effect"
 // Create a schema and make all properties required
 const schema = Schema.Struct({
   a: Schema.optionalKey(Schema.String),
-  b: Schema.optionalKey(Schema.Number),
+  b: Schema.optionalKey(Schema.Finite),
 }).mapFields(Struct.map(Schema.requiredKey))
 
 //     ┌─── { readonly a: string; readonly b: number; }
@@ -1932,24 +1842,3 @@ type Type = typeof schema.Type
 ```
 
 In this example, both `a` and `b` are made required, even though they were initially defined as optional.
-
-## keyof
-
-The `Schema.keyof` operation creates a schema that represents the keys of a given object schema.
-
-**Example** (Extracting Keys from an Object Schema)
-
-```ts twoslash
-import { Schema } from "effect"
-
-const schema = Schema.Struct({
-  a: Schema.String,
-  b: Schema.Number,
-})
-
-const keys = Schema.keyof(schema)
-
-//     ┌─── "a" | "b"
-//     ▼
-type Type = typeof keys.Type
-```

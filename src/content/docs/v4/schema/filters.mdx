@@ -11,7 +11,7 @@ Developers can define custom validation logic beyond basic type checks, giving m
 
 ## Declaring Filters
 
-Filters are declared using the `Schema.makeFilter` function. This function requires two arguments: the schema to be validated and a predicate function. The predicate function is user-defined and determines whether the data satisfies the condition. If the data fails the validation, an error message can be provided.
+Create a filter with `Schema.makeFilter`, then add it to a schema with `.check(...)`. The predicate receives a decoded value and returns whether it satisfies the constraint, optionally providing one or more issues when it does not.
 
 **Example** (Defining a Minimum String Length Filter)
 
@@ -50,7 +50,7 @@ Filters add additional validation constraints without modifying the schema's und
 
 <Aside type="tip">
   If you need to modify the `Type`, consider using [Branded
-  types](/docs/schema/advanced-usage/#branded-types).
+  types](/docs/v4/schema/advanced-usage#branded-types).
 </Aside>
 
 ## The Predicate Function
@@ -88,8 +88,8 @@ The filter's predicate can return several types of values, each affecting valida
 
 <Aside type="tip" title="Effectful Filters">
   Normal filters only handle synchronous, non-effectful validations. If you need filters that
-  involve asynchronous logic or side effects, consider using
-  [Schema.filterEffect](/docs/schema/transformations/#effectful-filters).
+  involve asynchronous logic or services, use `SchemaGetter.checkEffect` as part of a
+  [transformation](/docs/v4/schema/transformations#effectful-filters).
 </Aside>
 
 ## Adding Annotations
@@ -196,12 +196,10 @@ Output:
 
 In this example, we define a `MyForm` schema with two password fields (`password` and `confirm_password`). We use `Schema.makeFilter` to check that both passwords match. If they don't, an error message is returned, specifically associated with the `confirm_password` field. This makes it easier to pinpoint the exact location of the validation failure.
 
-The error is formatted in a structured way using `ArrayFormatter`, allowing for easier post-processing and integration with form libraries.
+The error is formatted as a Standard Schema issue array with `SchemaIssue.makeFormatterStandardSchemaV1`, making it easier to post-process or pass to form libraries.
 
-<Aside type="tip" title="Using ArrayFormatter for Structured Errors">
-  The `ArrayFormatter` provides a detailed and structured error format rather than a simple error
-  string. This is especially useful when handling complex forms or structured data. For more
-  information, see [ArrayFormatter](/docs/schema/error-formatters/#arrayformatter).
+<Aside type="tip" title="Formatting Structured Errors">
+  For the other available representations, see [Error Formatters](/docs/v4/schema/error-formatters).
 </Aside>
 
 ## Multiple Error Reporting
@@ -260,6 +258,8 @@ if (Result.isFailure(result)) {
   SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues // => [{ path: ["confirm_password"], message: "Passwords do not match" }, { path: ["surname"], message: "Surname must be present if name is not present" }]
 }
 /*
+Output:
+[
 {
   "path": [
     "confirm_password"
@@ -272,33 +272,15 @@ if (Result.isFailure(result)) {
   ],
   "message": "Surname must be present if name is not present"
 }
+]
 */
 ```
 
 In this example, we define a `MyForm` schema with fields for password validation and optional name/surname fields. The `Schema.makeFilter` function checks if the passwords match and ensures that either a name or surname is provided. If either validation fails, the corresponding error message is associated with the relevant field and both errors are returned in a structured format.
 
-<Aside type="tip" title="Using ArrayFormatter for Structured Errors">
-  The `ArrayFormatter` provides a detailed and structured error format rather than a simple error
-  string. This is especially useful when handling complex forms or structured data. For more
-  information, see [ArrayFormatter](/docs/schema/error-formatters/#arrayformatter).
+<Aside type="tip" title="Formatting Structured Errors">
+  For the other available representations, see [Error Formatters](/docs/v4/schema/error-formatters).
 </Aside>
-
-## Exposed Values
-
-For schemas with filters, you can access the base schema (the schema before the filter was applied) using the `from` property:
-
-```ts twoslash
-import { Schema } from "effect"
-
-const LongString = Schema.String.pipe(Schema.filter((s) => s.length >= 10))
-
-// Access the base schema, which is the string schema
-// before the filter was applied
-//
-//      ┌─── typeof Schema.String
-//      ▼
-const From = LongString.from
-```
 
 ## Built-in Filters
 
@@ -355,9 +337,8 @@ Schema.String.check(Schema.isUncapitalized())
 ```
 
 <Aside type="tip" title="Trim vs Trimmed">
-  The `isTrimmed` combinator does not make any transformations, it only validates. If what you were
-  looking for was a combinator to trim strings, then check out the `trim` combinator or the `Trim`
-  schema.
+  `Schema.isTrimmed` only validates. Use `Schema.Trim` when decoding should remove leading and
+  trailing whitespace, or `Schema.Trimmed` when the input must already be trimmed.
 </Aside>
 
 ### Number Filters
@@ -368,54 +349,45 @@ Here is a list of useful number filters provided by the Schema module:
 import { Schema } from "effect"
 
 // Specifies a number greater than 5
-Schema.Number.check(Schema.isGreaterThan(5))
+Schema.Finite.check(Schema.isGreaterThan(5))
 
 // Specifies a number greater than or equal to 5
-Schema.Number.check(Schema.isGreaterThanOrEqualTo(5))
+Schema.Finite.check(Schema.isGreaterThanOrEqualTo(5))
 
 // Specifies a number less than 5
-Schema.Number.check(Schema.isLessThan(5))
+Schema.Finite.check(Schema.isLessThan(5))
 
 // Specifies a number less than or equal to 5
-Schema.Number.check(Schema.isLessThanOrEqualTo(5))
+Schema.Finite.check(Schema.isLessThanOrEqualTo(5))
 
 // Specifies a number between -2 and 2, inclusive
-Schema.Number.check(Schema.isBetween({ minimum: -2, maximum: 2 }))
+Schema.Finite.check(Schema.isBetween({ minimum: -2, maximum: 2 }))
 
 // Specifies that the value must be an integer
-Schema.Number.check(Schema.isInt())
+Schema.Finite.check(Schema.isInt())
 // or
 Schema.Int
 
-// Ensures the value is not NaN
-Schema.Number.check(Schema.makeFilter((n) => !Number.isNaN(n)))
-
-// Ensures that the provided value is a finite number
-// (excluding NaN, +Infinity, and -Infinity)
-Schema.Number.check(Schema.isFinite())
-// or
-Schema.Finite
-
 // Specifies a positive number (> 0)
-Schema.Number.check(Schema.isGreaterThan(0))
+Schema.Finite.check(Schema.isGreaterThan(0))
 
 // Specifies a non-negative number (>= 0)
-Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
+Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0))
 
 // A non-negative integer
-Schema.Number.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0))
+Schema.Finite.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0))
 
 // Specifies a negative number (< 0)
-Schema.Number.check(Schema.isLessThan(0))
+Schema.Finite.check(Schema.isLessThan(0))
 
 // Specifies a non-positive number (<= 0)
-Schema.Number.check(Schema.isLessThanOrEqualTo(0))
+Schema.Finite.check(Schema.isLessThanOrEqualTo(0))
 
 // Specifies a number that is evenly divisible by 5
-Schema.Number.check(Schema.isMultipleOf(5))
+Schema.Finite.check(Schema.isMultipleOf(5))
 
 // A 8-bit unsigned integer (0 to 255)
-Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 0, maximum: 255 }))
+Schema.Finite.check(Schema.isInt(), Schema.isBetween({ minimum: 0, maximum: 255 }))
 ```
 
 ### ReadonlyArray Filters
@@ -426,13 +398,13 @@ Here is a list of useful array filters provided by the Schema module:
 import { Schema } from "effect"
 
 // Specifies the maximum number of items in the array
-Schema.Array(Schema.Number).check(Schema.isMaxLength(2))
+Schema.Array(Schema.Finite).check(Schema.isMaxLength(2))
 
 // Specifies the minimum number of items in the array
-Schema.Array(Schema.Number).check(Schema.isMinLength(2))
+Schema.Array(Schema.Finite).check(Schema.isMinLength(2))
 
 // Specifies the exact number of items in the array
-Schema.Array(Schema.Number).check(Schema.isLengthBetween(2, 2))
+Schema.Array(Schema.Finite).check(Schema.isLengthBetween(2, 2))
 ```
 
 ### Date Filters
@@ -441,8 +413,6 @@ Schema.Array(Schema.Number).check(Schema.isLengthBetween(2, 2))
 import { Schema } from "effect"
 
 // Specifies a valid date (rejects values like `new Date("Invalid Date")`)
-Schema.Date
-// or
 Schema.Date
 
 // Specifies a date greater than the current date
@@ -537,7 +507,7 @@ Schema.BigDecimal.check(Schema.isLessThanOrEqualToBigDecimal(BigDecimal.fromNumb
 
 ### Duration Filters
 
-Here is a list of useful [Duration](/docs/data-types/duration/) filters provided by the Schema module:
+Here is a list of useful [Duration](/docs/v4/data-types/duration) filters provided by the Schema module:
 
 ```ts twoslash
 import { Schema, Duration } from "effect"

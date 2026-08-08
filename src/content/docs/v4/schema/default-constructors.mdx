@@ -1,34 +1,27 @@
 ---
 title: Default Constructors
-description: Create values that conform to schemas effortlessly using default constructors for structs, records, filters, and branded types, with options for validation, default values, and lazy evaluation.
+description: Construct schema values with make, makeOption, makeEffect, validation options, and default values.
 sidebar:
   order: 12
 ---
 
 import { Aside } from "@astrojs/starlight/components"
 
-When working with data structures, it can be helpful to create values that conform to a schema with minimal effort.
-For this purpose, the Schema module provides default constructors for various schema types, including `Structs`, `Records`, `filters`, and `brands`.
+Every schema exposes constructors for creating values of its `Type` while applying constructor defaults and type-side checks.
 
 <Aside type="note" title="Constructor Scope">
-  Default constructors associated with a schema of type `Schema<A, I, R>` operate specifically on the **decoded type** (`A`), not the encoded type (`I`).
-
-- **`A` (Decoded Type)**: This is the type produced after decoding and validation. The constructor creates values of this type.
-- `I` (Encoded Type): This is the type expected when decoding raw input. The constructor does not accept this type directly.
-
-This distinction is important when working with schemas that transform data. For example, if a schema **decodes a string into a number**, the default constructor will only accept **numbers**, not strings.
+  Constructors operate on the schema's `Type`, not its `Encoded`. For example, the constructor of `Schema.FiniteFromString` accepts a `number`, while decoding accepts a `string`.
 
 </Aside>
 
-Default constructors are **unsafe**, meaning they **throw an error** if the input does not conform to the schema.
-If you need a safer alternative, consider using [Schema.validateEither](#error-handling-in-constructors), which returns a result indicating success or failure instead of throwing an error.
+Use `make` when a failure should throw, `makeOption` when you only need to know whether construction succeeded, and `makeEffect` when you need the `SchemaError` in the `Effect` error channel.
 
 **Example** (Using a Refinement Default Constructor)
 
 ```ts twoslash
 import { Schema } from "effect"
 
-const schema = Schema.NumberFromString.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
+const schema = Schema.FiniteFromString.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
 
 // The constructor only accepts numbers
 console.log(schema.make(5))
@@ -38,9 +31,7 @@ console.log(schema.make(5))
 console.log(schema.make(20))
 /*
 throws:
-ParseError: between(1, 10)
-└─ Predicate refinement failure
-   └─ Expected a number between 1 and 10, actual 20
+Expected a number between 1 and 10
 */
 ```
 
@@ -64,17 +55,14 @@ Struct.make({ name: "a" })
 Struct.make({ name: "" })
 /*
 throws
-ParseError: { readonly name: NonEmptyString }
-└─ ["name"]
-   └─ NonEmptyString
-      └─ Predicate refinement failure
-         └─ Expected NonEmptyString, actual ""
+Expected a value with a length of at least 1
+  at ["name"]
 */
 ```
 
-In some cases, you might need to bypass validation. While not recommended in most scenarios, `make` provides an option to disable validation.
+When the input is already trusted, `make` can skip schema checks. This is not recommended for untrusted values.
 
-**Example** (Bypassing Validation)
+**Example** (Skipping Checks)
 
 ```ts twoslash
 import { Schema } from "effect"
@@ -83,11 +71,8 @@ const Struct = Schema.Struct({
   name: Schema.NonEmptyString,
 })
 
-// Bypass validation during instantiation
-Struct.make({ name: "" }, true)
-
-// Or use the `disableValidation` option explicitly
-Struct.make({ name: "" }, { disableValidation: true })
+// Skip checks when the input is already trusted
+Struct.make({ name: "" }, { disableChecks: true })
 ```
 
 ## Records
@@ -108,14 +93,11 @@ Record.make({ a: "a", b: "b" })
 Record.make({ a: "a", b: "" })
 /*
 throws
-ParseError: { readonly [x: string]: NonEmptyString }
-└─ ["b"]
-   └─ NonEmptyString
-      └─ Predicate refinement failure
-         └─ Expected NonEmptyString, actual ""
+Expected a value with a length of at least 1
+  at ["b"]
 */
 
-// Bypasses validation
+// Skips checks
 Record.make({ a: "a", b: "" }, { disableChecks: true })
 ```
 
@@ -128,7 +110,7 @@ Filters allow you to define constraints on individual values.
 ```ts twoslash
 import { Schema } from "effect"
 
-const MyNumber = Schema.Number.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
+const MyNumber = Schema.Finite.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
 
 // Successful creation
 const n = MyNumber.make(5)
@@ -137,12 +119,10 @@ const n = MyNumber.make(5)
 MyNumber.make(20)
 /*
 throws
-ParseError: a number between 1 and 10
-└─ Predicate refinement failure
-   └─ Expected a number between 1 and 10, actual 20
+Expected a value between 1 and 10
 */
 
-// Bypasses validation
+// Skips checks
 MyNumber.make(20, { disableChecks: true })
 ```
 
@@ -155,7 +135,7 @@ Branded schemas add metadata to a value to give it a more specific type, while s
 ```ts twoslash
 import { Schema } from "effect"
 
-const BrandedNumberSchema = Schema.Number.pipe(
+const BrandedNumberSchema = Schema.Finite.pipe(
   Schema.check(Schema.isBetween({ minimum: 1, maximum: 10 })),
   Schema.brand("MyNumber"),
 )
@@ -167,12 +147,10 @@ const n = BrandedNumberSchema.make(5)
 BrandedNumberSchema.make(20)
 /*
 throws
-ParseError: a number between 1 and 10 & Brand<"MyNumber">
-└─ Predicate refinement failure
-   └─ Expected a number between 1 and 10 & Brand<"MyNumber">, actual 20
+Expected a value between 1 and 10
 */
 
-// Bypasses validation
+// Skips checks
 BrandedNumberSchema.make(20, { disableChecks: true })
 ```
 
@@ -184,51 +162,22 @@ This behavior contrasts with the filter example, where the return type is simply
 
 ## Error Handling in Constructors
 
-Default constructors are considered "unsafe" because they throw an error if the input does not conform to the schema. This error includes a detailed description of what went wrong. The intention behind default constructors is to provide a straightforward way to create valid values, such as for tests or configurations, where invalid inputs are expected to be exceptional cases.
+`make` is appropriate when invalid constructor input is exceptional. If failure is expected, use `makeOption` or `makeEffect` instead.
 
-If you need a "safe" constructor that does not throw errors but instead returns a result indicating success or failure, you can use `Schema.validateEither`.
+`makeOption` returns `Option.some` on success and `Option.none` for schema issues. Use `makeEffect` when you need the full `SchemaError`.
 
-**Example** (Using `Schema.validateEither` for Safe Validation)
+**Example** (Constructing Without Throwing)
 
-```ts twoslash
-import { Schema } from "effect"
+```ts twoslash import.meta.vitest name="constructor-error-handling-1"
+import { Option, Schema } from "effect"
 
-const schema = Schema.NumberFromString.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
+const schema = Schema.FiniteFromString.check(Schema.isBetween({ minimum: 1, maximum: 10 }))
 
-// Create a safe constructor that validates an unknown input
-const safeMake = Schema.decodeResult(Schema.toType(schema))
+schema.makeOption(5) // => Option.some(5)
+schema.makeOption(20) // => Option.none()
 
-// Valid input returns a Right value
-console.log(safeMake(5))
-/*
-Output:
-{ _id: 'Either', _tag: 'Right', right: 5 }
-*/
-
-// Invalid input returns a Left value with detailed error information
-console.log(safeMake(20))
-/*
-Output:
-{
-  _id: 'Either',
-  _tag: 'Left',
-  left: {
-    _id: 'ParseError',
-    message: 'between(1, 10)\n' +
-      '└─ Predicate refinement failure\n' +
-      '   └─ Expected a number between 1 and 10, actual 20'
-  }
-}
-*/
-
-// This will throw an error because it's unsafe
-schema.make(20)
-/*
-throws:
-ParseError: between(1, 10)
-└─ Predicate refinement failure
-   └─ Expected a number between 1 and 10, actual 20
-*/
+// Effect.Effect<number, SchemaError>
+const safely = schema.makeEffect(20)
 ```
 
 ## Setting Default Values
@@ -244,7 +193,7 @@ import { Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
-  age: Schema.Number,
+  age: Schema.Finite,
 })
 
 // Both name and age must be provided
@@ -263,7 +212,7 @@ import { Effect, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
-  age: Schema.Number.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
+  age: Schema.Finite.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
 })
 
 // The age field is optional and defaults to 0
@@ -280,37 +229,13 @@ Output:
 */
 ```
 
-### Nested Structs and Shallow Defaults
+### Nested Defaults
 
-Default values in schemas are shallow, meaning that defaults defined in nested structs do not automatically propagate to the top-level constructor.
+Constructor defaults compose through nested schemas. Inner defaults are resolved after the value for the outer field is supplied or defaulted.
 
-**Example** (Shallow Defaults in Nested Structs)
+**Example** (Resolving Nested Defaults)
 
-```ts twoslash
-import { Effect, Schema } from "effect"
-
-const Config = Schema.Struct({
-  // Define a nested struct with a default value
-  web: Schema.Struct({
-    application_url: Schema.String.pipe(
-      Schema.withConstructorDefault(Effect.succeed("http://localhost")),
-    ),
-    application_port: Schema.Number,
-  }),
-})
-
-// This will cause a type error because `application_url`
-// is missing in the nested struct
-Config.make({ web: { application_port: 3000 } })
-```
-
-This behavior occurs because the `Schema` interface does not include a type parameter to carry over default constructor types from nested structs.
-
-To work around this limitation, extract the constructor for the nested struct and apply it to its fields directly. This ensures that the nested defaults are respected.
-
-**Example** (Using Nested Struct Constructors)
-
-```ts twoslash import.meta.vitest name="nested-structs-and-shallow-defaults-1"
+```ts twoslash import.meta.vitest name="nested-constructor-defaults-1"
 import { Effect, Schema } from "effect"
 
 const Config = Schema.Struct({
@@ -318,15 +243,11 @@ const Config = Schema.Struct({
     application_url: Schema.String.pipe(
       Schema.withConstructorDefault(Effect.succeed("http://localhost")),
     ),
-    application_port: Schema.Number,
-  }),
+    application_port: Schema.Finite,
+  }).pipe(Schema.withConstructorDefault(Effect.succeed({ application_port: 3000 }))),
 })
 
-// Extract the nested struct constructor
-const { web: Web } = Config.fields
-
-// Use the constructor for the nested struct
-console.log(Config.make({ web: Web.make({ application_port: 3000 }) }))
+console.log(Config.make({}))
 /*
 Output:
 {
@@ -351,8 +272,8 @@ import { Effect, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
-  age: Schema.Number.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
-  timestamp: Schema.Number.pipe(
+  age: Schema.Finite.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
+  timestamp: Schema.Finite.pipe(
     Schema.withConstructorDefault(Effect.sync(() => new Date().getTime())),
   ),
 })
@@ -381,8 +302,8 @@ import { Effect, Schema } from "effect"
 
 const Person = Schema.Struct({
   name: Schema.NonEmptyString,
-  age: Schema.Number.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
-  timestamp: Schema.Number.pipe(
+  age: Schema.Finite.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
+  timestamp: Schema.Finite.pipe(
     Schema.withConstructorDefault(Effect.sync(() => new Date().getTime())),
   ),
 })
@@ -410,8 +331,8 @@ import { Effect, Schema } from "effect"
 
 class Person extends Schema.Class<Person>("Person")({
   name: Schema.NonEmptyString,
-  age: Schema.Number.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
-  timestamp: Schema.Number.pipe(
+  age: Schema.Finite.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
+  timestamp: Schema.Finite.pipe(
     Schema.withConstructorDefault(Effect.sync(() => new Date().getTime())),
   ),
 }) {}
