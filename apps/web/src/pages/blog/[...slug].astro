@@ -8,10 +8,51 @@ import CopyLinkButton from "@/components/blog/CopyLinkButton"
 import GridBackground from "@/components/GridBackground.astro"
 import TableOfContents from "@/components/blog/TableOfContents"
 import PageLayout from "@/layouts/PageLayout.astro"
+import { createCacheKey } from "@/lib/cache-key"
 
 export async function getStaticPaths() {
-  const posts = await getCollection("blog")
-  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }))
+  const [posts, authors, tags] = await Promise.all([
+    getCollection("blog"),
+    getCollection("blogAuthors"),
+    getCollection("blogTags"),
+  ])
+  const authorsById = new Map(authors.map((author) => [author.id, author]))
+  const tagsById = new Map(tags.map((tag) => [tag.id, tag]))
+  const sortedPosts = posts.toSorted((a, b) => b.data.date.getTime() - a.data.date.getTime())
+
+  return posts.map((post) => {
+    const currentIndex = sortedPosts.findIndex((candidate) => candidate.id === post.id)
+    const previousPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : undefined
+    const nextPost =
+      currentIndex < sortedPosts.length - 1 ? sortedPosts[currentIndex + 1] : undefined
+    const authorKeys = post.data.authors.map((author) => [
+      author.id,
+      authorsById.get(author.id)?.digest ?? null,
+    ])
+    const tagKeys = post.data.tags
+      .map((tag) => [tag.id, tagsById.get(tag.id)?.digest ?? null] as const)
+      .toSorted(([left], [right]) => left.localeCompare(right))
+    const digest = post.digest
+
+    const path = {
+      params: { slug: post.id },
+      props: { post },
+    }
+    return digest === undefined
+      ? path
+      : {
+          ...path,
+          cacheKey: createCacheKey([
+            digest,
+            authorKeys,
+            tagKeys,
+            previousPost?.id ?? null,
+            previousPost?.data.title ?? null,
+            nextPost?.id ?? null,
+            nextPost?.data.title ?? null,
+          ]),
+        }
+  })
 }
 
 const { post } = Astro.props

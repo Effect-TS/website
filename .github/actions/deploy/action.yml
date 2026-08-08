@@ -90,6 +90,14 @@ runs:
           exit 1
         fi
 
+    - name: Restore Astro build cache
+      uses: actions/cache@v5
+      with:
+        path: apps/web/node_modules/.astro
+        key: astro-build-production-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ inputs.website-ref }}-${{ steps.api-reference-snapshot.outputs.tag }}
+        restore-keys: |
+          astro-build-production-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
     - name: Pull Vercel Environment Information
       shell: bash
       run: pnpm exec vercel pull --cwd apps/web --yes --environment=production --token="${{ inputs.vercel-token }}" --scope=effect-ts

@@ -8,20 +8,58 @@ import Navigation from "@/components/navigation/Navigation.astro"
 import ApiDeclaration from "@/features/api-reference/ApiDeclaration.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import * as ApiReference from "@/features/api-reference/ApiReference"
+import { packageNavigationCacheKeyParts } from "@/features/api-reference/cache-key"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
 import BaseLayout from "@/layouts/BaseLayout.astro"
+import { createCacheKey } from "@/lib/cache-key"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
 
 export const getStaticPaths = (async () => {
   const entries = await getCollection("apiReference")
-  return entries.map((entry) => ({
-    params: {
-      version: entry.data.version,
-      package: entry.data.packageSlug,
-      module: entry.data.modulePath,
-    },
-    props: { entry },
-  }))
+  const entriesByVersion = Map.groupBy(entries, (entry) => entry.data.version)
+
+  return entries.map((entry) => {
+    const packageEntries = entries
+      .filter(
+        (candidate) =>
+          candidate.data.version === entry.data.version &&
+          candidate.data.packageSlug === entry.data.packageSlug,
+      )
+      .toSorted((left, right) => left.id.localeCompare(right.id))
+    const versionEntries = entriesByVersion.get(entry.data.version) ?? []
+    const crossVersionEntries = entries
+      .filter(
+        (candidate) =>
+          candidate.data.packageSlug === entry.data.packageSlug &&
+          candidate.data.modulePath === entry.data.modulePath,
+      )
+      .toSorted((left, right) => left.data.version.localeCompare(right.data.version))
+
+    const digest = entry.digest
+    const path = {
+      params: {
+        version: entry.data.version,
+        package: entry.data.packageSlug,
+        module: entry.data.modulePath,
+      },
+      props: { entry },
+    }
+    return digest === undefined
+      ? path
+      : {
+          ...path,
+          cacheKey: createCacheKey([
+            digest,
+            packageEntries.map((candidate) => [candidate.id, candidate.data.modulePath]),
+            packageNavigationCacheKeyParts(versionEntries),
+            crossVersionEntries.map((candidate) => [
+              candidate.data.version,
+              candidate.data.packageSlug,
+              candidate.data.modulePath,
+            ]),
+          ]),
+        }
+  })
 }) satisfies GetStaticPaths
 
 const { entry } = Astro.props

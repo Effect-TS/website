@@ -8,13 +8,45 @@ import Footer from "@/components/Footer.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
+import { createCacheKey } from "@/lib/cache-key"
 
 export async function getStaticPaths() {
-  const entries = await getCollection("docs")
-  return entries.map((entry) => ({
-    params: { slug: entry.id.replace(/\/index$/, "") },
-    props: { entry, entries },
-  }))
+  const [entries, sidebarEntries] = await Promise.all([
+    getCollection("docs"),
+    getCollection("docsSidebar"),
+  ])
+  const sidebarEntriesById = new Map(sidebarEntries.map((entry) => [entry.id, entry]))
+  const entriesByVersion = Map.groupBy(entries, (entry) => entry.id.split("/")[0] ?? "")
+  const sidebarKeys = new Map(
+    Array.from(entriesByVersion, ([version, versionEntries]) => [
+      version,
+      createCacheKey([
+        versionEntries
+          .toSorted((left, right) => left.id.localeCompare(right.id))
+          .map((entry) => [
+            entry.id,
+            entry.data.title,
+            entry.data.sidebar?.label ?? null,
+            entry.data.sidebar?.order ?? null,
+          ]),
+        sidebarEntriesById.get(version)?.digest ?? null,
+      ]),
+    ]),
+  )
+
+  return entries.map((entry) => {
+    const digest = entry.digest
+    const path = {
+      params: { slug: entry.id.replace(/\/index$/, "") },
+      props: { entry, entries },
+    }
+    return digest === undefined
+      ? path
+      : {
+          ...path,
+          cacheKey: createCacheKey([digest, sidebarKeys.get(entry.id.split("/")[0] ?? "") ?? null]),
+        }
+  })
 }
 
 const { entry, entries } = Astro.props
