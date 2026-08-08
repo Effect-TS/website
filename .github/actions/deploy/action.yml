@@ -92,14 +92,14 @@ runs:
 
     - name: Pull Vercel Environment Information
       shell: bash
-      run: pnpm exec vercel pull --yes --environment=production --token="${{ inputs.vercel-token }}" --scope=effect-ts
+      run: pnpm exec vercel pull --cwd apps/web --yes --environment=production --token="${{ inputs.vercel-token }}" --scope=effect-ts
       env:
         VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
         VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
 
     - name: Build Project Artifacts
       shell: bash
-      run: pnpm exec vercel build --prod --token="${{ inputs.vercel-token }}"
+      run: pnpm exec vercel build --cwd apps/web --prod --token="${{ inputs.vercel-token }}"
       env:
         VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
         VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}
@@ -110,7 +110,7 @@ runs:
 
     - name: Deploy Project Artifacts to Vercel
       shell: bash
-      run: pnpm exec vercel deploy --prebuilt --archive=tgz --prod --token="${{ inputs.vercel-token }}" --scope=effect-ts
+      run: pnpm exec vercel deploy apps/web --prebuilt --archive=tgz --prod --token="${{ inputs.vercel-token }}" --scope=effect-ts
       env:
         VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
         VERCEL_PROJECT_ID: ${{ inputs.vercel-project-id }}

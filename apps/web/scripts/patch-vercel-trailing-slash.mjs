@@ -28,8 +28,11 @@
 //   @astrojs/vercel produces a complete Build Output API config.json,
 //   `vercel build` does not separately scan for a standalone middleware.ts.
 import { readFileSync, writeFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 
-const configPath = ".vercel/output/config.json"
+const configPath = fileURLToPath(
+  new URL("../.vercel/output/config.json", import.meta.url),
+)
 const config = JSON.parse(readFileSync(configPath, "utf-8"))
 
 const unscopedRuleIndex = config.routes.findIndex(
