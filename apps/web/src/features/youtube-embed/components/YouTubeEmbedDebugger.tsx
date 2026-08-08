@@ -86,7 +86,7 @@ export function YouTubeEmbedDebugger() {
   }, [])
 
   const submitSeekTo = React.useCallback(
-    (event: React.FormEvent<HTMLFormElement>) => {
+    (event: React.ChangeEvent<HTMLFormElement>) => {
       event.preventDefault()
 
       const seconds = Number(seekSeconds)

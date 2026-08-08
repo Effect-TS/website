@@ -174,14 +174,14 @@ function VisualEffectContainer({
 }>) {
   const isDied = state._tag === "Died"
 
-  const filter = useTransform(motionValues.blurAmount, (blur = 0) => {
+  const filter = useTransform(motionValues.blurAmount, (blur) => {
     const cappedBlur = Math.max(0, Math.min(blur, 2))
     return isDied
       ? `blur(${cappedBlur}px) contrast(${VFX.contrast.death}) brightness(${VFX.brightness.death})`
       : `blur(${cappedBlur}px)`
   })
 
-  const boxShadow = useTransform(motionValues.glowIntensity, (glow = 0) => {
+  const boxShadow = useTransform(motionValues.glowIntensity, (glow) => {
     const baseGlow =
       state._tag === "Running"
         ? SHADOW_COLORS.task.running

@@ -54,7 +54,7 @@ export const shareAtom = Atom.family((handle: AtomWorkspaceHandle) => {
 export const copyLinkAtom = Atom.fn<AtomWorkspaceHandle>()(
   Effect.fnUntraced(function* (handle, get) {
     const { url } = yield* get.result(shareAtom(handle))
-    navigator.clipboard.writeText(url)
+    yield* Effect.promise(() => navigator.clipboard.writeText(url))
     yield* Effect.sleep(2000).pipe(
       Effect.tap(() => Effect.sync(() => get.setSelf(AsyncResult.initial()))),
       Effect.forkScoped,

@@ -26,7 +26,7 @@ export function FileInput({
     [setFileName],
   )
 
-  const handleSubmit = useCallback<React.FormEventHandler<HTMLFormElement>>(
+  const handleSubmit = useCallback<React.ChangeEventHandler<HTMLFormElement>>(
     (event) => {
       event.preventDefault()
       setFileName("")

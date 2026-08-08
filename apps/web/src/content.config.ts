@@ -42,7 +42,7 @@ const blogAuthors = defineCollection({
   schema: z.object({
     name: z.string().min(1),
     title: z.string().min(1),
-    url: z.string().url(),
+    url: z.url(),
   }),
 })
 
@@ -64,8 +64,8 @@ const merch = defineCollection({
     name: z.string(),
     price: z.string(),
     images: z.array(z.string()),
-    buyUrl: z.string().url(),
-    infoUrl: z.string().url(),
+    buyUrl: z.url(),
+    infoUrl: z.url(),
   }),
 })
 
@@ -76,7 +76,7 @@ const effectJobs = defineCollection({
     role: z.string(),
     location: z.string().optional(),
     type: z.string().optional(),
-    url: z.string().url(),
+    url: z.url(),
     note: z.string().optional(),
     logo: z.string().optional(),
     payRange: z.string().optional(),
@@ -89,7 +89,7 @@ const effectJobsLogos = defineCollection({
   schema: z.object({
     name: z.string(),
     logo: z.string(),
-    url: z.string().url().optional(),
+    url: z.url().optional(),
     h: z.string().optional(),
     invert: z.boolean().optional(),
   }),

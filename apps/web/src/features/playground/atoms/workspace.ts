@@ -117,8 +117,8 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
               rows: spawned.terminal.rows,
             })
             const writer = process.input.getWriter()
-            const mount = Effect.sync(() => {
-              process.output.pipeTo(
+            const mount = Effect.promise(async () => {
+              await process.output.pipeTo(
                 new WritableStream({
                   write(data) {
                     spawned.terminal.write(data)
@@ -133,7 +133,7 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
                 rows: spawned.terminal.rows,
               })
               spawned.terminal.onData((data) => {
-                writer.write(data)
+                return writer.write(data)
               })
             })
             yield* mount
@@ -432,12 +432,7 @@ function setupWorkspaceFormatters(workspace: Workspace) {
       id: "format",
       label: "Format",
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
-      run: (editor) => {
-        const action = editor.getAction("editor.action.formatDocument")
-        if (action) {
-          action.run()
-        }
-      },
+      run: (editor) => editor.getAction("editor.action.formatDocument")?.run(),
     })
 
     const installedFormatters = new Map<string, InstalledFormatter>()

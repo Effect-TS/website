@@ -125,7 +125,7 @@ export function TraceWaterfall() {
                       onDoubleClick={() => header.column.resetSize()}
                       onMouseDown={header.getResizeHandler()}
                       onTouchStart={header.getResizeHandler()}
-                      className="h-full w-px cursor-ew-resize border-l border-zinc-300 px-[3px] dark:border-zinc-700"
+                      className="h-full w-px cursor-ew-resize border-l border-zinc-300 px-0.75 dark:border-zinc-700"
                     />
                   )}
                 </th>
@@ -165,7 +165,7 @@ export function TraceWaterfall() {
                       {cell.column.getCanResize() && (
                         <div
                           role="separator"
-                          className="h-full w-px border-l border-zinc-300 px-[3px] dark:border-zinc-700"
+                          className="h-full w-px border-l border-zinc-300 px-0.75 dark:border-zinc-700"
                         />
                       )}
                     </td>
