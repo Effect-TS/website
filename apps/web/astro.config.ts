@@ -43,10 +43,11 @@ const config = defineConfig({
   compressHTML: true,
 
   build: {
-    concurrency: 2,
+    concurrency: 1,
   },
 
   experimental: {
+    incrementalBuild: true,
     svgOptimizer: svgoOptimizer(),
   },
 

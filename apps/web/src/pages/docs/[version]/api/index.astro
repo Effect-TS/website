@@ -7,6 +7,7 @@ import Footer from "@/components/Footer.astro"
 import Navigation from "@/components/navigation/Navigation.astro"
 import ApiMobileNavigation from "@/features/api-reference/ApiMobileNavigation.astro"
 import { resolveApiReferenceOpenGraph } from "@/features/api-reference/open-graph"
+import { createCacheKey } from "@/lib/cache-key"
 import { PAGE_TITLE_ID } from "@/lib/constants/skip-link"
 import BaseLayout from "@/layouts/BaseLayout.astro"
 
@@ -26,6 +27,20 @@ export const getStaticPaths = (async () => {
   return Array.from(entriesByVersion).map(([version, entries]) => ({
     params: { version },
     props: { entries, version },
+    cacheKey: createCacheKey([
+      version,
+      entries
+        .toSorted((left, right) => left.id.localeCompare(right.id))
+        .map((entry) => [
+          entry.id,
+          entry.data.revision,
+          entry.data.packageName,
+          entry.data.packageSlug,
+          entry.data.packageDescription,
+          entry.data.packageModuleCount,
+          entry.data.modulePath,
+        ]),
+    ]),
   }))
 }) satisfies GetStaticPaths
 
