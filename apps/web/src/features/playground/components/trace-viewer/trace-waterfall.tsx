@@ -47,12 +47,6 @@ const columns: Array<ColumnDef<Span>> = [
   },
 ]
 
-declare module "@tanstack/react-table" {
-  interface ColumnMeta<TData, TValue> {
-    grow: boolean
-  }
-}
-
 export function TraceWaterfall() {
   const selectedSpan = useAtomValue(selectedSpanAtom)
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})

@@ -19,6 +19,9 @@ export default defineConfig({
       typeCheck: true,
     },
     rules: {
+      "import/namespace": "off",
+      "typescript/no-misused-spread": "off",
+      "typescript/unbound-method": "off",
       "vite-plus/prefer-vite-plus-imports": "error",
     },
   },

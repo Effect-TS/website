@@ -4,11 +4,12 @@ import type {
   IFeatureDefinition,
   IWorkerDefinition,
 } from "@effect/monaco-editor/esm/metadata"
+import * as metadata from "@effect/monaco-editor/esm/metadata"
 import type { Plugin } from "vite"
 import { createRequire } from "node:module"
 import * as path from "node:path"
+
 const require = createRequire(import.meta.url)
-const metadata = require("@effect/monaco-editor/esm/metadata")
 
 export interface PluginMonacoEditorOptions {
   readonly globalAPI?: boolean
