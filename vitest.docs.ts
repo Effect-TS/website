@@ -1,7 +1,7 @@
 import type { Plugin } from "vite"
 import * as Doctest from "@effect/doctest/Plugin"
 import { stripTypeScriptTypes } from "node:module"
-import { defineConfig } from "vitest/config"
+import { defineConfig } from "vite-plus"
 
 // Doctest's extracted snippet modules keep the .mdx extension of their source
 // file (e.g. "batching.mdx?effect-doctest=snippet&index=5"), so Vite's
@@ -19,7 +19,14 @@ const stripDoctestSnippetTypes: Plugin = {
   enforce: "pre",
   transform(code, id) {
     if (!id.includes("effect-doctest=snippet")) return null
-    return { code: stripTypeScriptTypes(code, { mode: "transform" }), map: null }
+    return {
+      code: stripTypeScriptTypes(
+        code,
+        // Node runtime supports transform mode; current @types/node exposes strip only.
+        { mode: "transform" } as never,
+      ),
+      map: null,
+    }
   },
 }
 
@@ -29,6 +36,6 @@ export default defineConfig({
     passWithNoTests: false,
     testTimeout: 30_000,
     include: [],
-    includeSource: ["src/content/docs/v4/**/*.mdx"],
+    includeSource: ["apps/web/src/content/docs/v4/**/*.mdx"],
   },
 })

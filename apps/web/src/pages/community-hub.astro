@@ -1,0 +1,558 @@
+---
+import { Image } from "astro:assets"
+import { ArrowDown, ArrowRight, ArrowUpRight, Presentation, Users } from "@lucide/astro"
+import GridBackground from "@/components/GridBackground.astro"
+import PageLayout from "@/layouts/PageLayout.astro"
+
+import dillonSf24 from "./community-hub/_assets/dillon-sf-24-web.jpg"
+import hamburg from "./community-hub/_assets/hamburg-web.jpg"
+import miami2026Davidk from "./community-hub/_assets/miami-2026-davidk-web.jpg"
+import miamiAriel from "./community-hub/_assets/miami-ariel-web.jpg"
+import miamiDax from "./community-hub/_assets/miami-dax-web.jpg"
+import milan25 from "./community-hub/_assets/milan-25-web.jpg"
+import milan26 from "./community-hub/_assets/milan-26-web.jpg"
+import milan26Leo from "./community-hub/_assets/milan-26-leo-web.jpg"
+import parisApril4 from "./community-hub/_assets/paris-april-4-web.jpg"
+import parisNov2 from "./community-hub/_assets/paris-nov-2-web.jpg"
+import speakers from "./community-hub/_assets/speakers.png"
+import vienna23 from "./community-hub/_assets/vienna-23-web.jpg"
+import vienna262 from "./community-hub/_assets/vienna-26-2-web.jpg"
+
+const FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSdiqkoogZ8a2h10oF2ANRTDE_m9l-huR8cpoedbMpjAd29tNw/viewform"
+
+const SUPPORT_ITEMS = [
+  {
+    title: "Meetups",
+    description: "From your first event to a recurring local community.",
+    icon: Users,
+    details: [
+      "Guidance on planning and running your first event",
+      "Connecting you with Effect developers nearby",
+      "Listing your meetup on the Effect events calendar",
+    ],
+    photo: { src: miamiDax, alt: "Effect meetup in Miami", caption: "// Miami '26" },
+  },
+  {
+    title: "Speaker kit",
+    description: "Another pair of eyes before you go on stage.",
+    icon: Presentation,
+    details: [
+      "Slide templates",
+      "Feedback on your topic or abstract",
+      "Prep session with the Effect team",
+    ],
+    photo: { src: milan26Leo, alt: "Effect talk in Milan", caption: "// Milan '26" },
+  },
+]
+
+const GALLERY_COLUMNS = [
+  [
+    { src: dillonSf24, alt: "Effect meetup in San Francisco", caption: "// SF '24", stretch: true },
+    { src: vienna262, alt: "Effect meetup in Vienna", caption: "// Vienna '26" },
+  ],
+  [
+    { src: parisApril4, alt: "Effect meetup in Paris", caption: "// Paris '25" },
+    { src: miamiAriel, alt: "Effect meetup in Miami", caption: "// Miami '26" },
+    { src: milan25, alt: "Effect meetup in Milan", caption: "// Milan '25", stretch: true },
+  ],
+  [
+    { src: vienna23, alt: "Effect meetup in Vienna", caption: "// Vienna '23" },
+    { src: hamburg, alt: "Effect meetup in Hamburg", caption: "// Hamburg '25" },
+    { src: parisNov2, alt: "Effect meetup in Paris", caption: "// Paris '24", stretch: true },
+  ],
+  [
+    { src: miami2026Davidk, alt: "Effect meetup in Miami", caption: "// Miami '26" },
+    { src: milan26, alt: "Effect meetup in Milan", caption: "// Milan '26" },
+  ],
+]
+
+const TALK_IDEAS: { label: string; href?: string }[] = [
+  {
+    label: "Reliable TypeScript for production systems",
+    href: "/docs/getting-started/why-effect/",
+  },
+  {
+    label: "Stop agent slop with Effect",
+    href: "/blog/the-one-weird-git-trick-that-makes-coding-agents-more-effect-ive/",
+  },
+  {
+    label: "AI 🤍 Effect",
+    href: "https://www.youtube.com/watch?v=XaNHyZbFUBY",
+  },
+  {
+    label: "Effect Schema V4",
+    href: "https://www.youtube.com/watch?v=0naAPm0-0Wg",
+  },
+  {
+    label: "Production TypeScript for the AI Era",
+    href: "https://www.youtube.com/watch?v=hY279-A2fC4",
+  },
+  {
+    label: "Incremental adoption of Effect",
+    href: "https://www.youtube.com/watch?v=tfhxR8Z-w6E",
+  },
+]
+
+const CHANNELS = [
+  {
+    icon: "ri-discord-fill",
+    color: "#5865F2",
+    title: "A thriving Discord community",
+    description: "Effect developers sharing questions, patterns, and production stories every day.",
+    href: "https://discord.gg/effect-ts",
+    linkLabel: "discord.gg/effect-ts",
+  },
+  {
+    icon: "ri-twitter-x-fill",
+    color: "#FFFFFF",
+    title: "Follow Effect on X",
+    description: "News, releases, and Effect takes straight from the source.",
+    href: "https://x.com/EffectTS_",
+    linkLabel: "@EffectTS_",
+  },
+  {
+    icon: "ri-youtube-fill",
+    color: "#FF0000",
+    title: "Effect on YouTube",
+    description: "Talks, workshops, and office hours livestreams.",
+    href: "https://www.youtube.com/@effect-ts",
+    linkLabel: "youtube.com/@effect-ts",
+  },
+]
+
+const UPCOMING_EVENTS: string[] = [
+  "evt-dD8Ky9OvDPnU2ln", // Effect Office Hours 40
+  "evt-IpTTFhOGblrQdoK", // Effect Warsaw #1
+]
+---
+
+<PageLayout
+  title="Effect Community Hub"
+  description="Crash your local TypeScript or AI event with an Effect talk, host your own meetup, or join an event near you."
+  activeSlug="community"
+>
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 z-0 hidden lg:block">
+    <div class="mx-auto h-full w-full max-w-295">
+      <div class="community-hub-rail-center absolute inset-y-0 left-1/2 w-px -translate-x-1/2">
+      </div>
+    </div>
+  </div>
+
+  <section class="hero-section relative w-full overflow-hidden pt-16 pb-16 md:pt-24 md:pb-24">
+    <div class="hero-grid-offset">
+      <GridBackground />
+    </div>
+    <div
+      aria-hidden="true"
+      class="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[400px]"
+    >
+    </div>
+
+    <div class="absolute inset-y-0 right-0 z-70 hidden w-[53%] overflow-hidden lg:block">
+      <Image src={speakers} alt="An Effect community meetup" class="h-full w-full object-cover" />
+      <div
+        class="pointer-events-none absolute inset-0 bg-linear-to-r from-zinc-950 via-transparent to-transparent"
+      >
+      </div>
+      <div
+        class="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-950/70 via-transparent to-transparent"
+      >
+      </div>
+      <p class="absolute bottom-3 left-16 font-mono text-xs tracking-wider text-zinc-300 uppercase">
+        // Effect Meetup NYC '25 at Warp's
+      </p>
+    </div>
+
+    <div class="relative z-20 mx-auto w-full max-w-295 px-4">
+      <div class="grid grid-cols-1 items-center gap-8 lg:grid-cols-2">
+        <div>
+          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+            // Spread the Effect
+          </p>
+          <h1 class="text-3xl leading-[1.1] font-bold tracking-tight text-white md:text-4xl">
+            Bring Effect to your community events
+          </h1>
+          <p class="mt-4 text-lg text-zinc-400 md:max-w-[41.667%] lg:max-w-[83.333%]">
+            Crash your local TypeScript or AI event with an Effect talk, host your own meetup, or
+            join an event near you.
+          </p>
+          <div class="mt-8 flex flex-wrap items-stretch gap-4">
+            <a
+              href={FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group inline-flex items-center justify-center gap-2 rounded-md bg-white px-5 py-2.5 text-sm font-medium text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)]"
+            >
+              Tell us about your event
+              <ArrowUpRight
+                class="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                aria-hidden="true"
+              />
+            </a>
+            <a
+              href="#upcoming-events"
+              class="group inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:border-zinc-500 hover:bg-zinc-900"
+            >
+              See upcoming events
+              <ArrowDown
+                class="size-4 transition-transform group-hover:translate-y-0.5"
+                aria-hidden="true"
+              />
+            </a>
+          </div>
+        </div>
+
+        <div class="relative overflow-hidden lg:hidden">
+          <Image
+            src={speakers}
+            alt="An Effect community meetup"
+            class="h-full w-full object-cover"
+          />
+          <div
+            class="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-950/70 via-transparent to-transparent"
+          >
+          </div>
+          <p
+            class="absolute bottom-3 left-4 font-mono text-xs tracking-wider text-zinc-300 uppercase"
+          >
+            // Effect Meetup NYC '25 at Warp's
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="upcoming-events" class="scroll-mt-16 border-t border-zinc-800 py-24 md:pt-40">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+        // Upcoming events
+      </p>
+      <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <h2 class="text-2xl leading-tighter font-semibold text-white md:text-3xl">
+          Join an upcoming event
+        </h2>
+        <a
+          href="https://luma.com/effect-community"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-zinc-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:border-zinc-500 hover:bg-zinc-900"
+        >
+          View events calendar
+          <ArrowUpRight class="size-4" aria-hidden="true" />
+        </a>
+      </div>
+
+      <div class="mt-12 grid grid-cols-1 gap-4 md:grid-cols-2">
+        {
+          UPCOMING_EVENTS.map((eventId) => (
+            <iframe
+              src={`https://luma.com/embed/event/${eventId}/simple?lt=dark`}
+              title="Upcoming Effect community event"
+              class="h-[720px] w-full rounded-md border border-zinc-800 bg-[#131517]"
+              allow="fullscreen; payment"
+              loading="lazy"
+            />
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="border-t border-zinc-800 py-24 md:pt-40">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+        // Support
+      </p>
+      <h2 class="text-2xl leading-tighter font-semibold text-white md:text-3xl">
+        What we can help with
+      </h2>
+
+      <div class="-mx-4 mt-12 flex flex-col border border-zinc-800">
+        {
+          SUPPORT_ITEMS.map((item, index) => (
+            <div class="grid grid-cols-1 overflow-hidden lg:grid-cols-2">
+              <div
+                class:list={[
+                  "flex flex-col bg-[#0C0C0E] px-8 py-16 md:px-14",
+                  { "lg:order-2": index % 2 === 1 },
+                ]}
+              >
+                <h3 class="text-xl font-semibold tracking-tight text-white md:text-2xl">
+                  {item.title}
+                </h3>
+                <p class="mt-3 text-base leading-relaxed text-zinc-400">{item.description}</p>
+                <ul class="mt-4 flex flex-col gap-2 border-t border-zinc-700 pt-4">
+                  {item.details.map((detail) => (
+                    <li class="flex items-baseline gap-2.5 text-base leading-relaxed text-zinc-400">
+                      <span class="text-emerald-500" aria-hidden="true">
+                        ✓
+                      </span>
+                      {detail}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div class:list={["relative min-h-64 lg:min-h-0", { "lg:order-1": index % 2 === 1 }]}>
+                <Image
+                  src={item.photo.src}
+                  alt={item.photo.alt}
+                  loading="lazy"
+                  class="absolute inset-0 h-full w-full object-cover saturate-[0.85]"
+                />
+                <div class="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-950/70 via-transparent to-transparent" />
+                <p class="absolute bottom-3 left-4 font-mono text-xs tracking-wider text-zinc-300 uppercase">
+                  {item.photo.caption}
+                </p>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section id="talk-ideas" class="border-t border-zinc-800 py-24 md:pt-40">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+        // Effect Talk Ideas
+      </p>
+      <h2 class="text-2xl leading-tighter font-semibold text-white md:text-3xl">
+        Not sure what to talk about?
+      </h2>
+      <p class="mt-4 text-lg leading-normal text-zinc-400">
+        A few Effect-friendly angles to get you started
+      </p>
+
+      <ul class="mt-12 grid grid-cols-1 gap-3 md:grid-cols-2">
+        {
+          TALK_IDEAS.map((idea) => (
+            <li>
+              {idea.href ? (
+                <a
+                  href={idea.href}
+                  target={idea.href.startsWith("http") ? "_blank" : undefined}
+                  rel={idea.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                  class="group flex items-center gap-1.5 rounded-md border border-zinc-700 bg-[#0C0C0E] px-4 py-3 font-mono text-sm text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+                >
+                  {idea.label}
+                  <ArrowUpRight
+                    class="ml-auto size-4 shrink-0 self-center text-zinc-400 transition-colors group-hover:text-white"
+                    aria-hidden="true"
+                  />
+                </a>
+              ) : (
+                <span class="flex items-center gap-1.5 rounded-md border border-zinc-700 bg-[#0C0C0E] px-4 py-3 font-mono text-sm text-zinc-300">
+                  {idea.label}
+                </span>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="border-t border-zinc-800 py-16">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {
+          GALLERY_COLUMNS.map((column) => (
+            <div class="flex flex-col gap-4">
+              {column.map((photo) => (
+                <div class:list={["relative overflow-hidden", { "flex-1": photo.stretch }]}>
+                  <Image
+                    src={photo.src}
+                    alt={photo.alt}
+                    loading="lazy"
+                    class:list={[
+                      "w-full saturate-[0.85]",
+                      { "absolute inset-0 h-full object-cover": photo.stretch },
+                    ]}
+                  />
+                  <div class="pointer-events-none absolute inset-0 bg-linear-to-t from-zinc-950/70 via-transparent to-transparent" />
+                  <p class="absolute bottom-2.5 left-3 font-mono text-xs tracking-wider text-zinc-300 uppercase">
+                    {photo.caption}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="border-t border-zinc-800 py-24 md:pt-40">
+    <div class="mx-auto w-full max-w-295 px-4">
+      <div class="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-12">
+        <div class="lg:col-span-6 lg:flex lg:flex-col lg:justify-center">
+          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+            // Stay connected
+          </p>
+          <h2 class="text-2xl leading-tighter font-semibold text-white md:text-3xl">
+            Join the conversation
+          </h2>
+          <p class="mt-4 text-lg leading-normal text-zinc-400">
+            Where the Effect community hangs out online
+          </p>
+        </div>
+
+        <ul class="flex flex-col gap-3 lg:col-span-6">
+          {
+            CHANNELS.map((channel) => (
+              <li>
+                <a
+                  href={channel.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="group relative flex gap-4 overflow-hidden rounded-md border border-zinc-700 bg-[#0C0C0E] p-6 transition-colors hover:border-zinc-500"
+                >
+                  <div class="flex h-14 w-14 shrink-0 items-center justify-center self-center rounded-md bg-zinc-800">
+                    <i
+                      class={`${channel.icon} text-2xl`}
+                      style={`color: ${channel.color}`}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <div class="flex flex-col">
+                    <h3 class="text-base font-semibold text-white">{channel.title}</h3>
+                    <p class="mt-1 text-sm leading-relaxed text-zinc-400">{channel.description}</p>
+                  </div>
+                  <ArrowUpRight
+                    class="ml-auto size-4 shrink-0 self-start text-zinc-600 transition-colors group-hover:text-white"
+                    aria-hidden="true"
+                  />
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-section relative overflow-hidden border-t border-zinc-800 py-24 md:pt-40">
+    <div class="cta-grid-offset">
+      <GridBackground />
+    </div>
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0"
+      style="background: linear-gradient(to bottom, #09090b 0%, transparent 25%, transparent 75%, #09090b 100%);"
+    >
+    </div>
+
+    <div class="relative z-10 mx-auto w-full max-w-295 px-4">
+      <div class="grid grid-cols-1 items-center gap-6 md:grid-cols-12 md:gap-x-6 md:gap-y-8">
+        <div class="text-center md:col-span-6 md:mt-2 md:text-left">
+          <p class="mb-3 font-mono text-sm font-medium tracking-wider text-zinc-400 uppercase">
+            // Get in touch
+          </p>
+          <h2 class="text-xl font-semibold tracking-tight text-white md:text-2xl">
+            Bringing Effect to a developer event?
+          </h2>
+          <p class="mt-4 text-lg leading-normal text-zinc-400">
+            Every community starts with someone stepping on stage, we'd love it to be you.
+          </p>
+        </div>
+
+        <div class="md:col-span-4 md:col-start-9 md:mt-[9px] md:self-start">
+          <div
+            class="relative mx-auto flex max-w-xs flex-col items-center gap-3 px-6 py-6 md:max-w-none"
+          >
+            <span class="corner-bracket corner-tl"></span>
+            <span class="corner-bracket corner-tr"></span>
+            <span class="corner-bracket corner-bl"></span>
+            <span class="corner-bracket corner-br"></span>
+
+            <a
+              href={FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-white px-5 py-2.5 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200"
+            >
+              Tell us about your event
+              <ArrowRight class="size-4" aria-hidden="true" />
+            </a>
+            <a
+              href="https://discord.gg/effect-ts"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1 font-mono text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+            >
+              discord.gg/effect-ts
+              <ArrowUpRight class="size-3" aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</PageLayout>
+
+<style>
+  .hero-glow {
+    background:
+      radial-gradient(ellipse 50% 80% at 70% -20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse 30% 50% at 80% 0%, rgba(255, 255, 255, 0.05) 0%, transparent 40%);
+  }
+
+  .hero-grid-offset {
+    position: absolute;
+    inset: 0;
+    bottom: -194px;
+    transform: translateY(-21px);
+  }
+
+  .cta-grid-offset {
+    position: absolute;
+    inset: 0;
+    top: -194px;
+    transform: translateY(39px);
+  }
+
+  .community-hub-rail-center {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgb(39 39 42) 0,
+      rgb(39 39 42) 2px,
+      transparent 2px,
+      transparent 4px
+    );
+  }
+
+  .corner-bracket {
+    position: absolute;
+    height: 0.75rem;
+    width: 0.75rem;
+    border-color: rgba(63, 63, 70, 0.8);
+    border-style: solid;
+    border-width: 0;
+  }
+
+  .corner-tl {
+    top: 0;
+    left: 0;
+    border-top-width: 1px;
+    border-left-width: 1px;
+  }
+  .corner-tr {
+    top: 0;
+    right: 0;
+    border-top-width: 1px;
+    border-right-width: 1px;
+  }
+  .corner-bl {
+    bottom: 0;
+    left: 0;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+  }
+  .corner-br {
+    bottom: 0;
+    right: 0;
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+  }
+</style>
