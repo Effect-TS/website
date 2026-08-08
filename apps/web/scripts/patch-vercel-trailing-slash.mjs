@@ -1,28 +1,28 @@
 // Runs after `vercel build` and before `vercel deploy --prebuilt` (see
-// .github/workflows/production.yml and preview.yml). Replaces the
+// .github/actions/deploy/action.yml and .github/workflows/preview.yml). Replaces the
 // auto-generated trailing-slash rule in the already-built
 // .vercel/output/config.json with a properly scoped one.
 //
-// astro.config.ts sets `trailingSlash: "never"` so Astro's own dev server
+// apps/web/astro.config.ts sets `trailingSlash: "never"` so Astro's own dev server
 // enforces it natively (no dev-only middleware workaround needed — that's
 // the whole reason to use "never" instead of "ignore"). But the SAME setting
 // makes @astrojs/vercel bake an unscoped `^/(.*)/$` redirect into
 // config.json, with no way to exclude a path or method via any astro.config
 // or vercel.json option (verified against @vercel/routing-utils source: the
 // `trailingSlash` param is a plain boolean, nothing else). That unscoped rule
-// also matches /ingest/* (PostHog's reverse proxy, see vercel.json rewrites)
+// also matches /ingest/* (PostHog's reverse proxy, see apps/web/vercel.json rewrites)
 // and every HTTP method, which breaks PostHog capture (confirmed by a real
 // prod deploy: capture requests got redirected instead of proxied).
 //
 // Other things tried and confirmed not to work for this project, so this
 // artifact-patching approach is what's left:
-// - vercel.json's own redirects/trailingSlash: confirmed by direct prod test
+// - apps/web/vercel.json's own redirects/trailingSlash: confirmed by direct prod test
 //   to never apply to this deployment at all.
-// - Defining both "/docs" and "/docs/" as separate astro.config redirects
+// - Defining both "/docs" and "/docs/" as separate apps/web/astro.config.ts redirects
 //   entries under `trailingSlash: "ignore"`: Astro's router refuses ("A
 //   static route cannot be defined more than once") — a known open Astro bug
 //   (withastro/astro#12532), not fixable from userland config.
-// - Root-level middleware.ts (Vercel Routing Middleware): never wired up for
+// - Vercel project-root middleware.ts under apps/web: never wired up for
 //   this deployment even though CI runs `vercel build` (confirmed: no
 //   Middleware entry in the Vercel dashboard after a real deploy) — once
 //   @astrojs/vercel produces a complete Build Output API config.json,

@@ -56,7 +56,7 @@ const repositoryDirectory = resolve(
 )
 const outputDirectory = resolve(
   websiteDirectory,
-  options.output ?? join(".data/api-reference", options.version),
+  options.output ?? join("apps/web/.data/api-reference", options.version),
 )
 
 assertDirectory(repositoryDirectory, "Effect repository")
@@ -560,7 +560,7 @@ function parseArguments(arguments_) {
 
 Options:
   --repo <path>       Effect repository (default: ../effect)
-  --out <path>        Output directory (default: .data/api-reference/<version>)
+  --out <path>        Output directory (default: apps/web/.data/api-reference/<version>)
   --package <name>    Generate only one npm package
   --version <name>    Documentation channel, such as v3 or v4
   --help              Show this help`)

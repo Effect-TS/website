@@ -79,11 +79,11 @@ runs:
           exit 1
         fi
 
-        rm -rf .data/api-reference
-        mkdir -p .data
-        tar -xzf "$snapshot_dir/api-reference.tar.gz" -C .data
+        rm -rf apps/web/.data/api-reference
+        mkdir -p apps/web/.data
+        tar -xzf "$snapshot_dir/api-reference.tar.gz" -C apps/web/.data
         snapshot_id=$(vp exec api-reference snapshot validate \
-          --data .data/api-reference \
+          --data apps/web/.data/api-reference \
           --manifest "$snapshot_dir/manifest.json")
         if [[ "$SNAPSHOT_TAG" != "api-reference-$snapshot_id" ]]; then
           echo "::error::API reference snapshot tag does not match its manifest"
@@ -92,6 +92,7 @@ runs:
 
     - name: Pull Vercel Environment Information
       shell: bash
+      working-directory: apps/web
       run: pnpm exec vercel pull --yes --environment=production --token="${{ inputs.vercel-token }}" --scope=effect-ts
       env:
         VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
@@ -99,6 +100,7 @@ runs:
 
     - name: Build Project Artifacts
       shell: bash
+      working-directory: apps/web
       run: pnpm exec vercel build --prod --token="${{ inputs.vercel-token }}"
       env:
         VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
@@ -106,10 +108,12 @@ runs:
 
     - name: Patch trailing-slash redirect into build output
       shell: bash
+      working-directory: apps/web
       run: node scripts/patch-vercel-trailing-slash.mjs
 
     - name: Deploy Project Artifacts to Vercel
       shell: bash
+      working-directory: apps/web
       run: pnpm exec vercel deploy --prebuilt --archive=tgz --prod --token="${{ inputs.vercel-token }}" --scope=effect-ts
       env:
         VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
@@ -117,7 +121,7 @@ runs:
 
     - name: Synchronize Mixedbread production store
       shell: bash
-      run: vp run mixedbread:index sync --scope "${{ inputs.mixedbread-scope }}" --sha "${{ inputs.website-ref }}"
+      run: vp exec mixedbread sync --scope "${{ inputs.mixedbread-scope }}" --sha "${{ inputs.website-ref }}"
       env:
         MXBAI_API_KEY: ${{ inputs.mxbai-api-key }}
         MXBAI_VECTOR_STORE_ID: ${{ inputs.mxbai-vector-store-id }}

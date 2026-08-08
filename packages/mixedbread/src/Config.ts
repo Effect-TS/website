@@ -4,6 +4,7 @@ export const UPLOAD_CONCURRENCY = 100
 export const FILE_UPLOAD_ATTEMPTS = 3
 export const DEFAULT_DOCUMENTATION_DIRECTORY = "apps/web/src/content/docs"
 export const DEFAULT_BLOG_DIRECTORY = "apps/web/src/content/blog"
+export const DEFAULT_API_REFERENCE_DIRECTORY = "apps/web/.data/api-reference"
 export const BLOG_CONTENT_PATTERNS = [
   "cause-and-effect/*.mdx",
   "this-week-in-effect/*/index.mdx",

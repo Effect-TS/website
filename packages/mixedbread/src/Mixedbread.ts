@@ -16,6 +16,7 @@ import { syncApiReference } from "./ApiReferenceSync.ts"
 import { generateApiReferenceFiles } from "./ApiReferenceFiles.ts"
 import {
   DEFAULT_BLOG_DIRECTORY,
+  DEFAULT_API_REFERENCE_DIRECTORY,
   DEFAULT_DOCUMENTATION_DIRECTORY,
   type DeleteOptions,
   type SyncOptions,
@@ -89,7 +90,7 @@ export class Mixedbread extends Context.Service<
     )
     const apiReferenceDir = yield* Config.string(
       "API_REFERENCE_DIRECTORY",
-    ).pipe(Config.withDefault(".data/api-reference"))
+    ).pipe(Config.withDefault(DEFAULT_API_REFERENCE_DIRECTORY))
     const documentationStageDir = yield* Config.string(
       "DOCUMENTATION_STAGE_DIRECTORY",
     ).pipe(Config.withDefault(".data/mixedbread/documentation"))

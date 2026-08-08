@@ -61,11 +61,6 @@ export default defineConfig({
         cache: false,
       },
 
-      "mixedbread:index": {
-        command: "vp exec mixedbread",
-        cache: false,
-      },
-
       test: "vp test",
     },
   },

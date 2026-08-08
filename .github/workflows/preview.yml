@@ -83,8 +83,8 @@ jobs:
         id: api-reference-cache
         uses: actions/cache@v5
         with:
-          path: .data/api-reference
-          key: api-reference-v1-${{ runner.os }}-v3-${{ steps.effect-revisions.outputs.v3 }}-v4-${{ steps.effect-revisions.outputs.v4 }}-${{ hashFiles('packages/api-reference/src/generate.mjs', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
+          path: apps/web/.data/api-reference
+          key: api-reference-v2-${{ runner.os }}-v3-${{ steps.effect-revisions.outputs.v3 }}-v4-${{ steps.effect-revisions.outputs.v4 }}-${{ hashFiles('packages/api-reference/src/generate.mjs', 'packages/api-reference/package.json', 'packages/domain/src/ApiReference.ts', 'pnpm-lock.yaml') }}
 
       - name: Generate API reference
         if: steps.api-reference-cache.outputs.cache-hit != 'true'
@@ -95,26 +95,30 @@ jobs:
       - name: Synchronize Mixedbread preview store
         if: steps.search-changes.outputs.changed == 'true'
         id: mixedbread
-        run: vp run mixedbread:index sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"
+        run: vp exec mixedbread sync --pr "${{ github.event.pull_request.number }}" --sha "${{ github.event.pull_request.head.sha }}"
         env:
           MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
 
       - name: Pull Vercel Environment Information
+        working-directory: apps/web
         run: pnpm exec vercel pull --yes --environment=preview --git-branch="${{ github.head_ref }}" --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build Project Artifacts
+        working-directory: apps/web
         run: pnpm exec vercel build --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Patch trailing-slash redirect into build output
+        working-directory: apps/web
         run: node scripts/patch-vercel-trailing-slash.mjs
 
       - name: Deploy Project Artifacts to Vercel
+        working-directory: apps/web
         run: |
           if [[ -z "$SEARCH_STORE_ID" ]]; then
             echo "::error::No Mixedbread search store is available for this preview"
@@ -141,6 +145,6 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Delete Mixedbread preview store
-        run: vp run mixedbread:index delete-preview --pr "${{ github.event.pull_request.number }}"
+        run: vp exec mixedbread delete-preview --pr "${{ github.event.pull_request.number }}"
         env:
           MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}

@@ -141,17 +141,17 @@ jobs:
           asset_dir="$RUNNER_TEMP/api-reference-assets"
           mkdir -p "$asset_dir"
           vp exec api-reference snapshot create \
-            --data .data/api-reference \
+            --data apps/web/.data/api-reference \
             --output "$asset_dir/manifest.json" \
             --v3 "$V3_REVISION" \
             --v4 "$V4_REVISION" \
             --generator "$GENERATOR_HASH" \
             --website-revision "$GITHUB_SHA"
-          tar -czf "$asset_dir/api-reference.tar.gz" -C .data api-reference
+          tar -czf "$asset_dir/api-reference.tar.gz" -C apps/web/.data api-reference
           sha256sum "$asset_dir/api-reference.tar.gz" | sed "s|$asset_dir/||" > "$asset_dir/api-reference.sha256"
 
           manifest_id=$(vp exec api-reference snapshot validate \
-            --data .data/api-reference \
+            --data apps/web/.data/api-reference \
             --manifest "$asset_dir/manifest.json")
           if [[ "$manifest_id" != "$SNAPSHOT_ID" ]]; then
             echo "::error::Generated API reference snapshot ID changed during packaging"
