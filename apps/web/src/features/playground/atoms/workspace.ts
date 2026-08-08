@@ -117,26 +117,26 @@ export const workspaceHandleAtom = Atom.family((workspace: Workspace) =>
               rows: spawned.terminal.rows,
             })
             const writer = process.input.getWriter()
-            const mount = Effect.promise(async () => {
-              await process.output.pipeTo(
+            yield* Effect.promise((signal) =>
+              process.output.pipeTo(
                 new WritableStream({
                   write(data) {
                     spawned.terminal.write(data)
                   },
                 }),
-              )
-              spawned.terminal.onResize((dimensions) => {
-                process.resize(dimensions)
-              })
-              process.resize({
-                cols: spawned.terminal.cols,
-                rows: spawned.terminal.rows,
-              })
-              spawned.terminal.onData((data) => {
-                return writer.write(data)
-              })
+                { signal },
+              ),
+            ).pipe(Effect.forkScoped)
+            spawned.terminal.onResize((dimensions) => {
+              process.resize(dimensions)
             })
-            yield* mount
+            process.resize({
+              cols: spawned.terminal.cols,
+              rows: spawned.terminal.rows,
+            })
+            spawned.terminal.onData((data) => {
+              return writer.write(data)
+            })
 
             // Install workspace dependencies, perform type acquisition, etc.
             // in the background
