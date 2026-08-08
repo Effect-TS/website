@@ -43,9 +43,17 @@ export default defineConfig({
     tasks: {
       "api-reference:generate": "vp exec api-reference generate",
 
+      "astro:sync": {
+        command: "vp -C apps/web exec astro sync",
+        cache: false,
+      },
+
       build: "vp -C apps/web exec astro build",
 
-      check: ["vp check", "vp -C apps/web exec astro check"],
+      check: {
+        command: ["vp check", "vp -C apps/web exec astro check"],
+        dependsOn: ["astro:sync"],
+      },
 
       "dev:web": {
         command: "vp -C apps/web exec astro dev",
@@ -58,10 +66,14 @@ export default defineConfig({
         cache: false,
       },
 
-      lint: "vp lint",
+      lint: {
+        command: "vp lint",
+        dependsOn: ["astro:sync"],
+      },
       "lint:fix": {
         command: "vp lint --fix",
         cache: false,
+        dependsOn: ["astro:sync"],
       },
 
       test: "vp test",
