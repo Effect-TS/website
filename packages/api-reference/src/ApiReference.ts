@@ -192,6 +192,8 @@ function commentHtml(
   const blocks = markdown.split(/\n{2,}/).flatMap((block) => {
     const trimmed = block.trim()
     if (trimmed.length === 0) return []
+    const table = markdownTable(trimmed)
+    if (table !== undefined) return [table]
     const heading = /^\*\*(.+)\*\*$/.exec(trimmed)
     if (heading !== null) return [`<h4>${inlineMarkup(heading[1] ?? "")}</h4>`]
     return [`<p>${inlineMarkup(trimmed.replace(/\n/g, " "))}</p>`]
@@ -211,6 +213,46 @@ function commentHtml(
     }
   }
   return blocks.length > 0 ? blocks.join("") : undefined
+}
+
+function markdownTable(value: string): string | undefined {
+  const lines = value.split("\n")
+  if (lines.length < 2) return undefined
+  const header = markdownTableCells(lines[0] ?? "")
+  const separator = markdownTableCells(lines[1] ?? "")
+  if (
+    header === undefined ||
+    separator === undefined ||
+    header.length === 0 ||
+    separator.length !== header.length ||
+    separator.some((cell) => !/^:?-{3,}:?$/.test(cell))
+  ) {
+    return undefined
+  }
+  const body = lines.slice(2).flatMap((line) => {
+    const cells = markdownTableCells(line)
+    return cells === undefined
+      ? []
+      : [markdownTableRow("td", cells, header.length)]
+  })
+  return `<div class="api-table"><table><thead>${markdownTableRow("th", header, header.length)}</thead><tbody>${body.join("")}</tbody></table></div>`
+}
+
+function markdownTableCells(line: string): ReadonlyArray<string> | undefined {
+  const trimmed = line.trim()
+  if (!trimmed.includes("|")) return undefined
+  const cells = trimmed.split(/(?<!\\)\|/)
+  if (cells[0]?.trim() === "") cells.shift()
+  if (cells.at(-1)?.trim() === "") cells.pop()
+  return cells.map((cell) => cell.trim().replaceAll("\\|", "|"))
+}
+
+function markdownTableRow(
+  tag: "td" | "th",
+  cells: ReadonlyArray<string>,
+  width: number,
+): string {
+  return `<tr>${Array.from({ length: width }, (_, index) => `<${tag}>${inlineMarkup(cells[index] ?? "")}</${tag}>`).join("")}</tr>`
 }
 
 function commentMarkdown(
