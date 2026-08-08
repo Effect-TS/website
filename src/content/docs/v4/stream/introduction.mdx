@@ -19,7 +19,7 @@ Think of a `Stream` as an extension of an `Effect`. While an `Effect<A, E, R>` r
 To clarify, let's examine some examples using `Effect`:
 
 ```ts twoslash import.meta.vitest name="what-is-a-stream-1"
-import { Effect, Chunk, Option, Exit } from "effect"
+import { Effect, Option, Exit } from "effect"
 
 // An Effect that fails with a string error
 const failedEffect = Effect.fail("fail!")
@@ -27,8 +27,8 @@ const failedEffect = Effect.fail("fail!")
 // An Effect that produces a single number
 const oneNumberValue = Effect.succeed(3)
 
-// An Effect that produces a chunk of numbers
-const oneListValue = Effect.succeed(Chunk.make(1, 2, 3))
+// An Effect that produces one array of numbers
+const oneListValue = Effect.succeed([1, 2, 3])
 
 // An Effect that produces an optional number
 const oneOption = Effect.succeed(Option.some(1))
@@ -36,7 +36,7 @@ const oneOption = Effect.succeed(Option.some(1))
 await Effect.runPromiseExit(failedEffect) // => Exit.fail("fail!")
 ```
 
-In each case, the `Effect` always ends with **exactly one value**. There is no variability; you always get one result.
+On success, each `Effect` produces exactly one value—even when that value is itself a collection. An effect may instead fail before producing its success value.
 
 ## Understanding Streams
 

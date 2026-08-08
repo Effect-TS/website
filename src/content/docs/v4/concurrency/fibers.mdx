@@ -106,7 +106,7 @@ await Effect.runPromise(program) // => undefined
 
 ## Awaiting Fibers
 
-The `Fiber.await` function is a helpful tool when working with fibers. It allows you to wait for a fiber to complete and retrieve detailed information about how it finished. The result is encapsulated in an [Exit](/docs/data-types/exit/) value, which gives you insight into whether the fiber succeeded, failed, or was interrupted.
+The `Fiber.await` function is a helpful tool when working with fibers. It allows you to wait for a fiber to complete and retrieve detailed information about how it finished. The result is encapsulated in an [Exit](/docs/v4/data-types/exit/) value, which gives you insight into whether the fiber succeeded, failed, or was interrupted.
 
 **Example** (Awaiting Fiber Completion)
 
@@ -166,7 +166,7 @@ Instead, there are two popular and valid solutions to tackle this problem:
 
 Fibers can be interrupted if their result is no longer needed. This action immediately stops the fiber and safely runs all finalizers to release any resources.
 
-Unlike `Fiber.await`, which returns an [Exit](/docs/data-types/exit/) value describing how a fiber completed, `Fiber.interrupt` returns `Effect<void>`. It still waits until the fiber has fully terminated (running all its finalizers along the way) before resuming, but it does not hand back the fiber's `Exit`.
+Unlike `Fiber.await`, which returns an [Exit](/docs/v4/data-types/exit/) value describing how a fiber completed, `Fiber.interrupt` returns `Effect<void>`. It still waits until the fiber has fully terminated (running all its finalizers along the way) before resuming, but it does not hand back the fiber's `Exit`.
 
 **Example** (Interrupting a Fiber)
 
@@ -220,7 +220,7 @@ Do something else...
 */
 ```
 
-There is also a shorthand for background interruption called `Fiber.interruptFork`.
+For fire-and-forget interruption, a fiber also exposes the immediate `interruptUnsafe` method. Unlike `Fiber.interrupt`, it does not wait for the fiber's finalizers to complete.
 
 ```ts twoslash del={8} ins={9} import.meta.vitest name="interrupting-fibers-3"
 import { Effect, Fiber } from "effect"
@@ -246,14 +246,14 @@ Do something else...
 
 <Aside type="tip" title="Interrupting via Effect.interrupt">
   You can also interrupt fibers using the high-level API `Effect.interrupt`. For more details, refer
-  to the [Effect.interrupt documentation](/docs/concurrency/basic-concurrency/#interruptions).
+  to the [Effect.interrupt documentation](/docs/v4/concurrency/basic-concurrency/#interruptions).
 </Aside>
 
-## Composing Fibers
+## Composing Fiber Results
 
-The `Fiber.zip` and `Fiber.zipWith` functions allow you to combine two fibers into one. The resulting fiber will produce the results of both input fibers. If either fiber fails, the combined fiber will also fail.
+Fiber handles are not combined directly. Join each fiber to obtain an `Effect`, then compose those effects with operators such as `Effect.zip`.
 
-**Example** (Combining Fibers with `Fiber.zip`)
+**Example** (Combining the Results of Two Fibers)
 
 In this example, both fibers run concurrently, and the results are combined into a tuple.
 
@@ -274,9 +274,9 @@ const program = Effect.gen(function* () {
 await Effect.runPromise(program) // => undefined
 ```
 
-Another way to compose fibers is by using `Fiber.orElse`. This function allows you to provide an alternative fiber that will execute if the first one fails. If the first fiber succeeds, its result will be returned. If it fails, the second fiber will run instead, and its result will be returned regardless of its outcome.
+The same principle applies to fallback behavior: join both fibers and recover from the failure of the first joined effect.
 
-**Example** (Providing a Fallback Fiber with `Fiber.orElse`)
+**Example** (Providing a Fallback Fiber)
 
 ```ts twoslash import.meta.vitest name="composing-fibers-2"
 import { Effect, Fiber } from "effect"
@@ -299,11 +299,11 @@ await Effect.runPromise(program) // => undefined
 
 When we fork fibers, depending on how we fork them we can have four different lifetime strategies for the child fibers:
 
-1. **Fork With Automatic Supervision**. If we use the ordinary `Effect.forkChild` operation, the child fiber will be automatically supervised by the parent fiber. The lifetime child fibers are tied to the lifetime of their parent fiber. This means that these fibers will be terminated either when they end naturally, or when their parent fiber is terminated.
+1. **Fork With Automatic Supervision**. If we use the ordinary `Effect.forkChild` operation, the child fiber will be automatically supervised by the parent fiber. Child fiber lifetimes are tied to the lifetime of their parent fiber. This means that these fibers will be terminated either when they end naturally, or when their parent fiber is terminated.
 
 2. **Fork in Global Scope (Daemon)**. Sometimes we want to run long-running background fibers that aren't tied to their parent fiber, and also we want to fork them in a global scope. Any fiber that is forked in global scope will become daemon fiber. This can be achieved by using the `Effect.forkDetach` operator. As these fibers have no parent, they are not supervised, and they will be terminated when they end naturally, or when our application is terminated.
 
-3. **Fork in Local Scope**. Sometimes, we want to run a background fiber that isn't tied to its parent fiber, but we want that fiber to live in the local scope. We can fork fibers in the local scope by using `Effect.forkScoped`. Such fibers can outlive their parent fiber (so they are not supervised by their parents), and they will be terminated when their life end or their local scope is closed.
+3. **Fork in Local Scope**. Sometimes, we want to run a background fiber that isn't tied to its parent fiber, but we want that fiber to live in the local scope. We can fork fibers in the local scope by using `Effect.forkScoped`. Such fibers can outlive their parent fiber (so they are not supervised by their parents), and they will be terminated when they complete or their local scope is closed.
 
 4. **Fork in Specific Scope**. This is similar to the previous strategy, but we can have more fine-grained control over the lifetime of the child fiber by forking it in a specific scope. We can do this by using the `Effect.forkIn` operator.
 
@@ -427,7 +427,7 @@ daemon: still running!
 
 ### Fork in Local Scope
 
-Sometimes we want to create a fiber that is tied to a local [scope](/docs/resource-management/scope/), meaning its lifetime is not dependent on its parent fiber but is bound to the local scope in which it was forked. This can be done using the `Effect.forkScoped` operator.
+Sometimes we want to create a fiber that is tied to a local [scope](/docs/v4/resource-management/scope/), meaning its lifetime is not dependent on its parent fiber but is bound to the local scope in which it was forked. This can be done using the `Effect.forkScoped` operator.
 
 Fibers created with `Effect.forkScoped` can outlive their parent fibers and will only be terminated when the local scope itself is closed.
 

@@ -49,7 +49,11 @@ ok
 Effect.runFork(program("https://dummyjson.com/products/1?delay=5000"))
 /*
 Output:
-TimeoutException: Operation timed out before the specified duration of '4s' elapsed
+{
+  message: undefined,
+  _tag: 'TimeoutError',
+  '~effect/Cause/TimeoutError': '~effect/Cause/TimeoutError'
+}
 */
 
 // Test case: API returning an error response
@@ -59,7 +63,12 @@ Output:
 error
 error
 error
-UnknownException: An unknown error occurred
+{
+  message: 'An error occurred in Effect.tryPromise',
+  cause: Error: ...,
+  _tag: 'UnknownError',
+  '~effect/Cause/UnknownError': '~effect/Cause/UnknownError'
+}
 */
 ```
 

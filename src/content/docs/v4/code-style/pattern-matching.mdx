@@ -206,7 +206,7 @@ type Event =
   | { readonly _tag: "error"; readonly error: Error }
   | { readonly _tag: "cancel" }
 
-// Create a Matcher for Either<number, string>
+// Create a matcher for Event
 const match = Match.type<Event>().pipe(
   // Match either "fetch" or "success"
   Match.tag("fetch", "success", () => `Ok!`),
@@ -325,7 +325,7 @@ match("b") // => "fallback"
 
 ### option
 
-`Match.option` wraps the match result in an [Option](/docs/data-types/option/). If a match is found, it returns `Some(value)`, otherwise, it returns `None`.
+`Match.option` wraps the match result in an [Option](/docs/v4/data-types/option/). If a match is found, it returns `Some(value)`, otherwise, it returns `None`.
 
 **Example** (Extracting a User Role with Option)
 
@@ -348,13 +348,13 @@ console.log(getRole({ role: "viewer" }))
 getRole({ role: "viewer" }) // => Option.none()
 ```
 
-### either
+### result
 
-The `Match.result` method wraps the result in a [Result](/docs/data-types/result/), providing a structured way to distinguish between matched and unmatched cases. If a match is found, it returns `Success(value)`, otherwise, it returns `Failure(no match)`.
+The `Match.result` method wraps the result in a [Result](/docs/v4/data-types/result/), providing a structured way to distinguish between matched and unmatched cases. If a match is found, it returns `Success(value)`, otherwise, it returns `Failure(no match)`.
 
-**Example** (Extracting a User Role with Either)
+**Example** (Extracting a User Role with Result)
 
-```ts twoslash import.meta.vitest name="extracting-a-user-role-with-either-1"
+```ts twoslash import.meta.vitest name="extracting-a-user-role-with-result-1"
 import { Match, Result } from "effect"
 
 type User = { readonly role: "admin" | "editor" | "viewer" }

@@ -71,7 +71,7 @@ await Effect.runPromise(Stream.run(stream, Sink.sum)) // => 10
 
 ### take
 
-The `Sink.take` sink takes the specified number of values from the stream and results in a [Chunk](/docs/data-types/chunk/) data type.
+The `Sink.take` sink takes the specified number of values from the stream and returns them in an array.
 
 ```ts twoslash import.meta.vitest name="take-1"
 import { Stream, Sink, Effect } from "effect"
@@ -95,7 +95,7 @@ await Effect.runPromise(Stream.run(stream, Sink.drain)) // => undefined
 
 ### timed
 
-The `Sink.timed` sink executes the stream and measures its execution time, providing the [Duration](/docs/data-types/duration/).
+The `Sink.timed` sink executes the stream and measures its execution time, providing the [Duration](/docs/v4/data-types/duration/).
 
 ```ts twoslash import.meta.vitest name="timed-1"
 import { Stream, Schedule, Sink, Effect } from "effect"
@@ -157,9 +157,9 @@ await Effect.runPromiseExit(Stream.run(stream, Sink.fail("fail!"))) // => Exit.f
 
 ### Collecting All Elements
 
-To gather all elements from a data stream into a [Chunk](/docs/data-types/chunk/), use the `Sink.collect` sink.
+To gather all elements from a data stream into an array, use the `Sink.collect` sink.
 
-The final output is a chunk containing all elements from the stream, in the order they were emitted.
+The final output contains all elements from the stream in the order they were emitted.
 
 **Example** (Collecting All Stream Elements)
 
@@ -173,7 +173,7 @@ await Effect.runPromise(Stream.run(stream, Sink.collect())) // => [1, 2, 3, 4]
 
 ### Collecting a Specified Number
 
-To collect a fixed number of elements from a stream into a [Chunk](/docs/data-types/chunk/), use `Sink.take`. This sink stops collecting once it reaches the specified limit.
+To collect a fixed number of elements from a stream into an array, use `Sink.take`. This sink stops collecting once it reaches the specified limit.
 
 **Example** (Collecting a Limited Number of Elements)
 
@@ -312,13 +312,13 @@ await Effect.runPromise(
 
 ## Folding
 
-### Folding Left
+### Reducing Elements
 
 If you want to reduce a stream into a single cumulative value by applying an operation to each element in sequence, you can use the `Sink.reduce` function.
 
-**Example** (Summing Elements in a Stream Using Fold Left)
+**Example** (Summing Elements in a Stream with `Sink.reduce`)
 
-```ts twoslash import.meta.vitest name="summing-elements-in-a-stream-using-fold-left-1"
+```ts twoslash import.meta.vitest name="summing-elements-in-a-stream-using-reduce-1"
 import { Stream, Sink, Effect } from "effect"
 
 const stream = Stream.make(1, 2, 3, 4)

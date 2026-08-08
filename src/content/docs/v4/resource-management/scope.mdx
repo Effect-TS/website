@@ -50,7 +50,7 @@ For instance, if you acquire a network connection and then access a file on a re
 
 ## addFinalizer
 
-The `Effect.addFinalizer` function is a high-level API that allows you to add finalizers to the scope of an effect. A finalizer is a piece of code that is guaranteed to run when the associated scope is closed. The behavior of the finalizer can vary based on the [Exit](/docs/data-types/exit/) value, which represents how the scope was closed—whether successfully or with an error.
+The `Effect.addFinalizer` function is a high-level API that allows you to add finalizers to the scope of an effect. A finalizer is a piece of code that is guaranteed to run when the associated scope is closed. The behavior of the finalizer can vary based on the [Exit](/docs/v4/data-types/exit/) value, which represents how the scope was closed—whether successfully or with an error.
 
 **Example** (Adding a Finalizer on Success)
 
@@ -195,7 +195,7 @@ await Effect.runPromiseExit(runnable) // => Exit.fail("Uh oh!")
 
 In this case, the finalizer is executed even when the effect fails. The log output reflects that the finalizer runs after the failure, and it logs the failure details.
 
-**Example** (Adding a Finalizer on [Interruption](/docs/concurrency/basic-concurrency/#interruptions))
+**Example** (Adding a Finalizer on [Interruption](/docs/v4/concurrency/basic-concurrency/#interruptions))
 
 <Tabs syncKey="pipe-vs-gen">
 
@@ -609,7 +609,7 @@ In certain scenarios, you might need to perform a sequence of chained operations
 
 Let's go through an example of implementing this pattern. Suppose we want to create a "Workspace" in our application, which involves creating an S3 bucket, an ElasticSearch index, and a Database entry that relies on the previous two.
 
-To begin, we define the domain model for the required [services](/docs/requirements-management/services/):
+To begin, we define the domain model for the required [services](/docs/v4/requirements-management/services/):
 
 - `S3`
 - `ElasticSearch`
@@ -775,7 +775,7 @@ await Effect.runPromise(
 ```
 
 We then create simple service implementations to test the behavior of our Workspace code.
-To achieve this, we will utilize [layers](/docs/requirements-management/layers/) to construct test
+To achieve this, we will utilize [layers](/docs/v4/requirements-management/layers/) to construct test
 These layers will be able to handle various scenarios, including errors, which we can control using the `FailureCase` type.
 
 ```ts twoslash collapse={3-95} import.meta.vitest name="example-pattern-sequencing-operations-3"
@@ -969,10 +969,10 @@ Let's examine the test results for the scenario where `FailureCase` is set to `u
 [S3] creating bucket
 [ElasticSearch] creating index
 [Database] creating entry for bucket <bucket.name> and index <index.id>
-{ _id: 'Either', _tag: 'Right', right: { id: '<entry.id>' } }
+{ _id: 'Result', _tag: 'Success', value: { id: '<entry.id>' } }
 ```
 
-In this case, all operations succeed, and we see a successful result with `right({ id: '<entry.id>' })`.
+In this case, all operations succeed, and we see a `Result.Success` containing the database entry.
 
 Now, let's simulate a failure in the `Database`:
 
@@ -988,10 +988,10 @@ The console output will be:
 [Database] creating entry for bucket <bucket.name> and index <index.id>
 [ElasticSearch] delete index <index.id>
 [S3] delete bucket <bucket.name>
-{ _id: 'Either', _tag: 'Left', left: { _tag: 'DatabaseError' } }
+{ _id: 'Result', _tag: 'Failure', failure: { _tag: 'DatabaseError' } }
 ```
 
-You can observe that once the `Database` error occurs, there is a complete rollback that deletes the `ElasticSearch` index first and then the associated `S3` bucket. The result is a failure with `left(new DatabaseError())`.
+You can observe that once the `Database` error occurs, there is a complete rollback that deletes the `ElasticSearch` index first and then the associated `S3` bucket. The result is a `Result.Failure` containing the `DatabaseError`.
 
 Let's now make the index creation fail instead:
 
@@ -1008,7 +1008,7 @@ In this case, the console output will be:
 [S3] creating bucket
 [ElasticSearch] creating index
 [S3] delete bucket <bucket.name>
-{ _id: 'Either', _tag: 'Left', left: { _tag: 'ElasticSearchError' } }
+{ _id: 'Result', _tag: 'Failure', failure: { _tag: 'ElasticSearchError' } }
 ```
 
-As expected, once the `ElasticSearch` index creation fails, there is a rollback that deletes the `S3` bucket. The result is a failure with `left(new ElasticSearchError())`.
+As expected, once the `ElasticSearch` index creation fails, there is a rollback that deletes the `S3` bucket. The result is a `Result.Failure` containing the `ElasticSearchError`.

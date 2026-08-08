@@ -77,9 +77,9 @@ The `Context` serves as a repository or container for all services an effect may
 It acts like a store that maintains these services, allowing various parts of your application to access and use them as needed.
 
 The services stored within the `Context` are directly reflected in the `Requirements` parameter of the `Effect` type.
-Each service within the `Context` is identified by a unique "tag," which is essentially a unique identifier for the service.
+Each service within the `Context` is identified by a unique "service key," which is essentially a unique identifier for the service.
 
-When an effect needs to use a specific service, the service's tag is included in the `Requirements` type parameter.
+When an effect needs to use a specific service, its service key is included in the `Requirements` type parameter.
 
 ## Creating a Service
 
@@ -98,7 +98,7 @@ Let's create a service for generating random numbers.
 ```ts twoslash import.meta.vitest name="creating-a-service-1"
 import { Effect, Context } from "effect"
 
-// Declaring a tag for a service that generates random numbers
+// Declaring a service key for a service that generates random numbers
 class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
   "MyRandomService",
 ) {}
@@ -106,16 +106,16 @@ class Random extends Context.Service<Random, { readonly next: Effect.Effect<numb
 Random.key // => "MyRandomService"
 ```
 
-The exported `Random` value is known as a **tag** in Effect. It acts as a representation of the service and allows Effect to locate and use this service at runtime.
+The exported `Random` value is known as a **service key** in Effect. It acts as a representation of the service and allows Effect to locate and use this service at runtime.
 
-The service will be stored in a collection called `Context`, which can be thought of as a `Map` where the keys are tags and the values are services:
+The service will be stored in a collection called `Context`, which can be thought of as a `Map` where the keys are service keys and the values are services:
 
 ```ts showLineNumbers=false
-type Context = Map<Tag, Service>
+type Context = Map<ServiceKey, Service>
 ```
 
 <Aside type="note" title="Why Use Identifiers?">
-  You need to specify an identifier to make the tag global. This ensures that two tags with the same identifier refer to the same instance.
+  You need to specify an identifier to make the service key global. This ensures that two service keys with the same identifier refer to the same instance.
 
 Using a unique identifier is particularly useful in scenarios where live reloads can occur, as it helps preserve the instance across reloads. It ensures there is no duplication of instances (although it shouldn't happen, some bundlers and frameworks can behave unpredictably).
 
@@ -123,15 +123,15 @@ Using a unique identifier is particularly useful in scenarios where live reloads
 
 Let's summarize the concepts we've covered so far:
 
-| Concept     | Description                                                                                            |
-| ----------- | ------------------------------------------------------------------------------------------------------ |
-| **service** | A reusable component providing specific functionality, used across different parts of an application.  |
-| **tag**     | A unique identifier representing a **service**, allowing Effect to locate and use it.                  |
-| **context** | A collection storing service, functioning like a map with **tags** as keys and **services** as values. |
+| Concept         | Description                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
+| **service**     | A reusable component providing specific functionality, used across different parts of an application.      |
+| **service key** | A unique identifier representing a **service**, allowing Effect to locate and use it.                      |
+| **context**     | A collection of services, functioning like a map with **service keys** as keys and **services** as values. |
 
 ## Using the Service
 
-Now that we have our service tag defined, let's see how we can use it by building a simple program.
+Now that we have our service key defined, let's see how we can use it by building a simple program.
 
 **Example** (Using the Random Service)
 
@@ -142,7 +142,7 @@ Now that we have our service tag defined, let's see how we can use it by buildin
 ```ts twoslash import.meta.vitest name="using-the-service-1"
 import { Effect, Context } from "effect"
 
-// Declaring a tag for a service that generates random numbers
+// Declaring a service key for a service that generates random numbers
 class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
   "MyRandomService",
 ) {}
@@ -161,7 +161,7 @@ const program = Effect.gen(function* () {
 await Effect.runPromise(Effect.provideService(program, Random, { next: Effect.succeed(42) })) // => undefined
 ```
 
-In the code above, we can observe that we are able to yield the `Random` tag as if it were an effect itself.
+In the code above, we can observe that we are able to yield the `Random` service key as if it were an effect itself.
 This allows us to access the `next` operation of the service.
 
 </TabItem>
@@ -171,7 +171,7 @@ This allows us to access the `next` operation of the service.
 ```ts twoslash import.meta.vitest name="using-the-service-2"
 import { Effect, Context, Console } from "effect"
 
-// Declaring a tag for a service that generates random numbers
+// Declaring a service key for a service that generates random numbers
 class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
   "MyRandomService",
 ) {}
@@ -189,7 +189,7 @@ const program = Random.pipe(
 await Effect.runPromise(Effect.provideService(program, Random, { next: Effect.succeed(42) })) // => undefined
 ```
 
-In the code above, we can observe that we are able to flat-map over the `Random` tag as if it were an effect itself.
+In the code above, we can observe that we are able to flat-map over the `Random` service key as if it were an effect itself.
 This allows us to access the `next` operation of the service within the `Effect.andThen` callback.
 
 </TabItem>
@@ -211,7 +211,7 @@ If we attempt to execute the effect without providing the necessary service we w
 ```ts twoslash
 import { Effect, Context } from "effect"
 
-// Declaring a tag for a service that generates random numbers
+// Declaring a service key for a service that generates random numbers
 class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
   "MyRandomService",
 ) {}
@@ -240,7 +240,7 @@ In order to provide an actual implementation of the `Random` service, we can uti
 ```ts twoslash import.meta.vitest name="providing-a-service-implementation-1"
 import { Effect, Context } from "effect"
 
-// Declaring a tag for a service that generates random numbers
+// Declaring a service key for a service that generates random numbers
 class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
   "MyRandomService",
 ) {}
@@ -270,7 +270,7 @@ random number: 0.8241872233134417
 
 In the code above, we provide the `program` we defined earlier with an implementation of the `Random` service.
 
-We use the `Effect.provideService` function to associate the `Random` tag with its implementation, an object with a `next` operation that generates a random number.
+We use the `Effect.provideService` function to associate the `Random` service key with its implementation, an object with a `next` operation that generates a random number.
 
 Notice that the `Requirements` type parameter of the `runnable` effect is now `never`. This indicates that the effect no longer requires any service to be provided.
 
@@ -278,14 +278,14 @@ With the implementation of the `Random` service in place, we are able to run the
 
 ## Extracting the Service Type
 
-To retrieve the service type from a tag, use the `Context.Service.Shape` utility type.
+To retrieve the service type from a service key, use the `Context.Service.Shape` utility type.
 
 **Example** (Extracting Service Type)
 
 ```ts twoslash import.meta.vitest name="extracting-the-service-type-1"
 import { Effect, Context } from "effect"
 
-// Declaring a tag
+// Declaring a service key
 class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
   "MyRandomService",
 ) {}
@@ -311,7 +311,7 @@ Let's examine an example where we need two services, namely `Random` and `Logger
 ```ts twoslash import.meta.vitest name="using-multiple-services-1"
 import { Effect, Context } from "effect"
 
-// Declaring a tag for a service that generates random numbers
+// Declaring a service key for a service that generates random numbers
 class Random extends Context.Service<
   Random,
   {
@@ -319,7 +319,7 @@ class Random extends Context.Service<
   }
 >()("MyRandomService") {}
 
-// Declaring a tag for the logging service
+// Declaring a service key for the logging service
 class Logger extends Context.Service<
   Logger,
   {
@@ -361,7 +361,7 @@ To execute the `program`, we need to provide implementations for both services:
 ```ts twoslash collapse={3-24} import.meta.vitest name="using-multiple-services-2"
 import { Effect, Context } from "effect"
 
-// Declaring a tag for a service that generates random numbers
+// Declaring a service key for a service that generates random numbers
 class Random extends Context.Service<
   Random,
   {
@@ -369,7 +369,7 @@ class Random extends Context.Service<
   }
 >()("MyRandomService") {}
 
-// Declaring a tag for the logging service
+// Declaring a service key for the logging service
 class Logger extends Context.Service<
   Logger,
   {
@@ -404,7 +404,7 @@ Alternatively, instead of calling `provideService` multiple times, we can combin
 ```ts twoslash collapse={3-24} import.meta.vitest name="using-multiple-services-3"
 import { Effect, Context } from "effect"
 
-// Declaring a tag for a service that generates random numbers
+// Declaring a service key for a service that generates random numbers
 class Random extends Context.Service<
   Random,
   {
@@ -412,7 +412,7 @@ class Random extends Context.Service<
   }
 >()("MyRandomService") {}
 
-// Declaring a tag for the logging service
+// Declaring a service key for the logging service
 class Logger extends Context.Service<
   Logger,
   {
@@ -447,7 +447,7 @@ There are situations where we may want to access a service implementation only i
 In such cases, we can use the `Effect.serviceOption` function to handle this scenario.
 
 The `Effect.serviceOption` function returns an implementation that is available only if it is actually provided before executing this effect.
-To represent this optionality it returns an [Option](/docs/data-types/option/) of the implementation.
+To represent this optionality it returns an [Option](/docs/v4/data-types/option/) of the implementation.
 
 **Example** (Handling Optional Services)
 
@@ -456,7 +456,7 @@ To determine what action to take, we can use the `Option.isNone` function provid
 ```ts twoslash import.meta.vitest name="optional-services-1"
 import { Effect, Context, Option } from "effect"
 
-// Declaring a tag for a service that generates random numbers
+// Declaring a service key for a service that generates random numbers
 class Random extends Context.Service<Random, { readonly next: Effect.Effect<number> }>()(
   "MyRandomService",
 ) {}
@@ -510,10 +510,10 @@ Consider a scenario where multiple services depend on each other. In this case, 
 ```ts twoslash import.meta.vitest name="handling-services-with-dependencies-1"
 import { Effect, Context } from "effect"
 
-// Declaring a tag for the Config service
+// Declaring a service key for the Config service
 class Config extends Context.Service<Config, {}>()("Config") {}
 
-// Declaring a tag for the logging service
+// Declaring a service key for the logging service
 class Logger extends Context.Service<
   Logger,
   {
@@ -525,7 +525,7 @@ class Logger extends Context.Service<
 Logger.key // => "MyLoggerService"
 ```
 
-To handle these dependencies in a structured way and prevent them from leaking into the service interfaces, you can use the `Layer` abstraction. For more details on managing dependencies with layers, refer to the [Managing Layers](/docs/requirements-management/layers/) page.
+To handle these dependencies in a structured way and prevent them from leaking into the service interfaces, you can use the `Layer` abstraction. For more details on managing dependencies with layers, refer to the [Managing Layers](/docs/v4/requirements-management/layers/) page.
 
 <Aside type="tip" title="Use Layers for Dependencies">
   When a service has its own requirements, it's best to separate implementation details into layers.

@@ -56,7 +56,7 @@ The default logger in Effect adds several useful details to each log entry:
 | ----------- | --------------------------------------------------------------------------------------------------- |
 | `timestamp` | The timestamp when the log message was generated.                                                   |
 | `level`     | The log level at which the message is logged (e.g., `INFO`, `ERROR`).                               |
-| `fiber`     | The identifier of the [fiber](/docs/concurrency/fibers/) executing the program.                     |
+| `fiber`     | The identifier of the [fiber](/docs/v4/concurrency/fibers/) executing the program.                  |
 | `message`   | The log message content, which can include multiple strings or values.                              |
 | `span`      | (Optional) The duration of a span in milliseconds, providing insight into the timing of operations. |
 
@@ -91,7 +91,7 @@ Effect.runSync(
 messages // => [["message1", "message2", "message3"]]
 ```
 
-For added context, you can also include one or more [Cause](/docs/data-types/cause/) instances in your logs,
+For added context, you can also include one or more [Cause](/docs/v4/data-types/cause/) instances in your logs,
 which provide detailed error information under an additional `cause` annotation:
 
 **Example** (Logging with Causes)
@@ -131,7 +131,7 @@ Cause.hasDies(causes[0]) // => true
 
 ### logDebug
 
-By default, `DEBUG` messages **are not displayed**. To enable `DEBUG` logs, you can adjust the logging configuration using `Logger.withMinimumLogLevel`, setting the minimum level to `"Debug"`.
+By default, `DEBUG` messages **are not displayed**. To enable them for an effect, provide the `References.MinimumLogLevel` context reference with the value `"Debug"`.
 
 **Example** (Enabling Debug Logs)
 
@@ -175,8 +175,8 @@ messages // => [["start"], ["task1 done"], ["done"]]
 ```
 
 <Aside type="tip" title="Controlling Log Levels Per Effect">
-  By using `Logger.withMinimumLogLevel(effect, level)`, you can enable different log levels for
-  specific parts of your program, providing fine-grained control over logging behavior.
+  Provide `References.MinimumLogLevel` only to the relevant effect to control its logging without
+  changing the surrounding program.
 </Aside>
 
 ### logInfo
@@ -561,9 +561,9 @@ records // => [{ message: ["The job is finished!"], spans: ["myspan"] }]
 
 Sometimes, perhaps during test execution, you might want to disable default logging in your application. Effect provides several ways to turn off logging when needed. In this section, we'll look at different methods to disable logging in the Effect framework.
 
-**Example** (Using `Logger.withMinimumLogLevel`)
+**Example** (Providing a Minimum Log Level)
 
-One convenient way to disable logging is by using the `Logger.withMinimumLogLevel` function. This allows you to set the minimum log level to `None`, effectively turning off all log output.
+One convenient way to disable logging is to provide `References.MinimumLogLevel` with the value `"None"`.
 
 ```ts twoslash import.meta.vitest name="disabling-default-logging-1"
 import { Effect, Logger, References } from "effect"
@@ -681,7 +681,7 @@ messages.length // => 0
 
 ## Loading the Log Level from Configuration
 
-To dynamically load the log level from a [configuration](/docs/configuration/) and apply it to your program, you can use the `Logger.minimumLogLevel` layer. This allows your application to adjust its logging behavior based on external configuration.
+To load the log level from a [configuration](/docs/v4/configuration/) and apply it to your program, map the configured value to a layer for `References.MinimumLogLevel`.
 
 **Example** (Loading Log Level from Configuration)
 
@@ -733,9 +733,8 @@ messages // => [["ERROR!"], ["WARNING!"]]
 
 <Aside type="tip" title="Using ConfigProvider for Testing">
   The `ConfigProvider.fromUnknown` function is useful for testing by simulating configuration
-  values. You can also refer to [Mocking Configurations in
-  Tests](/docs/configuration/#mocking-configurations-in-tests) for more details on using mock
-  configuration during tests.
+  values. See [Loading an In-Memory Object](/docs/v4/configuration/#loading-an-in-memory-object) for
+  an example.
 </Aside>
 
 ## Custom loggers
@@ -793,7 +792,7 @@ const program = Effect.gen(function* () {
 Effect.isEffect(program) // => true
 ```
 
-To replace the default logger with your custom logger, you can use the `Logger.replace` function. After creating a layer that replaces the default logger, you provide it to your program using `Effect.provide`.
+Create a `Logger.layer` containing the loggers that should receive messages, then provide it to the program with `Effect.provide`.
 
 **Example** (Replacing the Default Logger with a Custom Logger)
 
@@ -859,7 +858,7 @@ When you run the above program, the following log messages are printed to the co
 
 Effect provides several built-in loggers that you can use depending on your logging needs. These loggers offer different formats, each suited for different environments or purposes, such as development, production, or integration with external logging services.
 
-Each logger is available in two forms: the logger itself, and a layer that uses the logger and sends its output to the `Console` [default service](/docs/requirements-management/default-services/). For example, the `structuredLogger` logger generates logs in a detailed object-based format, while the `structured` layer uses the same logger and writes the output to the `Console` service.
+Each logger is available in two forms: the logger itself, and a layer that uses the logger and sends its output to the `Console` [default service](/docs/v4/requirements-management/default-services/). For example, the `structuredLogger` logger generates logs in a detailed object-based format, while the `structured` layer uses the same logger and writes the output to the `Console` service.
 
 ### stringLogger (default)
 
@@ -1096,11 +1095,11 @@ Output:
 {"message":["msg1","msg2",["msg3","msg4"]],"level":"INFO","timestamp":"2024-12-28T10:44:31.281Z","annotations":{"key2":"value2","key1":"value1"},"spans":{"myspan":102},"fiberId":"#0"}
 ```
 
-## Combine Loggers
+## Combining Loggers
 
-### zip
+### Forwarding to Multiple Loggers
 
-The `Logger.zip` function combines two loggers into a new logger. This new logger forwards log messages to both the original loggers.
+A custom logger can invoke other loggers to forward each message to all of them.
 
 **Example** (Combining Two Loggers)
 

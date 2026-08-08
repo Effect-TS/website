@@ -69,8 +69,8 @@ Creates an `Effect` that represents an error that can be recovered from.
 
 Use this function to explicitly signal an error in an `Effect`. The error
 will keep propagating unless it is handled. You can handle the error with
-functions like [Effect.catchAll](/docs/error-management/expected-errors/#catchall) or
-[Effect.catchTag](/docs/error-management/expected-errors/#catchtag).
+functions like [Effect.catch](/docs/v4/error-management/expected-errors/#catching-every-typed-error) or
+[Effect.catchTag](/docs/v4/error-management/expected-errors/#catchtag).
 
 **Example** (Creating a Failed Effect)
 
@@ -100,7 +100,7 @@ Effect<never, Error, never>
 
 Although you can use `Error` objects with `Effect.fail`, you can also pass strings, numbers, or more complex objects depending on your error management strategy.
 
-Using "tagged" errors (objects with a `_tag` field) can help identify error types and works well with standard Effect functions, like [Effect.catchTag](/docs/error-management/expected-errors/#catchtag).
+Using "tagged" errors (objects with a `_tag` field) can help identify error types and works well with standard Effect functions, like [Effect.catchTag](/docs/v4/error-management/expected-errors/#catchtag).
 
 **Example** (Using Tagged Errors)
 
@@ -182,7 +182,7 @@ Effect.runSync(exampleUserEffect).name // => "John Doe"
 
 In this example, `exampleUserEffect`, which has the type `Effect<User, Error>`, will either produce a `User` object or an `Error`, depending on whether the user exists in the mocked database.
 
-For a deeper dive into managing errors in your applications, refer to the [Error Management Guide](/docs/error-management/expected-errors/).
+For a deeper dive into managing errors in your applications, refer to the [Error Management Guide](/docs/v4/error-management/expected-errors/).
 
 ## Modeling Synchronous Effects
 
@@ -202,10 +202,10 @@ Creates an `Effect` that represents a synchronous side-effectful computation.
 
 Use `Effect.sync` when you are sure the operation will not fail.
 
-The provided function (`thunk`) must not throw errors; if it does, the error will be treated as a ["defect"](/docs/error-management/unexpected-errors/).
+The provided function (`thunk`) must not throw errors; if it does, the error will be treated as a ["defect"](/docs/v4/error-management/unexpected-errors/).
 
 This defect is not a standard error but indicates a flaw in the logic that was expected to be error-free.
-You can think of it similar to an unexpected crash in the program, which can be further managed or logged using tools like [Effect.catchAllDefect](/docs/error-management/unexpected-errors/#catchalldefect).
+You can think of it similar to an unexpected crash in the program, which can be further managed or logged using tools like [Effect.catchDefect](/docs/v4/error-management/unexpected-errors/#catchdefect).
 This feature ensures that even unexpected failures in your application are not lost and can be handled appropriately.
 
 **Example** (Logging a Message)
@@ -227,7 +227,7 @@ const program = log("Hello, World!")
 Effect.runSync(program) // => undefined
 ```
 
-The side effect (logging to the console) encapsulated within `program` won't occur until the effect is explicitly run (see the [Running Effects](/docs/getting-started/running-effects/) section for more details). This allows you to define side effects at one point in your code and control when they are activated, improving manageability and predictability of side effects in larger applications.
+The side effect (logging to the console) encapsulated within `program` won't occur until the effect is explicitly run (see the [Running Effects](/docs/v4/getting-started/running-effects/) section for more details). This allows you to define side effects at one point in your code and control when they are activated, improving manageability and predictability of side effects in larger applications.
 
 ### try
 
@@ -307,10 +307,10 @@ Creates an `Effect` that represents an asynchronous computation guaranteed to su
 
 Use `Effect.promise` when you are sure the operation will not reject.
 
-The provided function (`thunk`) returns a `Promise` that should never reject; if it does, the error will be treated as a ["defect"](/docs/error-management/unexpected-errors/).
+The provided function (`thunk`) returns a `Promise` that should never reject; if it does, the error will be treated as a ["defect"](/docs/v4/error-management/unexpected-errors/).
 
 This defect is not a standard error but indicates a flaw in the logic that was expected to be error-free.
-You can think of it similar to an unexpected crash in the program, which can be further managed or logged using tools like [Effect.catchAllDefect](/docs/error-management/unexpected-errors/#catchalldefect).
+You can think of it similar to an unexpected crash in the program, which can be further managed or logged using tools like [Effect.catchDefect](/docs/v4/error-management/unexpected-errors/#catchdefect).
 This feature ensures that even unexpected failures in your application are not lost and can be handled appropriately.
 
 **Example** (Delayed Message)
@@ -597,7 +597,7 @@ good2 // => 2
 
 <Aside type="note" title="Running Effects">
   This example utilizes `Effect.runSync` to execute effects and display their results (refer to
-  [Running Effects](/docs/getting-started/running-effects/#runsync) for more details).
+  [Running Effects](/docs/v4/getting-started/running-effects/#runsync) for more details).
 </Aside>
 
 In this example, `bad` is the result of calling `Effect.succeed(i++)` a single time, which increments the scoped variable but [returns its original value](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Increment#postfix_increment). `Effect.runSync(bad)` does not result in any new computation, because `Effect.succeed(i++)` has already been called. On the other hand, each time `Effect.runSync(good)` is called, the thunk passed to `Effect.suspend()` will be executed, outputting the scoped variable's most recent value.
@@ -632,7 +632,7 @@ console.log(Effect.runSync(allGood(32))) // Output: 3524578
 
 <Aside type="note" title="Running Effects">
   This example utilizes `Effect.zipWith` to combine the results of two effects (refer to the
-  documentation on [zipping](/docs/getting-started/control-flow/#zipwith) for more details).
+  documentation on [zipping](/docs/v4/getting-started/control-flow/#zipwith) for more details).
 </Aside>
 
 The `blowsUp` function creates a recursive Fibonacci sequence without deferring execution. Each call to `blowsUp` triggers further immediate recursive calls, rapidly increasing the JavaScript call stack size.

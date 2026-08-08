@@ -583,24 +583,23 @@ FrequencyState {
 */
 ```
 
-## Tagging Metrics
+## Metric Attributes
 
-Tags are key-value pairs you can add to metrics to provide additional context. They help categorize and filter metrics, making it easier to analyze specific aspects of your application's performance or behavior.
+Attributes are key-value pairs you can add to metrics to provide additional context. They help categorize and filter metrics, making it easier to analyze specific aspects of your application's performance or behavior.
 
-When creating metrics, you can add tags to them. Tags are key-value pairs that provide additional context, helping in categorizing and filtering metrics. This makes it easier to analyze and monitor specific aspects of your application.
+Attributes may be attached to one metric or supplied through the context for a region of the program.
 
-### Tagging a Specific Metric
+### Adding Attributes to a Specific Metric
 
-You can tag individual metrics using the `Metric.withAttributes` function.
-This allows you to add specific tags to a single metric, providing detailed context without applying tags globally.
+You can add attributes to an individual metric using `Metric.withAttributes`.
 
 **Example** (Tagging an Individual Metric)
 
-```ts twoslash import.meta.vitest name="tagging-a-specific-metric-1"
+```ts twoslash import.meta.vitest name="adding-attributes-to-a-specific-metric-1"
 import { Metric } from "effect"
 
 // Create a counter metric for request count
-// and tag it with "environment: production"
+// and add the "environment: production" attribute
 const counter = Metric.counter("request_count").pipe(
   Metric.withAttributes({ environment: "production" }),
 )
@@ -608,15 +607,15 @@ const counter = Metric.counter("request_count").pipe(
 Metric.isMetric(counter) // => true
 ```
 
-Here, the `request_count` metric is tagged with `"environment": "production"`, allowing you to filter or analyze metrics by this tag later.
+Here, the `request_count` metric has the attribute `"environment": "production"`, allowing you to filter or analyze that metric series later.
 
-### Tagging Multiple Metrics
+### Providing Attributes to a Region
 
-You can use `Effect.tagMetrics` to apply tags to all metrics within the same context. This is useful when you want to apply common tags, like the environment (e.g., "production" or "development"), across multiple metrics.
+The `Metric.CurrentMetricAttributes` context reference supplies attributes to every metric operation within an effect. This is useful when several metrics share context such as the deployment environment.
 
 **Example** (Tagging Multiple Metrics)
 
-```ts twoslash import.meta.vitest name="tagging-multiple-metrics-1"
+```ts twoslash import.meta.vitest name="providing-attributes-to-a-region-1"
 import { Metric, Effect } from "effect"
 
 // Create two separate counters
@@ -626,14 +625,14 @@ const counter2 = Metric.counter("counter2")
 // Define a task that simulates some work with a slight delay
 const task = Effect.succeed(1).pipe(Effect.delay("100 millis"))
 
-// Apply the environment tag to both counters in the same context
+// Apply the environment attribute to both counters in the same context
 const program = Effect.gen(function* () {
   yield* task.pipe(Effect.trackSuccesses(counter1))
   yield* task.pipe(Effect.trackSuccesses(counter2))
 }).pipe(Effect.provideService(Metric.CurrentMetricAttributes, { environment: "production" }))
 
-// Confirm that running the program updates both tagged counters
-// (state must be read under the same tag context it was written under)
+// Confirm that running the program updates both attributed counters
+// (state must be read under the same attribute context it was written under)
 const readState = Effect.gen(function* () {
   yield* program
   const state1 = yield* Metric.value(counter1)
@@ -645,5 +644,3 @@ const { state1, state2 } = await Effect.runPromise(readState)
 state1.count // => 1
 state2.count // => 1
 ```
-
-If you only want to apply tags within a specific [scope](/docs/resource-management/scope/), you can use `Effect.tagMetricsScoped`. This limits the tag application to metrics within that scope, allowing for more precise tagging control.
