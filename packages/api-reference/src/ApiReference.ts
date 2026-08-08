@@ -210,7 +210,9 @@ function commentHtml(
   if (see !== undefined && see.length > 0) {
     blocks.push(
       "<h4>See</h4>",
-      renderMarkdown(see.map((item) => `- ${item}`).join("\n")),
+      renderMarkdown(
+        see.map((item) => (/^-\s/.test(item) ? item : `- ${item}`)).join("\n"),
+      ),
     )
   }
   return blocks.length > 0 ? blocks.join("") : undefined

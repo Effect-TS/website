@@ -28,7 +28,18 @@ test("renders GFM module comments without empty table rows", () => {
                 "| Category | Domain |",
                 "| --- | --- |",
                 "| | |",
-                "| math | `number` |",
+                "| math | ",
+              ].join("\n"),
+            },
+            {
+              kind: "inline-tag",
+              tag: "@link",
+              text: "module:Number.parse",
+            },
+            {
+              kind: "text",
+              text: [
+                " |",
                 "",
                 "## Composition Patterns",
                 "",
@@ -41,25 +52,19 @@ test("renders GFM module comments without empty table rows", () => {
             {
               tag: "@see",
               content: [
+                { kind: "text", text: " - " },
                 {
                   kind: "inline-tag",
                   tag: "@link",
                   text: "module:BigInt",
-                  tsLinkText: "module:BigInt",
                 },
-                { kind: "text", text: " for integer operations" },
-              ],
-            },
-            {
-              tag: "@see",
-              content: [
+                { kind: "text", text: " for integer operations\n - " },
                 {
                   kind: "inline-tag",
                   tag: "@link",
-                  text: "module:Number.parse",
-                  tsLinkText: "module:Number.parse",
+                  text: "module:BigDecimal",
                 },
-                { kind: "text", text: " for parsing" },
+                { kind: "text", text: " for decimal operations\n" },
               ],
             },
           ],
@@ -73,7 +78,10 @@ test("renders GFM module comments without empty table rows", () => {
   }).commentHtml
   assert.ok(html)
   assert.equal(html.match(/<tr>/g)?.length, 2)
-  assert.match(html, /<td><code>number<\/code><\/td>/)
+  assert.match(
+    html,
+    /<td><a href="\/docs\/v3\/api\/effect\/Number#parse"><code>parse<\/code><\/a><\/td>/,
+  )
   assert.match(html, /<h2>Composition Patterns<\/h2>/)
   assert.match(
     html,
@@ -85,7 +93,8 @@ test("renders GFM module comments without empty table rows", () => {
   )
   assert.match(
     html,
-    /<a href="\/docs\/v3\/api\/effect\/Number#parse"><code>parse<\/code><\/a> for parsing/,
+    /<a href="\/docs\/v3\/api\/effect\/BigDecimal"><code>BigDecimal<\/code><\/a> for decimal operations/,
   )
+  assert.equal(/<li>\s*<ul>/.test(html), false)
   assert.equal(/module:/.test(html), false)
 })
