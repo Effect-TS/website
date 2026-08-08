@@ -49,12 +49,19 @@ export interface ApiModule {
   sourceUrl: string | undefined
 }
 
+export interface ApiReferenceOptions {
+  moduleHref?: (modulePath: string) => string | undefined
+}
+
 export const ApiReference = {
   codeExamples,
   moduleView,
 } as const
 
-function moduleView(reflection: TypeDocProjectReflection): ApiModule {
+function moduleView(
+  reflection: TypeDocProjectReflection,
+  options: ApiReferenceOptions = {},
+): ApiModule {
   const moduleReflection = reflection.children?.find(
     (child) => child.children !== undefined,
   )
@@ -66,7 +73,7 @@ function moduleView(reflection: TypeDocProjectReflection): ApiModule {
     return {
       anchor: declarationAnchor(child.name),
       category: blockTagText(comment?.blockTags, "@category") ?? "Other",
-      commentHtml: commentHtml(comment),
+      commentHtml: commentHtml(comment, options),
       commentMarkdown: commentMarkdown(comment),
       examples: examplesByOwner.get(child.id) ?? [],
       id: child.id,
@@ -115,7 +122,7 @@ function moduleView(reflection: TypeDocProjectReflection): ApiModule {
   )
 
   return {
-    commentHtml: commentHtml(moduleReflection?.comment),
+    commentHtml: commentHtml(moduleReflection?.comment, options),
     commentMarkdown: commentMarkdown(moduleReflection?.comment),
     declarationCount: declarations.length,
     groups: sortedGroups,
@@ -191,23 +198,20 @@ function compareVersions(left: string, right: string): number {
 
 function commentHtml(
   value: JSONOutput.Comment | undefined,
+  options: ApiReferenceOptions,
 ): string | undefined {
-  const markdown = commentMarkdown(value)
+  const markdown = commentMarkdown(value, options)
   if (markdown === undefined) return undefined
   const blocks = [renderMarkdown(markdown)]
-  const see =
-    value === undefined ? undefined : blockTagText(value.blockTags, "@see")
-  if (see !== undefined) {
-    const items = see
-      .split(/\n\s*-\s*/)
-      .map((item) => item.replace(/^\s*-\s*/, "").trim())
-      .filter(Boolean)
-    if (items.length > 0) {
-      blocks.push(
-        "<h4>See</h4>",
-        `<ul>${items.map((item) => `<li>${linkFirstWord(item)}</li>`).join("")}</ul>`,
-      )
-    }
+  const see = value?.blockTags
+    ?.filter((tag) => tag.tag === "@see")
+    .map((tag) => commentPartsMarkdown(tag.content, options).trim())
+    .filter(Boolean)
+  if (see !== undefined && see.length > 0) {
+    blocks.push(
+      "<h4>See</h4>",
+      renderMarkdown(see.map((item) => `- ${item}`).join("\n")),
+    )
   }
   return blocks.length > 0 ? blocks.join("") : undefined
 }
@@ -236,42 +240,56 @@ function removeEmptyTableRows(markdown: string): string {
 
 function commentMarkdown(
   value: JSONOutput.Comment | undefined,
+  options: ApiReferenceOptions = {},
 ): string | undefined {
   if (value === undefined) return undefined
-  const markdown = value.summary
-    .flatMap((part) => {
-      if (part.kind === "code" && parseFencedCode(part.text) !== undefined)
-        return []
-      return [part.text]
-    })
-    .join("")
-    .trim()
+  const markdown = commentPartsMarkdown(value.summary, options)
   const withoutExample = markdown
     .replace(/\n\n\*\*Example\*\*[\s\S]*$/, "")
     .trim()
   return withoutExample.length > 0 ? withoutExample : undefined
 }
 
-function inlineMarkup(value: string): string {
-  return escapeHtml(value)
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+function commentPartsMarkdown(
+  parts: ReadonlyArray<JSONOutput.CommentDisplayPart>,
+  options: ApiReferenceOptions,
+): string {
+  return parts
+    .flatMap((part) => {
+      if (part.kind === "code" && parseFencedCode(part.text) !== undefined)
+        return []
+      if (part.kind !== "inline-tag") return [part.text]
+      const reference = parseModuleReference(part.tsLinkText ?? part.text)
+      if (reference === undefined) return [part.text]
+      const name =
+        reference.declaration ?? reference.modulePath.split("/").at(-1)
+      const label = name === undefined ? reference.modulePath : name
+      const href = options.moduleHref?.(reference.modulePath)
+      return href === undefined
+        ? [`\`${label}\``]
+        : [
+            `[\`${label}\`](${href}${reference.declaration === undefined ? "" : `#${declarationAnchor(reference.declaration)}`})`,
+          ]
+    })
+    .join("")
 }
 
-function linkFirstWord(value: string): string {
-  const match = /^(\w+)([\s\S]*)$/.exec(value)
-  return match === null
-    ? inlineMarkup(value)
-    : `<a href="#${declarationAnchor(match[1] ?? "")}"><code>${escapeHtml(match[1] ?? "")}</code></a>${inlineMarkup(match[2] ?? "")}`
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;")
+function parseModuleReference(value: string):
+  | {
+      modulePath: string
+      declaration: string | undefined
+    }
+  | undefined {
+  const match = /^module:([^\s|]+)$/.exec(value.trim())
+  const target = match?.[1]
+  if (target === undefined) return undefined
+  const separator = target.indexOf(".")
+  return separator === -1
+    ? { modulePath: target, declaration: undefined }
+    : {
+        modulePath: target.slice(0, separator),
+        declaration: target.slice(separator + 1),
+      }
 }
 
 function declarationSignature(

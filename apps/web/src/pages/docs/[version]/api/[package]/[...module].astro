@@ -27,7 +27,6 @@ export const getStaticPaths = (async () => {
 const { entry } = Astro.props
 const allEntries = await getCollection("apiReference")
 const reflection = await ApiReference.loadReflection(entry.data)
-const apiModule = ApiReference.ApiReference.moduleView(reflection)
 const moduleName = entry.data.modulePath.split("/").at(-1) ?? entry.data.modulePath
 const displayName = entry.data.packageName.replace("@effect/", "")
 const openGraph = resolveApiReferenceOpenGraph(
@@ -41,6 +40,13 @@ const packageEntries = allEntries
       candidate.data.packageSlug === entry.data.packageSlug,
   )
   .toSorted((left, right) => left.data.modulePath.localeCompare(right.data.modulePath))
+const moduleHref = (modulePath: string) =>
+  `/docs/${entry.data.version}/api/${entry.data.packageSlug}/${modulePath}`
+const packageModulePaths = new Set(packageEntries.map((candidate) => candidate.data.modulePath))
+const apiModule = ApiReference.ApiReference.moduleView(reflection, {
+  moduleHref: (modulePath) =>
+    packageModulePaths.has(modulePath) ? moduleHref(modulePath) : undefined,
+})
 const versionLinks = ["v3", "v4"].map((version) => {
   const exact = allEntries.find(
     (candidate) =>
@@ -57,9 +63,6 @@ const versionLinks = ["v3", "v4"].map((version) => {
   }
 })
 const showVersionSwitch = versionLinks.every(({ href }) => href !== undefined)
-const moduleHref = (modulePath: string) =>
-  `/docs/${entry.data.version}/api/${entry.data.packageSlug}/${modulePath}`
-
 function moduleSection(modulePath: string): string {
   const parts = modulePath.split("/")
   if (entry.data.packageName === "effect" && parts[0] === "unstable") {
