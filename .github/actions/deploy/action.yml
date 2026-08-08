@@ -92,7 +92,6 @@ runs:
 
     - name: Pull Vercel Environment Information
       shell: bash
-      working-directory: apps/web
       run: pnpm exec vercel pull --yes --environment=production --token="${{ inputs.vercel-token }}" --scope=effect-ts
       env:
         VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
@@ -100,7 +99,6 @@ runs:
 
     - name: Build Project Artifacts
       shell: bash
-      working-directory: apps/web
       run: pnpm exec vercel build --prod --token="${{ inputs.vercel-token }}"
       env:
         VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}
@@ -108,12 +106,10 @@ runs:
 
     - name: Patch trailing-slash redirect into build output
       shell: bash
-      working-directory: apps/web
-      run: node scripts/patch-vercel-trailing-slash.mjs
+      run: node apps/web/scripts/patch-vercel-trailing-slash.mjs
 
     - name: Deploy Project Artifacts to Vercel
       shell: bash
-      working-directory: apps/web
       run: pnpm exec vercel deploy --prebuilt --archive=tgz --prod --token="${{ inputs.vercel-token }}" --scope=effect-ts
       env:
         VERCEL_ORG_ID: ${{ inputs.vercel-org-id }}

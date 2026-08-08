@@ -4,7 +4,7 @@ import { assert, test } from "vite-plus/test"
 import { ReflectionKind } from "typedoc"
 import { ApiReference } from "../src/ApiReference.ts"
 
-test("renders Markdown tables in module comments", () => {
+test("renders GFM module comments without empty table rows", () => {
   const reflection = Schema.decodeUnknownSync(TypeDocProjectReflection)({
     schemaVersion: "2.0",
     id: 1,
@@ -27,7 +27,13 @@ test("renders Markdown tables in module comments", () => {
               text: [
                 "| Category | Domain |",
                 "| --- | --- |",
+                "| | |",
                 "| math | `number` |",
+                "",
+                "## Composition Patterns",
+                "",
+                "- Chain operations",
+                "- Handle failures",
               ].join("\n"),
             },
           ],
@@ -36,8 +42,13 @@ test("renders Markdown tables in module comments", () => {
     ],
   })
 
-  assert.equal(
-    ApiReference.moduleView(reflection).commentHtml,
-    '<div class="api-table"><table><thead><tr><th>Category</th><th>Domain</th></tr></thead><tbody><tr><td>math</td><td><code>number</code></td></tr></tbody></table></div>',
+  const html = ApiReference.moduleView(reflection).commentHtml
+  assert.ok(html)
+  assert.equal(html.match(/<tr>/g)?.length, 2)
+  assert.match(html, /<td><code>number<\/code><\/td>/)
+  assert.match(html, /<h2>Composition Patterns<\/h2>/)
+  assert.match(
+    html,
+    /<ul>\s*<li>Chain operations<\/li>\s*<li>Handle failures<\/li>\s*<\/ul>/,
   )
 })

@@ -100,25 +100,21 @@ jobs:
           MXBAI_API_KEY: ${{ secrets.MXBAI_PREVIEW_ADMIN_API_KEY }}
 
       - name: Pull Vercel Environment Information
-        working-directory: apps/web
         run: pnpm exec vercel pull --yes --environment=preview --git-branch="${{ github.head_ref }}" --token=${{ secrets.VERCEL_TOKEN }} --scope=effect-ts
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build Project Artifacts
-        working-directory: apps/web
         run: pnpm exec vercel build --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Patch trailing-slash redirect into build output
-        working-directory: apps/web
-        run: node scripts/patch-vercel-trailing-slash.mjs
+        run: node apps/web/scripts/patch-vercel-trailing-slash.mjs
 
       - name: Deploy Project Artifacts to Vercel
-        working-directory: apps/web
         run: |
           if [[ -z "$SEARCH_STORE_ID" ]]; then
             echo "::error::No Mixedbread search store is available for this preview"
