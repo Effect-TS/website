@@ -1,0 +1,45 @@
+Bring the provider Promise into Effect without changing the endpoint behavior.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts` and the npm dependency files changed by `npm install effect`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+From the tutorial directory, run `npm install effect`, then apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ import { createServer } from "node:http"
+ import { setTimeout as sleep } from "node:timers/promises"
++import { Effect } from "effect"
+@@
+ interface PlaceOrderRequest {
+   readonly customerId: string
+   readonly paymentToken: string
+ }
++
++const authorizePaymentEffect = (token: string) =>
++  Effect.tryPromise((signal) => authorizePayment(token, { signal }))
+ 
+ const server = createServer(async (request, response) => {
+@@
+-    const authorization = await authorizePayment(input.paymentToken)
++    const authorization = await Effect.runPromise(
++      authorizePaymentEffect(input.paymentToken),
++    )
+*** End Patch
+```
+
+If the approved request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Verify that the approved request still returns status `201` with this body:
+
+```json
+{"orderId":"order-customer-approved","status":"accepted","paymentProvider":"primary-pay"}
+```
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.

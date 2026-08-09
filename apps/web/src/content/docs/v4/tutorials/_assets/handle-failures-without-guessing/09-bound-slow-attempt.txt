@@ -1,0 +1,60 @@
+Add a timeout that interrupts one slow provider attempt.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- Do not fix a failed observation or verification.
+
+Before editing, make sure the server is available. If the connection is refused, start `node --watch server.ts` in a persistent terminal and wait for the listening message. Send `tok_slow` and measure its elapsed time. Verify that it returns status `201` after about two seconds. If it does not, stop without applying the patch and report the observed difference.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
+   readonly provider: string
+ }> {}
+ 
++class RequestTimedOut extends Data.TaggedError("RequestTimedOut")<{
++  readonly provider: string
++}> {}
++
+ const toPaymentError = (cause: unknown) => {
+@@
+ const placeOrder = (input: PlaceOrderRequest) => {
+   return authorizePaymentEffect(input.paymentToken).pipe(
++    Effect.timeoutOrElse({
++      duration: "250 millis",
++      orElse: () => Effect.fail(new RequestTimedOut({ provider: "primary-pay" })),
++    }),
+     Effect.retry({
+@@
+       ProviderUnavailable: (error) =>
+         Effect.succeed(
+           httpResult(503, {
+             error: error._tag,
+             provider: error.provider,
+           }),
+         ),
++      RequestTimedOut: (error) =>
++        Effect.succeed(
++          httpResult(504, {
++            error: error._tag,
++            provider: error.provider,
++          }),
++        ),
+       UnexpectedPaymentProviderError: (error) =>
+*** End Patch
+```
+
+Wait for the watch process to reload the server. Send `tok_slow` again and verify:
+
+1. Status `504` with body `{"error":"RequestTimedOut","provider":"primary-pay"}`.
+2. The response arrives after about 250 ms instead of two seconds.
+3. The server records one authorization attempt followed by `primary-pay authorization aborted`.
+
+Reply with the before and after results in a concise pass or fail summary. On failure, report only the patch mismatch or observed difference. Do not show the diff and do not apply a correction.

@@ -1,0 +1,51 @@
+Preserve a temporary provider outage as an explicit availability failure.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
+   readonly reason: string
+ }> {}
+ 
++class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
++  readonly provider: string
++}> {}
++
+ const toPaymentError = (cause: unknown) => {
+   if (cause instanceof PaymentDeclinedSdkError) {
+     return new PaymentDeclined({ reason: cause.reason })
+   }
++  if (cause instanceof ProviderUnavailableSdkError) {
++    return new ProviderUnavailable({ provider: cause.provider })
++  }
+   return new UnexpectedPaymentProviderError({ cause })
+ }
+@@
+           }),
+         ),
++      ProviderUnavailable: (error) =>
++        Effect.succeed(
++          httpResult(503, {
++            error: error._tag,
++            provider: error.provider,
++          }),
++        ),
+       UnexpectedPaymentProviderError: (error) =>
+*** End Patch
+```
+
+If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Send `tok_flaky` and verify status `503`, body `{"error":"ProviderUnavailable","provider":"primary-pay"}`, and exactly one authorization attempt.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.

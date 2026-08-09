@@ -1,0 +1,33 @@
+Add a bounded retry that applies only to temporary provider outages.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ const placeOrder = (input: PlaceOrderRequest) => {
+   return authorizePaymentEffect(input.paymentToken).pipe(
++    Effect.retry({
++      times: 2,
++      while: (error) => error._tag === "ProviderUnavailable",
++    }),
+     Effect.map((authorization) =>
+*** End Patch
+```
+
+If the server refuses a connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Verify both decisions:
+
+1. Send `tok_flaky`. Expect status `201`, an accepted order body, and exactly three authorization attempts.
+2. Send `tok_declined`. Expect status `422`, a `PaymentDeclined` body, and exactly one authorization attempt.
+
+Reply with a concise pass or fail result for each decision. On failure, report only the patch mismatch or observed difference. Do not show the diff and do not apply a correction.

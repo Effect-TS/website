@@ -1,0 +1,57 @@
+Connect an HTTP client disconnect to cancellation of the complete Effect operation.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+   if (request.method !== "POST" || request.url !== "/orders") {
+     sendJson(404, { error: "NotFound" })
+     return
+   }
+ 
++  const controller = new AbortController()
++
++  response.once("close", () => {
++    if (!response.writableEnded) {
++      controller.abort()
++    }
++  })
++
+   try {
+@@
+-    const result = await Effect.runPromise(placeOrder(input))
++    const result = await Effect.runPromise(placeOrder(input), {
++      signal: controller.signal,
++    })
+     sendJson(result.status, result.body)
+-  } catch (error) {
+-    console.error(error)
++  } catch (cause) {
++    if (controller.signal.aborted) {
++      return
++    }
++    console.error(cause)
+     sendJson(500, { error: "InternalServerError" })
+   }
+ })
+*** End Patch
+```
+
+If the server refuses a connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Ask the client to disconnect during the slow provider call by sending `tok_slow` with `curl --max-time 0.1`. Verify:
+
+1. `curl` reports that its deadline was reached and receives no HTTP response.
+2. The server logs exactly one authorization attempt followed by `primary-pay authorization aborted`.
+3. No second authorization attempt starts.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.

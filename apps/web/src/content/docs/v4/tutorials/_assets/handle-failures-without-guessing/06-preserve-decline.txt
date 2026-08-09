@@ -1,0 +1,52 @@
+Preserve a declined payment as an explicit business decision.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ class UnexpectedPaymentProviderError extends Data.TaggedError(
+   "UnexpectedPaymentProviderError",
+ )<{
+   readonly cause: unknown
+ }> {}
+ 
+-const toPaymentError = (cause: unknown) =>
+-  new UnexpectedPaymentProviderError({ cause })
++class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
++  readonly reason: string
++}> {}
++
++const toPaymentError = (cause: unknown) => {
++  if (cause instanceof PaymentDeclinedSdkError) {
++    return new PaymentDeclined({ reason: cause.reason })
++  }
++  return new UnexpectedPaymentProviderError({ cause })
++}
+@@
+     ),
+     Effect.catchTags({
++      PaymentDeclined: (error) =>
++        Effect.succeed(
++          httpResult(422, {
++            error: error._tag,
++            reason: error.reason,
++          }),
++        ),
+       UnexpectedPaymentProviderError: (error) =>
+*** End Patch
+```
+
+If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Send `tok_declined` and verify status `422`, body `{"error":"PaymentDeclined","reason":"card declined"}`, and exactly one authorization attempt.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.

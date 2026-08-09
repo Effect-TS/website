@@ -1,0 +1,119 @@
+Set up the starter project for the Effect tutorial.
+
+Rules:
+- Treat the current workspace root as the parent directory.
+- Work only in `./handle-failures-without-guessing`.
+- If that directory already exists, stop without changing anything and explain that the setup requires a new directory.
+- Do not add files, dependencies, or configuration not requested below.
+
+Create `./handle-failures-without-guessing`, then run these commands inside it:
+
+```sh
+npm init -y
+npm pkg set type=module
+npm install --save-dev @types/node@22
+```
+
+Create `server.ts` with exactly this content:
+
+```ts
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+    const authorization = await authorizePayment(input.paymentToken)
+
+    sendJson(201, {
+      orderId: `order-${input.customerId}`,
+      status: "accepted",
+      paymentProvider: authorization.provider,
+    })
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
+  })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
+}
+```
+
+Start `node --watch server.ts` from the tutorial directory in a persistent terminal and wait for `Listening on http://localhost:3000`. Leave the server active.
+
+Send a POST request to `http://localhost:3000/orders` with `content-type: application/json` and this body:
+
+```json
+{"customerId":"customer-approved","paymentToken":"tok_approved"}
+```
+
+Verify status `201` and this response body:
+
+```json
+{"orderId":"order-customer-approved","status":"accepted","paymentProvider":"primary-pay"}
+```
+
+When finished, reply only that the starter project is running and the approved request succeeded. If any requested action fails, report the failure without attempting an alternative setup or correction.
