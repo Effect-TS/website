@@ -59,7 +59,9 @@ Explain every Effect-specific API and term at its first use. When these APIs app
 - `Effect.tryPromise`: adapt a Promise-producing function; resolved values become successes, rejections enter the error channel, the function remains lazy, and the provided `AbortSignal` reaches the Promise API.
 - `Effect.runPromise`: run the computation, return a Promise, resolve with the success value, reject when the Effect does not succeed, and optionally observe an external `AbortSignal`.
 - `pipe`: compose descriptions from top to bottom without running them.
-- `Effect.map`: transform only the success value and leave failures unchanged.
+- `Effect.map`: transform the success channel with a function and leave the
+  error channel unchanged. Keep the general behavior separate from the
+  concrete result type chosen by the tutorial.
 - `Cause.UnknownError`: identify it as Effect's built-in wrapper for an unclassified rejection and explain preservation of the original `cause`.
 - `Data.TaggedError`: explain the generated typed error class, the tag string, the constructor fields declared by the type argument, and the resulting instance.
 - `_tag`: identify it as the ubiquitous Effect convention for discriminating variants.
@@ -69,6 +71,26 @@ Explain every Effect-specific API and term at its first use. When these APIs app
 - `Effect.fail`: describe a failed computation; creating it does not throw.
 - `Effect.retry`: rerun the preceding computation after selected failures; explain the predicate and the total attempt bound concretely.
 - `Effect.timeoutOrElse`: bound the preceding computation, interrupt it, and run the fallback on timeout.
+
+Present each concrete API explanation in the shared `EffectApi` card. Keep general concepts such as the error channel, interruption, and defects in the surrounding narrative.
+
+```mdx
+<EffectApi
+  name="Effect.tryPromise"
+  href="/docs/v4/api/effect/Effect#tryPromise"
+>
+  Describe the API in terms of the code just introduced.
+</EffectApi>
+```
+
+- Use the complete API name as the card title.
+- Keep the description focused on behavior the reader can connect to the current step.
+- Link directly to the declaration in the API reference.
+- Write the `href` explicitly so the reference remains visible in the raw `.md` representation.
+- Verify ambiguous declaration anchors against the generated reference. A symbol exported as both a type and a value may use suffixes such as `-interface` or `-variable`.
+- Reuse a card when a later step introduces a materially different capability of an API, such as passing an external `AbortSignal` to `Effect.runPromise`.
+- Let adjacent `EffectApi` cards form the component's automatic visual stack.
+  Do not add filler prose or MDX wrappers merely to separate related API cards.
 
 Inventory the APIs actually used instead of relying on memory:
 

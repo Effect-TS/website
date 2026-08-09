@@ -8,6 +8,7 @@ sidebar:
 import {
   AgentPrompt,
   Aside,
+  EffectApi,
   TutorialCheckpoint,
 } from "@astrojs/starlight/components"
 
@@ -492,10 +493,15 @@ const authorizePayment = async (
 }
 ```
 
-`Effect.tryPromise` turns a function that creates a Promise into an Effect. The
-function is called only when the Effect runs. A resolved Promise becomes a
-success, while a rejected Promise becomes a failure. `Effect.tryPromise` also
-supplies an `AbortSignal`, which we pass to the provider SDK.
+<EffectApi
+  name="Effect.tryPromise"
+  href="/docs/v4/api/effect/Effect#tryPromise"
+>
+  Turns a function that creates a Promise into an Effect. The function is called
+  only when the Effect runs. A resolved Promise becomes a success, while a
+  rejected Promise becomes a failure. It also supplies an `AbortSignal`, which
+  we pass to the provider SDK.
+</EffectApi>
 
 TypeScript infers that calling `authorizePaymentEffect` returns:
 
@@ -503,26 +509,36 @@ TypeScript infers that calling `authorizePaymentEffect` returns:
 Effect.Effect<{ provider: string }, Cause.UnknownError>
 ```
 
-This is the inferred type, not code to add to `server.ts`. `Effect.Effect` is
-the type of an Effect value inside the same `Effect` namespace that provides
-functions such as `Effect.tryPromise` and `Effect.runPromise`.
+This is the inferred type, not code to add to `server.ts`.
 
-The first type argument, `{ provider: string }`, is the value produced when
-authorization succeeds. The second type argument lists how the computation can
-fail. Effect calls this its error channel. Here, `Cause.UnknownError` is
-Effect's built-in wrapper for a Promise rejection that has not been classified
-yet. It preserves the original rejected value in its `cause` property. In the
-next step, we will replace this generic error with one that describes what the
-failure means to our application.
+<EffectApi name="Effect.Effect" href="/docs/v4/api/effect/Effect#Effect">
+  The type of an Effect value. Its first type argument, `{ provider: string }`,
+  is the value produced when authorization succeeds. The second lists how the
+  computation can fail.
+</EffectApi>
 
-An Effect is a description of a computation. Creating one does not run that
-computation or perform any side effects. To make it do work, you pass it to a
-function that runs Effects, such as `Effect.runPromise`.
+Effect calls the second type parameter its error channel. An Effect describes a
+computation. Creating or transforming one does not run that computation or
+perform side effects.
 
-Here, `Effect.runPromise` runs the computation and returns its result as a
-Promise. `await` receives `{ provider: string }` when the Effect succeeds. If
-the Effect fails, the Promise rejects and the existing `catch` block handles
-the failure.
+<EffectApi
+  name="Cause.UnknownError"
+  href="/docs/v4/api/effect/Cause#UnknownError-interface"
+>
+  Effect's built-in wrapper for a Promise rejection that has not been classified
+  yet. It preserves the original rejected value in its `cause` property. In the
+  next step, we will replace it with an error that describes what the failure
+  means to our application.
+</EffectApi>
+
+<EffectApi
+  name="Effect.runPromise"
+  href="/docs/v4/api/effect/Effect#runPromise"
+>
+  Runs the computation and returns its result as a Promise. In this handler,
+  `await` receives `{ provider: string }` when the Effect succeeds. If it fails,
+  the Promise rejects and the existing `catch` block handles the failure.
+</EffectApi>
 
 Wait for the server to reload, then send the approved request again. It still
 returns `201`. The decline and outage still return `500`. This first change only
@@ -718,9 +734,13 @@ const authorizePayment = async (
 ```
 
 `pipe` passes the description through transformations from top to bottom. It
-does not run the computation. `Effect.map` returns a new Effect whose success
-value is transformed into an `HttpResult`. It does not catch or alter a
-failure.
+does not run the computation.
+
+<EffectApi name="Effect.map" href="/docs/v4/api/effect/Effect#map">
+  Transforms the success channel with a function and leaves the error channel
+  unchanged. Here, the function turns the successful payment authorization into
+  an `HttpResult`.
+</EffectApi>
 
 Wait for the server to reload and send the approved request. The response
 remains `201`, confirming that composing the successful result did not change
@@ -950,25 +970,30 @@ The Promise rejection enters `catch` as `unknown`. `toPaymentError` converts it
 to an `UnexpectedPaymentProviderError`, so the Effect can fail with a known
 value in its error channel instead.
 
-`Data.TaggedError` creates a typed error class. The string becomes its `_tag`,
-while the type argument defines the fields accepted by its constructor.
-Therefore, `new UnexpectedPaymentProviderError({ cause })` creates an error
-carrying both `_tag` and the original `cause`. The `_tag` field is a convention
-used throughout Effect to identify which variant a value represents.
-`Effect.catchTags` compares that `_tag` with its handler names, so the
-`UnexpectedPaymentProviderError` handler runs and turns this error into a `502`
-HTTP result. Because the handler succeeds with that result, the handled error
-is removed from the error channel. The declared `cause` field preserves the
-original rejection.
+<EffectApi name="Data.TaggedError" href="/docs/v4/api/effect/Data#TaggedError">
+  Creates a typed error class. The string becomes its `_tag`, while the type
+  argument defines the fields accepted by its constructor. Therefore, `new
+  UnexpectedPaymentProviderError({cause})` creates an error carrying both `_tag`
+  and the original `cause`. The `_tag` field is a convention used throughout
+  Effect to identify which variant a value represents.
+</EffectApi>
+
+<EffectApi name="Effect.catchTags" href="/docs/v4/api/effect/Effect#catchTags">
+  Compares an error's `_tag` with its handler names. Each handler returns an
+  Effect. Here, the `UnexpectedPaymentProviderError` handler turns the error
+  into a successful `502` HTTP result, removing the handled error from the error
+  channel. The declared `cause` field preserves the original rejection.
+</EffectApi>
 
 At this point, `UnexpectedPaymentProviderError` was the only possible expected
 failure. After `catchTags` handles it, `placeOrder` can only succeed with an
 `HttpResult`.
 
-Each `catchTags` handler returns an Effect. `Effect.sync` describes synchronous
-work that should run only when the Effect runs. Its return value becomes the
-Effect's success value, so both logging the cause and creating the HTTP result
-remain part of the operation.
+<EffectApi name="Effect.sync" href="/docs/v4/api/effect/Effect#sync">
+  Describes synchronous work that should run only when the Effect runs. Its
+  return value becomes the Effect's success value, so both logging the cause and
+  creating the HTTP result remain part of the operation.
+</EffectApi>
 
 Wait for the server to reload, then send the undocumented provider failure:
 
@@ -1215,9 +1240,11 @@ const authorizePayment = async (
 }
 ```
 
-`Effect.succeed` creates an Effect that succeeds with an already available
-value. Unlike the previous handler, this one performs no synchronous work, so
-it can return the `HttpResult` directly through `Effect.succeed`.
+<EffectApi name="Effect.succeed" href="/docs/v4/api/effect/Effect#succeed">
+  Creates an Effect that succeeds with an already available value. Unlike the
+  previous handler, this one performs no synchronous work, so it can return the
+  `HttpResult` directly.
+</EffectApi>
 
 Wait for the server to reload, then send `tok_declined` again:
 
@@ -1545,10 +1572,14 @@ Reply only that the checkpoint succeeded, or report the patch mismatch or observ
 
 ## 8. Retry only the failure that may recover
 
-`Effect.retry` reruns the preceding computation when it fails through its error
-channel. Add it immediately after `authorizePaymentEffect`. `times: 2`
-allows at most two retries after the initial attempt. Before each retry, `while`
-receives the latest error and returns `true` only for `ProviderUnavailable`:
+<EffectApi name="Effect.retry" href="/docs/v4/api/effect/Effect#retry">
+  Reruns the preceding computation when it fails through its error channel.
+  `times: 2` allows at most two retries after the initial attempt. Before each
+  retry, `while` receives the latest error and returns `true` only for
+  `ProviderUnavailable`.
+</EffectApi>
+
+Add it immediately after `authorizePaymentEffect`:
 
 ```ts title="server.ts" collapse={5-48,89-158} useDiffSyntax copyFinal
 import { createServer } from "node:http"
@@ -1979,11 +2010,19 @@ const authorizePayment = async (
 }
 ```
 
-`Effect.timeoutOrElse` stops the provider attempt if it has not completed after
-250 ms. Its `orElse` function then runs, and `Effect.fail` adds
-`RequestTimedOut` to the error channel. The existing `catchTags` handler turns
-that error into the `504` response. `Effect.fail` does not throw when it is
-created. It describes a computation that will fail when it runs.
+<EffectApi
+  name="Effect.timeoutOrElse"
+  href="/docs/v4/api/effect/Effect#timeoutOrElse"
+>
+  Stops the provider attempt if it has not completed after 250 ms, then runs its
+  `orElse` function. The existing `catchTags` handler turns the resulting
+  `RequestTimedOut` into the `504` response.
+</EffectApi>
+
+<EffectApi name="Effect.fail" href="/docs/v4/api/effect/Effect#fail">
+  Describes a computation that will fail when it runs. Creating it does not
+  throw. Here, it adds `RequestTimedOut` to the error channel.
+</EffectApi>
 
 Wait for the server to reload, then send `tok_slow` again:
 
@@ -2532,9 +2571,14 @@ const authorizePayment = async (
 }
 ```
 
-`Effect.runPromise` watches the supplied `AbortSignal`. When the response
-closes, the controller aborts that signal, Effect stops the complete operation,
-and `Effect.tryPromise` forwards the cancellation to the provider Promise.
+<EffectApi
+  name="Effect.runPromise"
+  href="/docs/v4/api/effect/Effect#runPromise"
+>
+  Watches the supplied `AbortSignal`. When the response closes, the controller
+  aborts that signal, Effect stops the complete operation, and
+  `Effect.tryPromise` forwards the cancellation to the provider Promise.
+</EffectApi>
 
 Wait for the server to reload, then ask `curl` to disconnect before the provider
 responds:
@@ -2636,8 +2680,10 @@ The original `try`/`catch` handled every rejected Promise as `500`. In the final
 server, all expected errors have already been converted to `HttpResult` values
 by `Effect.catchTags` before `Effect.runPromise` is called.
 
-`Effect.catchTags` handles only failures in the error channel. It does not
-handle interruption or unexpected bugs.
+<EffectApi name="Effect.catchTags" href="/docs/v4/api/effect/Effect#catchTags">
+  Handles only failures in the error channel. It does not handle interruption or
+  unexpected bugs.
+</EffectApi>
 
 The outer `catch` now has only two responsibilities:
 
@@ -2648,32 +2694,6 @@ The outer `catch` now has only two responsibilities:
 It does not reinterpret a defect as `PaymentDeclined`, `ProviderUnavailable`,
 or `RequestTimedOut`. The familiar TypeScript boundary remains, but business and
 operational decisions no longer depend on an untyped exception.
-
-## What you built
-
-The endpoint now preserves enough information to make each failure decision at
-the right place:
-
-- Promise rejections are translated once at the provider boundary;
-- expected errors remain visible in the Effect error channel until the HTTP
-  handlers convert them to results;
-- HTTP responses are selected by error tag;
-- only explicitly recoverable failures are retried;
-- each slow attempt is interrupted;
-- a disconnected client interrupts the complete operation;
-- defects are not disguised as expected failures.
-
-The tutorial used these Effect APIs:
-
-- `Data.TaggedError` to define application errors;
-- `Effect.tryPromise` to adapt the external Promise;
-- `Effect.map` to transform a successful authorization;
-- `Effect.catchTags`, `Effect.succeed`, and `Effect.sync` to handle expected
-  errors;
-- `Effect.retry` to apply a selective, bounded retry;
-- `Effect.timeoutOrElse` and `Effect.fail` to represent a timeout;
-- `Effect.runPromise` to run the computation at the existing TypeScript
-  boundary.
 
 ## Related tutorials
 
