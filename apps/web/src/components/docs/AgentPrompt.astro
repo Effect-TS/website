@@ -3,10 +3,9 @@ import { Bot, Check, Copy } from "@lucide/astro"
 
 interface Props {
   label: string
-  prompt: string
 }
 
-const { label, prompt } = Astro.props
+const { label } = Astro.props
 ---
 
 <copy-agent-prompt class="not-prose my-5 block">
@@ -21,7 +20,9 @@ const { label, prompt } = Astro.props
     <Copy data-role="copy-icon" size={17} aria-hidden="true" />
     <Check data-role="check-icon" class="hidden" size={17} aria-hidden="true" />
   </button>
-  <textarea data-role="prompt" hidden readonly aria-hidden="true">{prompt}</textarea>
+  <div data-role="prompt" hidden aria-hidden="true">
+    <slot />
+  </div>
   <span data-role="status" class="sr-only" role="status" aria-live="polite"></span>
 </copy-agent-prompt>
 
@@ -63,15 +64,23 @@ const { label, prompt } = Astro.props
     }
 
     #copy = async () => {
-      const prompt = this.querySelector<HTMLTextAreaElement>("[data-role='prompt']")
+      const prompt = this.querySelector<HTMLElement>("[data-role='prompt']")
       if (!prompt) return
+
+      const codeLines = prompt.querySelectorAll<HTMLElement>(".ec-line .code")
+      const value =
+        codeLines.length > 0
+          ? Array.from(codeLines, (line) => (line.textContent ?? "").replace(/\n$/, ""))
+              .join("\n")
+              .trim()
+          : (prompt.textContent ?? "").trim()
 
       try {
         if (navigator.clipboard) {
-          await navigator.clipboard.writeText(prompt.value)
+          await navigator.clipboard.writeText(value)
         } else {
           const fallback = document.createElement("textarea")
-          fallback.value = prompt.value
+          fallback.value = value
           fallback.style.position = "fixed"
           fallback.style.opacity = "0"
           document.body.append(fallback)

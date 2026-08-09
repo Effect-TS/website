@@ -5,18 +5,11 @@ sidebar:
   order: 1
 ---
 
-import { Aside, TutorialCheckpoint } from "@astrojs/starlight/components"
-import setupPrompt from "./_assets/handle-failures-without-guessing/01-setup.txt?raw"
-import baselinePrompt from "./_assets/handle-failures-without-guessing/02-baseline.txt?raw"
-import bringPromiseIntoEffectPrompt from "./_assets/handle-failures-without-guessing/03-bring-promise-into-effect.txt?raw"
-import composeSuccessPrompt from "./_assets/handle-failures-without-guessing/04-compose-success.txt?raw"
-import nameUnknownFailurePrompt from "./_assets/handle-failures-without-guessing/05-name-unknown-failure.txt?raw"
-import preserveDeclinePrompt from "./_assets/handle-failures-without-guessing/06-preserve-decline.txt?raw"
-import preserveOutagePrompt from "./_assets/handle-failures-without-guessing/07-preserve-outage.txt?raw"
-import selectiveRetryPrompt from "./_assets/handle-failures-without-guessing/08-selective-retry.txt?raw"
-import boundSlowAttemptPrompt from "./_assets/handle-failures-without-guessing/09-bound-slow-attempt.txt?raw"
-import retryTimeoutPrompt from "./_assets/handle-failures-without-guessing/10-retry-timeout.txt?raw"
-import propagateCancellationPrompt from "./_assets/handle-failures-without-guessing/11-propagate-cancellation.txt?raw"
+import {
+  AgentPrompt,
+  Aside,
+  TutorialCheckpoint,
+} from "@astrojs/starlight/components"
 
 TypeScript describes the value produced by a `Promise`, but not the reasons why
 it may reject. Once provider calls, timeouts, and retries meet in one `catch`,
@@ -187,10 +180,135 @@ We have a working HTTP endpoint before introducing any Effect code.
   number={1}
   total={11}
   title="The starter endpoint works"
-  prompt={setupPrompt}
 >
   The project is running and an approved payment returns `201`. Continue only
   after you can reproduce the response shown above.
+
+  <AgentPrompt label="Copy agent prompt">
+
+````text
+Set up the starter project for the Effect tutorial.
+
+Rules:
+- Treat the current workspace root as the parent directory.
+- Work only in `./handle-failures-without-guessing`.
+- If that directory already exists, stop without changing anything and explain that the setup requires a new directory.
+- Do not add files, dependencies, or configuration not requested below.
+
+Create `./handle-failures-without-guessing`, then run these commands inside it:
+
+```sh
+npm init -y
+npm pkg set type=module
+npm install --save-dev @types/node@22
+```
+
+Create `server.ts` with exactly this content:
+
+```ts
+import { createServer } from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
+}
+
+const server = createServer(async (request, response) => {
+  const sendJson = (status: number, body: unknown): void => {
+    response.writeHead(status, { "content-type": "application/json" })
+    response.end(JSON.stringify(body))
+  }
+
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    let body = ""
+    for await (const chunk of request) {
+      body += chunk
+    }
+    const input = JSON.parse(body) as PlaceOrderRequest
+
+    const authorization = await authorizePayment(input.paymentToken)
+
+    sendJson(201, {
+      orderId: `order-${input.customerId}`,
+      status: "accepted",
+      paymentProvider: authorization.provider,
+    })
+  } catch (error) {
+    console.error(error)
+    sendJson(500, { error: "InternalServerError" })
+  }
+})
+
+server.listen(3000, () => console.log("Listening on http://localhost:3000"))
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason = "card declined"
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider = "primary-pay"
+}
+
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  token: string,
+  { signal }: { readonly signal?: AbortSignal } = {},
+) => {
+  const attempt = (attempts.get(token) ?? 0) + 1
+  attempts.set(token, attempt)
+
+  console.log(`primary-pay authorization attempt ${attempt}`)
+
+  if (token === "tok_declined") {
+    attempts.delete(token)
+    throw new PaymentDeclinedSdkError()
+  }
+  if (token === "tok_unexpected") {
+    attempts.delete(token)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError()
+  }
+
+  signal?.addEventListener("abort", () => console.log("primary-pay authorization aborted"), {
+    once: true,
+  })
+  await sleep(token === "tok_slow" ? 2_000 : 80, undefined, { signal })
+
+  attempts.delete(token)
+  return { provider: "primary-pay" }
+}
+```
+
+Start `node --watch server.ts` from the tutorial directory in a persistent terminal and wait for `Listening on http://localhost:3000`. Leave the server active.
+
+Send a POST request to `http://localhost:3000/orders` with `content-type: application/json` and this body:
+
+```json
+{"customerId":"customer-approved","paymentToken":"tok_approved"}
+```
+
+Verify status `201` and this response body:
+
+```json
+{"orderId":"order-customer-approved","status":"accepted","paymentProvider":"primary-pay"}
+```
+
+When finished, reply only that the starter project is running and the approved request succeeded. If any requested action fails, report the failure without attempting an alternative setup or correction.
+````
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 2. See what goes wrong
@@ -235,10 +353,37 @@ preserve enough information to decide.
   number={2}
   total={11}
   title="The failure ambiguity is visible"
-  prompt={baselinePrompt}
 >
   A final decline and a temporary outage both collapse to the same `500`
   response. Confirm both outcomes before continuing.
+
+  <AgentPrompt label="Copy agent prompt">
+
+```text
+Reproduce the baseline behavior of the tutorial project.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that `package.json` and `server.ts` exist there. Otherwise stop without changing anything.
+- Do not edit any file.
+- If `http://localhost:3000/orders` refuses the connection, start `node --watch server.ts` from the tutorial directory in a persistent terminal, wait for `Listening on http://localhost:3000`, and retry. Leave that server active.
+- If the server returns any HTTP response, do not restart it merely because a result differs from the expectations below.
+- Do not fix a failed verification.
+
+Send these two POST requests with `content-type: application/json`:
+
+1. `{"customerId":"customer-declined","paymentToken":"tok_declined"}`
+2. `{"customerId":"customer-flaky","paymentToken":"tok_flaky"}`
+
+Verify these results:
+
+1. The declined request returns status `500` and `{"error":"InternalServerError"}`.
+2. The temporary outage returns status `500` and `{"error":"InternalServerError"}`.
+
+Reply with a concise pass or fail result for each request. On failure, report only the observed difference. Do not propose or apply a correction.
+```
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 3. Bring the Promise into Effect
@@ -287,11 +432,62 @@ establishes the boundary between Promise code and Effect code.
   number={3}
   total={11}
   title="The Promise now runs through Effect"
-  prompt={bringPromiseIntoEffectPrompt}
 >
   The approved request still returns `201`, but the provider operation now
   enters Effect through `Effect.tryPromise` and runs at the existing async
   boundary.
+
+  <AgentPrompt label="Copy agent prompt">
+
+````text
+Bring the provider Promise into Effect without changing the endpoint behavior.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts` and the npm dependency files changed by `npm install effect`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+From the tutorial directory, run `npm install effect`, then apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ import { createServer } from "node:http"
+ import { setTimeout as sleep } from "node:timers/promises"
++import { Effect } from "effect"
+@@
+ interface PlaceOrderRequest {
+   readonly customerId: string
+   readonly paymentToken: string
+ }
++
++const authorizePaymentEffect = (token: string) =>
++  Effect.tryPromise((signal) => authorizePayment(token, { signal }))
+
+ const server = createServer(async (request, response) => {
+@@
+-    const authorization = await authorizePayment(input.paymentToken)
++    const authorization = await Effect.runPromise(
++      authorizePaymentEffect(input.paymentToken),
++    )
+*** End Patch
+```
+
+If the approved request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Verify that the approved request still returns status `201` with this body:
+
+```json
+{"orderId":"order-customer-approved","status":"accepted","paymentProvider":"primary-pay"}
+```
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 After every change below, wait for `node --watch` to reload the server before
@@ -349,10 +545,84 @@ the endpoint.
   number={4}
   total={11}
   title="Effect preserves the successful behavior"
-  prompt={composeSuccessPrompt}
 >
   The successful authorization now becomes an `HttpResult` inside the Effect
   program. The approved request still returns `201`.
+
+  <AgentPrompt label="Copy agent prompt">
+
+````text
+Move the successful HTTP result into the Effect program without changing its behavior.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ interface PlaceOrderRequest {
+   readonly customerId: string
+   readonly paymentToken: string
+ }
+
++interface HttpResult {
++  readonly status: number
++  readonly body: unknown
++}
++
++const httpResult = (status: number, body: unknown): HttpResult => ({
++  status,
++  body,
++})
++
+ const authorizePaymentEffect = (token: string) =>
+   Effect.tryPromise((signal) => authorizePayment(token, { signal }))
++
++const placeOrder = (input: PlaceOrderRequest) => {
++  return authorizePaymentEffect(input.paymentToken).pipe(
++    Effect.map((authorization) =>
++      httpResult(201, {
++        orderId: `order-${input.customerId}`,
++        status: "accepted",
++        paymentProvider: authorization.provider,
++      }),
++    ),
++  )
++}
+@@
+-    const authorization = await Effect.runPromise(
+-      authorizePaymentEffect(input.paymentToken),
+-    )
+-
+-    sendJson(201, {
+-      orderId: `order-${input.customerId}`,
+-      status: "accepted",
+-      paymentProvider: authorization.provider,
+-    })
++    const result = await Effect.runPromise(placeOrder(input))
++    sendJson(result.status, result.body)
+*** End Patch
+```
+
+If the approved request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Verify that the approved request still returns status `201` with this body:
+
+```json
+{"orderId":"order-customer-approved","status":"accepted","paymentProvider":"primary-pay"}
+```
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 5. Give an unknown provider failure a safe name
@@ -440,10 +710,76 @@ We will recognize them individually next.
   number={5}
   total={11}
   title="Unknown failures have a safe name"
-  prompt={nameUnknownFailurePrompt}
 >
   An undocumented provider rejection returns `502`. Its original cause remains
   in the server log instead of leaking to the client.
+
+  <AgentPrompt label="Copy agent prompt">
+
+````text
+Give every unrecognized provider rejection a safe application-level name.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+-import { Effect } from "effect"
++import { Data, Effect } from "effect"
+@@
+ const httpResult = (status: number, body: unknown): HttpResult => ({
+   status,
+   body,
+ })
+
++class UnexpectedPaymentProviderError extends Data.TaggedError(
++  "UnexpectedPaymentProviderError",
++)<{
++  readonly cause: unknown
++}> {}
++
++const toPaymentError = (cause: unknown) =>
++  new UnexpectedPaymentProviderError({ cause })
++
+ const authorizePaymentEffect = (token: string) =>
+-  Effect.tryPromise((signal) => authorizePayment(token, { signal }))
++  Effect.tryPromise({
++    try: (signal) => authorizePayment(token, { signal }),
++    catch: toPaymentError,
++  })
+@@
+       }),
+     ),
++    Effect.catchTags({
++      UnexpectedPaymentProviderError: (error) =>
++        Effect.sync(() => {
++          console.error("Unexpected payment provider failure", error.cause)
++          return httpResult(502, {
++            error: error._tag,
++          })
++        }),
++    }),
+   )
+ }
+*** End Patch
+```
+
+If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Send `tok_unexpected` and verify status `502` with body `{"error":"UnexpectedPaymentProviderError"}`. Confirm that the server logs the original cause without exposing its message to the client.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 6. Preserve a business decision
@@ -505,10 +841,68 @@ back into the outer `catch`.
   number={6}
   total={11}
   title="A decline remains a business decision"
-  prompt={preserveDeclinePrompt}
 >
   A declined payment returns `422` after one attempt. It no longer shares the
   response used for an unknown provider failure.
+
+  <AgentPrompt label="Copy agent prompt">
+
+````text
+Preserve a declined payment as an explicit business decision.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ class UnexpectedPaymentProviderError extends Data.TaggedError(
+   "UnexpectedPaymentProviderError",
+ )<{
+   readonly cause: unknown
+ }> {}
+
+-const toPaymentError = (cause: unknown) =>
+-  new UnexpectedPaymentProviderError({ cause })
++class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
++  readonly reason: string
++}> {}
++
++const toPaymentError = (cause: unknown) => {
++  if (cause instanceof PaymentDeclinedSdkError) {
++    return new PaymentDeclined({ reason: cause.reason })
++  }
++  return new UnexpectedPaymentProviderError({ cause })
++}
+@@
+     ),
+     Effect.catchTags({
++      PaymentDeclined: (error) =>
++        Effect.succeed(
++          httpResult(422, {
++            error: error._tag,
++            reason: error.reason,
++          }),
++        ),
+       UnexpectedPaymentProviderError: (error) =>
+*** End Patch
+```
+
+If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Send `tok_declined` and verify status `422`, body `{"error":"PaymentDeclined","reason":"card declined"}`, and exactly one authorization attempt.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 7. Preserve a temporary outage
@@ -565,10 +959,67 @@ a retry without guessing.
   number={7}
   total={11}
   title="A temporary outage remains recoverable"
-  prompt={preserveOutagePrompt}
 >
   A temporary provider outage returns `503` after one attempt. The error channel
   now distinguishes all three failure decisions.
+
+  <AgentPrompt label="Copy agent prompt">
+
+````text
+Preserve a temporary provider outage as an explicit availability failure.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
+   readonly reason: string
+ }> {}
+
++class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
++  readonly provider: string
++}> {}
++
+ const toPaymentError = (cause: unknown) => {
+   if (cause instanceof PaymentDeclinedSdkError) {
+     return new PaymentDeclined({ reason: cause.reason })
+   }
++  if (cause instanceof ProviderUnavailableSdkError) {
++    return new ProviderUnavailable({ provider: cause.provider })
++  }
+   return new UnexpectedPaymentProviderError({ cause })
+ }
+@@
+           }),
+         ),
++      ProviderUnavailable: (error) =>
++        Effect.succeed(
++          httpResult(503, {
++            error: error._tag,
++            provider: error.provider,
++          }),
++        ),
+       UnexpectedPaymentProviderError: (error) =>
+*** End Patch
+```
+
+If the request refuses the connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Send `tok_flaky` and verify status `503`, body `{"error":"ProviderUnavailable","provider":"primary-pay"}`, and exactly one authorization attempt.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 8. Retry only the failure that may recover
@@ -625,11 +1076,50 @@ classification we built here.
   number={8}
   total={11}
   title="Only recoverable failures are retried"
-  prompt={selectiveRetryPrompt}
 >
   A temporary outage succeeds after three bounded attempts. A declined payment
   still returns `422` after one attempt, so retry does not override a business
   decision.
+
+  <AgentPrompt label="Copy agent prompt">
+
+````text
+Add a bounded retry that applies only to temporary provider outages.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ const placeOrder = (input: PlaceOrderRequest) => {
+   return authorizePaymentEffect(input.paymentToken).pipe(
++    Effect.retry({
++      times: 2,
++      while: (error) => error._tag === "ProviderUnavailable",
++    }),
+     Effect.map((authorization) =>
+*** End Patch
+```
+
+If the server refuses a connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Verify both decisions:
+
+1. Send `tok_flaky`. Expect status `201`, an accepted order body, and exactly three authorization attempts.
+2. Send `tok_declined`. Expect status `422`, a `PaymentDeclined` body, and exactly one authorization attempt.
+
+Reply with a concise pass or fail result for each decision. On failure, report only the patch mismatch or observed difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 9. Bound every slow attempt
@@ -705,11 +1195,77 @@ ordinary Promise API without any timeout-specific code in `placeOrder`.
   number={9}
   total={11}
   title="One slow attempt has a fixed bound"
-  prompt={boundSlowAttemptPrompt}
 >
   The request first waits for the provider-controlled two seconds. With the
   timeout in place, one interrupted attempt returns a typed `504` after about
   250 ms.
+
+  <AgentPrompt label="Copy agent prompt">
+
+````text
+Add a timeout that interrupts one slow provider attempt.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- Do not fix a failed observation or verification.
+
+Before editing, make sure the server is available. If the connection is refused, start `node --watch server.ts` in a persistent terminal and wait for the listening message. Send `tok_slow` and measure its elapsed time. Verify that it returns status `201` after about two seconds. If it does not, stop without applying the patch and report the observed difference.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+ class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
+   readonly provider: string
+ }> {}
+
++class RequestTimedOut extends Data.TaggedError("RequestTimedOut")<{
++  readonly provider: string
++}> {}
++
+ const toPaymentError = (cause: unknown) => {
+@@
+ const placeOrder = (input: PlaceOrderRequest) => {
+   return authorizePaymentEffect(input.paymentToken).pipe(
++    Effect.timeoutOrElse({
++      duration: "250 millis",
++      orElse: () => Effect.fail(new RequestTimedOut({ provider: "primary-pay" })),
++    }),
+     Effect.retry({
+@@
+       ProviderUnavailable: (error) =>
+         Effect.succeed(
+           httpResult(503, {
+             error: error._tag,
+             provider: error.provider,
+           }),
+         ),
++      RequestTimedOut: (error) =>
++        Effect.succeed(
++          httpResult(504, {
++            error: error._tag,
++            provider: error.provider,
++          }),
++        ),
+       UnexpectedPaymentProviderError: (error) =>
+*** End Patch
+```
+
+Wait for the watch process to reload the server. Send `tok_slow` again and verify:
+
+1. Status `504` with body `{"error":"RequestTimedOut","provider":"primary-pay"}`.
+2. The response arrives after about 250 ms instead of two seconds.
+3. The server records one authorization attempt followed by `primary-pay authorization aborted`.
+
+Reply with the before and after results in a concise pass or fail summary. On failure, report only the patch mismatch or observed difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 10. Retry the timeout within the same limit
@@ -744,10 +1300,48 @@ last `RequestTimedOut` continues to the existing HTTP handler.
   number={10}
   total={11}
   title="Timed-out attempts share the retry limit"
-  prompt={retryTimeoutPrompt}
 >
   The endpoint makes three interrupted attempts and then returns the existing
   typed `504`. Every attempt has the same 250 ms bound.
+
+  <AgentPrompt label="Copy agent prompt">
+
+````text
+Include the typed timeout in the existing retry limit.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+     Effect.retry({
+       times: 2,
+-      while: (error) => error._tag === "ProviderUnavailable",
++      while: (error) =>
++        error._tag === "ProviderUnavailable" || error._tag === "RequestTimedOut",
+     }),
+*** End Patch
+```
+
+If the server refuses a connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Send `tok_slow` and verify:
+
+1. Status `504` with body `{"error":"RequestTimedOut","provider":"primary-pay"}`.
+2. The server records exactly three authorization attempts and each one is followed by `primary-pay authorization aborted`.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 11. Stop when the client disconnects
@@ -813,10 +1407,73 @@ the interruption to the signal already used by the Promise adapter.
   number={11}
   total={11}
   title="Client cancellation reaches the provider"
-  prompt={propagateCancellationPrompt}
 >
   When the client disconnects, the complete Effect operation stops, the provider
   receives an `AbortSignal`, and no retry begins after interruption.
+
+  <AgentPrompt label="Copy agent prompt">
+
+````text
+Connect an HTTP client disconnect to cancellation of the complete Effect operation.
+
+Rules:
+- Work only in `./handle-failures-without-guessing` relative to the current workspace root.
+- Verify that the patch below applies cleanly to `server.ts` before changing anything. If it does not, stop and report that the file is not at the expected tutorial checkpoint.
+- Modify only `server.ts`.
+- Apply exactly the requested patch. Do not refactor or make additional improvements.
+- After applying the change, verify the behavior but do not fix a failed verification.
+
+Apply this patch to `server.ts`:
+
+```diff
+*** Begin Patch
+*** Update File: server.ts
+@@
+   if (request.method !== "POST" || request.url !== "/orders") {
+     sendJson(404, { error: "NotFound" })
+     return
+   }
+
++  const controller = new AbortController()
++
++  response.once("close", () => {
++    if (!response.writableEnded) {
++      controller.abort()
++    }
++  })
++
+   try {
+@@
+-    const result = await Effect.runPromise(placeOrder(input))
++    const result = await Effect.runPromise(placeOrder(input), {
++      signal: controller.signal,
++    })
+     sendJson(result.status, result.body)
+-  } catch (error) {
+-    console.error(error)
++  } catch (cause) {
++    if (controller.signal.aborted) {
++      return
++    }
++    console.error(cause)
+     sendJson(500, { error: "InternalServerError" })
+   }
+ })
+*** End Patch
+```
+
+If the server refuses a connection, start `node --watch server.ts` in a persistent terminal, wait for the listening message, and retry. Leave the server active. If the server returns any HTTP response, do not restart it merely because the response is wrong.
+
+Ask the client to disconnect during the slow provider call by sending `tok_slow` with `curl --max-time 0.1`. Verify:
+
+1. `curl` reports that its deadline was reached and receives no HTTP response.
+2. The server logs exactly one authorization attempt followed by `primary-pay authorization aborted`.
+3. No second authorization attempt starts.
+
+Reply only that the checkpoint succeeded, or report the patch mismatch or observed verification difference. Do not show the diff and do not apply a correction.
+````
+
+  </AgentPrompt>
 </TutorialCheckpoint>
 
 ## 12. Understand the final `try`/`catch`
