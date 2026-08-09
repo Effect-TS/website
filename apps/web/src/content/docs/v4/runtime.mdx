@@ -60,9 +60,9 @@ Runtime Systems have a lot of responsibilities:
 
 ## Running With an Explicit Context
 
-When we use [functions that run effects](/docs/v4/getting-started/running-effects/) like `Effect.runPromise` or `Effect.runFork`, we don't need to mention any runtime object at all — there is no separate "default runtime" value to look up or pass around. These functions execute an `Effect<A, E, never>` directly, using an empty context and the [default services](/docs/v4/requirements-management/default-services/).
+When we use [functions that run effects](/docs/v4/getting-started/running-effects/) like `Effect.runPromise` or `Effect.runFork`, we don't need to mention any runtime object at all. There is no separate "default runtime" value to look up or pass around. These functions execute an `Effect<A, E, never>` directly, using an empty context and the [default services](/docs/v4/requirements-management/default-services/).
 
-If your effect still has unmet requirements (`R` is not `never`) and you already have a `Context<R>` satisfying them — for example, one built manually with `Context.make`, rather than through a `Layer` — you can run it directly with the matching `Effect.run*With` function, instead of first wrapping it with `Effect.provide`:
+If your effect still has unmet requirements (`R` is not `never`) and you already have a `Context<R>` satisfying them, for example, one built manually with `Context.make` rather than through a `Layer`, you can run it directly with the matching `Effect.run*With` function instead of first wrapping it with `Effect.provide`:
 
 **Example** (Running Synchronously With an Explicit Context)
 
@@ -169,7 +169,9 @@ const program = Effect.gen(function* () {
     )
 
     // This log is suppressed
-    yield* Effect.log("Reset back to the previous configuration, so I won't be logged.")
+    yield* Effect.log(
+      "Reset back to the previous configuration, so I won't be logged.",
+    )
   }).pipe(
     // Remove the default logger temporarily
     Effect.provide(removeDefaultLogger),
@@ -261,7 +263,9 @@ class Notifications extends Context.Service<
 const action = Notifications.use((n) => n.notify("Hello, world!"))
 
 Effect.runSync(
-  action.pipe(Effect.provide(Layer.succeed(Notifications, { notify: () => Effect.void }))),
+  action.pipe(
+    Effect.provide(Layer.succeed(Notifications, { notify: () => Effect.void })),
+  ),
 ) // => undefined
 ```
 
@@ -297,7 +301,9 @@ async function main() {
   const runtime = ManagedRuntime.make(Notifications.Live)
 
   // Run the effect
-  const result = await runtime.runPromise(Notifications.use((n) => n.notify("Hello, world!")))
+  const result = await runtime.runPromise(
+    Notifications.use((n) => n.notify("Hello, world!")),
+  )
 
   // Dispose of the runtime, cleaning up resources
   await runtime.dispose()

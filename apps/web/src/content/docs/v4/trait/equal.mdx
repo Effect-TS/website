@@ -128,7 +128,9 @@ class Person implements Equal.Equal {
 }
 
 const alice = new Person(1, "Alice", 30, new Date("2024-01-01"))
-console.log(Equal.equals(alice, new Person(1, "Alice", 30, new Date("2024-06-01"))))
+console.log(
+  Equal.equals(alice, new Person(1, "Alice", 30, new Date("2024-06-01"))),
+)
 Equal.equals(alice, new Person(1, "Alice", 30, new Date("2024-06-01"))) // => true
 
 const bob = new Person(2, "Bob", 40, new Date("2024-01-01"))
@@ -161,7 +163,7 @@ Equal.equals(aliceByReference, aliceCopy) // => false
 
 `Equal.byReferenceUnsafe` does the same thing without allocating a proxy, by marking the original object directly. The marking is irreversible for the lifetime of that object.
 
-The [Data](/docs/v4/data-types/data/) module still provides `Data.Class`, `Data.TaggedClass`, `Data.TaggedError`, and `Data.taggedEnum` for building tagged data types and errors — see the [Data module documentation](/docs/v4/data-types/data/) for details.
+The [Data](/docs/v4/data-types/data/) module still provides `Data.Class`, `Data.TaggedClass`, `Data.TaggedError`, and `Data.taggedEnum` for building tagged data types and errors. See the [Data module documentation](/docs/v4/data-types/data/) for details.
 
 ## Working with Collections
 
@@ -185,7 +187,7 @@ set.size // => 2
 
 Even though the two elements in the set have the same values, the set contains two elements. Why? JavaScript's `Set` checks for equality by reference, not by values. This is unaffected by Effect's `Equal` module, since the native `Set` never consults it.
 
-To perform value-based equality checks, you'll need to use the `Hash*` collection types available in the `effect` package. These collection types, such as [HashSet](/docs/v4/api/effect/HashSet) and [HashMap](/docs/v4/api/effect/HashMap), use `Equal.equals` for comparisons — which means plain objects, arrays, and other structurally-comparable values are deduplicated automatically, without needing any extra setup.
+To perform value-based equality checks, you'll need to use the `Hash*` collection types available in the `effect` package. These collection types, such as [HashSet](/docs/v4/api/effect/HashSet) and [HashMap](/docs/v4/api/effect/HashMap), use `Equal.equals` for comparisons. This means plain objects, arrays, and other structurally-comparable values are deduplicated automatically, without needing any extra setup.
 
 ### HashSet
 

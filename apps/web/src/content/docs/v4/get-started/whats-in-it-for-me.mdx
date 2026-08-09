@@ -1,0 +1,120 @@
+---
+title: What's in it for me?
+description: See which production problems Effect solves in a TypeScript service and choose the tutorial that matches your pain.
+sidebar:
+  order: 1
+---
+
+**Effect is a TypeScript library for building applications that have to work in production.**
+
+It gives you one set of tools for errors, retries, timeouts, concurrency, cancellation, dependency injection, resource cleanup, validation, and tracing without assembling and coordinating a different library for every problem.
+
+Your service calls three APIs. One is slow, one returns invalid data, and the request is cancelled halfway through. You still need to stop the remaining work, retry only what makes sense, release every resource, preserve useful error information, and explain what happened in a trace.
+
+That is what Effect is for.
+
+## The difficult part is coordination
+
+Calling one API from TypeScript is easy. Keeping the complete operation correct as requirements accumulate is where production code becomes difficult.
+
+A conventional implementation may coordinate:
+
+- rejected Promises and thrown exceptions;
+- HTTP status handling and response validation;
+- retry helpers and timers;
+- `AbortController` instances;
+- a concurrency limiter;
+- `try`/`finally` cleanup;
+- dependency wiring;
+- manual trace start, propagation, and completion.
+
+Each tool can be reasonable by itself. The risk lives in the connections: does a timeout abort the request, does a retry preserve cancellation, does cleanup run after interruption, and can the caller see which failures remain possible?
+
+Effect keeps those concerns attached to the operation as it is built.
+
+```ts
+import { Effect } from "effect"
+
+declare const placeOrder: Effect.Effect<
+  AcceptedOrder,
+  OutOfStock | PaymentDeclined,
+  InventoryService | PaymentProvider
+>
+
+interface AcceptedOrder {
+  readonly orderId: string
+  readonly status: "accepted"
+}
+
+declare class OutOfStock {
+  readonly _tag: "OutOfStock"
+}
+
+declare class PaymentDeclined {
+  readonly _tag: "PaymentDeclined"
+}
+
+declare class InventoryService {
+  readonly _tag: "InventoryService"
+}
+
+declare class PaymentProvider {
+  readonly _tag: "PaymentProvider"
+}
+```
+
+Read the type from left to right:
+
+- the operation can produce an `AcceptedOrder`;
+- it can fail with `OutOfStock` or `PaymentDeclined`;
+- it still requires `InventoryService` and `PaymentProvider`.
+
+As operations are combined, TypeScript keeps updating that information. At the application boundary, you supply the remaining services and choose how the program runs.
+
+## What changes in day-to-day work
+
+### Failures become decisions
+
+Expected failures remain visible instead of disappearing into `Promise` rejection. You can retry a temporary provider outage without retrying a payment decline or treating an unexpected bug the same way.
+
+### Concurrency has one lifetime
+
+Parallel work, concurrency limits, timeouts, and cancellation are part of the same operation. If the complete operation stops, its unfinished work stops too. Effect can pass an `AbortSignal` to Promise-based APIs.
+
+### Resources follow the work
+
+A `Scope` ties cleanup to the lifetime of a resource. When that lifetime ends, cleanup runs after success, failure, cancellation, or an unexpected bug.
+
+### Dependencies stay visible
+
+Application code asks for services through `Context`. `Layer` constructs the real implementations, shares their dependencies, and lets you replace one implementation without changing the business operation.
+
+### Data is checked at the boundary
+
+Schema decodes external values rather than trusting them. `Schema.toCodecJson` can also derive a JSON-compatible representation for rich domain values such as dates, durations, URLs, byte arrays, sets, and your own types.
+
+### Operations explain themselves
+
+Named Effect functions record how operations are related, how long they took, and where they failed. You can send that timing data to a graphical trace viewer.
+
+## Start with the pain you have now
+
+Each tutorial explores one of these backend problems through the same order-processing service.
+
+### When production gets messy
+
+- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
+- [Run independent work concurrently without losing control](/docs/v4/tutorials/run-independent-work-concurrently-without-losing-control)
+- [Clean up resources after failure or cancellation](/docs/v4/tutorials/clean-up-resources-after-failure-or-cancellation)
+
+### When the pieces need to fit together
+
+- [Preserve domain types across a JSON boundary](/docs/v4/tutorials/preserve-domain-types-across-a-json-boundary)
+- [Replace infrastructure without changing business logic](/docs/v4/tutorials/replace-infrastructure-without-changing-business-logic)
+
+### When the team ships and operates
+
+- [Catch incorrect AI-generated changes](/docs/v4/tutorials/catch-incorrect-ai-generated-changes)
+- [See where a request spends its time](/docs/v4/tutorials/see-where-a-request-spends-its-time)
+
+You do not need to read these in order. Each tutorial starts with a working, independent program and ends with a result you can inspect.

@@ -1,0 +1,805 @@
+---
+title: Handle failures without guessing
+description: Turn untyped Promise rejections into explicit error decisions, then add bounded retries, timeouts, and cancellation.
+sidebar:
+  order: 1
+---
+
+TypeScript describes the value produced by a `Promise`, but not the reasons why
+it may reject. Once provider calls, timeouts, and retries meet in one `catch`,
+the backend has to reconstruct what happened before it can decide what to do.
+
+In this tutorial, we will start with a familiar `node:http` endpoint and make
+its error handling progressively more precise. The finished `POST /orders`
+endpoint will have these observable behaviors:
+
+| Provider behavior                           | Decision                          | HTTP result    |
+| ------------------------------------------- | --------------------------------- | -------------- |
+| Payment succeeds                            | Accept the order                  | `201`          |
+| Payment is declined                         | Do not retry                      | `422`          |
+| Provider is temporarily unavailable         | Retry at most twice               | `201` or `503` |
+| Provider rejects with an undocumented error | Do not guess                      | `502`          |
+| Provider takes too long                     | Interrupt and retry at most twice | `504`          |
+| Client disconnects                          | Interrupt the complete operation  | No response    |
+
+We will keep the HTTP server in ordinary TypeScript. Effect will enter only
+where it solves a problem we have already observed.
+
+## 1. Start from familiar TypeScript
+
+This tutorial requires Node.js 22.18 or later and pnpm. Create an empty project:
+
+```sh
+mkdir handle-failures-without-guessing
+cd handle-failures-without-guessing
+pnpm init --init-type module
+pnpm add --save-dev @types/node@22
+```
+
+Create `server.ts` with the code below. The first part is the application. The
+fixture at the bottom behaves like a small Promise-based payment SDK. We will
+not modify the fixture during the tutorial.
+
+```ts
+import { randomUUID } from "node:crypto"
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http"
+import { setTimeout as sleep } from "node:timers/promises"
+
+interface PlaceOrderRequest {
+  readonly customerId: string
+  readonly paymentToken: string
+}
+
+interface PaymentAuthorization {
+  readonly authorizationId: string
+  readonly provider: string
+}
+
+interface AuthorizePaymentInput {
+  readonly operationId: string
+  readonly token: string
+  readonly amountCents: number
+}
+
+interface AuthorizePaymentOptions {
+  readonly signal?: AbortSignal
+}
+
+const readJson = async <A>(request: IncomingMessage): Promise<A> => {
+  let body = ""
+  for await (const chunk of request) {
+    body += chunk
+  }
+  return JSON.parse(body) as A
+}
+
+const sendJson = (
+  response: ServerResponse,
+  status: number,
+  body: unknown,
+): void => {
+  response.writeHead(status, { "content-type": "application/json" })
+  response.end(JSON.stringify(body))
+}
+
+const handleRequest = async (
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<void> => {
+  if (request.method !== "POST" || request.url !== "/orders") {
+    sendJson(response, 404, { error: "NotFound" })
+    return
+  }
+
+  try {
+    const input = await readJson<PlaceOrderRequest>(request)
+    const authorization = await authorizePayment({
+      operationId: randomUUID(),
+      token: input.paymentToken,
+      amountCents: 3_200,
+    })
+
+    sendJson(response, 201, {
+      orderId: `order-${input.customerId}`,
+      status: "accepted",
+      paymentProvider: authorization.provider,
+    })
+  } catch (error) {
+    console.error(error)
+    sendJson(response, 500, { error: "InternalServerError" })
+  }
+}
+
+const server = createServer((request, response) => {
+  void handleRequest(request, response)
+})
+
+server.listen(3000, () => {
+  console.log("Server listening on http://localhost:3000")
+})
+
+// Tutorial fixture
+// You will not modify the code below.
+
+class PaymentDeclinedSdkError extends Error {
+  readonly reason: string
+
+  constructor(reason: string) {
+    super(reason)
+    this.name = "PaymentDeclinedSdkError"
+    this.reason = reason
+  }
+}
+
+class ProviderUnavailableSdkError extends Error {
+  readonly provider: string
+
+  constructor(provider: string) {
+    super(`${provider} is unavailable`)
+    this.name = "ProviderUnavailableSdkError"
+    this.provider = provider
+  }
+}
+
+const provider = "primary-pay"
+const attempts = new Map<string, number>()
+
+const authorizePayment = async (
+  input: AuthorizePaymentInput,
+  options: AuthorizePaymentOptions = {},
+): Promise<PaymentAuthorization> => {
+  const attempt = (attempts.get(input.operationId) ?? 0) + 1
+  attempts.set(input.operationId, attempt)
+
+  console.log(`${provider} authorization attempt ${attempt}`)
+
+  if (input.token === "tok_declined") {
+    attempts.delete(input.operationId)
+    throw new PaymentDeclinedSdkError("card declined")
+  }
+  if (input.token === "tok_unexpected") {
+    attempts.delete(input.operationId)
+    throw new Error("undocumented payment provider failure")
+  }
+  if (input.token === "tok_flaky" && attempt < 3) {
+    throw new ProviderUnavailableSdkError(provider)
+  }
+
+  try {
+    await sleep(input.token === "tok_slow" ? 2_000 : 80, undefined, {
+      signal: options.signal,
+    })
+  } catch (error) {
+    if (options.signal?.aborted) {
+      console.log(`${provider} authorization aborted`)
+    }
+    throw error
+  }
+
+  attempts.delete(input.operationId)
+  return {
+    authorizationId: `${provider}-${input.operationId}`,
+    provider,
+  }
+}
+```
+
+Start the server:
+
+```sh
+node server.ts
+```
+
+Keep it running and use a second terminal for requests. First verify the happy
+path:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-approved","paymentToken":"tok_approved"}'
+```
+
+```text
+HTTP/1.1 201 Created
+...
+
+{"orderId":"order-customer-approved","status":"accepted","paymentProvider":"primary-pay"}
+```
+
+We have a working HTTP endpoint before introducing any Effect code.
+
+## 2. See what goes wrong
+
+Send a payment decline:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-declined","paymentToken":"tok_declined"}'
+```
+
+Then send a temporary outage:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-flaky","paymentToken":"tok_flaky"}'
+```
+
+Both requests produce the same response:
+
+```text
+HTTP/1.1 500 Internal Server Error
+...
+
+{"error":"InternalServerError"}
+```
+
+The outcomes require opposite decisions. A payment decline is final, while a
+temporary outage may recover. The `catch` receives an `unknown` value and the
+return type of `authorizePayment` says only `Promise<PaymentAuthorization>`.
+TypeScript does not carry either failure through the program.
+
+Retrying every rejection could charge a declined card repeatedly. Retrying
+nothing turns a temporary outage into an unnecessary failed order. We need to
+preserve enough information to decide.
+
+## 3. Bring the Promise into Effect
+
+Stop the server with <kbd>Ctrl</kbd>+<kbd>C</kbd>, then install Effect:
+
+```sh
+pnpm add effect
+```
+
+Add this import at the top of `server.ts`:
+
+```ts
+import { Effect } from "effect"
+```
+
+Add this adapter above `handleRequest`:
+
+```ts
+const authorizePaymentEffect = (input: AuthorizePaymentInput) =>
+  Effect.tryPromise((signal) => authorizePayment(input, { signal }))
+```
+
+`Effect.tryPromise` receives a function instead of an already-running Promise.
+The function also receives an `AbortSignal`, which is passed directly to the
+provider SDK.
+
+Replace the direct call to `authorizePayment` inside `handleRequest`:
+
+```ts
+const authorization = await Effect.runPromise(
+  authorizePaymentEffect({
+    operationId: randomUUID(),
+    token: input.paymentToken,
+    amountCents: 3_200,
+  }),
+)
+```
+
+An `Effect<Success, Error>` describes an operation that may produce `Success`
+or fail with `Error`. It does not start until it is executed. Here,
+`Effect.runPromise` is the boundary that executes it inside our existing
+`async` handler.
+
+Restart the server and send the approved request again. It still returns `201`.
+The decline and outage still return `500`. This first change only establishes
+the boundary between Promise code and Effect code.
+
+After every change below, stop and restart the server before trying the next
+request. Restarting also resets the controlled fixture.
+
+## 4. Compose the successful result
+
+We now move the successful HTTP result into the Effect program without changing
+its behavior. Add this type and helper above `handleRequest`:
+
+```ts
+interface HttpResult {
+  readonly status: number
+  readonly body: unknown
+}
+
+const httpResult = (status: number, body: unknown): HttpResult => ({
+  status,
+  body,
+})
+```
+
+Add `placeOrder` below `authorizePaymentEffect`:
+
+```ts
+const placeOrder = (input: PlaceOrderRequest) => {
+  const operationId = randomUUID()
+
+  return authorizePaymentEffect({
+    operationId,
+    token: input.paymentToken,
+    amountCents: 3_200,
+  }).pipe(
+    Effect.map((authorization) =>
+      httpResult(201, {
+        orderId: `order-${input.customerId}`,
+        status: "accepted",
+        paymentProvider: authorization.provider,
+      }),
+    ),
+  )
+}
+```
+
+`pipe` passes the operation through transformations from top to bottom.
+`Effect.map` changes only its success value. It does not catch or alter a
+failure.
+
+Replace the authorization and response code in `handleRequest` with:
+
+```ts
+const result = await Effect.runPromise(placeOrder(input))
+sendJson(response, result.status, result.body)
+```
+
+Restart and send the approved request. The response remains `201`, confirming
+that composing the successful result did not change the endpoint.
+
+## 5. Give an unknown provider failure a safe name
+
+The Promise may reject with any value. Our safest starting point is to give an
+unrecognized provider rejection its own name, not pretend that it is a decline
+or an outage.
+
+Change the Effect import:
+
+```ts
+import { Data, Effect } from "effect"
+```
+
+Add this application error above `authorizePaymentEffect`:
+
+```ts
+class UnexpectedPaymentProviderError extends Data.TaggedError(
+  "UnexpectedPaymentProviderError",
+)<{
+  readonly cause: unknown
+}> {}
+```
+
+Replace `authorizePaymentEffect` with:
+
+```ts
+const toPaymentError = (cause: unknown) =>
+  new UnexpectedPaymentProviderError({ cause })
+
+const authorizePaymentEffect = (input: AuthorizePaymentInput) =>
+  Effect.tryPromise({
+    try: (signal) => authorizePayment(input, { signal }),
+    catch: toPaymentError,
+  })
+```
+
+The Promise rejection enters `catch` as `unknown`. The adapter turns it into a
+value whose `_tag` and fields are known to TypeScript. The error channel is now
+`UnexpectedPaymentProviderError` instead of a generic unknown error.
+
+Add `Effect.catchTags` after `Effect.map` in `placeOrder`:
+
+```ts
+return authorizePaymentEffect({
+  operationId,
+  token: input.paymentToken,
+  amountCents: 3_200,
+}).pipe(
+  Effect.map((authorization) =>
+    httpResult(201, {
+      orderId: `order-${input.customerId}`,
+      status: "accepted",
+      paymentProvider: authorization.provider,
+    }),
+  ),
+  Effect.catchTags({
+    UnexpectedPaymentProviderError: (error) =>
+      Effect.sync(() => {
+        console.error("Unexpected payment provider failure", error.cause)
+        return httpResult(502, {
+          error: error._tag,
+        })
+      }),
+  }),
+)
+```
+
+Restart and send the undocumented provider failure:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-unexpected","paymentToken":"tok_unexpected"}'
+```
+
+```text
+HTTP/1.1 502 Bad Gateway
+...
+
+{"error":"UnexpectedPaymentProviderError"}
+```
+
+Notice that the server logs the original cause but does not expose its message
+to the client. At this stage, the documented SDK errors also fall back to `502`.
+We will recognize them individually next.
+
+## 6. Preserve a business decision
+
+Add the application error that represents a declined payment:
+
+```ts
+class PaymentDeclined extends Data.TaggedError("PaymentDeclined")<{
+  readonly reason: string
+}> {}
+```
+
+Replace `toPaymentError` with:
+
+```ts
+const toPaymentError = (cause: unknown) => {
+  if (cause instanceof PaymentDeclinedSdkError) {
+    return new PaymentDeclined({ reason: cause.reason })
+  }
+  return new UnexpectedPaymentProviderError({ cause })
+}
+```
+
+Add its handler to `Effect.catchTags`:
+
+```ts
+Effect.catchTags({
+  PaymentDeclined: (error) =>
+    Effect.succeed(
+      httpResult(422, {
+        error: error._tag,
+        reason: error.reason,
+      }),
+    ),
+  UnexpectedPaymentProviderError: (error) =>
+    Effect.sync(() => {
+      console.error("Unexpected payment provider failure", error.cause)
+      return httpResult(502, {
+        error: error._tag,
+      })
+    }),
+})
+```
+
+Restart and send `tok_declined` again:
+
+```text
+HTTP/1.1 422 Unprocessable Entity
+...
+
+{"error":"PaymentDeclined","reason":"card declined"}
+```
+
+The server log contains one authorization attempt. We have preserved a business
+decision from the Promise boundary to the HTTP boundary without throwing it
+back into the outer `catch`.
+
+## 7. Preserve a temporary outage
+
+Add the second documented provider error:
+
+```ts
+class ProviderUnavailable extends Data.TaggedError("ProviderUnavailable")<{
+  readonly provider: string
+}> {}
+```
+
+Extend `toPaymentError` with one more recognized case:
+
+```ts
+const toPaymentError = (cause: unknown) => {
+  if (cause instanceof PaymentDeclinedSdkError) {
+    return new PaymentDeclined({ reason: cause.reason })
+  }
+  if (cause instanceof ProviderUnavailableSdkError) {
+    return new ProviderUnavailable({ provider: cause.provider })
+  }
+  return new UnexpectedPaymentProviderError({ cause })
+}
+```
+
+Add the new handler to `Effect.catchTags`:
+
+```ts
+ProviderUnavailable: (error) =>
+  Effect.succeed(
+    httpResult(503, {
+      error: error._tag,
+      provider: error.provider
+    })
+  ),
+```
+
+Restart and send `tok_flaky`. The provider is now reported honestly after one
+attempt:
+
+```text
+HTTP/1.1 503 Service Unavailable
+...
+
+{"error":"ProviderUnavailable","provider":"primary-pay"}
+```
+
+The error channel now distinguishes a final business decision, a temporary
+availability problem, and an undocumented provider failure. We can finally add
+a retry without guessing.
+
+## 8. Retry only the failure that may recover
+
+Add `Effect.retry` immediately after `authorizePaymentEffect` and before
+`Effect.map`:
+
+```ts
+return authorizePaymentEffect({
+  operationId,
+  token: input.paymentToken,
+  amountCents: 3_200,
+}).pipe(
+  Effect.retry({
+    times: 2,
+    while: (error) => error._tag === "ProviderUnavailable",
+  }),
+  Effect.map((authorization) =>
+    httpResult(201, {
+      orderId: `order-${input.customerId}`,
+      status: "accepted",
+      paymentProvider: authorization.provider,
+    }),
+  ),
+  Effect.catchTags({
+    // Keep the existing handlers here.
+  }),
+)
+```
+
+Restart and send `tok_flaky` again:
+
+```text
+HTTP/1.1 201 Created
+...
+
+{"orderId":"order-customer-flaky","status":"accepted","paymentProvider":"primary-pay"}
+```
+
+The server logs one initial attempt and two retries:
+
+```text
+primary-pay authorization attempt 1
+primary-pay authorization attempt 2
+primary-pay authorization attempt 3
+```
+
+Send `tok_declined` once more. It still returns `422`, and the log still contains
+only one attempt. The retry predicate receives the typed error and permits only
+`ProviderUnavailable`.
+
+This tutorial keeps the timing policy simple. A production policy can also add
+spacing, exponential backoff, and jitter with
+[`Schedule`](/docs/v4/scheduling/introduction), without changing the error
+classification we built here.
+
+## 9. Bound every slow attempt
+
+Before adding a timeout, observe the current behavior. Restart the server and
+send the slow token:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-slow","paymentToken":"tok_slow"}'
+```
+
+The request waits for about two seconds and then returns `201`. The provider is
+allowed to control how long our endpoint waits.
+
+Add a typed timeout error:
+
+```ts
+class RequestTimedOut extends Data.TaggedError("RequestTimedOut")<{
+  readonly provider: string
+}> {}
+```
+
+Add `Effect.timeoutOrElse` before `Effect.retry`:
+
+```ts
+return authorizePaymentEffect({
+  operationId,
+  token: input.paymentToken,
+  amountCents: 3_200,
+}).pipe(
+  Effect.timeoutOrElse({
+    duration: "250 millis",
+    orElse: () => Effect.fail(new RequestTimedOut({ provider: "primary-pay" })),
+  }),
+  Effect.retry({
+    times: 2,
+    while: (error) => error._tag === "ProviderUnavailable",
+  }),
+  // Keep Effect.map and Effect.catchTags below.
+)
+```
+
+Add its HTTP handler to `Effect.catchTags`:
+
+```ts
+RequestTimedOut: (error) =>
+  Effect.succeed(
+    httpResult(504, {
+      error: error._tag,
+      provider: error.provider
+    })
+  ),
+```
+
+Restart and send `tok_slow` again:
+
+```text
+HTTP/1.1 504 Gateway Timeout
+...
+
+{"error":"RequestTimedOut","provider":"primary-pay"}
+```
+
+The server log proves that the Promise did not continue in the background:
+
+```text
+primary-pay authorization attempt 1
+primary-pay authorization aborted
+```
+
+`Effect.tryPromise` supplied the `AbortSignal`, and
+`Effect.timeoutOrElse` interrupted the operation. The signal reached the
+ordinary Promise API without any timeout-specific code in `placeOrder`.
+
+## 10. Retry the timeout within the same limit
+
+The timeout is typed, so the retry decision can include it explicitly. Change
+only the predicate:
+
+```ts
+Effect.retry({
+  times: 2,
+  while: (error) =>
+    error._tag === "ProviderUnavailable" || error._tag === "RequestTimedOut",
+})
+```
+
+Restart and send `tok_slow` again. The HTTP response remains `504`, but the
+server now records three bounded attempts:
+
+```text
+primary-pay authorization attempt 1
+primary-pay authorization aborted
+primary-pay authorization attempt 2
+primary-pay authorization aborted
+primary-pay authorization attempt 3
+primary-pay authorization aborted
+```
+
+Every attempt has its own 250 ms limit. After the retry limit is exhausted, the
+last `RequestTimedOut` continues to the existing HTTP handler.
+
+## 11. Stop when the client disconnects
+
+So far cancellation has travelled from Effect to the Promise. We can also
+connect cancellation in the other direction.
+
+At the beginning of `handleRequest`, immediately after the route check, create
+an `AbortController` tied to the HTTP response:
+
+```ts
+const controller = new AbortController()
+
+response.once("close", () => {
+  if (!response.writableEnded) {
+    controller.abort()
+  }
+})
+```
+
+Pass its signal when running the program:
+
+```ts
+const result = await Effect.runPromise(placeOrder(input), {
+  signal: controller.signal,
+})
+```
+
+Finally, change the outer `catch` so it does not write to a connection that has
+already closed:
+
+```ts
+} catch (cause) {
+  if (controller.signal.aborted) {
+    return
+  }
+  console.error(cause)
+  sendJson(response, 500, { error: "InternalServerError" })
+}
+```
+
+Restart the server, then ask `curl` to disconnect before the provider responds:
+
+```sh
+curl --max-time 0.1 -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-cancelled","paymentToken":"tok_slow"}'
+```
+
+`curl` reports that its deadline was reached. The server logs:
+
+```text
+primary-pay authorization attempt 1
+primary-pay authorization aborted
+```
+
+Notice that no retry starts. The external signal interrupts the complete Effect
+program, and interruption is not a typed `RequestTimedOut`. Effect propagates
+the interruption to the signal already used by the Promise adapter.
+
+## 12. Understand the final `try`/`catch`
+
+The original `try`/`catch` handled every rejected Promise as `500`. In the final
+server, all expected errors have already been converted to `HttpResult` values
+by `Effect.catchTags` before `Effect.runPromise` is called.
+
+The outer `catch` now has only two responsibilities:
+
+- if the client interrupted the request, do not write a response;
+- if the program contains an unexpected defect, log it and return a real `500`.
+
+It does not reinterpret a defect as `PaymentDeclined`, `ProviderUnavailable`,
+or `RequestTimedOut`. The familiar TypeScript boundary remains, but business and
+operational decisions no longer depend on an untyped exception.
+
+## What you built
+
+The endpoint now preserves enough information to make each failure decision at
+the right place:
+
+- Promise rejections are translated once at the provider boundary;
+- expected errors remain visible in the Effect error channel;
+- HTTP responses are selected by error tag;
+- only explicitly recoverable failures are retried;
+- each slow attempt is interrupted;
+- a disconnected client interrupts the complete operation;
+- defects are not disguised as expected failures.
+
+The tutorial used these Effect APIs:
+
+- `Data.TaggedError` to define application errors;
+- `Effect.tryPromise` to adapt the external Promise;
+- `Effect.map` to transform a successful authorization;
+- `Effect.catchTags`, `Effect.succeed`, and `Effect.sync` to handle expected
+  errors;
+- `Effect.retry` to apply a selective, bounded retry;
+- `Effect.timeoutOrElse` and `Effect.fail` to represent a timeout;
+- `Effect.runPromise` to execute the program at the existing TypeScript
+  boundary.
+
+`Effect.gen` would replace only the single `Effect.map` in this program, while
+also introducing generator syntax and `yield*`. It would not reduce the error
+handling, retry, timeout, or interoperability APIs, so this tutorial does not
+use it.
+
+## Related tutorials
+
+- [Run independent work concurrently without losing control](/docs/v4/tutorials/run-independent-work-concurrently-without-losing-control)
+- [Clean up resources after failure or cancellation](/docs/v4/tutorials/clean-up-resources-after-failure-or-cancellation)

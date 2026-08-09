@@ -1,0 +1,139 @@
+---
+title: Installation
+description: Install Effect, run your first program, and optionally enable Effect-aware development feedback.
+sidebar:
+  order: 2
+---
+
+You need one package to start using Effect. The development tools are optional, but they become valuable as soon as the codebase grows or an AI starts editing it.
+
+## Install Effect
+
+Choose the command for your package manager.
+
+```sh
+npm install effect
+```
+
+```sh
+pnpm add effect
+```
+
+```sh
+yarn add effect
+```
+
+```sh
+bun add effect
+```
+
+This documentation uses Node.js 24 and pnpm. Node.js 24 can run the TypeScript used in these tutorials without an additional runner.
+
+Create `hello.ts` with this program:
+
+```ts
+import { Effect } from "effect"
+
+const program = Effect.succeed({
+  service: "order-backend",
+  status: "ready",
+})
+
+const result = await Effect.runPromise(program)
+
+console.log(result)
+```
+
+Run it:
+
+```sh
+node hello.ts
+```
+
+You should see:
+
+```text
+{ service: 'order-backend', status: 'ready' }
+```
+
+`program` is a value that describes work. Nothing happens until `Effect.runPromise` runs it at the application boundary. Larger programs keep the same shape: build one operation, provide what it needs, and run it once.
+
+## Install the development tools
+
+This part is recommended, not required to use Effect.
+
+Effect's [development tools](https://github.com/Effect-TS/tsgo) add Effect-aware diagnostics, quick fixes, refactors, and type information to the normal TypeScript workflow. Run the guided setup to install compatible versions and configure the project:
+
+```sh
+pnpm dlx @effect/tsgo setup
+```
+
+For the same type-aware diagnostics from Oxlint, follow the [official Oxlint setup](https://github.com/Effect-TS/tsgo/blob/main/docs/README.md): install the compatible packages and apply Effect's Oxlint patch.
+
+```sh
+pnpm add --save-dev @effect/tsgo oxlint oxlint-tsgolint
+pnpm exec effect-tsgo patch --oxlint
+```
+
+Make the patch repeatable after every install:
+
+```json
+{
+  "scripts": {
+    "prepare": "effect-tsgo patch --oxlint",
+    "lint": "oxlint ."
+  }
+}
+```
+
+Then create `.oxlintrc.json`:
+
+```json
+{
+  "$schema": "./node_modules/@effect/tsgo/oxlint-schema.json",
+  "extends": ["./node_modules/@effect/tsgo/oxlint-presets/recommended.json"]
+}
+```
+
+The recommended preset enables type-aware Effect rules under the `effecttsgo/*` namespace. The patch modifies the compatible Oxlint binaries installed in your project; it is not a separate fork that you run instead of Oxlint.
+
+## Check the setup
+
+Temporarily add an Effect that is created but ignored:
+
+```ts
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  Effect.log("order routes loaded")
+  return "done"
+})
+
+await Effect.runPromise(program)
+```
+
+Your editor and the command below should report `effecttsgo/floating-effect` on the ignored `Effect.log` call:
+
+```sh
+pnpm lint
+```
+
+The correction is to compose the operation into the workflow:
+
+```ts
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  yield* Effect.log("order routes loaded")
+  return "done"
+})
+
+await Effect.runPromise(program)
+```
+
+You now have everything required by the rest of the documentation.
+
+## Where to go next
+
+- If you are still deciding whether Effect is worth learning, read [What's in it for me?](/docs/v4/get-started/whats-in-it-for-me).
+- If an AI writes part of your code, read [Writing Effect with AI](/docs/v4/get-started/writing-effect-with-ai).

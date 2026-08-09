@@ -1,0 +1,263 @@
+---
+title: Catch incorrect AI-generated changes
+description: Use your own AI, then turn Effect's type-aware diagnostics into a concrete correction loop for a backend change.
+sidebar:
+  order: 6
+---
+
+AI produces plausible TypeScript quickly. Production mistakes often hide in what the prompt did not say: an Effect operation is ignored, a new failure disappears from a public contract, a Layer still needs a service, or external JSON is trusted.
+
+In this tutorial, your normal AI coding agent will add `POST /orders/import` to a backend. Effect's editor and Oxlint diagnostics will provide evidence for the review. A captured patch is available only when your AI does not produce the four mistakes used by the lesson.
+
+## Setup
+
+Install the runtime packages:
+
+```sh
+pnpm add effect @effect/platform-node
+```
+
+Install the development tools and apply Effect's Oxlint integration:
+
+```sh
+pnpm add --save-dev @effect/tsgo oxlint oxlint-tsgolint
+pnpm exec effect-tsgo patch --oxlint
+```
+
+Use the current guided configuration from [Installation](/docs/v4/get-started/installation). It enables the Effect Language Service and the type-aware recommended preset. The Effect rules then appear in the editor and through the normal `oxlint` command.
+
+Create `orders.json`:
+
+```json
+[
+  {
+    "externalOrderId": "external-1001",
+    "customerId": "customer-123",
+    "totalCents": 3200
+  },
+  {
+    "externalOrderId": "external-1002",
+    "customerId": "customer-456",
+    "totalCents": 1250
+  }
+]
+```
+
+## 1. Give your AI one bounded backend task
+
+Open the AI coding agent you already use in this project and send this prompt:
+
+> Add `POST /orders/import` to this Effect backend. It must read `./orders.json` through Effect's `FileSystem`, decode an array of `{ externalOrderId, customerId, totalCents }` with Schema, and return the imported ids. Put file importing behind a `Context` service, build it with `Layer`, and keep filesystem and decode failures visible. Do not add tests or change another endpoint. Show me the diff before applying it.
+
+Use your normal review flow and apply the patch. Do not ask the AI to suppress diagnostics or replace expected failures with defects.
+
+## 2. Collect evidence
+
+Run both checks against the files the AI changed:
+
+```sh
+pnpm exec oxlint .
+pnpm exec effect-tsgo diagnostics --project tsconfig.json --format text
+```
+
+Give every relevant diagnostic back to the AI and ask for a smaller corrective diff. Repeat until the tools are clean, then compare the result with the complete implementation below.
+
+If your AI already produced clean code, use the captured patch in the next section so you can see the four Effect-specific checks. If it produced different problems, finish that real correction loop first.
+
+## 3. Reproduce four known mistakes when needed
+
+Create `order-import.ts` with this captured patch:
+
+```ts
+import { Context, Effect, FileSystem, Layer } from "effect"
+
+interface ImportedOrder {
+  readonly externalOrderId: string
+  readonly customerId: string
+  readonly totalCents: number
+}
+
+const readOrders: (
+  path: string,
+) => Effect.Effect<ReadonlyArray<ImportedOrder>, never, FileSystem.FileSystem> =
+  Effect.fn("orders.read")(function* (path: string) {
+    const fs = yield* FileSystem.FileSystem
+
+    fs.readFileString(path)
+
+    const source = yield* fs.readFileString(path)
+    return JSON.parse(source) as ReadonlyArray<ImportedOrder>
+  })
+
+class OrderImporter extends Context.Service<
+  OrderImporter,
+  {
+    readonly importFile: (
+      path: string,
+    ) => Effect.Effect<ReadonlyArray<ImportedOrder>>
+  }
+>()("docs/OrderImporter") {}
+
+const OrderImporterLive: Layer.Layer<OrderImporter> = Layer.effect(
+  OrderImporter,
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem
+    return OrderImporter.of({
+      importFile: (path) =>
+        fs.readFileString(path).pipe(
+          Effect.map(
+            (source) => JSON.parse(source) as ReadonlyArray<ImportedOrder>,
+          ),
+          Effect.orDie,
+        ),
+    })
+  }),
+)
+
+void readOrders
+void OrderImporterLive
+```
+
+Run the checks again. The recommended preset reports these exact classes of mistake:
+
+| Finding                                      | Rule                                 | What the code failed to state           |
+| -------------------------------------------- | ------------------------------------ | --------------------------------------- |
+| `readFileString` is ignored                  | `effecttsgo/floating-effect`         | returned work was not composed          |
+| `OrderImporterLive` still needs `FileSystem` | `effecttsgo/missing-layer-context`   | the Layer is not complete               |
+| `readOrders` can fail but promises `never`   | `effecttsgo/missing-effect-error`    | its public error contract is false      |
+| the Effect workflow calls `JSON.parse`       | `effecttsgo/prefer-schema-over-json` | external text was not decoded by Schema |
+
+The first three are errors and the last is a warning in the current recommended Oxlint preset. These are Effect Language Service rules exposed through Effect's Oxlint Patch; Effect does not maintain a separate Oxlint fork.
+
+## 4. Compare the corrected import service
+
+The corrected `order-import.ts` is:
+
+```ts
+import { NodeFileSystem } from "@effect/platform-node"
+import {
+  Context,
+  Effect,
+  FileSystem,
+  Layer,
+  PlatformError,
+  Schema,
+  SchemaError,
+} from "effect"
+
+const ImportedOrder = Schema.Struct({
+  externalOrderId: Schema.String,
+  customerId: Schema.String,
+  totalCents: Schema.Int.check(Schema.isGreaterThan(0)),
+})
+
+type ImportedOrder = typeof ImportedOrder.Type
+
+const ImportedOrdersFromJson = Schema.fromJsonString(
+  Schema.Array(ImportedOrder),
+)
+
+export class OrderImporter extends Context.Service<
+  OrderImporter,
+  {
+    readonly importFile: (
+      path: string,
+    ) => Effect.Effect<
+      ReadonlyArray<ImportedOrder>,
+      PlatformError.PlatformError | SchemaError.SchemaError
+    >
+  }
+>()("docs/OrderImporter") {
+  static readonly layer = Layer.effect(
+    OrderImporter,
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem
+
+      const importFile = Effect.fn("orders.import")(function* (path: string) {
+        const source = yield* fs.readFileString(path)
+        return yield* Schema.decodeUnknownEffect(ImportedOrdersFromJson)(source)
+      })
+
+      return OrderImporter.of({ importFile })
+    }),
+  )
+}
+
+export const OrderImporterLive = OrderImporter.layer.pipe(
+  Layer.provide(NodeFileSystem.layer),
+)
+```
+
+The four corrections are concrete: compose the filesystem operation, preserve both failures, decode with Schema, and provide the Node filesystem at the Layer boundary.
+
+## 5. Run the corrected endpoint
+
+Create `server.ts`:
+
+```ts
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Effect, Layer } from "effect"
+import { HttpRouter, HttpServerResponse } from "effect/unstable/http"
+import { createServer } from "node:http"
+import { OrderImporter, OrderImporterLive } from "./order-import.ts"
+
+const importOrders = OrderImporter.pipe(
+  Effect.flatMap((orders) => orders.importFile("orders.json")),
+  Effect.map((imported) =>
+    HttpServerResponse.jsonUnsafe({
+      imported: imported.length,
+      orderIds: imported.map((order) => order.externalOrderId),
+    }),
+  ),
+  Effect.catch(() =>
+    Effect.succeed(
+      HttpServerResponse.jsonUnsafe(
+        { error: "OrderImportFailed" },
+        { status: 500 },
+      ),
+    ),
+  ),
+)
+
+const Routes = HttpRouter.add("POST", "/orders/import", importOrders)
+
+const ServerLive = HttpRouter.serve(Routes).pipe(
+  Layer.provide(OrderImporterLive),
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+)
+
+Layer.launch(ServerLive).pipe(NodeRuntime.runMain)
+```
+
+Run the checks once more. The four diagnostics must be gone:
+
+```sh
+pnpm exec oxlint .
+pnpm exec effect-tsgo diagnostics --project tsconfig.json --format text
+```
+
+Start the backend:
+
+```sh
+node server.ts
+```
+
+In a second terminal, call the endpoint:
+
+```sh
+curl -sS -X POST http://localhost:3000/orders/import
+```
+
+```json
+{ "imported": 2, "orderIds": ["external-1001", "external-1002"] }
+```
+
+## What you built
+
+You used your own AI in its normal environment, converted tool feedback into a bounded correction loop, and finished with a real backend result. The tools exposed specific missing decisions; they did not replace your review of the endpoint, error policy, or domain model.
+
+## Related tutorials
+
+- [Writing Effect with AI](/docs/v4/get-started/writing-effect-with-ai)
+- [Replace infrastructure without changing business logic](/docs/v4/tutorials/replace-infrastructure-without-changing-business-logic)
+- [Preserve domain types across a JSON boundary](/docs/v4/tutorials/preserve-domain-types-across-a-json-boundary)

@@ -1,0 +1,271 @@
+---
+title: Clean up resources after failure or cancellation
+description: Tie stock and payment compensation to one request Scope so failure and cancellation cannot skip cleanup.
+sidebar:
+  order: 3
+---
+
+Placing an order acquires things that must not outlive a failed request: reserved stock, a payment authorization, a transaction, or a lock. `try`/`finally` grows fragile when acquisition is conditional and cancellation can arrive between any two steps.
+
+In this tutorial, we will build `POST /orders` so a decline or disconnected caller releases everything already acquired. A successful request keeps the stock reservation and authorization for the accepted order.
+
+A Scope is the lifetime shared by acquired resources. An `Exit` says how the scoped operation ended: success, failure, or interruption.
+
+## Setup
+
+```sh
+pnpm add effect @effect/platform-node
+```
+
+[Download `providers.ts`](/tutorials/order-processing/providers.ts) and save it next to the `server.ts` you will create below:
+
+```ts
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Context, Effect, Exit, Layer, Ref, Schema } from "effect"
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/unstable/http"
+import { createServer } from "node:http"
+import { PaymentProvider, PaymentProviderFixture } from "./providers.ts"
+
+const PlaceOrderRequest = Schema.Struct({
+  customerId: Schema.String,
+  quantity: Schema.Int.check(Schema.isGreaterThan(0)),
+  paymentToken: Schema.String,
+})
+
+type PlaceOrderRequest = typeof PlaceOrderRequest.Type
+
+class OutOfStock extends Schema.TaggedError<OutOfStock>()("OutOfStock", {
+  requested: Schema.Int,
+  available: Schema.Int,
+}) {}
+
+interface Reservation {
+  readonly reservationId: string
+  readonly quantity: number
+}
+
+type ReserveResult =
+  | { readonly _tag: "Reserved"; readonly remaining: number }
+  | { readonly _tag: "Unavailable"; readonly available: number }
+
+class Inventory extends Context.Service<
+  Inventory,
+  {
+    readonly reserve: (
+      customerId: string,
+      quantity: number,
+    ) => Effect.Effect<Reservation, OutOfStock>
+    readonly release: (reservation: Reservation) => Effect.Effect<void>
+  }
+>()("docs/Inventory") {
+  static readonly layer = Layer.effect(
+    Inventory,
+    Effect.gen(function* () {
+      const stock = yield* Ref.make(10)
+
+      const reserve = Effect.fn("inventory.reserve")(function* (
+        customerId: string,
+        quantity: number,
+      ) {
+        const result = yield* Ref.modify(
+          stock,
+          (available): readonly [ReserveResult, number] =>
+            available >= quantity
+              ? [
+                  { _tag: "Reserved", remaining: available - quantity },
+                  available - quantity,
+                ]
+              : [{ _tag: "Unavailable", available }, available],
+        )
+
+        if (result._tag === "Unavailable") {
+          return yield* new OutOfStock({
+            requested: quantity,
+            available: result.available,
+          })
+        }
+
+        const reservation = { reservationId: `stock-${customerId}`, quantity }
+        yield* Effect.log(`reserved ${quantity}; ${result.remaining} left`)
+        return reservation
+      })
+
+      const release = Effect.fn("inventory.release")(function* (
+        reservation: Reservation,
+      ) {
+        const available = yield* Ref.updateAndGet(
+          stock,
+          (current) => current + reservation.quantity,
+        )
+        yield* Effect.log(
+          `released ${reservation.quantity}; ${available} available`,
+        )
+      })
+
+      return Inventory.of({ reserve, release })
+    }),
+  )
+}
+
+const placeOrder = Effect.fn("orders.place")(function* (
+  request: PlaceOrderRequest,
+) {
+  const inventory = yield* Inventory
+  const payment = yield* PaymentProvider
+
+  const reservation = yield* Effect.acquireRelease(
+    inventory.reserve(request.customerId, request.quantity),
+    (reservation, exit) =>
+      Exit.isFailure(exit) ? inventory.release(reservation) : Effect.void,
+  )
+
+  const authorization = yield* Effect.acquireRelease(
+    payment.authorize({
+      operationId: request.customerId,
+      token: request.paymentToken,
+      amountCents: request.quantity * 1_250,
+    }),
+    (authorization, exit) =>
+      Exit.isFailure(exit)
+        ? payment.void(authorization.authorizationId)
+        : Effect.void,
+  )
+
+  yield* Effect.sleep("1 second")
+  yield* Effect.log(`stored order for ${reservation.reservationId}`)
+
+  return {
+    orderId: `order-${request.customerId}`,
+    status: "accepted",
+    authorizationId: authorization.authorizationId,
+  }
+})
+
+const handler = HttpServerRequest.schemaBodyJson(PlaceOrderRequest).pipe(
+  Effect.flatMap((request) => Effect.scoped(placeOrder(request))),
+  Effect.map((order) => HttpServerResponse.jsonUnsafe(order, { status: 201 })),
+  Effect.catchTags({
+    OutOfStock: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 409 }),
+      ),
+    PaymentDeclined: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 422 }),
+      ),
+    ProviderUnavailable: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 503 }),
+      ),
+  }),
+  Effect.catch(() =>
+    Effect.succeed(
+      HttpServerResponse.jsonUnsafe(
+        { error: "InvalidRequest" },
+        { status: 400 },
+      ),
+    ),
+  ),
+)
+
+const Routes = HttpRouter.add("POST", "/orders", handler)
+
+const ServerLive = HttpRouter.serve(Routes).pipe(
+  Layer.provide([Inventory.layer, PaymentProviderFixture]),
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+)
+
+Layer.launch(ServerLive).pipe(NodeRuntime.runMain)
+```
+
+Start the backend:
+
+```sh
+node server.ts
+```
+
+## 1. Keep resources after success
+
+In a second terminal, place an order:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-ok","quantity":2,"paymentToken":"tok_approved"}'
+```
+
+```text
+HTTP/1.1 201 Created
+...
+
+{"orderId":"order-customer-ok","status":"accepted","authorizationId":"primary-pay-customer-ok"}
+```
+
+The server logs the complete path:
+
+```text
+reserved 2; 8 left
+primary-pay authorization attempt 1
+stored order for stock-customer-ok
+```
+
+The Scope closes successfully. Both release functions run, see a successful `Exit`, and leave the accepted order's reservation and authorization in place.
+
+## 2. Release what was acquired before a decline
+
+Send a declined payment:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-declined","quantity":2,"paymentToken":"tok_declined"}'
+```
+
+```text
+HTTP/1.1 422 Unprocessable Entity
+...
+
+{"error":"PaymentDeclined"}
+```
+
+```text
+reserved 2; 6 left
+primary-pay authorization attempt 1
+released 2; 8 available
+```
+
+Payment acquisition failed, so no payment finalizer was registered. Stock acquisition had succeeded, so its finalizer runs once and returns the units.
+
+## 3. Clean up after caller cancellation
+
+The one-second repository delay gives us time to disconnect after both acquisitions:
+
+```sh
+curl --max-time 0.25 -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-cancelled","quantity":2,"paymentToken":"tok_approved"}'
+```
+
+`curl` exits with a timeout. The backend logs the two finalizers in reverse acquisition order:
+
+```text
+reserved 2; 6 left
+primary-pay authorization attempt 1
+voided primary-pay-customer-cancelled
+released 2; 8 available
+```
+
+`Effect.scoped(placeOrder(request))` closes the inner Scope before the HTTP error is converted into a response. The finalizers therefore see the original failure or interruption, not the later response mapping.
+
+## What you built
+
+Each successful acquisition immediately registered its release. Scope closure then handled success, typed failure, defect, and interruption through one lifetime model. Adding a new exit path does not require adding another cleanup branch.
+
+## Related tutorials
+
+- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
+- [Replace infrastructure without changing business logic](/docs/v4/tutorials/replace-infrastructure-without-changing-business-logic)

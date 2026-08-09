@@ -1,0 +1,276 @@
+---
+title: See where a request spends its time
+description: Add spans to one backend request and inspect concurrency, retries, and latency as graphical timing bars.
+sidebar:
+  order: 7
+---
+
+Logs can say that pricing, stock, shipping, payment, and storage ran. They do not make overlap, parent/child relationships, retry gaps, or the slowest operation easy to see.
+
+In this tutorial, we will trace `POST /orders` and inspect the request as graphical timing bars in a local Aspire Dashboard. There is no Docker, hosted account, or console-based trace visualization.
+
+A span is a timed record of one operation. OTLP is the standard protocol used here to send those records from the backend to Aspire.
+
+```text
+http.post.orders
+`- orders.place
+   |- pricing.calculate  --------
+   |- inventory.reserve  ------------
+   |- shipping.quote     -------------
+   |- payment.authorize.attempt  --  --  --
+   `- orders.insert                       ------
+```
+
+## Setup
+
+```sh
+pnpm add effect @effect/platform-node
+```
+
+Add these scripts to `package.json`:
+
+```json
+{
+  "scripts": {
+    "dashboard": "npx -y @microsoft/aspire-cli@13.4.6 dashboard run --allow-anonymous",
+    "start": "node server.ts"
+  }
+}
+```
+
+`--allow-anonymous` removes a login step from this local-only tutorial. Do not use it for a dashboard exposed outside your machine.
+
+[Download `providers.ts`](/tutorials/order-processing/providers.ts) and save it next to the `server.ts` you will create below:
+
+```ts
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Effect, Layer, Schedule, Schema } from "effect"
+import {
+  FetchHttpClient,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/unstable/http"
+import { OtlpSerialization, OtlpTracer } from "effect/unstable/observability"
+import { createServer } from "node:http"
+import {
+  PaymentProvider,
+  PaymentProviderFixture,
+  ShippingProvider,
+  ShippingProviderFixture,
+  type PaymentDeclined,
+  type ProviderUnavailable,
+} from "./providers.ts"
+
+const PlaceOrderRequest = Schema.Struct({
+  customerId: Schema.String,
+  quantity: Schema.Int.check(Schema.isGreaterThan(0)),
+  paymentToken: Schema.String,
+  postalCode: Schema.String,
+})
+
+type PlaceOrderRequest = typeof PlaceOrderRequest.Type
+type PaymentError = PaymentDeclined | ProviderUnavailable
+
+const retryPolicy = Schedule.spaced("50 millis").pipe(
+  Schedule.upTo({ times: 2 }),
+  Schedule.setInputType<PaymentError>(),
+  Schedule.while(({ input }) => input._tag === "ProviderUnavailable"),
+)
+
+const placeOrder = Effect.fn("orders.place")(function* (
+  request: PlaceOrderRequest,
+) {
+  const payment = yield* PaymentProvider
+  const shipping = yield* ShippingProvider
+
+  const [totalCents, , shippingCents] = yield* Effect.all(
+    [
+      Effect.sleep("80 millis").pipe(
+        Effect.as(request.quantity * 1_250),
+        Effect.withSpan("pricing.calculate"),
+      ),
+      Effect.sleep("120 millis").pipe(Effect.withSpan("inventory.reserve")),
+      shipping
+        .quote({
+          postalCode: request.postalCode,
+          itemCount: request.quantity,
+        })
+        .pipe(Effect.withSpan("shipping.quote")),
+    ],
+    { concurrency: "unbounded" },
+  )
+
+  const authorization = yield* Effect.suspend(() =>
+    payment.authorize({
+      operationId: request.customerId,
+      token: request.paymentToken,
+      amountCents: totalCents + shippingCents,
+    }),
+  ).pipe(
+    Effect.withSpan("payment.authorize.attempt"),
+    Effect.retry(retryPolicy),
+  )
+
+  yield* Effect.sleep("60 millis").pipe(Effect.withSpan("orders.insert"))
+
+  return {
+    orderId: `order-${request.customerId}`,
+    status: "accepted",
+    totalCents: totalCents + shippingCents,
+    paymentProvider: authorization.provider,
+  }
+})
+
+const handler = HttpServerRequest.schemaBodyJson(PlaceOrderRequest).pipe(
+  Effect.flatMap((request) =>
+    Effect.gen(function* () {
+      yield* Effect.annotateCurrentSpan({
+        "order.customer_id": request.customerId,
+        "order.quantity": request.quantity,
+      })
+      return yield* placeOrder(request)
+    }),
+  ),
+  Effect.map((order) => HttpServerResponse.jsonUnsafe(order, { status: 201 })),
+  Effect.catchTags({
+    PaymentDeclined: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 422 }),
+      ),
+    ProviderUnavailable: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 503 }),
+      ),
+    InvalidDestination: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 422 }),
+      ),
+  }),
+  Effect.catch(() =>
+    Effect.succeed(
+      HttpServerResponse.jsonUnsafe(
+        { error: "InvalidRequest" },
+        { status: 400 },
+      ),
+    ),
+  ),
+  Effect.withSpan("http.post.orders"),
+)
+
+const Routes = HttpRouter.add("POST", "/orders", handler)
+
+const TracingLive = OtlpTracer.layer({
+  url: "http://localhost:4318/v1/traces",
+  resource: {
+    serviceName: "effect-order-backend",
+    serviceVersion: "1.0.0",
+    attributes: { "deployment.environment": "local" },
+  },
+  exportInterval: "200 millis",
+  shutdownTimeout: "3 seconds",
+}).pipe(
+  Layer.provide(OtlpSerialization.layerJson),
+  Layer.provide(FetchHttpClient.layer),
+)
+
+const ServerLive = HttpRouter.serve(Routes).pipe(
+  Layer.provide([PaymentProviderFixture, ShippingProviderFixture]),
+  Layer.provide(TracingLive),
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+)
+
+Layer.launch(ServerLive).pipe(NodeRuntime.runMain)
+```
+
+## 1. Open the empty viewer
+
+Start the dashboard:
+
+```sh
+pnpm dashboard
+```
+
+Open the URL printed by Aspire and select **Traces**. The list is empty because the backend has not emitted a request trace yet. Keep the dashboard running.
+
+## 2. Produce one request waterfall
+
+In a second terminal, start the backend:
+
+```sh
+pnpm start
+```
+
+In a third terminal, place an order:
+
+```sh
+curl -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-123","quantity":2,"paymentToken":"tok_approved","postalCode":"00100"}'
+```
+
+```json
+{
+  "orderId": "order-customer-123",
+  "status": "accepted",
+  "totalCents": 3100,
+  "paymentProvider": "primary-pay"
+}
+```
+
+Refresh **Traces** and open the latest `effect-order-backend` trace. Expand `http.post.orders` and `orders.place`.
+
+Notice three things in the bars:
+
+1. pricing, inventory, and shipping start together;
+2. the parent lasts roughly as long as its slowest child, not the sum of all three;
+3. payment starts only after those values are ready, and storage starts after payment.
+
+`Effect.fn("orders.place")` creates the operation span. `Effect.withSpan` names smaller units of work. Effect closes every span on success, typed failure, defect, or interruption.
+
+## 3. See retries instead of guessing from logs
+
+Send the flaky token with a new customer id:
+
+```sh
+curl -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-flaky","quantity":2,"paymentToken":"tok_flaky","postalCode":"00100"}'
+```
+
+Open the new trace. It contains three `payment.authorize.attempt` bars. The first two fail, the third succeeds, and the gaps between them show the retry delays.
+
+Select the root span to inspect `order.customer_id` and `order.quantity`. Those attributes were attached with one `Effect.annotateCurrentSpan` call inside the request.
+
+## 4. Keep exporter code out of order logic
+
+The exporter is one Layer:
+
+```ts
+const TracingLive = OtlpTracer.layer({
+  url: "http://localhost:4318/v1/traces",
+  resource: { serviceName: "effect-order-backend" },
+}).pipe(
+  Layer.provide(OtlpSerialization.layerJson),
+  Layer.provide(FetchHttpClient.layer),
+)
+```
+
+Order functions name spans and add useful attributes. They do not know about Aspire, OTLP endpoints, serialization, batching, or shutdown. Another compatible backend can replace the exporter Layer without changing `placeOrder`.
+
+## What you built
+
+The graphical waterfall now answers questions that raw log lines make expensive:
+
+- which operations overlapped;
+- which child dominated request time;
+- how many payment attempts ran;
+- where retry wait time went;
+- whether every child ended before its parent.
+
+The dashboard is the result of the tutorial. The JSON printed by `curl` is only the backend result, not the telemetry visualization.
+
+## Related tutorials
+
+- [Run independent work concurrently without losing control](/docs/v4/tutorials/run-independent-work-concurrently-without-losing-control)
+- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)

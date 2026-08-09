@@ -317,7 +317,10 @@ In this example, elements from the two streams are paired sequentially. The resu
 import { Stream, Effect } from "effect"
 
 // Zip two streams together
-const stream = Stream.zip(Stream.make(1, 2, 3, 4, 5, 6), Stream.make("a", "b", "c"))
+const stream = Stream.zip(
+  Stream.make(1, 2, 3, 4, 5, 6),
+  Stream.make("a", "b", "c"),
+)
 
 await Effect.runPromise(Stream.runCollect(stream)) // => [[1, "a"], [2, "b"], [3, "c"]]
 ```
@@ -330,10 +333,11 @@ Here, `Stream.zipWith` applies custom logic to each pair, combining elements in 
 import { Stream, Effect } from "effect"
 
 // Zip two streams with custom pairing logic
-const stream = Stream.zipWith(Stream.make(1, 2, 3, 4, 5, 6), Stream.make("a", "b", "c"), (n, s) => [
-  n + 10,
-  s + "!",
-])
+const stream = Stream.zipWith(
+  Stream.make(1, 2, 3, 4, 5, 6),
+  Stream.make("a", "b", "c"),
+  (n, s) => [n + 10, s + "!"],
+)
 
 await Effect.runPromise(Stream.runCollect(stream)) // => [[11, "a!"], [12, "b!"], [13, "c!"]]
 ```
@@ -347,9 +351,13 @@ When combining streams that emit elements at different speeds, you may not want 
 ```ts twoslash import.meta.vitest name="zipping-streams-at-different-rates-1"
 import { Stream, Schedule, Effect } from "effect"
 
-const s1 = Stream.make(1, 2, 3).pipe(Stream.schedule(Schedule.spaced("1 second")))
+const s1 = Stream.make(1, 2, 3).pipe(
+  Stream.schedule(Schedule.spaced("1 second")),
+)
 
-const s2 = Stream.make("a", "b", "c", "d").pipe(Stream.schedule(Schedule.spaced("500 millis")))
+const s2 = Stream.make("a", "b", "c", "d").pipe(
+  Stream.schedule(Schedule.spaced("500 millis")),
+)
 
 const stream = Stream.zipLatest(s1, s2)
 
@@ -389,7 +397,9 @@ The `Stream.zipWithIndex` operator is a helpful tool for indexing each element i
 ```ts twoslash import.meta.vitest name="indexing-stream-elements-1"
 import { Stream, Effect } from "effect"
 
-const stream = Stream.zipWithIndex(Stream.make("Mary", "James", "Robert", "Patricia"))
+const stream = Stream.zipWithIndex(
+  Stream.make("Mary", "James", "Robert", "Patricia"),
+)
 
 await Effect.runPromise(Stream.runCollect(stream)) // => [["Mary", 0], ["James", 1], ["Robert", 2], ["Patricia", 3]]
 ```
@@ -416,9 +426,10 @@ await Effect.runPromise(Stream.runCollect(cartesianProduct)) // => [[1, "a"], [1
 ```
 
 <Aside type="caution" title="Multiple Iterations of Right Stream">
-  Note that the right-hand stream (`s2` in this example) will be iterated over multiple times, once
-  for each element in the left-hand stream (`s1`). If the right-hand stream involves expensive or
-  side-effect-producing operations, those will be executed repeatedly.
+  Note that the right-hand stream (`s2` in this example) will be iterated over
+  multiple times, once for each element in the left-hand stream (`s1`). If the
+  right-hand stream involves expensive or side-effect-producing operations,
+  those will be executed repeatedly.
 </Aside>
 
 ## Partitioning
@@ -527,7 +538,9 @@ const stream = groupByKeyResult.pipe(
   Stream.flatMap(
     ([key, stream]) =>
       Stream.fromEffect(
-        Stream.runCollect(stream).pipe(Effect.map((values) => [key, values.length] as const)),
+        Stream.runCollect(stream).pipe(
+          Effect.map((values) => [key, values.length] as const),
+        ),
       ),
     { concurrency: "unbounded" },
   ),
@@ -559,7 +572,9 @@ const groupByKeyResult = Stream.fromIterable([
   "Peter",
 ]).pipe(
   // Simulate an effectful groupBy operation
-  Stream.groupBy((name) => Effect.succeed([name.substring(0, 1), name] as const)),
+  Stream.groupBy((name) =>
+    Effect.succeed([name.substring(0, 1), name] as const),
+  ),
 )
 
 // Count the number of names in each group and display results
@@ -567,7 +582,9 @@ const stream = groupByKeyResult.pipe(
   Stream.flatMap(
     ([key, stream]) =>
       Stream.fromEffect(
-        Stream.runCollect(stream).pipe(Effect.map((values) => [key, values.length] as const)),
+        Stream.runCollect(stream).pipe(
+          Effect.map((values) => [key, values.length] as const),
+        ),
       ),
     { concurrency: "unbounded" },
   ),
@@ -688,17 +705,25 @@ const createStreamWithLogging = (n: number) =>
       const result = yield* Effect.delay(Effect.succeed(n), "500 millis")
       console.log(`Completed stream for value: ${result}`)
       return result
-    }).pipe(Effect.onInterrupt(() => Console.log(`Interrupted stream for value: ${n}`))),
+    }).pipe(
+      Effect.onInterrupt(() =>
+        Console.log(`Interrupted stream for value: ${n}`),
+      ),
+    ),
   )
 
 // Without switch (default behavior):
 // all streams run to completion
-const stream1 = Stream.fromIterable([1, 2, 3]).pipe(Stream.flatMap(createStreamWithLogging))
+const stream1 = Stream.fromIterable([1, 2, 3]).pipe(
+  Stream.flatMap(createStreamWithLogging),
+)
 
 // With switch behavior:
 // only the last stream completes, previous streams
 // are cancelled when new values arrive
-const stream2 = Stream.fromIterable([1, 2, 3]).pipe(Stream.switchMap(createStreamWithLogging))
+const stream2 = Stream.fromIterable([1, 2, 3]).pipe(
+  Stream.switchMap(createStreamWithLogging),
+)
 
 // Run examples sequentially to see the difference
 await Effect.runPromise(
@@ -733,8 +758,12 @@ The `Stream.merge` operation combines elements from two source streams into a si
 import { Schedule, Stream, Effect } from "effect"
 
 // Create two streams with different emission intervals
-const s1 = Stream.make(1, 2, 3).pipe(Stream.schedule(Schedule.spaced("100 millis")))
-const s2 = Stream.make(4, 5, 6).pipe(Stream.schedule(Schedule.spaced("200 millis")))
+const s1 = Stream.make(1, 2, 3).pipe(
+  Stream.schedule(Schedule.spaced("100 millis")),
+)
+const s2 = Stream.make(4, 5, 6).pipe(
+  Stream.schedule(Schedule.spaced("200 millis")),
+)
 
 // Merge s1 and s2 into a single stream that interleaves their values
 const merged = Stream.merge(s1, s2)
@@ -763,8 +792,12 @@ By default, `Stream.merge` waits for both streams to terminate before ending the
 ```ts twoslash import.meta.vitest name="termination-strategy-1"
 import { Stream, Schedule, Effect } from "effect"
 
-const s1 = Stream.range(1, 5).pipe(Stream.schedule(Schedule.spaced("100 millis")))
-const s2 = Stream.forever(Stream.succeed(0)).pipe(Stream.schedule(Schedule.spaced("200 millis")))
+const s1 = Stream.range(1, 5).pipe(
+  Stream.schedule(Schedule.spaced("100 millis")),
+)
+const s2 = Stream.forever(Stream.succeed(0)).pipe(
+  Stream.schedule(Schedule.spaced("200 millis")),
+)
 
 const merged = Stream.merge(s1, s2, { haltStrategy: "left" })
 
@@ -780,8 +813,12 @@ In some cases, you may want to merge two streams while transforming their elemen
 ```ts twoslash import.meta.vitest name="mergewith-1"
 import { Schedule, Stream, Effect } from "effect"
 
-const s1 = Stream.make("1", "2", "3").pipe(Stream.schedule(Schedule.spaced("100 millis")))
-const s2 = Stream.make(4.1, 5.3, 6.2).pipe(Stream.schedule(Schedule.spaced("200 millis")))
+const s1 = Stream.make("1", "2", "3").pipe(
+  Stream.schedule(Schedule.spaced("100 millis")),
+)
+const s2 = Stream.make(4.1, 5.3, 6.2).pipe(
+  Stream.schedule(Schedule.spaced("200 millis")),
+)
 
 const merged = Stream.merge(
   // Convert string elements from `s1` to integers
@@ -913,7 +950,9 @@ const numbers = Effect.scoped(
     )
 
     // Wait for both fibers to complete
-    yield* Fiber.join(fiber1).pipe(Effect.zip(Fiber.join(fiber2), { concurrent: true }))
+    yield* Fiber.join(fiber1).pipe(
+      Effect.zip(Fiber.join(fiber2), { concurrent: true }),
+    )
   }),
 )
 
@@ -997,11 +1036,15 @@ const log = (message: string) =>
 
 const stream = Stream.make(1, 2, 3).pipe(
   // Emit the value 4 after 200 ms
-  Stream.concat(Stream.fromEffect(Effect.sleep("200 millis").pipe(Effect.as(4)))),
+  Stream.concat(
+    Stream.fromEffect(Effect.sleep("200 millis").pipe(Effect.as(4))),
+  ),
   // Continue with more rapid values
   Stream.concat(Stream.make(5, 6)),
   // Emit 7 after 150 ms
-  Stream.concat(Stream.fromEffect(Effect.sleep("150 millis").pipe(Effect.as(7)))),
+  Stream.concat(
+    Stream.fromEffect(Effect.sleep("150 millis").pipe(Effect.as(7))),
+  ),
   Stream.concat(Stream.make(8)),
   Stream.tap((n) => log(`Received ${n}`)),
   // Only emit values after a pause of at least 100 milliseconds
@@ -1034,8 +1077,8 @@ In this configuration:
 - Tokens are replenished at a rate of one token (`units: 1`) every 100 milliseconds (`duration: "100 millis"`).
 
 <Aside type="caution" title="Throttling Applies to Chunks, Not Elements">
-  Note that throttling operates on chunks rather than individual elements. The `cost` function sets
-  the token cost for each chunk.
+  Note that throttling operates on chunks rather than individual elements. The
+  `cost` function sets the token cost for each chunk.
 </Aside>
 
 ### Shape Strategy (Default)
@@ -1138,8 +1181,8 @@ const stream = Stream.fromSchedule(Schedule.spaced("10 millis")).pipe(
 )
 
 // Exact emitted values depend on real wall-clock timing and vary between
-// runs, but the "enforce" strategy only ever drops chunks — it never
-// reorders or duplicates them — so the result is always a strictly
+// runs, but the "enforce" strategy only ever drops chunks. It never
+// reorders or duplicates them, so the result is always a strictly
 // increasing subsequence of 0..19 starting with 0
 const burstResults = await Effect.runPromise(Stream.runCollect(stream))
 burstResults[0] // => 0

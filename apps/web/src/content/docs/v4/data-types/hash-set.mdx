@@ -100,7 +100,11 @@ import { HashSet } from "effect"
 const original = HashSet.make(1, 2, 3)
 
 // Apply several updates by chaining immutable operations
-const modified = original.pipe(HashSet.add(4), HashSet.add(5), HashSet.remove(1))
+const modified = original.pipe(
+  HashSet.add(4),
+  HashSet.add(5),
+  HashSet.remove(1),
+)
 
 console.log(Array.from(original))
 Array.from(original) // => [1, 2, 3]
@@ -177,7 +181,7 @@ HashSet.size(set) // => 1
 
 ### Simplifying Equality with Plain Objects and Schema
 
-Plain objects implement [`Equal`](/docs/v4/trait/equal/) automatically, based on structural equality — no wrapper needed. Values decoded with `Schema` already benefit from this, as shown below.
+Plain objects implement [`Equal`](/docs/v4/trait/equal/) automatically, based on structural equality. No wrapper is needed. Values decoded with `Schema` already benefit from this, as shown below.
 
 **Example** (Structural Equality of Plain Objects)
 
@@ -196,7 +200,7 @@ Object.is(person1, person2) // => false
 console.log(Equal.equals(person1, person2))
 Equal.equals(person1, person2) // => true
 
-// Add both to a HashSet — only one will be stored
+// Add both to a HashSet; only one will be stored
 const set = pipe(HashSet.empty(), HashSet.add(person1), HashSet.add(person2))
 
 console.log(HashSet.size(set))
@@ -227,8 +231,11 @@ const person2 = Person({ id: 1, name: "Alice", age: 30 })
 console.log(Equal.equals(person1, person2))
 Equal.equals(person1, person2) // => true
 
-// Add both to a MutableHashSet — only one will be stored
-const set = MutableHashSet.empty().pipe(MutableHashSet.add(person1), MutableHashSet.add(person2))
+// Add both to a MutableHashSet; only one will be stored
+const set = MutableHashSet.empty().pipe(
+  MutableHashSet.add(person1),
+  MutableHashSet.add(person2),
+)
 
 console.log(MutableHashSet.size(set))
 MutableHashSet.size(set) // => 1
@@ -424,6 +431,7 @@ console.log(array)
 ```
 
 <Aside type="caution" title="Performance considerations">
-  Avoid repeatedly converting between `HashSet` and JavaScript arrays in hot paths or large
-  collections. These operations involve copying data and can impact memory and speed.
+  Avoid repeatedly converting between `HashSet` and JavaScript arrays in hot
+  paths or large collections. These operations involve copying data and can
+  impact memory and speed.
 </Aside>

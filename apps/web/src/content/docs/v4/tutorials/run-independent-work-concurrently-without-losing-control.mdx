@@ -1,0 +1,303 @@
+---
+title: Run independent work concurrently without losing control
+description: Run backend lookups concurrently with a limit, keep result order, and stop all unfinished work at one deadline.
+sidebar:
+  order: 2
+---
+
+A quote may need prices and stock for many lines plus one shipping price. `Promise.all`, a limiter, a timer, and `AbortController` can do that job, but their lifetimes have to be connected by hand.
+
+In this tutorial, we will build `POST /quotes`. Three line lookups and one shipping quote will overlap, line results will stay in request order, and one deadline will cover the complete request.
+
+```text
+POST /quotes
+  |- line lookups, at most 2 active
+  `- shipping quote
+          |
+          v
+     one ordered response
+```
+
+## Setup
+
+```sh
+pnpm add effect @effect/platform-node
+```
+
+[Download `providers.ts`](/tutorials/order-processing/providers.ts) and save it next to the `server.ts` you will create below:
+
+```ts
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Effect, Layer, Schema } from "effect"
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/unstable/http"
+import { createServer } from "node:http"
+import { ShippingProvider, ShippingProviderFixture } from "./providers.ts"
+
+const OrderLine = Schema.Struct({
+  sku: Schema.String,
+  quantity: Schema.Int.check(Schema.isGreaterThan(0)),
+})
+
+const QuoteRequest = Schema.Struct({
+  items: Schema.NonEmptyArray(OrderLine),
+  postalCode: Schema.String,
+})
+
+type OrderLine = typeof OrderLine.Type
+type QuoteRequest = typeof QuoteRequest.Type
+
+class ProductNotFound extends Schema.TaggedError<ProductNotFound>()(
+  "ProductNotFound",
+  {
+    sku: Schema.String,
+  },
+) {}
+
+class QuoteTimedOut extends Schema.TaggedError<QuoteTimedOut>()(
+  "QuoteTimedOut",
+  {},
+) {}
+
+const catalog: Readonly<Record<string, number>> = {
+  coffee: 1250,
+  tea: 700,
+  cocoa: 700,
+}
+
+const delayBySku: Readonly<Record<string, number>> = {
+  coffee: 160,
+  tea: 80,
+  cocoa: 50,
+}
+
+const quoteLine = Effect.fn("quote.line")(function* (line: OrderLine) {
+  yield* Effect.log(`start ${line.sku}`)
+  yield* Effect.sleep(delayBySku[line.sku] ?? 30)
+
+  const unitPriceCents = catalog[line.sku]
+  if (unitPriceCents === undefined) {
+    return yield* new ProductNotFound({ sku: line.sku })
+  }
+
+  yield* Effect.log(`finish ${line.sku}`)
+  return {
+    ...line,
+    unitPriceCents,
+    lineTotalCents: unitPriceCents * line.quantity,
+  }
+})
+
+const quoteOrder = Effect.fn("order.quote")(function* (request: QuoteRequest) {
+  return yield* Effect.gen(function* () {
+    const shipping = yield* ShippingProvider
+    const [lines, shippingCents] = yield* Effect.all(
+      [
+        Effect.forEach(request.items, quoteLine, { concurrency: 2 }),
+        shipping.quote({
+          postalCode: request.postalCode,
+          itemCount: request.items.reduce(
+            (total, line) => total + line.quantity,
+            0,
+          ),
+        }),
+      ],
+      { concurrency: "unbounded" },
+    )
+
+    const subtotalCents = lines.reduce(
+      (total, line) => total + line.lineTotalCents,
+      0,
+    )
+    return {
+      currency: "EUR",
+      lines,
+      subtotalCents,
+      shippingCents,
+      totalCents: subtotalCents + shippingCents,
+    }
+  }).pipe(
+    Effect.timeoutOrElse({
+      duration: "350 millis",
+      orElse: () => Effect.fail(new QuoteTimedOut()),
+    }),
+  )
+})
+
+const handler = HttpServerRequest.schemaBodyJson(QuoteRequest).pipe(
+  Effect.flatMap(quoteOrder),
+  Effect.map(HttpServerResponse.jsonUnsafe),
+  Effect.catchTags({
+    ProductNotFound: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe(
+          { error: error._tag, sku: error.sku },
+          { status: 404 },
+        ),
+      ),
+    QuoteTimedOut: () =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe(
+          { error: "QuoteTimedOut" },
+          { status: 504 },
+        ),
+      ),
+    InvalidDestination: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 422 }),
+      ),
+    ProviderUnavailable: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 503 }),
+      ),
+  }),
+  Effect.catch(() =>
+    Effect.succeed(
+      HttpServerResponse.jsonUnsafe(
+        { error: "InvalidRequest" },
+        { status: 400 },
+      ),
+    ),
+  ),
+)
+
+const Routes = HttpRouter.add("POST", "/quotes", handler)
+
+const ServerLive = HttpRouter.serve(Routes).pipe(
+  Layer.provide(ShippingProviderFixture),
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+)
+
+Layer.launch(ServerLive).pipe(NodeRuntime.runMain)
+```
+
+Start the backend:
+
+```sh
+node server.ts
+```
+
+Keep it running and use a second terminal for the requests below.
+
+## 1. See the concurrency limit
+
+Send a three-line quote:
+
+```sh
+curl -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"coffee","quantity":2},{"sku":"tea","quantity":1},{"sku":"cocoa","quantity":1}],"postalCode":"00100"}'
+```
+
+The response keeps the input order and totals EUR 46.00:
+
+```json
+{
+  "currency": "EUR",
+  "lines": [
+    {
+      "sku": "coffee",
+      "quantity": 2,
+      "unitPriceCents": 1250,
+      "lineTotalCents": 2500
+    },
+    {
+      "sku": "tea",
+      "quantity": 1,
+      "unitPriceCents": 700,
+      "lineTotalCents": 700
+    },
+    {
+      "sku": "cocoa",
+      "quantity": 1,
+      "unitPriceCents": 700,
+      "lineTotalCents": 700
+    }
+  ],
+  "subtotalCents": 3900,
+  "shippingCents": 700,
+  "totalCents": 4600
+}
+```
+
+The relevant log order is:
+
+```text
+start coffee
+start tea
+finish tea
+start cocoa
+finish cocoa
+finish coffee
+```
+
+`Effect.forEach(..., { concurrency: 2 })` starts two lines. The third begins only when one slot is free. Completion order changes; response order does not.
+
+Now change the limit to `1`, restart the server, and send the same request:
+
+```ts
+Effect.forEach(request.items, quoteLine, { concurrency: 1 })
+```
+
+Every `start` now follows the previous `finish`. Restore the limit to `2` before continuing.
+
+## 2. Run independent branches together
+
+The line group and shipping call sit inside one `Effect.all` with explicit concurrency:
+
+```ts
+const [lines, shippingCents] =
+  yield *
+  Effect.all(
+    [
+      Effect.forEach(request.items, quoteLine, { concurrency: 2 }),
+      shipping.quote({
+        postalCode: request.postalCode,
+        itemCount: request.items.reduce(
+          (total, line) => total + line.quantity,
+          0,
+        ),
+      }),
+    ],
+    { concurrency: "unbounded" },
+  )
+```
+
+The unbounded setting applies to these two known branches, not to the variable-size line collection. The line collection keeps its own limit of two.
+
+## 3. Put one deadline around the request
+
+Ask the fixture for a deliberately slow shipping quote:
+
+```sh
+curl -i -sS http://localhost:3000/quotes \
+  -H 'content-type: application/json' \
+  -d '{"items":[{"sku":"coffee","quantity":2}],"postalCode":"SLOW"}'
+```
+
+```text
+HTTP/1.1 504 Gateway Timeout
+...
+
+{"error":"QuoteTimedOut"}
+```
+
+The timeout surrounds the complete quote, so it interrupts the slow shipping operation instead of leaving it running after the response. If the caller disconnects, `NodeHttpServer` also interrupts the running request; that interruption reaches the same unfinished Effect work.
+
+## What you built
+
+`POST /quotes` now states its concurrency and lifetime in the operation itself:
+
+- variable-size line work has a fixed limit;
+- independent branches overlap;
+- results remain ordered;
+- one deadline stops unfinished work;
+- caller cancellation follows the request into its children.
+
+## Related tutorials
+
+- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
+- [See where a request spends its time](/docs/v4/tutorials/see-where-a-request-spends-its-time)

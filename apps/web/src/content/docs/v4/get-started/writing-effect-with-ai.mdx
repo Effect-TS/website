@@ -1,0 +1,91 @@
+---
+title: Writing Effect with AI
+description: Understand how Effect gives AI-generated TypeScript faster feedback and gives you concrete ways to verify the result.
+sidebar:
+  order: 3
+---
+
+AI is good at producing plausible code. Production failures usually hide in what the prompt did not say: which errors matter, which services are available, what must be cleaned up, what can be retried, and what should happen when work is cancelled.
+
+Effect makes those decisions visible to the compiler, the runtime, and your development tools. Your AI receives faster, more precise feedback, and you get code that can be checked instead of merely trusted.
+
+## Give the tools something concrete to check
+
+Consider a request such as:
+
+> Add an endpoint that reads an order-import file and returns the imported ids.
+
+The prompt leaves important questions unanswered. Can reading the file fail? Is the input trusted? Where does the filesystem come from? What happens if the caller cancels the operation?
+
+Effect turns those hidden decisions into things your tools can inspect:
+
+- types show which failures callers must handle;
+- types also show which services must still be supplied;
+- Schema validates data received from outside the application;
+- a Scope ties cleanup to the lifetime of a resource;
+- cancellation follows work as operations are combined.
+
+That structure does not make an AI infallible. It makes more of its mistakes observable.
+
+## Feedback while the change is still small
+
+Effect's Language Service supplies type-aware diagnostics to the editor and TypeScript-Go workflow. Effect's Oxlint integration exposes the same rules under `effecttsgo/*`, so the feedback can also run from the command line and in CI.
+
+For example, an AI may create an operation and forget to compose it:
+
+```ts
+import { Effect } from "effect"
+
+const importOrders = Effect.gen(function* () {
+  Effect.log("Reading orders.json")
+  return { imported: 0 }
+})
+```
+
+`effecttsgo/floating-effect` identifies the ignored `Effect.log`. The correction is explicit:
+
+```ts
+import { Effect } from "effect"
+
+const importOrders = Effect.gen(function* () {
+  yield* Effect.log("Reading orders.json")
+  return { imported: 0 }
+})
+```
+
+Other diagnostics can report that:
+
+- a public Effect signature omitted a newly introduced error;
+- an application Layer still requires a service it claims to have provided;
+- `JSON.parse` is being used inside an Effect workflow instead of Schema decoding.
+
+These messages are useful inputs for another editing pass. They are also useful evidence during human review.
+
+## A reliable AI workflow
+
+Use your normal AI-enabled editor or terminal. The workflow does not depend on a particular model or vendor:
+
+```text
+prompt → change → diagnostics → correction → build → real run → review
+```
+
+1. Ask for one bounded change.
+2. Inspect the diff before accepting it.
+3. Run Effect diagnostics and the typechecker.
+4. Give concrete diagnostics back to the AI, or correct them yourself.
+5. Run the program against a real input.
+6. Review the final error types, service requirements, cleanup, and cancellation behavior.
+
+The important shift is that the AI does not get the final word. It participates in a feedback loop whose output can be inspected.
+
+## The tools do not replace design
+
+A diagnostic can identify an incomplete error contract. It cannot decide whether the new error should be exposed, translated, or recovered from. A quick fix can add a catch branch. It cannot choose the correct business behavior.
+
+Use the tools to expose the decision, then make the decision deliberately.
+
+## Try the complete workflow
+
+[Catch incorrect AI-generated changes](/docs/v4/tutorials/catch-incorrect-ai-generated-changes) asks your own AI to add `POST /orders/import`, inspect the generated change, and use Effect-specific diagnostics to correct it.
+
+If you do not have access to an AI tool, or if your AI produces clean code immediately, the tutorial includes a captured fallback patch that reproduces the same feedback locally.

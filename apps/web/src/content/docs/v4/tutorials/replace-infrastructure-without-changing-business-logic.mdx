@@ -1,0 +1,307 @@
+---
+title: Replace infrastructure without changing business logic
+description: Make backend requirements visible with Context, build them with Layer, and replace one adapter at the application boundary.
+sidebar:
+  order: 5
+---
+
+Constructor arguments push infrastructure through code that does not use it. Globals hide dependencies. Runtime containers often report a missing service only after the application starts.
+
+In this tutorial, `OrderService` will state its four requirements in TypeScript. We will build the graph with `Layer`, then replace only the payment provider. The HTTP handler and order logic will not change.
+
+```text
+POST /orders
+     |
+     v
+OrderService
+|- PricingService
+|- InventoryService
+|- PaymentProvider       <- replace this Layer
+`- OrderRepository
+```
+
+## Setup
+
+```sh
+pnpm add effect @effect/platform-node
+```
+
+[Download `providers.ts`](/tutorials/order-processing/providers.ts) and save it next to the `server.ts` you will create below:
+
+```ts
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { Context, Effect, Layer, Schema } from "effect"
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/unstable/http"
+import { createServer } from "node:http"
+import {
+  BackupPaymentProviderFixture,
+  PaymentProvider,
+  PaymentProviderFixture,
+  type PaymentDeclined,
+  type ProviderUnavailable,
+} from "./providers.ts"
+
+const PlaceOrderRequest = Schema.Struct({
+  customerId: Schema.String,
+  sku: Schema.String,
+  quantity: Schema.Int.check(Schema.isGreaterThan(0)),
+  paymentToken: Schema.String,
+})
+
+type PlaceOrderRequest = typeof PlaceOrderRequest.Type
+
+class ProductNotFound extends Schema.TaggedError<ProductNotFound>()(
+  "ProductNotFound",
+  {
+    sku: Schema.String,
+  },
+) {}
+
+class OutOfStock extends Schema.TaggedError<OutOfStock>()("OutOfStock", {
+  sku: Schema.String,
+}) {}
+
+type PlaceOrderError =
+  ProductNotFound | OutOfStock | PaymentDeclined | ProviderUnavailable
+
+class PricingService extends Context.Service<
+  PricingService,
+  {
+    readonly price: (
+      sku: string,
+      quantity: number,
+    ) => Effect.Effect<number, ProductNotFound>
+  }
+>()("docs/PricingService") {
+  static readonly layer = Layer.succeed(
+    PricingService,
+    PricingService.of({
+      price: (sku, quantity) =>
+        sku === "coffee"
+          ? Effect.succeed(1_250 * quantity)
+          : Effect.fail(new ProductNotFound({ sku })),
+    }),
+  )
+}
+
+class InventoryService extends Context.Service<
+  InventoryService,
+  {
+    readonly reserve: (
+      sku: string,
+      quantity: number,
+    ) => Effect.Effect<void, OutOfStock>
+  }
+>()("docs/InventoryService") {
+  static readonly layer = Layer.succeed(
+    InventoryService,
+    InventoryService.of({
+      reserve: (sku, quantity) =>
+        quantity <= 10 ? Effect.void : Effect.fail(new OutOfStock({ sku })),
+    }),
+  )
+}
+
+interface AcceptedOrder {
+  readonly orderId: string
+  readonly status: "accepted"
+  readonly totalCents: number
+  readonly paymentProvider: string
+}
+
+class OrderRepository extends Context.Service<
+  OrderRepository,
+  {
+    readonly save: (order: AcceptedOrder) => Effect.Effect<void>
+  }
+>()("docs/OrderRepository") {
+  static readonly layer = Layer.succeed(
+    OrderRepository,
+    OrderRepository.of({
+      save: (order) => Effect.log(`saved ${order.orderId}`),
+    }),
+  )
+}
+
+class OrderService extends Context.Service<
+  OrderService,
+  {
+    readonly place: (
+      request: PlaceOrderRequest,
+    ) => Effect.Effect<AcceptedOrder, PlaceOrderError>
+  }
+>()("docs/OrderService") {
+  static readonly layer = Layer.effect(
+    OrderService,
+    Effect.gen(function* () {
+      const pricing = yield* PricingService
+      const inventory = yield* InventoryService
+      const payment = yield* PaymentProvider
+      const repository = yield* OrderRepository
+
+      const place = Effect.fn("orders.place")(function* (
+        request: PlaceOrderRequest,
+      ) {
+        const totalCents = yield* pricing.price(request.sku, request.quantity)
+        yield* inventory.reserve(request.sku, request.quantity)
+        const authorization = yield* payment.authorize({
+          operationId: request.customerId,
+          token: request.paymentToken,
+          amountCents: totalCents,
+        })
+
+        const order: AcceptedOrder = {
+          orderId: `order-${request.customerId}`,
+          status: "accepted",
+          totalCents,
+          paymentProvider: authorization.provider,
+        }
+        yield* repository.save(order)
+        return order
+      })
+
+      return OrderService.of({ place })
+    }),
+  )
+}
+
+const handler = HttpServerRequest.schemaBodyJson(PlaceOrderRequest).pipe(
+  Effect.flatMap((request) =>
+    OrderService.pipe(Effect.flatMap((orders) => orders.place(request))),
+  ),
+  Effect.map((order) => HttpServerResponse.jsonUnsafe(order, { status: 201 })),
+  Effect.catchTags({
+    ProductNotFound: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 404 }),
+      ),
+    OutOfStock: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 409 }),
+      ),
+    PaymentDeclined: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 422 }),
+      ),
+    ProviderUnavailable: (error) =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe({ error: error._tag }, { status: 503 }),
+      ),
+  }),
+  Effect.catch(() =>
+    Effect.succeed(
+      HttpServerResponse.jsonUnsafe(
+        { error: "InvalidRequest" },
+        { status: 400 },
+      ),
+    ),
+  ),
+)
+
+const Routes = HttpRouter.add("POST", "/orders", handler)
+
+const PaymentLive = process.argv.includes("--backup")
+  ? BackupPaymentProviderFixture
+  : PaymentProviderFixture
+
+const OrderServiceLive = OrderService.layer.pipe(
+  Layer.provide([
+    PricingService.layer,
+    InventoryService.layer,
+    PaymentLive,
+    OrderRepository.layer,
+  ]),
+)
+
+const ServerLive = HttpRouter.serve(Routes).pipe(
+  Layer.provide(OrderServiceLive),
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+)
+
+Layer.launch(ServerLive).pipe(NodeRuntime.runMain)
+```
+
+## 1. Run the primary graph
+
+Start the backend:
+
+```sh
+node server.ts
+```
+
+In a second terminal, place an order:
+
+```sh
+curl -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-123","sku":"coffee","quantity":2,"paymentToken":"tok_approved"}'
+```
+
+```json
+{
+  "orderId": "order-customer-123",
+  "status": "accepted",
+  "totalCents": 2500,
+  "paymentProvider": "primary-pay"
+}
+```
+
+`OrderService.place` has one business argument. Pricing, stock, payment, and storage did not become constructor arguments or globals; the service's Layer requested them where the implementation was built.
+
+## 2. See the graph TypeScript checks
+
+Temporarily remove `PaymentLive` from `Layer.provide`:
+
+```ts
+const OrderServiceLive = OrderService.layer.pipe(
+  Layer.provide([
+    PricingService.layer,
+    InventoryService.layer,
+    OrderRepository.layer,
+  ]),
+)
+```
+
+The application Layer still requires `PaymentProvider`, so the executable boundary no longer typechecks. Restore `PaymentLive` before continuing.
+
+The missing dependency is visible before startup because it is part of the Layer's type. There is no string lookup and no runtime scan of decorators.
+
+## 3. Replace one implementation
+
+Stop the server and restart it with the backup provider:
+
+```sh
+node server.ts --backup
+```
+
+Send the same request again:
+
+```sh
+curl -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerId":"customer-123","sku":"coffee","quantity":2,"paymentToken":"tok_approved"}'
+```
+
+```json
+{
+  "orderId": "order-customer-123",
+  "status": "accepted",
+  "totalCents": 2500,
+  "paymentProvider": "backup-pay"
+}
+```
+
+Only `PaymentLive` changed. The route, `OrderService`, pricing, inventory, and repository are byte-for-byte identical.
+
+## What you built
+
+`Context` gave each service a typed identity and contract. `Layer` built and connected the implementations at the application boundary. The resulting graph is inspectable by TypeScript and replaceable without service locators, globals, or dependency arguments passed through unrelated code.
+
+## Related tutorials
+
+- [Clean up resources after failure or cancellation](/docs/v4/tutorials/clean-up-resources-after-failure-or-cancellation)
+- [Catch incorrect AI-generated changes](/docs/v4/tutorials/catch-incorrect-ai-generated-changes)

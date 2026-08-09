@@ -1,0 +1,215 @@
+---
+title: Preserve domain types across a JSON boundary
+description: Use Schema.toCodecJson to carry rich and custom domain values through one JSON HTTP boundary.
+sidebar:
+  order: 4
+---
+
+JSON has no dates, durations, URLs, byte arrays, sets, or application-specific classes. A typical backend adds DTOs, replacers, assertions, and reconstruction code around those values.
+
+In this tutorial, `POST /orders` will decode rich JSON into a domain model and encode the accepted order back to JSON. One shared Schema controls both directions.
+
+## Setup
+
+```sh
+pnpm add effect @effect/platform-node
+```
+
+Create `server.ts`:
+
+```ts
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import {
+  DateTime,
+  Duration,
+  Effect,
+  Layer,
+  Schema,
+  SchemaIssue,
+  SchemaTransformation,
+} from "effect"
+import {
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/unstable/http"
+import { createServer } from "node:http"
+
+class OrderId {
+  readonly value: string
+
+  constructor(value: string) {
+    this.value = value
+  }
+}
+
+const OrderIdSchema = Schema.instanceOf(OrderId, {
+  expected: "OrderId",
+  toCodecJson: () =>
+    Schema.link<OrderId>()(
+      Schema.String,
+      SchemaTransformation.transformOrFail<OrderId, string>({
+        decode: (input, options) =>
+          input.startsWith("ord_")
+            ? Effect.succeed(new OrderId(input))
+            : Effect.fail(
+                new SchemaIssue.InvalidValue(
+                  { message: "Expected an order id starting with ord_" },
+                  input,
+                  options,
+                ),
+              ),
+        encode: (orderId) => Effect.succeed(orderId.value),
+      }),
+    ),
+})
+
+const OrderLine = Schema.Struct({
+  sku: Schema.String,
+  quantity: Schema.Int.check(Schema.isGreaterThan(0)),
+})
+
+const OrderSubmission = Schema.Struct({
+  orderId: OrderIdSchema,
+  customerId: Schema.String,
+  items: Schema.NonEmptyArray(OrderLine),
+  requestedAt: Schema.DateTimeUtc,
+  promisedWithin: Schema.Duration,
+  callbackUrl: Schema.URL,
+  purchaseOrderHash: Schema.Uint8Array,
+  labels: Schema.ReadonlySet(Schema.String),
+})
+
+const AcceptedOrder = Schema.Struct({
+  orderId: OrderIdSchema,
+  customerId: Schema.String,
+  items: Schema.NonEmptyArray(OrderLine),
+  requestedAt: Schema.DateTimeUtc,
+  acceptedAt: Schema.DateTimeUtc,
+  promisedWithin: Schema.Duration,
+  callbackUrl: Schema.URL,
+  purchaseOrderHash: Schema.Uint8Array,
+  labels: Schema.ReadonlySet(Schema.String),
+  status: Schema.Literal("accepted"),
+})
+
+const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
+const AcceptedOrderJson = Schema.toCodecJson(AcceptedOrder)
+const respondWithOrder = HttpServerResponse.schemaJson(AcceptedOrderJson)
+
+const handler = HttpServerRequest.schemaBodyJson(OrderSubmissionJson).pipe(
+  Effect.matchEffect({
+    onFailure: () =>
+      Effect.succeed(
+        HttpServerResponse.jsonUnsafe(
+          { error: "InvalidOrder" },
+          { status: 400 },
+        ),
+      ),
+    onSuccess: (submission) =>
+      Effect.gen(function* () {
+        yield* Effect.log({
+          orderIdIsOrderId: submission.orderId instanceof OrderId,
+          requestedAt: DateTime.formatIso(submission.requestedAt),
+          promisedWithinMillis: Duration.toMillis(submission.promisedWithin),
+          callbackIsUrl: submission.callbackUrl instanceof URL,
+          hashIsUint8Array: submission.purchaseOrderHash instanceof Uint8Array,
+          labelsAreSet: submission.labels instanceof Set,
+        })
+
+        const acceptedAt = yield* DateTime.now
+        return yield* respondWithOrder(
+          { ...submission, acceptedAt, status: "accepted" },
+          { status: 201 },
+        )
+      }),
+  }),
+)
+
+const Routes = HttpRouter.add("POST", "/orders", handler)
+
+const ServerLive = HttpRouter.serve(Routes).pipe(
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+)
+
+Layer.launch(ServerLive).pipe(NodeRuntime.runMain)
+```
+
+Start the backend:
+
+```sh
+node server.ts
+```
+
+## 1. Send only JSON
+
+In a second terminal, send an order submission:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":"ord_2026_0001","customerId":"customer-123","items":[{"sku":"coffee","quantity":2}],"requestedAt":"2026-08-09T10:00:00.000Z","promisedWithin":{"_tag":"Millis","value":7200000},"callbackUrl":"https://example.com/order-events","purchaseOrderHash":"AQIDBA==","labels":["priority","b2b"]}'
+```
+
+The response is ordinary JSON. `acceptedAt` is the only value that changes between runs:
+
+```text
+HTTP/1.1 201 Created
+...
+
+{"orderId":"ord_2026_0001","customerId":"customer-123","items":[{"sku":"coffee","quantity":2}],"requestedAt":"2026-08-09T10:00:00.000Z","acceptedAt":"...","promisedWithin":{"_tag":"Millis","value":7200000},"callbackUrl":"https://example.com/order-events","purchaseOrderHash":"AQIDBA==","labels":["priority","b2b"],"status":"accepted"}
+```
+
+## 2. Inspect what reached the handler
+
+The server log confirms that decoding reconstructed runtime values before order logic ran:
+
+```text
+orderIdIsOrderId: true
+requestedAt: 2026-08-09T10:00:00.000Z
+promisedWithinMillis: 7200000
+callbackIsUrl: true
+hashIsUint8Array: true
+labelsAreSet: true
+```
+
+`HttpServerRequest.schemaBodyJson(OrderSubmissionJson)` parses JSON and decodes the complete model. There is no assertion or model-wide reviver.
+
+## 3. See what `toCodecJson` added
+
+These two lines derive recursive JSON codecs from the domain Schemas:
+
+```ts
+const OrderSubmissionJson = Schema.toCodecJson(OrderSubmission)
+const AcceptedOrderJson = Schema.toCodecJson(AcceptedOrder)
+```
+
+Built-in rich types already know their JSON representation. `OrderId` supplies its own representation locally through `toCodecJson`. The same hook could encode it as an object or another JSON value without changing the surrounding order Schema.
+
+If your server and client are both under your control, they can share these Schemas and stop treating the wire format as a second domain model. When an external contract fixes a different shape, override the relevant type's JSON representation instead.
+
+Now send an invalid custom id:
+
+```sh
+curl -i -sS http://localhost:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":"wrong","customerId":"customer-123","items":[{"sku":"coffee","quantity":2}],"requestedAt":"2026-08-09T10:00:00.000Z","promisedWithin":{"_tag":"Millis","value":7200000},"callbackUrl":"https://example.com/order-events","purchaseOrderHash":"AQIDBA==","labels":[]}'
+```
+
+```text
+HTTP/1.1 400 Bad Request
+...
+
+{"error":"InvalidOrder"}
+```
+
+Invalid wire data never reaches order logic.
+
+## What you built
+
+One domain definition now controls validation, JSON decoding, runtime reconstruction, JSON encoding, and one custom representation. The backend did not add DTOs, replacers, revivers, or field-by-field conversion functions.
+
+## Related tutorials
+
+- [Replace infrastructure without changing business logic](/docs/v4/tutorials/replace-infrastructure-without-changing-business-logic)
+- [Handle failures without guessing](/docs/v4/tutorials/handle-failures-without-guessing)
